@@ -15,6 +15,10 @@ Unlike wr.do, **every entity — links, mailboxes, and DNS records — supports 
 
 ## Features
 
+- **Overview dashboard** — the home page: total clicks / links / mailboxes /
+  domains at a glance, a 30-day clicks chart, top links, device & country
+  breakdowns, and recent mail.
+
 - **Short links** — custom or random slugs, host picked from your link-enabled
   domains, password protection, expiry **and expired-URL fallback**, **click
   limits**, **tags** + archive, a built-in **UTM builder**, one-click **title

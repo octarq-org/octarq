@@ -143,6 +143,95 @@ export function HostList({
   );
 }
 
+// Guide is a collapsible help/instructions panel.
+export function Guide({ title, children, open = false }: { title: string; children: ReactNode; open?: boolean }) {
+  const [show, setShow] = useState(open);
+  return (
+    <div className="card mb-3 overflow-hidden text-sm">
+      <button
+        className="flex w-full items-center justify-between px-3 py-2 text-left text-zinc-300 hover:bg-zinc-800/50"
+        onClick={() => setShow((s) => !s)}
+      >
+        <span className="flex items-center gap-2">
+          <span>💡</span>
+          {title}
+        </span>
+        <span className="text-zinc-500">{show ? "▾" : "▸"}</span>
+      </button>
+      {show && <div className="space-y-2 border-t border-zinc-800 px-3 py-3 text-zinc-400">{children}</div>}
+    </div>
+  );
+}
+
+// Code renders an inline, click-to-copy code snippet.
+export function Code({ children }: { children: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <code
+      className="cursor-pointer break-all rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[12px] text-indigo-200 hover:bg-zinc-700"
+      title="click to copy"
+      onClick={() => {
+        navigator.clipboard.writeText(children);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1000);
+      }}
+    >
+      {copied ? "copied ✓" : children}
+    </code>
+  );
+}
+
+// AreaChart is a dependency-free SVG area/line chart for a daily series.
+export function AreaChart({ series, height = 120 }: { series: { key: string; count: number }[]; height?: number }) {
+  if (!series.length) return <div className="grid h-28 place-items-center text-sm text-zinc-600">No data yet</div>;
+  const w = 600;
+  const h = height;
+  const pad = 6;
+  const max = Math.max(...series.map((s) => s.count), 1);
+  const n = series.length;
+  const x = (i: number) => (n === 1 ? w / 2 : pad + (i * (w - 2 * pad)) / (n - 1));
+  const y = (v: number) => h - pad - (v / max) * (h - 2 * pad);
+  const pts = series.map((s, i) => `${x(i)},${y(s.count)}`);
+  const line = `M ${pts.join(" L ")}`;
+  const area = `${line} L ${x(n - 1)},${h - pad} L ${x(0)},${h - pad} Z`;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" preserveAspectRatio="none" style={{ height }}>
+      <defs>
+        <linearGradient id="led-area" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgb(99 102 241)" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="rgb(99 102 241)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill="url(#led-area)" />
+      <path d={line} fill="none" stroke="rgb(129 140 248)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      {series.map((s, i) => (
+        <circle key={i} cx={x(i)} cy={y(s.count)} r="2.5" fill="rgb(129 140 248)">
+          <title>{`${s.key}: ${s.count}`}</title>
+        </circle>
+      ))}
+    </svg>
+  );
+}
+
+// BarList renders a labeled horizontal bar list (top countries/devices, etc.).
+export function BarList({ rows, empty = "—" }: { rows: { key: string; count: number }[] | null; empty?: string }) {
+  if (!rows || rows.length === 0) return <p className="text-sm text-zinc-600">{empty}</p>;
+  const max = Math.max(...rows.map((r) => r.count), 1);
+  return (
+    <div className="space-y-1.5">
+      {rows.map((r) => (
+        <div key={r.key} className="flex items-center gap-2 text-sm">
+          <span className="w-24 truncate text-zinc-300">{r.key || "(direct)"}</span>
+          <div className="h-2 flex-1 overflow-hidden rounded bg-zinc-800">
+            <div className="h-full rounded bg-indigo-500/70" style={{ width: `${(r.count / max) * 100}%` }} />
+          </div>
+          <span className="w-8 text-right text-zinc-500">{r.count}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function timeAgo(iso: string): string {
   const d = new Date(iso).getTime();
   const s = Math.floor((Date.now() - d) / 1000);

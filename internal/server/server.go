@@ -89,7 +89,7 @@ func isSlugPath(p string) bool {
 		return false
 	}
 	switch rest {
-	case "assets", "login", "links", "domains", "mail", "favicon.ico":
+	case "assets", "login", "overview", "links", "domains", "mail", "settings", "favicon.ico":
 		return false
 	}
 	return true

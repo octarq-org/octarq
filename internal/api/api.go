@@ -46,6 +46,8 @@ func (h *Handler) Routes() http.Handler {
 		mux.Handle(pattern, h.auth.Require(fn))
 	}
 
+	p("GET /api/overview", h.overview)
+
 	p("GET /api/links", h.listLinks)
 	p("GET /api/links/metadata", h.linkMetadata)
 	p("POST /api/links", h.createLink)

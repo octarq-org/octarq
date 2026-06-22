@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { api, ApiError } from "./api";
+import OverviewPage from "./pages/Overview";
 import LinksPage from "./pages/Links";
 import DomainsPage from "./pages/Domains";
 import MailPage from "./pages/Mail";
@@ -33,12 +34,13 @@ export default function App() {
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-6xl p-6">
           <Routes>
-            <Route path="/" element={<Navigate to="/links" replace />} />
+            <Route path="/" element={<Navigate to="/overview" replace />} />
+            <Route path="/overview" element={<OverviewPage />} />
             <Route path="/links" element={<LinksPage />} />
             <Route path="/domains" element={<DomainsPage />} />
             <Route path="/mail" element={<MailPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/links" replace />} />
+            <Route path="*" element={<Navigate to="/overview" replace />} />
           </Routes>
         </div>
       </main>
@@ -49,6 +51,7 @@ export default function App() {
 function Sidebar({ user, onLogout }: { user: string; onLogout: () => void }) {
   const nav = useNavigate();
   const items = [
+    { to: "/overview", label: "Overview", icon: "📊" },
     { to: "/links", label: "Links", icon: "🔗" },
     { to: "/domains", label: "Domains", icon: "🌐" },
     { to: "/mail", label: "Mail", icon: "✉️" },

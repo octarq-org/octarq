@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, DNSRecord, Domain, effectiveLinkHosts, effectiveMailHosts } from "../api";
-import { Empty, Field, HostList, Modal, Toggle } from "../ui";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle } from "../ui";
 import { Header } from "./Links";
 
 export default function DomainsPage() {
@@ -146,6 +146,21 @@ function SyncModal({ onClose, onSynced }: { onClose: () => void; onSynced: () =>
             Paste a Cloudflare API token with <b>Zone:Read</b> + <b>DNS:Edit</b>. led pulls every
             zone and stores the token (encrypted) for managing their records.
           </p>
+          <Guide title="How to create the Cloudflare API token">
+            <ol className="ml-4 list-decimal space-y-1">
+              <li>
+                Cloudflare dashboard → <b>My Profile → API Tokens → Create Token</b>.
+              </li>
+              <li>
+                Use the <b>Edit zone DNS</b> template, or a custom token with permissions{" "}
+                <Code>Zone · DNS · Edit</Code> and <Code>Zone · Zone · Read</Code>.
+              </li>
+              <li>
+                Under <b>Zone Resources</b> choose <i>All zones</i> (so sync sees every domain), then
+                create and copy the token.
+              </li>
+            </ol>
+          </Guide>
           <Field label="Cloudflare API Token">
             <input
               className="input"
@@ -255,14 +270,52 @@ function DomainEditor({
         </label>
       </div>
       {forLink && (
-        <Field label="Short-link hosts" hint="one or more — point each host's DNS at led (use + Subdomain)">
-          <HostList hosts={linkHosts} onChange={setLinkHosts} suggestions={linkSubs} placeholder="go.example.com" />
-        </Field>
+        <>
+          <Field label="Short-link hosts" hint="one or more — each must resolve to this server">
+            <HostList hosts={linkHosts} onChange={setLinkHosts} suggestions={linkSubs} placeholder="go.example.com" />
+          </Field>
+          <Guide title="How to point a short-link host at led">
+            <p>Each host above must resolve to the machine running led. In your DNS provider create:</p>
+            <ul className="ml-4 list-disc space-y-1">
+              <li>
+                a <b>CNAME</b> from the subdomain (e.g. <Code>go</Code>) to this dashboard's host{" "}
+                <Code>{location.hostname}</Code> (Cloudflare-proxied is fine), <i>or</i>
+              </li>
+              <li>
+                an <b>A</b> record from the subdomain to your server's public IP.
+              </li>
+            </ul>
+            <p>
+              On Cloudflare zones you can do this in one click: open <b>DNS records → + Subdomain → 🔗
+              Short-link subdomain</b>, then make sure led terminates TLS for the host (or sits behind a
+              reverse proxy / Cloudflare that does).
+            </p>
+          </Guide>
+        </>
       )}
       {forMail && (
-        <Field label="Mail hosts" hint="domains/subdomains mailboxes live under, e.g. mail.example.com">
-          <HostList hosts={mailHosts} onChange={setMailHosts} suggestions={mailSubs} placeholder="mail.example.com" />
-        </Field>
+        <>
+          <Field label="Mail hosts" hint="domains/subdomains mailboxes live under, e.g. mail.example.com">
+            <HostList hosts={mailHosts} onChange={setMailHosts} suggestions={mailSubs} placeholder="mail.example.com" />
+          </Field>
+          <Guide title="How to receive mail on these hosts (Cloudflare)">
+            <ol className="ml-4 list-decimal space-y-1">
+              <li>
+                In Cloudflare → <b>Email → Email Routing</b>, enable routing for the zone (this adds the
+                required MX + SPF records automatically).
+              </li>
+              <li>
+                Deploy the worker in <Code>deploy/cloudflare-email-worker.js</Code> and set its vars{" "}
+                <Code>LED_ENDPOINT</Code>=<Code>{`${location.origin}/api/email/inbound`}</Code> and{" "}
+                <Code>LED_TOKEN</Code> = your <Code>LED_INBOUND_TOKEN</Code>.
+              </li>
+              <li>
+                Point a <b>catch-all</b> route at that worker. Mail to any address on these hosts then
+                lands in led (auto-creating a mailbox when catch-all is on).
+              </li>
+            </ol>
+          </Guide>
+        </>
       )}
       {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
       <div className="flex justify-end gap-2">

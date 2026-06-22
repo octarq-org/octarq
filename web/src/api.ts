@@ -104,6 +104,26 @@ export interface Token {
   createdAt: string;
 }
 
+export interface Overview {
+  links: number;
+  activeLinks: number;
+  domains: number;
+  linkDomains: number;
+  mailDomains: number;
+  mailboxes: number;
+  emails: number;
+  unread: number;
+  tokens: number;
+  totalClicks: number;
+  clicks7d: number;
+  clicks30d: number;
+  series: StatKV[] | null;
+  topLinks: { id: number; slug: string; host: string; clicks: number }[] | null;
+  devices: StatKV[] | null;
+  countries: StatKV[] | null;
+  recentEmails: { id: number; from: string; subject: string; read: boolean; receivedAt: string }[] | null;
+}
+
 class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -135,6 +155,9 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
 }
 
 export const api = {
+  // overview
+  overview: () => req<Overview>("GET", "/api/overview"),
+
   // auth
   me: () => req<{ username: string }>("GET", "/api/auth/me"),
   login: (username: string, password: string) =>

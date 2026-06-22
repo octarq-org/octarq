@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, Attachment, Domain, effectiveMailHosts, Email, Mailbox } from "../api";
-import { Field, Modal, Toggle, timeAgo } from "../ui";
+import { Code, Field, Guide, Modal, Toggle, timeAgo } from "../ui";
 import { Header } from "./Links";
 
 interface ReplyDraft {
@@ -63,6 +63,26 @@ export default function MailPage() {
           </button>
         </div>
       </Header>
+
+      {boxes.length === 0 && (
+        <Guide title="Set up mail receiving with Cloudflare Email Routing" open>
+          <ol className="ml-4 list-decimal space-y-1">
+            <li>
+              Add a domain in <b>Domains</b>, toggle <b>Accept email</b>, and list its mail hosts.
+            </li>
+            <li>
+              In Cloudflare → <b>Email → Email Routing</b>, enable routing (adds MX + SPF records).
+            </li>
+            <li>
+              Deploy <Code>deploy/cloudflare-email-worker.js</Code> with{" "}
+              <Code>LED_ENDPOINT</Code>=<Code>{`${location.origin}/api/email/inbound`}</Code> and{" "}
+              <Code>LED_TOKEN</Code> = your <Code>LED_INBOUND_TOKEN</Code>, then point a catch-all route
+              at it.
+            </li>
+            <li>To send replies, configure an SMTP relay via the <Code>LED_SMTP_*</Code> env vars.</li>
+          </ol>
+        </Guide>
+      )}
 
       <div className="grid grid-cols-[200px_1fr] gap-4">
         {/* mailbox list */}
