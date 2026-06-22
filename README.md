@@ -41,6 +41,16 @@ Or with Docker:
 docker compose up --build     # reads .env, persists data in a volume
 ```
 
+The default [`Dockerfile`](Dockerfile) builds the dashboard from source (Node)
+and the binary (Go) into a distroless image. If you've already built the web
+assets (`make web`) — or build them in a separate CI step — use the
+[binary-only Dockerfile](deploy/Dockerfile.binary) for a tiny (~19 MB) `scratch`
+image with no Node stage:
+
+```bash
+docker build -f deploy/Dockerfile.binary -t led:latest .
+```
+
 Open `http://localhost:8080`, sign in with `LED_ADMIN_USER` / `LED_ADMIN_PASSWORD`.
 
 ## Architecture

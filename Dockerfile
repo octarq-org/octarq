@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # ---- Stage 1: build the React dashboard ----
 FROM node:22-alpine AS web
 RUN corepack enable

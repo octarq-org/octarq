@@ -1,6 +1,6 @@
 module github.com/jungley/led
 
-go 1.25.5
+go 1.25.0
 
 require (
 	github.com/emersion/go-message v0.18.2
