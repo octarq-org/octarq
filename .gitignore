@@ -1,0 +1,22 @@
+# binaries
+/led
+/dist
+*.exe
+
+# database & secrets
+*.db
+*.db-*
+.env
+
+# go
+/vendor
+
+# node
+web/node_modules
+web/.vite
+
+# geoip
+*.mmdb
+
+# os
+.DS_Store

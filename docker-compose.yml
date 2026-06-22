@@ -1,0 +1,22 @@
+services:
+  led:
+    build: .
+    # image: ghcr.io/jungley/led:latest   # or pull a published image
+    ports:
+      - "8080:8080"
+    environment:
+      LED_SECRET_KEY: ${LED_SECRET_KEY:?set in .env}
+      LED_ADMIN_PASSWORD: ${LED_ADMIN_PASSWORD:?set in .env}
+      LED_ADMIN_USER: ${LED_ADMIN_USER:-admin}
+      LED_INBOUND_TOKEN: ${LED_INBOUND_TOKEN:-}
+      LED_BASE_URL: ${LED_BASE_URL:-}
+      LED_ADMIN_HOST: ${LED_ADMIN_HOST:-}
+      # SQLite by default; data persisted in the named volume below.
+      LED_DB_DRIVER: sqlite
+      LED_DB_DSN: /data/led.db
+    volumes:
+      - led-data:/data
+    restart: unless-stopped
+
+volumes:
+  led-data:

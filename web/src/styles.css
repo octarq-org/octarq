@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #0a0a0f;
+  color: #e7e7ea;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* small reusable component classes */
+@layer components {
+  .btn,
+  .btn-primary,
+  .btn-ghost,
+  .btn-danger {
+    @apply inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-indigo-500 text-white hover:bg-indigo-400;
+  }
+  .btn-ghost {
+    @apply text-zinc-300 hover:bg-zinc-800;
+  }
+  .btn-danger {
+    @apply text-red-400 hover:bg-red-500/10;
+  }
+  .input {
+    @apply w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-indigo-500;
+  }
+  .card {
+    @apply rounded-xl border border-zinc-800 bg-zinc-900/50;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-md bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-300;
+  }
+  .label {
+    @apply mb-1 block text-xs font-medium text-zinc-400;
+  }
+}

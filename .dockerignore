@@ -1,0 +1,9 @@
+.git
+*.db
+*.db-*
+.env
+led
+web/node_modules
+web/.vite
+*.mmdb
+.DS_Store
