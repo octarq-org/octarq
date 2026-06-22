@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, Domain, Link, LinkStats } from "../api";
+import { api, Domain, effectiveLinkHosts, Link, LinkStats } from "../api";
 import { Empty, Field, Modal, Toggle, timeAgo } from "../ui";
 
 export default function LinksPage() {
@@ -12,7 +12,8 @@ export default function LinksPage() {
   const [qrFor, setQrFor] = useState<Link | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
 
-  const linkDomains = domains.filter((d) => d.forLink);
+  // Every short-link host across all link-enabled domains (incl. subdomains).
+  const linkHostOptions = Array.from(new Set(domains.flatMap(effectiveLinkHosts)));
 
   async function load() {
     setLinks(await api.links({ q, archived }));
@@ -138,7 +139,7 @@ export default function LinksPage() {
       {editing && (
         <LinkEditor
           link={editing === "new" ? null : editing}
-          domains={linkDomains}
+          hosts={linkHostOptions}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
@@ -174,12 +175,12 @@ export function Header({
 
 function LinkEditor({
   link,
-  domains,
+  hosts,
   onClose,
   onSaved,
 }: {
   link: Link | null;
-  domains: Domain[];
+  hosts: string[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -255,20 +256,15 @@ function LinkEditor({
         <Field label="Slug" hint="blank = random">
           <input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} />
         </Field>
-        <Field label="Host" hint={domains.length ? "short-link host (subdomain)" : "enable short links on a domain first"}>
+        <Field label="Host" hint={hosts.length ? "short-link host (subdomain)" : "enable short links on a domain first"}>
           <select className="input" value={host} onChange={(e) => setHost(e.target.value)}>
             <option value="">Any / default</option>
-            {domains.map((d) => {
-              const h = d.linkHost || d.name;
-              return (
-                <option key={d.id} value={h}>
-                  {h}
-                </option>
-              );
-            })}
-            {host && !domains.some((d) => (d.linkHost || d.name) === host) && (
-              <option value={host}>{host}</option>
-            )}
+            {hosts.map((h) => (
+              <option key={h} value={h}>
+                {h}
+              </option>
+            ))}
+            {host && !hosts.includes(host) && <option value={host}>{host}</option>}
           </select>
         </Field>
       </div>

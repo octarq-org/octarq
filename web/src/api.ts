@@ -26,8 +26,20 @@ export interface Domain {
   note: string;
   forMail: boolean;
   forLink: boolean;
-  linkHost: string; // hostname short links are served on (usually a subdomain)
+  linkHosts: string[] | null; // hostnames short links are served on (usually subdomains)
+  mailHosts: string[] | null; // hostnames mailboxes live under
   createdAt: string;
+}
+
+// effectiveLinkHosts / effectiveMailHosts mirror the server-side fallback to
+// the apex when a service is enabled but no explicit host is configured.
+export function effectiveLinkHosts(d: Domain): string[] {
+  if (d.linkHosts && d.linkHosts.length) return d.linkHosts;
+  return d.forLink ? [d.name] : [];
+}
+export function effectiveMailHosts(d: Domain): string[] {
+  if (d.mailHosts && d.mailHosts.length) return d.mailHosts;
+  return d.forMail ? [d.name] : [];
 }
 
 export interface DNSRecord {

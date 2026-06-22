@@ -10,11 +10,47 @@ package models
 
 import (
 	"crypto/sha256"
+	"database/sql/driver"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"time"
 )
 
 const SingleUserID uint = 1
+
+// StringList is a []string persisted as a JSON text column, portable across
+// SQLite and Postgres.
+type StringList []string
+
+func (s StringList) Value() (driver.Value, error) {
+	if len(s) == 0 {
+		return "[]", nil
+	}
+	b, err := json.Marshal([]string(s))
+	return string(b), err
+}
+
+func (s *StringList) Scan(v any) error {
+	if v == nil {
+		*s = nil
+		return nil
+	}
+	var b []byte
+	switch t := v.(type) {
+	case []byte:
+		b = t
+	case string:
+		b = []byte(t)
+	default:
+		return fmt.Errorf("StringList: unsupported scan type %T", v)
+	}
+	if len(b) == 0 {
+		*s = nil
+		return nil
+	}
+	return json.Unmarshal(b, (*[]string)(s))
+}
 
 // Token is an API token for the open API. Only the SHA-256 hash of the raw
 // token is stored; the raw token is shown once at creation time. Prefix keeps
@@ -48,20 +84,39 @@ type Domain struct {
 	Config   string `gorm:"type:text" json:"-"` // AES-GCM encrypted provider credentials JSON
 	ForMail  bool   `json:"forMail"`            // accept inbound email for this domain
 	ForLink  bool   `json:"forLink"`            // serve short links on this domain
-	// LinkHost is the hostname short links are served on for this zone, typically
-	// a subdomain such as "go.example.com". Empty falls back to the apex Name.
-	LinkHost  string    `gorm:"size:255" json:"linkHost"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	// LinkHosts are the hostnames short links are served on for this zone — one
+	// or more, typically subdomains like "go.example.com", "s.example.com".
+	// MailHosts are the hostnames mailboxes live under (e.g. "example.com",
+	// "mail.example.com"). An empty list with the matching toggle on falls back
+	// to the apex Name.
+	LinkHosts StringList `gorm:"type:text" json:"linkHosts"`
+	MailHosts StringList `gorm:"type:text" json:"mailHosts"`
+	CreatedAt time.Time  `json:"createdAt"`
+	UpdatedAt time.Time  `json:"updatedAt"`
 }
 
-// EffectiveLinkHost returns the hostname links are served on (LinkHost, or the
-// apex Name when unset).
-func (d Domain) EffectiveLinkHost() string {
-	if d.LinkHost != "" {
-		return d.LinkHost
+// EffectiveLinkHosts returns the hostnames links are served on, defaulting to
+// the apex Name when links are enabled but no explicit host is set.
+func (d Domain) EffectiveLinkHosts() []string {
+	if len(d.LinkHosts) > 0 {
+		return d.LinkHosts
 	}
-	return d.Name
+	if d.ForLink {
+		return []string{d.Name}
+	}
+	return nil
+}
+
+// EffectiveMailHosts returns the hostnames mailboxes live under, defaulting to
+// the apex Name when mail is enabled but no explicit host is set.
+func (d Domain) EffectiveMailHosts() []string {
+	if len(d.MailHosts) > 0 {
+		return d.MailHosts
+	}
+	if d.ForMail {
+		return []string{d.Name}
+	}
+	return nil
 }
 
 // Link is a short link. (Host, Slug) is unique.

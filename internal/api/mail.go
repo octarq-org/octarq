@@ -291,9 +291,24 @@ func (h *Handler) resolveMailbox(addr string) (*models.Mailbox, bool) {
 	if at < 0 {
 		return nil, false
 	}
-	domain := addr[at+1:]
-	var dom models.Domain
-	if h.db.Where("name = ? AND for_mail = ?", domain, true).First(&dom).Error != nil {
+	recipientHost := addr[at+1:]
+	// The recipient host must be one of a mail-enabled domain's mail hosts
+	// (apex or a configured subdomain like mail.example.com).
+	var doms []models.Domain
+	h.db.Where("for_mail = ?", true).Find(&doms)
+	matched := false
+	for _, dom := range doms {
+		for _, mh := range dom.EffectiveMailHosts() {
+			if mh == recipientHost {
+				matched = true
+				break
+			}
+		}
+		if matched {
+			break
+		}
+	}
+	if !matched {
 		return nil, false
 	}
 	mb = models.Mailbox{OwnerID: models.SingleUserID, Address: addr, Enabled: true, Note: "auto (catch-all)"}

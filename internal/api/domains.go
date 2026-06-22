@@ -14,13 +14,9 @@ func (h *Handler) dnsProviders(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dnsprovider.Names())
 }
 
-// normalizeLinkHost cleans a user-supplied short-link host into a bare
-// lowercase hostname (no scheme, no path, no trailing dot). It is only kept
-// when the domain serves links.
-func normalizeLinkHost(host string, forLink bool) string {
-	if !forLink {
-		return ""
-	}
+// normalizeHost cleans a user-supplied host into a bare lowercase hostname
+// (no scheme, no path, no trailing dot).
+func normalizeHost(host string) string {
 	host = strings.ToLower(strings.TrimSpace(host))
 	host = strings.TrimPrefix(host, "https://")
 	host = strings.TrimPrefix(host, "http://")
@@ -30,6 +26,24 @@ func normalizeLinkHost(host string, forLink bool) string {
 		host = host[:i]
 	}
 	return host
+}
+
+// normalizeHosts cleans and de-duplicates a host list, dropping it entirely
+// when the matching service is disabled.
+func normalizeHosts(hosts []string, enabled bool) models.StringList {
+	if !enabled {
+		return nil
+	}
+	seen := map[string]bool{}
+	var out models.StringList
+	for _, h := range hosts {
+		h = normalizeHost(h)
+		if h != "" && !seen[h] {
+			seen[h] = true
+			out = append(out, h)
+		}
+	}
+	return out
 }
 
 // syncDomains imports every zone the given credentials can access, creating a
@@ -91,14 +105,15 @@ func (h *Handler) syncDomains(w http.ResponseWriter, r *http.Request) {
 // domainDTO is the create/update payload. Config holds the provider
 // credentials (e.g. {"apiToken":"..."}) and is encrypted before storage.
 type domainDTO struct {
-	Name     string         `json:"name"`
-	Provider string         `json:"provider"`
-	ZoneID   string         `json:"zoneId"`
-	Note     string         `json:"note"`
-	ForMail  bool           `json:"forMail"`
-	ForLink  bool           `json:"forLink"`
-	LinkHost string         `json:"linkHost"`
-	Config   map[string]any `json:"config"`
+	Name      string         `json:"name"`
+	Provider  string         `json:"provider"`
+	ZoneID    string         `json:"zoneId"`
+	Note      string         `json:"note"`
+	ForMail   bool           `json:"forMail"`
+	ForLink   bool           `json:"forLink"`
+	LinkHosts []string       `json:"linkHosts"`
+	MailHosts []string       `json:"mailHosts"`
+	Config    map[string]any `json:"config"`
 }
 
 func (h *Handler) listDomains(w http.ResponseWriter, r *http.Request) {
@@ -127,7 +142,9 @@ func (h *Handler) createDomain(w http.ResponseWriter, r *http.Request) {
 		OwnerID: models.SingleUserID,
 		Name:    d.Name, Provider: d.Provider, ZoneID: d.ZoneID,
 		Note: d.Note, ForMail: d.ForMail, ForLink: d.ForLink,
-		LinkHost: normalizeLinkHost(d.LinkHost, d.ForLink), Config: enc,
+		LinkHosts: normalizeHosts(d.LinkHosts, d.ForLink),
+		MailHosts: normalizeHosts(d.MailHosts, d.ForMail),
+		Config:    enc,
 	}
 	// Best-effort credential check.
 	if prov, err := h.providerFor(dom); err == nil && dom.ZoneID != "" {
@@ -165,7 +182,8 @@ func (h *Handler) updateDomain(w http.ResponseWriter, r *http.Request) {
 	dom.ZoneID = d.ZoneID
 	dom.ForMail = d.ForMail
 	dom.ForLink = d.ForLink
-	dom.LinkHost = normalizeLinkHost(d.LinkHost, d.ForLink)
+	dom.LinkHosts = normalizeHosts(d.LinkHosts, d.ForLink)
+	dom.MailHosts = normalizeHosts(d.MailHosts, d.ForMail)
 	if len(d.Config) > 0 {
 		enc, err := h.encryptConfig(d.Config)
 		if err != nil {

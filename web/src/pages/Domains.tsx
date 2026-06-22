@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, DNSRecord, Domain } from "../api";
-import { Empty, Field, Modal, Toggle } from "../ui";
+import { api, DNSRecord, Domain, effectiveLinkHosts, effectiveMailHosts } from "../api";
+import { Empty, Field, HostList, Modal, Toggle } from "../ui";
 import { Header } from "./Links";
 
 export default function DomainsPage() {
@@ -44,12 +44,16 @@ export default function DomainsPage() {
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{d.name}</span>
                   <span className="badge">{d.provider}</span>
-                  {d.forLink && (
-                    <span className="badge bg-indigo-500/15 text-indigo-300" title="short-link host">
-                      🔗 {d.linkHost || d.name}
+                  {effectiveLinkHosts(d).map((h) => (
+                    <span key={h} className="badge bg-indigo-500/15 text-indigo-300" title="short-link host">
+                      🔗 {h}
                     </span>
-                  )}
-                  {d.forMail && <span className="badge">✉️ mail</span>}
+                  ))}
+                  {effectiveMailHosts(d).map((h) => (
+                    <span key={h} className="badge bg-emerald-500/15 text-emerald-300" title="mail host">
+                      ✉️ {h}
+                    </span>
+                  ))}
                 </div>
                 {d.note && <div className="mt-0.5 truncate text-xs text-amber-300/80">📝 {d.note}</div>}
               </div>
@@ -184,21 +188,27 @@ function DomainEditor({
   const [note, setNote] = useState(domain?.note ?? "");
   const [forLink, setForLink] = useState(domain?.forLink ?? false);
   const [forMail, setForMail] = useState(domain?.forMail ?? false);
-  const [linkHost, setLinkHost] = useState(domain?.linkHost ?? "");
+  const [linkHosts, setLinkHosts] = useState<string[]>(domain?.linkHosts ?? []);
+  const [mailHosts, setMailHosts] = useState<string[]>(domain?.mailHosts ?? []);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // When enabling short links, suggest a "go." subdomain rather than the apex.
+  // When enabling short links, seed a "go." subdomain rather than the apex.
   function enableLinks(on: boolean) {
     setForLink(on);
-    if (on && !linkHost && name) setLinkHost(`go.${name}`);
+    if (on && linkHosts.length === 0 && name) setLinkHosts([`go.${name}`]);
+  }
+  function enableMail(on: boolean) {
+    setForMail(on);
+    if (on && mailHosts.length === 0 && name) setMailHosts([name]);
   }
   const linkSubs = name ? [`go.${name}`, `s.${name}`, `link.${name}`, name] : [];
+  const mailSubs = name ? [name, `mail.${name}`] : [];
 
   async function save() {
     setErr("");
     setBusy(true);
-    const payload: any = { name, provider, zoneId, note, forLink, forMail, linkHost };
+    const payload: any = { name, provider, zoneId, note, forLink, forMail, linkHosts, mailHosts };
     if (apiToken) payload.config = { apiToken };
     try {
       if (domain) await api.updateDomain(domain.id, payload);
@@ -241,32 +251,17 @@ function DomainEditor({
           <Toggle on={forLink} onChange={enableLinks} /> Serve short links
         </label>
         <label className="flex items-center gap-2 text-sm text-zinc-400">
-          <Toggle on={forMail} onChange={setForMail} /> Accept email
+          <Toggle on={forMail} onChange={enableMail} /> Accept email
         </label>
       </div>
       {forLink && (
-        <Field
-          label="Short-link host"
-          hint="usually a subdomain — point this host's DNS at led (use + Subdomain in DNS records)"
-        >
-          <input
-            className="input"
-            value={linkHost}
-            onChange={(e) => setLinkHost(e.target.value)}
-            placeholder={name ? `go.${name}` : "go.example.com"}
-          />
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {linkSubs.map((h) => (
-              <button
-                key={h}
-                type="button"
-                className={`badge ${linkHost === h ? "bg-indigo-500/30 text-indigo-200" : "cursor-pointer hover:bg-zinc-700"}`}
-                onClick={() => setLinkHost(h)}
-              >
-                {h === name ? `${h} (apex)` : h}
-              </button>
-            ))}
-          </div>
+        <Field label="Short-link hosts" hint="one or more — point each host's DNS at led (use + Subdomain)">
+          <HostList hosts={linkHosts} onChange={setLinkHosts} suggestions={linkSubs} placeholder="go.example.com" />
+        </Field>
+      )}
+      {forMail && (
+        <Field label="Mail hosts" hint="domains/subdomains mailboxes live under, e.g. mail.example.com">
+          <HostList hosts={mailHosts} onChange={setMailHosts} suggestions={mailSubs} placeholder="mail.example.com" />
         </Field>
       )}
       {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
@@ -399,7 +394,7 @@ function RecordsModal({ domain, onClose }: { domain: Domain; onClose: () => void
         <RecordEditor
           domainId={domain.id}
           domainName={domain.name}
-          linkHost={domain.linkHost}
+          linkHost={domain.linkHosts?.[0] ?? ""}
           record={typeof editing === "string" ? null : editing}
           subdomain={editing === "subdomain"}
           onClose={() => setEditing(null)}

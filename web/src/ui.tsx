@@ -1,5 +1,5 @@
 // Small shared UI primitives.
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 
 export function Modal({
   title,
@@ -76,6 +76,70 @@ export function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) =
         }`}
       />
     </button>
+  );
+}
+
+// HostList edits a list of hostnames (chips) with an add input and one-click
+// suggestion chips. Used for a domain's short-link and mail hosts.
+export function HostList({
+  hosts,
+  onChange,
+  suggestions = [],
+  placeholder,
+}: {
+  hosts: string[];
+  onChange: (hosts: string[]) => void;
+  suggestions?: string[];
+  placeholder?: string;
+}) {
+  const [draft, setDraft] = useState("");
+  function add(h: string) {
+    const v = h.trim().toLowerCase();
+    if (v && !hosts.includes(v)) onChange([...hosts, v]);
+    setDraft("");
+  }
+  return (
+    <div>
+      <div className="mb-1.5 flex flex-wrap gap-1.5">
+        {hosts.length === 0 && <span className="text-xs text-zinc-500">none — defaults to the apex domain</span>}
+        {hosts.map((h) => (
+          <span key={h} className="badge bg-indigo-500/15 text-indigo-200">
+            {h}
+            <button className="ml-1 text-zinc-400 hover:text-red-400" onClick={() => onChange(hosts.filter((x) => x !== h))}>
+              ✕
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <input
+          className="input"
+          value={draft}
+          placeholder={placeholder}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add(draft);
+            }
+          }}
+        />
+        <button className="btn-ghost shrink-0" type="button" onClick={() => add(draft)}>
+          Add
+        </button>
+      </div>
+      {suggestions.filter((s) => !hosts.includes(s)).length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {suggestions
+            .filter((s) => !hosts.includes(s))
+            .map((s) => (
+              <button key={s} type="button" className="badge cursor-pointer hover:bg-zinc-700" onClick={() => add(s)}>
+                + {s}
+              </button>
+            ))}
+        </div>
+      )}
+    </div>
   );
 }
 

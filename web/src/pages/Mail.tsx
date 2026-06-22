@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, Attachment, Domain, Email, Mailbox } from "../api";
+import { api, Attachment, Domain, effectiveMailHosts, Email, Mailbox } from "../api";
 import { Field, Modal, Toggle, timeAgo } from "../ui";
 import { Header } from "./Links";
 
@@ -18,7 +18,8 @@ export default function MailPage() {
   const [editBox, setEditBox] = useState<Mailbox | null>(null);
   const [compose, setCompose] = useState<ReplyDraft | true | null>(null);
 
-  const mailDomains = domains.filter((d) => d.forMail);
+  // Every mail host across all mail-enabled domains (incl. subdomains).
+  const mailHostOptions = Array.from(new Set(domains.flatMap(effectiveMailHosts)));
 
   async function loadBoxes() {
     setBoxes(await api.mailboxes());
@@ -140,7 +141,7 @@ export default function MailPage() {
       {newBox && (
         <MailboxEditor
           box={null}
-          domains={mailDomains}
+          hosts={mailHostOptions}
           onClose={() => setNewBox(false)}
           onSaved={() => {
             setNewBox(false);
@@ -151,7 +152,7 @@ export default function MailPage() {
       {editBox && (
         <MailboxEditor
           box={editBox}
-          domains={mailDomains}
+          hosts={mailHostOptions}
           onClose={() => setEditBox(null)}
           onSaved={() => {
             setEditBox(null);
@@ -264,17 +265,17 @@ function EmailView({
 
 function MailboxEditor({
   box,
-  domains,
+  hosts,
   onClose,
   onSaved,
 }: {
   box: Mailbox | null;
-  domains: Domain[];
+  hosts: string[];
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [prefix, setPrefix] = useState("");
-  const [domain, setDomain] = useState(domains[0]?.name ?? "");
+  const [domain, setDomain] = useState(hosts[0] ?? "");
   const [note, setNote] = useState(box?.note ?? "");
   const [enabled, setEnabled] = useState(box?.enabled ?? true);
   const [err, setErr] = useState("");
@@ -303,12 +304,12 @@ function MailboxEditor({
         <Field label="Address">
           <input className="input" value={box.address} disabled />
         </Field>
-      ) : domains.length === 0 ? (
+      ) : hosts.length === 0 ? (
         <p className="mb-3 rounded bg-amber-500/10 p-2 text-sm text-amber-300">
-          No mail-enabled domains. Add a domain and toggle <b>Accept email</b> first.
+          No mail-enabled hosts. Add a domain, toggle <b>Accept email</b>, and add a mail host first.
         </p>
       ) : (
-        <Field label="Address" hint="pick a mail-enabled domain">
+        <Field label="Address" hint="pick a mail host (domain or subdomain)">
           <div className="flex items-center gap-1">
             <input
               className="input"
@@ -319,9 +320,9 @@ function MailboxEditor({
             />
             <span className="text-zinc-500">@</span>
             <select className="input" value={domain} onChange={(e) => setDomain(e.target.value)}>
-              {domains.map((d) => (
-                <option key={d.id} value={d.name}>
-                  {d.name}
+              {hosts.map((h) => (
+                <option key={h} value={h}>
+                  {h}
                 </option>
               ))}
             </select>
