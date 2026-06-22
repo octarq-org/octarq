@@ -1,5 +1,9 @@
 # led — link · email · domain
 
+[![CI](https://github.com/Jungley8/led/actions/workflows/ci.yml/badge.svg)](https://github.com/Jungley8/led/actions/workflows/ci.yml)
+[![Release image](https://github.com/Jungley8/led/actions/workflows/release.yml/badge.svg)](https://github.com/Jungley8/led/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A self-hosted **short link, mailbox, and DNS management** service in a single Go
 binary with an embedded React dashboard. Inspired by [wr.do](https://github.com/oiov/wr.do)
 and [dub](https://github.com/dubinc/dub), rebuilt to ship as **one binary / one Docker image**.
