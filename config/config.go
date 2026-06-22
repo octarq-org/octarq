@@ -2,6 +2,7 @@
 package config
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -53,8 +54,65 @@ func env(key, def string) string {
 	return def
 }
 
+// loadDotEnv reads KEY=VALUE pairs from a .env file (if present) into the
+// process environment. Existing environment variables always win, so explicit
+// env overrides the file. Missing file is not an error. Supports blank lines,
+// "#" comments (whole-line and trailing on unquoted values), an optional
+// "export " prefix, and single/double quoted values.
+func loadDotEnv(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	defer f.Close()
+
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		line = strings.TrimPrefix(line, "export ")
+		key, val, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		trimmed := strings.TrimSpace(val)
+		switch {
+		case strings.HasPrefix(trimmed, `"`) && strings.HasSuffix(trimmed, `"`) && len(trimmed) >= 2:
+			val = trimmed[1 : len(trimmed)-1]
+		case strings.HasPrefix(trimmed, "'") && strings.HasSuffix(trimmed, "'") && len(trimmed) >= 2:
+			val = trimmed[1 : len(trimmed)-1]
+		default:
+			// Strip a trailing inline comment: a "#" at the start of the value
+			// or preceded by whitespace begins a comment.
+			for i := 0; i < len(val); i++ {
+				if val[i] == '#' && (i == 0 || val[i-1] == ' ' || val[i-1] == '\t') {
+					val = val[:i]
+					break
+				}
+			}
+			val = strings.TrimSpace(val)
+		}
+		if key == "" {
+			continue
+		}
+		if _, exists := os.LookupEnv(key); !exists {
+			os.Setenv(key, val)
+		}
+	}
+	return sc.Err()
+}
+
 // Load reads configuration from the environment, applying sane defaults.
 func Load() (*Config, error) {
+	if err := loadDotEnv(".env"); err != nil {
+		return nil, fmt.Errorf("loading .env: %w", err)
+	}
 	c := &Config{
 		Listen:           env("LED_LISTEN", ":8080"),
 		AdminHost:        env("LED_ADMIN_HOST", ""),

@@ -89,21 +89,54 @@ func TestLookupHostPreference(t *testing.T) {
 
 func TestLookupDisabledAndExpired(t *testing.T) {
 	s := newTestService(t)
-	past := time.Now().Add(-time.Hour)
 	// Create then update: GORM substitutes the column default:true for a
 	// zero-value bool at insert time, so force Enabled=false explicitly.
 	off := models.Link{Slug: "off", Target: "https://x", Enabled: true}
 	s.db.Create(&off)
 	s.db.Model(&off).Update("enabled", false)
-	s.db.Create(&models.Link{Slug: "old", Target: "https://x", Enabled: true, ExpiresAt: &past})
 
 	if _, ok := s.Lookup("h", "off"); ok {
 		t.Error("expected disabled link to be unavailable")
 	}
-	if _, ok := s.Lookup("h", "old"); ok {
-		t.Error("expected expired link to be unavailable")
-	}
 	if _, ok := s.Lookup("h", "missing"); ok {
 		t.Error("expected missing slug to be unavailable")
+	}
+}
+
+// Expiry/click-limit are enforced in Handle (so ExpiredURL can be honored),
+// not in Lookup.
+func TestHandleExpiryAndClickLimit(t *testing.T) {
+	s := newTestService(t)
+	past := time.Now().Add(-time.Hour)
+
+	// Expired with no ExpiredURL -> 404.
+	old := &models.Link{Slug: "old", Target: "https://x", Enabled: true, ExpiresAt: &past}
+	s.db.Create(old)
+	l, ok := s.Lookup("h", "old")
+	if !ok {
+		t.Fatal("expired link should still be found by Lookup")
+	}
+	rec := httptest.NewRecorder()
+	s.Handle(rec, httptest.NewRequest("GET", "/old", nil), l)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("expired link without ExpiredURL: got %d, want 404", rec.Code)
+	}
+
+	// Expired with ExpiredURL -> 302 to that URL.
+	s.db.Create(&models.Link{Slug: "exp", Target: "https://x", Enabled: true, ExpiresAt: &past, ExpiredURL: "https://fallback.example"})
+	l2, _ := s.Lookup("h", "exp")
+	rec2 := httptest.NewRecorder()
+	s.Handle(rec2, httptest.NewRequest("GET", "/exp", nil), l2)
+	if rec2.Code != http.StatusFound || rec2.Header().Get("Location") != "https://fallback.example" {
+		t.Errorf("expired link with ExpiredURL: got %d -> %q", rec2.Code, rec2.Header().Get("Location"))
+	}
+
+	// Over click limit -> 404.
+	s.db.Create(&models.Link{Slug: "cap", Target: "https://x", Enabled: true, ClickLimit: 5, Clicks: 5})
+	l3, _ := s.Lookup("h", "cap")
+	rec3 := httptest.NewRecorder()
+	s.Handle(rec3, httptest.NewRequest("GET", "/cap", nil), l3)
+	if rec3.Code != http.StatusNotFound {
+		t.Errorf("over-limit link: got %d, want 404", rec3.Code)
 	}
 }

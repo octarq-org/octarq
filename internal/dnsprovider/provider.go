@@ -24,8 +24,16 @@ type Record struct {
 	Priority *int   `json:"priority,omitempty"`
 }
 
+// Zone is a DNS zone (domain) visible to the credentials.
+type Zone struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 // Provider is the DNS backend contract.
 type Provider interface {
+	// ListZones returns every zone (domain) the credentials can manage.
+	ListZones(ctx context.Context) ([]Zone, error)
 	ListRecords(ctx context.Context, zoneID string) ([]Record, error)
 	CreateRecord(ctx context.Context, zoneID string, r Record) (Record, error)
 	UpdateRecord(ctx context.Context, zoneID string, r Record) (Record, error)

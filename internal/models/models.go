@@ -54,19 +54,23 @@ type Domain struct {
 
 // Link is a short link. (Host, Slug) is unique.
 type Link struct {
-	ID        uint       `gorm:"primaryKey" json:"id"`
-	OwnerID   uint       `gorm:"index;default:1" json:"-"`
-	Host      string     `gorm:"size:255;index:idx_host_slug,unique" json:"host"` // empty = default/any host
-	Slug      string     `gorm:"size:255;index:idx_host_slug,unique" json:"slug"`
-	Target    string     `gorm:"type:text" json:"target"`
-	Password  string     `gorm:"size:255" json:"-"` // optional; presence exposed via HasPassword
-	Note      string     `gorm:"type:text" json:"note"`
-	Title     string     `gorm:"size:255" json:"title"`
-	ExpiresAt *time.Time `json:"expiresAt"`
-	Enabled   bool       `gorm:"default:true" json:"enabled"`
-	Clicks    int64      `gorm:"default:0" json:"clicks"`
-	CreatedAt time.Time  `json:"createdAt"`
-	UpdatedAt time.Time  `json:"updatedAt"`
+	ID         uint       `gorm:"primaryKey" json:"id"`
+	OwnerID    uint       `gorm:"index;default:1" json:"-"`
+	Host       string     `gorm:"size:255;index:idx_host_slug,unique" json:"host"` // empty = default/any host
+	Slug       string     `gorm:"size:255;index:idx_host_slug,unique" json:"slug"`
+	Target     string     `gorm:"type:text" json:"target"`
+	Password   string     `gorm:"size:255" json:"-"` // optional; presence exposed via HasPassword
+	Note       string     `gorm:"type:text" json:"note"`
+	Title      string     `gorm:"size:255" json:"title"`
+	Tags       string     `gorm:"size:512" json:"tags"` // comma-separated tags
+	ExpiresAt  *time.Time `json:"expiresAt"`
+	ExpiredURL string     `gorm:"type:text" json:"expiredUrl"` // redirect here once expired / over limit (dub-style)
+	ClickLimit int64      `gorm:"default:0" json:"clickLimit"` // 0 = unlimited
+	Archived   bool       `gorm:"default:false;index" json:"archived"`
+	Enabled    bool       `gorm:"default:true" json:"enabled"`
+	Clicks     int64      `gorm:"default:0" json:"clicks"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	UpdatedAt  time.Time  `json:"updatedAt"`
 }
 
 // LinkEvent is a single click, recorded asynchronously for basic analytics.
@@ -98,18 +102,19 @@ type Mailbox struct {
 
 // Email is a received message stored for a mailbox.
 type Email struct {
-	ID         uint      `gorm:"primaryKey" json:"id"`
-	MailboxID  uint      `gorm:"index" json:"mailboxId"`
-	MessageID  string    `gorm:"size:512;index" json:"messageId"`
-	FromAddr   string    `gorm:"size:320" json:"from"`
-	ToAddr     string    `gorm:"size:320" json:"to"`
-	Subject    string    `gorm:"type:text" json:"subject"`
-	Text       string    `gorm:"type:text" json:"text"`
-	HTML       string    `gorm:"type:text" json:"html"`
-	Raw        []byte    `gorm:"type:blob" json:"-"`
-	Read       bool      `gorm:"default:false" json:"read"`
-	Note       string    `gorm:"type:text" json:"note"`
-	ReceivedAt time.Time `gorm:"index" json:"receivedAt"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	MailboxID   uint      `gorm:"index" json:"mailboxId"`
+	MessageID   string    `gorm:"size:512;index" json:"messageId"`
+	FromAddr    string    `gorm:"size:320" json:"from"`
+	ToAddr      string    `gorm:"size:320" json:"to"`
+	Subject     string    `gorm:"type:text" json:"subject"`
+	Text        string    `gorm:"type:text" json:"text"`
+	HTML        string    `gorm:"type:text" json:"html"`
+	Raw         []byte    `gorm:"type:blob" json:"-"`
+	Read        bool      `gorm:"default:false" json:"read"`
+	Note        string    `gorm:"type:text" json:"note"`
+	Attachments string    `gorm:"type:text" json:"attachments"` // JSON array of {filename,contentType,size}
+	ReceivedAt  time.Time `gorm:"index" json:"receivedAt"`
 }
 
 // AllModels lists every model for AutoMigrate.

@@ -112,6 +112,27 @@ func dpToRecord(r dpRecord) Record {
 	return out
 }
 
+func (d *DNSPod) ListZones(ctx context.Context) ([]Zone, error) {
+	var out struct {
+		Status  dpStatus `json:"status"`
+		Domains []struct {
+			ID   json.Number `json:"id"`
+			Name string      `json:"name"`
+		} `json:"domains"`
+	}
+	if err := d.post(ctx, "/Domain.List", url.Values{}, &out); err != nil {
+		return nil, err
+	}
+	if out.Status.Code != "1" {
+		return nil, fmt.Errorf("dnspod: %s", out.Status.Message)
+	}
+	zones := make([]Zone, len(out.Domains))
+	for i, z := range out.Domains {
+		zones[i] = Zone{ID: z.ID.String(), Name: z.Name}
+	}
+	return zones, nil
+}
+
 func (d *DNSPod) ListRecords(ctx context.Context, zoneID string) ([]Record, error) {
 	var out struct {
 		Status  dpStatus   `json:"status"`

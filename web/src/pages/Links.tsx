@@ -1,35 +1,66 @@
 import { useEffect, useState } from "react";
-import { api, Link, LinkStats } from "../api";
+import { api, Domain, Link, LinkStats } from "../api";
 import { Empty, Field, Modal, Toggle, timeAgo } from "../ui";
 
 export default function LinksPage() {
   const [links, setLinks] = useState<Link[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
   const [q, setQ] = useState("");
+  const [archived, setArchived] = useState(false);
   const [editing, setEditing] = useState<Link | "new" | null>(null);
   const [statsFor, setStatsFor] = useState<Link | null>(null);
   const [qrFor, setQrFor] = useState<Link | null>(null);
+  const [copied, setCopied] = useState<number | null>(null);
+
+  const linkDomains = domains.filter((d) => d.forLink);
 
   async function load() {
-    setLinks(await api.links(q));
+    setLinks(await api.links({ q, archived }));
   }
   useEffect(() => {
     load();
-  }, [q]);
+  }, [q, archived]);
+  useEffect(() => {
+    api.domains().then(setDomains).catch(() => {});
+  }, []);
+
+  function linkURL(l: Link) {
+    return l.host ? `https://${l.host}/${l.slug}` : `${location.origin}/${l.slug}`;
+  }
+  async function copy(l: Link) {
+    await navigator.clipboard.writeText(linkURL(l));
+    setCopied(l.id);
+    setTimeout(() => setCopied(null), 1200);
+  }
+
+  async function toggleArchive(l: Link) {
+    await api.updateLink(l.id, { archived: !l.archived } as any);
+    load();
+  }
 
   return (
     <div>
-      <Header title="Links" subtitle="Short links with click analytics & notes">
+      <Header title="Links" subtitle="Short links with click analytics, tags & notes">
         <button className="btn-primary" onClick={() => setEditing("new")}>
           + New link
         </button>
       </Header>
 
-      <input
-        className="input mb-4"
-        placeholder="Search slug, target, note…"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
+      <div className="mb-4 flex items-center gap-2">
+        <input
+          className="input"
+          placeholder="Search slug, target, note, tag…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <button
+          className={archived ? "btn-primary" : "btn-ghost"}
+          onClick={() => setArchived((a) => !a)}
+          title="Toggle archived view"
+        >
+          {archived ? "Archived" : "Active"}
+        </button>
+      </div>
 
       {links.length === 0 ? (
         <Empty>
@@ -49,6 +80,16 @@ export default function LinksPage() {
                   {!l.enabled && <span className="badge">disabled</span>}
                   {l.hasPassword && <span className="badge">🔒</span>}
                   {l.expiresAt && <span className="badge">⏳</span>}
+                  {l.clickLimit > 0 && <span className="badge">≤{l.clickLimit}</span>}
+                  {l.tags
+                    ?.split(",")
+                    .map((t) => t.trim())
+                    .filter(Boolean)
+                    .map((t) => (
+                      <span key={t} className="badge bg-indigo-500/15 text-indigo-300">
+                        #{t}
+                      </span>
+                    ))}
                 </div>
                 <div className="truncate text-sm text-zinc-400">{l.target}</div>
                 {l.note && <div className="mt-0.5 truncate text-xs text-amber-300/80">📝 {l.note}</div>}
@@ -58,6 +99,9 @@ export default function LinksPage() {
                 <div className="text-xs text-zinc-500">clicks</div>
               </div>
               <div className="flex items-center gap-1">
+                <button className="btn-ghost px-2" title="Copy link" onClick={() => copy(l)}>
+                  {copied === l.id ? "✓" : "⧉"}
+                </button>
                 <button className="btn-ghost px-2" title="Stats" onClick={() => setStatsFor(l)}>
                   📊
                 </button>
@@ -66,6 +110,13 @@ export default function LinksPage() {
                 </button>
                 <button className="btn-ghost px-2" onClick={() => setEditing(l)}>
                   Edit
+                </button>
+                <button
+                  className="btn-ghost px-2"
+                  title={l.archived ? "Unarchive" : "Archive"}
+                  onClick={() => toggleArchive(l)}
+                >
+                  {l.archived ? "↩" : "🗄"}
                 </button>
                 <button
                   className="btn-danger px-2"
@@ -87,6 +138,7 @@ export default function LinksPage() {
       {editing && (
         <LinkEditor
           link={editing === "new" ? null : editing}
+          domains={linkDomains}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
@@ -122,10 +174,12 @@ export function Header({
 
 function LinkEditor({
   link,
+  domains,
   onClose,
   onSaved,
 }: {
   link: Link | null;
+  domains: Domain[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -134,10 +188,28 @@ function LinkEditor({
   const [target, setTarget] = useState(link?.target ?? "");
   const [title, setTitle] = useState(link?.title ?? "");
   const [note, setNote] = useState(link?.note ?? "");
+  const [tags, setTags] = useState(link?.tags ?? "");
   const [password, setPassword] = useState("");
   const [expiresAt, setExpiresAt] = useState(link?.expiresAt?.slice(0, 16) ?? "");
+  const [expiredUrl, setExpiredUrl] = useState(link?.expiredUrl ?? "");
+  const [clickLimit, setClickLimit] = useState(link?.clickLimit ?? 0);
   const [enabled, setEnabled] = useState(link?.enabled ?? true);
   const [err, setErr] = useState("");
+  const [fetching, setFetching] = useState(false);
+  const [showUtm, setShowUtm] = useState(false);
+
+  async function fetchTitle() {
+    if (!target) return;
+    setFetching(true);
+    try {
+      const m = await api.linkMetadata(target);
+      if (m.title) setTitle(m.title);
+    } catch {
+      /* ignore */
+    } finally {
+      setFetching(false);
+    }
+  }
 
   async function save() {
     setErr("");
@@ -147,8 +219,11 @@ function LinkEditor({
       target,
       title,
       note,
+      tags,
       password,
       enabled,
+      expiredUrl,
+      clickLimit: Number(clickLimit) || 0,
       expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
     };
     try {
@@ -163,18 +238,45 @@ function LinkEditor({
   return (
     <Modal title={link ? "Edit link" : "New link"} onClose={onClose}>
       <Field label="Destination URL">
-        <input className="input" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="example.com/page" />
+        <div className="flex gap-2">
+          <input
+            className="input"
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+            placeholder="example.com/page"
+          />
+          <button className="btn-ghost shrink-0" onClick={() => setShowUtm((v) => !v)} title="UTM builder">
+            UTM
+          </button>
+        </div>
       </Field>
+      {showUtm && <UtmBuilder target={target} onApply={setTarget} />}
       <div className="grid grid-cols-2 gap-3">
         <Field label="Slug" hint="blank = random">
           <input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} />
         </Field>
-        <Field label="Host" hint="blank = any domain">
-          <input className="input" value={host} onChange={(e) => setHost(e.target.value)} placeholder="go.example.com" />
+        <Field label="Host" hint={domains.length ? "domains with links enabled" : "no link domains configured"}>
+          <select className="input" value={host} onChange={(e) => setHost(e.target.value)}>
+            <option value="">Any / default</option>
+            {domains.map((d) => (
+              <option key={d.id} value={d.name}>
+                {d.name}
+              </option>
+            ))}
+            {host && !domains.some((d) => d.name === host) && <option value={host}>{host}</option>}
+          </select>
         </Field>
       </div>
       <Field label="Title">
-        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <div className="flex gap-2">
+          <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <button className="btn-ghost shrink-0" onClick={fetchTitle} disabled={fetching} title="Fetch from page">
+            {fetching ? "…" : "Auto"}
+          </button>
+        </div>
+      </Field>
+      <Field label="Tags" hint="comma-separated">
+        <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="marketing, launch" />
       </Field>
       <Field label="Note" hint="Private remark (not shown to visitors)">
         <textarea className="input" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
@@ -183,8 +285,22 @@ function LinkEditor({
         <Field label="Password" hint={link?.hasPassword ? "set, leave blank to keep" : "optional"}>
           <input className="input" value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
+        <Field label="Click limit" hint="0 = unlimited">
+          <input
+            type="number"
+            min={0}
+            className="input"
+            value={clickLimit}
+            onChange={(e) => setClickLimit(Number(e.target.value))}
+          />
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Expires at">
           <input type="datetime-local" className="input" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+        </Field>
+        <Field label="Expired URL" hint="redirect here once expired / over limit">
+          <input className="input" value={expiredUrl} onChange={(e) => setExpiredUrl(e.target.value)} placeholder="optional" />
         </Field>
       </div>
       <div className="mb-4 flex items-center gap-2">
@@ -201,6 +317,56 @@ function LinkEditor({
         </button>
       </div>
     </Modal>
+  );
+}
+
+// UtmBuilder appends UTM query params to the destination URL (dub-style).
+function UtmBuilder({ target, onApply }: { target: string; onApply: (url: string) => void }) {
+  const [utm, setUtm] = useState({ source: "", medium: "", campaign: "", term: "", content: "" });
+  function apply() {
+    if (!target) return;
+    let base = target;
+    if (!base.includes("://")) base = "https://" + base;
+    try {
+      const u = new URL(base);
+      const map: Record<string, string> = {
+        utm_source: utm.source,
+        utm_medium: utm.medium,
+        utm_campaign: utm.campaign,
+        utm_term: utm.term,
+        utm_content: utm.content,
+      };
+      for (const [k, v] of Object.entries(map)) {
+        if (v) u.searchParams.set(k, v);
+        else u.searchParams.delete(k);
+      }
+      onApply(u.toString());
+    } catch {
+      /* ignore */
+    }
+  }
+  const fields: [keyof typeof utm, string][] = [
+    ["source", "source"],
+    ["medium", "medium"],
+    ["campaign", "campaign"],
+    ["term", "term"],
+    ["content", "content"],
+  ];
+  return (
+    <div className="card mb-3 grid grid-cols-2 gap-2 p-3">
+      {fields.map(([k, label]) => (
+        <input
+          key={k}
+          className="input"
+          placeholder={`utm_${label}`}
+          value={utm[k]}
+          onChange={(e) => setUtm({ ...utm, [k]: e.target.value })}
+        />
+      ))}
+      <button className="btn-primary col-span-2" onClick={apply}>
+        Apply UTM to URL
+      </button>
+    </div>
   );
 }
 

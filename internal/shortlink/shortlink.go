@@ -23,8 +23,9 @@ func New(db *gorm.DB, g *geo.Resolver) *Service {
 	return &Service{db: db, geo: g}
 }
 
-// Lookup finds an enabled, unexpired link for (host, slug), preferring an
-// exact host match and falling back to a host-agnostic link.
+// Lookup finds an enabled, non-archived link for (host, slug), preferring an
+// exact host match and falling back to a host-agnostic link. Expiry and click
+// limits are evaluated in Handle so an expired link can still honor ExpiredURL.
 func (s *Service) Lookup(host, slug string) (*models.Link, bool) {
 	host = stripPort(host)
 	var link models.Link
@@ -34,17 +35,34 @@ func (s *Service) Lookup(host, slug string) (*models.Link, bool) {
 	if err != nil {
 		return nil, false
 	}
-	if !link.Enabled {
-		return nil, false
-	}
-	if link.ExpiresAt != nil && time.Now().After(*link.ExpiresAt) {
+	if !link.Enabled || link.Archived {
 		return nil, false
 	}
 	return &link, true
 }
 
-// Handle serves a redirect (or the password gate) and records the click.
+// expired reports whether a link is past its expiry or over its click limit.
+func expired(link *models.Link) bool {
+	if link.ExpiresAt != nil && time.Now().After(*link.ExpiresAt) {
+		return true
+	}
+	if link.ClickLimit > 0 && link.Clicks >= link.ClickLimit {
+		return true
+	}
+	return false
+}
+
+// Handle serves a redirect (or the password gate) and records the click. An
+// expired/over-limit link redirects to its ExpiredURL when set, else 404s.
 func (s *Service) Handle(w http.ResponseWriter, r *http.Request, link *models.Link) {
+	if expired(link) {
+		if link.ExpiredURL != "" {
+			http.Redirect(w, r, link.ExpiredURL, http.StatusFound)
+			return
+		}
+		http.NotFound(w, r)
+		return
+	}
 	if link.Password != "" {
 		if r.URL.Query().Get("pw") != link.Password {
 			renderPasswordGate(w, r.URL.Path)

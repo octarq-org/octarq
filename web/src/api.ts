@@ -7,7 +7,11 @@ export interface Link {
   target: string;
   note: string;
   title: string;
+  tags: string;
   expiresAt: string | null;
+  expiredUrl: string;
+  clickLimit: number;
+  archived: boolean;
   enabled: boolean;
   clicks: number;
   hasPassword: boolean;
@@ -43,6 +47,12 @@ export interface Mailbox {
   unread: number;
 }
 
+export interface Attachment {
+  filename: string;
+  contentType: string;
+  size: number;
+}
+
 export interface Email {
   id: number;
   mailboxId: number;
@@ -53,6 +63,7 @@ export interface Email {
   html: string;
   read: boolean;
   note: string;
+  attachments: string; // JSON string of Attachment[]
   receivedAt: string;
 }
 
@@ -118,15 +129,34 @@ export const api = {
   logout: () => req<{ ok: boolean }>("POST", "/api/auth/logout"),
 
   // links
-  links: (q = "") => req<Link[]>("GET", `/api/links${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+  links: (params: { q?: string; tag?: string; host?: string; archived?: boolean } = {}) => {
+    const sp = new URLSearchParams();
+    if (params.q) sp.set("q", params.q);
+    if (params.tag) sp.set("tag", params.tag);
+    if (params.host) sp.set("host", params.host);
+    if (params.archived) sp.set("archived", "1");
+    const qs = sp.toString();
+    return req<Link[]>("GET", `/api/links${qs ? `?${qs}` : ""}`);
+  },
   createLink: (l: Partial<Link> & { password?: string }) => req<Link>("POST", "/api/links", l),
   updateLink: (id: number, l: Partial<Link> & { password?: string }) =>
     req<Link>("PUT", `/api/links/${id}`, l),
   deleteLink: (id: number) => req("DELETE", `/api/links/${id}`),
   linkStats: (id: number, days = 30) => req<LinkStats>("GET", `/api/links/${id}/stats?days=${days}`),
+  linkMetadata: (url: string) =>
+    req<{ title: string; description: string; favicon: string }>(
+      "GET",
+      `/api/links/metadata?url=${encodeURIComponent(url)}`,
+    ),
 
   // domains
   dnsProviders: () => req<string[]>("GET", "/api/dns/providers"),
+  syncDomains: (provider: string, config: Record<string, unknown>) =>
+    req<{ ok: boolean; total: number; created: number; updated: number }>(
+      "POST",
+      "/api/domains/sync",
+      { provider, config },
+    ),
   domains: () => req<Domain[]>("GET", "/api/domains"),
   createDomain: (d: any) => req<Domain>("POST", "/api/domains", d),
   updateDomain: (id: number, d: any) => req<Domain>("PUT", `/api/domains/${id}`, d),
@@ -152,6 +182,12 @@ export const api = {
   updateEmail: (id: number, e: { read?: boolean; note?: string }) =>
     req<Email>("PUT", `/api/emails/${id}`, e),
   deleteEmail: (id: number) => req("DELETE", `/api/emails/${id}`),
+  readAllEmails: (mailbox?: number) =>
+    req<{ ok: boolean; updated: number }>(
+      "POST",
+      `/api/emails/read-all${mailbox ? `?mailbox=${mailbox}` : ""}`,
+    ),
+  rawEmailUrl: (id: number) => `/api/emails/${id}/raw`,
   sendEmail: (m: { from?: string; to: string[]; subject: string; text?: string; html?: string }) =>
     req("POST", "/api/emails/send", m),
 

@@ -110,6 +110,33 @@ func fromCF(r cfRecord) Record {
 	}
 }
 
+func (c *Cloudflare) ListZones(ctx context.Context) ([]Zone, error) {
+	var zones []Zone
+	for page := 1; ; page++ {
+		raw, err := c.do(ctx, http.MethodGet, fmt.Sprintf("/zones?per_page=50&page=%d", page), nil)
+		if err != nil {
+			return nil, err
+		}
+		var batch []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(raw, &batch); err != nil {
+			return nil, err
+		}
+		for _, z := range batch {
+			zones = append(zones, Zone{ID: z.ID, Name: z.Name})
+		}
+		if len(batch) < 50 {
+			break
+		}
+		if page >= 50 { // safety bound
+			break
+		}
+	}
+	return zones, nil
+}
+
 func (c *Cloudflare) ListRecords(ctx context.Context, zoneID string) ([]Record, error) {
 	raw, err := c.do(ctx, http.MethodGet, "/zones/"+zoneID+"/dns_records?per_page=500", nil)
 	if err != nil {

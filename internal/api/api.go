@@ -47,6 +47,7 @@ func (h *Handler) Routes() http.Handler {
 	}
 
 	p("GET /api/links", h.listLinks)
+	p("GET /api/links/metadata", h.linkMetadata)
 	p("POST /api/links", h.createLink)
 	p("GET /api/links/{id}", h.getLink)
 	p("PUT /api/links/{id}", h.updateLink)
@@ -55,6 +56,7 @@ func (h *Handler) Routes() http.Handler {
 	p("GET /api/links/{id}/qr", h.linkQR)
 
 	p("GET /api/dns/providers", h.dnsProviders)
+	p("POST /api/domains/sync", h.syncDomains)
 	p("GET /api/domains", h.listDomains)
 	p("POST /api/domains", h.createDomain)
 	p("PUT /api/domains/{id}", h.updateDomain)
@@ -69,7 +71,9 @@ func (h *Handler) Routes() http.Handler {
 	p("PUT /api/mailboxes/{id}", h.updateMailbox)
 	p("DELETE /api/mailboxes/{id}", h.deleteMailbox)
 	p("GET /api/emails", h.listEmails)
+	p("POST /api/emails/read-all", h.readAllEmails)
 	p("GET /api/emails/{id}", h.getEmail)
+	p("GET /api/emails/{id}/raw", h.rawEmail)
 	p("PUT /api/emails/{id}", h.updateEmail)
 	p("DELETE /api/emails/{id}", h.deleteEmail)
 	p("POST /api/emails/send", h.sendEmail)

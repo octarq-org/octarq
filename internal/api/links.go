@@ -1,8 +1,13 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
+	"html"
+	"io"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -10,6 +15,35 @@ import (
 	"github.com/jungley/led/internal/models"
 	qrcode "github.com/skip2/go-qrcode"
 )
+
+var (
+	reTitle = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
+	reDesc  = regexp.MustCompile(`(?is)<meta[^>]+name=["']description["'][^>]+content=["'](.*?)["']`)
+)
+
+// fetchPageMeta does a best-effort GET and extracts <title> and meta description.
+func fetchPageMeta(ctx context.Context, rawURL string) (title, desc string) {
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return "", ""
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; led-link-preview/1.0)")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", ""
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 256<<10)) // 256 KiB is plenty for <head>
+	if m := reTitle.FindSubmatch(body); m != nil {
+		title = strings.TrimSpace(html.UnescapeString(string(m[1])))
+	}
+	if m := reDesc.FindSubmatch(body); m != nil {
+		desc = strings.TrimSpace(html.UnescapeString(string(m[1])))
+	}
+	return title, desc
+}
 
 const slugAlphabet = "abcdefghijkmnpqrstuvwxyz23456789"
 
@@ -32,14 +66,18 @@ func idParam(r *http.Request) (uint, bool) {
 
 // linkDTO is the create/update payload.
 type linkDTO struct {
-	Host      string     `json:"host"`
-	Slug      string     `json:"slug"`
-	Target    string     `json:"target"`
-	Password  string     `json:"password"`
-	Note      string     `json:"note"`
-	Title     string     `json:"title"`
-	ExpiresAt *time.Time `json:"expiresAt"`
-	Enabled   *bool      `json:"enabled"`
+	Host       string     `json:"host"`
+	Slug       string     `json:"slug"`
+	Target     string     `json:"target"`
+	Password   string     `json:"password"`
+	Note       string     `json:"note"`
+	Title      string     `json:"title"`
+	Tags       string     `json:"tags"`
+	ExpiresAt  *time.Time `json:"expiresAt"`
+	ExpiredURL string     `json:"expiredUrl"`
+	ClickLimit int64      `json:"clickLimit"`
+	Archived   *bool      `json:"archived"`
+	Enabled    *bool      `json:"enabled"`
 }
 
 type linkView struct {
@@ -54,9 +92,21 @@ func view(l models.Link) linkView {
 func (h *Handler) listLinks(w http.ResponseWriter, r *http.Request) {
 	var links []models.Link
 	q := h.db.Order("created_at DESC")
+	// Archived links are hidden unless explicitly requested (?archived=1).
+	if r.URL.Query().Get("archived") == "1" {
+		q = q.Where("archived = ?", true)
+	} else {
+		q = q.Where("archived = ?", false)
+	}
 	if s := r.URL.Query().Get("q"); s != "" {
 		like := "%" + s + "%"
-		q = q.Where("slug LIKE ? OR target LIKE ? OR note LIKE ? OR title LIKE ?", like, like, like, like)
+		q = q.Where("slug LIKE ? OR target LIKE ? OR note LIKE ? OR title LIKE ? OR tags LIKE ?", like, like, like, like, like)
+	}
+	if tag := r.URL.Query().Get("tag"); tag != "" {
+		q = q.Where("tags LIKE ?", "%"+tag+"%")
+	}
+	if host := r.URL.Query().Get("host"); host != "" {
+		q = q.Where("host = ?", host)
 	}
 	q.Find(&links)
 	out := make([]linkView, len(links))
@@ -64,6 +114,29 @@ func (h *Handler) listLinks(w http.ResponseWriter, r *http.Request) {
 		out[i] = view(l)
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// linkMetadata fetches the target page's <title>, description, and favicon so
+// the dashboard can prefill a link's title (dub-style). Best-effort.
+func (h *Handler) linkMetadata(w http.ResponseWriter, r *http.Request) {
+	raw := strings.TrimSpace(r.URL.Query().Get("url"))
+	if raw == "" {
+		writeErr(w, http.StatusBadRequest, "url required")
+		return
+	}
+	if !strings.Contains(raw, "://") {
+		raw = "https://" + raw
+	}
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		writeErr(w, http.StatusBadRequest, "invalid url")
+		return
+	}
+	title, desc := fetchPageMeta(r.Context(), raw)
+	favicon := u.Scheme + "://" + u.Host + "/favicon.ico"
+	writeJSON(w, http.StatusOK, map[string]any{
+		"title": title, "description": desc, "favicon": favicon,
+	})
 }
 
 func (h *Handler) getLink(w http.ResponseWriter, r *http.Request) {
@@ -105,8 +178,9 @@ func (h *Handler) createLink(w http.ResponseWriter, r *http.Request) {
 	l := models.Link{
 		OwnerID: models.SingleUserID,
 		Host:    strings.TrimSpace(d.Host), Slug: slug, Target: d.Target,
-		Password: d.Password, Note: d.Note, Title: d.Title,
-		ExpiresAt: d.ExpiresAt, Enabled: enabled,
+		Password: d.Password, Note: d.Note, Title: d.Title, Tags: d.Tags,
+		ExpiresAt: d.ExpiresAt, ExpiredURL: d.ExpiredURL, ClickLimit: d.ClickLimit,
+		Enabled: enabled,
 	}
 	if err := h.db.Create(&l).Error; err != nil {
 		writeErr(w, http.StatusConflict, "slug already exists on this host")
@@ -144,8 +218,14 @@ func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request) {
 	l.Host = strings.TrimSpace(d.Host)
 	l.Note = d.Note
 	l.Title = d.Title
+	l.Tags = d.Tags
 	l.Password = d.Password
 	l.ExpiresAt = d.ExpiresAt
+	l.ExpiredURL = d.ExpiredURL
+	l.ClickLimit = d.ClickLimit
+	if d.Archived != nil {
+		l.Archived = *d.Archived
+	}
 	if d.Enabled != nil {
 		l.Enabled = *d.Enabled
 	}

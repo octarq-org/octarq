@@ -16,16 +16,24 @@ func init() {
 	message.CharsetReader = charset.Reader
 }
 
+// Attachment is metadata for a non-inline message part.
+type Attachment struct {
+	Filename    string `json:"filename"`
+	ContentType string `json:"contentType"`
+	Size        int    `json:"size"`
+}
+
 // Parsed is the normalized result of reading a raw RFC822 message.
 type Parsed struct {
-	MessageID  string
-	From       string
-	To         string
-	Subject    string
-	Text       string
-	HTML       string
-	ReceivedAt time.Time
-	Raw        []byte
+	MessageID   string
+	From        string
+	To          string
+	Subject     string
+	Text        string
+	HTML        string
+	Attachments []Attachment
+	ReceivedAt  time.Time
+	Raw         []byte
 }
 
 // Parse reads a raw email and extracts the fields led stores.
@@ -57,14 +65,22 @@ func Parse(raw []byte) (*Parsed, error) {
 		if err != nil {
 			break
 		}
-		if ih, ok := part.Header.(*mail.InlineHeader); ok {
-			ct, _, _ := ih.ContentType()
+		switch hdr := part.Header.(type) {
+		case *mail.InlineHeader:
+			ct, _, _ := hdr.ContentType()
 			b, _ := io.ReadAll(part.Body)
 			if strings.HasPrefix(ct, "text/html") {
 				p.HTML = string(b)
 			} else if strings.HasPrefix(ct, "text/plain") {
 				p.Text = string(b)
 			}
+		case *mail.AttachmentHeader:
+			ct, _, _ := hdr.ContentType()
+			filename, _ := hdr.Filename()
+			b, _ := io.ReadAll(part.Body)
+			p.Attachments = append(p.Attachments, Attachment{
+				Filename: filename, ContentType: ct, Size: len(b),
+			})
 		}
 	}
 	return p, nil

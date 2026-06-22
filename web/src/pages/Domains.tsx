@@ -8,6 +8,7 @@ export default function DomainsPage() {
   const [providers, setProviders] = useState<string[]>([]);
   const [editing, setEditing] = useState<Domain | "new" | null>(null);
   const [recordsFor, setRecordsFor] = useState<Domain | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   async function load() {
     setDomains(await api.domains());
@@ -19,10 +20,15 @@ export default function DomainsPage() {
 
   return (
     <div>
-      <Header title="Domains" subtitle="Manage DNS records across providers">
-        <button className="btn-primary" onClick={() => setEditing("new")}>
-          + Add domain
-        </button>
+      <Header title="Domains" subtitle="Sync & manage DNS records across providers">
+        <div className="flex gap-2">
+          <button className="btn-ghost" onClick={() => setSyncing(true)}>
+            ⟳ Sync from Cloudflare
+          </button>
+          <button className="btn-primary" onClick={() => setEditing("new")}>
+            + Add domain
+          </button>
+        </div>
       </Header>
 
       {domains.length === 0 ? (
@@ -77,7 +83,82 @@ export default function DomainsPage() {
         />
       )}
       {recordsFor && <RecordsModal domain={recordsFor} onClose={() => setRecordsFor(null)} />}
+      {syncing && (
+        <SyncModal
+          onClose={() => setSyncing(false)}
+          onSynced={() => {
+            setSyncing(false);
+            load();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+// SyncModal imports every Cloudflare zone the token can access in one click.
+function SyncModal({ onClose, onSynced }: { onClose: () => void; onSynced: () => void }) {
+  const [apiToken, setApiToken] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [result, setResult] = useState<{ total: number; created: number; updated: number } | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await api.syncDomains("cloudflare", { apiToken });
+      setResult(r);
+    } catch (e: any) {
+      setErr(e.message ?? "sync failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title="Sync from Cloudflare" onClose={onClose}>
+      {result ? (
+        <div className="py-4 text-center">
+          <p className="mb-2 text-2xl">✅</p>
+          <p className="text-zinc-300">
+            {result.total} zones — <span className="text-green-400">{result.created} new</span>,{" "}
+            <span className="text-indigo-300">{result.updated} updated</span>.
+          </p>
+          <p className="mt-2 text-xs text-zinc-500">
+            Toggle <b>links</b> / <b>mail</b> on each domain to enable those services.
+          </p>
+          <button className="btn-primary mt-4" onClick={onSynced}>
+            Done
+          </button>
+        </div>
+      ) : (
+        <>
+          <p className="mb-3 text-sm text-zinc-400">
+            Paste a Cloudflare API token with <b>Zone:Read</b> + <b>DNS:Edit</b>. led pulls every
+            zone and stores the token (encrypted) for managing their records.
+          </p>
+          <Field label="Cloudflare API Token">
+            <input
+              className="input"
+              value={apiToken}
+              onChange={(e) => setApiToken(e.target.value)}
+              placeholder="••••••••••••"
+              autoFocus
+            />
+          </Field>
+          {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
+          <div className="flex justify-end gap-2">
+            <button className="btn-ghost" onClick={onClose}>
+              Cancel
+            </button>
+            <button className="btn-primary" onClick={run} disabled={busy || !apiToken}>
+              {busy ? "Syncing…" : "Sync"}
+            </button>
+          </div>
+        </>
+      )}
+    </Modal>
   );
 }
 
@@ -169,7 +250,9 @@ const RECORD_TYPES = ["A", "AAAA", "CNAME", "TXT", "MX", "NS", "CAA"];
 function RecordsModal({ domain, onClose }: { domain: Domain; onClose: () => void }) {
   const [records, setRecords] = useState<DNSRecord[] | null>(null);
   const [err, setErr] = useState("");
-  const [editing, setEditing] = useState<DNSRecord | "new" | null>(null);
+  const [editing, setEditing] = useState<DNSRecord | "new" | "subdomain" | null>(null);
+  const [typeFilter, setTypeFilter] = useState("");
+  const [search, setSearch] = useState("");
 
   async function load() {
     setErr("");
@@ -184,19 +267,52 @@ function RecordsModal({ domain, onClose }: { domain: Domain; onClose: () => void
     load();
   }, [domain.id]);
 
+  const filtered = (records ?? []).filter((r) => {
+    if (typeFilter && r.type !== typeFilter) return false;
+    if (search) {
+      const s = search.toLowerCase();
+      return (
+        r.name.toLowerCase().includes(s) ||
+        r.content.toLowerCase().includes(s) ||
+        (r.comment ?? "").toLowerCase().includes(s)
+      );
+    }
+    return true;
+  });
+  const presentTypes = Array.from(new Set((records ?? []).map((r) => r.type)));
+
   return (
     <Modal title={`DNS · ${domain.name}`} onClose={onClose} wide>
-      <div className="mb-3 flex justify-between">
-        <p className="text-sm text-zinc-500">Notes map to the provider's native record comment.</p>
-        <button className="btn-primary" onClick={() => setEditing("new")}>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <select className="input max-w-[110px]" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+          <option value="">All types</option>
+          {presentTypes.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <input
+          className="input flex-1"
+          placeholder="Filter name / content / note…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <button className="btn-ghost shrink-0" onClick={() => setEditing("subdomain")} title="Quick subdomain for link/mail">
+          + Subdomain
+        </button>
+        <button className="btn-primary shrink-0" onClick={() => setEditing("new")}>
           + Record
         </button>
       </div>
+      <p className="mb-2 text-xs text-zinc-500">
+        Notes map to the provider's native record comment · {filtered.length}/{records?.length ?? 0} shown
+      </p>
       {err && <p className="mb-3 rounded bg-red-500/10 p-2 text-sm text-red-400">{err}</p>}
       {records === null ? (
         <p className="text-zinc-500">loading…</p>
-      ) : records.length === 0 ? (
-        <p className="text-zinc-500">No records.</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-zinc-500">No matching records.</p>
       ) : (
         <div className="max-h-96 overflow-y-auto">
           <table className="w-full text-sm">
@@ -210,7 +326,7 @@ function RecordsModal({ domain, onClose }: { domain: Domain; onClose: () => void
               </tr>
             </thead>
             <tbody>
-              {records.map((r) => (
+              {filtered.map((r) => (
                 <tr key={r.id} className="border-t border-zinc-800">
                   <td className="py-1.5">
                     <span className="badge">{r.type}</span>
@@ -245,7 +361,9 @@ function RecordsModal({ domain, onClose }: { domain: Domain; onClose: () => void
       {editing && (
         <RecordEditor
           domainId={domain.id}
-          record={editing === "new" ? null : editing}
+          domainName={domain.name}
+          record={typeof editing === "string" ? null : editing}
+          subdomain={editing === "subdomain"}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
@@ -259,12 +377,16 @@ function RecordsModal({ domain, onClose }: { domain: Domain; onClose: () => void
 
 function RecordEditor({
   domainId,
+  domainName,
   record,
+  subdomain,
   onClose,
   onSaved,
 }: {
   domainId: number;
+  domainName: string;
   record: DNSRecord | null;
+  subdomain?: boolean;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -274,6 +396,23 @@ function RecordEditor({
   const [comment, setComment] = useState(record?.comment ?? "");
   const [proxied, setProxied] = useState(record?.proxied ?? false);
   const [err, setErr] = useState("");
+
+  // Subdomain presets: one click to set up a host for short links or email.
+  function preset(kind: "link" | "mail") {
+    if (kind === "link") {
+      setType("CNAME");
+      setName(name || "go");
+      setContent(domainName); // CNAME to apex; point apex at your led host
+      setComment("led short-link host");
+      setProxied(true);
+    } else {
+      setType("MX");
+      setName(name || "mail");
+      setContent("route1.mx.cloudflare.net");
+      setComment("led mailbox (Cloudflare Email Routing)");
+      setProxied(false);
+    }
+  }
 
   async function save() {
     setErr("");
@@ -288,7 +427,17 @@ function RecordEditor({
   }
 
   return (
-    <Modal title={record ? "Edit record" : "New record"} onClose={onClose}>
+    <Modal title={record ? "Edit record" : subdomain ? "New subdomain" : "New record"} onClose={onClose}>
+      {subdomain && (
+        <div className="mb-3 flex gap-2">
+          <button className="btn-ghost flex-1" onClick={() => preset("link")}>
+            🔗 Short-link subdomain
+          </button>
+          <button className="btn-ghost flex-1" onClick={() => preset("mail")}>
+            ✉️ Email subdomain
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <Field label="Type">
           <select className="input" value={type} onChange={(e) => setType(e.target.value)}>

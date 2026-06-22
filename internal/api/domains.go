@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,6 +12,62 @@ import (
 
 func (h *Handler) dnsProviders(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dnsprovider.Names())
+}
+
+// syncDomains imports every zone the given credentials can access, creating a
+// Domain for each new zone and refreshing the zone id / stored credentials on
+// existing ones. User flags (forLink/forMail/note) on existing domains are kept.
+func (h *Handler) syncDomains(w http.ResponseWriter, r *http.Request) {
+	var d struct {
+		Provider string         `json:"provider"`
+		Config   map[string]any `json:"config"`
+	}
+	if err := readJSON(r, &d); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	if d.Provider == "" {
+		d.Provider = "cloudflare"
+	}
+	enc, err := h.encryptConfig(d.Config)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "encrypt config")
+		return
+	}
+	credsJSON, _ := json.Marshal(d.Config)
+	prov, err := dnsprovider.New(d.Provider, credsJSON)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	zones, err := prov.ListZones(r.Context())
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, "list zones: "+err.Error())
+		return
+	}
+	var created, updated int
+	for _, z := range zones {
+		name := strings.ToLower(z.Name)
+		var dom models.Domain
+		if h.db.Where("name = ?", name).First(&dom).Error == nil {
+			dom.ZoneID = z.ID
+			dom.Provider = d.Provider
+			if enc != "" {
+				dom.Config = enc
+			}
+			h.db.Save(&dom)
+			updated++
+		} else {
+			h.db.Create(&models.Domain{
+				OwnerID: models.SingleUserID,
+				Name:    name, Provider: d.Provider, ZoneID: z.ID, Config: enc,
+			})
+			created++
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok": true, "total": len(zones), "created": created, "updated": updated,
+	})
 }
 
 // domainDTO is the create/update payload. Config holds the provider

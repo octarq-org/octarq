@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -156,6 +157,33 @@ func (h *Handler) updateEmail(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, e)
 }
 
+// readAllEmails marks every email read, optionally scoped to one mailbox.
+func (h *Handler) readAllEmails(w http.ResponseWriter, r *http.Request) {
+	q := h.db.Model(&models.Email{}).Where("read = ?", false)
+	if mb := r.URL.Query().Get("mailbox"); mb != "" {
+		q = q.Where("mailbox_id = ?", mb)
+	}
+	res := q.Update("read", true)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "updated": res.RowsAffected})
+}
+
+// rawEmail streams the original RFC822 message as a downloadable .eml file.
+func (h *Handler) rawEmail(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(r)
+	if !ok {
+		writeErr(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	var e models.Email
+	if h.db.First(&e, id).Error != nil {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
+	w.Header().Set("Content-Type", "message/rfc822")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"email-%d.eml\"", e.ID))
+	w.Write(e.Raw)
+}
+
 func (h *Handler) deleteEmail(w http.ResponseWriter, r *http.Request) {
 	id, ok := idParam(r)
 	if !ok {
@@ -219,11 +247,17 @@ func (h *Handler) inbound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	att := ""
+	if len(parsed.Attachments) > 0 {
+		if b, err := json.Marshal(parsed.Attachments); err == nil {
+			att = string(b)
+		}
+	}
 	e := models.Email{
 		MailboxID: mb.ID, MessageID: parsed.MessageID,
 		FromAddr: parsed.From, ToAddr: to, Subject: parsed.Subject,
 		Text: parsed.Text, HTML: parsed.HTML, Raw: parsed.Raw,
-		ReceivedAt: parsed.ReceivedAt,
+		Attachments: att, ReceivedAt: parsed.ReceivedAt,
 	}
 	h.db.Create(&e)
 

@@ -15,14 +15,18 @@ Unlike wr.do, **every entity — links, mailboxes, and DNS records — supports 
 
 ## Features
 
-- **Short links** — custom or random slugs, per-host links, password protection,
-  expiry, QR codes, and **basic click analytics** (time series + referer / country
-  / device / browser breakdown via User-Agent + optional GeoIP).
-- **Mailboxes** — receive mail on your domains via Cloudflare Email Routing, read
-  it in the dashboard, send replies through an SMTP relay.
-- **DNS** — manage records through a provider abstraction (Cloudflare and DNSPod
-  today; Aliyun / Route53 slot in). Record notes map to the provider's native
-  comment / remark field.
+- **Short links** — custom or random slugs, host picked from your link-enabled
+  domains, password protection, expiry **and expired-URL fallback**, **click
+  limits**, **tags** + archive, a built-in **UTM builder**, one-click **title
+  fetch** from the destination, QR codes, copy-to-clipboard, and **basic click
+  analytics** (time series + referer / country / device / browser via UA + GeoIP).
+- **Mailboxes** — addresses built from your mail-enabled domains, receive mail via
+  Cloudflare Email Routing, read it (with **attachment list** + raw **.eml**
+  download), **reply**, **mark-all-read**, and send through an SMTP relay.
+- **DNS** — **one-click sync** of every Cloudflare zone + records, full record CRUD
+  with **type/text filtering** and **subdomain presets** (short-link / email), all
+  behind a provider abstraction (Cloudflare and DNSPod today; Aliyun / Route53 slot
+  in). Record notes map to the provider's native comment / remark field.
 - **Open API tokens** — issue bearer tokens for the JSON API; every data endpoint
   accepts either a session cookie or `Authorization: Bearer led_…`. Only a SHA-256
   hash is stored, and the raw token is shown once at creation.

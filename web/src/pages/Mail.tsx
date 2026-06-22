@@ -1,16 +1,24 @@
 import { useEffect, useState } from "react";
-import { api, Email, Mailbox } from "../api";
+import { api, Attachment, Domain, Email, Mailbox } from "../api";
 import { Field, Modal, Toggle, timeAgo } from "../ui";
 import { Header } from "./Links";
 
+interface ReplyDraft {
+  to: string;
+  subject: string;
+}
+
 export default function MailPage() {
   const [boxes, setBoxes] = useState<Mailbox[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
   const [active, setActive] = useState<number | undefined>(undefined);
   const [emails, setEmails] = useState<Email[]>([]);
   const [open, setOpen] = useState<Email | null>(null);
   const [newBox, setNewBox] = useState(false);
   const [editBox, setEditBox] = useState<Mailbox | null>(null);
-  const [compose, setCompose] = useState(false);
+  const [compose, setCompose] = useState<ReplyDraft | true | null>(null);
+
+  const mailDomains = domains.filter((d) => d.forMail);
 
   async function loadBoxes() {
     setBoxes(await api.mailboxes());
@@ -20,6 +28,7 @@ export default function MailPage() {
   }
   useEffect(() => {
     loadBoxes();
+    api.domains().then(setDomains).catch(() => {});
   }, []);
   useEffect(() => {
     loadEmails();
@@ -32,10 +41,19 @@ export default function MailPage() {
     loadBoxes();
   }
 
+  async function markAllRead() {
+    await api.readAllEmails(active);
+    loadEmails();
+    loadBoxes();
+  }
+
   return (
     <div>
       <Header title="Mail" subtitle="Domain mailboxes & inbox">
         <div className="flex gap-2">
+          <button className="btn-ghost" onClick={markAllRead}>
+            Mark all read
+          </button>
           <button className="btn-ghost" onClick={() => setCompose(true)}>
             Compose
           </button>
@@ -109,6 +127,10 @@ export default function MailPage() {
         <EmailView
           email={open}
           onClose={() => setOpen(null)}
+          onReply={(d) => {
+            setOpen(null);
+            setCompose(d);
+          }}
           onChanged={() => {
             loadEmails();
             loadBoxes();
@@ -118,6 +140,7 @@ export default function MailPage() {
       {newBox && (
         <MailboxEditor
           box={null}
+          domains={mailDomains}
           onClose={() => setNewBox(false)}
           onSaved={() => {
             setNewBox(false);
@@ -128,6 +151,7 @@ export default function MailPage() {
       {editBox && (
         <MailboxEditor
           box={editBox}
+          domains={mailDomains}
           onClose={() => setEditBox(null)}
           onSaved={() => {
             setEditBox(null);
@@ -136,21 +160,35 @@ export default function MailPage() {
           }}
         />
       )}
-      {compose && <Compose onClose={() => setCompose(false)} />}
+      {compose && (
+        <Compose draft={compose === true ? undefined : compose} onClose={() => setCompose(null)} />
+      )}
     </div>
   );
+}
+
+function parseAttachments(json: string): Attachment[] {
+  try {
+    const a = JSON.parse(json || "[]");
+    return Array.isArray(a) ? a : [];
+  } catch {
+    return [];
+  }
 }
 
 function EmailView({
   email,
   onClose,
+  onReply,
   onChanged,
 }: {
   email: Email;
   onClose: () => void;
+  onReply: (draft: ReplyDraft) => void;
   onChanged: () => void;
 }) {
   const [note, setNote] = useState(email.note ?? "");
+  const attachments = parseAttachments(email.attachments);
   return (
     <Modal title={email.subject || "(no subject)"} onClose={onClose} wide>
       <div className="mb-3 text-sm text-zinc-400">
@@ -169,6 +207,15 @@ function EmailView({
           <pre className="whitespace-pre-wrap break-words font-sans text-sm text-zinc-300">{email.text}</pre>
         )}
       </div>
+      {attachments.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {attachments.map((a, i) => (
+            <span key={i} className="badge" title={`${a.contentType} · ${a.size} bytes`}>
+              📎 {a.filename || "attachment"} ({Math.max(1, Math.round(a.size / 1024))} KB)
+            </span>
+          ))}
+        </div>
+      )}
       <div className="mt-3 flex items-end gap-2">
         <div className="flex-1">
           <Field label="Note">
@@ -184,6 +231,20 @@ function EmailView({
         >
           Save note
         </button>
+        <button
+          className="btn-primary"
+          onClick={() =>
+            onReply({
+              to: email.from,
+              subject: email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`,
+            })
+          }
+        >
+          Reply
+        </button>
+        <a className="btn-ghost" href={api.rawEmailUrl(email.id)} download={`email-${email.id}.eml`}>
+          .eml
+        </a>
         <button
           className="btn-danger"
           onClick={async () => {
@@ -203,14 +264,17 @@ function EmailView({
 
 function MailboxEditor({
   box,
+  domains,
   onClose,
   onSaved,
 }: {
   box: Mailbox | null;
+  domains: Domain[];
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [address, setAddress] = useState(box?.address ?? "");
+  const [prefix, setPrefix] = useState("");
+  const [domain, setDomain] = useState(domains[0]?.name ?? "");
   const [note, setNote] = useState(box?.note ?? "");
   const [enabled, setEnabled] = useState(box?.enabled ?? true);
   const [err, setErr] = useState("");
@@ -218,8 +282,15 @@ function MailboxEditor({
   async function save() {
     setErr("");
     try {
-      if (box) await api.updateMailbox(box.id, { note, enabled });
-      else await api.createMailbox({ address, note, enabled });
+      if (box) {
+        await api.updateMailbox(box.id, { note, enabled });
+      } else {
+        if (!prefix.trim() || !domain) {
+          setErr("prefix and domain are required");
+          return;
+        }
+        await api.createMailbox({ address: `${prefix.trim()}@${domain}`, note, enabled });
+      }
       onSaved();
     } catch (e: any) {
       setErr(e.message ?? "save failed");
@@ -228,15 +299,35 @@ function MailboxEditor({
 
   return (
     <Modal title={box ? "Edit mailbox" : "New mailbox"} onClose={onClose}>
-      <Field label="Address" hint="full address, e.g. hi@example.com">
-        <input
-          className="input"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          disabled={!!box}
-          placeholder="hi@example.com"
-        />
-      </Field>
+      {box ? (
+        <Field label="Address">
+          <input className="input" value={box.address} disabled />
+        </Field>
+      ) : domains.length === 0 ? (
+        <p className="mb-3 rounded bg-amber-500/10 p-2 text-sm text-amber-300">
+          No mail-enabled domains. Add a domain and toggle <b>Accept email</b> first.
+        </p>
+      ) : (
+        <Field label="Address" hint="pick a mail-enabled domain">
+          <div className="flex items-center gap-1">
+            <input
+              className="input"
+              value={prefix}
+              onChange={(e) => setPrefix(e.target.value)}
+              placeholder="hi"
+              autoFocus
+            />
+            <span className="text-zinc-500">@</span>
+            <select className="input" value={domain} onChange={(e) => setDomain(e.target.value)}>
+              {domains.map((d) => (
+                <option key={d.id} value={d.name}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </Field>
+      )}
       <Field label="Note">
         <textarea className="input" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
@@ -269,10 +360,10 @@ function MailboxEditor({
   );
 }
 
-function Compose({ onClose }: { onClose: () => void }) {
-  const [to, setTo] = useState("");
+function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () => void }) {
+  const [to, setTo] = useState(draft?.to ?? "");
   const [from, setFrom] = useState("");
-  const [subject, setSubject] = useState("");
+  const [subject, setSubject] = useState(draft?.subject ?? "");
   const [text, setText] = useState("");
   const [err, setErr] = useState("");
   const [ok, setOk] = useState(false);
