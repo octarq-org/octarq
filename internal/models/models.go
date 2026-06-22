@@ -8,21 +8,46 @@
 // multi-tenant later needs no schema migration.
 package models
 
-import "time"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"time"
+)
 
 const SingleUserID uint = 1
 
+// Token is an API token for the open API. Only the SHA-256 hash of the raw
+// token is stored; the raw token is shown once at creation time. Prefix keeps
+// a short, non-secret identifier for the dashboard list.
+type Token struct {
+	ID         uint       `gorm:"primaryKey" json:"id"`
+	OwnerID    uint       `gorm:"index;default:1" json:"-"`
+	Name       string     `gorm:"size:255" json:"name"`
+	Hash       string     `gorm:"uniqueIndex;size:64" json:"-"` // SHA-256 hex of the raw token
+	Prefix     string     `gorm:"size:32" json:"prefix"`        // e.g. "led_abcd" for identification
+	Note       string     `gorm:"type:text" json:"note"`
+	LastUsedAt *time.Time `json:"lastUsedAt"`
+	CreatedAt  time.Time  `json:"createdAt"`
+}
+
+// HashToken returns the SHA-256 hex digest of a raw API token. The stored hash
+// is what bearer requests are matched against.
+func HashToken(raw string) string {
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
+}
+
 // Domain is a domain managed by led, tied to a DNS provider account.
 type Domain struct {
-	ID        uint   `gorm:"primaryKey" json:"id"`
-	OwnerID   uint   `gorm:"index;default:1" json:"-"`
-	Name      string `gorm:"uniqueIndex;size:255" json:"name"`
-	Provider  string `gorm:"size:32" json:"provider"` // cloudflare, ...
-	ZoneID    string `gorm:"size:64" json:"zoneId"`
-	Note      string `gorm:"type:text" json:"note"`
-	Config    string `gorm:"type:text" json:"-"` // AES-GCM encrypted provider credentials JSON
-	ForMail   bool   `json:"forMail"`            // accept inbound email for this domain
-	ForLink   bool   `json:"forLink"`            // serve short links on this domain
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	OwnerID   uint      `gorm:"index;default:1" json:"-"`
+	Name      string    `gorm:"uniqueIndex;size:255" json:"name"`
+	Provider  string    `gorm:"size:32" json:"provider"` // cloudflare, ...
+	ZoneID    string    `gorm:"size:64" json:"zoneId"`
+	Note      string    `gorm:"type:text" json:"note"`
+	Config    string    `gorm:"type:text" json:"-"` // AES-GCM encrypted provider credentials JSON
+	ForMail   bool      `json:"forMail"`            // accept inbound email for this domain
+	ForLink   bool      `json:"forLink"`            // serve short links on this domain
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -90,6 +115,6 @@ type Email struct {
 // AllModels lists every model for AutoMigrate.
 func AllModels() []any {
 	return []any{
-		&Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{},
+		&Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{}, &Token{},
 	}
 }

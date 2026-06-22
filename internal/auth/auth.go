@@ -12,18 +12,27 @@ import (
 
 	"github.com/jungley/led/config"
 	"github.com/jungley/led/internal/crypto"
+	"github.com/jungley/led/internal/models"
+	"gorm.io/gorm"
 )
 
 const cookieName = "led_session"
 
-// Manager issues and validates session cookies.
+// Manager issues and validates session cookies, and authenticates API tokens.
 type Manager struct {
 	cfg    *config.Config
 	cipher *crypto.Cipher
+	db     *gorm.DB // optional; enables bearer-token auth when set
 }
 
 func New(cfg *config.Config, c *crypto.Cipher) *Manager {
 	return &Manager{cfg: cfg, cipher: c}
+}
+
+// WithDB attaches a database so API requests can authenticate via bearer token.
+func (m *Manager) WithDB(db *gorm.DB) *Manager {
+	m.db = db
+	return m
 }
 
 // Check verifies admin credentials.
@@ -88,10 +97,51 @@ func (m *Manager) Authed(r *http.Request) bool {
 	return ok
 }
 
-// Require is middleware that 401s unauthenticated API requests.
+// bearerToken extracts a "led_" token from the Authorization header.
+func bearerToken(r *http.Request) string {
+	h := r.Header.Get("Authorization")
+	const pfx = "Bearer "
+	if !strings.HasPrefix(h, pfx) {
+		return ""
+	}
+	return strings.TrimSpace(h[len(pfx):])
+}
+
+// tokenAuthed reports whether the request carries a valid API token. On success
+// it best-effort records LastUsedAt asynchronously.
+func (m *Manager) tokenAuthed(r *http.Request) bool {
+	if m.db == nil {
+		return false
+	}
+	raw := bearerToken(r)
+	if !strings.HasPrefix(raw, "led_") {
+		return false
+	}
+	hash := models.HashToken(raw)
+	var tok models.Token
+	if m.db.Where("hash = ?", hash).First(&tok).Error != nil {
+		return false
+	}
+	id := tok.ID
+	db := m.db
+	go func() {
+		now := time.Now()
+		db.Model(&models.Token{}).Where("id = ?", id).Update("last_used_at", &now)
+	}()
+	return true
+}
+
+// APIAuthed reports whether the request is authenticated by either a valid
+// session cookie or a valid API bearer token.
+func (m *Manager) APIAuthed(r *http.Request) bool {
+	return m.Authed(r) || m.tokenAuthed(r)
+}
+
+// Require is middleware that 401s API requests lacking a valid session cookie
+// or API bearer token.
 func (m *Manager) Require(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !m.Authed(r) {
+		if !m.APIAuthed(r) {
 			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 			return
 		}

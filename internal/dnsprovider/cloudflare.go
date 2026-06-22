@@ -36,9 +36,9 @@ type Cloudflare struct {
 }
 
 type cfResp struct {
-	Success bool              `json:"success"`
-	Errors  []cfError         `json:"errors"`
-	Result  json.RawMessage   `json:"result"`
+	Success bool            `json:"success"`
+	Errors  []cfError       `json:"errors"`
+	Result  json.RawMessage `json:"result"`
 }
 
 type cfError struct {

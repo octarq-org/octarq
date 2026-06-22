@@ -10,21 +10,23 @@ import (
 	"github.com/jungley/led/internal/crypto"
 	"github.com/jungley/led/internal/geo"
 	"github.com/jungley/led/internal/mail"
+	"github.com/jungley/led/internal/notify"
 	"gorm.io/gorm"
 )
 
 // Handler bundles dependencies shared by all API endpoints.
 type Handler struct {
-	cfg    *config.Config
-	db     *gorm.DB
-	cipher *crypto.Cipher
-	auth   *auth.Manager
-	sender mail.Sender
-	geo    *geo.Resolver
+	cfg      *config.Config
+	db       *gorm.DB
+	cipher   *crypto.Cipher
+	auth     *auth.Manager
+	sender   mail.Sender
+	geo      *geo.Resolver
+	notifier *notify.Telegram // may be nil; Notify is nil-safe
 }
 
-func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, sender mail.Sender, g *geo.Resolver) *Handler {
-	return &Handler{cfg: cfg, db: db, cipher: c, auth: a, sender: sender, geo: g}
+func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, sender mail.Sender, g *geo.Resolver, n *notify.Telegram) *Handler {
+	return &Handler{cfg: cfg, db: db, cipher: c, auth: a, sender: sender, geo: g, notifier: n}
 }
 
 // Routes returns the API mux mounted at /api/.
@@ -71,6 +73,10 @@ func (h *Handler) Routes() http.Handler {
 	p("PUT /api/emails/{id}", h.updateEmail)
 	p("DELETE /api/emails/{id}", h.deleteEmail)
 	p("POST /api/emails/send", h.sendEmail)
+
+	p("GET /api/tokens", h.listTokens)
+	p("POST /api/tokens", h.createToken)
+	p("DELETE /api/tokens/{id}", h.deleteToken)
 
 	return mux
 }

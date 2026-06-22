@@ -14,14 +14,14 @@ import (
 
 // Record is a provider-agnostic DNS record.
 type Record struct {
-	ID      string `json:"id"`
-	Type    string `json:"type"` // A, AAAA, CNAME, TXT, MX, ...
-	Name    string `json:"name"`
-	Content string `json:"content"`
-	TTL     int    `json:"ttl"`
-	Proxied bool   `json:"proxied"`
-	Comment string `json:"comment"` // the per-record note
-	Priority *int  `json:"priority,omitempty"`
+	ID       string `json:"id"`
+	Type     string `json:"type"` // A, AAAA, CNAME, TXT, MX, ...
+	Name     string `json:"name"`
+	Content  string `json:"content"`
+	TTL      int    `json:"ttl"`
+	Proxied  bool   `json:"proxied"`
+	Comment  string `json:"comment"` // the per-record note
+	Priority *int   `json:"priority,omitempty"`
 }
 
 // Provider is the DNS backend contract.

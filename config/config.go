@@ -40,6 +40,10 @@ type Config struct {
 	SMTPFrom string
 
 	BaseURL string // public base URL, used to build short link / QR URLs
+
+	// Telegram notifications on inbound email (optional). Both required to enable.
+	TelegramBotToken string
+	TelegramChatID   string
 }
 
 func env(key, def string) string {
@@ -52,22 +56,24 @@ func env(key, def string) string {
 // Load reads configuration from the environment, applying sane defaults.
 func Load() (*Config, error) {
 	c := &Config{
-		Listen:        env("LED_LISTEN", ":8080"),
-		AdminHost:     env("LED_ADMIN_HOST", ""),
-		DBDriver:      env("LED_DB_DRIVER", "sqlite"),
-		DBDSN:         env("LED_DB_DSN", "led.db"),
-		SecretKey:     env("LED_SECRET_KEY", ""),
-		AdminUser:     env("LED_ADMIN_USER", "admin"),
-		AdminPassword: env("LED_ADMIN_PASSWORD", ""),
-		InboundToken:  env("LED_INBOUND_TOKEN", ""),
-		CatchAll:      env("LED_CATCH_ALL", "true") == "true",
-		GeoIPDB:       env("LED_GEOIP_DB", ""),
-		SMTPHost:      env("LED_SMTP_HOST", ""),
-		SMTPPort:      env("LED_SMTP_PORT", "587"),
-		SMTPUser:      env("LED_SMTP_USER", ""),
-		SMTPPass:      env("LED_SMTP_PASS", ""),
-		SMTPFrom:      env("LED_SMTP_FROM", ""),
-		BaseURL:       strings.TrimRight(env("LED_BASE_URL", ""), "/"),
+		Listen:           env("LED_LISTEN", ":8080"),
+		AdminHost:        env("LED_ADMIN_HOST", ""),
+		DBDriver:         env("LED_DB_DRIVER", "sqlite"),
+		DBDSN:            env("LED_DB_DSN", "led.db"),
+		SecretKey:        env("LED_SECRET_KEY", ""),
+		AdminUser:        env("LED_ADMIN_USER", "admin"),
+		AdminPassword:    env("LED_ADMIN_PASSWORD", ""),
+		InboundToken:     env("LED_INBOUND_TOKEN", ""),
+		CatchAll:         env("LED_CATCH_ALL", "true") == "true",
+		GeoIPDB:          env("LED_GEOIP_DB", ""),
+		SMTPHost:         env("LED_SMTP_HOST", ""),
+		SMTPPort:         env("LED_SMTP_PORT", "587"),
+		SMTPUser:         env("LED_SMTP_USER", ""),
+		SMTPPass:         env("LED_SMTP_PASS", ""),
+		SMTPFrom:         env("LED_SMTP_FROM", ""),
+		BaseURL:          strings.TrimRight(env("LED_BASE_URL", ""), "/"),
+		TelegramBotToken: env("LED_TELEGRAM_BOT_TOKEN", ""),
+		TelegramChatID:   env("LED_TELEGRAM_CHAT_ID", ""),
 	}
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" {
 		return nil, fmt.Errorf("LED_DB_DRIVER must be sqlite or postgres, got %q", c.DBDriver)

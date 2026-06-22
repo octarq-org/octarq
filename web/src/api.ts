@@ -71,6 +71,15 @@ export interface LinkStats {
   browsers: StatKV[] | null;
 }
 
+export interface Token {
+  id: number;
+  name: string;
+  prefix: string;
+  note: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+}
+
 class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -145,6 +154,12 @@ export const api = {
   deleteEmail: (id: number) => req("DELETE", `/api/emails/${id}`),
   sendEmail: (m: { from?: string; to: string[]; subject: string; text?: string; html?: string }) =>
     req("POST", "/api/emails/send", m),
+
+  // api tokens
+  tokens: () => req<Token[]>("GET", "/api/tokens"),
+  createToken: (t: { name: string; note?: string }) =>
+    req<Token & { token: string }>("POST", "/api/tokens", t),
+  deleteToken: (id: number) => req("DELETE", `/api/tokens/${id}`),
 };
 
 export { ApiError };

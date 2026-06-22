@@ -1,9 +1,12 @@
 package api
 
 import (
+	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/jungley/led/internal/mail"
 	"github.com/jungley/led/internal/models"
@@ -223,6 +226,17 @@ func (h *Handler) inbound(w http.ResponseWriter, r *http.Request) {
 		ReceivedAt: parsed.ReceivedAt,
 	}
 	h.db.Create(&e)
+
+	// Best-effort Telegram notification; never block or fail the webhook.
+	if h.notifier != nil {
+		text := fmt.Sprintf("📧 New mail to %s — From: %s — %s", to, parsed.From, parsed.Subject)
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			_ = h.notifier.Notify(ctx, text)
+		}()
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "stored": true, "id": e.ID})
 }
 

@@ -4,6 +4,7 @@ import { api, ApiError } from "./api";
 import LinksPage from "./pages/Links";
 import DomainsPage from "./pages/Domains";
 import MailPage from "./pages/Mail";
+import SettingsPage from "./pages/Settings";
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/links" element={<LinksPage />} />
             <Route path="/domains" element={<DomainsPage />} />
             <Route path="/mail" element={<MailPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/links" replace />} />
           </Routes>
         </div>
@@ -50,6 +52,7 @@ function Sidebar({ user, onLogout }: { user: string; onLogout: () => void }) {
     { to: "/links", label: "Links", icon: "🔗" },
     { to: "/domains", label: "Domains", icon: "🌐" },
     { to: "/mail", label: "Mail", icon: "✉️" },
+    { to: "/settings", label: "Settings", icon: "⚙️" },
   ];
   return (
     <aside className="flex w-56 flex-col border-r border-zinc-800 bg-zinc-950 p-4">

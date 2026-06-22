@@ -20,6 +20,7 @@ import (
 	"github.com/jungley/led/internal/db"
 	"github.com/jungley/led/internal/geo"
 	"github.com/jungley/led/internal/mail"
+	"github.com/jungley/led/internal/notify"
 	"github.com/jungley/led/internal/server"
 	"github.com/jungley/led/internal/shortlink"
 	"github.com/jungley/led/webembed"
@@ -37,8 +38,9 @@ func main() {
 	}
 
 	cipher := crypto.New(cfg.SecretKey)
-	authMgr := auth.New(cfg, cipher)
+	authMgr := auth.New(cfg, cipher).WithDB(gdb)
 	sender := mail.NewSender(cfg)
+	notifier := notify.NewTelegram(cfg)
 
 	geoResolver, err := geo.Open(cfg.GeoIPDB)
 	if err != nil {
@@ -48,7 +50,7 @@ func main() {
 	defer geoResolver.Close()
 
 	short := shortlink.New(gdb, geoResolver)
-	apiHandler := api.New(cfg, gdb, cipher, authMgr, sender, geoResolver).Routes()
+	apiHandler := api.New(cfg, gdb, cipher, authMgr, sender, geoResolver, notifier).Routes()
 
 	webFS, err := webembed.FS()
 	if err != nil {

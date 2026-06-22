@@ -16,9 +16,14 @@ Unlike wr.do, **every entity — links, mailboxes, and DNS records — supports 
   / device / browser breakdown via User-Agent + optional GeoIP).
 - **Mailboxes** — receive mail on your domains via Cloudflare Email Routing, read
   it in the dashboard, send replies through an SMTP relay.
-- **DNS** — manage records through a provider abstraction (Cloudflare today;
-  Aliyun / DNSPod / Route53 slot in). Record notes map to the provider's native
-  comment field.
+- **DNS** — manage records through a provider abstraction (Cloudflare and DNSPod
+  today; Aliyun / Route53 slot in). Record notes map to the provider's native
+  comment / remark field.
+- **Open API tokens** — issue bearer tokens for the JSON API; every data endpoint
+  accepts either a session cookie or `Authorization: Bearer led_…`. Only a SHA-256
+  hash is stored, and the raw token is shown once at creation.
+- **Telegram notifications** — get a Telegram message when new mail arrives
+  (set `LED_TELEGRAM_BOT_TOKEN` + `LED_TELEGRAM_CHAT_ID`).
 - **One binary** — pure-Go SQLite (no cgo), React dashboard embedded via `go:embed`.
   Postgres supported by flipping two env vars.
 
@@ -93,8 +98,9 @@ make dev
 - [x] **P1** short links + basic analytics + QR
 - [x] **P2** DNS management (Cloudflare, multi-provider interface)
 - [x] **P3** email — Cloudflare inbound webhook, inbox UI, SMTP send
-- [ ] **P4** open API tokens, more DNS providers, Telegram notifications,
-  then multi-tenant (commercial license)
+- [x] **P4** open API tokens (bearer auth), more DNS providers (DNSPod),
+  Telegram notifications on inbound email
+- [ ] **P5** multi-tenant / multi-org (commercial license)
 
 ## License
 
