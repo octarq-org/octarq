@@ -4,6 +4,7 @@ package geo
 
 import (
 	"net"
+	"os"
 
 	"github.com/mileusna/useragent"
 	geoip2 "github.com/oschwald/geoip2-golang"
@@ -15,11 +16,20 @@ type Resolver struct {
 }
 
 // Open loads the mmdb at path. An empty path yields a no-op resolver.
+//
+// The file is read into memory rather than memory-mapped: geoip2.Open uses
+// mmap, which fails with ENODEV ("no such device") on filesystems that don't
+// support it (some Docker bind mounts / overlay / network volumes). Reading
+// the bytes avoids that and works everywhere.
 func Open(path string) (*Resolver, error) {
 	if path == "" {
 		return &Resolver{}, nil
 	}
-	r, err := geoip2.Open(path)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	r, err := geoip2.FromBytes(data)
 	if err != nil {
 		return nil, err
 	}
