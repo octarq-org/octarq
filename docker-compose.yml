@@ -18,10 +18,13 @@ services:
       LED_GEOIP_DB: ${LED_GEOIP_DB:-}
     volumes:
       - led-data:/data
-      # To enable GeoIP, put a GeoLite2-City.mmdb next to this file on the host,
-      # uncomment the mount below, and set LED_GEOIP_DB=/data/GeoLite2-City.mmdb
-      # in your .env. (The path on the RIGHT is what LED_GEOIP_DB must point to.)
-      # - ./GeoLite2-City.mmdb:/data/GeoLite2-City.mmdb:ro
+      # To enable GeoIP:
+      #  1. Upload GeoLite2-City.mmdb to the HOST (e.g. same folder as this file).
+      #  2. Uncomment the line below, using an ABSOLUTE host path on the left.
+      #     The file must already exist, or Docker creates an empty directory.
+      #     Mount under /geoip (NOT /data, which is the named volume above).
+      #  3. Set LED_GEOIP_DB=/geoip/GeoLite2-City.mmdb (the path on the RIGHT).
+      # - /opt/1panel/docker/compose/led/GeoLite2-City.mmdb:/geoip/GeoLite2-City.mmdb:ro
     restart: unless-stopped
 
 volumes:
