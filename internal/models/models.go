@@ -177,7 +177,7 @@ type Email struct {
 	Subject     string    `gorm:"type:text" json:"subject"`
 	Text        string    `gorm:"type:text" json:"text"`
 	HTML        string    `gorm:"type:text" json:"html"`
-	Raw         []byte    `gorm:"type:blob" json:"-"`
+	Raw         []byte    `json:"-"` // GORM maps []byte to blob (sqlite) / bytea (postgres)
 	Read        bool      `gorm:"default:false" json:"read"`
 	Note        string    `gorm:"type:text" json:"note"`
 	Attachments string    `gorm:"type:text" json:"attachments"` // JSON array of {filename,contentType,size}
