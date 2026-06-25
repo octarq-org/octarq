@@ -5,6 +5,7 @@ import { Empty, Field, Modal, timeAgo } from "../ui";
 export default function SettingsPage() {
   return (
     <div className="space-y-10">
+      <ProviderAccounts />
       <GeneralSettings />
       <ApiTokens />
     </div>
@@ -269,3 +270,130 @@ function CreateTokenModal({
     </Modal>
   );
 }
+
+function ProviderAccounts() {
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<any | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      setAccounts(await api.providerAccounts());
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function remove(id: number) {
+    if (!confirm("Remove this provider account? Domains using it will fail to update DNS.")) return;
+    try {
+      await api.deleteProviderAccount(id);
+      load();
+    } catch (e: any) {
+      alert(e.message || "Failed to remove");
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">Provider Accounts</h1>
+          <p className="text-sm text-zinc-500">
+            Configure DNS providers (Cloudflare, DNSPod) used for syncing and managing domains.
+          </p>
+        </div>
+        <button className="btn-primary" onClick={() => setCreating(true)}>+ New Account</button>
+      </div>
+      {loading ? (
+        <div className="text-zinc-500">loading…</div>
+      ) : accounts.length === 0 ? (
+        <Empty>
+          <div className="text-2xl">☁️</div>
+          <div>No Provider Accounts yet.</div>
+        </Empty>
+      ) : (
+        <div className="card divide-y divide-zinc-800">
+          {accounts.map(a => (
+            <div key={a.id} className="flex items-center justify-between p-4">
+              <div>
+                <div className="font-medium">{a.name}</div>
+                <div className="text-xs text-zinc-500"><span className="badge">{a.type}</span></div>
+              </div>
+              <div className="flex items-center gap-4">
+                <button className="btn-ghost" onClick={() => setEditing(a)}>Edit</button>
+                <button className="btn-ghost text-red-400" onClick={() => remove(a.id)}>Remove</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {(creating || editing) && (
+        <ProviderAccountModal
+          account={editing}
+          onClose={() => { setCreating(false); setEditing(null); }}
+          onSaved={() => { setCreating(false); setEditing(null); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onClose: () => void; onSaved: () => void }) {
+  const [name, setName] = useState(account?.name || "");
+  const [type, setType] = useState(account?.type || "cloudflare");
+  const [config, setConfig] = useState<string>("");
+  const [types, setTypes] = useState<string[]>([]);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api.dnsProviders().then(setTypes).catch(() => setTypes(["cloudflare", "dnspod"]));
+  }, []);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true); setErr("");
+    try {
+      let cfgObj: any = {};
+      if (config.trim()) {
+        try { cfgObj = JSON.parse(config.trim()); }
+        catch { cfgObj = type === "cloudflare" ? { apiToken: config.trim() } : { token: config.trim() }; }
+      }
+      if (account) {
+        await api.updateProviderAccount(account.id, { name, type, config: cfgObj });
+      } else {
+        await api.createProviderAccount({ name, type, config: cfgObj });
+      }
+      onSaved();
+    } catch (e: any) {
+      setErr(e.message || "Failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title={account ? "Edit Provider Account" : "New Provider Account"} onClose={onClose}>
+      <form onSubmit={submit}>
+        <Field label="Name"><input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. My Cloudflare" autoFocus /></Field>
+        {!account && (
+          <Field label="Provider Type">
+            <select className="input" value={type} onChange={e => setType(e.target.value)}>
+              {types.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </Field>
+        )}
+        <Field label="Credentials" hint={account ? "Leave empty to keep existing. Cloudflare accepts API Token string. DNSPod accepts 'ID,Token'." : "For Cloudflare, enter API Token. For DNSPod, enter 'ID,Token'."}>
+          <input className="input" value={config} onChange={e => setConfig(e.target.value)} placeholder={account ? "(hidden)" : "Token..."} />
+        </Field>
+        {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
+        <button className="btn-primary w-full" disabled={busy || !name.trim() || (!account && !config.trim())}>{busy ? "…" : "Save Account"}</button>
+      </form>
+    </Modal>
+  );
+}
+

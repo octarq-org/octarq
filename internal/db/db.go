@@ -35,5 +35,34 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 	if err := gdb.AutoMigrate(models.AllModels()...); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
+
+	// Data migration: move legacy domain.provider / config to ProviderAccount
+	if gdb.Migrator().HasColumn(&models.Domain{}, "provider") && gdb.Migrator().HasColumn(&models.Domain{}, "config") {
+		var legacyDomains []struct {
+			ID       uint
+			Provider string
+			Config   string
+		}
+		// Read domains that haven't been migrated yet
+		gdb.Raw("SELECT id, provider, config FROM domains WHERE provider_account_id = 0 OR provider_account_id IS NULL").Scan(&legacyDomains)
+		for _, ld := range legacyDomains {
+			if ld.Provider == "" {
+				continue
+			}
+			var acc models.ProviderAccount
+			// Group by identical config to avoid duplicating the same account
+			if err := gdb.Where("config = ?", ld.Config).First(&acc).Error; err != nil {
+				acc = models.ProviderAccount{
+					OwnerID: models.SingleUserID,
+					Name:    ld.Provider + " (Migrated)",
+					Type:    ld.Provider,
+					Config:  ld.Config,
+				}
+				gdb.Create(&acc)
+			}
+			gdb.Exec("UPDATE domains SET provider_account_id = ? WHERE id = ?", acc.ID, ld.ID)
+		}
+	}
+
 	return gdb, nil
 }

@@ -26,18 +26,25 @@ func (h *Handler) encryptConfig(cfg map[string]any) (string, error) {
 // provider. Cloudflare domains without their own credentials fall back to the
 // global Cloudflare token configured in Settings.
 func (h *Handler) providerFor(dom models.Domain) (dnsprovider.Provider, error) {
-	if dom.Config == "" {
-		if dom.Provider == "cloudflare" {
+	if dom.ProviderAccountID == 0 {
+		return nil, errors.New("domain has no provider account configured")
+	}
+	var acc models.ProviderAccount
+	if err := h.db.First(&acc, dom.ProviderAccountID).Error; err != nil {
+		return nil, errors.New("provider account not found")
+	}
+	if acc.Config == "" {
+		if acc.Type == "cloudflare" {
 			if tok := h.cloudflareToken(); tok != "" {
 				creds, _ := json.Marshal(map[string]string{"apiToken": tok})
 				return dnsprovider.New("cloudflare", creds)
 			}
 		}
-		return nil, errors.New("domain has no provider credentials configured")
+		return nil, errors.New("provider account has no credentials configured")
 	}
-	creds, err := h.cipher.Decrypt(dom.Config)
+	creds, err := h.cipher.Decrypt(acc.Config)
 	if err != nil {
 		return nil, errors.New("decrypt provider credentials")
 	}
-	return dnsprovider.New(dom.Provider, creds)
+	return dnsprovider.New(acc.Type, creds)
 }

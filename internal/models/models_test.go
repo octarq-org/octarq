@@ -27,16 +27,36 @@ func TestStringListRoundTrip(t *testing.T) {
 }
 
 func TestEffectiveHosts(t *testing.T) {
-	sub := Domain{Name: "example.com", LinkHosts: StringList{"go.example.com"}, MailHosts: StringList{"mail.example.com"}}
+	sub := Domain{
+		Name:      "example.com",
+		LinkHosts: HostList{{Host: "go.example.com", Enabled: true}, {Host: "off.example.com", Enabled: false}},
+		MailHosts: HostList{{Host: "mail.example.com", Enabled: true}},
+	}
 	if got := sub.EffectiveLinkHosts(); len(got) != 1 || got[0] != "go.example.com" {
-		t.Errorf("link hosts: %v", got)
+		t.Errorf("enabled link hosts only: %v", got)
 	}
 	if got := sub.EffectiveMailHosts(); len(got) != 1 || got[0] != "mail.example.com" {
 		t.Errorf("mail hosts: %v", got)
 	}
-	off := Domain{Name: "example.com"}
-	if got := off.EffectiveLinkHosts(); got != nil {
-		t.Errorf("no hosts should be nil: %v", got)
+	// Blocks: a disabled-only host blocks; an enabled or unlisted host does not.
+	if !sub.LinkHosts.Blocks("off.example.com") {
+		t.Error("disabled host should block")
+	}
+	if sub.LinkHosts.Blocks("go.example.com") {
+		t.Error("enabled host should not block")
+	}
+	if sub.LinkHosts.Blocks("unknown.example.com") {
+		t.Error("unlisted host should not block")
+	}
+}
+
+func TestHostListLegacyScan(t *testing.T) {
+	var l HostList
+	if err := l.Scan(`["go.example.com","s.example.com"]`); err != nil {
+		t.Fatalf("legacy scan: %v", err)
+	}
+	if len(l) != 2 || !l[0].Enabled || l[0].Host != "go.example.com" {
+		t.Errorf("legacy []string not upgraded: %+v", l)
 	}
 }
 

@@ -1,6 +1,7 @@
 .PHONY: all web build run dev docker clean tidy
 
 BINARY := led
+AIR    := $(shell go env GOPATH)/bin/air
 
 all: web build
 
@@ -18,9 +19,19 @@ release: web build
 run: build
 	./$(BINARY)
 
-# Run API + Vite dev server (frontend hot reload, proxies /api to :8080).
+# Hot-reload dev mode:
+#   - air     → watches *.go, rebuilds & restarts the API (port from .env / LED_LISTEN)
+#   - vite    → serves the frontend on :5173 with HMR, proxies /api → backend
+# Open http://localhost:5173/admin/
+# Override port:  LED_PORT=9000 make dev
+# Ctrl-C kills both processes.
 dev:
-	cd web && pnpm dev
+	@echo "Starting backend (air) + frontend (vite) with hot reload..."
+	@export LED_PORT=$${LED_PORT:-8680}; \
+	  trap 'kill 0' INT; \
+	  $(AIR) & \
+	  (cd web && LED_PORT=$$LED_PORT pnpm dev) & \
+	  wait
 
 docker:
 	docker build -t led:latest .
@@ -30,4 +41,4 @@ tidy:
 
 clean:
 	rm -f $(BINARY) *.db *.db-*
-	rm -rf web/node_modules webembed/dist/assets
+	rm -rf web/node_modules webembed/dist/assets .air

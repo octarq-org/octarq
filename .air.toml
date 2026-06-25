@@ -1,0 +1,22 @@
+root = "."
+tmp_dir = ".air"
+
+[build]
+  # Go source that air watches (exclude frontend and generated assets)
+  include_ext = ["go", "toml"]
+  exclude_dir  = ["web", "webembed/dist", ".air", ".git", "deploy"]
+  cmd      = "go build -o .air/led ."
+  entrypoint = ".air/led"
+  delay    = 500          # ms debounce after last file change
+  kill_delay = "200ms"
+  send_interrupt = true   # SIGINT so led's graceful shutdown runs
+
+[log]
+  time = false            # keep output clean
+
+[color]
+  build  = "yellow"
+  runner = "green"
+
+[misc]
+  clean_on_exit = true    # remove .air/led on Ctrl-C

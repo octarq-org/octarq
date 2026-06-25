@@ -60,6 +60,12 @@ func (h *Handler) Routes() http.Handler {
 	p("GET /api/links/{id}/qr", h.linkQR)
 
 	p("GET /api/dns/providers", h.dnsProviders)
+
+	p("GET /api/provider-accounts", h.listProviderAccounts)
+	p("POST /api/provider-accounts", h.createProviderAccount)
+	p("PUT /api/provider-accounts/{id}", h.updateProviderAccount)
+	p("DELETE /api/provider-accounts/{id}", h.deleteProviderAccount)
+
 	p("POST /api/domains/sync", h.syncDomains)
 	p("GET /api/domains", h.listDomains)
 	p("POST /api/domains", h.createDomain)

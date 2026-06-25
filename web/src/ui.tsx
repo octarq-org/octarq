@@ -1,5 +1,7 @@
 // Small shared UI primitives.
 import { ReactNode, useEffect, useState } from "react";
+import { HostEntry } from "./api";
+
 
 export function Modal({
   title,
@@ -86,34 +88,70 @@ export function HostList({
   onChange,
   suggestions = [],
   placeholder,
+  baseDomain,
+  emptyText = "No hosts added yet.",
 }: {
-  hosts: string[];
-  onChange: (hosts: string[]) => void;
+  hosts: HostEntry[];
+  onChange: (hosts: HostEntry[]) => void;
   suggestions?: string[];
   placeholder?: string;
+  /** When provided, bare labels without a dot are auto-expanded: "go" → "go.example.com" */
+  baseDomain?: string;
+  /** Text shown when the host list is empty. */
+  emptyText?: string;
 }) {
   const [draft, setDraft] = useState("");
+  function resolve(raw: string): string {
+    const v = raw.trim().toLowerCase();
+    if (!v) return v;
+    // Auto-append base domain when the user types a bare label (no dot)
+    if (baseDomain && !v.includes(".")) return `${v}.${baseDomain}`;
+    return v;
+  }
   function add(h: string) {
-    const v = h.trim().toLowerCase();
-    if (v && !hosts.includes(v)) onChange([...hosts, v]);
+    const v = resolve(h);
+    if (v && !hosts.some((x) => x.host === v)) {
+      onChange([...hosts, { host: v, enabled: true }]);
+    }
     setDraft("");
   }
-  const freshSuggestions = suggestions.filter((s) => !hosts.includes(s));
+  const freshSuggestions = suggestions.filter((s) => !hosts.some((x) => x.host === s));
   return (
     <div className="rounded-lg border border-zinc-700 bg-zinc-900/40 p-2.5">
       {/* selected hosts */}
       <div className="mb-2 flex flex-wrap gap-1.5">
         {hosts.length === 0 ? (
-          <span className="text-xs text-zinc-500">No hosts added — short links/mail will use the apex domain.</span>
+          <span className="text-xs text-zinc-500">{emptyText}</span>
         ) : (
           hosts.map((h) => (
-            <span key={h} className="inline-flex items-center gap-1 rounded-md bg-indigo-500/20 px-2 py-1 text-sm text-indigo-100">
-              {h}
+            <span
+              key={h.host}
+              className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm border transition-colors ${
+                h.enabled
+                  ? "bg-indigo-500/20 text-indigo-100 border-indigo-500/30"
+                  : "bg-zinc-800 text-zinc-500 border-zinc-700 line-through"
+              }`}
+            >
               <button
                 type="button"
-                className="text-indigo-300 hover:text-red-400"
+                className={`cursor-pointer hover:text-white text-xs ${h.enabled ? "text-indigo-400" : "text-zinc-500"}`}
+                title={h.enabled ? "Disable host" : "Enable host"}
+                onClick={() =>
+                  onChange(
+                    hosts.map((x) =>
+                      x.host === h.host ? { ...x, enabled: !x.enabled } : x
+                    )
+                  )
+                }
+              >
+                {h.enabled ? "●" : "○"}
+              </button>
+              <span className="select-none">{h.host}</span>
+              <button
+                type="button"
+                className="text-zinc-400 hover:text-red-400 ml-0.5"
                 title="remove"
-                onClick={() => onChange(hosts.filter((x) => x !== h))}
+                onClick={() => onChange(hosts.filter((x) => x.host !== h.host))}
               >
                 ✕
               </button>
@@ -124,18 +162,25 @@ export function HostList({
 
       {/* add row */}
       <div className="flex gap-2">
-        <input
-          className="input"
-          value={draft}
-          placeholder={placeholder ?? "type a host and press Enter"}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              add(draft);
-            }
-          }}
-        />
+        <div className="relative flex-1">
+          <input
+            className="input w-full"
+            value={draft}
+            placeholder={placeholder ?? "type a host and press Enter"}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                add(draft);
+              }
+            }}
+          />
+          {baseDomain && draft && !draft.includes(".") && (
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-zinc-500">
+              → {draft.trim().toLowerCase()}.{baseDomain}
+            </span>
+          )}
+        </div>
         <button className="btn-primary shrink-0" type="button" disabled={!draft.trim()} onClick={() => add(draft)}>
           + Add
         </button>

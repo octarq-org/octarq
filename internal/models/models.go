@@ -52,6 +52,88 @@ func (s *StringList) Scan(v any) error {
 	return json.Unmarshal(b, (*[]string)(s))
 }
 
+// Host is a single hostname with an enable flag, so a host can be temporarily
+// disabled without losing its configuration.
+type Host struct {
+	Host    string `json:"host"`
+	Enabled bool   `json:"enabled"`
+}
+
+// HostList is a []Host persisted as a JSON text column. Scan is backward
+// compatible with the older format that stored a plain []string (each such
+// host is treated as enabled).
+type HostList []Host
+
+func (l HostList) Value() (driver.Value, error) {
+	if len(l) == 0 {
+		return "[]", nil
+	}
+	b, err := json.Marshal([]Host(l))
+	return string(b), err
+}
+
+func (l *HostList) Scan(v any) error {
+	if v == nil {
+		*l = nil
+		return nil
+	}
+	var b []byte
+	switch t := v.(type) {
+	case []byte:
+		b = t
+	case string:
+		b = []byte(t)
+	default:
+		return fmt.Errorf("HostList: unsupported scan type %T", v)
+	}
+	if len(b) == 0 {
+		*l = nil
+		return nil
+	}
+	var hosts []Host
+	if err := json.Unmarshal(b, &hosts); err == nil {
+		*l = hosts
+		return nil
+	}
+	// Legacy []string format.
+	var strs []string
+	if err := json.Unmarshal(b, &strs); err != nil {
+		return err
+	}
+	out := make(HostList, 0, len(strs))
+	for _, s := range strs {
+		out = append(out, Host{Host: s, Enabled: true})
+	}
+	*l = out
+	return nil
+}
+
+// Enabled returns only the hostnames that are currently enabled.
+func (l HostList) Enabled() []string {
+	out := make([]string, 0, len(l))
+	for _, h := range l {
+		if h.Enabled {
+			out = append(out, h.Host)
+		}
+	}
+	return out
+}
+
+// Blocks reports whether host is listed but every listing is disabled — i.e.
+// traffic to it should be dropped. An unlisted host is not blocked.
+func (l HostList) Blocks(host string) bool {
+	listed := false
+	for _, h := range l {
+		if h.Host == host {
+			listed = true
+			if h.Enabled {
+				return false
+			}
+		}
+	}
+	return listed
+}
+
 // Token is an API token for the open API. Only the SHA-256 hash of the raw
 // token is stored; the raw token is shown once at creation time. Prefix keeps
 // a short, non-secret identifier for the dashboard list.
@@ -73,34 +155,44 @@ func HashToken(raw string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// ProviderAccount represents a DNS provider configuration (e.g. Cloudflare)
+// containing the credentials needed to manage zones.
+type ProviderAccount struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	OwnerID   uint      `gorm:"index;default:1" json:"-"`
+	Name      string    `gorm:"size:255" json:"name"` // e.g. "Personal Cloudflare"
+	Type      string    `gorm:"size:32" json:"type"`  // e.g. "cloudflare", "dnspod"
+	Config    string    `gorm:"type:text" json:"-"`   // AES-GCM encrypted credentials JSON
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // Domain is a domain managed by led, tied to a DNS provider account.
 type Domain struct {
-	ID       uint   `gorm:"primaryKey" json:"id"`
-	OwnerID  uint   `gorm:"index;default:1" json:"-"`
-	Name     string `gorm:"uniqueIndex;size:255" json:"name"`
-	Provider string `gorm:"size:32" json:"provider"` // cloudflare, ...
-	ZoneID   string `gorm:"size:64" json:"zoneId"`
-	Note     string `gorm:"type:text" json:"note"`
-	Config   string `gorm:"type:text" json:"-"` // AES-GCM encrypted provider credentials JSON
-	ForMail  bool   `json:"forMail"`            // accept inbound email for this domain
-	ForLink  bool   `json:"forLink"`            // serve short links on this domain
+	ID                uint   `gorm:"primaryKey" json:"id"`
+	OwnerID           uint   `gorm:"index;default:1" json:"-"`
+	Name              string `gorm:"uniqueIndex;size:255" json:"name"`
+	ProviderAccountID uint   `gorm:"index" json:"providerAccountId"`
+	ZoneID            string `gorm:"size:64" json:"zoneId"`
+	Note              string `gorm:"type:text" json:"note"`
+	ForMail           bool   `json:"forMail"` // accept inbound email for this domain
+	ForLink           bool   `json:"forLink"` // serve short links on this domain
 	// LinkHosts are the hostnames short links are served on for this zone — one
 	// or more, typically subdomains like "go.example.com", "s.example.com".
 	// MailHosts are the hostnames mailboxes live under (e.g. "example.com",
 	// "mail.example.com"). An empty list with the matching toggle on falls back
 	// to the apex Name.
-	LinkHosts StringList `gorm:"type:text" json:"linkHosts"`
-	MailHosts StringList `gorm:"type:text" json:"mailHosts"`
-	CreatedAt time.Time  `json:"createdAt"`
-	UpdatedAt time.Time  `json:"updatedAt"`
+	LinkHosts HostList  `gorm:"type:text" json:"linkHosts"`
+	MailHosts HostList  `gorm:"type:text" json:"mailHosts"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// EffectiveLinkHosts returns the hostnames short links are served on. The host
-// list is the single source of truth (a domain serves links iff it is set).
-func (d Domain) EffectiveLinkHosts() []string { return d.LinkHosts }
+// EffectiveLinkHosts returns the enabled hostnames short links are served on.
+func (d Domain) EffectiveLinkHosts() []string { return d.LinkHosts.Enabled() }
 
-// EffectiveMailHosts returns the hostnames mailboxes live under.
-func (d Domain) EffectiveMailHosts() []string { return d.MailHosts }
+// EffectiveMailHosts returns the enabled hostnames mailboxes live under.
+func (d Domain) EffectiveMailHosts() []string { return d.MailHosts.Enabled() }
 
 // Link is a short link. (Host, Slug) is unique.
 type Link struct {
@@ -177,6 +269,6 @@ type Setting struct {
 // AllModels lists every model for AutoMigrate.
 func AllModels() []any {
 	return []any{
-		&Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{}, &Token{}, &Setting{},
+		&ProviderAccount{}, &Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{}, &Token{}, &Setting{},
 	}
 }

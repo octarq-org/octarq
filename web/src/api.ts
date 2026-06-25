@@ -21,23 +21,36 @@ export interface Link {
 export interface Domain {
   id: number;
   name: string;
-  provider: string;
+  providerAccountId: number;
   zoneId: string;
   note: string;
   forMail: boolean;
   forLink: boolean;
-  linkHosts: string[] | null; // hostnames short links are served on (usually subdomains)
-  mailHosts: string[] | null; // hostnames mailboxes live under
+  linkHosts: HostEntry[] | null; // hostnames short links are served on (usually subdomains)
+  mailHosts: HostEntry[] | null; // hostnames mailboxes live under
   createdAt: string;
 }
 
-// effectiveLinkHosts / effectiveMailHosts mirror the server-side fallback to
-// the apex when a service is enabled but no explicit host is configured.
+export interface ProviderAccount {
+  id: number;
+  name: string;
+  type: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HostEntry {
+  host: string;
+  enabled: boolean;
+}
+
+// effectiveLinkHosts / effectiveMailHosts return only the enabled hostnames —
+// disabled hosts are kept in config but don't serve traffic.
 export function effectiveLinkHosts(d: Domain): string[] {
-  return d.linkHosts ?? [];
+  return (d.linkHosts ?? []).filter((h) => h.enabled).map((h) => h.host);
 }
 export function effectiveMailHosts(d: Domain): string[] {
-  return d.mailHosts ?? [];
+  return (d.mailHosts ?? []).filter((h) => h.enabled).map((h) => h.host);
 }
 
 export interface DNSRecord {
@@ -201,11 +214,17 @@ export const api = {
 
   // domains
   dnsProviders: () => req<string[]>("GET", "/api/dns/providers"),
-  syncDomains: (provider: string, config: Record<string, unknown>) =>
+
+  providerAccounts: () => req<ProviderAccount[]>("GET", "/api/provider-accounts"),
+  createProviderAccount: (p: any) => req<ProviderAccount>("POST", "/api/provider-accounts", p),
+  updateProviderAccount: (id: number, p: any) => req<ProviderAccount>("PUT", `/api/provider-accounts/${id}`, p),
+  deleteProviderAccount: (id: number) => req("DELETE", `/api/provider-accounts/${id}`),
+
+  syncDomains: (providerAccountId: number) =>
     req<{ ok: boolean; total: number; created: number; updated: number }>(
       "POST",
       "/api/domains/sync",
-      { provider, config },
+      { providerAccountId },
     ),
   domains: () => req<Domain[]>("GET", "/api/domains"),
   createDomain: (d: any) => req<Domain>("POST", "/api/domains", d),

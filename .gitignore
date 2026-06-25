@@ -18,5 +18,8 @@ web/.vite
 # geoip
 *.mmdb
 
+# air (hot-reload tmp)
+.air/
+
 # os
 .DS_Store

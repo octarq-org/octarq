@@ -274,10 +274,33 @@ func (h *Handler) inbound(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "stored": true, "id": e.ID})
 }
 
+// mailHostDisabled reports whether host is listed as a mail host on some domain
+// but every such listing is disabled (so mail to it should be dropped).
+func (h *Handler) mailHostDisabled(host string) bool {
+	var doms []models.Domain
+	h.db.Where("for_mail = ?", true).Find(&doms)
+	listed := false
+	for _, d := range doms {
+		for _, mh := range d.MailHosts {
+			if mh.Host == host {
+				listed = true
+				if mh.Enabled {
+					return false
+				}
+			}
+		}
+	}
+	return listed
+}
+
 // resolveMailbox finds an enabled mailbox for the address, optionally creating
 // one when catch-all is on and the recipient's domain is managed for mail.
 func (h *Handler) resolveMailbox(addr string) (*models.Mailbox, bool) {
 	if addr == "" {
+		return nil, false
+	}
+	// Drop mail to a temporarily disabled mail host, even for existing mailboxes.
+	if at := strings.LastIndex(addr, "@"); at >= 0 && h.mailHostDisabled(addr[at+1:]) {
 		return nil, false
 	}
 	var mb models.Mailbox

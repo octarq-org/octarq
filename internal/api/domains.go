@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
@@ -37,18 +36,29 @@ func normalizeHost(host string) string {
 	return host
 }
 
-// normalizeHosts cleans and de-duplicates a host list. A service (links/mail)
-// is considered enabled when its host list is non-empty — there is no separate
-// toggle.
-func normalizeHosts(hosts []string) models.StringList {
+// hostEntry is a host with its enable flag in create/update payloads.
+type hostEntry struct {
+	Host    string `json:"host"`
+	Enabled *bool  `json:"enabled"`
+}
+
+// normalizeHosts cleans and de-duplicates a host list, preserving each host's
+// enabled flag (defaulting to enabled). A service (links/mail) is considered
+// configured when its host list is non-empty — there is no separate toggle.
+func normalizeHosts(hosts []hostEntry) models.HostList {
 	seen := map[string]bool{}
-	var out models.StringList
+	var out models.HostList
 	for _, h := range hosts {
-		h = normalizeHost(h)
-		if h != "" && !seen[h] {
-			seen[h] = true
-			out = append(out, h)
+		name := normalizeHost(h.Host)
+		if name == "" || seen[name] {
+			continue
 		}
+		seen[name] = true
+		enabled := true
+		if h.Enabled != nil {
+			enabled = *h.Enabled
+		}
+		out = append(out, models.Host{Host: name, Enabled: enabled})
 	}
 	return out
 }
@@ -58,29 +68,29 @@ func normalizeHosts(hosts []string) models.StringList {
 // existing ones. User flags (forLink/forMail/note) on existing domains are kept.
 func (h *Handler) syncDomains(w http.ResponseWriter, r *http.Request) {
 	var d struct {
-		Provider string         `json:"provider"`
-		Config   map[string]any `json:"config"`
+		ProviderAccountID uint `json:"providerAccountId"`
 	}
 	if err := readJSON(r, &d); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-	if d.Provider == "" {
-		d.Provider = "cloudflare"
-	}
-	// Fall back to the global Cloudflare token from Settings when none is given.
-	if len(d.Config) == 0 && d.Provider == "cloudflare" {
-		if tok := h.cloudflareToken(); tok != "" {
-			d.Config = map[string]any{"apiToken": tok}
-		}
-	}
-	enc, err := h.encryptConfig(d.Config)
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "encrypt config")
+	if d.ProviderAccountID == 0 {
+		writeErr(w, http.StatusBadRequest, "providerAccountId is required")
 		return
 	}
-	credsJSON, _ := json.Marshal(d.Config)
-	prov, err := dnsprovider.New(d.Provider, credsJSON)
+	var acc models.ProviderAccount
+	if err := h.db.First(&acc, d.ProviderAccountID).Error; err != nil {
+		writeErr(w, http.StatusNotFound, "provider account not found")
+		return
+	}
+
+	creds, err := h.cipher.Decrypt(acc.Config)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "decrypt provider credentials")
+		return
+	}
+
+	prov, err := dnsprovider.New(acc.Type, creds)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
@@ -96,16 +106,13 @@ func (h *Handler) syncDomains(w http.ResponseWriter, r *http.Request) {
 		var dom models.Domain
 		if h.db.Where("name = ?", name).First(&dom).Error == nil {
 			dom.ZoneID = z.ID
-			dom.Provider = d.Provider
-			if enc != "" {
-				dom.Config = enc
-			}
+			dom.ProviderAccountID = acc.ID
 			h.db.Save(&dom)
 			updated++
 		} else {
 			h.db.Create(&models.Domain{
 				OwnerID: models.SingleUserID,
-				Name:    name, Provider: d.Provider, ZoneID: z.ID, Config: enc,
+				Name:    name, ProviderAccountID: acc.ID, ZoneID: z.ID,
 			})
 			created++
 		}
@@ -115,18 +122,21 @@ func (h *Handler) syncDomains(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// domainDTO is the create/update payload. Config holds the provider
-// credentials (e.g. {"apiToken":"..."}) and is encrypted before storage.
+// domainDTO is the create/update payload.
+// LinkHosts/MailHosts are pointers so we can distinguish "not sent" (nil)
+// from "explicitly set to empty" ([]) in PATCH-style updates.
 type domainDTO struct {
-	Name      string         `json:"name"`
-	Provider  string         `json:"provider"`
-	ZoneID    string         `json:"zoneId"`
-	Note      string         `json:"note"`
-	ForMail   bool           `json:"forMail"`
-	ForLink   bool           `json:"forLink"`
-	LinkHosts []string       `json:"linkHosts"`
-	MailHosts []string       `json:"mailHosts"`
-	Config    map[string]any `json:"config"`
+	Name              string       `json:"name"`
+	ProviderAccountID uint         `json:"providerAccountId"`
+	ZoneID            string       `json:"zoneId"`
+	Note              string       `json:"note"`
+	// ForLink/ForMail are pointer booleans so "not sent" (nil) is distinct
+	// from an explicit true/false, enabling domain-level master toggles that
+	// are independent of the individual host lists.
+	ForMail   *bool        `json:"forMail"`
+	ForLink   *bool        `json:"forLink"`
+	LinkHosts *[]hostEntry `json:"linkHosts"`
+	MailHosts *[]hostEntry `json:"mailHosts"`
 }
 
 func (h *Handler) listDomains(w http.ResponseWriter, r *http.Request) {
@@ -142,26 +152,37 @@ func (h *Handler) createDomain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d.Name = strings.TrimSpace(strings.ToLower(d.Name))
-	if d.Name == "" || d.Provider == "" {
-		writeErr(w, http.StatusBadRequest, "name and provider are required")
+	if d.Name == "" || d.ProviderAccountID == 0 {
+		writeErr(w, http.StatusBadRequest, "name and provider account are required")
 		return
 	}
-	enc, err := h.encryptConfig(d.Config)
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "encrypt config")
-		return
+	var linkHosts, mailHosts []hostEntry
+	if d.LinkHosts != nil {
+		linkHosts = *d.LinkHosts
+	}
+	if d.MailHosts != nil {
+		mailHosts = *d.MailHosts
 	}
 	dom := models.Domain{
-		OwnerID: models.SingleUserID,
-		Name:    d.Name, Provider: d.Provider, ZoneID: d.ZoneID,
-		Note:      d.Note,
-		LinkHosts: normalizeHosts(d.LinkHosts),
-		MailHosts: normalizeHosts(d.MailHosts),
-		Config:    enc,
+		OwnerID:           models.SingleUserID,
+		Name:              d.Name,
+		ProviderAccountID: d.ProviderAccountID,
+		ZoneID:            d.ZoneID,
+		Note:              d.Note,
+		LinkHosts:         normalizeHosts(linkHosts),
+		MailHosts:         normalizeHosts(mailHosts),
 	}
-	// A service is enabled iff it has at least one host (no separate toggle).
-	dom.ForLink = len(dom.LinkHosts) > 0
-	dom.ForMail = len(dom.MailHosts) > 0
+	// On creation, derive master switches from host presence unless explicitly set.
+	if d.ForLink != nil {
+		dom.ForLink = *d.ForLink
+	} else {
+		dom.ForLink = len(dom.LinkHosts) > 0
+	}
+	if d.ForMail != nil {
+		dom.ForMail = *d.ForMail
+	} else {
+		dom.ForMail = len(dom.MailHosts) > 0
+	}
 	// Best-effort credential check.
 	if prov, err := h.providerFor(dom); err == nil && dom.ZoneID != "" {
 		if name, err := prov.VerifyZone(r.Context(), dom.ZoneID); err != nil {
@@ -196,17 +217,22 @@ func (h *Handler) updateDomain(w http.ResponseWriter, r *http.Request) {
 	}
 	dom.Note = d.Note
 	dom.ZoneID = d.ZoneID
-	dom.LinkHosts = normalizeHosts(d.LinkHosts)
-	dom.MailHosts = normalizeHosts(d.MailHosts)
-	dom.ForLink = len(dom.LinkHosts) > 0
-	dom.ForMail = len(dom.MailHosts) > 0
-	if len(d.Config) > 0 {
-		enc, err := h.encryptConfig(d.Config)
-		if err != nil {
-			writeErr(w, http.StatusInternalServerError, "encrypt config")
-			return
-		}
-		dom.Config = enc
+	// Apply master switches when explicitly provided.
+	if d.ForLink != nil {
+		dom.ForLink = *d.ForLink
+	}
+	if d.ForMail != nil {
+		dom.ForMail = *d.ForMail
+	}
+	// Only overwrite host lists when they were present in the payload.
+	if d.LinkHosts != nil {
+		dom.LinkHosts = normalizeHosts(*d.LinkHosts)
+	}
+	if d.MailHosts != nil {
+		dom.MailHosts = normalizeHosts(*d.MailHosts)
+	}
+	if d.ProviderAccountID != 0 {
+		dom.ProviderAccountID = d.ProviderAccountID
 	}
 	h.db.Save(&dom)
 	writeJSON(w, http.StatusOK, dom)

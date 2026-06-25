@@ -38,7 +38,31 @@ func (s *Service) Lookup(host, slug string) (*models.Link, bool) {
 	if !link.Enabled || link.Archived {
 		return nil, false
 	}
+	// A host-scoped link does not resolve if its host is a temporarily disabled
+	// link host. Unmanaged hosts (not listed on any domain) are unaffected.
+	if link.Host != "" && s.linkHostDisabled(host) {
+		return nil, false
+	}
 	return &link, true
+}
+
+// linkHostDisabled reports whether host is listed as a link host on some domain
+// but every such listing is disabled.
+func (s *Service) linkHostDisabled(host string) bool {
+	var doms []models.Domain
+	s.db.Where("for_link = ?", true).Find(&doms)
+	listed := false
+	for _, d := range doms {
+		for _, h := range d.LinkHosts {
+			if h.Host == host {
+				listed = true
+				if h.Enabled {
+					return false
+				}
+			}
+		}
+	}
+	return listed
 }
 
 // expired reports whether a link is past its expiry or over its click limit.
