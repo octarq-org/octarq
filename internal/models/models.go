@@ -95,29 +95,12 @@ type Domain struct {
 	UpdatedAt time.Time  `json:"updatedAt"`
 }
 
-// EffectiveLinkHosts returns the hostnames links are served on, defaulting to
-// the apex Name when links are enabled but no explicit host is set.
-func (d Domain) EffectiveLinkHosts() []string {
-	if len(d.LinkHosts) > 0 {
-		return d.LinkHosts
-	}
-	if d.ForLink {
-		return []string{d.Name}
-	}
-	return nil
-}
+// EffectiveLinkHosts returns the hostnames short links are served on. The host
+// list is the single source of truth (a domain serves links iff it is set).
+func (d Domain) EffectiveLinkHosts() []string { return d.LinkHosts }
 
-// EffectiveMailHosts returns the hostnames mailboxes live under, defaulting to
-// the apex Name when mail is enabled but no explicit host is set.
-func (d Domain) EffectiveMailHosts() []string {
-	if len(d.MailHosts) > 0 {
-		return d.MailHosts
-	}
-	if d.ForMail {
-		return []string{d.Name}
-	}
-	return nil
-}
+// EffectiveMailHosts returns the hostnames mailboxes live under.
+func (d Domain) EffectiveMailHosts() []string { return d.MailHosts }
 
 // Link is a short link. (Host, Slug) is unique.
 type Link struct {

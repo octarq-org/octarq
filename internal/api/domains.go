@@ -37,12 +37,10 @@ func normalizeHost(host string) string {
 	return host
 }
 
-// normalizeHosts cleans and de-duplicates a host list, dropping it entirely
-// when the matching service is disabled.
-func normalizeHosts(hosts []string, enabled bool) models.StringList {
-	if !enabled {
-		return nil
-	}
+// normalizeHosts cleans and de-duplicates a host list. A service (links/mail)
+// is considered enabled when its host list is non-empty — there is no separate
+// toggle.
+func normalizeHosts(hosts []string) models.StringList {
 	seen := map[string]bool{}
 	var out models.StringList
 	for _, h := range hosts {
@@ -156,11 +154,14 @@ func (h *Handler) createDomain(w http.ResponseWriter, r *http.Request) {
 	dom := models.Domain{
 		OwnerID: models.SingleUserID,
 		Name:    d.Name, Provider: d.Provider, ZoneID: d.ZoneID,
-		Note: d.Note, ForMail: d.ForMail, ForLink: d.ForLink,
-		LinkHosts: normalizeHosts(d.LinkHosts, d.ForLink),
-		MailHosts: normalizeHosts(d.MailHosts, d.ForMail),
+		Note:      d.Note,
+		LinkHosts: normalizeHosts(d.LinkHosts),
+		MailHosts: normalizeHosts(d.MailHosts),
 		Config:    enc,
 	}
+	// A service is enabled iff it has at least one host (no separate toggle).
+	dom.ForLink = len(dom.LinkHosts) > 0
+	dom.ForMail = len(dom.MailHosts) > 0
 	// Best-effort credential check.
 	if prov, err := h.providerFor(dom); err == nil && dom.ZoneID != "" {
 		if name, err := prov.VerifyZone(r.Context(), dom.ZoneID); err != nil {
@@ -195,10 +196,10 @@ func (h *Handler) updateDomain(w http.ResponseWriter, r *http.Request) {
 	}
 	dom.Note = d.Note
 	dom.ZoneID = d.ZoneID
-	dom.ForMail = d.ForMail
-	dom.ForLink = d.ForLink
-	dom.LinkHosts = normalizeHosts(d.LinkHosts, d.ForLink)
-	dom.MailHosts = normalizeHosts(d.MailHosts, d.ForMail)
+	dom.LinkHosts = normalizeHosts(d.LinkHosts)
+	dom.MailHosts = normalizeHosts(d.MailHosts)
+	dom.ForLink = len(dom.LinkHosts) > 0
+	dom.ForMail = len(dom.MailHosts) > 0
 	if len(d.Config) > 0 {
 		enc, err := h.encryptConfig(d.Config)
 		if err != nil {

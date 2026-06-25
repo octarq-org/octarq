@@ -201,29 +201,18 @@ function DomainEditor({
   const [zoneId, setZoneId] = useState(domain?.zoneId ?? "");
   const [apiToken, setApiToken] = useState("");
   const [note, setNote] = useState(domain?.note ?? "");
-  const [forLink, setForLink] = useState(domain?.forLink ?? false);
-  const [forMail, setForMail] = useState(domain?.forMail ?? false);
   const [linkHosts, setLinkHosts] = useState<string[]>(domain?.linkHosts ?? []);
   const [mailHosts, setMailHosts] = useState<string[]>(domain?.mailHosts ?? []);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // When enabling short links, seed a "go." subdomain rather than the apex.
-  function enableLinks(on: boolean) {
-    setForLink(on);
-    if (on && linkHosts.length === 0 && name) setLinkHosts([`go.${name}`]);
-  }
-  function enableMail(on: boolean) {
-    setForMail(on);
-    if (on && mailHosts.length === 0 && name) setMailHosts([name]);
-  }
   const linkSubs = name ? [`go.${name}`, `s.${name}`, `link.${name}`, name] : [];
   const mailSubs = name ? [name, `mail.${name}`] : [];
 
   async function save() {
     setErr("");
     setBusy(true);
-    const payload: any = { name, provider, zoneId, note, forLink, forMail, linkHosts, mailHosts };
+    const payload: any = { name, provider, zoneId, note, linkHosts, mailHosts };
     if (apiToken) payload.config = { apiToken };
     try {
       if (domain) await api.updateDomain(domain.id, payload);
@@ -261,62 +250,53 @@ function DomainEditor({
       <Field label="Note">
         <textarea className="input" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
-      <div className="mb-3 flex gap-6">
-        <label className="flex items-center gap-2 text-sm text-zinc-400">
-          <Toggle on={forLink} onChange={enableLinks} /> Serve short links
-        </label>
-        <label className="flex items-center gap-2 text-sm text-zinc-400">
-          <Toggle on={forMail} onChange={enableMail} /> Accept email
-        </label>
-      </div>
-      {forLink && (
-        <>
-          <Field label="Short-link hosts" hint="one or more — each must resolve to this server">
-            <HostList hosts={linkHosts} onChange={setLinkHosts} suggestions={linkSubs} placeholder="go.example.com" />
-          </Field>
-          <Guide title="How to point a short-link host at led">
-            <p>Each host above must resolve to the machine running led. In your DNS provider create:</p>
-            <ul className="ml-4 list-disc space-y-1">
-              <li>
-                a <b>CNAME</b> from the subdomain (e.g. <Code>go</Code>) to this dashboard's host{" "}
-                <Code>{location.hostname}</Code> (Cloudflare-proxied is fine), <i>or</i>
-              </li>
-              <li>
-                an <b>A</b> record from the subdomain to your server's public IP.
-              </li>
-            </ul>
-            <p>
-              On Cloudflare zones you can do this in one click: open <b>DNS records → + Subdomain → 🔗
-              Short-link subdomain</b>, then make sure led terminates TLS for the host (or sits behind a
-              reverse proxy / Cloudflare that does).
-            </p>
-          </Guide>
-        </>
-      )}
-      {forMail && (
-        <>
-          <Field label="Mail hosts" hint="domains/subdomains mailboxes live under, e.g. mail.example.com">
-            <HostList hosts={mailHosts} onChange={setMailHosts} suggestions={mailSubs} placeholder="mail.example.com" />
-          </Field>
-          <Guide title="How to receive mail on these hosts (Cloudflare)">
-            <ol className="ml-4 list-decimal space-y-1">
-              <li>
-                In Cloudflare → <b>Email → Email Routing</b>, enable routing for the zone (this adds the
-                required MX + SPF records automatically).
-              </li>
-              <li>
-                Deploy the worker in <Code>deploy/cloudflare-email-worker.js</Code> and set its vars{" "}
-                <Code>LED_ENDPOINT</Code>=<Code>{`${location.origin}/api/email/inbound`}</Code> and{" "}
-                <Code>LED_TOKEN</Code> = your <Code>LED_INBOUND_TOKEN</Code>.
-              </li>
-              <li>
-                Point a <b>catch-all</b> route at that worker. Mail to any address on these hosts then
-                lands in led (auto-creating a mailbox when catch-all is on).
-              </li>
-            </ol>
-          </Guide>
-        </>
-      )}
+      <Field
+        label="Short-link hosts"
+        hint="Add a host to serve short links here (leave empty to disable). Each must resolve to this server."
+      >
+        <HostList hosts={linkHosts} onChange={setLinkHosts} suggestions={linkSubs} placeholder="go.example.com" />
+      </Field>
+      <Guide title="How to point a short-link host at led">
+        <p>Each host above must resolve to the machine running led. In your DNS provider create:</p>
+        <ul className="ml-4 list-disc space-y-1">
+          <li>
+            a <b>CNAME</b> from the subdomain (e.g. <Code>go</Code>) to this dashboard's host{" "}
+            <Code>{location.hostname}</Code> (Cloudflare-proxied is fine), <i>or</i>
+          </li>
+          <li>
+            an <b>A</b> record from the subdomain to your server's public IP.
+          </li>
+        </ul>
+        <p>
+          On Cloudflare zones you can do this in one click: open <b>DNS records → + Subdomain → 🔗
+          Short-link subdomain</b>, then make sure led terminates TLS for the host (or sits behind a
+          reverse proxy / Cloudflare that does).
+        </p>
+      </Guide>
+
+      <Field
+        label="Mail hosts"
+        hint="Add a host to accept mailboxes here (leave empty to disable). E.g. example.com or mail.example.com."
+      >
+        <HostList hosts={mailHosts} onChange={setMailHosts} suggestions={mailSubs} placeholder="mail.example.com" />
+      </Field>
+      <Guide title="How to receive mail on these hosts (Cloudflare)">
+        <ol className="ml-4 list-decimal space-y-1">
+          <li>
+            In Cloudflare → <b>Email → Email Routing</b>, enable routing for the zone (this adds the
+            required MX + SPF records automatically).
+          </li>
+          <li>
+            Deploy the worker in <Code>deploy/cloudflare-email-worker.js</Code> and set its vars{" "}
+            <Code>LED_ENDPOINT</Code>=<Code>{`${location.origin}/api/email/inbound`}</Code> and{" "}
+            <Code>LED_TOKEN</Code> = your <Code>LED_INBOUND_TOKEN</Code>.
+          </li>
+          <li>
+            Point a <b>catch-all</b> route at that worker. Mail to any address on these hosts then
+            lands in led (auto-creating a mailbox when catch-all is on).
+          </li>
+        </ol>
+      </Guide>
       {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
       <div className="flex justify-end gap-2">
         <button className="btn-ghost" onClick={onClose}>

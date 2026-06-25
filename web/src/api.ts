@@ -34,12 +34,10 @@ export interface Domain {
 // effectiveLinkHosts / effectiveMailHosts mirror the server-side fallback to
 // the apex when a service is enabled but no explicit host is configured.
 export function effectiveLinkHosts(d: Domain): string[] {
-  if (d.linkHosts && d.linkHosts.length) return d.linkHosts;
-  return d.forLink ? [d.name] : [];
+  return d.linkHosts ?? [];
 }
 export function effectiveMailHosts(d: Domain): string[] {
-  if (d.mailHosts && d.mailHosts.length) return d.mailHosts;
-  return d.forMail ? [d.name] : [];
+  return d.mailHosts ?? [];
 }
 
 export interface DNSRecord {
