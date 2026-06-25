@@ -209,7 +209,7 @@ func (h *Handler) sendEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.sender.Send(m); err != nil {
-		writeErr(w, http.StatusBadGateway, err.Error())
+		writeErr(w, http.StatusBadRequest, "send failed: "+err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})

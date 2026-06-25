@@ -50,6 +50,7 @@ export interface DNSRecord {
   ttl: number;
   proxied: boolean;
   comment: string;
+  priority?: number | null;
 }
 
 export interface Mailbox {

@@ -483,7 +483,20 @@ function RecordEditor({
   const [content, setContent] = useState(record?.content ?? "");
   const [comment, setComment] = useState(record?.comment ?? "");
   const [proxied, setProxied] = useState(record?.proxied ?? false);
+  const [priority, setPriority] = useState<number>(record?.priority ?? 10);
   const [err, setErr] = useState("");
+
+  const needsPriority = ["MX", "SRV", "URI"].includes(type.toUpperCase());
+  const canProxy = ["A", "AAAA", "CNAME"].includes(type.toUpperCase());
+  const contentHint: Record<string, string> = {
+    A: "IPv4 address, e.g. 203.0.113.10",
+    AAAA: "IPv6 address",
+    CNAME: "target hostname, e.g. example.com",
+    TXT: "text value",
+    MX: "mail server hostname",
+    NS: "nameserver hostname",
+    CAA: "e.g. 0 issue \"letsencrypt.org\"",
+  };
 
   // The record name for the configured short-link host (e.g. linkHost
   // "go.example.com" on zone "example.com" -> "go"; apex -> "@").
@@ -508,12 +521,21 @@ function RecordEditor({
       setContent("route1.mx.cloudflare.net");
       setComment("led mailbox (Cloudflare Email Routing)");
       setProxied(false);
+      setPriority(10);
     }
   }
 
   async function save() {
     setErr("");
-    const payload: Partial<DNSRecord> = { type, name, content, comment, proxied, ttl: 1 };
+    const payload: Partial<DNSRecord> = {
+      type,
+      name,
+      content,
+      comment,
+      proxied: canProxy ? proxied : false,
+      ttl: 1,
+    };
+    if (needsPriority) payload.priority = Number(priority);
     try {
       if (record) await api.updateRecord(domainId, record.id, payload);
       else await api.createRecord(domainId, payload);
@@ -547,15 +569,30 @@ function RecordEditor({
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="@ or sub" />
         </Field>
       </div>
-      <Field label="Content">
-        <input className="input" value={content} onChange={(e) => setContent(e.target.value)} />
-      </Field>
+      <div className={needsPriority ? "grid grid-cols-[1fr_100px] gap-3" : ""}>
+        <Field label="Content" hint={contentHint[type.toUpperCase()]}>
+          <input className="input" value={content} onChange={(e) => setContent(e.target.value)} />
+        </Field>
+        {needsPriority && (
+          <Field label="Priority">
+            <input
+              type="number"
+              min={0}
+              className="input"
+              value={priority}
+              onChange={(e) => setPriority(Number(e.target.value))}
+            />
+          </Field>
+        )}
+      </div>
       <Field label="Note (comment)">
         <input className="input" value={comment} onChange={(e) => setComment(e.target.value)} />
       </Field>
-      <label className="mb-4 flex items-center gap-2 text-sm text-zinc-400">
-        <Toggle on={proxied} onChange={setProxied} /> Proxied (Cloudflare)
-      </label>
+      {canProxy && (
+        <label className="mb-4 flex items-center gap-2 text-sm text-zinc-400">
+          <Toggle on={proxied} onChange={setProxied} /> Proxied (Cloudflare)
+        </label>
+      )}
       {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
       <div className="flex justify-end gap-2">
         <button className="btn-ghost" onClick={onClose}>

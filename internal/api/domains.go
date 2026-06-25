@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,6 +10,14 @@ import (
 	"github.com/jungley/led/internal/dnsprovider"
 	"github.com/jungley/led/internal/models"
 )
+
+// providerErr logs an upstream DNS-provider failure and returns it as a 400 so
+// the real message reaches the browser. (A 5xx would be replaced by the
+// Cloudflare proxy's own error page, hiding the cause.)
+func (h *Handler) providerErr(w http.ResponseWriter, action string, err error) {
+	log.Printf("dns provider: %s failed: %v", action, err)
+	writeErr(w, http.StatusBadRequest, action+": "+err.Error())
+}
 
 func (h *Handler) dnsProviders(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dnsprovider.Names())
@@ -80,7 +89,7 @@ func (h *Handler) syncDomains(w http.ResponseWriter, r *http.Request) {
 	}
 	zones, err := prov.ListZones(r.Context())
 	if err != nil {
-		writeErr(w, http.StatusBadGateway, "list zones: "+err.Error())
+		h.providerErr(w, "list zones", err)
 		return
 	}
 	var created, updated int
@@ -212,6 +221,24 @@ func (h *Handler) deleteDomain(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+// validateRecord catches the most common reasons Cloudflare rejects a record
+// before we make the API call, returning a friendly message (or "" if valid).
+func validateRecord(rec dnsprovider.Record) string {
+	if strings.TrimSpace(rec.Type) == "" {
+		return "record type is required"
+	}
+	if strings.TrimSpace(rec.Content) == "" {
+		return "content is required (e.g. an IP for A, a hostname for CNAME, a value for TXT)"
+	}
+	switch strings.ToUpper(rec.Type) {
+	case "MX", "SRV", "URI":
+		if rec.Priority == nil {
+			return "priority is required for " + strings.ToUpper(rec.Type) + " records"
+		}
+	}
+	return ""
+}
+
 // --- DNS records (live via provider) ---
 
 func (h *Handler) recordsProvider(r *http.Request) (dnsprovider.Provider, *models.Domain, error) {
@@ -232,7 +259,7 @@ func (h *Handler) listRecords(w http.ResponseWriter, r *http.Request) {
 	}
 	recs, err := prov.ListRecords(r.Context(), dom.ZoneID)
 	if err != nil {
-		writeErr(w, http.StatusBadGateway, err.Error())
+		h.providerErr(w, "list records", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, recs)
@@ -244,14 +271,22 @@ func (h *Handler) createRecord(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if dom.ZoneID == "" {
+		writeErr(w, http.StatusBadRequest, "this domain has no Zone ID — sync from Cloudflare or set it in the domain settings")
+		return
+	}
 	var rec dnsprovider.Record
 	if err := readJSON(r, &rec); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
 		return
 	}
+	if msg := validateRecord(rec); msg != "" {
+		writeErr(w, http.StatusBadRequest, msg)
+		return
+	}
 	out, err := prov.CreateRecord(r.Context(), dom.ZoneID, rec)
 	if err != nil {
-		writeErr(w, http.StatusBadGateway, err.Error())
+		h.providerErr(w, "create record", err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, out)
@@ -269,9 +304,13 @@ func (h *Handler) updateRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rec.ID = r.PathValue("rid")
+	if msg := validateRecord(rec); msg != "" {
+		writeErr(w, http.StatusBadRequest, msg)
+		return
+	}
 	out, err := prov.UpdateRecord(r.Context(), dom.ZoneID, rec)
 	if err != nil {
-		writeErr(w, http.StatusBadGateway, err.Error())
+		h.providerErr(w, "update record", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -284,7 +323,7 @@ func (h *Handler) deleteRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := prov.DeleteRecord(r.Context(), dom.ZoneID, r.PathValue("rid")); err != nil {
-		writeErr(w, http.StatusBadGateway, err.Error())
+		h.providerErr(w, "delete record", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})

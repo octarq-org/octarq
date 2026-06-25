@@ -98,24 +98,36 @@ export function HostList({
     if (v && !hosts.includes(v)) onChange([...hosts, v]);
     setDraft("");
   }
+  const freshSuggestions = suggestions.filter((s) => !hosts.includes(s));
   return (
-    <div>
-      <div className="mb-1.5 flex flex-wrap gap-1.5">
-        {hosts.length === 0 && <span className="text-xs text-zinc-500">none — defaults to the apex domain</span>}
-        {hosts.map((h) => (
-          <span key={h} className="badge bg-indigo-500/15 text-indigo-200">
-            {h}
-            <button className="ml-1 text-zinc-400 hover:text-red-400" onClick={() => onChange(hosts.filter((x) => x !== h))}>
-              ✕
-            </button>
-          </span>
-        ))}
+    <div className="rounded-lg border border-zinc-700 bg-zinc-900/40 p-2.5">
+      {/* selected hosts */}
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        {hosts.length === 0 ? (
+          <span className="text-xs text-zinc-500">No hosts added — short links/mail will use the apex domain.</span>
+        ) : (
+          hosts.map((h) => (
+            <span key={h} className="inline-flex items-center gap-1 rounded-md bg-indigo-500/20 px-2 py-1 text-sm text-indigo-100">
+              {h}
+              <button
+                type="button"
+                className="text-indigo-300 hover:text-red-400"
+                title="remove"
+                onClick={() => onChange(hosts.filter((x) => x !== h))}
+              >
+                ✕
+              </button>
+            </span>
+          ))
+        )}
       </div>
+
+      {/* add row */}
       <div className="flex gap-2">
         <input
           className="input"
           value={draft}
-          placeholder={placeholder}
+          placeholder={placeholder ?? "type a host and press Enter"}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -124,19 +136,25 @@ export function HostList({
             }
           }}
         />
-        <button className="btn-ghost shrink-0" type="button" onClick={() => add(draft)}>
-          Add
+        <button className="btn-primary shrink-0" type="button" disabled={!draft.trim()} onClick={() => add(draft)}>
+          + Add
         </button>
       </div>
-      {suggestions.filter((s) => !hosts.includes(s)).length > 0 && (
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {suggestions
-            .filter((s) => !hosts.includes(s))
-            .map((s) => (
-              <button key={s} type="button" className="badge cursor-pointer hover:bg-zinc-700" onClick={() => add(s)}>
-                + {s}
-              </button>
-            ))}
+
+      {/* quick-add suggestions */}
+      {freshSuggestions.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-zinc-500">Quick add:</span>
+          {freshSuggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className="rounded-md border border-indigo-500/40 px-2 py-0.5 text-xs text-indigo-200 transition hover:bg-indigo-500/15"
+              onClick={() => add(s)}
+            >
+              + {s}
+            </button>
+          ))}
         </div>
       )}
     </div>
