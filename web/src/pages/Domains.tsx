@@ -255,7 +255,7 @@ function DomainRow({
 
       {/* ── subtable ── */}
       {expanded && (
-        <div className="border-t border-zinc-800/60 bg-zinc-950/30 px-4 pb-3 pt-2">
+        <div className="border-t border-zinc-800/60 bg-zinc-950/30 px-4 pb-3 pt-2 animate-expand">
           {hosts.length === 0 ? (
             <p className="text-xs text-zinc-600 py-2">No hosts — add one below.</p>
           ) : (

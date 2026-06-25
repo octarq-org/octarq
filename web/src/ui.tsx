@@ -21,11 +21,11 @@ export function Modal({
   }, [onClose]);
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 pt-16"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-16 modal-overlay"
       onClick={onClose}
     >
       <div
-        className={`card w-full ${wide ? "max-w-3xl" : "max-w-md"} p-5 shadow-2xl`}
+        className={`card w-full ${wide ? "max-w-3xl" : "max-w-md"} p-5 modal-card`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -70,11 +70,11 @@ export function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) =
   return (
     <button
       onClick={() => onChange(!on)}
-      className={`relative h-5 w-9 rounded-full transition ${on ? "bg-indigo-500" : "bg-zinc-700"}`}
+      className={`relative h-5 w-9 rounded-full transition-all duration-300 ease-in-out ${on ? "bg-indigo-500 shadow-inner shadow-indigo-900/50" : "bg-zinc-700"}`}
     >
       <span
-        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${
-          on ? "left-4" : "left-0.5"
+        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all duration-300 ease-in-out shadow-sm ${
+          on ? "left-4 scale-110" : "left-0.5 scale-90 opacity-70"
         }`}
       />
     </button>
@@ -221,7 +221,7 @@ export function Guide({ title, children, open = false }: { title: string; childr
         </span>
         <span className="text-zinc-500">{show ? "▾" : "▸"}</span>
       </button>
-      {show && <div className="space-y-2 border-t border-zinc-800 px-3 py-3 text-zinc-400">{children}</div>}
+      {show && <div className="space-y-2 border-t border-zinc-800 px-3 py-3 text-zinc-400 animate-expand">{children}</div>}
     </div>
   );
 }

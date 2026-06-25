@@ -23,27 +23,93 @@ body {
   .btn-primary,
   .btn-ghost,
   .btn-danger {
-    @apply inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply bg-indigo-500 text-white hover:bg-indigo-400;
+    @apply bg-indigo-500 text-white shadow-md shadow-indigo-500/20 hover:bg-indigo-400 hover:shadow-indigo-500/40 hover:-translate-y-0.5;
   }
   .btn-ghost {
-    @apply text-zinc-300 hover:bg-zinc-800;
+    @apply text-zinc-300 hover:bg-zinc-800/80 hover:text-white;
   }
   .btn-danger {
-    @apply text-red-400 hover:bg-red-500/10;
+    @apply text-red-400 hover:bg-red-500/10 hover:text-red-300;
   }
   .input {
-    @apply w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-indigo-500;
+    @apply w-full rounded-lg border border-zinc-700 bg-zinc-900/50 px-3 py-2 text-sm outline-none transition-all focus:border-indigo-500 focus:bg-zinc-900 focus:ring-2 focus:ring-indigo-500/20;
+    field-sizing: content;
   }
   .card {
-    @apply rounded-xl border border-zinc-800 bg-zinc-900/50;
+    @apply rounded-xl border border-white/10 bg-zinc-900/60 shadow-lg backdrop-blur-md;
   }
   .badge {
-    @apply inline-flex items-center rounded-md bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-300;
+    @apply inline-flex items-center rounded-md border border-white/10 bg-zinc-800/60 px-1.5 py-0.5 text-xs text-zinc-300 backdrop-blur-sm;
   }
   .label {
     @apply mb-1 block text-xs font-medium text-zinc-400;
   }
+}
+
+/* Modern Web Guidance: UI & Interaction Optimizations */
+
+/* Better text wrapping for headings */
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+}
+
+/* Smooth focus rings */
+*:focus-visible {
+  outline: 2px solid theme('colors.indigo.500');
+  outline-offset: 2px;
+}
+
+/* Scrollbar customization */
+:root {
+  scrollbar-color: theme('colors.zinc.700') transparent;
+  scrollbar-width: thin;
+}
+
+/* Modal Animations */
+@keyframes modal-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes overlay-enter {
+  0% {
+    background-color: transparent;
+    backdrop-filter: blur(0);
+  }
+  100% {
+    background-color: rgb(0 0 0 / 0.6);
+    backdrop-filter: blur(8px);
+  }
+}
+
+.modal-overlay {
+  animation: overlay-enter 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.modal-card {
+  animation: modal-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes expand-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-expand {
+  animation: expand-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
