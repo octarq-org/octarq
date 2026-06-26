@@ -10,7 +10,7 @@ and [dub](https://github.com/dubinc/dub), rebuilt to ship as **one binary / one 
 
 > Single-user today. The schema already carries an owner id on every row, so
 > multi-user / multi-org (under a commercial license) drops in without a migration.
-> *Note: By design, the default `admin` environment user and the first user created via OAuth share `orgID=1` (the bootstrap org) to simplify initial setup.*
+> *Bootstrap: the admin env user gets its own org (slug derived from `LED_ADMIN_USER`); OAuth users each get their own personal org. The two are always isolated regardless of login order.*
 
 ## Features
 
