@@ -92,6 +92,12 @@ func (h *Handler) audit(r *http.Request, action, targetType string, targetID uin
 	}()
 }
 
+// Audit is a public wrapper around audit, exposed for plugins via plugin.Context.
+func (h *Handler) Audit(r *http.Request, action, targetType string, targetID uint, meta map[string]any) {
+	h.audit(r, action, targetType, targetID, meta)
+}
+
+
 // encryptConfig serializes and AES-GCM-encrypts a provider credentials map.
 func (h *Handler) encryptConfig(cfg map[string]any) (string, error) {
 	if len(cfg) == 0 {

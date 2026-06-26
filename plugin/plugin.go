@@ -36,6 +36,12 @@ type Context struct {
 	UserID func(*http.Request) uint
 	// OrgID extracts the authenticated org ID from the request session (0 if unauthed).
 	OrgID func(*http.Request) uint
+	// Audit writes an audit log entry asynchronously. action follows the
+	// "resource.verb" convention (e.g. "subscription.create"). targetType is
+	// the resource name, targetID is its primary key, meta is optional JSON
+	// context (pass nil to omit). Mirrors the core h.audit() helper so plugins
+	// never import led's internal/api or internal/models directly.
+	Audit func(r *http.Request, action, targetType string, targetID uint, meta map[string]any)
 }
 
 // Plugin is a unit of Pro functionality mounted onto the core app.

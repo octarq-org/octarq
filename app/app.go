@@ -111,6 +111,7 @@ func (a *App) Run(ctx context.Context) error {
 		Notify: notify.Send,
 		UserID: a.auth.UserID,
 		OrgID:  a.auth.OrgID,
+		Audit:  apiHandler.Audit,
 	}
 	for _, p := range a.plugins {
 		p.Mount(mux, pctx)
