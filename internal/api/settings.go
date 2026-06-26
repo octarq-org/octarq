@@ -10,11 +10,15 @@ import (
 
 // Setting keys.
 const (
-	keyReservedSlugs     = "reserved_slugs"
-	keyReservedMailboxes = "reserved_mailboxes"
-	keyCloudflareToken   = "cloudflare_token" // stored AES-GCM encrypted
-	keyInboundToken      = "inbound_token"
-	keyCatchAll          = "catch_all"
+	keyReservedSlugs        = "reserved_slugs"
+	keyReservedMailboxes    = "reserved_mailboxes"
+	keyCloudflareToken      = "cloudflare_token" // stored AES-GCM encrypted
+	keyInboundToken         = "inbound_token"
+	keyCatchAll             = "catch_all"
+	keyGoogleClientID       = "oauth.google.client_id"
+	keyGoogleClientSecret   = "oauth.google.client_secret" // stored AES-GCM encrypted
+	keyGitHubClientID       = "oauth.github.client_id"
+	keyGitHubClientSecret   = "oauth.github.client_secret" // stored AES-GCM encrypted
 )
 
 // Slugs that can never be short links because they collide with reserved
@@ -100,22 +104,30 @@ func (h *Handler) cloudflareToken() string {
 
 func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"reservedSlugs":      h.getSetting(keyReservedSlugs),
-		"reservedMailboxes":  h.getSetting(keyReservedMailboxes),
-		"builtinReserved":    []string{"admin", "api", "assets"},
-		"cloudflareTokenSet": h.getSetting(keyCloudflareToken) != "",
-		"inboundToken":       h.getSetting(keyInboundToken),
-		"catchAll":           h.getSetting(keyCatchAll) == "true",
+		"reservedSlugs":        h.getSetting(keyReservedSlugs),
+		"reservedMailboxes":    h.getSetting(keyReservedMailboxes),
+		"builtinReserved":      []string{"admin", "api", "assets"},
+		"cloudflareTokenSet":   h.getSetting(keyCloudflareToken) != "",
+		"inboundToken":         h.getSetting(keyInboundToken),
+		"catchAll":             h.getSetting(keyCatchAll) == "true",
+		"googleClientId":       h.getSetting(keyGoogleClientID),
+		"googleClientSecretSet": h.getSetting(keyGoogleClientSecret) != "",
+		"githubClientId":       h.getSetting(keyGitHubClientID),
+		"githubClientSecretSet": h.getSetting(keyGitHubClientSecret) != "",
 	})
 }
 
 func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	var d struct {
-		ReservedSlugs     *string `json:"reservedSlugs"`
-		ReservedMailboxes *string `json:"reservedMailboxes"`
-		CloudflareToken   *string `json:"cloudflareToken"` // "" clears, omitted keeps
-		InboundToken      *string `json:"inboundToken"`
-		CatchAll          *bool   `json:"catchAll"`
+		ReservedSlugs       *string `json:"reservedSlugs"`
+		ReservedMailboxes   *string `json:"reservedMailboxes"`
+		CloudflareToken     *string `json:"cloudflareToken"` // "" clears, omitted keeps
+		InboundToken        *string `json:"inboundToken"`
+		CatchAll            *bool   `json:"catchAll"`
+		GoogleClientID      *string `json:"googleClientId"`
+		GoogleClientSecret  *string `json:"googleClientSecret"` // "" clears, omitted keeps
+		GitHubClientID      *string `json:"githubClientId"`
+		GitHubClientSecret  *string `json:"githubClientSecret"` // "" clears, omitted keeps
 	}
 	if err := readJSON(r, &d); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
@@ -148,6 +160,36 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 			val = "true"
 		}
 		h.setSetting(keyCatchAll, val)
+	}
+	if d.GoogleClientID != nil {
+		h.setSetting(keyGoogleClientID, strings.TrimSpace(*d.GoogleClientID))
+	}
+	if d.GoogleClientSecret != nil {
+		if *d.GoogleClientSecret == "" {
+			h.setSetting(keyGoogleClientSecret, "")
+		} else {
+			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*d.GoogleClientSecret)))
+			if err != nil {
+				writeErr(w, http.StatusInternalServerError, "encrypt token")
+				return
+			}
+			h.setSetting(keyGoogleClientSecret, enc)
+		}
+	}
+	if d.GitHubClientID != nil {
+		h.setSetting(keyGitHubClientID, strings.TrimSpace(*d.GitHubClientID))
+	}
+	if d.GitHubClientSecret != nil {
+		if *d.GitHubClientSecret == "" {
+			h.setSetting(keyGitHubClientSecret, "")
+		} else {
+			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*d.GitHubClientSecret)))
+			if err != nil {
+				writeErr(w, http.StatusInternalServerError, "encrypt token")
+				return
+			}
+			h.setSetting(keyGitHubClientSecret, enc)
+		}
 	}
 	h.getSettings(w, r)
 }

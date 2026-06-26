@@ -238,6 +238,10 @@ export interface Settings {
   catchAll: boolean;
   telegramBotToken: string;
   telegramChatId: string;
+  googleClientId: string;
+  googleClientSecretSet: boolean;
+  githubClientId: string;
+  githubClientSecretSet: boolean;
 }
 
 export const api = {
@@ -254,6 +258,10 @@ export const api = {
     catchAll?: boolean;
     telegramBotToken?: string;
     telegramChatId?: string;
+    googleClientId?: string;
+    googleClientSecret?: string;
+    githubClientId?: string;
+    githubClientSecret?: string;
   }) => req<Settings>("PUT", "/api/settings", s),
 
   // auth

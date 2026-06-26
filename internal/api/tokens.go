@@ -27,7 +27,7 @@ func tokenPrefix(raw string) string {
 
 func (h *Handler) listTokens(w http.ResponseWriter, r *http.Request) {
 	var toks []models.Token
-	h.db.Order("created_at DESC").Find(&toks)
+	h.orgDB(r).Order("created_at DESC").Find(&toks)
 	writeJSON(w, http.StatusOK, toks)
 }
 
@@ -47,7 +47,7 @@ func (h *Handler) createToken(w http.ResponseWriter, r *http.Request) {
 	}
 	raw := newRawToken()
 	tok := models.Token{
-		OwnerID: models.SingleUserID,
+		OrgID: h.orgID(r),
 		Name:    d.Name,
 		Hash:    models.HashToken(raw),
 		Prefix:  tokenPrefix(raw),
@@ -74,6 +74,9 @@ func (h *Handler) deleteToken(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad id")
 		return
 	}
-	h.db.Delete(&models.Token{}, id)
+	if res := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).Delete(&models.Token{}); res.RowsAffected == 0 {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

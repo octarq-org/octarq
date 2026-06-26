@@ -9,7 +9,7 @@ import (
 
 func (h *Handler) listVPS(w http.ResponseWriter, r *http.Request) {
 	var list []models.VPS
-	h.db.Order("created_at DESC").Find(&list)
+	h.orgDB(r).Order("created_at DESC").Find(&list)
 	writeJSON(w, http.StatusOK, list)
 }
 
@@ -46,7 +46,7 @@ func (h *Handler) createVPS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vps := models.VPS{
-		OwnerID:   models.SingleUserID,
+		OrgID:   h.orgID(r),
 		Name:      d.Name,
 		IP:        d.IP,
 		Port:      d.Port,
@@ -70,7 +70,7 @@ func (h *Handler) updateVPS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var vps models.VPS
-	if h.db.First(&vps, id).Error != nil {
+	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&vps).Error != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
@@ -115,6 +115,9 @@ func (h *Handler) deleteVPS(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad id")
 		return
 	}
-	h.db.Delete(&models.VPS{}, id)
+	if res := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).Delete(&models.VPS{}); res.RowsAffected == 0 {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

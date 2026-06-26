@@ -12,7 +12,7 @@ import (
 
 func (h *Handler) listNotificationChannels(w http.ResponseWriter, r *http.Request) {
 	var channels []models.NotificationChannel
-	h.db.Order("created_at DESC").Find(&channels)
+	h.orgDB(r).Order("created_at DESC").Find(&channels)
 	writeJSON(w, http.StatusOK, channels)
 }
 
@@ -27,7 +27,7 @@ func (h *Handler) createNotificationChannel(w http.ResponseWriter, r *http.Reque
 		writeErr(w, http.StatusBadRequest, "name and type are required")
 		return
 	}
-	d.OwnerID = models.SingleUserID
+	d.OrgID = h.orgID(r)
 	if err := h.db.Create(&d).Error; err != nil {
 		writeErr(w, http.StatusInternalServerError, "failed to create")
 		return
@@ -42,7 +42,7 @@ func (h *Handler) updateNotificationChannel(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	var ch models.NotificationChannel
-	if h.db.First(&ch, id).Error != nil {
+	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&ch).Error != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
@@ -78,7 +78,10 @@ func (h *Handler) deleteNotificationChannel(w http.ResponseWriter, r *http.Reque
 		writeErr(w, http.StatusBadRequest, "bad id")
 		return
 	}
-	h.db.Delete(&models.NotificationChannel{}, id)
+	if res := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).Delete(&models.NotificationChannel{}); res.RowsAffected == 0 {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -89,7 +92,7 @@ func (h *Handler) testNotificationChannel(w http.ResponseWriter, r *http.Request
 		return
 	}
 	var ch models.NotificationChannel
-	if h.db.First(&ch, id).Error != nil {
+	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&ch).Error != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}

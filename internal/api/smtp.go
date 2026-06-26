@@ -9,7 +9,7 @@ import (
 
 func (h *Handler) listSMTPSenders(w http.ResponseWriter, r *http.Request) {
 	var senders []models.SMTPSender
-	h.db.Order("name ASC").Find(&senders)
+	h.orgDB(r).Order("name ASC").Find(&senders)
 	writeJSON(w, http.StatusOK, senders)
 }
 
@@ -39,7 +39,7 @@ func (h *Handler) createSMTPSender(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sender := models.SMTPSender{
-		OwnerID:   models.SingleUserID,
+		OrgID:   h.orgID(r),
 		Name:      d.Name,
 		Host:      strings.TrimSpace(d.Host),
 		Port:      d.Port,
@@ -63,7 +63,7 @@ func (h *Handler) updateSMTPSender(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var sender models.SMTPSender
-	if h.db.First(&sender, id).Error != nil {
+	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&sender).Error != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
@@ -108,8 +108,8 @@ func (h *Handler) deleteSMTPSender(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Optional: we could check if it's the default sender, but we'll let them delete any.
-	if err := h.db.Delete(&models.SMTPSender{}, id).Error; err != nil {
-		writeErr(w, http.StatusInternalServerError, "delete failed")
+	if res := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).Delete(&models.SMTPSender{}); res.RowsAffected == 0 {
+		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
 

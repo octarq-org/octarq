@@ -25,6 +25,9 @@ type Config struct {
 
 	GeoIPDB string // optional path to a MaxMind GeoLite2-City.mmdb
 
+	// BaseURL is the public-facing URL used to build OAuth callback URIs,
+	// e.g. "https://app.example.com". Leave empty to disable OAuth login.
+	BaseURL string
 }
 
 func env(key, def string) string {
@@ -103,6 +106,7 @@ func Load() (*Config, error) {
 		AdminPassword: env("LED_ADMIN_PASSWORD", ""),
 
 		GeoIPDB: env("LED_GEOIP_DB", ""),
+		BaseURL: env("LED_BASE_URL", ""),
 	}
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" {
 		return nil, fmt.Errorf("LED_DB_DRIVER must be sqlite or postgres, got %q", c.DBDriver)

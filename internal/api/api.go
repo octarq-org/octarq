@@ -19,10 +19,15 @@ type Handler struct {
 	cipher *crypto.Cipher
 	auth   *auth.Manager
 	geo    *geo.Resolver
+	oauth  *auth.OAuthHandler // nil if BaseURL not configured
 }
 
 func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *geo.Resolver) *Handler {
-	return &Handler{cfg: cfg, db: db, cipher: c, auth: a, geo: g}
+	h := &Handler{cfg: cfg, db: db, cipher: c, auth: a, geo: g}
+	if cfg.BaseURL != "" {
+		h.oauth = auth.NewOAuthHandler(db, cfg.BaseURL, a, c)
+	}
+	return h
 }
 
 // Routes returns the API mux mounted at /api/. It returns the concrete
@@ -35,6 +40,12 @@ func (h *Handler) Routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/auth/login", h.login)
 	mux.HandleFunc("POST /api/auth/logout", h.logout)
 	mux.HandleFunc("GET /api/auth/me", h.me)
+
+	// OAuth (no session required — these redirect to provider and back).
+	if h.oauth != nil {
+		mux.HandleFunc("GET /auth/begin/{provider}", h.oauth.Begin)
+		mux.HandleFunc("GET /auth/callback/{provider}", h.oauth.Callback)
+	}
 
 	// Inbound email webhook (token-guarded, not session).
 	mux.HandleFunc("POST /api/email/inbound", h.inbound)

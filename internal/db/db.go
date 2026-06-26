@@ -64,7 +64,7 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 			// Group by identical config to avoid duplicating the same account
 			if err := gdb.Where("config = ?", ld.Config).First(&acc).Error; err != nil {
 				acc = models.ProviderAccount{
-					OwnerID: models.SingleUserID,
+					OrgID: models.SingleUserID,
 					Name:    ld.Provider + " (Migrated)",
 					Type:    ld.Provider,
 					Config:  ld.Config,

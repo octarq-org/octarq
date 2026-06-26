@@ -4,8 +4,8 @@
 // a free-text remark that upstream wr.do does not support. DNS records get
 // their note through the provider's native comment field (see dnsprovider).
 //
-// All tables carry an OwnerID (constant 1 in single-user mode) so the move to
-// multi-tenant later needs no schema migration.
+// Multi-tenant: all data tables carry OrgID (DB column: owner_id, kept for
+// backward-compat). Each Org is a tenant; Users belong to Orgs via OrgMember.
 package models
 
 import (
@@ -17,7 +17,34 @@ import (
 	"time"
 )
 
+// SingleUserID is kept as a transition constant; handlers will replace it
+// with the org ID extracted from the authenticated session.
 const SingleUserID uint = 1
+
+// Org is a tenant — every data row is scoped to exactly one Org.
+type Org struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Name      string    `gorm:"size:255;not null" json:"name"`
+	Slug      string    `gorm:"uniqueIndex;size:64;not null" json:"slug"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// User is an authenticated human. A user can belong to multiple orgs.
+type User struct {
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	Email        string    `gorm:"uniqueIndex;size:320;not null" json:"email"`
+	PasswordHash string    `gorm:"size:255;not null" json:"-"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+}
+
+// OrgMember links a User to an Org with a role.
+type OrgMember struct {
+	OrgID  uint   `gorm:"primaryKey;index:idx_org_user,unique" json:"orgId"`
+	UserID uint   `gorm:"primaryKey;index:idx_org_user,unique" json:"userId"`
+	Role   string `gorm:"size:32;not null;default:'member'" json:"role"` // "owner" | "admin" | "member"
+}
 
 type RoutingRule struct {
 	Type   string `json:"type"`   // "geo", "device", "os", "language"
@@ -176,7 +203,7 @@ func (l HostList) Blocks(host string) bool {
 // a short, non-secret identifier for the dashboard list.
 type Token struct {
 	ID         uint       `gorm:"primaryKey" json:"id"`
-	OwnerID    uint       `gorm:"index;default:1" json:"-"`
+	OrgID   uint `gorm:"column:owner_id;index;default:1" json:"-"`
 	Name       string     `gorm:"size:255" json:"name"`
 	Hash       string     `gorm:"uniqueIndex;size:64" json:"-"` // SHA-256 hex of the raw token
 	Prefix     string     `gorm:"size:32" json:"prefix"`        // e.g. "led_abcd" for identification
@@ -196,7 +223,7 @@ func HashToken(raw string) string {
 // containing the credentials needed to manage zones.
 type ProviderAccount struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	OwnerID   uint      `gorm:"index;default:1" json:"-"`
+	OrgID   uint `gorm:"column:owner_id;index;default:1" json:"-"`
 	Name      string    `gorm:"size:255" json:"name"` // e.g. "Personal Cloudflare"
 	Type      string    `gorm:"size:32" json:"type"`  // e.g. "cloudflare", "dnspod"
 	Config    string    `gorm:"type:text" json:"-"`   // AES-GCM encrypted credentials JSON
@@ -207,7 +234,7 @@ type ProviderAccount struct {
 // Domain is a domain managed by led, tied to a DNS provider account.
 type Domain struct {
 	ID                uint   `gorm:"primaryKey" json:"id"`
-	OwnerID           uint   `gorm:"index;default:1" json:"-"`
+	OrgID   uint `gorm:"column:owner_id;index;default:1" json:"-"`
 	Name              string `gorm:"uniqueIndex;size:255" json:"name"`
 	ProviderAccountID uint   `gorm:"index" json:"providerAccountId"`
 	ZoneID            string `gorm:"size:64" json:"zoneId"`
@@ -234,7 +261,7 @@ func (d Domain) EffectiveMailHosts() []string { return d.MailHosts.Enabled() }
 // Link is a short link. (Host, Slug) is unique.
 type Link struct {
 	ID           uint         `gorm:"primaryKey" json:"id"`
-	OwnerID      uint         `gorm:"index;default:1" json:"-"`
+	OrgID   uint `gorm:"column:owner_id;index;default:1" json:"-"`
 	Host         string       `gorm:"size:255;index:idx_host_slug,unique" json:"host"` // empty = default/any host
 	Slug         string       `gorm:"size:255;index:idx_host_slug,unique" json:"slug"`
 	Target       string       `gorm:"type:text" json:"target"`
@@ -273,7 +300,7 @@ type LinkEvent struct {
 // Mailbox is an address that can receive mail (prefix@domain).
 type Mailbox struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	OwnerID   uint      `gorm:"index;default:1" json:"-"`
+	OrgID   uint `gorm:"column:owner_id;index;default:1" json:"-"`
 	Address   string    `gorm:"uniqueIndex;size:320" json:"address"`
 	Note      string    `gorm:"type:text" json:"note"`
 	Enabled   bool      `gorm:"default:true" json:"enabled"`
@@ -308,7 +335,7 @@ type Setting struct {
 
 type SMTPSender struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
-	OwnerID   uint      `json:"-" gorm:"index"`
+	OrgID   uint `gorm:"column:owner_id;index" json:"-"`
 	Name      string    `json:"name"`
 	Host      string    `json:"host"`
 	Port      int       `json:"port"`
@@ -321,7 +348,7 @@ type SMTPSender struct {
 
 type NotificationChannel struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
-	OwnerID   uint      `json:"-" gorm:"index"`
+	OrgID   uint `gorm:"column:owner_id;index" json:"-"`
 	Name      string    `json:"name"`
 	Type      string    `json:"type"`                    // e.g. "telegram", "webhook"
 	Config    string    `json:"config" gorm:"type:text"` // JSON object
@@ -332,7 +359,7 @@ type NotificationChannel struct {
 
 type SSHKey struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
-	OwnerID   uint      `json:"-" gorm:"index;default:1"`
+	OrgID   uint `gorm:"column:owner_id;index;default:1" json:"-"`
 	Name      string    `json:"name" gorm:"size:255"`
 	Type      string    `json:"type" gorm:"size:32"` // e.g. "rsa", "ed25519", "imported"
 	Key       string    `json:"-" gorm:"type:text"`  // AES-GCM encrypted private key
@@ -343,7 +370,7 @@ type SSHKey struct {
 
 type VPS struct {
 	ID          uint       `json:"id" gorm:"primaryKey"`
-	OwnerID     uint       `json:"-" gorm:"index;default:1"`
+	OrgID   uint `gorm:"column:owner_id;index;default:1" json:"-"`
 	Name        string     `json:"name" gorm:"size:255"`
 	IP          string     `json:"ip" gorm:"size:64"`
 	Port        int        `json:"port" gorm:"default:22"`
@@ -359,7 +386,9 @@ type VPS struct {
 // AllModels lists every model for AutoMigrate.
 func AllModels() []any {
 	return []any{
-		&ProviderAccount{}, &Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{}, &Token{}, &Setting{}, &SMTPSender{}, &NotificationChannel{},
+		&Org{}, &User{}, &OrgMember{},
+		&ProviderAccount{}, &Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{},
+		&Token{}, &Setting{}, &SMTPSender{}, &NotificationChannel{},
 		&SSHKey{}, &VPS{},
 	}
 }

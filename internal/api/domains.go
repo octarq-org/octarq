@@ -111,7 +111,7 @@ func (h *Handler) syncDomains(w http.ResponseWriter, r *http.Request) {
 			updated++
 		} else {
 			h.db.Create(&models.Domain{
-				OwnerID: models.SingleUserID,
+				OrgID: h.orgID(r),
 				Name:    name, ProviderAccountID: acc.ID, ZoneID: z.ID,
 			})
 			created++
@@ -141,7 +141,7 @@ type domainDTO struct {
 
 func (h *Handler) listDomains(w http.ResponseWriter, r *http.Request) {
 	var ds []models.Domain
-	q := h.db.Order("created_at DESC")
+	q := h.orgDB(r).Order("created_at DESC")
 	if s := r.URL.Query().Get("q"); s != "" {
 		like := "%" + s + "%"
 		q = q.Where("name LIKE ? OR note LIKE ?", like, like)
@@ -178,7 +178,7 @@ func (h *Handler) createDomain(w http.ResponseWriter, r *http.Request) {
 		mailHosts = *d.MailHosts
 	}
 	dom := models.Domain{
-		OwnerID:           models.SingleUserID,
+		OrgID:             h.orgID(r),
 		Name:              d.Name,
 		ProviderAccountID: d.ProviderAccountID,
 		ZoneID:            d.ZoneID,
@@ -220,7 +220,7 @@ func (h *Handler) updateDomain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var dom models.Domain
-	if h.db.First(&dom, id).Error != nil {
+	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&dom).Error != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
@@ -258,7 +258,10 @@ func (h *Handler) deleteDomain(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad id")
 		return
 	}
-	h.db.Delete(&models.Domain{}, id)
+	if res := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).Delete(&models.Domain{}); res.RowsAffected == 0 {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 

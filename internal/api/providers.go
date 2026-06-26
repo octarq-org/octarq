@@ -15,7 +15,7 @@ type providerAccountDTO struct {
 
 func (h *Handler) listProviderAccounts(w http.ResponseWriter, r *http.Request) {
 	var accounts []models.ProviderAccount
-	h.db.Order("created_at DESC").Find(&accounts)
+	h.orgDB(r).Order("created_at DESC").Find(&accounts)
 	writeJSON(w, http.StatusOK, accounts)
 }
 
@@ -37,7 +37,7 @@ func (h *Handler) createProviderAccount(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	acc := models.ProviderAccount{
-		OwnerID: models.SingleUserID,
+		OrgID: h.orgID(r),
 		Name:    d.Name,
 		Type:    d.Type,
 		Config:  enc,
@@ -56,7 +56,7 @@ func (h *Handler) updateProviderAccount(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	var acc models.ProviderAccount
-	if h.db.First(&acc, id).Error != nil {
+	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&acc).Error != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
@@ -95,6 +95,9 @@ func (h *Handler) deleteProviderAccount(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	h.db.Delete(&models.ProviderAccount{}, id)
+	if res := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).Delete(&models.ProviderAccount{}); res.RowsAffected == 0 {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

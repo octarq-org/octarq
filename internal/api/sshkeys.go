@@ -15,7 +15,7 @@ import (
 
 func (h *Handler) listSSHKeys(w http.ResponseWriter, r *http.Request) {
 	var keys []models.SSHKey
-	h.db.Order("created_at DESC").Find(&keys)
+	h.orgDB(r).Order("created_at DESC").Find(&keys)
 	writeJSON(w, http.StatusOK, keys)
 }
 
@@ -87,7 +87,7 @@ func (h *Handler) createSSHKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	k := models.SSHKey{
-		OwnerID: models.SingleUserID,
+		OrgID: h.orgID(r),
 		Name:    d.Name,
 		Type:    d.Type,
 		Key:     string(encKey),
@@ -117,7 +117,12 @@ func (h *Handler) deleteSSHKey(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad id")
 		return
 	}
-	// check if in use
+	// Verify ownership before checking usage.
+	var key models.SSHKey
+	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&key).Error != nil {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
 	var count int64
 	h.db.Model(&models.VPS{}).Where("ssh_key_id = ?", id).Count(&count)
 	if count > 0 {

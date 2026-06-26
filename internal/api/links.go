@@ -91,7 +91,7 @@ func view(l models.Link) linkView {
 
 func (h *Handler) listLinks(w http.ResponseWriter, r *http.Request) {
 	var links []models.Link
-	q := h.db.Order("created_at DESC")
+	q := h.orgDB(r).Order("created_at DESC")
 	// Archived links are hidden unless explicitly requested (?archived=1).
 	if r.URL.Query().Get("archived") == "1" {
 		q = q.Where("archived = ?", true)
@@ -155,7 +155,7 @@ func (h *Handler) getLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var l models.Link
-	if h.db.First(&l, id).Error != nil {
+	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&l).Error != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
@@ -189,7 +189,7 @@ func (h *Handler) createLink(w http.ResponseWriter, r *http.Request) {
 		enabled = *d.Enabled
 	}
 	l := models.Link{
-		OwnerID: models.SingleUserID,
+		OrgID: h.orgID(r),
 		Host:    strings.TrimSpace(d.Host), Slug: slug, Target: d.Target,
 		Password: d.Password, Note: d.Note, Title: d.Title, Tags: d.Tags,
 		ExpiresAt: d.ExpiresAt, ExpiredURL: d.ExpiredURL, ClickLimit: d.ClickLimit,
@@ -209,7 +209,7 @@ func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var l models.Link
-	if h.db.First(&l, id).Error != nil {
+	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&l).Error != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
@@ -260,8 +260,13 @@ func (h *Handler) deleteLink(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad id")
 		return
 	}
+	// Only delete if the link belongs to this org.
+	res := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).Delete(&models.Link{})
+	if res.RowsAffected == 0 {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
 	h.db.Where("link_id = ?", id).Delete(&models.LinkEvent{})
-	h.db.Delete(&models.Link{}, id)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 

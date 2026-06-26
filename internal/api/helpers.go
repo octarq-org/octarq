@@ -3,12 +3,38 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
 
 	"github.com/Jungley8/led/internal/dnsprovider"
 	"github.com/Jungley8/led/internal/models"
+	"gorm.io/gorm"
 )
 
 var errNotFound = errors.New("not found")
+
+// emailBelongsToOrg verifies an email's mailbox is owned by the given org.
+func (h *Handler) emailBelongsToOrg(emailID, orgID uint) bool {
+	var count int64
+	h.db.Model(&models.Email{}).
+		Joins("JOIN mailboxes ON mailboxes.id = emails.mailbox_id AND mailboxes.owner_id = ?", orgID).
+		Where("emails.id = ?", emailID).Count(&count)
+	return count > 0
+}
+
+// orgID extracts the authenticated org ID from the request session.
+// Falls back to 1 (the bootstrap org) if the session predates multi-tenant.
+func (h *Handler) orgID(r *http.Request) uint {
+	if id := h.auth.OrgID(r); id != 0 {
+		return id
+	}
+	return 1
+}
+
+// orgDB returns a *gorm.DB pre-scoped to the authenticated org.
+// Use instead of h.db for any query that should be tenant-isolated.
+func (h *Handler) orgDB(r *http.Request) *gorm.DB {
+	return h.db.Where("owner_id = ?", h.orgID(r))
+}
 
 // encryptConfig serializes and AES-GCM-encrypts a provider credentials map.
 func (h *Handler) encryptConfig(cfg map[string]any) (string, error) {

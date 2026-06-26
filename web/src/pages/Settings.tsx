@@ -59,6 +59,10 @@ function GeneralSettings() {
   const [catchAll, setCatchAll] = useState(false);
   const [telegramBot, setTelegramBot] = useState("");
   const [telegramChat, setTelegramChat] = useState("");
+  const [googleClientId, setGoogleClientId] = useState("");
+  const [googleClientSecret, setGoogleClientSecret] = useState("");
+  const [githubClientId, setGithubClientId] = useState("");
+  const [githubClientSecret, setGithubClientSecret] = useState("");
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -71,6 +75,8 @@ function GeneralSettings() {
     setCatchAll(v.catchAll || false);
     setTelegramBot(v.telegramBotToken || "");
     setTelegramChat(v.telegramChatId || "");
+    setGoogleClientId(v.googleClientId || "");
+    setGithubClientId(v.githubClientId || "");
   }
   useEffect(() => {
     load();
@@ -80,15 +86,21 @@ function GeneralSettings() {
     setBusy(true);
     setSaved(false);
     try {
-      const payload: any = { 
+      const payload: any = {
         reservedSlugs, reservedMailboxes,
         inboundToken, catchAll,
-        telegramBotToken: telegramBot, telegramChatId: telegramChat 
+        telegramBotToken: telegramBot, telegramChatId: telegramChat,
+        googleClientId: googleClientId.trim(),
+        githubClientId: githubClientId.trim(),
       };
       if (cfToken.trim()) payload.cloudflareToken = cfToken.trim();
+      if (googleClientSecret.trim()) payload.googleClientSecret = googleClientSecret.trim();
+      if (githubClientSecret.trim()) payload.githubClientSecret = githubClientSecret.trim();
       const v = await api.updateSettings(payload);
       setS(v);
       setCfToken("");
+      setGoogleClientSecret("");
+      setGithubClientSecret("");
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } finally {
@@ -208,6 +220,71 @@ function GeneralSettings() {
                 placeholder="123456789"
               />
             </Field>
+          </div>
+        </div>
+
+        <div className="border-t border-zinc-800 pt-5">
+          <h2 className="mb-1 text-lg font-semibold text-zinc-300">OAuth Providers</h2>
+          <p className="mb-4 text-xs text-zinc-500">
+            Client secrets are stored encrypted. Set <code className="text-zinc-300">LED_BASE_URL</code> on the server for callbacks to work.
+          </p>
+          <div className="space-y-5">
+            <div className="rounded-md border border-zinc-800 p-4 space-y-3">
+              <p className="text-sm font-medium text-zinc-300">Google</p>
+              <Field label="Client ID" hint="">
+                <input
+                  className="input"
+                  value={googleClientId}
+                  onChange={(e) => setGoogleClientId(e.target.value)}
+                  placeholder="your-client-id.apps.googleusercontent.com"
+                />
+              </Field>
+              <Field label="Client Secret" hint={s.googleClientSecretSet ? "Secret is set (encrypted). Enter a new value to replace." : ""}>
+                <input
+                  className="input"
+                  type="password"
+                  value={googleClientSecret}
+                  onChange={(e) => setGoogleClientSecret(e.target.value)}
+                  placeholder={s.googleClientSecretSet ? "•••••••• (set)" : "Client secret"}
+                />
+                {s.googleClientSecretSet && (
+                  <button
+                    className="btn-ghost mt-1.5 text-red-400"
+                    onClick={async () => { await api.updateSettings({ googleClientSecret: "" }); load(); }}
+                  >
+                    Clear secret
+                  </button>
+                )}
+              </Field>
+            </div>
+            <div className="rounded-md border border-zinc-800 p-4 space-y-3">
+              <p className="text-sm font-medium text-zinc-300">GitHub</p>
+              <Field label="Client ID" hint="">
+                <input
+                  className="input"
+                  value={githubClientId}
+                  onChange={(e) => setGithubClientId(e.target.value)}
+                  placeholder="Ov23li..."
+                />
+              </Field>
+              <Field label="Client Secret" hint={s.githubClientSecretSet ? "Secret is set (encrypted). Enter a new value to replace." : ""}>
+                <input
+                  className="input"
+                  type="password"
+                  value={githubClientSecret}
+                  onChange={(e) => setGithubClientSecret(e.target.value)}
+                  placeholder={s.githubClientSecretSet ? "•••••••• (set)" : "Client secret"}
+                />
+                {s.githubClientSecretSet && (
+                  <button
+                    className="btn-ghost mt-1.5 text-red-400"
+                    onClick={async () => { await api.updateSettings({ githubClientSecret: "" }); load(); }}
+                  >
+                    Clear secret
+                  </button>
+                )}
+              </Field>
+            </div>
           </div>
         </div>
 

@@ -32,6 +32,10 @@ type Context struct {
 	// config blob, and text is the message body. It mirrors notify.Send so
 	// plugins never import led's internal/notify package directly.
 	Notify func(ctx context.Context, typ, cfgJSON, text string) error
+	// UserID extracts the authenticated user ID from the request session (0 if unauthed).
+	UserID func(*http.Request) uint
+	// OrgID extracts the authenticated org ID from the request session (0 if unauthed).
+	OrgID func(*http.Request) uint
 }
 
 // Plugin is a unit of Pro functionality mounted onto the core app.

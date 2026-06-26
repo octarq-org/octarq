@@ -52,7 +52,7 @@ func TestTokenLifecycleAndBearerAuth(t *testing.T) {
 	cfg := &config.Config{SecretKey: "secret"}
 	sessionMgr := auth.New(cfg, crypto.New("secret"))
 	cookieRec := httptest.NewRecorder()
-	sessionMgr.SetSession(cookieRec, models.SingleUserID)
+	sessionMgr.SetSession(cookieRec, 1, 1)
 	cookies := cookieRec.Result().Cookies()
 
 	req = httptest.NewRequest(http.MethodPost, "/api/tokens", strings.NewReader(`{"name":"ci","note":"ci use"}`))

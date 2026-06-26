@@ -19,7 +19,7 @@ import (
 
 func (h *Handler) listMailboxes(w http.ResponseWriter, r *http.Request) {
 	var boxes []models.Mailbox
-	h.db.Order("created_at DESC").Find(&boxes)
+	h.orgDB(r).Order("created_at DESC").Find(&boxes)
 	// Attach unread counts.
 	for i := range boxes {
 		h.db.Model(&models.Email{}).
@@ -51,7 +51,7 @@ func (h *Handler) createMailbox(w http.ResponseWriter, r *http.Request) {
 		enabled = *d.Enabled
 	}
 	mb := models.Mailbox{
-		OwnerID: models.SingleUserID,
+		OrgID: h.orgID(r),
 		Address: d.Address, Note: d.Note, Enabled: enabled,
 	}
 	if err := h.db.Create(&mb).Error; err != nil {
@@ -68,7 +68,7 @@ func (h *Handler) updateMailbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var mb models.Mailbox
-	if h.db.First(&mb, id).Error != nil {
+	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&mb).Error != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
@@ -91,15 +91,20 @@ func (h *Handler) deleteMailbox(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad id")
 		return
 	}
+	res := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).Delete(&models.Mailbox{})
+	if res.RowsAffected == 0 {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
 	h.db.Where("mailbox_id = ?", id).Delete(&models.Email{})
-	h.db.Delete(&models.Mailbox{}, id)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 // --- emails ---
 
 func (h *Handler) listEmails(w http.ResponseWriter, r *http.Request) {
-	q := h.db.Order("received_at DESC").Omit("Raw", "HTML")
+	orgMailboxes := h.db.Model(&models.Mailbox{}).Select("id").Where("owner_id = ?", h.orgID(r))
+	q := h.db.Where("mailbox_id IN (?)", orgMailboxes).Order("received_at DESC").Omit("Raw", "HTML")
 	if mb := r.URL.Query().Get("mailbox"); mb != "" {
 		q = q.Where("mailbox_id = ?", mb)
 	}
@@ -127,6 +132,10 @@ func (h *Handler) getEmail(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad id")
 		return
 	}
+	if !h.emailBelongsToOrg(id, h.orgID(r)) {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
 	var e models.Email
 	if h.db.First(&e, id).Error != nil {
 		writeErr(w, http.StatusNotFound, "not found")
@@ -143,6 +152,10 @@ func (h *Handler) updateEmail(w http.ResponseWriter, r *http.Request) {
 	id, ok := idParam(r)
 	if !ok {
 		writeErr(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	if !h.emailBelongsToOrg(id, h.orgID(r)) {
+		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
 	var e models.Email
@@ -170,7 +183,8 @@ func (h *Handler) updateEmail(w http.ResponseWriter, r *http.Request) {
 
 // readAllEmails marks every email read, optionally scoped to one mailbox.
 func (h *Handler) readAllEmails(w http.ResponseWriter, r *http.Request) {
-	q := h.db.Model(&models.Email{}).Where("read = ?", false)
+	orgMailboxes := h.db.Model(&models.Mailbox{}).Select("id").Where("owner_id = ?", h.orgID(r))
+	q := h.db.Model(&models.Email{}).Where("read = ? AND mailbox_id IN (?)", false, orgMailboxes)
 	if mb := r.URL.Query().Get("mailbox"); mb != "" {
 		q = q.Where("mailbox_id = ?", mb)
 	}
@@ -183,6 +197,10 @@ func (h *Handler) rawEmail(w http.ResponseWriter, r *http.Request) {
 	id, ok := idParam(r)
 	if !ok {
 		writeErr(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	if !h.emailBelongsToOrg(id, h.orgID(r)) {
+		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
 	var e models.Email
@@ -199,6 +217,10 @@ func (h *Handler) deleteEmail(w http.ResponseWriter, r *http.Request) {
 	id, ok := idParam(r)
 	if !ok {
 		writeErr(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	if !h.emailBelongsToOrg(id, h.orgID(r)) {
+		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
 	h.db.Delete(&models.Email{}, id)
@@ -225,7 +247,7 @@ func (h *Handler) sendEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var s models.SMTPSender
-	if err := h.db.First(&s, payload.SMTPSenderID).Error; err != nil {
+	if err := h.db.Where("id = ? AND owner_id = ?", payload.SMTPSenderID, h.orgID(r)).First(&s).Error; err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid smtp sender id")
 		return
 	}
@@ -356,22 +378,22 @@ func (h *Handler) resolveMailbox(addr string) (*models.Mailbox, bool) {
 	// (apex or a configured subdomain like mail.example.com).
 	var doms []models.Domain
 	h.db.Where("for_mail = ?", true).Find(&doms)
-	matched := false
+	var matchedOrgID uint
 	for _, dom := range doms {
 		for _, mh := range dom.EffectiveMailHosts() {
 			if mh == recipientHost {
-				matched = true
+				matchedOrgID = dom.OrgID
 				break
 			}
 		}
-		if matched {
+		if matchedOrgID != 0 {
 			break
 		}
 	}
-	if !matched {
+	if matchedOrgID == 0 {
 		return nil, false
 	}
-	mb = models.Mailbox{OwnerID: models.SingleUserID, Address: addr, Enabled: true, Note: "auto (catch-all)"}
+	mb = models.Mailbox{OrgID: matchedOrgID, Address: addr, Enabled: true, Note: "auto (catch-all)"}
 	if err := h.db.Create(&mb).Error; err != nil {
 		return nil, false
 	}

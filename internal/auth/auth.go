@@ -40,44 +40,79 @@ func (m *Manager) Check(user, pass string) bool {
 	return user == m.cfg.AdminUser && pass == m.cfg.AdminPassword
 }
 
-// issue builds a signed token "uid|exp|sig".
-func (m *Manager) issue(uid uint, ttl time.Duration) string {
+// issue builds a signed token "uid:orgid|exp|sig".
+func (m *Manager) issue(uid, orgID uint, ttl time.Duration) string {
 	exp := time.Now().Add(ttl).Unix()
-	payload := fmt.Sprintf("%d|%d", uid, exp)
+	payload := fmt.Sprintf("%d:%d|%d", uid, orgID, exp)
 	return payload + "|" + m.cipher.Sign([]byte(payload))
 }
 
-// validate returns the uid if the token is well-formed, signed, and unexpired.
-func (m *Manager) validate(tok string) (uint, bool) {
+// validate returns (uid, orgID) if the token is well-formed, signed, and unexpired.
+func (m *Manager) validate(tok string) (uid, orgID uint, ok bool) {
 	parts := strings.Split(tok, "|")
 	if len(parts) != 3 {
-		return 0, false
+		return 0, 0, false
 	}
 	payload := parts[0] + "|" + parts[1]
 	if !m.cipher.Verify([]byte(payload), parts[2]) {
-		return 0, false
+		return 0, 0, false
 	}
 	exp, err := strconv.ParseInt(parts[1], 10, 64)
 	if err != nil || time.Now().Unix() > exp {
-		return 0, false
+		return 0, 0, false
 	}
-	uid, err := strconv.ParseUint(parts[0], 10, 64)
+	// parts[0] is "uid:orgid"
+	ids := strings.SplitN(parts[0], ":", 2)
+	if len(ids) != 2 {
+		return 0, 0, false
+	}
+	u, err := strconv.ParseUint(ids[0], 10, 64)
 	if err != nil {
-		return 0, false
+		return 0, 0, false
 	}
-	return uint(uid), true
+	o, err := strconv.ParseUint(ids[1], 10, 64)
+	if err != nil {
+		return 0, 0, false
+	}
+	return uint(u), uint(o), true
 }
 
 // SetSession writes the session cookie after a successful login.
-func (m *Manager) SetSession(w http.ResponseWriter, uid uint) {
+func (m *Manager) SetSession(w http.ResponseWriter, uid, orgID uint) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     cookieName,
-		Value:    m.issue(uid, 7*24*time.Hour),
+		Value:    m.issue(uid, orgID, 7*24*time.Hour),
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int((7 * 24 * time.Hour).Seconds()),
 	})
+}
+
+// UserID extracts the user ID from the session cookie, or 0 if not authed.
+func (m *Manager) UserID(r *http.Request) uint {
+	c, err := r.Cookie(cookieName)
+	if err != nil {
+		return 0
+	}
+	uid, _, ok := m.validate(c.Value)
+	if !ok {
+		return 0
+	}
+	return uid
+}
+
+// OrgID extracts the org ID from the session cookie, or 0 if not authed.
+func (m *Manager) OrgID(r *http.Request) uint {
+	c, err := r.Cookie(cookieName)
+	if err != nil {
+		return 0
+	}
+	_, orgID, ok := m.validate(c.Value)
+	if !ok {
+		return 0
+	}
+	return orgID
 }
 
 // Clear removes the session cookie (logout).
@@ -93,7 +128,7 @@ func (m *Manager) Authed(r *http.Request) bool {
 	if err != nil {
 		return false
 	}
-	_, ok := m.validate(c.Value)
+	_, _, ok := m.validate(c.Value)
 	return ok
 }
 
