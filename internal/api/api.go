@@ -9,8 +9,6 @@ import (
 	"github.com/jungley/led/internal/auth"
 	"github.com/jungley/led/internal/crypto"
 	"github.com/jungley/led/internal/geo"
-	"github.com/jungley/led/internal/mail"
-	"github.com/jungley/led/internal/notify"
 	"gorm.io/gorm"
 )
 
@@ -20,13 +18,11 @@ type Handler struct {
 	db       *gorm.DB
 	cipher   *crypto.Cipher
 	auth     *auth.Manager
-	sender   mail.Sender
 	geo      *geo.Resolver
-	notifier *notify.Telegram // may be nil; Notify is nil-safe
 }
 
-func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, sender mail.Sender, g *geo.Resolver, n *notify.Telegram) *Handler {
-	return &Handler{cfg: cfg, db: db, cipher: c, auth: a, sender: sender, geo: g, notifier: n}
+func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *geo.Resolver) *Handler {
+	return &Handler{cfg: cfg, db: db, cipher: c, auth: a, geo: g}
 }
 
 // Routes returns the API mux mounted at /api/.
@@ -96,6 +92,12 @@ func (h *Handler) Routes() http.Handler {
 	p("GET /api/tokens", h.listTokens)
 	p("POST /api/tokens", h.createToken)
 	p("DELETE /api/tokens/{id}", h.deleteToken)
+
+	p("GET /api/notification-channels", h.listNotificationChannels)
+	p("POST /api/notification-channels", h.createNotificationChannel)
+	p("PUT /api/notification-channels/{id}", h.updateNotificationChannel)
+	p("DELETE /api/notification-channels/{id}", h.deleteNotificationChannel)
+	p("POST /api/notification-channels/{id}/test", h.testNotificationChannel)
 
 	return mux
 }

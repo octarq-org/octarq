@@ -23,22 +23,8 @@ type Config struct {
 	AdminUser     string
 	AdminPassword string
 
-	// InboundToken guards POST /api/email/inbound (the Cloudflare Email Worker
-	// webhook). Requests must present it via the X-Led-Token header.
-	InboundToken string
-
-	// CatchAll, when true, auto-creates a mailbox the first time mail arrives
-	// for an unknown address on a managed domain.
-	CatchAll bool
 
 	GeoIPDB string // optional path to a MaxMind GeoLite2-City.mmdb
-
-	// Outbound SMTP relay (sending). Optional.
-	SMTPHost string
-	SMTPPort string
-	SMTPUser string
-	SMTPPass string
-	SMTPFrom string
 
 	// Telegram notifications on inbound email (optional). Both required to enable.
 	TelegramBotToken string
@@ -119,14 +105,8 @@ func Load() (*Config, error) {
 		SecretKey:        env("LED_SECRET_KEY", ""),
 		AdminUser:        env("LED_ADMIN_USER", "admin"),
 		AdminPassword:    env("LED_ADMIN_PASSWORD", ""),
-		InboundToken:     env("LED_INBOUND_TOKEN", ""),
-		CatchAll:         env("LED_CATCH_ALL", "true") == "true",
+
 		GeoIPDB:          env("LED_GEOIP_DB", ""),
-		SMTPHost:         env("LED_SMTP_HOST", ""),
-		SMTPPort:         env("LED_SMTP_PORT", "587"),
-		SMTPUser:         env("LED_SMTP_USER", ""),
-		SMTPPass:         env("LED_SMTP_PASS", ""),
-		SMTPFrom:         env("LED_SMTP_FROM", ""),
 		TelegramBotToken: env("LED_TELEGRAM_BOT_TOKEN", ""),
 		TelegramChatID:   env("LED_TELEGRAM_CHAT_ID", ""),
 	}
