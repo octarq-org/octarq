@@ -3,7 +3,7 @@ package api
 import (
 	"testing"
 
-	"github.com/jungley/led/internal/dnsprovider"
+	"github.com/Jungley8/led/internal/dnsprovider"
 )
 
 func TestValidateRecord(t *testing.T) {

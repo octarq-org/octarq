@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/jungley/led/internal/models"
+	"github.com/Jungley8/led/internal/models"
 	"golang.org/x/crypto/ssh"
 )
 

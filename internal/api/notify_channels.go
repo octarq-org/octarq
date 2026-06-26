@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jungley/led/internal/models"
-	"github.com/jungley/led/internal/notify"
+	"github.com/Jungley8/led/internal/models"
+	"github.com/Jungley8/led/internal/notify"
 )
 
 func (h *Handler) listNotificationChannels(w http.ResponseWriter, r *http.Request) {

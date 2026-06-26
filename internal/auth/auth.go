@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jungley/led/config"
-	"github.com/jungley/led/internal/crypto"
-	"github.com/jungley/led/internal/models"
+	"github.com/Jungley8/led/config"
+	"github.com/Jungley8/led/internal/crypto"
+	"github.com/Jungley8/led/internal/models"
 	"gorm.io/gorm"
 )
 

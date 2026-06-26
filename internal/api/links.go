@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jungley/led/internal/models"
+	"github.com/Jungley8/led/internal/models"
 	qrcode "github.com/skip2/go-qrcode"
 )
 

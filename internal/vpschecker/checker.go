@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/jungley/led/internal/crypto"
-	"github.com/jungley/led/internal/models"
-	"github.com/jungley/led/internal/notify"
+	"github.com/Jungley8/led/internal/crypto"
+	"github.com/Jungley8/led/internal/models"
+	"github.com/Jungley8/led/internal/notify"
 	"golang.org/x/crypto/ssh"
 	"gorm.io/gorm"
 )

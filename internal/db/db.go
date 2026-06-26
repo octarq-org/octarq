@@ -7,8 +7,8 @@ import (
 	"fmt"
 
 	"github.com/glebarez/sqlite"
-	"github.com/jungley/led/config"
-	"github.com/jungley/led/internal/models"
+	"github.com/Jungley8/led/config"
+	"github.com/Jungley8/led/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

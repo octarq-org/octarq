@@ -1,4 +1,4 @@
-module github.com/jungley/led
+module github.com/Jungley8/led
 
 go 1.25.0
 

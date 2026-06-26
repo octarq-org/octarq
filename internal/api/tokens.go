@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/jungley/led/internal/models"
+	"github.com/Jungley8/led/internal/models"
 )
 
 // tokenAlphabet length-independent random token body. We use URL-safe base64

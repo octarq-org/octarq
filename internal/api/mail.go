@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jungley/led/internal/mail"
-	"github.com/jungley/led/internal/models"
-	"github.com/jungley/led/internal/notify"
+	"github.com/Jungley8/led/internal/mail"
+	"github.com/Jungley8/led/internal/models"
+	"github.com/Jungley8/led/internal/notify"
 )
 
 // --- mailboxes ---

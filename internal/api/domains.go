@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jungley/led/internal/dnsprovider"
-	"github.com/jungley/led/internal/models"
+	"github.com/Jungley8/led/internal/dnsprovider"
+	"github.com/Jungley8/led/internal/models"
 )
 
 // providerErr logs an upstream DNS-provider failure and returns it as a 400 so

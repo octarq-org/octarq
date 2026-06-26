@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jungley/led/internal/geo"
-	"github.com/jungley/led/internal/models"
+	"github.com/Jungley8/led/internal/geo"
+	"github.com/Jungley8/led/internal/models"
 	"gorm.io/gorm"
 )
 

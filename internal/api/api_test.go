@@ -8,11 +8,11 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/jungley/led/config"
-	"github.com/jungley/led/internal/auth"
-	"github.com/jungley/led/internal/crypto"
-	"github.com/jungley/led/internal/geo"
-	"github.com/jungley/led/internal/models"
+	"github.com/Jungley8/led/config"
+	"github.com/Jungley8/led/internal/auth"
+	"github.com/Jungley8/led/internal/crypto"
+	"github.com/Jungley8/led/internal/geo"
+	"github.com/Jungley8/led/internal/models"
 	"gorm.io/gorm"
 )
 

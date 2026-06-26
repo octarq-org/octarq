@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/jungley/led/internal/dnsprovider"
-	"github.com/jungley/led/internal/models"
+	"github.com/Jungley8/led/internal/dnsprovider"
+	"github.com/Jungley8/led/internal/models"
 )
 
 var errNotFound = errors.New("not found")
