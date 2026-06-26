@@ -33,7 +33,7 @@ func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	cipher := crypto.New(cfg.SecretKey)
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
-	h := New(cfg, db, cipher, authMgr, nil, g, nil)
+	h := New(cfg, db, cipher, authMgr, g)
 	return h.Routes(), db
 }
 

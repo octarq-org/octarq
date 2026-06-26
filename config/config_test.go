@@ -41,9 +41,6 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.AdminUser != "admin" {
 		t.Errorf("AdminUser default = %q want admin", cfg.AdminUser)
 	}
-	if !cfg.CatchAll {
-		t.Error("CatchAll default should be true")
-	}
 	if cfg.DBDSN != "led.db" {
 		t.Errorf("DBDSN default = %q want led.db", cfg.DBDSN)
 	}

@@ -1,86 +1,25 @@
 // Command led is a single-binary domain / short-link / email management
 // service (link · email · domain). It serves an embedded React dashboard,
 // a JSON API, and a short-link redirector from one process.
+//
+// This is the open-core binary: it runs the app with no Pro plugins. The
+// commercial build (private led-core module) reuses the same app package and
+// registers additional plugins before Run — see the plugin package.
 package main
 
 import (
 	"context"
-	"errors"
 	"log"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
-	"github.com/jungley/led/config"
-	"github.com/jungley/led/internal/api"
-	"github.com/jungley/led/internal/auth"
-	"github.com/jungley/led/internal/crypto"
-	"github.com/jungley/led/internal/db"
-	"github.com/jungley/led/internal/geo"
-	"github.com/jungley/led/internal/server"
-	"github.com/jungley/led/internal/shortlink"
-	"github.com/jungley/led/internal/vpschecker"
-	"github.com/jungley/led/webembed"
+	"github.com/jungley/led/app"
 )
 
 func main() {
-	cfg, err := config.Load()
+	a, err := app.New()
 	if err != nil {
-		log.Fatalf("config: %v", err)
+		log.Fatalf("init: %v", err)
 	}
-
-	gdb, err := db.Open(cfg)
-	if err != nil {
-		log.Fatalf("db: %v", err)
+	if err := a.Run(context.Background()); err != nil {
+		log.Fatalf("run: %v", err)
 	}
-
-	cipher := crypto.New(cfg.SecretKey)
-	authMgr := auth.New(cfg, cipher).WithDB(gdb)
-
-	geoResolver, err := geo.Open(cfg.GeoIPDB)
-	if err != nil {
-		log.Printf("geoip disabled: %v", err)
-		geoResolver, _ = geo.Open("")
-	}
-	defer geoResolver.Close()
-
-	short := shortlink.New(gdb, geoResolver)
-	apiHandler := api.New(cfg, gdb, cipher, authMgr, geoResolver).Routes()
-
-	webFS, err := webembed.FS()
-	if err != nil {
-		log.Fatalf("web assets: %v", err)
-	}
-
-	srv, err := server.New(cfg, apiHandler, short, webFS)
-	if err != nil {
-		log.Fatalf("server: %v", err)
-	}
-
-	httpSrv := &http.Server{
-		Addr:              cfg.Listen,
-		Handler:           srv,
-		ReadHeaderTimeout: 10 * time.Second,
-	}
-
-	checker := vpschecker.New(gdb, cipher)
-	go checker.Start(context.Background())
-
-	go func() {
-		log.Printf("led listening on %s (db=%s)", cfg.Listen, cfg.DBDriver)
-		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("listen: %v", err)
-		}
-	}()
-
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	<-stop
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	log.Println("shutting down...")
-	_ = httpSrv.Shutdown(ctx)
 }

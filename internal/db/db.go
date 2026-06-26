@@ -14,7 +14,10 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// Open connects to the database and auto-migrates the schema.
+// Open connects to the database WITHOUT migrating. Migration is deferred to
+// Migrate so that plugin-contributed models (registered after Open) are
+// migrated together with the core schema in a single pass — see the plugin
+// package for why AutoMigrate must not run at open time.
 func Open(cfg *config.Config) (*gorm.DB, error) {
 	var dial gorm.Dialector
 	switch cfg.DBDriver {
@@ -32,8 +35,16 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
-	if err := gdb.AutoMigrate(models.AllModels()...); err != nil {
-		return nil, fmt.Errorf("migrate: %w", err)
+	return gdb, nil
+}
+
+// Migrate auto-migrates the core schema plus any extra (plugin) models, then
+// runs one-off data migrations. Call this once, after every plugin has been
+// registered, before serving traffic.
+func Migrate(gdb *gorm.DB, extraModels ...any) error {
+	all := append(models.AllModels(), extraModels...)
+	if err := gdb.AutoMigrate(all...); err != nil {
+		return fmt.Errorf("migrate: %w", err)
 	}
 
 	// Data migration: move legacy domain.provider / config to ProviderAccount
@@ -64,5 +75,5 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 		}
 	}
 
-	return gdb, nil
+	return nil
 }

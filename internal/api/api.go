@@ -25,8 +25,10 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 	return &Handler{cfg: cfg, db: db, cipher: c, auth: a, geo: g}
 }
 
-// Routes returns the API mux mounted at /api/.
-func (h *Handler) Routes() http.Handler {
+// Routes returns the API mux mounted at /api/. It returns the concrete
+// *http.ServeMux (not http.Handler) so plugins can mount additional /api/...
+// routes onto the same mux before it is served.
+func (h *Handler) Routes() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Auth (no session required).
