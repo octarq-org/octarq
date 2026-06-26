@@ -144,6 +144,9 @@ func (h *Handler) Routes() *http.ServeMux {
 	p("GET /api/abuse", h.listAbuseReports)
 	p("PUT /api/abuse/{id}", h.updateAbuseReport)
 
+	// Audit log (session required, read-only for now).
+	p("GET /api/audit", h.listAuditLogs)
+
 	return mux
 }
 

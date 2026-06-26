@@ -67,6 +67,31 @@ func (h *Handler) orgDB(r *http.Request) *gorm.DB {
 	return h.db.Where("owner_id = ?", h.orgID(r))
 }
 
+// audit writes an AuditLog entry asynchronously; never blocks a request.
+// meta is an optional map that is JSON-encoded (pass nil to omit).
+func (h *Handler) audit(r *http.Request, action, targetType string, targetID uint, meta map[string]any) {
+	orgID := h.orgID(r)
+	actorID := h.auth.UserID(r)
+	ip := reporterIP(r)
+	var metaJSON string
+	if meta != nil {
+		if b, err := json.Marshal(meta); err == nil {
+			metaJSON = string(b)
+		}
+	}
+	go func() {
+		h.db.Create(&models.AuditLog{
+			OrgID:      orgID,
+			ActorID:    actorID,
+			Action:     action,
+			TargetType: targetType,
+			TargetID:   targetID,
+			Meta:       metaJSON,
+			IP:         ip,
+		})
+	}()
+}
+
 // encryptConfig serializes and AES-GCM-encrypts a provider credentials map.
 func (h *Handler) encryptConfig(cfg map[string]any) (string, error) {
 	if len(cfg) == 0 {

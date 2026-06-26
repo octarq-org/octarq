@@ -57,6 +57,7 @@ func (h *Handler) createToken(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "create token")
 		return
 	}
+	h.audit(r, "token.create", "token", tok.ID, map[string]any{"name": tok.Name, "prefix": tok.Prefix})
 	// The raw token is returned ONLY here; it is never stored or shown again.
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"id":        tok.ID,
@@ -78,5 +79,6 @@ func (h *Handler) deleteToken(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
+	h.audit(r, "token.delete", "token", id, nil)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

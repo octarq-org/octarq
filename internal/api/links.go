@@ -199,6 +199,7 @@ func (h *Handler) createLink(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusConflict, "slug already exists on this host")
 		return
 	}
+	h.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
 	writeJSON(w, http.StatusCreated, view(l))
 }
 
@@ -267,6 +268,7 @@ func (h *Handler) deleteLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.db.Where("link_id = ?", id).Delete(&models.LinkEvent{})
+	h.audit(r, "link.delete", "link", id, nil)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 

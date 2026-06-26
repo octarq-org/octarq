@@ -387,6 +387,23 @@ type VPS struct {
 	UpdatedAt   time.Time  `json:"updatedAt"`
 }
 
+// AuditLog records admin actions for traceability.
+// Design references: Outline (name/actorId/data), Gitea (op_type/content), Authentik (action/context).
+//
+// action format: "<resource>.<verb>" — e.g. "link.create", "settings.update", "domain.delete"
+// meta is free-form JSON containing relevant context (IDs, before/after values, etc.)
+type AuditLog struct {
+	ID         uint      `gorm:"primaryKey" json:"id"`
+	OrgID      uint      `gorm:"index" json:"orgId"`
+	ActorID    uint      `gorm:"index" json:"actorId"` // 0 = API token / system
+	Action     string    `gorm:"size:64;index" json:"action"`
+	TargetType string    `gorm:"size:32" json:"targetType"` // "link", "domain", "mailbox", etc.
+	TargetID   uint      `json:"targetId"`
+	Meta       string    `gorm:"type:text" json:"meta"` // JSON detail
+	IP         string    `gorm:"size:64" json:"ip"`
+	CreatedAt  time.Time `gorm:"index" json:"createdAt"`
+}
+
 // AbuseReport is a user-submitted report of a short link being used for spam,
 // phishing, or other policy violations.
 type AbuseReport struct {
@@ -406,6 +423,6 @@ func AllModels() []any {
 		&Org{}, &User{}, &OrgMember{},
 		&ProviderAccount{}, &Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{},
 		&Token{}, &Setting{}, &SMTPSender{}, &NotificationChannel{},
-		&SSHKey{}, &VPS{}, &AbuseReport{},
+		&SSHKey{}, &VPS{}, &AbuseReport{}, &AuditLog{},
 	}
 }

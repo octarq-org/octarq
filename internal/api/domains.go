@@ -210,6 +210,7 @@ func (h *Handler) createDomain(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusConflict, "domain already exists")
 		return
 	}
+	h.audit(r, "domain.create", "domain", dom.ID, map[string]any{"name": dom.Name})
 	writeJSON(w, http.StatusCreated, dom)
 }
 
@@ -262,6 +263,7 @@ func (h *Handler) deleteDomain(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
+	h.audit(r, "domain.delete", "domain", id, nil)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 

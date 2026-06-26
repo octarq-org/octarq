@@ -207,5 +207,6 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	if d.DataRetentionDays != nil {
 		h.setSetting(keyDataRetentionDays, strconv.Itoa(*d.DataRetentionDays))
 	}
+	h.audit(r, "settings.update", "settings", 0, nil)
 	h.getSettings(w, r)
 }
