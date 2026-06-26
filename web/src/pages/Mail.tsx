@@ -18,38 +18,67 @@ export default function MailPage() {
   const [editBox, setEditBox] = useState<Mailbox | null>(null);
   const [compose, setCompose] = useState<ReplyDraft | true | null>(null);
 
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+
   // Every mail host across all mail-enabled domains (incl. subdomains).
   const mailHostOptions = Array.from(new Set(domains.flatMap(effectiveMailHosts)));
 
   async function loadBoxes() {
     setBoxes(await api.mailboxes());
   }
-  async function loadEmails() {
-    setEmails(await api.emails(active));
+
+  async function loadEmails(reset = false) {
+    if (loading || (!hasMore && !reset)) return;
+    setLoading(true);
+    try {
+      const limit = 50;
+      const offset = reset ? 0 : page * limit;
+      const res = await api.emails(active, { q, limit, offset });
+      if (res.length < limit) setHasMore(false);
+      else setHasMore(true);
+
+      setEmails(prev => reset ? res : [...prev, ...res]);
+      setPage(reset ? 1 : page + 1);
+    } finally {
+      setLoading(false);
+    }
   }
+
   useEffect(() => {
     loadBoxes();
     api.domains().then(setDomains).catch(() => {});
   }, []);
+
   useEffect(() => {
-    loadEmails();
-  }, [active]);
+    const t = setTimeout(() => {
+      loadEmails(true);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [active, q]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop <= e.currentTarget.clientHeight + 100;
+    if (bottom) loadEmails();
+  };
 
   async function openEmail(e: Email) {
     const full = await api.email(e.id);
     setOpen(full);
-    loadEmails();
+    loadEmails(true);
     loadBoxes();
   }
 
   async function markAllRead() {
     await api.readAllEmails(active);
-    loadEmails();
+    loadEmails(true);
     loadBoxes();
   }
 
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-col">
       <Header title="Mail" subtitle="Domain mailboxes & inbox">
         <div className="flex gap-2">
           <button className="btn-ghost" onClick={markAllRead}>
@@ -67,97 +96,98 @@ export default function MailPage() {
       {boxes.length === 0 && (
         <Guide title="Set up mail receiving with Cloudflare Email Routing" open>
           <ol className="ml-4 list-decimal space-y-1">
-            <li>
-              Add a domain in <b>Domains</b>, toggle <b>Accept email</b>, and list its mail hosts.
-            </li>
-            <li>
-              In Cloudflare → <b>Email → Email Routing</b>, enable routing (adds MX + SPF records).
-            </li>
-            <li>
-              Deploy <Code>deploy/cloudflare-email-worker.js</Code> with{" "}
-              <Code>LED_ENDPOINT</Code>=<Code>{`${location.origin}/api/email/inbound`}</Code> and{" "}
-              <Code>LED_TOKEN</Code> = your <Code>LED_INBOUND_TOKEN</Code>, then point a catch-all route
-              at it.
-            </li>
-            <li>To send replies, configure an SMTP relay via the <Code>LED_SMTP_*</Code> env vars.</li>
+            <li>Add a domain in <b>Domains</b>, toggle <b>Accept email</b>, and list its mail hosts.</li>
+            <li>In Cloudflare → <b>Email → Email Routing</b>, enable routing.</li>
+            <li>Deploy <Code>deploy/cloudflare-email-worker.js</Code> with <Code>LED_ENDPOINT</Code>=<Code>{`${location.origin}/api/email/inbound`}</Code> and <Code>LED_TOKEN</Code> = your <Code>LED_INBOUND_TOKEN</Code>, then point a catch-all route at it.</li>
+            <li>To send replies, configure an SMTP relay via Settings.</li>
           </ol>
         </Guide>
       )}
 
-      <div className="grid grid-cols-[200px_1fr] gap-4">
-        {/* mailbox list */}
-        <div className="card h-fit">
-          <button
-            className={`w-full px-3 py-2 text-left text-sm ${active === undefined ? "bg-zinc-800" : "hover:bg-zinc-900"}`}
-            onClick={() => setActive(undefined)}
-          >
-            All mail
-          </button>
-          {boxes.map((b) => (
-            <div
-              key={b.id}
-              className={`group flex items-center justify-between border-t border-zinc-800 px-3 py-2 text-sm ${
-                active === b.id ? "bg-zinc-800" : "hover:bg-zinc-900"
-              }`}
+      <div className="grid grid-cols-[300px_1fr] gap-4 min-h-0 flex-1">
+        {/* left column */}
+        <div className="flex flex-col min-h-0">
+          <div className="mb-2 flex items-center gap-2">
+            <select
+              className="input flex-1 min-w-0"
+              value={active === undefined ? "" : active}
+              onChange={(e) => setActive(e.target.value ? Number(e.target.value) : undefined)}
             >
-              <button className="min-w-0 flex-1 text-left" onClick={() => setActive(b.id)}>
-                <div className="flex items-center gap-1">
-                  <span className={`truncate ${b.enabled ? "" : "text-zinc-600 line-through"}`}>{b.address}</span>
-                  {b.unread > 0 && (
-                    <span className="rounded-full bg-indigo-500 px-1.5 text-[10px] font-bold">{b.unread}</span>
-                  )}
-                </div>
-                {b.note && <div className="truncate text-[10px] text-amber-300/70">📝 {b.note}</div>}
-              </button>
-              <button className="btn-ghost px-1 opacity-0 group-hover:opacity-100" onClick={() => setEditBox(b)}>
+              <option value="">All mail</option>
+              {boxes.map(b => (
+                <option key={b.id} value={b.id}>{b.address} {b.unread > 0 ? `(${b.unread})` : ""}</option>
+              ))}
+            </select>
+            {active !== undefined && (
+              <button
+                className="btn-ghost shrink-0"
+                title="Edit Mailbox"
+                onClick={() => setEditBox(boxes.find(b => b.id === active) || null)}
+              >
                 ⚙
               </button>
-            </div>
-          ))}
+            )}
+          </div>
+          <div className="mb-2">
+            <input
+              className="input w-full"
+              placeholder="Search emails…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </div>
+          <div className="card flex-1 overflow-y-auto" onScroll={handleScroll}>
+            {emails.length === 0 && !loading ? (
+              <div className="p-8 text-center text-zinc-500">No messages.</div>
+            ) : (
+              <div className="divide-y divide-zinc-800">
+                {emails.map((e) => (
+                  <button
+                    key={e.id}
+                    className={`flex w-full flex-col p-3 text-left hover:bg-zinc-900 transition-colors ${open?.id === e.id ? "bg-zinc-800" : ""}`}
+                    onClick={() => openEmail(e)}
+                  >
+                    <div className="flex items-center justify-between w-full mb-1">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />}
+                        <span className={`truncate ${e.read ? "text-zinc-400" : "font-semibold"}`}>{e.from || "(unknown)"}</span>
+                      </div>
+                      <span className="shrink-0 text-xs text-zinc-500 ml-2">{timeAgo(e.receivedAt)}</span>
+                    </div>
+                    <div className={`truncate text-xs ${e.read ? "text-zinc-500" : "text-zinc-300"}`}>
+                      {e.subject || "(no subject)"}
+                    </div>
+                  </button>
+                ))}
+                {loading && <div className="p-3 text-center text-xs text-zinc-500">Loading…</div>}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* email list */}
-        <div className="card divide-y divide-zinc-800">
-          {emails.length === 0 ? (
-            <div className="p-8 text-center text-zinc-500">No messages.</div>
+        {/* right column */}
+        <div className="min-h-0 overflow-y-auto pr-2 pb-8">
+          {open ? (
+            <EmailViewForm
+              email={open}
+              onClose={() => setOpen(null)}
+              onReply={(d) => {
+                setOpen(null);
+                setCompose(d);
+              }}
+              onChanged={() => {
+                loadEmails(true);
+                loadBoxes();
+              }}
+            />
           ) : (
-            emails.map((e) => (
-              <button
-                key={e.id}
-                className="flex w-full items-center gap-3 p-3 text-left hover:bg-zinc-900"
-                onClick={() => openEmail(e)}
-              >
-                {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />}
-                <div className="min-w-0 flex-1">
-                  <div className="flex justify-between">
-                    <span className={`truncate ${e.read ? "text-zinc-400" : "font-semibold"}`}>{e.from || "(unknown)"}</span>
-                    <span className="shrink-0 text-xs text-zinc-500">{timeAgo(e.receivedAt)}</span>
-                  </div>
-                  <div className={`truncate text-sm ${e.read ? "text-zinc-500" : "text-zinc-300"}`}>
-                    {e.subject || "(no subject)"}
-                  </div>
-                  {e.note && <div className="truncate text-xs text-amber-300/70">📝 {e.note}</div>}
-                </div>
-              </button>
-            ))
+            <div className="flex h-full items-center justify-center text-zinc-500/50">
+              Select an email to view details
+            </div>
           )}
         </div>
       </div>
 
-      {open && (
-        <EmailView
-          email={open}
-          onClose={() => setOpen(null)}
-          onReply={(d) => {
-            setOpen(null);
-            setCompose(d);
-          }}
-          onChanged={() => {
-            loadEmails();
-            loadBoxes();
-          }}
-        />
-      )}
       {newBox && (
         <MailboxEditor
           box={null}
@@ -177,7 +207,7 @@ export default function MailPage() {
           onSaved={() => {
             setEditBox(null);
             loadBoxes();
-            loadEmails();
+            loadEmails(true);
           }}
         />
       )}
@@ -197,7 +227,7 @@ function parseAttachments(json: string): Attachment[] {
   }
 }
 
-function EmailView({
+function EmailViewForm({
   email,
   onClose,
   onReply,
@@ -211,75 +241,83 @@ function EmailView({
   const [note, setNote] = useState(email.note ?? "");
   const attachments = parseAttachments(email.attachments);
   return (
-    <Modal title={email.subject || "(no subject)"} onClose={onClose} wide>
-      <div className="mb-3 text-sm text-zinc-400">
-        <div>
-          <span className="text-zinc-500">From:</span> {email.from}
-        </div>
-        <div>
-          <span className="text-zinc-500">To:</span> {email.to}
-        </div>
-        <div className="text-xs text-zinc-600">{new Date(email.receivedAt).toLocaleString()}</div>
+    <div className="card flex flex-col h-full max-h-full min-h-0">
+      <div className="p-5 border-b border-zinc-800 flex justify-between items-start shrink-0">
+         <div>
+           <h2 className="text-xl font-semibold mb-2">{email.subject || "(no subject)"}</h2>
+           <div className="text-sm text-zinc-400">
+             <div><span className="text-zinc-500">From:</span> {email.from}</div>
+             <div><span className="text-zinc-500">To:</span> {email.to}</div>
+             <div className="text-xs text-zinc-600 mt-1">{new Date(email.receivedAt).toLocaleString()}</div>
+           </div>
+         </div>
+         <div className="flex gap-2">
+           <button className="btn-ghost px-2 text-sm" onClick={onClose}>✕</button>
+         </div>
       </div>
-      <div className="card max-h-[50vh] overflow-y-auto p-4">
+      
+      <div className="flex-1 overflow-y-auto p-5 min-h-0">
         {email.html ? (
-          <iframe srcDoc={email.html} className="h-[45vh] w-full bg-white" sandbox="" title="email" />
+          <iframe srcDoc={email.html} className="min-h-[400px] h-full w-full bg-white rounded" sandbox="" title="email" />
         ) : (
           <pre className="whitespace-pre-wrap break-words font-sans text-sm text-zinc-300">{email.text}</pre>
         )}
       </div>
-      {attachments.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {attachments.map((a, i) => (
-            <span key={i} className="badge" title={`${a.contentType} · ${a.size} bytes`}>
-              📎 {a.filename || "attachment"} ({Math.max(1, Math.round(a.size / 1024))} KB)
-            </span>
-          ))}
-        </div>
-      )}
-      <div className="mt-3 flex items-end gap-2">
-        <div className="flex-1">
-          <Field label="Note">
-            <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
-          </Field>
-        </div>
-        <button
-          className="btn-ghost"
-          onClick={async () => {
-            await api.updateEmail(email.id, { note });
-            onChanged();
-          }}
-        >
-          Save note
-        </button>
-        <button
-          className="btn-primary"
-          onClick={() =>
-            onReply({
-              to: email.from,
-              subject: email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`,
-            })
-          }
-        >
-          Reply
-        </button>
-        <a className="btn-ghost" href={api.rawEmailUrl(email.id)} download={`email-${email.id}.eml`}>
-          .eml
-        </a>
-        <button
-          className="btn-danger"
-          onClick={async () => {
-            if (confirm("Delete this email?")) {
-              await api.deleteEmail(email.id);
+      
+      <div className="p-5 border-t border-zinc-800 shrink-0 bg-zinc-900/30">
+        {attachments.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {attachments.map((a, i) => (
+              <span key={i} className="badge bg-zinc-800 text-zinc-300" title={`${a.contentType} · ${a.size} bytes`}>
+                📎 {a.filename || "attachment"} ({Math.max(1, Math.round(a.size / 1024))} KB)
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <Field label="Note">
+              <input className="input w-full" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a private note..." />
+            </Field>
+          </div>
+          <button
+            className="btn-ghost mb-3"
+            onClick={async () => {
+              await api.updateEmail(email.id, { note });
               onChanged();
-              onClose();
+            }}
+          >
+            Save note
+          </button>
+          <button
+            className="btn-primary mb-3"
+            onClick={() =>
+              onReply({
+                to: email.from,
+                subject: email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`,
+              })
             }
-          }}
-        >
-          Delete
-        </button>
+          >
+            Reply
+          </button>
+          <a className="btn-ghost mb-3" href={api.rawEmailUrl(email.id)} download={`email-${email.id}.eml`}>
+            .eml
+          </a>
+          <button
+            className="btn-danger mb-3"
+            onClick={async () => {
+              if (confirm("Delete this email?")) {
+                await api.deleteEmail(email.id);
+                onChanged();
+                onClose();
+              }
+            }}
+          >
+            Delete
+          </button>
+        </div>
       </div>
-    </Modal>
+    </div>
   );
 }
 
@@ -322,7 +360,7 @@ function MailboxEditor({
     <Modal title={box ? "Edit mailbox" : "New mailbox"} onClose={onClose}>
       {box ? (
         <Field label="Address">
-          <input className="input" value={box.address} disabled />
+          <input className="input w-full" value={box.address} disabled />
         </Field>
       ) : hosts.length === 0 ? (
         <p className="mb-3 rounded bg-amber-500/10 p-2 text-sm text-amber-300">
@@ -332,14 +370,14 @@ function MailboxEditor({
         <Field label="Address" hint="pick a mail host (domain or subdomain)">
           <div className="flex items-center gap-1">
             <input
-              className="input"
+              className="input w-full"
               value={prefix}
               onChange={(e) => setPrefix(e.target.value)}
               placeholder="hi"
               autoFocus
             />
             <span className="text-zinc-500">@</span>
-            <select className="input" value={domain} onChange={(e) => setDomain(e.target.value)}>
+            <select className="input w-full" value={domain} onChange={(e) => setDomain(e.target.value)}>
               {hosts.map((h) => (
                 <option key={h} value={h}>
                   {h}
@@ -350,7 +388,7 @@ function MailboxEditor({
         </Field>
       )}
       <Field label="Note">
-        <textarea className="input" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+        <textarea className="input w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
       <label className="mb-4 flex items-center gap-2 text-sm text-zinc-400">
         <Toggle on={enabled} onChange={setEnabled} /> Enabled
@@ -427,7 +465,7 @@ function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () => void }
         <>
           <Field label="SMTP Sender" hint="Choose which account to send through.">
             <select
-              className="input"
+              className="input w-full"
               value={smtpSenderId}
               onChange={(e) => setSmtpSenderId(Number(e.target.value))}
             >
@@ -440,16 +478,16 @@ function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () => void }
             </select>
           </Field>
           <Field label="From (Optional)" hint="Override sender address if SMTP allows it.">
-            <input className="input" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <input className="input w-full" value={from} onChange={(e) => setFrom(e.target.value)} />
           </Field>
           <Field label="To" hint="comma-separated">
-            <input className="input" value={to} onChange={(e) => setTo(e.target.value)} />
+            <input className="input w-full" value={to} onChange={(e) => setTo(e.target.value)} />
           </Field>
           <Field label="Subject">
-            <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} />
+            <input className="input w-full" value={subject} onChange={(e) => setSubject(e.target.value)} />
           </Field>
           <Field label="Body">
-            <textarea className="input" rows={6} value={text} onChange={(e) => setText(e.target.value)} />
+            <textarea className="input w-full" rows={6} value={text} onChange={(e) => setText(e.target.value)} />
           </Field>
           {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
           <div className="flex justify-end gap-2">

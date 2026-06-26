@@ -1,29 +1,53 @@
 import { useEffect, useState } from "react";
 import { api, Domain, effectiveLinkHosts, Link, LinkStats } from "../api";
-import { Empty, Field, Modal, Toggle, timeAgo } from "../ui";
+import { Empty, Field, Toggle, timeAgo } from "../ui";
 
 export default function LinksPage() {
   const [links, setLinks] = useState<Link[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [q, setQ] = useState("");
   const [archived, setArchived] = useState(false);
-  const [editing, setEditing] = useState<Link | "new" | null>(null);
-  const [statsFor, setStatsFor] = useState<Link | null>(null);
-  const [qrFor, setQrFor] = useState<Link | null>(null);
+  const [active, setActive] = useState<Link | "new" | null>(null);
+
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
 
-  // Every short-link host across all link-enabled domains (incl. subdomains).
   const linkHostOptions = Array.from(new Set(domains.flatMap(effectiveLinkHosts)));
 
-  async function load() {
-    setLinks(await api.links({ q, archived }));
+  async function loadMore(reset = false) {
+    if (loading || (!hasMore && !reset)) return;
+    setLoading(true);
+    try {
+      const limit = 50;
+      const offset = reset ? 0 : page * limit;
+      const res = await api.links({ q, archived, limit, offset });
+      if (res.length < limit) setHasMore(false);
+      else setHasMore(true);
+
+      setLinks(prev => reset ? res : [...prev, ...res]);
+      setPage(reset ? 1 : page + 1);
+    } finally {
+      setLoading(false);
+    }
   }
+
   useEffect(() => {
-    load();
+    const t = setTimeout(() => {
+      loadMore(true);
+    }, 200);
+    return () => clearTimeout(t);
   }, [q, archived]);
+
   useEffect(() => {
     api.domains().then(setDomains).catch(() => {});
   }, []);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop <= e.currentTarget.clientHeight + 100;
+    if (bottom) loadMore();
+  };
 
   function linkURL(l: Link) {
     return l.host ? `https://${l.host}/${l.slug}` : `${location.origin}/${l.slug}`;
@@ -36,119 +60,142 @@ export default function LinksPage() {
 
   async function toggleArchive(l: Link) {
     await api.updateLink(l.id, { archived: !l.archived } as any);
-    load();
+    loadMore(true);
+    if (active && active !== "new" && active.id === l.id) {
+      setActive({ ...active, archived: !l.archived });
+    }
   }
 
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-col">
       <Header title="Links" subtitle="Short links with click analytics, tags & notes">
-        <button className="btn-primary" onClick={() => setEditing("new")}>
+        <button className="btn-primary" onClick={() => setActive("new")}>
           + New link
         </button>
       </Header>
 
-      <div className="mb-4 flex items-center gap-2">
-        <input
-          className="input"
-          placeholder="Search slug, target, note, tag…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <button
-          className={archived ? "btn-primary" : "btn-ghost"}
-          onClick={() => setArchived((a) => !a)}
-          title="Toggle archived view"
-        >
-          {archived ? "Archived" : "Active"}
-        </button>
-      </div>
-
-      {links.length === 0 ? (
-        <Empty>
-          <span className="text-3xl">🔗</span>
-          <p>No links yet</p>
-        </Empty>
-      ) : (
-        <div className="card divide-y divide-zinc-800">
-          {links.map((l) => (
-            <div key={l.id} className="flex items-center gap-3 p-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-indigo-300">
-                    /{l.slug}
-                    {l.host && <span className="text-zinc-500"> @{l.host}</span>}
-                  </span>
-                  {!l.enabled && <span className="badge">disabled</span>}
-                  {l.hasPassword && <span className="badge">🔒</span>}
-                  {l.expiresAt && <span className="badge">⏳</span>}
-                  {l.clickLimit > 0 && <span className="badge">≤{l.clickLimit}</span>}
-                  {l.tags
-                    ?.split(",")
-                    .map((t) => t.trim())
-                    .filter(Boolean)
-                    .map((t) => (
-                      <span key={t} className="badge bg-indigo-500/15 text-indigo-300">
-                        #{t}
+      <div className="grid grid-cols-[300px_1fr] gap-4 min-h-0 flex-1">
+        {/* left column */}
+        <div className="flex flex-col min-h-0">
+          <div className="mb-2 flex items-center gap-2">
+            <input
+              className="input flex-1 min-w-0"
+              placeholder="Search…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <button
+              className={archived ? "btn-primary shrink-0" : "btn-ghost shrink-0"}
+              onClick={() => setArchived((a) => !a)}
+              title="Toggle archived view"
+            >
+              {archived ? "Arc" : "Act"}
+            </button>
+          </div>
+          <div className="card flex-1 overflow-y-auto" onScroll={handleScroll}>
+            {links.length === 0 && !loading ? (
+              <div className="p-8 text-center text-zinc-500">No links found.</div>
+            ) : (
+              <div className="divide-y divide-zinc-800">
+                {links.map((l) => (
+                  <button
+                    key={l.id}
+                    className={`flex w-full flex-col p-3 text-left hover:bg-zinc-900 transition-colors ${
+                      active !== "new" && active?.id === l.id ? "bg-zinc-800" : ""
+                    }`}
+                    onClick={() => setActive(l)}
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <span className="font-medium text-indigo-300 truncate flex-1">
+                        /{l.slug}
                       </span>
-                    ))}
-                </div>
-                <div className="truncate text-sm text-zinc-400">{l.target}</div>
-                {l.note && <div className="mt-0.5 truncate text-xs text-amber-300/80">📝 {l.note}</div>}
+                      <span className="text-xs text-zinc-500 shrink-0">{l.clicks} clicks</span>
+                    </div>
+                    <div className="truncate text-xs text-zinc-400 mt-1">{l.target}</div>
+                  </button>
+                ))}
+                {loading && <div className="p-3 text-center text-xs text-zinc-500">Loading…</div>}
               </div>
-              <div className="hidden text-right text-sm sm:block">
-                <div className="font-semibold">{l.clicks}</div>
-                <div className="text-xs text-zinc-500">clicks</div>
-              </div>
-              <div className="flex items-center gap-1">
-                <button className="btn-ghost px-2" title="Copy link" onClick={() => copy(l)}>
-                  {copied === l.id ? "✓" : "⧉"}
-                </button>
-                <button className="btn-ghost px-2" title="Stats" onClick={() => setStatsFor(l)}>
-                  📊
-                </button>
-                <button className="btn-ghost px-2" title="QR" onClick={() => setQrFor(l)}>
-                  ▦
-                </button>
-                <button className="btn-ghost px-2" onClick={() => setEditing(l)}>
-                  Edit
-                </button>
-                <button
-                  className="btn-ghost px-2"
-                  title={l.archived ? "Unarchive" : "Archive"}
-                  onClick={() => toggleArchive(l)}
-                >
-                  {l.archived ? "↩" : "🗄"}
-                </button>
-                <button
-                  className="btn-danger px-2"
-                  onClick={async () => {
-                    if (confirm(`Delete /${l.slug}?`)) {
-                      await api.deleteLink(l.id);
-                      load();
-                    }
-                  }}
-                >
-                  Del
-                </button>
-              </div>
-            </div>
-          ))}
+            )}
+          </div>
         </div>
-      )}
 
-      {editing && (
-        <LinkEditor
-          link={editing === "new" ? null : editing}
-          hosts={linkHostOptions}
-          onClose={() => setEditing(null)}
-          onSaved={() => {
-            setEditing(null);
-            load();
-          }}
-        />
-      )}
-      {statsFor && <StatsModal link={statsFor} onClose={() => setStatsFor(null)} />}
-      {qrFor && <QRModal link={qrFor} onClose={() => setQrFor(null)} />}
+        {/* right column */}
+        <div className="min-h-0 overflow-y-auto pr-2 pb-8">
+          {active === "new" ? (
+             <div className="card p-5">
+               <h2 className="mb-4 text-xl font-semibold">New Link</h2>
+               <LinkEditorForm
+                 link={null}
+                 hosts={linkHostOptions}
+                 onCancel={() => setActive(null)}
+                 onSaved={(savedLink) => {
+                   loadMore(true);
+                   setActive(savedLink || null);
+                 }}
+               />
+             </div>
+          ) : active ? (
+             <div className="space-y-4">
+                <div className="card p-5">
+                  <div className="flex justify-between mb-4">
+                     <h2 className="text-xl font-semibold">Edit Link</h2>
+                     <div className="flex gap-2">
+                       <button className="btn-ghost px-2 text-sm" onClick={() => copy(active)}>
+                         {copied === active.id ? "Copied!" : "Copy URL"}
+                       </button>
+                       <button className="btn-ghost px-2 text-sm" onClick={() => toggleArchive(active)}>
+                         {active.archived ? "Unarchive" : "Archive"}
+                       </button>
+                       <button
+                         className="btn-danger px-2 text-sm"
+                         onClick={async () => {
+                           if (confirm(`Delete /${active.slug}?`)) {
+                             await api.deleteLink(active.id);
+                             setActive(null);
+                             loadMore(true);
+                           }
+                         }}
+                       >
+                         Delete
+                       </button>
+                     </div>
+                  </div>
+                  <LinkEditorForm
+                    key={active.id}
+                    link={active}
+                    hosts={linkHostOptions}
+                    onCancel={() => setActive(null)}
+                    onSaved={(l) => {
+                      if (l) setActive(l);
+                      loadMore(true);
+                    }}
+                  />
+                </div>
+                
+                <StatsView link={active} />
+                
+                <div className="card p-5 flex flex-col items-center gap-3">
+                  <h3 className="text-sm font-semibold text-zinc-400 self-start">QR Code</h3>
+                  <img
+                    src={`/api/links/${active.id}/qr`}
+                    alt="QR"
+                    className="rounded-lg bg-white p-2"
+                    width={200}
+                    height={200}
+                  />
+                  <a className="btn-ghost text-sm" href={`/api/links/${active.id}/qr`} download={`${active.slug}.png`}>
+                    Download PNG
+                  </a>
+                </div>
+             </div>
+          ) : (
+            <div className="flex h-full items-center justify-center text-zinc-500/50">
+              Select a link to view details
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -163,7 +210,7 @@ export function Header({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="mb-5 flex items-end justify-between">
+    <div className="mb-5 flex items-end justify-between shrink-0">
       <div>
         <h1 className="text-2xl font-bold">{title}</h1>
         {subtitle && <p className="text-sm text-zinc-500">{subtitle}</p>}
@@ -173,16 +220,16 @@ export function Header({
   );
 }
 
-function LinkEditor({
+function LinkEditorForm({
   link,
   hosts,
-  onClose,
+  onCancel,
   onSaved,
 }: {
   link: Link | null;
   hosts: string[];
-  onClose: () => void;
-  onSaved: () => void;
+  onCancel: () => void;
+  onSaved: (l?: any) => void;
 }) {
   const [slug, setSlug] = useState(link?.slug ?? "");
   const [host, setHost] = useState(link?.host ?? "");
@@ -228,20 +275,21 @@ function LinkEditor({
       expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
     };
     try {
-      if (link) await api.updateLink(link.id, payload);
-      else await api.createLink(payload);
-      onSaved();
+      let res;
+      if (link) res = await api.updateLink(link.id, payload);
+      else res = await api.createLink(payload);
+      onSaved(res);
     } catch (e: any) {
       setErr(e.message ?? "save failed");
     }
   }
 
   return (
-    <Modal title={link ? "Edit link" : "New link"} onClose={onClose}>
+    <div className="space-y-4">
       <Field label="Destination URL">
         <div className="flex gap-2">
           <input
-            className="input"
+            className="input w-full"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
             placeholder="example.com/page"
@@ -252,12 +300,13 @@ function LinkEditor({
         </div>
       </Field>
       {showUtm && <UtmBuilder target={target} onApply={setTarget} />}
+      
       <div className="grid grid-cols-2 gap-3">
         <Field label="Slug" hint="blank = random">
-          <input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} />
+          <input className="input w-full" value={slug} onChange={(e) => setSlug(e.target.value)} />
         </Field>
-        <Field label="Host" hint={hosts.length ? "short-link host (subdomain)" : "enable short links on a domain first"}>
-          <select className="input" value={host} onChange={(e) => setHost(e.target.value)}>
+        <Field label="Host" hint={hosts.length ? "short-link host" : "enable short links first"}>
+          <select className="input w-full" value={host} onChange={(e) => setHost(e.target.value)}>
             <option value="">Any / default</option>
             {hosts.map((h) => (
               <option key={h} value={h}>
@@ -268,60 +317,67 @@ function LinkEditor({
           </select>
         </Field>
       </div>
+
       <Field label="Title">
         <div className="flex gap-2">
-          <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input className="input w-full" value={title} onChange={(e) => setTitle(e.target.value)} />
           <button className="btn-ghost shrink-0" onClick={fetchTitle} disabled={fetching} title="Fetch from page">
             {fetching ? "…" : "Auto"}
           </button>
         </div>
       </Field>
+
       <Field label="Tags" hint="comma-separated">
-        <input className="input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="marketing, launch" />
+        <input className="input w-full" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="marketing, launch" />
       </Field>
-      <Field label="Note" hint="Private remark (not shown to visitors)">
-        <textarea className="input" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+
+      <Field label="Note" hint="Private remark">
+        <textarea className="input w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
+
       <div className="grid grid-cols-2 gap-3">
         <Field label="Password" hint={link?.hasPassword ? "set, leave blank to keep" : "optional"}>
-          <input className="input" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input className="input w-full" value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <Field label="Click limit" hint="0 = unlimited">
           <input
             type="number"
             min={0}
-            className="input"
+            className="input w-full"
             value={clickLimit}
             onChange={(e) => setClickLimit(Number(e.target.value))}
           />
         </Field>
       </div>
+
       <div className="grid grid-cols-2 gap-3">
         <Field label="Expires at">
-          <input type="datetime-local" className="input" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+          <input type="datetime-local" className="input w-full" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
         </Field>
-        <Field label="Expired URL" hint="redirect here once expired / over limit">
-          <input className="input" value={expiredUrl} onChange={(e) => setExpiredUrl(e.target.value)} placeholder="optional" />
+        <Field label="Expired URL">
+          <input className="input w-full" value={expiredUrl} onChange={(e) => setExpiredUrl(e.target.value)} placeholder="optional" />
         </Field>
       </div>
-      <div className="mb-4 flex items-center gap-2">
+
+      <div className="flex items-center gap-2 pt-2">
         <Toggle on={enabled} onChange={setEnabled} />
         <span className="text-sm text-zinc-400">Enabled</span>
       </div>
-      {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
-      <div className="flex justify-end gap-2">
-        <button className="btn-ghost" onClick={onClose}>
+
+      {err && <p className="text-sm text-red-400">{err}</p>}
+
+      <div className="flex justify-end gap-2 pt-4 border-t border-zinc-800">
+        <button className="btn-ghost" onClick={onCancel}>
           Cancel
         </button>
         <button className="btn-primary" onClick={save}>
           Save
         </button>
       </div>
-    </Modal>
+    </div>
   );
 }
 
-// UtmBuilder appends UTM query params to the destination URL (dub-style).
 function UtmBuilder({ target, onApply }: { target: string; onApply: (url: string) => void }) {
   const [utm, setUtm] = useState({ source: "", medium: "", campaign: "", term: "", content: "" });
   function apply() {
@@ -354,11 +410,11 @@ function UtmBuilder({ target, onApply }: { target: string; onApply: (url: string
     ["content", "content"],
   ];
   return (
-    <div className="card mb-3 grid grid-cols-2 gap-2 p-3">
+    <div className="card grid grid-cols-2 gap-2 p-3 bg-zinc-950/30">
       {fields.map(([k, label]) => (
         <input
           key={k}
-          className="input"
+          className="input w-full"
           placeholder={`utm_${label}`}
           value={utm[k]}
           onChange={(e) => setUtm({ ...utm, [k]: e.target.value })}
@@ -371,39 +427,38 @@ function UtmBuilder({ target, onApply }: { target: string; onApply: (url: string
   );
 }
 
-function StatsModal({ link, onClose }: { link: Link; onClose: () => void }) {
+function StatsView({ link }: { link: Link }) {
   const [stats, setStats] = useState<LinkStats | null>(null);
   useEffect(() => {
+    setStats(null);
     api.linkStats(link.id).then(setStats);
   }, [link.id]);
+  
+  if (!stats) return <div className="card p-5 text-zinc-500">Loading stats…</div>;
+  
   return (
-    <Modal title={`Stats · /${link.slug}`} onClose={onClose} wide>
-      {!stats ? (
-        <p className="text-zinc-500">loading…</p>
-      ) : (
-        <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
-            <Stat label="Total clicks" value={stats.total} />
-            <Stat label={`Last ${stats.days}d`} value={stats.windowed} />
-            <Stat label="Days tracked" value={stats.series.length} />
-          </div>
-          <Spark series={stats.series} />
-          <div className="grid grid-cols-2 gap-4">
-            <TopList title="Countries" rows={stats.countries} />
-            <TopList title="Devices" rows={stats.devices} />
-            <TopList title="Browsers" rows={stats.browsers} />
-            <TopList title="Referers" rows={stats.referers} />
-          </div>
-        </div>
-      )}
-    </Modal>
+    <div className="card p-5 space-y-4">
+      <h3 className="text-sm font-semibold text-zinc-400">Analytics</h3>
+      <div className="grid grid-cols-3 gap-3">
+        <Stat label="Total clicks" value={stats.total} />
+        <Stat label={`Last ${stats.days}d`} value={stats.windowed} />
+        <Stat label="Days tracked" value={stats.series.length} />
+      </div>
+      <Spark series={stats.series} />
+      <div className="grid grid-cols-2 gap-4">
+        <TopList title="Countries" rows={stats.countries} />
+        <TopList title="Devices" rows={stats.devices} />
+        <TopList title="Browsers" rows={stats.browsers} />
+        <TopList title="Referers" rows={stats.referers} />
+      </div>
+    </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="card p-3">
-      <div className="text-2xl font-bold">{value}</div>
+    <div className="rounded bg-zinc-900 border border-zinc-800 p-3">
+      <div className="text-xl font-bold text-zinc-200">{value}</div>
       <div className="text-xs text-zinc-500">{label}</div>
     </div>
   );
@@ -413,7 +468,7 @@ function Spark({ series }: { series: { key: string; count: number }[] }) {
   if (!series.length) return <p className="text-sm text-zinc-500">No clicks in window.</p>;
   const max = Math.max(...series.map((s) => s.count), 1);
   return (
-    <div className="card flex h-28 items-end gap-1 p-3">
+    <div className="rounded bg-zinc-900 border border-zinc-800 flex h-28 items-end gap-1 p-3">
       {series.map((s) => (
         <div
           key={s.key}
@@ -436,31 +491,12 @@ function TopList({ title, rows }: { title: string; rows: { key: string; count: n
         <div className="space-y-1">
           {rows.map((r) => (
             <div key={r.key} className="flex justify-between text-sm">
-              <span className="truncate text-zinc-300">{r.key || "(direct)"}</span>
+              <span className="truncate text-zinc-300 mr-2">{r.key || "(direct)"}</span>
               <span className="text-zinc-500">{r.count}</span>
             </div>
           ))}
         </div>
       )}
     </div>
-  );
-}
-
-function QRModal({ link, onClose }: { link: Link; onClose: () => void }) {
-  return (
-    <Modal title={`QR · /${link.slug}`} onClose={onClose}>
-      <div className="flex flex-col items-center gap-3">
-        <img
-          src={`/api/links/${link.id}/qr`}
-          alt="QR"
-          className="rounded-lg bg-white p-2"
-          width={240}
-          height={240}
-        />
-        <a className="btn-ghost" href={`/api/links/${link.id}/qr`} download={`${link.slug}.png`}>
-          Download PNG
-        </a>
-      </div>
-    </Modal>
   );
 }

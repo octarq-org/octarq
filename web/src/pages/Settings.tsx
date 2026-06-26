@@ -8,6 +8,7 @@ export default function SettingsPage() {
     { to: "/settings/general", label: "General" },
     { to: "/settings/providers", label: "Provider Accounts" },
     { to: "/settings/smtp", label: "SMTP Senders" },
+    { to: "/settings/notifications", label: "Notifications" },
     { to: "/settings/tokens", label: "API Tokens" },
   ];
 
@@ -39,6 +40,7 @@ export default function SettingsPage() {
           <Route path="/general" element={<GeneralSettings />} />
           <Route path="/providers" element={<ProviderAccounts />} />
           <Route path="/smtp" element={<SMTPSenders />} />
+          <Route path="/notifications" element={<NotificationChannels />} />
           <Route path="/tokens" element={<ApiTokens />} />
         </Routes>
       </div>
@@ -53,6 +55,10 @@ function GeneralSettings() {
   const [reservedSlugs, setReservedSlugs] = useState("");
   const [reservedMailboxes, setReservedMailboxes] = useState("");
   const [cfToken, setCfToken] = useState("");
+  const [inboundToken, setInboundToken] = useState("");
+  const [catchAll, setCatchAll] = useState(false);
+  const [telegramBot, setTelegramBot] = useState("");
+  const [telegramChat, setTelegramChat] = useState("");
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -61,6 +67,10 @@ function GeneralSettings() {
     setS(v);
     setReservedSlugs(v.reservedSlugs);
     setReservedMailboxes(v.reservedMailboxes);
+    setInboundToken(v.inboundToken || "");
+    setCatchAll(v.catchAll || false);
+    setTelegramBot(v.telegramBotToken || "");
+    setTelegramChat(v.telegramChatId || "");
   }
   useEffect(() => {
     load();
@@ -70,7 +80,11 @@ function GeneralSettings() {
     setBusy(true);
     setSaved(false);
     try {
-      const payload: any = { reservedSlugs, reservedMailboxes };
+      const payload: any = { 
+        reservedSlugs, reservedMailboxes,
+        inboundToken, catchAll,
+        telegramBotToken: telegramBot, telegramChatId: telegramChat 
+      };
       if (cfToken.trim()) payload.cloudflareToken = cfToken.trim();
       const v = await api.updateSettings(payload);
       setS(v);
@@ -141,7 +155,63 @@ function GeneralSettings() {
             </button>
           )}
         </Field>
-        <div className="flex items-center gap-3">
+        
+        <div className="border-t border-zinc-800 pt-5">
+          <h2 className="mb-4 text-lg font-semibold text-zinc-300">Mail & Routing</h2>
+          <div className="space-y-5">
+            <Field
+              label="Inbound Token"
+              hint="Shared secret for Cloudflare Email Worker webhook (X-Led-Token)."
+            >
+              <input
+                className="input"
+                value={inboundToken}
+                onChange={(e) => setInboundToken(e.target.value)}
+                placeholder="secret-token"
+              />
+            </Field>
+            
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="catchAll"
+                className="accent-indigo-500"
+                checked={catchAll}
+                onChange={(e) => setCatchAll(e.target.checked)}
+              />
+              <label htmlFor="catchAll" className="text-sm cursor-pointer select-none">
+                Enable Catch-All
+              </label>
+            </div>
+            <p className="mt-1 text-xs text-zinc-500">
+              Auto-create a mailbox when mail arrives for an unknown address on a managed domain.
+            </p>
+          </div>
+        </div>
+
+        <div className="border-t border-zinc-800 pt-5">
+          <h2 className="mb-4 text-lg font-semibold text-zinc-300">Telegram Notifications</h2>
+          <div className="space-y-5">
+            <Field label="Bot Token" hint="Token from @BotFather (optional)">
+              <input
+                className="input"
+                value={telegramBot}
+                onChange={(e) => setTelegramBot(e.target.value)}
+                placeholder="123456789:ABCdef..."
+              />
+            </Field>
+            <Field label="Chat ID" hint="Your chat ID to receive notifications (optional)">
+              <input
+                className="input"
+                value={telegramChat}
+                onChange={(e) => setTelegramChat(e.target.value)}
+                placeholder="123456789"
+              />
+            </Field>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 border-t border-zinc-800 pt-5">
           <button className="btn-primary" onClick={save} disabled={busy}>
             {busy ? "Saving…" : "Save settings"}
           </button>
@@ -149,6 +219,209 @@ function GeneralSettings() {
         </div>
       </div>
     </div>
+  );
+}
+
+function NotificationChannels() {
+  const [channels, setChannels] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<any | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      setChannels(await api.notificationChannels());
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function remove(id: number) {
+    if (!confirm("Delete this notification channel?")) return;
+    await api.deleteNotificationChannel(id);
+    load();
+  }
+
+  async function test(id: number) {
+    try {
+      await api.testNotificationChannel(id);
+      alert("Test notification sent successfully!");
+    } catch (err: any) {
+      alert("Test failed: " + err.message);
+    }
+  }
+
+  async function toggleEnabled(c: any) {
+    await api.updateNotificationChannel(c.id, { enabled: !c.enabled });
+    load();
+  }
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">Notification Channels</h1>
+          <p className="text-sm text-zinc-500">Channels for system alerts like inbound emails.</p>
+        </div>
+        <button className="btn-primary" onClick={() => setEditing({ type: "telegram", config: "{}" })}>
+          + Add channel
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="text-zinc-500">loading…</div>
+      ) : channels.length === 0 ? (
+        <Empty>
+          <div className="text-2xl">🔔</div>
+          <div>No notification channels yet.</div>
+        </Empty>
+      ) : (
+        <div className="card divide-y divide-zinc-800">
+          {channels.map((c) => (
+            <div key={c.id} className="flex items-center gap-3 p-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-zinc-200">{c.name}</span>
+                  <span className="badge">{c.type}</span>
+                  {!c.enabled && <span className="badge bg-zinc-800">disabled</span>}
+                </div>
+                <div className="text-xs text-zinc-500 mt-0.5">Added {timeAgo(c.createdAt)}</div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  className="btn-ghost"
+                  onClick={() => toggleEnabled(c)}
+                >
+                  {c.enabled ? "Disable" : "Enable"}
+                </button>
+                <button className="btn-ghost" onClick={() => test(c.id)}>
+                  Test
+                </button>
+                <button className="btn-ghost" onClick={() => setEditing(c)}>
+                  Edit
+                </button>
+                <button className="btn-ghost text-red-400" onClick={() => remove(c.id)}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {editing && (
+        <EditNotificationChannel
+          channel={editing.id ? editing : null}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            load();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditNotificationChannel({ channel, onClose, onSaved }: { channel: any; onClose: () => void; onSaved: () => void }) {
+  const [name, setName] = useState(channel?.name || "");
+  const [type, setType] = useState(channel?.type || "telegram");
+  const [enabled, setEnabled] = useState(channel?.id ? channel.enabled : true);
+
+  // Parse config if editing
+  const initialCfg = channel?.id ? JSON.parse(channel.config) : {};
+  const [botToken, setBotToken] = useState(initialCfg.botToken || "");
+  const [chatId, setChatId] = useState(initialCfg.chatId || "");
+  const [webhookUrl, setWebhookUrl] = useState(initialCfg.url || "");
+
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function save() {
+    setBusy(true);
+    setError("");
+    let configStr = "{}";
+    if (type === "telegram") {
+      configStr = JSON.stringify({ botToken, chatId });
+    } else if (type === "webhook") {
+      configStr = JSON.stringify({ url: webhookUrl });
+    }
+
+    try {
+      if (channel?.id) {
+        await api.updateNotificationChannel(channel.id, {
+          name,
+          type,
+          config: configStr,
+          enabled,
+        });
+      } else {
+        await api.createNotificationChannel({
+          name,
+          type,
+          config: configStr,
+          enabled,
+        });
+      }
+      onSaved();
+    } catch (err: any) {
+      setError(err.message || "Failed to save");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title={channel ? "Edit Channel" : "New Channel"} onClose={onClose}>
+      <div className="space-y-4">
+        <Field label="Name" hint="A friendly name for this channel">
+          <input
+            className="input w-full"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="My Telegram Bot"
+          />
+        </Field>
+        
+        <Field label="Type">
+          <select className="input w-full" value={type} onChange={(e) => setType(e.target.value)}>
+            <option value="telegram">Telegram</option>
+            <option value="webhook">Webhook</option>
+          </select>
+        </Field>
+
+        {type === "telegram" && (
+          <>
+            <Field label="Bot Token" hint="Token from @BotFather">
+              <input className="input w-full" value={botToken} onChange={(e) => setBotToken(e.target.value)} />
+            </Field>
+            <Field label="Chat ID" hint="Where to send notifications">
+              <input className="input w-full" value={chatId} onChange={(e) => setChatId(e.target.value)} />
+            </Field>
+          </>
+        )}
+
+        {type === "webhook" && (
+          <Field label="Webhook URL" hint="Receives POST requests with { text: '...' }">
+            <input className="input w-full" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://..." />
+          </Field>
+        )}
+
+        {error && <div className="text-red-400 text-sm">{error}</div>}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button className="btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn-primary" onClick={save} disabled={busy || !name}>
+            Save
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

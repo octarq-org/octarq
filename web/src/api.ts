@@ -50,6 +50,15 @@ export interface SMTPSender {
   createdAt: string;
 }
 
+export interface NotificationChannel {
+  id: number;
+  name: string;
+  type: string;
+  config: string;
+  enabled: boolean;
+  createdAt: string;
+}
+
 export interface HostEntry {
   host: string;
   enabled: boolean;
@@ -182,6 +191,10 @@ export interface Settings {
   reservedMailboxes: string;
   builtinReserved: string[];
   cloudflareTokenSet: boolean;
+  inboundToken: string;
+  catchAll: boolean;
+  telegramBotToken: string;
+  telegramChatId: string;
 }
 
 export const api = {
@@ -194,6 +207,10 @@ export const api = {
     reservedSlugs?: string;
     reservedMailboxes?: string;
     cloudflareToken?: string;
+    inboundToken?: string;
+    catchAll?: boolean;
+    telegramBotToken?: string;
+    telegramChatId?: string;
   }) => req<Settings>("PUT", "/api/settings", s),
 
   // auth
@@ -203,12 +220,14 @@ export const api = {
   logout: () => req<{ ok: boolean }>("POST", "/api/auth/logout"),
 
   // links
-  links: (params: { q?: string; tag?: string; host?: string; archived?: boolean } = {}) => {
+  links: (params: { q?: string; tag?: string; host?: string; archived?: boolean; limit?: number; offset?: number } = {}) => {
     const sp = new URLSearchParams();
     if (params.q) sp.set("q", params.q);
     if (params.tag) sp.set("tag", params.tag);
     if (params.host) sp.set("host", params.host);
     if (params.archived) sp.set("archived", "1");
+    if (params.limit) sp.set("limit", params.limit.toString());
+    if (params.offset) sp.set("offset", params.offset.toString());
     const qs = sp.toString();
     return req<Link[]>("GET", `/api/links${qs ? `?${qs}` : ""}`);
   },
@@ -242,7 +261,14 @@ export const api = {
       "/api/domains/sync",
       { providerAccountId },
     ),
-  domains: () => req<Domain[]>("GET", "/api/domains"),
+  domains: (q?: { q?: string; limit?: number; offset?: number }) => {
+    const params = new URLSearchParams();
+    if (q?.q) params.set("q", q.q);
+    if (q?.limit) params.set("limit", q.limit.toString());
+    if (q?.offset) params.set("offset", q.offset.toString());
+    const query = params.toString();
+    return req<Domain[]>("GET", `/api/domains${query ? "?" + query : ""}`);
+  },
   createDomain: (d: any) => req<Domain>("POST", "/api/domains", d),
   updateDomain: (id: number, d: any) => req<Domain>("PUT", `/api/domains/${id}`, d),
   deleteDomain: (id: number) => req("DELETE", `/api/domains/${id}`),
@@ -258,11 +284,15 @@ export const api = {
   createMailbox: (m: Partial<Mailbox>) => req<Mailbox>("POST", "/api/mailboxes", m),
   updateMailbox: (id: number, m: Partial<Mailbox>) => req<Mailbox>("PUT", `/api/mailboxes/${id}`, m),
   deleteMailbox: (id: number) => req("DELETE", `/api/mailboxes/${id}`),
-  emails: (mailbox?: number, q = "") =>
-    req<Email[]>(
-      "GET",
-      `/api/emails?${mailbox ? `mailbox=${mailbox}&` : ""}${q ? `q=${encodeURIComponent(q)}` : ""}`,
-    ),
+  emails: (mailboxId?: number, params?: { q?: string; limit?: number; offset?: number }) => {
+    const sp = new URLSearchParams();
+    if (mailboxId) sp.set("mailbox", mailboxId.toString());
+    if (params?.q) sp.set("q", params.q);
+    if (params?.limit) sp.set("limit", params.limit.toString());
+    if (params?.offset) sp.set("offset", params.offset.toString());
+    const qs = sp.toString();
+    return req<Email[]>("GET", `/api/emails${qs ? "?" + qs : ""}`);
+  },
   email: (id: number) => req<Email>("GET", `/api/emails/${id}`),
   updateEmail: (id: number, e: { read?: boolean; note?: string }) =>
     req<Email>("PUT", `/api/emails/${id}`, e),
@@ -276,11 +306,17 @@ export const api = {
   sendEmail: (m: { from?: string; to: string[]; subject: string; text?: string; html?: string; smtpSenderId?: number }) =>
     req("POST", "/api/emails/send", m),
 
-  // api tokens
+  // tokens
   tokens: () => req<Token[]>("GET", "/api/tokens"),
-  createToken: (t: { name: string; note?: string }) =>
-    req<Token & { token: string }>("POST", "/api/tokens", t),
-  deleteToken: (id: number) => req("DELETE", `/api/tokens/${id}`),
+  createToken: (d: { name: string; note: string }) => req<{ token: string }>("POST", "/api/tokens", d),
+  deleteToken: (id: number) => req<void>("DELETE", `/api/tokens/${id}`),
+
+  // notification channels
+  notificationChannels: () => req<NotificationChannel[]>("GET", "/api/notification-channels"),
+  createNotificationChannel: (d: any) => req<NotificationChannel>("POST", "/api/notification-channels", d),
+  updateNotificationChannel: (id: number, d: any) => req<NotificationChannel>("PUT", `/api/notification-channels/${id}`, d),
+  deleteNotificationChannel: (id: number) => req<void>("DELETE", `/api/notification-channels/${id}`),
+  testNotificationChannel: (id: number) => req<void>("POST", `/api/notification-channels/${id}/test`),
 };
 
 export { ApiError };
