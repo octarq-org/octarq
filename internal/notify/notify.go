@@ -49,7 +49,7 @@ func sendTelegram(ctx context.Context, cfgJSON, text string) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	hc := &http.Client{Timeout: 10 * time.Second}
 	resp, err := hc.Do(req)
 	if err != nil {
@@ -77,13 +77,13 @@ func sendWebhook(ctx context.Context, cfgJSON, text string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cfg.URL, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	hc := &http.Client{Timeout: 10 * time.Second}
 	resp, err := hc.Do(req)
 	if err != nil {

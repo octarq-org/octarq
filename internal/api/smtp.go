@@ -106,12 +106,12 @@ func (h *Handler) deleteSMTPSender(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad id")
 		return
 	}
-	
+
 	// Optional: we could check if it's the default sender, but we'll let them delete any.
 	if err := h.db.Delete(&models.SMTPSender{}, id).Error; err != nil {
 		writeErr(w, http.StatusInternalServerError, "delete failed")
 		return
 	}
-	
+
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }

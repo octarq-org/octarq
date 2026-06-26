@@ -23,7 +23,6 @@ type Config struct {
 	AdminUser     string
 	AdminPassword string
 
-
 	GeoIPDB string // optional path to a MaxMind GeoLite2-City.mmdb
 
 }
@@ -95,15 +94,15 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("loading .env: %w", err)
 	}
 	c := &Config{
-		Listen:           env("LED_LISTEN", ":8080"),
-		AdminHost:        env("LED_ADMIN_HOST", ""),
-		DBDriver:         env("LED_DB_DRIVER", "sqlite"),
-		DBDSN:            env("LED_DB_DSN", "led.db"),
-		SecretKey:        env("LED_SECRET_KEY", ""),
-		AdminUser:        env("LED_ADMIN_USER", "admin"),
-		AdminPassword:    env("LED_ADMIN_PASSWORD", ""),
+		Listen:        env("LED_LISTEN", ":8080"),
+		AdminHost:     env("LED_ADMIN_HOST", ""),
+		DBDriver:      env("LED_DB_DRIVER", "sqlite"),
+		DBDSN:         env("LED_DB_DSN", "led.db"),
+		SecretKey:     env("LED_SECRET_KEY", ""),
+		AdminUser:     env("LED_ADMIN_USER", "admin"),
+		AdminPassword: env("LED_ADMIN_PASSWORD", ""),
 
-		GeoIPDB:          env("LED_GEOIP_DB", ""),
+		GeoIPDB: env("LED_GEOIP_DB", ""),
 	}
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" {
 		return nil, fmt.Errorf("LED_DB_DRIVER must be sqlite or postgres, got %q", c.DBDriver)

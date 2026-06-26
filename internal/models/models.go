@@ -233,18 +233,18 @@ func (d Domain) EffectiveMailHosts() []string { return d.MailHosts.Enabled() }
 
 // Link is a short link. (Host, Slug) is unique.
 type Link struct {
-	ID         uint       `gorm:"primaryKey" json:"id"`
-	OwnerID    uint       `gorm:"index;default:1" json:"-"`
-	Host       string     `gorm:"size:255;index:idx_host_slug,unique" json:"host"` // empty = default/any host
-	Slug       string     `gorm:"size:255;index:idx_host_slug,unique" json:"slug"`
-	Target     string     `gorm:"type:text" json:"target"`
-	Password   string     `gorm:"size:255" json:"-"` // optional; presence exposed via HasPassword
-	Note       string     `gorm:"type:text" json:"note"`
-	Title      string     `gorm:"size:255" json:"title"`
-	Tags       string     `gorm:"size:512" json:"tags"` // comma-separated tags
-	ExpiresAt  *time.Time `json:"expiresAt"`
-	ExpiredURL string     `gorm:"type:text" json:"expiredUrl"` // redirect here once expired / over limit (dub-style)
-	ClickLimit int64      `gorm:"default:0" json:"clickLimit"` // 0 = unlimited
+	ID           uint         `gorm:"primaryKey" json:"id"`
+	OwnerID      uint         `gorm:"index;default:1" json:"-"`
+	Host         string       `gorm:"size:255;index:idx_host_slug,unique" json:"host"` // empty = default/any host
+	Slug         string       `gorm:"size:255;index:idx_host_slug,unique" json:"slug"`
+	Target       string       `gorm:"type:text" json:"target"`
+	Password     string       `gorm:"size:255" json:"-"` // optional; presence exposed via HasPassword
+	Note         string       `gorm:"type:text" json:"note"`
+	Title        string       `gorm:"size:255" json:"title"`
+	Tags         string       `gorm:"size:512" json:"tags"` // comma-separated tags
+	ExpiresAt    *time.Time   `json:"expiresAt"`
+	ExpiredURL   string       `gorm:"type:text" json:"expiredUrl"` // redirect here once expired / over limit (dub-style)
+	ClickLimit   int64        `gorm:"default:0" json:"clickLimit"` // 0 = unlimited
 	Archived     bool         `gorm:"default:false;index" json:"archived"`
 	Enabled      bool         `gorm:"default:true" json:"enabled"`
 	RoutingRules RoutingRules `gorm:"type:text" json:"routingRules"`
@@ -323,7 +323,7 @@ type NotificationChannel struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
 	OwnerID   uint      `json:"-" gorm:"index"`
 	Name      string    `json:"name"`
-	Type      string    `json:"type"` // e.g. "telegram", "webhook"
+	Type      string    `json:"type"`                    // e.g. "telegram", "webhook"
 	Config    string    `json:"config" gorm:"type:text"` // JSON object
 	Enabled   bool      `json:"enabled" gorm:"default:true"`
 	CreatedAt time.Time `json:"createdAt"`

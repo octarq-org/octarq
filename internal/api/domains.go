@@ -126,10 +126,10 @@ func (h *Handler) syncDomains(w http.ResponseWriter, r *http.Request) {
 // LinkHosts/MailHosts are pointers so we can distinguish "not sent" (nil)
 // from "explicitly set to empty" ([]) in PATCH-style updates.
 type domainDTO struct {
-	Name              string       `json:"name"`
-	ProviderAccountID uint         `json:"providerAccountId"`
-	ZoneID            string       `json:"zoneId"`
-	Note              string       `json:"note"`
+	Name              string `json:"name"`
+	ProviderAccountID uint   `json:"providerAccountId"`
+	ZoneID            string `json:"zoneId"`
+	Note              string `json:"note"`
 	// ForLink/ForMail are pointer booleans so "not sent" (nil) is distinct
 	// from an explicit true/false, enabling domain-level master toggles that
 	// are independent of the individual host lists.

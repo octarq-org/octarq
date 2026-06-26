@@ -86,7 +86,7 @@ func (h *Handler) deleteProviderAccount(w http.ResponseWriter, r *http.Request) 
 		writeErr(w, http.StatusBadRequest, "bad id")
 		return
 	}
-	
+
 	// Check if any domain is using this account
 	var count int64
 	h.db.Model(&models.Domain{}).Where("provider_account_id = ?", id).Count(&count)

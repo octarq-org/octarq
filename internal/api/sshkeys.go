@@ -61,7 +61,7 @@ func (h *Handler) createSSHKey(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		privPEM = pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: b})
-		
+
 		sshPub, _ := ssh.NewPublicKey(pub)
 		pubKeyStr = string(ssh.MarshalAuthorizedKey(sshPub))
 	} else if d.Type == "rsa" {
@@ -72,7 +72,7 @@ func (h *Handler) createSSHKey(w http.ResponseWriter, r *http.Request) {
 		}
 		b := x509.MarshalPKCS1PrivateKey(priv)
 		privPEM = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: b})
-		
+
 		sshPub, _ := ssh.NewPublicKey(&priv.PublicKey)
 		pubKeyStr = string(ssh.MarshalAuthorizedKey(sshPub))
 	} else {

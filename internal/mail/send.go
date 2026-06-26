@@ -1,4 +1,5 @@
 package mail
+
 import (
 	"fmt"
 	"net/smtp"
@@ -23,7 +24,6 @@ type Sender interface {
 type SMTPSender struct {
 	host, port, user, pass, from string
 }
-
 
 // NewCustomSender builds a Sender from explicit credentials.
 func NewCustomSender(host, port, user, pass, from string) Sender {

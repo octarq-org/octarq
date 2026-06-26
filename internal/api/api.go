@@ -14,11 +14,11 @@ import (
 
 // Handler bundles dependencies shared by all API endpoints.
 type Handler struct {
-	cfg      *config.Config
-	db       *gorm.DB
-	cipher   *crypto.Cipher
-	auth     *auth.Manager
-	geo      *geo.Resolver
+	cfg    *config.Config
+	db     *gorm.DB
+	cipher *crypto.Cipher
+	auth   *auth.Manager
+	geo    *geo.Resolver
 }
 
 func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *geo.Resolver) *Handler {
