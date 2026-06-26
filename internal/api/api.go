@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/Jungley8/led/config"
 	"github.com/Jungley8/led/internal/auth"
@@ -19,12 +20,22 @@ type Handler struct {
 	db     *gorm.DB
 	cipher *crypto.Cipher
 	auth   *auth.Manager
-	geo    *geo.Resolver
-	oauth  *auth.OAuthHandler // nil if BaseURL not configured
+	geo          *geo.Resolver
+	oauth        *auth.OAuthHandler // nil if BaseURL not configured
+	loginLimiter *rateLimiter
+	abuseLimiter *rateLimiter
 }
 
 func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *geo.Resolver) *Handler {
-	h := &Handler{cfg: cfg, db: db, cipher: c, auth: a, geo: g}
+	h := &Handler{
+		cfg:          cfg,
+		db:           db,
+		cipher:       c,
+		auth:         a,
+		geo:          g,
+		loginLimiter: newRateLimiter(5, 15*time.Minute), // 5 fails / 15 mins
+		abuseLimiter: newRateLimiter(5, time.Hour),      // 5 reports / 1 hour
+	}
 	if cfg.BaseURL != "" {
 		h.oauth = auth.NewOAuthHandler(db, cfg.BaseURL, a, c)
 	}
@@ -78,6 +89,7 @@ func (h *Handler) Routes() *http.ServeMux {
 	p("PUT /api/settings", h.updateSettings)
 
 	p("GET /api/links", h.listLinks)
+	p("GET /api/links/export.csv", h.exportLinksCSV)
 	p("GET /api/links/metadata", h.linkMetadata)
 	p("POST /api/links", h.createLink)
 	p("GET /api/links/{id}", h.getLink)

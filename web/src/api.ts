@@ -85,6 +85,29 @@ export interface VPS {
   createdAt: string;
 }
 
+export interface AuditLog {
+  id: number;
+  orgId: number;
+  actorId: number;
+  action: string;
+  targetType: string;
+  targetId: number;
+  meta: string;
+  ip: string;
+  createdAt: string;
+}
+
+export interface AbuseReport {
+  id: number;
+  slug: string;
+  target: string;
+  reason: string;
+  description: string;
+  reporterIp: string;
+  status: string;
+  createdAt: string;
+}
+
 // effectiveLinkHosts / effectiveMailHosts return only the enabled hostnames —
 // disabled hosts are kept in config but don't serve traffic.
 export function effectiveLinkHosts(d: Domain): string[] {
@@ -308,7 +331,7 @@ export const api = {
   providerAccounts: () => req<ProviderAccount[]>("GET", "/api/provider-accounts"),
   createProviderAccount: (p: any) => req<ProviderAccount>("POST", "/api/provider-accounts", p),
   updateProviderAccount: (id: number, p: any) => req<ProviderAccount>("PUT", `/api/provider-accounts/${id}`, p),
-  deleteProviderAccount: (id: number) => req("DELETE", `/api/provider-accounts/${id}`),
+  deleteProviderAccount: (id: number) => req("DELETE", `/api/provider-accounts/${id}`) ,
 
   smtpSenders: () => req<SMTPSender[]>("GET", "/api/smtp-senders"),
   createSMTPSender: (s: any) => req<SMTPSender>("POST", "/api/smtp-senders", s),
@@ -395,6 +418,13 @@ export const api = {
   updateSubscription: (id: number, d: Partial<Subscription>) => req<Subscription>("PUT", `/api/subscriptions/${id}`, d),
   deleteSubscription: (id: number) => req<void>("DELETE", `/api/subscriptions/${id}`),
   financeSummary: () => req<FinanceSummary>("GET", "/api/finance/summary"),
+
+  // audit
+  auditLogs: () => req<AuditLog[]>("GET", "/api/audit"),
+
+  // abuse
+  abuseReports: (status?: string) => req<AbuseReport[]>("GET", `/api/abuse${status ? `?status=${status}` : ''}`),
+  updateAbuseReport: (id: number, status: string) => req<AbuseReport>("PUT", `/api/abuse/${id}`, { status }),
 };
 
 export { ApiError };

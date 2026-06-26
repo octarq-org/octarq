@@ -58,6 +58,7 @@ func (h *Handler) createMailbox(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusConflict, "mailbox already exists")
 		return
 	}
+	h.audit(r, "mailbox.create", "mailbox", mb.ID, map[string]any{"address": mb.Address})
 	writeJSON(w, http.StatusCreated, mb)
 }
 
@@ -82,6 +83,7 @@ func (h *Handler) updateMailbox(w http.ResponseWriter, r *http.Request) {
 		mb.Enabled = *d.Enabled
 	}
 	h.db.Save(&mb)
+	h.audit(r, "mailbox.update", "mailbox", mb.ID, nil)
 	writeJSON(w, http.StatusOK, mb)
 }
 
@@ -97,6 +99,7 @@ func (h *Handler) deleteMailbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.db.Where("mailbox_id = ?", id).Delete(&models.Email{})
+	h.audit(r, "mailbox.delete", "mailbox", id, nil)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 

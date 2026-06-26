@@ -46,6 +46,7 @@ func (h *Handler) createProviderAccount(w http.ResponseWriter, r *http.Request) 
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	h.audit(r, "provider.create", "provider", acc.ID, map[string]any{"name": acc.Name, "type": acc.Type})
 	writeJSON(w, http.StatusCreated, acc)
 }
 
@@ -77,6 +78,7 @@ func (h *Handler) updateProviderAccount(w http.ResponseWriter, r *http.Request) 
 		acc.Config = enc
 	}
 	h.db.Save(&acc)
+	h.audit(r, "provider.update", "provider", acc.ID, nil)
 	writeJSON(w, http.StatusOK, acc)
 }
 
@@ -99,5 +101,6 @@ func (h *Handler) deleteProviderAccount(w http.ResponseWriter, r *http.Request) 
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
+	h.audit(r, "provider.delete", "provider", id, nil)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

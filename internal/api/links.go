@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"crypto/rand"
+	"encoding/csv"
+	"fmt"
 	"html"
 	"io"
 	"net/http"
@@ -17,8 +19,10 @@ import (
 )
 
 var (
-	reTitle = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
-	reDesc  = regexp.MustCompile(`(?is)<meta[^>]+name=["']description["'][^>]+content=["'](.*?)["']`)
+	reTitle    = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
+	reDesc     = regexp.MustCompile(`(?is)<meta[^>]+name=["']description["'][^>]+content=["'](.*?)["']`)
+	reOgTitle  = regexp.MustCompile(`(?is)<meta[^>]+property=["']og:title["'][^>]+content=["'](.*?)["']`)
+	reOgTitle2 = regexp.MustCompile(`(?is)<meta[^>]+content=["'](.*?)["'][^>]+property=["']og:title["']`)
 )
 
 // fetchPageMeta does a best-effort GET and extracts <title> and meta description.
@@ -36,7 +40,11 @@ func fetchPageMeta(ctx context.Context, rawURL string) (title, desc string) {
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 256<<10)) // 256 KiB is plenty for <head>
-	if m := reTitle.FindSubmatch(body); m != nil {
+	if m := reOgTitle.FindSubmatch(body); m != nil {
+		title = strings.TrimSpace(html.UnescapeString(string(m[1])))
+	} else if m := reOgTitle2.FindSubmatch(body); m != nil {
+		title = strings.TrimSpace(html.UnescapeString(string(m[1])))
+	} else if m := reTitle.FindSubmatch(body); m != nil {
 		title = strings.TrimSpace(html.UnescapeString(string(m[1])))
 	}
 	if m := reDesc.FindSubmatch(body); m != nil {
@@ -200,7 +208,40 @@ func (h *Handler) createLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
+	
+	if l.Title == "" {
+		go func(id uint, target string) {
+			title, _ := fetchPageMeta(context.Background(), target)
+			if title != "" {
+				h.db.Model(&models.Link{}).Where("id = ?", id).Update("title", title)
+			}
+		}(l.ID, l.Target)
+	}
+
 	writeJSON(w, http.StatusCreated, view(l))
+}
+
+func (h *Handler) exportLinksCSV(w http.ResponseWriter, r *http.Request) {
+	var links []models.Link
+	h.orgDB(r).Order("created_at DESC").Find(&links)
+
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"links.csv\"")
+
+	cw := csv.NewWriter(w)
+	cw.Write([]string{"ID", "Host", "Slug", "Target", "Title", "Clicks", "CreatedAt"})
+	for _, l := range links {
+		cw.Write([]string{
+			fmt.Sprintf("%d", l.ID),
+			l.Host,
+			l.Slug,
+			l.Target,
+			l.Title,
+			fmt.Sprintf("%d", l.Clicks),
+			l.CreatedAt.Format(time.RFC3339),
+		})
+	}
+	cw.Flush()
 }
 
 func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request) {

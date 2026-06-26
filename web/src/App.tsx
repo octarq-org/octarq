@@ -9,6 +9,8 @@ import SettingsPage from "./pages/Settings";
 import SSHKeysPage from "./pages/SSHKeys";
 import VPSPage from "./pages/VPS";
 import FinancePage from "./pages/Finance";
+import AuditLogPage from "./pages/AuditLog";
+import AbusePage from "./pages/Abuse";
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -45,6 +47,8 @@ export default function App() {
             <Route path="/vps" element={<VPSPage />} />
             <Route path="/sshkeys" element={<SSHKeysPage />} />
             <Route path="/finance" element={<FinancePage />} />
+            <Route path="/audit" element={<AuditLogPage />} />
+            <Route path="/abuse" element={<AbusePage />} />
             <Route path="/settings/*" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/overview" replace />} />
           </Routes>
@@ -66,6 +70,8 @@ function Sidebar({ user, onLogout }: { user: string; onLogout: () => void }) {
     { to: "/vps", label: "VPS", icon: "🖥️" },
     { to: "/sshkeys", label: "SSH Keys", icon: "🔑" },
     { to: "/finance", label: "Finance", icon: "💳" },
+    { to: "/audit", label: "Audit Log", icon: "📝" },
+    { to: "/abuse", label: "Abuse", icon: "🛡️" },
     { to: "/settings", label: "Settings", icon: "⚙️" },
   ];
 
