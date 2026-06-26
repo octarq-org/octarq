@@ -246,7 +246,7 @@ export function Code({ children }: { children: string }) {
 
 // AreaChart is a dependency-free SVG area/line chart for a daily series.
 export function AreaChart({ series, height = 120 }: { series: { key: string; count: number }[]; height?: number }) {
-  if (!series.length) return <div className="grid h-28 place-items-center text-sm text-zinc-600">No data yet</div>;
+  if (!series || !series.length) return <div className="grid h-28 place-items-center text-sm text-zinc-600">No data yet</div>;
   const w = 600;
   const h = height;
   const pad = 6;

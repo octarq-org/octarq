@@ -96,7 +96,7 @@ func (s *Service) Handle(w http.ResponseWriter, r *http.Request, link *models.Li
 
 	ip := clientIP(r)
 	ua := r.UserAgent()
-	country, city := s.geo.Locate(ip)
+	country, region, city := s.geo.Locate(ip)
 	info := geo.ParseUA(ua)
 	bot := isBot(ua)
 
@@ -112,7 +112,7 @@ func (s *Service) Handle(w http.ResponseWriter, r *http.Request, link *models.Li
 		}
 	}
 
-	s.record(r, link.ID, ip, country, city, ua, info, bot)
+	s.record(r, link.ID, ip, country, region, city, ua, info, bot)
 	http.Redirect(w, r, target, http.StatusFound)
 }
 
@@ -149,12 +149,12 @@ func matchRule(rule models.RoutingRule, country, device, os, lang string) bool {
 }
 
 // record writes a click event and increments the counter in the background.
-func (s *Service) record(r *http.Request, linkID uint, ip, country, city, ua string, info geo.UAInfo, bot bool) {
+func (s *Service) record(r *http.Request, linkID uint, ip, country, region, city, ua string, info geo.UAInfo, bot bool) {
 	referer := r.Referer()
 	go func() {
 		ev := models.LinkEvent{
 			LinkID: linkID, CreatedAt: time.Now(),
-			IP: ip, Country: country, City: city,
+			IP: ip, Country: country, Region: region, City: city,
 			Device: info.Device, Browser: info.Browser, OS: info.OS,
 			Referer: referer, UA: ua, IsBot: bot,
 		}

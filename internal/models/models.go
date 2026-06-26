@@ -260,6 +260,7 @@ type LinkEvent struct {
 	CreatedAt time.Time `gorm:"index" json:"createdAt"`
 	IP        string    `gorm:"size:64" json:"ip"`
 	Country   string    `gorm:"size:64" json:"country"`
+	Region    string    `gorm:"size:128" json:"region"`
 	City      string    `gorm:"size:128" json:"city"`
 	Device    string    `gorm:"size:32" json:"device"`
 	Browser   string    `gorm:"size:64" json:"browser"`

@@ -36,24 +36,31 @@ func Open(path string) (*Resolver, error) {
 	return &Resolver{db: r}, nil
 }
 
-// Country and City for the given IP; empty strings when unavailable.
-func (r *Resolver) Locate(ip string) (country, city string) {
+// Country, Region, and City for the given IP; empty strings when unavailable.
+func (r *Resolver) Locate(ip string) (country, region, city string) {
 	if r == nil || r.db == nil {
-		return "", ""
+		return "", "", ""
 	}
 	parsed := net.ParseIP(ip)
 	if parsed == nil {
-		return "", ""
+		return "", "", ""
 	}
 	rec, err := r.db.City(parsed)
 	if err != nil {
-		return "", ""
+		return "", "", ""
 	}
 	country = rec.Country.IsoCode
+	if len(rec.Subdivisions) > 0 {
+		if name, ok := rec.Subdivisions[0].Names["en"]; ok {
+			region = name
+		} else {
+			region = rec.Subdivisions[0].IsoCode
+		}
+	}
 	if name, ok := rec.City.Names["en"]; ok {
 		city = name
 	}
-	return country, city
+	return country, region, city
 }
 
 func (r *Resolver) Close() {

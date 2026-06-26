@@ -282,7 +282,7 @@ func (h *Handler) linkStats(w http.ResponseWriter, r *http.Request) {
 	since := time.Now().AddDate(0, 0, -days)
 
 	top := func(col string) []statKV {
-		var rows []statKV
+		rows := make([]statKV, 0)
 		h.db.Model(&models.LinkEvent{}).
 			Select(col+" as key, count(*) as count").
 			Where("link_id = ? AND created_at >= ? AND "+col+" <> ''", id, since).
@@ -293,7 +293,7 @@ func (h *Handler) linkStats(w http.ResponseWriter, r *http.Request) {
 	var total int64
 	h.db.Model(&models.LinkEvent{}).Where("link_id = ?", id).Count(&total)
 
-	var series []statKV
+	series := make([]statKV, 0)
 	h.db.Model(&models.LinkEvent{}).
 		Select("strftime('%Y-%m-%d', created_at) as key, count(*) as count").
 		Where("link_id = ? AND created_at >= ?", id, since).
@@ -313,6 +313,7 @@ func (h *Handler) linkStats(w http.ResponseWriter, r *http.Request) {
 		"series":    series,
 		"referers":  top("referer"),
 		"countries": top("country"),
+		"regions":   top("region"),
 		"devices":   top("device"),
 		"browsers":  top("browser"),
 	})

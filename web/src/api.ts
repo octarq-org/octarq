@@ -123,6 +123,7 @@ export interface LinkStats {
   series: StatKV[];
   referers: StatKV[] | null;
   countries: StatKV[] | null;
+  regions: StatKV[] | null;
   devices: StatKV[] | null;
   browsers: StatKV[] | null;
 }

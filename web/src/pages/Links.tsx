@@ -442,11 +442,12 @@ function StatsView({ link }: { link: Link }) {
       <div className="grid grid-cols-3 gap-3">
         <Stat label="Total clicks" value={stats.total} />
         <Stat label={`Last ${stats.days}d`} value={stats.windowed} />
-        <Stat label="Days tracked" value={stats.series.length} />
+        <Stat label="Days tracked" value={stats.series?.length || 0} />
       </div>
       <Spark series={stats.series} />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <TopList title="Countries" rows={stats.countries} />
+        <TopList title="Regions" rows={stats.regions} />
         <TopList title="Devices" rows={stats.devices} />
         <TopList title="Browsers" rows={stats.browsers} />
         <TopList title="Referers" rows={stats.referers} />
@@ -465,7 +466,7 @@ function Stat({ label, value }: { label: string; value: number }) {
 }
 
 function Spark({ series }: { series: { key: string; count: number }[] }) {
-  if (!series.length) return <p className="text-sm text-zinc-500">No clicks in window.</p>;
+  if (!series || !series.length) return <p className="text-sm text-zinc-500">No clicks in window.</p>;
   const max = Math.max(...series.map((s) => s.count), 1);
   return (
     <div className="rounded bg-zinc-900 border border-zinc-800 flex h-28 items-end gap-1 p-3">
