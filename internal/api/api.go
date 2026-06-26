@@ -65,6 +65,9 @@ func (h *Handler) Routes() *http.ServeMux {
 	// Inbound email webhook (token-guarded, not session).
 	mux.HandleFunc("POST /api/email/inbound", h.inbound)
 
+	// Abuse reporting (public — no auth required to submit).
+	mux.HandleFunc("POST /abuse", h.submitAbuse)
+
 	// Everything below requires a session.
 	p := func(pattern string, fn http.HandlerFunc) {
 		mux.Handle(pattern, h.auth.Require(fn))
@@ -136,6 +139,10 @@ func (h *Handler) Routes() *http.ServeMux {
 	p("PUT /api/vps/{id}", h.updateVPS)
 	p("DELETE /api/vps/{id}", h.deleteVPS)
 	p("GET /api/vps/{id}/terminal", h.vpsTerminal)
+
+	// Abuse reports: submit is public, list/update require admin session.
+	p("GET /api/abuse", h.listAbuseReports)
+	p("PUT /api/abuse/{id}", h.updateAbuseReport)
 
 	return mux
 }

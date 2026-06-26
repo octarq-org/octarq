@@ -383,12 +383,25 @@ type VPS struct {
 	UpdatedAt   time.Time  `json:"updatedAt"`
 }
 
+// AbuseReport is a user-submitted report of a short link being used for spam,
+// phishing, or other policy violations.
+type AbuseReport struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	Slug        string    `gorm:"size:255;index" json:"slug"`
+	Target      string    `gorm:"type:text" json:"target"` // resolved at report time
+	Reason      string    `gorm:"size:64" json:"reason"`   // "spam", "phishing", "malware", "other"
+	Description string    `gorm:"type:text" json:"description"`
+	ReporterIP  string    `gorm:"size:64" json:"reporterIp"`
+	Status      string    `gorm:"size:32;default:'open'" json:"status"` // "open", "reviewed", "dismissed"
+	CreatedAt   time.Time `json:"createdAt"`
+}
+
 // AllModels lists every model for AutoMigrate.
 func AllModels() []any {
 	return []any{
 		&Org{}, &User{}, &OrgMember{},
 		&ProviderAccount{}, &Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{},
 		&Token{}, &Setting{}, &SMTPSender{}, &NotificationChannel{},
-		&SSHKey{}, &VPS{},
+		&SSHKey{}, &VPS{}, &AbuseReport{},
 	}
 }

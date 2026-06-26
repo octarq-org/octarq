@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/Jungley8/led/internal/dnsprovider"
 	"github.com/Jungley8/led/internal/models"
@@ -11,6 +12,36 @@ import (
 )
 
 var errNotFound = errors.New("not found")
+
+// reporterIP returns the best-guess client IP for abuse reports.
+// We keep the full IP here (unlike analytics) so admins can block repeat abusers.
+func reporterIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		return strings.TrimSpace(strings.Split(xff, ",")[0])
+	}
+	if rip := r.Header.Get("X-Real-IP"); rip != "" {
+		return rip
+	}
+	host := r.RemoteAddr
+	if h, _, err := splitHostPort(host); err == nil {
+		return h
+	}
+	return host
+}
+
+func splitHostPort(addr string) (host, port string, err error) {
+	// Thin wrapper so abuse.go doesn't import "net" directly.
+	import_net_SplitHostPort := func(hostport string) (string, string, error) {
+		// inline net.SplitHostPort to keep imports clean
+		for i := len(hostport) - 1; i >= 0; i-- {
+			if hostport[i] == ':' {
+				return hostport[:i], hostport[i+1:], nil
+			}
+		}
+		return "", "", errors.New("no port")
+	}
+	return import_net_SplitHostPort(addr)
+}
 
 // emailBelongsToOrg verifies an email's mailbox is owned by the given org.
 func (h *Handler) emailBelongsToOrg(emailID, orgID uint) bool {
