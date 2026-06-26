@@ -293,6 +293,7 @@ func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusConflict, "slug already exists on this host")
 		return
 	}
+	h.audit(r, "link.update", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
 	writeJSON(w, http.StatusOK, view(l))
 }
 

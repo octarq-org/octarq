@@ -60,6 +60,7 @@ func (h *Handler) createVPS(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "failed to create vps")
 		return
 	}
+	h.audit(r, "vps.create", "vps", vps.ID, map[string]any{"name": vps.Name, "ip": vps.IP})
 	writeJSON(w, http.StatusCreated, vps)
 }
 
@@ -106,6 +107,7 @@ func (h *Handler) updateVPS(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "failed to update vps")
 		return
 	}
+	h.audit(r, "vps.update", "vps", vps.ID, map[string]any{"name": vps.Name})
 	writeJSON(w, http.StatusOK, vps)
 }
 
@@ -119,5 +121,6 @@ func (h *Handler) deleteVPS(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
+	h.audit(r, "vps.delete", "vps", id, nil)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

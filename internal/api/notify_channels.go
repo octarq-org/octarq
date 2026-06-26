@@ -32,6 +32,7 @@ func (h *Handler) createNotificationChannel(w http.ResponseWriter, r *http.Reque
 		writeErr(w, http.StatusInternalServerError, "failed to create")
 		return
 	}
+	h.audit(r, "notification.create", "notification_channel", d.ID, map[string]any{"name": d.Name, "type": d.Type})
 	writeJSON(w, http.StatusCreated, d)
 }
 
@@ -69,6 +70,7 @@ func (h *Handler) updateNotificationChannel(w http.ResponseWriter, r *http.Reque
 		ch.Enabled = *d.Enabled
 	}
 	h.db.Save(&ch)
+	h.audit(r, "notification.update", "notification_channel", ch.ID, nil)
 	writeJSON(w, http.StatusOK, ch)
 }
 
@@ -82,6 +84,7 @@ func (h *Handler) deleteNotificationChannel(w http.ResponseWriter, r *http.Reque
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
+	h.audit(r, "notification.delete", "notification_channel", id, nil)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 

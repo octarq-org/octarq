@@ -104,10 +104,11 @@ func (h *Handler) createSSHKey(w http.ResponseWriter, r *http.Request) {
 			models.SSHKey
 			RawPrivateKey string `json:"rawPrivateKey"`
 		}{k, string(privPEM)}
+		h.audit(r, "sshkey.create", "ssh_key", k.ID, map[string]any{"name": k.Name, "type": k.Type})
 		writeJSON(w, http.StatusCreated, resp)
 		return
 	}
-
+	h.audit(r, "sshkey.create", "ssh_key", k.ID, map[string]any{"name": k.Name, "type": k.Type})
 	writeJSON(w, http.StatusCreated, k)
 }
 
@@ -130,5 +131,6 @@ func (h *Handler) deleteSSHKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.db.Delete(&models.SSHKey{}, id)
+	h.audit(r, "sshkey.delete", "ssh_key", id, nil)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

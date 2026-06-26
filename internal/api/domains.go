@@ -250,6 +250,7 @@ func (h *Handler) updateDomain(w http.ResponseWriter, r *http.Request) {
 		dom.ProviderAccountID = d.ProviderAccountID
 	}
 	h.db.Save(&dom)
+	h.audit(r, "domain.update", "domain", dom.ID, map[string]any{"name": dom.Name})
 	writeJSON(w, http.StatusOK, dom)
 }
 

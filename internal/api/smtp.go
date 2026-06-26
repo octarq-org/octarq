@@ -52,6 +52,7 @@ func (h *Handler) createSMTPSender(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "failed to save")
 		return
 	}
+	h.audit(r, "smtp.create", "smtp_sender", sender.ID, map[string]any{"name": sender.Name, "host": sender.Host})
 	writeJSON(w, http.StatusCreated, sender)
 }
 
@@ -97,6 +98,7 @@ func (h *Handler) updateSMTPSender(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.db.Save(&sender)
+	h.audit(r, "smtp.update", "smtp_sender", sender.ID, nil)
 	writeJSON(w, http.StatusOK, sender)
 }
 
@@ -112,6 +114,6 @@ func (h *Handler) deleteSMTPSender(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
-
+	h.audit(r, "smtp.delete", "smtp_sender", id, nil)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
