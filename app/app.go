@@ -28,6 +28,7 @@ import (
 	"github.com/jungley/led/internal/crypto"
 	"github.com/jungley/led/internal/db"
 	"github.com/jungley/led/internal/geo"
+	"github.com/jungley/led/internal/notify"
 	"github.com/jungley/led/internal/server"
 	"github.com/jungley/led/internal/shortlink"
 	"github.com/jungley/led/internal/vpschecker"
@@ -101,10 +102,13 @@ func (a *App) Run(ctx context.Context) error {
 
 	// 2. Core API mux, then let plugins mount their own routes onto it.
 	mux := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo).Routes()
-	pctx := &plugin.Context{DB: a.gdb, Guard: a.auth.Require}
+	pctx := &plugin.Context{DB: a.gdb, Guard: a.auth.Require, Notify: notify.Send}
 	for _, p := range a.plugins {
 		p.Mount(mux, pctx)
 		log.Printf("plugin mounted: %s", p.Name())
+		if s, ok := p.(plugin.Starter); ok {
+			go s.Start(ctx)
+		}
 	}
 
 	short := shortlink.New(a.gdb, a.geo)

@@ -11,6 +11,7 @@
 package plugin
 
 import (
+	"context"
 	"net/http"
 
 	"gorm.io/gorm"
@@ -26,6 +27,11 @@ type Context struct {
 	// Guard wraps a handler so it requires an authenticated dashboard session,
 	// the same gate core endpoints use.
 	Guard func(http.Handler) http.Handler
+	// Notify delivers a notification via a configured channel. typ is the
+	// channel type ("telegram", "webhook"), cfgJSON is the channel's JSON
+	// config blob, and text is the message body. It mirrors notify.Send so
+	// plugins never import led's internal/notify package directly.
+	Notify func(ctx context.Context, typ, cfgJSON, text string) error
 }
 
 // Plugin is a unit of Pro functionality mounted onto the core app.
@@ -38,4 +44,12 @@ type Plugin interface {
 	// Mount registers the plugin's HTTP routes (typically under /api/...) on the
 	// shared API mux. Use ctx.Guard to require a session.
 	Mount(mux *http.ServeMux, ctx *Context)
+}
+
+// Starter is an optional interface a Plugin may implement. If present, the app
+// calls Start in a goroutine after all plugins are mounted, passing the
+// server's root context so the plugin can run background work (e.g. schedulers)
+// and stop cleanly on shutdown.
+type Starter interface {
+	Start(ctx context.Context)
 }
