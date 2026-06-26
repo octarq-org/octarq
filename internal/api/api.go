@@ -66,6 +66,11 @@ func (h *Handler) Routes() http.Handler {
 	p("PUT /api/provider-accounts/{id}", h.updateProviderAccount)
 	p("DELETE /api/provider-accounts/{id}", h.deleteProviderAccount)
 
+	p("GET /api/smtp-senders", h.listSMTPSenders)
+	p("POST /api/smtp-senders", h.createSMTPSender)
+	p("PUT /api/smtp-senders/{id}", h.updateSMTPSender)
+	p("DELETE /api/smtp-senders/{id}", h.deleteSMTPSender)
+
 	p("POST /api/domains/sync", h.syncDomains)
 	p("GET /api/domains", h.listDomains)
 	p("POST /api/domains", h.createDomain)

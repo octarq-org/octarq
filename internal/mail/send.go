@@ -42,6 +42,14 @@ func NewSender(cfg *config.Config) Sender {
 	}
 }
 
+// NewCustomSender builds a Sender from explicit credentials.
+func NewCustomSender(host, port, user, pass, from string) Sender {
+	return &SMTPSender{
+		host: host, port: port,
+		user: user, pass: pass, from: from,
+	}
+}
+
 func (s *SMTPSender) Send(m Message) error {
 	from := m.From
 	if from == "" {

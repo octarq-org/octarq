@@ -195,20 +195,41 @@ func (h *Handler) deleteEmail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) sendEmail(w http.ResponseWriter, r *http.Request) {
-	if h.sender == nil {
-		writeErr(w, http.StatusServiceUnavailable, "no SMTP relay configured (set LED_SMTP_*)")
-		return
+	var payload struct {
+		mail.Message
+		SMTPSenderID uint `json:"smtpSenderId"`
 	}
-	var m mail.Message
-	if err := readJSON(r, &m); err != nil {
+	if err := readJSON(r, &payload); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-	if len(m.To) == 0 {
+	if len(payload.To) == 0 {
 		writeErr(w, http.StatusBadRequest, "to is required")
 		return
 	}
-	if err := h.sender.Send(m); err != nil {
+
+	var sender mail.Sender
+	if payload.SMTPSenderID != 0 {
+		var s models.SMTPSender
+		if err := h.db.First(&s, payload.SMTPSenderID).Error; err != nil {
+			writeErr(w, http.StatusBadRequest, "invalid smtp sender id")
+			return
+		}
+		pass, err := h.cipher.Decrypt(s.Pass)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "decrypt failed")
+			return
+		}
+		sender = mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
+	} else {
+		if h.sender == nil {
+			writeErr(w, http.StatusServiceUnavailable, "no SMTP relay configured (set LED_SMTP_* or select a sender)")
+			return
+		}
+		sender = h.sender
+	}
+
+	if err := sender.Send(payload.Message); err != nil {
 		writeErr(w, http.StatusBadRequest, "send failed: "+err.Error())
 		return
 	}

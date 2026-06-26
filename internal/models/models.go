@@ -266,9 +266,22 @@ type Setting struct {
 	Value string `gorm:"type:text" json:"value"`
 }
 
+type SMTPSender struct {
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	OwnerID   uint      `json:"-" gorm:"index"`
+	Name      string    `json:"name"`
+	Host      string    `json:"host"`
+	Port      int       `json:"port"`
+	User      string    `json:"user"`
+	Pass      string    `json:"-"`
+	FromEmail string    `json:"fromEmail"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // AllModels lists every model for AutoMigrate.
 func AllModels() []any {
 	return []any{
-		&ProviderAccount{}, &Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{}, &Token{}, &Setting{},
+		&ProviderAccount{}, &Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{}, &Token{}, &Setting{}, &SMTPSender{},
 	}
 }

@@ -35,8 +35,19 @@ export interface ProviderAccount {
   id: number;
   name: string;
   type: string;
+  config: any;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SMTPSender {
+  id: number;
+  name: string;
+  host: string;
+  port: number;
+  user: string;
+  fromEmail: string;
+  createdAt: string;
 }
 
 export interface HostEntry {
@@ -220,6 +231,11 @@ export const api = {
   updateProviderAccount: (id: number, p: any) => req<ProviderAccount>("PUT", `/api/provider-accounts/${id}`, p),
   deleteProviderAccount: (id: number) => req("DELETE", `/api/provider-accounts/${id}`),
 
+  smtpSenders: () => req<SMTPSender[]>("GET", "/api/smtp-senders"),
+  createSMTPSender: (s: any) => req<SMTPSender>("POST", "/api/smtp-senders", s),
+  updateSMTPSender: (id: number, s: any) => req<SMTPSender>("PUT", `/api/smtp-senders/${id}`, s),
+  deleteSMTPSender: (id: number) => req("DELETE", `/api/smtp-senders/${id}`),
+
   syncDomains: (providerAccountId: number) =>
     req<{ ok: boolean; total: number; created: number; updated: number }>(
       "POST",
@@ -257,7 +273,7 @@ export const api = {
       `/api/emails/read-all${mailbox ? `?mailbox=${mailbox}` : ""}`,
     ),
   rawEmailUrl: (id: number) => `/api/emails/${id}/raw`,
-  sendEmail: (m: { from?: string; to: string[]; subject: string; text?: string; html?: string }) =>
+  sendEmail: (m: { from?: string; to: string[]; subject: string; text?: string; html?: string; smtpSenderId?: number }) =>
     req("POST", "/api/emails/send", m),
 
   // api tokens

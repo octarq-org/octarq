@@ -386,13 +386,28 @@ function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () => void }
   const [from, setFrom] = useState("");
   const [subject, setSubject] = useState(draft?.subject ?? "");
   const [text, setText] = useState("");
+  const [smtpSenderId, setSmtpSenderId] = useState<number>(0);
+  const [senders, setSenders] = useState<any[]>([]);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState(false);
+
+  useEffect(() => {
+    api.smtpSenders().then((s) => {
+      setSenders(s);
+      if (s.length > 0) setSmtpSenderId(s[0].id);
+    });
+  }, []);
 
   async function send() {
     setErr("");
     try {
-      await api.sendEmail({ to: to.split(",").map((s) => s.trim()).filter(Boolean), from, subject, text });
+      await api.sendEmail({
+        to: to.split(",").map((s) => s.trim()).filter(Boolean),
+        from,
+        subject,
+        text,
+        smtpSenderId: smtpSenderId || undefined,
+      });
       setOk(true);
     } catch (e: any) {
       setErr(e.message ?? "send failed");
@@ -410,7 +425,21 @@ function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () => void }
         </div>
       ) : (
         <>
-          <Field label="From" hint="blank = configured SMTP sender">
+          <Field label="SMTP Sender" hint="Choose which account to send through.">
+            <select
+              className="input"
+              value={smtpSenderId}
+              onChange={(e) => setSmtpSenderId(Number(e.target.value))}
+            >
+              <option value={0}>System Default (LED_SMTP_*)</option>
+              {senders.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.fromEmail})
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="From (Optional)" hint="Override sender address if SMTP allows it.">
             <input className="input" value={from} onChange={(e) => setFrom(e.target.value)} />
           </Field>
           <Field label="To" hint="comma-separated">

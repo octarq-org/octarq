@@ -7,6 +7,7 @@ export default function SettingsPage() {
   const tabs = [
     { to: "/settings/general", label: "General" },
     { to: "/settings/providers", label: "Provider Accounts" },
+    { to: "/settings/smtp", label: "SMTP Senders" },
     { to: "/settings/tokens", label: "API Tokens" },
   ];
 
@@ -37,6 +38,7 @@ export default function SettingsPage() {
           <Route path="/" element={<Navigate to="/settings/general" replace />} />
           <Route path="/general" element={<GeneralSettings />} />
           <Route path="/providers" element={<ProviderAccounts />} />
+          <Route path="/smtp" element={<SMTPSenders />} />
           <Route path="/tokens" element={<ApiTokens />} />
         </Routes>
       </div>
@@ -429,3 +431,119 @@ function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onC
   );
 }
 
+function SMTPSenders() {
+  const [senders, setSenders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<any | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      setSenders(await api.smtpSenders());
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function remove(id: number) {
+    if (!confirm("Remove this SMTP sender?")) return;
+    try {
+      await api.deleteSMTPSender(id);
+      load();
+    } catch (e: any) {
+      alert(e.message || "Failed to remove");
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">SMTP Senders</h1>
+          <p className="text-sm text-zinc-500">Configure SMTP relays for sending outgoing mail.</p>
+        </div>
+        <button className="btn-primary" onClick={() => setCreating(true)}>+ New Sender</button>
+      </div>
+      {loading ? (
+        <div className="text-zinc-500">loading…</div>
+      ) : senders.length === 0 ? (
+        <Empty>
+          <div className="text-2xl">📧</div>
+          <div>No SMTP Senders configured yet.</div>
+        </Empty>
+      ) : (
+        <div className="card divide-y divide-zinc-800">
+          {senders.map(s => (
+            <div key={s.id} className="flex items-center justify-between p-4">
+              <div>
+                <div className="font-medium">{s.name}</div>
+                <div className="text-xs text-zinc-500">{s.fromEmail} via {s.host}:{s.port}</div>
+              </div>
+              <div className="flex items-center gap-4">
+                <button className="btn-ghost" onClick={() => setEditing(s)}>Edit</button>
+                <button className="btn-ghost text-red-400" onClick={() => remove(s.id)}>Remove</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {(creating || editing) && (
+        <SMTPSenderModal
+          sender={editing}
+          onClose={() => { setCreating(false); setEditing(null); }}
+          onSaved={() => { setCreating(false); setEditing(null); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function SMTPSenderModal({ sender, onClose, onSaved }: { sender: any; onClose: () => void; onSaved: () => void }) {
+  const [name, setName] = useState(sender?.name || "");
+  const [host, setHost] = useState(sender?.host || "");
+  const [port, setPort] = useState(sender?.port?.toString() || "");
+  const [user, setUser] = useState(sender?.user || "");
+  const [pass, setPass] = useState("");
+  const [fromEmail, setFromEmail] = useState(sender?.fromEmail || "");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true); setErr("");
+    try {
+      const payload = { name, host, port: parseInt(port, 10), user, pass, fromEmail };
+      if (sender) {
+        await api.updateSMTPSender(sender.id, payload);
+      } else {
+        await api.createSMTPSender(payload);
+      }
+      onSaved();
+    } catch (e: any) {
+      setErr(e.message || "Failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title={sender ? "Edit SMTP Sender" : "New SMTP Sender"} onClose={onClose}>
+      <form onSubmit={submit}>
+        <Field label="Name"><input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Amazon SES" autoFocus /></Field>
+        <Field label="Host"><input className="input" value={host} onChange={e => setHost(e.target.value)} placeholder="email-smtp.us-east-1.amazonaws.com" /></Field>
+        <Field label="Port"><input type="number" className="input" value={port} onChange={e => setPort(e.target.value)} placeholder="587" /></Field>
+        <Field label="Username"><input className="input" value={user} onChange={e => setUser(e.target.value)} placeholder="SMTP User" /></Field>
+        <Field label="Password" hint={sender ? "Leave empty to keep existing password." : ""}>
+          <input type="password" className="input" value={pass} onChange={e => setPass(e.target.value)} placeholder={sender ? "(hidden)" : "SMTP Password"} />
+        </Field>
+        <Field label="From Email" hint="Optional. Default address to use if none provided.">
+          <input className="input" value={fromEmail} onChange={e => setFromEmail(e.target.value)} placeholder="admin@example.com" />
+        </Field>
+        {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
+        <button className="btn-primary w-full" disabled={busy || !name.trim() || !host.trim() || !port || !user.trim() || (!sender && !pass.trim())}>{busy ? "…" : "Save Sender"}</button>
+      </form>
+    </Modal>
+  );
+}
