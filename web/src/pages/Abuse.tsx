@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, AbuseReport } from "../api";
 import { Header } from "./Links";
-import { timeAgo, Button } from "../ui";
+import { timeAgo } from "../ui";
 
 export default function AbusePage() {
   const [reports, setReports] = useState<AbuseReport[]>([]);
@@ -92,12 +92,12 @@ export default function AbusePage() {
               </div>
               {r.status === "open" && (
                 <div className="mt-4 flex gap-2 justify-end border-t border-zinc-800 pt-3">
-                  <Button variant="secondary" onClick={() => updateStatus(r.id, "dismissed")}>
+                  <button className="btn-ghost text-sm px-3 py-1.5" onClick={() => updateStatus(r.id, "dismissed")}>
                     Dismiss (Safe)
-                  </Button>
-                  <Button variant="danger" onClick={() => updateStatus(r.id, "reviewed")}>
+                  </button>
+                  <button className="btn-primary text-sm px-3 py-1.5 bg-rose-600 hover:bg-rose-500" onClick={() => updateStatus(r.id, "reviewed")}>
                     Mark Reviewed
-                  </Button>
+                  </button>
                 </div>
               )}
             </div>
