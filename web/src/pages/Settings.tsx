@@ -15,7 +15,7 @@ export default function SettingsPage() {
   return (
     <div className="flex gap-8 items-start">
       <aside className="w-48 shrink-0 sticky top-6">
-        <h1 className="mb-4 text-xl font-semibold px-2">Settings</h1>
+        <h1 className="mb-4 font-display text-xl font-bold tracking-tight text-white px-2">Settings</h1>
         <nav className="flex flex-col gap-1">
           {tabs.map((t) => (
             <NavLink
@@ -24,8 +24,8 @@ export default function SettingsPage() {
               className={({ isActive }) =>
                 `rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                   isActive
-                    ? "bg-zinc-800 text-white"
-                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-300"
+                    ? "bg-white/[0.06] text-white"
+                    : "text-white/55 hover:bg-white/[0.05] hover:text-white/75"
                 }`
               }
             >
@@ -111,13 +111,13 @@ function GeneralSettings() {
     }
   }
 
-  if (!s) return <div className="text-zinc-500">loading…</div>;
+  if (!s) return <div className="text-white/40">loading…</div>;
 
   return (
     <div>
       <div className="mb-4">
-        <h1 className="text-xl font-semibold">Settings</h1>
-        <p className="text-sm text-zinc-500">Runtime configuration for this instance.</p>
+        <h1 className="font-display text-xl font-bold tracking-tight text-white">Settings</h1>
+        <p className="text-sm text-white/40">Runtime configuration for this instance.</p>
       </div>
       <div className="card space-y-5 p-5">
         <Field
@@ -171,8 +171,8 @@ function GeneralSettings() {
           )}
         </Field>
         
-        <div className="border-t border-zinc-800 pt-5">
-          <h2 className="mb-4 text-lg font-semibold text-zinc-300">Mail & Routing</h2>
+        <div className="border-t border-white/[0.06] pt-5">
+          <h2 className="mb-4 text-lg font-semibold text-white/75">Mail & Routing</h2>
           <div className="space-y-5">
             <Field
               label="Inbound Token"
@@ -198,14 +198,14 @@ function GeneralSettings() {
                 Enable Catch-All
               </label>
             </div>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-white/40">
               Auto-create a mailbox when mail arrives for an unknown address on a managed domain.
             </p>
           </div>
         </div>
 
-        <div className="border-t border-zinc-800 pt-5">
-          <h2 className="mb-4 text-lg font-semibold text-zinc-300">Privacy & Data Retention</h2>
+        <div className="border-t border-white/[0.06] pt-5">
+          <h2 className="mb-4 text-lg font-semibold text-white/75">Privacy & Data Retention</h2>
           <div className="space-y-3">
             <Field label="Click Event Retention (days)" hint="Link events older than this are deleted daily. Set 0 to keep forever.">
               <input
@@ -216,14 +216,14 @@ function GeneralSettings() {
                 onChange={(e) => setDataRetentionDays(Number(e.target.value))}
               />
             </Field>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-white/40">
               IP addresses are always stored anonymized (last octet zeroed). This setting controls how long click event records are retained.
             </p>
           </div>
         </div>
 
-        <div className="border-t border-zinc-800 pt-5">
-          <h2 className="mb-4 text-lg font-semibold text-zinc-300">Telegram Notifications</h2>
+        <div className="border-t border-white/[0.06] pt-5">
+          <h2 className="mb-4 text-lg font-semibold text-white/75">Telegram Notifications</h2>
           <div className="space-y-5">
             <Field label="Bot Token" hint="Token from @BotFather (optional)">
               <input
@@ -244,14 +244,14 @@ function GeneralSettings() {
           </div>
         </div>
 
-        <div className="border-t border-zinc-800 pt-5">
-          <h2 className="mb-1 text-lg font-semibold text-zinc-300">OAuth Providers</h2>
-          <p className="mb-4 text-xs text-zinc-500">
-            Client secrets are stored encrypted. Set <code className="text-zinc-300">LED_BASE_URL</code> on the server for callbacks to work.
+        <div className="border-t border-white/[0.06] pt-5">
+          <h2 className="mb-1 text-lg font-semibold text-white/75">OAuth Providers</h2>
+          <p className="mb-4 text-xs text-white/40">
+            Client secrets are stored encrypted. Set <code className="text-white/75">LED_BASE_URL</code> on the server for callbacks to work.
           </p>
           <div className="space-y-5">
-            <div className="rounded-md border border-zinc-800 p-4 space-y-3">
-              <p className="text-sm font-medium text-zinc-300">Google</p>
+            <div className="rounded-md border border-white/[0.06] p-4 space-y-3">
+              <p className="text-sm font-medium text-white/75">Google</p>
               <Field label="Client ID" hint="">
                 <input
                   className="input"
@@ -278,8 +278,8 @@ function GeneralSettings() {
                 )}
               </Field>
             </div>
-            <div className="rounded-md border border-zinc-800 p-4 space-y-3">
-              <p className="text-sm font-medium text-zinc-300">GitHub</p>
+            <div className="rounded-md border border-white/[0.06] p-4 space-y-3">
+              <p className="text-sm font-medium text-white/75">GitHub</p>
               <Field label="Client ID" hint="">
                 <input
                   className="input"
@@ -309,7 +309,7 @@ function GeneralSettings() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 border-t border-zinc-800 pt-5">
+        <div className="flex items-center gap-3 border-t border-white/[0.06] pt-5">
           <button className="btn-primary" onClick={save} disabled={busy}>
             {busy ? "Saving…" : "Save settings"}
           </button>
@@ -361,8 +361,8 @@ function NotificationChannels() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Notification Channels</h1>
-          <p className="text-sm text-zinc-500">Channels for system alerts like inbound emails.</p>
+          <h1 className="font-display text-xl font-bold tracking-tight text-white">Notification Channels</h1>
+          <p className="text-sm text-white/40">Channels for system alerts like inbound emails.</p>
         </div>
         <button className="btn-primary" onClick={() => setEditing({ type: "telegram", config: "{}" })}>
           + Add channel
@@ -370,23 +370,23 @@ function NotificationChannels() {
       </div>
 
       {loading ? (
-        <div className="text-zinc-500">loading…</div>
+        <div className="text-white/40">loading…</div>
       ) : channels.length === 0 ? (
         <Empty>
           <div className="text-2xl">🔔</div>
           <div>No notification channels yet.</div>
         </Empty>
       ) : (
-        <div className="card divide-y divide-zinc-800">
+        <div className="card divide-y divide-white/[0.04]">
           {channels.map((c) => (
             <div key={c.id} className="flex items-center gap-3 p-4">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-zinc-200">{c.name}</span>
+                  <span className="font-semibold text-white/80">{c.name}</span>
                   <span className="badge">{c.type}</span>
-                  {!c.enabled && <span className="badge bg-zinc-800">disabled</span>}
+                  {!c.enabled && <span className="badge bg-white/[0.06]">disabled</span>}
                 </div>
-                <div className="text-xs text-zinc-500 mt-0.5">Added {timeAgo(c.createdAt)}</div>
+                <div className="text-xs text-white/40 mt-0.5">Added {timeAgo(c.createdAt)}</div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button
@@ -576,8 +576,8 @@ function OrgMembersManager() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold">Organization Members</h1>
-        <p className="text-sm text-zinc-500">Manage who has access to this organization's resources.</p>
+        <h1 className="font-display text-xl font-bold tracking-tight text-white">Organization Members</h1>
+        <p className="text-sm text-white/40">Manage who has access to this organization's resources.</p>
       </div>
 
       <form onSubmit={handleAdd} className="card p-4 mb-6 flex gap-3 items-end">
@@ -605,13 +605,13 @@ function OrgMembersManager() {
       {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
 
       {loading ? (
-        <div className="text-zinc-500">loading…</div>
+        <div className="text-white/40">loading…</div>
       ) : (
-        <div className="card divide-y divide-zinc-800">
+        <div className="card divide-y divide-white/[0.04]">
           {members.map((m) => (
             <div key={m.userId} className="flex justify-between items-center p-4">
               <div>
-                <span className="font-semibold text-zinc-200">{m.email}</span>
+                <span className="font-semibold text-white/80">{m.email}</span>
                 <span className="badge ml-2">{m.role}</span>
               </div>
               <button
@@ -658,27 +658,27 @@ function ProviderAccounts() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Provider Accounts</h1>
-          <p className="text-sm text-zinc-500">
+          <h1 className="font-display text-xl font-bold tracking-tight text-white">Provider Accounts</h1>
+          <p className="text-sm text-white/40">
             Configure DNS providers (Cloudflare, DNSPod) used for syncing and managing domains.
           </p>
         </div>
         <button className="btn-primary" onClick={() => setCreating(true)}>+ New Account</button>
       </div>
       {loading ? (
-        <div className="text-zinc-500">loading…</div>
+        <div className="text-white/40">loading…</div>
       ) : accounts.length === 0 ? (
         <Empty>
           <div className="text-2xl">☁️</div>
           <div>No Provider Accounts yet.</div>
         </Empty>
       ) : (
-        <div className="card divide-y divide-zinc-800">
+        <div className="card divide-y divide-white/[0.04]">
           {accounts.map(a => (
             <div key={a.id} className="flex items-center justify-between p-4">
               <div>
                 <div className="font-medium">{a.name}</div>
-                <div className="text-xs text-zinc-500"><span className="badge">{a.type}</span></div>
+                <div className="text-xs text-white/40"><span className="badge">{a.type}</span></div>
               </div>
               <div className="flex items-center gap-4">
                 <button className="btn-ghost" onClick={() => setEditing(a)}>Edit</button>
@@ -784,25 +784,25 @@ function SMTPSenders() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">SMTP Senders</h1>
-          <p className="text-sm text-zinc-500">Configure SMTP relays for sending outgoing mail.</p>
+          <h1 className="font-display text-xl font-bold tracking-tight text-white">SMTP Senders</h1>
+          <p className="text-sm text-white/40">Configure SMTP relays for sending outgoing mail.</p>
         </div>
         <button className="btn-primary" onClick={() => setCreating(true)}>+ New Sender</button>
       </div>
       {loading ? (
-        <div className="text-zinc-500">loading…</div>
+        <div className="text-white/40">loading…</div>
       ) : senders.length === 0 ? (
         <Empty>
           <div className="text-2xl">📧</div>
           <div>No SMTP Senders configured yet.</div>
         </Empty>
       ) : (
-        <div className="card divide-y divide-zinc-800">
+        <div className="card divide-y divide-white/[0.04]">
           {senders.map(s => (
             <div key={s.id} className="flex items-center justify-between p-4">
               <div>
                 <div className="font-medium">{s.name}</div>
-                <div className="text-xs text-zinc-500">{s.fromEmail} via {s.host}:{s.port}</div>
+                <div className="text-xs text-white/40">{s.fromEmail} via {s.host}:{s.port}</div>
               </div>
               <div className="flex items-center gap-4">
                 <button className="btn-ghost" onClick={() => setEditing(s)}>Edit</button>

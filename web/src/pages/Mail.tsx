@@ -138,31 +138,31 @@ export default function MailPage() {
           </div>
           <div className="card flex-1 overflow-y-auto" onScroll={handleScroll}>
             {emails.length === 0 && !loading ? (
-              <div className="p-8 text-center text-zinc-500">No messages.</div>
+              <div className="p-8 text-center text-white/40">No messages.</div>
             ) : (
-              <div className="divide-y divide-zinc-800">
+              <div className="divide-y divide-white/[0.04]">
                 {emails.map((e) => (
                   <button
                     key={e.id}
-                    className={`flex w-full flex-col p-3 text-left hover:bg-zinc-900 transition-colors ${open?.id === e.id ? "bg-zinc-800" : ""}`}
+                    className={`flex w-full flex-col p-3 text-left hover:bg-white/[0.04] transition-colors ${open?.id === e.id ? "bg-white/[0.06]" : ""}`}
                     onClick={() => openEmail(e)}
                   >
                     <div className="flex items-center justify-between w-full mb-1">
                       <div className="flex items-center gap-2 overflow-hidden">
                         {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />}
-                        <span className={`truncate ${e.read ? "text-zinc-400" : "font-semibold"}`}>{e.from || "(unknown)"}</span>
+                        <span className={`truncate ${e.read ? "text-white/55" : "font-semibold"}`}>{e.from || "(unknown)"}</span>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0 ml-2">
                         <AuthBadges spf={e.authSpf} dkim={e.authDkim} dmarc={e.authDmarc} compact />
-                        <span className="text-xs text-zinc-500">{timeAgo(e.receivedAt)}</span>
+                        <span className="text-xs text-white/40">{timeAgo(e.receivedAt)}</span>
                       </div>
                     </div>
-                    <div className={`truncate text-xs ${e.read ? "text-zinc-500" : "text-zinc-300"}`}>
+                    <div className={`truncate text-xs ${e.read ? "text-white/40" : "text-white/75"}`}>
                       {e.subject || "(no subject)"}
                     </div>
                   </button>
                 ))}
-                {loading && <div className="p-3 text-center text-xs text-zinc-500">Loading…</div>}
+                {loading && <div className="p-3 text-center text-xs text-white/40">Loading…</div>}
               </div>
             )}
           </div>
@@ -184,7 +184,7 @@ export default function MailPage() {
               }}
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-zinc-500/50">
+            <div className="flex h-full items-center justify-center text-white/40/50">
               Select an email to view details
             </div>
           )}
@@ -245,13 +245,13 @@ function EmailViewForm({
   const attachments = parseAttachments(email.attachments);
   return (
     <div className="card flex flex-col h-full max-h-full min-h-0">
-      <div className="p-5 border-b border-zinc-800 flex justify-between items-start shrink-0">
+      <div className="p-5 border-b border-white/[0.06] flex justify-between items-start shrink-0">
          <div>
            <h2 className="text-xl font-semibold mb-2">{email.subject || "(no subject)"}</h2>
-           <div className="text-sm text-zinc-400">
-             <div><span className="text-zinc-500">From:</span> {email.from}</div>
-             <div><span className="text-zinc-500">To:</span> {email.to}</div>
-             <div className="text-xs text-zinc-600 mt-1">{new Date(email.receivedAt).toLocaleString()}</div>
+           <div className="text-sm text-white/55">
+             <div><span className="text-white/40">From:</span> {email.from}</div>
+             <div><span className="text-white/40">To:</span> {email.to}</div>
+             <div className="text-xs text-white/30 mt-1">{new Date(email.receivedAt).toLocaleString()}</div>
              <div className="mt-2 flex gap-1.5">
                <AuthBadges spf={email.authSpf} dkim={email.authDkim} dmarc={email.authDmarc} />
              </div>
@@ -266,15 +266,15 @@ function EmailViewForm({
         {email.html ? (
           <iframe srcDoc={email.html} className="min-h-[400px] h-full w-full bg-white rounded" sandbox="" title="email" />
         ) : (
-          <pre className="whitespace-pre-wrap break-words font-sans text-sm text-zinc-300">{email.text}</pre>
+          <pre className="whitespace-pre-wrap break-words font-sans text-sm text-white/75">{email.text}</pre>
         )}
       </div>
       
-      <div className="p-5 border-t border-zinc-800 shrink-0 bg-zinc-900/30">
+      <div className="p-5 border-t border-white/[0.06] shrink-0 bg-white/[0.02]">
         {attachments.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-2">
             {attachments.map((a, i) => (
-              <span key={i} className="badge bg-zinc-800 text-zinc-300" title={`${a.contentType} · ${a.size} bytes`}>
+              <span key={i} className="badge bg-white/[0.06] text-white/75" title={`${a.contentType} · ${a.size} bytes`}>
                 📎 {a.filename || "attachment"} ({Math.max(1, Math.round(a.size / 1024))} KB)
               </span>
             ))}
@@ -382,7 +382,7 @@ function MailboxEditor({
               placeholder="hi"
               autoFocus
             />
-            <span className="text-zinc-500">@</span>
+            <span className="text-white/40">@</span>
             <select className="input w-full" value={domain} onChange={(e) => setDomain(e.target.value)}>
               {hosts.map((h) => (
                 <option key={h} value={h}>
@@ -396,7 +396,7 @@ function MailboxEditor({
       <Field label="Note">
         <textarea className="input w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
-      <label className="mb-4 flex items-center gap-2 text-sm text-zinc-400">
+      <label className="mb-4 flex items-center gap-2 text-sm text-white/55">
         <Toggle on={enabled} onChange={setEnabled} /> Enabled
       </label>
       {box && (

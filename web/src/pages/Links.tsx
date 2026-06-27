@@ -94,14 +94,14 @@ export default function LinksPage() {
           </div>
           <div className="card flex-1 overflow-y-auto" onScroll={handleScroll}>
             {links.length === 0 && !loading ? (
-              <div className="p-8 text-center text-zinc-500">No links found.</div>
+              <div className="p-8 text-center text-white/40">No links found.</div>
             ) : (
-              <div className="divide-y divide-zinc-800">
+              <div className="divide-y divide-white/[0.04]">
                 {links.map((l) => (
                   <button
                     key={l.id}
-                    className={`flex w-full flex-col p-3 text-left hover:bg-zinc-900 transition-colors ${
-                      active !== "new" && active?.id === l.id ? "bg-zinc-800" : ""
+                    className={`flex w-full flex-col p-3 text-left hover:bg-white/[0.04] transition-colors ${
+                      active !== "new" && active?.id === l.id ? "bg-white/[0.06]" : ""
                     }`}
                     onClick={() => setActive(l)}
                   >
@@ -109,12 +109,12 @@ export default function LinksPage() {
                       <span className="font-medium text-indigo-300 truncate flex-1">
                         /{l.slug}
                       </span>
-                      <span className="text-xs text-zinc-500 shrink-0">{l.clicks} clicks</span>
+                      <span className="text-xs text-white/40 shrink-0">{l.clicks} clicks</span>
                     </div>
-                    <div className="truncate text-xs text-zinc-400 mt-1">{l.target}</div>
+                    <div className="truncate text-xs text-white/55 mt-1">{l.target}</div>
                   </button>
                 ))}
-                {loading && <div className="p-3 text-center text-xs text-zinc-500">Loading…</div>}
+                {loading && <div className="p-3 text-center text-xs text-white/40">Loading…</div>}
               </div>
             )}
           </div>
@@ -176,7 +176,7 @@ export default function LinksPage() {
                 <StatsView link={active} />
                 
                 <div className="card p-5 flex flex-col items-center gap-3">
-                  <h3 className="text-sm font-semibold text-zinc-400 self-start">QR Code</h3>
+                  <h3 className="text-sm font-semibold text-white/55 self-start">QR Code</h3>
                   <img
                     src={`/api/links/${active.id}/qr`}
                     alt="QR"
@@ -190,7 +190,7 @@ export default function LinksPage() {
                 </div>
              </div>
           ) : (
-            <div className="flex h-full items-center justify-center text-zinc-500/50">
+            <div className="flex h-full items-center justify-center text-white/40/50">
               Select a link to view details
             </div>
           )}
@@ -210,10 +210,10 @@ export function Header({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="mb-5 flex items-end justify-between shrink-0">
+    <div className="mb-6 flex flex-wrap items-start justify-between gap-4 shrink-0">
       <div>
-        <h1 className="text-2xl font-bold">{title}</h1>
-        {subtitle && <p className="text-sm text-zinc-500">{subtitle}</p>}
+        <h1 className="font-display text-2xl font-bold tracking-tight text-white">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm text-white/50">{subtitle}</p>}
       </div>
       {children}
     </div>
@@ -361,12 +361,12 @@ function LinkEditorForm({
 
       <div className="flex items-center gap-2 pt-2">
         <Toggle on={enabled} onChange={setEnabled} />
-        <span className="text-sm text-zinc-400">Enabled</span>
+        <span className="text-sm text-white/55">Enabled</span>
       </div>
 
       {err && <p className="text-sm text-red-400">{err}</p>}
 
-      <div className="flex justify-end gap-2 pt-4 border-t border-zinc-800">
+      <div className="flex justify-end gap-2 pt-4 border-t border-white/[0.06]">
         <button className="btn-ghost" onClick={onCancel}>
           Cancel
         </button>
@@ -410,7 +410,7 @@ function UtmBuilder({ target, onApply }: { target: string; onApply: (url: string
     ["content", "content"],
   ];
   return (
-    <div className="card grid grid-cols-2 gap-2 p-3 bg-zinc-950/30">
+    <div className="card grid grid-cols-2 gap-2 p-3 bg-[#07070b]/30">
       {fields.map(([k, label]) => (
         <input
           key={k}
@@ -434,11 +434,11 @@ function StatsView({ link }: { link: Link }) {
     api.linkStats(link.id).then(setStats);
   }, [link.id]);
   
-  if (!stats) return <div className="card p-5 text-zinc-500">Loading stats…</div>;
+  if (!stats) return <div className="card p-5 text-white/40">Loading stats…</div>;
   
   return (
     <div className="card p-5 space-y-4">
-      <h3 className="text-sm font-semibold text-zinc-400">Analytics</h3>
+      <h3 className="text-sm font-semibold text-white/55">Analytics</h3>
       <div className="grid grid-cols-3 gap-3">
         <Stat label="Total clicks" value={stats.total} />
         <Stat label={`Last ${stats.days}d`} value={stats.windowed} />
@@ -458,18 +458,18 @@ function StatsView({ link }: { link: Link }) {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded bg-zinc-900 border border-zinc-800 p-3">
-      <div className="text-xl font-bold text-zinc-200">{value}</div>
-      <div className="text-xs text-zinc-500">{label}</div>
+    <div className="rounded bg-white/[0.04] border border-white/[0.06] p-3">
+      <div className="text-xl font-bold text-white/80">{value}</div>
+      <div className="text-xs text-white/40">{label}</div>
     </div>
   );
 }
 
 function Spark({ series }: { series: { key: string; count: number }[] }) {
-  if (!series || !series.length) return <p className="text-sm text-zinc-500">No clicks in window.</p>;
+  if (!series || !series.length) return <p className="text-sm text-white/40">No clicks in window.</p>;
   const max = Math.max(...series.map((s) => s.count), 1);
   return (
-    <div className="rounded bg-zinc-900 border border-zinc-800 flex h-28 items-end gap-1 p-3">
+    <div className="rounded bg-white/[0.04] border border-white/[0.06] flex h-28 items-end gap-1 p-3">
       {series.map((s) => (
         <div
           key={s.key}
@@ -485,15 +485,15 @@ function Spark({ series }: { series: { key: string; count: number }[] }) {
 function TopList({ title, rows }: { title: string; rows: { key: string; count: number }[] | null }) {
   return (
     <div>
-      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">{title}</div>
+      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-white/40">{title}</div>
       {!rows || rows.length === 0 ? (
-        <p className="text-sm text-zinc-600">—</p>
+        <p className="text-sm text-white/30">—</p>
       ) : (
         <div className="space-y-1">
           {rows.map((r) => (
             <div key={r.key} className="flex justify-between text-sm">
-              <span className="truncate text-zinc-300 mr-2">{r.key || "(direct)"}</span>
-              <span className="text-zinc-500">{r.count}</span>
+              <span className="truncate text-white/75 mr-2">{r.key || "(direct)"}</span>
+              <span className="text-white/40">{r.count}</span>
             </div>
           ))}
         </div>

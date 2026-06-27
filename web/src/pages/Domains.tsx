@@ -101,14 +101,14 @@ export default function DomainsPage() {
           </div>
           <div className="card flex-1 overflow-y-auto" onScroll={handleScroll}>
             {domains.length === 0 && !loading ? (
-              <div className="p-8 text-center text-zinc-500">No domains found.</div>
+              <div className="p-8 text-center text-white/40">No domains found.</div>
             ) : (
-              <div className="divide-y divide-zinc-800">
+              <div className="divide-y divide-white/[0.04]">
                 {domains.map((d) => (
                   <div
                     key={d.id}
-                    className={`flex w-full flex-col p-3 text-left hover:bg-zinc-900 transition-colors cursor-pointer ${
-                      active !== "new" && active?.id === d.id ? "bg-zinc-800" : ""
+                    className={`flex w-full flex-col p-3 text-left hover:bg-white/[0.04] transition-colors cursor-pointer ${
+                      active !== "new" && active?.id === d.id ? "bg-white/[0.06]" : ""
                     }`}
                     onClick={() => setActive(d)}
                   >
@@ -116,25 +116,25 @@ export default function DomainsPage() {
                       <span className="font-medium truncate flex-1">{d.name}</span>
                       <div className="flex gap-1.5 shrink-0">
                         <button
-                          className="p-1 hover:bg-zinc-700 rounded transition-colors cursor-pointer"
+                          className="p-1 hover:bg-white/10 rounded transition-colors cursor-pointer"
                           title="Toggle Link routing"
                           onClick={(e) => { e.stopPropagation(); toggleService(d, "forLink"); }}
                         >
-                          <span className={`text-xs ${d.forLink ? "text-indigo-300" : "text-zinc-600 grayscale opacity-50"}`}>🔗</span>
+                          <span className={`text-xs ${d.forLink ? "text-indigo-300" : "text-white/30 grayscale opacity-50"}`}>🔗</span>
                         </button>
                         <button
-                          className="p-1 hover:bg-zinc-700 rounded transition-colors cursor-pointer"
+                          className="p-1 hover:bg-white/10 rounded transition-colors cursor-pointer"
                           title="Toggle Mail routing"
                           onClick={(e) => { e.stopPropagation(); toggleService(d, "forMail"); }}
                         >
-                          <span className={`text-xs ${d.forMail ? "text-emerald-300" : "text-zinc-600 grayscale opacity-50"}`}>✉️</span>
+                          <span className={`text-xs ${d.forMail ? "text-emerald-300" : "text-white/30 grayscale opacity-50"}`}>✉️</span>
                         </button>
                       </div>
                     </div>
                     {d.note && <div className="truncate text-xs text-amber-300/70 mt-1">📝 {d.note}</div>}
                   </div>
                 ))}
-                {loading && <div className="p-3 text-center text-xs text-zinc-500">Loading…</div>}
+                {loading && <div className="p-3 text-center text-xs text-white/40">Loading…</div>}
               </div>
             )}
           </div>
@@ -158,7 +158,7 @@ export default function DomainsPage() {
           ) : active ? (
              <div className="space-y-4">
                 <div className="card p-5">
-                  <div className="flex justify-between mb-4 border-b border-zinc-800 pb-4">
+                  <div className="flex justify-between mb-4 border-b border-white/[0.06] pb-4">
                      <h2 className="text-xl font-semibold">{active.name}</h2>
                      <button
                        className="btn-danger text-sm px-2"
@@ -187,7 +187,7 @@ export default function DomainsPage() {
                 </div>
                 
                 <div className="card p-5">
-                  <h3 className="mb-4 text-lg font-semibold text-zinc-300">Managed Hosts</h3>
+                  <h3 className="mb-4 text-lg font-semibold text-white/75">Managed Hosts</h3>
                   <DomainHostManager
                     domain={active}
                     onReload={async () => {
@@ -200,12 +200,12 @@ export default function DomainsPage() {
                 </div>
 
                 <div className="card p-5">
-                  <h3 className="mb-4 text-lg font-semibold text-zinc-300">DNS Records</h3>
+                  <h3 className="mb-4 text-lg font-semibold text-white/75">DNS Records</h3>
                   <RecordsView domain={active} />
                 </div>
              </div>
           ) : (
-            <div className="flex h-full items-center justify-center text-zinc-500/50">
+            <div className="flex h-full items-center justify-center text-white/40/50">
               Select a domain to view details
             </div>
           )}
@@ -281,7 +281,7 @@ function DomainEditorForm({ domain, accounts, onClose, onCancel, onSaved }: { do
         </>
       )}
       {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
-      <div className="flex justify-end gap-2 pt-4 border-t border-zinc-800">
+      <div className="flex justify-end gap-2 pt-4 border-t border-white/[0.06]">
         {onCancel && (
           <button className="btn-ghost" onClick={onCancel}>Cancel</button>
         )}
@@ -345,23 +345,23 @@ function DomainHostManager({ domain, onReload }: { domain: Domain; onReload: () 
   }
 
   return (
-    <div className="bg-zinc-950/30 rounded p-4 border border-zinc-800">
+    <div className="bg-[#07070b]/30 rounded p-4 border border-white/[0.06]">
       {hosts.length === 0 ? (
-        <p className="text-sm text-zinc-600 mb-4">No hosts — add one below.</p>
+        <p className="text-sm text-white/30 mb-4">No hosts — add one below.</p>
       ) : (
         <table className="w-full text-sm mb-5">
           <thead>
-            <tr className="text-left text-xs text-zinc-500 border-b border-zinc-800">
+            <tr className="text-left text-xs text-white/40 border-b border-white/[0.06]">
               <th className="py-2 pr-4 font-normal">Host</th>
               <th className="py-2 pr-4 font-normal text-indigo-400">🔗 Link</th>
               <th className="py-2 pr-4 font-normal text-emerald-400">✉️ Mail</th>
               <th className="py-2 font-normal" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800/40">
+          <tbody className="divide-y divide-white/[0.04]/40">
             {hosts.map((h) => (
               <tr key={h.host} className="group">
-                <td className="py-2 pr-4 font-mono text-xs text-zinc-300">{h.host}</td>
+                <td className="py-2 pr-4 font-mono text-xs text-white/75">{h.host}</td>
                 <td className="py-2 pr-4">
                   {h.linkEnabled !== null ? (
                     <button
@@ -370,17 +370,17 @@ function DomainHostManager({ domain, onReload }: { domain: Domain; onReload: () 
                       className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs transition-colors cursor-pointer disabled:opacity-50 ${
                         h.linkEnabled
                           ? "bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30"
-                          : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700 line-through"
+                          : "bg-white/[0.06] text-white/40 hover:bg-white/10 line-through"
                       }`}
                     >
-                      <span className={`h-1.5 w-1.5 rounded-full ${h.linkEnabled ? "bg-indigo-400" : "bg-zinc-600"}`} />
+                      <span className={`h-1.5 w-1.5 rounded-full ${h.linkEnabled ? "bg-indigo-400" : "bg-white/[0.06]"}`} />
                       {h.linkEnabled ? "on" : "off"}
                     </button>
                   ) : (
                     <button
                       disabled={!!busy}
                       onClick={() => addHost(h.host, true, false)}
-                      className="text-xs text-zinc-600 hover:text-indigo-400 transition-colors px-2 py-0.5 cursor-pointer disabled:opacity-50"
+                      className="text-xs text-white/30 hover:text-indigo-400 transition-colors px-2 py-0.5 cursor-pointer disabled:opacity-50"
                     >
                       + add
                     </button>
@@ -394,17 +394,17 @@ function DomainHostManager({ domain, onReload }: { domain: Domain; onReload: () 
                       className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs transition-colors cursor-pointer disabled:opacity-50 ${
                         h.mailEnabled
                           ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30"
-                          : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700 line-through"
+                          : "bg-white/[0.06] text-white/40 hover:bg-white/10 line-through"
                       }`}
                     >
-                      <span className={`h-1.5 w-1.5 rounded-full ${h.mailEnabled ? "bg-emerald-400" : "bg-zinc-600"}`} />
+                      <span className={`h-1.5 w-1.5 rounded-full ${h.mailEnabled ? "bg-emerald-400" : "bg-white/[0.06]"}`} />
                       {h.mailEnabled ? "on" : "off"}
                     </button>
                   ) : (
                     <button
                       disabled={!!busy}
                       onClick={() => addHost(h.host, false, true)}
-                      className="text-xs text-zinc-600 hover:text-emerald-400 transition-colors px-2 py-0.5 cursor-pointer disabled:opacity-50"
+                      className="text-xs text-white/30 hover:text-emerald-400 transition-colors px-2 py-0.5 cursor-pointer disabled:opacity-50"
                     >
                       + add
                     </button>
@@ -415,7 +415,7 @@ function DomainHostManager({ domain, onReload }: { domain: Domain; onReload: () 
                     disabled={!!busy}
                     onClick={() => removeHost(h.host)}
                     title="Remove host"
-                    className="text-xs text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer disabled:opacity-30"
+                    className="text-xs text-white/30 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer disabled:opacity-30"
                   >
                     ✕
                   </button>
@@ -463,7 +463,7 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
   }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap bg-zinc-900/50 p-2 rounded">
+    <div className="flex items-center gap-2 flex-wrap bg-white/[0.03] p-2 rounded">
       <div className="relative flex-1 min-w-32">
         <input
           className="input h-8 text-sm py-1 w-full"
@@ -473,16 +473,16 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
           onKeyDown={(e) => e.key === "Enter" && submit()}
         />
         {draft && !draft.includes(".") && (
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-zinc-500">
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-white/40">
             → {draft.trim().toLowerCase()}.{domain.name}
           </span>
         )}
       </div>
-      <label className="flex items-center gap-1.5 text-sm text-zinc-400 cursor-pointer select-none">
+      <label className="flex items-center gap-1.5 text-sm text-white/55 cursor-pointer select-none">
         <input type="checkbox" checked={forLink} onChange={(e) => setForLink(e.target.checked)} className="accent-indigo-500" />
         🔗 Link
       </label>
-      <label className="flex items-center gap-1.5 text-sm text-zinc-400 cursor-pointer select-none">
+      <label className="flex items-center gap-1.5 text-sm text-white/55 cursor-pointer select-none">
         <input type="checkbox" checked={forMail} onChange={(e) => setForMail(e.target.checked)} className="accent-emerald-500" />
         ✉️ Mail
       </label>
@@ -497,7 +497,7 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
               type="button"
               disabled={busy}
               onClick={() => { setDraft(s); }}
-              className="text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-800 hover:border-zinc-600 rounded px-2 py-0.5 transition-colors cursor-pointer"
+              className="text-xs text-white/40 hover:text-white/75 border border-white/[0.06] hover:border-white/15 rounded px-2 py-0.5 transition-colors cursor-pointer"
             >
               {s}
             </button>
@@ -527,18 +527,18 @@ function SyncModal({ accounts, onClose, onSynced }: { accounts: ProviderAccount[
       {result ? (
         <div className="py-4 text-center">
           <p className="mb-2 text-2xl">✅</p>
-          <p className="text-zinc-300">{result.total} zones — <span className="text-green-400">{result.created} new</span>, <span className="text-indigo-300">{result.updated} updated</span>.</p>
-          <p className="mt-2 text-xs text-zinc-500">Use the 🔗 Link / ✉️ Mail toggles on each domain row to enable services.</p>
+          <p className="text-white/75">{result.total} zones — <span className="text-green-400">{result.created} new</span>, <span className="text-indigo-300">{result.updated} updated</span>.</p>
+          <p className="mt-2 text-xs text-white/40">Use the 🔗 Link / ✉️ Mail toggles on each domain row to enable services.</p>
           <button className="btn-primary mt-4" onClick={onSynced}>Done</button>
         </div>
       ) : accounts.length === 0 ? (
-        <div className="py-4 text-center text-zinc-400">
+        <div className="py-4 text-center text-white/55">
           <p>You need to create a Provider Account first.</p>
           <p className="mt-2 text-xs">Go to Settings to configure your DNS provider.</p>
         </div>
       ) : (
         <>
-          <p className="mb-3 text-sm text-zinc-400">Sync all domains from a provider account.</p>
+          <p className="mb-3 text-sm text-white/55">Sync all domains from a provider account.</p>
           <Field label="Provider Account">
             <select className="input w-full" value={accountId} onChange={e => setAccountId(Number(e.target.value))}>
               <option value={0}>Select account...</option>
@@ -594,15 +594,15 @@ function RecordsView({ domain }: { domain: Domain }) {
         <button className="btn-primary shrink-0" onClick={() => setEditing("new")}>+ Record</button>
       </div>
       
-      <p className="text-xs text-zinc-500">Notes map to the provider's native record comment · {filtered.length}/{records?.length ?? 0} shown</p>
+      <p className="text-xs text-white/40">Notes map to the provider's native record comment · {filtered.length}/{records?.length ?? 0} shown</p>
       
       {err && <p className="rounded bg-red-500/10 p-3 text-sm text-red-400">{err}</p>}
       
-      {records === null ? (<p className="text-zinc-500 p-4 text-center">loading…</p>) : filtered.length === 0 ? (<p className="text-zinc-500 p-4 text-center">No matching records.</p>) : (
-        <div className="bg-zinc-950/30 rounded border border-zinc-800">
+      {records === null ? (<p className="text-white/40 p-4 text-center">loading…</p>) : filtered.length === 0 ? (<p className="text-white/40 p-4 text-center">No matching records.</p>) : (
+        <div className="bg-[#07070b]/30 rounded border border-white/[0.06]">
           <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-zinc-500">
-              <tr className="border-b border-zinc-800">
+            <thead className="text-left text-xs uppercase text-white/40">
+              <tr className="border-b border-white/[0.06]">
                 <th className="py-2 pl-3">Type</th>
                 <th className="py-2">Name</th>
                 <th className="py-2">Content</th>
@@ -610,12 +610,12 @@ function RecordsView({ domain }: { domain: Domain }) {
                 <th className="py-2 pr-3"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/40">
+            <tbody className="divide-y divide-white/[0.04]/40">
               {filtered.map((r) => (
-                <tr key={r.id} className="hover:bg-zinc-900/50 transition-colors">
+                <tr key={r.id} className="hover:bg-white/[0.03] transition-colors">
                   <td className="py-2 pl-3"><span className="badge">{r.type}</span>{r.proxied && <span className="ml-1 text-orange-400" title="proxied">☁</span>}</td>
                   <td className="max-w-[120px] truncate">{r.name}</td>
-                  <td className="max-w-[160px] truncate text-zinc-400">{r.content}</td>
+                  <td className="max-w-[160px] truncate text-white/55">{r.content}</td>
                   <td className="max-w-[120px] truncate text-amber-300/80">{r.comment}</td>
                   <td className="text-right pr-3">
                     <button className="btn-ghost px-2 text-xs" onClick={() => setEditing(r)}>Edit</button>
@@ -684,7 +684,7 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
         {needsPriority && (<Field label="Priority"><input type="number" min={0} className="input w-full" value={priority} onChange={(e) => setPriority(Number(e.target.value))} /></Field>)}
       </div>
       <Field label="Note (comment)"><input className="input w-full" value={comment} onChange={(e) => setComment(e.target.value)} /></Field>
-      {canProxy && (<label className="mb-4 flex items-center gap-2 text-sm text-zinc-400"><Toggle on={proxied} onChange={setProxied} /> Proxied (Cloudflare)</label>)}
+      {canProxy && (<label className="mb-4 flex items-center gap-2 text-sm text-white/55"><Toggle on={proxied} onChange={setProxied} /> Proxied (Cloudflare)</label>)}
       {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
       <div className="flex justify-end gap-2">
         <button className="btn-ghost" onClick={onClose}>Cancel</button>

@@ -18,13 +18,13 @@ export default function AuditLogPage() {
       <Header title="Audit Log" subtitle="History of administrative actions" />
 
       {loading ? (
-        <div className="text-zinc-500 py-10 text-center">loading…</div>
+        <div className="text-white/40 py-10 text-center">loading…</div>
       ) : logs.length === 0 ? (
-        <div className="card p-8 text-center text-zinc-500">No audit logs found.</div>
+        <div className="card p-8 text-center text-white/40">No audit logs found.</div>
       ) : (
         <div className="card overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-zinc-800 text-zinc-400">
+            <thead className="border-b border-white/[0.06] text-white/55">
               <tr>
                 <th className="px-4 py-3 font-medium">Time</th>
                 <th className="px-4 py-3 font-medium">Actor</th>
@@ -34,25 +34,25 @@ export default function AuditLogPage() {
                 <th className="px-4 py-3 font-medium">Meta</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/50">
+            <tbody className="divide-y divide-white/[0.04]/50">
               {logs.map((l) => (
-                <tr key={l.id} className="hover:bg-zinc-800/20">
-                  <td className="whitespace-nowrap px-4 py-3 text-zinc-400" title={l.createdAt}>
+                <tr key={l.id} className="hover:bg-white/[0.06]/20">
+                  <td className="whitespace-nowrap px-4 py-3 text-white/55" title={l.createdAt}>
                     {timeAgo(l.createdAt)}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
-                    {l.actorId === 0 ? <span className="text-zinc-500">system/token</span> : `User ${l.actorId}`}
+                    {l.actorId === 0 ? <span className="text-white/40">system/token</span> : `User ${l.actorId}`}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 font-medium text-indigo-300">
                     {l.action}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
-                    {l.targetType} <span className="text-zinc-500">#{l.targetId}</span>
+                    {l.targetType} <span className="text-white/40">#{l.targetId}</span>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-zinc-400">
+                  <td className="whitespace-nowrap px-4 py-3 text-white/55">
                     {l.ip}
                   </td>
-                  <td className="px-4 py-3 text-xs text-zinc-500 font-mono break-all max-w-xs">
+                  <td className="px-4 py-3 text-xs text-white/40 font-mono break-all max-w-xs">
                     {l.meta}
                   </td>
                 </tr>

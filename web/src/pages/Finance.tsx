@@ -15,7 +15,7 @@ function daysUntil(iso: string | null): number | null {
 
 function RenewalBadge({ nextRenewal }: { nextRenewal: string | null }) {
   const days = daysUntil(nextRenewal);
-  if (days === null) return <span className="text-zinc-600 text-xs">—</span>;
+  if (days === null) return <span className="text-white/30 text-xs">—</span>;
   const date = new Date(nextRenewal!).toLocaleDateString();
   const urgent = days <= 7;
   const soon = days <= 14;
@@ -23,7 +23,7 @@ function RenewalBadge({ nextRenewal }: { nextRenewal: string | null }) {
     <span className={`text-xs px-2 py-0.5 rounded-full ${
       urgent ? "bg-red-500/20 text-red-400" :
       soon   ? "bg-yellow-500/20 text-yellow-400" :
-               "bg-zinc-800 text-zinc-400"
+               "bg-white/[0.06] text-white/55"
     }`}>
       {date} ({days}d)
     </span>
@@ -56,7 +56,7 @@ export default function FinancePage() {
           <h2 className="text-xl font-bold mb-1">
             {error.status === 402 ? "Pro Feature Locked" : "Feature Unavailable"}
           </h2>
-          <p className="text-sm text-zinc-400 max-w-md mx-auto">
+          <p className="text-sm text-white/55 max-w-md mx-auto">
             {error.status === 402
               ? "A valid led-pro license is required to use Finance features."
               : "The Finance tracking feature is not available or disabled in this installation."}
@@ -91,8 +91,8 @@ export default function FinancePage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Finance</h1>
-          <p className="text-sm text-zinc-400">Track recurring SaaS spend and renewal dates.</p>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-white">Finance</h1>
+          <p className="text-sm text-white/55">Track recurring SaaS spend and renewal dates.</p>
         </div>
         <button className="btn-primary" onClick={() => setShowAdd(true)}>+ Add Subscription</button>
       </div>
@@ -101,23 +101,23 @@ export default function FinancePage() {
       {summary && currencies.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="card p-4">
-            <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Active</div>
+            <div className="text-xs text-white/40 uppercase tracking-wider mb-1">Active</div>
             <div className="text-2xl font-bold">{summary.count}</div>
-            <div className="text-xs text-zinc-500">subscriptions</div>
+            <div className="text-xs text-white/40">subscriptions</div>
           </div>
           {currencies.map((cur) => (
             <div key={cur} className="card p-4">
-              <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Monthly · {cur}</div>
+              <div className="text-xs text-white/40 uppercase tracking-wider mb-1">Monthly · {cur}</div>
               <div className="text-2xl font-bold">{fmtCost(summary.monthlyByCurrency[cur], cur)}</div>
-              <div className="text-xs text-zinc-500">{fmtCost(summary.yearlyByCurrency[cur], cur)} / yr</div>
+              <div className="text-xs text-white/40">{fmtCost(summary.yearlyByCurrency[cur], cur)} / yr</div>
             </div>
           ))}
           <div className="card p-4">
-            <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Renewing Soon</div>
+            <div className="text-xs text-white/40 uppercase tracking-wider mb-1">Renewing Soon</div>
             <div className={`text-2xl font-bold ${summary.renewingSoon.length > 0 ? "text-yellow-400" : ""}`}>
               {summary.renewingSoon.length}
             </div>
-            <div className="text-xs text-zinc-500">within 14 days</div>
+            <div className="text-xs text-white/40">within 14 days</div>
           </div>
         </div>
       )}
@@ -133,7 +133,7 @@ export default function FinancePage() {
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-800 text-left text-xs text-zinc-500 uppercase tracking-wider">
+              <tr className="border-b border-white/[0.06] text-left text-xs text-white/40 uppercase tracking-wider">
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Vendor</th>
                 <th className="px-4 py-3 text-right">Cost</th>
@@ -143,16 +143,16 @@ export default function FinancePage() {
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/60">
+            <tbody className="divide-y divide-white/[0.04]/60">
               {subs.map((sub) => (
-                <tr key={sub.id} className={`hover:bg-zinc-800/30 transition-colors ${!sub.enabled ? "opacity-50" : ""}`}>
+                <tr key={sub.id} className={`hover:bg-white/[0.04] transition-colors ${!sub.enabled ? "opacity-50" : ""}`}>
                   <td className="px-4 py-3 font-medium">
                     {sub.name}
-                    {sub.note && <div className="text-xs text-zinc-500 truncate max-w-[12rem]">{sub.note}</div>}
+                    {sub.note && <div className="text-xs text-white/40 truncate max-w-[12rem]">{sub.note}</div>}
                   </td>
-                  <td className="px-4 py-3 text-zinc-400">{sub.vendor || "—"}</td>
+                  <td className="px-4 py-3 text-white/55">{sub.vendor || "—"}</td>
                   <td className="px-4 py-3 text-right font-mono">{fmtCost(sub.cost, sub.currency)}</td>
-                  <td className="px-4 py-3 text-zinc-400 capitalize">{sub.cycle}</td>
+                  <td className="px-4 py-3 text-white/55 capitalize">{sub.cycle}</td>
                   <td className="px-4 py-3"><RenewalBadge nextRenewal={sub.nextRenewal} /></td>
                   <td className="px-4 py-3 text-center">
                     <Toggle on={sub.enabled} onChange={() => toggleEnabled(sub)} />
@@ -270,7 +270,7 @@ function SubModal({ sub, onClose, onSaved }: { sub: Subscription | null; onClose
         </Field>
         <div className="flex items-center gap-3 mb-4">
           <Toggle on={enabled} onChange={setEnabled} />
-          <span className="text-sm text-zinc-400">Active</span>
+          <span className="text-sm text-white/55">Active</span>
         </div>
         {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
         <div className="flex justify-end gap-2 mt-4">

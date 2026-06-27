@@ -13,7 +13,7 @@ export default function OverviewPage() {
     api.overview(includeBot).then(setO).catch(() => {});
   }, [includeBot]);
 
-  if (!o) return <div className="grid h-64 place-items-center text-zinc-500">loading…</div>;
+  if (!o) return <div className="grid h-64 place-items-center text-white/40">loading…</div>;
 
   const botLabel = includeBot
     ? `incl. ${o.botClicks30d} bot`
@@ -30,11 +30,11 @@ export default function OverviewPage() {
         <Card label="Domains" value={o.domains} sub={`${o.linkDomains} link · ${o.mailDomains} mail`} onClick={() => nav("/domains")} />
       </div>
 
-      <div className="mb-5 card p-4">
+      <div className="mb-5 glass rounded-2xl p-4">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <h3 className="font-semibold">Clicks · last 30 days</h3>
+          <h3 className="font-display font-semibold text-white">Clicks · last 30 days</h3>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-zinc-500">{o.clicks30d} total · {botLabel}</span>
+            <span className="text-sm text-white/40">{o.clicks30d} total · {botLabel}</span>
             <BotToggle value={includeBot} onChange={setIncludeBot} />
           </div>
         </div>
@@ -44,18 +44,18 @@ export default function OverviewPage() {
       <div className="grid gap-5 lg:grid-cols-3">
         <Panel title="Top links">
           {!o.topLinks || o.topLinks.length === 0 ? (
-            <p className="text-sm text-zinc-600">No links yet</p>
+            <p className="text-sm text-white/30">No links yet</p>
           ) : (
             <div className="space-y-2">
               {o.topLinks.map((l) => (
                 <button
                   key={l.id}
                   onClick={() => nav("/links")}
-                  className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-zinc-800"
+                  className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/[0.06]"
                 >
                   <span className="truncate text-indigo-300">
                     /{l.slug}
-                    {l.host && <span className="text-zinc-500"> @{l.host}</span>}
+                    {l.host && <span className="text-white/40"> @{l.host}</span>}
                   </span>
                   <span className="shrink-0 font-semibold">{l.clicks}</span>
                 </button>
@@ -76,21 +76,21 @@ export default function OverviewPage() {
       <div className="mt-5">
         <Panel title="Recent mail">
           {!o.recentEmails || o.recentEmails.length === 0 ? (
-            <p className="text-sm text-zinc-600">No mail yet</p>
+            <p className="text-sm text-white/30">No mail yet</p>
           ) : (
-            <div className="divide-y divide-zinc-800">
+            <div className="divide-y divide-white/[0.04]">
               {o.recentEmails.map((e) => (
                 <button
                   key={e.id}
                   onClick={() => nav("/mail")}
-                  className="flex w-full items-center gap-3 px-2 py-2 text-left hover:bg-zinc-800"
+                  className="flex w-full items-center gap-3 px-2 py-2 text-left hover:bg-white/[0.06]"
                 >
                   {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />}
-                  <span className={`w-40 shrink-0 truncate text-sm ${e.read ? "text-zinc-400" : "font-semibold"}`}>
+                  <span className={`w-40 shrink-0 truncate text-sm ${e.read ? "text-white/55" : "font-semibold"}`}>
                     {e.from || "(unknown)"}
                   </span>
-                  <span className="flex-1 truncate text-sm text-zinc-400">{e.subject || "(no subject)"}</span>
-                  <span className="shrink-0 text-xs text-zinc-500">{timeAgo(e.receivedAt)}</span>
+                  <span className="flex-1 truncate text-sm text-white/55">{e.subject || "(no subject)"}</span>
+                  <span className="shrink-0 text-xs text-white/40">{timeAgo(e.receivedAt)}</span>
                 </button>
               ))}
             </div>
@@ -109,7 +109,7 @@ function BotToggle({ value, onChange }: { value: boolean; onChange: (v: boolean)
       className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition ${
         value
           ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
-          : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+          : "bg-white/[0.06] text-white/55 hover:bg-white/[0.06]"
       }`}
     >
       <span>{value ? "🤖 bots on" : "🤖 bots off"}</span>
@@ -129,18 +129,18 @@ function Card({
   onClick?: () => void;
 }) {
   return (
-    <button onClick={onClick} className="card p-4 text-left transition hover:border-zinc-700">
-      <div className="text-3xl font-bold">{value.toLocaleString()}</div>
-      <div className="mt-0.5 text-sm text-zinc-400">{label}</div>
-      {sub && <div className="text-xs text-zinc-600">{sub}</div>}
+    <button onClick={onClick} className="glass rounded-2xl p-4 text-left transition hover:bg-white/[0.04]">
+      <div className="font-display text-3xl font-bold text-white">{value.toLocaleString()}</div>
+      <div className="mt-0.5 text-sm text-white/50">{label}</div>
+      {sub && <div className="text-xs text-white/30">{sub}</div>}
     </button>
   );
 }
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="card p-4">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-400">{title}</h3>
+    <div className="glass rounded-2xl p-4">
+      <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-white/35">{title}</h3>
       {children}
     </div>
   );

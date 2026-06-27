@@ -36,7 +36,7 @@ export default function VPSPage() {
           <h2 className="text-xl font-bold mb-1">
             {error.status === 402 ? "Pro Feature Locked" : "Feature Unavailable"}
           </h2>
-          <p className="text-sm text-zinc-400 max-w-md mx-auto">
+          <p className="text-sm text-white/55 max-w-md mx-auto">
             {error.status === 402
               ? "A valid led-pro license is required to manage VPS infrastructure."
               : "The VPS infrastructure feature is not available or disabled in this installation."}
@@ -58,8 +58,8 @@ export default function VPSPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">VPS Infrastructure</h1>
-          <p className="text-sm text-zinc-400">Manage and monitor your remote servers.</p>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-white">VPS Infrastructure</h1>
+          <p className="text-sm text-white/55">Manage and monitor your remote servers.</p>
         </div>
         <button className="btn-primary" onClick={() => setShowAdd(true)}>
           + Add VPS
@@ -83,27 +83,27 @@ export default function VPSPage() {
                   <div className={`w-2.5 h-2.5 rounded-full ${
                     vps.status === "online" ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : 
                     vps.status === "offline" ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" : 
-                    "bg-zinc-500"
+                    "bg-white/[0.06]"
                   }`} title={vps.status} />
                   <h3 className="font-semibold text-lg truncate">{vps.name}</h3>
                 </div>
                 
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-zinc-400 mt-2">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/55 mt-2">
                   <div className="flex items-center gap-1">
-                    <span className="text-zinc-500">IP:</span> 
+                    <span className="text-white/40">IP:</span> 
                     <span className="font-mono">{vps.ip}:{vps.port}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="text-zinc-500">User:</span> 
+                    <span className="text-white/40">User:</span> 
                     <span>{vps.user}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="text-zinc-500">Key:</span> 
+                    <span className="text-white/40">Key:</span> 
                     <span className="truncate max-w-xs">{keys.find(k => k.id === vps.sshKeyId)?.name || "?"}</span>
                   </div>
                 </div>
                 
-                <div className="text-xs text-zinc-500 mt-3">
+                <div className="text-xs text-white/40 mt-3">
                   {vps.lastChecked ? `Checked ${timeAgo(vps.lastChecked)}` : "Pending initial check"}
                   {vps.failCount > 0 && vps.status !== "online" && ` (${vps.failCount} fails)`}
                 </div>
@@ -341,8 +341,8 @@ function TerminalModal({ vps, onClose }: { vps: VPS; onClose: () => void }) {
   }, [vps]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-zinc-950">
-      <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 border-b border-zinc-800">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-[#07070b]">
+      <div className="flex items-center justify-between px-4 py-2 bg-white/[0.04] border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
           <span className="font-semibold">{vps.user}@{vps.name}</span>
           <span className={`text-xs px-2 py-0.5 rounded-full ${

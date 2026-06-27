@@ -22,8 +22,8 @@ export default function PersonalSettingsPage() {
               className={({ isActive }) =>
                 `rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                   isActive
-                    ? "bg-zinc-800 text-white"
-                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-300"
+                    ? "bg-white/[0.06] text-white"
+                    : "text-white/55 hover:bg-white/[0.05] hover:text-white/75"
                 }`
               }
             >
@@ -84,15 +84,15 @@ function ProfileSettings() {
     <div>
       <div className="mb-4">
         <h1 className="text-xl font-semibold">My Profile</h1>
-        <p className="text-sm text-zinc-500">Manage your account credentials and settings.</p>
+        <p className="text-sm text-white/40">Manage your account credentials and settings.</p>
       </div>
       <div className="card p-5 space-y-6">
         <Field label="Email Address" hint="Your login identifier.">
-          <input className="input max-w-md bg-zinc-900 cursor-not-allowed" value={email} readOnly />
+          <input className="input max-w-md bg-white/[0.04] cursor-not-allowed" value={email} readOnly />
         </Field>
 
-        <form onSubmit={updatePassword} className="border-t border-zinc-800 pt-5 space-y-4">
-          <h2 className="text-lg font-semibold text-zinc-300">Change Password</h2>
+        <form onSubmit={updatePassword} className="border-t border-white/[0.06] pt-5 space-y-4">
+          <h2 className="text-lg font-semibold text-white/75">Change Password</h2>
           <Field label="New Password">
             <input
               type="password"
@@ -153,9 +153,9 @@ function ApiTokens() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Personal API Tokens</h1>
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-white/40">
             Bearer tokens for the open API. Send as{" "}
-            <code className="rounded bg-zinc-800 px-1">Authorization: Bearer led_…</code>
+            <code className="rounded bg-white/[0.06] px-1">Authorization: Bearer led_…</code>
           </p>
         </div>
         <button className="btn-primary" onClick={() => setCreating(true)}>
@@ -164,25 +164,25 @@ function ApiTokens() {
       </div>
 
       {loading ? (
-        <div className="text-zinc-500">loading…</div>
+        <div className="text-white/40">loading…</div>
       ) : tokens.length === 0 ? (
         <Empty>
           <div className="text-2xl">🔑</div>
           <div>No API tokens yet.</div>
         </Empty>
       ) : (
-        <div className="card divide-y divide-zinc-800">
+        <div className="card divide-y divide-white/[0.04]">
           {tokens.map((t) => (
             <div key={t.id} className="flex items-center justify-between p-4">
               <div>
                 <div className="font-medium">{t.name}</div>
-                <div className="text-xs text-zinc-500">
-                  <code className="rounded bg-zinc-800 px-1">{t.prefix}…</code>
+                <div className="text-xs text-white/40">
+                  <code className="rounded bg-white/[0.06] px-1">{t.prefix}…</code>
                   {t.note && <span className="ml-2">{t.note}</span>}
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-white/40">
                   {t.lastUsedAt ? `used ${timeAgo(t.lastUsedAt)}` : "never used"}
                 </span>
                 <button className="btn-ghost text-red-400" onClick={() => remove(t.id)}>
@@ -207,10 +207,10 @@ function ApiTokens() {
 
       {created && (
         <Modal title="Token created" onClose={() => setCreated(null)}>
-          <p className="mb-3 text-sm text-zinc-400">
+          <p className="mb-3 text-sm text-white/55">
             Copy this token now — it will <b>not</b> be shown again.
           </p>
-          <div className="mb-4 break-all rounded-lg bg-zinc-800 p-3 font-mono text-sm">
+          <div className="mb-4 break-all rounded-lg bg-white/[0.06] p-3 font-mono text-sm">
             {created.token}
           </div>
           <button
@@ -402,7 +402,7 @@ function MenuCustomizer() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">Sidebar Menu Grouping</h1>
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-white/40">
             Customize and group navigation tabs in your sidebar workspace.
           </p>
         </div>
@@ -428,8 +428,8 @@ function MenuCustomizer() {
         <div className="space-y-4">
           {layout.groups.map((group, groupIdx) => (
             <div key={group.name} className="card p-4">
-              <div className="flex justify-between items-center mb-3 border-b border-zinc-800 pb-2">
-                <span className="font-semibold text-zinc-300">{group.name}</span>
+              <div className="flex justify-between items-center mb-3 border-b border-white/[0.06] pb-2">
+                <span className="font-semibold text-white/75">{group.name}</span>
                 {group.name !== "Uncategorized" && (
                   <button
                     className="text-xs text-red-400 hover:underline"
@@ -441,7 +441,7 @@ function MenuCustomizer() {
               </div>
 
               {group.items.length === 0 ? (
-                <div className="text-zinc-600 text-xs py-2 italic">No items in this group.</div>
+                <div className="text-white/30 text-xs py-2 italic">No items in this group.</div>
               ) : (
                 <div className="space-y-2">
                   {group.items.map((itemId) => {
@@ -450,7 +450,7 @@ function MenuCustomizer() {
                     return (
                       <div
                         key={itemId}
-                        className="flex items-center justify-between bg-zinc-900 rounded p-2 text-sm border border-zinc-800"
+                        className="flex items-center justify-between bg-white/[0.04] rounded p-2 text-sm border border-white/[0.06]"
                       >
                         <span className="flex items-center gap-2">
                           <span>{item.icon}</span>

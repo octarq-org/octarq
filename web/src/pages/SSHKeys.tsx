@@ -25,7 +25,7 @@ export default function SSHKeysPage() {
           <h2 className="text-xl font-bold mb-1">
             {error.status === 402 ? "Pro Feature Locked" : "Feature Unavailable"}
           </h2>
-          <p className="text-sm text-zinc-400 max-w-md mx-auto">
+          <p className="text-sm text-white/55 max-w-md mx-auto">
             {error.status === 402
               ? "A valid led-pro license is required to manage SSH keys."
               : "The SSH keys management feature is not available or disabled in this installation."}
@@ -47,8 +47,8 @@ export default function SSHKeysPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">SSH Keys</h1>
-          <p className="text-sm text-zinc-400">Manage private keys for your VPS infrastructure.</p>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-white">SSH Keys</h1>
+          <p className="text-sm text-white/55">Manage private keys for your VPS infrastructure.</p>
         </div>
         <button className="btn-primary" onClick={() => setShowAdd(true)}>
           + New Key
@@ -69,19 +69,19 @@ export default function SSHKeysPage() {
             <div key={k.id} className="card p-4 relative group flex flex-col">
               <div className="flex justify-between items-start mb-2">
                 <div className="font-semibold text-lg">{k.name}</div>
-                <div className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 uppercase tracking-wide">
+                <div className="text-xs px-2 py-0.5 rounded bg-white/[0.06] text-white/55 uppercase tracking-wide">
                   {k.type}
                 </div>
               </div>
               
-              <div className="text-xs text-zinc-500 mb-4">Added {timeAgo(k.createdAt)}</div>
+              <div className="text-xs text-white/40 mb-4">Added {timeAgo(k.createdAt)}</div>
               
               <div className="mb-4 flex-1">
-                <div className="text-xs text-zinc-500 mb-1">Public Key</div>
+                <div className="text-xs text-white/40 mb-1">Public Key</div>
                 <Code>{k.pubKey.length > 50 ? k.pubKey.slice(0, 47) + "..." : k.pubKey}</Code>
               </div>
 
-              <div className="border-t border-zinc-800 pt-3 flex justify-between items-center">
+              <div className="border-t border-white/[0.06] pt-3 flex justify-between items-center">
                 <button 
                   className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
                   onClick={() => {
@@ -157,7 +157,7 @@ function AddModal({ onClose, onAdded }: { onClose: () => void; onAdded: () => vo
           The SSH key pair was successfully generated.
         </div>
         <div className="mb-4">
-          <p className="text-sm text-zinc-300 mb-2">
+          <p className="text-sm text-white/75 mb-2">
             Please copy this private key and store it securely if you need it outside of led. 
             <span className="font-bold text-red-400"> It will not be shown again.</span>
           </p>
