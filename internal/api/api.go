@@ -162,6 +162,7 @@ func (h *Handler) Routes() *http.ServeMux {
 	p("POST /api/auth/switch-org", h.switchOrg)
 	p("GET /api/orgs", h.listOrgs)
 	p("POST /api/orgs", h.createOrg)
+	p("PUT /api/org", h.updateOrg)
 	p("GET /api/org/members", h.listOrgMembers)
 	p("POST /api/org/members", h.addOrgMember)
 	p("DELETE /api/org/members/{userId}", h.removeOrgMember)

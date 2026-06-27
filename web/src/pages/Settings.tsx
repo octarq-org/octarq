@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Settings as SettingsData, OrgMember } from "../api";
 import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
-import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle } from "lucide-react";
+import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign } from "lucide-react";
 
 export default function SettingsPage() {
   const tabs = [
     { to: "/settings/general", label: "General", icon: <SettingsIcon className="h-4 w-4" /> },
+    { to: "/settings/billing", label: "Billing & Plan", icon: <CreditCard className="h-4 w-4" /> },
     { to: "/settings/providers", label: "Providers", icon: <Cloud className="h-4 w-4" /> },
     { to: "/settings/smtp", label: "SMTP Senders", icon: <Mail className="h-4 w-4" /> },
     { to: "/settings/notifications", label: "Notifications", icon: <Bell className="h-4 w-4" /> },
@@ -16,8 +17,8 @@ export default function SettingsPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="Organization Settings"
-        description="Configure your active organization resources, integrations, and member permissions"
+        title="Workspace Settings"
+        description="Configure your active workspace resources, integrations, and member permissions"
       />
 
       <div className="flex flex-col md:flex-row gap-6 items-start">
@@ -50,6 +51,7 @@ export default function SettingsPage() {
           <Routes>
             <Route path="/" element={<Navigate to="/settings/general" replace />} />
             <Route path="/general" element={<GeneralSettings />} />
+            <Route path="/billing" element={<BillingPlanDemo />} />
             <Route path="/providers" element={<ProviderAccounts />} />
             <Route path="/smtp" element={<SMTPSenders />} />
             <Route path="/notifications" element={<NotificationChannels />} />
@@ -63,6 +65,9 @@ export default function SettingsPage() {
 
 function GeneralSettings() {
   const [s, setS] = useState<SettingsData | null>(null);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceSaved, setWorkspaceSaved] = useState(false);
+  const [workspaceRenameBusy, setWorkspaceRenameBusy] = useState(false);
   const [reservedSlugs, setReservedSlugs] = useState("");
   const [reservedMailboxes, setReservedMailboxes] = useState("");
   const [cfToken, setCfToken] = useState("");
@@ -79,6 +84,17 @@ function GeneralSettings() {
   const [busy, setBusy] = useState(false);
 
   async function load() {
+    try {
+      const me = await api.me();
+      const orgs = await api.orgs();
+      const currentOrg = orgs.find(o => o.id === me.orgId);
+      if (currentOrg) {
+        setWorkspaceName(currentOrg.name);
+      }
+    } catch (e) {
+      console.error("Failed to load workspace name:", e);
+    }
+
     const v = await api.settings();
     setS(v);
     setReservedSlugs(v.reservedSlugs);
@@ -95,6 +111,24 @@ function GeneralSettings() {
   useEffect(() => {
     load();
   }, []);
+
+  async function handleRenameWorkspace(e: React.FormEvent) {
+    e.preventDefault();
+    if (!workspaceName.trim()) return;
+    setWorkspaceRenameBusy(true);
+    setWorkspaceSaved(false);
+    try {
+      await api.updateOrg({ name: workspaceName });
+      setWorkspaceSaved(true);
+      setTimeout(() => setWorkspaceSaved(false), 2000);
+      // Reload page to refresh initials in sidebar rail
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err: any) {
+      alert(err.message || "Failed to rename workspace");
+    } finally {
+      setWorkspaceRenameBusy(false);
+    }
+  }
 
   async function save() {
     setBusy(true);
@@ -126,238 +160,269 @@ function GeneralSettings() {
   if (!s) return <div className="text-white/40 text-sm">loading…</div>;
 
   return (
-    <GlassCard className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-base font-bold text-white mb-1">General Settings</h2>
-          <p className="text-xs text-white/50">Runtime configuration parameters for this organization workspace.</p>
-        </div>
-        {saved && <Badge tone="green">✓ Config Saved</Badge>}
-      </div>
-
-      <div className="space-y-6">
-        <Field
-          label="Reserved Short Link Slugs"
-          hint={`Slugs that users cannot register. Built-in defaults always locked: ${s.builtinReserved.join(", ")}.`}
-        >
-          <textarea
-            className="input font-mono text-xs w-full"
-            rows={3}
-            value={reservedSlugs}
-            onChange={(e) => setReservedSlugs(e.target.value)}
-            placeholder="pricing&#10;login&#10;about"
-          />
-        </Field>
-        
-        <Field
-          label="Reserved Inbound Mailbox Prefixes"
-          hint="Prefixes that catch-all routing will not auto-provision (e.g. admin, postmaster)."
-        >
-          <textarea
-            className="input font-mono text-xs w-full"
-            rows={2}
-            value={reservedMailboxes}
-            onChange={(e) => setReservedMailboxes(e.target.value)}
-            placeholder="admin&#10;postmaster"
-          />
-        </Field>
-        
-        <Field
-          label="Global Cloudflare API Token"
-          hint={
-            s.cloudflareTokenSet
-              ? "Global token is configured. Enter a new token to overwrite."
-              : "Fallback token used by sync if individual domains don't provide dedicated keys. Zone:Read + DNS:Edit."
-          }
-        >
-          <div className="flex gap-2">
-            <input
-              type="password"
-              className="input w-full font-mono text-xs"
-              value={cfToken}
-              onChange={(e) => setCfToken(e.target.value)}
-              placeholder={s.cloudflareTokenSet ? "•••••••• (Token set)" : "Cloudflare API token"}
-            />
-            {s.cloudflareTokenSet && (
-              <Button
-                variant="danger"
-                onClick={async () => {
-                  if (confirm("Clear stored token?")) {
-                    await api.updateSettings({ cloudflareToken: "" });
-                    load();
-                  }
-                }}
-                className="py-1 px-3 text-xs bg-rose-500/10 hover:bg-rose-500/25 border-0"
-              >
-                Clear
-              </Button>
-            )}
+    <div className="space-y-6">
+      {/* Workspace Identity Card */}
+      <GlassCard className="p-6 space-y-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-base font-bold text-white mb-1">Workspace Profile</h2>
+            <p className="text-xs text-white/50">Manage the identity and name of this workspace.</p>
           </div>
-        </Field>
-        
-        <div className="border-t border-white/[0.06] pt-6 space-y-4">
-          <h3 className="text-sm font-semibold text-white/80">Mail Inbound Webhooks</h3>
-          <div className="space-y-4">
-            <Field
-              label="Webhook Inbound Token"
-              hint="Shared API secret validated in X-Led-Token header for Cloudflare Email Worker webhook trigger."
-            >
+          {workspaceSaved && <Badge tone="green">✓ Name Updated</Badge>}
+        </div>
+
+        <form onSubmit={handleRenameWorkspace} className="flex flex-wrap sm:flex-nowrap gap-4 items-end max-w-xl">
+          <div className="flex-1">
+            <Field label="Workspace Name" hint="This name is shown in the workspace switcher and header.">
               <input
-                className="input w-full font-mono text-xs"
-                value={inboundToken}
-                onChange={(e) => setInboundToken(e.target.value)}
-                placeholder="secret-token-value"
+                className="input w-full text-sm mt-1"
+                value={workspaceName}
+                onChange={(e) => setWorkspaceName(e.target.value)}
+                placeholder="e.g. Acme Production"
+                required
               />
             </Field>
-            
-            <div className="flex items-center gap-3 pt-2">
-              <Toggle on={catchAll} onChange={setCatchAll} />
-              <div>
-                <span className="text-xs font-semibold text-white/70 select-none block">Enable Catch-All routing</span>
-                <span className="text-[10px] text-white/40 select-none">Automatically provision local inbox addresses when a message arrives for an unknown managed alias.</span>
+          </div>
+          <Button type="submit" variant="primary" disabled={workspaceRenameBusy || !workspaceName.trim()}>
+            {workspaceRenameBusy ? "Updating..." : "Update Name"}
+          </Button>
+        </form>
+      </GlassCard>
+
+      {/* General Runtime Config Settings Card */}
+      <GlassCard className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-base font-bold text-white mb-1">General Settings</h2>
+            <p className="text-xs text-white/50">Runtime configuration parameters for this workspace.</p>
+          </div>
+          {saved && <Badge tone="green">✓ Config Saved</Badge>}
+        </div>
+
+        <div className="space-y-6">
+          <Field
+            label="Reserved Short Link Slugs"
+            hint={`Slugs that users cannot register. Built-in defaults always locked: ${s.builtinReserved.join(", ")}.`}
+          >
+            <textarea
+              className="input font-mono text-xs w-full"
+              rows={3}
+              value={reservedSlugs}
+              onChange={(e) => setReservedSlugs(e.target.value)}
+              placeholder="pricing&#10;login&#10;about"
+            />
+          </Field>
+          
+          <Field
+            label="Reserved Inbound Mailbox Prefixes"
+            hint="Prefixes that catch-all routing will not auto-provision (e.g. admin, postmaster)."
+          >
+            <textarea
+              className="input font-mono text-xs w-full"
+              rows={2}
+              value={reservedMailboxes}
+              onChange={(e) => setReservedMailboxes(e.target.value)}
+              placeholder="admin&#10;postmaster"
+            />
+          </Field>
+          
+          <Field
+            label="Global Cloudflare API Token"
+            hint={
+              s.cloudflareTokenSet
+                ? "Global token is configured. Enter a new token to overwrite."
+                : "Fallback token used by sync if individual domains don't provide dedicated keys. Zone:Read + DNS:Edit."
+            }
+          >
+            <div className="flex gap-2">
+              <input
+                type="password"
+                className="input w-full font-mono text-xs"
+                value={cfToken}
+                onChange={(e) => setCfToken(e.target.value)}
+                placeholder={s.cloudflareTokenSet ? "•••••••• (Token set)" : "Cloudflare API token"}
+              />
+              {s.cloudflareTokenSet && (
+                <Button
+                  variant="danger"
+                  onClick={async () => {
+                    if (confirm("Clear stored token?")) {
+                      await api.updateSettings({ cloudflareToken: "" });
+                      load();
+                    }
+                  }}
+                  className="py-1 px-3 text-xs bg-rose-500/10 hover:bg-rose-500/25 border-0"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </Field>
+          
+          <div className="border-t border-white/[0.06] pt-6 space-y-4">
+            <h3 className="text-sm font-semibold text-white/80">Mail Inbound Webhooks</h3>
+            <div className="space-y-4">
+              <Field
+                label="Webhook Inbound Token"
+                hint="Shared API secret validated in X-Led-Token header for Cloudflare Email Worker webhook trigger."
+              >
+                <input
+                  className="input w-full font-mono text-xs"
+                  value={inboundToken}
+                  onChange={(e) => setInboundToken(e.target.value)}
+                  placeholder="secret-token-value"
+                />
+              </Field>
+              
+              <div className="flex items-center gap-3 pt-2">
+                <Toggle on={catchAll} onChange={setCatchAll} />
+                <div>
+                  <span className="text-xs font-semibold text-white/70 select-none block">Enable Catch-All routing</span>
+                  <span className="text-[10px] text-white/40 select-none">Automatically provision local inbox addresses when a message arrives for an unknown managed alias.</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="border-t border-white/[0.06] pt-6">
-          <h3 className="text-sm font-semibold text-white/80 mb-2">Data Retention & Pruning</h3>
-          <div className="space-y-4">
-            <Field label="Click Event Logs Expiry (Days)" hint="Link clicks data older than this limit will be auto-deleted. Set 0 to persist forever.">
-              <input
-                type="number"
-                min={0}
-                className="input w-32 font-mono text-sm"
-                value={dataRetentionDays}
-                onChange={(e) => setDataRetentionDays(Number(e.target.value))}
-              />
-            </Field>
-            <p className="text-[10px] text-white/40">
-              IP addresses of clickers are stored anonymized (masked subnet). This setting controls how long click statistics charts persist.
-            </p>
-          </div>
-        </div>
-
-        <div className="border-t border-white/[0.06] pt-6 space-y-4">
-          <h3 className="text-sm font-semibold text-white/80">Telegram Alerts</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Telegram Bot Token" hint="Token issued by @BotFather">
-              <input
-                className="input w-full font-mono text-xs"
-                value={telegramBot}
-                onChange={(e) => setTelegramBot(e.target.value)}
-                placeholder="123456789:ABCdef..."
-              />
-            </Field>
-            <Field label="Target Chat ID" hint="Individual or Group chat ID">
-              <input
-                className="input w-full font-mono text-xs"
-                value={telegramChat}
-                onChange={(e) => setTelegramChat(e.target.value)}
-                placeholder="e.g. -100123456"
-              />
-            </Field>
-          </div>
-        </div>
-
-        <div className="border-t border-white/[0.06] pt-6 space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-white/80">Single Sign-On (OAuth)</h3>
-            <p className="text-[10px] text-white/40 mt-0.5">Secrets are encrypted. Make sure server callback URLs matches LED base url.</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Google */}
-            <div className="rounded-xl border border-white/[0.05] bg-black/20 p-4 space-y-3">
-              <p className="text-xs font-bold text-white/85 flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
-                Google Sign-In
-              </p>
-              <Field label="Google Client ID">
+          <div className="border-t border-white/[0.06] pt-6">
+            <h3 className="text-sm font-semibold text-white/80 mb-2">Data Retention & Pruning</h3>
+            <div className="space-y-4">
+              <Field label="Click Event Logs Expiry (Days)" hint="Link clicks data older than this limit will be auto-deleted. Set 0 to persist forever.">
                 <input
-                  className="input w-full text-xs"
-                  value={googleClientId}
-                  onChange={(e) => setGoogleClientId(e.target.value)}
-                  placeholder="*.apps.googleusercontent.com"
+                  type="number"
+                  min={0}
+                  className="input w-32 font-mono text-sm"
+                  value={dataRetentionDays}
+                  onChange={(e) => setDataRetentionDays(Number(e.target.value))}
                 />
               </Field>
-              <Field label="Google Client Secret">
-                <div className="flex gap-2">
-                  <input
-                    className="input w-full text-xs font-mono"
-                    type="password"
-                    value={googleClientSecret}
-                    onChange={(e) => setGoogleClientSecret(e.target.value)}
-                    placeholder={s.googleClientSecretSet ? "•••••••• (Set)" : "Secret value"}
-                  />
-                  {s.googleClientSecretSet && (
-                    <Button
-                      variant="danger"
-                      onClick={async () => {
-                        if (confirm("Clear Google secret?")) {
-                          await api.updateSettings({ googleClientSecret: "" });
-                          load();
-                        }
-                      }}
-                      className="py-1 px-2.5 text-xs bg-rose-500/10 hover:bg-rose-500/25 border-0"
-                    >
-                      Clear
-                    </Button>
-                  )}
-                </div>
+              <p className="text-[10px] text-white/40">
+                IP addresses of clickers are stored anonymized (masked subnet). This setting controls how long click statistics charts persist.
+              </p>
+            </div>
+          </div>
+
+          <div className="border-t border-white/[0.06] pt-6 space-y-4">
+            <h3 className="text-sm font-semibold text-white/80">Telegram Alerts</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Telegram Bot Token" hint="Token issued by @BotFather">
+                <input
+                  className="input w-full font-mono text-xs"
+                  value={telegramBot}
+                  onChange={(e) => setTelegramBot(e.target.value)}
+                  placeholder="123456789:ABCdef..."
+                />
               </Field>
+              <Field label="Target Chat ID" hint="Individual or Group chat ID">
+                <input
+                  className="input w-full font-mono text-xs"
+                  value={telegramChat}
+                  onChange={(e) => setTelegramChat(e.target.value)}
+                  placeholder="e.g. -100123456"
+                />
+              </Field>
+            </div>
+          </div>
+
+          <div className="border-t border-white/[0.06] pt-6 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-white/80">Single Sign-On (SSO / OAuth)</h3>
+              <p className="text-[10px] text-white/40 mt-0.5">Secrets are encrypted. Make sure server callback URLs matches LED base url.</p>
             </div>
             
-            {/* GitHub */}
-            <div className="rounded-xl border border-white/[0.05] bg-black/20 p-4 space-y-3">
-              <p className="text-xs font-bold text-white/85 flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
-                GitHub Integration
-              </p>
-              <Field label="GitHub Client ID">
-                <input
-                  className="input w-full text-xs"
-                  value={githubClientId}
-                  onChange={(e) => setGithubClientId(e.target.value)}
-                  placeholder="Ov23li..."
-                />
-              </Field>
-              <Field label="GitHub Client Secret">
-                <div className="flex gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Google */}
+              <div className="rounded-xl border border-white/[0.05] bg-black/20 p-4 space-y-3">
+                <p className="text-xs font-bold text-white/85 flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                  Google Sign-In
+                </p>
+                <Field label="Google Client ID">
                   <input
-                    className="input w-full text-xs font-mono"
-                    type="password"
-                    value={githubClientSecret}
-                    onChange={(e) => setGithubClientSecret(e.target.value)}
-                    placeholder={s.githubClientSecretSet ? "•••••••• (Set)" : "Secret value"}
+                    className="input w-full text-xs"
+                    value={googleClientId}
+                    onChange={(e) => setGoogleClientId(e.target.value)}
+                    placeholder="*.apps.googleusercontent.com"
                   />
-                  {s.githubClientSecretSet && (
-                    <Button
-                      variant="danger"
-                      onClick={async () => {
-                        if (confirm("Clear GitHub secret?")) {
-                          await api.updateSettings({ githubClientSecret: "" });
-                          load();
-                        }
-                      }}
-                      className="py-1 px-2.5 text-xs bg-rose-500/10 hover:bg-rose-500/25 border-0"
-                    >
-                      Clear
-                    </Button>
-                  )}
-                </div>
-              </Field>
+                </Field>
+                <Field label="Google Client Secret">
+                  <div className="flex gap-2">
+                    <input
+                      className="input w-full text-xs font-mono"
+                      type="password"
+                      value={googleClientSecret}
+                      onChange={(e) => setGoogleClientSecret(e.target.value)}
+                      placeholder={s.googleClientSecretSet ? "•••••••• (Set)" : "Secret value"}
+                    />
+                    {s.googleClientSecretSet && (
+                      <Button
+                        variant="danger"
+                        onClick={async () => {
+                          if (confirm("Clear Google secret?")) {
+                            await api.updateSettings({ googleClientSecret: "" });
+                            load();
+                          }
+                        }}
+                        className="py-1 px-2.5 text-xs bg-rose-500/10 hover:bg-rose-500/25 border-0"
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                </Field>
+              </div>
+              
+              {/* GitHub */}
+              <div className="rounded-xl border border-white/[0.05] bg-black/20 p-4 space-y-3">
+                <p className="text-xs font-bold text-white/85 flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                  GitHub Integration
+                </p>
+                <Field label="GitHub Client ID">
+                  <input
+                    className="input w-full text-xs"
+                    value={githubClientId}
+                    onChange={(e) => setGithubClientId(e.target.value)}
+                    placeholder="Ov23li..."
+                  />
+                </Field>
+                <Field label="GitHub Client Secret">
+                  <div className="flex gap-2">
+                    <input
+                      className="input w-full text-xs font-mono"
+                      type="password"
+                      value={githubClientSecret}
+                      onChange={(e) => setGithubClientSecret(e.target.value)}
+                      placeholder={s.githubClientSecretSet ? "•••••••• (Set)" : "Secret value"}
+                    />
+                    {s.githubClientSecretSet && (
+                      <Button
+                        variant="danger"
+                        onClick={async () => {
+                          if (confirm("Clear GitHub secret?")) {
+                            await api.updateSettings({ githubClientSecret: "" });
+                            load();
+                          }
+                        }}
+                        className="py-1 px-2.5 text-xs bg-rose-500/10 hover:bg-rose-500/25 border-0"
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                </Field>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-3 border-t border-white/[0.06] pt-6">
-          <Button variant="primary" onClick={save} disabled={busy}>
-            {busy ? "Saving..." : "Save Config Settings"}
-          </Button>
+          <div className="flex items-center gap-3 border-t border-white/[0.06] pt-6">
+            <Button variant="primary" onClick={save} disabled={busy}>
+              {busy ? "Saving..." : "Save Config Settings"}
+            </Button>
+          </div>
         </div>
-      </div>
-    </GlassCard>
+      </GlassCard>
+    </div>
   );
 }
 
@@ -620,7 +685,7 @@ function OrgMembersManager() {
   }
 
   async function handleRemove(userId: number) {
-    if (!confirm("Remove this member from the organization? They will lose access instantly.")) return;
+    if (!confirm("Remove this member from the workspace? They will lose access instantly.")) return;
     try {
       await api.deleteOrgMember(userId);
       load();
@@ -638,7 +703,7 @@ function OrgMembersManager() {
   return (
     <GlassCard className="p-6 space-y-6">
       <div>
-        <h2 className="text-base font-bold text-white mb-1">Organization Members</h2>
+        <h2 className="text-base font-bold text-white mb-1">Workspace Members</h2>
         <p className="text-xs text-white/55 font-normal">Add colleagues or manage roles inside this workspace.</p>
       </div>
 
@@ -991,5 +1056,204 @@ function SMTPSenderModal({ sender, onClose, onSaved }: { sender: any; onClose: (
         </div>
       </form>
     </Modal>
+  );
+}
+
+function BillingPlanDemo() {
+  const plans = [
+    {
+      name: "Starter",
+      price: "$0",
+      period: "forever",
+      description: "Ideal for personal sites & hobby projects.",
+      features: [
+        "Up to 3 Managed Domains",
+        "1,000 Short Links / month",
+        "1 Workspace Member",
+        "Basic Click Analytics",
+        "Community Support",
+      ],
+      current: false,
+    },
+    {
+      name: "Pro Professional",
+      price: "$29",
+      period: "month",
+      description: "Perfect for growing projects & small teams.",
+      features: [
+        "Unlimited Managed Domains",
+        "100,000 Short Links / month",
+        "Up to 5 Workspace Members",
+        "Real-time Geolocation Stats",
+        "Catch-All Inboxes & Relays",
+        "VPS Control Panel",
+        "Priority Support",
+      ],
+      current: true,
+      popular: true,
+    },
+    {
+      name: "Business Enterprise",
+      price: "$99",
+      period: "month",
+      description: "Dedicated resources & advanced security.",
+      features: [
+        "Everything in Pro Plan",
+        "Unlimited Short Links",
+        "Unlimited Workspace Members",
+        "Dedicated Mail Relays",
+        "SAML SSO / OAuth Sync",
+        "99.9% SLA Guarantee",
+        "24/7 Phone & Email Support",
+      ],
+      current: false,
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Current plan metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <GlassCard className="p-5 flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mb-1">Active Plan</span>
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              Pro Professional
+              <Badge tone="indigo">Active</Badge>
+            </h3>
+            <p className="text-xs text-white/50 mt-1">Renews automatically on July 15, 2026</p>
+          </div>
+          <div className="mt-6 border-t border-white/[0.06] pt-4 flex items-baseline gap-1">
+            <span className="text-2xl font-extrabold text-white">$29</span>
+            <span className="text-xs text-white/40">/ month</span>
+          </div>
+        </GlassCard>
+
+        <GlassCard className="p-5 flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mb-1">Link Usage</span>
+            <h3 className="text-xl font-bold text-white">42,890 / 100,000</h3>
+            <p className="text-xs text-white/50 mt-1">42.8% of monthly limit consumed</p>
+          </div>
+          <div className="mt-6">
+            <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+              <div className="h-full bg-indigo-500 rounded-full" style={{ width: "42.8%" }} />
+            </div>
+          </div>
+        </GlassCard>
+
+        <GlassCard className="p-5 flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mb-1">Active Domains</span>
+            <h3 className="text-xl font-bold text-white">14 Domains</h3>
+            <p className="text-xs text-white/50 mt-1">Unlimited domains allowed on Pro</p>
+          </div>
+          <div className="mt-6 border-t border-white/[0.06] pt-4">
+            <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+              <Sparkles className="h-3.5 w-3.5" /> No limits applied
+            </span>
+          </div>
+        </GlassCard>
+      </div>
+
+      {/* Credit Card / Payment Method */}
+      <GlassCard className="p-6 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Payment Method</h3>
+          <p className="text-xs text-white/50">Primary card used for recurring renewals.</p>
+        </div>
+        <div className="flex items-center justify-between border border-white/[0.05] rounded-xl p-4 bg-black/20 max-w-md">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-12 bg-white/5 rounded border border-white/10 flex items-center justify-center">
+              <span className="font-extrabold text-[10px] tracking-widest text-white/60">VISA</span>
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-white block">Visa ending in 4242</span>
+              <span className="text-[10px] text-white/40">Expires 12/28</span>
+            </div>
+          </div>
+          <Button variant="ghost" className="text-xs py-1 px-2.5">Edit Card</Button>
+        </div>
+      </GlassCard>
+
+      {/* Plans comparison */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-base font-bold text-white">Upgrade or Change Plan</h3>
+          <p className="text-xs text-white/50">Select a plan matching your workspace volume and infrastructure scale.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {plans.map((p) => (
+            <GlassCard key={p.name} className={`p-5 flex flex-col justify-between border-t-2 relative ${p.current ? 'border-t-indigo-500 bg-indigo-500/[0.02]' : 'border-t-white/10'}`}>
+              {p.popular && (
+                <span className="absolute -top-3 right-4 bg-indigo-500 text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded-full shadow-glow">
+                  Popular
+                </span>
+              )}
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-bold text-white">{p.name}</h4>
+                  <p className="text-xs text-white/40 mt-1 min-h-[32px]">{p.description}</p>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold text-white">{p.price}</span>
+                  <span className="text-xs text-white/40">/ {p.period}</span>
+                </div>
+                <ul className="space-y-2 border-t border-white/[0.06] pt-4">
+                  {p.features.map((f, i) => (
+                    <li key={i} className="text-xs text-white/70 flex items-center gap-2">
+                      <span className="h-1 w-1 rounded-full bg-indigo-400" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="mt-6 pt-2">
+                {p.current ? (
+                  <Button variant="subtle" className="w-full text-xs cursor-default" disabled>
+                    Current Plan
+                  </Button>
+                ) : (
+                  <Button variant={p.popular ? 'primary' : 'outline'} className="w-full text-xs">
+                    Upgrade to {p.name.split(' ')[0]}
+                  </Button>
+                )}
+              </div>
+            </GlassCard>
+          ))}
+        </div>
+      </div>
+
+      {/* Payment History */}
+      <GlassCard className="p-6 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Billing History</h3>
+          <p className="text-xs text-white/50">Receipts and invoices for your past payments.</p>
+        </div>
+        <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
+          <div className="flex justify-between items-center p-3 text-[11px] font-bold text-white/40 uppercase tracking-wider bg-white/[0.02]">
+            <span className="w-24">Date</span>
+            <span className="flex-1">Description</span>
+            <span className="w-20 text-right">Amount</span>
+            <span className="w-20 text-right">Status</span>
+          </div>
+          {[
+            { date: "June 15, 2026", desc: "Pro Plan - Monthly Subscription Renewal", amt: "$29.00", status: "Paid" },
+            { date: "May 15, 2026", desc: "Pro Plan - Monthly Subscription Renewal", amt: "$29.00", status: "Paid" },
+            { date: "Apr 15, 2026", desc: "Pro Plan - Monthly Subscription Renewal", amt: "$29.00", status: "Paid" },
+          ].map((item, i) => (
+            <div key={i} className="flex justify-between items-center p-3 text-xs">
+              <span className="w-24 text-white/60 font-mono">{item.date}</span>
+              <span className="flex-1 text-white font-medium">{item.desc}</span>
+              <span className="w-20 text-right text-white font-semibold font-mono">{item.amt}</span>
+              <span className="w-20 text-right">
+                <Badge tone="green">Paid</Badge>
+              </span>
+            </div>
+          ))}
+        </div>
+      </GlassCard>
+    </div>
   );
 }

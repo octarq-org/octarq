@@ -23,7 +23,7 @@ export default function AuditLogPage() {
     <ScreenWrap>
       <PageHeader
         title="Audit Log"
-        description="History of administrative actions across your organization"
+        description="History of administrative actions across your workspace"
       />
 
       {loading ? (

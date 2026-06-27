@@ -34,7 +34,7 @@ import FinancePage from "./pages/Finance";
 import AuditLogPage from "./pages/AuditLog";
 import AbusePage from "./pages/Abuse";
 import PersonalSettingsPage from "./pages/PersonalSettings";
-import { Modal } from "./ui";
+import { Modal, Button } from "./ui";
 
 // ─── Area definitions ──────────────────────────────────────────────────────
 
@@ -70,6 +70,12 @@ const STATIC_AREAS: Area[] = [
     Icon: Workflow,
     groups: [
       {
+        label: "Analytics",
+        items: [
+          { id: "overview", label: "Overview", Icon: LayoutDashboard, path: "/overview" },
+        ],
+      },
+      {
         label: "Reach",
         items: [
           { id: "links",   label: "Short Links", Icon: Link2,  path: "/links" },
@@ -101,22 +107,21 @@ const STATIC_AREAS: Area[] = [
   },
   {
     id: "insights",
-    title: "Insights",
-    subtitle: "Understand your business",
-    Icon: LineChart,
+    title: "Compliance",
+    subtitle: "Workspace governance & finance",
+    Icon: ShieldAlert,
     groups: [
       {
-        label: "Performance",
+        label: "Finance",
         items: [
-          { id: "overview", label: "Overview", Icon: LayoutDashboard, path: "/overview" },
+          { id: "finance",  label: "Finance",   Icon: Wallet,      path: "/finance" },
         ],
       },
       {
-        label: "Business",
+        label: "Governance",
         items: [
-          { id: "finance",  label: "Finance",   Icon: Wallet,      path: "/finance" },
-          { id: "audit",    label: "Audit Log",  Icon: ScrollText,  path: "/audit" },
           { id: "abuse",    label: "Abuse",      Icon: ShieldAlert, path: "/abuse" },
+          { id: "audit",    label: "Audit Log",  Icon: ScrollText,  path: "/audit" },
         ],
       },
     ],
@@ -126,7 +131,7 @@ const STATIC_AREAS: Area[] = [
 // Map a path to its area
 function areaForPath(path: string): AreaId {
   if (path.startsWith("/domains") || path.startsWith("/vps") || path.startsWith("/sshkeys")) return "assets";
-  if (path.startsWith("/overview") || path.startsWith("/finance") || path.startsWith("/audit") || path.startsWith("/abuse")) return "insights";
+  if (path.startsWith("/finance") || path.startsWith("/audit") || path.startsWith("/abuse")) return "insights";
   return "operations";
 }
 
@@ -134,7 +139,7 @@ function areaForPath(path: string): AreaId {
 function areaForCategory(cat?: string): AreaId {
   const c = (cat ?? "").toLowerCase();
   if (c.includes("asset") || c.includes("infra") || c.includes("network") || c.includes("compute")) return "assets";
-  if (c.includes("insight") || c.includes("analytic") || c.includes("finance") || c.includes("business")) return "insights";
+  if (c.includes("insight") || c.includes("analytic") || c.includes("finance") || c.includes("business") || c.includes("compliance") || c.includes("governance")) return "insights";
   return "operations";
 }
 
@@ -307,10 +312,10 @@ function Shell({
       </main>
 
       {creatingOrg && (
-        <Modal title="Create Organization" onClose={() => setCreatingOrg(false)}>
+        <Modal title="Create Workspace" onClose={() => setCreatingOrg(false)}>
           <form onSubmit={handleCreateOrg} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="label">Organization Name</label>
+              <label className="label">Workspace Name</label>
               <input
                 className="input w-full"
                 value={newOrgName}
@@ -319,13 +324,13 @@ function Shell({
                 autoFocus
               />
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" className="btn-ghost" onClick={() => setCreatingOrg(false)}>
+            <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+              <Button type="button" variant="ghost" onClick={() => setCreatingOrg(false)}>
                 Cancel
-              </button>
-              <button type="submit" className="btn-primary" disabled={!newOrgName.trim()}>
+              </Button>
+              <Button type="submit" variant="primary" disabled={!newOrgName.trim()}>
                 Create & Switch
-              </button>
+              </Button>
             </div>
           </form>
         </Modal>
@@ -458,7 +463,7 @@ function IconRail({
                   onClick={() => { onCreateOrg(); setWsOpen(false); }}
                   className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-indigo-300 transition hover:bg-white/5"
                 >
-                  + New organization
+                  + New workspace
                 </button>
               </motion.div>
             </>
@@ -519,8 +524,7 @@ function IconRail({
                   <div className="my-1 h-px bg-white/[0.08]" />
                   {[
                     { Icon: User,       label: "Personal settings", path: "/personal" },
-                    { Icon: CreditCard, label: "Billing & plan",    path: "/settings/general" },
-                    { Icon: Settings,   label: "Org settings",      path: "/settings" },
+                    { Icon: CreditCard, label: "Billing & plan",    path: "/settings/billing" },
                   ].map((m) => (
                     <NavLink
                       key={m.label}

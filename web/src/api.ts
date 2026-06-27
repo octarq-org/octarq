@@ -429,6 +429,7 @@ export const api = {
   // orgs
   orgs: () => req<Org[]>("GET", "/api/orgs"),
   createOrg: (d: { name: string }) => req<Org>("POST", "/api/orgs", d),
+  updateOrg: (d: { name: string }) => req<Org>("PUT", "/api/org", d),
   switchOrg: (orgId: number) => req<{ ok: boolean }>("POST", "/api/auth/switch-org", { orgId }),
   orgMembers: () => req<OrgMember[]>("GET", "/api/org/members"),
   addOrgMember: (d: { email: string; role: string }) => req<{ ok: boolean }>("POST", "/api/org/members", d),

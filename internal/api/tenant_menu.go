@@ -134,6 +134,54 @@ func (h *Handler) createOrg(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, org)
 }
 
+// updateOrg updates the current organization name.
+// PUT /api/org
+func (h *Handler) updateOrg(w http.ResponseWriter, r *http.Request) {
+	uid := h.auth.UserID(r)
+	oid := h.auth.OrgID(r)
+	if uid == 0 || oid == 0 {
+		writeErr(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	// Verify permissions: only owner/admin can rename organization/workspace
+	var role string
+	err := h.db.Model(&models.OrgMember{}).
+		Where("org_id = ? AND user_id = ?", oid, uid).
+		Pluck("role", &role).Error
+	if err != nil || (role != "owner" && role != "admin") {
+		writeErr(w, http.StatusForbidden, "forbidden: only owner/admin can rename workspace")
+		return
+	}
+
+	var body struct {
+		Name string `json:"name"`
+	}
+	if err := readJSON(r, &body); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	name := strings.TrimSpace(body.Name)
+	if name == "" {
+		writeErr(w, http.StatusBadRequest, "name is required")
+		return
+	}
+
+	var org models.Org
+	if err := h.db.First(&org, oid).Error; err != nil {
+		writeErr(w, http.StatusNotFound, "workspace not found")
+		return
+	}
+
+	org.Name = name
+	if err := h.db.Save(&org).Error; err != nil {
+		writeErr(w, http.StatusInternalServerError, "failed to update workspace name")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, org)
+}
+
 // listOrgMembers lists all members and their roles for the current active organization.
 // GET /api/org/members
 func (h *Handler) listOrgMembers(w http.ResponseWriter, r *http.Request) {
@@ -246,9 +294,8 @@ func (h *Handler) listMenus(w http.ResponseWriter, r *http.Request) {
 		{ID: "domains", Label: "Domains", Path: "/domains", Icon: "🌐", Category: "Assets"},
 		{ID: "mail", Label: "Mail", Path: "/mail", Icon: "✉️", Category: "Operations"},
 
-		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "📝", Category: "Management"},
-		{ID: "abuse", Label: "Abuse", Path: "/abuse", Icon: "🛡️", Category: "Finance & Security"},
-		{ID: "settings", Label: "Settings", Path: "/settings", Icon: "⚙️", Category: "Management"},
+		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "📝", Category: "Compliance"},
+		{ID: "abuse", Label: "Abuse", Path: "/abuse", Icon: "🛡️", Category: "Compliance"},
 	}
 
 	// Query from plugin providers if they satisfy MenuProvider
