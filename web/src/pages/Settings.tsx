@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, Settings, Token } from "../api";
+import { api, ApiError, Settings, OrgMember } from "../api";
 import { Empty, Field, Modal, timeAgo } from "../ui";
 
 export default function SettingsPage() {
@@ -9,7 +9,7 @@ export default function SettingsPage() {
     { to: "/settings/providers", label: "Provider Accounts" },
     { to: "/settings/smtp", label: "SMTP Senders" },
     { to: "/settings/notifications", label: "Notifications" },
-    { to: "/settings/tokens", label: "API Tokens" },
+    { to: "/settings/members", label: "Members" },
   ];
 
   return (
@@ -41,7 +41,7 @@ export default function SettingsPage() {
           <Route path="/providers" element={<ProviderAccounts />} />
           <Route path="/smtp" element={<SMTPSenders />} />
           <Route path="/notifications" element={<NotificationChannels />} />
-          <Route path="/tokens" element={<ApiTokens />} />
+          <Route path="/members" element={<OrgMembersManager />} />
         </Routes>
       </div>
     </div>
@@ -523,156 +523,108 @@ function EditNotificationChannel({ channel, onClose, onSaved }: { channel: any; 
   );
 }
 
-function ApiTokens() {
-  const [tokens, setTokens] = useState<Token[]>([]);
+function OrgMembersManager() {
+  const [members, setMembers] = useState<OrgMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [created, setCreated] = useState<{ token: string } | null>(null);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("member");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
 
   async function load() {
     setLoading(true);
     try {
-      setTokens(await api.tokens());
+      setMembers(await api.orgMembers());
+    } catch (e: any) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
   }
+
   useEffect(() => {
     load();
   }, []);
 
-  async function remove(id: number) {
-    if (!confirm("Revoke this token? Any client using it will stop working.")) return;
-    await api.deleteToken(id);
-    load();
-  }
-
-  return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">API Tokens</h1>
-          <p className="text-sm text-zinc-500">
-            Bearer tokens for the open API. Send as{" "}
-            <code className="rounded bg-zinc-800 px-1">Authorization: Bearer led_…</code>
-          </p>
-        </div>
-        <button className="btn-primary" onClick={() => setCreating(true)}>
-          + New token
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="text-zinc-500">loading…</div>
-      ) : tokens.length === 0 ? (
-        <Empty>
-          <div className="text-2xl">🔑</div>
-          <div>No API tokens yet.</div>
-        </Empty>
-      ) : (
-        <div className="card divide-y divide-zinc-800">
-          {tokens.map((t) => (
-            <div key={t.id} className="flex items-center justify-between p-4">
-              <div>
-                <div className="font-medium">{t.name}</div>
-                <div className="text-xs text-zinc-500">
-                  <code className="rounded bg-zinc-800 px-1">{t.prefix}…</code>
-                  {t.note && <span className="ml-2">{t.note}</span>}
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-xs text-zinc-500">
-                  {t.lastUsedAt ? `used ${timeAgo(t.lastUsedAt)}` : "never used"}
-                </span>
-                <button className="btn-ghost text-red-400" onClick={() => remove(t.id)}>
-                  Revoke
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {creating && (
-        <CreateTokenModal
-          onClose={() => setCreating(false)}
-          onCreated={(raw) => {
-            setCreating(false);
-            setCreated({ token: raw });
-            load();
-          }}
-        />
-      )}
-
-      {created && (
-        <Modal title="Token created" onClose={() => setCreated(null)}>
-          <p className="mb-3 text-sm text-zinc-400">
-            Copy this token now — it will <b>not</b> be shown again.
-          </p>
-          <div className="mb-4 break-all rounded-lg bg-zinc-800 p-3 font-mono text-sm">
-            {created.token}
-          </div>
-          <button
-            className="btn-primary w-full"
-            onClick={() => {
-              navigator.clipboard?.writeText(created.token);
-            }}
-          >
-            Copy to clipboard
-          </button>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-function CreateTokenModal({
-  onClose,
-  onCreated,
-}: {
-  onClose: () => void;
-  onCreated: (rawToken: string) => void;
-}) {
-  const [name, setName] = useState("");
-  const [note, setNote] = useState("");
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: React.FormEvent) {
+  async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
+    if (!email) return;
     setBusy(true);
     setErr("");
     try {
-      const res = await api.createToken({ name, note });
-      onCreated(res.token);
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "failed");
+      await api.addOrgMember({ email, role });
+      setEmail("");
+      setRole("member");
+      load();
+    } catch (e: any) {
+      setErr(e.message || "Failed to add member");
     } finally {
       setBusy(false);
     }
   }
 
+  async function handleRemove(userId: number) {
+    if (!confirm("Remove this member from the organization?")) return;
+    try {
+      await api.deleteOrgMember(userId);
+      load();
+    } catch (e: any) {
+      alert(e.message || "Failed to remove member");
+    }
+  }
+
   return (
-    <Modal title="New API token" onClose={onClose}>
-      <form onSubmit={submit}>
-        <Field label="Name">
+    <div>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold">Organization Members</h1>
+        <p className="text-sm text-zinc-500">Manage who has access to this organization's resources.</p>
+      </div>
+
+      <form onSubmit={handleAdd} className="card p-4 mb-6 flex gap-3 items-end">
+        <div className="flex-1">
+          <label className="label">Invite Member (Email)</label>
           <input
-            className="input"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. ci-deploy"
-            autoFocus
+            className="input w-full"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="colleague@example.com"
           />
-        </Field>
-        <Field label="Note" hint="Optional free-text remark.">
-          <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
-        </Field>
-        {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
-        <button className="btn-primary w-full" disabled={busy || !name.trim()}>
-          {busy ? "…" : "Create token"}
+        </div>
+        <div className="w-32">
+          <label className="label">Role</label>
+          <select className="input w-full" value={role} onChange={(e) => setRole(e.target.value)}>
+            <option value="member">Member</option>
+            <option value="admin">Admin</option>
+            <option value="owner">Owner</option>
+          </select>
+        </div>
+        <button className="btn-primary" disabled={busy || !email}>
+          Invite
         </button>
       </form>
-    </Modal>
+      {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
+
+      {loading ? (
+        <div className="text-zinc-500">loading…</div>
+      ) : (
+        <div className="card divide-y divide-zinc-800">
+          {members.map((m) => (
+            <div key={m.userId} className="flex justify-between items-center p-4">
+              <div>
+                <span className="font-semibold text-zinc-200">{m.email}</span>
+                <span className="badge ml-2">{m.role}</span>
+              </div>
+              <button
+                className="btn-ghost text-red-400"
+                onClick={() => handleRemove(m.userId)}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

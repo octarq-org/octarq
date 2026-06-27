@@ -103,6 +103,7 @@ func (a *App) Run(ctx context.Context) error {
 	// 2. Core API mux, then let plugins mount their own routes onto it.
 	auth.InitGothStore(a.cfg.SecretKey)
 	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo)
+	apiHandler.SetPlugins(a.plugins)
 	mux := apiHandler.Routes()
 	pctx := &plugin.Context{
 		DB:      a.gdb,

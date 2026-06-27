@@ -393,12 +393,21 @@ type AbuseReport struct {
 	CreatedAt   time.Time `json:"createdAt"`
 }
 
+// UserSetting stores user-scoped custom preferences (e.g. menu groupings).
+type UserSetting struct {
+	UserID    uint      `gorm:"primaryKey" json:"userId"`
+	Key       string    `gorm:"primaryKey;size:64" json:"key"`
+	Value     string    `gorm:"type:text" json:"value"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // AllModels lists every model for AutoMigrate.
 func AllModels() []any {
 	return []any{
-		&Org{}, &User{}, &OrgMember{},
+		&Org{}, &User{}, &OrgMember{}, &UserSetting{},
 		&ProviderAccount{}, &Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{},
 		&Token{}, &Setting{}, &SMTPSender{}, &NotificationChannel{},
 		&AbuseReport{}, &AuditLog{},
 	}
 }
+

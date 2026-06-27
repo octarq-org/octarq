@@ -11,20 +11,27 @@ import (
 	"github.com/Jungley8/led/internal/auth"
 	"github.com/Jungley8/led/internal/crypto"
 	"github.com/Jungley8/led/internal/geo"
+	"github.com/Jungley8/led/plugin"
 	"gorm.io/gorm"
 )
 
 // Handler bundles dependencies shared by all API endpoints.
 type Handler struct {
-	cfg    *config.Config
-	db     *gorm.DB
-	cipher *crypto.Cipher
-	auth   *auth.Manager
+	cfg          *config.Config
+	db           *gorm.DB
+	cipher       *crypto.Cipher
+	auth         *auth.Manager
 	geo          *geo.Resolver
 	oauth        *auth.OAuthHandler // nil if BaseURL not configured
 	loginLimiter *rateLimiter
 	abuseLimiter *rateLimiter
+	plugins      []plugin.Plugin
 }
+
+func (h *Handler) SetPlugins(plugins []plugin.Plugin) {
+	h.plugins = plugins
+}
+
 
 func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *geo.Resolver) *Handler {
 	h := &Handler{
@@ -150,6 +157,19 @@ func (h *Handler) Routes() *http.ServeMux {
 
 	// Audit log (session required, read-only for now).
 	p("GET /api/audit", h.listAuditLogs)
+
+	// Multi-tenant Organization Management
+	p("POST /api/auth/switch-org", h.switchOrg)
+	p("GET /api/orgs", h.listOrgs)
+	p("POST /api/orgs", h.createOrg)
+	p("GET /api/org/members", h.listOrgMembers)
+	p("POST /api/org/members", h.addOrgMember)
+	p("DELETE /api/org/members/{userId}", h.removeOrgMember)
+
+	// Menu and User Settings
+	p("GET /api/menus", h.listMenus)
+	p("GET /api/user/settings", h.getUserSettings)
+	p("PUT /api/user/settings", h.updateUserSettings)
 
 	return mux
 }

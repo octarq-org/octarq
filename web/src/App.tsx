@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
-import { api, ApiError } from "./api";
+import { api, ApiError, Org, MenuItem } from "./api";
 import OverviewPage from "./pages/Overview";
 import LinksPage from "./pages/Links";
 import DomainsPage from "./pages/Domains";
@@ -11,16 +11,20 @@ import VPSPage from "./pages/VPS";
 import FinancePage from "./pages/Finance";
 import AuditLogPage from "./pages/AuditLog";
 import AbusePage from "./pages/Abuse";
+import PersonalSettingsPage from "./pages/PersonalSettings";
+import { Modal } from "./ui";
 
 export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [user, setUser] = useState("");
+  const [activeOrgId, setActiveOrgId] = useState<number>(0);
 
   useEffect(() => {
     api
       .me()
       .then((m) => {
         setUser(m.username);
+        setActiveOrgId(m.orgId);
         setAuthed(true);
       })
       .catch(() => setAuthed(false));
@@ -30,12 +34,17 @@ export default function App() {
     return <div className="grid h-full place-items-center text-zinc-500">loading…</div>;
   }
   if (!authed) {
-    return <Login onLogin={(u) => { setUser(u); setAuthed(true); }} />;
+    return <Login onLogin={(u, orgId) => { setUser(u); setActiveOrgId(orgId); setAuthed(true); }} />;
   }
 
   return (
     <div className="flex h-full">
-      <Sidebar user={user} onLogout={() => setAuthed(false)} />
+      <Sidebar
+        user={user}
+        onLogout={() => setAuthed(false)}
+        activeOrgId={activeOrgId}
+        setActiveOrgId={setActiveOrgId}
+      />
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-6xl p-6">
           <Routes>
@@ -50,6 +59,7 @@ export default function App() {
             <Route path="/audit" element={<AuditLogPage />} />
             <Route path="/abuse" element={<AbusePage />} />
             <Route path="/settings/*" element={<SettingsPage />} />
+            <Route path="/personal/*" element={<PersonalSettingsPage />} />
             <Route path="*" element={<Navigate to="/overview" replace />} />
           </Routes>
         </div>
@@ -58,61 +68,231 @@ export default function App() {
   );
 }
 
-function Sidebar({ user, onLogout }: { user: string; onLogout: () => void }) {
+function Sidebar({
+  user,
+  onLogout,
+  activeOrgId,
+  setActiveOrgId,
+}: {
+  user: string;
+  onLogout: () => void;
+  activeOrgId: number;
+  setActiveOrgId: (id: number) => void;
+}) {
   const nav = useNavigate();
-  const trafficItems = [
-    { to: "/overview", label: "Overview", icon: "📊" },
-    { to: "/links", label: "Links", icon: "🔗" },
-    { to: "/domains", label: "Domains", icon: "🌐" },
-    { to: "/mail", label: "Mail", icon: "✉️" },
-  ];
-  const infraItems = [
-    { to: "/vps", label: "VPS", icon: "🖥️" },
-    { to: "/sshkeys", label: "SSH Keys", icon: "🔑" },
-    { to: "/finance", label: "Finance", icon: "💳" },
-    { to: "/audit", label: "Audit Log", icon: "📝" },
-    { to: "/abuse", label: "Abuse", icon: "🛡️" },
-    { to: "/settings", label: "Settings", icon: "⚙️" },
-  ];
+  const [orgs, setOrgs] = useState<Org[]>([]);
+  const [menus, setMenus] = useState<MenuItem[]>([]);
+  const [menuLayout, setMenuLayout] = useState<string>("");
+  const [showSwitcher, setShowSwitcher] = useState(false);
+  const [creatingOrg, setCreatingOrg] = useState(false);
+  const [newOrgName, setNewOrgName] = useState("");
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
-  const renderNav = (items: typeof trafficItems) => (
-    <nav className="flex flex-col gap-1 mb-6">
-      {items.map((it) => (
-        <NavLink
-          key={it.to}
-          to={it.to}
-          className={({ isActive }) =>
-            `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
-              isActive ? "bg-zinc-800 text-white" : "text-zinc-400 hover:bg-zinc-900"
-            }`
-          }
-        >
-          <span>{it.icon}</span>
-          {it.label}
-        </NavLink>
-      ))}
-    </nav>
-  );
+  useEffect(() => {
+    // Fetch organizations
+    api.orgs().then(setOrgs).catch(console.error);
+
+    // Fetch dynamic menus
+    api.menus().then(setMenus).catch(console.error);
+
+    // Fetch user settings for menu layout
+    api.getUserSettings()
+      .then((settings) => {
+        if (settings.menu_layout) {
+          setMenuLayout(settings.menu_layout);
+        }
+        if (settings.collapsed_groups) {
+          setCollapsedGroups(JSON.parse(settings.collapsed_groups));
+        }
+      })
+      .catch(console.error);
+  }, [activeOrgId]);
+
+  const activeOrgName = orgs.find((o) => o.id === activeOrgId)?.name || "Personal Workspace";
+
+  function handleSwitchOrg(orgId: number) {
+    api.switchOrg(orgId).then(() => {
+      setActiveOrgId(orgId);
+      setShowSwitcher(false);
+      window.location.reload();
+    }).catch((e) => alert(e.message || "Failed to switch organization"));
+  }
+
+  function handleCreateOrg(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newOrgName.trim()) return;
+    api.createOrg({ name: newOrgName })
+      .then((org) => {
+        api.switchOrg(org.id).then(() => {
+          window.location.reload();
+        });
+      })
+      .catch((e) => alert(e.message || "Failed to create organization"));
+  }
+
+  function toggleGroup(groupName: string) {
+    const nextCollapsed = {
+      ...collapsedGroups,
+      [groupName]: !collapsedGroups[groupName],
+    };
+    setCollapsedGroups(nextCollapsed);
+    api.updateUserSettings("collapsed_groups", JSON.stringify(nextCollapsed)).catch(console.error);
+  }
+
+  // Group menus based on custom layout or category field
+  let groupedMenus: { name: string; items: MenuItem[] }[] = [];
+  if (menuLayout) {
+    try {
+      const layout = JSON.parse(menuLayout);
+      const assignedIds = new Set<string>();
+      groupedMenus = layout.groups.map((g: any) => {
+        const items = g.items
+          .map((id: string) => menus.find((m) => m.id === id))
+          .filter(Boolean) as MenuItem[];
+        items.forEach((item) => assignedIds.add(item.id));
+        return { name: g.name, items };
+      });
+      // Handle unassigned menus (e.g. newly registered plugins)
+      const unassigned = menus.filter((m) => !assignedIds.has(m.id));
+      if (unassigned.length > 0) {
+        const uncategorizedIdx = groupedMenus.findIndex((g) => g.name === "Uncategorized");
+        if (uncategorizedIdx > -1) {
+          groupedMenus[uncategorizedIdx].items.push(...unassigned);
+        } else {
+          groupedMenus.push({ name: "Uncategorized", items: unassigned });
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  // Fallback to grouping by category field from API
+  if (groupedMenus.length === 0 && menus.length > 0) {
+    const catMap: Record<string, MenuItem[]> = {};
+    menus.forEach((item) => {
+      const cat = item.category || "Uncategorized";
+      if (!catMap[cat]) catMap[cat] = [];
+      catMap[cat].push(item);
+    });
+    groupedMenus = Object.keys(catMap).map((name) => ({
+      name,
+      items: catMap[name],
+    }));
+  }
 
   return (
     <aside className="flex w-56 flex-col border-r border-zinc-800 bg-zinc-950 p-4 overflow-y-auto">
-      <div className="mb-8 flex items-center gap-2 px-2">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-500 font-bold">l</span>
-        <div>
-          <div className="font-semibold leading-tight">led</div>
-          <div className="text-[10px] uppercase tracking-wider text-zinc-500">link · email · domain</div>
-        </div>
-      </div>
-      
-      <div className="px-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Traffic</div>
-      {renderNav(trafficItems)}
-
-      <div className="px-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Infrastructure</div>
-      {renderNav(infraItems)}
-      <div className="mt-auto border-t border-zinc-800 pt-4">
-        <div className="px-2 text-xs text-zinc-500">signed in as {user}</div>
+      {/* Organization Switcher Header */}
+      <div className="relative mb-6">
         <button
-          className="btn-ghost mt-2 w-full justify-start"
+          onClick={() => setShowSwitcher(!showSwitcher)}
+          className="flex w-full items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5 hover:bg-zinc-800 transition-colors text-left"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 leading-none mb-1">
+              Organization
+            </div>
+            <div className="font-semibold text-sm text-zinc-200 truncate leading-snug">
+              {activeOrgName}
+            </div>
+          </div>
+          <span className="text-zinc-500 text-xs ml-1">▼</span>
+        </button>
+
+        {showSwitcher && (
+          <div className="absolute top-full left-0 z-50 mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-900 p-1.5 shadow-xl">
+            <div className="max-h-48 overflow-y-auto space-y-0.5">
+              {orgs.map((o) => (
+                <button
+                  key={o.id}
+                  onClick={() => handleSwitchOrg(o.id)}
+                  className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-xs font-medium transition-colors ${
+                    o.id === activeOrgId
+                      ? "bg-zinc-800 text-white"
+                      : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-300"
+                  }`}
+                >
+                  <span className="truncate">{o.name}</span>
+                  {o.id === activeOrgId && <span className="text-indigo-400">✓</span>}
+                </button>
+              ))}
+            </div>
+            <div className="mt-1.5 border-t border-zinc-800 pt-1.5">
+              <button
+                onClick={() => {
+                  setCreatingOrg(true);
+                  setShowSwitcher(false);
+                }}
+                className="flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-left text-xs font-medium text-indigo-400 hover:bg-zinc-800/50"
+              >
+                <span>+</span> Create Organization
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Grouped Dynamic Menus */}
+      <div className="flex-1 space-y-4">
+        {groupedMenus.map((group) => {
+          const isCollapsed = !!collapsedGroups[group.name];
+          return (
+            <div key={group.name} className="space-y-1">
+              <button
+                onClick={() => toggleGroup(group.name)}
+                className="flex w-full items-center justify-between px-2 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider hover:text-zinc-400"
+              >
+                <span>{group.name}</span>
+                <span className="text-[8px]">{isCollapsed ? "▶" : "▼"}</span>
+              </button>
+
+              {!isCollapsed && (
+                <nav className="flex flex-col gap-0.5 mt-1">
+                  {group.items.map((it) => (
+                    <NavLink
+                      key={it.id}
+                      to={it.path}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${
+                          isActive
+                            ? "bg-zinc-800 text-white shadow-inner"
+                            : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300"
+                        }`
+                      }
+                    >
+                      <span className="text-sm shrink-0">{it.icon}</span>
+                      <span className="truncate">{it.label}</span>
+                    </NavLink>
+                  ))}
+                </nav>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Personal Settings Footer */}
+      <div className="mt-auto border-t border-zinc-800 pt-4 space-y-2">
+        <NavLink
+          to="/personal"
+          className={({ isActive }) =>
+            `flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+              isActive
+                ? "bg-zinc-800 text-white"
+                : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-300"
+            }`
+          }
+        >
+          <span className="text-sm shrink-0">👤</span>
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold truncate leading-tight">Personal Workspace</div>
+            <div className="text-[10px] text-zinc-500 truncate leading-none mt-0.5">{user}</div>
+          </div>
+        </NavLink>
+
+        <button
+          className="btn-ghost w-full justify-start text-xs font-medium py-1.5"
           onClick={async () => {
             await api.logout();
             onLogout();
@@ -122,11 +302,45 @@ function Sidebar({ user, onLogout }: { user: string; onLogout: () => void }) {
           Sign out
         </button>
       </div>
+
+      {/* Create Org Modal */}
+      {creatingOrg && (
+        <Modal title="Create Organization" onClose={() => setCreatingOrg(false)}>
+          <form onSubmit={handleCreateOrg} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-zinc-400">Organization Name</label>
+              <input
+                className="input w-full"
+                value={newOrgName}
+                onChange={(e) => setNewOrgName(e.target.value)}
+                placeholder="e.g. Acme Corporation"
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => setCreatingOrg(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={!newOrgName.trim()}
+              >
+                Create & Switch
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </aside>
   );
 }
 
-function Login({ onLogin }: { onLogin: (u: string) => void }) {
+function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
   const [u, setU] = useState("admin");
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
@@ -138,7 +352,8 @@ function Login({ onLogin }: { onLogin: (u: string) => void }) {
     setErr("");
     try {
       await api.login(u, p);
-      onLogin(u);
+      const m = await api.me();
+      onLogin(u, m.orgId);
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "login failed");
     } finally {

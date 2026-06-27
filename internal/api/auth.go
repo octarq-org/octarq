@@ -95,5 +95,5 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusUnauthorized, "user not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"username": user.Email})
+	writeJSON(w, http.StatusOK, map[string]any{"username": user.Email, "orgId": h.orgID(r)})
 }

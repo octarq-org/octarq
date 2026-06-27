@@ -67,3 +67,19 @@ type Plugin interface {
 type Starter interface {
 	Start(ctx context.Context)
 }
+
+// MenuItem represents a menu item exposed by a plugin for rendering in the UI.
+type MenuItem struct {
+	ID       string `json:"id"`
+	Label    string `json:"label"`
+	Path     string `json:"path"`
+	Icon     string `json:"icon"`     // emoji or icon key
+	Category string `json:"category"` // default category
+}
+
+// MenuProvider is an optional interface a Plugin may implement if it registers
+// dynamic menu links for the frontend sidebar.
+type MenuProvider interface {
+	Menus() []MenuItem
+}
+

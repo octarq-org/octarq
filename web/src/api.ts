@@ -297,7 +297,7 @@ export const api = {
   }) => req<Settings>("PUT", "/api/settings", s),
 
   // auth
-  me: () => req<{ username: string }>("GET", "/api/auth/me"),
+  me: () => req<{ username: string; orgId: number }>("GET", "/api/auth/me"),
   login: (username: string, password: string) =>
     req<{ ok: boolean }>("POST", "/api/auth/login", { username, password }),
   logout: () => req<{ ok: boolean }>("POST", "/api/auth/logout"),
@@ -425,6 +425,41 @@ export const api = {
   // abuse
   abuseReports: (status?: string) => req<AbuseReport[]>("GET", `/api/abuse${status ? `?status=${status}` : ''}`),
   updateAbuseReport: (id: number, status: string) => req<AbuseReport>("PUT", `/api/abuse/${id}`, { status }),
+
+  // orgs
+  orgs: () => req<Org[]>("GET", "/api/orgs"),
+  createOrg: (d: { name: string }) => req<Org>("POST", "/api/orgs", d),
+  switchOrg: (orgId: number) => req<{ ok: boolean }>("POST", "/api/auth/switch-org", { orgId }),
+  orgMembers: () => req<OrgMember[]>("GET", "/api/org/members"),
+  addOrgMember: (d: { email: string; role: string }) => req<{ ok: boolean }>("POST", "/api/org/members", d),
+  deleteOrgMember: (userId: number) => req<void>("DELETE", `/api/org/members/${userId}`),
+
+  // menus and user settings
+  menus: () => req<MenuItem[]>("GET", "/api/menus"),
+  getUserSettings: () => req<Record<string, string>>("GET", "/api/user/settings"),
+  updateUserSettings: (key: string, value: string) => req<{ ok: boolean }>("PUT", "/api/user/settings", { key, value }),
 };
 
+export interface Org {
+  id: number;
+  name: string;
+  slug: string;
+  role?: string;
+}
+
+export interface OrgMember {
+  userId: number;
+  email: string;
+  role: string;
+}
+
+export interface MenuItem {
+  id: string;
+  label: string;
+  path: string;
+  icon: string;
+  category: string;
+}
+
 export { ApiError };
+
