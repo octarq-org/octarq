@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Jungley8/led/internal/models"
@@ -16,42 +15,11 @@ var validAbuseReasons = map[string]bool{
 	"spam": true, "phishing": true, "malware": true, "other": true,
 }
 
-var abuseRateLimiter sync.Map
-
-func abuseRateAllowed(ip string) bool {
-	const max = 5
-	const window = time.Hour
-	now := time.Now()
-
-	val, _ := abuseRateLimiter.LoadOrStore(ip, &sync.Mutex{})
-	mu := val.(*sync.Mutex)
-	mu.Lock()
-	defer mu.Unlock()
-
-	var fresh []time.Time
-	if timesVal, ok := abuseRateLimiter.Load(ip + "_times"); ok {
-		times := timesVal.([]time.Time)
-		for _, t := range times {
-			if now.Sub(t) < window {
-				fresh = append(fresh, t)
-			}
-		}
-	}
-	
-	if len(fresh) >= max {
-		return false
-	}
-	
-	fresh = append(fresh, now)
-	abuseRateLimiter.Store(ip+"_times", fresh)
-	return true
-}
-
 // submitAbuse is a public (no auth) endpoint for reporting a short link.
 // POST /abuse  {"slug":"abc","reason":"phishing","description":"..."}
 func (h *Handler) submitAbuse(w http.ResponseWriter, r *http.Request) {
 	ip := reporterIP(r)
-	if !abuseRateAllowed(ip) {
+	if !h.abuseLimiter.allow(ip) {
 		writeErr(w, http.StatusTooManyRequests, "too many reports from this IP, try again later")
 		return
 	}
@@ -97,6 +65,8 @@ func (h *Handler) submitAbuse(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "failed to save report")
 		return
 	}
+
+	h.abuseLimiter.recordFailure(ip)
 
 	// Best-effort notification to all enabled channels.
 	go h.notifyAbuse(rep)

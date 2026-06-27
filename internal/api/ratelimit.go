@@ -6,10 +6,11 @@ import (
 )
 
 type rateLimiter struct {
-	mu      sync.Mutex
-	clients map[string]*clientData
-	limit   int
-	window  time.Duration
+	mu          sync.Mutex
+	clients     map[string]*clientData
+	limit       int
+	window      time.Duration
+	lastCleanup time.Time
 }
 
 type clientData struct {
@@ -19,15 +20,29 @@ type clientData struct {
 
 func newRateLimiter(limit int, window time.Duration) *rateLimiter {
 	return &rateLimiter{
-		clients: make(map[string]*clientData),
-		limit:   limit,
-		window:  window,
+		clients:     make(map[string]*clientData),
+		limit:       limit,
+		window:      window,
+		lastCleanup: time.Now(),
+	}
+}
+
+func (rl *rateLimiter) cleanup() {
+	if time.Since(rl.lastCleanup) > rl.window {
+		for ip, data := range rl.clients {
+			if time.Since(data.lastError) > rl.window {
+				delete(rl.clients, ip)
+			}
+		}
+		rl.lastCleanup = time.Now()
 	}
 }
 
 func (rl *rateLimiter) allow(ip string) bool {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
+
+	rl.cleanup()
 
 	data, exists := rl.clients[ip]
 	if !exists {
@@ -45,6 +60,8 @@ func (rl *rateLimiter) recordFailure(ip string) {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
+	rl.cleanup()
+
 	data, exists := rl.clients[ip]
 	if !exists {
 		data = &clientData{}
@@ -59,3 +76,4 @@ func (rl *rateLimiter) reset(ip string) {
 	defer rl.mu.Unlock()
 	delete(rl.clients, ip)
 }
+

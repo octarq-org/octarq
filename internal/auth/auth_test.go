@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -167,5 +168,141 @@ func TestBearerTokenAuth(t *testing.T) {
 	none := httptest.NewRequest(http.MethodGet, "/api/links", nil)
 	if m.APIAuthed(none) {
 		t.Fatal("APIAuthed accepted a request with no credentials")
+	}
+}
+
+func TestRequireMiddleware(t *testing.T) {
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
+
+	handler := m.Require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		uid := m.UserID(r)
+		orgID := m.OrgID(r)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(fmt.Sprintf("uid=%d,orgID=%d", uid, orgID)))
+	}))
+
+	// Case 1: Unauthorized (no cookie, no bearer token)
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rec.Code)
+	}
+
+	// Case 2: Authorized via Session Cookie
+	recCookie := httptest.NewRecorder()
+	m.SetSession(recCookie, 42, 99)
+	reqCookie := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	for _, c := range recCookie.Result().Cookies() {
+		reqCookie.AddCookie(c)
+	}
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, reqCookie)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+	if rec.Body.String() != "uid=42,orgID=99" {
+		t.Errorf("expected 'uid=42,orgID=99', got '%s'", rec.Body.String())
+	}
+
+	// Case 3: Authorized via Bearer Token
+	raw := "led_testtoken_require_middleware_9999"
+	tok := models.Token{
+		OrgID:  88,
+		Name:   "test-token",
+		Hash:   models.HashToken(raw),
+		Prefix: raw[:8],
+	}
+	if err := db.Create(&tok).Error; err != nil {
+		t.Fatalf("create token: %v", err)
+	}
+
+	reqBearer := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	reqBearer.Header.Set("Authorization", "Bearer "+raw)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, reqBearer)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+	if rec.Body.String() != "uid=0,orgID=88" {
+		t.Errorf("expected 'uid=0,orgID=88', got '%s'", rec.Body.String())
+	}
+}
+
+func TestOAuthLoadProviderConcurrency(t *testing.T) {
+	db := testDB(t)
+	cfg := &config.Config{SecretKey: "secret"}
+	cipher := crypto.New("secret")
+	m := New(cfg, cipher).WithDB(db)
+
+	encSecret, err := cipher.Encrypt([]byte("google-secret"))
+	if err != nil {
+		t.Fatalf("encrypt secret: %v", err)
+	}
+
+	db.Create(&models.Setting{Key: "oauth.google.client_id", Value: "google-id"})
+	db.Create(&models.Setting{Key: "oauth.google.client_secret", Value: encSecret})
+
+	handler := NewOAuthHandler(db, "http://localhost", m, cipher)
+
+	const workers = 10
+	done := make(chan bool, workers)
+	for i := 0; i < workers; i++ {
+		go func() {
+			ok := handler.loadProvider("google")
+			if !ok {
+				t.Errorf("expected loadProvider to succeed")
+			}
+			done <- true
+		}()
+	}
+
+	for i := 0; i < workers; i++ {
+		<-done
+	}
+}
+
+func TestOAuthHandlerUpsertUser(t *testing.T) {
+	db := testDB(t)
+	cfg := &config.Config{SecretKey: "secret"}
+	m := New(cfg, crypto.New("secret")).WithDB(db)
+	handler := NewOAuthHandler(db, "http://localhost", m, crypto.New("secret"))
+
+	InitGothStore("secret")
+
+	reqBegin := httptest.NewRequest(http.MethodGet, "/auth/begin/unconfigured", nil)
+	reqBegin.SetPathValue("provider", "unconfigured")
+	recBegin := httptest.NewRecorder()
+	handler.Begin(recBegin, reqBegin)
+	if recBegin.Code != http.StatusServiceUnavailable {
+		t.Errorf("expected 503 for unconfigured provider, got %d", recBegin.Code)
+	}
+
+	reqCallback := httptest.NewRequest(http.MethodGet, "/auth/callback/unconfigured", nil)
+	reqCallback.SetPathValue("provider", "unconfigured")
+	recCallback := httptest.NewRecorder()
+	handler.Callback(recCallback, reqCallback)
+	if recCallback.Code != http.StatusServiceUnavailable {
+		t.Errorf("expected 503 for unconfigured provider, got %d", recCallback.Code)
+	}
+
+	u, o, err := handler.upsertUser("alice@example.com", "http://avatar", "google")
+	if err != nil {
+		t.Fatalf("upsertUser failed: %v", err)
+	}
+	if u.Email != "alice@example.com" {
+		t.Errorf("user email = %q, want alice@example.com", u.Email)
+	}
+	if o.Name != "alice@example.com" || o.Slug != "alice-example-com" {
+		t.Errorf("org mismatch: %+v", o)
+	}
+
+	u2, o2, err := handler.upsertUser("alice@example.com", "http://avatar", "google")
+	if err != nil {
+		t.Fatalf("upsertUser existing failed: %v", err)
+	}
+	if u2.ID != u.ID || o2.ID != o.ID {
+		t.Errorf("upsertUser existing did not return same user/org")
 	}
 }

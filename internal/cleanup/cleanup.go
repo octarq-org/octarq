@@ -22,13 +22,31 @@ func Start(ctx context.Context, db *gorm.DB, retentionDays func() int) {
 			return
 		}
 		cutoff := time.Now().AddDate(0, 0, -days)
-		res := db.Where("created_at < ?", cutoff).Delete(&models.LinkEvent{})
-		if res.Error != nil {
-			log.Printf("cleanup: purge link_events: %v", res.Error)
-			return
+		
+		totalPurged := int64(0)
+		for {
+			var ids []uint
+			if err := db.Model(&models.LinkEvent{}).Where("created_at < ?", cutoff).Limit(2000).Pluck("id", &ids).Error; err != nil {
+				log.Printf("cleanup: query link_events: %v", err)
+				return
+			}
+			if len(ids) == 0 {
+				break
+			}
+			
+			res := db.Delete(&models.LinkEvent{}, ids)
+			if res.Error != nil {
+				log.Printf("cleanup: purge link_events batch: %v", res.Error)
+				return
+			}
+			totalPurged += res.RowsAffected
+			
+			// Yield execution briefly to keep the database responsive
+			time.Sleep(50 * time.Millisecond)
 		}
-		if res.RowsAffected > 0 {
-			log.Printf("cleanup: purged %d link_events older than %d days", res.RowsAffected, days)
+		
+		if totalPurged > 0 {
+			log.Printf("cleanup: purged %d total link_events older than %d days", totalPurged, days)
 		}
 	}
 

@@ -32,6 +32,7 @@ type cfCreds struct {
 // Cloudflare implements Provider against the Cloudflare API v4.
 type Cloudflare struct {
 	token string
+	base  string
 	hc    *http.Client
 }
 
@@ -57,7 +58,11 @@ func (c *Cloudflare) do(ctx context.Context, method, path string, body any) (jso
 		}
 		buf = bytes.NewReader(b)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, cfAPIBase+path, buf)
+	base := c.base
+	if base == "" {
+		base = cfAPIBase
+	}
+	req, err := http.NewRequestWithContext(ctx, method, base+path, buf)
 	if err != nil {
 		return nil, err
 	}

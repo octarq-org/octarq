@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/Jungley8/led/internal/crypto"
 	"github.com/Jungley8/led/internal/models"
@@ -14,6 +15,11 @@ import (
 	"github.com/markbates/goth/providers/github"
 	"github.com/markbates/goth/providers/google"
 	"gorm.io/gorm"
+)
+
+var (
+	providersMu sync.RWMutex
+	loadedCreds = make(map[string]string) // key: provider name, value: client_id:client_secret
 )
 
 // InitGothStore sets the gorilla session store goth uses internally.
@@ -44,6 +50,24 @@ func (h *OAuthHandler) loadProvider(provider string) bool {
 	if cid == "" || csec == "" {
 		return false
 	}
+	
+	credsKey := cid + ":" + csec
+
+	providersMu.RLock()
+	current := loadedCreds[provider]
+	providersMu.RUnlock()
+
+	if current == credsKey {
+		return true
+	}
+
+	providersMu.Lock()
+	defer providersMu.Unlock()
+
+	if loadedCreds[provider] == credsKey {
+		return true
+	}
+
 	cb := h.callbackBase + "/auth/callback/" + provider
 	switch provider {
 	case "google":
@@ -53,6 +77,7 @@ func (h *OAuthHandler) loadProvider(provider string) bool {
 	default:
 		return false
 	}
+	loadedCreds[provider] = credsKey
 	return true
 }
 

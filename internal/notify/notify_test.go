@@ -60,3 +60,20 @@ func TestSendWebhookErrorsOnBadStatus(t *testing.T) {
 		t.Fatal("expected error on non-2xx webhook response")
 	}
 }
+
+func TestSendTelegramAPIErrors(t *testing.T) {
+	cfgJSON := `{"botToken":"invalid-token","chatId":"123456"}`
+	err := Send(context.Background(), "telegram", cfgJSON, "hello")
+	if err == nil {
+		t.Error("expected error for invalid telegram bot token, got nil")
+	}
+}
+
+func TestSendInvalidJSON(t *testing.T) {
+	if err := Send(context.Background(), "telegram", `invalid-json`, "x"); err == nil {
+		t.Fatal("expected error for malformed telegram config JSON")
+	}
+	if err := Send(context.Background(), "webhook", `invalid-json`, "x"); err == nil {
+		t.Fatal("expected error for malformed webhook config JSON")
+	}
+}

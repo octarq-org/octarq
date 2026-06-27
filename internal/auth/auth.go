@@ -4,6 +4,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -14,6 +15,13 @@ import (
 	"github.com/Jungley8/led/internal/crypto"
 	"github.com/Jungley8/led/internal/models"
 	"gorm.io/gorm"
+)
+
+type contextKey string
+
+const (
+	orgIDKey  contextKey = "org_id"
+	userIDKey contextKey = "user_id"
 )
 
 const cookieName = "led_session"
@@ -91,6 +99,9 @@ func (m *Manager) SetSession(w http.ResponseWriter, uid, orgID uint) {
 
 // UserID extracts the user ID from the session cookie, or 0 if not authed.
 func (m *Manager) UserID(r *http.Request) uint {
+	if id, ok := r.Context().Value(userIDKey).(uint); ok {
+		return id
+	}
 	c, err := r.Cookie(cookieName)
 	if err != nil {
 		return 0
@@ -104,6 +115,9 @@ func (m *Manager) UserID(r *http.Request) uint {
 
 // OrgID extracts the org ID from the session cookie, or 0 if not authed.
 func (m *Manager) OrgID(r *http.Request) uint {
+	if id, ok := r.Context().Value(orgIDKey).(uint); ok {
+		return id
+	}
 	c, err := r.Cookie(cookieName)
 	if err != nil {
 		return 0
@@ -173,13 +187,44 @@ func (m *Manager) APIAuthed(r *http.Request) bool {
 }
 
 // Require is middleware that 401s API requests lacking a valid session cookie
-// or API bearer token.
+// or API bearer token, and injects authenticated UserID and OrgID into the request context.
 func (m *Manager) Require(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !m.APIAuthed(r) {
+		var uid, orgID uint
+		var authed bool
+
+		// 1. Session Cookie
+		if c, err := r.Cookie(cookieName); err == nil {
+			if u, o, ok := m.validate(c.Value); ok {
+				uid, orgID, authed = u, o, true
+			}
+		}
+
+		// 2. Bearer Token
+		if !authed && m.db != nil {
+			if raw := bearerToken(r); strings.HasPrefix(raw, "led_") {
+				hash := models.HashToken(raw)
+				var tok models.Token
+				if m.db.Where("hash = ?", hash).First(&tok).Error == nil {
+					uid, orgID, authed = 0, tok.OrgID, true
+					// Update LastUsedAt asynchronously
+					id := tok.ID
+					db := m.db
+					go func() {
+						now := time.Now()
+						db.Model(&models.Token{}).Where("id = ?", id).Update("last_used_at", &now)
+					}()
+				}
+			}
+		}
+
+		if !authed {
 			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 			return
 		}
-		next.ServeHTTP(w, r)
+
+		ctx := context.WithValue(r.Context(), userIDKey, uid)
+		ctx = context.WithValue(ctx, orgIDKey, orgID)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

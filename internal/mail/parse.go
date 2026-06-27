@@ -119,8 +119,26 @@ func parseAuthResults(hdr string, out *AuthResults) {
 		{"dkim=", &out.DKIM},
 		{"dmarc=", &out.DMARC},
 	} {
-		if idx := strings.Index(s, method.name); idx >= 0 {
-			rest := s[idx+len(method.name):]
+		idx := 0
+		for {
+			pos := strings.Index(s[idx:], method.name)
+			if pos < 0 {
+				break
+			}
+			matchPos := idx + pos
+			idx = matchPos + len(method.name)
+
+			// Ensure match is at the start of the header string, or preceded by
+			// a token separator (whitespace, semicolon, comma). This avoids false
+			// matches like "x-not-dkim=pass".
+			if matchPos > 0 {
+				prev := s[matchPos-1]
+				if prev != ' ' && prev != '\t' && prev != ';' && prev != ',' {
+					continue
+				}
+			}
+
+			rest := s[matchPos+len(method.name):]
 			// Result token ends at the next whitespace, semicolon, or end.
 			end := strings.IndexAny(rest, " \t\r\n;(")
 			if end < 0 {
@@ -130,6 +148,7 @@ func parseAuthResults(hdr string, out *AuthResults) {
 			if token != "" && *method.target == "" {
 				*method.target = token
 			}
+			break
 		}
 	}
 }

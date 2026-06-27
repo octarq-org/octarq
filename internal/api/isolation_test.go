@@ -180,34 +180,54 @@ func TestBearerTokenOrgIsolation(t *testing.T) {
 	org1 := sessionCookies(t, 1, 1)
 	org2 := sessionCookies(t, 2, 2)
 
-	// Org 1 creates a link and a bearer token.
+	// Org 1 and Org 2 create links.
 	do(srv, http.MethodPost, "/api/links", org1, `{"slug":"bearer-org1","target":"https://org1.example"}`)
 	do(srv, http.MethodPost, "/api/links", org2, `{"slug":"bearer-org2","target":"https://org2.example"}`)
 
-	rawTok := "led_bearertesttoken0000000000000000000"
+	// Token for Org 1
+	rawTok1 := "led_bearertesttoken1111111111111111111"
 	db.Create(&models.Token{
 		OrgID:  1,
-		Name:   "bearer-test",
-		Hash:   models.HashToken(rawTok),
-		Prefix: rawTok[:8],
+		Name:   "bearer-test-1",
+		Hash:   models.HashToken(rawTok1),
+		Prefix: rawTok1[:8],
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/links", nil)
-	req.Header.Set("Authorization", "Bearer "+rawTok)
-	rec := httptest.NewRecorder()
-	srv.ServeHTTP(rec, req)
+	// Token for Org 2
+	rawTok2 := "led_bearertesttoken2222222222222222222"
+	db.Create(&models.Token{
+		OrgID:  2,
+		Name:   "bearer-test-2",
+		Hash:   models.HashToken(rawTok2),
+		Prefix: rawTok2[:8],
+	})
 
-	body := rec.Body.String()
-	if !strings.Contains(body, "bearer-org1") {
-		t.Error("bearer token cannot see its own org's link")
+	// Test Token 1
+	req1 := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	req1.Header.Set("Authorization", "Bearer "+rawTok1)
+	rec1 := httptest.NewRecorder()
+	srv.ServeHTTP(rec1, req1)
+
+	body1 := rec1.Body.String()
+	if !strings.Contains(body1, "bearer-org1") {
+		t.Error("bearer token 1 cannot see its own org's link")
 	}
-	// Bearer auth goes through tokenAuthed which doesn't scope by org in the
-	// middleware; the handler uses orgID from the cookie (0 when using bearer).
-	// orgID falls back to 1 in h.orgID(). Document that bearer tokens currently
-	// see org 1's data (single-admin assumption for API consumers).
-	// This test locks in the current behaviour so regressions are caught.
-	if strings.Contains(body, "bearer-org2") {
-		t.Error("bearer token should not see org2's link (org-1 fallback)")
+	if strings.Contains(body1, "bearer-org2") {
+		t.Error("bearer token 1 leaked org2's link")
+	}
+
+	// Test Token 2
+	req2 := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	req2.Header.Set("Authorization", "Bearer "+rawTok2)
+	rec2 := httptest.NewRecorder()
+	srv.ServeHTTP(rec2, req2)
+
+	body2 := rec2.Body.String()
+	if !strings.Contains(body2, "bearer-org2") {
+		t.Error("bearer token 2 cannot see its own org's link")
+	}
+	if strings.Contains(body2, "bearer-org1") {
+		t.Error("bearer token 2 leaked org1's link")
 	}
 }
 

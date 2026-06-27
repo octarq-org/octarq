@@ -63,6 +63,10 @@ func TestParseAuthResults(t *testing.T) {
 			"softfail", "temperror", "",
 		},
 		{
+			"mx.example.com; x-not-spf=pass; x-not-dkim=fail; x-not-dmarc=pass",
+			"", "", "",
+		},
+		{
 			"no-auth-results-here",
 			"", "", "",
 		},

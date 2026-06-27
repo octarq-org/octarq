@@ -3,6 +3,7 @@ package shortlink
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -153,5 +154,137 @@ func TestHandleExpiryAndClickLimit(t *testing.T) {
 	s.Handle(rec3, httptest.NewRequest("GET", "/cap", nil), l3)
 	if rec3.Code != http.StatusNotFound {
 		t.Errorf("over-limit link: got %d, want 404", rec3.Code)
+	}
+}
+
+func TestLookupLinkHostDisabled(t *testing.T) {
+	s := newTestService(t)
+
+	d := models.Domain{
+		Name:    "example.com",
+		ForLink: true,
+		LinkHosts: models.HostList{
+			{Host: "disabled.example.com", Enabled: false},
+			{Host: "enabled.example.com", Enabled: true},
+		},
+	}
+	s.db.Create(&d)
+
+	if !s.linkHostDisabled("disabled.example.com") {
+		t.Error("expected disabled.example.com to be reported as disabled")
+	}
+
+	if s.linkHostDisabled("enabled.example.com") {
+		t.Error("expected enabled.example.com to NOT be reported as disabled")
+	}
+
+	if s.linkHostDisabled("nonexistent.example.com") {
+		t.Error("expected nonexistent.example.com to NOT be reported as disabled")
+	}
+}
+
+func TestHandlePasswordGate(t *testing.T) {
+	s := newTestService(t)
+
+	link := &models.Link{
+		Slug:     "pwlink",
+		Target:   "https://target",
+		Enabled:  true,
+		Password: "secretpassword",
+	}
+	s.db.Create(link)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/pwlink", nil)
+	s.Handle(rec, req, link)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 Unauthorized, got %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "Protected link") {
+		t.Error("expected response to contain password gate html")
+	}
+
+	rec2 := httptest.NewRecorder()
+	req2 := httptest.NewRequest("GET", "/pwlink?pw=wrong", nil)
+	s.Handle(rec2, req2, link)
+	if rec2.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 Unauthorized, got %d", rec2.Code)
+	}
+
+	rec3 := httptest.NewRecorder()
+	req3 := httptest.NewRequest("GET", "/pwlink?pw=secretpassword", nil)
+	s.Handle(rec3, req3, link)
+	if rec3.Code != http.StatusFound || rec3.Header().Get("Location") != "https://target" {
+		t.Errorf("expected redirect to https://target, got status %d Location %q", rec3.Code, rec3.Header().Get("Location"))
+	}
+}
+
+func TestHandleRoutingRules(t *testing.T) {
+	s := newTestService(t)
+
+	link := &models.Link{
+		Slug:    "route",
+		Target:  "https://default",
+		Enabled: true,
+		RoutingRules: []models.RoutingRule{
+			{
+				Type:   "geo",
+				Match:  "CN",
+				Target: "https://china",
+			},
+			{
+				Type:   "device",
+				Match:  "mobile",
+				Target: "https://mobile",
+			},
+			{
+				Type:   "os",
+				Match:  "android",
+				Target: "https://android",
+			},
+			{
+				Type:   "language",
+				Match:  "zh-cn",
+				Target: "https://chinese",
+			},
+		},
+	}
+	s.db.Create(link)
+
+	if !matchRule(link.RoutingRules[0], "CN", "desktop", "linux", "") {
+		t.Error("expected geo CN to match CN")
+	}
+	if !matchRule(link.RoutingRules[1], "US", "mobile", "ios", "") {
+		t.Error("expected device mobile to match mobile")
+	}
+	if !matchRule(link.RoutingRules[2], "US", "desktop", "android", "") {
+		t.Error("expected os android to match android")
+	}
+	if !matchRule(link.RoutingRules[3], "US", "desktop", "linux", "zh-CN,zh;q=0.9") {
+		t.Error("expected language zh-cn to match Accept-Language headers containing zh-cn")
+	}
+}
+
+func TestIsBot(t *testing.T) {
+	botUAs := []string{
+		"Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+		"facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_codedec.html)",
+		"WhatsApp/2.19.244 A",
+		"Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)",
+	}
+	for _, ua := range botUAs {
+		if !isBot(ua) {
+			t.Errorf("expected %q to be recognized as bot", ua)
+		}
+	}
+
+	humanUAs := []string{
+		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+		"Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1",
+	}
+	for _, ua := range humanUAs {
+		if isBot(ua) {
+			t.Errorf("expected %q to NOT be recognized as bot", ua)
+		}
 	}
 }
