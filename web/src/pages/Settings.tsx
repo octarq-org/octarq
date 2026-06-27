@@ -5,60 +5,17 @@ import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign } from "lucide-react";
 
 export default function SettingsPage() {
-  const tabs = [
-    { to: "/settings/general", label: "General", icon: <SettingsIcon className="h-4 w-4" /> },
-    { to: "/settings/billing", label: "Billing & Plan", icon: <CreditCard className="h-4 w-4" /> },
-    { to: "/settings/providers", label: "Providers", icon: <Cloud className="h-4 w-4" /> },
-    { to: "/settings/smtp", label: "SMTP Senders", icon: <Mail className="h-4 w-4" /> },
-    { to: "/settings/notifications", label: "Notifications", icon: <Bell className="h-4 w-4" /> },
-    { to: "/settings/members", label: "Members", icon: <Users className="h-4 w-4" /> },
-  ];
-
   return (
     <ScreenWrap>
-      <PageHeader
-        title="Workspace Settings"
-        description="Configure your active workspace resources, integrations, and member permissions"
-      />
-
-      <div className="flex flex-col md:flex-row gap-6 items-start">
-        {/* Sidebar Nav */}
-        <aside className="w-full md:w-56 shrink-0 md:sticky md:top-6">
-          <GlassCard className="p-3">
-            <nav className="flex flex-col gap-1.5">
-              {tabs.map((t) => (
-                <NavLink
-                  key={t.to}
-                  to={t.to}
-                  className={({ isActive }) =>
-                    `flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-150 ${
-                      isActive
-                        ? "bg-indigo-500 text-white shadow-glow"
-                        : "text-white/60 hover:bg-white/5 hover:text-white/80"
-                    }`
-                  }
-                >
-                  {t.icon}
-                  {t.label}
-                </NavLink>
-              ))}
-            </nav>
-          </GlassCard>
-        </aside>
-
-        {/* Content Area */}
-        <div className="flex-1 min-w-0 w-full">
-          <Routes>
-            <Route path="/" element={<Navigate to="/settings/general" replace />} />
-            <Route path="/general" element={<GeneralSettings />} />
-            <Route path="/billing" element={<BillingPlanDemo />} />
-            <Route path="/providers" element={<ProviderAccounts />} />
-            <Route path="/smtp" element={<SMTPSenders />} />
-            <Route path="/notifications" element={<NotificationChannels />} />
-            <Route path="/members" element={<OrgMembersManager />} />
-          </Routes>
-        </div>
-      </div>
+      <Routes>
+        <Route path="/" element={<Navigate to="/settings/general" replace />} />
+        <Route path="/general" element={<GeneralSettings />} />
+        <Route path="/billing" element={<BillingPlanDemo />} />
+        <Route path="/providers" element={<ProviderAccounts />} />
+        <Route path="/smtp" element={<SMTPSenders />} />
+        <Route path="/notifications" element={<NotificationChannels />} />
+        <Route path="/members" element={<OrgMembersManager />} />
+      </Routes>
     </ScreenWrap>
   );
 }
@@ -161,6 +118,11 @@ function GeneralSettings() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="General Settings"
+        description="Configure your workspace details, short-link settings, and API integrations"
+      />
+
       {/* Workspace Identity Card */}
       <GlassCard className="p-6 space-y-4">
         <div className="flex justify-between items-center">
@@ -171,21 +133,21 @@ function GeneralSettings() {
           {workspaceSaved && <Badge tone="green">✓ Name Updated</Badge>}
         </div>
 
-        <form onSubmit={handleRenameWorkspace} className="flex flex-wrap sm:flex-nowrap gap-4 items-end max-w-xl">
-          <div className="flex-1">
-            <Field label="Workspace Name" hint="This name is shown in the workspace switcher and header.">
+        <form onSubmit={handleRenameWorkspace} className="max-w-md">
+          <Field label="Workspace Name" hint="This name is shown in the workspace switcher and header.">
+            <div className="flex gap-2">
               <input
-                className="input w-full text-sm mt-1"
+                className="input flex-1 text-sm"
                 value={workspaceName}
                 onChange={(e) => setWorkspaceName(e.target.value)}
                 placeholder="e.g. Acme Production"
                 required
               />
-            </Field>
-          </div>
-          <Button type="submit" variant="primary" disabled={workspaceRenameBusy || !workspaceName.trim()}>
-            {workspaceRenameBusy ? "Updating..." : "Update Name"}
-          </Button>
+              <Button type="submit" variant="primary" disabled={workspaceRenameBusy || !workspaceName.trim()} className="shrink-0">
+                {workspaceRenameBusy ? "Updating..." : "Update Name"}
+              </Button>
+            </div>
+          </Field>
         </form>
       </GlassCard>
 
@@ -464,16 +426,17 @@ function NotificationChannels() {
   }
 
   return (
-    <GlassCard className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-base font-bold text-white mb-1">Notification Channels</h2>
-          <p className="text-xs text-white/55">Create system hooks and chat integrations triggered by operational events.</p>
-        </div>
-        <Button variant="primary" onClick={() => setEditing({ type: "telegram", config: "{}" })} className="text-xs py-1.5 px-3">
-          + Add Channel
-        </Button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Alert Hooks & Channels"
+        description="Integrate chat systems and webhooks to receive real-time alerts when server/email events fire"
+        action={
+          <Button variant="primary" onClick={() => setEditing({ type: "telegram", config: "{}" })}>
+            + Add Channel
+          </Button>
+        }
+      />
+      <GlassCard className="p-6">
 
       {loading ? (
         <div className="text-white/40 text-sm py-6 text-center">loading…</div>
@@ -538,6 +501,7 @@ function NotificationChannels() {
         />
       )}
     </GlassCard>
+    </div>
   );
 }
 
@@ -701,11 +665,12 @@ function OrgMembersManager() {
   };
 
   return (
-    <GlassCard className="p-6 space-y-6">
-      <div>
-        <h2 className="text-base font-bold text-white mb-1">Workspace Members</h2>
-        <p className="text-xs text-white/55 font-normal">Add colleagues or manage roles inside this workspace.</p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Workspace Members"
+        description="Invite colleagues, assign administrative roles, and manage permissions within this workspace"
+      />
+      <GlassCard className="p-6 space-y-6">
 
       <form onSubmit={handleAdd} className="bg-black/25 p-4 rounded-xl border border-white/[0.05] flex flex-wrap sm:flex-nowrap gap-4 items-end">
         <div className="flex-1 min-w-[200px]">
@@ -756,6 +721,7 @@ function OrgMembersManager() {
         </div>
       )}
     </GlassCard>
+    </div>
   );
 }
 
@@ -786,16 +752,17 @@ function ProviderAccounts() {
   }
 
   return (
-    <GlassCard className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-base font-bold text-white mb-1">DNS Provider Connections</h2>
-          <p className="text-xs text-white/55">Credential access keys for Cloudflare and DNSPod APIs.</p>
-        </div>
-        <Button variant="primary" onClick={() => setCreating(true)} className="text-xs py-1.5 px-3">
-          + Add Provider
-        </Button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="DNS Providers"
+        description="Configure API connections for Cloudflare and DNSPod to sync and verify domains"
+        action={
+          <Button variant="primary" onClick={() => setCreating(true)}>
+            + Add Provider
+          </Button>
+        }
+      />
+      <GlassCard className="p-6">
       
       {loading ? (
         <div className="text-white/40 text-sm py-6 text-center">loading…</div>
@@ -840,6 +807,7 @@ function ProviderAccounts() {
         />
       )}
     </GlassCard>
+    </div>
   );
 }
 
@@ -932,16 +900,17 @@ function SMTPSenders() {
   }
 
   return (
-    <GlassCard className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-base font-bold text-white mb-1">SMTP Outbound Senders</h2>
-          <p className="text-xs text-white/55">Configure SMTP server gateways used for sending mail from boxes.</p>
-        </div>
-        <Button variant="primary" onClick={() => setCreating(true)} className="text-xs py-1.5 px-3">
-          + Add SMTP
-        </Button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="SMTP Senders"
+        description="Configure external SMTP gateway relays used to send outgoing emails from mailboxes"
+        action={
+          <Button variant="primary" onClick={() => setCreating(true)}>
+            + Add SMTP
+          </Button>
+        }
+      />
+      <GlassCard className="p-6">
 
       {loading ? (
         <div className="text-white/40 text-sm py-6 text-center">loading…</div>
@@ -984,6 +953,7 @@ function SMTPSenders() {
         />
       )}
     </GlassCard>
+    </div>
   );
 }
 
@@ -1112,6 +1082,10 @@ function BillingPlanDemo() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Billing & Plan"
+        description="Monitor your subscription package, resource metrics, and payment receipts"
+      />
       {/* Current plan metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <GlassCard className="p-5 flex flex-col justify-between">

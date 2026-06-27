@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { twMerge } from "tailwind-merge";
 import { motion } from "framer-motion";
 import { HostEntry } from "./api";
@@ -209,13 +210,13 @@ export function Modal({
     return () => window.removeEventListener("keydown", h);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-16 modal-overlay"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-16 modal-overlay bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className={`glass-strong w-full rounded-2xl p-5 modal-card ${wide ? "max-w-3xl" : "max-w-md"}`}
+        className={`glass-strong w-full rounded-2xl p-5 modal-card relative z-50 ${wide ? "max-w-3xl" : "max-w-md"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -226,7 +227,8 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

@@ -1,9 +1,27 @@
 import { useEffect, useState } from "react";
 import { api, FinanceSummary, Subscription } from "../api";
 import { Empty, Field, Modal, Toggle, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard } from "../ui";
-import { ShieldAlert, CreditCard, Calendar, TrendingUp, Sparkles, Trash2, Pencil } from "lucide-react";
+import { ShieldAlert, CreditCard, Calendar, TrendingUp, Sparkles, Trash2, Pencil, Landmark, Plus, ArrowUpRight, ArrowDownRight, Wallet } from "lucide-react";
 
 const CURRENCIES = ["USD", "CNY", "EUR", "GBP", "JPY", "HKD", "SGD"];
+
+interface Transaction {
+  id: string;
+  date: string;
+  type: "income" | "expense";
+  title: string;
+  category: string;
+  amount: number;
+  currency: string;
+}
+
+const DEFAULT_TRANSACTIONS: Transaction[] = [
+  { id: "tx-1", date: "2026-06-25", type: "income", title: "Domain Sale: webdev.io", category: "Domain Trading", amount: 1850.00, currency: "USD" },
+  { id: "tx-2", date: "2026-06-22", type: "expense", title: "Hetzner Cloud VPS rental", category: "Infrastructure", amount: 48.50, currency: "USD" },
+  { id: "tx-3", date: "2026-06-18", type: "expense", title: "AWS Route53 renew: mycorp.com", category: "Domain Registration", amount: 12.00, currency: "USD" },
+  { id: "tx-4", date: "2026-06-15", type: "income", title: "Consulting: DNS Cluster Setup", category: "Services", amount: 650.00, currency: "USD" },
+  { id: "tx-5", date: "2026-06-10", type: "expense", title: "Google Workspace renewal", category: "SaaS Tools", amount: 36.00, currency: "USD" },
+];
 
 function fmtCost(cost: number, currency: string) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 2 }).format(cost);
@@ -30,11 +48,16 @@ function RenewalBadge({ nextRenewal }: { nextRenewal: string | null }) {
 }
 
 export default function FinancePage() {
+  const [activeTab, setActiveTab] = useState<"subscriptions" | "ledger">("subscriptions");
   const [subs, setSubs] = useState<Subscription[]>([]);
   const [summary, setSummary] = useState<FinanceSummary | null>(null);
   const [editItem, setEditItem] = useState<Subscription | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
+  const [showAddSub, setShowAddSub] = useState(false);
   const [error, setError] = useState<{ status: number; message: string } | null>(null);
+
+  // Transactions ledger states (Closed-loop flow)
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [showAddTx, setShowAddTx] = useState(false);
 
   function load() {
     api.subscriptions()
@@ -43,9 +66,28 @@ export default function FinancePage() {
     api.financeSummary()
       .then(setSummary)
       .catch(() => {});
+
+    // Load ledger from localStorage
+    const saved = localStorage.getItem("led_finance_ledger");
+    if (saved) {
+      try {
+        setTransactions(JSON.parse(saved));
+      } catch {
+        setTransactions(DEFAULT_TRANSACTIONS);
+      }
+    } else {
+      setTransactions(DEFAULT_TRANSACTIONS);
+      localStorage.setItem("led_finance_ledger", JSON.stringify(DEFAULT_TRANSACTIONS));
+    }
   }
 
   useEffect(() => { load(); }, []);
+
+  // Save transactions to localStorage
+  const saveTransactionsList = (list: Transaction[]) => {
+    setTransactions(list);
+    localStorage.setItem("led_finance_ledger", JSON.stringify(list));
+  };
 
   if (error) {
     return (
@@ -89,137 +131,282 @@ export default function FinancePage() {
     load();
   }
 
+  // Add ledger transaction
+  function handleAddTransaction(tx: Omit<Transaction, "id">) {
+    const newTx: Transaction = {
+      ...tx,
+      id: "tx-" + Date.now(),
+    };
+    const updated = [newTx, ...transactions];
+    saveTransactionsList(updated);
+  }
+
+  // Delete ledger transaction
+  function handleDeleteTransaction(id: string) {
+    if (!confirm("Are you sure you want to delete this ledger entry?")) return;
+    const updated = transactions.filter(t => t.id !== id);
+    saveTransactionsList(updated);
+  }
+
   const currencies = summary ? Object.keys(summary.monthlyByCurrency) : [];
+
+  // Calculate ledger stats (Closed-loop ledger calculations)
+  const totalIncome = transactions.filter(t => t.type === "income").reduce((acc, t) => acc + t.amount, 0);
+  const totalExpense = transactions.filter(t => t.type === "expense").reduce((acc, t) => acc + t.amount, 0);
+  const netBalance = totalIncome - totalExpense;
 
   return (
     <ScreenWrap>
       <PageHeader
-        title="Finance"
-        description="Track recurring SaaS spend and renewal dates"
+        title="Finance Workspace"
+        description="Monitor recurring cloud subscriptions and audit organization cash ledger records"
         action={
-          <Button variant="primary" onClick={() => setShowAdd(true)}>
-            + Add Subscription
-          </Button>
+          activeTab === "subscriptions" ? (
+            <Button variant="primary" onClick={() => setShowAddSub(true)} className="gap-1">
+              <Plus className="h-4 w-4" /> Add Subscription
+            </Button>
+          ) : (
+            <Button variant="primary" onClick={() => setShowAddTx(true)} className="gap-1">
+              <Plus className="h-4 w-4" /> Add Transaction
+            </Button>
+          )
         }
       />
 
-      {/* Summary cards */}
-      {summary && currencies.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <StatCard
-            label="Active Subscriptions"
-            value={summary.count}
-            icon={<CreditCard className="h-4 w-4" />}
-            index={0}
-          />
-          {currencies.map((cur, i) => (
-            <StatCard
-              key={cur}
-              label={`Monthly Spend (${cur})`}
-              value={fmtCost(summary.monthlyByCurrency[cur], cur)}
-              delta={`${fmtCost(summary.yearlyByCurrency[cur], cur)} / yr`}
-              positive={true}
-              icon={<TrendingUp className="h-4 w-4" />}
-              index={i + 1}
-            />
-          ))}
-          <StatCard
-            label="Renewing Soon"
-            value={summary.renewingSoon.length}
-            delta="within 14 days"
-            positive={summary.renewingSoon.length === 0}
-            icon={<Calendar className="h-4 w-4" />}
-            index={currencies.length + 1}
-          />
-        </div>
-      )}
+      {/* Tabs Switcher */}
+      <div className="flex gap-1.5 p-1 rounded-xl bg-black/25 border border-white/[0.05] max-w-sm mb-6">
+        <button
+          onClick={() => setActiveTab("subscriptions")}
+          className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-all ${
+            activeTab === "subscriptions" ? "bg-white/[0.08] text-white shadow-glow" : "text-white/50 hover:text-white/80"
+          }`}
+        >
+          SaaS Subscriptions
+        </button>
+        <button
+          onClick={() => setActiveTab("ledger")}
+          className={`flex-1 rounded-lg py-2 text-xs font-semibold transition-all ${
+            activeTab === "ledger" ? "bg-white/[0.08] text-white shadow-glow" : "text-white/50 hover:text-white/80"
+          }`}
+        >
+          Income & Expense Ledger
+        </button>
+      </div>
 
-      {/* Subscription list */}
-      {subs.length === 0 ? (
-        <Empty>
-          <CreditCard className="h-10 w-10 text-white/30 mb-2" />
-          <p className="text-sm text-white/50">No subscriptions yet.</p>
-          <Button variant="primary" className="mt-4" onClick={() => setShowAdd(true)}>
-            Add Subscription
-          </Button>
-        </Empty>
+      {activeTab === "subscriptions" ? (
+        <>
+          {/* Subscriptions Summary cards */}
+          {summary && currencies.length > 0 && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <StatCard
+                label="Active Subscriptions"
+                value={summary.count}
+                icon={<CreditCard className="h-4 w-4" />}
+                index={0}
+              />
+              {currencies.map((cur, i) => (
+                <StatCard
+                  key={cur}
+                  label={`Monthly Spend (${cur})`}
+                  value={fmtCost(summary.monthlyByCurrency[cur], cur)}
+                  delta={`${fmtCost(summary.yearlyByCurrency[cur], cur)} / yr`}
+                  positive={true}
+                  icon={<TrendingUp className="h-4 w-4" />}
+                  index={i + 1}
+                />
+              ))}
+              <StatCard
+                label="Renewing Soon"
+                value={summary.renewingSoon.length}
+                delta="within 14 days"
+                positive={summary.renewingSoon.length === 0}
+                icon={<Calendar className="h-4 w-4" />}
+                index={currencies.length + 1}
+              />
+            </div>
+          )}
+
+          {/* Subscriptions list */}
+          {subs.length === 0 ? (
+            <Empty>
+              <CreditCard className="h-10 w-10 text-white/30 mb-2" />
+              <p className="text-sm text-white/50">No active subscriptions configured.</p>
+            </Empty>
+          ) : (
+            <GlassCard className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead className="border-b border-white/[0.06] bg-white/[0.02] text-white/55">
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wider">
+                      <th className="px-5 py-3.5">Name</th>
+                      <th className="px-5 py-3.5">Vendor</th>
+                      <th className="px-5 py-3.5 text-right">Cost</th>
+                      <th className="px-5 py-3.5">Cycle</th>
+                      <th className="px-5 py-3.5">Next Renewal</th>
+                      <th className="px-5 py-3.5 text-center">Active</th>
+                      <th className="px-5 py-3.5"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {subs.map((sub) => (
+                      <tr
+                        key={sub.id}
+                        className={`hover:bg-white/[0.02] transition-all ${
+                          !sub.enabled ? "opacity-45 bg-black/10" : ""
+                        }`}
+                      >
+                        <td className="px-5 py-4 font-medium text-white">
+                          {sub.name}
+                          {sub.note && (
+                            <div className="text-xs text-white/40 truncate max-w-[12rem] mt-0.5" title={sub.note}>
+                              {sub.note}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 text-white/60">{sub.vendor || "—"}</td>
+                        <td className="px-5 py-4 text-right font-mono text-white/90">
+                          {fmtCost(sub.cost, sub.currency)}
+                        </td>
+                        <td className="px-5 py-4 text-white/55 capitalize text-xs">{sub.cycle}</td>
+                        <td className="px-5 py-4">
+                          <RenewalBadge nextRenewal={sub.nextRenewal} />
+                        </td>
+                        <td className="px-5 py-4 text-center">
+                          <div className="inline-flex items-center justify-center">
+                            <Toggle on={sub.enabled} onChange={() => toggleEnabled(sub)} />
+                          </div>
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              variant="ghost"
+                              onClick={() => setEditItem(sub)}
+                              className="text-xs py-1 px-2.5"
+                            >
+                              <Pencil className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="danger"
+                              onClick={() => deleteSub(sub)}
+                              className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-1" />
+                              Remove
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </GlassCard>
+          )}
+        </>
       ) : (
-        <GlassCard className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead className="border-b border-white/[0.06] bg-white/[0.02] text-white/55">
-                <tr className="text-left text-xs font-semibold uppercase tracking-wider">
-                  <th className="px-5 py-3.5">Name</th>
-                  <th className="px-5 py-3.5">Vendor</th>
-                  <th className="px-5 py-3.5 text-right">Cost</th>
-                  <th className="px-5 py-3.5">Cycle</th>
-                  <th className="px-5 py-3.5">Next Renewal</th>
-                  <th className="px-5 py-3.5 text-center">Active</th>
-                  <th className="px-5 py-3.5"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.04]">
-                {subs.map((sub) => (
-                  <tr
-                    key={sub.id}
-                    className={`hover:bg-white/[0.02] transition-all ${
-                      !sub.enabled ? "opacity-45 bg-black/10" : ""
-                    }`}
-                  >
-                    <td className="px-5 py-4 font-medium text-white">
-                      {sub.name}
-                      {sub.note && (
-                        <div className="text-xs text-white/40 truncate max-w-[12rem] mt-0.5" title={sub.note}>
-                          {sub.note}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-5 py-4 text-white/60">{sub.vendor || "—"}</td>
-                    <td className="px-5 py-4 text-right font-mono text-white/90">
-                      {fmtCost(sub.cost, sub.currency)}
-                    </td>
-                    <td className="px-5 py-4 text-white/55 capitalize text-xs">{sub.cycle}</td>
-                    <td className="px-5 py-4">
-                      <RenewalBadge nextRenewal={sub.nextRenewal} />
-                    </td>
-                    <td className="px-5 py-4 text-center">
-                      <div className="inline-flex items-center justify-center">
-                        <Toggle on={sub.enabled} onChange={() => toggleEnabled(sub)} />
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="flex gap-2 justify-end">
-                        <Button
-                          variant="ghost"
-                          onClick={() => setEditItem(sub)}
-                          className="text-xs py-1 px-2.5"
-                        >
-                          <Pencil className="h-3 w-3 mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="danger"
-                          onClick={() => deleteSub(sub)}
-                          className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 mr-1" />
-                          Remove
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <>
+          {/* Cash Ledger Summary Cards (Closed-Loop stats) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <StatCard
+              label="Total Revenue Income"
+              value={fmtCost(totalIncome, "USD")}
+              delta="Total received cash flow"
+              icon={<ArrowUpRight className="h-4 w-4 text-emerald-400" />}
+              positive={true}
+              index={0}
+            />
+            <StatCard
+              label="Total Expenditures"
+              value={fmtCost(totalExpense, "USD")}
+              delta="Total operating costs"
+              icon={<ArrowDownRight className="h-4 w-4 text-rose-400" />}
+              positive={false}
+              index={1}
+            />
+            <StatCard
+              label="Net Cash Profit"
+              value={fmtCost(netBalance, "USD")}
+              delta={netBalance >= 0 ? "Workspace Surplus" : "Workspace Deficit"}
+              icon={<Wallet className="h-4 w-4" />}
+              positive={netBalance >= 0}
+              index={2}
+            />
           </div>
-        </GlassCard>
+
+          {/* Ledger Table */}
+          {transactions.length === 0 ? (
+            <Empty>
+              <Landmark className="h-10 w-10 text-white/30 mb-2" />
+              <p className="text-sm text-white/50">No transaction logs in cash ledger.</p>
+            </Empty>
+          ) : (
+            <GlassCard className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead className="border-b border-white/[0.06] bg-white/[0.02] text-white/55">
+                    <tr className="text-left text-xs font-semibold uppercase tracking-wider">
+                      <th className="px-5 py-3.5">Date</th>
+                      <th className="px-5 py-3.5">Flow Type</th>
+                      <th className="px-5 py-3.5">Transaction Title</th>
+                      <th className="px-5 py-3.5">Category</th>
+                      <th className="px-5 py-3.5 text-right">Amount</th>
+                      <th className="px-5 py-3.5"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {transactions.map((tx) => (
+                      <tr key={tx.id} className="hover:bg-white/[0.02] transition-all">
+                        <td className="px-5 py-4 font-mono text-xs text-white/60">{tx.date}</td>
+                        <td className="px-5 py-4">
+                          <Badge tone={tx.type === "income" ? "green" : "red"} className="uppercase font-bold tracking-wider text-[9px]">
+                            {tx.type}
+                          </Badge>
+                        </td>
+                        <td className="px-5 py-4 text-white font-medium">{tx.title}</td>
+                        <td className="px-5 py-4">
+                          <Badge tone="neutral" className="text-white/60 bg-white/5 border border-white/[0.05]">
+                            {tx.category}
+                          </Badge>
+                        </td>
+                        <td className={`px-5 py-4 text-right font-mono font-semibold ${tx.type === "income" ? "text-emerald-400" : "text-rose-400"}`}>
+                          {tx.type === "income" ? "+" : "-"} {fmtCost(tx.amount, tx.currency)}
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              variant="danger"
+                              onClick={() => handleDeleteTransaction(tx.id)}
+                              className="text-xs py-1 px-2 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </GlassCard>
+          )}
+        </>
       )}
 
-      {(showAdd || editItem) && (
+      {/* Subscription Edit/Add Modal */}
+      {(showAddSub || editItem) && (
         <SubModal
           sub={editItem}
-          onClose={() => { setShowAdd(false); setEditItem(null); }}
+          onClose={() => { setShowAddSub(false); setEditItem(null); }}
           onSaved={load}
+        />
+      )}
+
+      {/* Transaction Add Modal */}
+      {showAddTx && (
+        <TransactionModal
+          onClose={() => setShowAddTx(false)}
+          onAdd={handleAddTransaction}
         />
       )}
     </ScreenWrap>
@@ -332,6 +519,92 @@ function SubModal({ sub, onClose, onSaved }: { sub: Subscription | null; onClose
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
           <Button type="submit" variant="primary" disabled={busy || !name}>
             {busy ? "Saving..." : "Save Subscription"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function TransactionModal({
+  onClose,
+  onAdd,
+}: {
+  onClose: () => void;
+  onAdd: (tx: Omit<Transaction, "id">) => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("Services");
+  const [amount, setAmount] = useState("");
+  const [type, setType] = useState<"income" | "expense">("expense");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+
+  const categories = [
+    "Domain Trading",
+    "Domain Registration",
+    "Infrastructure",
+    "SaaS Tools",
+    "Services",
+    "Advertising",
+    "Salary",
+    "Other",
+  ];
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    onAdd({
+      date,
+      type,
+      title,
+      category,
+      amount: parseFloat(amount) || 0,
+      currency: "USD",
+    });
+    onClose();
+  }
+
+  return (
+    <Modal title="Log Financial Transaction" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <Field label="Transaction Title">
+          <input className="input w-full" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="e.g. Client Server Setup Invoice" autoFocus />
+        </Field>
+
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <Field label="Flow Type">
+              <select className="input w-full text-sm" value={type} onChange={(e) => setType(e.target.value as "income" | "expense")}>
+                <option value="expense">Expenditure (Out)</option>
+                <option value="income">Revenue Income (In)</option>
+              </select>
+            </Field>
+          </div>
+          <div className="flex-1">
+            <Field label="Category">
+              <select className="input w-full text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
+                {categories.map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </Field>
+          </div>
+        </div>
+
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <Field label="Amount ($)">
+              <input className="input w-full font-mono text-sm" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required placeholder="0.00" />
+            </Field>
+          </div>
+          <div className="flex-1">
+            <Field label="Transaction Date">
+              <input className="input w-full text-sm" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+            </Field>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={!title.trim() || !amount}>
+            Save Ledger Entry
           </Button>
         </div>
       </form>

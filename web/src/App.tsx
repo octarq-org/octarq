@@ -21,6 +21,9 @@ import {
   User,
   Wallet,
   Workflow,
+  Sliders,
+  Bell,
+  Users,
 } from "lucide-react";
 import { api, ApiError, MenuItem, Org } from "./api";
 import OverviewPage from "./pages/Overview";
@@ -38,7 +41,7 @@ import { Modal, Button } from "./ui";
 
 // ─── Area definitions ──────────────────────────────────────────────────────
 
-type AreaId = "operations" | "assets" | "insights";
+type AreaId = "operations" | "assets" | "insights" | "settings";
 
 interface NavItem {
   id: string;
@@ -128,8 +131,37 @@ const STATIC_AREAS: Area[] = [
   },
 ];
 
+const SETTINGS_AREA: Area = {
+  id: "settings",
+  title: "Settings",
+  subtitle: "Workspace & profile configurations",
+  Icon: Settings,
+  groups: [
+    {
+      label: "Workspace settings",
+      items: [
+        { id: "general", label: "General Config", Icon: Settings, path: "/settings/general" },
+        { id: "billing", label: "Billing & Plan", Icon: CreditCard, path: "/settings/billing" },
+        { id: "providers", label: "DNS Providers", Icon: Globe, path: "/settings/providers" },
+        { id: "smtp", label: "SMTP Senders", Icon: Mail, path: "/settings/smtp" },
+        { id: "notifications", label: "Alert Hooks", Icon: Bell, path: "/settings/notifications" },
+        { id: "members", label: "Workspace Members", Icon: Users, path: "/settings/members" },
+      ],
+    },
+    {
+      label: "Personal settings",
+      items: [
+        { id: "profile", label: "My Profile", Icon: User, path: "/personal/profile" },
+        { id: "tokens", label: "API Tokens", Icon: KeyRound, path: "/personal/tokens" },
+        { id: "menu", label: "Sidebar Menu", Icon: Sliders, path: "/personal/menu" },
+      ],
+    },
+  ],
+};
+
 // Map a path to its area
 function areaForPath(path: string): AreaId {
+  if (path.startsWith("/settings") || path.startsWith("/personal")) return "settings";
   if (path.startsWith("/domains") || path.startsWith("/vps") || path.startsWith("/sshkeys")) return "assets";
   if (path.startsWith("/finance") || path.startsWith("/audit") || path.startsWith("/abuse")) return "insights";
   return "operations";
@@ -209,7 +241,7 @@ function Shell({
   const [newOrgName, setNewOrgName]   = useState("");
 
   const settingsActive = location.pathname.startsWith("/settings") || location.pathname.startsWith("/personal");
-  const activeArea: AreaId = settingsActive ? "operations" : areaForPath(location.pathname);
+  const activeArea: AreaId = settingsActive ? "settings" : areaForPath(location.pathname);
 
   // Load orgs + dynamic menus
   useEffect(() => {
@@ -245,7 +277,7 @@ function Shell({
     }).catch(() => {});
   }, [activeOrgId]);
 
-  const currentArea = areas.find((a) => a.id === activeArea) ?? areas[0];
+  const currentArea = settingsActive ? SETTINGS_AREA : (areas.find((a) => a.id === activeArea) ?? areas[0]);
   const activeOrgName = orgs.find((o) => o.id === activeOrgId)?.name ?? "Personal Workspace";
 
   function handleCreateOrg(e: React.FormEvent) {
@@ -280,13 +312,11 @@ function Shell({
       />
 
       <AnimatePresence mode="wait">
-        {!settingsActive && (
-          <AreaPanel
-            key={activeArea}
-            area={currentArea}
-            currentPath={location.pathname}
-          />
-        )}
+        <AreaPanel
+          key={activeArea}
+          area={currentArea}
+          currentPath={location.pathname}
+        />
       </AnimatePresence>
 
       <main className="relative flex-1 overflow-hidden">

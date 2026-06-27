@@ -5,54 +5,14 @@ import { Empty, Field, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge,
 import { User, Key, Sliders, Settings, CheckCircle, Trash2, Eye, ClipboardCopy } from "lucide-react";
 
 export default function PersonalSettingsPage() {
-  const tabs = [
-    { to: "/personal/profile", label: "Profile", icon: <User className="h-4 w-4" /> },
-    { to: "/personal/tokens", label: "API Tokens", icon: <Key className="h-4 w-4" /> },
-    { to: "/personal/menu", label: "Sidebar Menu", icon: <Sliders className="h-4 w-4" /> },
-  ];
-
   return (
     <ScreenWrap>
-      <PageHeader
-        title="Personal Settings"
-        description="Configure your security credentials, developer API keys, and layout preferences"
-      />
-
-      <div className="flex flex-col md:flex-row gap-6 items-start">
-        {/* Sidebar Nav */}
-        <aside className="w-full md:w-56 shrink-0 md:sticky md:top-6">
-          <GlassCard className="p-3">
-            <nav className="flex flex-col gap-1.5">
-              {tabs.map((t) => (
-                <NavLink
-                  key={t.to}
-                  to={t.to}
-                  className={({ isActive }) =>
-                    `flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-150 ${
-                      isActive
-                        ? "bg-indigo-500 text-white shadow-glow"
-                        : "text-white/60 hover:bg-white/5 hover:text-white/80"
-                    }`
-                  }
-                >
-                  {t.icon}
-                  {t.label}
-                </NavLink>
-              ))}
-            </nav>
-          </GlassCard>
-        </aside>
-
-        {/* Content Area */}
-        <div className="flex-1 min-w-0 w-full">
-          <Routes>
-            <Route path="/" element={<Navigate to="/personal/profile" replace />} />
-            <Route path="/profile" element={<ProfileSettings />} />
-            <Route path="/tokens" element={<ApiTokens />} />
-            <Route path="/menu" element={<MenuCustomizer />} />
-          </Routes>
-        </div>
-      </div>
+      <Routes>
+        <Route path="/" element={<Navigate to="/personal/profile" replace />} />
+        <Route path="/profile" element={<ProfileSettings />} />
+        <Route path="/tokens" element={<ApiTokens />} />
+        <Route path="/menu" element={<MenuCustomizer />} />
+      </Routes>
     </ScreenWrap>
   );
 }
@@ -92,11 +52,12 @@ function ProfileSettings() {
   }
 
   return (
-    <GlassCard className="p-6 space-y-6">
-      <div>
-        <h2 className="text-base font-bold text-white mb-1">My Account Profile</h2>
-        <p className="text-xs text-white/50">Manage your credentials and login details.</p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Personal Profile"
+        description="Manage your login email and security credentials"
+      />
+      <GlassCard className="p-6 space-y-6">
 
       <Field label="Login Email Address" hint="Your primary secure login identifier.">
         <input className="input w-full font-mono text-sm max-w-md bg-white/[0.03] cursor-not-allowed border-white/[0.04] text-white/50" value={email} readOnly />
@@ -136,6 +97,7 @@ function ProfileSettings() {
         </div>
       </form>
     </GlassCard>
+    </div>
   );
 }
 
@@ -164,19 +126,17 @@ function ApiTokens() {
   }
 
   return (
-    <GlassCard className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-base font-bold text-white mb-1">Developer API Tokens</h2>
-          <p className="text-xs text-white/50 leading-relaxed">
-            Bearer credentials used to authenticate custom scripts with LED. Include in headers:{" "}
-            <code className="rounded bg-white/[0.04] border border-white/[0.05] px-1.5 py-0.5 text-xs text-white/80 font-mono">Authorization: Bearer led_…</code>
-          </p>
-        </div>
-        <Button variant="primary" onClick={() => setCreating(true)} className="text-xs py-1.5 px-3 shrink-0">
-          + New Token
-        </Button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="API Tokens"
+        description="Bearer keys for automated script authentication. Set header 'Authorization: Bearer led_...'"
+        action={
+          <Button variant="primary" onClick={() => setCreating(true)}>
+            + New Token
+          </Button>
+        }
+      />
+      <GlassCard className="p-6">
 
       {loading ? (
         <div className="text-white/40 text-sm py-6 text-center">loading…</div>
@@ -248,6 +208,7 @@ function ApiTokens() {
         </Modal>
       )}
     </GlassCard>
+    </div>
   );
 }
 
@@ -426,16 +387,19 @@ function MenuCustomizer() {
   }
 
   return (
-    <GlassCard className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-base font-bold text-white mb-1">Sidebar Navigation Preferences</h2>
-          <p className="text-xs text-white/50">
-            Drag items or move them between categories to customize your primary sidebar layout.
-          </p>
+    <div className="space-y-6">
+      <PageHeader
+        title="Sidebar Menu"
+        description="Customize and group navigation tabs in your workspace sidebar"
+      />
+      <GlassCard className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Menu Categories & Layout</h3>
+            <p className="text-xs text-white/40 mt-0.5">Move menu items between groups to organize your workspace side panel.</p>
+          </div>
+          {saved && <Badge tone="green">✓ Config Saved</Badge>}
         </div>
-        {saved && <Badge tone="green">✓ Config Saved</Badge>}
-      </div>
 
       <div className="space-y-6">
         <form onSubmit={handleAddGroup} className="bg-black/25 p-4 rounded-xl border border-white/[0.05] flex gap-3 items-end">
@@ -506,5 +470,6 @@ function MenuCustomizer() {
         </div>
       </div>
     </GlassCard>
+    </div>
   );
 }
