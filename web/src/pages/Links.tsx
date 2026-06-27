@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, Domain, effectiveLinkHosts, Link, LinkStats } from "../api";
-import { Empty, Field, Toggle, timeAgo } from "../ui";
+import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard } from "../ui";
+import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe } from "lucide-react";
 
 export default function LinksPage() {
   const [links, setLinks] = useState<Link[]>([]);
@@ -67,156 +68,167 @@ export default function LinksPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <Header title="Links" subtitle="Short links with click analytics, tags & notes">
-        <button className="btn-primary" onClick={() => setActive("new")}>
-          + New link
-        </button>
-      </Header>
+    <ScreenWrap>
+      <PageHeader
+        title="Short Links"
+        description="Short links with click analytics, redirect routing & notes"
+        action={
+          <Button variant="primary" onClick={() => setActive("new")} className="gap-1.5 py-1.5 text-xs">
+            + New Link
+          </Button>
+        }
+      />
 
-      <div className="grid grid-cols-[300px_1fr] gap-4 min-h-0 flex-1">
-        {/* left column */}
-        <div className="flex flex-col min-h-0">
-          <div className="mb-2 flex items-center gap-2">
-            <input
-              className="input flex-1 min-w-0"
-              placeholder="Search…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <button
-              className={archived ? "btn-primary shrink-0" : "btn-ghost shrink-0"}
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 min-h-0 items-start">
+        {/* Left column - links list */}
+        <div className="flex flex-col min-h-0 w-full">
+          <div className="mb-3 flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                className="input w-full pl-8"
+                placeholder="Search links…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-white/30" />
+            </div>
+            <Button
+              variant={archived ? "primary" : "subtle"}
               onClick={() => setArchived((a) => !a)}
+              className="shrink-0 py-2 px-3 text-xs"
               title="Toggle archived view"
             >
-              {archived ? "Arc" : "Act"}
-            </button>
+              {archived ? "Archived" : "Active"}
+            </Button>
           </div>
-          <div className="card flex-1 overflow-y-auto" onScroll={handleScroll}>
-            {links.length === 0 && !loading ? (
-              <div className="p-8 text-center text-white/40">No links found.</div>
-            ) : (
-              <div className="divide-y divide-white/[0.04]">
-                {links.map((l) => (
-                  <button
-                    key={l.id}
-                    className={`flex w-full flex-col p-3 text-left hover:bg-white/[0.04] transition-colors ${
-                      active !== "new" && active?.id === l.id ? "bg-white/[0.06]" : ""
-                    }`}
-                    onClick={() => setActive(l)}
-                  >
-                    <div className="flex items-center gap-2 w-full">
-                      <span className="font-medium text-indigo-300 truncate flex-1">
-                        /{l.slug}
-                      </span>
-                      <span className="text-xs text-white/40 shrink-0">{l.clicks} clicks</span>
-                    </div>
-                    <div className="truncate text-xs text-white/55 mt-1">{l.target}</div>
-                  </button>
-                ))}
-                {loading && <div className="p-3 text-center text-xs text-white/40">Loading…</div>}
-              </div>
-            )}
-          </div>
+          
+          <GlassCard className="overflow-hidden">
+            <div className="overflow-y-auto max-h-[600px] divide-y divide-white/[0.04]" onScroll={handleScroll}>
+              {links.length === 0 && !loading ? (
+                <div className="p-8 text-center text-white/40 text-sm">No links found.</div>
+              ) : (
+                <>
+                  {links.map((l) => (
+                    <button
+                      key={l.id}
+                      className={`flex w-full flex-col p-4 text-left hover:bg-white/[0.03] transition-colors ${
+                        active !== "new" && active?.id === l.id ? "bg-white/[0.05]" : ""
+                      }`}
+                      onClick={() => setActive(l)}
+                    >
+                      <div className="flex items-center gap-2 w-full justify-between">
+                        <span className="font-semibold text-sm text-indigo-300 truncate flex-1">
+                          /{l.slug}
+                        </span>
+                        <Badge tone="neutral" className="text-[10px]">
+                          {l.clicks} clicks
+                        </Badge>
+                      </div>
+                      <div className="truncate text-xs text-white/50 mt-1.5 font-mono">{l.target}</div>
+                    </button>
+                  ))}
+                  {loading && <div className="p-3 text-center text-xs text-white/40">Loading…</div>}
+                </>
+              )}
+            </div>
+          </GlassCard>
         </div>
 
-        {/* right column */}
-        <div className="min-h-0 overflow-y-auto pr-2 pb-8">
+        {/* Right column - detail editor / viewer */}
+        <div className="w-full space-y-6">
           {active === "new" ? (
-             <div className="card p-5">
-               <h2 className="mb-4 text-xl font-semibold">New Link</h2>
-               <LinkEditorForm
-                 link={null}
-                 hosts={linkHostOptions}
-                 onCancel={() => setActive(null)}
-                 onSaved={(savedLink) => {
-                   loadMore(true);
-                   setActive(savedLink || null);
-                 }}
-               />
-             </div>
+            <GlassCard className="p-5">
+              <h2 className="mb-4 text-lg font-bold text-white flex items-center gap-2">
+                <Link2 className="h-5 w-5 text-indigo-400" />
+                Create New Link
+              </h2>
+              <LinkEditorForm
+                link={null}
+                hosts={linkHostOptions}
+                onCancel={() => setActive(null)}
+                onSaved={(savedLink) => {
+                  loadMore(true);
+                  setActive(savedLink || null);
+                }}
+              />
+            </GlassCard>
           ) : active ? (
-             <div className="space-y-4">
-                <div className="card p-5">
-                  <div className="flex justify-between mb-4">
-                     <h2 className="text-xl font-semibold">Edit Link</h2>
-                     <div className="flex gap-2">
-                       <button className="btn-ghost px-2 text-sm" onClick={() => copy(active)}>
-                         {copied === active.id ? "Copied!" : "Copy URL"}
-                       </button>
-                       <button className="btn-ghost px-2 text-sm" onClick={() => toggleArchive(active)}>
-                         {active.archived ? "Unarchive" : "Archive"}
-                       </button>
-                       <button
-                         className="btn-danger px-2 text-sm"
-                         onClick={async () => {
-                           if (confirm(`Delete /${active.slug}?`)) {
-                             await api.deleteLink(active.id);
-                             setActive(null);
-                             loadMore(true);
-                           }
-                         }}
-                       >
-                         Delete
-                       </button>
-                     </div>
+            <div className="space-y-6">
+              <GlassCard className="p-5">
+                <div className="flex flex-wrap justify-between items-center mb-5 border-b border-white/[0.06] pb-4 gap-4">
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Link2 className="h-5 w-5 text-indigo-400" />
+                    /{active.slug}
+                  </h2>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="subtle" className="text-xs py-1.5 px-3 gap-1.5" onClick={() => copy(active)}>
+                      <Copy className="h-3.5 w-3.5" />
+                      {copied === active.id ? "Copied!" : "Copy Link"}
+                    </Button>
+                    <Button variant="outline" className="text-xs py-1.5 px-3 gap-1.5" onClick={() => toggleArchive(active)}>
+                      <Archive className="h-3.5 w-3.5" />
+                      {active.archived ? "Unarchive" : "Archive"}
+                    </Button>
+                    <Button
+                      variant="danger"
+                      onClick={async () => {
+                        if (confirm(`Delete /${active.slug}?`)) {
+                          await api.deleteLink(active.id);
+                          setActive(null);
+                          loadMore(true);
+                        }
+                      }}
+                      className="text-xs py-1.5 px-3 gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-0"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </Button>
                   </div>
-                  <LinkEditorForm
-                    key={active.id}
-                    link={active}
-                    hosts={linkHostOptions}
-                    onCancel={() => setActive(null)}
-                    onSaved={(l) => {
-                      if (l) setActive(l);
-                      loadMore(true);
-                    }}
-                  />
                 </div>
                 
-                <StatsView link={active} />
-                
-                <div className="card p-5 flex flex-col items-center gap-3">
-                  <h3 className="text-sm font-semibold text-white/55 self-start">QR Code</h3>
+                <LinkEditorForm
+                  key={active.id}
+                  link={active}
+                  hosts={linkHostOptions}
+                  onCancel={() => setActive(null)}
+                  onSaved={(l) => {
+                    if (l) setActive(l);
+                    loadMore(true);
+                  }}
+                />
+              </GlassCard>
+              
+              <StatsView link={active} />
+              
+              <GlassCard className="p-5 flex flex-col items-center gap-4">
+                <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider self-start flex items-center gap-1.5">
+                  <QrCode className="h-4 w-4 text-indigo-400" />
+                  Link QR Code
+                </h3>
+                <div className="bg-white p-3 rounded-2xl shadow-glow">
                   <img
                     src={`/api/links/${active.id}/qr`}
                     alt="QR"
-                    className="rounded-lg bg-white p-2"
-                    width={200}
-                    height={200}
+                    className="rounded-lg"
+                    width={180}
+                    height={180}
                   />
-                  <a className="btn-ghost text-sm" href={`/api/links/${active.id}/qr`} download={`${active.slug}.png`}>
-                    Download PNG
-                  </a>
                 </div>
-             </div>
-          ) : (
-            <div className="flex h-full items-center justify-center text-white/40/50">
-              Select a link to view details
+                <Button variant="ghost" className="text-xs py-1.5 px-4 gap-1.5" onClick={() => window.open(`/api/links/${active.id}/qr`)}>
+                  <Download className="h-3.5 w-3.5" />
+                  Download QR Code
+                </Button>
+              </GlassCard>
             </div>
+          ) : (
+            <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-white/40 border border-white/[0.04]/40">
+              <Link2 className="h-10 w-10 mb-2 opacity-50 text-indigo-400" />
+              <p className="text-sm">Select a short link from the sidebar list to inspect click history & metrics.</p>
+            </GlassCard>
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-export function Header({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-4 shrink-0">
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-white">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-white/50">{subtitle}</p>}
-      </div>
-      {children}
-    </div>
+    </ScreenWrap>
   );
 }
 
@@ -286,28 +298,29 @@ function LinkEditorForm({
 
   return (
     <div className="space-y-4">
-      <Field label="Destination URL">
+      <Field label="Destination Target URL">
         <div className="flex gap-2">
           <input
-            className="input w-full"
+            className="input w-full font-mono text-sm"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
-            placeholder="example.com/page"
+            placeholder="https://example.com/blog-post-xyz"
+            required
           />
-          <button className="btn-ghost shrink-0" onClick={() => setShowUtm((v) => !v)} title="UTM builder">
+          <Button variant="subtle" className="shrink-0 text-xs py-1" type="button" onClick={() => setShowUtm((v) => !v)}>
             UTM
-          </button>
+          </Button>
         </div>
       </Field>
       {showUtm && <UtmBuilder target={target} onApply={setTarget} />}
       
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Slug" hint="blank = random">
-          <input className="input w-full" value={slug} onChange={(e) => setSlug(e.target.value)} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Short Slug" hint="Leave empty for auto-generated slug">
+          <input className="input w-full font-mono" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. promo2026" />
         </Field>
-        <Field label="Host" hint={hosts.length ? "short-link host" : "enable short links first"}>
+        <Field label="Routing Host Domain" hint={hosts.length ? "Configured domains" : "Configure domains first"}>
           <select className="input w-full" value={host} onChange={(e) => setHost(e.target.value)}>
-            <option value="">Any / default</option>
+            <option value="">Default (Apex Domain)</option>
             {hosts.map((h) => (
               <option key={h} value={h}>
                 {h}
@@ -318,61 +331,61 @@ function LinkEditorForm({
         </Field>
       </div>
 
-      <Field label="Title">
+      <Field label="Metadata Page Title">
         <div className="flex gap-2">
-          <input className="input w-full" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <button className="btn-ghost shrink-0" onClick={fetchTitle} disabled={fetching} title="Fetch from page">
-            {fetching ? "…" : "Auto"}
-          </button>
+          <input className="input w-full text-sm" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Auto-populated title for page previews" />
+          <Button variant="subtle" className="shrink-0 text-xs py-1" type="button" onClick={fetchTitle} disabled={fetching}>
+            {fetching ? "..." : "Fetch"}
+          </Button>
         </div>
       </Field>
 
-      <Field label="Tags" hint="comma-separated">
-        <input className="input w-full" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="marketing, launch" />
+      <Field label="Tags" hint="Comma-separated tokens">
+        <input className="input w-full text-sm" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. q3-ads, product-hunt" />
       </Field>
 
-      <Field label="Note" hint="Private remark">
-        <textarea className="input w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+      <Field label="Internal Admin Note">
+        <textarea className="input w-full text-sm" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Notes visible only to team members" />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Password" hint={link?.hasPassword ? "set, leave blank to keep" : "optional"}>
-          <input className="input w-full" value={password} onChange={(e) => setPassword(e.target.value)} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Access Protection Password" hint={link?.hasPassword ? "Key set. Fill to overwrite, blank to keep" : "Optional password check"}>
+          <input className="input w-full font-mono text-sm" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
         </Field>
-        <Field label="Click limit" hint="0 = unlimited">
+        <Field label="Total Click Limitation" hint="0 = Unlimited redirects">
           <input
             type="number"
             min={0}
-            className="input w-full"
+            className="input w-full font-mono"
             value={clickLimit}
             onChange={(e) => setClickLimit(Number(e.target.value))}
           />
         </Field>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Expires at">
-          <input type="datetime-local" className="input w-full" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Automatic Expiry Date">
+          <input type="datetime-local" className="input w-full text-sm" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
         </Field>
-        <Field label="Expired URL">
-          <input className="input w-full" value={expiredUrl} onChange={(e) => setExpiredUrl(e.target.value)} placeholder="optional" />
+        <Field label="Redirect URL After Expiry" hint="Destination target after link has expired">
+          <input className="input w-full text-sm font-mono" value={expiredUrl} onChange={(e) => setExpiredUrl(e.target.value)} placeholder="e.g. https://my-site.com/expired" />
         </Field>
       </div>
 
-      <div className="flex items-center gap-2 pt-2">
+      <div className="flex items-center gap-3 pt-2">
         <Toggle on={enabled} onChange={setEnabled} />
-        <span className="text-sm text-white/55">Enabled</span>
+        <span className="text-sm text-white/60 select-none">Link Routing Active</span>
       </div>
 
-      {err && <p className="text-sm text-red-400">{err}</p>}
+      {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
 
-      <div className="flex justify-end gap-2 pt-4 border-t border-white/[0.06]">
-        <button className="btn-ghost" onClick={onCancel}>
+      <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+        <Button variant="ghost" onClick={onCancel}>
           Cancel
-        </button>
-        <button className="btn-primary" onClick={save}>
-          Save
-        </button>
+        </Button>
+        <Button variant="primary" onClick={save} disabled={!target}>
+          Save Link
+        </Button>
       </div>
     </div>
   );
@@ -410,19 +423,19 @@ function UtmBuilder({ target, onApply }: { target: string; onApply: (url: string
     ["content", "content"],
   ];
   return (
-    <div className="card grid grid-cols-2 gap-2 p-3 bg-[#07070b]/30">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 p-4 bg-black/30 border border-white/[0.05] rounded-xl">
       {fields.map(([k, label]) => (
         <input
           key={k}
-          className="input w-full"
+          className="input w-full text-xs h-8"
           placeholder={`utm_${label}`}
           value={utm[k]}
           onChange={(e) => setUtm({ ...utm, [k]: e.target.value })}
         />
       ))}
-      <button className="btn-primary col-span-2" onClick={apply}>
-        Apply UTM to URL
-      </button>
+      <Button variant="subtle" className="sm:col-span-2 md:col-span-3 h-8 text-xs py-1.5" onClick={apply}>
+        Apply UTM Parameters
+      </Button>
     </div>
   );
 }
@@ -434,66 +447,63 @@ function StatsView({ link }: { link: Link }) {
     api.linkStats(link.id).then(setStats);
   }, [link.id]);
   
-  if (!stats) return <div className="card p-5 text-white/40">Loading stats…</div>;
+  if (!stats) return <div className="text-white/40 p-4 text-xs">Loading analytics…</div>;
   
   return (
-    <div className="card p-5 space-y-4">
-      <h3 className="text-sm font-semibold text-white/55">Analytics</h3>
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="Total clicks" value={stats.total} />
-        <Stat label={`Last ${stats.days}d`} value={stats.windowed} />
-        <Stat label="Days tracked" value={stats.series?.length || 0} />
+    <GlassCard className="p-5 space-y-5">
+      <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider flex items-center gap-1.5">
+        <Eye className="h-4 w-4 text-indigo-400" />
+        Click Performance Analytics
+      </h3>
+      <div className="grid grid-cols-3 gap-4">
+        <StatCard label="Total Clicks" value={stats.total} index={0} />
+        <StatCard label={`Last ${stats.days}d`} value={stats.windowed} index={1} />
+        <StatCard label="Tracking Window" value={`${stats.series?.length || 0}d`} index={2} />
       </div>
       <Spark series={stats.series} />
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <TopList title="Countries" rows={stats.countries} />
-        <TopList title="Regions" rows={stats.regions} />
-        <TopList title="Devices" rows={stats.devices} />
-        <TopList title="Browsers" rows={stats.browsers} />
-        <TopList title="Referers" rows={stats.referers} />
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-2 border-t border-white/[0.04]">
+        <TopList title="Countries" icon={<Globe className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.countries} />
+        <TopList title="Regions" icon={<ExternalLink className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.regions} />
+        <TopList title="Devices" icon={<Eye className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.devices} />
+        <TopList title="Browsers" icon={<Link2 className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.browsers} />
+        <TopList title="Referers" icon={<Tag className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.referers} />
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded bg-white/[0.04] border border-white/[0.06] p-3">
-      <div className="text-xl font-bold text-white/80">{value}</div>
-      <div className="text-xs text-white/40">{label}</div>
-    </div>
+    </GlassCard>
   );
 }
 
 function Spark({ series }: { series: { key: string; count: number }[] }) {
-  if (!series || !series.length) return <p className="text-sm text-white/40">No clicks in window.</p>;
+  if (!series || !series.length) return <p className="text-xs text-white/40 italic">No click data in active window.</p>;
   const max = Math.max(...series.map((s) => s.count), 1);
   return (
-    <div className="rounded bg-white/[0.04] border border-white/[0.06] flex h-28 items-end gap-1 p-3">
+    <div className="rounded-xl bg-black/30 border border-white/[0.05] flex h-24 items-end gap-1 p-3">
       {series.map((s) => (
         <div
           key={s.key}
-          title={`${s.key}: ${s.count}`}
-          className="flex-1 rounded-t bg-indigo-500/70"
-          style={{ height: `${(s.count / max) * 100}%`, minHeight: 2 }}
+          title={`${s.key}: ${s.count} clicks`}
+          className="flex-1 rounded-t-md bg-indigo-500/70 hover:bg-indigo-400 transition-all cursor-pointer"
+          style={{ height: `${(s.count / max) * 100}%`, minHeight: 3 }}
         />
       ))}
     </div>
   );
 }
 
-function TopList({ title, rows }: { title: string; rows: { key: string; count: number }[] | null }) {
+function TopList({ title, icon, rows }: { title: string; icon?: React.ReactNode; rows: { key: string; count: number }[] | null }) {
   return (
-    <div>
-      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-white/40">{title}</div>
+    <div className="space-y-2">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-white/35 flex items-center">
+        {icon}
+        {title}
+      </div>
       {!rows || rows.length === 0 ? (
-        <p className="text-sm text-white/30">—</p>
+        <p className="text-xs text-white/30 italic">—</p>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           {rows.map((r) => (
-            <div key={r.key} className="flex justify-between text-sm">
-              <span className="truncate text-white/75 mr-2">{r.key || "(direct)"}</span>
-              <span className="text-white/40">{r.count}</span>
+            <div key={r.key} className="flex justify-between text-xs font-normal">
+              <span className="truncate text-white/70 mr-2 font-mono" title={r.key || "Direct/Unknown"}>{r.key || "(direct)"}</span>
+              <span className="text-white/45 font-semibold font-mono">{r.count}</span>
             </div>
           ))}
         </div>

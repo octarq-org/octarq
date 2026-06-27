@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, Overview } from "../api";
-import { AreaChart, BarList, timeAgo } from "../ui";
-import { Header } from "./Links";
+import { AreaChart, BarList, timeAgo, ScreenWrap, PageHeader, StatCard, GlassCard } from "../ui";
+import { Link2, Mail, Globe, MousePointerClick } from "lucide-react";
 
 export default function OverviewPage() {
   const [o, setO] = useState<Overview | null>(null);
@@ -20,18 +20,53 @@ export default function OverviewPage() {
     : `${o.botClicks30d} bot hidden`;
 
   return (
-    <div>
-      <Header title="Overview" subtitle="At a glance across links, mail & domains" />
+    <ScreenWrap>
+      <PageHeader
+        title="Overview"
+        description="At a glance across links, mail & domains"
+      />
 
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card label="Total clicks" value={o.totalClicks} sub={`${o.clicks7d} in 7d`} onClick={() => nav("/links")} />
-        <Card label="Links" value={o.links} sub={`${o.activeLinks} active`} onClick={() => nav("/links")} />
-        <Card label="Mailboxes" value={o.mailboxes} sub={`${o.unread} unread`} onClick={() => nav("/mail")} />
-        <Card label="Domains" value={o.domains} sub={`${o.linkDomains} link · ${o.mailDomains} mail`} onClick={() => nav("/domains")} />
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatCard
+          label="Total Clicks"
+          value={o.totalClicks.toLocaleString()}
+          delta={`${o.clicks7d} in 7d`}
+          positive={true}
+          icon={<MousePointerClick className="h-4 w-4" />}
+          onClick={() => nav("/links")}
+          index={0}
+        />
+        <StatCard
+          label="Short Links"
+          value={o.links.toLocaleString()}
+          delta={`${o.activeLinks} active`}
+          positive={true}
+          icon={<Link2 className="h-4 w-4" />}
+          onClick={() => nav("/links")}
+          index={1}
+        />
+        <StatCard
+          label="Mailboxes"
+          value={o.mailboxes.toLocaleString()}
+          delta={`${o.unread} unread`}
+          positive={false}
+          icon={<Mail className="h-4 w-4" />}
+          onClick={() => nav("/mail")}
+          index={2}
+        />
+        <StatCard
+          label="Domains"
+          value={o.domains.toLocaleString()}
+          delta={`${o.linkDomains} link · ${o.mailDomains} mail`}
+          positive={true}
+          icon={<Globe className="h-4 w-4" />}
+          onClick={() => nav("/domains")}
+          index={3}
+        />
       </div>
 
-      <div className="mb-5 glass rounded-2xl p-4">
-        <div className="mb-2 flex items-center justify-between gap-2">
+      <GlassCard className="mb-6 p-5">
+        <div className="mb-4 flex items-center justify-between gap-2">
           <h3 className="font-display font-semibold text-white">Clicks · last 30 days</h3>
           <div className="flex items-center gap-3">
             <span className="text-sm text-white/40">{o.clicks30d} total · {botLabel}</span>
@@ -39,19 +74,19 @@ export default function OverviewPage() {
           </div>
         </div>
         <AreaChart series={o.series ?? []} />
-      </div>
+      </GlassCard>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3">
         <Panel title="Top links">
           {!o.topLinks || o.topLinks.length === 0 ? (
             <p className="text-sm text-white/30">No links yet</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {o.topLinks.map((l) => (
                 <button
                   key={l.id}
                   onClick={() => nav("/links")}
-                  className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/[0.06]"
+                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-white/[0.06] transition-colors"
                 >
                   <span className="truncate text-indigo-300">
                     /{l.slug}
@@ -73,7 +108,7 @@ export default function OverviewPage() {
         </Panel>
       </div>
 
-      <div className="mt-5">
+      <div className="mt-6">
         <Panel title="Recent mail">
           {!o.recentEmails || o.recentEmails.length === 0 ? (
             <p className="text-sm text-white/30">No mail yet</p>
@@ -83,7 +118,7 @@ export default function OverviewPage() {
                 <button
                   key={e.id}
                   onClick={() => nav("/mail")}
-                  className="flex w-full items-center gap-3 px-2 py-2 text-left hover:bg-white/[0.06]"
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-white/[0.06] transition-colors"
                 >
                   {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />}
                   <span className={`w-40 shrink-0 truncate text-sm ${e.read ? "text-white/55" : "font-semibold"}`}>
@@ -97,7 +132,7 @@ export default function OverviewPage() {
           )}
         </Panel>
       </div>
-    </div>
+    </ScreenWrap>
   );
 }
 
@@ -117,31 +152,11 @@ function BotToggle({ value, onChange }: { value: boolean; onChange: (v: boolean)
   );
 }
 
-function Card({
-  label,
-  value,
-  sub,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  sub?: string;
-  onClick?: () => void;
-}) {
-  return (
-    <button onClick={onClick} className="glass rounded-2xl p-4 text-left transition hover:bg-white/[0.04]">
-      <div className="font-display text-3xl font-bold text-white">{value.toLocaleString()}</div>
-      <div className="mt-0.5 text-sm text-white/50">{label}</div>
-      {sub && <div className="text-xs text-white/30">{sub}</div>}
-    </button>
-  );
-}
-
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="glass rounded-2xl p-4">
+    <GlassCard className="p-5">
       <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-white/35">{title}</h3>
       {children}
-    </div>
+    </GlassCard>
   );
 }

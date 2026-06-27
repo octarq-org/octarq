@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, AbuseReport } from "../api";
-import { Header } from "./Links";
-import { timeAgo } from "../ui";
+import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
 
 export default function AbusePage() {
   const [reports, setReports] = useState<AbuseReport[]>([]);
@@ -28,82 +27,103 @@ export default function AbusePage() {
     }
   };
 
-  return (
-    <div>
-      <Header title="Abuse Reports" subtitle="Manage reports of spam or malicious links" />
+  const getStatusTone = (status: string) => {
+    if (status === "open") return "amber";
+    if (status === "reviewed") return "green";
+    return "neutral";
+  };
 
-      <div className="mb-4 flex gap-2">
-        <button
-          onClick={() => setStatusFilter("open")}
-          className={`rounded-full px-3 py-1 text-sm ${statusFilter === "open" ? "bg-indigo-500 text-white" : "bg-white/[0.06] text-white/55 hover:text-white/80"}`}
-        >
-          Open
-        </button>
-        <button
-          onClick={() => setStatusFilter("reviewed")}
-          className={`rounded-full px-3 py-1 text-sm ${statusFilter === "reviewed" ? "bg-indigo-500 text-white" : "bg-white/[0.06] text-white/55 hover:text-white/80"}`}
-        >
-          Reviewed
-        </button>
-        <button
-          onClick={() => setStatusFilter("dismissed")}
-          className={`rounded-full px-3 py-1 text-sm ${statusFilter === "dismissed" ? "bg-indigo-500 text-white" : "bg-white/[0.06] text-white/55 hover:text-white/80"}`}
-        >
-          Dismissed
-        </button>
-        <button
-          onClick={() => setStatusFilter("all")}
-          className={`rounded-full px-3 py-1 text-sm ${statusFilter === "all" ? "bg-indigo-500 text-white" : "bg-white/[0.06] text-white/55 hover:text-white/80"}`}
-        >
-          All
-        </button>
+  const getReasonTone = (reason: string) => {
+    if (reason === "phishing") return "red";
+    if (reason === "malware") return "red";
+    return "indigo";
+  };
+
+  return (
+    <ScreenWrap>
+      <PageHeader
+        title="Abuse Reports"
+        description="Manage reports of spam or malicious links"
+      />
+
+      <div className="mb-6 flex flex-wrap gap-2">
+        {(["open", "reviewed", "dismissed", "all"] as const).map((filter) => (
+          <Button
+            key={filter}
+            variant={statusFilter === filter ? "primary" : "subtle"}
+            onClick={() => setStatusFilter(filter)}
+            className="capitalize rounded-full px-4 py-1 text-xs"
+          >
+            {filter}
+          </Button>
+        ))}
       </div>
 
       {loading ? (
-        <div className="text-white/40 py-10 text-center">loading…</div>
+        <div className="text-white/40 py-12 text-center">loading…</div>
       ) : reports.length === 0 ? (
-        <div className="card p-8 text-center text-white/40">No abuse reports found.</div>
+        <GlassCard className="p-10 text-center text-white/40">
+          No abuse reports found.
+        </GlassCard>
       ) : (
         <div className="space-y-4">
           {reports.map((r) => (
-            <div key={r.id} className="card p-4">
-              <div className="flex items-start justify-between">
+            <GlassCard key={r.id} className="p-5">
+              <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-semibold text-lg text-rose-400">/{r.slug}</h3>
-                    <span className="rounded bg-white/[0.06] px-2 py-0.5 text-xs text-white/55 uppercase tracking-wide">
+                    <Badge tone={getReasonTone(r.reason)} className="uppercase tracking-wider">
                       {r.reason}
-                    </span>
-                    <span className={`rounded px-2 py-0.5 text-xs tracking-wide ${r.status === 'open' ? 'bg-amber-500/20 text-amber-500' : 'bg-white/[0.06] text-white/40'}`}>
+                    </Badge>
+                    <Badge tone={getStatusTone(r.status)} className="capitalize">
                       {r.status}
-                    </span>
+                    </Badge>
                   </div>
-                  <div className="mt-1 text-sm text-white/55 break-all">
-                    Target: <a href={r.target} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">{r.target}</a>
+                  <div className="mt-2 text-sm text-white/55 break-all">
+                    Target:{" "}
+                    <a
+                      href={r.target}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-indigo-400 hover:underline transition-colors"
+                    >
+                      {r.target}
+                    </a>
                   </div>
                 </div>
-                <div className="text-right text-xs text-white/40">
+                <div className="text-left sm:text-right text-xs text-white/40">
                   <div title={r.createdAt}>{timeAgo(r.createdAt)}</div>
                   <div className="mt-1">IP: {r.reporterIp}</div>
                 </div>
               </div>
-              <div className="mt-3 text-sm text-white/75 bg-white/[0.03] p-3 rounded-lg border border-white/[0.06]/50">
+
+              <div className="mt-4 text-sm text-white/75 bg-white/[0.03] p-4 rounded-xl border border-white/[0.06] font-normal leading-relaxed">
                 {r.description || <span className="text-white/30 italic">No description provided.</span>}
               </div>
+
               {r.status === "open" && (
-                <div className="mt-4 flex gap-2 justify-end border-t border-white/[0.06] pt-3">
-                  <button className="btn-ghost text-sm px-3 py-1.5" onClick={() => updateStatus(r.id, "dismissed")}>
+                <div className="mt-4 flex gap-2 justify-end border-t border-white/[0.06] pt-4">
+                  <Button
+                    variant="ghost"
+                    onClick={() => updateStatus(r.id, "dismissed")}
+                    className="text-xs py-1.5"
+                  >
                     Dismiss (Safe)
-                  </button>
-                  <button className="btn-primary text-sm px-3 py-1.5 bg-rose-600 hover:bg-rose-500" onClick={() => updateStatus(r.id, "reviewed")}>
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => updateStatus(r.id, "reviewed")}
+                    className="text-xs py-1.5"
+                  >
                     Mark Reviewed
-                  </button>
+                  </Button>
                 </div>
               )}
-            </div>
+            </GlassCard>
           ))}
         </div>
       )}
-    </div>
+    </ScreenWrap>
   );
 }

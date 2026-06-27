@@ -1,57 +1,68 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, Settings, OrgMember } from "../api";
-import { Empty, Field, Modal, timeAgo } from "../ui";
+import { api, ApiError, Settings as SettingsData, OrgMember } from "../api";
+import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
+import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle } from "lucide-react";
 
 export default function SettingsPage() {
   const tabs = [
-    { to: "/settings/general", label: "General" },
-    { to: "/settings/providers", label: "Provider Accounts" },
-    { to: "/settings/smtp", label: "SMTP Senders" },
-    { to: "/settings/notifications", label: "Notifications" },
-    { to: "/settings/members", label: "Members" },
+    { to: "/settings/general", label: "General", icon: <SettingsIcon className="h-4 w-4" /> },
+    { to: "/settings/providers", label: "Providers", icon: <Cloud className="h-4 w-4" /> },
+    { to: "/settings/smtp", label: "SMTP Senders", icon: <Mail className="h-4 w-4" /> },
+    { to: "/settings/notifications", label: "Notifications", icon: <Bell className="h-4 w-4" /> },
+    { to: "/settings/members", label: "Members", icon: <Users className="h-4 w-4" /> },
   ];
 
   return (
-    <div className="flex gap-8 items-start">
-      <aside className="w-48 shrink-0 sticky top-6">
-        <h1 className="mb-4 font-display text-xl font-bold tracking-tight text-white px-2">Settings</h1>
-        <nav className="flex flex-col gap-1">
-          {tabs.map((t) => (
-            <NavLink
-              key={t.to}
-              to={t.to}
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-white/[0.06] text-white"
-                    : "text-white/55 hover:bg-white/[0.05] hover:text-white/75"
-                }`
-              }
-            >
-              {t.label}
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
-      <div className="flex-1 min-w-0 max-w-3xl">
-        <Routes>
-          <Route path="/" element={<Navigate to="/settings/general" replace />} />
-          <Route path="/general" element={<GeneralSettings />} />
-          <Route path="/providers" element={<ProviderAccounts />} />
-          <Route path="/smtp" element={<SMTPSenders />} />
-          <Route path="/notifications" element={<NotificationChannels />} />
-          <Route path="/members" element={<OrgMembersManager />} />
-        </Routes>
+    <ScreenWrap>
+      <PageHeader
+        title="Organization Settings"
+        description="Configure your active organization resources, integrations, and member permissions"
+      />
+
+      <div className="flex flex-col md:flex-row gap-6 items-start">
+        {/* Sidebar Nav */}
+        <aside className="w-full md:w-56 shrink-0 md:sticky md:top-6">
+          <GlassCard className="p-3">
+            <nav className="flex flex-col gap-1.5">
+              {tabs.map((t) => (
+                <NavLink
+                  key={t.to}
+                  to={t.to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-150 ${
+                      isActive
+                        ? "bg-indigo-500 text-white shadow-glow"
+                        : "text-white/60 hover:bg-white/5 hover:text-white/80"
+                    }`
+                  }
+                >
+                  {t.icon}
+                  {t.label}
+                </NavLink>
+              ))}
+            </nav>
+          </GlassCard>
+        </aside>
+
+        {/* Content Area */}
+        <div className="flex-1 min-w-0 w-full">
+          <Routes>
+            <Route path="/" element={<Navigate to="/settings/general" replace />} />
+            <Route path="/general" element={<GeneralSettings />} />
+            <Route path="/providers" element={<ProviderAccounts />} />
+            <Route path="/smtp" element={<SMTPSenders />} />
+            <Route path="/notifications" element={<NotificationChannels />} />
+            <Route path="/members" element={<OrgMembersManager />} />
+          </Routes>
+        </div>
       </div>
-    </div>
+    </ScreenWrap>
   );
 }
 
-// GeneralSettings holds runtime configuration: reserved slugs / mailboxes and a
-// global Cloudflare API token used as a fallback for sync and DNS operations.
 function GeneralSettings() {
-  const [s, setS] = useState<Settings | null>(null);
+  const [s, setS] = useState<SettingsData | null>(null);
   const [reservedSlugs, setReservedSlugs] = useState("");
   const [reservedMailboxes, setReservedMailboxes] = useState("");
   const [cfToken, setCfToken] = useState("");
@@ -80,6 +91,7 @@ function GeneralSettings() {
     setGithubClientId(v.githubClientId || "");
     setDataRetentionDays(v.dataRetentionDays ?? 90);
   }
+  
   useEffect(() => {
     load();
   }, []);
@@ -111,212 +123,241 @@ function GeneralSettings() {
     }
   }
 
-  if (!s) return <div className="text-white/40">loading…</div>;
+  if (!s) return <div className="text-white/40 text-sm">loading…</div>;
 
   return (
-    <div>
-      <div className="mb-4">
-        <h1 className="font-display text-xl font-bold tracking-tight text-white">Settings</h1>
-        <p className="text-sm text-white/40">Runtime configuration for this instance.</p>
+    <GlassCard className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-base font-bold text-white mb-1">General Settings</h2>
+          <p className="text-xs text-white/50">Runtime configuration parameters for this organization workspace.</p>
+        </div>
+        {saved && <Badge tone="green">✓ Config Saved</Badge>}
       </div>
-      <div className="card space-y-5 p-5">
+
+      <div className="space-y-6">
         <Field
-          label="Reserved slugs"
-          hint={`These can't be used for short links. Always reserved: ${s.builtinReserved.join(", ")}. One per line or comma-separated.`}
+          label="Reserved Short Link Slugs"
+          hint={`Slugs that users cannot register. Built-in defaults always locked: ${s.builtinReserved.join(", ")}.`}
         >
           <textarea
-            className="input font-mono"
+            className="input font-mono text-xs w-full"
             rows={3}
             value={reservedSlugs}
             onChange={(e) => setReservedSlugs(e.target.value)}
             placeholder="pricing&#10;login&#10;about"
           />
         </Field>
+        
         <Field
-          label="Reserved mailbox prefixes"
-          hint="Local-parts (before @) that catch-all will NOT auto-create, e.g. admin, postmaster, abuse."
+          label="Reserved Inbound Mailbox Prefixes"
+          hint="Prefixes that catch-all routing will not auto-provision (e.g. admin, postmaster)."
         >
           <textarea
-            className="input font-mono"
+            className="input font-mono text-xs w-full"
             rows={2}
             value={reservedMailboxes}
             onChange={(e) => setReservedMailboxes(e.target.value)}
             placeholder="admin&#10;postmaster"
           />
         </Field>
+        
         <Field
-          label="Cloudflare API token"
+          label="Global Cloudflare API Token"
           hint={
             s.cloudflareTokenSet
-              ? "A token is set (encrypted). Sync & DNS use it when a domain has no own token. Enter a new value to replace."
-              : "Optional global token used by Sync and as a fallback for DNS operations. Zone:Read + DNS:Edit."
+              ? "Global token is configured. Enter a new token to overwrite."
+              : "Fallback token used by sync if individual domains don't provide dedicated keys. Zone:Read + DNS:Edit."
           }
         >
-          <input
-            className="input"
-            value={cfToken}
-            onChange={(e) => setCfToken(e.target.value)}
-            placeholder={s.cloudflareTokenSet ? "•••••••• (set)" : "Cloudflare API token"}
-          />
-          {s.cloudflareTokenSet && (
-            <button
-              className="btn-ghost mt-1.5 text-red-400"
-              onClick={async () => {
-                await api.updateSettings({ cloudflareToken: "" });
-                load();
-              }}
-            >
-              Clear stored token
-            </button>
-          )}
+          <div className="flex gap-2">
+            <input
+              type="password"
+              className="input w-full font-mono text-xs"
+              value={cfToken}
+              onChange={(e) => setCfToken(e.target.value)}
+              placeholder={s.cloudflareTokenSet ? "•••••••• (Token set)" : "Cloudflare API token"}
+            />
+            {s.cloudflareTokenSet && (
+              <Button
+                variant="danger"
+                onClick={async () => {
+                  if (confirm("Clear stored token?")) {
+                    await api.updateSettings({ cloudflareToken: "" });
+                    load();
+                  }
+                }}
+                className="py-1 px-3 text-xs bg-rose-500/10 hover:bg-rose-500/25 border-0"
+              >
+                Clear
+              </Button>
+            )}
+          </div>
         </Field>
         
-        <div className="border-t border-white/[0.06] pt-5">
-          <h2 className="mb-4 text-lg font-semibold text-white/75">Mail & Routing</h2>
-          <div className="space-y-5">
+        <div className="border-t border-white/[0.06] pt-6 space-y-4">
+          <h3 className="text-sm font-semibold text-white/80">Mail Inbound Webhooks</h3>
+          <div className="space-y-4">
             <Field
-              label="Inbound Token"
-              hint="Shared secret for Cloudflare Email Worker webhook (X-Led-Token)."
+              label="Webhook Inbound Token"
+              hint="Shared API secret validated in X-Led-Token header for Cloudflare Email Worker webhook trigger."
             >
               <input
-                className="input"
+                className="input w-full font-mono text-xs"
                 value={inboundToken}
                 onChange={(e) => setInboundToken(e.target.value)}
-                placeholder="secret-token"
+                placeholder="secret-token-value"
               />
             </Field>
             
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="catchAll"
-                className="accent-indigo-500"
-                checked={catchAll}
-                onChange={(e) => setCatchAll(e.target.checked)}
-              />
-              <label htmlFor="catchAll" className="text-sm cursor-pointer select-none">
-                Enable Catch-All
-              </label>
+            <div className="flex items-center gap-3 pt-2">
+              <Toggle on={catchAll} onChange={setCatchAll} />
+              <div>
+                <span className="text-xs font-semibold text-white/70 select-none block">Enable Catch-All routing</span>
+                <span className="text-[10px] text-white/40 select-none">Automatically provision local inbox addresses when a message arrives for an unknown managed alias.</span>
+              </div>
             </div>
-            <p className="mt-1 text-xs text-white/40">
-              Auto-create a mailbox when mail arrives for an unknown address on a managed domain.
-            </p>
           </div>
         </div>
 
-        <div className="border-t border-white/[0.06] pt-5">
-          <h2 className="mb-4 text-lg font-semibold text-white/75">Privacy & Data Retention</h2>
-          <div className="space-y-3">
-            <Field label="Click Event Retention (days)" hint="Link events older than this are deleted daily. Set 0 to keep forever.">
+        <div className="border-t border-white/[0.06] pt-6">
+          <h3 className="text-sm font-semibold text-white/80 mb-2">Data Retention & Pruning</h3>
+          <div className="space-y-4">
+            <Field label="Click Event Logs Expiry (Days)" hint="Link clicks data older than this limit will be auto-deleted. Set 0 to persist forever.">
               <input
                 type="number"
                 min={0}
-                className="input w-32"
+                className="input w-32 font-mono text-sm"
                 value={dataRetentionDays}
                 onChange={(e) => setDataRetentionDays(Number(e.target.value))}
               />
             </Field>
-            <p className="text-xs text-white/40">
-              IP addresses are always stored anonymized (last octet zeroed). This setting controls how long click event records are retained.
+            <p className="text-[10px] text-white/40">
+              IP addresses of clickers are stored anonymized (masked subnet). This setting controls how long click statistics charts persist.
             </p>
           </div>
         </div>
 
-        <div className="border-t border-white/[0.06] pt-5">
-          <h2 className="mb-4 text-lg font-semibold text-white/75">Telegram Notifications</h2>
-          <div className="space-y-5">
-            <Field label="Bot Token" hint="Token from @BotFather (optional)">
+        <div className="border-t border-white/[0.06] pt-6 space-y-4">
+          <h3 className="text-sm font-semibold text-white/80">Telegram Alerts</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Telegram Bot Token" hint="Token issued by @BotFather">
               <input
-                className="input"
+                className="input w-full font-mono text-xs"
                 value={telegramBot}
                 onChange={(e) => setTelegramBot(e.target.value)}
                 placeholder="123456789:ABCdef..."
               />
             </Field>
-            <Field label="Chat ID" hint="Your chat ID to receive notifications (optional)">
+            <Field label="Target Chat ID" hint="Individual or Group chat ID">
               <input
-                className="input"
+                className="input w-full font-mono text-xs"
                 value={telegramChat}
                 onChange={(e) => setTelegramChat(e.target.value)}
-                placeholder="123456789"
+                placeholder="e.g. -100123456"
               />
             </Field>
           </div>
         </div>
 
-        <div className="border-t border-white/[0.06] pt-5">
-          <h2 className="mb-1 text-lg font-semibold text-white/75">OAuth Providers</h2>
-          <p className="mb-4 text-xs text-white/40">
-            Client secrets are stored encrypted. Set <code className="text-white/75">LED_BASE_URL</code> on the server for callbacks to work.
-          </p>
-          <div className="space-y-5">
-            <div className="rounded-md border border-white/[0.06] p-4 space-y-3">
-              <p className="text-sm font-medium text-white/75">Google</p>
-              <Field label="Client ID" hint="">
+        <div className="border-t border-white/[0.06] pt-6 space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-white/80">Single Sign-On (OAuth)</h3>
+            <p className="text-[10px] text-white/40 mt-0.5">Secrets are encrypted. Make sure server callback URLs matches LED base url.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Google */}
+            <div className="rounded-xl border border-white/[0.05] bg-black/20 p-4 space-y-3">
+              <p className="text-xs font-bold text-white/85 flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                Google Sign-In
+              </p>
+              <Field label="Google Client ID">
                 <input
-                  className="input"
+                  className="input w-full text-xs"
                   value={googleClientId}
                   onChange={(e) => setGoogleClientId(e.target.value)}
-                  placeholder="your-client-id.apps.googleusercontent.com"
+                  placeholder="*.apps.googleusercontent.com"
                 />
               </Field>
-              <Field label="Client Secret" hint={s.googleClientSecretSet ? "Secret is set (encrypted). Enter a new value to replace." : ""}>
-                <input
-                  className="input"
-                  type="password"
-                  value={googleClientSecret}
-                  onChange={(e) => setGoogleClientSecret(e.target.value)}
-                  placeholder={s.googleClientSecretSet ? "•••••••• (set)" : "Client secret"}
-                />
-                {s.googleClientSecretSet && (
-                  <button
-                    className="btn-ghost mt-1.5 text-red-400"
-                    onClick={async () => { await api.updateSettings({ googleClientSecret: "" }); load(); }}
-                  >
-                    Clear secret
-                  </button>
-                )}
+              <Field label="Google Client Secret">
+                <div className="flex gap-2">
+                  <input
+                    className="input w-full text-xs font-mono"
+                    type="password"
+                    value={googleClientSecret}
+                    onChange={(e) => setGoogleClientSecret(e.target.value)}
+                    placeholder={s.googleClientSecretSet ? "•••••••• (Set)" : "Secret value"}
+                  />
+                  {s.googleClientSecretSet && (
+                    <Button
+                      variant="danger"
+                      onClick={async () => {
+                        if (confirm("Clear Google secret?")) {
+                          await api.updateSettings({ googleClientSecret: "" });
+                          load();
+                        }
+                      }}
+                      className="py-1 px-2.5 text-xs bg-rose-500/10 hover:bg-rose-500/25 border-0"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
               </Field>
             </div>
-            <div className="rounded-md border border-white/[0.06] p-4 space-y-3">
-              <p className="text-sm font-medium text-white/75">GitHub</p>
-              <Field label="Client ID" hint="">
+            
+            {/* GitHub */}
+            <div className="rounded-xl border border-white/[0.05] bg-black/20 p-4 space-y-3">
+              <p className="text-xs font-bold text-white/85 flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                GitHub Integration
+              </p>
+              <Field label="GitHub Client ID">
                 <input
-                  className="input"
+                  className="input w-full text-xs"
                   value={githubClientId}
                   onChange={(e) => setGithubClientId(e.target.value)}
                   placeholder="Ov23li..."
                 />
               </Field>
-              <Field label="Client Secret" hint={s.githubClientSecretSet ? "Secret is set (encrypted). Enter a new value to replace." : ""}>
-                <input
-                  className="input"
-                  type="password"
-                  value={githubClientSecret}
-                  onChange={(e) => setGithubClientSecret(e.target.value)}
-                  placeholder={s.githubClientSecretSet ? "•••••••• (set)" : "Client secret"}
-                />
-                {s.githubClientSecretSet && (
-                  <button
-                    className="btn-ghost mt-1.5 text-red-400"
-                    onClick={async () => { await api.updateSettings({ githubClientSecret: "" }); load(); }}
-                  >
-                    Clear secret
-                  </button>
-                )}
+              <Field label="GitHub Client Secret">
+                <div className="flex gap-2">
+                  <input
+                    className="input w-full text-xs font-mono"
+                    type="password"
+                    value={githubClientSecret}
+                    onChange={(e) => setGithubClientSecret(e.target.value)}
+                    placeholder={s.githubClientSecretSet ? "•••••••• (Set)" : "Secret value"}
+                  />
+                  {s.githubClientSecretSet && (
+                    <Button
+                      variant="danger"
+                      onClick={async () => {
+                        if (confirm("Clear GitHub secret?")) {
+                          await api.updateSettings({ githubClientSecret: "" });
+                          load();
+                        }
+                      }}
+                      className="py-1 px-2.5 text-xs bg-rose-500/10 hover:bg-rose-500/25 border-0"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
               </Field>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 border-t border-white/[0.06] pt-5">
-          <button className="btn-primary" onClick={save} disabled={busy}>
-            {busy ? "Saving…" : "Save settings"}
-          </button>
-          {saved && <span className="text-sm text-green-400">✓ saved</span>}
+        <div className="flex items-center gap-3 border-t border-white/[0.06] pt-6">
+          <Button variant="primary" onClick={save} disabled={busy}>
+            {busy ? "Saving..." : "Save Config Settings"}
+          </Button>
         </div>
       </div>
-    </div>
+    </GlassCard>
   );
 }
 
@@ -346,7 +387,7 @@ function NotificationChannels() {
   async function test(id: number) {
     try {
       await api.testNotificationChannel(id);
-      alert("Test notification sent successfully!");
+      alert("Test alert sent successfully!");
     } catch (err: any) {
       alert("Test failed: " + err.message);
     }
@@ -358,55 +399,66 @@ function NotificationChannels() {
   }
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
+    <GlassCard className="p-6">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="font-display text-xl font-bold tracking-tight text-white">Notification Channels</h1>
-          <p className="text-sm text-white/40">Channels for system alerts like inbound emails.</p>
+          <h2 className="text-base font-bold text-white mb-1">Notification Channels</h2>
+          <p className="text-xs text-white/55">Create system hooks and chat integrations triggered by operational events.</p>
         </div>
-        <button className="btn-primary" onClick={() => setEditing({ type: "telegram", config: "{}" })}>
-          + Add channel
-        </button>
+        <Button variant="primary" onClick={() => setEditing({ type: "telegram", config: "{}" })} className="text-xs py-1.5 px-3">
+          + Add Channel
+        </Button>
       </div>
 
       {loading ? (
-        <div className="text-white/40">loading…</div>
+        <div className="text-white/40 text-sm py-6 text-center">loading…</div>
       ) : channels.length === 0 ? (
         <Empty>
-          <div className="text-2xl">🔔</div>
-          <div>No notification channels yet.</div>
+          <Bell className="h-8 w-8 text-white/30 mb-1" />
+          <div className="text-xs text-white/50">No notification channels configured.</div>
         </Empty>
       ) : (
-        <div className="card divide-y divide-white/[0.04]">
-          {channels.map((c) => (
-            <div key={c.id} className="flex items-center gap-3 p-4">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-white/80">{c.name}</span>
-                  <span className="badge">{c.type}</span>
-                  {!c.enabled && <span className="badge bg-white/[0.06]">disabled</span>}
+        <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
+          {channels.map((c) => {
+            const channelTypeTone = c.type === "telegram" ? "cyan" : "violet";
+
+            return (
+              <div key={c.id} className="flex items-center gap-3 p-4 group">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm text-white">{c.name}</span>
+                    <Badge tone={channelTypeTone} className="uppercase tracking-wider text-[9px]">
+                      {c.type}
+                    </Badge>
+                    {!c.enabled && <Badge tone="neutral">disabled</Badge>}
+                  </div>
+                  <div className="text-[11px] text-white/35 mt-1">Added {timeAgo(c.createdAt)}</div>
                 </div>
-                <div className="text-xs text-white/40 mt-0.5">Added {timeAgo(c.createdAt)}</div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="subtle"
+                    onClick={() => toggleEnabled(c)}
+                    className="text-xs py-1 px-2.5"
+                  >
+                    {c.enabled ? "Disable" : "Enable"}
+                  </Button>
+                  <Button variant="outline" onClick={() => test(c.id)} className="text-xs py-1 px-2.5">
+                    Test
+                  </Button>
+                  <Button variant="ghost" onClick={() => setEditing(c)} className="text-xs py-1 px-2.5">
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => remove(c.id)}
+                    className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  className="btn-ghost"
-                  onClick={() => toggleEnabled(c)}
-                >
-                  {c.enabled ? "Disable" : "Enable"}
-                </button>
-                <button className="btn-ghost" onClick={() => test(c.id)}>
-                  Test
-                </button>
-                <button className="btn-ghost" onClick={() => setEditing(c)}>
-                  Edit
-                </button>
-                <button className="btn-ghost text-red-400" onClick={() => remove(c.id)}>
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -420,7 +472,7 @@ function NotificationChannels() {
           }}
         />
       )}
-    </div>
+    </GlassCard>
   );
 }
 
@@ -429,7 +481,6 @@ function EditNotificationChannel({ channel, onClose, onSaved }: { channel: any; 
   const [type, setType] = useState(channel?.type || "telegram");
   const [enabled, setEnabled] = useState(channel?.id ? channel.enabled : true);
 
-  // Parse config if editing
   const initialCfg = channel?.id ? JSON.parse(channel.config) : {};
   const [botToken, setBotToken] = useState(initialCfg.botToken || "");
   const [chatId, setChatId] = useState(initialCfg.chatId || "");
@@ -473,52 +524,57 @@ function EditNotificationChannel({ channel, onClose, onSaved }: { channel: any; 
   }
 
   return (
-    <Modal title={channel ? "Edit Channel" : "New Channel"} onClose={onClose}>
-      <div className="space-y-4">
-        <Field label="Name" hint="A friendly name for this channel">
+    <Modal title={channel ? "Edit Alert Channel" : "Create Alert Channel"} onClose={onClose}>
+      <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4">
+        <Field label="Channel Name" hint="A memorable identifier for this trigger">
           <input
             className="input w-full"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="My Telegram Bot"
+            placeholder="My Dev Team Slack"
+            required
+            autoFocus
           />
         </Field>
         
-        <Field label="Type">
+        <Field label="Channel Integration Type">
           <select className="input w-full" value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="telegram">Telegram</option>
-            <option value="webhook">Webhook</option>
+            <option value="telegram">Telegram Bot webhook</option>
+            <option value="webhook">Custom HTTP POST Webhook</option>
           </select>
         </Field>
 
         {type === "telegram" && (
           <>
-            <Field label="Bot Token" hint="Token from @BotFather">
-              <input className="input w-full" value={botToken} onChange={(e) => setBotToken(e.target.value)} />
+            <Field label="Bot Authentication Token" hint="Token issued by Telegram @BotFather">
+              <input className="input w-full font-mono text-xs" value={botToken} onChange={(e) => setBotToken(e.target.value)} required />
             </Field>
-            <Field label="Chat ID" hint="Where to send notifications">
-              <input className="input w-full" value={chatId} onChange={(e) => setChatId(e.target.value)} />
+            <Field label="Telegram Chat ID" hint="Channel group ID or user chat ID to forward alerts">
+              <input className="input w-full font-mono text-xs" value={chatId} onChange={(e) => setChatId(e.target.value)} required />
             </Field>
           </>
         )}
 
         {type === "webhook" && (
-          <Field label="Webhook URL" hint="Receives POST requests with { text: '...' }">
-            <input className="input w-full" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://..." />
+          <Field label="Custom HTTP Target URL" hint="Receives JSON payload POST: { text: 'string' }">
+            <input className="input w-full font-mono text-xs" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://my-webhook.com/alerts" required />
           </Field>
         )}
 
-        {error && <div className="text-red-400 text-sm">{error}</div>}
+        {error && <div className="text-rose-400 text-xs font-semibold">{error}</div>}
 
-        <div className="flex justify-end gap-2 pt-2">
-          <button className="btn-ghost" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="btn-primary" onClick={save} disabled={busy || !name}>
-            Save
-          </button>
+        <div className="flex items-center gap-3 pt-2">
+          <Toggle on={enabled} onChange={setEnabled} />
+          <span className="text-sm text-white/60 select-none">Channel Enabled</span>
         </div>
-      </div>
+
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={busy || !name}>
+            {busy ? "Saving..." : "Save Channel"}
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 }
@@ -564,7 +620,7 @@ function OrgMembersManager() {
   }
 
   async function handleRemove(userId: number) {
-    if (!confirm("Remove this member from the organization?")) return;
+    if (!confirm("Remove this member from the organization? They will lose access instantly.")) return;
     try {
       await api.deleteOrgMember(userId);
       load();
@@ -573,58 +629,68 @@ function OrgMembersManager() {
     }
   }
 
+  const getRoleTone = (r: string) => {
+    if (r === "owner") return "green";
+    if (r === "admin") return "indigo";
+    return "neutral";
+  };
+
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="font-display text-xl font-bold tracking-tight text-white">Organization Members</h1>
-        <p className="text-sm text-white/40">Manage who has access to this organization's resources.</p>
+    <GlassCard className="p-6 space-y-6">
+      <div>
+        <h2 className="text-base font-bold text-white mb-1">Organization Members</h2>
+        <p className="text-xs text-white/55 font-normal">Add colleagues or manage roles inside this workspace.</p>
       </div>
 
-      <form onSubmit={handleAdd} className="card p-4 mb-6 flex gap-3 items-end">
-        <div className="flex-1">
-          <label className="label">Invite Member (Email)</label>
+      <form onSubmit={handleAdd} className="bg-black/25 p-4 rounded-xl border border-white/[0.05] flex flex-wrap sm:flex-nowrap gap-4 items-end">
+        <div className="flex-1 min-w-[200px]">
+          <label className="label text-xs">Invite Colleague by Email</label>
           <input
-            className="input w-full"
+            className="input w-full text-sm mt-1"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="colleague@example.com"
+            required
           />
         </div>
         <div className="w-32">
-          <label className="label">Role</label>
-          <select className="input w-full" value={role} onChange={(e) => setRole(e.target.value)}>
+          <label className="label text-xs">Access Role</label>
+          <select className="input w-full text-xs mt-1" value={role} onChange={(e) => setRole(e.target.value)}>
             <option value="member">Member</option>
             <option value="admin">Admin</option>
             <option value="owner">Owner</option>
           </select>
         </div>
-        <button className="btn-primary" disabled={busy || !email}>
-          Invite
-        </button>
+        <Button variant="primary" className="py-2 text-xs shrink-0" disabled={busy || !email}>
+          {busy ? "Inviting..." : "Invite Member"}
+        </Button>
       </form>
-      {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
+      {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
 
       {loading ? (
-        <div className="text-white/40">loading…</div>
+        <div className="text-white/40 text-sm py-4 text-center">loading members list…</div>
       ) : (
-        <div className="card divide-y divide-white/[0.04]">
+        <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
           {members.map((m) => (
             <div key={m.userId} className="flex justify-between items-center p-4">
-              <div>
-                <span className="font-semibold text-white/80">{m.email}</span>
-                <span className="badge ml-2">{m.role}</span>
+              <div className="flex items-center gap-2.5">
+                <span className="font-semibold text-sm text-white">{m.email}</span>
+                <Badge tone={getRoleTone(m.role)} className="capitalize text-[10px] tracking-wide font-semibold px-2">
+                  {m.role}
+                </Badge>
               </div>
-              <button
-                className="btn-ghost text-red-400"
+              <Button
+                variant="danger"
                 onClick={() => handleRemove(m.userId)}
+                className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
               >
                 Remove
-              </button>
+              </Button>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </GlassCard>
   );
 }
 
@@ -645,7 +711,7 @@ function ProviderAccounts() {
   useEffect(() => { load(); }, []);
 
   async function remove(id: number) {
-    if (!confirm("Remove this provider account? Domains using it will fail to update DNS.")) return;
+    if (!confirm("Remove this provider account? Managed domains using these credentials will fail sync.")) return;
     try {
       await api.deleteProviderAccount(id);
       load();
@@ -655,34 +721,47 @@ function ProviderAccounts() {
   }
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
+    <GlassCard className="p-6">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="font-display text-xl font-bold tracking-tight text-white">Provider Accounts</h1>
-          <p className="text-sm text-white/40">
-            Configure DNS providers (Cloudflare, DNSPod) used for syncing and managing domains.
-          </p>
+          <h2 className="text-base font-bold text-white mb-1">DNS Provider Connections</h2>
+          <p className="text-xs text-white/55">Credential access keys for Cloudflare and DNSPod APIs.</p>
         </div>
-        <button className="btn-primary" onClick={() => setCreating(true)}>+ New Account</button>
+        <Button variant="primary" onClick={() => setCreating(true)} className="text-xs py-1.5 px-3">
+          + Add Provider
+        </Button>
       </div>
+      
       {loading ? (
-        <div className="text-white/40">loading…</div>
+        <div className="text-white/40 text-sm py-6 text-center">loading…</div>
       ) : accounts.length === 0 ? (
         <Empty>
-          <div className="text-2xl">☁️</div>
-          <div>No Provider Accounts yet.</div>
+          <Cloud className="h-8 w-8 text-white/30 mb-1" />
+          <div className="text-xs text-white/50">No external provider connections configured yet.</div>
         </Empty>
       ) : (
-        <div className="card divide-y divide-white/[0.04]">
+        <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
           {accounts.map(a => (
             <div key={a.id} className="flex items-center justify-between p-4">
               <div>
-                <div className="font-medium">{a.name}</div>
-                <div className="text-xs text-white/40"><span className="badge">{a.type}</span></div>
+                <div className="font-semibold text-sm text-white">{a.name}</div>
+                <div className="text-xs text-white/40 mt-1">
+                  <Badge tone={a.type === "cloudflare" ? "indigo" : "cyan"} className="uppercase tracking-wider text-[9px]">
+                    {a.type}
+                  </Badge>
+                </div>
               </div>
-              <div className="flex items-center gap-4">
-                <button className="btn-ghost" onClick={() => setEditing(a)}>Edit</button>
-                <button className="btn-ghost text-red-400" onClick={() => remove(a.id)}>Remove</button>
+              <div className="flex items-center gap-2">
+                <Button variant="subtle" onClick={() => setEditing(a)} className="text-xs py-1 px-2.5">
+                  Edit Key
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => remove(a.id)}
+                  className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                >
+                  Remove
+                </Button>
               </div>
             </div>
           ))}
@@ -695,7 +774,7 @@ function ProviderAccounts() {
           onSaved={() => { setCreating(false); setEditing(null); load(); }}
         />
       )}
-    </div>
+    </GlassCard>
   );
 }
 
@@ -734,21 +813,28 @@ function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onC
   }
 
   return (
-    <Modal title={account ? "Edit Provider Account" : "New Provider Account"} onClose={onClose}>
-      <form onSubmit={submit}>
-        <Field label="Name"><input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. My Cloudflare" autoFocus /></Field>
+    <Modal title={account ? "Edit Provider Account" : "Register Provider Account"} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <Field label="Provider Label Name">
+          <input className="input w-full" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Acme Production DNS" required autoFocus />
+        </Field>
         {!account && (
-          <Field label="Provider Type">
-            <select className="input" value={type} onChange={e => setType(e.target.value)}>
-              {types.map(t => <option key={t} value={t}>{t}</option>)}
+          <Field label="DNS Provider Type">
+            <select className="input w-full text-sm" value={type} onChange={e => setType(e.target.value)}>
+              {types.map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
             </select>
           </Field>
         )}
-        <Field label="Credentials" hint={account ? "Leave empty to keep existing. Cloudflare accepts API Token string. DNSPod accepts 'ID,Token'." : "For Cloudflare, enter API Token. For DNSPod, enter 'ID,Token'."}>
-          <input className="input" value={config} onChange={e => setConfig(e.target.value)} placeholder={account ? "(hidden)" : "Token..."} />
+        <Field label="API Keys / Credentials" hint={account ? "Leave blank to keep existing keys. Cloudflare takes Token. DNSPod takes 'ID,Token'." : "For Cloudflare, paste API Token. For DNSPod, paste 'ID,Token' format."}>
+          <input className="input w-full font-mono text-xs" type="password" value={config} onChange={e => setConfig(e.target.value)} placeholder={account ? "••••••••" : "API Token / Key string..."} required={!account} />
         </Field>
-        {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
-        <button className="btn-primary w-full" disabled={busy || !name.trim() || (!account && !config.trim())}>{busy ? "…" : "Save Account"}</button>
+        {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={busy || !name.trim()}>
+            {busy ? "Saving..." : "Save Connection"}
+          </Button>
+        </div>
       </form>
     </Modal>
   );
@@ -771,7 +857,7 @@ function SMTPSenders() {
   useEffect(() => { load(); }, []);
 
   async function remove(id: number) {
-    if (!confirm("Remove this SMTP sender?")) return;
+    if (!confirm("Remove this SMTP sender config? Outbound mail relying on it will fail to send.")) return;
     try {
       await api.deleteSMTPSender(id);
       load();
@@ -781,32 +867,45 @@ function SMTPSenders() {
   }
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
+    <GlassCard className="p-6">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="font-display text-xl font-bold tracking-tight text-white">SMTP Senders</h1>
-          <p className="text-sm text-white/40">Configure SMTP relays for sending outgoing mail.</p>
+          <h2 className="text-base font-bold text-white mb-1">SMTP Outbound Senders</h2>
+          <p className="text-xs text-white/55">Configure SMTP server gateways used for sending mail from boxes.</p>
         </div>
-        <button className="btn-primary" onClick={() => setCreating(true)}>+ New Sender</button>
+        <Button variant="primary" onClick={() => setCreating(true)} className="text-xs py-1.5 px-3">
+          + Add SMTP
+        </Button>
       </div>
+
       {loading ? (
-        <div className="text-white/40">loading…</div>
+        <div className="text-white/40 text-sm py-6 text-center">loading…</div>
       ) : senders.length === 0 ? (
         <Empty>
-          <div className="text-2xl">📧</div>
-          <div>No SMTP Senders configured yet.</div>
+          <Send className="h-8 w-8 text-white/30 mb-1" />
+          <div className="text-xs text-white/50">No SMTP outgoing senders configured yet.</div>
         </Empty>
       ) : (
-        <div className="card divide-y divide-white/[0.04]">
+        <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
           {senders.map(s => (
-            <div key={s.id} className="flex items-center justify-between p-4">
+            <div key={s.id} className="flex items-center justify-between p-4 group">
               <div>
-                <div className="font-medium">{s.name}</div>
-                <div className="text-xs text-white/40">{s.fromEmail} via {s.host}:{s.port}</div>
+                <div className="font-semibold text-sm text-white">{s.name}</div>
+                <div className="text-xs text-white/40 mt-1 font-mono">
+                  {s.fromEmail} via {s.host}:{s.port}
+                </div>
               </div>
-              <div className="flex items-center gap-4">
-                <button className="btn-ghost" onClick={() => setEditing(s)}>Edit</button>
-                <button className="btn-ghost text-red-400" onClick={() => remove(s.id)}>Remove</button>
+              <div className="flex items-center gap-2">
+                <Button variant="subtle" onClick={() => setEditing(s)} className="text-xs py-1 px-2.5">
+                  Edit SMTP
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => remove(s.id)}
+                  className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                >
+                  Remove
+                </Button>
               </div>
             </div>
           ))}
@@ -819,7 +918,7 @@ function SMTPSenders() {
           onSaved={() => { setCreating(false); setEditing(null); load(); }}
         />
       )}
-    </div>
+    </GlassCard>
   );
 }
 
@@ -852,20 +951,44 @@ function SMTPSenderModal({ sender, onClose, onSaved }: { sender: any; onClose: (
   }
 
   return (
-    <Modal title={sender ? "Edit SMTP Sender" : "New SMTP Sender"} onClose={onClose}>
-      <form onSubmit={submit}>
-        <Field label="Name"><input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Amazon SES" autoFocus /></Field>
-        <Field label="Host"><input className="input" value={host} onChange={e => setHost(e.target.value)} placeholder="email-smtp.us-east-1.amazonaws.com" /></Field>
-        <Field label="Port"><input type="number" className="input" value={port} onChange={e => setPort(e.target.value)} placeholder="587" /></Field>
-        <Field label="Username"><input className="input" value={user} onChange={e => setUser(e.target.value)} placeholder="SMTP User" /></Field>
-        <Field label="Password" hint={sender ? "Leave empty to keep existing password." : ""}>
-          <input type="password" className="input" value={pass} onChange={e => setPass(e.target.value)} placeholder={sender ? "(hidden)" : "SMTP Password"} />
+    <Modal title={sender ? "Modify SMTP Relay" : "Configure SMTP Relay"} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <Field label="Sender Connection Name">
+          <input className="input w-full" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Corporate SMTP" required autoFocus />
         </Field>
-        <Field label="From Email" hint="Optional. Default address to use if none provided.">
-          <input className="input" value={fromEmail} onChange={e => setFromEmail(e.target.value)} placeholder="admin@example.com" />
+        
+        <div className="flex gap-4">
+          <div className="flex-[3]">
+            <Field label="SMTP Host Server address">
+              <input className="input w-full font-mono text-xs" value={host} onChange={e => setHost(e.target.value)} placeholder="smtp.mailgun.org" required />
+            </Field>
+          </div>
+          <div className="flex-1">
+            <Field label="SMTP Port">
+              <input type="number" className="input w-full font-mono text-xs" value={port} onChange={e => setPort(e.target.value)} placeholder="587" required />
+            </Field>
+          </div>
+        </div>
+
+        <Field label="SMTP Connection Username">
+          <input className="input w-full font-mono text-xs" value={user} onChange={e => setUser(e.target.value)} placeholder="e.g. postmaster@domain.com" required />
         </Field>
-        {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
-        <button className="btn-primary w-full" disabled={busy || !name.trim() || !host.trim() || !port || !user.trim() || (!sender && !pass.trim())}>{busy ? "…" : "Save Sender"}</button>
+        
+        <Field label="SMTP Connection Password" hint={sender ? "Leave blank to preserve current secure key." : ""}>
+          <input type="password" className="input w-full font-mono text-xs" value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••••" required={!sender} />
+        </Field>
+        
+        <Field label="Default From Address" hint="Outgoing address used if none specified.">
+          <input className="input w-full font-mono text-xs" value={fromEmail} onChange={e => setFromEmail(e.target.value)} placeholder="noreply@domain.com" required />
+        </Field>
+        
+        {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={busy || !name.trim() || !host.trim() || !port || !user.trim()}>
+            {busy ? "Saving..." : "Save Relay"}
+          </Button>
+        </div>
       </form>
     </Modal>
   );

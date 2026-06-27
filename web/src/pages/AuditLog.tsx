@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, AuditLog } from "../api";
-import { Header } from "./Links";
-import { timeAgo } from "../ui";
+import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge } from "../ui";
 
 export default function AuditLogPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -13,54 +12,75 @@ export default function AuditLogPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const getActionTone = (action: string) => {
+    if (action.includes(".delete")) return "red";
+    if (action.includes(".create")) return "green";
+    if (action.includes(".update")) return "amber";
+    return "indigo";
+  };
+
   return (
-    <div>
-      <Header title="Audit Log" subtitle="History of administrative actions" />
+    <ScreenWrap>
+      <PageHeader
+        title="Audit Log"
+        description="History of administrative actions across your organization"
+      />
 
       {loading ? (
-        <div className="text-white/40 py-10 text-center">loading…</div>
+        <div className="text-white/40 py-12 text-center">loading…</div>
       ) : logs.length === 0 ? (
-        <div className="card p-8 text-center text-white/40">No audit logs found.</div>
+        <GlassCard className="p-10 text-center text-white/40">
+          No audit logs found.
+        </GlassCard>
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-white/[0.06] text-white/55">
-              <tr>
-                <th className="px-4 py-3 font-medium">Time</th>
-                <th className="px-4 py-3 font-medium">Actor</th>
-                <th className="px-4 py-3 font-medium">Action</th>
-                <th className="px-4 py-3 font-medium">Target</th>
-                <th className="px-4 py-3 font-medium">IP</th>
-                <th className="px-4 py-3 font-medium">Meta</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/[0.04]/50">
-              {logs.map((l) => (
-                <tr key={l.id} className="hover:bg-white/[0.06]/20">
-                  <td className="whitespace-nowrap px-4 py-3 text-white/55" title={l.createdAt}>
-                    {timeAgo(l.createdAt)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3">
-                    {l.actorId === 0 ? <span className="text-white/40">system/token</span> : `User ${l.actorId}`}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 font-medium text-indigo-300">
-                    {l.action}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3">
-                    {l.targetType} <span className="text-white/40">#{l.targetId}</span>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-white/55">
-                    {l.ip}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-white/40 font-mono break-all max-w-xs">
-                    {l.meta}
-                  </td>
+        <GlassCard className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead className="border-b border-white/[0.06] bg-white/[0.02] text-white/55">
+                <tr>
+                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">Time</th>
+                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">Actor</th>
+                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">Action</th>
+                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">Target</th>
+                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">IP Address</th>
+                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">Meta Context</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-white/[0.04]">
+                {logs.map((l) => (
+                  <tr key={l.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="whitespace-nowrap px-5 py-4 text-white/60 text-xs" title={l.createdAt}>
+                      {timeAgo(l.createdAt)}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4 text-sm font-medium">
+                      {l.actorId === 0 ? (
+                        <span className="text-white/40 italic">system/token</span>
+                      ) : (
+                        <span className="text-white/80">User #{l.actorId}</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4">
+                      <Badge tone={getActionTone(l.action)} className="font-mono">
+                        {l.action}
+                      </Badge>
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4 text-white/70 text-sm">
+                      <span className="capitalize">{l.targetType}</span>{" "}
+                      <span className="text-white/40 font-mono text-xs">#{l.targetId}</span>
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4 text-white/55 font-mono text-xs">
+                      {l.ip}
+                    </td>
+                    <td className="px-5 py-4 text-xs text-white/40 font-mono break-all max-w-xs">
+                      {l.meta}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </GlassCard>
       )}
-    </div>
+    </ScreenWrap>
   );
 }

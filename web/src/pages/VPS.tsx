@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { api, VPS, SSHKey } from "../api";
-import { Empty, Field, Modal, timeAgo } from "../ui";
-import { Terminal } from "@xterm/xterm";
+import { Empty, Field, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
+import { Terminal as XTerminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { Server, Key, ShieldAlert, Cpu, Terminal, Pencil, Trash2 } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
 
 export default function VPSPage() {
@@ -30,113 +31,133 @@ export default function VPSPage() {
 
   if (error) {
     return (
-      <div className="card flex flex-col items-center justify-center gap-4 py-20 px-6 text-center">
-        <div className="text-5xl">{error.status === 402 ? "🔒" : "🔌"}</div>
-        <div>
-          <h2 className="text-xl font-bold mb-1">
-            {error.status === 402 ? "Pro Feature Locked" : "Feature Unavailable"}
-          </h2>
-          <p className="text-sm text-white/55 max-w-md mx-auto">
-            {error.status === 402
-              ? "A valid led-pro license is required to manage VPS infrastructure."
-              : "The VPS infrastructure feature is not available or disabled in this installation."}
-          </p>
-        </div>
-        {error.status === 402 && (
-          <a
-            href="/settings/license"
-            className="btn-primary mt-2"
-          >
-            Manage License
-          </a>
-        )}
-      </div>
+      <ScreenWrap>
+        <GlassCard className="flex flex-col items-center justify-center gap-5 py-16 px-6 text-center max-w-md mx-auto mt-12">
+          <div className="h-14 w-14 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-400">
+            <ShieldAlert className="h-8 w-8" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold mb-2">
+              {error.status === 402 ? "Pro Feature Locked" : "Feature Unavailable"}
+            </h2>
+            <p className="text-sm text-white/50 leading-relaxed">
+              {error.status === 402
+                ? "A valid led-pro license is required to manage VPS infrastructure."
+                : "The VPS infrastructure feature is not available or disabled in this installation."}
+            </p>
+          </div>
+          {error.status === 402 && (
+            <Button
+              variant="primary"
+              onClick={() => window.location.href = "/settings/license"}
+              className="mt-2"
+            >
+              Manage License
+            </Button>
+          )}
+        </GlassCard>
+      </ScreenWrap>
     );
   }
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-white">VPS Infrastructure</h1>
-          <p className="text-sm text-white/55">Manage and monitor your remote servers.</p>
-        </div>
-        <button className="btn-primary" onClick={() => setShowAdd(true)}>
-          + Add VPS
-        </button>
-      </div>
+    <ScreenWrap>
+      <PageHeader
+        title="VPS Infrastructure"
+        description="Manage, monitor, and connect to your remote servers"
+        action={
+          <Button variant="primary" onClick={() => setShowAdd(true)}>
+            + Add VPS
+          </Button>
+        }
+      />
 
       {list.length === 0 ? (
         <Empty>
-          <div className="text-4xl mb-2">🖥️</div>
-          <p>No servers added yet.</p>
-          <button className="btn-primary mt-4" onClick={() => setShowAdd(true)}>
+          <Server className="h-10 w-10 text-white/30 mb-2" />
+          <p className="text-sm text-white/50">No servers added yet.</p>
+          <Button variant="primary" className="mt-4" onClick={() => setShowAdd(true)}>
             Add VPS
-          </button>
+          </Button>
         </Empty>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          {list.map((vps) => (
-            <div key={vps.id} className="card p-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className={`w-2.5 h-2.5 rounded-full ${
-                    vps.status === "online" ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : 
-                    vps.status === "offline" ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" : 
-                    "bg-white/[0.06]"
-                  }`} title={vps.status} />
-                  <h3 className="font-semibold text-lg truncate">{vps.name}</h3>
+          {list.map((vps) => {
+            const statusTone = vps.status === "online" ? "green" : vps.status === "offline" ? "red" : "neutral";
+            const keyName = keys.find(k => k.id === vps.sshKeyId)?.name || "Unknown key";
+
+            return (
+              <GlassCard key={vps.id} className="p-5 flex flex-col sm:flex-row gap-5 items-start sm:items-center">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+                      vps.status === "online" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" :
+                      vps.status === "offline" ? "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]" :
+                      "bg-white/20"
+                    }`} />
+                    <h3 className="font-semibold text-base truncate text-white">{vps.name}</h3>
+                    <Badge tone={statusTone} className="capitalize text-[10px]">
+                      {vps.status}
+                    </Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-white/55 mt-3">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-white/35">IP:</span> 
+                      <span className="font-mono truncate">{vps.ip}:{vps.port}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-white/35">User:</span> 
+                      <span className="font-medium">{vps.user}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0 sm:col-span-2">
+                      <Key className="h-3.5 w-3.5 text-white/30 shrink-0" />
+                      <span className="text-white/35">Key:</span> 
+                      <span className="truncate font-medium text-white/70">{keyName}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="text-[11px] text-white/35 mt-4 border-t border-white/[0.04] pt-3">
+                    {vps.lastChecked ? `Last active ${timeAgo(vps.lastChecked)}` : "Pending initial connectivity test"}
+                    {vps.failCount > 0 && vps.status !== "online" && ` (${vps.failCount} failed attempts)`}
+                  </div>
                 </div>
                 
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/55 mt-2">
-                  <div className="flex items-center gap-1">
-                    <span className="text-white/40">IP:</span> 
-                    <span className="font-mono">{vps.ip}:{vps.port}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-white/40">User:</span> 
-                    <span>{vps.user}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-white/40">Key:</span> 
-                    <span className="truncate max-w-xs">{keys.find(k => k.id === vps.sshKeyId)?.name || "?"}</span>
-                  </div>
-                </div>
-                
-                <div className="text-xs text-white/40 mt-3">
-                  {vps.lastChecked ? `Checked ${timeAgo(vps.lastChecked)}` : "Pending initial check"}
-                  {vps.failCount > 0 && vps.status !== "online" && ` (${vps.failCount} fails)`}
-                </div>
-              </div>
-              
-              <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
-                <button 
-                  className="btn-primary flex-1 sm:flex-none justify-center"
-                  onClick={() => setTerminalVPS(vps)}
-                >
-                  Terminal
-                </button>
-                <div className="flex gap-2 w-full">
-                  <button 
-                    className="btn-ghost flex-1 sm:flex-none justify-center text-xs"
-                    onClick={() => setEditItem(vps)}
+                <div className="flex sm:flex-col gap-2 w-full sm:w-auto shrink-0 border-t sm:border-t-0 border-white/[0.06] pt-4 sm:pt-0">
+                  <Button 
+                    variant="primary"
+                    onClick={() => setTerminalVPS(vps)}
+                    className="flex-1 sm:flex-none py-1.5 text-xs gap-1.5"
                   >
-                    Edit
-                  </button>
-                  <button 
-                    className="btn-ghost flex-1 sm:flex-none justify-center text-xs text-red-400 hover:text-red-300 hover:bg-red-950"
-                    onClick={async () => {
-                      if (!confirm(`Remove VPS ${vps.name}?`)) return;
-                      await api.deleteVPS(vps.id);
-                      load();
-                    }}
-                  >
-                    Remove
-                  </button>
+                    <Terminal className="h-3.5 w-3.5" />
+                    Terminal
+                  </Button>
+                  <div className="flex sm:flex-row gap-2 w-full">
+                    <Button 
+                      variant="subtle"
+                      onClick={() => setEditItem(vps)}
+                      className="flex-1 py-1.5 text-xs gap-1"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      Edit
+                    </Button>
+                    <Button 
+                      variant="danger"
+                      onClick={async () => {
+                        if (!confirm(`Remove VPS ${vps.name}?`)) return;
+                        await api.deleteVPS(vps.id);
+                        load();
+                      }}
+                      className="flex-1 py-1.5 text-xs gap-1 bg-rose-500/10 hover:bg-rose-500/25"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Remove
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </div>
-          ))}
+              </GlassCard>
+            );
+          })}
         </div>
       )}
 
@@ -152,7 +173,7 @@ export default function VPSPage() {
       {terminalVPS && (
         <TerminalModal vps={terminalVPS} onClose={() => setTerminalVPS(null)} />
       )}
-    </div>
+    </ScreenWrap>
   );
 }
 
@@ -193,30 +214,30 @@ function VPSModal({ keys, vps, onClose, onSaved }: { keys: SSHKey[]; vps: VPS | 
   }
 
   return (
-    <Modal title={vps ? "Edit VPS" : "Add VPS"} onClose={onClose}>
-      <form onSubmit={submit}>
-        <Field label="Name">
-          <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+    <Modal title={vps ? "Edit Server" : "Register Server"} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <Field label="Server Friendly Name">
+          <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} required autoFocus placeholder="e.g. Production API" />
         </Field>
         
         <div className="flex gap-4">
           <div className="flex-[3]">
-            <Field label="IP Address / Hostname">
-              <input className="input w-full font-mono" value={ip} onChange={(e) => setIp(e.target.value)} required />
+            <Field label="IP Address or Hostname">
+              <input className="input w-full font-mono" value={ip} onChange={(e) => setIp(e.target.value)} required placeholder="192.168.1.1" />
             </Field>
           </div>
           <div className="flex-1">
-            <Field label="SSH Port">
+            <Field label="Port">
               <input className="input w-full font-mono" type="number" min="1" max="65535" value={port} onChange={(e) => setPort(e.target.value)} required />
             </Field>
           </div>
         </div>
 
-        <Field label="SSH Username">
+        <Field label="SSH Login Username">
           <input className="input w-full font-mono" value={user} onChange={(e) => setUser(e.target.value)} required />
         </Field>
 
-        <Field label="SSH Key" hint="The private key used to authenticate.">
+        <Field label="SSH Authorization Key" hint="Choose the private key configured to access this VPS.">
           <select 
             className="input w-full" 
             value={sshKeyId} 
@@ -230,13 +251,13 @@ function VPSModal({ keys, vps, onClose, onSaved }: { keys: SSHKey[]; vps: VPS | 
           </select>
         </Field>
 
-        {err && <p className="mb-4 text-sm text-red-400">{err}</p>}
+        {err && <p className="text-sm text-red-400 font-medium">{err}</p>}
         
-        <div className="flex justify-end gap-2 mt-6">
-          <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={busy || !name || !ip || !sshKeyId}>
-            {busy ? "..." : "Save"}
-          </button>
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={busy || !name || !ip || !sshKeyId}>
+            {busy ? "Saving..." : "Save Config"}
+          </Button>
         </div>
       </form>
     </Modal>
@@ -245,7 +266,7 @@ function VPSModal({ keys, vps, onClose, onSaved }: { keys: SSHKey[]; vps: VPS | 
 
 function TerminalModal({ vps, onClose }: { vps: VPS; onClose: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const termRef = useRef<Terminal | null>(null);
+  const termRef = useRef<XTerminal | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   
   const [status, setStatus] = useState("Connecting...");
@@ -253,7 +274,7 @@ function TerminalModal({ vps, onClose }: { vps: VPS; onClose: () => void }) {
   useEffect(() => {
     if (!containerRef.current) return;
     
-    const term = new Terminal({
+    const term = new XTerminal({
       cursorBlink: true,
       theme: {
         background: '#09090b', // zinc-950
@@ -344,8 +365,8 @@ function TerminalModal({ vps, onClose }: { vps: VPS; onClose: () => void }) {
     <div className="fixed inset-0 z-[100] flex flex-col bg-[#07070b]">
       <div className="flex items-center justify-between px-4 py-2 bg-white/[0.04] border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
-          <span className="font-semibold">{vps.user}@{vps.name}</span>
-          <span className={`text-xs px-2 py-0.5 rounded-full ${
+          <span className="font-semibold text-white/90 text-sm font-mono">{vps.user}@{vps.name}</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
             status === "Connected" ? "bg-green-500/20 text-green-400" :
             status === "Connecting..." ? "bg-yellow-500/20 text-yellow-400" :
             "bg-red-500/20 text-red-400"
@@ -353,12 +374,13 @@ function TerminalModal({ vps, onClose }: { vps: VPS; onClose: () => void }) {
             {status}
           </span>
         </div>
-        <button 
-          className="btn-ghost" 
+        <Button 
+          variant="ghost" 
           onClick={onClose}
+          className="text-xs py-1 px-2.5"
         >
           Close Terminal
-        </button>
+        </Button>
       </div>
       <div className="flex-1 w-full relative">
         <div ref={containerRef} className="absolute inset-0 p-2" />

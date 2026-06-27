@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, FinanceSummary, Subscription } from "../api";
-import { Empty, Field, Modal, Toggle } from "../ui";
+import { Empty, Field, Modal, Toggle, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard } from "../ui";
+import { ShieldAlert, CreditCard, Calendar, TrendingUp, Sparkles, Trash2, Pencil } from "lucide-react";
 
 const CURRENCIES = ["USD", "CNY", "EUR", "GBP", "JPY", "HKD", "SGD"];
 
@@ -19,14 +20,12 @@ function RenewalBadge({ nextRenewal }: { nextRenewal: string | null }) {
   const date = new Date(nextRenewal!).toLocaleDateString();
   const urgent = days <= 7;
   const soon = days <= 14;
+  
+  const tone = urgent ? "red" : soon ? "amber" : "neutral";
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full ${
-      urgent ? "bg-red-500/20 text-red-400" :
-      soon   ? "bg-yellow-500/20 text-yellow-400" :
-               "bg-white/[0.06] text-white/55"
-    }`}>
+    <Badge tone={tone}>
       {date} ({days}d)
-    </span>
+    </Badge>
   );
 }
 
@@ -50,27 +49,32 @@ export default function FinancePage() {
 
   if (error) {
     return (
-      <div className="card flex flex-col items-center justify-center gap-4 py-20 px-6 text-center">
-        <div className="text-5xl">{error.status === 402 ? "🔒" : "🔌"}</div>
-        <div>
-          <h2 className="text-xl font-bold mb-1">
-            {error.status === 402 ? "Pro Feature Locked" : "Feature Unavailable"}
-          </h2>
-          <p className="text-sm text-white/55 max-w-md mx-auto">
-            {error.status === 402
-              ? "A valid led-pro license is required to use Finance features."
-              : "The Finance tracking feature is not available or disabled in this installation."}
-          </p>
-        </div>
-        {error.status === 402 && (
-          <a
-            href="/settings/license"
-            className="btn-primary mt-2"
-          >
-            Manage License
-          </a>
-        )}
-      </div>
+      <ScreenWrap>
+        <GlassCard className="flex flex-col items-center justify-center gap-5 py-16 px-6 text-center max-w-md mx-auto mt-12">
+          <div className="h-14 w-14 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-400">
+            <ShieldAlert className="h-8 w-8" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold mb-2">
+              {error.status === 402 ? "Pro Feature Locked" : "Feature Unavailable"}
+            </h2>
+            <p className="text-sm text-white/50 leading-relaxed">
+              {error.status === 402
+                ? "A valid led-pro license is required to use Finance features."
+                : "The Finance tracking feature is not available or disabled in this installation."}
+            </p>
+          </div>
+          {error.status === 402 && (
+            <Button
+              variant="primary"
+              onClick={() => window.location.href = "/settings/license"}
+              className="mt-2"
+            >
+              Manage License
+            </Button>
+          )}
+        </GlassCard>
+      </ScreenWrap>
     );
   }
 
@@ -88,91 +92,127 @@ export default function FinancePage() {
   const currencies = summary ? Object.keys(summary.monthlyByCurrency) : [];
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-white">Finance</h1>
-          <p className="text-sm text-white/55">Track recurring SaaS spend and renewal dates.</p>
-        </div>
-        <button className="btn-primary" onClick={() => setShowAdd(true)}>+ Add Subscription</button>
-      </div>
+    <ScreenWrap>
+      <PageHeader
+        title="Finance"
+        description="Track recurring SaaS spend and renewal dates"
+        action={
+          <Button variant="primary" onClick={() => setShowAdd(true)}>
+            + Add Subscription
+          </Button>
+        }
+      />
 
       {/* Summary cards */}
       {summary && currencies.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="card p-4">
-            <div className="text-xs text-white/40 uppercase tracking-wider mb-1">Active</div>
-            <div className="text-2xl font-bold">{summary.count}</div>
-            <div className="text-xs text-white/40">subscriptions</div>
-          </div>
-          {currencies.map((cur) => (
-            <div key={cur} className="card p-4">
-              <div className="text-xs text-white/40 uppercase tracking-wider mb-1">Monthly · {cur}</div>
-              <div className="text-2xl font-bold">{fmtCost(summary.monthlyByCurrency[cur], cur)}</div>
-              <div className="text-xs text-white/40">{fmtCost(summary.yearlyByCurrency[cur], cur)} / yr</div>
-            </div>
+          <StatCard
+            label="Active Subscriptions"
+            value={summary.count}
+            icon={<CreditCard className="h-4 w-4" />}
+            index={0}
+          />
+          {currencies.map((cur, i) => (
+            <StatCard
+              key={cur}
+              label={`Monthly Spend (${cur})`}
+              value={fmtCost(summary.monthlyByCurrency[cur], cur)}
+              delta={`${fmtCost(summary.yearlyByCurrency[cur], cur)} / yr`}
+              positive={true}
+              icon={<TrendingUp className="h-4 w-4" />}
+              index={i + 1}
+            />
           ))}
-          <div className="card p-4">
-            <div className="text-xs text-white/40 uppercase tracking-wider mb-1">Renewing Soon</div>
-            <div className={`text-2xl font-bold ${summary.renewingSoon.length > 0 ? "text-yellow-400" : ""}`}>
-              {summary.renewingSoon.length}
-            </div>
-            <div className="text-xs text-white/40">within 14 days</div>
-          </div>
+          <StatCard
+            label="Renewing Soon"
+            value={summary.renewingSoon.length}
+            delta="within 14 days"
+            positive={summary.renewingSoon.length === 0}
+            icon={<Calendar className="h-4 w-4" />}
+            index={currencies.length + 1}
+          />
         </div>
       )}
 
       {/* Subscription list */}
       {subs.length === 0 ? (
         <Empty>
-          <div className="text-4xl mb-2">💳</div>
-          <p>No subscriptions yet.</p>
-          <button className="btn-primary mt-4" onClick={() => setShowAdd(true)}>Add Subscription</button>
+          <CreditCard className="h-10 w-10 text-white/30 mb-2" />
+          <p className="text-sm text-white/50">No subscriptions yet.</p>
+          <Button variant="primary" className="mt-4" onClick={() => setShowAdd(true)}>
+            Add Subscription
+          </Button>
         </Empty>
       ) : (
-        <div className="card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/[0.06] text-left text-xs text-white/40 uppercase tracking-wider">
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Vendor</th>
-                <th className="px-4 py-3 text-right">Cost</th>
-                <th className="px-4 py-3">Cycle</th>
-                <th className="px-4 py-3">Next Renewal</th>
-                <th className="px-4 py-3 text-center">Active</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/[0.04]/60">
-              {subs.map((sub) => (
-                <tr key={sub.id} className={`hover:bg-white/[0.04] transition-colors ${!sub.enabled ? "opacity-50" : ""}`}>
-                  <td className="px-4 py-3 font-medium">
-                    {sub.name}
-                    {sub.note && <div className="text-xs text-white/40 truncate max-w-[12rem]">{sub.note}</div>}
-                  </td>
-                  <td className="px-4 py-3 text-white/55">{sub.vendor || "—"}</td>
-                  <td className="px-4 py-3 text-right font-mono">{fmtCost(sub.cost, sub.currency)}</td>
-                  <td className="px-4 py-3 text-white/55 capitalize">{sub.cycle}</td>
-                  <td className="px-4 py-3"><RenewalBadge nextRenewal={sub.nextRenewal} /></td>
-                  <td className="px-4 py-3 text-center">
-                    <Toggle on={sub.enabled} onChange={() => toggleEnabled(sub)} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2 justify-end">
-                      <button className="btn-ghost text-xs px-2" onClick={() => setEditItem(sub)}>Edit</button>
-                      <button
-                        className="btn-ghost text-xs px-2 text-red-400 hover:text-red-300 hover:bg-red-950"
-                        onClick={() => deleteSub(sub)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </td>
+        <GlassCard className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead className="border-b border-white/[0.06] bg-white/[0.02] text-white/55">
+                <tr className="text-left text-xs font-semibold uppercase tracking-wider">
+                  <th className="px-5 py-3.5">Name</th>
+                  <th className="px-5 py-3.5">Vendor</th>
+                  <th className="px-5 py-3.5 text-right">Cost</th>
+                  <th className="px-5 py-3.5">Cycle</th>
+                  <th className="px-5 py-3.5">Next Renewal</th>
+                  <th className="px-5 py-3.5 text-center">Active</th>
+                  <th className="px-5 py-3.5"></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-white/[0.04]">
+                {subs.map((sub) => (
+                  <tr
+                    key={sub.id}
+                    className={`hover:bg-white/[0.02] transition-all ${
+                      !sub.enabled ? "opacity-45 bg-black/10" : ""
+                    }`}
+                  >
+                    <td className="px-5 py-4 font-medium text-white">
+                      {sub.name}
+                      {sub.note && (
+                        <div className="text-xs text-white/40 truncate max-w-[12rem] mt-0.5" title={sub.note}>
+                          {sub.note}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-white/60">{sub.vendor || "—"}</td>
+                    <td className="px-5 py-4 text-right font-mono text-white/90">
+                      {fmtCost(sub.cost, sub.currency)}
+                    </td>
+                    <td className="px-5 py-4 text-white/55 capitalize text-xs">{sub.cycle}</td>
+                    <td className="px-5 py-4">
+                      <RenewalBadge nextRenewal={sub.nextRenewal} />
+                    </td>
+                    <td className="px-5 py-4 text-center">
+                      <div className="inline-flex items-center justify-center">
+                        <Toggle on={sub.enabled} onChange={() => toggleEnabled(sub)} />
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          variant="ghost"
+                          onClick={() => setEditItem(sub)}
+                          className="text-xs py-1 px-2.5"
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="danger"
+                          onClick={() => deleteSub(sub)}
+                          className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1" />
+                          Remove
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </GlassCard>
       )}
 
       {(showAdd || editItem) && (
@@ -182,7 +222,7 @@ export default function FinancePage() {
           onSaved={load}
         />
       )}
-    </div>
+    </ScreenWrap>
   );
 }
 
@@ -230,21 +270,23 @@ function SubModal({ sub, onClose, onSaved }: { sub: Subscription | null; onClose
   }
 
   return (
-    <Modal title={sub ? "Edit Subscription" : "Add Subscription"} onClose={onClose}>
-      <form onSubmit={submit}>
-        <Field label="Name">
-          <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />
+    <Modal title={sub ? "Edit Subscription" : "Create Subscription"} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <Field label="Subscription Name">
+          <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} required autoFocus placeholder="e.g. GitHub Copilot" />
         </Field>
-        <Field label="Vendor">
+        
+        <Field label="Vendor Name">
           <input className="input w-full" value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder="e.g. GitHub, Vercel" />
         </Field>
-        <div className="flex gap-3">
+        
+        <div className="flex gap-4">
           <div className="flex-1">
             <Field label="Cost">
               <input className="input w-full font-mono" type="number" min="0" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} required />
             </Field>
           </div>
-          <div className="w-28">
+          <div className="w-32">
             <Field label="Currency">
               <select className="input w-full" value={currency} onChange={(e) => setCurrency(e.target.value)}>
                 {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
@@ -252,32 +294,45 @@ function SubModal({ sub, onClose, onSaved }: { sub: Subscription | null; onClose
             </Field>
           </div>
         </div>
+
         <Field label="Billing Cycle">
-          <div className="flex gap-3">
+          <div className="flex gap-4 mt-1">
             {(["monthly", "yearly"] as const).map((c) => (
-              <label key={c} className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="cycle" value={c} checked={cycle === c} onChange={() => setCycle(c)} />
-                <span className="capitalize text-sm">{c}</span>
+              <label key={c} className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="radio"
+                  name="cycle"
+                  value={c}
+                  checked={cycle === c}
+                  onChange={() => setCycle(c)}
+                  className="accent-indigo-500"
+                />
+                <span className="capitalize text-sm text-white/70">{c}</span>
               </label>
             ))}
           </div>
         </Field>
-        <Field label="Next Renewal">
+
+        <Field label="Next Renewal Date">
           <input className="input w-full" type="date" value={nextRenewal} onChange={(e) => setNextRenewal(e.target.value)} />
         </Field>
-        <Field label="Note">
-          <input className="input w-full" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note" />
+
+        <Field label="Private Note">
+          <input className="input w-full" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. charged to corporate card" />
         </Field>
-        <div className="flex items-center gap-3 mb-4">
+
+        <div className="flex items-center gap-3 pt-2">
           <Toggle on={enabled} onChange={setEnabled} />
-          <span className="text-sm text-white/55">Active</span>
+          <span className="text-sm text-white/60 select-none">Active Subscription</span>
         </div>
-        {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
-        <div className="flex justify-end gap-2 mt-4">
-          <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={busy || !name}>
-            {busy ? "..." : "Save"}
-          </button>
+
+        {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
+        
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={busy || !name}>
+            {busy ? "Saving..." : "Save Subscription"}
+          </Button>
         </div>
       </form>
     </Modal>

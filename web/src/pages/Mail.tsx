@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, Attachment, Domain, effectiveMailHosts, Email, Mailbox } from "../api";
-import { Code, Field, Guide, Modal, Toggle, timeAgo } from "../ui";
-import { Header } from "./Links";
+import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
+import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle } from "lucide-react";
 
 interface ReplyDraft {
   to: string;
@@ -78,24 +78,30 @@ export default function MailPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <Header title="Mail" subtitle="Domain mailboxes & inbox">
-        <div className="flex gap-2">
-          <button className="btn-ghost" onClick={markAllRead}>
-            Mark all read
-          </button>
-          <button className="btn-ghost" onClick={() => setCompose(true)}>
-            Compose
-          </button>
-          <button className="btn-primary" onClick={() => setNewBox(true)}>
-            + Mailbox
-          </button>
-        </div>
-      </Header>
+    <ScreenWrap>
+      <PageHeader
+        title="Mailbox"
+        description="Receive and send emails using custom domain names"
+        action={
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={markAllRead} className="py-1.5 text-xs">
+              Mark Read
+            </Button>
+            <Button variant="outline" onClick={() => setCompose(true)} className="gap-1.5 py-1.5 text-xs">
+              <Send className="h-3.5 w-3.5" />
+              Compose
+            </Button>
+            <Button variant="primary" onClick={() => setNewBox(true)} className="gap-1.5 py-1.5 text-xs">
+              <Plus className="h-3.5 w-3.5" />
+              + Mailbox
+            </Button>
+          </div>
+        }
+      />
 
       {boxes.length === 0 && (
         <Guide title="Set up mail receiving with Cloudflare Email Routing" open>
-          <ol className="ml-4 list-decimal space-y-1">
+          <ol className="ml-4 list-decimal space-y-1.5 text-sm leading-relaxed text-white/70">
             <li>Add a domain in <b>Domains</b>, toggle <b>Accept email</b>, and list its mail hosts.</li>
             <li>In Cloudflare → <b>Email → Email Routing</b>, enable routing.</li>
             <li>Deploy <Code>deploy/cloudflare-email-worker.js</Code> with <Code>LED_ENDPOINT</Code>=<Code>{`${location.origin}/api/email/inbound`}</Code> and <Code>LED_TOKEN</Code> = your <Code>LED_INBOUND_TOKEN</Code>, then point a catch-all route at it.</li>
@@ -104,31 +110,33 @@ export default function MailPage() {
         </Guide>
       )}
 
-      <div className="grid grid-cols-[300px_1fr] gap-4 min-h-0 flex-1">
-        {/* left column */}
-        <div className="flex flex-col min-h-0">
-          <div className="mb-2 flex items-center gap-2">
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 min-h-0 items-start">
+        {/* Left column - list */}
+        <div className="flex flex-col min-h-0 w-full">
+          <div className="mb-3 flex items-center gap-2">
             <select
               className="input flex-1 min-w-0"
               value={active === undefined ? "" : active}
               onChange={(e) => setActive(e.target.value ? Number(e.target.value) : undefined)}
             >
-              <option value="">All mail</option>
+              <option value="">All Mailboxes</option>
               {boxes.map(b => (
                 <option key={b.id} value={b.id}>{b.address} {b.unread > 0 ? `(${b.unread})` : ""}</option>
               ))}
             </select>
             {active !== undefined && (
-              <button
-                className="btn-ghost shrink-0"
+              <Button
+                variant="ghost"
                 title="Edit Mailbox"
                 onClick={() => setEditBox(boxes.find(b => b.id === active) || null)}
+                className="shrink-0 p-2"
               >
-                ⚙
-              </button>
+                <Settings className="h-4 w-4" />
+              </Button>
             )}
           </div>
-          <div className="mb-2">
+          
+          <div className="mb-3">
             <input
               className="input w-full"
               placeholder="Search emails…"
@@ -136,40 +144,43 @@ export default function MailPage() {
               onChange={(e) => setQ(e.target.value)}
             />
           </div>
-          <div className="card flex-1 overflow-y-auto" onScroll={handleScroll}>
-            {emails.length === 0 && !loading ? (
-              <div className="p-8 text-center text-white/40">No messages.</div>
-            ) : (
-              <div className="divide-y divide-white/[0.04]">
-                {emails.map((e) => (
-                  <button
-                    key={e.id}
-                    className={`flex w-full flex-col p-3 text-left hover:bg-white/[0.04] transition-colors ${open?.id === e.id ? "bg-white/[0.06]" : ""}`}
-                    onClick={() => openEmail(e)}
-                  >
-                    <div className="flex items-center justify-between w-full mb-1">
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />}
-                        <span className={`truncate ${e.read ? "text-white/55" : "font-semibold"}`}>{e.from || "(unknown)"}</span>
+          
+          <GlassCard className="overflow-hidden">
+            <div className="overflow-y-auto max-h-[600px] divide-y divide-white/[0.04]" onScroll={handleScroll}>
+              {emails.length === 0 && !loading ? (
+                <div className="p-8 text-center text-white/40 text-sm">No messages.</div>
+              ) : (
+                <>
+                  {emails.map((e) => (
+                    <button
+                      key={e.id}
+                      className={`flex w-full flex-col p-4 text-left hover:bg-white/[0.03] transition-colors ${open?.id === e.id ? "bg-white/[0.05]" : ""}`}
+                      onClick={() => openEmail(e)}
+                    >
+                      <div className="flex items-center justify-between w-full mb-1 gap-2">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />}
+                          <span className={`truncate text-sm ${e.read ? "text-white/55" : "font-semibold text-white"}`}>{e.from || "(unknown)"}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          <AuthBadges spf={e.authSpf} dkim={e.authDkim} dmarc={e.authDmarc} compact />
+                          <span className="text-[11px] text-white/40">{timeAgo(e.receivedAt)}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                        <AuthBadges spf={e.authSpf} dkim={e.authDkim} dmarc={e.authDmarc} compact />
-                        <span className="text-xs text-white/40">{timeAgo(e.receivedAt)}</span>
+                      <div className={`truncate text-xs ${e.read ? "text-white/40" : "text-white/70"}`}>
+                        {e.subject || "(no subject)"}
                       </div>
-                    </div>
-                    <div className={`truncate text-xs ${e.read ? "text-white/40" : "text-white/75"}`}>
-                      {e.subject || "(no subject)"}
-                    </div>
-                  </button>
-                ))}
-                {loading && <div className="p-3 text-center text-xs text-white/40">Loading…</div>}
-              </div>
-            )}
-          </div>
+                    </button>
+                  ))}
+                  {loading && <div className="p-3 text-center text-xs text-white/40">Loading…</div>}
+                </>
+              )}
+            </div>
+          </GlassCard>
         </div>
 
-        {/* right column */}
-        <div className="min-h-0 overflow-y-auto pr-2 pb-8">
+        {/* Right column - email view pane */}
+        <div className="w-full">
           {open ? (
             <EmailViewForm
               email={open}
@@ -184,9 +195,10 @@ export default function MailPage() {
               }}
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-white/40/50">
-              Select an email to view details
-            </div>
+            <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-white/40 border border-white/[0.04]/40">
+              <Inbox className="h-10 w-10 mb-2 opacity-50 text-indigo-400" />
+              <p className="text-sm">Select an email message from the inbox list to read.</p>
+            </GlassCard>
           )}
         </div>
       </div>
@@ -217,7 +229,7 @@ export default function MailPage() {
       {compose && (
         <Compose draft={compose === true ? undefined : compose} onClose={() => setCompose(null)} />
       )}
-    </div>
+    </ScreenWrap>
   );
 }
 
@@ -244,86 +256,100 @@ function EmailViewForm({
   const [note, setNote] = useState(email.note ?? "");
   const attachments = parseAttachments(email.attachments);
   return (
-    <div className="card flex flex-col h-full max-h-full min-h-0">
-      <div className="p-5 border-b border-white/[0.06] flex justify-between items-start shrink-0">
+    <GlassCard className="flex flex-col h-full max-h-full min-h-0">
+      <div className="p-5 border-b border-white/[0.06] flex justify-between items-start shrink-0 gap-4">
          <div>
-           <h2 className="text-xl font-semibold mb-2">{email.subject || "(no subject)"}</h2>
-           <div className="text-sm text-white/55">
-             <div><span className="text-white/40">From:</span> {email.from}</div>
-             <div><span className="text-white/40">To:</span> {email.to}</div>
-             <div className="text-xs text-white/30 mt-1">{new Date(email.receivedAt).toLocaleString()}</div>
-             <div className="mt-2 flex gap-1.5">
+           <h2 className="text-lg font-bold text-white mb-2 leading-snug">{email.subject || "(no subject)"}</h2>
+           <div className="text-xs text-white/55 space-y-1.5">
+             <div><span className="text-white/45">From:</span> <span className="font-semibold text-white/80">{email.from}</span></div>
+             <div><span className="text-white/45">To:</span> <span className="text-white/70">{email.to}</span></div>
+             <div className="text-[11px] text-white/35 pt-0.5">{new Date(email.receivedAt).toLocaleString()}</div>
+             <div className="mt-2.5 flex flex-wrap gap-1.5 pt-1">
                <AuthBadges spf={email.authSpf} dkim={email.authDkim} dmarc={email.authDmarc} />
              </div>
            </div>
          </div>
-         <div className="flex gap-2">
-           <button className="btn-ghost px-2 text-sm" onClick={onClose}>✕</button>
-         </div>
+         <Button variant="ghost" onClick={onClose} className="p-2 shrink-0">
+           <X className="h-4 w-4" />
+         </Button>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-5 min-h-0">
+      <div className="flex-1 overflow-y-auto p-5 min-h-[400px] bg-black/10">
         {email.html ? (
-          <iframe srcDoc={email.html} className="min-h-[400px] h-full w-full bg-white rounded" sandbox="" title="email" />
+          <iframe srcDoc={email.html} className="h-full min-h-[400px] w-full bg-white rounded-xl shadow-inner border-0" sandbox="" title="email" />
         ) : (
-          <pre className="whitespace-pre-wrap break-words font-sans text-sm text-white/75">{email.text}</pre>
+          <pre className="whitespace-pre-wrap break-words font-sans text-sm text-white/85 leading-relaxed">{email.text}</pre>
         )}
       </div>
       
-      <div className="p-5 border-t border-white/[0.06] shrink-0 bg-white/[0.02]">
+      <div className="p-5 border-t border-white/[0.06] shrink-0 bg-white/[0.01]">
         {attachments.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-2">
             {attachments.map((a, i) => (
-              <span key={i} className="badge bg-white/[0.06] text-white/75" title={`${a.contentType} · ${a.size} bytes`}>
-                📎 {a.filename || "attachment"} ({Math.max(1, Math.round(a.size / 1024))} KB)
+              <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.05] border border-white/[0.06] px-2.5 py-1 text-xs text-white/85" title={`${a.contentType} · ${a.size} bytes`}>
+                <Paperclip className="h-3 w-3 text-indigo-400" />
+                {a.filename || "attachment"} ({Math.max(1, Math.round(a.size / 1024))} KB)
               </span>
             ))}
           </div>
         )}
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <Field label="Note">
+        
+        <div className="flex flex-col sm:flex-row items-end gap-3 pt-2">
+          <div className="w-full sm:flex-1">
+            <Field label="Note Memo">
               <input className="input w-full" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a private note..." />
             </Field>
           </div>
-          <button
-            className="btn-ghost mb-3"
-            onClick={async () => {
-              await api.updateEmail(email.id, { note });
-              onChanged();
-            }}
-          >
-            Save note
-          </button>
-          <button
-            className="btn-primary mb-3"
-            onClick={() =>
-              onReply({
-                to: email.from,
-                subject: email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`,
-              })
-            }
-          >
-            Reply
-          </button>
-          <a className="btn-ghost mb-3" href={api.rawEmailUrl(email.id)} download={`email-${email.id}.eml`}>
-            .eml
-          </a>
-          <button
-            className="btn-danger mb-3"
-            onClick={async () => {
-              if (confirm("Delete this email?")) {
-                await api.deleteEmail(email.id);
+          <div className="flex gap-2 w-full sm:w-auto shrink-0 pb-1">
+            <Button
+              variant="subtle"
+              onClick={async () => {
+                await api.updateEmail(email.id, { note });
                 onChanged();
-                onClose();
+                alert("Note saved");
+              }}
+              className="text-xs py-1.5 px-3"
+            >
+              Save Note
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() =>
+                onReply({
+                  to: email.from,
+                  subject: email.subject.startsWith("Re:") ? email.subject : `Re: ${email.subject}`,
+                })
               }
-            }}
-          >
-            Delete
-          </button>
+              className="text-xs py-1.5 px-3 gap-1"
+            >
+              <Reply className="h-3.5 w-3.5" />
+              Reply
+            </Button>
+            <Button 
+              variant="ghost"
+              onClick={() => window.open(api.rawEmailUrl(email.id))}
+              className="text-xs py-1.5 px-3 font-mono"
+            >
+              <Download className="h-3.5 w-3.5 mr-1" />
+              .eml
+            </Button>
+            <Button
+              variant="danger"
+              onClick={async () => {
+                if (confirm("Delete this email?")) {
+                  await api.deleteEmail(email.id);
+                  onChanged();
+                  onClose();
+                }
+              }}
+              className="text-xs py-1.5 px-3 bg-rose-500/10 hover:bg-rose-500/20 border-0"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </GlassCard>
   );
 }
 
@@ -363,63 +389,68 @@ function MailboxEditor({
   }
 
   return (
-    <Modal title={box ? "Edit mailbox" : "New mailbox"} onClose={onClose}>
-      {box ? (
-        <Field label="Address">
-          <input className="input w-full" value={box.address} disabled />
+    <Modal title={box ? "Edit Mailbox" : "Create Mailbox"} onClose={onClose}>
+      <div className="space-y-4">
+        {box ? (
+          <Field label="Mailbox Address">
+            <input className="input w-full font-mono text-sm" value={box.address} disabled />
+          </Field>
+        ) : hosts.length === 0 ? (
+          <p className="rounded bg-amber-500/10 p-3 text-xs text-amber-300 flex items-center gap-1.5">
+            <AlertTriangle className="h-4 w-4" />
+            No mail-enabled hosts. Configure your custom domain first.
+          </p>
+        ) : (
+          <Field label="Mailbox Prefix" hint="Choose username part of address">
+            <div className="flex items-center gap-2">
+              <input
+                className="input w-full font-mono text-sm"
+                value={prefix}
+                onChange={(e) => setPrefix(e.target.value)}
+                placeholder="e.g. sales"
+                autoFocus
+              />
+              <span className="text-white/40">@</span>
+              <select className="input w-full text-sm" value={domain} onChange={(e) => setDomain(e.target.value)}>
+                {hosts.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </Field>
+        )}
+        <Field label="Note Memo">
+          <textarea className="input w-full text-sm" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. support operations" />
         </Field>
-      ) : hosts.length === 0 ? (
-        <p className="mb-3 rounded bg-amber-500/10 p-2 text-sm text-amber-300">
-          No mail-enabled hosts. Add a domain, toggle <b>Accept email</b>, and add a mail host first.
-        </p>
-      ) : (
-        <Field label="Address" hint="pick a mail host (domain or subdomain)">
-          <div className="flex items-center gap-1">
-            <input
-              className="input w-full"
-              value={prefix}
-              onChange={(e) => setPrefix(e.target.value)}
-              placeholder="hi"
-              autoFocus
-            />
-            <span className="text-white/40">@</span>
-            <select className="input w-full" value={domain} onChange={(e) => setDomain(e.target.value)}>
-              {hosts.map((h) => (
-                <option key={h} value={h}>
-                  {h}
-                </option>
-              ))}
-            </select>
-          </div>
-        </Field>
-      )}
-      <Field label="Note">
-        <textarea className="input w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
-      </Field>
-      <label className="mb-4 flex items-center gap-2 text-sm text-white/55">
-        <Toggle on={enabled} onChange={setEnabled} /> Enabled
-      </label>
-      {box && (
-        <button
-          className="btn-danger mb-3"
-          onClick={async () => {
-            if (confirm(`Delete mailbox ${box.address} and all its mail?`)) {
-              await api.deleteMailbox(box.id);
-              onSaved();
-            }
-          }}
-        >
-          Delete mailbox
-        </button>
-      )}
-      {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
-      <div className="flex justify-end gap-2">
-        <button className="btn-ghost" onClick={onClose}>
-          Cancel
-        </button>
-        <button className="btn-primary" onClick={save}>
-          Save
-        </button>
+        <div className="flex items-center gap-3 py-1">
+          <Toggle on={enabled} onChange={setEnabled} />
+          <span className="text-sm text-white/60 select-none">Mail Receiving Enabled</span>
+        </div>
+        {box && (
+          <Button
+            variant="danger"
+            onClick={async () => {
+              if (confirm(`Delete mailbox ${box.address} and all its email messages?`)) {
+                await api.deleteMailbox(box.id);
+                onSaved();
+              }
+            }}
+            className="w-full text-xs py-1.5 bg-rose-500/10 hover:bg-rose-500/25 border-0 mt-2"
+          >
+            Delete Mailbox Completely
+          </Button>
+        )}
+        {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={save}>
+            Save Configuration
+          </Button>
+        </div>
       </div>
     </Modal>
   );
@@ -459,23 +490,26 @@ function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () => void }
   }
 
   return (
-    <Modal title="Compose" onClose={onClose}>
+    <Modal title="Compose Mail" onClose={onClose}>
       {ok ? (
-        <div className="py-6 text-center">
-          <p className="mb-3 text-green-400">✓ Sent</p>
-          <button className="btn-primary" onClick={onClose}>
+        <div className="py-6 text-center space-y-4">
+          <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 mx-auto">
+            <CheckCircle className="h-6 w-6" />
+          </div>
+          <p className="text-white font-semibold">Message Sent Successfully</p>
+          <Button variant="primary" onClick={onClose} className="w-full">
             Done
-          </button>
+          </Button>
         </div>
       ) : (
-        <>
-          <Field label="SMTP Sender" hint="Choose which account to send through.">
+        <div className="space-y-4">
+          <Field label="SMTP Connection" hint="Pick credentials used to send this mail">
             <select
-              className="input w-full"
+              className="input w-full text-sm"
               value={smtpSenderId}
               onChange={(e) => setSmtpSenderId(Number(e.target.value))}
             >
-              <option value={0}>System Default (LED_SMTP_*)</option>
+              <option value={0}>System Default SMTP settings</option>
               {senders.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name} ({s.fromEmail})
@@ -483,28 +517,28 @@ function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () => void }
               ))}
             </select>
           </Field>
-          <Field label="From (Optional)" hint="Override sender address if SMTP allows it.">
-            <input className="input w-full" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <Field label="From (Override)" hint="SMTP servers may reject mismatched send addresses">
+            <input className="input w-full font-mono text-sm" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="e.g. custom@domain.com" />
           </Field>
-          <Field label="To" hint="comma-separated">
-            <input className="input w-full" value={to} onChange={(e) => setTo(e.target.value)} />
+          <Field label="To (Recipients)" hint="Comma-separated email addresses">
+            <input className="input w-full font-mono text-sm" value={to} onChange={(e) => setTo(e.target.value)} placeholder="hello@world.com" required />
           </Field>
-          <Field label="Subject">
-            <input className="input w-full" value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <Field label="Subject Title">
+            <input className="input w-full text-sm" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject line" required />
           </Field>
-          <Field label="Body">
-            <textarea className="input w-full" rows={6} value={text} onChange={(e) => setText(e.target.value)} />
+          <Field label="Plaintext Message Body">
+            <textarea className="input w-full text-sm font-sans" rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder="Type mail content here..." required />
           </Field>
-          {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
-          <div className="flex justify-end gap-2">
-            <button className="btn-ghost" onClick={onClose}>
+          {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+            <Button variant="ghost" onClick={onClose}>
               Cancel
-            </button>
-            <button className="btn-primary" onClick={send}>
-              Send
-            </button>
+            </Button>
+            <Button variant="primary" onClick={send} disabled={!to || !subject}>
+              Send Mail
+            </Button>
           </div>
-        </>
+        </div>
       )}
     </Modal>
   );
@@ -520,21 +554,18 @@ function AuthBadges({
     const pass = result === "pass";
     const warn = result === "softfail" || result === "neutral";
     if (compact && pass) return null; // only show problems in list view
+    
+    let tone: "green" | "amber" | "red" = "red";
+    if (pass) tone = "green";
+    else if (warn) tone = "amber";
+
     return (
-      <span
-        key={label}
-        title={`${label}: ${result}`}
-        className={`rounded px-1 py-0.5 text-[10px] font-mono font-semibold ${
-          pass ? "bg-emerald-900/40 text-emerald-400" :
-          warn ? "bg-amber-900/40 text-amber-400" :
-                 "bg-red-900/40 text-red-400"
-        }`}
-      >
+      <Badge key={label} tone={tone} className="font-mono text-[9px] uppercase tracking-wider">
         {label}:{result}
-      </span>
+      </Badge>
     );
   };
   const badges = [badge("SPF", spf), badge("DKIM", dkim), badge("DMARC", dmarc)].filter(Boolean);
   if (badges.length === 0) return null;
-  return <>{badges}</>;
+  return <div className="flex gap-1 items-center">{badges}</div>;
 }

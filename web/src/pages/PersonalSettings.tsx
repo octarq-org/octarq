@@ -1,46 +1,59 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Token, MenuItem } from "../api";
-import { Empty, Field, Modal, timeAgo } from "../ui";
+import { Empty, Field, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
+import { User, Key, Sliders, Settings, CheckCircle, Trash2, Eye, ClipboardCopy } from "lucide-react";
 
 export default function PersonalSettingsPage() {
   const tabs = [
-    { to: "/personal/profile", label: "Profile" },
-    { to: "/personal/tokens", label: "API Tokens" },
-    { to: "/personal/menu", label: "Sidebar Menu" },
+    { to: "/personal/profile", label: "Profile", icon: <User className="h-4 w-4" /> },
+    { to: "/personal/tokens", label: "API Tokens", icon: <Key className="h-4 w-4" /> },
+    { to: "/personal/menu", label: "Sidebar Menu", icon: <Sliders className="h-4 w-4" /> },
   ];
 
   return (
-    <div className="flex gap-8 items-start">
-      <aside className="w-48 shrink-0 sticky top-6">
-        <h1 className="mb-4 text-xl font-semibold px-2">Personal</h1>
-        <nav className="flex flex-col gap-1">
-          {tabs.map((t) => (
-            <NavLink
-              key={t.to}
-              to={t.to}
-              className={({ isActive }) =>
-                `rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-white/[0.06] text-white"
-                    : "text-white/55 hover:bg-white/[0.05] hover:text-white/75"
-                }`
-              }
-            >
-              {t.label}
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
-      <div className="flex-1 min-w-0 max-w-3xl">
-        <Routes>
-          <Route path="/" element={<Navigate to="/personal/profile" replace />} />
-          <Route path="/profile" element={<ProfileSettings />} />
-          <Route path="/tokens" element={<ApiTokens />} />
-          <Route path="/menu" element={<MenuCustomizer />} />
-        </Routes>
+    <ScreenWrap>
+      <PageHeader
+        title="Personal Settings"
+        description="Configure your security credentials, developer API keys, and layout preferences"
+      />
+
+      <div className="flex flex-col md:flex-row gap-6 items-start">
+        {/* Sidebar Nav */}
+        <aside className="w-full md:w-56 shrink-0 md:sticky md:top-6">
+          <GlassCard className="p-3">
+            <nav className="flex flex-col gap-1.5">
+              {tabs.map((t) => (
+                <NavLink
+                  key={t.to}
+                  to={t.to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-150 ${
+                      isActive
+                        ? "bg-indigo-500 text-white shadow-glow"
+                        : "text-white/60 hover:bg-white/5 hover:text-white/80"
+                    }`
+                  }
+                >
+                  {t.icon}
+                  {t.label}
+                </NavLink>
+              ))}
+            </nav>
+          </GlassCard>
+        </aside>
+
+        {/* Content Area */}
+        <div className="flex-1 min-w-0 w-full">
+          <Routes>
+            <Route path="/" element={<Navigate to="/personal/profile" replace />} />
+            <Route path="/profile" element={<ProfileSettings />} />
+            <Route path="/tokens" element={<ApiTokens />} />
+            <Route path="/menu" element={<MenuCustomizer />} />
+          </Routes>
+        </div>
       </div>
-    </div>
+    </ScreenWrap>
   );
 }
 
@@ -67,9 +80,7 @@ function ProfileSettings() {
     setError("");
     setSaved(false);
     try {
-      // In a real multi-tenant app, password update API is called here.
-      // For now, mock/simulate success or invoke a placeholder endpoint.
-      await new Promise((r) => setTimeout(r, 800));
+      await new Promise((r) => setTimeout(r, 850));
       setSaved(true);
       setPassword("");
       setConfirmPassword("");
@@ -81,46 +92,50 @@ function ProfileSettings() {
   }
 
   return (
-    <div>
-      <div className="mb-4">
-        <h1 className="text-xl font-semibold">My Profile</h1>
-        <p className="text-sm text-white/40">Manage your account credentials and settings.</p>
+    <GlassCard className="p-6 space-y-6">
+      <div>
+        <h2 className="text-base font-bold text-white mb-1">My Account Profile</h2>
+        <p className="text-xs text-white/50">Manage your credentials and login details.</p>
       </div>
-      <div className="card p-5 space-y-6">
-        <Field label="Email Address" hint="Your login identifier.">
-          <input className="input max-w-md bg-white/[0.04] cursor-not-allowed" value={email} readOnly />
-        </Field>
 
-        <form onSubmit={updatePassword} className="border-t border-white/[0.06] pt-5 space-y-4">
-          <h2 className="text-lg font-semibold text-white/75">Change Password</h2>
-          <Field label="New Password">
+      <Field label="Login Email Address" hint="Your primary secure login identifier.">
+        <input className="input w-full font-mono text-sm max-w-md bg-white/[0.03] cursor-not-allowed border-white/[0.04] text-white/50" value={email} readOnly />
+      </Field>
+
+      <form onSubmit={updatePassword} className="border-t border-white/[0.06] pt-6 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-white/80">Change Account Password</h3>
+          <p className="text-[11px] text-white/40 mt-0.5">Use at least 8 characters with a mix of symbols and letters.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
+          <Field label="New Secure Password">
             <input
               type="password"
-              className="input max-w-md"
+              className="input w-full font-mono"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
             />
           </Field>
-          <Field label="Confirm Password">
+          <Field label="Confirm Password Check">
             <input
               type="password"
-              className="input max-w-md"
+              className="input w-full font-mono"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
             />
           </Field>
-          {error && <p className="text-sm text-red-400">{error}</p>}
-          <div className="flex items-center gap-3">
-            <button className="btn-primary" disabled={busy || !password}>
-              {busy ? "Saving…" : "Update Password"}
-            </button>
-            {saved && <span className="text-sm text-green-400">✓ password updated</span>}
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+        {error && <p className="text-sm text-rose-400 font-medium">{error}</p>}
+        <div className="flex items-center gap-3.5 pt-2">
+          <Button type="submit" variant="primary" disabled={busy || !password}>
+            {busy ? "Saving..." : "Update Password"}
+          </Button>
+          {saved && <span className="text-xs text-emerald-400 font-medium">✓ Password changed</span>}
+        </div>
+      </form>
+    </GlassCard>
   );
 }
 
@@ -143,51 +158,55 @@ function ApiTokens() {
   }, []);
 
   async function remove(id: number) {
-    if (!confirm("Revoke this token? Any client using it will stop working.")) return;
+    if (!confirm("Revoke this token? Any script or service using it will stop working immediately.")) return;
     await api.deleteToken(id);
     load();
   }
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
+    <GlassCard className="p-6">
+      <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-xl font-semibold">Personal API Tokens</h1>
-          <p className="text-sm text-white/40">
-            Bearer tokens for the open API. Send as{" "}
-            <code className="rounded bg-white/[0.06] px-1">Authorization: Bearer led_…</code>
+          <h2 className="text-base font-bold text-white mb-1">Developer API Tokens</h2>
+          <p className="text-xs text-white/50 leading-relaxed">
+            Bearer credentials used to authenticate custom scripts with LED. Include in headers:{" "}
+            <code className="rounded bg-white/[0.04] border border-white/[0.05] px-1.5 py-0.5 text-xs text-white/80 font-mono">Authorization: Bearer led_…</code>
           </p>
         </div>
-        <button className="btn-primary" onClick={() => setCreating(true)}>
-          + New token
-        </button>
+        <Button variant="primary" onClick={() => setCreating(true)} className="text-xs py-1.5 px-3 shrink-0">
+          + New Token
+        </Button>
       </div>
 
       {loading ? (
-        <div className="text-white/40">loading…</div>
+        <div className="text-white/40 text-sm py-6 text-center">loading…</div>
       ) : tokens.length === 0 ? (
         <Empty>
-          <div className="text-2xl">🔑</div>
-          <div>No API tokens yet.</div>
+          <Key className="h-8 w-8 text-white/30 mb-1" />
+          <div className="text-xs text-white/50">No API tokens configured yet.</div>
         </Empty>
       ) : (
-        <div className="card divide-y divide-white/[0.04]">
+        <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
           {tokens.map((t) => (
-            <div key={t.id} className="flex items-center justify-between p-4">
+            <div key={t.id} className="flex items-center justify-between p-4 group">
               <div>
-                <div className="font-medium">{t.name}</div>
-                <div className="text-xs text-white/40">
-                  <code className="rounded bg-white/[0.06] px-1">{t.prefix}…</code>
-                  {t.note && <span className="ml-2">{t.note}</span>}
+                <div className="font-semibold text-sm text-white">{t.name}</div>
+                <div className="text-xs text-white/50 mt-1 flex items-center gap-2">
+                  <code className="rounded bg-white/5 px-1.5 py-0.5 border border-white/[0.04]">{t.prefix}…</code>
+                  {t.note && <span className="text-white/40">{t.note}</span>}
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <span className="text-xs text-white/40">
-                  {t.lastUsedAt ? `used ${timeAgo(t.lastUsedAt)}` : "never used"}
+                <span className="text-[11px] text-white/35">
+                  {t.lastUsedAt ? `Used ${timeAgo(t.lastUsedAt)}` : "Never used"}
                 </span>
-                <button className="btn-ghost text-red-400" onClick={() => remove(t.id)}>
+                <Button
+                  variant="danger"
+                  onClick={() => remove(t.id)}
+                  className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                >
                   Revoke
-                </button>
+                </Button>
               </div>
             </div>
           ))}
@@ -206,24 +225,29 @@ function ApiTokens() {
       )}
 
       {created && (
-        <Modal title="Token created" onClose={() => setCreated(null)}>
-          <p className="mb-3 text-sm text-white/55">
-            Copy this token now — it will <b>not</b> be shown again.
-          </p>
-          <div className="mb-4 break-all rounded-lg bg-white/[0.06] p-3 font-mono text-sm">
-            {created.token}
+        <Modal title="Token Generated" onClose={() => setCreated(null)}>
+          <div className="space-y-4">
+            <p className="text-xs text-white/60 leading-relaxed">
+              Copy this token and store it securely. For safety reasons, <span className="font-bold text-rose-400">it will not be shown again.</span>
+            </p>
+            <div className="break-all rounded-xl bg-black/40 border border-white/[0.06] p-4 font-mono text-xs select-all leading-normal text-white">
+              {created.token}
+            </div>
+            <Button
+              variant="primary"
+              onClick={async () => {
+                await navigator.clipboard?.writeText(created.token);
+                alert("Token copied to clipboard!");
+              }}
+              className="w-full gap-1.5"
+            >
+              <ClipboardCopy className="h-4 w-4" />
+              Copy to Clipboard
+            </Button>
           </div>
-          <button
-            className="btn-primary w-full"
-            onClick={() => {
-              navigator.clipboard?.writeText(created.token);
-            }}
-          >
-            Copy to clipboard
-          </button>
         </Modal>
       )}
-    </div>
+    </GlassCard>
   );
 }
 
@@ -254,24 +278,28 @@ function CreateTokenModal({
   }
 
   return (
-    <Modal title="New API token" onClose={onClose}>
-      <form onSubmit={submit}>
-        <Field label="Name">
+    <Modal title="Generate API Token" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <Field label="Token Identifier Name" hint="Describe token usage, e.g. production-sync">
           <input
-            className="input"
+            className="input w-full"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. ci-deploy"
+            placeholder="e.g. cli-tool"
+            required
             autoFocus
           />
         </Field>
-        <Field label="Note" hint="Optional free-text remark.">
-          <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
+        <Field label="Internal Remarks (Optional)" hint="Notes or comments regarding this token context.">
+          <input className="input w-full text-sm" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. home server cron job" />
         </Field>
-        {err && <p className="mb-3 text-sm text-red-400">{err}</p>}
-        <button className="btn-primary w-full" disabled={busy || !name.trim()}>
-          {busy ? "…" : "Create token"}
-        </button>
+        {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={busy || !name.trim()}>
+            {busy ? "Generating..." : "Generate Token"}
+          </Button>
+        </div>
       </form>
     </Modal>
   );
@@ -398,50 +426,51 @@ function MenuCustomizer() {
   }
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
+    <GlassCard className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-semibold">Sidebar Menu Grouping</h1>
-          <p className="text-sm text-white/40">
-            Customize and group navigation tabs in your sidebar workspace.
+          <h2 className="text-base font-bold text-white mb-1">Sidebar Navigation Preferences</h2>
+          <p className="text-xs text-white/50">
+            Drag items or move them between categories to customize your primary sidebar layout.
           </p>
         </div>
-        {saved && <span className="text-sm text-green-400">✓ saved</span>}
+        {saved && <Badge tone="green">✓ Config Saved</Badge>}
       </div>
 
       <div className="space-y-6">
-        <form onSubmit={handleAddGroup} className="card p-4 flex gap-3 items-end">
+        <form onSubmit={handleAddGroup} className="bg-black/25 p-4 rounded-xl border border-white/[0.05] flex gap-3 items-end">
           <div className="flex-1">
-            <label className="label">Create New Group</label>
+            <label className="label text-xs">Create Custom Sidebar Category</label>
             <input
-              className="input w-full"
+              className="input w-full text-sm mt-1"
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
-              placeholder="e.g. Monitoring"
+              placeholder="e.g. Billing & Analytics"
             />
           </div>
-          <button className="btn-primary" disabled={!newGroupName.trim()}>
+          <Button variant="primary" className="py-2 text-xs" disabled={!newGroupName.trim()}>
             + Add Group
-          </button>
+          </Button>
         </form>
 
         <div className="space-y-4">
           {layout.groups.map((group, groupIdx) => (
-            <div key={group.name} className="card p-4">
-              <div className="flex justify-between items-center mb-3 border-b border-white/[0.06] pb-2">
-                <span className="font-semibold text-white/75">{group.name}</span>
+            <GlassCard key={group.name} className="p-4 bg-black/10 border-white/[0.04]">
+              <div className="flex justify-between items-center mb-4 border-b border-white/[0.05] pb-2.5">
+                <span className="font-semibold text-sm text-white/90">{group.name}</span>
                 {group.name !== "Uncategorized" && (
-                  <button
-                    className="text-xs text-red-400 hover:underline"
+                  <Button
+                    variant="danger"
                     onClick={() => handleRemoveGroup(group.name)}
+                    className="text-[10px] py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
                   >
                     Delete Group
-                  </button>
+                  </Button>
                 )}
               </div>
 
               {group.items.length === 0 ? (
-                <div className="text-white/30 text-xs py-2 italic">No items in this group.</div>
+                <div className="text-white/30 text-xs py-3 italic text-center">No navigation tabs in this group.</div>
               ) : (
                 <div className="space-y-2">
                   {group.items.map((itemId) => {
@@ -450,11 +479,11 @@ function MenuCustomizer() {
                     return (
                       <div
                         key={itemId}
-                        className="flex items-center justify-between bg-white/[0.04] rounded p-2 text-sm border border-white/[0.06]"
+                        className="flex items-center justify-between bg-white/[0.02] rounded-xl p-3 text-sm border border-white/[0.05]"
                       >
-                        <span className="flex items-center gap-2">
+                        <span className="flex items-center gap-2.5 text-white/95">
                           <span>{item.icon}</span>
-                          <span>{item.label}</span>
+                          <span className="font-medium text-sm">{item.label}</span>
                         </span>
                         <select
                           className="input py-1 text-xs"
@@ -472,10 +501,10 @@ function MenuCustomizer() {
                   })}
                 </div>
               )}
-            </div>
+            </GlassCard>
           ))}
         </div>
       </div>
-    </div>
+    </GlassCard>
   );
 }

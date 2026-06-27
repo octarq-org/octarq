@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, SSHKey } from "../api";
-import { Empty, Field, Modal, timeAgo, Code } from "../ui";
+import { Empty, Field, Modal, timeAgo, Code, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
+import { ShieldAlert, Key, ClipboardCopy, Trash2 } from "lucide-react";
 
 export default function SSHKeysPage() {
   const [keys, setKeys] = useState<SSHKey[]>([]);
@@ -19,80 +20,95 @@ export default function SSHKeysPage() {
 
   if (error) {
     return (
-      <div className="card flex flex-col items-center justify-center gap-4 py-20 px-6 text-center">
-        <div className="text-5xl">{error.status === 402 ? "🔒" : "🔌"}</div>
-        <div>
-          <h2 className="text-xl font-bold mb-1">
-            {error.status === 402 ? "Pro Feature Locked" : "Feature Unavailable"}
-          </h2>
-          <p className="text-sm text-white/55 max-w-md mx-auto">
-            {error.status === 402
-              ? "A valid led-pro license is required to manage SSH keys."
-              : "The SSH keys management feature is not available or disabled in this installation."}
-          </p>
-        </div>
-        {error.status === 402 && (
-          <a
-            href="/settings/license"
-            className="btn-primary mt-2"
-          >
-            Manage License
-          </a>
-        )}
-      </div>
+      <ScreenWrap>
+        <GlassCard className="flex flex-col items-center justify-center gap-5 py-16 px-6 text-center max-w-md mx-auto mt-12">
+          <div className="h-14 w-14 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-400">
+            <ShieldAlert className="h-8 w-8" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold mb-2">
+              {error.status === 402 ? "Pro Feature Locked" : "Feature Unavailable"}
+            </h2>
+            <p className="text-sm text-white/50 leading-relaxed">
+              {error.status === 402
+                ? "A valid led-pro license is required to manage SSH keys."
+                : "The SSH keys management feature is not available or disabled in this installation."}
+            </p>
+          </div>
+          {error.status === 402 && (
+            <Button
+              variant="primary"
+              onClick={() => window.location.href = "/settings/license"}
+              className="mt-2"
+            >
+              Manage License
+            </Button>
+          )}
+        </GlassCard>
+      </ScreenWrap>
     );
   }
 
+  const getKeyTypeTone = (type: string) => {
+    if (type === "ed25519") return "indigo";
+    if (type === "rsa") return "violet";
+    return "neutral";
+  };
+
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-white">SSH Keys</h1>
-          <p className="text-sm text-white/55">Manage private keys for your VPS infrastructure.</p>
-        </div>
-        <button className="btn-primary" onClick={() => setShowAdd(true)}>
-          + New Key
-        </button>
-      </div>
+    <ScreenWrap>
+      <PageHeader
+        title="SSH Keys"
+        description="Manage private keys for your VPS remote servers"
+        action={
+          <Button variant="primary" onClick={() => setShowAdd(true)}>
+            + New Key
+          </Button>
+        }
+      />
 
       {keys.length === 0 ? (
         <Empty>
-          <div className="text-4xl mb-2">🔑</div>
-          <p>No SSH keys yet.</p>
-          <button className="btn-primary mt-4" onClick={() => setShowAdd(true)}>
+          <Key className="h-10 w-10 text-white/30 mb-2" />
+          <p className="text-sm text-white/50">No SSH keys yet.</p>
+          <Button variant="primary" className="mt-4" onClick={() => setShowAdd(true)}>
             Add Key
-          </button>
+          </Button>
         </Empty>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {keys.map((k) => (
-            <div key={k.id} className="card p-4 relative group flex flex-col">
-              <div className="flex justify-between items-start mb-2">
-                <div className="font-semibold text-lg">{k.name}</div>
-                <div className="text-xs px-2 py-0.5 rounded bg-white/[0.06] text-white/55 uppercase tracking-wide">
+            <GlassCard key={k.id} className="p-5 flex flex-col group relative">
+              <div className="flex justify-between items-start mb-2 gap-2">
+                <div className="font-semibold text-base text-white truncate">{k.name}</div>
+                <Badge tone={getKeyTypeTone(k.type)} className="uppercase tracking-wider text-[9px] shrink-0">
                   {k.type}
-                </div>
+                </Badge>
               </div>
               
-              <div className="text-xs text-white/40 mb-4">Added {timeAgo(k.createdAt)}</div>
+              <div className="text-[11px] text-white/35 mb-4">Added {timeAgo(k.createdAt)}</div>
               
               <div className="mb-4 flex-1">
-                <div className="text-xs text-white/40 mb-1">Public Key</div>
-                <Code>{k.pubKey.length > 50 ? k.pubKey.slice(0, 47) + "..." : k.pubKey}</Code>
+                <div className="text-[11px] font-medium text-white/40 mb-1">Public Key</div>
+                <div className="text-xs break-all leading-normal bg-black/30 border border-white/[0.04] p-2.5 rounded-lg select-all font-mono">
+                  {k.pubKey.length > 55 ? k.pubKey.slice(0, 52) + "..." : k.pubKey}
+                </div>
               </div>
 
-              <div className="border-t border-white/[0.06] pt-3 flex justify-between items-center">
-                <button 
-                  className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+              <div className="border-t border-white/[0.06] pt-4 mt-auto flex justify-between items-center">
+                <Button 
+                  variant="ghost"
                   onClick={() => {
                     navigator.clipboard.writeText(k.pubKey);
                     alert("Public key copied to clipboard");
                   }}
+                  className="text-xs py-1 px-2.5 text-indigo-300 hover:text-indigo-200"
                 >
+                  <ClipboardCopy className="h-3.5 w-3.5 mr-1" />
                   Copy PubKey
-                </button>
-                <button
-                  className="text-xs text-red-500/0 group-hover:text-red-500 transition-colors"
+                </Button>
+                <Button
+                  variant="danger"
                   onClick={async () => {
                     if (!confirm(`Delete key ${k.name}? Any VPS using this key will fail health checks.`)) return;
                     try {
@@ -102,17 +118,19 @@ export default function SSHKeysPage() {
                       alert(e.message);
                     }
                   }}
+                  className="text-xs py-1 px-2.5 text-rose-300 hover:text-rose-200 bg-rose-500/0 hover:bg-rose-500/10 border-0"
                 >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" />
                   Delete
-                </button>
+                </Button>
               </div>
-            </div>
+            </GlassCard>
           ))}
         </div>
       )}
 
       {showAdd && <AddModal onClose={() => setShowAdd(false)} onAdded={load} />}
-    </div>
+    </ScreenWrap>
   );
 }
 
@@ -152,49 +170,51 @@ function AddModal({ onClose, onAdded }: { onClose: () => void; onAdded: () => vo
   if (generatedPrivKey) {
     return (
       <Modal title="Key Generated Successfully" onClose={onClose} wide>
-        <div className="mb-4 text-green-400 flex items-center gap-2">
+        <div className="mb-4 text-emerald-400 flex items-center gap-2 text-sm font-medium">
           <span className="text-xl">✓</span>
           The SSH key pair was successfully generated.
         </div>
         <div className="mb-4">
-          <p className="text-sm text-white/75 mb-2">
+          <p className="text-sm text-white/75 mb-2 leading-relaxed">
             Please copy this private key and store it securely if you need it outside of led. 
-            <span className="font-bold text-red-400"> It will not be shown again.</span>
+            <span className="font-bold text-rose-400"> It will not be shown again.</span>
           </p>
           <textarea
             readOnly
-            className="input w-full h-48 font-mono text-xs whitespace-pre bg-black"
+            className="input w-full h-48 font-mono text-xs whitespace-pre bg-black/45 border-white/[0.06] focus:border-white/10"
             value={generatedPrivKey}
             onClick={(e) => (e.target as HTMLTextAreaElement).select()}
           />
         </div>
-        <button 
-          className="btn-primary w-full"
+        <Button 
+          variant="primary"
           onClick={() => {
             onAdded();
             onClose();
           }}
+          className="w-full"
         >
           I have saved it, finish
-        </button>
+        </Button>
       </Modal>
     );
   }
 
   return (
-    <Modal title="Add SSH Key" onClose={onClose}>
-      <form onSubmit={submit}>
-        <Field label="Key Name" hint="A memorable name for this key, e.g. 'prod-key'">
+    <Modal title="Create SSH Key" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <Field label="Key Friendly Name" hint="A memorable name for this key, e.g. 'prod-key'">
           <input
             className="input w-full"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
             autoFocus
+            placeholder="e.g. prod-core-key"
           />
         </Field>
         
-        <Field label="Action">
+        <Field label="Key Type / Action">
           <select 
             className="input w-full" 
             value={type} 
@@ -218,15 +238,15 @@ function AddModal({ onClose, onAdded }: { onClose: () => void; onAdded: () => vo
           </Field>
         )}
 
-        {err && <p className="mb-4 text-sm text-red-400">{err}</p>}
+        {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
         
-        <div className="flex justify-end gap-2 mt-6">
-          <button type="button" className="btn-ghost" onClick={onClose}>
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+          <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
-          </button>
-          <button type="submit" className="btn-primary" disabled={busy || !name}>
+          </Button>
+          <Button type="submit" variant="primary" disabled={busy || !name}>
             {busy ? "..." : (type === "imported" ? "Import" : "Generate")}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>
