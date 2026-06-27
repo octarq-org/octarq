@@ -241,14 +241,14 @@ func (h *Handler) listMenus(w http.ResponseWriter, r *http.Request) {
 
 	// Core default navigation items
 	menus := []MenuItem{
-		{ID: "overview", Label: "Overview", Path: "/overview", Icon: "📊", Category: "Traffic"},
-		{ID: "links", Label: "Links", Path: "/links", Icon: "🔗", Category: "Traffic"},
-		{ID: "domains", Label: "Domains", Path: "/domains", Icon: "🌐", Category: "Traffic"},
-		{ID: "mail", Label: "Mail", Path: "/mail", Icon: "✉️", Category: "Mail"},
+		{ID: "overview", Label: "Overview", Path: "/overview", Icon: "📊", Category: "Operations"},
+		{ID: "links", Label: "Links", Path: "/links", Icon: "🔗", Category: "Operations"},
+		{ID: "domains", Label: "Domains", Path: "/domains", Icon: "🌐", Category: "Assets"},
+		{ID: "mail", Label: "Mail", Path: "/mail", Icon: "✉️", Category: "Operations"},
 
-		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "📝", Category: "System"},
-		{ID: "abuse", Label: "Abuse", Path: "/abuse", Icon: "🛡️", Category: "Finance & Safety"},
-		{ID: "settings", Label: "Settings", Path: "/settings", Icon: "⚙️", Category: "System"},
+		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "📝", Category: "Management"},
+		{ID: "abuse", Label: "Abuse", Path: "/abuse", Icon: "🛡️", Category: "Finance & Security"},
+		{ID: "settings", Label: "Settings", Path: "/settings", Icon: "⚙️", Category: "Management"},
 	}
 
 	// Query from plugin providers if they satisfy MenuProvider
