@@ -24,6 +24,7 @@ import (
 
 	"github.com/Jungley8/led/config"
 	"github.com/Jungley8/led/internal/db"
+	"github.com/Jungley8/led/plugin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"gorm.io/gorm"
 )
@@ -41,6 +42,12 @@ type server struct {
 // server with every tool registered, and serves over stdio until ctx is
 // cancelled or stdin closes. It is the body of the `led mcp` subcommand.
 func Run(ctx context.Context) error {
+	return RunWithPlugins(ctx, nil)
+}
+
+// RunWithPlugins is identical to Run but lets the caller supply registered
+// Pro plugins so they can register their custom MCP write or finance tools.
+func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("mcp: load config: %w", err)
@@ -55,11 +62,18 @@ func Run(ctx context.Context) error {
 	impl := &mcp.Implementation{Name: "led", Version: version}
 	opts := &mcp.ServerOptions{
 		Instructions: "led is a self-hosted one-person-company backend. These tools " +
-			"read short links, email, and domains, plus run guarded read-only SQL. " +
-			"Everything is read-only and scoped to the operator's data.",
+			"read/write short links, email, and domains, plus run guarded read-only SQL. " +
+			"Everything is scoped to the operator's data.",
 	}
 	srv := mcp.NewServer(impl, opts)
 	s.registerTools(srv)
+
+	// Register any plugin-supplied MCP tools.
+	for _, p := range plugins {
+		if mp, ok := p.(plugin.MCPProvider); ok {
+			mp.RegisterMCP(srv)
+		}
+	}
 
 	return srv.Run(ctx, &mcp.StdioTransport{})
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/Jungley8/led/internal/crypto"
 	"github.com/Jungley8/led/internal/db"
 	"github.com/Jungley8/led/internal/geo"
+	"github.com/Jungley8/led/internal/mcp"
 	"github.com/Jungley8/led/internal/notify"
 	"github.com/Jungley8/led/internal/server"
 	"github.com/Jungley8/led/internal/shortlink"
@@ -84,6 +85,18 @@ func (a *App) DB() *gorm.DB { return a.gdb }
 // Use registers a plugin. All plugins must be registered before Run so their
 // models are migrated and their routes mounted.
 func (a *App) Use(p plugin.Plugin) { a.plugins = append(a.plugins, p) }
+
+// RunMCP runs the MCP server with the registered plugins over stdio.
+func (a *App) RunMCP(ctx context.Context) error {
+	var extra []any
+	for _, p := range a.plugins {
+		extra = append(extra, p.Models()...)
+	}
+	if err := db.Migrate(a.gdb, extra...); err != nil {
+		return err
+	}
+	return mcp.RunWithPlugins(ctx, a.plugins)
+}
 
 // Run migrates the schema (core + plugin models), builds the HTTP server, and
 // serves until interrupted.

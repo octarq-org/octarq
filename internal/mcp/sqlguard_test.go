@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Jungley8/led/internal/models"
+	"github.com/Jungley8/led/plugin"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
@@ -61,10 +62,10 @@ func TestValidateInjectsLimit(t *testing.T) {
 
 func TestContainsWordBoundary(t *testing.T) {
 	// "created" contains "create" as a substring but not as a word.
-	if containsWord("select created_at from links", "create") {
+	if plugin.ContainsWord("select created_at from links", "create") {
 		t.Error("containsWord matched 'create' inside 'created_at'")
 	}
-	if !containsWord("drop table x", "drop") {
+	if !plugin.ContainsWord("drop table x", "drop") {
 		t.Error("containsWord missed standalone 'drop'")
 	}
 }
@@ -73,7 +74,7 @@ func TestRedactRow(t *testing.T) {
 	cols := []string{"id", "email", "password_hash", "raw"}
 	row := map[string]any{"id": 1, "email": "a@b.c", "password_hash": "deadbeef", "raw": "rfc822..."}
 	redactRow(cols, row)
-	if row["password_hash"] != redactedValue || row["raw"] != redactedValue {
+	if row["password_hash"] != plugin.RedactedValue || row["raw"] != plugin.RedactedValue {
 		t.Errorf("sensitive columns not redacted: %+v", row)
 	}
 	if row["email"] != "a@b.c" {
@@ -102,7 +103,7 @@ func TestRunReadOnlyQueryRedactsSecrets(t *testing.T) {
 		t.Fatalf("expected 1 row, got %d", len(rows))
 	}
 	_ = cols
-	if rows[0]["password_hash"] != redactedValue {
+	if rows[0]["password_hash"] != plugin.RedactedValue {
 		t.Errorf("password_hash leaked: %v", rows[0]["password_hash"])
 	}
 	if rows[0]["email"] != "boss@co" {

@@ -475,6 +475,13 @@ export const api = {
   deleteSubscription: (id: number) => req<void>("DELETE", `/api/subscriptions/${id}`),
   financeSummary: () => req<FinanceSummary>("GET", "/api/finance/summary"),
 
+  // transactions
+  transactions: () => req<Transaction[]>("GET", "/api/transactions"),
+  createTransaction: (d: Partial<Transaction>) => req<Transaction>("POST", "/api/transactions", d),
+  updateTransaction: (id: number, d: Partial<Transaction>) => req<Transaction>("PUT", `/api/transactions/${id}`, d),
+  deleteTransaction: (id: number) => req<void>("DELETE", `/api/transactions/${id}`),
+  deleteTransactionSeries: (parentId: string) => req<void>("DELETE", `/api/transactions/series/${parentId}`),
+
   // audit
   auditLogs: () => req<AuditLog[]>("GET", "/api/audit"),
 
@@ -516,6 +523,19 @@ export interface MenuItem {
   path: string;
   icon: string;
   category: string;
+}
+
+export interface Transaction {
+  id: number;
+  parentId?: string;
+  date: string;
+  type: "income" | "expense";
+  title: string;
+  category: string;
+  amount: number;
+  currency: string;
+  cycle: "one-off" | "monthly" | "yearly";
+  invoiceEmailId?: number;
 }
 
 export { ApiError };

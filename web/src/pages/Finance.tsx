@@ -1,20 +1,9 @@
 import { useEffect, useState } from "react";
 import { Empty, Field, Modal, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard } from "../ui";
 import { ShieldAlert, CreditCard, Calendar, TrendingUp, Trash2, Pencil, Landmark, Plus, ArrowUpRight, ArrowDownRight, Wallet, RefreshCw } from "lucide-react";
+import { api, Transaction } from "../api";
 
 const CURRENCIES = ["USD", "CNY", "EUR", "GBP", "JPY", "HKD", "SGD"];
-
-interface Transaction {
-  id: string;
-  parentId?: string; // Links recurring occurrences together
-  date: string; // The exact occurrence date (YYYY-MM-DD)
-  type: "income" | "expense";
-  title: string;
-  category: string;
-  amount: number;
-  currency: string;
-  cycle: "one-off" | "monthly" | "yearly";
-}
 
 // Generate pre-populated historical occurrences for default recurring series
 const generateDefaultSeries = (
@@ -26,8 +15,8 @@ const generateDefaultSeries = (
   currency: string,
   cycle: "monthly" | "yearly",
   startMonth: number // 0-indexed
-): Transaction[] => {
-  const list: Transaction[] = [];
+): Omit<Transaction, "id">[] => {
+  const list: Omit<Transaction, "id">[] = [];
   const today = new Date();
   
   // Generate occurrences from startMonth of 2026 up to today
@@ -35,7 +24,6 @@ const generateDefaultSeries = (
     const dayStr = String(15).padStart(2, "0");
     const monthStr = String(m + 1).padStart(2, "0");
     list.push({
-      id: `${parentId}-${m}`,
       parentId,
       date: `2026-${monthStr}-${dayStr}`,
       type,
@@ -49,11 +37,11 @@ const generateDefaultSeries = (
   return list;
 };
 
-const getDefaultTransactions = (): Transaction[] => {
-  const list: Transaction[] = [
-    { id: "tx-1", date: "2026-06-25", type: "income", title: "Domain Sale: webdev.io", category: "Domain Trading", amount: 1850.00, currency: "USD", cycle: "one-off" },
-    { id: "tx-2", date: "2026-06-22", type: "expense", title: "Hetzner Cloud VPS rental", category: "Infrastructure", amount: 48.50, currency: "USD", cycle: "one-off" },
-    { id: "tx-3", date: "2026-06-18", type: "expense", title: "AWS Route53 renew: mycorp.com", category: "Domain Registration", amount: 12.00, currency: "USD", cycle: "one-off" },
+const getDefaultTransactions = (): Omit<Transaction, "id">[] => {
+  const list: Omit<Transaction, "id">[] = [
+    { date: "2026-06-25", type: "income", title: "Domain Sale: webdev.io", category: "Domain Trading", amount: 1850.00, currency: "USD", cycle: "one-off" },
+    { date: "2026-06-22", type: "expense", title: "Hetzner Cloud VPS rental", category: "Infrastructure", amount: 48.50, currency: "USD", cycle: "one-off" },
+    { date: "2026-06-18", type: "expense", title: "AWS Route53 renew: mycorp.com", category: "Domain Registration", amount: 12.00, currency: "USD", cycle: "one-off" },
   ];
 
   // Recurring expense series: GitHub Copilot (Monthly, from February 2026)
@@ -62,7 +50,7 @@ const getDefaultTransactions = (): Transaction[] => {
   // Recurring income series: VPS Tenant leasing (Monthly, from March 2026)
   list.push(...generateDefaultSeries("series-vps-rent", "VPS Leasing: Client A", "income", "Services", 120.00, "USD", "monthly", 2));
 
-  return list.sort((a, b) => b.date.localeCompare(a.date));
+  return list;
 };
 
 function fmtCost(cost: number, currency: string) {
@@ -79,29 +67,24 @@ export default function FinancePage() {
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
   function load() {
-    const saved = localStorage.getItem("led_finance_ledger_v2");
-    if (saved) {
-      try {
-        setTransactions(JSON.parse(saved));
-      } catch {
+    api.transactions().then((res) => {
+      if (res.length > 0) {
+        setTransactions(res);
+      } else {
+        // Seed mock data if database is empty
         const defaults = getDefaultTransactions();
-        setTransactions(defaults);
-        localStorage.setItem("led_finance_ledger_v2", JSON.stringify(defaults));
+        Promise.all(defaults.map(tx => {
+          return api.createTransaction(tx);
+        })).then(() => {
+          api.transactions().then(setTransactions);
+        });
       }
-    } else {
-      const defaults = getDefaultTransactions();
-      setTransactions(defaults);
-      localStorage.setItem("led_finance_ledger_v2", JSON.stringify(defaults));
-    }
+    }).catch(err => {
+      console.error("failed to load transactions:", err);
+    });
   }
 
   useEffect(() => { load(); }, []);
-
-  const saveTransactions = (list: Transaction[]) => {
-    const sorted = [...list].sort((a, b) => b.date.localeCompare(a.date));
-    setTransactions(sorted);
-    localStorage.setItem("led_finance_ledger_v2", JSON.stringify(sorted));
-  };
 
   // Add new transaction (or recurring series)
   function handleAddTransaction(payload: {
@@ -114,8 +97,7 @@ export default function FinancePage() {
     date: string;
   }) {
     if (payload.cycle === "one-off") {
-      const newTx: Transaction = {
-        id: "tx-" + Date.now(),
+      api.createTransaction({
         date: payload.date,
         type: payload.type,
         title: payload.title,
@@ -123,21 +105,18 @@ export default function FinancePage() {
         amount: payload.amount,
         currency: payload.currency,
         cycle: "one-off",
-      };
-      saveTransactions([newTx, ...transactions]);
+      }).then(() => load());
     } else {
-      // Generate recurring occurrences from the chosen start date up to today (or next month)
+      // Generate recurring occurrences from the chosen start date up to today
       const parentId = "series-" + Date.now();
-      const occurrences: Transaction[] = [];
+      const occurrences: any[] = [];
       const startDate = new Date(payload.date);
       const today = new Date();
       
       let cursor = new Date(startDate);
-      // Ensure we generate at least 1 occurrence, and generate up to the current date
       while (cursor <= today || occurrences.length === 0) {
         const dateStr = cursor.toISOString().slice(0, 10);
         occurrences.push({
-          id: `tx-${parentId}-${occurrences.length}`,
           parentId,
           date: dateStr,
           type: payload.type,
@@ -154,7 +133,7 @@ export default function FinancePage() {
           cursor.setFullYear(cursor.getFullYear() + 1);
         }
       }
-      saveTransactions([...occurrences, ...transactions]);
+      Promise.all(occurrences.map(tx => api.createTransaction(tx))).then(() => load());
     }
   }
 
@@ -164,49 +143,31 @@ export default function FinancePage() {
     fields: { title: string; category: string; amount: number; currency: string; date: string },
     scope: "one" | "all"
   ) {
-    let updated: Transaction[];
     if (scope === "one" || !targetTx.parentId) {
-      // Adjust this specific occurrence only
-      updated = transactions.map((t) =>
-        t.id === targetTx.id
-          ? { ...t, ...fields }
-          : t
-      );
+      api.updateTransaction(targetTx.id, fields).then(() => load());
     } else {
       // Update all future occurrences in this recurring series
-      updated = transactions.map((t) => {
-        if (t.parentId === targetTx.parentId) {
-          // Only update occurrences on or after the target occurrence date
-          if (t.date >= targetTx.date) {
-            return {
-              ...t,
-              title: fields.title,
-              category: fields.category,
-              amount: fields.amount,
-              currency: fields.currency,
-            };
-          }
-        }
-        return t;
-      });
+      const toUpdate = transactions.filter(t => t.parentId === targetTx.parentId && t.date >= targetTx.date);
+      Promise.all(toUpdate.map(t => api.updateTransaction(t.id, {
+        ...fields,
+        date: t.date, // keep original date for each occurrence
+      }))).then(() => load());
     }
-    saveTransactions(updated);
   }
 
   // Delete transaction or series
   function handleDeleteTransaction(targetTx: Transaction) {
     if (!targetTx.parentId) {
       if (!confirm("Are you sure you want to delete this transaction record?")) return;
-      saveTransactions(transactions.filter((t) => t.id !== targetTx.id));
+      api.deleteTransaction(targetTx.id).then(() => load());
     } else {
-      // Prompt option to delete single or all
       const choice = confirm(
         "This transaction belongs to a recurring series.\n\n" +
         "Click OK to delete THIS SPECIFIC OCCURRENCE only.\n" +
         "Click Cancel to keep it."
       );
       if (choice) {
-        saveTransactions(transactions.filter((t) => t.id !== targetTx.id));
+        api.deleteTransaction(targetTx.id).then(() => load());
       }
     }
   }
@@ -214,7 +175,7 @@ export default function FinancePage() {
   // Delete entire recurring series
   function handleDeleteSeries(parentId: string) {
     if (!confirm("Are you sure you want to delete the ENTIRE recurring series? This will erase all history for this contract.")) return;
-    saveTransactions(transactions.filter((t) => t.parentId !== parentId));
+    api.deleteTransactionSeries(parentId).then(() => load());
   }
 
   // Filter list

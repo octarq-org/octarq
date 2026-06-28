@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"gorm.io/gorm"
 )
 
@@ -108,5 +109,11 @@ type MenuItem struct {
 // dynamic menu links for the frontend sidebar.
 type MenuProvider interface {
 	Menus() []MenuItem
+}
+
+// MCPProvider is an optional interface a Plugin may implement if it registers
+// dynamic MCP tools.
+type MCPProvider interface {
+	RegisterMCP(srv *mcp.Server)
 }
 
