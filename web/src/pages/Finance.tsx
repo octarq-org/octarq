@@ -71,6 +71,7 @@ function fmtCost(cost: number, currency: string) {
 
 export default function FinancePage() {
   const [filterType, setFilterType] = useState<"all" | "recurring" | "one-off">("all");
+  const [flowFilter, setFlowFilter] = useState<"all" | "income" | "expense">("all");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   
   // Modals state
@@ -218,8 +219,12 @@ export default function FinancePage() {
 
   // Filter list
   const filteredTransactions = transactions.filter((tx) => {
-    if (filterType === "recurring") return tx.cycle === "monthly" || tx.cycle === "yearly";
-    if (filterType === "one-off") return tx.cycle === "one-off";
+    // 1. Cycle filter
+    if (filterType === "recurring" && tx.cycle === "one-off") return false;
+    if (filterType === "one-off" && tx.cycle !== "one-off") return false;
+    // 2. Flow filter
+    if (flowFilter === "income" && tx.type !== "income") return false;
+    if (flowFilter === "expense" && tx.type !== "expense") return false;
     return true;
   });
 
@@ -270,7 +275,8 @@ export default function FinancePage() {
 
       {/* Filter Options */}
       <div className="flex justify-between items-center mb-4 gap-4 flex-wrap">
-        <div className="flex gap-1.5 p-1 rounded-xl bg-black/25 border border-white/[0.05] max-w-md shrink-0">
+        {/* Cycle Filter */}
+        <div className="flex gap-1.5 p-1 rounded-xl bg-black/25 border border-white/[0.05] shrink-0">
           <button
             onClick={() => setFilterType("all")}
             className={`rounded-lg px-4 py-1.5 text-xs font-semibold transition-all ${
@@ -294,6 +300,34 @@ export default function FinancePage() {
             }`}
           >
             One-off Ledger ({transactions.filter(t => t.cycle === "one-off").length})
+          </button>
+        </div>
+
+        {/* Flow Filter */}
+        <div className="flex gap-1.5 p-1 rounded-xl bg-black/25 border border-white/[0.05] shrink-0">
+          <button
+            onClick={() => setFlowFilter("all")}
+            className={`rounded-lg px-4 py-1.5 text-xs font-semibold transition-all ${
+              flowFilter === "all" ? "bg-white/[0.08] text-white shadow-glow" : "text-white/50 hover:text-white/80"
+            }`}
+          >
+            All Flows
+          </button>
+          <button
+            onClick={() => setFlowFilter("income")}
+            className={`rounded-lg px-4 py-1.5 text-xs font-semibold transition-all ${
+              flowFilter === "income" ? "bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/10" : "text-white/50 hover:text-white/80"
+            }`}
+          >
+            Income Only ({transactions.filter(t => t.type === "income").length})
+          </button>
+          <button
+            onClick={() => setFlowFilter("expense")}
+            className={`rounded-lg px-4 py-1.5 text-xs font-semibold transition-all ${
+              flowFilter === "expense" ? "bg-rose-500/15 text-rose-400 font-bold border border-rose-500/10" : "text-white/50 hover:text-white/80"
+            }`}
+          >
+            Expenses Only ({transactions.filter(t => t.type === "expense").length})
           </button>
         </div>
       </div>

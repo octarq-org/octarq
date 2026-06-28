@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Token, MenuItem } from "../api";
 import { Empty, Field, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
-import { User, Key, Sliders, Settings, CheckCircle, Trash2, Eye, ClipboardCopy } from "lucide-react";
+import { User, Key, Sliders, Settings, CheckCircle, Trash2, Eye, ClipboardCopy, LayoutDashboard, Link2, Mail, Globe, Shield, Server, KeyRound, Database, HardDrive, Wallet, ShieldAlert, ScrollText } from "lucide-react";
 
 export default function PersonalSettingsPage() {
   return (
@@ -266,14 +266,65 @@ function CreateTokenModal({
   );
 }
 
-interface MenuLayout {
+interface AreaLayout {
   groups: { name: string; items: string[] }[];
 }
 
+interface MenuLayout {
+  operations: AreaLayout;
+  assets: AreaLayout;
+  insights: AreaLayout;
+}
+
+const MASTER_CATALOG: Record<string, { label: string; icon: React.ReactNode; defaultArea: "operations" | "assets" | "insights" }> = {
+  overview: { label: "Overview", icon: <LayoutDashboard className="h-4 w-4 text-indigo-400" />, defaultArea: "operations" },
+  links: { label: "Short Links", icon: <Link2 className="h-4 w-4 text-indigo-400" />, defaultArea: "operations" },
+  mail: { label: "Mailbox", icon: <Mail className="h-4 w-4 text-indigo-400" />, defaultArea: "operations" },
+  domains: { label: "Domains", icon: <Globe className="h-4 w-4 text-indigo-400" />, defaultArea: "assets" },
+  certs: { label: "Certificates", icon: <Shield className="h-4 w-4 text-indigo-400" />, defaultArea: "assets" },
+  vps: { label: "VPS", icon: <Server className="h-4 w-4 text-indigo-400" />, defaultArea: "assets" },
+  sshkeys: { label: "SSH Keys", icon: <KeyRound className="h-4 w-4 text-indigo-400" />, defaultArea: "assets" },
+  databases: { label: "Databases", icon: <Database className="h-4 w-4 text-indigo-400" />, defaultArea: "assets" },
+  storage: { label: "Object Storage", icon: <HardDrive className="h-4 w-4 text-indigo-400" />, defaultArea: "assets" },
+  finance: { label: "Finance", icon: <Wallet className="h-4 w-4 text-indigo-400" />, defaultArea: "insights" },
+  abuse: { label: "Abuse", icon: <ShieldAlert className="h-4 w-4 text-indigo-400" />, defaultArea: "insights" },
+  audit: { label: "Audit Log", icon: <ScrollText className="h-4 w-4 text-indigo-400" />, defaultArea: "insights" },
+};
+
+function areaForCategory(cat?: string): "operations" | "assets" | "insights" {
+  const c = (cat ?? "").toLowerCase();
+  if (c.includes("asset") || c.includes("infra") || c.includes("network") || c.includes("compute")) return "assets";
+  if (c.includes("insight") || c.includes("analytic") || c.includes("finance") || c.includes("business") || c.includes("compliance") || c.includes("governance")) return "insights";
+  return "operations";
+}
+
+const getDefaultLayout = (): MenuLayout => ({
+  operations: {
+    groups: [
+      { name: "Analytics", items: ["overview"] },
+      { name: "Reach", items: ["links", "mail"] }
+    ]
+  },
+  assets: {
+    groups: [
+      { name: "Network", items: ["domains", "certs"] },
+      { name: "Compute", items: ["vps", "sshkeys"] },
+      { name: "Storage & Databases", items: ["databases", "storage"] }
+    ]
+  },
+  insights: {
+    groups: [
+      { name: "Finance", items: ["finance"] },
+      { name: "Governance", items: ["abuse", "audit"] }
+    ]
+  }
+});
+
 function MenuCustomizer() {
   const [menus, setMenus] = useState<MenuItem[]>([]);
-  const [layout, setLayout] = useState<MenuLayout>({ groups: [] });
+  const [layout, setLayout] = useState<MenuLayout>(getDefaultLayout());
   const [newGroupName, setNewGroupName] = useState("");
+  const [groupArea, setGroupArea] = useState<"operations" | "assets" | "insights">("operations");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -286,7 +337,7 @@ function MenuCustomizer() {
       if (settings.menu_layout) {
         try {
           const parsed = JSON.parse(settings.menu_layout);
-          if (parsed && Array.isArray(parsed.groups)) {
+          if (parsed && parsed.operations && parsed.assets && parsed.insights) {
             setLayout(parsed);
             loaded = true;
           }
@@ -296,18 +347,21 @@ function MenuCustomizer() {
       }
       
       if (!loaded) {
-        // Build initial layout from default categories
-        const catMap: Record<string, string[]> = {};
-        m.forEach((item) => {
-          const cat = item.category || "Uncategorized";
-          if (!catMap[cat]) catMap[cat] = [];
-          catMap[cat].push(item.id);
+        // Construct default layout and append plugins
+        const base = getDefaultLayout();
+        m.forEach(item => {
+          // If not static
+          if (!MASTER_CATALOG[item.id]) {
+            const areaId = areaForCategory(item.category);
+            let uncategorized = base[areaId].groups.find(g => g.name === "Plugins");
+            if (!uncategorized) {
+              uncategorized = { name: "Plugins", items: [] };
+              base[areaId].groups.push(uncategorized);
+            }
+            uncategorized.items.push(item.id);
+          }
         });
-        const groups = Object.keys(catMap).map((name) => ({
-          name,
-          items: catMap[name],
-        }));
-        setLayout({ groups });
+        setLayout(base);
       }
     } catch (e) {
       console.error(e);
@@ -332,16 +386,31 @@ function MenuCustomizer() {
     }
   }
 
-  function handleMoveItem(itemId: string, targetGroupIndex: number) {
-    const updatedGroups = layout.groups.map((group, idx) => {
-      // Remove item from its current group
-      const cleanItems = group.items.filter((id) => id !== itemId);
-      if (idx === targetGroupIndex) {
-        return { name: group.name, items: [...cleanItems, itemId] };
-      }
-      return { name: group.name, items: cleanItems };
+  // Move an item from any Area/Group to a specific target Area and Group name
+  function handleMoveItem(itemId: string, targetArea: "operations" | "assets" | "insights", targetGroupName: string) {
+    // 1. Clean item from all groups in all areas
+    const cleanArea = (area: AreaLayout): AreaLayout => ({
+      groups: area.groups.map(g => ({
+        name: g.name,
+        items: g.items.filter(id => id !== itemId)
+      })).filter(g => g.name === "Uncategorized" || g.name === "Plugins" || g.items.length > 0)
     });
-    const nextLayout = { groups: updatedGroups };
+
+    const nextLayout: MenuLayout = {
+      operations: cleanArea(layout.operations),
+      assets: cleanArea(layout.assets),
+      insights: cleanArea(layout.insights),
+    };
+
+    // 2. Add to target area group
+    const targetAreaLayout = nextLayout[targetArea];
+    let group = targetAreaLayout.groups.find(g => g.name === targetGroupName);
+    if (!group) {
+      group = { name: targetGroupName, items: [] };
+      targetAreaLayout.groups.push(group);
+    }
+    group.items.push(itemId);
+
     setLayout(nextLayout);
     saveLayout(nextLayout);
   }
@@ -350,22 +419,31 @@ function MenuCustomizer() {
     e.preventDefault();
     const name = newGroupName.trim();
     if (!name) return;
-    if (layout.groups.some((g) => g.name.toLowerCase() === name.toLowerCase())) {
-      alert("Group already exists");
+
+    const areaLayout = layout[groupArea];
+    if (areaLayout.groups.some(g => g.name.toLowerCase() === name.toLowerCase())) {
+      alert("Group already exists in this Area");
       return;
     }
+
     const nextLayout = {
-      groups: [...layout.groups, { name, items: [] }],
+      ...layout,
+      [groupArea]: {
+        groups: [...areaLayout.groups, { name, items: [] }]
+      }
     };
+
     setLayout(nextLayout);
     setNewGroupName("");
     saveLayout(nextLayout);
   }
 
-  function handleRemoveGroup(groupName: string) {
-    if (!confirm(`Delete group "${groupName}"? Items inside will be moved to Uncategorized.`)) return;
+  function handleRemoveGroup(areaId: "operations" | "assets" | "insights", groupName: string) {
+    if (!confirm(`Delete group "${groupName}"? Items inside will be moved to Uncategorized under ${areaId}.`)) return;
+    
     let itemsToMove: string[] = [];
-    const filteredGroups = layout.groups.filter((g) => {
+    const areaLayout = layout[areaId];
+    const filteredGroups = areaLayout.groups.filter(g => {
       if (g.name === groupName) {
         itemsToMove = g.items;
         return false;
@@ -373,103 +451,164 @@ function MenuCustomizer() {
       return true;
     });
 
-    // Find or create Uncategorized
-    let uncategorizedIdx = filteredGroups.findIndex((g) => g.name === "Uncategorized");
-    if (uncategorizedIdx === -1) {
-      filteredGroups.push({ name: "Uncategorized", items: [] });
-      uncategorizedIdx = filteredGroups.length - 1;
+    // Find or create Uncategorized in target area
+    let uncategorized = filteredGroups.find(g => g.name === "Uncategorized");
+    if (!uncategorized) {
+      uncategorized = { name: "Uncategorized", items: [] };
+      filteredGroups.push(uncategorized);
     }
-    filteredGroups[uncategorizedIdx].items.push(...itemsToMove);
+    uncategorized.items.push(...itemsToMove);
 
-    const nextLayout = { groups: filteredGroups };
+    const nextLayout = {
+      ...layout,
+      [areaId]: {
+        groups: filteredGroups
+      }
+    };
+
     setLayout(nextLayout);
     saveLayout(nextLayout);
   }
+
+  // Build list of all dynamic plugins + static items for display
+  const getFullItemInfo = (itemId: string) => {
+    const staticItem = MASTER_CATALOG[itemId];
+    if (staticItem) return staticItem;
+    const dynamicItem = menus.find(m => m.id === itemId);
+    return {
+      label: dynamicItem?.label || itemId,
+      icon: <Globe className="h-4 w-4 text-violet-400" />,
+      defaultArea: areaForCategory(dynamicItem?.category)
+    };
+  };
+
+  const areasList = [
+    { id: "operations" as const, label: "Operations Area" },
+    { id: "assets" as const, label: "Assets Area" },
+    { id: "insights" as const, label: "Compliance & Insights Area" },
+  ];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Sidebar Menu"
-        description="Customize and group navigation tabs in your workspace sidebar"
+        description="Configure and group navigation link categories inside your workspace sidebar"
       />
       <GlassCard className="p-6 space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h3 className="text-sm font-semibold text-white">Menu Categories & Layout</h3>
-            <p className="text-xs text-white/40 mt-0.5">Move menu items between groups to organize your workspace side panel.</p>
+            <h3 className="text-sm font-semibold text-white">Sidebar Menu Configurator</h3>
+            <p className="text-xs text-white/40 mt-0.5">Define custom groups under Rail categories and move items freely.</p>
           </div>
-          {saved && <Badge tone="green">✓ Config Saved</Badge>}
+          {saved && <Badge tone="green">✓ Layout Saved</Badge>}
         </div>
 
-      <div className="space-y-6">
-        <form onSubmit={handleAddGroup} className="bg-black/25 p-4 rounded-xl border border-white/[0.05] flex gap-3 items-end">
-          <div className="flex-1">
-            <label className="label text-xs">Create Custom Sidebar Category</label>
-            <input
-              className="input w-full text-sm mt-1"
-              value={newGroupName}
-              onChange={(e) => setNewGroupName(e.target.value)}
-              placeholder="e.g. Billing & Analytics"
-            />
-          </div>
-          <Button variant="primary" className="py-2 text-xs" disabled={!newGroupName.trim()}>
-            + Add Group
-          </Button>
-        </form>
+        <div className="space-y-6">
+          {/* Create Group Form */}
+          <form onSubmit={handleAddGroup} className="bg-black/25 p-4 rounded-xl border border-white/[0.05] flex flex-wrap gap-4 items-end">
+            <div className="flex-1 min-w-[200px]">
+              <label className="label text-xs">Add New Group Header</label>
+              <input
+                className="input w-full text-sm mt-1"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="e.g. DB Monitoring"
+              />
+            </div>
+            <div className="w-48">
+              <label className="label text-xs">Target Sidebar Rail Area</label>
+              <select
+                className="input w-full text-xs mt-1"
+                value={groupArea}
+                onChange={(e) => setGroupArea(e.target.value as any)}
+              >
+                <option value="operations">Operations Rail</option>
+                <option value="assets">Assets Rail</option>
+                <option value="insights">Compliance Rail</option>
+              </select>
+            </div>
+            <Button variant="primary" type="submit" className="py-2 text-xs shrink-0" disabled={!newGroupName.trim() || busy}>
+              + Add Group
+            </Button>
+          </form>
 
-        <div className="space-y-4">
-          {layout.groups.map((group, groupIdx) => (
-            <GlassCard key={group.name} className="p-4 bg-black/10 border-white/[0.04]">
-              <div className="flex justify-between items-center mb-4 border-b border-white/[0.05] pb-2.5">
-                <span className="font-semibold text-sm text-white/90">{group.name}</span>
-                {group.name !== "Uncategorized" && (
-                  <Button
-                    variant="danger"
-                    onClick={() => handleRemoveGroup(group.name)}
-                    className="text-[10px] py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
-                  >
-                    Delete Group
-                  </Button>
-                )}
-              </div>
+          {/* Three Rail Areas list */}
+          <div className="space-y-6">
+            {areasList.map(area => {
+              const areaLayout = layout[area.id];
+              return (
+                <div key={area.id} className="space-y-3">
+                  <h4 className="text-xs uppercase tracking-wider font-bold text-white/40 border-l-2 border-indigo-500 pl-2">
+                    {area.label}
+                  </h4>
+                  
+                  {areaLayout.groups.length === 0 ? (
+                    <div className="text-white/20 text-xs py-2 italic">No groups in this Area. Create one above!</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {areaLayout.groups.map(group => (
+                        <GlassCard key={group.name} className="p-4 bg-black/10 border-white/[0.04] flex flex-col justify-between">
+                          <div>
+                            <div className="flex justify-between items-center mb-3 border-b border-white/[0.05] pb-2">
+                              <span className="font-semibold text-xs text-white/80">{group.name}</span>
+                              {!["Analytics", "Reach", "Network", "Compute", "Storage & Databases", "Finance", "Governance"].includes(group.name) && (
+                                <Button
+                                  variant="danger"
+                                  onClick={() => handleRemoveGroup(area.id, group.name)}
+                                  className="text-[9px] py-0.5 px-2 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
 
-              {group.items.length === 0 ? (
-                <div className="text-white/30 text-xs py-3 italic text-center">No navigation tabs in this group.</div>
-              ) : (
-                <div className="space-y-2">
-                  {group.items.map((itemId) => {
-                    const item = menus.find((m) => m.id === itemId);
-                    if (!item) return null;
-                    return (
-                      <div
-                        key={itemId}
-                        className="flex items-center justify-between bg-white/[0.02] rounded-xl p-3 text-sm border border-white/[0.05]"
-                      >
-                        <span className="flex items-center gap-2.5 text-white/95">
-                          <span>{item.icon}</span>
-                          <span className="font-medium text-sm">{item.label}</span>
-                        </span>
-                        <select
-                          className="input py-1 text-xs"
-                          value={groupIdx}
-                          onChange={(e) => handleMoveItem(itemId, Number(e.target.value))}
-                        >
-                          {layout.groups.map((g, idx) => (
-                            <option key={g.name} value={idx}>
-                              Move to: {g.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    );
-                  })}
+                            {group.items.length === 0 ? (
+                              <div className="text-white/20 text-xs py-4 text-center italic">No items here</div>
+                            ) : (
+                              <div className="space-y-1.5 mb-4">
+                                {group.items.map(itemId => {
+                                  const info = getFullItemInfo(itemId);
+                                  return (
+                                    <div key={itemId} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.01] border border-white/[0.03]">
+                                      <div className="flex items-center gap-2">
+                                        {info.icon}
+                                        <span className="text-xs text-white/90 font-medium">{info.label}</span>
+                                      </div>
+                                      
+                                      <select
+                                        className="input py-0.5 px-1.5 text-[10px] w-40 font-semibold"
+                                        value={`${area.id}:${group.name}`}
+                                        onChange={(e) => {
+                                          const [tArea, tGroup] = e.target.value.split(":");
+                                          handleMoveItem(itemId, tArea as any, tGroup);
+                                        }}
+                                      >
+                                        {areasList.map(a => (
+                                          <optgroup key={a.id} label={a.label}>
+                                            {layout[a.id].groups.map(g => (
+                                              <option key={`${a.id}:${g.name}`} value={`${a.id}:${g.name}`}>
+                                                Move: {g.name}
+                                              </option>
+                                            ))}
+                                          </optgroup>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </GlassCard>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </GlassCard>
-          ))}
+              );
+            })}
+          </div>
         </div>
-      </div>
-    </GlassCard>
+      </GlassCard>
     </div>
   );
 }

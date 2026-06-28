@@ -24,6 +24,9 @@ import {
   Sliders,
   Bell,
   Users,
+  Database,
+  HardDrive,
+  Shield,
 } from "lucide-react";
 import { api, ApiError, MenuItem, Org } from "./api";
 import OverviewPage from "./pages/Overview";
@@ -37,7 +40,7 @@ import FinancePage from "./pages/Finance";
 import AuditLogPage from "./pages/AuditLog";
 import AbusePage from "./pages/Abuse";
 import PersonalSettingsPage from "./pages/PersonalSettings";
-import { Modal, Button } from "./ui";
+import { Modal, Button, ScreenWrap, PageHeader, GlassCard } from "./ui";
 
 // ─── Area definitions ──────────────────────────────────────────────────────
 
@@ -97,6 +100,7 @@ const STATIC_AREAS: Area[] = [
         label: "Network",
         items: [
           { id: "domains", label: "Domains",   Icon: Globe,    path: "/domains" },
+          { id: "certs",   label: "Certificates", Icon: Shield,  path: "/assets/certificates" },
         ],
       },
       {
@@ -104,6 +108,13 @@ const STATIC_AREAS: Area[] = [
         items: [
           { id: "vps",     label: "VPS",       Icon: Server,   path: "/vps" },
           { id: "sshkeys", label: "SSH Keys",  Icon: KeyRound, path: "/sshkeys" },
+        ],
+      },
+      {
+        label: "Storage & Databases",
+        items: [
+          { id: "databases", label: "Databases", Icon: Database,  path: "/assets/databases" },
+          { id: "storage",   label: "Object Storage", Icon: HardDrive, path: "/assets/storage" },
         ],
       },
     ],
@@ -162,7 +173,7 @@ const SETTINGS_AREA: Area = {
 // Map a path to its area
 function areaForPath(path: string): AreaId {
   if (path.startsWith("/settings") || path.startsWith("/personal")) return "settings";
-  if (path.startsWith("/domains") || path.startsWith("/vps") || path.startsWith("/sshkeys")) return "assets";
+  if (path.startsWith("/domains") || path.startsWith("/vps") || path.startsWith("/sshkeys") || path.startsWith("/assets/")) return "assets";
   if (path.startsWith("/finance") || path.startsWith("/audit") || path.startsWith("/abuse")) return "insights";
   return "operations";
 }
@@ -243,37 +254,140 @@ function Shell({
   const settingsActive = location.pathname.startsWith("/settings") || location.pathname.startsWith("/personal");
   const activeArea: AreaId = settingsActive ? "settings" : areaForPath(location.pathname);
 
-  // Load orgs + dynamic menus
+  // Load orgs + dynamic menus + user settings layout
   useEffect(() => {
     api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
 
-    api.menus().then((menus: MenuItem[]) => {
-      // Skip items already covered by static areas
-      const staticPaths = new Set(STATIC_AREAS.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.path))));
-      const extras = menus.filter((m) => !staticPaths.has(m.path));
-      if (!extras.length) return;
+    const MASTER_MENU_ITEMS: Record<string, { label: string; Icon: React.ElementType; path: string; iconStr?: string }> = {
+      overview: { label: "Overview", Icon: LayoutDashboard, path: "/overview" },
+      links: { label: "Short Links", Icon: Link2, path: "/links" },
+      mail: { label: "Mailbox", Icon: Mail, path: "/mail" },
+      domains: { label: "Domains", Icon: Globe, path: "/domains" },
+      certs: { label: "Certificates", Icon: Shield, path: "/assets/certificates" },
+      vps: { label: "VPS", Icon: Server, path: "/vps" },
+      sshkeys: { label: "SSH Keys", Icon: KeyRound, path: "/sshkeys" },
+      databases: { label: "Databases", Icon: Database, path: "/assets/databases" },
+      storage: { label: "Object Storage", Icon: HardDrive, path: "/assets/storage" },
+      finance: { label: "Finance", Icon: Wallet, path: "/finance" },
+      abuse: { label: "Abuse", Icon: ShieldAlert, path: "/abuse" },
+      audit: { label: "Audit Log", Icon: ScrollText, path: "/audit" },
+    };
 
-      setAreas((prev) =>
-        prev.map((area) => {
-          const extraItems = extras
-            .filter((m) => areaForCategory(m.category) === area.id)
-            .map((m) => ({
-              id: m.id,
-              label: m.label,
-              Icon: Globe, // fallback icon for dynamic items
-              iconStr: m.icon,
-              path: m.path,
-            }));
-          if (!extraItems.length) return area;
-          return {
-            ...area,
-            groups: [
-              ...area.groups,
-              { label: "Plugins", items: extraItems },
-            ],
+    Promise.all([
+      api.menus(),
+      api.getUserSettings().catch(() => ({})),
+    ]).then(([menus, settings]: [MenuItem[], any]) => {
+      // Build full catalog including dynamic plugin menus
+      const catalog = { ...MASTER_MENU_ITEMS };
+      menus.forEach((m) => {
+        if (!catalog[m.id]) {
+          catalog[m.id] = {
+            label: m.label,
+            Icon: Globe,
+            iconStr: m.icon,
+            path: m.path,
           };
-        }),
-      );
+        }
+      });
+
+      let customLayout: any = null;
+      if (settings.menu_layout) {
+        try {
+          customLayout = JSON.parse(settings.menu_layout);
+        } catch (e) {
+          console.error("Failed to parse custom menu layout:", e);
+        }
+      }
+
+      if (customLayout && typeof customLayout === "object") {
+        // Construct areas according to user settings
+        const nextAreas = STATIC_AREAS.map((staticArea) => {
+          const areaLayout = customLayout[staticArea.id];
+          if (!areaLayout || !Array.isArray(areaLayout.groups)) {
+            // If area is not customized, append unassigned plugins belonging to this area to Plugins group
+            const staticPaths = new Set(staticArea.groups.flatMap(g => g.items.map(i => i.path)));
+            const extras = menus.filter(m => !staticPaths.has(m.path) && areaForCategory(m.category) === staticArea.id);
+            if (!extras.length) return staticArea;
+            return {
+              ...staticArea,
+              groups: [
+                ...staticArea.groups,
+                {
+                  label: "Plugins",
+                  items: extras.map(m => ({
+                    id: m.id,
+                    label: m.label,
+                    Icon: Globe,
+                    iconStr: m.icon,
+                    path: m.path,
+                  })),
+                },
+              ],
+            };
+          }
+
+          // Build groups for this area
+          const groups = areaLayout.groups.map((g: any) => {
+            const items = (g.items || [])
+              .map((itemId: string) => ({ id: itemId, ...catalog[itemId] }))
+              .filter((item: any) => item.path); // keep only valid items present in catalog
+            return {
+              label: g.name,
+              items: items as NavItem[],
+            };
+          }).filter((g: any) => g.items.length > 0);
+
+          // Append any unassigned items belonging to this area
+          const layoutItemIds = new Set(areaLayout.groups.flatMap((g: any) => g.items || []));
+          const unassignedItems = Object.keys(catalog)
+            .filter((id) => {
+              const item = catalog[id];
+              // Decide area for this item
+              const targetAreaId = areaForPath(item.path);
+              return targetAreaId === staticArea.id && !layoutItemIds.has(id);
+            })
+            .map((id) => ({ id, ...catalog[id] }));
+
+          if (unassignedItems.length > 0) {
+            groups.push({
+              label: "Uncategorized",
+              items: unassignedItems as NavItem[],
+            });
+          }
+
+          return {
+            ...staticArea,
+            groups,
+          };
+        });
+        setAreas(nextAreas);
+      } else {
+        // Fallback: static areas + append any dynamic plugins to the "Plugins" group
+        const staticPaths = new Set(STATIC_AREAS.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.path))));
+        const extras = menus.filter((m) => !staticPaths.has(m.path));
+        
+        setAreas(
+          STATIC_AREAS.map((area) => {
+            const extraItems = extras
+              .filter((m) => areaForCategory(m.category) === area.id)
+              .map((m) => ({
+                id: m.id,
+                label: m.label,
+                Icon: Globe,
+                iconStr: m.icon,
+                path: m.path,
+              }));
+            if (!extraItems.length) return area;
+            return {
+              ...area,
+              groups: [
+                ...area.groups,
+                { label: "Plugins", items: extraItems },
+              ],
+            };
+          })
+        );
+      }
     }).catch(() => {});
   }, [activeOrgId]);
 
@@ -330,6 +444,9 @@ function Shell({
               <Route path="/mail"       element={<MailPage />} />
               <Route path="/vps"        element={<VPSPage />} />
               <Route path="/sshkeys"    element={<SSHKeysPage />} />
+              <Route path="/assets/certificates" element={<ComingSoonPage title="Certificates & SSL" description="Track and renew your SSL certificates" />} />
+              <Route path="/assets/databases"    element={<ComingSoonPage title="Managed Databases" description="Provision and monitor PostgreSQL, Redis, or MySQL database instances" />} />
+              <Route path="/assets/storage"      element={<ComingSoonPage title="Object Storage" description="Configure Cloudflare R2, AWS S3, or Backblaze B2 buckets" />} />
               <Route path="/finance"    element={<FinancePage />} />
               <Route path="/audit"      element={<AuditLogPage />} />
               <Route path="/abuse"      element={<AbusePage />} />
@@ -734,5 +851,22 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
         </div>
       </form>
     </div>
+  );
+}
+
+function ComingSoonPage({ title, description }: { title: string; description: string }) {
+  return (
+    <ScreenWrap>
+      <PageHeader title={title} description={description} />
+      <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center">
+        <div className="h-16 w-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-4 animate-pulse">
+          <Boxes className="h-8 w-8" />
+        </div>
+        <h3 className="text-lg font-bold text-white mb-2">Workspace Asset Integration Coming Soon</h3>
+        <p className="text-sm text-white/50 max-w-sm leading-relaxed">
+          We are currently building the direct connector client for this asset category. Look forward to direct API sync in the next update.
+        </p>
+      </GlassCard>
+    </ScreenWrap>
   );
 }
