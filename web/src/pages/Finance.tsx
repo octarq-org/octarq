@@ -13,6 +13,7 @@ interface Transaction {
   category: string;
   amount: number;
   currency: string;
+  isSubscription?: boolean;
 }
 
 const DEFAULT_TRANSACTIONS: Transaction[] = [
@@ -150,9 +151,36 @@ export default function FinancePage() {
 
   const currencies = summary ? Object.keys(summary.monthlyByCurrency) : [];
 
+  // Calculate dynamic transaction entries from active subscriptions
+  const virtualSubs: Transaction[] = subs.filter(s => s.enabled).map(s => {
+    let paymentDate = new Date().toISOString().slice(0, 10);
+    if (s.nextRenewal) {
+      const next = new Date(s.nextRenewal);
+      if (s.cycle === "monthly") {
+        next.setMonth(next.getMonth() - 1);
+      } else {
+        next.setFullYear(next.getFullYear() - 1);
+      }
+      paymentDate = next.toISOString().slice(0, 10);
+    }
+    return {
+      id: `sub-tx-${s.id}`,
+      date: paymentDate,
+      type: "expense" as const,
+      title: `Subscription: ${s.name} (${s.cycle === "monthly" ? "Monthly" : "Yearly"})`,
+      category: "SaaS Tools",
+      amount: s.cost,
+      currency: s.currency,
+      isSubscription: true,
+    };
+  });
+
+  const combinedTransactions = [...virtualSubs, ...transactions];
+  combinedTransactions.sort((a, b) => b.date.localeCompare(a.date));
+
   // Calculate ledger stats (Closed-loop ledger calculations)
-  const totalIncome = transactions.filter(t => t.type === "income").reduce((acc, t) => acc + t.amount, 0);
-  const totalExpense = transactions.filter(t => t.type === "expense").reduce((acc, t) => acc + t.amount, 0);
+  const totalIncome = combinedTransactions.filter(t => t.type === "income").reduce((acc, t) => acc + t.amount, 0);
+  const totalExpense = combinedTransactions.filter(t => t.type === "expense").reduce((acc, t) => acc + t.amount, 0);
   const netBalance = totalIncome - totalExpense;
 
   return (
@@ -355,15 +383,22 @@ export default function FinancePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/[0.04]">
-                    {transactions.map((tx) => (
-                      <tr key={tx.id} className="hover:bg-white/[0.02] transition-all">
+                    {combinedTransactions.map((tx) => (
+                      <tr key={tx.id} className={`hover:bg-white/[0.02] transition-all ${tx.isSubscription ? "bg-white/[0.01]" : ""}`}>
                         <td className="px-5 py-4 font-mono text-xs text-white/60">{tx.date}</td>
                         <td className="px-5 py-4">
                           <Badge tone={tx.type === "income" ? "green" : "red"} className="uppercase font-bold tracking-wider text-[9px]">
                             {tx.type}
                           </Badge>
                         </td>
-                        <td className="px-5 py-4 text-white font-medium">{tx.title}</td>
+                        <td className="px-5 py-4 text-white font-medium">
+                          <div className="flex items-center gap-2">
+                            <span>{tx.title}</span>
+                            {tx.isSubscription && (
+                              <Badge tone="indigo" className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0">Recurring</Badge>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-5 py-4">
                           <Badge tone="neutral" className="text-white/60 bg-white/5 border border-white/[0.05]">
                             {tx.category}
@@ -374,13 +409,23 @@ export default function FinancePage() {
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex gap-2 justify-end">
-                            <Button
-                              variant="danger"
-                              onClick={() => handleDeleteTransaction(tx.id)}
-                              className="text-xs py-1 px-2 bg-rose-500/0 hover:bg-rose-500/10 border-0"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                            {tx.isSubscription ? (
+                              <Button
+                                variant="ghost"
+                                onClick={() => setActiveTab("subscriptions")}
+                                className="text-xs py-1 px-2.5 text-indigo-400 hover:text-indigo-300 font-semibold"
+                              >
+                                Manage
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="danger"
+                                onClick={() => handleDeleteTransaction(tx.id)}
+                                className="text-xs py-1 px-2 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                           </div>
                         </td>
                       </tr>
