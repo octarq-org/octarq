@@ -1,31 +1,69 @@
 import { useEffect, useState } from "react";
-import { api, FinanceSummary, Subscription } from "../api";
-import { Empty, Field, Modal, Toggle, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard } from "../ui";
+import { Empty, Field, Modal, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard } from "../ui";
 import { ShieldAlert, CreditCard, Calendar, TrendingUp, Trash2, Pencil, Landmark, Plus, ArrowUpRight, ArrowDownRight, Wallet, RefreshCw } from "lucide-react";
 
 const CURRENCIES = ["USD", "CNY", "EUR", "GBP", "JPY", "HKD", "SGD"];
 
 interface Transaction {
   id: string;
-  date: string; // payment date or last renewal date
+  parentId?: string; // Links recurring occurrences together
+  date: string; // The exact occurrence date (YYYY-MM-DD)
   type: "income" | "expense";
   title: string;
   category: string;
   amount: number;
   currency: string;
   cycle: "one-off" | "monthly" | "yearly";
-  nextRenewal?: string | null;
-  isSubscription?: boolean;
-  subRef?: Subscription; // reference to backend subscription object
 }
 
-const DEFAULT_TRANSACTIONS: Transaction[] = [
-  { id: "tx-1", date: "2026-06-25", type: "income", title: "Domain Sale: webdev.io", category: "Domain Trading", amount: 1850.00, currency: "USD", cycle: "one-off" },
-  { id: "tx-2", date: "2026-06-22", type: "expense", title: "Hetzner Cloud VPS rental", category: "Infrastructure", amount: 48.50, currency: "USD", cycle: "one-off" },
-  { id: "tx-3", date: "2026-06-18", type: "expense", title: "AWS Route53 renew: mycorp.com", category: "Domain Registration", amount: 12.00, currency: "USD", cycle: "one-off" },
-  { id: "tx-4", date: "2026-06-15", type: "income", title: "Consulting: DNS Cluster Setup", category: "Services", amount: 650.00, currency: "USD", cycle: "one-off" },
-  { id: "tx-5", date: "2026-06-10", type: "expense", title: "Google Workspace renewal", category: "SaaS Tools", amount: 36.00, currency: "USD", cycle: "one-off" },
-];
+// Generate pre-populated historical occurrences for default recurring series
+const generateDefaultSeries = (
+  parentId: string,
+  title: string,
+  type: "income" | "expense",
+  category: string,
+  amount: number,
+  currency: string,
+  cycle: "monthly" | "yearly",
+  startMonth: number // 0-indexed
+): Transaction[] => {
+  const list: Transaction[] = [];
+  const today = new Date();
+  
+  // Generate occurrences from startMonth of 2026 up to today
+  for (let m = startMonth; m <= today.getMonth(); m++) {
+    const dayStr = String(15).padStart(2, "0");
+    const monthStr = String(m + 1).padStart(2, "0");
+    list.push({
+      id: `${parentId}-${m}`,
+      parentId,
+      date: `2026-${monthStr}-${dayStr}`,
+      type,
+      title,
+      category,
+      amount,
+      currency,
+      cycle,
+    });
+  }
+  return list;
+};
+
+const getDefaultTransactions = (): Transaction[] => {
+  const list: Transaction[] = [
+    { id: "tx-1", date: "2026-06-25", type: "income", title: "Domain Sale: webdev.io", category: "Domain Trading", amount: 1850.00, currency: "USD", cycle: "one-off" },
+    { id: "tx-2", date: "2026-06-22", type: "expense", title: "Hetzner Cloud VPS rental", category: "Infrastructure", amount: 48.50, currency: "USD", cycle: "one-off" },
+    { id: "tx-3", date: "2026-06-18", type: "expense", title: "AWS Route53 renew: mycorp.com", category: "Domain Registration", amount: 12.00, currency: "USD", cycle: "one-off" },
+  ];
+
+  // Recurring expense series: GitHub Copilot (Monthly, from February 2026)
+  list.push(...generateDefaultSeries("series-github", "GitHub Copilot Subscription", "expense", "SaaS Tools", 10.00, "USD", "monthly", 1));
+
+  // Recurring income series: VPS Tenant leasing (Monthly, from March 2026)
+  list.push(...generateDefaultSeries("series-vps-rent", "VPS Leasing: Client A", "income", "Services", 120.00, "USD", "monthly", 2));
+
+  return list.sort((a, b) => b.date.localeCompare(a.date));
+};
 
 function fmtCost(cost: number, currency: string) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 2 }).format(cost);
@@ -33,104 +71,45 @@ function fmtCost(cost: number, currency: string) {
 
 export default function FinancePage() {
   const [filterType, setFilterType] = useState<"all" | "recurring" | "one-off">("all");
-  const [subs, setSubs] = useState<Subscription[]>([]);
-  const [summary, setSummary] = useState<FinanceSummary | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   
-  // Modal toggle states
+  // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingSub, setEditingSub] = useState<Subscription | null>(null);
-
-  const [oneOffTx, setOneOffTx] = useState<Transaction[]>([]);
-  const [error, setError] = useState<{ status: number; message: string } | null>(null);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
   function load() {
-    api.subscriptions()
-      .then(setSubs)
-      .catch((err) => setError({ status: err.status, message: err.message }));
-    api.financeSummary()
-      .then(setSummary)
-      .catch(() => {});
-
-    // Load one-off ledger from localStorage
-    const saved = localStorage.getItem("led_finance_oneoff");
+    const saved = localStorage.getItem("led_finance_ledger_v2");
     if (saved) {
       try {
-        setOneOffTx(JSON.parse(saved));
+        setTransactions(JSON.parse(saved));
       } catch {
-        setOneOffTx(DEFAULT_TRANSACTIONS);
+        const defaults = getDefaultTransactions();
+        setTransactions(defaults);
+        localStorage.setItem("led_finance_ledger_v2", JSON.stringify(defaults));
       }
     } else {
-      setOneOffTx(DEFAULT_TRANSACTIONS);
-      localStorage.setItem("led_finance_oneoff", JSON.stringify(DEFAULT_TRANSACTIONS));
+      const defaults = getDefaultTransactions();
+      setTransactions(defaults);
+      localStorage.setItem("led_finance_ledger_v2", JSON.stringify(defaults));
     }
   }
 
   useEffect(() => { load(); }, []);
 
-  // Save one-off ledger list to localStorage
-  const saveOneOffList = (list: Transaction[]) => {
-    setOneOffTx(list);
-    localStorage.setItem("led_finance_oneoff", JSON.stringify(list));
+  const saveTransactions = (list: Transaction[]) => {
+    const sorted = [...list].sort((a, b) => b.date.localeCompare(a.date));
+    setTransactions(sorted);
+    localStorage.setItem("led_finance_ledger_v2", JSON.stringify(sorted));
   };
 
-  if (error) {
-    return (
-      <ScreenWrap>
-        <GlassCard className="flex flex-col items-center justify-center gap-5 py-16 px-6 text-center max-w-md mx-auto mt-12">
-          <div className="h-14 w-14 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-400">
-            <ShieldAlert className="h-8 w-8" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold mb-2">
-              {error.status === 402 ? "Pro Feature Locked" : "Feature Unavailable"}
-            </h2>
-            <p className="text-sm text-white/50 leading-relaxed">
-              {error.status === 402
-                ? "A valid led-pro license is required to use Finance features."
-                : "The Finance tracking feature is not available or disabled in this installation."}
-            </p>
-          </div>
-          {error.status === 402 && (
-            <Button
-              variant="primary"
-              onClick={() => window.location.href = "/settings/license"}
-              className="mt-2"
-            >
-              Manage License
-            </Button>
-          )}
-        </GlassCard>
-      </ScreenWrap>
-    );
-  }
-
-  // Delete subscription (backend)
-  async function handleDeleteSubscription(subId: number) {
-    if (!confirm("Are you sure you want to remove this recurring subscription?")) return;
-    try {
-      await api.deleteSubscription(subId);
-      load();
-    } catch (e: any) {
-      alert(e.message || "Failed to remove subscription");
-    }
-  }
-
-  // Delete one-off transaction (localStorage)
-  function handleDeleteOneOff(txId: string) {
-    if (!confirm("Delete this transaction record?")) return;
-    const updated = oneOffTx.filter(t => t.id !== txId);
-    saveOneOffList(updated);
-  }
-
-  // Unified Save / Add function (Handles either Subscriptions or One-off transactions)
-  async function handleAddTransaction(payload: {
+  // Add new transaction (or recurring series)
+  function handleAddTransaction(payload: {
     title: string;
     type: "income" | "expense";
     category: string;
     amount: number;
     currency: string;
     cycle: "one-off" | "monthly" | "yearly";
-    nextRenewalDate?: string;
     date: string;
   }) {
     if (payload.cycle === "one-off") {
@@ -144,65 +123,109 @@ export default function FinancePage() {
         currency: payload.currency,
         cycle: "one-off",
       };
-      const updated = [newTx, ...oneOffTx];
-      saveOneOffList(updated);
+      saveTransactions([newTx, ...transactions]);
     } else {
-      // Save recurring to backend as Subscription
-      const subPayload = {
-        name: payload.title,
-        vendor: payload.category, // map category to vendor or keep it as vendor
-        cost: payload.amount,
-        currency: payload.currency,
-        cycle: payload.cycle,
-        nextRenewal: payload.nextRenewalDate ? new Date(payload.nextRenewalDate).toISOString() : null,
-        note: `Auto-generated via ledger`,
-        enabled: true,
-      };
-      await api.createSubscription(subPayload);
-      load();
+      // Generate recurring occurrences from the chosen start date up to today (or next month)
+      const parentId = "series-" + Date.now();
+      const occurrences: Transaction[] = [];
+      const startDate = new Date(payload.date);
+      const today = new Date();
+      
+      let cursor = new Date(startDate);
+      // Ensure we generate at least 1 occurrence, and generate up to the current date
+      while (cursor <= today || occurrences.length === 0) {
+        const dateStr = cursor.toISOString().slice(0, 10);
+        occurrences.push({
+          id: `tx-${parentId}-${occurrences.length}`,
+          parentId,
+          date: dateStr,
+          type: payload.type,
+          title: payload.title,
+          category: payload.category,
+          amount: payload.amount,
+          currency: payload.currency,
+          cycle: payload.cycle,
+        });
+
+        if (payload.cycle === "monthly") {
+          cursor.setMonth(cursor.getMonth() + 1);
+        } else {
+          cursor.setFullYear(cursor.getFullYear() + 1);
+        }
+      }
+      saveTransactions([...occurrences, ...transactions]);
     }
   }
 
-  // Merge subscriptions (Server) + One-offs (Local)
-  const virtualSubs: Transaction[] = subs.map(s => {
-    let paymentDate = new Date().toISOString().slice(0, 10);
-    if (s.nextRenewal) {
-      const next = new Date(s.nextRenewal);
-      if (s.cycle === "monthly") {
-        next.setMonth(next.getMonth() - 1);
-      } else {
-        next.setFullYear(next.getFullYear() - 1);
-      }
-      paymentDate = next.toISOString().slice(0, 10);
+  // Edit/Adjust a transaction
+  function handleSaveEdit(
+    targetTx: Transaction,
+    fields: { title: string; category: string; amount: number; currency: string; date: string },
+    scope: "one" | "all"
+  ) {
+    let updated: Transaction[];
+    if (scope === "one" || !targetTx.parentId) {
+      // Adjust this specific occurrence only
+      updated = transactions.map((t) =>
+        t.id === targetTx.id
+          ? { ...t, ...fields }
+          : t
+      );
+    } else {
+      // Update all future occurrences in this recurring series
+      updated = transactions.map((t) => {
+        if (t.parentId === targetTx.parentId) {
+          // Only update occurrences on or after the target occurrence date
+          if (t.date >= targetTx.date) {
+            return {
+              ...t,
+              title: fields.title,
+              category: fields.category,
+              amount: fields.amount,
+              currency: fields.currency,
+            };
+          }
+        }
+        return t;
+      });
     }
-    return {
-      id: `sub-tx-${s.id}`,
-      date: paymentDate,
-      type: "expense" as const,
-      title: s.name,
-      category: s.vendor || "SaaS Tools",
-      amount: s.cost,
-      currency: s.currency,
-      cycle: s.cycle,
-      nextRenewal: s.nextRenewal,
-      isSubscription: true,
-      subRef: s,
-    };
-  });
+    saveTransactions(updated);
+  }
 
-  const allTransactions = [...virtualSubs, ...oneOffTx];
-  allTransactions.sort((a, b) => b.date.localeCompare(a.date));
+  // Delete transaction or series
+  function handleDeleteTransaction(targetTx: Transaction) {
+    if (!targetTx.parentId) {
+      if (!confirm("Are you sure you want to delete this transaction record?")) return;
+      saveTransactions(transactions.filter((t) => t.id !== targetTx.id));
+    } else {
+      // Prompt option to delete single or all
+      const choice = confirm(
+        "This transaction belongs to a recurring series.\n\n" +
+        "Click OK to delete THIS SPECIFIC OCCURRENCE only.\n" +
+        "Click Cancel to keep it."
+      );
+      if (choice) {
+        saveTransactions(transactions.filter((t) => t.id !== targetTx.id));
+      }
+    }
+  }
 
-  // Apply filters
-  const filteredTransactions = allTransactions.filter(tx => {
+  // Delete entire recurring series
+  function handleDeleteSeries(parentId: string) {
+    if (!confirm("Are you sure you want to delete the ENTIRE recurring series? This will erase all history for this contract.")) return;
+    saveTransactions(transactions.filter((t) => t.parentId !== parentId));
+  }
+
+  // Filter list
+  const filteredTransactions = transactions.filter((tx) => {
     if (filterType === "recurring") return tx.cycle === "monthly" || tx.cycle === "yearly";
     if (filterType === "one-off") return tx.cycle === "one-off";
     return true;
   });
 
-  // Calculate ledger stats (Closed-loop ledger calculations over ALL transactions)
-  const totalIncome = allTransactions.filter(t => t.type === "income").reduce((acc, t) => acc + t.amount, 0);
-  const totalExpense = allTransactions.filter(t => t.type === "expense").reduce((acc, t) => acc + t.amount, 0);
+  // Dynamic calculations of ledger indicators
+  const totalIncome = transactions.filter(t => t.type === "income").reduce((acc, t) => acc + t.amount, 0);
+  const totalExpense = transactions.filter(t => t.type === "expense").reduce((acc, t) => acc + t.amount, 0);
   const netBalance = totalIncome - totalExpense;
 
   return (
@@ -254,7 +277,7 @@ export default function FinancePage() {
               filterType === "all" ? "bg-white/[0.08] text-white shadow-glow" : "text-white/50 hover:text-white/80"
             }`}
           >
-            All Logs ({allTransactions.length})
+            All Logs ({transactions.length})
           </button>
           <button
             onClick={() => setFilterType("recurring")}
@@ -262,7 +285,7 @@ export default function FinancePage() {
               filterType === "recurring" ? "bg-white/[0.08] text-white shadow-glow" : "text-white/50 hover:text-white/80"
             }`}
           >
-            <RefreshCw className="h-3 w-3" /> Recurring Subscriptions ({virtualSubs.length})
+            <RefreshCw className="h-3 w-3" /> Recurring ({transactions.filter(t => t.cycle !== "one-off").length})
           </button>
           <button
             onClick={() => setFilterType("one-off")}
@@ -270,7 +293,7 @@ export default function FinancePage() {
               filterType === "one-off" ? "bg-white/[0.08] text-white shadow-glow" : "text-white/50 hover:text-white/80"
             }`}
           >
-            One-off Ledger ({oneOffTx.length})
+            One-off Ledger ({transactions.filter(t => t.cycle === "one-off").length})
           </button>
         </div>
       </div>
@@ -290,18 +313,16 @@ export default function FinancePage() {
                   <th className="px-5 py-3.5">Date</th>
                   <th className="px-5 py-3.5">Flow</th>
                   <th className="px-5 py-3.5">Title</th>
-                  <th className="px-5 py-3.5">Category / Vendor</th>
-                  <th className="px-5 py-3.5">Payment Cycle</th>
+                  <th className="px-5 py-3.5">Category</th>
+                  <th className="px-5 py-3.5">Cycle</th>
                   <th className="px-5 py-3.5 text-right">Amount</th>
                   <th className="px-5 py-3.5"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.04]">
                 {filteredTransactions.map((tx) => (
-                  <tr key={tx.id} className={`hover:bg-white/[0.02] transition-all ${tx.isSubscription ? "bg-white/[0.01]" : ""}`}>
-                    <td className="px-5 py-4 font-mono text-xs text-white/60">
-                      {tx.cycle === "one-off" ? tx.date : (tx.nextRenewal ? `Renews ${new Date(tx.nextRenewal).toLocaleDateString()}` : "Recurring")}
-                    </td>
+                  <tr key={tx.id} className={`hover:bg-white/[0.02] transition-all ${tx.parentId ? "bg-white/[0.01]" : ""}`}>
+                    <td className="px-5 py-4 font-mono text-xs text-white/60">{tx.date}</td>
                     <td className="px-5 py-4">
                       <Badge tone={tx.type === "income" ? "green" : "red"} className="uppercase font-bold tracking-wider text-[9px]">
                         {tx.type}
@@ -310,8 +331,8 @@ export default function FinancePage() {
                     <td className="px-5 py-4 text-white font-medium">
                       <div className="flex items-center gap-2">
                         <span>{tx.title}</span>
-                        {tx.isSubscription && (
-                          <Badge tone="indigo" className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0">SaaS Sub</Badge>
+                        {tx.parentId && (
+                          <Badge tone="indigo" className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0">Recurring Series</Badge>
                         )}
                       </div>
                     </td>
@@ -325,7 +346,7 @@ export default function FinancePage() {
                         <span className="text-white/40">One-off</span>
                       ) : (
                         <span className="text-indigo-400 font-semibold flex items-center gap-1">
-                          <RefreshCw className="h-3 w-3 animate-spin-slow" /> {tx.cycle}
+                          <RefreshCw className="h-3 w-3" /> {tx.cycle}
                         </span>
                       )}
                     </td>
@@ -334,30 +355,28 @@ export default function FinancePage() {
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex gap-2 justify-end">
-                        {tx.isSubscription ? (
-                          <>
-                            <Button
-                              variant="ghost"
-                              onClick={() => setEditingSub(tx.subRef || null)}
-                              className="text-xs py-1 px-2.5"
-                            >
-                              <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
-                            </Button>
-                            <Button
-                              variant="danger"
-                              onClick={() => tx.subRef && handleDeleteSubscription(tx.subRef.id)}
-                              className="text-xs py-1 px-2 bg-rose-500/0 hover:bg-rose-500/10 border-0"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </>
-                        ) : (
+                        <Button
+                          variant="ghost"
+                          onClick={() => setEditingTx(tx)}
+                          className="text-xs py-1 px-2.5"
+                        >
+                          <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                        </Button>
+                        <Button
+                          variant="danger"
+                          onClick={() => handleDeleteTransaction(tx)}
+                          className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                        {tx.parentId && (
                           <Button
                             variant="danger"
-                            onClick={() => handleDeleteOneOff(tx.id)}
-                            className="text-xs py-1 px-2 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                            onClick={() => handleDeleteSeries(tx.parentId!)}
+                            className="text-[10px] py-1 px-2 bg-rose-950/20 hover:bg-rose-900/40 text-rose-300 border-rose-900/30"
+                            title="Delete entire recurring series history"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete Contract
                           </Button>
                         )}
                       </div>
@@ -378,12 +397,12 @@ export default function FinancePage() {
         />
       )}
 
-      {/* Edit Subscription Modal */}
-      {editingSub && (
-        <EditSubscriptionModal
-          sub={editingSub}
-          onClose={() => setEditingSub(null)}
-          onSaved={() => { setEditingSub(null); load(); }}
+      {/* Edit / Adjust Occurrence Modal */}
+      {editingTx && (
+        <EditTransactionModal
+          tx={editingTx}
+          onClose={() => setEditingTx(null)}
+          onSave={handleSaveEdit}
         />
       )}
     </ScreenWrap>
@@ -402,9 +421,8 @@ function AddTransactionModal({
     amount: number;
     currency: string;
     cycle: "one-off" | "monthly" | "yearly";
-    nextRenewalDate?: string;
     date: string;
-  }) => Promise<void>;
+  }) => void;
 }) {
   const [title, setTitle] = useState("");
   const [type, setType] = useState<"income" | "expense">("expense");
@@ -412,12 +430,7 @@ function AddTransactionModal({
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [cycle, setCycle] = useState<"one-off" | "monthly" | "yearly">("one-off");
-  
-  // Specific fields
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [nextRenewalDate, setNextRenewalDate] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
 
   const categories = [
     "SaaS Tools",
@@ -430,34 +443,25 @@ function AddTransactionModal({
     "Other",
   ];
 
-  async function submit(e: React.FormEvent) {
+  function submit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    setErr("");
-    try {
-      await onAdd({
-        title,
-        type,
-        category,
-        amount: parseFloat(amount) || 0,
-        currency,
-        cycle,
-        date,
-        nextRenewalDate,
-      });
-      onClose();
-    } catch (e: any) {
-      setErr(e.message || "Failed to save transaction");
-    } finally {
-      setBusy(false);
-    }
+    onAdd({
+      title,
+      type,
+      category,
+      amount: parseFloat(amount) || 0,
+      currency,
+      cycle,
+      date,
+    });
+    onClose();
   }
 
   return (
     <Modal title="Log Financial Transaction" onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <Field label="Transaction Title">
-          <input className="input w-full font-sans" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="e.g. Vercel Hosting / Client Invoice" autoFocus />
+          <input className="input w-full font-sans" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="e.g. Vercel Hosting / Consulting Retainer" autoFocus />
         </Field>
 
         <div className="flex gap-4">
@@ -494,7 +498,7 @@ function AddTransactionModal({
         </div>
 
         <div className="border-t border-white/[0.05] pt-4 space-y-4">
-          <Field label="Payment Term / Cycle">
+          <Field label="Payment Cycle / Term">
             <div className="flex gap-4 mt-1">
               {([
                 { value: "one-off", label: "One-off (一次性)" },
@@ -507,10 +511,7 @@ function AddTransactionModal({
                     name="cycle"
                     value={item.value}
                     checked={cycle === item.value}
-                    onChange={() => {
-                      setCycle(item.value);
-                      if (item.value !== "one-off") setType("expense"); // SaaS subscriptions are typically expenses
-                    }}
+                    onChange={() => setCycle(item.value)}
                     className="accent-indigo-500"
                   />
                   <span className="text-xs text-white/70">{item.label}</span>
@@ -519,23 +520,15 @@ function AddTransactionModal({
             </div>
           </Field>
 
-          {cycle === "one-off" ? (
-            <Field label="Transaction Date">
-              <input className="input w-full text-sm font-sans" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-            </Field>
-          ) : (
-            <Field label="Next Renewal Date">
-              <input className="input w-full text-sm font-sans" type="date" value={nextRenewalDate} onChange={(e) => setNextRenewalDate(e.target.value)} required />
-            </Field>
-          )}
+          <Field label={cycle === "one-off" ? "Transaction Date" : "Billing Cycle Start Date"}>
+            <input className="input w-full text-sm font-sans" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+          </Field>
         </div>
-
-        {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
 
         <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary" disabled={busy || !title.trim() || !amount}>
-            {busy ? "Saving..." : "Log Transaction"}
+          <Button type="submit" variant="primary" disabled={!title.trim() || !amount}>
+            Save Record
           </Button>
         </div>
       </form>
@@ -543,115 +536,131 @@ function AddTransactionModal({
   );
 }
 
-function EditSubscriptionModal({
-  sub,
+function EditTransactionModal({
+  tx,
   onClose,
-  onSaved,
+  onSave,
 }: {
-  sub: Subscription;
+  tx: Transaction;
   onClose: () => void;
-  onSaved: () => void;
+  onSave: (
+    targetTx: Transaction,
+    fields: { title: string; category: string; amount: number; currency: string; date: string },
+    scope: "one" | "all"
+  ) => void;
 }) {
-  const [name, setName] = useState(sub.name);
-  const [vendor, setVendor] = useState(sub.vendor || "");
-  const [cost, setCost] = useState(sub.cost.toString());
-  const [currency, setCurrency] = useState(sub.currency);
-  const [cycle, setCycle] = useState<"monthly" | "yearly">(sub.cycle as "monthly" | "yearly");
-  const [nextRenewal, setNextRenewal] = useState(
-    sub.nextRenewal ? sub.nextRenewal.slice(0, 10) : ""
-  );
-  const [note, setNote] = useState(sub.note || "");
-  const [enabled, setEnabled] = useState(sub.enabled);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
+  const [title, setTitle] = useState(tx.title);
+  const [category, setCategory] = useState(tx.category);
+  const [amount, setAmount] = useState(tx.amount.toString());
+  const [currency, setCurrency] = useState(tx.currency);
+  const [date, setDate] = useState(tx.date);
 
-  async function submit(e: React.FormEvent) {
+  // Edit scope choice: 'one' (this occurrence) or 'all' (all future occurrences)
+  const [editScope, setEditScope] = useState<"one" | "all">("one");
+
+  const categories = [
+    "SaaS Tools",
+    "Infrastructure",
+    "Domain Registration",
+    "Domain Trading",
+    "Services",
+    "Advertising",
+    "Consulting",
+    "Other",
+  ];
+
+  function submit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    setErr("");
-    try {
-      const payload = {
-        name,
-        vendor,
-        cost: parseFloat(cost) || 0,
+    onSave(
+      tx,
+      {
+        title,
+        category,
+        amount: parseFloat(amount) || 0,
         currency,
-        cycle,
-        nextRenewal: nextRenewal ? new Date(nextRenewal).toISOString() : null,
-        note,
-        enabled,
-      };
-      await api.updateSubscription(sub.id, payload);
-      onSaved();
-    } catch (e: any) {
-      setErr(e.message || "Failed to save subscription");
-    } finally {
-      setBusy(false);
-    }
+        date,
+      },
+      editScope
+    );
+    onClose();
   }
 
   return (
-    <Modal title="Edit Subscription" onClose={onClose}>
+    <Modal title={tx.parentId ? "Adjust Occurrence" : "Edit Transaction"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Subscription Name">
-          <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. GitHub Copilot" />
+        {tx.parentId && (
+          <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 text-xs text-indigo-200">
+            💡 This transaction belongs to a recurring contract. You can edit this single instance or the entire future series.
+          </div>
+        )}
+
+        <Field label="Title">
+          <input className="input w-full font-sans" value={title} onChange={(e) => setTitle(e.target.value)} required />
         </Field>
-        
-        <Field label="Category / Vendor">
-          <input className="input w-full" value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder="e.g. GitHub, Vercel" />
-        </Field>
-        
+
         <div className="flex gap-4">
           <div className="flex-1">
-            <Field label="Cost">
-              <input className="input w-full font-mono" type="number" min="0" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} required />
+            <Field label="Category">
+              <select className="input w-full text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
+                {categories.map((c) => <option key={c}>{c}</option>)}
+              </select>
             </Field>
           </div>
-          <div className="w-32">
+          <div className="w-28">
             <Field label="Currency">
-              <select className="input w-full" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              <select className="input w-full text-sm" value={currency} onChange={(e) => setCurrency(e.target.value)}>
                 {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
               </select>
             </Field>
           </div>
         </div>
 
-        <Field label="Billing Cycle">
-          <div className="flex gap-4 mt-1">
-            {(["monthly", "yearly"] as const).map((c) => (
-              <label key={c} className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="radio"
-                  name="cycle"
-                  value={c}
-                  checked={cycle === c}
-                  onChange={() => setCycle(c)}
-                  className="accent-indigo-500"
-                />
-                <span className="capitalize text-sm text-white/70">{c}</span>
-              </label>
-            ))}
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <Field label="Amount">
+              <input className="input w-full font-mono text-sm" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+            </Field>
           </div>
-        </Field>
-
-        <Field label="Next Renewal Date">
-          <input className="input w-full" type="date" value={nextRenewal} onChange={(e) => setNextRenewal(e.target.value)} />
-        </Field>
-
-        <Field label="Private Note">
-          <input className="input w-full" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. charged to corporate card" />
-        </Field>
-
-        <div className="flex items-center gap-3 pt-2">
-          <Toggle on={enabled} onChange={setEnabled} />
-          <span className="text-sm text-white/60 select-none">Active Subscription</span>
+          <div className="flex-1">
+            <Field label="Occurrence Date">
+              <input className="input w-full text-sm font-sans" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+            </Field>
+          </div>
         </div>
 
-        {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
-        
+        {tx.parentId && (
+          <Field label="Update Scope">
+            <div className="flex gap-4 mt-1.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="radio"
+                  name="editScope"
+                  value="one"
+                  checked={editScope === "one"}
+                  onChange={() => setEditScope("one")}
+                  className="accent-indigo-500"
+                />
+                <span className="text-xs text-white/80 font-medium">Apply to THIS occurrence only</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="radio"
+                  name="editScope"
+                  value="all"
+                  checked={editScope === "all"}
+                  onChange={() => setEditScope("all")}
+                  className="accent-indigo-500"
+                />
+                <span className="text-xs text-white/80 font-medium">Apply to FUTURE occurrences in series</span>
+              </label>
+            </div>
+          </Field>
+        )}
+
         <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary" disabled={busy || !name}>
-            {busy ? "Saving..." : "Save Changes"}
+          <Button type="submit" variant="primary" disabled={!title.trim() || !amount}>
+            Save Changes
           </Button>
         </div>
       </form>
