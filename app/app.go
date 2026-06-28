@@ -86,7 +86,11 @@ func (a *App) DB() *gorm.DB { return a.gdb }
 // models are migrated and their routes mounted.
 func (a *App) Use(p plugin.Plugin) { a.plugins = append(a.plugins, p) }
 
-// RunMCP runs the MCP server with the registered plugins over stdio.
+// RunMCP runs the MCP server with the registered plugins over stdio. It mounts
+// the plugins with the same plugin.Context the HTTP server uses, so their MCP
+// tool handlers have their dependencies wired (DB, DNS manager, Encrypt/Decrypt)
+// — without this, plugin MCP tools would run with nil dependencies. The HTTP mux
+// they mount onto is discarded; only the captured context matters here.
 func (a *App) RunMCP(ctx context.Context) error {
 	var extra []any
 	for _, p := range a.plugins {
@@ -95,6 +99,26 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if err := db.Migrate(a.gdb, extra...); err != nil {
 		return err
 	}
+
+	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo)
+	apiHandler.SetPlugins(a.plugins)
+	pctx := &plugin.Context{
+		DB:      a.gdb,
+		Guard:   a.auth.Require,
+		Notify:  notify.Send,
+		UserID:  a.auth.UserID,
+		OrgID:   a.auth.OrgID,
+		Audit:   apiHandler.Audit,
+		Encrypt: a.cipher.Encrypt,
+		Decrypt: a.cipher.Decrypt,
+		OnEmail: apiHandler.OnEmail,
+		DNS:     apiHandler.DNSManager(),
+	}
+	throwaway := http.NewServeMux()
+	for _, p := range a.plugins {
+		p.Mount(throwaway, pctx)
+	}
+
 	return mcp.RunWithPlugins(ctx, a.plugins)
 }
 
@@ -128,6 +152,7 @@ func (a *App) Run(ctx context.Context) error {
 		Encrypt: a.cipher.Encrypt,
 		Decrypt: a.cipher.Decrypt,
 		OnEmail: apiHandler.OnEmail,
+		DNS:     apiHandler.DNSManager(),
 	}
 	for _, p := range a.plugins {
 		p.Mount(mux, pctx)

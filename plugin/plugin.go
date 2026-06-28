@@ -74,6 +74,37 @@ type Context struct {
 	// handler must not block the request path and should bound its own work with
 	// the context it captures. This is the inbound hook Inbox AI subscribes to.
 	OnEmail func(handler func(EmailEvent))
+	// DNS manages DNS records for a domain through the core's configured provider
+	// (Cloudflare, …) so a plugin can change real records without importing led's
+	// internal/dnsprovider. This is what makes "point the A record at a new IP"
+	// an actual operation rather than a flag flip.
+	DNS DNSManager
+}
+
+// DNSRecord is a provider-agnostic DNS record, mirroring the fields of led's
+// internal dnsprovider.Record using only stable types so plugins in a separate
+// module never import internal packages. An empty ID on a write means "create".
+type DNSRecord struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"` // A, AAAA, CNAME, TXT, MX, …
+	Name     string `json:"name"`
+	Content  string `json:"content"`
+	TTL      int    `json:"ttl"`
+	Proxied  bool   `json:"proxied"`
+	Comment  string `json:"comment"`
+	Priority *int   `json:"priority,omitempty"`
+}
+
+// DNSManager is the DNS-management seam exposed to plugins via Context.DNS. All
+// operations take a led domain ID and resolve its zone + provider internally.
+type DNSManager interface {
+	// List returns all records in the domain's zone.
+	List(ctx context.Context, domainID uint) ([]DNSRecord, error)
+	// Set creates the record when r.ID is empty, otherwise updates it. Returns
+	// the stored record.
+	Set(ctx context.Context, domainID uint, r DNSRecord) (DNSRecord, error)
+	// Delete removes a record by provider record ID.
+	Delete(ctx context.Context, domainID uint, recordID string) error
 }
 
 // Plugin is a unit of Pro functionality mounted onto the core app.
