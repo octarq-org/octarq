@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/Jungley8/led/config"
@@ -26,10 +27,40 @@ type Handler struct {
 	loginLimiter *rateLimiter
 	abuseLimiter *rateLimiter
 	plugins      []plugin.Plugin
+
+	// emailHandlers are notified after each inbound email is stored. They are
+	// registered by plugins via OnEmail and fired by emitEmail. Guarded by
+	// emailMu because registration happens during plugin Mount (startup) while
+	// dispatch happens on the inbound webhook path.
+	emailMu       sync.RWMutex
+	emailHandlers []func(plugin.EmailEvent)
 }
 
 func (h *Handler) SetPlugins(plugins []plugin.Plugin) {
 	h.plugins = plugins
+}
+
+// OnEmail registers a handler invoked asynchronously after each inbound email is
+// stored. It backs plugin.Context.OnEmail. Safe to call concurrently.
+func (h *Handler) OnEmail(handler func(plugin.EmailEvent)) {
+	if handler == nil {
+		return
+	}
+	h.emailMu.Lock()
+	h.emailHandlers = append(h.emailHandlers, handler)
+	h.emailMu.Unlock()
+}
+
+// emitEmail dispatches an inbound-email event to every registered handler, each
+// in its own goroutine so a slow handler (e.g. an LLM call) never blocks the
+// webhook response or the other handlers.
+func (h *Handler) emitEmail(e plugin.EmailEvent) {
+	h.emailMu.RLock()
+	handlers := h.emailHandlers
+	h.emailMu.RUnlock()
+	for _, fn := range handlers {
+		go fn(e)
+	}
 }
 
 

@@ -102,6 +102,52 @@ SMTP server, so no port 25 / MX / anti-spam ops are required:
 
 Mark a domain as **Accept email** in the dashboard; if **Catch-all** is enabled in Settings, mail to any unknown address on it will automatically create a new mailbox.
 
+## AI · MCP server (`led mcp`)
+
+led ships a built-in [Model Context Protocol](https://modelcontextprotocol.io)
+server so an AI client — Claude Code, Claude Desktop, Cursor — can read your
+self-hosted company backend directly: *"which links got the most clicks?"*,
+*"what mail landed today?"*, *"how many SaaS am I paying for?"*.
+
+Run it over stdio (the universal local MCP transport):
+
+```bash
+led mcp
+```
+
+Then point your client at it. For Claude Desktop, add to its MCP config:
+
+```json
+{ "mcpServers": { "led": { "command": "/path/to/led", "args": ["mcp"] } } }
+```
+
+It reads the same `.env` / environment as the server (same database).
+
+**Tools (all read-only):** `list_links`, `list_mailboxes`, `list_emails`,
+`list_domains`, `export_data`, and `query_db_readonly` — a general-purpose SQL
+tool so the AI can compute any metric without a bespoke endpoint.
+
+**Guardrails on `query_db_readonly`** (the one place data reaches an LLM):
+only a single `SELECT`/`WITH` runs (writes, `PRAGMA`, `ATTACH` are rejected,
+inside a read-only transaction); results are row-capped; and sensitive columns
+(password/token hashes, encrypted provider credentials, raw email bodies) are
+redacted. Tools are scoped to one operator via `LED_MCP_ORG_ID`; for a
+multi-tenant deployment, run one `led mcp` process per tenant.
+
+### LLM provider
+
+AI features (the MCP server's own tools need no LLM, but the Pro Inbox-AI plugin
+does) share one importable abstraction, `github.com/Jungley8/led/llmprovider`.
+It is **multi-vendor**: the broad set — OpenAI (and any OpenAI-compatible
+endpoint via a base URL), Google Gemini, Mistral, Cohere, and Ollama (local) —
+is provided by the open-source [langchaingo](https://github.com/tmc/langchaingo)
+framework through one adapter; Claude rides the official Anthropic SDK (so the
+Opus 4.7+ family works correctly). Switch vendor by name — no per-vendor code.
+Defaults: `claude-opus-4-8` for reasoning, `claude-haiku-4-5` for cheap
+classification. In the Pro build it is configured from the dashboard (Inbox AI →
+*Configure*, key stored encrypted in the DB); `LED_LLM_*` env vars (see
+[`.env.example`](.env.example)) are the fallback.
+
 ## Configuration
 
 All configuration is via environment variables — see [`.env.example`](.env.example).

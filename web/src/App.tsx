@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Bot,
   Boxes,
   CalendarClock,
   CheckIcon,
@@ -37,6 +38,7 @@ import SettingsPage from "./pages/Settings";
 import SSHKeysPage from "./pages/SSHKeys";
 import VPSPage from "./pages/VPS";
 import FinancePage from "./pages/Finance";
+import InboxAIPage from "./pages/InboxAI";
 import AuditLogPage from "./pages/AuditLog";
 import AbusePage from "./pages/Abuse";
 import PersonalSettingsPage from "./pages/PersonalSettings";
@@ -86,6 +88,7 @@ const STATIC_AREAS: Area[] = [
         items: [
           { id: "links",   label: "Short Links", Icon: Link2,  path: "/links" },
           { id: "mail",    label: "Mailbox",      Icon: Mail,   path: "/mail" },
+          { id: "inbox-ai", label: "Inbox AI",    Icon: Bot,    path: "/inbox-ai" },
         ],
       },
     ],
@@ -262,6 +265,7 @@ function Shell({
       overview: { label: "Overview", Icon: LayoutDashboard, path: "/overview" },
       links: { label: "Short Links", Icon: Link2, path: "/links" },
       mail: { label: "Mailbox", Icon: Mail, path: "/mail" },
+      "inbox-ai": { label: "Inbox AI", Icon: Bot, path: "/inbox-ai" },
       domains: { label: "Domains", Icon: Globe, path: "/domains" },
       certs: { label: "Certificates", Icon: Shield, path: "/assets/certificates" },
       vps: { label: "VPS", Icon: Server, path: "/vps" },
@@ -442,6 +446,7 @@ function Shell({
               <Route path="/links"      element={<LinksPage />} />
               <Route path="/domains"    element={<DomainsPage />} />
               <Route path="/mail"       element={<MailPage />} />
+              <Route path="/inbox-ai"   element={<InboxAIPage />} />
               <Route path="/vps"        element={<VPSPage />} />
               <Route path="/sshkeys"    element={<SSHKeysPage />} />
               <Route path="/assets/certificates" element={<ComingSoonPage title="Certificates & SSL" description="Track and renew your SSL certificates" />} />

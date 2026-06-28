@@ -274,10 +274,66 @@ export interface Settings {
   dataRetentionDays: number;
 }
 
+// EmailAIAnnotation is the Inbox AI plugin's per-email analysis (Pro/elite).
+export interface EmailAIAnnotation {
+  emailId: number;
+  from: string;
+  subject: string;
+  summary: string;
+  category: string; // bill | otp | marketing | important | personal | other
+  importance: number; // 1..5
+  otp: string;
+  model: string;
+  createdAt: string;
+}
+
+// AIStatus reports whether Inbox AI is licensed and active.
+export interface AIStatus {
+  licensed: boolean;
+  enabled: boolean;
+  provider?: string;
+  model?: string;
+}
+
+// AISettings is the DB-backed LLM configuration for Inbox AI (the API key is
+// never returned — only whether one is set).
+export interface AISettings {
+  provider: string;
+  model: string;
+  cheapModel: string;
+  baseUrl: string;
+  apiKeySet: boolean;
+  briefingHour: number;
+}
+
+// AISettingsPatch updates AISettings; omitted fields are left unchanged, an
+// empty apiKey clears the stored key.
+export interface AISettingsPatch {
+  provider?: string;
+  apiKey?: string;
+  model?: string;
+  cheapModel?: string;
+  baseUrl?: string;
+  briefingHour?: number;
+}
+
 export const api = {
   // overview
   overview: (includeBot = false) =>
     req<Overview>("GET", `/api/overview${includeBot ? "?includeBot=true" : ""}`),
+
+  // Inbox AI (Pro/elite) — email summaries, classification, OTP extraction.
+  aiStatus: () => req<AIStatus>("GET", "/api/ai/status"),
+  aiEmails: (category = "", limit = 50) => {
+    const q = new URLSearchParams();
+    if (category) q.set("category", category);
+    q.set("limit", String(limit));
+    return req<EmailAIAnnotation[]>("GET", `/api/ai/emails?${q.toString()}`);
+  },
+  aiReprocess: (emailId: number) =>
+    req<EmailAIAnnotation>("POST", `/api/ai/emails/${emailId}/reprocess`),
+  aiSettings: () => req<AISettings>("GET", "/api/ai/settings"),
+  updateAiSettings: (s: AISettingsPatch) => req<AISettings>("PUT", "/api/ai/settings", s),
 
   // settings
   settings: () => req<Settings>("GET", "/api/settings"),

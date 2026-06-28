@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -28,11 +29,26 @@ type Config struct {
 	// BaseURL is the public-facing URL used to build OAuth callback URIs,
 	// e.g. "https://app.example.com". Leave empty to disable OAuth login.
 	BaseURL string
+
+	// MCPOrgID scopes the `led mcp` server's convenience tools to one tenant's
+	// data. Defaults to 1 (the single-operator self-hosted case). On a
+	// multi-tenant deployment, run one MCP process per tenant with this set.
+	MCPOrgID uint
 }
 
 func env(key, def string) string {
 	if v, ok := os.LookupEnv(key); ok {
 		return v
+	}
+	return def
+}
+
+// envInt reads an integer env var, falling back to def on absence or parse error.
+func envInt(key string, def int) int {
+	if v, ok := os.LookupEnv(key); ok {
+		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+			return n
+		}
 	}
 	return def
 }
@@ -105,8 +121,9 @@ func Load() (*Config, error) {
 		AdminUser:     env("LED_ADMIN_USER", "admin"),
 		AdminPassword: env("LED_ADMIN_PASSWORD", ""),
 
-		GeoIPDB: env("LED_GEOIP_DB", ""),
-		BaseURL: env("LED_BASE_URL", ""),
+		GeoIPDB:  env("LED_GEOIP_DB", ""),
+		BaseURL:  env("LED_BASE_URL", ""),
+		MCPOrgID: uint(envInt("LED_MCP_ORG_ID", 1)),
 	}
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" {
 		return nil, fmt.Errorf("LED_DB_DRIVER must be sqlite or postgres, got %q", c.DBDriver)

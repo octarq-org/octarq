@@ -13,9 +13,31 @@ package plugin
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"gorm.io/gorm"
 )
+
+// EmailEvent is a stable, external snapshot of a freshly received inbound email,
+// delivered to handlers registered via Context.OnEmail. It mirrors only the
+// fields a plugin needs so plugins never import led's internal/models. The full
+// row (including Raw RFC822 bytes, e.g. for attachment OCR) remains reachable
+// via the shared DB using ID.
+//
+// This is the low-latency entry point Inbox AI needs (summary/classification,
+// OTP extraction): the core fires it the moment an email is stored, instead of
+// a plugin having to poll for unsummarized rows.
+type EmailEvent struct {
+	ID         uint      // emails.id — load the full row from the DB if more is needed
+	MailboxID  uint      // owning mailbox
+	OrgID      uint      // tenant scope (mailbox owner) for org-scoped processing
+	From       string    // envelope/header From
+	To         string    // recipient the mail was routed to
+	Subject    string    // header Subject
+	Text       string    // plaintext body (may be empty if HTML-only)
+	HTML       string    // HTML body (may be empty)
+	ReceivedAt time.Time // when the MTA received it
+}
 
 // Context carries the shared dependencies a plugin needs to wire its routes.
 // It exposes only stable, external types so plugins in a separate module never
@@ -46,6 +68,11 @@ type Context struct {
 	Encrypt func(plaintext []byte) (string, error)
 	// Decrypt reverses Encrypt.
 	Decrypt func(encoded string) ([]byte, error)
+	// OnEmail registers a handler invoked (asynchronously, in its own goroutine)
+	// after each inbound email is stored. Multiple plugins may register; a
+	// handler must not block the request path and should bound its own work with
+	// the context it captures. This is the inbound hook Inbox AI subscribes to.
+	OnEmail func(handler func(EmailEvent))
 }
 
 // Plugin is a unit of Pro functionality mounted onto the core app.

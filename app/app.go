@@ -114,6 +114,7 @@ func (a *App) Run(ctx context.Context) error {
 		Audit:   apiHandler.Audit,
 		Encrypt: a.cipher.Encrypt,
 		Decrypt: a.cipher.Decrypt,
+		OnEmail: apiHandler.OnEmail,
 	}
 	for _, p := range a.plugins {
 		p.Mount(mux, pctx)

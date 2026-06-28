@@ -13,6 +13,7 @@ import (
 	"github.com/Jungley8/led/internal/mail"
 	"github.com/Jungley8/led/internal/models"
 	"github.com/Jungley8/led/internal/notify"
+	"github.com/Jungley8/led/plugin"
 )
 
 // --- mailboxes ---
@@ -315,6 +316,21 @@ func (h *Handler) inbound(w http.ResponseWriter, r *http.Request) {
 		AuthSPF: parsed.Auth.SPF, AuthDKIM: parsed.Auth.DKIM, AuthDMARC: parsed.Auth.DMARC,
 	}
 	h.db.Create(&e)
+
+	// Fire the inbound-email hook so Pro plugins (Inbox AI) can summarize,
+	// classify, or extract OTPs the moment mail lands. Dispatch is async per
+	// handler, so this never blocks or fails the webhook.
+	h.emitEmail(plugin.EmailEvent{
+		ID:         e.ID,
+		MailboxID:  mb.ID,
+		OrgID:      mb.OrgID,
+		From:       parsed.From,
+		To:         to,
+		Subject:    parsed.Subject,
+		Text:       parsed.Text,
+		HTML:       parsed.HTML,
+		ReceivedAt: parsed.ReceivedAt,
+	})
 
 	// Best-effort notification; never block or fail the webhook.
 	text := fmt.Sprintf("📧 New mail to %s — From: %s — %s", to, parsed.From, parsed.Subject)
