@@ -126,6 +126,11 @@ func (h *Handler) Routes() *http.ServeMux {
 	p("GET /api/settings", h.getSettings)
 	p("PUT /api/settings", h.updateSettings)
 
+	p("GET /api/webhooks", h.listWebhooks)
+	p("POST /api/webhooks", h.createWebhook)
+	p("PUT /api/webhooks/{id}", h.updateWebhook)
+	p("DELETE /api/webhooks/{id}", h.deleteWebhook)
+
 	p("GET /api/links", h.listLinks)
 	p("GET /api/links/export.csv", h.exportLinksCSV)
 	p("GET /api/links/metadata", h.linkMetadata)

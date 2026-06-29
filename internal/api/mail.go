@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Jungley8/led/internal/eventbus"
 	"github.com/Jungley8/led/internal/mail"
 	"github.com/Jungley8/led/internal/models"
 	"github.com/Jungley8/led/internal/notify"
@@ -235,6 +238,7 @@ func (h *Handler) sendEmail(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
 		mail.Message
 		SMTPSenderID uint `json:"smtpSenderId"`
+		TrackLinks   bool `json:"trackLinks"`
 	}
 	if err := readJSON(r, &payload); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
@@ -261,6 +265,10 @@ func (h *Handler) sendEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sender = mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
+
+	if payload.TrackLinks {
+		h.wrapLinksInEmail(r, &payload.Message)
+	}
 
 	if err := sender.Send(payload.Message); err != nil {
 		writeErr(w, http.StatusBadRequest, "send failed: "+err.Error())
@@ -316,6 +324,16 @@ func (h *Handler) inbound(w http.ResponseWriter, r *http.Request) {
 		AuthSPF: parsed.Auth.SPF, AuthDKIM: parsed.Auth.DKIM, AuthDMARC: parsed.Auth.DMARC,
 	}
 	h.db.Create(&e)
+
+	// Trigger Webhook Event Bus
+	eventbus.Publish(mb.OrgID, "email.receive", map[string]any{
+		"emailId":    e.ID,
+		"mailboxId":  mb.ID,
+		"from":       e.FromAddr,
+		"to":         e.ToAddr,
+		"subject":    e.Subject,
+		"receivedAt": e.ReceivedAt,
+	})
 
 	// Fire the inbound-email hook so Pro plugins (Inbox AI) can summarize,
 	// classify, or extract OTPs the moment mail lands. Dispatch is async per
@@ -418,4 +436,105 @@ func (h *Handler) resolveMailbox(addr string) (*models.Mailbox, bool) {
 		return nil, false
 	}
 	return &mb, true
+}
+
+func (h *Handler) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
+	orgID := h.orgID(r)
+	
+	// Determine the short link domain host
+	var doms []models.Domain
+	h.db.Where("owner_id = ? AND for_link = ?", orgID, true).Find(&doms)
+	shortHost := r.Host
+	if len(doms) > 0 {
+		shortHost = doms[0].Name
+	}
+	// Strip port from host
+	if idx := strings.IndexByte(shortHost, ':'); idx >= 0 {
+		shortHost = shortHost[:idx]
+	}
+	
+	scheme := "http"
+	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+		scheme = "https"
+	}
+	
+	// Regex for HTTP/HTTPS links
+	reLink := regexp.MustCompile(`https?://[a-zA-Z0-9.\-_~%#?&=/]+`)
+	
+	// Map to track wrapped URLs in this email
+	urlMap := make(map[string]string)
+	
+	// Helper to process a text body
+	processBody := func(body string) string {
+		return reLink.ReplaceAllStringFunc(body, func(rawURL string) string {
+			// Clean trailing punctuation that might be captured by regex in plain text
+			cleanURL := rawURL
+			var suffix string
+			for len(cleanURL) > 0 {
+				lastChar := cleanURL[len(cleanURL)-1]
+				if lastChar == '.' || lastChar == ',' || lastChar == '?' || lastChar == '!' || lastChar == ')' || lastChar == ';' {
+					suffix = string(lastChar) + suffix
+					cleanURL = cleanURL[:len(cleanURL)-1]
+				} else {
+					break
+				}
+			}
+
+			u, err := url.Parse(cleanURL)
+			if err != nil {
+				return rawURL
+			}
+			
+			// Skip if it is already our short link host or is localhost/internal
+			uHost := u.Host
+			if idx := strings.IndexByte(uHost, ':'); idx >= 0 {
+				uHost = uHost[:idx]
+			}
+			if strings.EqualFold(uHost, shortHost) || strings.EqualFold(uHost, "localhost") || strings.EqualFold(uHost, "127.0.0.1") {
+				return rawURL
+			}
+			
+			// Check if we already wrapped this URL in this email
+			if cached, ok := urlMap[cleanURL]; ok {
+				return cached + suffix
+			}
+			
+			// Generate a unique slug
+			var slug string
+			for i := 0; i < 5; i++ {
+				slug = randomSlug(6)
+				if !h.isReservedSlug(slug) {
+					var count int64
+					h.db.Model(&models.Link{}).Where("slug = ?", slug).Count(&count)
+					if count == 0 {
+						break
+					}
+				}
+			}
+			
+			// Create the link record
+			link := models.Link{
+				OrgID:   orgID,
+				Host:    "", // host-agnostic
+				Slug:    slug,
+				Target:  cleanURL,
+				Title:   "Auto-wrapped from outbound email",
+				Enabled: true,
+			}
+			if err := h.db.Create(&link).Error; err != nil {
+				return rawURL
+			}
+			
+			shortURL := fmt.Sprintf("%s://%s/%s", scheme, shortHost, slug)
+			urlMap[cleanURL] = shortURL
+			return shortURL + suffix
+		})
+	}
+	
+	if msg.Text != "" {
+		msg.Text = processBody(msg.Text)
+	}
+	if msg.HTML != "" {
+		msg.HTML = processBody(msg.HTML)
+	}
 }

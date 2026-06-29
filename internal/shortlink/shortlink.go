@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Jungley8/led/internal/eventbus"
 	"github.com/Jungley8/led/internal/geo"
 	"github.com/Jungley8/led/internal/models"
 	"gorm.io/gorm"
@@ -112,7 +113,7 @@ func (s *Service) Handle(w http.ResponseWriter, r *http.Request, link *models.Li
 		}
 	}
 
-	s.record(r, link.ID, ip, country, region, city, ua, info, bot)
+	s.record(r, link.OrgID, link.Slug, link.ID, ip, country, region, city, ua, info, bot)
 	http.Redirect(w, r, target, http.StatusFound)
 }
 
@@ -168,7 +169,7 @@ func anonymizeIP(raw string) string {
 }
 
 // record writes a click event and increments the counter in the background.
-func (s *Service) record(r *http.Request, linkID uint, ip, country, region, city, ua string, info geo.UAInfo, bot bool) {
+func (s *Service) record(r *http.Request, orgID uint, slug string, linkID uint, ip, country, region, city, ua string, info geo.UAInfo, bot bool) {
 	referer := r.Referer()
 	anonIP := anonymizeIP(ip)
 	go func() {
@@ -183,6 +184,21 @@ func (s *Service) record(r *http.Request, linkID uint, ip, country, region, city
 			s.db.Model(&models.Link{}).Where("id = ?", linkID).
 				UpdateColumn("clicks", gorm.Expr("clicks + 1"))
 		}
+		// Trigger Webhook Event Bus
+		eventbus.Publish(orgID, "link.click", map[string]any{
+			"linkId":    linkID,
+			"slug":      slug,
+			"ip":        anonIP,
+			"country":   country,
+			"region":    region,
+			"city":      city,
+			"device":    info.Device,
+			"browser":   info.Browser,
+			"os":        info.OS,
+			"referer":   referer,
+			"isBot":     bot,
+			"timestamp": ev.CreatedAt,
+		})
 	}()
 }
 

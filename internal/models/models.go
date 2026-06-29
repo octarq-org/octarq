@@ -401,13 +401,26 @@ type UserSetting struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// Webhook represents a registered HTTP webhook endpoint for event streaming.
+type Webhook struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	OrgID     uint      `gorm:"index;default:1;column:owner_id" json:"-"`
+	Name      string    `gorm:"size:255;not null" json:"name"`
+	URL       string    `gorm:"size:1024;not null;column:url" json:"url"`
+	Secret    string    `gorm:"size:255;not null" json:"secret"`
+	Events    string    `gorm:"size:1024;not null;default:'*'" json:"events"` // comma-separated subscribed event codes, e.g. "link.click,email.receive"
+	Enabled   bool      `gorm:"default:true" json:"enabled"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // AllModels lists every model for AutoMigrate.
 func AllModels() []any {
 	return []any{
 		&Org{}, &User{}, &OrgMember{}, &UserSetting{},
 		&ProviderAccount{}, &Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{},
 		&Token{}, &Setting{}, &SMTPSender{}, &NotificationChannel{},
-		&AbuseReport{}, &AuditLog{},
+		&AbuseReport{}, &AuditLog{}, &Webhook{},
 	}
 }
 

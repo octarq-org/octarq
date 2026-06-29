@@ -272,6 +272,7 @@ export interface Settings {
   githubClientId: string;
   githubClientSecretSet: boolean;
   dataRetentionDays: number;
+  autoWrapLinks: boolean;
 }
 
 // EmailAIAnnotation is the Inbox AI plugin's per-email analysis (Pro/elite).
@@ -442,7 +443,7 @@ export const api = {
       `/api/emails/read-all${mailbox ? `?mailbox=${mailbox}` : ""}`,
     ),
   rawEmailUrl: (id: number) => `/api/emails/${id}/raw`,
-  sendEmail: (m: { from?: string; to: string[]; subject: string; text?: string; html?: string; smtpSenderId?: number }) =>
+  sendEmail: (m: { from?: string; to: string[]; subject: string; text?: string; html?: string; smtpSenderId?: number; trackLinks?: boolean }) =>
     req("POST", "/api/emails/send", m),
 
   // tokens
@@ -481,6 +482,12 @@ export const api = {
   updateTransaction: (id: number, d: Partial<Transaction>) => req<Transaction>("PUT", `/api/transactions/${id}`, d),
   deleteTransaction: (id: number) => req<void>("DELETE", `/api/transactions/${id}`),
   deleteTransactionSeries: (parentId: string) => req<void>("DELETE", `/api/transactions/series/${parentId}`),
+
+  // webhooks
+  webhooks: () => req<Webhook[]>("GET", "/api/webhooks"),
+  createWebhook: (d: Partial<Webhook>) => req<Webhook>("POST", "/api/webhooks", d),
+  updateWebhook: (id: number, d: Partial<Webhook>) => req<Webhook>("PUT", `/api/webhooks/${id}`, d),
+  deleteWebhook: (id: number) => req<void>("DELETE", `/api/webhooks/${id}`),
 
   // audit
   auditLogs: () => req<AuditLog[]>("GET", "/api/audit"),
@@ -536,6 +543,17 @@ export interface Transaction {
   currency: string;
   cycle: "one-off" | "monthly" | "yearly";
   invoiceEmailId?: number;
+}
+
+export interface Webhook {
+  id: number;
+  name: string;
+  url: string;
+  secret: string;
+  events: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export { ApiError };

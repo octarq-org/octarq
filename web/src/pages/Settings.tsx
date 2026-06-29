@@ -30,6 +30,7 @@ function GeneralSettings() {
   const [cfToken, setCfToken] = useState("");
   const [inboundToken, setInboundToken] = useState("");
   const [catchAll, setCatchAll] = useState(false);
+  const [autoWrapLinks, setAutoWrapLinks] = useState(false);
   const [telegramBot, setTelegramBot] = useState("");
   const [telegramChat, setTelegramChat] = useState("");
   const [googleClientId, setGoogleClientId] = useState("");
@@ -39,6 +40,17 @@ function GeneralSettings() {
   const [dataRetentionDays, setDataRetentionDays] = useState(90);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // Outbound Webhooks state
+  const [webhooks, setWebhooks] = useState<any[]>([]);
+  const [showAddWebhookModal, setShowAddWebhookModal] = useState(false);
+  const [newHookName, setNewHookName] = useState("");
+  const [newHookURL, setNewHookURL] = useState("");
+  const [newHookSecret, setNewHookSecret] = useState("");
+  const [newHookEventsAll, setNewHookEventsAll] = useState(true);
+  const [newHookEventsClick, setNewHookEventsClick] = useState(false);
+  const [newHookEventsEmail, setNewHookEventsEmail] = useState(false);
+  const [webhooksBusy, setWebhooksBusy] = useState(false);
 
   async function load() {
     try {
@@ -52,12 +64,20 @@ function GeneralSettings() {
       console.error("Failed to load workspace name:", e);
     }
 
+    try {
+      const wList = await api.webhooks();
+      setWebhooks(wList);
+    } catch (e) {
+      console.error("Failed to load webhooks:", e);
+    }
+
     const v = await api.settings();
     setS(v);
     setReservedSlugs(v.reservedSlugs);
     setReservedMailboxes(v.reservedMailboxes);
     setInboundToken(v.inboundToken || "");
     setCatchAll(v.catchAll || false);
+    setAutoWrapLinks(v.autoWrapLinks || false);
     setTelegramBot(v.telegramBotToken || "");
     setTelegramChat(v.telegramChatId || "");
     setGoogleClientId(v.googleClientId || "");
@@ -98,6 +118,7 @@ function GeneralSettings() {
         googleClientId: googleClientId.trim(),
         githubClientId: githubClientId.trim(),
         dataRetentionDays,
+        autoWrapLinks,
       };
       if (cfToken.trim()) payload.cloudflareToken = cfToken.trim();
       if (googleClientSecret.trim()) payload.googleClientSecret = googleClientSecret.trim();
@@ -111,6 +132,56 @@ function GeneralSettings() {
       setTimeout(() => setSaved(false), 2000);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleDeleteWebhook(id: number) {
+    if (!confirm("Are you sure you want to delete this Webhook endpoint?")) return;
+    try {
+      await api.deleteWebhook(id);
+      setWebhooks(webhooks.filter(h => h.id !== id));
+    } catch (err: any) {
+      alert(err.message || "Failed to delete Webhook");
+    }
+  }
+
+  async function handleToggleWebhook(hook: any) {
+    try {
+      const updated = await api.updateWebhook(hook.id, { enabled: !hook.enabled });
+      setWebhooks(webhooks.map(h => h.id === hook.id ? updated : h));
+    } catch (err: any) {
+      alert(err.message || "Failed to update Webhook");
+    }
+  }
+
+  async function handleCreateWebhook(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newHookName.trim() || !newHookURL.trim()) return;
+    setWebhooksBusy(true);
+    try {
+      let events = "*";
+      if (!newHookEventsAll) {
+        const evList: string[] = [];
+        if (newHookEventsClick) evList.push("link.click");
+        if (newHookEventsEmail) evList.push("email.receive");
+        events = evList.join(",") || "*";
+      }
+      const created = await api.createWebhook({
+        name: newHookName.trim(),
+        url: newHookURL.trim(),
+        secret: newHookSecret.trim() || undefined,
+        events,
+        enabled: true,
+      });
+      setWebhooks([created, ...webhooks]);
+      setShowAddWebhookModal(false);
+      setNewHookName("");
+      setNewHookURL("");
+      setNewHookSecret("");
+    } catch (err: any) {
+      alert(err.message || "Failed to create Webhook");
+    } finally {
+      setWebhooksBusy(false);
     }
   }
 
@@ -243,7 +314,73 @@ function GeneralSettings() {
                   <span className="text-[10px] text-white/40 select-none">Automatically provision local inbox addresses when a message arrives for an unknown managed alias.</span>
                 </div>
               </div>
+
+              <div className="flex items-center gap-3 pt-2 border-t border-white/[0.04]">
+                <Toggle on={autoWrapLinks} onChange={setAutoWrapLinks} />
+                <div>
+                  <span className="text-xs font-semibold text-white/70 select-none block">Auto Wrap Outbound Links</span>
+                  <span className="text-[10px] text-white/40 select-none">When sending outbound emails, automatically detect external URLs and wrap them as short links for click analytics. Checkbox is shown on compose mail modal.</span>
+                </div>
+              </div>
             </div>
+          </div>
+
+          <div className="border-t border-white/[0.06] pt-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-semibold text-white/80">Outbound Event Webhooks</h3>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setNewHookName("");
+                  setNewHookURL("");
+                  setNewHookSecret("");
+                  setNewHookEventsAll(true);
+                  setNewHookEventsClick(false);
+                  setNewHookEventsEmail(false);
+                  setShowAddWebhookModal(true);
+                }}
+                className="py-1 px-3 text-xs bg-purple-500/10 hover:bg-purple-500/25 border-0 flex items-center gap-1.5"
+              >
+                <Plus className="h-3 w-3" /> Add Webhook
+              </Button>
+            </div>
+            
+            <p className="text-[10px] text-white/40">
+              Deliver real-time click and email events to external systems (Zapier, n8n, custom APIs). Every dispatch payload is signed using HMAC-SHA256 for secure request validation.
+            </p>
+
+            {webhooks.length === 0 ? (
+              <div className="py-4 text-center border border-dashed border-white/[0.06] rounded text-white/40 text-xs select-none">
+                No outbound webhooks configured.
+              </div>
+            ) : (
+              <div className="space-y-3.5">
+                {webhooks.map((w) => (
+                  <div key={w.id} className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3 text-sm">
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-white/80">{w.name}</span>
+                        <span className="text-[9px] font-mono uppercase bg-white/5 border border-white/10 px-1.5 py-0.5 rounded text-white/45">
+                          {w.events === "*" ? "all events" : w.events}
+                        </span>
+                      </div>
+                      <div className="font-mono text-xs text-white/45 truncate select-all">{w.url}</div>
+                      <div className="font-mono text-[10px] text-zinc-500 select-all">Secret key: {w.secret}</div>
+                    </div>
+                    <div className="flex items-center gap-3 self-end md:self-auto shrink-0">
+                      <Toggle on={w.enabled} onChange={() => handleToggleWebhook(w)} />
+                      <Button
+                        variant="danger"
+                        onClick={() => handleDeleteWebhook(w.id)}
+                        className="py-1 px-2.5 text-xs bg-rose-500/10 hover:bg-rose-500/20 hover:text-rose-300 border-0 flex items-center gap-1"
+                      >
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="border-t border-white/[0.06] pt-6">
@@ -383,6 +520,95 @@ function GeneralSettings() {
             </Button>
           </div>
         </div>
+        {showAddWebhookModal && (
+          <Modal title="Add Webhook Endpoint" onClose={() => setShowAddWebhookModal(false)}>
+            <form onSubmit={handleCreateWebhook} className="space-y-4">
+              <Field label="Endpoint Name">
+                <input
+                  className="input w-full"
+                  value={newHookName}
+                  onChange={(e) => setNewHookName(e.target.value)}
+                  placeholder="e.g. n8n automation"
+                  required
+                  autoFocus
+                />
+              </Field>
+              
+              <Field label="Endpoint URL">
+                <input
+                  className="input w-full font-mono text-xs"
+                  value={newHookURL}
+                  onChange={(e) => setNewHookURL(e.target.value)}
+                  placeholder="https://your-server.com/webhooks/led"
+                  required
+                />
+              </Field>
+              
+              <Field label="Signing Secret (Optional)" hint="Used to sign webhook payload in X-Led-Signature header. Leave empty to auto-generate.">
+                <input
+                  type="text"
+                  className="input w-full font-mono text-xs"
+                  value={newHookSecret}
+                  onChange={(e) => setNewHookSecret(e.target.value)}
+                  placeholder="Custom signing secret key"
+                />
+              </Field>
+
+              <Field label="Event Subscriptions">
+                <div className="space-y-2 mt-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
+                    <input
+                      type="checkbox"
+                      checked={newHookEventsAll}
+                      onChange={(e) => {
+                        setNewHookEventsAll(e.target.checked);
+                        if (e.target.checked) {
+                          setNewHookEventsClick(false);
+                          setNewHookEventsEmail(false);
+                        }
+                      }}
+                      className="rounded border-zinc-700 bg-zinc-900/50 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span>All Events (*)</span>
+                  </label>
+
+                  {!newHookEventsAll && (
+                    <div className="pl-6 space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
+                        <input
+                          type="checkbox"
+                          checked={newHookEventsClick}
+                          onChange={(e) => setNewHookEventsClick(e.target.checked)}
+                          className="rounded border-zinc-700 bg-zinc-900/50 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span>Shortlink clicks (link.click)</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
+                        <input
+                          type="checkbox"
+                          checked={newHookEventsEmail}
+                          onChange={(e) => setNewHookEventsEmail(e.target.checked)}
+                          className="rounded border-zinc-700 bg-zinc-900/50 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span>Inbound email received (email.receive)</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </Field>
+
+              <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+                <Button type="button" variant="ghost" onClick={() => setShowAddWebhookModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary" disabled={webhooksBusy || !newHookName.trim() || !newHookURL.trim()}>
+                  {webhooksBusy ? "Creating..." : "Create Webhook"}
+                </Button>
+              </div>
+            </form>
+          </Modal>
+        )}
       </GlassCard>
     </div>
   );

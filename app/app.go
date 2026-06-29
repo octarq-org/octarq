@@ -28,6 +28,7 @@ import (
 	"github.com/Jungley8/led/internal/cleanup"
 	"github.com/Jungley8/led/internal/crypto"
 	"github.com/Jungley8/led/internal/db"
+	"github.com/Jungley8/led/internal/eventbus"
 	"github.com/Jungley8/led/internal/geo"
 	"github.com/Jungley8/led/internal/mcp"
 	"github.com/Jungley8/led/internal/notify"
@@ -60,6 +61,8 @@ func New() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	eventbus.Init(gdb)
 
 	cipher := crypto.New(cfg.SecretKey)
 	authMgr := auth.New(cfg, cipher).WithDB(gdb)

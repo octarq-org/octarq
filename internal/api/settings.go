@@ -21,6 +21,7 @@ const (
 	keyGitHubClientID       = "oauth.github.client_id"
 	keyGitHubClientSecret   = "oauth.github.client_secret" // stored AES-GCM encrypted
 	keyDataRetentionDays    = "data_retention_days"        // 0 = disabled
+	keyAutoWrapLinks        = "auto_wrap_links"
 )
 
 // DefaultRetentionDays is used when no retention setting is configured.
@@ -126,6 +127,7 @@ func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
 		"githubClientId":        h.getSetting(keyGitHubClientID),
 		"githubClientSecretSet": h.getSetting(keyGitHubClientSecret) != "",
 		"dataRetentionDays":     retDays,
+		"autoWrapLinks":         h.getSetting(keyAutoWrapLinks) == "true",
 	})
 }
 
@@ -141,6 +143,7 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		GitHubClientID      *string `json:"githubClientId"`
 		GitHubClientSecret  *string `json:"githubClientSecret"` // "" clears, omitted keeps
 		DataRetentionDays   *int    `json:"dataRetentionDays"`  // 0 = disabled
+		AutoWrapLinks       *bool   `json:"autoWrapLinks"`
 	}
 	if err := readJSON(r, &d); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
@@ -206,6 +209,13 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if d.DataRetentionDays != nil {
 		h.setSetting(keyDataRetentionDays, strconv.Itoa(*d.DataRetentionDays))
+	}
+	if d.AutoWrapLinks != nil {
+		val := "false"
+		if *d.AutoWrapLinks {
+			val = "true"
+		}
+		h.setSetting(keyAutoWrapLinks, val)
 	}
 	h.audit(r, "settings.update", "settings", 0, nil)
 	h.getSettings(w, r)

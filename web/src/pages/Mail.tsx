@@ -465,12 +465,20 @@ function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () => void }
   const [senders, setSenders] = useState<any[]>([]);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState(false);
+  const [autoWrapLinksEnabled, setAutoWrapLinksEnabled] = useState(false);
+  const [trackLinks, setTrackLinks] = useState(false);
 
   useEffect(() => {
     api.smtpSenders().then((s) => {
       setSenders(s);
       if (s.length > 0) setSmtpSenderId(s[0].id);
     });
+    api.settings().then((s) => {
+      if (s.autoWrapLinks) {
+        setAutoWrapLinksEnabled(true);
+        setTrackLinks(true);
+      }
+    }).catch(() => {});
   }, []);
 
   async function send() {
@@ -482,6 +490,7 @@ function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () => void }
         subject,
         text,
         smtpSenderId: smtpSenderId || undefined,
+        trackLinks: autoWrapLinksEnabled ? trackLinks : false,
       });
       setOk(true);
     } catch (e: any) {
@@ -529,6 +538,17 @@ function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () => void }
           <Field label="Plaintext Message Body">
             <textarea className="input w-full text-sm font-sans" rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder="Type mail content here..." required />
           </Field>
+          {autoWrapLinksEnabled && (
+            <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-300 select-none">
+              <input
+                type="checkbox"
+                checked={trackLinks}
+                onChange={(e) => setTrackLinks(e.target.checked)}
+                className="rounded border-zinc-700 bg-zinc-900/50 text-purple-600 focus:ring-purple-500"
+              />
+              <span>Track outbound links in email (Wrap with short links)</span>
+            </label>
+          )}
           {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
           <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
             <Button variant="ghost" onClick={onClose}>
