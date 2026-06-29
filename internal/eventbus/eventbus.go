@@ -71,7 +71,11 @@ func Publish(orgID uint, event string, data any) {
 			if !isSubscribed(hook.Events, event) {
 				continue
 			}
-			go deliver(ctx, hook.URL, hook.Secret, bodyBytes)
+			go func(h models.Webhook) {
+				deliverCtx, cancelDeliver := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancelDeliver()
+				deliver(deliverCtx, h.URL, h.Secret, bodyBytes)
+			}(hook)
 		}
 	}()
 }
