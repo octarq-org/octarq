@@ -631,19 +631,40 @@ function IconRail({
   return (
     <div className={`relative z-30 flex h-full flex-col items-center border-r border-white/[0.06] bg-[#07070b]/60 py-3 backdrop-blur-xl transition-[width] duration-200 ${expanded ? "w-56" : "w-16"}`}>
       {/* Logo */}
-      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
-        <span className="font-display text-base font-extrabold text-white">L</span>
+      <div className={`mb-3 flex items-center transition-all ${expanded ? "w-48 gap-3 px-1" : "h-10 w-10 justify-center"}`}>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
+          <span className="font-display text-base font-extrabold text-white">L</span>
+        </div>
+        {expanded && (
+          <span className="font-display text-lg font-bold text-white tracking-wide">led</span>
+        )}
       </div>
 
       {/* Workspace switcher */}
-      <div className="relative mb-4">
+      <div className={`relative mb-4 ${expanded ? "w-48" : "w-10"}`}>
         <button
           onClick={() => setWsOpen((v) => !v)}
           aria-label="Switch workspace"
-          className="relative flex h-10 w-10 items-center justify-center rounded-xl text-xs font-semibold text-indigo-300 ring-1 ring-inset ring-white/10 transition hover:ring-white/25 bg-indigo-500/15"
+          className={`relative flex h-10 items-center rounded-xl text-xs font-semibold text-indigo-300 ring-1 ring-inset ring-white/10 transition hover:ring-white/25 bg-indigo-500/15 ${
+            expanded ? "w-48 justify-start gap-3 pl-2 pr-2.5" : "w-10 justify-center"
+          }`}
         >
-          {initials}
-          <ChevronsUpDown className="absolute -bottom-1 -right-1 h-3 w-3 rounded bg-[#0c0c12] p-px text-white/50" />
+          {expanded ? (
+            <>
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-500/25 text-[10px] font-bold text-indigo-300">
+                {initials}
+              </span>
+              <span className="flex-1 truncate text-sm font-medium text-white/90 text-left">
+                {activeOrgName}
+              </span>
+              <ChevronsUpDown className="h-4 w-4 shrink-0 text-white/50" />
+            </>
+          ) : (
+            <>
+              {initials}
+              <ChevronsUpDown className="absolute -bottom-1 -right-1 h-3 w-3 rounded bg-[#0c0c12] p-px text-white/50" />
+            </>
+          )}
         </button>
 
         <AnimatePresence>
@@ -655,7 +676,7 @@ function IconRail({
                 animate={{ opacity: 1, scale: 1, x: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.14 }}
-                className="glass-strong absolute left-12 top-0 z-50 w-64 rounded-2xl p-1.5 shadow-2xl"
+                className={`glass-strong absolute top-0 z-50 w-64 rounded-2xl p-1.5 shadow-2xl ${expanded ? "left-[216px]" : "left-12"}`}
               >
                 <p className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wide text-white/40">
                   Workspaces
@@ -686,7 +707,7 @@ function IconRail({
         </AnimatePresence>
       </div>
 
-      <div className="mb-4 h-px w-7 bg-white/10" />
+      <div className={`mb-4 h-px bg-white/10 transition-all ${expanded ? "w-48" : "w-7"}`} />
 
       {/* Area nav */}
       <nav className="flex flex-1 flex-col items-center gap-1.5">
@@ -712,13 +733,28 @@ function IconRail({
           <Settings className="h-5 w-5" strokeWidth={1.75} />
         </RailButton>
 
-        <div className="relative mt-1">
+        <div className={`relative mt-1 ${expanded ? "w-48" : ""}`}>
           <button
             onClick={() => setUserOpen((v) => !v)}
             aria-label="Account menu"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400/30 to-violet-400/30 text-xs font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:ring-white/30"
+            className={`flex items-center transition ${
+              expanded
+                ? "h-11 w-48 justify-start gap-3 rounded-xl hover:bg-white/5 text-white pl-1"
+                : "h-9 w-9 justify-center rounded-full bg-gradient-to-br from-indigo-400/30 to-violet-400/30 text-xs font-semibold text-white ring-1 ring-inset ring-white/15 hover:ring-white/30"
+            }`}
           >
-            {userInitials}
+            {expanded ? (
+              <>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400/30 to-violet-400/30 text-xs font-semibold text-white ring-1 ring-inset ring-white/15">
+                  {userInitials}
+                </span>
+                <span className="flex-1 min-w-0 text-left">
+                  <span className="block truncate text-sm font-medium text-white/90">{user}</span>
+                </span>
+              </>
+            ) : (
+              userInitials
+            )}
           </button>
 
           <AnimatePresence>
@@ -730,7 +766,9 @@ function IconRail({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.14 }}
-                  className="glass-strong absolute bottom-0 left-12 z-50 w-60 rounded-2xl p-1.5 shadow-2xl"
+                  className={`glass-strong absolute bottom-0 z-50 w-60 rounded-2xl p-1.5 shadow-2xl ${
+                    expanded ? "left-[216px]" : "left-12"
+                  }`}
                 >
                   <div className="flex items-center gap-2.5 px-2 py-2">
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400/30 to-violet-400/30 text-xs font-semibold text-white ring-1 ring-inset ring-white/15">
