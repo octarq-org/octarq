@@ -28,6 +28,9 @@ import {
   Database,
   HardDrive,
   Shield,
+  Store,
+  PanelLeft,
+  Webhook,
 } from "lucide-react";
 import { api, ApiError, MenuItem, Org } from "./api";
 import OverviewPage from "./pages/Overview";
@@ -38,6 +41,9 @@ import SettingsPage from "./pages/Settings";
 import SSHKeysPage from "./pages/SSHKeys";
 import VPSPage from "./pages/VPS";
 import FinancePage from "./pages/Finance";
+import StorefrontPage from "./pages/Storefront";
+import LicensesPage from "./pages/Licenses";
+import BillingPage from "./pages/Billing";
 import InboxAIPage from "./pages/InboxAI";
 import AuditLogPage from "./pages/AuditLog";
 import AbusePage from "./pages/Abuse";
@@ -89,6 +95,14 @@ const STATIC_AREAS: Area[] = [
           { id: "links",   label: "Short Links", Icon: Link2,  path: "/links" },
           { id: "mail",    label: "Mailbox",      Icon: Mail,   path: "/mail" },
           { id: "inbox-ai", label: "Inbox AI",    Icon: Bot,    path: "/inbox-ai" },
+        ],
+      },
+      {
+        label: "Selling",
+        items: [
+          { id: "storefront", label: "Storefront", Icon: Store,      path: "/storefront" },
+          { id: "licenses",   label: "Licenses",   Icon: KeyRound,   path: "/licenses" },
+          { id: "billing",    label: "Billing",    Icon: CreditCard, path: "/billing" },
         ],
       },
     ],
@@ -152,18 +166,39 @@ const SETTINGS_AREA: Area = {
   Icon: Settings,
   groups: [
     {
-      label: "Workspace settings",
+      label: "Workspace",
       items: [
-        { id: "general", label: "General Config", Icon: Settings, path: "/settings/general" },
-        { id: "billing", label: "Billing & Plan", Icon: CreditCard, path: "/settings/billing" },
-        { id: "providers", label: "DNS Providers", Icon: Globe, path: "/settings/providers" },
-        { id: "smtp", label: "SMTP Senders", Icon: Mail, path: "/settings/smtp" },
-        { id: "notifications", label: "Alert Hooks", Icon: Bell, path: "/settings/notifications" },
+        { id: "general", label: "General", Icon: Settings, path: "/settings/general" },
         { id: "members", label: "Workspace Members", Icon: Users, path: "/settings/members" },
       ],
     },
     {
-      label: "Personal settings",
+      label: "Services",
+      items: [
+        { id: "links", label: "Short Links", Icon: Link2, path: "/settings/links" },
+        { id: "mail", label: "Mailboxes", Icon: Mail, path: "/settings/mail" },
+      ],
+    },
+    {
+      label: "Plan & licensing",
+      items: [
+        { id: "billing", label: "Billing & Plan", Icon: CreditCard, path: "/settings/billing" },
+        { id: "license", label: "License", Icon: KeyRound, path: "/settings/license" },
+        { id: "llm", label: "LLM Providers", Icon: Bot, path: "/settings/llm" },
+      ],
+    },
+    {
+      label: "Integrations",
+      items: [
+        { id: "providers", label: "DNS Providers", Icon: Globe, path: "/settings/providers" },
+        { id: "smtp", label: "SMTP Senders", Icon: Mail, path: "/settings/smtp" },
+        { id: "signin", label: "Sign-in (OAuth)", Icon: KeyRound, path: "/settings/signin" },
+        { id: "webhooks", label: "Webhooks", Icon: Webhook, path: "/settings/webhooks" },
+        { id: "notifications", label: "Alert Hooks", Icon: Bell, path: "/settings/notifications" },
+      ],
+    },
+    {
+      label: "Personal",
       items: [
         { id: "profile", label: "My Profile", Icon: User, path: "/personal/profile" },
         { id: "tokens", label: "API Tokens", Icon: KeyRound, path: "/personal/tokens" },
@@ -174,19 +209,26 @@ const SETTINGS_AREA: Area = {
 };
 
 // Map a path to its area
+// PATH_TO_AREA is derived from STATIC_AREAS so the path→area mapping has a single
+// source of truth (the menu definition) instead of a parallel if/else chain.
+const PATH_TO_AREA: { prefix: string; area: AreaId }[] = STATIC_AREAS
+  .flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => ({ prefix: i.path, area: a.id }))))
+  .sort((x, y) => y.prefix.length - x.prefix.length); // longest prefix wins
+
 function areaForPath(path: string): AreaId {
+  // Settings/personal live in their own area (SETTINGS_AREA), not STATIC_AREAS.
   if (path.startsWith("/settings") || path.startsWith("/personal")) return "settings";
-  if (path.startsWith("/domains") || path.startsWith("/vps") || path.startsWith("/sshkeys") || path.startsWith("/assets/")) return "assets";
-  if (path.startsWith("/finance") || path.startsWith("/audit") || path.startsWith("/abuse")) return "insights";
-  return "operations";
+  const hit = PATH_TO_AREA.find(({ prefix }) => path === prefix || path.startsWith(prefix + "/"));
+  return hit?.area ?? "operations";
 }
 
-// Map a dynamic menu category to an area
+// Map a dynamic menu category to an area. Keep this in sync with the Category
+// strings plugins set in their Menus() — see docs/SIDEBAR-MENU.md.
 function areaForCategory(cat?: string): AreaId {
   const c = (cat ?? "").toLowerCase();
   if (c.includes("asset") || c.includes("infra") || c.includes("network") || c.includes("compute")) return "assets";
   if (c.includes("insight") || c.includes("analytic") || c.includes("finance") || c.includes("business") || c.includes("compliance") || c.includes("governance")) return "insights";
-  return "operations";
+  return "operations"; // includes commerce/selling
 }
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -317,7 +359,7 @@ function Shell({
               groups: [
                 ...staticArea.groups,
                 {
-                  label: "Plugins",
+                  label: "More",
                   items: extras.map(m => ({
                     id: m.id,
                     label: m.label,
@@ -366,7 +408,7 @@ function Shell({
         });
         setAreas(nextAreas);
       } else {
-        // Fallback: static areas + append any dynamic plugins to the "Plugins" group
+        // Fallback: static areas + append any dynamic plugins to the "More" group
         const staticPaths = new Set(STATIC_AREAS.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.path))));
         const extras = menus.filter((m) => !staticPaths.has(m.path));
         
@@ -386,7 +428,7 @@ function Shell({
               ...area,
               groups: [
                 ...area.groups,
-                { label: "Plugins", items: extraItems },
+                { label: "More", items: extraItems },
               ],
             };
           })
@@ -453,6 +495,9 @@ function Shell({
               <Route path="/assets/databases"    element={<ComingSoonPage title="Managed Databases" description="Provision and monitor PostgreSQL, Redis, or MySQL database instances" />} />
               <Route path="/assets/storage"      element={<ComingSoonPage title="Object Storage" description="Configure Cloudflare R2, AWS S3, or Backblaze B2 buckets" />} />
               <Route path="/finance"    element={<FinancePage />} />
+              <Route path="/storefront" element={<StorefrontPage />} />
+              <Route path="/licenses"   element={<LicensesPage />} />
+              <Route path="/billing"    element={<BillingPage />} />
               <Route path="/audit"      element={<AuditLogPage />} />
               <Route path="/abuse"      element={<AbusePage />} />
               <Route path="/settings/*" element={<SettingsPage />} />
@@ -498,18 +543,22 @@ function RailButton({
   onClick,
   children,
   label,
+  expanded,
 }: {
   active?: boolean;
   onClick?: () => void;
   children: React.ReactNode;
   label: string;
+  expanded?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       aria-label={label}
-      title={label}
-      className="group relative flex h-11 w-11 items-center justify-center rounded-xl text-white/55 transition-colors hover:text-white"
+      title={expanded ? undefined : label}
+      className={`group relative flex h-11 items-center rounded-xl text-white/55 transition-colors hover:text-white ${
+        expanded ? "w-48 justify-start gap-3 px-3" : "w-11 justify-center"
+      }`}
     >
       {active && (
         <motion.span
@@ -521,7 +570,10 @@ function RailButton({
       {active && (
         <span className="absolute -left-2 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-indigo-400" />
       )}
-      <span className={active ? "relative text-white" : "relative"}>{children}</span>
+      <span className={`relative flex items-center ${active ? "text-white" : ""}`}>{children}</span>
+      {expanded && (
+        <span className={`relative whitespace-nowrap text-sm font-medium ${active ? "text-white" : ""}`}>{label}</span>
+      )}
     </button>
   );
 }
@@ -555,6 +607,17 @@ function IconRail({
 }) {
   const [wsOpen, setWsOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
+  // Pin the rail open to show top-level menu names; persisted across sessions.
+  const [expanded, setExpanded] = useState(() => {
+    try { return localStorage.getItem("rail_expanded") === "1"; } catch { return false; }
+  });
+  const toggleExpanded = () => {
+    setExpanded((v) => {
+      const next = !v;
+      try { localStorage.setItem("rail_expanded", next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const initials = activeOrgName
     .split(/\s+/)
@@ -566,7 +629,7 @@ function IconRail({
   const userInitials = user.slice(0, 2).toUpperCase();
 
   return (
-    <div className="relative z-30 flex h-full w-16 flex-col items-center border-r border-white/[0.06] bg-[#07070b]/60 py-3 backdrop-blur-xl">
+    <div className={`relative z-30 flex h-full flex-col items-center border-r border-white/[0.06] bg-[#07070b]/60 py-3 backdrop-blur-xl transition-[width] duration-200 ${expanded ? "w-56" : "w-16"}`}>
       {/* Logo */}
       <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
         <span className="font-display text-base font-extrabold text-white">L</span>
@@ -631,6 +694,7 @@ function IconRail({
           <RailButton
             key={a.id}
             label={a.title}
+            expanded={expanded}
             active={activeArea === a.id && !settingsActive}
             onClick={() => onSelectArea(a.id)}
           >
@@ -639,9 +703,12 @@ function IconRail({
         ))}
       </nav>
 
-      {/* Bottom: settings + avatar */}
+      {/* Bottom: collapse toggle + settings + avatar */}
       <div className="flex flex-col items-center gap-1.5">
-        <RailButton label="Settings" active={settingsActive} onClick={onOpenSettings}>
+        <RailButton label={expanded ? "Collapse" : "Expand"} expanded={expanded} onClick={toggleExpanded}>
+          <PanelLeft className={`h-5 w-5 transition-transform ${expanded ? "" : "rotate-180"}`} strokeWidth={1.75} />
+        </RailButton>
+        <RailButton label="Settings" expanded={expanded} active={settingsActive} onClick={onOpenSettings}>
           <Settings className="h-5 w-5" strokeWidth={1.75} />
         </RailButton>
 

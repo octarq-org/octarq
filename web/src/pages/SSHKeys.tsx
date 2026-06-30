@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, SSHKey } from "../api";
-import { Empty, Field, Modal, timeAgo, Code, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
-import { ShieldAlert, Key, ClipboardCopy, Trash2 } from "lucide-react";
+import { Empty, Field, Modal, timeAgo, Code, ScreenWrap, PageHeader, GlassCard, Badge, Button, LockedFeature } from "../ui";
+import { Key, ClipboardCopy, Trash2 } from "lucide-react";
 
 export default function SSHKeysPage() {
   const [keys, setKeys] = useState<SSHKey[]>([]);
@@ -21,30 +21,19 @@ export default function SSHKeysPage() {
   if (error) {
     return (
       <ScreenWrap>
-        <GlassCard className="flex flex-col items-center justify-center gap-5 py-16 px-6 text-center max-w-md mx-auto mt-12">
-          <div className="h-14 w-14 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-400">
-            <ShieldAlert className="h-8 w-8" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold mb-2">
-              {error.status === 402 ? "Pro Feature Locked" : "Feature Unavailable"}
-            </h2>
-            <p className="text-sm text-white/50 leading-relaxed">
-              {error.status === 402
-                ? "A valid led-pro license is required to manage SSH keys."
-                : "The SSH keys management feature is not available or disabled in this installation."}
-            </p>
-          </div>
-          {error.status === 402 && (
-            <Button
-              variant="primary"
-              onClick={() => window.location.href = "/settings/license"}
-              className="mt-2"
-            >
-              Manage License
-            </Button>
-          )}
-        </GlassCard>
+        <LockedFeature
+          status={error.status}
+          tier="pro"
+          feature="SSH Keys"
+          description="A built-in, encrypted vault for the keys that power VPS access."
+          perks={[
+            "AES-GCM encrypted private keys at rest",
+            "Generate ed25519 keys or import existing ones",
+            "Powers one-click web-terminal access to your servers",
+          ]}
+          icon={<Key className="h-7 w-7" />}
+          pricingHref="https://octarq.com/pricing/"
+        />
       </ScreenWrap>
     );
   }

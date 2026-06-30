@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { api, VPS, SSHKey } from "../api";
-import { Empty, Field, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
+import { Empty, Field, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, LockedFeature } from "../ui";
 import { Terminal as XTerminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
-import { Server, Key, ShieldAlert, Cpu, Terminal, Pencil, Trash2 } from "lucide-react";
+import { Server, Key, Cpu, Terminal, Pencil, Trash2 } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
 
 export default function VPSPage() {
@@ -32,30 +32,19 @@ export default function VPSPage() {
   if (error) {
     return (
       <ScreenWrap>
-        <GlassCard className="flex flex-col items-center justify-center gap-5 py-16 px-6 text-center max-w-md mx-auto mt-12">
-          <div className="h-14 w-14 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-400">
-            <ShieldAlert className="h-8 w-8" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold mb-2">
-              {error.status === 402 ? "Pro Feature Locked" : "Feature Unavailable"}
-            </h2>
-            <p className="text-sm text-white/50 leading-relaxed">
-              {error.status === 402
-                ? "A valid led-pro license is required to manage VPS infrastructure."
-                : "The VPS infrastructure feature is not available or disabled in this installation."}
-            </p>
-          </div>
-          {error.status === 402 && (
-            <Button
-              variant="primary"
-              onClick={() => window.location.href = "/settings/license"}
-              className="mt-2"
-            >
-              Manage License
-            </Button>
-          )}
-        </GlassCard>
+        <LockedFeature
+          status={error.status}
+          tier="pro"
+          feature="VPS Infrastructure"
+          description="Monitor, alert on, and SSH into your servers — all from led."
+          perks={[
+            "Liveness monitoring with downtime / recovery alerts",
+            "Encrypted SSH credential vault (generate or import)",
+            "In-browser web terminal to any server",
+          ]}
+          icon={<Server className="h-7 w-7" />}
+          pricingHref="https://octarq.com/pricing/"
+        />
       </ScreenWrap>
     );
   }
