@@ -25,6 +25,24 @@ func userIdParam(r *http.Request) (uint, bool) {
 	return uint(id), true
 }
 
+// callerOrgRole returns the role the current user holds in their active org,
+// or "" if they are not a member. Member-management handlers gate on this so a
+// plain member can't escalate themselves or evict others.
+func (h *Handler) callerOrgRole(r *http.Request) string {
+	uid := h.auth.UserID(r)
+	oid := h.auth.OrgID(r)
+	if uid == 0 || oid == 0 {
+		return ""
+	}
+	var role string
+	if err := h.db.Model(&models.OrgMember{}).
+		Where("org_id = ? AND user_id = ?", oid, uid).
+		Pluck("role", &role).Error; err != nil {
+		return ""
+	}
+	return role
+}
+
 // switchOrg re-issues the session cookie with the new active organization ID.
 // POST /api/auth/switch-org  {"orgId": 2}
 func (h *Handler) switchOrg(w http.ResponseWriter, r *http.Request) {
@@ -208,6 +226,11 @@ func (h *Handler) listOrgMembers(w http.ResponseWriter, r *http.Request) {
 // POST /api/org/members  {"email": "user@example.com", "role": "member"}
 func (h *Handler) addOrgMember(w http.ResponseWriter, r *http.Request) {
 	orgID := h.orgID(r)
+	callerRole := h.callerOrgRole(r)
+	if callerRole != "owner" && callerRole != "admin" {
+		writeErr(w, http.StatusForbidden, "forbidden: only owner/admin can manage members")
+		return
+	}
 	var body struct {
 		Email string `json:"email"`
 		Role  string `json:"role"`
@@ -225,6 +248,12 @@ func (h *Handler) addOrgMember(w http.ResponseWriter, r *http.Request) {
 	if role != "owner" && role != "admin" && role != "member" {
 		role = "member"
 	}
+	// Only an owner may grant or revoke the owner role — an admin can't mint
+	// owners (or promote itself) and thereby take over the workspace.
+	if role == "owner" && callerRole != "owner" {
+		writeErr(w, http.StatusForbidden, "forbidden: only an owner can grant the owner role")
+		return
+	}
 
 	// Find or create the target User.
 	var user models.User
@@ -237,9 +266,15 @@ func (h *Handler) addOrgMember(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if already a member.
-	var count int64
-	h.db.Model(&models.OrgMember{}).Where("org_id = ? AND user_id = ?", orgID, user.ID).Count(&count)
-	if count > 0 {
+	var existing models.OrgMember
+	memErr := h.db.Where("org_id = ? AND user_id = ?", orgID, user.ID).First(&existing).Error
+	if memErr == nil {
+		// Re-grading an existing owner (demote, or re-affirm) is an owner-only act,
+		// so an admin can't strip the owner's role out from under them.
+		if existing.Role == "owner" && callerRole != "owner" {
+			writeErr(w, http.StatusForbidden, "forbidden: only an owner can change an owner's role")
+			return
+		}
 		if err := h.db.Model(&models.OrgMember{}).
 			Where("org_id = ? AND user_id = ?", orgID, user.ID).
 			Update("role", role).Error; err != nil {
@@ -261,15 +296,39 @@ func (h *Handler) addOrgMember(w http.ResponseWriter, r *http.Request) {
 // DELETE /api/org/members/{userId}
 func (h *Handler) removeOrgMember(w http.ResponseWriter, r *http.Request) {
 	orgID := h.orgID(r)
+	callerRole := h.callerOrgRole(r)
+	if callerRole != "owner" && callerRole != "admin" {
+		writeErr(w, http.StatusForbidden, "forbidden: only owner/admin can manage members")
+		return
+	}
 	targetUID, ok := userIdParam(r)
 	if !ok {
 		writeErr(w, http.StatusBadRequest, "bad userId")
 		return
 	}
 
-	err := h.db.Where("org_id = ? AND user_id = ?", orgID, targetUID).
-		Delete(&models.OrgMember{}).Error
-	if err != nil {
+	var target models.OrgMember
+	if err := h.db.Where("org_id = ? AND user_id = ?", orgID, targetUID).First(&target).Error; err != nil {
+		writeErr(w, http.StatusNotFound, "not a member of this organization")
+		return
+	}
+	// Only an owner may remove an owner.
+	if target.Role == "owner" && callerRole != "owner" {
+		writeErr(w, http.StatusForbidden, "forbidden: only an owner can remove an owner")
+		return
+	}
+	// Never strand the workspace ownerless — refuse to remove the last owner.
+	if target.Role == "owner" {
+		var owners int64
+		h.db.Model(&models.OrgMember{}).Where("org_id = ? AND role = ?", orgID, "owner").Count(&owners)
+		if owners <= 1 {
+			writeErr(w, http.StatusBadRequest, "cannot remove the last owner of the workspace")
+			return
+		}
+	}
+
+	if err := h.db.Where("org_id = ? AND user_id = ?", orgID, targetUID).
+		Delete(&models.OrgMember{}).Error; err != nil {
 		writeErr(w, http.StatusInternalServerError, "failed to remove member")
 		return
 	}
