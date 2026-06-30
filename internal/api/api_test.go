@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/glebarez/sqlite"
 	"github.com/Jungley8/led/config"
 	"github.com/Jungley8/led/internal/auth"
 	"github.com/Jungley8/led/internal/crypto"
 	"github.com/Jungley8/led/internal/geo"
 	"github.com/Jungley8/led/internal/models"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -31,10 +31,28 @@ func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 
 	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
 	cipher := crypto.New(cfg.SecretKey)
+	if err := cipher.EnableEnvelope(apiEnvStore{db}); err != nil {
+		t.Fatalf("EnableEnvelope: %v", err)
+	}
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g)
 	return h.Routes(), db
+}
+
+// apiEnvStore backs crypto.EnableEnvelope with the test DB's settings table.
+type apiEnvStore struct{ db *gorm.DB }
+
+func (s apiEnvStore) Get(key string) (string, bool) {
+	var row models.Setting
+	if s.db.First(&row, "key = ?", key).Error != nil {
+		return "", false
+	}
+	return row.Value, true
+}
+
+func (s apiEnvStore) Set(key, val string) error {
+	return s.db.Save(&models.Setting{Key: key, Value: val}).Error
 }
 
 func TestTokenLifecycleAndBearerAuth(t *testing.T) {

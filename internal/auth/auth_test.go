@@ -7,12 +7,27 @@ import (
 	"testing"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	"github.com/Jungley8/led/config"
 	"github.com/Jungley8/led/internal/crypto"
 	"github.com/Jungley8/led/internal/models"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
+
+// testEnvStore backs crypto.EnableEnvelope with the test DB's settings table.
+type testEnvStore struct{ db *gorm.DB }
+
+func (s testEnvStore) Get(key string) (string, bool) {
+	var row models.Setting
+	if s.db.First(&row, "key = ?", key).Error != nil {
+		return "", false
+	}
+	return row.Value, true
+}
+
+func (s testEnvStore) Set(key, val string) error {
+	return s.db.Save(&models.Setting{Key: key, Value: val}).Error
+}
 
 func testManager(t *testing.T) *Manager {
 	t.Helper()
@@ -234,6 +249,9 @@ func TestOAuthLoadProviderConcurrency(t *testing.T) {
 	db := testDB(t)
 	cfg := &config.Config{SecretKey: "secret"}
 	cipher := crypto.New("secret")
+	if err := cipher.EnableEnvelope(testEnvStore{db}); err != nil {
+		t.Fatalf("EnableEnvelope: %v", err)
+	}
 	m := New(cfg, cipher).WithDB(db)
 
 	encSecret, err := cipher.Encrypt([]byte("google-secret"))

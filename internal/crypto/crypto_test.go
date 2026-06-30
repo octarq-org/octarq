@@ -2,8 +2,18 @@ package crypto
 
 import "testing"
 
+// enveloped returns a Cipher in envelope mode backed by a fresh in-memory store.
+func enveloped(t *testing.T, secret string) *Cipher {
+	t.Helper()
+	c := New(secret)
+	if err := c.EnableEnvelope(newMemStore()); err != nil {
+		t.Fatalf("EnableEnvelope: %v", err)
+	}
+	return c
+}
+
 func TestEncryptDecryptRoundtrip(t *testing.T) {
-	c := New("test-secret")
+	c := enveloped(t, "test-secret")
 	plain := []byte("hello, secret world")
 	enc, err := c.Encrypt(plain)
 	if err != nil {
@@ -19,12 +29,11 @@ func TestEncryptDecryptRoundtrip(t *testing.T) {
 }
 
 func TestDecryptRejectsTamperedCiphertext(t *testing.T) {
-	c := New("test-secret")
+	c := enveloped(t, "test-secret")
 	enc, err := c.Encrypt([]byte("payload"))
 	if err != nil {
 		t.Fatalf("Encrypt: %v", err)
 	}
-	// Flip a character in the middle of the base64 string.
 	b := []byte(enc)
 	mid := len(b) / 2
 	if b[mid] == 'A' {
@@ -37,17 +46,15 @@ func TestDecryptRejectsTamperedCiphertext(t *testing.T) {
 	}
 }
 
-func TestDecryptWrongKeyFails(t *testing.T) {
-	enc, err := New("secret-a").Encrypt([]byte("payload"))
-	if err != nil {
-		t.Fatalf("Encrypt: %v", err)
-	}
-	if _, err := New("secret-b").Decrypt(enc); err == nil {
-		t.Fatal("expected error decrypting with wrong key, got nil")
+func TestEncryptBeforeEnvelopeFails(t *testing.T) {
+	c := New("test-secret")
+	if _, err := c.Encrypt([]byte("x")); err == nil {
+		t.Fatal("Encrypt should fail before EnableEnvelope")
 	}
 }
 
 func TestSignVerify(t *testing.T) {
+	// Sign/Verify use the KEK and work without the envelope being enabled.
 	c := New("test-secret")
 	msg := []byte("authenticate me")
 	sig := c.Sign(msg)
