@@ -202,6 +202,10 @@ func (h *Handler) Routes() *http.ServeMux {
 	p("POST /api/org/members", h.addOrgMember)
 	p("DELETE /api/org/members/{userId}", h.removeOrgMember)
 
+	// Data portability (GDPR/CCPA): export everything, or destroy it.
+	p("GET /api/account/export", h.exportAccount)
+	p("DELETE /api/account/data", h.purgeAccount)
+
 	// Menu and User Settings
 	p("GET /api/menus", h.listMenus)
 	p("GET /api/user/settings", h.getUserSettings)
