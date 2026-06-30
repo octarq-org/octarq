@@ -37,6 +37,11 @@ and [dub](https://github.com/dubinc/dub), rebuilt to ship as **one binary / one 
 - **One binary** — pure-Go SQLite (no cgo), React dashboard embedded via `go:embed`.
   Postgres supported by flipping two env vars.
 
+> The embedded dashboard also ships UI for **Pro** features (VPS, Finance, Inbox AI,
+> Storefront…). In this open-source build their backends aren't present, so those
+> pages degrade gracefully to a neutral "unavailable" / upgrade note rather than
+> erroring — they light up only on the commercial build.
+
 ## Quick start
 
 ```bash
@@ -89,6 +94,15 @@ Open `http://localhost:8080` (redirects to `/admin`), sign in with
   that host so pure link hosts don't expose the dashboard; unset = served anywhere.
 - Reserved slugs (`admin`, `api`, `assets`, plus any you configure in **Settings**)
   can't be used for short links.
+
+## Geo analytics (optional)
+
+Country / region / city in the click breakdowns come from a MaxMind **GeoLite2-City**
+database, which led doesn't bundle (licensing + ~60 MB). Bring your own and point
+`LED_GEOIP_DB` at it — unset just leaves geo columns blank. You can grab it from a
+**no-key community mirror** (jsDelivr / GitHub, auto-updated) or MaxMind directly
+with a free key. For both, plus how to wire it into **Docker / Kubernetes**
+(including a bake-into-an-image Dockerfile for k8s), see [`deploy/GEOIP.md`](deploy/GEOIP.md).
 
 ## Email receiving (Cloudflare)
 
@@ -168,7 +182,11 @@ make dev
 - [x] **P2** DNS management (Cloudflare, multi-provider interface)
 - [x] **P3** email — Cloudflare inbound webhook, inbox UI, multiple SMTP senders
 - [x] **P4** open API tokens (bearer auth), system notification channels (Telegram, Webhook)
-- [ ] **P5** multi-tenant / multi-org (commercial license)
+- [x] **P5** multi-tenant / multi-org — `Org` + `User` + `OrgMember` (owner/admin/member),
+  tamper-proof org-scoped session, per-org data isolation (tested), org switcher,
+  member management with role enforcement, OAuth users get their own org
+  - [ ] invited members can currently sign in only via **OAuth** (email-match);
+        a set-password / invite-accept flow for password login is still open
 
 ## License
 

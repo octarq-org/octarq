@@ -6,4 +6,9 @@ led
 web/node_modules
 web/.vite
 *.mmdb
+# …but allow the GeoLite2 City DB into the build context so deploy/Dockerfile.geoip
+# can bake it into a private image (see deploy/GEOIP.md). It only enters the context
+# when the file is actually present, and the base Dockerfile never COPYs it, so base
+# images stay database-free.
+!GeoLite2-City.mmdb
 .DS_Store

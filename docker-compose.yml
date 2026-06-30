@@ -18,7 +18,7 @@ services:
       LED_GEOIP_DB: ${LED_GEOIP_DB:-}
     volumes:
       - led-data:/data
-      # To enable GeoIP:
+      # To enable GeoIP (full guide incl. where to download + k8s: deploy/GEOIP.md):
       #  1. Upload GeoLite2-City.mmdb to the HOST (e.g. same folder as this file).
       #  2. Uncomment the line below, using an ABSOLUTE host path on the left.
       #     The file must already exist, or Docker creates an empty directory.
