@@ -4,8 +4,9 @@
 // the feature unlicensed or unconfigured, the page explains how to enable it
 // instead of showing an empty table.
 import { useEffect, useState } from "react";
-import { api, AIStatus, AISettings, EmailAIAnnotation, ApiError } from "../api";
-import { ScreenWrap, PageHeader, GlassCard, Badge, Button, Empty, ProPill, Field, timeAgo } from "../ui";
+import { api, AIStatus, AISettings, EmailAIAnnotation, ApiError, LLMProvider } from "../api";
+import { ScreenWrap, PageHeader, GlassCard, Badge, Button, Empty, ProPill, Field, timeAgo, LockedFeature } from "../ui";
+import { Sparkles } from "lucide-react";
 
 // Category → badge tone + label, so the list reads at a glance.
 const CATEGORY_META: Record<string, { tone: any; label: string }> = {
@@ -27,17 +28,16 @@ export default function InboxAIPage() {
   const [locked, setLocked] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [cfg, setCfg] = useState<AISettings | null>(null);
-  const [apiKey, setApiKey] = useState("");
+  const [providers, setProviders] = useState<LLMProvider[]>([]);
   const [saving, setSaving] = useState(false);
 
   const refreshStatus = () => api.aiStatus().then(setStatus).catch(() => setStatus(null));
 
   const openConfig = () => {
-    api
-      .aiSettings()
-      .then((s) => {
+    Promise.all([api.aiSettings(), api.llmProviders().catch(() => [])])
+      .then(([s, list]) => {
         setCfg(s);
-        setApiKey("");
+        setProviders(list);
         setShowConfig(true);
       })
       .catch(() => {});
@@ -47,14 +47,7 @@ export default function InboxAIPage() {
     if (!cfg) return;
     setSaving(true);
     try {
-      await api.updateAiSettings({
-        provider: cfg.provider,
-        model: cfg.model,
-        cheapModel: cfg.cheapModel,
-        baseUrl: cfg.baseUrl,
-        briefingHour: cfg.briefingHour,
-        ...(apiKey ? { apiKey } : {}),
-      });
+      await api.updateAiSettings({ providerId: cfg.providerId, briefingHour: cfg.briefingHour });
       setShowConfig(false);
       refreshStatus();
       load();
@@ -124,61 +117,22 @@ export default function InboxAIPage() {
             </button>
           </div>
           <div className="grid gap-x-4 sm:grid-cols-2">
-            <Field label="Provider" hint="claude · openai · gemini · mistral · cohere · ollama">
+            <Field
+              label="LLM provider"
+              hint={providers.length === 0 ? "No providers yet — add one in Settings → LLM Providers." : "Pick a configured provider."}
+            >
               <select
                 className="input w-full"
-                value={cfg.provider}
-                onChange={(e) => setCfg({ ...cfg, provider: e.target.value })}
+                value={cfg.providerId}
+                onChange={(e) => setCfg({ ...cfg, providerId: e.target.value })}
               >
-                {["claude", "openai", "gemini", "mistral", "cohere", "ollama"].map((v) => (
-                  <option key={v} value={v}>
-                    {v}
+                <option value="">(none — use env)</option>
+                {providers.map((pr) => (
+                  <option key={pr.id} value={String(pr.id)}>
+                    {pr.name} · {pr.provider}
                   </option>
                 ))}
               </select>
-            </Field>
-            <Field
-              label="API key"
-              hint={
-                cfg.provider === "ollama"
-                  ? "Not needed for local Ollama."
-                  : cfg.apiKeySet
-                    ? "A key is set — leave blank to keep it."
-                    : "Required for cloud providers."
-              }
-            >
-              <input
-                className="input w-full"
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={cfg.apiKeySet ? "••••••••" : "sk-…"}
-                disabled={cfg.provider === "ollama"}
-              />
-            </Field>
-            <Field label="Reasoning model" hint="Briefings (per-provider default if blank)">
-              <input
-                className="input w-full"
-                value={cfg.model}
-                onChange={(e) => setCfg({ ...cfg, model: e.target.value })}
-                placeholder="(provider default)"
-              />
-            </Field>
-            <Field label="Cheap model" hint="Per-email classification (per-provider default if blank)">
-              <input
-                className="input w-full"
-                value={cfg.cheapModel}
-                onChange={(e) => setCfg({ ...cfg, cheapModel: e.target.value })}
-                placeholder="(provider default)"
-              />
-            </Field>
-            <Field label="Base URL" hint="Optional: OpenAI-compatible gateway / local Ollama address">
-              <input
-                className="input w-full"
-                value={cfg.baseUrl}
-                onChange={(e) => setCfg({ ...cfg, baseUrl: e.target.value })}
-                placeholder="(default)"
-              />
             </Field>
             <Field label="Daily briefing hour" hint="Local hour (0–23) to push the morning briefing">
               <input
@@ -191,6 +145,9 @@ export default function InboxAIPage() {
               />
             </Field>
           </div>
+          <a href="/admin/settings/llm" className="mt-1 inline-block text-xs text-indigo-300 hover:underline">
+            Manage LLM providers →
+          </a>
           <div className="mt-2 flex justify-end">
             <Button variant="primary" onClick={saveConfig} disabled={saving}>
               {saving ? "Saving…" : "Save"}
@@ -200,13 +157,20 @@ export default function InboxAIPage() {
       )}
 
       {locked ? (
-        <GlassCard className="p-8">
-          <Empty>
-            Inbox AI requires an <strong>elite</strong> led-pro license. It analyzes each incoming
-            email — a one-line summary, a category (bill / OTP / marketing / important), an importance
-            score, and instant verification-code extraction pushed to your alert channels.
-          </Empty>
-        </GlassCard>
+        <LockedFeature
+          status={402}
+          tier="elite"
+          feature="Inbox AI"
+          description="It reads every incoming email so you don't have to."
+          perks={[
+            "One-line summary + category for each email (bill / OTP / marketing / important)",
+            "Importance scoring to surface what matters",
+            "Instant verification-code extraction pushed to your alert channels",
+            "Bring your own API key — Claude, OpenAI, Gemini, Ollama and more",
+          ]}
+          icon={<Sparkles className="h-7 w-7" />}
+          pricingHref="https://octarq.com/pricing/"
+        />
       ) : (
         <>
           <div className="mb-4 flex flex-wrap gap-2">

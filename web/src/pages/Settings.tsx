@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, Settings as SettingsData, OrgMember } from "../api";
+import { api, ApiError, Settings as SettingsData, OrgMember, LicenseStatus } from "../api";
 import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign } from "lucide-react";
+import LLMProvidersSettings from "./LLMProviders";
 
 export default function SettingsPage() {
   return (
@@ -10,7 +11,13 @@ export default function SettingsPage() {
       <Routes>
         <Route path="/" element={<Navigate to="/settings/general" replace />} />
         <Route path="/general" element={<GeneralSettings />} />
+        <Route path="/links" element={<LinkSettings />} />
+        <Route path="/mail" element={<MailSettings />} />
+        <Route path="/signin" element={<SignInSettings />} />
+        <Route path="/webhooks" element={<WebhooksSettings />} />
         <Route path="/billing" element={<BillingPlanDemo />} />
+        <Route path="/license" element={<LicenseSettings />} />
+        <Route path="/llm" element={<LLMProvidersSettings />} />
         <Route path="/providers" element={<ProviderAccounts />} />
         <Route path="/smtp" element={<SMTPSenders />} />
         <Route path="/notifications" element={<NotificationChannels />} />
@@ -20,596 +27,466 @@ export default function SettingsPage() {
   );
 }
 
-function GeneralSettings() {
-  const [s, setS] = useState<SettingsData | null>(null);
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceSaved, setWorkspaceSaved] = useState(false);
-  const [workspaceRenameBusy, setWorkspaceRenameBusy] = useState(false);
-  const [reservedSlugs, setReservedSlugs] = useState("");
-  const [reservedMailboxes, setReservedMailboxes] = useState("");
-  const [cfToken, setCfToken] = useState("");
-  const [inboundToken, setInboundToken] = useState("");
-  const [catchAll, setCatchAll] = useState(false);
-  const [autoWrapLinks, setAutoWrapLinks] = useState(false);
-  const [telegramBot, setTelegramBot] = useState("");
-  const [telegramChat, setTelegramChat] = useState("");
-  const [googleClientId, setGoogleClientId] = useState("");
-  const [googleClientSecret, setGoogleClientSecret] = useState("");
-  const [githubClientId, setGithubClientId] = useState("");
-  const [githubClientSecret, setGithubClientSecret] = useState("");
-  const [dataRetentionDays, setDataRetentionDays] = useState(90);
-  const [saved, setSaved] = useState(false);
+// LicenseSettings is where a customer pastes the led-pro key they bought. The
+// backing API is the led-pro `licensing` plugin; in the OSS build it 404s and we
+// show a neutral note instead.
+function LicenseSettings() {
+  const [status, setStatus] = useState<LicenseStatus | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
+  const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
-  // Outbound Webhooks state
-  const [webhooks, setWebhooks] = useState<any[]>([]);
-  const [showAddWebhookModal, setShowAddWebhookModal] = useState(false);
-  const [newHookName, setNewHookName] = useState("");
-  const [newHookURL, setNewHookURL] = useState("");
-  const [newHookSecret, setNewHookSecret] = useState("");
-  const [newHookEventsAll, setNewHookEventsAll] = useState(true);
-  const [newHookEventsClick, setNewHookEventsClick] = useState(false);
-  const [newHookEventsEmail, setNewHookEventsEmail] = useState(false);
-  const [webhooksBusy, setWebhooksBusy] = useState(false);
-
-  async function load() {
-    try {
-      const me = await api.me();
-      const orgs = await api.orgs();
-      const currentOrg = orgs.find(o => o.id === me.orgId);
-      if (currentOrg) {
-        setWorkspaceName(currentOrg.name);
-      }
-    } catch (e) {
-      console.error("Failed to load workspace name:", e);
-    }
-
-    try {
-      const wList = await api.webhooks();
-      setWebhooks(wList);
-    } catch (e) {
-      console.error("Failed to load webhooks:", e);
-    }
-
-    const v = await api.settings();
-    setS(v);
-    setReservedSlugs(v.reservedSlugs);
-    setReservedMailboxes(v.reservedMailboxes);
-    setInboundToken(v.inboundToken || "");
-    setCatchAll(v.catchAll || false);
-    setAutoWrapLinks(v.autoWrapLinks || false);
-    setTelegramBot(v.telegramBotToken || "");
-    setTelegramChat(v.telegramChatId || "");
-    setGoogleClientId(v.googleClientId || "");
-    setGithubClientId(v.githubClientId || "");
-    setDataRetentionDays(v.dataRetentionDays ?? 90);
+  function load() {
+    api.license()
+      .then(setStatus)
+      .catch((e: ApiError) => {
+        if (e.status === 404) setUnavailable(true);
+        else setMsg({ kind: "err", text: e.message });
+      });
   }
-  
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(load, []);
 
-  async function handleRenameWorkspace(e: React.FormEvent) {
-    e.preventDefault();
-    if (!workspaceName.trim()) return;
-    setWorkspaceRenameBusy(true);
-    setWorkspaceSaved(false);
-    try {
-      await api.updateOrg({ name: workspaceName });
-      setWorkspaceSaved(true);
-      setTimeout(() => setWorkspaceSaved(false), 2000);
-      // Reload page to refresh initials in sidebar rail
-      setTimeout(() => window.location.reload(), 1000);
-    } catch (err: any) {
-      alert(err.message || "Failed to rename workspace");
-    } finally {
-      setWorkspaceRenameBusy(false);
-    }
-  }
-
-  async function save() {
+  async function activate() {
     setBusy(true);
-    setSaved(false);
+    setMsg(null);
     try {
-      const payload: any = {
-        reservedSlugs, reservedMailboxes,
-        inboundToken, catchAll,
-        telegramBotToken: telegramBot, telegramChatId: telegramChat,
-        googleClientId: googleClientId.trim(),
-        githubClientId: githubClientId.trim(),
-        dataRetentionDays,
-        autoWrapLinks,
-      };
-      if (cfToken.trim()) payload.cloudflareToken = cfToken.trim();
-      if (googleClientSecret.trim()) payload.googleClientSecret = googleClientSecret.trim();
-      if (githubClientSecret.trim()) payload.githubClientSecret = githubClientSecret.trim();
-      const v = await api.updateSettings(payload);
-      setS(v);
-      setCfToken("");
-      setGoogleClientSecret("");
-      setGithubClientSecret("");
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      const r = await api.activateLicense(token.trim());
+      setToken("");
+      setMsg({
+        kind: "ok",
+        text: r.envOverride
+          ? `Saved a ${r.tier} license, but LED_PRO_LICENSE is set in the environment and takes precedence — unset it and restart to use this key.`
+          : `Saved a ${r.tier} license for ${r.email}. Restart led to apply it.`,
+      });
+      load();
+    } catch (e) {
+      setMsg({ kind: "err", text: (e as ApiError).message });
     } finally {
       setBusy(false);
     }
   }
 
-  async function handleDeleteWebhook(id: number) {
-    if (!confirm("Are you sure you want to delete this Webhook endpoint?")) return;
+  async function deactivate() {
+    if (!confirm("Remove the saved license? Pro features lock after the next restart.")) return;
+    setBusy(true);
+    setMsg(null);
     try {
-      await api.deleteWebhook(id);
-      setWebhooks(webhooks.filter(h => h.id !== id));
-    } catch (err: any) {
-      alert(err.message || "Failed to delete Webhook");
-    }
-  }
-
-  async function handleToggleWebhook(hook: any) {
-    try {
-      const updated = await api.updateWebhook(hook.id, { enabled: !hook.enabled });
-      setWebhooks(webhooks.map(h => h.id === hook.id ? updated : h));
-    } catch (err: any) {
-      alert(err.message || "Failed to update Webhook");
-    }
-  }
-
-  async function handleCreateWebhook(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newHookName.trim() || !newHookURL.trim()) return;
-    setWebhooksBusy(true);
-    try {
-      let events = "*";
-      if (!newHookEventsAll) {
-        const evList: string[] = [];
-        if (newHookEventsClick) evList.push("link.click");
-        if (newHookEventsEmail) evList.push("email.receive");
-        events = evList.join(",") || "*";
-      }
-      const created = await api.createWebhook({
-        name: newHookName.trim(),
-        url: newHookURL.trim(),
-        secret: newHookSecret.trim() || undefined,
-        events,
-        enabled: true,
-      });
-      setWebhooks([created, ...webhooks]);
-      setShowAddWebhookModal(false);
-      setNewHookName("");
-      setNewHookURL("");
-      setNewHookSecret("");
-    } catch (err: any) {
-      alert(err.message || "Failed to create Webhook");
+      await api.deactivateLicense();
+      setMsg({ kind: "ok", text: "License removed. Restart led to apply." });
+      load();
+    } catch (e) {
+      setMsg({ kind: "err", text: (e as ApiError).message });
     } finally {
-      setWebhooksBusy(false);
+      setBusy(false);
     }
   }
 
-  if (!s) return <div className="text-white/40 text-sm">loading…</div>;
+  if (unavailable) {
+    return (
+      <div>
+        <PageHeader title="License" description="Manage your led-pro license key" />
+        <GlassCard className="p-6 text-sm text-white/55">
+          This is the open-source build of led — there are no Pro features to license.
+          Pro and Elite are part of <span className="text-white/80">Octarq</span>.{" "}
+          <a className="text-indigo-300 hover:underline" href="https://octarq.com/pricing/" target="_blank" rel="noreferrer">
+            See the plans →
+          </a>
+        </GlassCard>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <PageHeader title="License" description="Activate Pro / Elite with the key you bought" />
+
+      {status && (
+        <GlassCard className="mb-4 p-5">
+          <div className="flex items-center gap-3">
+            <KeyRound className="h-5 w-5 text-indigo-300" />
+            {status.licensed ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone="green">{(status.tier || "").toUpperCase()}</Badge>
+                <span className="text-sm text-white/70">{status.email}</span>
+                <span className="text-xs text-white/40">
+                  {status.expiresAt ? `expires ${status.expiresAt.slice(0, 10)}` : "never expires"} · from {status.source}
+                </span>
+              </div>
+            ) : (
+              <span className="text-sm text-white/60">No active license — Pro features are locked.</span>
+            )}
+          </div>
+          {status.envOverride && (
+            <p className="mt-3 text-xs text-amber-300/90">
+              A license is set via the <code>LED_PRO_LICENSE</code> environment variable, which
+              overrides any key saved here.
+            </p>
+          )}
+        </GlassCard>
+      )}
+
+      <GlassCard className="p-5">
+        <Field label="License key" hint="Paste the key from your purchase email or claim page.">
+          <textarea
+            className="input w-full font-mono text-xs"
+            rows={4}
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="eyJ…  .  MEUCIQ…"
+          />
+        </Field>
+        <div className="mt-3 flex items-center gap-2">
+          <Button variant="primary" onClick={activate} disabled={busy || token.trim() === ""}>
+            {busy ? "Saving…" : "Activate"}
+          </Button>
+          {status?.licensed && status.source === "file" && (
+            <Button variant="danger" onClick={deactivate} disabled={busy}>
+              Remove license
+            </Button>
+          )}
+        </div>
+        {msg && (
+          <p className={`mt-3 text-sm ${msg.kind === "ok" ? "text-emerald-300" : "text-rose-300"}`}>{msg.text}</p>
+        )}
+        <p className="mt-4 text-xs text-white/35">
+          Changes take effect on the next restart — the server reads the license at startup.
+        </p>
+      </GlassCard>
+    </div>
+  );
+}
+
+// ── Settings module pages (split out of the old monolithic General Settings) ──
+
+// useSettingsData loads the shared workspace settings object once.
+function useSettingsData() {
+  const [s, setS] = useState<SettingsData | null>(null);
+  const reload = () => api.settings().then(setS);
+  useEffect(() => { reload(); }, []);
+  return { s, reload };
+}
+
+function SavedBadge({ on }: { on: boolean }) {
+  return on ? <Badge tone="green">✓ Saved</Badge> : null;
+}
+
+function GeneralSettings() {
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceBusy, setWorkspaceBusy] = useState(false);
+  const [workspaceSaved, setWorkspaceSaved] = useState(false);
+  const [retention, setRetention] = useState(90);
+  const [telegramBot, setTelegramBot] = useState("");
+  const [telegramChat, setTelegramChat] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    api.me().then((me) => api.orgs().then((orgs) => {
+      const o = orgs.find((x) => x.id === me.orgId);
+      if (o) setWorkspaceName(o.name);
+    })).catch(() => {});
+    api.settings().then((v) => {
+      setRetention(v.dataRetentionDays ?? 90);
+      setTelegramBot(v.telegramBotToken || "");
+      setTelegramChat(v.telegramChatId || "");
+    });
+  }, []);
+
+  async function renameWorkspace(e: React.FormEvent) {
+    e.preventDefault();
+    if (!workspaceName.trim()) return;
+    setWorkspaceBusy(true);
+    try {
+      await api.updateOrg({ name: workspaceName });
+      setWorkspaceSaved(true);
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err: any) { alert(err.message || "rename failed"); } finally { setWorkspaceBusy(false); }
+  }
+
+  async function save() {
+    setBusy(true);
+    try {
+      await api.updateSettings({ dataRetentionDays: retention, telegramBotToken: telegramBot, telegramChatId: telegramChat });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally { setBusy(false); }
+  }
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="General Settings"
-        description="Configure your workspace details, short-link settings, and API integrations"
-      />
+      <PageHeader title="General" description="Workspace identity, data retention, and alert bot." />
 
-      {/* Workspace Identity Card */}
       <GlassCard className="p-6 space-y-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-base font-bold text-white mb-1">Workspace Profile</h2>
-            <p className="text-xs text-white/50">Manage the identity and name of this workspace.</p>
-          </div>
-          {workspaceSaved && <Badge tone="green">✓ Name Updated</Badge>}
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-white">Workspace Profile</h2>
+          {workspaceSaved && <Badge tone="green">✓ Updated</Badge>}
         </div>
-
-        <form onSubmit={handleRenameWorkspace} className="max-w-md">
-          <Field label="Workspace Name" hint="This name is shown in the workspace switcher and header.">
+        <form onSubmit={renameWorkspace} className="max-w-md">
+          <Field label="Workspace Name" hint="Shown in the workspace switcher and header.">
             <div className="flex gap-2">
-              <input
-                className="input flex-1 text-sm"
-                value={workspaceName}
-                onChange={(e) => setWorkspaceName(e.target.value)}
-                placeholder="e.g. Acme Production"
-                required
-              />
-              <Button type="submit" variant="primary" disabled={workspaceRenameBusy || !workspaceName.trim()} className="shrink-0">
-                {workspaceRenameBusy ? "Updating..." : "Update Name"}
+              <input className="input flex-1 text-sm" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} placeholder="Acme Production" required />
+              <Button type="submit" variant="primary" disabled={workspaceBusy || !workspaceName.trim()} className="shrink-0">
+                {workspaceBusy ? "Updating…" : "Update"}
               </Button>
             </div>
           </Field>
         </form>
       </GlassCard>
 
-      {/* General Runtime Config Settings Card */}
       <GlassCard className="p-6 space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-white">Runtime</h2>
+          <SavedBadge on={saved} />
+        </div>
+        <Field label="Click Event Logs Expiry (Days)" hint="Click data older than this is auto-deleted. 0 = keep forever.">
+          <input type="number" min={0} className="input w-32 font-mono text-sm" value={retention} onChange={(e) => setRetention(Number(e.target.value))} />
+        </Field>
+        <div className="border-t border-white/[0.06] pt-6 space-y-4">
+          <h3 className="text-sm font-semibold text-white/80">Telegram Alerts</h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Telegram Bot Token" hint="Token from @BotFather">
+              <input className="input w-full font-mono text-xs" value={telegramBot} onChange={(e) => setTelegramBot(e.target.value)} placeholder="123456789:ABC…" />
+            </Field>
+            <Field label="Target Chat ID" hint="Individual or group chat id">
+              <input className="input w-full font-mono text-xs" value={telegramChat} onChange={(e) => setTelegramChat(e.target.value)} placeholder="-100123456" />
+            </Field>
+          </div>
+        </div>
+        <div className="border-t border-white/[0.06] pt-6">
+          <Button variant="primary" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+        </div>
+      </GlassCard>
+    </div>
+  );
+}
+
+function LinkSettings() {
+  const { s } = useSettingsData();
+  const [reservedSlugs, setReservedSlugs] = useState("");
+  const [autoWrap, setAutoWrap] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => { if (s) { setReservedSlugs(s.reservedSlugs); setAutoWrap(s.autoWrapLinks || false); } }, [s]);
+
+  async function save() {
+    setBusy(true);
+    try { await api.updateSettings({ reservedSlugs, autoWrapLinks: autoWrap }); setSaved(true); setTimeout(() => setSaved(false), 2000); }
+    finally { setBusy(false); }
+  }
+  if (!s) return <div className="text-sm text-white/40">loading…</div>;
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Short Links" description="Reserved slugs and outbound link wrapping." />
+      <GlassCard className="p-6 space-y-6">
+        <div className="flex items-center justify-between"><h2 className="text-base font-bold text-white">Short Links</h2><SavedBadge on={saved} /></div>
+        <Field label="Reserved Short Link Slugs" hint={`Slugs users cannot register. Built-in: ${s.builtinReserved.join(", ")}.`}>
+          <textarea className="input w-full font-mono text-xs" rows={3} value={reservedSlugs} onChange={(e) => setReservedSlugs(e.target.value)} placeholder="pricing&#10;login&#10;about" />
+        </Field>
+        <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
+          <Toggle on={autoWrap} onChange={setAutoWrap} />
           <div>
-            <h2 className="text-base font-bold text-white mb-1">General Settings</h2>
-            <p className="text-xs text-white/50">Runtime configuration parameters for this workspace.</p>
-          </div>
-          {saved && <Badge tone="green">✓ Config Saved</Badge>}
-        </div>
-
-        <div className="space-y-6">
-          <Field
-            label="Reserved Short Link Slugs"
-            hint={`Slugs that users cannot register. Built-in defaults always locked: ${s.builtinReserved.join(", ")}.`}
-          >
-            <textarea
-              className="input font-mono text-xs w-full"
-              rows={3}
-              value={reservedSlugs}
-              onChange={(e) => setReservedSlugs(e.target.value)}
-              placeholder="pricing&#10;login&#10;about"
-            />
-          </Field>
-          
-          <Field
-            label="Reserved Inbound Mailbox Prefixes"
-            hint="Prefixes that catch-all routing will not auto-provision (e.g. admin, postmaster)."
-          >
-            <textarea
-              className="input font-mono text-xs w-full"
-              rows={2}
-              value={reservedMailboxes}
-              onChange={(e) => setReservedMailboxes(e.target.value)}
-              placeholder="admin&#10;postmaster"
-            />
-          </Field>
-          
-          <Field
-            label="Global Cloudflare API Token"
-            hint={
-              s.cloudflareTokenSet
-                ? "Global token is configured. Enter a new token to overwrite."
-                : "Fallback token used by sync if individual domains don't provide dedicated keys. Zone:Read + DNS:Edit."
-            }
-          >
-            <div className="flex gap-2">
-              <input
-                type="password"
-                className="input w-full font-mono text-xs"
-                value={cfToken}
-                onChange={(e) => setCfToken(e.target.value)}
-                placeholder={s.cloudflareTokenSet ? "•••••••• (Token set)" : "Cloudflare API token"}
-              />
-              {s.cloudflareTokenSet && (
-                <Button
-                  variant="danger"
-                  onClick={async () => {
-                    if (confirm("Clear stored token?")) {
-                      await api.updateSettings({ cloudflareToken: "" });
-                      load();
-                    }
-                  }}
-                  className="py-1 px-3 text-xs bg-rose-500/10 hover:bg-rose-500/25 border-0"
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
-          </Field>
-          
-          <div className="border-t border-white/[0.06] pt-6 space-y-4">
-            <h3 className="text-sm font-semibold text-white/80">Mail Inbound Webhooks</h3>
-            <div className="space-y-4">
-              <Field
-                label="Webhook Inbound Token"
-                hint="Shared API secret validated in X-Led-Token header for Cloudflare Email Worker webhook trigger."
-              >
-                <input
-                  className="input w-full font-mono text-xs"
-                  value={inboundToken}
-                  onChange={(e) => setInboundToken(e.target.value)}
-                  placeholder="secret-token-value"
-                />
-              </Field>
-              
-              <div className="flex items-center gap-3 pt-2">
-                <Toggle on={catchAll} onChange={setCatchAll} />
-                <div>
-                  <span className="text-xs font-semibold text-white/70 select-none block">Enable Catch-All routing</span>
-                  <span className="text-[10px] text-white/40 select-none">Automatically provision local inbox addresses when a message arrives for an unknown managed alias.</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2 border-t border-white/[0.04]">
-                <Toggle on={autoWrapLinks} onChange={setAutoWrapLinks} />
-                <div>
-                  <span className="text-xs font-semibold text-white/70 select-none block">Auto Wrap Outbound Links</span>
-                  <span className="text-[10px] text-white/40 select-none">When sending outbound emails, automatically detect external URLs and wrap them as short links for click analytics. Checkbox is shown on compose mail modal.</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-white/[0.06] pt-6 space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-semibold text-white/80">Outbound Event Webhooks</h3>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setNewHookName("");
-                  setNewHookURL("");
-                  setNewHookSecret("");
-                  setNewHookEventsAll(true);
-                  setNewHookEventsClick(false);
-                  setNewHookEventsEmail(false);
-                  setShowAddWebhookModal(true);
-                }}
-                className="py-1 px-3 text-xs bg-purple-500/10 hover:bg-purple-500/25 border-0 flex items-center gap-1.5"
-              >
-                <Plus className="h-3 w-3" /> Add Webhook
-              </Button>
-            </div>
-            
-            <p className="text-[10px] text-white/40">
-              Deliver real-time click and email events to external systems (Zapier, n8n, custom APIs). Every dispatch payload is signed using HMAC-SHA256 for secure request validation.
-            </p>
-
-            {webhooks.length === 0 ? (
-              <div className="py-4 text-center border border-dashed border-white/[0.06] rounded text-white/40 text-xs select-none">
-                No outbound webhooks configured.
-              </div>
-            ) : (
-              <div className="space-y-3.5">
-                {webhooks.map((w) => (
-                  <div key={w.id} className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3 text-sm">
-                    <div className="space-y-1 flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-white/80">{w.name}</span>
-                        <span className="text-[9px] font-mono uppercase bg-white/5 border border-white/10 px-1.5 py-0.5 rounded text-white/45">
-                          {w.events === "*" ? "all events" : w.events}
-                        </span>
-                      </div>
-                      <div className="font-mono text-xs text-white/45 truncate select-all">{w.url}</div>
-                      <div className="font-mono text-[10px] text-zinc-500 select-all">Secret key: {w.secret}</div>
-                    </div>
-                    <div className="flex items-center gap-3 self-end md:self-auto shrink-0">
-                      <Toggle on={w.enabled} onChange={() => handleToggleWebhook(w)} />
-                      <Button
-                        variant="danger"
-                        onClick={() => handleDeleteWebhook(w.id)}
-                        className="py-1 px-2.5 text-xs bg-rose-500/10 hover:bg-rose-500/20 hover:text-rose-300 border-0 flex items-center gap-1"
-                      >
-                        <Trash2 className="h-3 w-3" /> Delete
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="border-t border-white/[0.06] pt-6">
-            <h3 className="text-sm font-semibold text-white/80 mb-2">Data Retention & Pruning</h3>
-            <div className="space-y-4">
-              <Field label="Click Event Logs Expiry (Days)" hint="Link clicks data older than this limit will be auto-deleted. Set 0 to persist forever.">
-                <input
-                  type="number"
-                  min={0}
-                  className="input w-32 font-mono text-sm"
-                  value={dataRetentionDays}
-                  onChange={(e) => setDataRetentionDays(Number(e.target.value))}
-                />
-              </Field>
-              <p className="text-[10px] text-white/40">
-                IP addresses of clickers are stored anonymized (masked subnet). This setting controls how long click statistics charts persist.
-              </p>
-            </div>
-          </div>
-
-          <div className="border-t border-white/[0.06] pt-6 space-y-4">
-            <h3 className="text-sm font-semibold text-white/80">Telegram Alerts</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Telegram Bot Token" hint="Token issued by @BotFather">
-                <input
-                  className="input w-full font-mono text-xs"
-                  value={telegramBot}
-                  onChange={(e) => setTelegramBot(e.target.value)}
-                  placeholder="123456789:ABCdef..."
-                />
-              </Field>
-              <Field label="Target Chat ID" hint="Individual or Group chat ID">
-                <input
-                  className="input w-full font-mono text-xs"
-                  value={telegramChat}
-                  onChange={(e) => setTelegramChat(e.target.value)}
-                  placeholder="e.g. -100123456"
-                />
-              </Field>
-            </div>
-          </div>
-
-          <div className="border-t border-white/[0.06] pt-6 space-y-4">
-            <div>
-              <h3 className="text-sm font-semibold text-white/80">Single Sign-On (SSO / OAuth)</h3>
-              <p className="text-[10px] text-white/40 mt-0.5">Secrets are encrypted. Make sure server callback URLs matches LED base url.</p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Google */}
-              <div className="rounded-xl border border-white/[0.05] bg-black/20 p-4 space-y-3">
-                <p className="text-xs font-bold text-white/85 flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
-                  Google Sign-In
-                </p>
-                <Field label="Google Client ID">
-                  <input
-                    className="input w-full text-xs"
-                    value={googleClientId}
-                    onChange={(e) => setGoogleClientId(e.target.value)}
-                    placeholder="*.apps.googleusercontent.com"
-                  />
-                </Field>
-                <Field label="Google Client Secret">
-                  <div className="flex gap-2">
-                    <input
-                      className="input w-full text-xs font-mono"
-                      type="password"
-                      value={googleClientSecret}
-                      onChange={(e) => setGoogleClientSecret(e.target.value)}
-                      placeholder={s.googleClientSecretSet ? "•••••••• (Set)" : "Secret value"}
-                    />
-                    {s.googleClientSecretSet && (
-                      <Button
-                        variant="danger"
-                        onClick={async () => {
-                          if (confirm("Clear Google secret?")) {
-                            await api.updateSettings({ googleClientSecret: "" });
-                            load();
-                          }
-                        }}
-                        className="py-1 px-2.5 text-xs bg-rose-500/10 hover:bg-rose-500/25 border-0"
-                      >
-                        Clear
-                      </Button>
-                    )}
-                  </div>
-                </Field>
-              </div>
-              
-              {/* GitHub */}
-              <div className="rounded-xl border border-white/[0.05] bg-black/20 p-4 space-y-3">
-                <p className="text-xs font-bold text-white/85 flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
-                  GitHub Integration
-                </p>
-                <Field label="GitHub Client ID">
-                  <input
-                    className="input w-full text-xs"
-                    value={githubClientId}
-                    onChange={(e) => setGithubClientId(e.target.value)}
-                    placeholder="Ov23li..."
-                  />
-                </Field>
-                <Field label="GitHub Client Secret">
-                  <div className="flex gap-2">
-                    <input
-                      className="input w-full text-xs font-mono"
-                      type="password"
-                      value={githubClientSecret}
-                      onChange={(e) => setGithubClientSecret(e.target.value)}
-                      placeholder={s.githubClientSecretSet ? "•••••••• (Set)" : "Secret value"}
-                    />
-                    {s.githubClientSecretSet && (
-                      <Button
-                        variant="danger"
-                        onClick={async () => {
-                          if (confirm("Clear GitHub secret?")) {
-                            await api.updateSettings({ githubClientSecret: "" });
-                            load();
-                          }
-                        }}
-                        className="py-1 px-2.5 text-xs bg-rose-500/10 hover:bg-rose-500/25 border-0"
-                      >
-                        Clear
-                      </Button>
-                    )}
-                  </div>
-                </Field>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 border-t border-white/[0.06] pt-6">
-            <Button variant="primary" onClick={save} disabled={busy}>
-              {busy ? "Saving..." : "Save Config Settings"}
-            </Button>
+            <span className="block select-none text-xs font-semibold text-white/70">Auto Wrap Outbound Links</span>
+            <span className="select-none text-[10px] text-white/40">When sending mail, detect external URLs and wrap them as short links for click analytics.</span>
           </div>
         </div>
-        {showAddWebhookModal && (
-          <Modal title="Add Webhook Endpoint" onClose={() => setShowAddWebhookModal(false)}>
-            <form onSubmit={handleCreateWebhook} className="space-y-4">
-              <Field label="Endpoint Name">
-                <input
-                  className="input w-full"
-                  value={newHookName}
-                  onChange={(e) => setNewHookName(e.target.value)}
-                  placeholder="e.g. n8n automation"
-                  required
-                  autoFocus
-                />
-              </Field>
-              
-              <Field label="Endpoint URL">
-                <input
-                  className="input w-full font-mono text-xs"
-                  value={newHookURL}
-                  onChange={(e) => setNewHookURL(e.target.value)}
-                  placeholder="https://your-server.com/webhooks/led"
-                  required
-                />
-              </Field>
-              
-              <Field label="Signing Secret (Optional)" hint="Used to sign webhook payload in X-Led-Signature header. Leave empty to auto-generate.">
-                <input
-                  type="text"
-                  className="input w-full font-mono text-xs"
-                  value={newHookSecret}
-                  onChange={(e) => setNewHookSecret(e.target.value)}
-                  placeholder="Custom signing secret key"
-                />
-              </Field>
+        <div className="border-t border-white/[0.06] pt-6"><Button variant="primary" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button></div>
+      </GlassCard>
+    </div>
+  );
+}
 
-              <Field label="Event Subscriptions">
-                <div className="space-y-2 mt-1">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
-                    <input
-                      type="checkbox"
-                      checked={newHookEventsAll}
-                      onChange={(e) => {
-                        setNewHookEventsAll(e.target.checked);
-                        if (e.target.checked) {
-                          setNewHookEventsClick(false);
-                          setNewHookEventsEmail(false);
-                        }
-                      }}
-                      className="rounded border-zinc-700 bg-zinc-900/50 text-purple-600 focus:ring-purple-500"
-                    />
-                    <span>All Events (*)</span>
-                  </label>
+function MailSettings() {
+  const { s } = useSettingsData();
+  const [reservedMailboxes, setReservedMailboxes] = useState("");
+  const [inboundToken, setInboundToken] = useState("");
+  const [catchAll, setCatchAll] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-                  {!newHookEventsAll && (
-                    <div className="pl-6 space-y-2">
-                      <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
-                        <input
-                          type="checkbox"
-                          checked={newHookEventsClick}
-                          onChange={(e) => setNewHookEventsClick(e.target.checked)}
-                          className="rounded border-zinc-700 bg-zinc-900/50 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span>Shortlink clicks (link.click)</span>
-                      </label>
+  useEffect(() => { if (s) { setReservedMailboxes(s.reservedMailboxes); setInboundToken(s.inboundToken || ""); setCatchAll(s.catchAll || false); } }, [s]);
 
-                      <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
-                        <input
-                          type="checkbox"
-                          checked={newHookEventsEmail}
-                          onChange={(e) => setNewHookEventsEmail(e.target.checked)}
-                          className="rounded border-zinc-700 bg-zinc-900/50 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span>Inbound email received (email.receive)</span>
-                      </label>
-                    </div>
-                  )}
-                </div>
-              </Field>
+  async function save() {
+    setBusy(true);
+    try { await api.updateSettings({ reservedMailboxes, inboundToken, catchAll }); setSaved(true); setTimeout(() => setSaved(false), 2000); }
+    finally { setBusy(false); }
+  }
+  if (!s) return <div className="text-sm text-white/40">loading…</div>;
 
-              <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
-                <Button type="button" variant="ghost" onClick={() => setShowAddWebhookModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" variant="primary" disabled={webhooksBusy || !newHookName.trim() || !newHookURL.trim()}>
-                  {webhooksBusy ? "Creating..." : "Create Webhook"}
-                </Button>
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Mailboxes" description="Inbound routing, catch-all, and the worker token." />
+      <GlassCard className="p-6 space-y-6">
+        <div className="flex items-center justify-between"><h2 className="text-base font-bold text-white">Mailboxes</h2><SavedBadge on={saved} /></div>
+        <Field label="Reserved Inbound Mailbox Prefixes" hint="Prefixes catch-all won't auto-provision (e.g. admin, postmaster).">
+          <textarea className="input w-full font-mono text-xs" rows={2} value={reservedMailboxes} onChange={(e) => setReservedMailboxes(e.target.value)} placeholder="admin&#10;postmaster" />
+        </Field>
+        <Field label="Webhook Inbound Token" hint="Shared secret validated in X-Led-Token for the Cloudflare Email Worker.">
+          <input className="input w-full font-mono text-xs" value={inboundToken} onChange={(e) => setInboundToken(e.target.value)} placeholder="secret-token-value" />
+        </Field>
+        <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
+          <Toggle on={catchAll} onChange={setCatchAll} />
+          <div>
+            <span className="block select-none text-xs font-semibold text-white/70">Enable Catch-All routing</span>
+            <span className="select-none text-[10px] text-white/40">Auto-provision a local inbox when mail arrives for an unknown managed alias.</span>
+          </div>
+        </div>
+        <div className="border-t border-white/[0.06] pt-6"><Button variant="primary" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button></div>
+      </GlassCard>
+    </div>
+  );
+}
+
+function SignInSettings() {
+  const { s, reload } = useSettingsData();
+  const [googleId, setGoogleId] = useState("");
+  const [googleSecret, setGoogleSecret] = useState("");
+  const [githubId, setGithubId] = useState("");
+  const [githubSecret, setGithubSecret] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => { if (s) { setGoogleId(s.googleClientId || ""); setGithubId(s.githubClientId || ""); } }, [s]);
+
+  async function save() {
+    setBusy(true);
+    try {
+      const p: any = { googleClientId: googleId.trim(), githubClientId: githubId.trim() };
+      if (googleSecret.trim()) p.googleClientSecret = googleSecret.trim();
+      if (githubSecret.trim()) p.githubClientSecret = githubSecret.trim();
+      await api.updateSettings(p);
+      setGoogleSecret(""); setGithubSecret(""); setSaved(true); setTimeout(() => setSaved(false), 2000); reload();
+    } finally { setBusy(false); }
+  }
+  if (!s) return <div className="text-sm text-white/40">loading…</div>;
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Sign-in (OAuth)" description="Google and GitHub single sign-on. Secrets are encrypted." />
+      <GlassCard className="p-6 space-y-6">
+        <div className="flex items-center justify-between"><h2 className="text-base font-bold text-white">Single Sign-On</h2><SavedBadge on={saved} /></div>
+        <p className="text-[10px] text-white/40">Make sure the server callback URLs match your LED base url.</p>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
+            <p className="flex items-center gap-1.5 text-xs font-bold text-white/85"><span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> Google Sign-In</p>
+            <Field label="Google Client ID"><input className="input w-full text-xs" value={googleId} onChange={(e) => setGoogleId(e.target.value)} placeholder="*.apps.googleusercontent.com" /></Field>
+            <Field label="Google Client Secret">
+              <div className="flex gap-2">
+                <input className="input w-full font-mono text-xs" type="password" value={googleSecret} onChange={(e) => setGoogleSecret(e.target.value)} placeholder={s.googleClientSecretSet ? "•••••••• (Set)" : "Secret value"} />
+                {s.googleClientSecretSet && <Button variant="danger" onClick={async () => { if (confirm("Clear Google secret?")) { await api.updateSettings({ googleClientSecret: "" }); reload(); } }} className="px-2.5 py-1 text-xs">Clear</Button>}
               </div>
-            </form>
-          </Modal>
+            </Field>
+          </div>
+          <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
+            <p className="flex items-center gap-1.5 text-xs font-bold text-white/85"><span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> GitHub Integration</p>
+            <Field label="GitHub Client ID"><input className="input w-full text-xs" value={githubId} onChange={(e) => setGithubId(e.target.value)} placeholder="Ov23li…" /></Field>
+            <Field label="GitHub Client Secret">
+              <div className="flex gap-2">
+                <input className="input w-full font-mono text-xs" type="password" value={githubSecret} onChange={(e) => setGithubSecret(e.target.value)} placeholder={s.githubClientSecretSet ? "•••••••• (Set)" : "Secret value"} />
+                {s.githubClientSecretSet && <Button variant="danger" onClick={async () => { if (confirm("Clear GitHub secret?")) { await api.updateSettings({ githubClientSecret: "" }); reload(); } }} className="px-2.5 py-1 text-xs">Clear</Button>}
+              </div>
+            </Field>
+          </div>
+        </div>
+        <div className="border-t border-white/[0.06] pt-6"><Button variant="primary" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button></div>
+      </GlassCard>
+    </div>
+  );
+}
+
+function WebhooksSettings() {
+  const [webhooks, setWebhooks] = useState<any[]>([]);
+  const [show, setShow] = useState(false);
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [secret, setSecret] = useState("");
+  const [all, setAll] = useState(true);
+  const [evClick, setEvClick] = useState(false);
+  const [evEmail, setEvEmail] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  function load() { api.webhooks().then(setWebhooks).catch(() => {}); }
+  useEffect(load, []);
+
+  async function del(id: number) { if (!confirm("Delete this webhook endpoint?")) return; await api.deleteWebhook(id); setWebhooks((w) => w.filter((h) => h.id !== id)); }
+  async function toggle(h: any) { const u = await api.updateWebhook(h.id, { enabled: !h.enabled }); setWebhooks((w) => w.map((x) => x.id === h.id ? u : x)); }
+  async function create(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !url.trim()) return;
+    setBusy(true);
+    try {
+      let events = "*";
+      if (!all) { const l: string[] = []; if (evClick) l.push("link.click"); if (evEmail) l.push("email.receive"); events = l.join(",") || "*"; }
+      const created = await api.createWebhook({ name: name.trim(), url: url.trim(), secret: secret.trim() || undefined, events, enabled: true } as any);
+      setWebhooks((w) => [created, ...w]); setShow(false); setName(""); setUrl(""); setSecret("");
+    } catch (err: any) { alert(err.message || "create failed"); } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Webhooks" description="Deliver click and email events to external systems (HMAC-signed)." />
+      <GlassCard className="p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-white">Outbound Event Webhooks</h2>
+          <Button variant="ghost" onClick={() => { setName(""); setUrl(""); setSecret(""); setAll(true); setEvClick(false); setEvEmail(false); setShow(true); }} className="flex items-center gap-1.5 px-3 py-1 text-xs">
+            <Plus className="h-3 w-3" /> Add Webhook
+          </Button>
+        </div>
+        {webhooks.length === 0 ? (
+          <div className="select-none rounded border border-dashed border-white/[0.06] py-4 text-center text-xs text-white/40">No outbound webhooks configured.</div>
+        ) : (
+          <div className="space-y-3.5">
+            {webhooks.map((w) => (
+              <div key={w.id} className="flex flex-col justify-between gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-sm md:flex-row md:items-center">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-white/80">{w.name}</span>
+                    <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[9px] uppercase text-white/45">{w.events === "*" ? "all events" : w.events}</span>
+                  </div>
+                  <div className="select-all truncate font-mono text-xs text-white/45">{w.url}</div>
+                  <div className="select-all font-mono text-[10px] text-zinc-500">Secret: {w.secret}</div>
+                </div>
+                <div className="flex shrink-0 items-center gap-3 self-end md:self-auto">
+                  <Toggle on={w.enabled} onChange={() => toggle(w)} />
+                  <Button variant="danger" onClick={() => del(w.id)} className="flex items-center gap-1 px-2.5 py-1 text-xs"><Trash2 className="h-3 w-3" /> Delete</Button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </GlassCard>
+
+      {show && (
+        <Modal title="Add Webhook Endpoint" onClose={() => setShow(false)}>
+          <form onSubmit={create} className="space-y-4">
+            <Field label="Endpoint Name"><input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder="n8n automation" required autoFocus /></Field>
+            <Field label="Endpoint URL"><input className="input w-full font-mono text-xs" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://your-server.com/webhooks/led" required /></Field>
+            <Field label="Signing Secret (Optional)" hint="Signs the payload in X-Led-Signature. Leave empty to auto-generate.">
+              <input className="input w-full font-mono text-xs" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder="Custom signing secret" />
+            </Field>
+            <Field label="Event Subscriptions">
+              <div className="mt-1 space-y-2">
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                  <input type="checkbox" checked={all} onChange={(e) => { setAll(e.target.checked); if (e.target.checked) { setEvClick(false); setEvEmail(false); } }} />
+                  <span>All Events (*)</span>
+                </label>
+                {!all && (
+                  <div className="space-y-2 pl-6">
+                    <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300"><input type="checkbox" checked={evClick} onChange={(e) => setEvClick(e.target.checked)} /> <span>link.click</span></label>
+                    <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300"><input type="checkbox" checked={evEmail} onChange={(e) => setEvEmail(e.target.checked)} /> <span>email.receive</span></label>
+                  </div>
+                )}
+              </div>
+            </Field>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setShow(false)}>Cancel</Button>
+              <Button type="submit" variant="primary" disabled={busy}>{busy ? "Adding…" : "Add"}</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -951,6 +828,40 @@ function OrgMembersManager() {
   );
 }
 
+// GlobalCloudflareToken is the fallback Cloudflare API token used by sync when a
+// domain has no dedicated credentials. It lived in the old General Settings; it
+// belongs with DNS Providers.
+function GlobalCloudflareToken() {
+  const { s, reload } = useSettingsData();
+  const [token, setToken] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  if (!s) return null;
+
+  async function save() {
+    if (!token.trim()) return;
+    setBusy(true);
+    try { await api.updateSettings({ cloudflareToken: token.trim() }); setToken(""); setSaved(true); setTimeout(() => setSaved(false), 2000); reload(); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <GlassCard className="mb-4 p-6 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-white/80">Global Cloudflare API Token</h3>
+        <SavedBadge on={saved} />
+      </div>
+      <Field label="API token" hint={s.cloudflareTokenSet ? "A global token is set. Enter a new one to overwrite." : "Fallback token for sync when a domain has no dedicated key. Needs Zone:Read + DNS:Edit."}>
+        <div className="flex gap-2">
+          <input type="password" className="input w-full font-mono text-xs" value={token} onChange={(e) => setToken(e.target.value)} placeholder={s.cloudflareTokenSet ? "•••••••• (set)" : "Cloudflare API token"} />
+          <Button variant="primary" onClick={save} disabled={busy || !token.trim()}>{busy ? "Saving…" : "Save"}</Button>
+          {s.cloudflareTokenSet && <Button variant="danger" onClick={async () => { if (confirm("Clear stored token?")) { await api.updateSettings({ cloudflareToken: "" }); reload(); } }} className="px-3 py-1 text-xs">Clear</Button>}
+        </div>
+      </Field>
+    </GlassCard>
+  );
+}
+
 function ProviderAccounts() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -988,6 +899,7 @@ function ProviderAccounts() {
           </Button>
         }
       />
+      <GlobalCloudflareToken />
       <GlassCard className="p-6">
       
       {loading ? (
