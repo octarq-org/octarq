@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Empty, Field, Modal, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard } from "../ui";
+import { Empty, Field, Modal, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard, LockedFeature } from "../ui";
 import { ShieldAlert, CreditCard, Calendar, TrendingUp, Trash2, Pencil, Landmark, Plus, ArrowUpRight, ArrowDownRight, Wallet, RefreshCw } from "lucide-react";
 import { api, Transaction } from "../api";
 
@@ -65,6 +65,8 @@ export default function FinancePage() {
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  // Pro-gate: 402 (unlicensed) → upsell, 404 (plugin absent in OSS build) → neutral note.
+  const [error, setError] = useState<{ status: number; message: string } | null>(null);
 
   function load() {
     api.transactions().then((res) => {
@@ -80,7 +82,7 @@ export default function FinancePage() {
         });
       }
     }).catch(err => {
-      console.error("failed to load transactions:", err);
+      setError({ status: err.status, message: err.message });
     });
   }
 
@@ -193,6 +195,26 @@ export default function FinancePage() {
   const totalIncome = transactions.filter(t => t.type === "income").reduce((acc, t) => acc + t.amount, 0);
   const totalExpense = transactions.filter(t => t.type === "expense").reduce((acc, t) => acc + t.amount, 0);
   const netBalance = totalIncome - totalExpense;
+
+  if (error) {
+    return (
+      <ScreenWrap>
+        <LockedFeature
+          status={error.status}
+          tier="pro"
+          feature="Finance Workspace"
+          description="Track every recurring SaaS cost and one-off cash flow in one ledger — with renewal reminders."
+          perks={[
+            "Subscription tracker with monthly / yearly spend summary",
+            "Renewal reminders pushed to your notification channels",
+            "Unified income / expense ledger for your one-person company",
+          ]}
+          icon={<Landmark className="h-7 w-7" />}
+          pricingHref="https://octarq.com/pricing/"
+        />
+      </ScreenWrap>
+    );
+  }
 
   return (
     <ScreenWrap>
