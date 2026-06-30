@@ -95,9 +95,9 @@ func TestPublish(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var received bool
+	received := make(chan struct{}, 1)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		received = true
+		received <- struct{}{}
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
@@ -117,10 +117,9 @@ func TestPublish(t *testing.T) {
 
 	Publish(1, "link.click", map[string]any{"ok": true})
 
-	// Wait briefly for background goroutine to execute
-	time.Sleep(100 * time.Millisecond)
-
-	if !received {
+	select {
+	case <-received:
+	case <-time.After(1 * time.Second):
 		t.Error("expected webhook to be delivered")
 	}
 }
