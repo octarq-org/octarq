@@ -92,7 +92,7 @@ export function Button({
 
 // ─── ProPill ─────────────────────────────────────────────────────────────────
 
-export function ProPill({ className }: { className?: string }) {
+export function ProPill({ className, children }: { className?: string; children?: ReactNode }) {
   return (
     <span
       className={twMerge(
@@ -100,8 +100,96 @@ export function ProPill({ className }: { className?: string }) {
         className,
       )}
     >
-      Pro
+      {children ?? "Pro"}
     </span>
+  );
+}
+
+// ─── LockedFeature ────────────────────────────────────────────────────────────
+// Unified upsell / degraded-state overlay for Pro-gated pages. The backend
+// returns 402 when a feature exists but is unlicensed; any other failure means
+// the plugin is absent or disabled in this build. One component renders both so
+// every gated page (VPS, SSH, Inbox AI, …) speaks with one voice.
+
+const TIER_LABEL: Record<"pro" | "elite", string> = { pro: "Pro", elite: "Elite" };
+
+export function LockedFeature({
+  status,
+  tier = "pro",
+  feature,
+  description,
+  perks,
+  icon,
+  pricingHref,
+}: {
+  status: number;        // 402 → locked (show upsell); else → unavailable in this build
+  tier?: "pro" | "elite";
+  feature: string;       // e.g. "VPS Infrastructure"
+  description?: string;  // one line on what the feature does
+  perks?: string[];      // what unlocking grants
+  icon?: ReactNode;      // lucide icon node from the caller (keeps ui.tsx icon-free)
+  pricingHref?: string;  // optional "compare plans" link to the landing page
+}) {
+  const locked = status === 402;
+  const label = TIER_LABEL[tier];
+
+  return (
+    <GlassCard
+      strong
+      className="mx-auto mt-12 flex max-w-md flex-col items-center gap-5 px-6 py-14 text-center"
+    >
+      <div
+        className={twMerge(
+          "flex h-14 w-14 items-center justify-center rounded-2xl",
+          locked
+            ? "bg-gradient-to-br from-indigo-500/20 to-violet-500/20 text-violet-300 ring-1 ring-inset ring-violet-400/25"
+            : "bg-rose-500/10 text-rose-400",
+        )}
+      >
+        {icon}
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-center gap-2">
+          <h2 className="text-xl font-bold text-white">{feature}</h2>
+          {locked && <ProPill>{label}</ProPill>}
+        </div>
+        <p className="text-sm leading-relaxed text-white/50">
+          {locked
+            ? <>This is a <span className="font-medium text-violet-200">led {label}</span> feature.{description ? ` ${description}` : ""}</>
+            : `${feature} is not available or disabled in this installation.`}
+        </p>
+      </div>
+
+      {locked && perks && perks.length > 0 && (
+        <ul className="w-full space-y-1.5 text-left">
+          {perks.map((p) => (
+            <li key={p} className="flex items-start gap-2 text-sm text-white/65">
+              <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-violet-400/70" />
+              {p}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {locked && (
+        <div className="flex flex-col items-stretch gap-2 pt-1 sm:flex-row">
+          <Button variant="primary" onClick={() => (window.location.href = "/admin/settings/license")}>
+            Upgrade to {label}
+          </Button>
+          {pricingHref && (
+            <a
+              href={pricingHref}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm font-medium text-white/65 transition-colors hover:bg-white/5 hover:text-white"
+            >
+              Compare plans
+            </a>
+          )}
+        </div>
+      )}
+    </GlassCard>
   );
 }
 
