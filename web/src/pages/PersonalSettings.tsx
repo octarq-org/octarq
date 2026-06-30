@@ -569,14 +569,14 @@ function MenuCustomizer() {
                                 {group.items.map(itemId => {
                                   const info = getFullItemInfo(itemId);
                                   return (
-                                    <div key={itemId} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.01] border border-white/[0.03]">
-                                      <div className="flex items-center gap-2">
-                                        {info.icon}
-                                        <span className="text-xs text-white/90 font-medium">{info.label}</span>
+                                    <div key={itemId} className="grid grid-cols-2 gap-4 items-center p-2 rounded-lg bg-white/[0.01] border border-white/[0.03]">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span className="shrink-0 text-white/50">{info.icon}</span>
+                                        <span className="text-xs text-white/90 font-medium truncate">{info.label}</span>
                                       </div>
                                       
                                       <select
-                                        className="input py-0.5 px-1.5 text-[10px] w-40 font-semibold"
+                                        className="input py-0.5 px-1.5 text-[10px] w-full font-semibold truncate"
                                         value={`${area.id}:${group.name}`}
                                         onChange={(e) => {
                                           const [tArea, tGroup] = e.target.value.split(":");

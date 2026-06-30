@@ -176,8 +176,6 @@ function GeneralSettings() {
   const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const [workspaceSaved, setWorkspaceSaved] = useState(false);
   const [retention, setRetention] = useState(90);
-  const [telegramBot, setTelegramBot] = useState("");
-  const [telegramChat, setTelegramChat] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -188,8 +186,6 @@ function GeneralSettings() {
     })).catch(() => {});
     api.settings().then((v) => {
       setRetention(v.dataRetentionDays ?? 90);
-      setTelegramBot(v.telegramBotToken || "");
-      setTelegramChat(v.telegramChatId || "");
     });
   }, []);
 
@@ -207,7 +203,7 @@ function GeneralSettings() {
   async function save() {
     setBusy(true);
     try {
-      await api.updateSettings({ dataRetentionDays: retention, telegramBotToken: telegramBot, telegramChatId: telegramChat });
+      await api.updateSettings({ dataRetentionDays: retention });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } finally { setBusy(false); }
@@ -215,7 +211,7 @@ function GeneralSettings() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="General" description="Workspace identity, data retention, and alert bot." />
+      <PageHeader title="General" description="Workspace identity and data retention." />
 
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
@@ -242,17 +238,6 @@ function GeneralSettings() {
         <Field label="Click Event Logs Expiry (Days)" hint="Click data older than this is auto-deleted. 0 = keep forever.">
           <input type="number" min={0} className="input w-32 font-mono text-sm" value={retention} onChange={(e) => setRetention(Number(e.target.value))} />
         </Field>
-        <div className="border-t border-white/[0.06] pt-6 space-y-4">
-          <h3 className="text-sm font-semibold text-white/80">Telegram Alerts</h3>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Telegram Bot Token" hint="Token from @BotFather">
-              <input className="input w-full font-mono text-xs" value={telegramBot} onChange={(e) => setTelegramBot(e.target.value)} placeholder="123456789:ABC…" />
-            </Field>
-            <Field label="Target Chat ID" hint="Individual or group chat id">
-              <input className="input w-full font-mono text-xs" value={telegramChat} onChange={(e) => setTelegramChat(e.target.value)} placeholder="-100123456" />
-            </Field>
-          </div>
-        </div>
         <div className="border-t border-white/[0.06] pt-6">
           <Button variant="primary" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
         </div>
