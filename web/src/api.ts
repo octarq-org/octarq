@@ -59,6 +59,106 @@ export interface NotificationChannel {
   createdAt: string;
 }
 
+export interface LicenseStatus {
+  licensed: boolean;
+  email?: string;
+  tier?: string;
+  expiresAt?: string;
+  source: "env" | "file" | "none";
+  envOverride: boolean;
+}
+
+export interface LicenseActivateResult {
+  ok: boolean;
+  tier: string;
+  email: string;
+  requiresRestart: boolean;
+  envOverride: boolean;
+}
+
+export interface Product {
+  id: number;
+  slug: string;
+  name: string;
+  tagline: string;
+  description: string;
+  homepageUrl: string;
+  status: "active" | "draft";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Plan {
+  id: number;
+  productId: number;
+  name: string;
+  tier: string;
+  interval: "month" | "year" | "once";
+  priceCents: number;
+  currency: string;
+  features: string[] | null;
+  checkoutUrl: string;
+  highlighted: boolean;
+  sort: number;
+}
+
+export interface ReleaseAsset {
+  label: string;
+  url: string;
+  os: string;
+  arch: string;
+  kind: "binary" | "image" | "checksum" | string;
+}
+
+export interface Release {
+  id: number;
+  productId: number;
+  version: string;
+  channel: "stable" | "beta";
+  notes: string;
+  assets: ReleaseAsset[] | null;
+  createdAt: string;
+}
+
+export interface ProductKeyInfo {
+  productId: number;
+  hasKey: boolean;
+  publicKey?: string;
+  createdAt?: string;
+}
+
+export interface IssuedLicense {
+  id: number;
+  productId: number;
+  email: string;
+  tier: string;
+  token: string;
+  expiresAt: string | null;
+  status: "active" | "revoked";
+  provider: string;
+  createdAt: string;
+}
+
+export interface BillingConfig {
+  webhookSecretSet: boolean;
+  providers: string[];
+}
+
+export interface PriceMap {
+  id: number;
+  stripeRef: string; // plink_… (or price_…)
+  productSlug: string;
+  tier: string;
+  term: string; // monthly | yearly | lifetime | ""
+  createdAt: string;
+}
+
+export type PriceMapInput = Pick<PriceMap, "stripeRef" | "productSlug" | "tier" | "term">;
+
+export type ProductInput = Omit<Product, "id" | "createdAt" | "updatedAt">;
+export type PlanInput = Omit<Plan, "id" | "productId">;
+export type ReleaseInput = Pick<Release, "version" | "channel" | "notes"> & { assets: ReleaseAsset[] };
+
 export interface HostEntry {
   host: string;
   enabled: boolean;
@@ -299,22 +399,34 @@ export interface AIStatus {
 // AISettings is the DB-backed LLM configuration for Inbox AI (the API key is
 // never returned — only whether one is set).
 export interface AISettings {
+  providerId: string; // selected LLMProvider id ("" = none)
+  briefingHour: number;
+  configured: boolean; // a usable LLM backend is resolvable
+}
+
+export interface LLMProvider {
+  id: number;
+  name: string;
   provider: string;
+  baseUrl: string;
   model: string;
   cheapModel: string;
-  baseUrl: string;
   apiKeySet: boolean;
-  briefingHour: number;
+}
+
+export interface LLMProviderInput {
+  name: string;
+  provider: string;
+  apiKey?: string; // omit = keep, "" = clear
+  baseUrl?: string;
+  model?: string;
+  cheapModel?: string;
 }
 
 // AISettingsPatch updates AISettings; omitted fields are left unchanged, an
 // empty apiKey clears the stored key.
 export interface AISettingsPatch {
-  provider?: string;
-  apiKey?: string;
-  model?: string;
-  cheapModel?: string;
-  baseUrl?: string;
+  providerId?: string;
   briefingHour?: number;
 }
 
@@ -336,6 +448,12 @@ export const api = {
   aiSettings: () => req<AISettings>("GET", "/api/ai/settings"),
   updateAiSettings: (s: AISettingsPatch) => req<AISettings>("PUT", "/api/ai/settings", s),
 
+  // LLM provider registry (led-pro ai plugin; absent in OSS build → 404)
+  llmProviders: () => req<LLMProvider[]>("GET", "/api/llm-providers"),
+  createLlmProvider: (p: LLMProviderInput) => req<LLMProvider>("POST", "/api/llm-providers", p),
+  updateLlmProvider: (id: number, p: LLMProviderInput) => req<LLMProvider>("PUT", `/api/llm-providers/${id}`, p),
+  deleteLlmProvider: (id: number) => req<void>("DELETE", `/api/llm-providers/${id}`),
+
   // settings
   settings: () => req<Settings>("GET", "/api/settings"),
   updateSettings: (s: {
@@ -351,7 +469,49 @@ export const api = {
     githubClientId?: string;
     githubClientSecret?: string;
     dataRetentionDays?: number;
+    autoWrapLinks?: boolean;
   }) => req<Settings>("PUT", "/api/settings", s),
+
+  // license (led-pro licensing plugin; absent in the OSS build → 404)
+  license: () => req<LicenseStatus>("GET", "/api/license"),
+  activateLicense: (token: string) =>
+    req<LicenseActivateResult>("POST", "/api/license", { token }),
+  deactivateLicense: () => req<{ ok: boolean; requiresRestart: boolean }>("DELETE", "/api/license"),
+
+  // storefront (led-pro product plugin; absent in OSS build → 404)
+  products: () => req<Product[]>("GET", "/api/products"),
+  createProduct: (p: ProductInput) => req<Product>("POST", "/api/products", p),
+  updateProduct: (id: number, p: ProductInput) => req<Product>("PUT", `/api/products/${id}`, p),
+  deleteProduct: (id: number) => req<void>("DELETE", `/api/products/${id}`),
+  plans: (productId: number) => req<Plan[]>("GET", `/api/products/${productId}/plans`),
+  createPlan: (productId: number, p: PlanInput) => req<Plan>("POST", `/api/products/${productId}/plans`, p),
+  updatePlan: (id: number, p: PlanInput) => req<Plan>("PUT", `/api/plans/${id}`, p),
+  deletePlan: (id: number) => req<void>("DELETE", `/api/plans/${id}`),
+  releases: (productId: number) => req<Release[]>("GET", `/api/products/${productId}/releases`),
+  createRelease: (productId: number, rel: ReleaseInput) =>
+    req<Release>("POST", `/api/products/${productId}/releases`, rel),
+  deleteRelease: (id: number) => req<void>("DELETE", `/api/releases/${id}`),
+
+  // issuer: per-product signing keys + issuance records (led-pro issuer plugin)
+  productKey: (productId: number) => req<ProductKeyInfo>("GET", `/api/products/${productId}/key`),
+  createProductKey: (productId: number, privateKey?: string) =>
+    req<{ productId: number; publicKey: string; note: string }>(
+      "POST",
+      `/api/products/${productId}/key`,
+      privateKey ? { privateKey } : {},
+    ),
+  deleteProductKey: (productId: number) => req<void>("DELETE", `/api/products/${productId}/key`),
+  issued: (productId?: number) =>
+    req<IssuedLicense[]>("GET", `/api/issued${productId ? `?productId=${productId}` : ""}`),
+
+  // billing config + price map (led-pro billing plugin)
+  billingConfig: () => req<BillingConfig>("GET", "/api/billing/config"),
+  updateBillingConfig: (p: { webhookSecret?: string }) =>
+    req<BillingConfig>("PUT", "/api/billing/config", p),
+  billingPrices: () => req<PriceMap[]>("GET", "/api/billing/prices"),
+  createBillingPrice: (p: PriceMapInput) => req<PriceMap>("POST", "/api/billing/prices", p),
+  updateBillingPrice: (id: number, p: PriceMapInput) => req<PriceMap>("PUT", `/api/billing/prices/${id}`, p),
+  deleteBillingPrice: (id: number) => req<void>("DELETE", `/api/billing/prices/${id}`),
 
   // auth
   me: () => req<{ username: string; orgId: number }>("GET", "/api/auth/me"),
