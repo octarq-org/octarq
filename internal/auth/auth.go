@@ -92,6 +92,10 @@ func (m *Manager) SetSession(w http.ResponseWriter, uid, orgID uint) {
 		Value:    m.issue(uid, orgID, 7*24*time.Hour),
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   m.cfg.SecureCookies,
+		// SameSite=Lax (not Strict) is required so the cookie survives the
+		// top-level redirect back from an OAuth provider; it still blocks
+		// cross-site state-changing requests, which is the CSRF protection.
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int((7 * 24 * time.Hour).Seconds()),
 	})

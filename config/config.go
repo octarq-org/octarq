@@ -33,6 +33,12 @@ type Config struct {
 	AdminUser     string
 	AdminPassword string
 
+	// SecureCookies adds the Secure attribute to the session cookie (HTTPS-only).
+	// Auto-enabled when the deployment looks production (BaseURL is https or
+	// AdminHost is set); force with LED_SECURE_COOKIES=true|false. Off by default
+	// for plain-http localhost dev, where a Secure cookie would never be sent.
+	SecureCookies bool
+
 	GeoIPDB string // optional path to a MaxMind GeoLite2-City.mmdb
 
 	// BaseURL is the public-facing URL used to build OAuth callback URIs,
@@ -145,6 +151,12 @@ func Load() (*Config, error) {
 		if k = strings.TrimSpace(k); k != "" {
 			c.OldSecretKeys = append(c.OldSecretKeys, k)
 		}
+	}
+
+	// Secure cookies: auto-on when prod-looking, overridable by env.
+	c.SecureCookies = strings.HasPrefix(strings.ToLower(c.BaseURL), "https://") || c.AdminHost != ""
+	if v, ok := os.LookupEnv("LED_SECURE_COOKIES"); ok {
+		c.SecureCookies = strings.EqualFold(strings.TrimSpace(v), "true") || strings.TrimSpace(v) == "1"
 	}
 	if c.AdminPassword == "" {
 		return nil, fmt.Errorf("LED_ADMIN_PASSWORD is required")
