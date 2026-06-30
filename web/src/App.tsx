@@ -631,7 +631,7 @@ function IconRail({
   return (
     <div className={`relative z-30 flex h-full flex-col items-center border-r border-white/[0.06] bg-[#07070b]/60 py-3 backdrop-blur-xl transition-[width] duration-200 ${expanded ? "w-56" : "w-16"}`}>
       {/* Logo */}
-      <div className={`mb-3 flex items-center transition-all ${expanded ? "w-48 gap-3 px-1" : "h-10 w-10 justify-center"}`}>
+      <div className={`mb-3 flex items-center transition-all ${expanded ? "w-48 gap-3 pl-0.5 pr-1" : "h-10 w-10 justify-center"}`}>
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
           <span className="font-display text-base font-extrabold text-white">L</span>
         </div>
