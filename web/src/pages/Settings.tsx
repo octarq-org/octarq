@@ -804,7 +804,7 @@ function OrgMembersManager() {
         <div className="text-white/40 text-sm py-4 text-center">loading members list…</div>
       ) : (
         <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
-          {members.map((m) => (
+          {(members || []).map((m) => (
             <div key={m.userId} className="flex justify-between items-center p-4">
               <div className="flex items-center gap-2.5">
                 <span className="font-semibold text-sm text-white">{m.email}</span>

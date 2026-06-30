@@ -209,7 +209,7 @@ func (h *Handler) listOrgMembers(w http.ResponseWriter, r *http.Request) {
 		Email  string `json:"email"`
 		Role   string `json:"role"`
 	}
-	var items []MemberItem
+	items := []MemberItem{}
 	err := h.db.Model(&models.OrgMember{}).
 		Select("users.id as user_id, users.email, org_members.role").
 		Joins("JOIN users ON users.id = org_members.user_id").
