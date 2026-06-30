@@ -29,12 +29,8 @@ var (
 func fetchPageMeta(ctx context.Context, rawURL string) (title, desc string) {
 	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
-	if err != nil {
-		return "", ""
-	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; led-link-preview/1.0)")
-	resp, err := http.DefaultClient.Do(req)
+	// Guarded fetch: blocks internal/cloud-metadata IPs and redirect-based SSRF.
+	resp, err := safeGet(ctx, rawURL)
 	if err != nil {
 		return "", ""
 	}
@@ -198,7 +194,7 @@ func (h *Handler) createLink(w http.ResponseWriter, r *http.Request) {
 	}
 	l := models.Link{
 		OrgID: h.orgID(r),
-		Host:    strings.TrimSpace(d.Host), Slug: slug, Target: d.Target,
+		Host:  strings.TrimSpace(d.Host), Slug: slug, Target: d.Target,
 		Password: d.Password, Note: d.Note, Title: d.Title, Tags: d.Tags,
 		ExpiresAt: d.ExpiresAt, ExpiredURL: d.ExpiredURL, ClickLimit: d.ClickLimit,
 		Enabled: enabled,
@@ -208,7 +204,7 @@ func (h *Handler) createLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
-	
+
 	if l.Title == "" {
 		go func(id uint, target string) {
 			title, _ := fetchPageMeta(context.Background(), target)
