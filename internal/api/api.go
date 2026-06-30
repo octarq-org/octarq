@@ -26,6 +26,7 @@ type Handler struct {
 	oauth        *auth.OAuthHandler // nil if BaseURL not configured
 	loginLimiter *rateLimiter
 	abuseLimiter *rateLimiter
+	sendLimiter  *rateLimiter // outbound-email rate cap, keyed by org
 	plugins      []plugin.Plugin
 
 	// emailHandlers are notified after each inbound email is stored. They are
@@ -63,7 +64,6 @@ func (h *Handler) emitEmail(e plugin.EmailEvent) {
 	}
 }
 
-
 func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *geo.Resolver) *Handler {
 	h := &Handler{
 		cfg:          cfg,
@@ -73,6 +73,7 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 		geo:          g,
 		loginLimiter: newRateLimiter(5, 15*time.Minute), // 5 fails / 15 mins
 		abuseLimiter: newRateLimiter(5, time.Hour),      // 5 reports / 1 hour
+		sendLimiter:  newRateLimiter(100, time.Hour),    // 100 outbound emails / org / hour
 	}
 	if cfg.BaseURL != "" {
 		h.oauth = auth.NewOAuthHandler(db, cfg.BaseURL, a, c)
@@ -184,8 +185,6 @@ func (h *Handler) Routes() *http.ServeMux {
 	p("PUT /api/notification-channels/{id}", h.updateNotificationChannel)
 	p("DELETE /api/notification-channels/{id}", h.deleteNotificationChannel)
 	p("POST /api/notification-channels/{id}/test", h.testNotificationChannel)
-
-
 
 	// Abuse reports: submit is public, list/update require admin session.
 	p("GET /api/abuse", h.listAbuseReports)

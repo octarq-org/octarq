@@ -55,7 +55,7 @@ func (h *Handler) createMailbox(w http.ResponseWriter, r *http.Request) {
 		enabled = *d.Enabled
 	}
 	mb := models.Mailbox{
-		OrgID: h.orgID(r),
+		OrgID:   h.orgID(r),
 		Address: d.Address, Note: d.Note, Enabled: enabled,
 	}
 	if err := h.db.Create(&mb).Error; err != nil {
@@ -249,6 +249,14 @@ func (h *Handler) sendEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Rate-limit outbound mail per org so a leaked API token or a runaway client
+	// can't burn the sending domain's / relay IP's reputation into an RBL.
+	orgKey := fmt.Sprintf("org:%d", h.orgID(r))
+	if !h.sendLimiter.allow(orgKey) {
+		writeErr(w, http.StatusTooManyRequests, "send rate limit exceeded (max 100/hour) — try again later")
+		return
+	}
+
 	var sender mail.Sender
 	if payload.SMTPSenderID == 0 {
 		writeErr(w, http.StatusBadRequest, "no SMTP sender selected")
@@ -264,6 +272,10 @@ func (h *Handler) sendEmail(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "decrypt failed")
 		return
 	}
+	// Force the From header to the sender's verified address — never trust a
+	// client-supplied From, which would let a caller spoof arbitrary senders
+	// through the relay.
+	payload.Message.From = s.FromEmail
 	sender = mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
 
 	if payload.TrackLinks {
@@ -274,6 +286,7 @@ func (h *Handler) sendEmail(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "send failed: "+err.Error())
 		return
 	}
+	h.sendLimiter.recordFailure(orgKey) // count this send against the per-org cap
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -440,7 +453,7 @@ func (h *Handler) resolveMailbox(addr string) (*models.Mailbox, bool) {
 
 func (h *Handler) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 	orgID := h.orgID(r)
-	
+
 	// Determine the short link domain host
 	var doms []models.Domain
 	h.db.Where("owner_id = ? AND for_link = ?", orgID, true).Find(&doms)
@@ -452,18 +465,18 @@ func (h *Handler) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 	if idx := strings.IndexByte(shortHost, ':'); idx >= 0 {
 		shortHost = shortHost[:idx]
 	}
-	
+
 	scheme := "http"
 	if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
 		scheme = "https"
 	}
-	
+
 	// Regex for HTTP/HTTPS links
 	reLink := regexp.MustCompile(`https?://[a-zA-Z0-9.\-_~%#?&=/]+`)
-	
+
 	// Map to track wrapped URLs in this email
 	urlMap := make(map[string]string)
-	
+
 	// Helper to process a text body
 	processBody := func(body string) string {
 		return reLink.ReplaceAllStringFunc(body, func(rawURL string) string {
@@ -484,7 +497,7 @@ func (h *Handler) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 			if err != nil {
 				return rawURL
 			}
-			
+
 			// Skip if it is already our short link host or is localhost/internal
 			uHost := u.Host
 			if idx := strings.IndexByte(uHost, ':'); idx >= 0 {
@@ -493,12 +506,12 @@ func (h *Handler) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 			if strings.EqualFold(uHost, shortHost) || strings.EqualFold(uHost, "localhost") || strings.EqualFold(uHost, "127.0.0.1") {
 				return rawURL
 			}
-			
+
 			// Check if we already wrapped this URL in this email
 			if cached, ok := urlMap[cleanURL]; ok {
 				return cached + suffix
 			}
-			
+
 			// Generate a unique slug
 			var slug string
 			for i := 0; i < 5; i++ {
@@ -511,7 +524,7 @@ func (h *Handler) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 					}
 				}
 			}
-			
+
 			// Create the link record
 			link := models.Link{
 				OrgID:   orgID,
@@ -524,13 +537,13 @@ func (h *Handler) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 			if err := h.db.Create(&link).Error; err != nil {
 				return rawURL
 			}
-			
+
 			shortURL := fmt.Sprintf("%s://%s/%s", scheme, shortHost, slug)
 			urlMap[cleanURL] = shortURL
 			return shortURL + suffix
 		})
 	}
-	
+
 	if msg.Text != "" {
 		msg.Text = processBody(msg.Text)
 	}
