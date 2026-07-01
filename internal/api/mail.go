@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -568,6 +569,36 @@ func (h *Handler) emailBounceWebhook(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, "read body")
 		return
+	}
+
+	// Check for AWS SNS wrapped payload
+	var snsWrap map[string]any
+	if err := json.Unmarshal(body, &snsWrap); err == nil {
+		if snsType, ok := snsWrap["Type"].(string); ok {
+			if snsType == "SubscriptionConfirmation" {
+				if subURL, ok := snsWrap["SubscribeURL"].(string); ok && subURL != "" {
+					// Auto confirm subscription asynchronously
+					go func() {
+						hc := &http.Client{Timeout: 10 * time.Second}
+						resp, err := hc.Get(subURL)
+						if err == nil {
+							resp.Body.Close()
+							log.Printf("AWS SNS subscription confirmed successfully via %s", subURL)
+						} else {
+							log.Printf("AWS SNS subscription confirmation failed: %v", err)
+						}
+					}()
+					writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Subscription confirmation triggered"})
+					return
+				}
+			}
+			if snsType == "Notification" {
+				if msgStr, ok := snsWrap["Message"].(string); ok && msgStr != "" {
+					// Replace body with the actual inner message bytes
+					body = []byte(msgStr)
+				}
+			}
+		}
 	}
 
 	events := extractBounceEvents(body)
