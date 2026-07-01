@@ -518,6 +518,8 @@ export const api = {
   login: (username: string, password: string) =>
     req<{ ok: boolean }>("POST", "/api/auth/login", { username, password }),
   logout: () => req<{ ok: boolean }>("POST", "/api/auth/logout"),
+  acceptInvite: (token: string, password: string) =>
+    req<{ ok: boolean }>("POST", "/api/auth/invite/accept", { token, password }),
 
   // links
   links: (params: { q?: string; tag?: string; host?: string; archived?: boolean; limit?: number; offset?: number } = {}) => {
@@ -572,6 +574,7 @@ export const api = {
   createDomain: (d: any) => req<Domain>("POST", "/api/domains", d),
   updateDomain: (id: number, d: any) => req<Domain>("PUT", `/api/domains/${id}`, d),
   deleteDomain: (id: number) => req("DELETE", `/api/domains/${id}`),
+  verifyDNS: (id: number) => req<{ spf: boolean; dkim: boolean; dmarc: boolean }>("GET", `/api/domains/${id}/verify-dns`),
   records: (id: number) => req<DNSRecord[]>("GET", `/api/domains/${id}/records`),
   createRecord: (id: number, r: Partial<DNSRecord>) =>
     req<DNSRecord>("POST", `/api/domains/${id}/records`, r),
@@ -680,6 +683,10 @@ export const api = {
   portalDevices: (id: number) => req<LicenseDevice[]>("GET", `/api/portal/licenses/${id}/devices`),
   portalUnbindDevice: (id: number, deviceId: number) => req<{ ok: boolean }>("DELETE", `/api/portal/licenses/${id}/devices/${deviceId}`),
   portalBillingPortal: () => req<{ url: string }>("POST", "/api/portal/billing-portal"),
+
+  // GDPR
+  exportAccountData: () => req<any>("GET", "/api/account/export"),
+  purgeAccountData: () => req<void>("DELETE", "/api/account/data"),
 };
 
 export interface Org {

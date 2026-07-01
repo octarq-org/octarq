@@ -48,6 +48,7 @@ import InboxAIPage from "./pages/InboxAI";
 import AuditLogPage from "./pages/AuditLog";
 import AbusePage from "./pages/Abuse";
 import PersonalSettingsPage from "./pages/PersonalSettings";
+import InviteAcceptPage from "./pages/InviteAccept";
 import { Modal, Button, ScreenWrap, PageHeader, GlassCard } from "./ui";
 
 // ─── Area definitions ──────────────────────────────────────────────────────
@@ -243,6 +244,10 @@ export default function App() {
       .then((m) => { setUser(m.username); setActiveOrgId(m.orgId); setAuthed(true); })
       .catch(() => setAuthed(false));
   }, []);
+
+  if (window.location.pathname === "/admin/invite/accept") {
+    return <InviteAcceptPage />;
+  }
 
   if (authed === null) {
     return (
@@ -502,6 +507,7 @@ function Shell({
               <Route path="/abuse"      element={<AbusePage />} />
               <Route path="/settings/*" element={<SettingsPage />} />
               <Route path="/personal/*" element={<PersonalSettingsPage />} />
+              <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
               <Route path="*"           element={<Navigate to="/overview" replace />} />
             </Routes>
           </div>
