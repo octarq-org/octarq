@@ -33,6 +33,26 @@ export default function DomainsPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
 
+  const [dnsStatus, setDnsStatus] = useState<{ spf: boolean; dkim: boolean; dmarc: boolean } | null>(null);
+  const [verifying, setVerifying] = useState(false);
+
+  useEffect(() => {
+    setDnsStatus(null);
+  }, [active]);
+
+  async function verifyDns() {
+    if (!active || active === "new") return;
+    setVerifying(true);
+    try {
+      const res = await api.verifyDNS(active.id);
+      setDnsStatus(res);
+    } catch (e: any) {
+      alert(e.message || "Failed to verify DNS setup");
+    } finally {
+      setVerifying(false);
+    }
+  }
+
   async function loadMore(reset = false) {
     if (loading || (!hasMore && !reset)) return;
     setLoading(true);
@@ -213,6 +233,61 @@ export default function DomainsPage() {
                     if (updated) setActive(updated);
                   }}
                 />
+              </GlassCard>
+
+              <GlassCard className="p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider">DNS Setup Verification</h3>
+                  <Button 
+                    variant="subtle" 
+                    onClick={verifyDns}
+                    disabled={verifying}
+                    className="text-xs py-1 px-2.5"
+                  >
+                    {verifying ? "Verifying..." : "Verify DNS Setup"}
+                  </Button>
+                </div>
+                <p className="text-xs text-white/50 leading-relaxed">
+                  Check if SPF, DKIM, and DMARC TXT records are configured correctly to ensure email delivery and protect your domain reputation.
+                </p>
+                <div className="grid grid-cols-3 gap-3 pt-2">
+                  <div className="flex flex-col items-center p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                    <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">SPF Status</span>
+                    <div className="mt-2">
+                      {dnsStatus === null ? (
+                        <Badge tone="neutral">Unknown</Badge>
+                      ) : dnsStatus.spf ? (
+                        <Badge tone="green">✓ Configured</Badge>
+                      ) : (
+                        <Badge tone="red">✗ Missing</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                    <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">DKIM Status</span>
+                    <div className="mt-2">
+                      {dnsStatus === null ? (
+                        <Badge tone="neutral">Unknown</Badge>
+                      ) : dnsStatus.dkim ? (
+                        <Badge tone="green">✓ Configured</Badge>
+                      ) : (
+                        <Badge tone="red">✗ Missing</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                    <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">DMARC Status</span>
+                    <div className="mt-2">
+                      {dnsStatus === null ? (
+                        <Badge tone="neutral">Unknown</Badge>
+                      ) : dnsStatus.dmarc ? (
+                        <Badge tone="green">✓ Configured</Badge>
+                      ) : (
+                        <Badge tone="red">✗ Missing</Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </GlassCard>
 
               <GlassCard className="p-5">

@@ -179,10 +179,19 @@ function GeneralSettings() {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const [role, setRole] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [purging, setPurging] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+
   useEffect(() => {
     api.me().then((me) => api.orgs().then((orgs) => {
       const o = orgs.find((x) => x.id === me.orgId);
-      if (o) setWorkspaceName(o.name);
+      if (o) {
+        setWorkspaceName(o.name);
+        setRole(o.role || "member");
+      }
     })).catch(() => {});
     api.settings().then((v) => {
       setRetention(v.dataRetentionDays ?? 90);
@@ -208,6 +217,47 @@ function GeneralSettings() {
       setTimeout(() => setSaved(false), 2000);
     } finally { setBusy(false); }
   }
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const data = await api.exportAccountData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `workspace-data-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err.message || "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handlePurge() {
+    if (deleteConfirmationText !== "DELETE MY DATA") {
+      alert("Please type 'DELETE MY DATA' exactly to confirm.");
+      return;
+    }
+    setPurging(true);
+    try {
+      await api.purgeAccountData();
+      alert("Workspace data has been purged successfully.");
+      setShowDeleteModal(false);
+      setDeleteConfirmationText("");
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.message || "Purge failed");
+    } finally {
+      setPurging(false);
+    }
+  }
+
+  const isAdminOrOwner = role === "admin" || role === "owner";
 
   return (
     <div className="space-y-6">
@@ -242,6 +292,58 @@ function GeneralSettings() {
           <Button variant="primary" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
         </div>
       </GlassCard>
+
+      {isAdminOrOwner && (
+        <GlassCard className="p-6 border-red-500/20 bg-red-950/5 space-y-6">
+          <div className="flex items-center gap-2 text-rose-400">
+            <ShieldAlert size={20} />
+            <h2 className="text-base font-bold">Danger Zone / GDPR</h2>
+          </div>
+          <p className="text-xs text-white/60">
+            As a workspace Admin or Owner, you can export all organization data or permanently delete this workspace and all associated logs, domains, links, and mailbox records.
+          </p>
+          <div className="flex flex-wrap gap-4 pt-2">
+            <Button variant="secondary" onClick={handleExport} disabled={exporting}>
+              {exporting ? "Exporting..." : "Export Workspace Data"}
+            </Button>
+            <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
+              Purge Workspace Data
+            </Button>
+          </div>
+        </GlassCard>
+      )}
+
+      {showDeleteModal && (
+        <Modal title="Purge Workspace Data" onClose={() => { setShowDeleteModal(false); setDeleteConfirmationText(""); }}>
+          <div className="space-y-4">
+            <p className="text-sm text-white/70">
+              This action is permanent and cannot be undone. All workspace links, domains, mailboxes, and logs will be permanently deleted.
+            </p>
+            <p className="text-sm text-white/70">
+              Please type <span className="font-mono font-bold text-red-400 select-all">DELETE MY DATA</span> to confirm this action.
+            </p>
+            <input
+              type="text"
+              className="input w-full text-sm font-mono text-center border-red-500/30 focus:border-red-500/60"
+              value={deleteConfirmationText}
+              onChange={(e) => setDeleteConfirmationText(e.target.value)}
+              placeholder="DELETE MY DATA"
+            />
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="ghost" onClick={() => { setShowDeleteModal(false); setDeleteConfirmationText(""); }}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                disabled={deleteConfirmationText !== "DELETE MY DATA" || purging}
+                onClick={handlePurge}
+              >
+                {purging ? "Deleting..." : "Permanently Purge Data"}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
