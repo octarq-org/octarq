@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	outDir := "/Volumes/PHD/code/led-pro-openapi-worktree/web/public"
+	outDir := "../led-pro/web/public"
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		fmt.Printf("Error creating output directory: %v\n", err)
 		os.Exit(1)
