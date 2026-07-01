@@ -146,19 +146,48 @@ func TestAPIVersioningRewrite(t *testing.T) {
 func TestEmailBounceWebhook(t *testing.T) {
 	srv, db := newTestHandler(t)
 
-	// Create test mailbox
+	// The webhook is tenant-scoped + token-authed: create the org, then a mailbox
+	// under it, and post to /api/webhook/{slug}/email/bounce/{token}.
+	org := models.Org{Name: "Acme", Slug: "acme", InboundToken: "btok"}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("failed to create org: %v", err)
+	}
 	mb := models.Mailbox{
-		OrgID:   1,
+		OrgID:   org.ID,
 		Address: "bounced@example.com",
 		Enabled: true,
 	}
 	if err := db.Create(&mb).Error; err != nil {
 		t.Fatalf("failed to create test mailbox: %v", err)
 	}
+	bounceURL := "/api/webhook/acme/email/bounce/btok"
+
+	// 0. Unauthenticated (bad token) → 401; unknown org → 404.
+	for _, tc := range []struct {
+		url  string
+		want int
+	}{
+		{"/api/webhook/acme/email/bounce/wrong", http.StatusUnauthorized},
+		{"/api/webhook/nope/email/bounce/btok", http.StatusNotFound},
+	} {
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, tc.url, strings.NewReader("[]")))
+		if rec.Code != tc.want {
+			t.Errorf("%s: got %d, want %d", tc.url, rec.Code, tc.want)
+		}
+	}
+
+	// SSRF guard: an SNS SubscriptionConfirmation with a non-AWS SubscribeURL is rejected.
+	rec0 := httptest.NewRecorder()
+	srv.ServeHTTP(rec0, httptest.NewRequest(http.MethodPost, bounceURL,
+		strings.NewReader(`{"Type":"SubscriptionConfirmation","SubscribeURL":"http://169.254.169.254/latest/meta-data/"}`)))
+	if rec0.Code != http.StatusBadRequest {
+		t.Errorf("SSRF SubscribeURL: got %d, want 400", rec0.Code)
+	}
 
 	// 1. Test SendGrid style bounce payload
 	payload := `[{"email":"bounced@example.com","event":"bounce","reason":"550 Invalid recipient","status":"5.1.1"}]`
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook/email/bounce", strings.NewReader(payload))
+	req := httptest.NewRequest(http.MethodPost, bounceURL, strings.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
@@ -192,7 +221,7 @@ func TestEmailBounceWebhook(t *testing.T) {
 			]
 		}
 	}`
-	req = httptest.NewRequest(http.MethodPost, "/api/webhook/email/bounce", strings.NewReader(sesPayload))
+	req = httptest.NewRequest(http.MethodPost, bounceURL, strings.NewReader(sesPayload))
 	req.Header.Set("Content-Type", "application/json")
 	rec = httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)

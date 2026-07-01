@@ -2,6 +2,7 @@ package api
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/Jungley8/led/internal/models"
 	"github.com/pquerna/otp/totp"
+	"github.com/skip2/go-qrcode"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -75,10 +77,16 @@ func (h *Handler) setup2FA(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "failed to store secret")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
+	// Render the QR server-side as a data URI. The otpauth URL contains the TOTP
+	// secret, so it must never be sent to a third-party QR service.
+	resp := map[string]any{
 		"secret":     key.Secret(),
 		"otpauthUrl": key.URL(),
-	})
+	}
+	if png, err := qrcode.Encode(key.URL(), qrcode.Medium, 256); err == nil {
+		resp["qrDataUri"] = "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // enable2FA verifies a code against the pending secret and, on success, turns

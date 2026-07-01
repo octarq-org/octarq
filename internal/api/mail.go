@@ -563,8 +563,21 @@ func (h *Handler) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 	}
 }
 
-// POST /api/webhook/email/bounce
+// POST /api/webhook/{orgSlug}/email/bounce/{token}
 func (h *Handler) emailBounceWebhook(w http.ResponseWriter, r *http.Request) {
+	// Authenticate + scope by tenant (same scheme as inbound): the {orgSlug}
+	// names the org, the {token} must match its per-org secret. Without this a
+	// forged POST could spam an org's notification channels and audit log.
+	var org models.Org
+	if h.db.Where("slug = ?", r.PathValue("orgSlug")).First(&org).Error != nil {
+		writeErr(w, http.StatusNotFound, "unknown org")
+		return
+	}
+	if org.InboundToken == "" || r.PathValue("token") != org.InboundToken {
+		writeErr(w, http.StatusUnauthorized, "bad token")
+		return
+	}
+
 	body, err := io.ReadAll(io.LimitReader(r.Body, 5<<20)) // 5 MiB cap
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, "read body")
@@ -577,13 +590,20 @@ func (h *Handler) emailBounceWebhook(w http.ResponseWriter, r *http.Request) {
 		if snsType, ok := snsWrap["Type"].(string); ok {
 			if snsType == "SubscriptionConfirmation" {
 				if subURL, ok := snsWrap["SubscribeURL"].(string); ok && subURL != "" {
-					// Auto confirm subscription asynchronously
+					// SSRF guard: only auto-confirm to a genuine AWS SNS endpoint
+					// over https, and fetch through the SSRF-safe client (blocks
+					// private/loopback/metadata IPs). SubscribeURL is attacker-
+					// influenced, so it must never be fetched blindly.
+					if !isAWSSNSURL(subURL) {
+						log.Printf("bounce: refusing SNS SubscribeURL with non-AWS host: %s", subURL)
+						writeErr(w, http.StatusBadRequest, "invalid SubscribeURL")
+						return
+					}
 					go func() {
-						hc := &http.Client{Timeout: 10 * time.Second}
-						resp, err := hc.Get(subURL)
+						resp, err := safeGet(context.Background(), subURL)
 						if err == nil {
 							resp.Body.Close()
-							log.Printf("AWS SNS subscription confirmed successfully via %s", subURL)
+							log.Printf("AWS SNS subscription confirmed successfully")
 						} else {
 							log.Printf("AWS SNS subscription confirmation failed: %v", err)
 						}
@@ -612,7 +632,7 @@ func (h *Handler) emailBounceWebhook(w http.ResponseWriter, r *http.Request) {
 
 	for _, ev := range events {
 		var mb models.Mailbox
-		if err := h.db.Where("address = ?", strings.ToLower(ev.Email)).First(&mb).Error; err != nil {
+		if err := h.db.Where("address = ? AND owner_id = ?", strings.ToLower(ev.Email), org.ID).First(&mb).Error; err != nil {
 			continue
 		}
 
@@ -661,6 +681,18 @@ type bounceEvent struct {
 	Email   string
 	Event   string // "bounce" or "complaint"
 	Details string
+}
+
+// isAWSSNSURL reports whether u is a legitimate AWS SNS confirmation URL: https
+// to an sns.<region>.amazonaws.com host. This blocks the SubscribeURL (which is
+// attacker-influenced) from pointing the server at arbitrary/internal hosts.
+func isAWSSNSURL(u string) bool {
+	parsed, err := url.Parse(u)
+	if err != nil || parsed.Scheme != "https" {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	return strings.HasPrefix(host, "sns.") && strings.HasSuffix(host, ".amazonaws.com")
 }
 
 func extractBounceEvents(body []byte) []bounceEvent {

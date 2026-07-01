@@ -532,7 +532,7 @@ export const api = {
   // 2FA (operator TOTP)
   twoFAStatus: () => req<{ enabled: boolean }>("GET", "/api/auth/2fa/status"),
   twoFASetup: () =>
-    req<{ secret: string; otpauthUrl: string }>("POST", "/api/auth/2fa/setup"),
+    req<{ secret: string; otpauthUrl: string; qrDataUri?: string }>("POST", "/api/auth/2fa/setup"),
   twoFAEnable: (code: string) =>
     req<{ ok: boolean; recoveryCodes: string[] }>("POST", "/api/auth/2fa/enable", { code }),
   twoFADisable: (opts: { code?: string; password?: string }) =>

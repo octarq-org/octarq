@@ -358,7 +358,7 @@ function SecuritySettings() {
   const [msg, setMsg] = useState("");
 
   // Enrollment state.
-  const [setup, setSetup] = useState<{ secret: string; otpauthUrl: string } | null>(null);
+  const [setup, setSetup] = useState<{ secret: string; otpauthUrl: string; qrDataUri?: string } | null>(null);
   const [enrollCode, setEnrollCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
 
@@ -457,7 +457,7 @@ function SecuritySettings() {
               className="rounded-lg bg-white p-2"
               width={160}
               height={160}
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(setup.otpauthUrl)}`}
+              src={setup.qrDataUri}
             />
             <Field label="Setup key (if you can't scan)">
               <input className="input w-full font-mono text-xs" readOnly value={setup.secret} />

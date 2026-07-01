@@ -125,8 +125,10 @@ func (h *Handler) Routes() *http.ServeMux {
 	// token authenticates.
 	mux.HandleFunc("POST /api/webhook/{orgSlug}/email/inbound/{token}", h.inbound)
 
-	// Mail bounce and complaint webhook (public)
-	mux.HandleFunc("POST /api/webhook/email/bounce", h.emailBounceWebhook)
+	// Mail bounce/complaint webhook — same tenant-first, path-token scheme as
+	// inbound: the slug names the org and the per-org token authenticates, so a
+	// forged POST can't spam an org's notification channels.
+	mux.HandleFunc("POST /api/webhook/{orgSlug}/email/bounce/{token}", h.emailBounceWebhook)
 
 	// Abuse reporting (public — no auth required to submit).
 	mux.HandleFunc("POST /abuse", h.submitAbuse)
