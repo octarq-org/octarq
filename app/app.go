@@ -15,6 +15,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -30,7 +31,9 @@ import (
 	"github.com/Jungley8/led/internal/db"
 	"github.com/Jungley8/led/internal/eventbus"
 	"github.com/Jungley8/led/internal/geo"
+	"github.com/Jungley8/led/internal/mail"
 	"github.com/Jungley8/led/internal/mcp"
+	"github.com/Jungley8/led/internal/models"
 	"github.com/Jungley8/led/internal/notify"
 	"github.com/Jungley8/led/internal/server"
 	"github.com/Jungley8/led/internal/shortlink"
@@ -85,6 +88,23 @@ func New() (*App, error) {
 // DB exposes the shared database handle (useful for plugin construction).
 func (a *App) DB() *gorm.DB { return a.gdb }
 
+// sendMail is the implementation behind plugin.Context.SendMail. It resolves the
+// org's first configured SMTP sender, decrypts its password, and relays the
+// message — mirroring internal/api.Handler.sendEmail so plugins can send
+// transactional mail without importing led's internal packages.
+func (a *App) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
+	var s models.SMTPSender
+	if err := a.gdb.Where("owner_id = ? ", orgID).Order("id").First(&s).Error; err != nil {
+		return fmt.Errorf("no SMTP sender configured for org %d", orgID)
+	}
+	pass, err := a.cipher.Decrypt(s.Pass)
+	if err != nil {
+		return err
+	}
+	sender := mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
+	return sender.Send(mail.Message{From: s.FromEmail, To: []string{to}, Subject: subject, HTML: htmlBody, Text: textBody})
+}
+
 // Use registers a plugin. All plugins must be registered before Run so their
 // models are migrated and their routes mounted.
 func (a *App) Use(p plugin.Plugin) { a.plugins = append(a.plugins, p) }
@@ -109,16 +129,17 @@ func (a *App) RunMCP(ctx context.Context) error {
 	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo)
 	apiHandler.SetPlugins(a.plugins)
 	pctx := &plugin.Context{
-		DB:      a.gdb,
-		Guard:   a.auth.Require,
-		Notify:  notify.Send,
-		UserID:  a.auth.UserID,
-		OrgID:   a.auth.OrgID,
-		Audit:   apiHandler.Audit,
-		Encrypt: a.cipher.Encrypt,
-		Decrypt: a.cipher.Decrypt,
-		OnEmail: apiHandler.OnEmail,
-		DNS:     apiHandler.DNSManager(),
+		DB:       a.gdb,
+		Guard:    a.auth.Require,
+		Notify:   notify.Send,
+		UserID:   a.auth.UserID,
+		OrgID:    a.auth.OrgID,
+		Audit:    apiHandler.Audit,
+		Encrypt:  a.cipher.Encrypt,
+		Decrypt:  a.cipher.Decrypt,
+		OnEmail:  apiHandler.OnEmail,
+		DNS:      apiHandler.DNSManager(),
+		SendMail: a.sendMail,
 	}
 	throwaway := http.NewServeMux()
 	for _, p := range a.plugins {
@@ -155,16 +176,17 @@ func (a *App) Run(ctx context.Context) error {
 	apiHandler.SetPlugins(a.plugins)
 	mux := apiHandler.Routes()
 	pctx := &plugin.Context{
-		DB:      a.gdb,
-		Guard:   a.auth.Require,
-		Notify:  notify.Send,
-		UserID:  a.auth.UserID,
-		OrgID:   a.auth.OrgID,
-		Audit:   apiHandler.Audit,
-		Encrypt: a.cipher.Encrypt,
-		Decrypt: a.cipher.Decrypt,
-		OnEmail: apiHandler.OnEmail,
-		DNS:     apiHandler.DNSManager(),
+		DB:       a.gdb,
+		Guard:    a.auth.Require,
+		Notify:   notify.Send,
+		UserID:   a.auth.UserID,
+		OrgID:    a.auth.OrgID,
+		Audit:    apiHandler.Audit,
+		Encrypt:  a.cipher.Encrypt,
+		Decrypt:  a.cipher.Decrypt,
+		OnEmail:  apiHandler.OnEmail,
+		DNS:      apiHandler.DNSManager(),
+		SendMail: a.sendMail,
 	}
 	for _, p := range a.plugins {
 		p.Mount(mux, pctx)

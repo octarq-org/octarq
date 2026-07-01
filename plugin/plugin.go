@@ -79,6 +79,11 @@ type Context struct {
 	// internal/dnsprovider. This is what makes "point the A record at a new IP"
 	// an actual operation rather than a flag flip.
 	DNS DNSManager
+	// SendMail sends a transactional email through the org's configured SMTP
+	// sender (the first models.SMTPSender for that org). Returns an error if the
+	// org has no sender configured. Plugins use it for verification / password
+	// reset without importing led's internal packages.
+	SendMail func(orgID uint, to, subject, htmlBody, textBody string) error
 }
 
 // DNSRecord is a provider-agnostic DNS record, mirroring the fields of led's
@@ -147,4 +152,3 @@ type MenuProvider interface {
 type MCPProvider interface {
 	RegisterMCP(srv *mcp.Server)
 }
-
