@@ -187,6 +187,12 @@ func (rl *rateLimiter) sweepLocked(now time.Time) {
 // tierFor classifies a request into a rate-limit tier by path/method.
 func tierFor(r *http.Request) tier {
 	p := r.URL.Path
+	// Version prefixes are aliases (the mux rewrites /api/v1/x → /api/x), so
+	// normalize before classifying — otherwise /api/v1/auth/* would slip into the
+	// generous API tier instead of the strict auth tier.
+	if strings.HasPrefix(p, "/api/v1/") {
+		p = "/api/" + strings.TrimPrefix(p, "/api/v1/")
+	}
 	switch {
 	case strings.HasPrefix(p, "/api/auth/"), strings.HasPrefix(p, "/api/webhook/"):
 		return tierAuth

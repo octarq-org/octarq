@@ -211,6 +211,10 @@ func TestTierFor(t *testing.T) {
 		{"GET", "/portal/", tierAPI},
 		{"GET", "/", tierAPI},
 		{"GET", "/mySlug", tierRedirect},
+		// Version-prefixed aliases normalize before classifying, so /api/v1/auth
+		// still lands in the strict auth tier (not the generous API tier).
+		{"POST", "/api/v1/auth/login", tierAuth},
+		{"GET", "/api/v1/links", tierAPI},
 	}
 	for _, c := range cases {
 		req := httptest.NewRequest(c.method, c.path, nil)
