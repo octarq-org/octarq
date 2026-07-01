@@ -16,7 +16,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -72,7 +72,7 @@ func New() (*App, error) {
 
 	geoResolver, err := geo.Open(cfg.GeoIPDB)
 	if err != nil {
-		log.Printf("geoip disabled: %v", err)
+		slog.Warn("geoip disabled", "err", err)
 		geoResolver, _ = geo.Open("")
 	}
 
@@ -195,7 +195,7 @@ func (a *App) Run(ctx context.Context) error {
 	}
 	for _, p := range a.plugins {
 		p.Mount(mux, pctx)
-		log.Printf("plugin mounted: %s", p.Name())
+		slog.Info("plugin mounted", "name", p.Name())
 		if s, ok := p.(plugin.Starter); ok {
 			go s.Start(ctx)
 		}
@@ -220,9 +220,10 @@ func (a *App) Run(ctx context.Context) error {
 	go cleanup.Start(ctx, a.gdb, apiHandler.DataRetentionDays)
 
 	go func() {
-		log.Printf("led listening on %s (db=%s)", a.cfg.Listen, a.cfg.DBDriver)
+		slog.Info("led listening", "addr", a.cfg.Listen, "db", a.cfg.DBDriver)
 		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("listen: %v", err)
+			slog.Error("listen failed", "err", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -235,6 +236,6 @@ func (a *App) Run(ctx context.Context) error {
 
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	log.Println("shutting down...")
+	slog.Info("shutting down")
 	return httpSrv.Shutdown(shutCtx)
 }

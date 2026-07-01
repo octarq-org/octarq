@@ -17,7 +17,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/Jungley8/led/app"
@@ -25,20 +25,27 @@ import (
 )
 
 func main() {
+	// Structured JSON logging for the whole process. Edge access logs and the
+	// app lifecycle logs both flow through this default logger.
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
+
 	// Dispatch subcommands before standing up the full server. `led mcp` runs a
 	// stdio MCP server instead of the HTTP service.
 	if len(os.Args) > 1 && os.Args[1] == "mcp" {
 		if err := mcp.Run(context.Background()); err != nil {
-			log.Fatalf("mcp: %v", err)
+			slog.Error("mcp failed", "err", err)
+			os.Exit(1)
 		}
 		return
 	}
 
 	a, err := app.New()
 	if err != nil {
-		log.Fatalf("init: %v", err)
+		slog.Error("init failed", "err", err)
+		os.Exit(1)
 	}
 	if err := a.Run(context.Background()); err != nil {
-		log.Fatalf("run: %v", err)
+		slog.Error("run failed", "err", err)
+		os.Exit(1)
 	}
 }

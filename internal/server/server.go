@@ -29,6 +29,7 @@ type Server struct {
 	portalStatic http.Handler
 	portalIdx    []byte
 	portalAssets fs.FS
+	mw           *middleware
 }
 
 // New builds the combined handler. webFS is the embedded dist directory.
@@ -44,6 +45,7 @@ func New(cfg *config.Config, apiHandler http.Handler, short *shortlink.Service, 
 		static: http.StripPrefix("/admin/", http.FileServer(http.FS(webFS))),
 		spaIdx: idx,
 		assets: webFS,
+		mw:     newMiddleware(),
 	}
 
 	pSub, err := fs.Sub(webFS, "portal")
@@ -73,7 +75,14 @@ func setSecurityHeaders(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ServeHTTP applies the edge middleware (request IDs, rate limiting, metrics,
+// access logging) and then dispatches to the router.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.mw.handle(w, r, s.route)
+}
+
+// route performs the actual path-based dispatch.
+func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	setSecurityHeaders(w, r)
 	path := r.URL.Path
 
