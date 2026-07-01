@@ -43,6 +43,10 @@ vulncheck:
 	go install golang.org/x/vuln/cmd/govulncheck@latest
 	govulncheck ./...
 
+openapi:
+	go run cmd/openapi-gen/main.go
+
+
 clean:
 	rm -f $(BINARY) *.db *.db-*
 	rm -rf web/node_modules webembed/dist/assets .air
