@@ -60,14 +60,6 @@ func randomSlug(n int) string {
 	return string(b)
 }
 
-func idParam(r *http.Request) (uint, bool) {
-	v, err := strconv.ParseUint(r.PathValue("id"), 10, 64)
-	if err != nil {
-		return 0, false
-	}
-	return uint(v), true
-}
-
 // linkDTO is the create/update payload.
 type linkDTO struct {
 	Host       string     `json:"host"`

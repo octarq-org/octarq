@@ -58,7 +58,23 @@ func New(cfg *config.Config, apiHandler http.Handler, short *shortlink.Service, 
 	return s, nil
 }
 
+// setSecurityHeaders applies baseline hardening headers to every response.
+// CSP is intentionally omitted here — the SPA needs a tailored policy (framer
+// motion injects inline styles) that must be tested before enforcing.
+func setSecurityHeaders(w http.ResponseWriter, r *http.Request) {
+	h := w.Header()
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("X-Frame-Options", "SAMEORIGIN")
+	h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	// HSTS only over HTTPS (directly or behind a TLS-terminating proxy), so a
+	// plain-HTTP dev/localhost run isn't pinned to https.
+	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+		h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+	}
+}
+
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	setSecurityHeaders(w, r)
 	path := r.URL.Path
 
 	// 1. API and inbound webhook.
