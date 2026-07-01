@@ -224,6 +224,97 @@ func TestTwoFALoginFlow(t *testing.T) {
 	}
 }
 
+// TestReadEndpoints covers simple authenticated read handlers that had no
+// coverage: me, health, audit log, and the DNS provider list.
+func TestReadEndpoints(t *testing.T) {
+	srv, _ := newTestHandler(t)
+	cookies := loginCookies(t, srv)
+	// Create a mailbox so there's at least one audit entry to list.
+	do(srv, "POST", "/api/mailboxes", cookies, `{"address":"x@y.com"}`)
+
+	for _, ep := range []string{"/api/auth/me", "/api/health", "/api/audit", "/api/dns/providers"} {
+		if rec := do(srv, "GET", ep, cookies, ""); rec.Code != http.StatusOK {
+			t.Errorf("GET %s: got %d (%s)", ep, rec.Code, rec.Body.String())
+		}
+	}
+	// me without a session → 401.
+	if rec := do(srv, "GET", "/api/auth/me", nil, ""); rec.Code != http.StatusUnauthorized {
+		t.Errorf("unauth me: got %d, want 401", rec.Code)
+	}
+}
+
+// TestLinkStatsAndQR covers the per-link stats and QR handlers.
+func TestLinkStatsAndQR(t *testing.T) {
+	srv, _ := newTestHandler(t)
+	cookies := loginCookies(t, srv)
+
+	rec := do(srv, "POST", "/api/links", cookies, `{"slug":"q","target":"https://example.com"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create link: got %d", rec.Code)
+	}
+	var link struct {
+		ID uint `json:"id"`
+	}
+	json.Unmarshal(rec.Body.Bytes(), &link)
+	id := strconv.FormatUint(uint64(link.ID), 10)
+
+	if rec := do(srv, "GET", "/api/links/"+id+"/stats", cookies, ""); rec.Code != http.StatusOK {
+		t.Errorf("stats: got %d", rec.Code)
+	}
+	rec = do(srv, "GET", "/api/links/"+id+"/qr", cookies, "")
+	if rec.Code != http.StatusOK {
+		t.Errorf("qr: got %d", rec.Code)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "png") {
+		t.Errorf("qr content-type: got %q, want png", ct)
+	}
+}
+
+// TestDNSRecordsCRUD covers the DNS record handlers through the mock provider
+// (registered in comprehensive_api_test.go's init).
+func TestDNSRecordsCRUD(t *testing.T) {
+	srv, _ := newTestHandler(t)
+	cookies := loginCookies(t, srv)
+
+	// A mock provider account + a domain bound to it with a zone id.
+	rec := do(srv, "POST", "/api/provider-accounts", cookies, `{"name":"mock-acc","type":"mock","config":{"token":"t"}}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("provider account: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var acc struct {
+		ID uint `json:"id"`
+	}
+	json.Unmarshal(rec.Body.Bytes(), &acc)
+
+	rec = do(srv, "POST", "/api/domains", cookies,
+		`{"name":"mockdomain.com","providerAccountId":`+strconv.FormatUint(uint64(acc.ID), 10)+`,"zoneId":"z123","forLink":true}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create domain: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var dom struct {
+		ID uint `json:"id"`
+	}
+	json.Unmarshal(rec.Body.Bytes(), &dom)
+	did := strconv.FormatUint(uint64(dom.ID), 10)
+
+	// list → create → update → delete a record.
+	if rec := do(srv, "GET", "/api/domains/"+did+"/records", cookies, ""); rec.Code != http.StatusOK {
+		t.Errorf("list records: got %d", rec.Code)
+	}
+	rec = do(srv, "POST", "/api/domains/"+did+"/records", cookies,
+		`{"type":"A","name":"www.mockdomain.com","content":"1.2.3.4","ttl":300}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create record: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	if rec := do(srv, "PUT", "/api/domains/"+did+"/records/r123", cookies,
+		`{"type":"A","name":"www.mockdomain.com","content":"5.6.7.8","ttl":300}`); rec.Code != http.StatusOK {
+		t.Errorf("update record: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	if rec := do(srv, "DELETE", "/api/domains/"+did+"/records/r123", cookies, ""); rec.Code != http.StatusOK {
+		t.Errorf("delete record: got %d", rec.Code)
+	}
+}
+
 // TestExtractBounceEvents covers the multi-provider bounce parser directly.
 func TestExtractBounceEvents(t *testing.T) {
 	cases := []struct {
