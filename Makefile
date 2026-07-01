@@ -39,6 +39,10 @@ docker:
 tidy:
 	go mod tidy
 
+vulncheck:
+	go install golang.org/x/vuln/cmd/govulncheck@latest
+	govulncheck ./...
+
 clean:
 	rm -f $(BINARY) *.db *.db-*
 	rm -rf web/node_modules webembed/dist/assets .air
