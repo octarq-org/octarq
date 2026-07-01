@@ -315,6 +315,70 @@ func TestDNSRecordsCRUD(t *testing.T) {
 	}
 }
 
+// TestWebhooksCRUD covers the event-webhook create/list/update/delete handlers.
+func TestWebhooksCRUD(t *testing.T) {
+	srv, _ := newTestHandler(t)
+	cookies := loginCookies(t, srv)
+
+	rec := do(srv, "POST", "/api/webhooks", cookies, `{"name":"hook","url":"https://example.com/hook","events":"*"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create webhook: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var wh struct {
+		ID uint `json:"id"`
+	}
+	json.Unmarshal(rec.Body.Bytes(), &wh)
+	id := strconv.FormatUint(uint64(wh.ID), 10)
+
+	// missing name/url → 400.
+	if rec := do(srv, "POST", "/api/webhooks", cookies, `{"name":"x"}`); rec.Code != http.StatusBadRequest {
+		t.Errorf("bad webhook: got %d, want 400", rec.Code)
+	}
+	if rec := do(srv, "GET", "/api/webhooks", cookies, ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "hook") {
+		t.Errorf("list webhooks: got %d", rec.Code)
+	}
+	if rec := do(srv, "PUT", "/api/webhooks/"+id, cookies, `{"name":"hook2","url":"https://example.com/h2","events":"link.click"}`); rec.Code != http.StatusOK {
+		t.Errorf("update webhook: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	if rec := do(srv, "DELETE", "/api/webhooks/"+id, cookies, ""); rec.Code != http.StatusOK {
+		t.Errorf("delete webhook: got %d", rec.Code)
+	}
+}
+
+// TestNotificationChannelTest covers the "send a test notification" handler by
+// pointing a webhook channel at a local server that accepts the POST.
+func TestNotificationChannelTest(t *testing.T) {
+	got := make(chan bool, 1)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got <- true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	srv, _ := newTestHandler(t)
+	cookies := loginCookies(t, srv)
+
+	body := `{"name":"ch","type":"webhook","config":"{\"url\":\"` + ts.URL + `\"}","enabled":true}`
+	rec := do(srv, "POST", "/api/notification-channels", cookies, body)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create channel: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var ch struct {
+		ID uint `json:"id"`
+	}
+	json.Unmarshal(rec.Body.Bytes(), &ch)
+
+	rec = do(srv, "POST", "/api/notification-channels/"+strconv.FormatUint(uint64(ch.ID), 10)+"/test", cookies, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("test channel: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	select {
+	case <-got:
+	default:
+		t.Error("test notification did not reach the webhook server")
+	}
+}
+
 // TestExtractBounceEvents covers the multi-provider bounce parser directly.
 func TestExtractBounceEvents(t *testing.T) {
 	cases := []struct {
