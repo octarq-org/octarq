@@ -1,6 +1,8 @@
 package api
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -257,8 +259,23 @@ func (h *Handler) addOrgMember(w http.ResponseWriter, r *http.Request) {
 
 	// Find or create the target User.
 	var user models.User
+	var isNew bool
 	if err := h.db.Where("email = ?", email).First(&user).Error; err != nil {
-		user = models.User{Email: email, PasswordHash: ""}
+		isNew = true
+		tokenBytes := make([]byte, 24)
+		if _, err := rand.Read(tokenBytes); err != nil {
+			writeErr(w, http.StatusInternalServerError, "failed to generate invite token")
+			return
+		}
+		token := hex.EncodeToString(tokenBytes)
+		expiresAt := time.Now().Add(24 * time.Hour)
+
+		user = models.User{
+			Email:           email,
+			PasswordHash:    "",
+			InviteToken:     token,
+			InviteExpiresAt: &expiresAt,
+		}
 		if err := h.db.Create(&user).Error; err != nil {
 			writeErr(w, http.StatusInternalServerError, "failed to create user")
 			return
@@ -289,7 +306,15 @@ func (h *Handler) addOrgMember(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	if isNew {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"ok":          true,
+			"inviteToken": user.InviteToken,
+			"inviteUrl":   "/admin/invite/accept?token=" + user.InviteToken,
+		})
+	} else {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	}
 }
 
 // removeOrgMember removes a user from the active organization.

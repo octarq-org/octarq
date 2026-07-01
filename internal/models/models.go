@@ -32,11 +32,13 @@ type Org struct {
 
 // User is an authenticated human. A user can belong to multiple orgs.
 type User struct {
-	ID           uint      `gorm:"primaryKey" json:"id"`
-	Email        string    `gorm:"uniqueIndex;size:320;not null" json:"email"`
-	PasswordHash string    `gorm:"size:255;not null" json:"-"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	ID              uint       `gorm:"primaryKey" json:"id"`
+	Email           string     `gorm:"uniqueIndex;size:320;not null" json:"email"`
+	PasswordHash    string     `gorm:"size:255;not null" json:"-"`
+	InviteToken     string     `gorm:"size:255" json:"-"`
+	InviteExpiresAt *time.Time `json:"inviteExpiresAt,omitempty"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
 }
 
 // OrgMember links a User to an Org with a role.
@@ -203,7 +205,7 @@ func (l HostList) Blocks(host string) bool {
 // a short, non-secret identifier for the dashboard list.
 type Token struct {
 	ID         uint       `gorm:"primaryKey" json:"id"`
-	OrgID   uint `gorm:"column:owner_id;index;default:1" json:"-"`
+	OrgID      uint       `gorm:"column:owner_id;index;default:1" json:"-"`
 	Name       string     `gorm:"size:255" json:"name"`
 	Hash       string     `gorm:"uniqueIndex;size:64" json:"-"` // SHA-256 hex of the raw token
 	Prefix     string     `gorm:"size:32" json:"prefix"`        // e.g. "led_abcd" for identification
@@ -223,7 +225,7 @@ func HashToken(raw string) string {
 // containing the credentials needed to manage zones.
 type ProviderAccount struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	OrgID   uint `gorm:"column:owner_id;index;default:1" json:"-"`
+	OrgID     uint      `gorm:"column:owner_id;index;default:1" json:"-"`
 	Name      string    `gorm:"size:255" json:"name"` // e.g. "Personal Cloudflare"
 	Type      string    `gorm:"size:32" json:"type"`  // e.g. "cloudflare", "dnspod"
 	Config    string    `gorm:"type:text" json:"-"`   // AES-GCM encrypted credentials JSON
@@ -234,7 +236,7 @@ type ProviderAccount struct {
 // Domain is a domain managed by led, tied to a DNS provider account.
 type Domain struct {
 	ID                uint   `gorm:"primaryKey" json:"id"`
-	OrgID   uint `gorm:"column:owner_id;index;default:1" json:"-"`
+	OrgID             uint   `gorm:"column:owner_id;index;default:1" json:"-"`
 	Name              string `gorm:"uniqueIndex;size:255" json:"name"`
 	ProviderAccountID uint   `gorm:"index" json:"providerAccountId"`
 	ZoneID            string `gorm:"size:64" json:"zoneId"`
@@ -261,7 +263,7 @@ func (d Domain) EffectiveMailHosts() []string { return d.MailHosts.Enabled() }
 // Link is a short link. (Host, Slug) is unique.
 type Link struct {
 	ID           uint         `gorm:"primaryKey" json:"id"`
-	OrgID   uint `gorm:"column:owner_id;index;default:1" json:"-"`
+	OrgID        uint         `gorm:"column:owner_id;index;default:1" json:"-"`
 	Host         string       `gorm:"size:255;index:idx_host_slug,unique" json:"host"` // empty = default/any host
 	Slug         string       `gorm:"size:255;index:idx_host_slug,unique" json:"slug"`
 	Target       string       `gorm:"type:text" json:"target"`
@@ -300,7 +302,7 @@ type LinkEvent struct {
 // Mailbox is an address that can receive mail (prefix@domain).
 type Mailbox struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	OrgID   uint `gorm:"column:owner_id;index;default:1" json:"-"`
+	OrgID     uint      `gorm:"column:owner_id;index;default:1" json:"-"`
 	Address   string    `gorm:"uniqueIndex;size:320" json:"address"`
 	Note      string    `gorm:"type:text" json:"note"`
 	Enabled   bool      `gorm:"default:true" json:"enabled"`
@@ -311,23 +313,23 @@ type Mailbox struct {
 
 // Email is a received message stored for a mailbox.
 type Email struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	MailboxID   uint      `gorm:"index" json:"mailboxId"`
-	MessageID   string    `gorm:"size:512;index" json:"messageId"`
-	FromAddr    string    `gorm:"size:320" json:"from"`
-	ToAddr      string    `gorm:"size:320" json:"to"`
-	Subject     string    `gorm:"type:text" json:"subject"`
-	Text        string    `gorm:"type:text" json:"text"`
-	HTML        string    `gorm:"type:text" json:"html"`
-	Raw         []byte    `json:"-"` // GORM maps []byte to blob (sqlite) / bytea (postgres)
-	Read        bool      `gorm:"default:false" json:"read"`
-	Note        string    `gorm:"type:text" json:"note"`
-	Attachments string    `gorm:"type:text" json:"attachments"` // JSON array of {filename,contentType,size}
+	ID          uint   `gorm:"primaryKey" json:"id"`
+	MailboxID   uint   `gorm:"index" json:"mailboxId"`
+	MessageID   string `gorm:"size:512;index" json:"messageId"`
+	FromAddr    string `gorm:"size:320" json:"from"`
+	ToAddr      string `gorm:"size:320" json:"to"`
+	Subject     string `gorm:"type:text" json:"subject"`
+	Text        string `gorm:"type:text" json:"text"`
+	HTML        string `gorm:"type:text" json:"html"`
+	Raw         []byte `json:"-"` // GORM maps []byte to blob (sqlite) / bytea (postgres)
+	Read        bool   `gorm:"default:false" json:"read"`
+	Note        string `gorm:"type:text" json:"note"`
+	Attachments string `gorm:"type:text" json:"attachments"` // JSON array of {filename,contentType,size}
 	// Email authentication results from the receiving MTA (RFC 8601).
-	AuthSPF   string `gorm:"size:16" json:"authSpf"`   // pass|fail|softfail|neutral|none
-	AuthDKIM  string `gorm:"size:16" json:"authDkim"`  // pass|fail|none
-	AuthDMARC string `gorm:"size:16" json:"authDmarc"` // pass|fail|none
-	ReceivedAt  time.Time `gorm:"index" json:"receivedAt"`
+	AuthSPF    string    `gorm:"size:16" json:"authSpf"`   // pass|fail|softfail|neutral|none
+	AuthDKIM   string    `gorm:"size:16" json:"authDkim"`  // pass|fail|none
+	AuthDMARC  string    `gorm:"size:16" json:"authDmarc"` // pass|fail|none
+	ReceivedAt time.Time `gorm:"index" json:"receivedAt"`
 }
 
 // Setting is a single key/value runtime configuration entry (reserved slugs,
@@ -339,7 +341,7 @@ type Setting struct {
 
 type SMTPSender struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
-	OrgID   uint `gorm:"column:owner_id;index" json:"-"`
+	OrgID     uint      `gorm:"column:owner_id;index" json:"-"`
 	Name      string    `json:"name"`
 	Host      string    `json:"host"`
 	Port      int       `json:"port"`
@@ -352,7 +354,7 @@ type SMTPSender struct {
 
 type NotificationChannel struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
-	OrgID   uint `gorm:"column:owner_id;index" json:"-"`
+	OrgID     uint      `gorm:"column:owner_id;index" json:"-"`
 	Name      string    `json:"name"`
 	Type      string    `json:"type"`                    // e.g. "telegram", "webhook"
 	Config    string    `json:"config" gorm:"type:text"` // JSON object
@@ -360,8 +362,6 @@ type NotificationChannel struct {
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
-
-
 
 // AuditLog records admin actions for traceability.
 // Design references: Outline (name/actorId/data), Gitea (op_type/content), Authentik (action/context).
@@ -423,4 +423,3 @@ func AllModels() []any {
 		&AbuseReport{}, &AuditLog{}, &Webhook{},
 	}
 }
-

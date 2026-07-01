@@ -2,8 +2,11 @@ package api
 
 import (
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/Jungley8/led/internal/models"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
@@ -96,4 +99,54 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"username": user.Email, "orgId": h.orgID(r)})
+}
+
+// POST /api/auth/invite/accept
+func (h *Handler) acceptInvite(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Token    string `json:"token"`
+		Password string `json:"password"`
+	}
+	if err := readJSON(r, &body); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	token := strings.TrimSpace(body.Token)
+	if token == "" {
+		writeErr(w, http.StatusBadRequest, "token is required")
+		return
+	}
+	password := body.Password
+	if len(password) < 8 {
+		writeErr(w, http.StatusBadRequest, "password must be at least 8 characters")
+		return
+	}
+
+	var user models.User
+	if err := h.db.Where("invite_token = ?", token).First(&user).Error; err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid token")
+		return
+	}
+
+	if user.InviteExpiresAt == nil || user.InviteExpiresAt.Before(time.Now()) {
+		writeErr(w, http.StatusBadRequest, "invite token has expired")
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "failed to hash password")
+		return
+	}
+
+	user.PasswordHash = string(hash)
+	user.InviteToken = ""
+	user.InviteExpiresAt = nil
+
+	if err := h.db.Save(&user).Error; err != nil {
+		writeErr(w, http.StatusInternalServerError, "failed to save user settings")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
