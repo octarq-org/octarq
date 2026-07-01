@@ -20,12 +20,15 @@ import (
 
 // Server is the top-level HTTP handler.
 type Server struct {
-	cfg    *config.Config
-	api    http.Handler
-	short  *shortlink.Service
-	static http.Handler
-	spaIdx []byte
-	assets fs.FS
+	cfg          *config.Config
+	api          http.Handler
+	short        *shortlink.Service
+	static       http.Handler
+	spaIdx       []byte
+	assets       fs.FS
+	portalStatic http.Handler
+	portalIdx    []byte
+	portalAssets fs.FS
 }
 
 // New builds the combined handler. webFS is the embedded dist directory.
@@ -34,14 +37,25 @@ func New(cfg *config.Config, apiHandler http.Handler, short *shortlink.Service, 
 	if err != nil {
 		return nil, err
 	}
-	return &Server{
+	s := &Server{
 		cfg:    cfg,
 		api:    apiHandler,
 		short:  short,
 		static: http.StripPrefix("/admin/", http.FileServer(http.FS(webFS))),
 		spaIdx: idx,
 		assets: webFS,
-	}, nil
+	}
+
+	pSub, err := fs.Sub(webFS, "portal")
+	if err == nil {
+		if pIdx, perr := fs.ReadFile(pSub, "index.html"); perr == nil {
+			s.portalStatic = http.StripPrefix("/portal/", http.FileServer(http.FS(pSub)))
+			s.portalIdx = pIdx
+			s.portalAssets = pSub
+		}
+	}
+
+	return s, nil
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -65,6 +79,21 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.serveIndex(w)
+		return
+	}
+
+	// 2.5 Customer Portal SPA under /portal
+	if path == "/portal" || strings.HasPrefix(path, "/portal/") {
+		if s.portalStatic == nil {
+			http.Error(w, "Portal frontend is not built or available", http.StatusNotFound)
+			return
+		}
+		rest := strings.TrimPrefix(strings.TrimPrefix(path, "/portal"), "/")
+		if rest != "" && s.portalAssetExists(rest) {
+			s.portalStatic.ServeHTTP(w, r)
+			return
+		}
+		s.servePortalIndex(w)
 		return
 	}
 
@@ -113,10 +142,31 @@ func (s *Server) assetExists(name string) bool {
 	return true
 }
 
+func (s *Server) portalAssetExists(name string) bool {
+	if s.portalAssets == nil {
+		return false
+	}
+	f, err := s.portalAssets.Open(name)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	if st, err := f.Stat(); err == nil && st.IsDir() {
+		return false
+	}
+	return true
+}
+
 func (s *Server) serveIndex(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	io.Copy(w, strings.NewReader(string(s.spaIdx)))
+}
+
+func (s *Server) servePortalIndex(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	io.Copy(w, strings.NewReader(string(s.portalIdx)))
 }
 
 func stripPort(host string) string {

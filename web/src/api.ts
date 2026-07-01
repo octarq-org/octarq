@@ -669,6 +669,17 @@ export const api = {
   menus: () => req<MenuItem[]>("GET", "/api/menus"),
   getUserSettings: () => req<Record<string, string>>("GET", "/api/user/settings"),
   updateUserSettings: (key: string, value: string) => req<{ ok: boolean }>("PUT", "/api/user/settings", { key, value }),
+
+  // Customer & Portal APIs (led-pro customer / portal plugins)
+  customerRegister: (email: string, password: string) => req<{ ok: boolean; email: string; emailVerified: boolean }>("POST", "/api/customer/register", { email, password }),
+  customerLogin: (email: string, password: string) => req<{ ok: boolean; email: string }>("POST", "/api/customer/login", { email, password }),
+  customerLogout: () => req<{ ok: boolean }>("POST", "/api/customer/logout"),
+  customerMe: () => req<{ email: string; createdAt: string }>("GET", "/api/customer/me"),
+  claimAccount: (sessionId: string, password: string) => req<{ ok: boolean; email: string; emailVerified: boolean }>("POST", "/api/customer/claim-account", { sessionId, password }),
+  portalLicenses: () => req<{ licenses: IssuedLicense[] }>("GET", "/api/portal/licenses"),
+  portalDevices: (id: number) => req<LicenseDevice[]>("GET", `/api/portal/licenses/${id}/devices`),
+  portalUnbindDevice: (id: number, deviceId: number) => req<{ ok: boolean }>("DELETE", `/api/portal/licenses/${id}/devices/${deviceId}`),
+  portalBillingPortal: () => req<{ url: string }>("POST", "/api/portal/billing-portal"),
 };
 
 export interface Org {
@@ -714,6 +725,23 @@ export interface Webhook {
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Customer {
+  id: number;
+  email: string;
+  emailVerified: boolean;
+  createdAt: string;
+}
+
+export interface LicenseDevice {
+  id: number;
+  issuedLicenseId: number;
+  deviceId: string;
+  name: string;
+  ip: string;
+  lastSeenAt: string;
+  createdAt: string;
 }
 
 export { ApiError };
