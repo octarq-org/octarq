@@ -12,6 +12,7 @@ require (
 	github.com/mileusna/useragent v1.3.5
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/oschwald/geoip2-golang v1.13.0
+	github.com/pquerna/otp v1.5.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/tmc/langchaingo v0.1.14
 	golang.org/x/crypto v0.53.0
@@ -30,6 +31,7 @@ require (
 	cloud.google.com/go/longrunning v0.6.2 // indirect
 	cloud.google.com/go/vertexai v0.12.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
+	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/cohere-ai/tokenizer v1.1.2 // indirect
 	github.com/dlclark/regexp2 v1.10.0 // indirect

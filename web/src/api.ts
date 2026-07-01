@@ -517,10 +517,26 @@ export const api = {
   // auth
   me: () => req<{ username: string; orgId: number }>("GET", "/api/auth/me"),
   login: (username: string, password: string) =>
-    req<{ ok: boolean }>("POST", "/api/auth/login", { username, password }),
+    req<{ ok?: boolean; twoFactorRequired?: boolean; username: string }>(
+      "POST",
+      "/api/auth/login",
+      { username, password },
+    ),
+  verify2FA: (username: string, password: string, code: string) =>
+    req<{ ok: boolean }>("POST", "/api/auth/2fa/verify", { username, password, code }),
   logout: () => req<{ ok: boolean }>("POST", "/api/auth/logout"),
+  logoutAll: () => req<{ ok: boolean }>("POST", "/api/auth/logout-all"),
   acceptInvite: (token: string, password: string) =>
     req<{ ok: boolean }>("POST", "/api/auth/invite/accept", { token, password }),
+
+  // 2FA (operator TOTP)
+  twoFAStatus: () => req<{ enabled: boolean }>("GET", "/api/auth/2fa/status"),
+  twoFASetup: () =>
+    req<{ secret: string; otpauthUrl: string }>("POST", "/api/auth/2fa/setup"),
+  twoFAEnable: (code: string) =>
+    req<{ ok: boolean; recoveryCodes: string[] }>("POST", "/api/auth/2fa/enable", { code }),
+  twoFADisable: (opts: { code?: string; password?: string }) =>
+    req<{ ok: boolean }>("POST", "/api/auth/2fa/disable", opts),
 
   // links
   links: (params: { q?: string; tag?: string; host?: string; archived?: boolean; limit?: number; offset?: number } = {}) => {

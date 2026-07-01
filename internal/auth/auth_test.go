@@ -49,8 +49,8 @@ func testDB(t *testing.T) *gorm.DB {
 
 func TestSessionIssueValidateRoundtrip(t *testing.T) {
 	m := testManager(t)
-	tok := m.issue(1, 42, time.Hour)
-	uid, orgID, ok := m.validate(tok)
+	tok := m.issue(1, 42, 0, time.Hour)
+	uid, orgID, _, ok := m.validate(tok)
 	if !ok {
 		t.Fatal("validate rejected a freshly issued token")
 	}
@@ -64,19 +64,19 @@ func TestSessionIssueValidateRoundtrip(t *testing.T) {
 
 func TestSessionRejectsExpired(t *testing.T) {
 	m := testManager(t)
-	tok := m.issue(1, 1, -time.Hour) // already expired
-	if _, _, ok := m.validate(tok); ok {
+	tok := m.issue(1, 1, 0, -time.Hour) // already expired
+	if _, _, _, ok := m.validate(tok); ok {
 		t.Fatal("validate accepted an expired token")
 	}
 }
 
 func TestSessionRejectsTamperedSignature(t *testing.T) {
 	m := testManager(t)
-	tok := m.issue(1, 1, time.Hour)
-	if _, _, ok := m.validate(tok + "x"); ok {
+	tok := m.issue(1, 1, 0, time.Hour)
+	if _, _, _, ok := m.validate(tok + "x"); ok {
 		t.Fatal("validate accepted a tampered signature")
 	}
-	if _, _, ok := m.validate("garbage"); ok {
+	if _, _, _, ok := m.validate("garbage"); ok {
 		t.Fatal("validate accepted a malformed token")
 	}
 }
@@ -85,16 +85,16 @@ func TestSessionRejectsTamperedSignature(t *testing.T) {
 // The HMAC must cover the full uid:orgid|exp payload, so any mutation is rejected.
 func TestSessionRejectsTamperedOrgID(t *testing.T) {
 	m := testManager(t)
-	tok := m.issue(1, 1, time.Hour) // org 1
+	tok := m.issue(1, 1, 0, time.Hour) // org 1
 
 	// Forge: keep the real exp and sig but replace orgid with 2.
-	// Format: "uid:orgid|exp|sig"
+	// Format: "uid:orgid:epoch|exp|sig"
 	import_parts := splitToken(tok)
 	if import_parts == nil {
 		t.Fatal("unexpected token format")
 	}
-	forged := "1:2|" + import_parts[1] + "|" + import_parts[2] // steal exp+sig from org-1 token
-	if _, _, ok := m.validate(forged); ok {
+	forged := "1:2:0|" + import_parts[1] + "|" + import_parts[2] // steal exp+sig from org-1 token
+	if _, _, _, ok := m.validate(forged); ok {
 		t.Fatal("validate accepted a token with tampered orgID")
 	}
 }

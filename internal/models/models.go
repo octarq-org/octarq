@@ -41,8 +41,18 @@ type User struct {
 	PasswordHash    string     `gorm:"size:255;not null" json:"-"`
 	InviteToken     string     `gorm:"size:255" json:"-"`
 	InviteExpiresAt *time.Time `json:"inviteExpiresAt,omitempty"`
-	CreatedAt       time.Time  `json:"createdAt"`
-	UpdatedAt       time.Time  `json:"updatedAt"`
+	// SessionEpoch is bumped to invalidate every outstanding signed-cookie
+	// session for this user ("log out everywhere"). A cookie carries the epoch
+	// it was minted under; Require rejects any cookie whose epoch is stale.
+	SessionEpoch uint `gorm:"not null;default:0" json:"-"`
+	// TOTPSecret is the base32 TOTP shared secret, stored AES-GCM encrypted at
+	// rest (via crypto.Cipher). Empty until 2FA enrollment begins.
+	TOTPSecret  string `gorm:"size:512" json:"-"`
+	TOTPEnabled bool   `gorm:"not null;default:0" json:"-"`
+	// RecoveryCodes is a JSON array of bcrypt-hashed one-time recovery codes.
+	RecoveryCodes string    `gorm:"type:text" json:"-"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
 // OrgMember links a User to an Org with a role.

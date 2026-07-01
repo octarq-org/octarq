@@ -4,11 +4,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Jungley8/led/internal/mail"
 	"github.com/Jungley8/led/internal/models"
 	"github.com/Jungley8/led/plugin"
 	"gorm.io/gorm"
@@ -307,6 +309,14 @@ func (h *Handler) addOrgMember(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isNew {
+		// Best-effort: email the invite link via the org's SMTP sender. A missing
+		// sender (or a send error) must not fail the invite — the link is still
+		// returned so the operator can deliver it out-of-band.
+		acceptURL := "/admin/invite/accept?token=" + user.InviteToken
+		if h.cfg.BaseURL != "" {
+			acceptURL = h.cfg.BaseURL + acceptURL
+		}
+		h.sendInviteEmail(orgID, email, acceptURL)
 		writeJSON(w, http.StatusOK, map[string]any{
 			"ok":          true,
 			"inviteToken": user.InviteToken,
@@ -314,6 +324,35 @@ func (h *Handler) addOrgMember(w http.ResponseWriter, r *http.Request) {
 		})
 	} else {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	}
+}
+
+// sendInviteEmail best-effort delivers the invite accept link to the invited
+// address using the org's first configured SMTP sender. It never returns an
+// error: a missing sender or a send failure is logged and swallowed so the
+// invite itself still succeeds.
+func (h *Handler) sendInviteEmail(orgID uint, to, acceptURL string) {
+	var s models.SMTPSender
+	if err := h.db.Where("owner_id = ?", orgID).Order("id").First(&s).Error; err != nil {
+		log.Printf("invite email skipped for %s: no SMTP sender for org %d", to, orgID)
+		return
+	}
+	pass, err := h.cipher.Decrypt(s.Pass)
+	if err != nil {
+		log.Printf("invite email skipped for %s: decrypt SMTP pass: %v", to, err)
+		return
+	}
+	sender := mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
+	msg := mail.Message{
+		From:    s.FromEmail,
+		To:      []string{to},
+		Subject: "You've been invited to led",
+		Text: fmt.Sprintf("You've been invited to join a workspace on led.\n\n"+
+			"Accept your invite and set a password here:\n%s\n\n"+
+			"This link expires in 24 hours.", acceptURL),
+	}
+	if err := sender.Send(msg); err != nil {
+		log.Printf("invite email to %s failed: %v", to, err)
 	}
 }
 

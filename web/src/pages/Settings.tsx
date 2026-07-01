@@ -11,6 +11,7 @@ export default function SettingsPage() {
       <Routes>
         <Route path="/" element={<Navigate to="/settings/general" replace />} />
         <Route path="/general" element={<GeneralSettings />} />
+        <Route path="/security" element={<SecuritySettings />} />
         <Route path="/links" element={<LinkSettings />} />
         <Route path="/mail" element={<MailSettings />} />
         <Route path="/signin" element={<SignInSettings />} />
@@ -344,6 +345,150 @@ function GeneralSettings() {
           </div>
         </Modal>
       )}
+    </div>
+  );
+}
+
+// SecuritySettings manages operator-account security: TOTP two-factor
+// enrollment and the "log out everywhere" session revocation.
+function SecuritySettings() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [msg, setMsg] = useState("");
+
+  // Enrollment state.
+  const [setup, setSetup] = useState<{ secret: string; otpauthUrl: string } | null>(null);
+  const [enrollCode, setEnrollCode] = useState("");
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
+
+  // Disable state.
+  const [disableCode, setDisableCode] = useState("");
+
+  async function load() {
+    try {
+      const s = await api.twoFAStatus();
+      setEnabled(s.enabled);
+    } catch {
+      setEnabled(false);
+    }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function beginSetup() {
+    setBusy(true); setErr(""); setMsg(""); setRecoveryCodes(null);
+    try {
+      setSetup(await api.twoFASetup());
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "failed to start setup");
+    } finally { setBusy(false); }
+  }
+
+  async function confirmEnable() {
+    setBusy(true); setErr("");
+    try {
+      const res = await api.twoFAEnable(enrollCode.trim());
+      setRecoveryCodes(res.recoveryCodes);
+      setSetup(null); setEnrollCode("");
+      await load();
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "invalid code");
+    } finally { setBusy(false); }
+  }
+
+  async function disable() {
+    setBusy(true); setErr(""); setMsg("");
+    try {
+      await api.twoFADisable({ code: disableCode.trim() });
+      setDisableCode("");
+      setMsg("Two-factor authentication disabled.");
+      await load();
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "verification failed");
+    } finally { setBusy(false); }
+  }
+
+  async function logoutAll() {
+    if (!confirm("Sign out of every device? You'll need to sign in again.")) return;
+    setBusy(true); setErr("");
+    try {
+      await api.logoutAll();
+      // The current session cookie is now revoked; bounce to the login screen.
+      window.location.href = "/";
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "failed");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Security" description="Two-factor authentication and session control for your operator account." />
+
+      <GlassCard className="p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-white flex items-center gap-2"><Shield className="h-4 w-4" /> Two-Factor Authentication (TOTP)</h2>
+          <Badge tone={enabled ? "green" : "neutral"}>{enabled == null ? "…" : enabled ? "Enabled" : "Disabled"}</Badge>
+        </div>
+        <p className="text-xs text-white/50">Require a time-based one-time code from an authenticator app (Google Authenticator, 1Password, Authy) in addition to your password.</p>
+
+        {err && <p className="text-sm text-rose-400">{err}</p>}
+        {msg && <p className="text-sm text-emerald-400">{msg}</p>}
+
+        {recoveryCodes && (
+          <div className="rounded-xl border border-amber-400/30 bg-amber-400/[0.06] p-4">
+            <p className="text-xs font-bold text-amber-300 mb-2">Save your recovery codes</p>
+            <p className="text-[11px] text-white/50 mb-3">Each code can be used once if you lose your authenticator. They will not be shown again.</p>
+            <div className="grid grid-cols-2 gap-1 font-mono text-xs text-white/80">
+              {recoveryCodes.map((c) => <span key={c}>{c}</span>)}
+            </div>
+          </div>
+        )}
+
+        {!enabled && !setup && (
+          <Button variant="primary" onClick={beginSetup} disabled={busy}>{busy ? "…" : "Enable 2FA"}</Button>
+        )}
+
+        {!enabled && setup && (
+          <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
+            <p className="text-xs text-white/60">Add this account to your authenticator app, then enter the 6-digit code to confirm.</p>
+            <img
+              alt="TOTP QR code"
+              className="rounded-lg bg-white p-2"
+              width={160}
+              height={160}
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(setup.otpauthUrl)}`}
+            />
+            <Field label="Setup key (if you can't scan)">
+              <input className="input w-full font-mono text-xs" readOnly value={setup.secret} />
+            </Field>
+            <a className="block break-all text-[10px] text-indigo-300/70 hover:underline" href={setup.otpauthUrl}>{setup.otpauthUrl}</a>
+            <Field label="Verification code">
+              <input className="input w-full text-sm" value={enrollCode} onChange={(e) => setEnrollCode(e.target.value)} placeholder="123456" autoComplete="one-time-code" />
+            </Field>
+            <div className="flex gap-2">
+              <Button variant="primary" onClick={confirmEnable} disabled={busy || !enrollCode.trim()}>{busy ? "…" : "Confirm & Enable"}</Button>
+              <Button variant="ghost" onClick={() => { setSetup(null); setEnrollCode(""); }}>Cancel</Button>
+            </div>
+          </div>
+        )}
+
+        {enabled && (
+          <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
+            <p className="text-xs text-white/60">Enter a current authenticator code (or a recovery code) to turn off 2FA.</p>
+            <Field label="Verification code">
+              <input className="input w-full text-sm" value={disableCode} onChange={(e) => setDisableCode(e.target.value)} placeholder="123456 or recovery code" autoComplete="one-time-code" />
+            </Field>
+            <Button variant="danger" onClick={disable} disabled={busy || !disableCode.trim()}>{busy ? "…" : "Disable 2FA"}</Button>
+          </div>
+        )}
+      </GlassCard>
+
+      <GlassCard className="p-6 space-y-4">
+        <h2 className="text-base font-bold text-white">Sessions</h2>
+        <p className="text-xs text-white/50">Revoke every signed-in session for your account, on every device and browser. You'll be signed out here too.</p>
+        <Button variant="danger" onClick={logoutAll} disabled={busy}>Log out of all devices</Button>
+      </GlassCard>
     </div>
   );
 }

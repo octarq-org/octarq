@@ -107,6 +107,7 @@ func (h *Handler) Routes() *http.ServeMux {
 
 	// Auth (no session required).
 	mux.HandleFunc("POST /api/auth/login", h.login)
+	mux.HandleFunc("POST /api/auth/2fa/verify", h.verify2FA)
 	mux.HandleFunc("POST /api/auth/logout", h.logout)
 	mux.HandleFunc("GET /api/auth/me", h.me)
 	mux.HandleFunc("POST /api/auth/invite/accept", h.acceptInvite)
@@ -217,6 +218,13 @@ func (h *Handler) Routes() *http.ServeMux {
 	// Data portability (GDPR/CCPA): export everything, or destroy it.
 	p("GET /api/account/export", h.exportAccount)
 	p("DELETE /api/account/data", h.purgeAccount)
+
+	// Operator account security: session revocation + TOTP 2FA.
+	p("POST /api/auth/logout-all", h.logoutAll)
+	p("GET /api/auth/2fa/status", h.twoFAStatus)
+	p("POST /api/auth/2fa/setup", h.setup2FA)
+	p("POST /api/auth/2fa/enable", h.enable2FA)
+	p("POST /api/auth/2fa/disable", h.disable2FA)
 
 	// Menu and User Settings
 	p("GET /api/menus", h.listMenus)

@@ -170,6 +170,7 @@ const SETTINGS_AREA: Area = {
       label: "Workspace",
       items: [
         { id: "general", label: "General", Icon: Settings, path: "/settings/general" },
+        { id: "security", label: "Security", Icon: Shield, path: "/settings/security" },
         { id: "members", label: "Workspace Members", Icon: Users, path: "/settings/members" },
       ],
     },
@@ -891,17 +892,32 @@ function AreaPanel({ area, currentPath }: { area: Area; currentPath: string }) {
 function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
   const [u, setU] = useState("admin");
   const [p, setP] = useState("");
+  const [code, setCode] = useState("");
+  const [needs2FA, setNeeds2FA] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+
+  async function finishLogin() {
+    const m = await api.me();
+    onLogin(u, m.orgId);
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setErr("");
     try {
-      await api.login(u, p);
-      const m = await api.me();
-      onLogin(u, m.orgId);
+      if (needs2FA) {
+        await api.verify2FA(u, p, code.trim());
+        await finishLogin();
+        return;
+      }
+      const res = await api.login(u, p);
+      if (res.twoFactorRequired) {
+        setNeeds2FA(true);
+        return;
+      }
+      await finishLogin();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "login failed");
     } finally {
@@ -928,13 +944,28 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
           className="input mb-4"
           value={p}
           onChange={(e) => setP(e.target.value)}
+          disabled={needs2FA}
           autoFocus
         />
+
+        {needs2FA && (
+          <>
+            <label className="label">Authentication code</label>
+            <input
+              className="input mb-4"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="6-digit code or recovery code"
+              autoComplete="one-time-code"
+              autoFocus
+            />
+          </>
+        )}
 
         {err && <p className="mb-3 text-sm text-rose-400">{err}</p>}
 
         <button className="btn-primary w-full" disabled={busy}>
-          {busy ? "…" : "Sign in"}
+          {busy ? "…" : needs2FA ? "Verify" : "Sign in"}
         </button>
 
         <div className="mt-4 flex flex-col gap-2">

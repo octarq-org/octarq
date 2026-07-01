@@ -48,48 +48,72 @@ func (m *Manager) Check(user, pass string) bool {
 	return user == m.cfg.AdminUser && pass == m.cfg.AdminPassword
 }
 
-// issue builds a signed token "uid:orgid|exp|sig".
-func (m *Manager) issue(uid, orgID uint, ttl time.Duration) string {
+// issue builds a signed token "uid:orgid:epoch|exp|sig". The epoch lets a user
+// invalidate every outstanding session at once (see logout-all): a cookie whose
+// epoch no longer matches the user's current SessionEpoch is rejected.
+func (m *Manager) issue(uid, orgID, epoch uint, ttl time.Duration) string {
 	exp := time.Now().Add(ttl).Unix()
-	payload := fmt.Sprintf("%d:%d|%d", uid, orgID, exp)
+	payload := fmt.Sprintf("%d:%d:%d|%d", uid, orgID, epoch, exp)
 	return payload + "|" + m.cipher.Sign([]byte(payload))
 }
 
-// validate returns (uid, orgID) if the token is well-formed, signed, and unexpired.
-func (m *Manager) validate(tok string) (uid, orgID uint, ok bool) {
+// validate returns (uid, orgID, epoch) if the token is well-formed, signed, and
+// unexpired. Legacy cookies without an epoch segment ("uid:orgid") are accepted
+// with epoch 0 for backward compatibility.
+func (m *Manager) validate(tok string) (uid, orgID, epoch uint, ok bool) {
 	parts := strings.Split(tok, "|")
 	if len(parts) != 3 {
-		return 0, 0, false
+		return 0, 0, 0, false
 	}
 	payload := parts[0] + "|" + parts[1]
 	if !m.cipher.Verify([]byte(payload), parts[2]) {
-		return 0, 0, false
+		return 0, 0, 0, false
 	}
 	exp, err := strconv.ParseInt(parts[1], 10, 64)
 	if err != nil || time.Now().Unix() > exp {
-		return 0, 0, false
+		return 0, 0, 0, false
 	}
-	// parts[0] is "uid:orgid"
-	ids := strings.SplitN(parts[0], ":", 2)
-	if len(ids) != 2 {
-		return 0, 0, false
+	// parts[0] is "uid:orgid" (legacy) or "uid:orgid:epoch".
+	ids := strings.SplitN(parts[0], ":", 3)
+	if len(ids) < 2 {
+		return 0, 0, 0, false
 	}
 	u, err := strconv.ParseUint(ids[0], 10, 64)
 	if err != nil {
-		return 0, 0, false
+		return 0, 0, 0, false
 	}
 	o, err := strconv.ParseUint(ids[1], 10, 64)
 	if err != nil {
-		return 0, 0, false
+		return 0, 0, 0, false
 	}
-	return uint(u), uint(o), true
+	var ep uint64
+	if len(ids) == 3 {
+		if ep, err = strconv.ParseUint(ids[2], 10, 64); err != nil {
+			return 0, 0, 0, false
+		}
+	}
+	return uint(u), uint(o), uint(ep), true
 }
 
-// SetSession writes the session cookie after a successful login.
+// userEpoch loads the user's current SessionEpoch. Returns 0 when no DB is
+// attached — the stateless, backward-compatible mode. Pluck leaves epoch at 0
+// when the user row is absent, so a synthetic uid (or a since-deleted user)
+// validates against an epoch-0 token.
+func (m *Manager) userEpoch(uid uint) uint {
+	if m.db == nil {
+		return 0
+	}
+	var epoch uint
+	m.db.Model(&models.User{}).Where("id = ?", uid).Pluck("session_epoch", &epoch)
+	return epoch
+}
+
+// SetSession writes the session cookie after a successful login, baking in the
+// user's current SessionEpoch.
 func (m *Manager) SetSession(w http.ResponseWriter, uid, orgID uint) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     cookieName,
-		Value:    m.issue(uid, orgID, 7*24*time.Hour),
+		Value:    m.issue(uid, orgID, m.userEpoch(uid), 7*24*time.Hour),
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   m.cfg.SecureCookies,
@@ -110,7 +134,7 @@ func (m *Manager) UserID(r *http.Request) uint {
 	if err != nil {
 		return 0
 	}
-	uid, _, ok := m.validate(c.Value)
+	uid, _, _, ok := m.validate(c.Value)
 	if !ok {
 		return 0
 	}
@@ -126,7 +150,7 @@ func (m *Manager) OrgID(r *http.Request) uint {
 	if err != nil {
 		return 0
 	}
-	_, orgID, ok := m.validate(c.Value)
+	_, orgID, _, ok := m.validate(c.Value)
 	if !ok {
 		return 0
 	}
@@ -140,14 +164,19 @@ func (m *Manager) Clear(w http.ResponseWriter) {
 	})
 }
 
-// Authed reports whether the request carries a valid session.
+// Authed reports whether the request carries a valid session. When a DB is
+// attached it also enforces the session epoch, so a logged-out-everywhere
+// cookie is treated as unauthenticated.
 func (m *Manager) Authed(r *http.Request) bool {
 	c, err := r.Cookie(cookieName)
 	if err != nil {
 		return false
 	}
-	_, _, ok := m.validate(c.Value)
-	return ok
+	uid, _, epoch, ok := m.validate(c.Value)
+	if !ok {
+		return false
+	}
+	return epoch == m.userEpoch(uid)
 }
 
 // bearerToken extracts a "led_" token from the Authorization header.
@@ -199,8 +228,12 @@ func (m *Manager) Require(next http.Handler) http.Handler {
 
 		// 1. Session Cookie
 		if c, err := r.Cookie(cookieName); err == nil {
-			if u, o, ok := m.validate(c.Value); ok {
-				uid, orgID, authed = u, o, true
+			if u, o, epoch, ok := m.validate(c.Value); ok {
+				// Enforce the session epoch so "log out everywhere" takes effect.
+				// One DB read per authenticated dashboard request is acceptable.
+				if epoch == m.userEpoch(u) {
+					uid, orgID, authed = u, o, true
+				}
 			}
 		}
 

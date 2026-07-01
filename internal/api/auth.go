@@ -8,6 +8,7 @@ import (
 	"github.com/Jungley8/led/internal/models"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
@@ -30,11 +31,85 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
-	h.loginLimiter.reset(ip)
 	orgID := h.bootstrapOrgID()
 	uid := h.bootstrapUserID(body.Username, orgID)
+
+	// If this operator has TOTP 2FA enabled, defer the session: the client must
+	// re-post username+password plus a valid 6-digit code (or recovery code) to
+	// /api/auth/2fa/verify. We keep the failed-login limiter armed until that
+	// second factor succeeds.
+	var user models.User
+	if h.db.First(&user, uid).Error == nil && user.TOTPEnabled {
+		writeJSON(w, http.StatusOK, map[string]any{"twoFactorRequired": true, "username": body.Username})
+		return
+	}
+
+	h.loginLimiter.reset(ip)
 	h.auth.SetSession(w, uid, orgID)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "username": body.Username})
+}
+
+// verify2FA completes a login that requires a second factor. The client re-sends
+// username+password (re-verified here, so the challenge can't be forged) along
+// with a TOTP code or a one-time recovery code. On success the session is set.
+// POST /api/auth/2fa/verify  {username, password, code}
+func (h *Handler) verify2FA(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+		Code     string `json:"code"`
+	}
+	if err := readJSON(r, &body); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	ip := reporterIP(r)
+	if !h.loginLimiter.allow(ip) {
+		writeErr(w, http.StatusTooManyRequests, "too many failed login attempts")
+		return
+	}
+	if !h.auth.Check(body.Username, body.Password) {
+		h.loginLimiter.recordFailure(ip)
+		writeErr(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+	orgID := h.bootstrapOrgID()
+	uid := h.bootstrapUserID(body.Username, orgID)
+
+	var user models.User
+	if h.db.First(&user, uid).Error != nil {
+		writeErr(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+	// If 2FA isn't actually enabled, treat the password as sufficient.
+	if user.TOTPEnabled {
+		if !h.verifyTOTPOrRecovery(&user, strings.TrimSpace(body.Code)) {
+			h.loginLimiter.recordFailure(ip)
+			writeErr(w, http.StatusUnauthorized, "invalid 2FA code")
+			return
+		}
+	}
+	h.loginLimiter.reset(ip)
+	h.auth.SetSession(w, uid, orgID)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "username": body.Username})
+}
+
+// logoutAll invalidates every outstanding session for the caller by bumping the
+// user's SessionEpoch, then clears the current cookie.
+// POST /api/auth/logout-all
+func (h *Handler) logoutAll(w http.ResponseWriter, r *http.Request) {
+	uid := h.auth.UserID(r)
+	if uid == 0 {
+		writeErr(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	if err := h.db.Model(&models.User{}).Where("id = ?", uid).
+		UpdateColumn("session_epoch", gorm.Expr("session_epoch + 1")).Error; err != nil {
+		writeErr(w, http.StatusInternalServerError, "failed to revoke sessions")
+		return
+	}
+	h.auth.Clear(w)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 // bootstrapUserID finds or creates the user for the admin login.
