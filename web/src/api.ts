@@ -363,6 +363,7 @@ export interface Settings {
   reservedMailboxes: string;
   builtinReserved: string[];
   cloudflareTokenSet: boolean;
+  orgSlug: string;
   inboundToken: string;
   catchAll: boolean;
   telegramBotToken: string;

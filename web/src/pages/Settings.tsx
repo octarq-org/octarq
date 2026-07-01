@@ -303,7 +303,7 @@ function GeneralSettings() {
             As a workspace Admin or Owner, you can export all organization data or permanently delete this workspace and all associated logs, domains, links, and mailbox records.
           </p>
           <div className="flex flex-wrap gap-4 pt-2">
-            <Button variant="secondary" onClick={handleExport} disabled={exporting}>
+            <Button variant="subtle" onClick={handleExport} disabled={exporting}>
               {exporting ? "Exporting..." : "Export Workspace Data"}
             </Button>
             <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
@@ -410,8 +410,16 @@ function MailSettings() {
         <Field label="Reserved Inbound Mailbox Prefixes" hint="Prefixes catch-all won't auto-provision (e.g. admin, postmaster).">
           <textarea className="input w-full font-mono text-xs" rows={2} value={reservedMailboxes} onChange={(e) => setReservedMailboxes(e.target.value)} placeholder="admin&#10;postmaster" />
         </Field>
-        <Field label="Webhook Inbound Token" hint="Shared secret validated in X-Led-Token for the Cloudflare Email Worker.">
-          <input className="input w-full font-mono text-xs" value={inboundToken} onChange={(e) => setInboundToken(e.target.value)} placeholder="secret-token-value" />
+        <Field label="Inbound Webhook URL" hint="Point the Cloudflare Email Worker at this exact URL — the token is in the path, so no header is needed.">
+          <input
+            readOnly
+            className="input w-full font-mono text-xs"
+            value={`${location.origin}/api/webhook/${s?.orgSlug || ""}/email/inbound/${inboundToken}`}
+            onFocus={(e) => e.currentTarget.select()}
+          />
+        </Field>
+        <Field label="Inbound Token" hint="The per-tenant secret in the URL above. Clear the box and Save to rotate it (invalidates the old URL).">
+          <input className="input w-full font-mono text-xs" value={inboundToken} onChange={(e) => setInboundToken(e.target.value)} placeholder="(leave empty and save to generate/rotate)" />
         </Field>
         <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
           <Toggle on={catchAll} onChange={setCatchAll} />

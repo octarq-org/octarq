@@ -6,22 +6,34 @@ import (
 	"strings"
 
 	"github.com/Jungley8/led/internal/models"
+	"github.com/google/uuid"
 	"gorm.io/gorm/clause"
 )
 
+// currentOrg loads the caller's org, generating its inbound-webhook token on
+// first read so the operator always has a token to copy into the worker URL.
+func (h *Handler) currentOrg(r *http.Request) models.Org {
+	var org models.Org
+	h.db.First(&org, h.orgID(r))
+	if org.ID != 0 && org.InboundToken == "" {
+		org.InboundToken = uuid.NewString()
+		h.db.Model(&org).Update("inbound_token", org.InboundToken)
+	}
+	return org
+}
+
 // Setting keys.
 const (
-	keyReservedSlugs        = "reserved_slugs"
-	keyReservedMailboxes    = "reserved_mailboxes"
-	keyCloudflareToken      = "cloudflare_token" // stored AES-GCM encrypted
-	keyInboundToken         = "inbound_token"
-	keyCatchAll             = "catch_all"
-	keyGoogleClientID       = "oauth.google.client_id"
-	keyGoogleClientSecret   = "oauth.google.client_secret" // stored AES-GCM encrypted
-	keyGitHubClientID       = "oauth.github.client_id"
-	keyGitHubClientSecret   = "oauth.github.client_secret" // stored AES-GCM encrypted
-	keyDataRetentionDays    = "data_retention_days"        // 0 = disabled
-	keyAutoWrapLinks        = "auto_wrap_links"
+	keyReservedSlugs      = "reserved_slugs"
+	keyReservedMailboxes  = "reserved_mailboxes"
+	keyCloudflareToken    = "cloudflare_token" // stored AES-GCM encrypted
+	keyCatchAll           = "catch_all"
+	keyGoogleClientID     = "oauth.google.client_id"
+	keyGoogleClientSecret = "oauth.google.client_secret" // stored AES-GCM encrypted
+	keyGitHubClientID     = "oauth.github.client_id"
+	keyGitHubClientSecret = "oauth.github.client_secret" // stored AES-GCM encrypted
+	keyDataRetentionDays  = "data_retention_days"        // 0 = disabled
+	keyAutoWrapLinks      = "auto_wrap_links"
 )
 
 // DefaultRetentionDays is used when no retention setting is configured.
@@ -115,12 +127,14 @@ func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
 			retDays = n
 		}
 	}
+	org := h.currentOrg(r)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"reservedSlugs":         h.getSetting(keyReservedSlugs),
 		"reservedMailboxes":     h.getSetting(keyReservedMailboxes),
 		"builtinReserved":       []string{"admin", "api", "assets"},
 		"cloudflareTokenSet":    h.getSetting(keyCloudflareToken) != "",
-		"inboundToken":          h.getSetting(keyInboundToken),
+		"orgSlug":               org.Slug,
+		"inboundToken":          org.InboundToken,
 		"catchAll":              h.getSetting(keyCatchAll) == "true",
 		"googleClientId":        h.getSetting(keyGoogleClientID),
 		"googleClientSecretSet": h.getSetting(keyGoogleClientSecret) != "",
@@ -133,17 +147,17 @@ func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	var d struct {
-		ReservedSlugs       *string `json:"reservedSlugs"`
-		ReservedMailboxes   *string `json:"reservedMailboxes"`
-		CloudflareToken     *string `json:"cloudflareToken"` // "" clears, omitted keeps
-		InboundToken        *string `json:"inboundToken"`
-		CatchAll            *bool   `json:"catchAll"`
-		GoogleClientID      *string `json:"googleClientId"`
-		GoogleClientSecret  *string `json:"googleClientSecret"` // "" clears, omitted keeps
-		GitHubClientID      *string `json:"githubClientId"`
-		GitHubClientSecret  *string `json:"githubClientSecret"` // "" clears, omitted keeps
-		DataRetentionDays   *int    `json:"dataRetentionDays"`  // 0 = disabled
-		AutoWrapLinks       *bool   `json:"autoWrapLinks"`
+		ReservedSlugs      *string `json:"reservedSlugs"`
+		ReservedMailboxes  *string `json:"reservedMailboxes"`
+		CloudflareToken    *string `json:"cloudflareToken"` // "" clears, omitted keeps
+		InboundToken       *string `json:"inboundToken"`
+		CatchAll           *bool   `json:"catchAll"`
+		GoogleClientID     *string `json:"googleClientId"`
+		GoogleClientSecret *string `json:"googleClientSecret"` // "" clears, omitted keeps
+		GitHubClientID     *string `json:"githubClientId"`
+		GitHubClientSecret *string `json:"githubClientSecret"` // "" clears, omitted keeps
+		DataRetentionDays  *int    `json:"dataRetentionDays"`  // 0 = disabled
+		AutoWrapLinks      *bool   `json:"autoWrapLinks"`
 	}
 	if err := readJSON(r, &d); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
@@ -168,7 +182,12 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if d.InboundToken != nil {
-		h.setSetting(keyInboundToken, strings.TrimSpace(*d.InboundToken))
+		// Per-org: empty string rotates to a fresh UUID; a value sets it explicitly.
+		tok := strings.TrimSpace(*d.InboundToken)
+		if tok == "" {
+			tok = uuid.NewString()
+		}
+		h.db.Model(&models.Org{}).Where("id = ?", h.orgID(r)).Update("inbound_token", tok)
 	}
 	if d.CatchAll != nil {
 		val := "false"

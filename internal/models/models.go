@@ -23,11 +23,15 @@ const SingleUserID uint = 1
 
 // Org is a tenant — every data row is scoped to exactly one Org.
 type Org struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	Name      string    `gorm:"size:255;not null" json:"name"`
-	Slug      string    `gorm:"uniqueIndex;size:64;not null" json:"slug"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID   uint   `gorm:"primaryKey" json:"id"`
+	Name string `gorm:"size:255;not null" json:"name"`
+	Slug string `gorm:"uniqueIndex;size:64;not null" json:"slug"`
+	// InboundToken is this org's per-tenant secret for the inbound-email webhook.
+	// It travels in the webhook URL (?token=) instead of a header to keep the
+	// Cloudflare worker config to a single value; it is never exposed publicly.
+	InboundToken string    `gorm:"size:64" json:"-"`
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
 // User is an authenticated human. A user can belong to multiple orgs.

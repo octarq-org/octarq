@@ -4,9 +4,11 @@
  * Setup:
  *  1. Cloudflare Dashboard → your domain → Email → Email Routing → enable.
  *  2. Workers & Pages → create a Worker, paste this file.
- *  3. Set two variables (Settings → Variables):
- *       LED_ENDPOINT  = https://your-led-host/api/email/inbound
- *       LED_TOKEN     = same value as LED_INBOUND_TOKEN on the server
+ *  3. Set one variable (Settings → Variables):
+ *       LED_ENDPOINT = your Inbound Webhook URL, copied from led
+ *                      Settings → Mailboxes. It already contains your org slug
+ *                      and secret token in the path, e.g.
+ *                      https://your-led-host/api/webhook/<orgSlug>/email/inbound/<token>
  *  4. Email Routing → Routes → set a catch-all (or per-address) action to
  *     "Send to a Worker" → this Worker.
  *
@@ -36,7 +38,6 @@ export default {
       method: "POST",
       headers: {
         "Content-Type": "message/rfc822",
-        "X-Led-Token": env.LED_TOKEN,
         "X-Led-To": message.to,
         "X-Led-From": message.from,
       },

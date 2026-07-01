@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jungley8/led/config"
 	"github.com/Jungley8/led/internal/auth"
 	"github.com/Jungley8/led/internal/crypto"
-	"github.com/Jungley8/led/config"
 	"github.com/Jungley8/led/internal/dnsprovider"
 	"github.com/Jungley8/led/internal/models"
 )
@@ -107,7 +107,9 @@ func TestComprehensiveAPI(t *testing.T) {
 		if rec.Code != http.StatusCreated {
 			t.Fatalf("create smtp sender failed: got %d (%s)", rec.Code, rec.Body.String())
 		}
-		var sender struct{ ID uint `json:"id"` }
+		var sender struct {
+			ID uint `json:"id"`
+		}
 		_ = json.Unmarshal(rec.Body.Bytes(), &sender)
 
 		// List SMTP Senders
@@ -161,7 +163,9 @@ func TestComprehensiveAPI(t *testing.T) {
 		if rec.Code != http.StatusCreated {
 			t.Fatalf("create provider acc failed: got %d (%s)", rec.Code, rec.Body.String())
 		}
-		var acc struct{ ID uint `json:"id"` }
+		var acc struct {
+			ID uint `json:"id"`
+		}
 		_ = json.Unmarshal(rec.Body.Bytes(), &acc)
 		providerAccID = acc.ID
 
@@ -203,7 +207,9 @@ func TestComprehensiveAPI(t *testing.T) {
 		if rec.Code != http.StatusCreated {
 			t.Fatalf("create notify ch failed: got %d (%s)", rec.Code, rec.Body.String())
 		}
-		var ch struct{ ID uint `json:"id"` }
+		var ch struct {
+			ID uint `json:"id"`
+		}
 		_ = json.Unmarshal(rec.Body.Bytes(), &ch)
 
 		// List Notification Channels
@@ -267,7 +273,10 @@ func TestComprehensiveAPI(t *testing.T) {
 		if recList.Code != http.StatusOK {
 			t.Fatalf("list domains failed: got %d", recList.Code)
 		}
-		var domainsList []struct{ ID uint `json:"id"`; Name string `json:"name"` }
+		var domainsList []struct {
+			ID   uint   `json:"id"`
+			Name string `json:"name"`
+		}
 		_ = json.Unmarshal(recList.Body.Bytes(), &domainsList)
 		if len(domainsList) == 0 {
 			t.Fatalf("expected synced domain in list, got empty")
@@ -365,7 +374,9 @@ func TestComprehensiveAPI(t *testing.T) {
 		if rec.Code != http.StatusCreated {
 			t.Fatalf("create mailbox failed: got %d (%s)", rec.Code, rec.Body.String())
 		}
-		var mb struct{ ID uint `json:"id"` }
+		var mb struct {
+			ID uint `json:"id"`
+		}
 		_ = json.Unmarshal(rec.Body.Bytes(), &mb)
 
 		// List Mailboxes
@@ -418,7 +429,9 @@ func TestComprehensiveAPI(t *testing.T) {
 		if rec.Code != http.StatusCreated {
 			t.Fatalf("create link failed: got %d (%s)", rec.Code, rec.Body.String())
 		}
-		var link struct{ ID uint `json:"id"` }
+		var link struct {
+			ID uint `json:"id"`
+		}
 		_ = json.Unmarshal(rec.Body.Bytes(), &link)
 
 		// List Links
@@ -484,26 +497,33 @@ func TestComprehensiveAPI(t *testing.T) {
 		}
 	}
 
-	// 10. Inbound Email Webhook
+	// 10. Inbound Email Webhook — /api/webhook/{orgSlug}/email/inbound/{token}
 	{
-		// Save settings directly in DB
-		db.Save(&models.Setting{Key: "inbound_token", Value: "my-inbound-token"})
-
-		// We need an enabled mailbox in the DB to resolve it successfully
+		// The tenant org owns the inbound token (in its slug'd path) and the mailbox.
+		org := models.Org{Name: "Acme", Slug: "acme", InboundToken: "my-inbound-token"}
+		db.Create(&org)
 		db.Create(&models.Mailbox{
-			OrgID:   1,
+			OrgID:   org.ID,
 			Address: "support@example.com",
 			Enabled: true,
 		})
 
 		body := "From: alice@example.com\r\nTo: support@example.com\r\nSubject: Help\r\n\r\nHello Support"
-		req := httptest.NewRequest(http.MethodPost, "/api/email/inbound", strings.NewReader(body))
-		req.Header.Set("X-Led-Token", "my-inbound-token")
+		req := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/my-inbound-token", strings.NewReader(body))
 		req.Header.Set("X-Led-To", "support@example.com")
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK {
 			t.Errorf("inbound webhook failed: got %d (%s)", rec.Code, rec.Body.String())
+		}
+
+		// Wrong token → 401. Unknown org slug → 404.
+		bad := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/nope", strings.NewReader(body))
+		bad.Header.Set("X-Led-To", "support@example.com")
+		badRec := httptest.NewRecorder()
+		srv.ServeHTTP(badRec, bad)
+		if badRec.Code != http.StatusUnauthorized {
+			t.Errorf("bad token: got %d, want 401", badRec.Code)
 		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Jungley8/led/internal/models"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -61,7 +62,7 @@ func (h *Handler) bootstrapOrgID() uint {
 	if h.db.Where("slug = ?", slug).First(&org).Error == nil {
 		return org.ID
 	}
-	org = models.Org{Name: h.cfg.AdminUser, Slug: slug}
+	org = models.Org{Name: h.cfg.AdminUser, Slug: slug, InboundToken: uuid.NewString()}
 	h.db.Create(&org)
 	return org.ID
 }

@@ -116,8 +116,11 @@ func (h *Handler) Routes() *http.ServeMux {
 		mux.HandleFunc("GET /auth/callback/{provider}", h.oauth.Callback)
 	}
 
-	// Inbound email webhook (token-guarded, not session).
-	mux.HandleFunc("POST /api/email/inbound", h.inbound)
+	// Inbound email webhook, n8n-style: the tenant slug and an unguessable per-org
+	// token both live in the path, so the Cloudflare worker needs just this one URL
+	// (no custom header). The slug scopes delivery to that org's mailboxes; the
+	// token authenticates.
+	mux.HandleFunc("POST /api/webhook/{orgSlug}/email/inbound/{token}", h.inbound)
 
 	// Abuse reporting (public — no auth required to submit).
 	mux.HandleFunc("POST /abuse", h.submitAbuse)

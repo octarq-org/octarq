@@ -296,8 +296,16 @@ func (h *Handler) sendEmail(w http.ResponseWriter, r *http.Request) {
 // We parse it, match (or catch-all create) a mailbox by recipient, and store.
 
 func (h *Handler) inbound(w http.ResponseWriter, r *http.Request) {
-	inboundToken := h.getSetting(keyInboundToken)
-	if inboundToken == "" || r.Header.Get("X-Led-Token") != inboundToken {
+	// The {orgSlug} path segment names the tenant: a shared inbound host can't be
+	// told apart by Host, so delivery is confined to this org's mailboxes.
+	var org models.Org
+	if h.db.Where("slug = ?", r.PathValue("orgSlug")).First(&org).Error != nil {
+		writeErr(w, http.StatusNotFound, "unknown org")
+		return
+	}
+	// Auth is the org's per-tenant token, carried in the path so the Cloudflare
+	// worker needs only this one URL and no custom header.
+	if org.InboundToken == "" || r.PathValue("token") != org.InboundToken {
 		writeErr(w, http.StatusUnauthorized, "bad token")
 		return
 	}
@@ -315,7 +323,7 @@ func (h *Handler) inbound(w http.ResponseWriter, r *http.Request) {
 		to = strings.ToLower(parsed.To)
 	}
 
-	mb, ok := h.resolveMailbox(to)
+	mb, ok := h.resolveMailbox(org.ID, to)
 	if !ok {
 		// Unknown recipient and catch-all disabled: accept silently so the
 		// Worker doesn't bounce, but drop.
@@ -399,9 +407,11 @@ func (h *Handler) mailHostDisabled(host string) bool {
 	return listed
 }
 
-// resolveMailbox finds an enabled mailbox for the address, optionally creating
-// one when catch-all is on and the recipient's domain is managed for mail.
-func (h *Handler) resolveMailbox(addr string) (*models.Mailbox, bool) {
+// resolveMailbox finds an enabled mailbox for the address within the given org,
+// optionally creating one when catch-all is on and the recipient's domain (also
+// owned by that org) is managed for mail. Scoping by org keeps one tenant's
+// inbound webhook from delivering into another tenant's mailboxes.
+func (h *Handler) resolveMailbox(orgID uint, addr string) (*models.Mailbox, bool) {
 	if addr == "" {
 		return nil, false
 	}
@@ -410,7 +420,7 @@ func (h *Handler) resolveMailbox(addr string) (*models.Mailbox, bool) {
 		return nil, false
 	}
 	var mb models.Mailbox
-	if err := h.db.Where("address = ? AND enabled = ?", addr, true).First(&mb).Error; err == nil {
+	if err := h.db.Where("address = ? AND enabled = ? AND owner_id = ?", addr, true, orgID).First(&mb).Error; err == nil {
 		return &mb, true
 	}
 	if h.getSetting(keyCatchAll) != "true" {
@@ -425,26 +435,26 @@ func (h *Handler) resolveMailbox(addr string) (*models.Mailbox, bool) {
 		return nil, false
 	}
 	recipientHost := addr[at+1:]
-	// The recipient host must be one of a mail-enabled domain's mail hosts
-	// (apex or a configured subdomain like mail.example.com).
+	// The recipient host must be one of THIS org's mail-enabled domain's mail
+	// hosts (apex or a configured subdomain like mail.example.com).
 	var doms []models.Domain
-	h.db.Where("for_mail = ?", true).Find(&doms)
-	var matchedOrgID uint
+	h.db.Where("for_mail = ? AND owner_id = ?", true, orgID).Find(&doms)
+	var matched bool
 	for _, dom := range doms {
 		for _, mh := range dom.EffectiveMailHosts() {
 			if mh == recipientHost {
-				matchedOrgID = dom.OrgID
+				matched = true
 				break
 			}
 		}
-		if matchedOrgID != 0 {
+		if matched {
 			break
 		}
 	}
-	if matchedOrgID == 0 {
+	if !matched {
 		return nil, false
 	}
-	mb = models.Mailbox{OrgID: matchedOrgID, Address: addr, Enabled: true, Note: "auto (catch-all)"}
+	mb = models.Mailbox{OrgID: orgID, Address: addr, Enabled: true, Note: "auto (catch-all)"}
 	if err := h.db.Create(&mb).Error; err != nil {
 		return nil, false
 	}

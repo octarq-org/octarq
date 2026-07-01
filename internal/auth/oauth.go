@@ -9,6 +9,7 @@ import (
 
 	"github.com/Jungley8/led/internal/crypto"
 	"github.com/Jungley8/led/internal/models"
+	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
@@ -50,7 +51,7 @@ func (h *OAuthHandler) loadProvider(provider string) bool {
 	if cid == "" || csec == "" {
 		return false
 	}
-	
+
 	credsKey := cid + ":" + csec
 
 	providersMu.RLock()
@@ -169,7 +170,7 @@ func (h *OAuthHandler) upsertUser(email, avatarURL, provider string) (*models.Us
 		}
 		// No org yet — create a personal org for this user.
 		slug := slugify(email)
-		org := models.Org{Name: email, Slug: slug}
+		org := models.Org{Name: email, Slug: slug, InboundToken: uuid.NewString()}
 		if err := h.db.Create(&org).Error; err != nil {
 			return nil, nil, err
 		}

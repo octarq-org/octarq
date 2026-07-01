@@ -82,7 +82,7 @@ Open `http://localhost:8080` (redirects to `/admin`), sign in with
             │         └─ Postgres (optional)         Mail ─ inbound webhook + SMTP sender     │
             └────────────────────────────────────────────────────────────────────────────────┘
                           ▲
-   Cloudflare Email Routing → Worker → POST /api/email/inbound  (deploy/cloudflare-email-worker.js)
+   Cloudflare Email Routing → Worker → POST /api/webhook/{orgSlug}/email/inbound/{token}  (deploy/cloudflare-email-worker.js)
 ```
 
 ### Routing

@@ -104,7 +104,7 @@ export default function MailPage() {
           <ol className="ml-4 list-decimal space-y-1.5 text-sm leading-relaxed text-white/70">
             <li>Add a domain in <b>Domains</b>, toggle <b>Accept email</b>, and list its mail hosts.</li>
             <li>In Cloudflare → <b>Email → Email Routing</b>, enable routing.</li>
-            <li>Deploy <Code>deploy/cloudflare-email-worker.js</Code> with <Code>LED_ENDPOINT</Code>=<Code>{`${location.origin}/api/email/inbound`}</Code> and <Code>LED_TOKEN</Code> = your <Code>LED_INBOUND_TOKEN</Code>, then point a catch-all route at it.</li>
+            <li>Deploy <Code>deploy/cloudflare-email-worker.js</Code> with <Code>LED_ENDPOINT</Code> set to your <b>Inbound Webhook URL</b> (copy it from <b>Settings → Mailboxes</b> — the token is in the path, no header needed), then point a catch-all route at it.</li>
             <li>To send replies, configure an SMTP relay via Settings.</li>
           </ol>
         </Guide>
