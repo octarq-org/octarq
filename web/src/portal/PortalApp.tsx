@@ -389,11 +389,11 @@ function DashboardView({ email, onLogout }: { email: string; onLogout: () => voi
           <p className="text-xs text-white/50">{email}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleBillingPortal} disabled={claimingBilling} className="text-xs py-1.5 h-8">
+          <Button variant="outline" onClick={handleBillingPortal} disabled={claimingBilling} className="text-xs py-1.5 h-8">
             <ExternalLink className="h-3.5 w-3.5" />
             <span>{claimingBilling ? "Loading..." : "Billing & Invoices"}</span>
           </Button>
-          <Button variant="ghost" size="sm" onClick={onLogout} className="text-xs py-1.5 h-8">
+          <Button variant="ghost" onClick={onLogout} className="text-xs py-1.5 h-8">
             <LogOut className="h-3.5 w-3.5" />
             <span>Logout</span>
           </Button>
@@ -422,7 +422,7 @@ function DashboardView({ email, onLogout }: { email: string; onLogout: () => voi
           <p className="text-sm text-white/50">No licenses linked to your account.</p>
           <p className="text-xs text-white/35 mt-1">If you just made a purchase, click "Claim License" below to link it.</p>
           <Link to="/claim" className="mt-4">
-            <Button variant="outline" size="sm">Link a Purchase</Button>
+            <Button variant="outline">Link a Purchase</Button>
           </Link>
         </Empty>
       ) : (
@@ -442,7 +442,7 @@ function DashboardView({ email, onLogout }: { email: string; onLogout: () => voi
                       {lic.token}
                     </code>
                   </div>
-                  <Button variant="subtle" size="sm" onClick={() => viewDevices(lic)} className="text-xs">
+                  <Button variant="subtle" onClick={() => viewDevices(lic)} className="text-xs">
                     <span>Manage Seats</span>
                   </Button>
                 </div>
@@ -481,7 +481,7 @@ function DashboardView({ email, onLogout }: { email: string; onLogout: () => voi
                             IP: {dev.ip} · Active: {dev.lastSeenAt.slice(0, 10)}
                           </p>
                         </div>
-                        <Button variant="danger" size="sm" onClick={() => handleUnbind(dev.id)} className="text-[11px] px-2 py-1 h-6">
+                        <Button variant="danger" onClick={() => handleUnbind(dev.id)} className="text-[11px] px-2 py-1 h-6">
                           Unbind
                         </Button>
                       </div>
