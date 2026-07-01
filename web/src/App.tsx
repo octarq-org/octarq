@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { CookieConsent } from "./components/CookieConsent";
 import {
   Bot,
   Boxes,
@@ -246,12 +247,13 @@ export default function App() {
       .catch(() => setAuthed(false));
   }, []);
 
-  if (window.location.pathname === "/admin/invite/accept") {
-    return <InviteAcceptPage />;
-  }
+  const showConsent = window.location.pathname !== "/admin/invite/accept";
 
-  if (authed === null) {
-    return (
+  let content;
+  if (window.location.pathname === "/admin/invite/accept") {
+    content = <InviteAcceptPage />;
+  } else if (authed === null) {
+    content = (
       <div className="led-aurora grid h-full place-items-center text-white/40">
         <div className="flex flex-col items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow flex items-center justify-center">
@@ -261,23 +263,28 @@ export default function App() {
         </div>
       </div>
     );
-  }
-
-  if (!authed) {
-    return (
+  } else if (!authed) {
+    content = (
       <Login
         onLogin={(u, orgId) => { setUser(u); setActiveOrgId(orgId); setAuthed(true); }}
+      />
+    );
+  } else {
+    content = (
+      <Shell
+        user={user}
+        activeOrgId={activeOrgId}
+        setActiveOrgId={setActiveOrgId}
+        onLogout={() => setAuthed(false)}
       />
     );
   }
 
   return (
-    <Shell
-      user={user}
-      activeOrgId={activeOrgId}
-      setActiveOrgId={setActiveOrgId}
-      onLogout={() => setAuthed(false)}
-    />
+    <>
+      {content}
+      {showConsent && <CookieConsent />}
+    </>
   );
 }
 

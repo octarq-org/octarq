@@ -129,3 +129,83 @@ func TestTokenLifecycleAndBearerAuth(t *testing.T) {
 		t.Fatalf("bad bearer token: got %d want 401", rec.Code)
 	}
 }
+
+func TestAPIVersioningRewrite(t *testing.T) {
+	srv, _ := newTestHandler(t)
+
+	// A request to /api/v1/health should rewrite to /api/health and succeed
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("URL rewrite failed: got code %d, body %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestEmailBounceWebhook(t *testing.T) {
+	srv, db := newTestHandler(t)
+
+	// Create test mailbox
+	mb := models.Mailbox{
+		OrgID:   1,
+		Address: "bounced@example.com",
+		Enabled: true,
+	}
+	if err := db.Create(&mb).Error; err != nil {
+		t.Fatalf("failed to create test mailbox: %v", err)
+	}
+
+	// 1. Test SendGrid style bounce payload
+	payload := `[{"email":"bounced@example.com","event":"bounce","reason":"550 Invalid recipient","status":"5.1.1"}]`
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook/email/bounce", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("bounce webhook failed: got code %d, body %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify audit log entry
+	var logs []models.AuditLog
+	if err := db.Where("action = ? AND target_id = ?", "email.bounce", mb.ID).Find(&logs).Error; err != nil {
+		t.Fatalf("failed to query audit logs: %v", err)
+	}
+	if len(logs) != 1 {
+		t.Fatalf("expected 1 audit log, got %d", len(logs))
+	}
+	if !strings.Contains(logs[0].Meta, "550 Invalid recipient") {
+		t.Errorf("meta does not contain reason: %s", logs[0].Meta)
+	}
+
+	// 2. Test AWS SES style bounce payload
+	sesPayload := `{
+		"notificationType": "Bounce",
+		"bounce": {
+			"bounceType": "Permanent",
+			"bounceSubType": "General",
+			"bouncedRecipients": [
+				{
+					"emailAddress": "bounced@example.com"
+				}
+			]
+		}
+	}`
+	req = httptest.NewRequest(http.MethodPost, "/api/webhook/email/bounce", strings.NewReader(sesPayload))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("SES bounce webhook failed: got code %d, body %s", rec.Code, rec.Body.String())
+	}
+
+	// Verify audit log entry
+	if err := db.Where("action = ? AND target_id = ?", "email.bounce", mb.ID).Find(&logs).Error; err != nil {
+		t.Fatalf("failed to query audit logs: %v", err)
+	}
+	if len(logs) != 2 {
+		t.Fatalf("expected 2 audit logs, got %d", len(logs))
+	}
+}

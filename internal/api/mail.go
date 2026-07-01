@@ -561,3 +561,207 @@ func (h *Handler) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 		msg.HTML = processBody(msg.HTML)
 	}
 }
+
+// POST /api/webhook/email/bounce
+func (h *Handler) emailBounceWebhook(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, 5<<20)) // 5 MiB cap
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, "read body")
+		return
+	}
+
+	events := extractBounceEvents(body)
+	if len(events) == 0 {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "processed": 0})
+		return
+	}
+
+	ip := reporterIP(r)
+	processedCount := 0
+
+	for _, ev := range events {
+		var mb models.Mailbox
+		if err := h.db.Where("address = ?", strings.ToLower(ev.Email)).First(&mb).Error; err != nil {
+			continue
+		}
+
+		processedCount++
+
+		// Write Audit Log
+		meta := map[string]any{
+			"address": ev.Email,
+			"event":   ev.Event,
+			"details": ev.Details,
+		}
+		var metaJSON string
+		if b, err := json.Marshal(meta); err == nil {
+			metaJSON = string(b)
+		}
+
+		h.db.Create(&models.AuditLog{
+			OrgID:      mb.OrgID,
+			ActorID:    0, // System
+			Action:     "email.bounce",
+			TargetType: "mailbox",
+			TargetID:   mb.ID,
+			Meta:       metaJSON,
+			IP:         ip,
+		})
+
+		// Send alert (notifications)
+		alertText := fmt.Sprintf("⚠️ Email reputation event: Mailbox %s experienced a %s event. Details: %s", mb.Address, ev.Event, ev.Details)
+		var channels []models.NotificationChannel
+		h.db.Where("owner_id = ? AND enabled = ?", mb.OrgID, true).Find(&channels)
+		if len(channels) > 0 {
+			go func(chans []models.NotificationChannel, txt string) {
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
+				for _, ch := range chans {
+					_ = notify.Send(ctx, ch.Type, ch.Config, txt)
+				}
+			}(channels, alertText)
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "processed": processedCount})
+}
+
+type bounceEvent struct {
+	Email   string
+	Event   string // "bounce" or "complaint"
+	Details string
+}
+
+func extractBounceEvents(body []byte) []bounceEvent {
+	var events []bounceEvent
+
+	parseMap := func(m map[string]any) []bounceEvent {
+		var results []bounceEvent
+
+		// 1. SES Format
+		if nType, ok := m["notificationType"].(string); ok && (nType == "Bounce" || nType == "Complaint") {
+			if nType == "Bounce" {
+				if bMap, ok := m["bounce"].(map[string]any); ok {
+					bType, _ := bMap["bounceType"].(string)
+					bSubType, _ := bMap["bounceSubType"].(string)
+					details := fmt.Sprintf("Bounce Type: %s, SubType: %s", bType, bSubType)
+					if recs, ok := bMap["bouncedRecipients"].([]any); ok {
+						for _, rVal := range recs {
+							if rMap, ok := rVal.(map[string]any); ok {
+								if email, ok := rMap["emailAddress"].(string); ok {
+									results = append(results, bounceEvent{
+										Email:   email,
+										Event:   "bounce",
+										Details: details,
+									})
+								}
+							}
+						}
+					}
+				}
+			} else if nType == "Complaint" {
+				if cMap, ok := m["complaint"].(map[string]any); ok {
+					feed, _ := cMap["complaintFeedbackType"].(string)
+					details := fmt.Sprintf("Complaint Feedback Type: %s", feed)
+					if recs, ok := cMap["complainedRecipients"].([]any); ok {
+						for _, rVal := range recs {
+							if rMap, ok := rVal.(map[string]any); ok {
+								if email, ok := rMap["emailAddress"].(string); ok {
+									results = append(results, bounceEvent{
+										Email:   email,
+										Event:   "complaint",
+										Details: details,
+									})
+								}
+							}
+						}
+					}
+				}
+			}
+			if len(results) > 0 {
+				return results
+			}
+		}
+
+		// 2. Mailgun Format
+		if edVal, ok := m["event-data"].(map[string]any); ok {
+			ev, _ := edVal["event"].(string)
+			recipient, _ := edVal["recipient"].(string)
+			var details string
+			if dsVal, ok := edVal["delivery-status"].(map[string]any); ok {
+				if desc, ok := dsVal["description"].(string); ok {
+					details = desc
+				} else if msg, ok := dsVal["message"].(string); ok {
+					details = msg
+				}
+			}
+			if ev == "failed" || ev == "complained" {
+				var finalEv string
+				if ev == "failed" {
+					finalEv = "bounce"
+				} else {
+					finalEv = "complaint"
+				}
+				if recipient != "" {
+					results = append(results, bounceEvent{
+						Email:   recipient,
+						Event:   finalEv,
+						Details: details,
+					})
+					return results
+				}
+			}
+		}
+
+		// 3. SendGrid / Generic Format
+		var email, event, details string
+		for _, key := range []string{"email", "recipient", "address", "rcpt"} {
+			if eVal, ok := m[key].(string); ok && eVal != "" {
+				email = eVal
+				break
+			}
+		}
+		for _, key := range []string{"event", "eventType"} {
+			if eVal, ok := m[key].(string); ok && eVal != "" {
+				event = eVal
+				break
+			}
+		}
+		for _, key := range []string{"reason", "description", "status"} {
+			if eVal, ok := m[key].(string); ok && eVal != "" {
+				details = eVal
+				break
+			}
+		}
+		event = strings.ToLower(event)
+		if strings.Contains(event, "bounce") || event == "dropped" || event == "failed" {
+			event = "bounce"
+		} else if strings.Contains(event, "complaint") || event == "spamreport" {
+			event = "complaint"
+		}
+
+		if email != "" && event != "" {
+			results = append(results, bounceEvent{
+				Email:   email,
+				Event:   event,
+				Details: details,
+			})
+		}
+		return results
+	}
+
+	var list []map[string]any
+	if err := json.Unmarshal(body, &list); err == nil {
+		for _, m := range list {
+			events = append(events, parseMap(m)...)
+		}
+		return events
+	}
+
+	var m map[string]any
+	if err := json.Unmarshal(body, &m); err == nil {
+		events = append(events, parseMap(m)...)
+	}
+
+	return events
+}

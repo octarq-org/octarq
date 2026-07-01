@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -124,6 +125,9 @@ func (h *Handler) Routes() *http.ServeMux {
 	// token authenticates.
 	mux.HandleFunc("POST /api/webhook/{orgSlug}/email/inbound/{token}", h.inbound)
 
+	// Mail bounce and complaint webhook (public)
+	mux.HandleFunc("POST /api/webhook/email/bounce", h.emailBounceWebhook)
+
 	// Abuse reporting (public — no auth required to submit).
 	mux.HandleFunc("POST /abuse", h.submitAbuse)
 
@@ -230,6 +234,12 @@ func (h *Handler) Routes() *http.ServeMux {
 	p("GET /api/menus", h.listMenus)
 	p("GET /api/user/settings", h.getUserSettings)
 	p("PUT /api/user/settings", h.updateUserSettings)
+
+	// URL rewriting for API versioning (/api/v1/xxx -> /api/xxx)
+	mux.HandleFunc("/api/v1/", func(w http.ResponseWriter, r *http.Request) {
+		r.URL.Path = "/api/" + strings.TrimPrefix(r.URL.Path, "/api/v1/")
+		mux.ServeHTTP(w, r)
+	})
 
 	return mux
 }

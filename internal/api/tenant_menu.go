@@ -308,6 +308,8 @@ func (h *Handler) addOrgMember(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	h.audit(r, "member.add", "user", user.ID, map[string]any{"email": user.Email, "role": role})
+
 	if isNew {
 		// Best-effort: email the invite link via the org's SMTP sender. A missing
 		// sender (or a send error) must not fail the invite — the link is still
@@ -396,6 +398,7 @@ func (h *Handler) removeOrgMember(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "failed to remove member")
 		return
 	}
+	h.audit(r, "member.remove", "user", targetUID, map[string]any{"role": target.Role})
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 

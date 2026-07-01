@@ -224,5 +224,7 @@ func (h *Handler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.audit(r, "user.activate", "user", user.ID, map[string]any{"email": user.Email})
+
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
