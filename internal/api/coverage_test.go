@@ -379,6 +379,82 @@ func TestNotificationChannelTest(t *testing.T) {
 	}
 }
 
+// TestTokensCRUD covers API token create/list/delete.
+func TestTokensCRUD(t *testing.T) {
+	srv, _ := newTestHandler(t)
+	cookies := loginCookies(t, srv)
+
+	rec := do(srv, "POST", "/api/tokens", cookies, `{"name":"ci"}`)
+	if rec.Code != http.StatusCreated || !strings.Contains(rec.Body.String(), "led_") {
+		t.Fatalf("create token: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var tok struct {
+		ID uint `json:"id"`
+	}
+	json.Unmarshal(rec.Body.Bytes(), &tok)
+	if rec := do(srv, "GET", "/api/tokens", cookies, ""); rec.Code != http.StatusOK {
+		t.Errorf("list tokens: got %d", rec.Code)
+	}
+	if rec := do(srv, "DELETE", "/api/tokens/"+strconv.FormatUint(uint64(tok.ID), 10), cookies, ""); rec.Code != http.StatusOK {
+		t.Errorf("delete token: got %d", rec.Code)
+	}
+	// deleting a non-existent token → 404.
+	if rec := do(srv, "DELETE", "/api/tokens/99999", cookies, ""); rec.Code != http.StatusNotFound {
+		t.Errorf("delete missing token: got %d, want 404", rec.Code)
+	}
+}
+
+// TestSyncDomains covers importing zones from a provider (mock ListZones).
+func TestSyncDomains(t *testing.T) {
+	srv, _ := newTestHandler(t)
+	cookies := loginCookies(t, srv)
+
+	rec := do(srv, "POST", "/api/provider-accounts", cookies, `{"name":"m","type":"mock","config":{"token":"t"}}`)
+	var acc struct {
+		ID uint `json:"id"`
+	}
+	json.Unmarshal(rec.Body.Bytes(), &acc)
+
+	if rec := do(srv, "POST", "/api/domains/sync", cookies, `{"providerAccountId":`+strconv.FormatUint(uint64(acc.ID), 10)+`}`); rec.Code != http.StatusOK {
+		t.Fatalf("sync: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	// The mock exposes mockdomain.com — it should now be listed.
+	if rec := do(srv, "GET", "/api/domains", cookies, ""); !strings.Contains(rec.Body.String(), "mockdomain.com") {
+		t.Errorf("synced domain missing: %s", rec.Body.String())
+	}
+	// providerAccountId required.
+	if rec := do(srv, "POST", "/api/domains/sync", cookies, `{}`); rec.Code != http.StatusBadRequest {
+		t.Errorf("sync without account: got %d, want 400", rec.Code)
+	}
+}
+
+// TestCRUDErrorBranches sweeps the common error paths (invalid JSON body, bad
+// non-numeric id, missing id) across CRUD resources — the branches unit happy
+// paths skip.
+func TestCRUDErrorBranches(t *testing.T) {
+	srv, _ := newTestHandler(t)
+	cookies := loginCookies(t, srv)
+
+	// Invalid JSON body → 400 on create endpoints.
+	for _, res := range []string{"/api/smtp-senders", "/api/provider-accounts", "/api/webhooks", "/api/mailboxes", "/api/links", "/api/tokens"} {
+		if rec := do(srv, "POST", res, cookies, `{`); rec.Code != http.StatusBadRequest {
+			t.Errorf("POST %s invalid body: got %d, want 400", res, rec.Code)
+		}
+	}
+	// Non-numeric id → 400 on delete.
+	for _, res := range []string{"/api/smtp-senders/", "/api/mailboxes/", "/api/links/", "/api/tokens/"} {
+		if rec := do(srv, "DELETE", res+"abc", cookies, ""); rec.Code != http.StatusBadRequest {
+			t.Errorf("DELETE %sabc: got %d, want 400", res, rec.Code)
+		}
+	}
+	// Missing resource → 404 on delete.
+	for _, res := range []string{"/api/smtp-senders/", "/api/mailboxes/", "/api/links/"} {
+		if rec := do(srv, "DELETE", res+"88888", cookies, ""); rec.Code != http.StatusNotFound {
+			t.Errorf("DELETE %s88888: got %d, want 404", res, rec.Code)
+		}
+	}
+}
+
 // TestExtractBounceEvents covers the multi-provider bounce parser directly.
 func TestExtractBounceEvents(t *testing.T) {
 	cases := []struct {
