@@ -3,6 +3,7 @@ package api
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"strconv"
 	"sync"
@@ -28,6 +29,7 @@ type Handler struct {
 	abuseLimiter *rateLimiter
 	sendLimiter  *rateLimiter // outbound-email rate cap, keyed by org
 	plugins      []plugin.Plugin
+	lookupTXT    func(name string) ([]string, error)
 
 	// emailHandlers are notified after each inbound email is stored. They are
 	// registered by plugins via OnEmail and fired by emitEmail. Guarded by
@@ -74,6 +76,7 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 		loginLimiter: newRateLimiter(5, 15*time.Minute), // 5 fails / 15 mins
 		abuseLimiter: newRateLimiter(5, time.Hour),      // 5 reports / 1 hour
 		sendLimiter:  newRateLimiter(100, time.Hour),    // 100 outbound emails / org / hour
+		lookupTXT:    net.LookupTXT,
 	}
 	if cfg.BaseURL != "" {
 		h.oauth = auth.NewOAuthHandler(db, cfg.BaseURL, a, c)
@@ -105,6 +108,7 @@ func (h *Handler) Routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/auth/login", h.login)
 	mux.HandleFunc("POST /api/auth/logout", h.logout)
 	mux.HandleFunc("GET /api/auth/me", h.me)
+	mux.HandleFunc("POST /api/auth/invite/accept", h.acceptInvite)
 
 	// OAuth (no session required — these redirect to provider and back).
 	if h.oauth != nil {
@@ -117,6 +121,9 @@ func (h *Handler) Routes() *http.ServeMux {
 
 	// Abuse reporting (public — no auth required to submit).
 	mux.HandleFunc("POST /abuse", h.submitAbuse)
+
+	// Health check (public - no auth required).
+	mux.HandleFunc("GET /api/health", h.health)
 
 	// Everything below requires a session.
 	p := func(pattern string, fn http.HandlerFunc) {
@@ -159,6 +166,7 @@ func (h *Handler) Routes() *http.ServeMux {
 	p("POST /api/domains", h.createDomain)
 	p("PUT /api/domains/{id}", h.updateDomain)
 	p("DELETE /api/domains/{id}", h.deleteDomain)
+	p("GET /api/domains/{id}/verify-dns", h.verifyDomainDNS)
 	p("GET /api/domains/{id}/records", h.listRecords)
 	p("POST /api/domains/{id}/records", h.createRecord)
 	p("PUT /api/domains/{id}/records/{rid}", h.updateRecord)
