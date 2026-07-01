@@ -88,6 +88,11 @@ func New() (*App, error) {
 // DB exposes the shared database handle (useful for plugin construction).
 func (a *App) DB() *gorm.DB { return a.gdb }
 
+// Notify delivers a notification via a configured channel type ("telegram", "webhook").
+func (a *App) Notify(ctx context.Context, typ, cfgJSON, text string) error {
+	return notify.Send(ctx, typ, cfgJSON, text)
+}
+
 // sendMail is the implementation behind plugin.Context.SendMail. It resolves the
 // org's first configured SMTP sender, decrypts its password, and relays the
 // message — mirroring internal/api.Handler.sendEmail so plugins can send
