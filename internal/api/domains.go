@@ -112,7 +112,7 @@ func (h *Handler) syncDomains(w http.ResponseWriter, r *http.Request) {
 		} else {
 			h.db.Create(&models.Domain{
 				OrgID: h.orgID(r),
-				Name:    name, ProviderAccountID: acc.ID, ZoneID: z.ID,
+				Name:  name, ProviderAccountID: acc.ID, ZoneID: z.ID,
 			})
 			created++
 		}
@@ -374,4 +374,126 @@ func (h *Handler) deleteRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// GET /api/domains/{id}/verify-dns
+func (h *Handler) verifyDomainDNS(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(r)
+	if !ok {
+		writeErr(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	var dom models.Domain
+	if err := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&dom).Error; err != nil {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
+
+	domainName := dom.Name
+
+	// 1. SPF record check
+	spfSet := false
+	spfHealthy := false
+	spfValue := ""
+	spfRecords, _ := h.lookupTXT(domainName)
+	for _, record := range spfRecords {
+		lower := strings.ToLower(strings.TrimSpace(record))
+		if strings.Contains(lower, "v=spf1") {
+			spfSet = true
+			spfValue = record
+			if strings.HasPrefix(strings.ReplaceAll(lower, " ", ""), "v=spf1") {
+				spfHealthy = true
+			}
+			break
+		}
+	}
+
+	// 2. DMARC record check
+	dmarcSet := false
+	dmarcHealthy := false
+	dmarcValue := ""
+	dmarcRecords, _ := h.lookupTXT("_dmarc." + domainName)
+	for _, record := range dmarcRecords {
+		lower := strings.ToLower(strings.TrimSpace(record))
+		if strings.Contains(lower, "v=dmarc1") {
+			dmarcSet = true
+			dmarcValue = record
+			if strings.Contains(lower, "p=none") || strings.Contains(lower, "p=quarantine") || strings.Contains(lower, "p=reject") {
+				dmarcHealthy = true
+			}
+			break
+		}
+	}
+
+	// 3. DKIM record check (probing common selectors)
+	selectors := []string{"default", "led", "google", "mail", "k1", "sig1"}
+	type dkimResult struct {
+		selector string
+		value    string
+		set      bool
+		healthy  bool
+	}
+	resultChan := make(chan dkimResult, len(selectors))
+	for _, sel := range selectors {
+		go func(s string) {
+			records, err := h.lookupTXT(s + "._domainkey." + domainName)
+			if err == nil {
+				for _, r := range records {
+					lower := strings.ToLower(strings.TrimSpace(r))
+					if strings.Contains(lower, "v=dkim1") || strings.Contains(lower, "k=rsa") || strings.Contains(lower, "p=") {
+						resultChan <- dkimResult{
+							selector: s,
+							value:    r,
+							set:      true,
+							healthy:  strings.Contains(lower, "p="),
+						}
+						return
+					}
+				}
+			}
+			resultChan <- dkimResult{}
+		}(sel)
+	}
+
+	var dkimRes dkimResult
+	for i := 0; i < len(selectors); i++ {
+		res := <-resultChan
+		if res.set {
+			dkimRes = res
+		}
+	}
+
+	type recordStatus struct {
+		Set     bool   `json:"set"`
+		Healthy bool   `json:"healthy"`
+		Value   string `json:"value,omitempty"`
+	}
+
+	type dkimStatus struct {
+		recordStatus
+		Selector string `json:"selector,omitempty"`
+	}
+
+	response := map[string]any{
+		"spf": recordStatus{
+			Set:     spfSet,
+			Healthy: spfHealthy,
+			Value:   spfValue,
+		},
+		"dmarc": recordStatus{
+			Set:     dmarcSet,
+			Healthy: dmarcHealthy,
+			Value:   dmarcValue,
+		},
+		"dkim": dkimStatus{
+			recordStatus: recordStatus{
+				Set:     dkimRes.set,
+				Healthy: dkimRes.healthy,
+				Value:   dkimRes.value,
+			},
+			Selector: dkimRes.selector,
+		},
+	}
+
+	writeJSON(w, http.StatusOK, response)
 }
