@@ -458,7 +458,7 @@ function Shell({
     if (!newOrgName.trim()) return;
     api.createOrg({ name: newOrgName })
       .then((org) => api.switchOrg(org.id).then(() => window.location.reload()))
-      .catch((e) => alert(e.message || "Failed to create organization"));
+      .catch((e) => alert(e.message || "Couldn't create the workspace"));
   }
 
   return (

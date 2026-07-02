@@ -247,12 +247,12 @@ function GeneralSettings() {
     setPurging(true);
     try {
       await api.purgeAccountData();
-      alert("Workspace data has been purged successfully.");
+      alert("Your workspace and all of its data have been deleted.");
       setShowDeleteModal(false);
       setDeleteConfirmationText("");
       window.location.reload();
     } catch (err: any) {
-      alert(err.message || "Purge failed");
+      alert(err.message || "Couldn't delete the workspace. Please try again.");
     } finally {
       setPurging(false);
     }
@@ -262,7 +262,7 @@ function GeneralSettings() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="General" description="Workspace identity and data retention." />
+      <PageHeader title="General" description="Your workspace name, data settings, and privacy controls." />
 
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
@@ -283,10 +283,10 @@ function GeneralSettings() {
 
       <GlassCard className="p-6 space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white">Runtime</h2>
+          <h2 className="text-base font-bold text-white">Data retention</h2>
           <SavedBadge on={saved} />
         </div>
-        <Field label="Click Event Logs Expiry (Days)" hint="Click data older than this is auto-deleted. 0 = keep forever.">
+        <Field label="Keep click history for (days)" hint="Older click history is removed automatically. Set to 0 to keep it forever.">
           <input type="number" min={0} className="input w-32 font-mono text-sm" value={retention} onChange={(e) => setRetention(Number(e.target.value))} />
         </Field>
         <div className="border-t border-white/[0.06] pt-6">
@@ -298,27 +298,29 @@ function GeneralSettings() {
         <GlassCard className="p-6 border-red-500/20 bg-red-950/5 space-y-6">
           <div className="flex items-center gap-2 text-rose-400">
             <ShieldAlert size={20} />
-            <h2 className="text-base font-bold">Danger Zone / GDPR</h2>
+            <h2 className="text-base font-bold">Export or delete your data</h2>
           </div>
           <p className="text-xs text-white/60">
-            As a workspace Admin or Owner, you can export all organization data or permanently delete this workspace and all associated logs, domains, links, and mailbox records.
+            Download a complete copy of everything in this workspace, or permanently
+            delete the workspace and all of its links, domains, mailboxes, and history.
+            Only workspace owners and admins can do this.
           </p>
           <div className="flex flex-wrap gap-4 pt-2">
             <Button variant="subtle" onClick={handleExport} disabled={exporting}>
-              {exporting ? "Exporting..." : "Export Workspace Data"}
+              {exporting ? "Preparing…" : "Download my data"}
             </Button>
             <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
-              Purge Workspace Data
+              Delete workspace
             </Button>
           </div>
         </GlassCard>
       )}
 
       {showDeleteModal && (
-        <Modal title="Purge Workspace Data" onClose={() => { setShowDeleteModal(false); setDeleteConfirmationText(""); }}>
+        <Modal title="Delete this workspace?" onClose={() => { setShowDeleteModal(false); setDeleteConfirmationText(""); }}>
           <div className="space-y-4">
             <p className="text-sm text-white/70">
-              This action is permanent and cannot be undone. All workspace links, domains, mailboxes, and logs will be permanently deleted.
+              This permanently deletes the workspace and everything in it — links, domains, mailboxes, and history. This can't be undone.
             </p>
             <p className="text-sm text-white/70">
               Please type <span className="font-mono font-bold text-red-400 select-all">DELETE MY DATA</span> to confirm this action.
@@ -339,7 +341,7 @@ function GeneralSettings() {
                 disabled={deleteConfirmationText !== "DELETE MY DATA" || purging}
                 onClick={handlePurge}
               >
-                {purging ? "Deleting..." : "Permanently Purge Data"}
+                {purging ? "Deleting…" : "Permanently delete"}
               </Button>
             </div>
           </div>
@@ -423,7 +425,7 @@ function SecuritySettings() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Security" description="Two-factor authentication and session control for your operator account." />
+      <PageHeader title="Security" description="Two-factor authentication and device sign-out for your account." />
 
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
@@ -485,9 +487,9 @@ function SecuritySettings() {
       </GlassCard>
 
       <GlassCard className="p-6 space-y-4">
-        <h2 className="text-base font-bold text-white">Sessions</h2>
-        <p className="text-xs text-white/50">Revoke every signed-in session for your account, on every device and browser. You'll be signed out here too.</p>
-        <Button variant="danger" onClick={logoutAll} disabled={busy}>Log out of all devices</Button>
+        <h2 className="text-base font-bold text-white">Active sessions</h2>
+        <p className="text-xs text-white/50">Sign out of every device and browser where you're logged in — useful if you've lost a device. You'll be signed out here too.</p>
+        <Button variant="danger" onClick={logoutAll} disabled={busy}>Sign out of all devices</Button>
       </GlassCard>
     </div>
   );
@@ -563,8 +565,8 @@ function MailSettings() {
             onFocus={(e) => e.currentTarget.select()}
           />
         </Field>
-        <Field label="Inbound Token" hint="The per-tenant secret in the URL above. Clear the box and Save to rotate it (invalidates the old URL).">
-          <input className="input w-full font-mono text-xs" value={inboundToken} onChange={(e) => setInboundToken(e.target.value)} placeholder="(leave empty and save to generate/rotate)" />
+        <Field label="Inbound token" hint="Your workspace's secret, embedded in the URL above. Clear this box and Save to generate a new one (the old URL stops working).">
+          <input className="input w-full font-mono text-xs" value={inboundToken} onChange={(e) => setInboundToken(e.target.value)} placeholder="(leave empty and save to generate a new one)" />
         </Field>
         <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
           <Toggle on={catchAll} onChange={setCatchAll} />
