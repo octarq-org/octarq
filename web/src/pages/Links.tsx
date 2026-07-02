@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, Domain, effectiveLinkHosts, Link, LinkStats } from "../api";
-import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard } from "../ui";
-import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe } from "lucide-react";
+import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard, Modal } from "../ui";
+import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe, Settings } from "lucide-react";
+import { LinkSettings } from "./Settings";
 
 export default function LinksPage() {
   const [links, setLinks] = useState<Link[]>([]);
@@ -14,6 +15,7 @@ export default function LinksPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const linkHostOptions = Array.from(new Set(domains.flatMap(effectiveLinkHosts)));
 
@@ -73,9 +75,14 @@ export default function LinksPage() {
         title="Links"
         description="Short links with click analytics, redirection & routing"
         action={
-          <Button variant="primary" onClick={() => setActive("new")} className="gap-1.5 py-1.5 text-xs">
-            + New Link
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={() => setShowSettings(true)} className="p-2 py-1.5 text-white/50 hover:text-white" title="Settings">
+              <Settings className="h-4 w-4" />
+            </Button>
+            <Button variant="primary" onClick={() => setActive("new")} className="gap-1.5 py-1.5 text-xs">
+              + New Link
+            </Button>
+          </div>
         }
       />
 
@@ -228,6 +235,11 @@ export default function LinksPage() {
           )}
         </div>
       </div>
+      {showSettings && (
+        <Modal title="Links Settings" onClose={() => setShowSettings(false)}>
+          <LinkSettings embed />
+        </Modal>
+      )}
     </ScreenWrap>
   );
 }

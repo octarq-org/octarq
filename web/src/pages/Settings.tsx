@@ -495,7 +495,7 @@ function SecuritySettings() {
   );
 }
 
-function LinkSettings() {
+export function LinkSettings({ embed }: { embed?: boolean }) {
   const { s } = useSettingsData();
   const [reservedSlugs, setReservedSlugs] = useState("");
   const [autoWrap, setAutoWrap] = useState(false);
@@ -510,6 +510,30 @@ function LinkSettings() {
     finally { setBusy(false); }
   }
   if (!s) return <div className="text-sm text-white/40">loading…</div>;
+
+  if (embed) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white/90">Short Links Settings</h2>
+          <SavedBadge on={saved} />
+        </div>
+        <Field label="Reserved Short Link Slugs" hint={`Slugs users cannot register. Built-in: ${s.builtinReserved.join(", ")}.`}>
+          <textarea className="input w-full font-mono text-xs" rows={3} value={reservedSlugs} onChange={(e) => setReservedSlugs(e.target.value)} placeholder="pricing&#10;login&#10;about" />
+        </Field>
+        <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
+          <Toggle on={autoWrap} onChange={setAutoWrap} />
+          <div>
+            <span className="block select-none text-xs font-semibold text-white/70">Auto Wrap Outbound Links</span>
+            <span className="select-none text-[10px] text-white/40">When sending mail, detect external URLs and wrap them as short links for click analytics.</span>
+          </div>
+        </div>
+        <div className="border-t border-white/[0.06] pt-4 flex justify-end">
+          <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save Settings"}</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -532,7 +556,7 @@ function LinkSettings() {
   );
 }
 
-function MailSettings() {
+export function MailSettings({ embed }: { embed?: boolean }) {
   const { s } = useSettingsData();
   const [reservedMailboxes, setReservedMailboxes] = useState("");
   const [inboundToken, setInboundToken] = useState("");
@@ -548,6 +572,41 @@ function MailSettings() {
     finally { setBusy(false); }
   }
   if (!s) return <div className="text-sm text-white/40">loading…</div>;
+
+  if (embed) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white/90">Inbound Mailboxes Settings</h2>
+          <SavedBadge on={saved} />
+        </div>
+        <Field label="Reserved Inbound Mailbox Prefixes" hint="Prefixes catch-all won't auto-provision (e.g. admin, postmaster).">
+          <textarea className="input w-full font-mono text-xs" rows={2} value={reservedMailboxes} onChange={(e) => setReservedMailboxes(e.target.value)} placeholder="admin&#10;postmaster" />
+        </Field>
+        <Field label="Inbound Webhook URL" hint="Point the Cloudflare Email Worker at this exact URL — the token is in the path, so no header is needed.">
+          <input
+            readOnly
+            className="input w-full font-mono text-xs"
+            value={`${location.origin}/api/v1/webhook/${s?.orgSlug || ""}/email/inbound/${inboundToken}`}
+            onFocus={(e) => e.currentTarget.select()}
+          />
+        </Field>
+        <Field label="Inbound token" hint="Your workspace's secret, embedded in the URL above. Clear this box and Save to generate a new one (the old URL stops working).">
+          <input className="input w-full font-mono text-xs" value={inboundToken} onChange={(e) => setInboundToken(e.target.value)} placeholder="(leave empty and save to generate a new one)" />
+        </Field>
+        <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
+          <Toggle on={catchAll} onChange={setCatchAll} />
+          <div>
+            <span className="block select-none text-xs font-semibold text-white/70">Enable Catch-All routing</span>
+            <span className="select-none text-[10px] text-white/40">Auto-provision a local inbox when mail arrives for an unknown managed alias.</span>
+          </div>
+        </div>
+        <div className="border-t border-white/[0.06] pt-4 flex justify-end">
+          <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save Settings"}</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -1104,7 +1163,7 @@ function GlobalCloudflareToken() {
   );
 }
 
-function ProviderAccounts() {
+export function ProviderAccounts({ embed }: { embed?: boolean }) {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -1128,6 +1187,67 @@ function ProviderAccounts() {
     } catch (e: any) {
       alert(e.message || "Failed to remove");
     }
+  }
+
+  if (embed) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div className="text-xs font-semibold text-white/70">
+            DNS API Accounts
+            <div className="text-[10px] text-white/35 font-normal mt-0.5">DNS provider API keys (Cloudflare/DNSPod) to verify domains.</div>
+          </div>
+          <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
+            + Add Provider
+          </Button>
+        </div>
+
+        <GlobalCloudflareToken />
+
+        {loading ? (
+          <div className="text-white/40 text-sm py-4 text-center">loading…</div>
+        ) : accounts.length === 0 ? (
+          <Empty>
+            <Cloud className="h-8 w-8 text-white/30 mb-1" />
+            <div className="text-xs text-white/50">No DNS providers configured yet.</div>
+          </Empty>
+        ) : (
+          <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
+            {accounts.map(a => (
+              <div key={a.id} className="flex items-center justify-between p-4">
+                <div>
+                  <div className="font-semibold text-sm text-white">{a.name}</div>
+                  <div className="text-xs text-white/40 mt-1">
+                    <Badge tone={a.type === "cloudflare" ? "indigo" : "cyan"} className="uppercase tracking-wider text-[9px]">
+                      {a.type}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="subtle" onClick={() => setEditing(a)} className="text-xs py-1 px-2.5">
+                    Edit
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => remove(a.id)}
+                    className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {(creating || editing) && (
+          <ProviderAccountModal
+            account={editing}
+            onClose={() => { setCreating(false); setEditing(null); }}
+            onSaved={() => { setCreating(false); setEditing(null); load(); }}
+          />
+        )}
+      </div>
+    );
   }
 
   return (
@@ -1253,7 +1373,7 @@ function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onC
   );
 }
 
-function SMTPSenders() {
+export function SMTPSenders({ embed }: { embed?: boolean }) {
   const [senders, setSenders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -1277,6 +1397,63 @@ function SMTPSenders() {
     } catch (e: any) {
       alert(e.message || "Failed to remove");
     }
+  }
+
+  if (embed) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div className="text-xs font-semibold text-white/70">
+            SMTP Outgoing Gateways
+            <div className="text-[10px] text-white/35 font-normal mt-0.5">SMTP servers used to send emails from your mailboxes.</div>
+          </div>
+          <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
+            + Add SMTP
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="text-white/40 text-sm py-4 text-center">loading…</div>
+        ) : senders.length === 0 ? (
+          <Empty>
+            <Send className="h-8 w-8 text-white/30 mb-1" />
+            <div className="text-xs text-white/50">No SMTP outgoing senders configured yet.</div>
+          </Empty>
+        ) : (
+          <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
+            {senders.map(s => (
+              <div key={s.id} className="flex items-center justify-between p-4 group">
+                <div>
+                  <div className="font-semibold text-sm text-white">{s.name}</div>
+                  <div className="text-xs text-white/40 mt-1 font-mono">
+                    {s.fromEmail} via {s.host}:{s.port}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="subtle" onClick={() => setEditing(s)} className="text-xs py-1 px-2.5">
+                    Edit
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => remove(s.id)}
+                    className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {(creating || editing) && (
+          <SMTPSenderModal
+            sender={editing}
+            onClose={() => { setCreating(false); setEditing(null); }}
+            onSaved={() => { setCreating(false); setEditing(null); load(); }}
+          />
+        )}
+      </div>
+    );
   }
 
   return (

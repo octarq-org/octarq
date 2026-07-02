@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, DNSRecord, Domain, HostEntry, ProviderAccount } from "../api";
 import { Empty, Field, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
-import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
+import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud, Settings } from "lucide-react";
+import { ProviderAccounts } from "./Settings";
 
 interface HostRow {
   host: string;
@@ -28,6 +29,7 @@ export default function DomainsPage() {
   const [active, setActive] = useState<Domain | "new" | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [q, setQ] = useState("");
+  const [showSettings, setShowSettings] = useState(false);
 
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -105,6 +107,9 @@ export default function DomainsPage() {
             <Button variant="ghost" onClick={() => setSyncing(true)} className="gap-1.5 py-1.5 text-xs">
               <RefreshCw className="h-3.5 w-3.5" />
               Sync Cloudflare
+            </Button>
+            <Button variant="ghost" onClick={() => setShowSettings(true)} className="p-2 py-1.5 text-white/50 hover:text-white" title="Settings">
+              <Settings className="h-4 w-4" />
             </Button>
             <Button variant="primary" onClick={() => setActive("new")} className="gap-1.5 py-1.5 text-xs">
               <Plus className="h-3.5 w-3.5" />
@@ -313,6 +318,11 @@ export default function DomainsPage() {
             loadMore(true);
           }}
         />
+      )}
+      {showSettings && (
+        <Modal title="DNS Settings" onClose={() => setShowSettings(false)}>
+          <ProviderAccounts embed />
+        </Modal>
       )}
     </ScreenWrap>
   );

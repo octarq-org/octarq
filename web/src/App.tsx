@@ -145,7 +145,7 @@ const STATIC_AREAS: Area[] = [
         ],
       },
       {
-        label: "Compute",
+        label: "Hosting",
         items: [
           { id: "vps",     label: "Servers",   Icon: Server,   path: "/vps" },
           { id: "sshkeys", label: "SSH Vault", Icon: KeyRound, path: "/sshkeys" },
@@ -249,7 +249,7 @@ function areaForPath(path: string): AreaId {
 // strings plugins set in their Menus() — see docs/SIDEBAR-MENU.md.
 function areaForCategory(cat?: string): AreaId {
   const c = (cat ?? "").toLowerCase();
-  if (c.includes("asset") || c.includes("infra") || c.includes("network") || c.includes("compute")) return "assets";
+  if (c.includes("asset") || c.includes("infra") || c.includes("network") || c.includes("compute") || c.includes("hosting")) return "assets";
   if (c.includes("insight") || c.includes("analytic") || c.includes("compliance") || c.includes("governance") || c.includes("audit") || c.includes("abuse")) return "insights";
   if (c.includes("commerce") || c.includes("sell") || c.includes("billing") || c.includes("storefront") || c.includes("license") || c.includes("finance")) return "commerce";
   return "operations";

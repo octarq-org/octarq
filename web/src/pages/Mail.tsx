@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, Attachment, Domain, effectiveMailHosts, Email, Mailbox } from "../api";
 import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
 import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle } from "lucide-react";
+import { MailSettings, SMTPSenders } from "./Settings";
 
 interface ReplyDraft {
   to: string;
@@ -22,6 +23,8 @@ export default function MailPage() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"inbox" | "smtp">("inbox");
 
   // Every mail host across all mail-enabled domains (incl. subdomains).
   const mailHostOptions = Array.from(new Set(domains.flatMap(effectiveMailHosts)));
@@ -90,6 +93,9 @@ export default function MailPage() {
             <Button variant="outline" onClick={() => setCompose(true)} className="gap-1.5 py-1.5 text-xs">
               <Send className="h-3.5 w-3.5" />
               Compose
+            </Button>
+            <Button variant="ghost" onClick={() => { setSettingsTab("inbox"); setShowSettings(true); }} className="p-2 py-1.5 text-white/50 hover:text-white" title="Settings">
+              <Settings className="h-4 w-4" />
             </Button>
             <Button variant="primary" onClick={() => setNewBox(true)} className="gap-1.5 py-1.5 text-xs">
               <Plus className="h-3.5 w-3.5" />
@@ -228,6 +234,28 @@ export default function MailPage() {
       )}
       {compose && (
         <Compose draft={compose === true ? undefined : compose} onClose={() => setCompose(null)} />
+      )}
+      {showSettings && (
+        <Modal title="Mail Settings" onClose={() => setShowSettings(false)}>
+          <div className="space-y-4">
+            <div className="flex border-b border-white/[0.06] mb-4">
+              <button
+                className={`px-4 py-2 text-xs font-semibold border-b-2 transition ${settingsTab === "inbox" ? "border-indigo-500 text-white" : "border-transparent text-white/50 hover:text-white/80"}`}
+                onClick={() => setSettingsTab("inbox")}
+              >
+                Inbound Rules
+              </button>
+              <button
+                className={`px-4 py-2 text-xs font-semibold border-b-2 transition ${settingsTab === "smtp" ? "border-indigo-500 text-white" : "border-transparent text-white/50 hover:text-white/80"}`}
+                onClick={() => setSettingsTab("smtp")}
+              >
+                SMTP Relays
+              </button>
+            </div>
+            {settingsTab === "inbox" && <MailSettings embed />}
+            {settingsTab === "smtp" && <SMTPSenders embed />}
+          </div>
+        </Modal>
       )}
     </ScreenWrap>
   );

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { api, AIStatus, AISettings, EmailAIAnnotation, ApiError, LLMProvider } from "../api";
 import { ScreenWrap, PageHeader, GlassCard, Badge, Button, Empty, ProPill, Field, timeAgo, LockedFeature } from "../ui";
 import { Sparkles } from "lucide-react";
+import LLMProvidersSettings from "./LLMProviders";
 
 // Category → badge tone + label, so the list reads at a glance.
 const CATEGORY_META: Record<string, { tone: any; label: string }> = {
@@ -145,12 +146,10 @@ export default function InboxAIPage() {
               />
             </Field>
           </div>
-          <a href="/admin/settings/llm" className="mt-1 inline-block text-xs text-indigo-300 hover:underline">
-            Manage LLM providers →
-          </a>
-          <div className="mt-2 flex justify-end">
-            <Button variant="primary" onClick={saveConfig} disabled={saving}>
-              {saving ? "Saving…" : "Save"}
+          <LLMProvidersSettings embed onChanged={() => api.llmProviders().then(setProviders).catch(() => {})} />
+          <div className="mt-4 flex justify-end border-t border-white/[0.04] pt-3">
+            <Button variant="primary" onClick={saveConfig} disabled={saving} className="text-xs">
+              {saving ? "Saving…" : "Save Configuration"}
             </Button>
           </div>
         </GlassCard>

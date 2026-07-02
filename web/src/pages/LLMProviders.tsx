@@ -8,14 +8,14 @@ import { Bot, Plus } from "lucide-react";
 
 const PROVIDERS = ["claude", "openai", "gemini", "mistral", "cohere", "ollama"];
 
-export default function LLMProvidersSettings() {
+export default function LLMProvidersSettings({ embed, onChanged }: { embed?: boolean; onChanged?: () => void }) {
   const [rows, setRows] = useState<LLMProvider[]>([]);
   const [note, setNote] = useState<string | null>(null);
   const [editing, setEditing] = useState<LLMProvider | "new" | null>(null);
 
   function load() {
     api.llmProviders()
-      .then((r) => { setRows(r); setNote(null); })
+      .then((r) => { setRows(r); setNote(null); onChanged?.(); })
       .catch((e: ApiError) => {
         if (e.status === 404) setNote("LLM features are part of Octarq Elite and aren't in the open-source build.");
         else if (e.status === 402) setNote("LLM providers require an Elite license.");
@@ -32,11 +32,22 @@ export default function LLMProvidersSettings() {
 
   return (
     <div>
-      <PageHeader
-        title="LLM Providers"
-        description="Configure LLM backends once; AI features select one by name."
-        action={!note && <Button variant="primary" onClick={() => setEditing("new")}>+ Add provider</Button>}
-      />
+      {!embed && (
+        <PageHeader
+          title="LLM Providers"
+          description="Configure LLM backends once; AI features select one by name."
+          action={!note && <Button variant="primary" onClick={() => setEditing("new")}>+ Add provider</Button>}
+        />
+      )}
+      {embed && !note && (
+        <div className="flex justify-between items-center mb-4 pt-4 border-t border-white/[0.04]">
+          <div className="text-xs font-semibold text-white/70">
+            LLM API Keys & Providers
+            <div className="text-[10px] text-white/35 font-normal mt-0.5">Define your OpenAI/Gemini keys here.</div>
+          </div>
+          <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setEditing("new")}>+ Add provider</Button>
+        </div>
+      )}
 
       {note ? (
         <GlassCard className="p-6 text-sm text-white/55">{note}</GlassCard>
