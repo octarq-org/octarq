@@ -77,7 +77,7 @@ export default function BillingPage() {
 
   return (
     <ScreenWrap>
-      <PageHeader title="Billing" description="Checkout → license configuration" />
+      <PageHeader title="Billing" description="Connect Stripe or Polar and map your plans to the licenses they grant." />
 
       <GlassCard className="mb-4 p-5">
         <div className="mb-3 flex items-center gap-2 text-sm text-white/70">

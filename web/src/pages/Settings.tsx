@@ -513,7 +513,7 @@ function LinkSettings() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Short Links" description="Reserved slugs and outbound link wrapping." />
+      <PageHeader title="Short Links" description="Words that can't be used as short links, plus click tracking for outbound links." />
       <GlassCard className="p-6 space-y-6">
         <div className="flex items-center justify-between"><h2 className="text-base font-bold text-white">Short Links</h2><SavedBadge on={saved} /></div>
         <Field label="Reserved Short Link Slugs" hint={`Slugs users cannot register. Built-in: ${s.builtinReserved.join(", ")}.`}>
@@ -551,7 +551,7 @@ function MailSettings() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Mailboxes" description="Inbound routing, catch-all, and the worker token." />
+      <PageHeader title="Mailboxes" description="How incoming email is received — catch-all and your inbound webhook." />
       <GlassCard className="p-6 space-y-6">
         <div className="flex items-center justify-between"><h2 className="text-base font-bold text-white">Mailboxes</h2><SavedBadge on={saved} /></div>
         <Field label="Reserved Inbound Mailbox Prefixes" hint="Prefixes catch-all won't auto-provision (e.g. admin, postmaster).">
@@ -606,7 +606,7 @@ function SignInSettings() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Sign-in (OAuth)" description="Google and GitHub single sign-on. Secrets are encrypted." />
+      <PageHeader title="Single sign-on" description="Let people sign in with their Google or GitHub account. Credentials are stored encrypted." />
       <GlassCard className="p-6 space-y-6">
         <div className="flex items-center justify-between"><h2 className="text-base font-bold text-white">Single Sign-On</h2><SavedBadge on={saved} /></div>
         <p className="text-[10px] text-white/40">Make sure the server callback URLs match your LED base url.</p>
@@ -668,7 +668,7 @@ function WebhooksSettings() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Webhooks" description="Deliver click and email events to external systems (HMAC-signed)." />
+      <PageHeader title="Webhooks" description="Send click and email events to your own systems in real time. Every request is signed so you can verify it came from led." />
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-white">Outbound Event Webhooks</h2>
@@ -773,8 +773,8 @@ function NotificationChannels() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Alert Hooks & Channels"
-        description="Integrate chat systems and webhooks to receive real-time alerts when server/email events fire"
+        title="Alerts"
+        description="Get notified in Telegram, Slack, or your own webhook when important events happen."
         action={
           <Button variant="primary" onClick={() => setEditing({ type: "telegram", config: "{}" })}>
             + Add Channel
@@ -1013,7 +1013,7 @@ function OrgMembersManager() {
     <div className="space-y-6">
       <PageHeader
         title="Workspace Members"
-        description="Invite colleagues, assign administrative roles, and manage permissions within this workspace"
+        description="Invite teammates and manage their roles in this workspace."
       />
       <GlassCard className="p-6 space-y-6">
 
@@ -1134,7 +1134,7 @@ function ProviderAccounts() {
     <div className="space-y-6">
       <PageHeader
         title="DNS Providers"
-        description="Configure API connections for Cloudflare and DNSPod to sync and verify domains"
+        description="Connect Cloudflare or DNSPod so led can sync and verify your domains."
         action={
           <Button variant="primary" onClick={() => setCreating(true)}>
             + Add Provider
@@ -1283,7 +1283,7 @@ function SMTPSenders() {
     <div className="space-y-6">
       <PageHeader
         title="SMTP Senders"
-        description="Configure external SMTP gateway relays used to send outgoing emails from mailboxes"
+        description="Connect an SMTP server so your mailboxes can send email."
         action={
           <Button variant="primary" onClick={() => setCreating(true)}>
             + Add SMTP
