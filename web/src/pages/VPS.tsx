@@ -52,8 +52,8 @@ export default function VPSPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="Infrastructure Observability"
-        description="Proactively monitor host health, uptime, and manage secure connections"
+        title="Servers"
+        description="Host health, uptime monitoring & secure connection terminal"
         action={
           <Button variant="primary" onClick={() => setShowAdd(true)}>
             + Add VPS

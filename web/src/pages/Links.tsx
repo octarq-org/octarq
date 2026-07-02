@@ -70,8 +70,8 @@ export default function LinksPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="Link Management"
-        description="Optimize redirection workflows, configure dynamic routing, and audit campaign click analytics"
+        title="Links"
+        description="Short links with click analytics, redirection & routing"
         action={
           <Button variant="primary" onClick={() => setActive("new")} className="gap-1.5 py-1.5 text-xs">
             + New Link

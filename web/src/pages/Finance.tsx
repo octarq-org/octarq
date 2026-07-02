@@ -219,8 +219,8 @@ export default function FinancePage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="FinOps Spend Optimization"
-        description="Consolidated ledger for software subscription optimization and operational cash flow tracking"
+        title="FinOps"
+        description="Consolidated subscription expense ledger & cash flow tracking"
         action={
           <Button variant="primary" onClick={() => setShowAddModal(true)} className="gap-1">
             <Plus className="h-4 w-4" /> Add Transaction

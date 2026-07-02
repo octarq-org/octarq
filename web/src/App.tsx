@@ -318,18 +318,18 @@ function Shell({
 
     const MASTER_MENU_ITEMS: Record<string, { label: string; Icon: React.ElementType; path: string; iconStr?: string }> = {
       overview: { label: "Overview", Icon: LayoutDashboard, path: "/overview" },
-      links: { label: "Link Management", Icon: Link2, path: "/links" },
-      mail: { label: "Domain Email", Icon: Mail, path: "/mail" },
-      "inbox-ai": { label: "AI Inbox Automation", Icon: Bot, path: "/inbox-ai" },
-      domains: { label: "DNS Orchestration", Icon: Globe, path: "/domains" },
+      links: { label: "Links", Icon: Link2, path: "/links" },
+      mail: { label: "Mail", Icon: Mail, path: "/mail" },
+      "inbox-ai": { label: "AI Inbox", Icon: Bot, path: "/inbox-ai" },
+      domains: { label: "DNS", Icon: Globe, path: "/domains" },
       certs: { label: "Certificates", Icon: Shield, path: "/assets/certificates" },
-      vps: { label: "Infrastructure Observability", Icon: Server, path: "/vps" },
-      sshkeys: { label: "SSH Credentials Vault", Icon: KeyRound, path: "/sshkeys" },
+      vps: { label: "Servers", Icon: Server, path: "/vps" },
+      sshkeys: { label: "SSH Vault", Icon: KeyRound, path: "/sshkeys" },
       databases: { label: "Databases", Icon: Database, path: "/assets/databases" },
       storage: { label: "Object Storage", Icon: HardDrive, path: "/assets/storage" },
-      finance: { label: "FinOps Spend Optimization", Icon: Wallet, path: "/finance" },
+      finance: { label: "FinOps", Icon: Wallet, path: "/finance" },
       abuse: { label: "Abuse", Icon: ShieldAlert, path: "/abuse" },
-      audit: { label: "Audit Log", Icon: ScrollText, path: "/audit" },
+      audit: { label: "Audit", Icon: ScrollText, path: "/audit" },
     };
 
     Promise.all([

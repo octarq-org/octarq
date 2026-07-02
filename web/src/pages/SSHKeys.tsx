@@ -47,8 +47,8 @@ export default function SSHKeysPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="SSH Credentials Vault"
-        description="Centralized key lifecycle management with AES-GCM encryption at rest"
+        title="SSH Vault"
+        description="Encrypted SSH credentials store with AES-GCM encryption at rest"
         action={
           <Button variant="primary" onClick={() => setShowAdd(true)}>
             + New Key

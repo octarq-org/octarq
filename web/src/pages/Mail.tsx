@@ -80,8 +80,8 @@ export default function MailPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="Domain Email"
-        description="Deploy decoupled email infrastructure to manage transactional inbound and outbound communications"
+        title="Mail"
+        description="Custom domain email reading, replying & SMTP relays"
         action={
           <div className="flex gap-2">
             <Button variant="ghost" onClick={markAllRead} className="py-1.5 text-xs">

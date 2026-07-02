@@ -90,10 +90,10 @@ export default function InboxAIPage() {
       <PageHeader
         title={
           <span className="inline-flex items-center gap-2">
-            AI Inbox Automation <ProPill />
+            AI Inbox <ProPill />
           </span>
         }
-        description="Intelligent semantic classification, executive summaries, and real-time verification code extraction for incoming communications."
+        description="AI email summaries, classification & OTP code extraction"
         action={
           <div className="flex items-center gap-2">
             {status && (

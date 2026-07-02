@@ -67,7 +67,7 @@ export default function OverviewPage() {
     <ScreenWrap>
       <PageHeader
         title="Overview"
-        description="Unified analytics across link redirection, email routing, and DNS zones"
+        description="Unified analytics across links, mail & DNS"
       />
 
       {!dismissed && (

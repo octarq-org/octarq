@@ -51,7 +51,7 @@ export default function LicensesPage() {
 
   return (
     <ScreenWrap>
-      <PageHeader title="License Registry" description="Unified registry tracking all active, expired, and revoked cryptographic client licenses" />
+      <PageHeader title="Licenses" description="Cryptographic registry of active, expired & revoked client licenses" />
       {rows.length === 0 ? (
         <Empty>
           <KeyRound className="mb-2 h-10 w-10 text-white/30" />
