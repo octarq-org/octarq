@@ -22,7 +22,6 @@ import {
   User,
   Wallet,
   Workflow,
-  Sliders,
   Bell,
   Users,
   Database,
@@ -204,7 +203,6 @@ const SETTINGS_AREA: Area = {
       items: [
         { id: "profile", label: "My Profile", Icon: User, path: "/personal/profile" },
         { id: "tokens", label: "API Tokens", Icon: KeyRound, path: "/personal/tokens" },
-        { id: "menu", label: "Sidebar Menu", Icon: Sliders, path: "/personal/menu" },
       ],
     },
   ],
@@ -328,122 +326,72 @@ function Shell({
       audit: { label: "Audit", Icon: ScrollText, path: "/audit" },
     };
 
-    Promise.all([
-      api.menus(),
-      api.getUserSettings().catch(() => ({})),
-    ]).then(([menus, settings]: [MenuItem[], any]) => {
-      // Build full catalog including dynamic plugin menus
-      const catalog = { ...MASTER_MENU_ITEMS };
-      menus.forEach((m) => {
-        if (!catalog[m.id]) {
-          catalog[m.id] = {
-            label: m.label,
-            Icon: Globe,
-            iconStr: m.icon,
-            path: m.path,
-          };
-        }
-      });
+    api.menus()
+      .then((menus) => {
+        // Build full catalog including dynamic plugin menus
+        const catalog = { ...MASTER_MENU_ITEMS };
+        menus.forEach((m) => {
+          if (!catalog[m.id]) {
+            catalog[m.id] = {
+              label: m.label,
+              Icon: Globe,
+              iconStr: m.icon,
+              path: m.path,
+            };
+          }
+        });
 
-      let customLayout: any = null;
-      if (settings.menu_layout) {
-        try {
-          customLayout = JSON.parse(settings.menu_layout);
-        } catch (e) {
-          console.error("Failed to parse custom menu layout:", e);
-        }
-      }
+        const staticPaths = new Set(STATIC_AREAS.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.path))));
+        const extras = menus.filter((m) => !staticPaths.has(m.path));
 
-      if (customLayout && typeof customLayout === "object") {
-        // Construct areas according to user settings
         const nextAreas = STATIC_AREAS.map((staticArea) => {
-          const areaLayout = customLayout[staticArea.id];
-          if (!areaLayout || !Array.isArray(areaLayout.groups)) {
-            // If area is not customized, append unassigned plugins belonging to this area to Plugins group
-            const staticPaths = new Set(staticArea.groups.flatMap(g => g.items.map(i => i.path)));
-            const extras = menus.filter(m => !staticPaths.has(m.path) && areaForCategory(m.category) === staticArea.id);
-            if (!extras.length) return staticArea;
-            return {
-              ...staticArea,
-              groups: [
-                ...staticArea.groups,
-                {
-                  label: "More",
-                  items: extras.map(m => ({
-                    id: m.id,
-                    label: m.label,
-                    Icon: Globe,
-                    iconStr: m.icon,
-                    path: m.path,
-                  })),
-                },
-              ],
+          // Deep copy groups to avoid mutating global STATIC_AREAS
+          const groups = staticArea.groups.map((g) => ({
+            label: g.label,
+            items: [...g.items],
+          }));
+
+          const areaExtras = extras.filter((m) => areaForCategory(m.category) === staticArea.id);
+
+          areaExtras.forEach((m) => {
+            const item = {
+              id: m.id,
+              label: m.label,
+              Icon: Globe,
+              iconStr: m.icon,
+              path: m.path,
             };
-          }
 
-          // Build groups for this area
-          const groups = areaLayout.groups.map((g: any) => {
-            const items = (g.items || [])
-              .map((itemId: string) => ({ id: itemId, ...catalog[itemId] }))
-              .filter((item: any) => item.path); // keep only valid items present in catalog
-            return {
-              label: g.name,
-              items: items as NavItem[],
-            };
-          }).filter((g: any) => g.items.length > 0);
+            // Check if there is an existing group matching the category name (case-insensitive)
+            const matchedGroup = groups.find(
+              (g) => g.label.toLowerCase() === (m.category || "").toLowerCase()
+            );
 
-          // Append any unassigned items belonging to this area
-          const layoutItemIds = new Set(areaLayout.groups.flatMap((g: any) => g.items || []));
-          const unassignedItems = Object.keys(catalog)
-            .filter((id) => {
-              const item = catalog[id];
-              // Decide area for this item
-              const targetAreaId = areaForPath(item.path);
-              return targetAreaId === staticArea.id && !layoutItemIds.has(id);
-            })
-            .map((id) => ({ id, ...catalog[id] }));
-
-          if (unassignedItems.length > 0) {
-            groups.push({
-              label: "Uncategorized",
-              items: unassignedItems as NavItem[],
-            });
-          }
+            if (matchedGroup) {
+              matchedGroup.items.push(item);
+            } else {
+              const groupName = m.category || "More";
+              const dynamicGroup = groups.find((g) => g.label === groupName);
+              if (dynamicGroup) {
+                dynamicGroup.items.push(item);
+              } else {
+                groups.push({
+                  label: groupName,
+                  items: [item],
+                });
+              }
+            }
+          });
 
           return {
             ...staticArea,
-            groups,
+            groups: groups.filter((g) => g.items.length > 0),
           };
         });
+
         setAreas(nextAreas);
-      } else {
-        // Fallback: static areas + append any dynamic plugins to the "More" group
-        const staticPaths = new Set(STATIC_AREAS.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.path))));
-        const extras = menus.filter((m) => !staticPaths.has(m.path));
-        
-        setAreas(
-          STATIC_AREAS.map((area) => {
-            const extraItems = extras
-              .filter((m) => areaForCategory(m.category) === area.id)
-              .map((m) => ({
-                id: m.id,
-                label: m.label,
-                Icon: Globe,
-                iconStr: m.icon,
-                path: m.path,
-              }));
-            if (!extraItems.length) return area;
-            return {
-              ...area,
-              groups: [
-                ...area.groups,
-                { label: "More", items: extraItems },
-              ],
-            };
-          })
-        );
-      }
-    }).catch(() => {});
+      })
+      .catch(() => {});
   }, [activeOrgId]);
 
   const currentArea = settingsActive ? SETTINGS_AREA : (areas.find((a) => a.id === activeArea) ?? areas[0]);
