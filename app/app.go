@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -58,6 +59,13 @@ func New() (*App, error) {
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
+	}
+
+	// Secure session cookies over a non-HTTPS base URL are silently dropped by
+	// browsers — a common "login works but every next request is 401" trap in
+	// local/HTTP setups. Warn loudly with the escape hatch.
+	if cfg.SecureCookies && !strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://") {
+		slog.Warn("secure cookies are on but the base URL is not https — browsers will drop the session cookie over plain HTTP; set LED_SECURE_COOKIES=false for local HTTP development")
 	}
 
 	gdb, err := db.Open(cfg)
