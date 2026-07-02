@@ -52,7 +52,7 @@ import { Modal, Button, ScreenWrap, PageHeader, GlassCard } from "./ui";
 
 // ─── Area definitions ──────────────────────────────────────────────────────
 
-type AreaId = "operations" | "assets" | "insights" | "settings";
+type AreaId = "operations" | "commerce" | "assets" | "insights" | "settings";
 
 interface NavItem {
   id: string;
@@ -79,38 +79,62 @@ interface Area {
 const STATIC_AREAS: Area[] = [
   {
     id: "operations",
-    title: "Operations",
-    subtitle: "Run your day-to-day services",
+    title: "Workspace",
+    subtitle: "Daily traffic & communication",
     Icon: Workflow,
     groups: [
       {
-        label: "Analytics",
+        label: "Workspace",
         items: [
           { id: "overview", label: "Overview", Icon: LayoutDashboard, path: "/overview" },
         ],
       },
       {
-        label: "Reach",
+        label: "Marketing",
         items: [
           { id: "links",   label: "Links",    Icon: Link2,  path: "/links" },
+        ],
+      },
+      {
+        label: "Messaging",
+        items: [
           { id: "mail",    label: "Mail",     Icon: Mail,   path: "/mail" },
           { id: "inbox-ai", label: "AI Inbox", Icon: Bot,    path: "/inbox-ai" },
         ],
       },
+    ],
+  },
+  {
+    id: "commerce",
+    title: "Commerce",
+    subtitle: "Revenue, store & cost analysis",
+    Icon: Wallet,
+    groups: [
       {
-        label: "Selling",
+        label: "Sales",
         items: [
           { id: "storefront", label: "Storefront", Icon: Store,      path: "/storefront" },
           { id: "licenses",   label: "Licenses",   Icon: KeyRound,   path: "/licenses" },
-          { id: "billing",    label: "Billing",    Icon: CreditCard, path: "/billing" },
+        ],
+      },
+      {
+        label: "Billing",
+        items: [
+          { id: "billing",    label: "Invoices",   Icon: CreditCard, path: "/billing" },
+        ],
+      },
+      {
+        label: "Finance",
+        items: [
+          { id: "finance",    label: "Bookkeeping",Icon: Wallet,     path: "/finance" },
         ],
       },
     ],
   },
   {
     id: "assets",
-    title: "Assets",
-    subtitle: "Infrastructure you own",
+    title: "Infrastructure",
+    subtitle: "Servers, network & databases",
     Icon: Boxes,
     groups: [
       {
@@ -138,20 +162,19 @@ const STATIC_AREAS: Area[] = [
   },
   {
     id: "insights",
-    title: "Compliance",
-    subtitle: "Workspace governance & finance",
+    title: "Security & Admin",
+    subtitle: "Abuse defense & activity logs",
     Icon: ShieldAlert,
     groups: [
       {
-        label: "Finance",
+        label: "Security",
         items: [
-          { id: "finance",  label: "FinOps",    Icon: Wallet,      path: "/finance" },
+          { id: "abuse",    label: "Abuse",      Icon: ShieldAlert, path: "/abuse" },
         ],
       },
       {
-        label: "Governance",
+        label: "System",
         items: [
-          { id: "abuse",    label: "Abuse",      Icon: ShieldAlert, path: "/abuse" },
           { id: "audit",    label: "Audit",      Icon: ScrollText,  path: "/audit" },
         ],
       },
@@ -166,26 +189,20 @@ const SETTINGS_AREA: Area = {
   Icon: Settings,
   groups: [
     {
-      label: "Workspace",
+      label: "Core Settings",
       items: [
         { id: "general", label: "General", Icon: Settings, path: "/settings/general" },
         { id: "security", label: "Security", Icon: Shield, path: "/settings/security" },
         { id: "members", label: "Workspace Members", Icon: Users, path: "/settings/members" },
-      ],
-    },
-    {
-      label: "Services",
-      items: [
         { id: "links", label: "Links", Icon: Link2, path: "/settings/links" },
         { id: "mail", label: "Mail", Icon: Mail, path: "/settings/mail" },
       ],
     },
     {
-      label: "Plan & licensing",
+      label: "Billing & License",
       items: [
         { id: "billing", label: "Billing & Plan", Icon: CreditCard, path: "/settings/billing" },
         { id: "license", label: "License", Icon: KeyRound, path: "/settings/license" },
-        { id: "llm", label: "LLM Providers", Icon: Bot, path: "/settings/llm" },
       ],
     },
     {
@@ -193,7 +210,13 @@ const SETTINGS_AREA: Area = {
       items: [
         { id: "providers", label: "DNS Providers", Icon: Globe, path: "/settings/providers" },
         { id: "smtp", label: "SMTP Senders", Icon: Mail, path: "/settings/smtp" },
+        { id: "llm", label: "LLM Providers", Icon: Bot, path: "/settings/llm" },
         { id: "signin", label: "Sign-in (OAuth)", Icon: KeyRound, path: "/settings/signin" },
+      ],
+    },
+    {
+      label: "Developer",
+      items: [
         { id: "webhooks", label: "Webhooks", Icon: Webhook, path: "/settings/webhooks" },
         { id: "notifications", label: "Alerts", Icon: Bell, path: "/settings/notifications" },
       ],
@@ -227,8 +250,9 @@ function areaForPath(path: string): AreaId {
 function areaForCategory(cat?: string): AreaId {
   const c = (cat ?? "").toLowerCase();
   if (c.includes("asset") || c.includes("infra") || c.includes("network") || c.includes("compute")) return "assets";
-  if (c.includes("insight") || c.includes("analytic") || c.includes("finance") || c.includes("business") || c.includes("compliance") || c.includes("governance")) return "insights";
-  return "operations"; // includes commerce/selling
+  if (c.includes("insight") || c.includes("analytic") || c.includes("compliance") || c.includes("governance") || c.includes("audit") || c.includes("abuse")) return "insights";
+  if (c.includes("commerce") || c.includes("sell") || c.includes("billing") || c.includes("storefront") || c.includes("license") || c.includes("finance")) return "commerce";
+  return "operations";
 }
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -321,7 +345,7 @@ function Shell({
       sshkeys: { label: "SSH Vault", Icon: KeyRound, path: "/sshkeys" },
       databases: { label: "Databases", Icon: Database, path: "/assets/databases" },
       storage: { label: "Object Storage", Icon: HardDrive, path: "/assets/storage" },
-      finance: { label: "FinOps", Icon: Wallet, path: "/finance" },
+      finance: { label: "Bookkeeping", Icon: Wallet, path: "/finance" },
       abuse: { label: "Abuse", Icon: ShieldAlert, path: "/abuse" },
       audit: { label: "Audit", Icon: ScrollText, path: "/audit" },
     };
