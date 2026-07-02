@@ -93,7 +93,7 @@ export default function MailPage() {
             </Button>
             <Button variant="primary" onClick={() => setNewBox(true)} className="gap-1.5 py-1.5 text-xs">
               <Plus className="h-3.5 w-3.5" />
-              + Mailbox
+              New Mailbox
             </Button>
           </div>
         }

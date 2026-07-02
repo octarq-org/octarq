@@ -85,7 +85,7 @@ export default function LinksPage() {
           <div className="mb-3 flex items-center gap-2">
             <div className="relative flex-1">
               <input
-                className="input w-full pl-8"
+                className="input w-full !pl-8"
                 placeholder="Search links…"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}

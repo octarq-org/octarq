@@ -93,9 +93,9 @@ const STATIC_AREAS: Area[] = [
       {
         label: "Reach",
         items: [
-          { id: "links",   label: "Short Links", Icon: Link2,  path: "/links" },
-          { id: "mail",    label: "Mailbox",      Icon: Mail,   path: "/mail" },
-          { id: "inbox-ai", label: "Inbox AI",    Icon: Bot,    path: "/inbox-ai" },
+          { id: "links",   label: "Links",    Icon: Link2,  path: "/links" },
+          { id: "mail",    label: "Mail",     Icon: Mail,   path: "/mail" },
+          { id: "inbox-ai", label: "AI Inbox", Icon: Bot,    path: "/inbox-ai" },
         ],
       },
       {
@@ -117,15 +117,15 @@ const STATIC_AREAS: Area[] = [
       {
         label: "Network",
         items: [
-          { id: "domains", label: "Domains",   Icon: Globe,    path: "/domains" },
+          { id: "domains", label: "DNS",          Icon: Globe,    path: "/domains" },
           { id: "certs",   label: "Certificates", Icon: Shield,  path: "/assets/certificates" },
         ],
       },
       {
         label: "Compute",
         items: [
-          { id: "vps",     label: "VPS",       Icon: Server,   path: "/vps" },
-          { id: "sshkeys", label: "SSH Keys",  Icon: KeyRound, path: "/sshkeys" },
+          { id: "vps",     label: "Servers",   Icon: Server,   path: "/vps" },
+          { id: "sshkeys", label: "SSH Vault", Icon: KeyRound, path: "/sshkeys" },
         ],
       },
       {
@@ -146,14 +146,14 @@ const STATIC_AREAS: Area[] = [
       {
         label: "Finance",
         items: [
-          { id: "finance",  label: "Finance",   Icon: Wallet,      path: "/finance" },
+          { id: "finance",  label: "FinOps",    Icon: Wallet,      path: "/finance" },
         ],
       },
       {
         label: "Governance",
         items: [
           { id: "abuse",    label: "Abuse",      Icon: ShieldAlert, path: "/abuse" },
-          { id: "audit",    label: "Audit Log",  Icon: ScrollText,  path: "/audit" },
+          { id: "audit",    label: "Audit",      Icon: ScrollText,  path: "/audit" },
         ],
       },
     ],
@@ -177,8 +177,8 @@ const SETTINGS_AREA: Area = {
     {
       label: "Services",
       items: [
-        { id: "links", label: "Short Links", Icon: Link2, path: "/settings/links" },
-        { id: "mail", label: "Mailboxes", Icon: Mail, path: "/settings/mail" },
+        { id: "links", label: "Links", Icon: Link2, path: "/settings/links" },
+        { id: "mail", label: "Mail", Icon: Mail, path: "/settings/mail" },
       ],
     },
     {
@@ -196,7 +196,7 @@ const SETTINGS_AREA: Area = {
         { id: "smtp", label: "SMTP Senders", Icon: Mail, path: "/settings/smtp" },
         { id: "signin", label: "Sign-in (OAuth)", Icon: KeyRound, path: "/settings/signin" },
         { id: "webhooks", label: "Webhooks", Icon: Webhook, path: "/settings/webhooks" },
-        { id: "notifications", label: "Alert Hooks", Icon: Bell, path: "/settings/notifications" },
+        { id: "notifications", label: "Alerts", Icon: Bell, path: "/settings/notifications" },
       ],
     },
     {
