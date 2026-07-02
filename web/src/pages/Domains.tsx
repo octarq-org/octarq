@@ -98,8 +98,8 @@ export default function DomainsPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="Domains"
-        description="Sync & manage DNS records across Cloudflare and DNSPod"
+        title="DNS Orchestration"
+        description="Synchronize, orchestrate, and edit DNS zone records across multiple DNS provider endpoints"
         action={
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => setSyncing(true)} className="gap-1.5 py-1.5 text-xs">

@@ -90,10 +90,10 @@ export default function InboxAIPage() {
       <PageHeader
         title={
           <span className="inline-flex items-center gap-2">
-            Inbox AI <ProPill />
+            AI Inbox Automation <ProPill />
           </span>
         }
-        description="AI summaries, classification and verification-code extraction for incoming mail."
+        description="Intelligent semantic classification, executive summaries, and real-time verification code extraction for incoming communications."
         action={
           <div className="flex items-center gap-2">
             {status && (
@@ -160,13 +160,13 @@ export default function InboxAIPage() {
         <LockedFeature
           status={402}
           tier="elite"
-          feature="Inbox AI"
-          description="It reads every incoming email so you don't have to."
+          feature="AI Inbox Automation"
+          description="Leverage large language models to automate email sorting, priority indexing, and real-time multi-factor authentication routing."
           perks={[
-            "One-line summary + category for each email (bill / OTP / marketing / important)",
-            "Importance scoring to surface what matters",
-            "Instant verification-code extraction pushed to your alert channels",
-            "Bring your own API key — Claude, OpenAI, Gemini, Ollama and more",
+            "Semantic classification and automated tagging (Invoices, OTPs, Support, Marketing)",
+            "Executive summaries and importance priority scoring",
+            "Instant verification-code (OTP) routing to your alert channels",
+            "Bring-Your-Own-LLM (BYO-LLM) model architecture",
           ]}
           icon={<Sparkles className="h-7 w-7" />}
           pricingHref="https://octarq.com/pricing/"

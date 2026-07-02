@@ -28,29 +28,29 @@ export default function OverviewPage() {
   const steps = [
     {
       id: "domain",
-      title: "Add a Domain",
-      description: "Connect a custom domain to serve short links and mailboxes.",
+      title: "Domain Orchestration",
+      description: "Configure a custom domain to serve branded links and secure email routes.",
       completed: o.domains > 0,
       path: "/domains",
     },
     {
       id: "link",
-      title: "Create a Short Link",
-      description: "Set up your first branded link and start tracking click counts.",
+      title: "Branded Link Redirection",
+      description: "Launch your first branded shortlink to optimize click-through conversion rates.",
       completed: o.links > 0,
       path: "/links",
     },
     {
       id: "smtp",
-      title: "Configure SMTP Relay",
-      description: "Add SMTP relay configurations to handle outbound emails.",
+      title: "Outbound SMTP Relay",
+      description: "Deploy SMTP relay credentials to handle secure transactional email delivery.",
       completed: smtpCount !== null && smtpCount > 0,
       path: "/settings/smtp",
     },
     {
       id: "colleague",
-      title: "Invite a Colleague",
-      description: "Invite other team members to collaborate on your workspace.",
+      title: "Multi-Tenant Collaboration",
+      description: "Invite team operators to collaborate in your unified environment.",
       completed: memberCount !== null && memberCount > 1,
       path: "/settings/members",
     },
@@ -67,7 +67,7 @@ export default function OverviewPage() {
     <ScreenWrap>
       <PageHeader
         title="Overview"
-        description="At a glance across links, mail & domains"
+        description="Unified analytics across link redirection, email routing, and DNS zones"
       />
 
       {!dismissed && (
@@ -88,8 +88,8 @@ export default function OverviewPage() {
                 <Sparkles size={18} className="animate-pulse" />
                 <span className="text-xs font-semibold uppercase tracking-wider">Getting Started</span>
               </div>
-              <h2 className="text-xl font-bold text-white mt-1">Complete your workspace setup</h2>
-              <p className="text-xs text-white/50 mt-1">Follow these steps to fully configure your link tracking and mail delivery platform.</p>
+              <h2 className="text-xl font-bold text-white mt-1">Maximize your platform performance</h2>
+              <p className="text-xs text-white/50 mt-1">Follow these steps to optimize your marketing redirection and email relay capabilities.</p>
             </div>
             
             <div className="flex items-center gap-3 shrink-0">

@@ -24,12 +24,12 @@ export default function SSHKeysPage() {
         <LockedFeature
           status={error.status}
           tier="pro"
-          feature="SSH Keys"
-          description="A built-in, encrypted vault for the keys that power VPS access."
+          feature="SSH Credentials Vault"
+          description="An encrypted vault for the private keys that power VPS access and secure connections."
           perks={[
-            "AES-GCM encrypted private keys at rest",
-            "Generate ed25519 keys or import existing ones",
-            "Powers one-click web-terminal access to your servers",
+            "AES-GCM encryption at rest with just-in-time decryption in memory",
+            "Flexible key creation (Ed25519) or secure private key importing",
+            "Direct browser-based SSH terminal integration",
           ]}
           icon={<Key className="h-7 w-7" />}
           pricingHref="https://octarq.com/pricing/"
@@ -47,8 +47,8 @@ export default function SSHKeysPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="SSH Keys"
-        description="Manage private keys for your VPS remote servers"
+        title="SSH Credentials Vault"
+        description="Centralized key lifecycle management with AES-GCM encryption at rest"
         action={
           <Button variant="primary" onClick={() => setShowAdd(true)}>
             + New Key

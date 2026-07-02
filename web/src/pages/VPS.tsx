@@ -35,12 +35,12 @@ export default function VPSPage() {
         <LockedFeature
           status={error.status}
           tier="pro"
-          feature="VPS Infrastructure"
-          description="Monitor, alert on, and SSH into your servers — all from led."
+          feature="Infrastructure Observability"
+          description="Consolidate system health tracking and secure browser SSH terminal sessions into a unified dashboard."
           perks={[
-            "Liveness monitoring with downtime / recovery alerts",
-            "Encrypted SSH credential vault (generate or import)",
-            "In-browser web terminal to any server",
+            "Uptime & liveness monitoring with instant alert integrations",
+            "Encrypted SSH credentials vault with AES-GCM encryption",
+            "Direct browser-based SSH terminal without local clients",
           ]}
           icon={<Server className="h-7 w-7" />}
           pricingHref="https://octarq.com/pricing/"
@@ -52,8 +52,8 @@ export default function VPSPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="VPS Infrastructure"
-        description="Manage, monitor, and connect to your remote servers"
+        title="Infrastructure Observability"
+        description="Proactively monitor host health, uptime, and manage secure connections"
         action={
           <Button variant="primary" onClick={() => setShowAdd(true)}>
             + Add VPS

@@ -35,12 +35,12 @@ export default function LicensesPage() {
         <LockedFeature
           status={error.status}
           tier="pro"
-          feature="Licenses"
-          description="Every license you've issued — signed per product, recorded here."
+          feature="License Issuance Control"
+          description="Manage, verify, and audit cryptographic software licenses issued through your product storefronts."
           perks={[
-            "Per-product signing keys",
-            "Issuance records with buyer, tier, and status",
-            "Revocations tracked automatically from payment events",
+            "Ed25519 cryptographic per-product signing keys",
+            "Comprehensive registry tracking buyer, entitlement tier, and lifecycle state",
+            "Automated access revocation synced with checkout billing events",
           ]}
           icon={<KeyRound className="h-7 w-7" />}
           pricingHref="https://octarq.com/pricing/"
@@ -51,7 +51,7 @@ export default function LicensesPage() {
 
   return (
     <ScreenWrap>
-      <PageHeader title="Licenses" description="Every license your storefront has issued" />
+      <PageHeader title="License Registry" description="Unified registry tracking all active, expired, and revoked cryptographic client licenses" />
       {rows.length === 0 ? (
         <Empty>
           <KeyRound className="mb-2 h-10 w-10 text-white/30" />
