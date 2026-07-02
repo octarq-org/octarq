@@ -8,7 +8,7 @@
  *       LED_ENDPOINT = your Inbound Webhook URL, copied from led
  *                      Settings → Mailboxes. It already contains your org slug
  *                      and secret token in the path, e.g.
- *                      https://your-led-host/api/webhook/<orgSlug>/email/inbound/<token>
+ *                      https://your-led-host/api/v1/webhook/<orgSlug>/email/inbound/<token>
  *  4. Email Routing → Routes → set a catch-all (or per-address) action to
  *     "Send to a Worker" → this Worker.
  *

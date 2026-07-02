@@ -74,7 +74,7 @@ Open `http://localhost:8080` (redirects to `/admin`), sign in with
 ```
             ┌──────────────────────────── led (single binary) ────────────────────────────┐
   browser → │  host router                                                                  │
-            │   ├─ /api/*        → JSON API (auth, links, domains, mailboxes, emails)       │
+            │   ├─ /api/v1/*     → JSON API (auth, links, domains, mailboxes, emails)       │
             │   ├─ /admin/*      → embedded React dashboard (SPA)                            │
             │   └─ /{slug}       → 302 redirect + async click event (root = link namespace) │
             │                                                                                │
@@ -82,7 +82,7 @@ Open `http://localhost:8080` (redirects to `/admin`), sign in with
             │         └─ Postgres (optional)         Mail ─ inbound webhook + SMTP sender     │
             └────────────────────────────────────────────────────────────────────────────────┘
                           ▲
-   Cloudflare Email Routing → Worker → POST /api/webhook/{orgSlug}/email/inbound/{token}  (deploy/cloudflare-email-worker.js)
+   Cloudflare Email Routing → Worker → POST /api/v1/webhook/{orgSlug}/email/inbound/{token}  (deploy/cloudflare-email-worker.js)
 ```
 
 ### Routing

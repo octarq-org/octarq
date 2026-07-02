@@ -561,7 +561,7 @@ function MailSettings() {
           <input
             readOnly
             className="input w-full font-mono text-xs"
-            value={`${location.origin}/api/webhook/${s?.orgSlug || ""}/email/inbound/${inboundToken}`}
+            value={`${location.origin}/api/v1/webhook/${s?.orgSlug || ""}/email/inbound/${inboundToken}`}
             onFocus={(e) => e.currentTarget.select()}
           />
         </Field>
