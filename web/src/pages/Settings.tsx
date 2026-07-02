@@ -298,7 +298,7 @@ function GeneralSettings() {
         <GlassCard className="p-6 border-red-500/20 bg-red-950/5 space-y-6">
           <div className="flex items-center gap-2 text-rose-400">
             <ShieldAlert size={20} />
-            <h2 className="text-base font-bold">Export or delete your data</h2>
+            <h2 className="text-base font-bold">Danger Zone</h2>
           </div>
           <p className="text-xs text-white/60">
             Download a complete copy of everything in this workspace, or permanently
