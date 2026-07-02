@@ -23,8 +23,7 @@ export default function MailPage() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"inbox" | "smtp">("inbox");
+  const [tab, setTab] = useState<'mail' | 'settings'>('mail');
 
   // Every mail host across all mail-enabled domains (incl. subdomains).
   const mailHostOptions = Array.from(new Set(domains.flatMap(effectiveMailHosts)));
@@ -94,9 +93,6 @@ export default function MailPage() {
               <Send className="h-3.5 w-3.5" />
               Compose
             </Button>
-            <Button variant="ghost" onClick={() => { setSettingsTab("inbox"); setShowSettings(true); }} className="p-2 py-1.5 text-white/50 hover:text-white" title="Settings">
-              <Settings className="h-4 w-4" />
-            </Button>
             <Button variant="primary" onClick={() => setNewBox(true)} className="gap-1.5 py-1.5 text-xs">
               <Plus className="h-3.5 w-3.5" />
               New Mailbox
@@ -104,6 +100,31 @@ export default function MailPage() {
           </div>
         }
       />
+
+      <div className="flex gap-0 border-b border-white/[0.06] mb-6">
+        <button
+          onClick={() => setTab('mail')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            tab === 'mail'
+              ? 'border-indigo-500 text-white'
+              : 'border-transparent text-white/45 hover:text-white/70'
+          }`}
+        >
+          Mail
+        </button>
+        <button
+          onClick={() => setTab('settings')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
+            tab === 'settings'
+              ? 'border-indigo-500 text-white'
+              : 'border-transparent text-white/45 hover:text-white/70'
+          }`}
+        >
+          Settings
+        </button>
+      </div>
+
+      {tab === 'mail' && (<>
 
       {boxes.length === 0 && (
         <Guide title="Set up mail receiving with Cloudflare Email Routing" open>
@@ -209,6 +230,21 @@ export default function MailPage() {
         </div>
       </div>
 
+      </>
+      )}
+      {tab === 'settings' && (
+        <div className="space-y-8">
+          <div>
+            <h3 className="text-sm font-semibold text-white/70 mb-3">Inbound Configuration</h3>
+            <GlassCard className="p-6"><MailSettings /></GlassCard>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-white/70 mb-3">SMTP Outgoing Gateways</h3>
+            <GlassCard className="p-6"><SMTPSenders /></GlassCard>
+          </div>
+        </div>
+      )}
+
       {newBox && (
         <MailboxEditor
           box={null}
@@ -234,28 +270,6 @@ export default function MailPage() {
       )}
       {compose && (
         <Compose draft={compose === true ? undefined : compose} onClose={() => setCompose(null)} />
-      )}
-      {showSettings && (
-        <Modal title="Mail Settings" onClose={() => setShowSettings(false)}>
-          <div className="space-y-4">
-            <div className="flex border-b border-white/[0.06] mb-4">
-              <button
-                className={`px-4 py-2 text-xs font-semibold border-b-2 transition ${settingsTab === "inbox" ? "border-indigo-500 text-white" : "border-transparent text-white/50 hover:text-white/80"}`}
-                onClick={() => setSettingsTab("inbox")}
-              >
-                Inbound Rules
-              </button>
-              <button
-                className={`px-4 py-2 text-xs font-semibold border-b-2 transition ${settingsTab === "smtp" ? "border-indigo-500 text-white" : "border-transparent text-white/50 hover:text-white/80"}`}
-                onClick={() => setSettingsTab("smtp")}
-              >
-                SMTP Relays
-              </button>
-            </div>
-            {settingsTab === "inbox" && <MailSettings embed />}
-            {settingsTab === "smtp" && <SMTPSenders embed />}
-          </div>
-        </Modal>
       )}
     </ScreenWrap>
   );

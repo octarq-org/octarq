@@ -12,15 +12,9 @@ export default function SettingsPage() {
         <Route path="/" element={<Navigate to="/settings/general" replace />} />
         <Route path="/general" element={<GeneralSettings />} />
         <Route path="/security" element={<SecuritySettings />} />
-        <Route path="/links" element={<LinkSettings />} />
-        <Route path="/mail" element={<MailSettings />} />
-        <Route path="/signin" element={<SignInSettings />} />
         <Route path="/webhooks" element={<WebhooksSettings />} />
         <Route path="/billing" element={<BillingPlanDemo />} />
         <Route path="/license" element={<LicenseSettings />} />
-        <Route path="/llm" element={<LLMProvidersSettings />} />
-        <Route path="/providers" element={<ProviderAccounts />} />
-        <Route path="/smtp" element={<SMTPSenders />} />
         <Route path="/notifications" element={<NotificationChannels />} />
         <Route path="/members" element={<OrgMembersManager />} />
       </Routes>
@@ -352,7 +346,7 @@ function GeneralSettings() {
 }
 
 // SecuritySettings manages operator-account security: TOTP two-factor
-// enrollment and the "log out everywhere" session revocation.
+// enrollment, "log out everywhere" session revocation, and SSO configuration.
 function SecuritySettings() {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -366,6 +360,33 @@ function SecuritySettings() {
 
   // Disable state.
   const [disableCode, setDisableCode] = useState("");
+
+  // SSO state (merged from SignInSettings).
+  const { s: ssoSettings, reload: ssoReload } = useSettingsData();
+  const [googleId, setGoogleId] = useState("");
+  const [googleSecret, setGoogleSecret] = useState("");
+  const [githubId, setGithubId] = useState("");
+  const [githubSecret, setGithubSecret] = useState("");
+  const [ssoBusy, setSsoBusy] = useState(false);
+  const [ssoSaved, setSsoSaved] = useState(false);
+
+  useEffect(() => {
+    if (ssoSettings) {
+      setGoogleId(ssoSettings.googleClientId || "");
+      setGithubId(ssoSettings.githubClientId || "");
+    }
+  }, [ssoSettings]);
+
+  async function saveSso() {
+    setSsoBusy(true);
+    try {
+      const p: any = { googleClientId: googleId.trim(), githubClientId: githubId.trim() };
+      if (googleSecret.trim()) p.googleClientSecret = googleSecret.trim();
+      if (githubSecret.trim()) p.githubClientSecret = githubSecret.trim();
+      await api.updateSettings(p);
+      setGoogleSecret(""); setGithubSecret(""); setSsoSaved(true); setTimeout(() => setSsoSaved(false), 2000); ssoReload();
+    } finally { setSsoBusy(false); }
+  }
 
   async function load() {
     try {
@@ -425,7 +446,7 @@ function SecuritySettings() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Security" description="Two-factor authentication and device sign-out for your account." />
+      <PageHeader title="Security" description="Two-factor authentication, session management, and Single Sign-On." />
 
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
@@ -491,11 +512,39 @@ function SecuritySettings() {
         <p className="text-xs text-white/50">Sign out of every device and browser where you're logged in — useful if you've lost a device. You'll be signed out here too.</p>
         <Button variant="danger" onClick={logoutAll} disabled={busy}>Sign out of all devices</Button>
       </GlassCard>
+
+      <GlassCard className="p-6 space-y-6">
+        <div className="flex items-center justify-between"><h2 className="text-base font-bold text-white">Single Sign-On</h2><SavedBadge on={ssoSaved} /></div>
+        <p className="text-[10px] text-white/40">Let people sign in with Google or GitHub. Make sure the server callback URLs match your LED base URL. Credentials are stored encrypted.</p>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
+            <p className="flex items-center gap-1.5 text-xs font-bold text-white/85"><span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> Google Sign-In</p>
+            <Field label="Google Client ID"><input className="input w-full text-xs" value={googleId} onChange={(e) => setGoogleId(e.target.value)} placeholder="*.apps.googleusercontent.com" /></Field>
+            <Field label="Google Client Secret">
+              <div className="flex gap-2">
+                <input className="input w-full font-mono text-xs" type="password" value={googleSecret} onChange={(e) => setGoogleSecret(e.target.value)} placeholder={ssoSettings?.googleClientSecretSet ? "•••••••• (Set)" : "Secret value"} />
+                {ssoSettings?.googleClientSecretSet && <Button variant="danger" onClick={async () => { if (confirm("Clear Google secret?")) { await api.updateSettings({ googleClientSecret: "" }); ssoReload(); } }} className="px-2.5 py-1 text-xs">Clear</Button>}
+              </div>
+            </Field>
+          </div>
+          <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
+            <p className="flex items-center gap-1.5 text-xs font-bold text-white/85"><span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> GitHub Integration</p>
+            <Field label="GitHub Client ID"><input className="input w-full text-xs" value={githubId} onChange={(e) => setGithubId(e.target.value)} placeholder="Ov23li…" /></Field>
+            <Field label="GitHub Client Secret">
+              <div className="flex gap-2">
+                <input className="input w-full font-mono text-xs" type="password" value={githubSecret} onChange={(e) => setGithubSecret(e.target.value)} placeholder={ssoSettings?.githubClientSecretSet ? "•••••••• (Set)" : "Secret value"} />
+                {ssoSettings?.githubClientSecretSet && <Button variant="danger" onClick={async () => { if (confirm("Clear GitHub secret?")) { await api.updateSettings({ githubClientSecret: "" }); ssoReload(); } }} className="px-2.5 py-1 text-xs">Clear</Button>}
+              </div>
+            </Field>
+          </div>
+        </div>
+        <div className="border-t border-white/[0.06] pt-6"><Button variant="primary" onClick={saveSso} disabled={ssoBusy}>{ssoBusy ? "Saving…" : "Save"}</Button></div>
+      </GlassCard>
     </div>
   );
 }
 
-export function LinkSettings({ embed }: { embed?: boolean }) {
+export function LinkSettings() {
   const { s } = useSettingsData();
   const [reservedSlugs, setReservedSlugs] = useState("");
   const [autoWrap, setAutoWrap] = useState(false);
@@ -511,52 +560,30 @@ export function LinkSettings({ embed }: { embed?: boolean }) {
   }
   if (!s) return <div className="text-sm text-white/40">loading…</div>;
 
-  if (embed) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white/90">Short Links Settings</h2>
-          <SavedBadge on={saved} />
-        </div>
-        <Field label="Reserved Short Link Slugs" hint={`Slugs users cannot register. Built-in: ${s.builtinReserved.join(", ")}.`}>
-          <textarea className="input w-full font-mono text-xs" rows={3} value={reservedSlugs} onChange={(e) => setReservedSlugs(e.target.value)} placeholder="pricing&#10;login&#10;about" />
-        </Field>
-        <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
-          <Toggle on={autoWrap} onChange={setAutoWrap} />
-          <div>
-            <span className="block select-none text-xs font-semibold text-white/70">Auto Wrap Outbound Links</span>
-            <span className="select-none text-[10px] text-white/40">When sending mail, detect external URLs and wrap them as short links for click analytics.</span>
-          </div>
-        </div>
-        <div className="border-t border-white/[0.06] pt-4 flex justify-end">
-          <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save Settings"}</Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      <PageHeader title="Short Links" description="Words that can't be used as short links, plus click tracking for outbound links." />
-      <GlassCard className="p-6 space-y-6">
-        <div className="flex items-center justify-between"><h2 className="text-base font-bold text-white">Short Links</h2><SavedBadge on={saved} /></div>
-        <Field label="Reserved Short Link Slugs" hint={`Slugs users cannot register. Built-in: ${s.builtinReserved.join(", ")}.`}>
-          <textarea className="input w-full font-mono text-xs" rows={3} value={reservedSlugs} onChange={(e) => setReservedSlugs(e.target.value)} placeholder="pricing&#10;login&#10;about" />
-        </Field>
-        <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
-          <Toggle on={autoWrap} onChange={setAutoWrap} />
-          <div>
-            <span className="block select-none text-xs font-semibold text-white/70">Auto Wrap Outbound Links</span>
-            <span className="select-none text-[10px] text-white/40">When sending mail, detect external URLs and wrap them as short links for click analytics.</span>
-          </div>
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-white/90">Short Links Settings</h2>
+        <SavedBadge on={saved} />
+      </div>
+      <Field label="Reserved Short Link Slugs" hint={`Slugs users cannot register. Built-in: ${s.builtinReserved.join(", ")}.`}>
+        <textarea className="input w-full font-mono text-xs" rows={3} value={reservedSlugs} onChange={(e) => setReservedSlugs(e.target.value)} placeholder="pricing&#10;login&#10;about" />
+      </Field>
+      <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
+        <Toggle on={autoWrap} onChange={setAutoWrap} />
+        <div>
+          <span className="block select-none text-xs font-semibold text-white/70">Auto Wrap Outbound Links</span>
+          <span className="select-none text-[10px] text-white/40">When sending mail, detect external URLs and wrap them as short links for click analytics.</span>
         </div>
-        <div className="border-t border-white/[0.06] pt-6"><Button variant="primary" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button></div>
-      </GlassCard>
+      </div>
+      <div className="border-t border-white/[0.06] pt-4 flex justify-end">
+        <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save Settings"}</Button>
+      </div>
     </div>
   );
 }
 
-export function MailSettings({ embed }: { embed?: boolean }) {
+export function MailSettings() {
   const { s } = useSettingsData();
   const [reservedMailboxes, setReservedMailboxes] = useState("");
   const [inboundToken, setInboundToken] = useState("");
@@ -573,129 +600,40 @@ export function MailSettings({ embed }: { embed?: boolean }) {
   }
   if (!s) return <div className="text-sm text-white/40">loading…</div>;
 
-  if (embed) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white/90">Inbound Mailboxes Settings</h2>
-          <SavedBadge on={saved} />
-        </div>
-        <Field label="Reserved Inbound Mailbox Prefixes" hint="Prefixes catch-all won't auto-provision (e.g. admin, postmaster).">
-          <textarea className="input w-full font-mono text-xs" rows={2} value={reservedMailboxes} onChange={(e) => setReservedMailboxes(e.target.value)} placeholder="admin&#10;postmaster" />
-        </Field>
-        <Field label="Inbound Webhook URL" hint="Point the Cloudflare Email Worker at this exact URL — the token is in the path, so no header is needed.">
-          <input
-            readOnly
-            className="input w-full font-mono text-xs"
-            value={`${location.origin}/api/v1/webhook/${s?.orgSlug || ""}/email/inbound/${inboundToken}`}
-            onFocus={(e) => e.currentTarget.select()}
-          />
-        </Field>
-        <Field label="Inbound token" hint="Your workspace's secret, embedded in the URL above. Clear this box and Save to generate a new one (the old URL stops working).">
-          <input className="input w-full font-mono text-xs" value={inboundToken} onChange={(e) => setInboundToken(e.target.value)} placeholder="(leave empty and save to generate a new one)" />
-        </Field>
-        <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
-          <Toggle on={catchAll} onChange={setCatchAll} />
-          <div>
-            <span className="block select-none text-xs font-semibold text-white/70">Enable Catch-All routing</span>
-            <span className="select-none text-[10px] text-white/40">Auto-provision a local inbox when mail arrives for an unknown managed alias.</span>
-          </div>
-        </div>
-        <div className="border-t border-white/[0.06] pt-4 flex justify-end">
-          <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save Settings"}</Button>
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-white/90">Inbound Mailboxes Settings</h2>
+        <SavedBadge on={saved} />
+      </div>
+      <Field label="Reserved Inbound Mailbox Prefixes" hint="Prefixes catch-all won't auto-provision (e.g. admin, postmaster).">
+        <textarea className="input w-full font-mono text-xs" rows={2} value={reservedMailboxes} onChange={(e) => setReservedMailboxes(e.target.value)} placeholder="admin&#10;postmaster" />
+      </Field>
+      <Field label="Inbound Webhook URL" hint="Point the Cloudflare Email Worker at this exact URL — the token is in the path, so no header is needed.">
+        <input
+          readOnly
+          className="input w-full font-mono text-xs"
+          value={`${location.origin}/api/v1/webhook/${s?.orgSlug || ""}/email/inbound/${inboundToken}`}
+          onFocus={(e) => e.currentTarget.select()}
+        />
+      </Field>
+      <Field label="Inbound token" hint="Your workspace's secret, embedded in the URL above. Clear this box and Save to generate a new one (the old URL stops working).">
+        <input className="input w-full font-mono text-xs" value={inboundToken} onChange={(e) => setInboundToken(e.target.value)} placeholder="(leave empty and save to generate a new one)" />
+      </Field>
+      <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
+        <Toggle on={catchAll} onChange={setCatchAll} />
+        <div>
+          <span className="block select-none text-xs font-semibold text-white/70">Enable Catch-All routing</span>
+          <span className="select-none text-[10px] text-white/40">Auto-provision a local inbox when mail arrives for an unknown managed alias.</span>
         </div>
       </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <PageHeader title="Mailboxes" description="How incoming email is received — catch-all and your inbound webhook." />
-      <GlassCard className="p-6 space-y-6">
-        <div className="flex items-center justify-between"><h2 className="text-base font-bold text-white">Mailboxes</h2><SavedBadge on={saved} /></div>
-        <Field label="Reserved Inbound Mailbox Prefixes" hint="Prefixes catch-all won't auto-provision (e.g. admin, postmaster).">
-          <textarea className="input w-full font-mono text-xs" rows={2} value={reservedMailboxes} onChange={(e) => setReservedMailboxes(e.target.value)} placeholder="admin&#10;postmaster" />
-        </Field>
-        <Field label="Inbound Webhook URL" hint="Point the Cloudflare Email Worker at this exact URL — the token is in the path, so no header is needed.">
-          <input
-            readOnly
-            className="input w-full font-mono text-xs"
-            value={`${location.origin}/api/v1/webhook/${s?.orgSlug || ""}/email/inbound/${inboundToken}`}
-            onFocus={(e) => e.currentTarget.select()}
-          />
-        </Field>
-        <Field label="Inbound token" hint="Your workspace's secret, embedded in the URL above. Clear this box and Save to generate a new one (the old URL stops working).">
-          <input className="input w-full font-mono text-xs" value={inboundToken} onChange={(e) => setInboundToken(e.target.value)} placeholder="(leave empty and save to generate a new one)" />
-        </Field>
-        <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
-          <Toggle on={catchAll} onChange={setCatchAll} />
-          <div>
-            <span className="block select-none text-xs font-semibold text-white/70">Enable Catch-All routing</span>
-            <span className="select-none text-[10px] text-white/40">Auto-provision a local inbox when mail arrives for an unknown managed alias.</span>
-          </div>
-        </div>
-        <div className="border-t border-white/[0.06] pt-6"><Button variant="primary" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button></div>
-      </GlassCard>
+      <div className="border-t border-white/[0.06] pt-4 flex justify-end">
+        <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save Settings"}</Button>
+      </div>
     </div>
   );
 }
 
-function SignInSettings() {
-  const { s, reload } = useSettingsData();
-  const [googleId, setGoogleId] = useState("");
-  const [googleSecret, setGoogleSecret] = useState("");
-  const [githubId, setGithubId] = useState("");
-  const [githubSecret, setGithubSecret] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => { if (s) { setGoogleId(s.googleClientId || ""); setGithubId(s.githubClientId || ""); } }, [s]);
-
-  async function save() {
-    setBusy(true);
-    try {
-      const p: any = { googleClientId: googleId.trim(), githubClientId: githubId.trim() };
-      if (googleSecret.trim()) p.googleClientSecret = googleSecret.trim();
-      if (githubSecret.trim()) p.githubClientSecret = githubSecret.trim();
-      await api.updateSettings(p);
-      setGoogleSecret(""); setGithubSecret(""); setSaved(true); setTimeout(() => setSaved(false), 2000); reload();
-    } finally { setBusy(false); }
-  }
-  if (!s) return <div className="text-sm text-white/40">loading…</div>;
-
-  return (
-    <div className="space-y-6">
-      <PageHeader title="Single sign-on" description="Let people sign in with their Google or GitHub account. Credentials are stored encrypted." />
-      <GlassCard className="p-6 space-y-6">
-        <div className="flex items-center justify-between"><h2 className="text-base font-bold text-white">Single Sign-On</h2><SavedBadge on={saved} /></div>
-        <p className="text-[10px] text-white/40">Make sure the server callback URLs match your LED base url.</p>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
-            <p className="flex items-center gap-1.5 text-xs font-bold text-white/85"><span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> Google Sign-In</p>
-            <Field label="Google Client ID"><input className="input w-full text-xs" value={googleId} onChange={(e) => setGoogleId(e.target.value)} placeholder="*.apps.googleusercontent.com" /></Field>
-            <Field label="Google Client Secret">
-              <div className="flex gap-2">
-                <input className="input w-full font-mono text-xs" type="password" value={googleSecret} onChange={(e) => setGoogleSecret(e.target.value)} placeholder={s.googleClientSecretSet ? "•••••••• (Set)" : "Secret value"} />
-                {s.googleClientSecretSet && <Button variant="danger" onClick={async () => { if (confirm("Clear Google secret?")) { await api.updateSettings({ googleClientSecret: "" }); reload(); } }} className="px-2.5 py-1 text-xs">Clear</Button>}
-              </div>
-            </Field>
-          </div>
-          <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
-            <p className="flex items-center gap-1.5 text-xs font-bold text-white/85"><span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> GitHub Integration</p>
-            <Field label="GitHub Client ID"><input className="input w-full text-xs" value={githubId} onChange={(e) => setGithubId(e.target.value)} placeholder="Ov23li…" /></Field>
-            <Field label="GitHub Client Secret">
-              <div className="flex gap-2">
-                <input className="input w-full font-mono text-xs" type="password" value={githubSecret} onChange={(e) => setGithubSecret(e.target.value)} placeholder={s.githubClientSecretSet ? "•••••••• (Set)" : "Secret value"} />
-                {s.githubClientSecretSet && <Button variant="danger" onClick={async () => { if (confirm("Clear GitHub secret?")) { await api.updateSettings({ githubClientSecret: "" }); reload(); } }} className="px-2.5 py-1 text-xs">Clear</Button>}
-              </div>
-            </Field>
-          </div>
-        </div>
-        <div className="border-t border-white/[0.06] pt-6"><Button variant="primary" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button></div>
-      </GlassCard>
-    </div>
-  );
-}
 
 function WebhooksSettings() {
   const [webhooks, setWebhooks] = useState<any[]>([]);
@@ -1189,87 +1127,27 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
     }
   }
 
-  if (embed) {
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div className="text-xs font-semibold text-white/70">
-            DNS API Accounts
-            <div className="text-[10px] text-white/35 font-normal mt-0.5">DNS provider API keys (Cloudflare/DNSPod) to verify domains.</div>
-          </div>
-          <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
-            + Add Provider
-          </Button>
-        </div>
-
-        <GlobalCloudflareToken />
-
-        {loading ? (
-          <div className="text-white/40 text-sm py-4 text-center">loading…</div>
-        ) : accounts.length === 0 ? (
-          <Empty>
-            <Cloud className="h-8 w-8 text-white/30 mb-1" />
-            <div className="text-xs text-white/50">No DNS providers configured yet.</div>
-          </Empty>
-        ) : (
-          <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
-            {accounts.map(a => (
-              <div key={a.id} className="flex items-center justify-between p-4">
-                <div>
-                  <div className="font-semibold text-sm text-white">{a.name}</div>
-                  <div className="text-xs text-white/40 mt-1">
-                    <Badge tone={a.type === "cloudflare" ? "indigo" : "cyan"} className="uppercase tracking-wider text-[9px]">
-                      {a.type}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="subtle" onClick={() => setEditing(a)} className="text-xs py-1 px-2.5">
-                    Edit
-                  </Button>
-                  <Button
-                    variant="danger"
-                    onClick={() => remove(a.id)}
-                    className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {(creating || editing) && (
-          <ProviderAccountModal
-            account={editing}
-            onClose={() => { setCreating(false); setEditing(null); }}
-            onSaved={() => { setCreating(false); setEditing(null); load(); }}
-          />
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="DNS Providers"
-        description="Connect Cloudflare or DNSPod so led can sync and verify your domains."
-        action={
-          <Button variant="primary" onClick={() => setCreating(true)}>
-            + Add Provider
-          </Button>
-        }
-      />
+      <div className="flex justify-between items-center">
+        <div className="text-xs font-semibold text-white/70">
+          DNS API Accounts
+          <div className="text-[10px] text-white/35 font-normal mt-0.5">DNS provider API keys (Cloudflare/DNSPod) to verify domains.</div>
+        </div>
+        <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
+          + Add Provider
+        </Button>
+      </div>
+
       <GlobalCloudflareToken />
-      <GlassCard className="p-6">
-      
+
       {loading ? (
-        <div className="text-white/40 text-sm py-6 text-center">loading…</div>
+        <div className="text-white/40 text-sm py-4 text-center">loading…</div>
       ) : accounts.length === 0 ? (
         <Empty>
           <Cloud className="h-8 w-8 text-white/30 mb-1" />
-          <div className="text-xs text-white/50">No external provider connections configured yet.</div>
+          <div className="text-xs text-white/50">No DNS providers configured yet.</div>
         </Empty>
       ) : (
         <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
@@ -1285,7 +1163,7 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="subtle" onClick={() => setEditing(a)} className="text-xs py-1 px-2.5">
-                  Edit Key
+                  Edit
                 </Button>
                 <Button
                   variant="danger"
@@ -1306,7 +1184,6 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
           onSaved={() => { setCreating(false); setEditing(null); load(); }}
         />
       )}
-    </GlassCard>
     </div>
   );
 }
@@ -1373,7 +1250,7 @@ function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onC
   );
 }
 
-export function SMTPSenders({ embed }: { embed?: boolean }) {
+export function SMTPSenders() {
   const [senders, setSenders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -1399,76 +1276,18 @@ export function SMTPSenders({ embed }: { embed?: boolean }) {
     }
   }
 
-  if (embed) {
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div className="text-xs font-semibold text-white/70">
-            SMTP Outgoing Gateways
-            <div className="text-[10px] text-white/35 font-normal mt-0.5">SMTP servers used to send emails from your mailboxes.</div>
-          </div>
-          <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
-            + Add SMTP
-          </Button>
-        </div>
-
-        {loading ? (
-          <div className="text-white/40 text-sm py-4 text-center">loading…</div>
-        ) : senders.length === 0 ? (
-          <Empty>
-            <Send className="h-8 w-8 text-white/30 mb-1" />
-            <div className="text-xs text-white/50">No SMTP outgoing senders configured yet.</div>
-          </Empty>
-        ) : (
-          <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
-            {senders.map(s => (
-              <div key={s.id} className="flex items-center justify-between p-4 group">
-                <div>
-                  <div className="font-semibold text-sm text-white">{s.name}</div>
-                  <div className="text-xs text-white/40 mt-1 font-mono">
-                    {s.fromEmail} via {s.host}:{s.port}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="subtle" onClick={() => setEditing(s)} className="text-xs py-1 px-2.5">
-                    Edit
-                  </Button>
-                  <Button
-                    variant="danger"
-                    onClick={() => remove(s.id)}
-                    className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {(creating || editing) && (
-          <SMTPSenderModal
-            sender={editing}
-            onClose={() => { setCreating(false); setEditing(null); }}
-            onSaved={() => { setCreating(false); setEditing(null); load(); }}
-          />
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="SMTP Senders"
-        description="Connect an SMTP server so your mailboxes can send email."
-        action={
-          <Button variant="primary" onClick={() => setCreating(true)}>
-            + Add SMTP
-          </Button>
-        }
-      />
-      <GlassCard className="p-6">
-
+      <div className="flex justify-between items-center">
+        <div className="text-xs font-semibold text-white/70">
+          SMTP Outgoing Gateways
+          <div className="text-[10px] text-white/35 font-normal mt-0.5">SMTP servers used to send emails from your mailboxes.</div>
+        </div>
+        <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
+          + Add SMTP
+        </Button>
+      </div>
       {loading ? (
         <div className="text-white/40 text-sm py-6 text-center">loading…</div>
       ) : senders.length === 0 ? (
@@ -1509,7 +1328,6 @@ export function SMTPSenders({ embed }: { embed?: boolean }) {
           onSaved={() => { setCreating(false); setEditing(null); load(); }}
         />
       )}
-    </GlassCard>
     </div>
   );
 }

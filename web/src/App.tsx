@@ -189,43 +189,27 @@ const SETTINGS_AREA: Area = {
   Icon: Settings,
   groups: [
     {
-      label: "Core Settings",
+      label: "Workspace",
       items: [
-        { id: "general", label: "General", Icon: Settings, path: "/settings/general" },
-        { id: "security", label: "Security", Icon: Shield, path: "/settings/security" },
-        { id: "members", label: "Workspace Members", Icon: Users, path: "/settings/members" },
-        { id: "links", label: "Links", Icon: Link2, path: "/settings/links" },
-        { id: "mail", label: "Mail", Icon: Mail, path: "/settings/mail" },
+        { id: "general",       label: "General",     Icon: Settings,    path: "/settings/general" },
+        { id: "members",       label: "Members",     Icon: Users,       path: "/settings/members" },
+        { id: "webhooks",      label: "Webhooks",    Icon: Webhook,     path: "/settings/webhooks" },
+        { id: "notifications", label: "Alerts",      Icon: Bell,        path: "/settings/notifications" },
       ],
     },
     {
-      label: "Billing & License",
+      label: "Account",
+      items: [
+        { id: "profile",  label: "My Profile", Icon: User,      path: "/personal/profile" },
+        { id: "security", label: "Security",   Icon: Shield,    path: "/settings/security" },
+        { id: "tokens",   label: "API Tokens", Icon: KeyRound,  path: "/personal/tokens" },
+      ],
+    },
+    {
+      label: "Subscriptions",
       items: [
         { id: "billing", label: "Billing & Plan", Icon: CreditCard, path: "/settings/billing" },
-        { id: "license", label: "License", Icon: KeyRound, path: "/settings/license" },
-      ],
-    },
-    {
-      label: "Integrations",
-      items: [
-        { id: "providers", label: "DNS Providers", Icon: Globe, path: "/settings/providers" },
-        { id: "smtp", label: "SMTP Senders", Icon: Mail, path: "/settings/smtp" },
-        { id: "llm", label: "LLM Providers", Icon: Bot, path: "/settings/llm" },
-        { id: "signin", label: "Sign-in (OAuth)", Icon: KeyRound, path: "/settings/signin" },
-      ],
-    },
-    {
-      label: "Developer",
-      items: [
-        { id: "webhooks", label: "Webhooks", Icon: Webhook, path: "/settings/webhooks" },
-        { id: "notifications", label: "Alerts", Icon: Bell, path: "/settings/notifications" },
-      ],
-    },
-    {
-      label: "Personal",
-      items: [
-        { id: "profile", label: "My Profile", Icon: User, path: "/personal/profile" },
-        { id: "tokens", label: "API Tokens", Icon: KeyRound, path: "/personal/tokens" },
+        { id: "license", label: "License",        Icon: KeyRound,   path: "/settings/license" },
       ],
     },
   ],

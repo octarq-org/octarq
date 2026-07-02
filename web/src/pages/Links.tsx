@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, Domain, effectiveLinkHosts, Link, LinkStats } from "../api";
-import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard, Modal } from "../ui";
+import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard } from "../ui";
 import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe, Settings } from "lucide-react";
 import { LinkSettings } from "./Settings";
 
@@ -15,7 +15,7 @@ export default function LinksPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
+  const [tab, setTab] = useState<'links' | 'settings'>('links');
 
   const linkHostOptions = Array.from(new Set(domains.flatMap(effectiveLinkHosts)));
 
@@ -76,9 +76,6 @@ export default function LinksPage() {
         description="Short links with click analytics, redirection & routing"
         action={
           <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={() => setShowSettings(true)} className="p-2 py-1.5 text-white/50 hover:text-white" title="Settings">
-              <Settings className="h-4 w-4" />
-            </Button>
             <Button variant="primary" onClick={() => setActive("new")} className="gap-1.5 py-1.5 text-xs">
               + New Link
             </Button>
@@ -86,6 +83,30 @@ export default function LinksPage() {
         }
       />
 
+      <div className="flex gap-0 border-b border-white/[0.06] mb-6">
+        <button
+          onClick={() => setTab('links')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            tab === 'links'
+              ? 'border-indigo-500 text-white'
+              : 'border-transparent text-white/45 hover:text-white/70'
+          }`}
+        >
+          Links
+        </button>
+        <button
+          onClick={() => setTab('settings')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
+            tab === 'settings'
+              ? 'border-indigo-500 text-white'
+              : 'border-transparent text-white/45 hover:text-white/70'
+          }`}
+        >
+          Settings
+        </button>
+      </div>
+
+      {tab === 'links' && (
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 min-h-0 items-start">
         {/* Left column - links list */}
         <div className="flex flex-col min-h-0 w-full">
@@ -235,10 +256,11 @@ export default function LinksPage() {
           )}
         </div>
       </div>
-      {showSettings && (
-        <Modal title="Links Settings" onClose={() => setShowSettings(false)}>
-          <LinkSettings embed />
-        </Modal>
+      )}
+      {tab === 'settings' && (
+        <GlassCard className="p-6">
+          <LinkSettings />
+        </GlassCard>
       )}
     </ScreenWrap>
   );

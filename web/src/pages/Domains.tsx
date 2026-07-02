@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, DNSRecord, Domain, HostEntry, ProviderAccount } from "../api";
 import { Empty, Field, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
-import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud, Settings } from "lucide-react";
+import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "./Settings";
 
 interface HostRow {
@@ -29,7 +29,7 @@ export default function DomainsPage() {
   const [active, setActive] = useState<Domain | "new" | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [q, setQ] = useState("");
-  const [showSettings, setShowSettings] = useState(false);
+  const [tab, setTab] = useState<'domains' | 'settings'>('domains');
 
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -108,9 +108,6 @@ export default function DomainsPage() {
               <RefreshCw className="h-3.5 w-3.5" />
               Sync Cloudflare
             </Button>
-            <Button variant="ghost" onClick={() => setShowSettings(true)} className="p-2 py-1.5 text-white/50 hover:text-white" title="Settings">
-              <Settings className="h-4 w-4" />
-            </Button>
             <Button variant="primary" onClick={() => setActive("new")} className="gap-1.5 py-1.5 text-xs">
               <Plus className="h-3.5 w-3.5" />
               Add Domain
@@ -118,6 +115,31 @@ export default function DomainsPage() {
           </div>
         }
       />
+
+      <div className="flex gap-0 border-b border-white/[0.06] mb-6">
+        <button
+          onClick={() => setTab('domains')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            tab === 'domains'
+              ? 'border-indigo-500 text-white'
+              : 'border-transparent text-white/45 hover:text-white/70'
+          }`}
+        >
+          DNS
+        </button>
+        <button
+          onClick={() => setTab('settings')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
+            tab === 'settings'
+              ? 'border-indigo-500 text-white'
+              : 'border-transparent text-white/45 hover:text-white/70'
+          }`}
+        >
+          Settings
+        </button>
+      </div>
+
+      {tab === 'domains' && (
 
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 min-h-0 items-start">
         {/* Left list column */}
@@ -309,6 +331,14 @@ export default function DomainsPage() {
         </div>
       </div>
       
+      )
+      }
+      {tab === 'settings' && (
+        <GlassCard className="p-6">
+          <ProviderAccounts />
+        </GlassCard>
+      )}
+
       {syncing && (
         <SyncModal
           accounts={accounts}
@@ -318,11 +348,6 @@ export default function DomainsPage() {
             loadMore(true);
           }}
         />
-      )}
-      {showSettings && (
-        <Modal title="DNS Settings" onClose={() => setShowSettings(false)}>
-          <ProviderAccounts embed />
-        </Modal>
       )}
     </ScreenWrap>
   );
