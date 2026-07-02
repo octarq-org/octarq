@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { CookieConsent } from "./components/CookieConsent";
 import {
   Bot,
   Boxes,
@@ -247,8 +246,6 @@ export default function App() {
       .catch(() => setAuthed(false));
   }, []);
 
-  const showConsent = window.location.pathname !== "/admin/invite/accept";
-
   let content;
   if (window.location.pathname === "/admin/invite/accept") {
     content = <InviteAcceptPage />;
@@ -283,7 +280,6 @@ export default function App() {
   return (
     <>
       {content}
-      {showConsent && <CookieConsent />}
     </>
   );
 }
