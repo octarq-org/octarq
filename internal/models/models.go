@@ -417,6 +417,7 @@ type AuditLog struct {
 // phishing, or other policy violations.
 type AbuseReport struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
+	OrgID       uint      `gorm:"index;default:1;column:owner_id" json:"-"` // org owning the reported link, if resolved
 	Slug        string    `gorm:"size:255;index" json:"slug"`
 	Target      string    `gorm:"type:text" json:"target"` // resolved at report time
 	Reason      string    `gorm:"size:64" json:"reason"`   // "spam", "phishing", "malware", "other"

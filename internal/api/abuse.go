@@ -47,14 +47,17 @@ func (h *Handler) submitAbuse(w http.ResponseWriter, r *http.Request) {
 		d.Description = d.Description[:2000]
 	}
 
-	// Resolve the slug to get the current target for context.
+	// Resolve the slug to get the current target and owning org for context.
 	var target string
+	var orgID uint
 	var link models.Link
 	if h.db.Where("slug = ?", d.Slug).First(&link).Error == nil {
 		target = link.Target
+		orgID = link.OrgID
 	}
 
 	rep := models.AbuseReport{
+		OrgID:       orgID,
 		Slug:        d.Slug,
 		Target:      target,
 		Reason:      d.Reason,
@@ -84,8 +87,12 @@ func (h *Handler) notifyAbuse(rep models.AbuseReport) {
 		"🚨 Abuse report #%d\nSlug: %s\nReason: %s\nTarget: %s\nDescription: %s",
 		rep.ID, rep.Slug, rep.Reason, rep.Target, rep.Description,
 	)
+	orgID := rep.OrgID
+	if orgID == 0 {
+		orgID = 1 // unresolved slug falls back to the default org (owner_id default:1)
+	}
 	var channels []models.NotificationChannel
-	h.db.Where("enabled = ?", true).Find(&channels)
+	h.db.Where("owner_id = ? AND enabled = ?", orgID, true).Find(&channels)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	for _, ch := range channels {
@@ -97,7 +104,7 @@ func (h *Handler) notifyAbuse(rep models.AbuseReport) {
 // GET /api/abuse?status=open
 func (h *Handler) listAbuseReports(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
-	q := h.db.Order("created_at DESC")
+	q := h.orgDB(r).Order("created_at DESC")
 	if status != "" {
 		q = q.Where("status = ?", status)
 	}
@@ -115,7 +122,7 @@ func (h *Handler) updateAbuseReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var rep models.AbuseReport
-	if h.db.First(&rep, id).Error != nil {
+	if h.orgDB(r).First(&rep, id).Error != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
