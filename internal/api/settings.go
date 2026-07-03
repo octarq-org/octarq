@@ -146,6 +146,13 @@ func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
+	// These are instance-level secrets (OAuth client secrets, Cloudflare token,
+	// catch-all, retention). Only org owners/admins may change them; a plain
+	// member must not be able to rewrite the instance's auth or DNS config.
+	if role := h.callerOrgRole(r); role != "owner" && role != "admin" {
+		writeErr(w, http.StatusForbidden, "owner or admin role required")
+		return
+	}
 	var d struct {
 		ReservedSlugs      *string `json:"reservedSlugs"`
 		ReservedMailboxes  *string `json:"reservedMailboxes"`
