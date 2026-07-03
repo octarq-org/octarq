@@ -79,7 +79,7 @@ func (h *Handler) syncDomains(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var acc models.ProviderAccount
-	if err := h.db.First(&acc, d.ProviderAccountID).Error; err != nil {
+	if err := h.db.Where("id = ? AND owner_id = ?", d.ProviderAccountID, h.orgID(r)).First(&acc).Error; err != nil {
 		writeErr(w, http.StatusNotFound, "provider account not found")
 		return
 	}
@@ -104,7 +104,7 @@ func (h *Handler) syncDomains(w http.ResponseWriter, r *http.Request) {
 	for _, z := range zones {
 		name := strings.ToLower(z.Name)
 		var dom models.Domain
-		if h.db.Where("name = ?", name).First(&dom).Error == nil {
+		if h.db.Where("name = ? AND owner_id = ?", name, h.orgID(r)).First(&dom).Error == nil {
 			dom.ZoneID = z.ID
 			dom.ProviderAccountID = acc.ID
 			h.db.Save(&dom)
@@ -159,6 +159,16 @@ func (h *Handler) listDomains(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, ds)
 }
 
+// ownsProviderAccount reports whether the given provider account id belongs to
+// the caller's org. Guards against binding another tenant's DNS credentials.
+func (h *Handler) ownsProviderAccount(r *http.Request, id uint) bool {
+	if id == 0 {
+		return false
+	}
+	var acc models.ProviderAccount
+	return h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&acc).Error == nil
+}
+
 func (h *Handler) createDomain(w http.ResponseWriter, r *http.Request) {
 	var d domainDTO
 	if err := readJSON(r, &d); err != nil {
@@ -168,6 +178,10 @@ func (h *Handler) createDomain(w http.ResponseWriter, r *http.Request) {
 	d.Name = strings.TrimSpace(strings.ToLower(d.Name))
 	if d.Name == "" || d.ProviderAccountID == 0 {
 		writeErr(w, http.StatusBadRequest, "name and provider account are required")
+		return
+	}
+	if !h.ownsProviderAccount(r, d.ProviderAccountID) {
+		writeErr(w, http.StatusNotFound, "provider account not found")
 		return
 	}
 	var linkHosts, mailHosts []hostEntry
@@ -247,6 +261,10 @@ func (h *Handler) updateDomain(w http.ResponseWriter, r *http.Request) {
 		dom.MailHosts = normalizeHosts(*d.MailHosts)
 	}
 	if d.ProviderAccountID != 0 {
+		if !h.ownsProviderAccount(r, d.ProviderAccountID) {
+			writeErr(w, http.StatusNotFound, "provider account not found")
+			return
+		}
 		dom.ProviderAccountID = d.ProviderAccountID
 	}
 	h.db.Save(&dom)

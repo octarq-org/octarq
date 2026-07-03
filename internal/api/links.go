@@ -322,6 +322,12 @@ func (h *Handler) linkStats(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad id")
 		return
 	}
+	// Ensure the link belongs to the caller's org before exposing its analytics.
+	var l models.Link
+	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&l).Error != nil {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
 	days := 30
 	if d := r.URL.Query().Get("days"); d != "" {
 		if n, err := strconv.Atoi(d); err == nil && n > 0 && n <= 365 {
@@ -389,7 +395,7 @@ func (h *Handler) linkQR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var l models.Link
-	if h.db.First(&l, id).Error != nil {
+	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&l).Error != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
