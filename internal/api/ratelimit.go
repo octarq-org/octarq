@@ -1,79 +1,70 @@
 package api
 
 import (
-	"sync"
+	"context"
 	"time"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/ulule/limiter/v3"
+	"github.com/ulule/limiter/v3/drivers/store/memory"
+	redisstore "github.com/ulule/limiter/v3/drivers/store/redis"
 )
 
 type rateLimiter struct {
-	mu          sync.Mutex
-	clients     map[string]*clientData
-	limit       int
-	window      time.Duration
-	lastCleanup time.Time
+	store limiter.Store
+	rate  limiter.Rate
 }
 
-type clientData struct {
-	count     int
-	lastError time.Time
-}
-
-func newRateLimiter(limit int, window time.Duration) *rateLimiter {
-	return &rateLimiter{
-		clients:     make(map[string]*clientData),
-		limit:       limit,
-		window:      window,
-		lastCleanup: time.Now(),
+func newRateLimiter(redisURL string, prefix string, limit int, window time.Duration) *rateLimiter {
+	rate := limiter.Rate{
+		Limit:  int64(limit),
+		Period: window,
 	}
-}
 
-func (rl *rateLimiter) cleanup() {
-	if time.Since(rl.lastCleanup) > rl.window {
-		for ip, data := range rl.clients {
-			if time.Since(data.lastError) > rl.window {
-				delete(rl.clients, ip)
+	var store limiter.Store
+	if redisURL != "" {
+		opts, err := redis.ParseURL(redisURL)
+		if err == nil {
+			client := redis.NewClient(opts)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			if client.Ping(ctx).Err() == nil {
+				s, err := redisstore.NewStoreWithOptions(client, limiter.StoreOptions{
+					Prefix: "led:limit:" + prefix + ":",
+				})
+				if err == nil {
+					store = s
+				}
 			}
 		}
-		rl.lastCleanup = time.Now()
+	}
+
+	if store == nil {
+		store = memory.NewStore()
+	}
+
+	return &rateLimiter{
+		store: store,
+		rate:  rate,
 	}
 }
 
 func (rl *rateLimiter) allow(ip string) bool {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	rl.cleanup()
-
-	data, exists := rl.clients[ip]
-	if !exists {
+	ctx := context.Background()
+	limiterCtx, err := rl.store.Peek(ctx, ip, rl.rate)
+	if err != nil {
+		// On store failure, default to allow (fail-soft)
 		return true
 	}
-	if time.Since(data.lastError) > rl.window {
-		// reset
-		data.count = 0
-		return true
-	}
-	return data.count < rl.limit
+	return limiterCtx.Remaining > 0
 }
 
 func (rl *rateLimiter) recordFailure(ip string) {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-
-	rl.cleanup()
-
-	data, exists := rl.clients[ip]
-	if !exists {
-		data = &clientData{}
-		rl.clients[ip] = data
-	}
-	data.count++
-	data.lastError = time.Now()
+	ctx := context.Background()
+	_, _ = rl.store.Increment(ctx, ip, 1, rl.rate)
 }
 
 func (rl *rateLimiter) reset(ip string) {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-	delete(rl.clients, ip)
+	ctx := context.Background()
+	_, _ = rl.store.Reset(ctx, ip, rl.rate)
 }
-

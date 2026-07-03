@@ -80,9 +80,9 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 		auth:         a,
 		geo:          g,
 		queue:        q,
-		loginLimiter: newRateLimiter(5, 15*time.Minute), // 5 fails / 15 mins
-		abuseLimiter: newRateLimiter(5, time.Hour),      // 5 reports / 1 hour
-		sendLimiter:  newRateLimiter(100, time.Hour),    // 100 outbound emails / org / hour
+		loginLimiter: newRateLimiter(cfg.RedisURL, "login", 5, 15*time.Minute), // 5 fails / 15 mins
+		abuseLimiter: newRateLimiter(cfg.RedisURL, "abuse", 5, time.Hour),      // 5 reports / 1 hour
+		sendLimiter:  newRateLimiter(cfg.RedisURL, "send", 100, time.Hour),    // 100 outbound emails / org / hour
 		lookupTXT:    net.LookupTXT,
 	}
 	if cfg.BaseURL != "" {

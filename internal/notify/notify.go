@@ -7,7 +7,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
+
+	"github.com/nikoksr/notify"
+	"github.com/nikoksr/notify/service/telegram"
 )
 
 // Send dispatches a notification via the specified channel type.
@@ -35,31 +39,21 @@ func sendTelegram(ctx context.Context, cfgJSON, text string) error {
 		return fmt.Errorf("missing telegram credentials")
 	}
 
-	body, err := json.Marshal(map[string]any{
-		"chat_id": cfg.ChatID,
-		"text":    text,
-	})
+	chatID, err := strconv.ParseInt(cfg.ChatID, 10, 64)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid telegram chatId: %w", err)
 	}
 
-	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", cfg.BotToken)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	tg, err := telegram.New(cfg.BotToken)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to initialize telegram notifier: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
+	tg.AddReceivers(chatID)
 
-	hc := &http.Client{Timeout: 10 * time.Second}
-	resp, err := hc.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("telegram: sendMessage HTTP %d", resp.StatusCode)
-	}
-	return nil
+	notifier := notify.New()
+	notifier.UseServices(tg)
+
+	return notifier.Send(ctx, "", text)
 }
 
 func sendWebhook(ctx context.Context, cfgJSON, text string) error {
