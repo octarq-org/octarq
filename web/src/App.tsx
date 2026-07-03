@@ -861,8 +861,8 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
     onLogin(u, m.orgId);
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function doSubmit() {
+    if (busy) return;
     setBusy(true);
     setErr("");
     try {
@@ -884,6 +884,15 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
     }
   }
 
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    doSubmit();
+  }
+
+  function onEnter(e: React.KeyboardEvent) {
+    if (e.key === "Enter") { e.preventDefault(); doSubmit(); }
+  }
+
   return (
     <div className="led-aurora grid h-full place-items-center">
       <form onSubmit={submit} className="glass-strong w-80 rounded-2xl p-6">
@@ -895,7 +904,7 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
         </div>
 
         <label className="label">Username</label>
-        <input type="text" className="input mb-3" value={u} onChange={(e) => setU(e.target.value)} autoComplete="username" />
+        <input type="text" className="input mb-3" value={u} onChange={(e) => setU(e.target.value)} onKeyDown={onEnter} autoComplete="username" />
 
         <label className="label">Password</label>
         <input
@@ -903,6 +912,7 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
           className="input mb-4"
           value={p}
           onChange={(e) => setP(e.target.value)}
+          onKeyDown={onEnter}
           autoComplete="current-password"
           autoFocus={!needs2FA}
         />
@@ -914,6 +924,7 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
               className="input mb-4"
               value={code}
               onChange={(e) => setCode(e.target.value)}
+              onKeyDown={onEnter}
               placeholder="6-digit code or recovery code"
               autoComplete="one-time-code"
               autoFocus
