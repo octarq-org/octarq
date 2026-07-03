@@ -4,10 +4,16 @@ package config
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
 )
+
+// minSecretKeyLen is the minimum acceptable length for LED_SECRET_KEY. It is
+// the KEK for AES-GCM credential encryption and the HMAC key for session
+// cookies; a short key is brute-forceable.
+const minSecretKeyLen = 16
 
 // Config holds all runtime configuration for led.
 type Config struct {
@@ -165,6 +171,15 @@ func Load() (*Config, error) {
 	}
 	if c.AdminPassword == "" {
 		return nil, fmt.Errorf("LED_ADMIN_PASSWORD is required")
+	}
+	// A weak secret key undermines both credential encryption and cookie
+	// integrity. Hard-fail in production-looking setups; warn otherwise so the
+	// documented local dev key (LED_SECRET_KEY=dev) keeps working.
+	if len(c.SecretKey) < minSecretKeyLen {
+		if c.SecureCookies {
+			return nil, fmt.Errorf("LED_SECRET_KEY must be at least %d bytes in production", minSecretKeyLen)
+		}
+		log.Printf("WARNING: LED_SECRET_KEY is only %d bytes; use at least %d bytes (e.g. `openssl rand -hex 32`) before production", len(c.SecretKey), minSecretKeyLen)
 	}
 	return c, nil
 }
