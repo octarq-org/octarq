@@ -76,9 +76,11 @@ func StartSessionCleanup(ctx context.Context, db *gorm.DB) {
 			log.Printf("cleanup: purged %d expired sessions", res.RowsAffected)
 		}
 		// Legacy empty-UA sessions (created by old SetSession without IP/UA)
-		res2 := db.Where("user_agent = '' AND expires_at < ?", now).Delete(&models.Session{})
+		res2 := db.Where("user_agent = ''").Delete(&models.Session{})
 		if res2.Error != nil {
 			log.Printf("cleanup: purge empty-UA sessions: %v", res2.Error)
+		} else if res2.RowsAffected > 0 {
+			log.Printf("cleanup: purged %d legacy empty-UA sessions", res2.RowsAffected)
 		}
 	}
 
