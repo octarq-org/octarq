@@ -145,10 +145,11 @@ func (h *Handler) listSessions(w http.ResponseWriter, r *http.Request) {
 	out := make([]row, len(sessions))
 	for i, s := range sessions {
 		var location string
-		if s.IP == "::1" || s.IP == "127.0.0.1" {
+		ipClean := strings.Trim(s.IP, "[]")
+		if ipClean == "::1" || ipClean == "127.0.0.1" {
 			location = "Localhost"
 		} else if h.geo != nil {
-			country, _, city := h.geo.Locate(s.IP)
+			country, _, city := h.geo.Locate(ipClean)
 			if city != "" && country != "" {
 				location = city + ", " + country
 			} else if country != "" {
