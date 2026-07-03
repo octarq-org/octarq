@@ -20,14 +20,21 @@ func secureEqual(a, b string) bool {
 	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
 }
 
+// trustProxy gates whether proxy-supplied client-IP headers are honoured. Set
+// once from config in New; when false, a client cannot spoof X-Forwarded-For
+// to get a fresh abuse-report rate-limit bucket.
+var trustProxy bool
+
 // reporterIP returns the best-guess client IP for abuse reports.
 // We keep the full IP here (unlike analytics) so admins can block repeat abusers.
 func reporterIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.Split(xff, ",")[0])
-	}
-	if rip := r.Header.Get("X-Real-IP"); rip != "" {
-		return rip
+	if trustProxy {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			return strings.TrimSpace(strings.Split(xff, ",")[0])
+		}
+		if rip := r.Header.Get("X-Real-IP"); rip != "" {
+			return rip
+		}
 	}
 	host := r.RemoteAddr
 	if h, _, err := splitHostPort(host); err == nil {

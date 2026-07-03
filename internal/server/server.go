@@ -38,6 +38,7 @@ func New(cfg *config.Config, apiHandler http.Handler, short *shortlink.Service, 
 	if err != nil {
 		return nil, err
 	}
+	trustProxy = cfg.TrustProxy
 	s := &Server{
 		cfg:    cfg,
 		api:    apiHandler,

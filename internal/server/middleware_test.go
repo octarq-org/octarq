@@ -173,8 +173,13 @@ func TestMetricsGating(t *testing.T) {
 	}
 }
 
-// TestClientIP checks the XFF/X-Real-IP/RemoteAddr precedence.
+// TestClientIP checks the XFF/X-Real-IP/RemoteAddr precedence, and that proxy
+// headers are honoured only when trustProxy is enabled.
 func TestClientIP(t *testing.T) {
+	// With trustProxy on, proxy headers take precedence.
+	trustProxy = true
+	defer func() { trustProxy = false }()
+
 	req := httptest.NewRequest("GET", "/", nil)
 	req.RemoteAddr = "10.0.0.9:1"
 	req.Header.Set("X-Forwarded-For", "203.0.113.7, 10.0.0.1")
@@ -193,6 +198,15 @@ func TestClientIP(t *testing.T) {
 	req3.RemoteAddr = "192.0.2.5:5555"
 	if got := clientIP(req3); got != "192.0.2.5" {
 		t.Fatalf("RemoteAddr fallback: got %q", got)
+	}
+
+	// With trustProxy off, a spoofed XFF must be ignored in favour of RemoteAddr.
+	trustProxy = false
+	req4 := httptest.NewRequest("GET", "/", nil)
+	req4.RemoteAddr = "192.0.2.5:5555"
+	req4.Header.Set("X-Forwarded-For", "203.0.113.7")
+	if got := clientIP(req4); got != "192.0.2.5" {
+		t.Fatalf("untrusted XFF should be ignored: got %q", got)
 	}
 }
 

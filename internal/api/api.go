@@ -73,6 +73,7 @@ func (h *Handler) emitEmail(e plugin.EmailEvent) {
 }
 
 func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *geo.Resolver, q queue.Queue) *Handler {
+	trustProxy = cfg.TrustProxy
 	h := &Handler{
 		cfg:          cfg,
 		db:           db,

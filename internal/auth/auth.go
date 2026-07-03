@@ -46,8 +46,13 @@ type Manager struct {
 }
 
 func New(cfg *config.Config, c *crypto.Cipher) *Manager {
+	trustProxy = cfg.TrustProxy
 	return &Manager{cfg: cfg, cipher: c, cache: cache.New("")}
 }
+
+// trustProxy gates whether proxy-supplied client-IP headers are honoured when
+// deriving the client IP for rate limiting. Set once from config in New.
+var trustProxy bool
 
 // WithDB attaches a database so sessions and API bearer tokens can be
 // validated against persistent state.
@@ -352,14 +357,18 @@ func (m *Manager) Require(next http.Handler) http.Handler {
 	})
 }
 
-// reporterIP extracts the best-effort client IP from the request.
+// reporterIP extracts the best-effort client IP from the request. Proxy
+// headers are honoured only when trustProxy is set, otherwise a client could
+// spoof X-Forwarded-For to evade the login rate limiter.
 func reporterIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		parts := strings.SplitN(xff, ",", 2)
-		return strings.TrimSpace(parts[0])
-	}
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return strings.TrimSpace(xri)
+	if trustProxy {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			parts := strings.SplitN(xff, ",", 2)
+			return strings.TrimSpace(parts[0])
+		}
+		if xri := r.Header.Get("X-Real-IP"); xri != "" {
+			return strings.TrimSpace(xri)
+		}
 	}
 	// RemoteAddr is "host:port" — strip port.
 	addr := r.RemoteAddr

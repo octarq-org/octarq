@@ -216,17 +216,24 @@ func tierFor(r *http.Request) tier {
 // Client IP
 // -----------------------------------------------------------------------------
 
-// clientIP returns the best-guess client IP, honouring the first hop of
-// X-Forwarded-For then X-Real-IP, falling back to RemoteAddr. (We can't import
-// internal/api, so this is a local copy of that logic.)
+// trustProxy gates whether proxy-supplied client-IP headers are honoured. Set
+// once from config at server construction; when false, X-Forwarded-For /
+// X-Real-IP are ignored so clients can't spoof their IP to evade rate limits.
+var trustProxy bool
+
+// clientIP returns the best-guess client IP. When trustProxy is enabled it
+// honours the first hop of X-Forwarded-For then X-Real-IP, falling back to
+// RemoteAddr; otherwise it always uses RemoteAddr.
 func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if first := strings.TrimSpace(strings.Split(xff, ",")[0]); first != "" {
-			return first
+	if trustProxy {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			if first := strings.TrimSpace(strings.Split(xff, ",")[0]); first != "" {
+				return first
+			}
 		}
-	}
-	if rip := strings.TrimSpace(r.Header.Get("X-Real-IP")); rip != "" {
-		return rip
+		if rip := strings.TrimSpace(r.Header.Get("X-Real-IP")); rip != "" {
+			return rip
+		}
 	}
 	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
 		return host

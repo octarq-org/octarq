@@ -47,6 +47,10 @@ func TestComprehensiveAPI(t *testing.T) {
 
 	cookies := sessionCookies(t, 1, 1)
 
+	// Seed the caller as an org owner so role-gated endpoints (e.g. settings)
+	// behave as they do after a real admin login.
+	db.Create(&models.OrgMember{OrgID: 1, UserID: 1, Role: "owner"})
+
 	// 1. Overview API
 	{
 		req := httptest.NewRequest(http.MethodGet, "/api/overview", nil)

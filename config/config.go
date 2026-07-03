@@ -45,6 +45,13 @@ type Config struct {
 	// for plain-http localhost dev, where a Secure cookie would never be sent.
 	SecureCookies bool
 
+	// TrustProxy controls whether X-Forwarded-For / X-Real-IP are honoured when
+	// determining the client IP (for rate limiting and abuse throttling). Only
+	// enable when led sits behind a trusted reverse proxy that sets these
+	// headers; otherwise clients can spoof them to evade per-IP limits. Set via
+	// LED_TRUST_PROXY=true|1. Off by default.
+	TrustProxy bool
+
 	GeoIPDB string // optional path to a MaxMind GeoLite2-City.mmdb
 
 	// BaseURL is the public-facing URL used to build OAuth callback URIs,
@@ -145,6 +152,8 @@ func Load() (*Config, error) {
 		SecretKey:     env("LED_SECRET_KEY", ""),
 		AdminUser:     env("LED_ADMIN_USER", "admin"),
 		AdminPassword: env("LED_ADMIN_PASSWORD", ""),
+
+		TrustProxy: strings.EqualFold(strings.TrimSpace(env("LED_TRUST_PROXY", "")), "true") || strings.TrimSpace(env("LED_TRUST_PROXY", "")) == "1",
 
 		GeoIPDB:  env("LED_GEOIP_DB", ""),
 		BaseURL:  env("LED_BASE_URL", ""),
