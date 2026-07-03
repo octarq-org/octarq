@@ -138,14 +138,20 @@ func (h *Handler) listSessions(w http.ResponseWriter, r *http.Request) {
 
 	currID := h.auth.SessionID(r)
 	type row struct {
-		models.Session
-		IsCurrent bool   `json:"isCurrent"`
-		Location  string `json:"location,omitempty"`
+		ID         uint      `json:"id"`
+		IP         string    `json:"ip"` // pre-masked; raw value never leaves server
+		UserAgent  string    `json:"userAgent"`
+		LastSeenAt time.Time `json:"lastSeenAt"`
+		CreatedAt  time.Time `json:"createdAt"`
+		IsCurrent  bool      `json:"isCurrent"`
+		Location   string    `json:"location,omitempty"`
 	}
 	out := make([]row, len(sessions))
 	for i, s := range sessions {
-		var location string
 		ipClean := strings.Trim(s.IP, "[]")
+		maskedIP := maskIPServer(ipClean)
+
+		var location string
 		if ipClean == "::1" || ipClean == "127.0.0.1" {
 			location = "Localhost"
 		} else if h.geo != nil {
@@ -159,13 +165,35 @@ func (h *Handler) listSessions(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		out[i] = row{
-			Session:   s,
-			IsCurrent: s.ID == currID,
-			Location:  location,
+			ID:         s.ID,
+			IP:         maskedIP,
+			UserAgent:  s.UserAgent,
+			LastSeenAt: s.LastSeenAt,
+			CreatedAt:  s.CreatedAt,
+			IsCurrent:  s.ID == currID,
+			Location:   location,
 		}
 	}
 	writeJSON(w, http.StatusOK, out)
 }
+
+// maskIPServer redacts the last octet/group of an IP (GDPR-style).
+// Localhost addresses are left as-is since they carry no PII.
+func maskIPServer(ip string) string {
+	if ip == "::1" || ip == "127.0.0.1" {
+		return ip
+	}
+	// IPv4
+	if parts := strings.Split(ip, "."); len(parts) == 4 {
+		return parts[0] + "." + parts[1] + "." + parts[2] + ".*"
+	}
+	// IPv6
+	if idx := strings.LastIndex(ip, ":"); idx >= 0 {
+		return ip[:idx] + ":*"
+	}
+	return ip
+}
+
 
 // DELETE /api/auth/sessions/{id} — revoke a specific session row.
 // With stateful cookies, just deleting the row is sufficient: the next

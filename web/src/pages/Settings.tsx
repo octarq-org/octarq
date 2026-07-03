@@ -367,17 +367,6 @@ function parseUA(ua: string): { browser: string; os: string } {
   return { browser, os };
 }
 
-/** Redact the last octet of an IPv4 or last group of an IPv6 address. */
-function maskIP(ip: string): string {
-  if (!ip) return "";
-  // IPv4: replace last octet with *
-  if (/^\d+\.\d+\.\d+\.\d+$/.test(ip)) return ip.replace(/\.\d+$/, ".*");
-  // IPv6 (possibly bracket-wrapped): replace last group with *
-  const clean = ip.replace(/^\[|\]$/g, "");
-  const parts = clean.split(":");
-  if (parts.length > 1) return parts.slice(0, -1).join(":") + ":*";
-  return ip;
-}
 
 function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
   const [sessions, setSessions] = useState<any[]>([]);
@@ -426,7 +415,7 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
                 <span className="text-xs text-white/35">{ua.os}</span>
               </div>
               <div className="flex items-center gap-3 mt-1">
-                <span className="text-xs text-white/40">{s.location || maskIP(s.ip)}</span>
+                <span className="text-xs text-white/40">{s.location || s.ip}</span>
                 <span className="text-xs text-white/30">Last seen {timeAgo(s.lastSeenAt)}</span>
                 <span className="text-xs text-white/25">Signed in {timeAgo(s.createdAt)}</span>
               </div>
