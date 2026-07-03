@@ -237,6 +237,7 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	go cleanup.Start(ctx, a.gdb, apiHandler.DataRetentionDays)
+	go cleanup.StartSessionCleanup(ctx, a.gdb)
 
 	go func() {
 		slog.Info("led listening", "addr", a.cfg.Listen, "db", a.cfg.DBDriver)

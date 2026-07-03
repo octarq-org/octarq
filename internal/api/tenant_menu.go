@@ -70,7 +70,7 @@ func (h *Handler) switchOrg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.auth.SetSession(w, uid, body.OrgID)
+	h.auth.SetSessionFromRequest(r, w, uid, body.OrgID)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
