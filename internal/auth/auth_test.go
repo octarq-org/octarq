@@ -91,9 +91,9 @@ func TestStatefulSessionExpiryAndInvalidation(t *testing.T) {
 		t.Fatal("expected invalid token to be rejected")
 	}
 
-	// 2. Expired session
+	// 2. Expired session (the DB stores only the SHA-256 hash of the cookie).
 	var s models.Session
-	if err := db.Where("token = ?", tokCookie.Value).First(&s).Error; err != nil {
+	if err := db.Where("token = ?", models.HashToken(tokCookie.Value)).First(&s).Error; err != nil {
 		t.Fatalf("failed to find session: %v", err)
 	}
 	s.ExpiresAt = time.Now().Add(-time.Hour)

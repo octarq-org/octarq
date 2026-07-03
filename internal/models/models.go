@@ -62,7 +62,7 @@ type Session struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
 	UserID     uint      `gorm:"not null;index" json:"userId"`
 	OrgID      uint      `gorm:"not null" json:"orgId"`
-	Token      string    `gorm:"uniqueIndex;size:64;not null" json:"-"` // random hex, stored in cookie
+	Token      string    `gorm:"uniqueIndex;size:64;not null" json:"-"` // SHA-256 hash of the cookie token
 	IP         string    `gorm:"size:64" json:"ip"`
 	UserAgent  string    `gorm:"size:512" json:"userAgent"`
 	LastSeenAt time.Time `json:"lastSeenAt"`

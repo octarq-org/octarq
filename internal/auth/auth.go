@@ -107,19 +107,33 @@ func (m *Manager) SetSessionFromRequest(r *http.Request, w http.ResponseWriter, 
 		err := m.db.Where("user_id = ? AND ip = ? AND user_agent = ? AND expires_at > ?", uid, ip, ua, now).
 			First(&existing).Error
 		if err == nil {
-			// Refresh the existing session instead of creating a new one.
+			// Refresh the existing session. Only the token hash is stored, so we
+			// can't recover the raw token from the row. If the caller already
+			// holds this session's cookie (switch-org, refresh), reuse that raw
+			// token to preserve continuity; otherwise (fresh login from the same
+			// fingerprint) rotate to the freshly generated token.
+			if raw := cookieToken(r); raw != "" && models.HashToken(raw) == existing.Token {
+				m.db.Model(&existing).Updates(map[string]any{
+					"last_seen_at": now,
+					"expires_at":   expires,
+				})
+				m.setCookie(w, raw)
+				return
+			}
 			m.db.Model(&existing).Updates(map[string]any{
+				"token":        models.HashToken(token),
 				"last_seen_at": now,
 				"expires_at":   expires,
 			})
-			m.setCookie(w, existing.Token)
+			_ = m.cache.Delete(context.Background(), "session:"+existing.Token)
+			m.setCookie(w, token)
 			return
 		}
 
 		sess := models.Session{
 			UserID:     uid,
 			OrgID:      orgID,
-			Token:      token,
+			Token:      models.HashToken(token),
 			IP:         ip,
 			UserAgent:  ua,
 			LastSeenAt: now,
@@ -140,7 +154,7 @@ func (m *Manager) SetSession(w http.ResponseWriter, uid, orgID uint) {
 		sess := models.Session{
 			UserID:     uid,
 			OrgID:      orgID,
-			Token:      token,
+			Token:      models.HashToken(token),
 			LastSeenAt: now,
 			ExpiresAt:  now.Add(sessionTTL),
 		}
@@ -161,32 +175,34 @@ func (m *Manager) setCookie(w http.ResponseWriter, token string) {
 	})
 }
 
-// sessionByToken looks up a non-expired Session row by its token.
-// Returns nil when not found or expired. Checks cache first.
+// sessionByToken looks up a non-expired Session row by the raw cookie token.
+// Only the SHA-256 hash is ever stored or cached, so a DB/cache read cannot
+// reveal a usable session token. Returns nil when not found or expired.
 func (m *Manager) sessionByToken(token string) *models.Session {
 	if m.db == nil || token == "" {
 		return nil
 	}
+	hashed := models.HashToken(token)
 	var s models.Session
 	ctx := context.Background()
 	// Try fetching from cache first
-	if m.cache.Get(ctx, "session:"+token, &s) {
+	if m.cache.Get(ctx, "session:"+hashed, &s) {
 		// Verify if it is expired in case Redis TTL hasn't kicked in
 		if s.ExpiresAt.After(time.Now()) {
 			return &s
 		}
 		// If expired, clean it up
-		_ = m.cache.Delete(ctx, "session:"+token)
+		_ = m.cache.Delete(ctx, "session:"+hashed)
 	}
 
-	if err := m.db.Where("token = ? AND expires_at > ?", token, time.Now()).First(&s).Error; err != nil {
+	if err := m.db.Where("token = ? AND expires_at > ?", hashed, time.Now()).First(&s).Error; err != nil {
 		return nil
 	}
 
 	// Cache the retrieved session
 	ttl := time.Until(s.ExpiresAt)
 	if ttl > 0 {
-		_ = m.cache.Set(ctx, "session:"+token, &s, ttl)
+		_ = m.cache.Set(ctx, "session:"+hashed, &s, ttl)
 	}
 	return &s
 }
@@ -241,9 +257,10 @@ func (m *Manager) Authed(r *http.Request) bool {
 func (m *Manager) Clear(r *http.Request, w http.ResponseWriter) {
 	token := cookieToken(r)
 	if token != "" {
-		_ = m.cache.Delete(context.Background(), "session:"+token)
+		hashed := models.HashToken(token)
+		_ = m.cache.Delete(context.Background(), "session:"+hashed)
 		if m.db != nil {
-			m.db.Where("token = ?", token).Delete(&models.Session{})
+			m.db.Where("token = ?", hashed).Delete(&models.Session{})
 		}
 	}
 	http.SetCookie(w, &http.Cookie{
@@ -262,15 +279,16 @@ func (m *Manager) TouchSession(r *http.Request) {
 	if token == "" {
 		return
 	}
+	hashed := models.HashToken(token)
 	now := time.Now()
 	var s models.Session
-	if m.db.Where("token = ?", token).First(&s).Error != nil {
+	if m.db.Where("token = ?", hashed).First(&s).Error != nil {
 		return
 	}
 	if now.Sub(s.LastSeenAt) >= touchInterval {
 		m.db.Model(&s).Update("last_seen_at", now)
 		// Evict from cache to force update on next read
-		_ = m.cache.Delete(context.Background(), "session:"+token)
+		_ = m.cache.Delete(context.Background(), "session:"+hashed)
 	}
 }
 
