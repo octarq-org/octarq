@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -12,6 +13,12 @@ import (
 )
 
 var errNotFound = errors.New("not found")
+
+// secureEqual reports whether a and b are equal using a constant-time
+// comparison, avoiding timing side channels when checking secret tokens.
+func secureEqual(a, b string) bool {
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+}
 
 // reporterIP returns the best-guess client IP for abuse reports.
 // We keep the full IP here (unlike analytics) so admins can block repeat abusers.

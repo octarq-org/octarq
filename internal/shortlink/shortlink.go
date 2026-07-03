@@ -4,6 +4,8 @@ package shortlink
 
 import (
 	"context"
+	"crypto/subtle"
+	"html"
 	"net"
 	"net/http"
 	"strings"
@@ -118,7 +120,7 @@ func (s *Service) Handle(w http.ResponseWriter, r *http.Request, link *models.Li
 		return
 	}
 	if link.Password != "" {
-		if r.URL.Query().Get("pw") != link.Password {
+		if subtle.ConstantTimeCompare([]byte(r.URL.Query().Get("pw")), []byte(link.Password)) != 1 {
 			renderPasswordGate(w, r.URL.Path)
 			return
 		}
@@ -262,7 +264,7 @@ func renderPasswordGate(w http.ResponseWriter, path string) {
 form{background:#16161d;padding:2rem;border-radius:12px;width:300px}
 input{width:100%;padding:.6rem;margin:.5rem 0;border-radius:8px;border:1px solid #333;background:#0b0b0f;color:#fff;box-sizing:border-box}
 button{width:100%;padding:.6rem;border:0;border-radius:8px;background:#6366f1;color:#fff;font-weight:600;cursor:pointer}</style></head>
-<body><form method="get" action="` + path + `">
+<body><form method="get" action="` + html.EscapeString(path) + `">
 <h3>🔒 This link is protected</h3>
 <input type="password" name="pw" placeholder="Password" autofocus>
 <button type="submit">Continue</button></form></body></html>`))

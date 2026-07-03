@@ -306,7 +306,7 @@ func (h *Handler) inbound(w http.ResponseWriter, r *http.Request) {
 	}
 	// Auth is the org's per-tenant token, carried in the path so the Cloudflare
 	// worker needs only this one URL and no custom header.
-	if org.InboundToken == "" || r.PathValue("token") != org.InboundToken {
+	if org.InboundToken == "" || !secureEqual(r.PathValue("token"), org.InboundToken) {
 		writeErr(w, http.StatusUnauthorized, "bad token")
 		return
 	}
@@ -573,7 +573,7 @@ func (h *Handler) emailBounceWebhook(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "unknown org")
 		return
 	}
-	if org.InboundToken == "" || r.PathValue("token") != org.InboundToken {
+	if org.InboundToken == "" || !secureEqual(r.PathValue("token"), org.InboundToken) {
 		writeErr(w, http.StatusUnauthorized, "bad token")
 		return
 	}

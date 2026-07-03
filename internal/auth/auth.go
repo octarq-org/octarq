@@ -10,6 +10,7 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"net/http"
 	"strings"
@@ -66,9 +67,12 @@ func (m *Manager) Cache() cache.Cache {
 	return m.cache
 }
 
-// Check verifies admin credentials.
+// Check verifies admin credentials using constant-time comparison so neither
+// the username nor password leaks length/prefix information via timing.
 func (m *Manager) Check(user, pass string) bool {
-	return user == m.cfg.AdminUser && pass == m.cfg.AdminPassword
+	userOK := subtle.ConstantTimeCompare([]byte(user), []byte(m.cfg.AdminUser)) == 1
+	passOK := subtle.ConstantTimeCompare([]byte(pass), []byte(m.cfg.AdminPassword)) == 1
+	return userOK && passOK
 }
 
 // generateToken returns a random 64-char hex string suitable for use as a
