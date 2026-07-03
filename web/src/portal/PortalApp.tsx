@@ -478,7 +478,7 @@ function DashboardView({ email, onLogout }: { email: string; onLogout: () => voi
                             <span>{dev.name || "Unknown Machine"}</span>
                           </p>
                           <p className="text-[10px] text-white/40 mt-0.5 truncate">
-                            IP: {dev.ip} · Active: {dev.lastSeenAt.slice(0, 10)}
+                            Last active: {dev.lastSeenAt.slice(0, 10)}
                           </p>
                         </div>
                         <Button variant="danger" onClick={() => handleUnbind(dev.id)} className="text-[11px] px-2 py-1 h-6">
