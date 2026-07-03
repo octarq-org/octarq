@@ -42,6 +42,13 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 // runs one-off data migrations. Call this once, after every plugin has been
 // registered, before serving traffic.
 func Migrate(gdb *gorm.DB, extraModels ...any) error {
+	// Drop legacy sessions table if it lacks the 'id' primary key column (handles SQLite migration limits)
+	if gdb.Migrator().HasTable(&models.Session{}) {
+		if !gdb.Migrator().HasColumn(&models.Session{}, "id") {
+			_ = gdb.Migrator().DropTable(&models.Session{})
+		}
+	}
+
 	all := append(models.AllModels(), extraModels...)
 	if err := gdb.AutoMigrate(all...); err != nil {
 		return fmt.Errorf("migrate: %w", err)
