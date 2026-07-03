@@ -46,6 +46,7 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 
 	h.loginLimiter.reset(ip)
 	h.auth.SetSession(w, uid, orgID)
+	go h.createSessionRecord(r, uid)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "username": body.Username})
 }
 
@@ -91,6 +92,7 @@ func (h *Handler) verify2FA(w http.ResponseWriter, r *http.Request) {
 	}
 	h.loginLimiter.reset(ip)
 	h.auth.SetSession(w, uid, orgID)
+	go h.createSessionRecord(r, uid)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "username": body.Username})
 }
 
@@ -108,6 +110,7 @@ func (h *Handler) logoutAll(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "failed to revoke sessions")
 		return
 	}
+	h.db.Where("user_id = ?", uid).Delete(&models.Session{})
 	h.auth.Clear(w)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
@@ -122,6 +125,79 @@ func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 		h.db.Create(&models.OrgMember{OrgID: orgID, UserID: user.ID, Role: "owner"})
 	}
 	return user.ID
+}
+
+// createSessionRecord inserts a new Session row for a login event.
+// Called asynchronously (go h.createSessionRecord) to avoid blocking the
+// login response.
+func (h *Handler) createSessionRecord(r *http.Request, uid uint) {
+	sess := models.Session{
+		UserID:     uid,
+		IP:         reporterIP(r),
+		UserAgent:  r.Header.Get("User-Agent"),
+		LastSeenAt: time.Now(),
+	}
+	h.db.Create(&sess)
+}
+
+// touchSession bumps LastSeenAt for the most-recent session of this user,
+// but at most once per minute to avoid write spam. Designed to be called
+// asynchronously (go h.touchSession(uid)).
+func (h *Handler) touchSession(uid uint) {
+	if uid == 0 {
+		return
+	}
+	now := time.Now()
+	var sess models.Session
+	if h.db.Where("user_id = ?", uid).Order("last_seen_at DESC").First(&sess).Error == nil {
+		if now.Sub(sess.LastSeenAt) > time.Minute {
+			h.db.Model(&sess).Update("last_seen_at", now)
+		}
+	}
+}
+
+// GET /api/auth/sessions — list sessions for the current user, newest first.
+func (h *Handler) listSessions(w http.ResponseWriter, r *http.Request) {
+	uid := h.auth.UserID(r)
+	if uid == 0 {
+		writeErr(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	var sessions []models.Session
+	h.db.Where("user_id = ?", uid).Order("last_seen_at DESC").Limit(20).Find(&sessions)
+	writeJSON(w, http.StatusOK, sessions)
+}
+
+// DELETE /api/auth/sessions/{id} — revoke a session record.
+// Because cookies are stateless, revoking any session bumps the epoch
+// (invalidating all cookies) and re-issues a fresh cookie for the caller.
+func (h *Handler) revokeSession(w http.ResponseWriter, r *http.Request) {
+	uid := h.auth.UserID(r)
+	if uid == 0 {
+		writeErr(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	idStr := r.PathValue("id")
+	var sess models.Session
+	if err := h.db.Where("id = ? AND user_id = ?", idStr, uid).First(&sess).Error; err != nil {
+		writeErr(w, http.StatusNotFound, "session not found")
+		return
+	}
+	h.db.Delete(&sess)
+	// Bump epoch to revoke all outstanding cookies, then re-issue for caller.
+	if err := h.db.Model(&models.User{}).Where("id = ?", uid).
+		UpdateColumn("session_epoch", gorm.Expr("session_epoch + 1")).Error; err != nil {
+		writeErr(w, http.StatusInternalServerError, "failed to revoke session")
+		return
+	}
+	// Delete all remaining session records too.
+	h.db.Where("user_id = ?", uid).Delete(&models.Session{})
+	// Re-issue a fresh session cookie for the current operator.
+	orgID := h.auth.OrgID(r)
+	h.auth.SetSession(w, uid, orgID)
+	// Create a new session record for this re-login.
+	go h.createSessionRecord(r, uid)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "reissued": true})
 }
 
 // bootstrapOrgID returns the ID of the admin's own org, creating it if it

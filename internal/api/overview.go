@@ -12,6 +12,7 @@ import (
 // Query param: includeBot=true — when present, bot clicks are counted alongside
 // human clicks so the caller can compare bot vs human traffic.
 func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
+	go h.touchSession(h.auth.UserID(r))
 	now := time.Now()
 	since30 := now.AddDate(0, 0, -30)
 	since7 := now.AddDate(0, 0, -7)

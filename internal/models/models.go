@@ -55,6 +55,18 @@ type User struct {
 	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
+// Session records a login event for display in the "active sessions" UI.
+// Validity is still governed by the cookie's SessionEpoch; this table is
+// for listing and approximate per-row revocation.
+type Session struct {
+	ID         uint      `gorm:"primaryKey" json:"id"`
+	UserID     uint      `gorm:"not null;index" json:"userId"`
+	IP         string    `gorm:"size:64" json:"ip"`
+	UserAgent  string    `gorm:"size:512" json:"userAgent"`
+	LastSeenAt time.Time `json:"lastSeenAt"`
+	CreatedAt  time.Time `json:"createdAt"`
+}
+
 // OrgMember links a User to an Org with a role.
 type OrgMember struct {
 	OrgID  uint   `gorm:"primaryKey;index:idx_org_user,unique" json:"orgId"`
@@ -434,6 +446,6 @@ func AllModels() []any {
 		&Org{}, &User{}, &OrgMember{}, &UserSetting{},
 		&ProviderAccount{}, &Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{},
 		&Token{}, &Setting{}, &SMTPSender{}, &NotificationChannel{},
-		&AbuseReport{}, &AuditLog{}, &Webhook{},
+		&AbuseReport{}, &AuditLog{}, &Webhook{}, &Session{},
 	}
 }

@@ -68,6 +68,15 @@ export interface LicenseStatus {
   envOverride: boolean;
 }
 
+export interface SessionRecord {
+  id: number;
+  userId: number;
+  ip: string;
+  userAgent: string;
+  lastSeenAt: string;
+  createdAt: string;
+}
+
 export interface LicenseActivateResult {
   ok: boolean;
   tier: string;
@@ -526,6 +535,8 @@ export const api = {
     req<{ ok: boolean }>("POST", "/api/auth/2fa/verify", { username, password, code }),
   logout: () => req<{ ok: boolean }>("POST", "/api/auth/logout"),
   logoutAll: () => req<{ ok: boolean }>("POST", "/api/auth/logout-all"),
+  sessions: () => req<SessionRecord[]>("GET", "/api/auth/sessions"),
+  revokeSession: (id: number) => req<{ ok: boolean; reissued: boolean }>("DELETE", `/api/auth/sessions/${id}`),
   acceptInvite: (token: string, password: string) =>
     req<{ ok: boolean }>("POST", "/api/auth/invite/accept", { token, password }),
 

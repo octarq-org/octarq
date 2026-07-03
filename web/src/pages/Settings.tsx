@@ -347,6 +347,89 @@ function GeneralSettings() {
 
 // SecuritySettings manages operator-account security: TOTP two-factor
 // enrollment, "log out everywhere" session revocation, and SSO configuration.
+
+// Minimal UA parser — no external deps.
+function parseUA(ua: string): { browser: string; os: string } {
+  if (!ua) return { browser: "Unknown", os: "" };
+  let browser = "Browser";
+  let os = "";
+  if (ua.includes("Edg/")) browser = "Microsoft Edge";
+  else if (ua.includes("OPR/") || ua.includes("Opera")) browser = "Opera";
+  else if (ua.includes("Chrome")) browser = "Chrome";
+  else if (ua.includes("Firefox")) browser = "Firefox";
+  else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Safari";
+  else if (ua.includes("curl")) browser = "curl / API";
+  if (ua.includes("Windows")) os = "Windows";
+  else if (ua.includes("Mac OS X")) os = "macOS";
+  else if (ua.includes("Linux")) os = "Linux";
+  else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
+  else if (ua.includes("Android")) os = "Android";
+  return { browser, os };
+}
+
+function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [revoking, setRevoking] = useState<number | null>(null);
+
+  function load() {
+    setLoading(true);
+    api.sessions().then(setSessions).catch(() => setSessions([])).finally(() => setLoading(false));
+  }
+  useEffect(() => { load(); }, []);
+
+  async function revoke(id: number) {
+    if (!confirm("Revoke this session? All devices will be signed out and you'll be re-authenticated.")) return;
+    setRevoking(id);
+    try {
+      const r = await api.revokeSession(id);
+      if (r.reissued) {
+        // Fresh cookie re-issued — page still works; reload session list.
+        load();
+      }
+    } catch (e: any) {
+      alert(e.message || "Revoke failed");
+    } finally {
+      setRevoking(null);
+    }
+  }
+
+  if (loading) return <div className="text-xs text-white/40 py-4 text-center">Loading sessions…</div>;
+  if (sessions.length === 0) return <div className="text-xs text-white/40 py-4 text-center">No session records found.</div>;
+
+  return (
+    <div className="divide-y divide-white/[0.04] rounded-xl border border-white/[0.05] overflow-hidden">
+      {sessions.map((s, i) => {
+        const ua = parseUA(s.userAgent);
+        return (
+          <div key={s.id} className="flex items-center gap-3 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-white/85">{ua.browser}</span>
+                {i === 0 && <Badge tone="green">Current</Badge>}
+                <span className="text-xs text-white/35">{ua.os}</span>
+              </div>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-xs font-mono text-white/40">{s.ip}</span>
+                <span className="text-xs text-white/30">Last seen {timeAgo(s.lastSeenAt)}</span>
+                <span className="text-xs text-white/25">Signed in {timeAgo(s.createdAt)}</span>
+              </div>
+            </div>
+            <Button
+              variant="danger"
+              onClick={() => revoke(s.id)}
+              disabled={revoking === s.id}
+              className="text-xs py-1 px-2.5 shrink-0"
+            >
+              {revoking === s.id ? "…" : "Revoke"}
+            </Button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function SecuritySettings() {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -508,9 +591,14 @@ function SecuritySettings() {
       </GlassCard>
 
       <GlassCard className="p-6 space-y-4">
-        <h2 className="text-base font-bold text-white">Active sessions</h2>
-        <p className="text-xs text-white/50">Sign out of every device and browser where you're logged in — useful if you've lost a device. You'll be signed out here too.</p>
-        <Button variant="danger" onClick={logoutAll} disabled={busy}>Sign out of all devices</Button>
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-white">Active sessions</h2>
+          <Button variant="danger" onClick={logoutAll} disabled={busy} className="text-xs py-1 px-3">
+            Sign out of all
+          </Button>
+        </div>
+        <p className="text-xs text-white/50">All devices where you're currently signed in. Revoking any session invalidates all cookies and re-authenticates you here.</p>
+        <SessionsList onRevokeAll={logoutAll} />
       </GlassCard>
 
       <GlassCard className="p-6 space-y-6">

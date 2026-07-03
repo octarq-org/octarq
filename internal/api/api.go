@@ -227,6 +227,8 @@ func (h *Handler) Routes() *http.ServeMux {
 
 	// Operator account security: session revocation + TOTP 2FA.
 	p("POST /api/auth/logout-all", h.logoutAll)
+	p("GET /api/auth/sessions", h.listSessions)
+	p("DELETE /api/auth/sessions/{id}", h.revokeSession)
 	p("GET /api/auth/2fa/status", h.twoFAStatus)
 	p("POST /api/auth/2fa/setup", h.setup2FA)
 	p("POST /api/auth/2fa/enable", h.enable2FA)
