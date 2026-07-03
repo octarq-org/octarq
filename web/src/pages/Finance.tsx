@@ -219,7 +219,7 @@ export default function FinancePage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="FinOps"
+        title="Bookkeeping"
         description="Consolidated subscription expense ledger & cash flow tracking"
         action={
           <Button variant="primary" onClick={() => setShowAddModal(true)} className="gap-1">

@@ -1432,7 +1432,7 @@ func main() {
 					"properties": map[string]any{
 						"reservedSlugs":         map[string]any{"type": "string", "example": "admin\napi\nassets"},
 						"reservedMailboxes":     map[string]any{"type": "string", "example": "abuse\npostmaster"},
-						"builtinReserved":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "example": []string{"admin", "api", "assets"}},
+						"builtinReserved":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "example": []string{"admin", "api", "assets", "portal"}},
 						"cloudflareTokenSet":    map[string]any{"type": "boolean", "example": true},
 						"inboundToken":          map[string]any{"type": "string", "example": "secret_inbound_token"},
 						"catchAll":              map[string]any{"type": "boolean", "example": false},

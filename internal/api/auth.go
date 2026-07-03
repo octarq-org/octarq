@@ -139,11 +139,29 @@ func (h *Handler) listSessions(w http.ResponseWriter, r *http.Request) {
 	currID := h.auth.SessionID(r)
 	type row struct {
 		models.Session
-		IsCurrent bool `json:"isCurrent"`
+		IsCurrent bool   `json:"isCurrent"`
+		Location  string `json:"location,omitempty"`
 	}
 	out := make([]row, len(sessions))
 	for i, s := range sessions {
-		out[i] = row{Session: s, IsCurrent: s.ID == currID}
+		var location string
+		if s.IP == "::1" || s.IP == "127.0.0.1" {
+			location = "Localhost"
+		} else if h.geo != nil {
+			country, _, city := h.geo.Locate(s.IP)
+			if city != "" && country != "" {
+				location = city + ", " + country
+			} else if country != "" {
+				location = country
+			} else if city != "" {
+				location = city
+			}
+		}
+		out[i] = row{
+			Session:   s,
+			IsCurrent: s.ID == currID,
+			Location:  location,
+		}
 	}
 	writeJSON(w, http.StatusOK, out)
 }

@@ -414,7 +414,7 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
                 <span className="text-xs text-white/35">{ua.os}</span>
               </div>
               <div className="flex items-center gap-3 mt-1">
-                <span className="text-xs font-mono text-white/40">{s.ip}</span>
+                <span className="text-xs text-white/40">{s.location ? `${s.location} (${s.ip})` : s.ip}</span>
                 <span className="text-xs text-white/30">Last seen {timeAgo(s.lastSeenAt)}</span>
                 <span className="text-xs text-white/25">Signed in {timeAgo(s.createdAt)}</span>
               </div>
@@ -639,15 +639,14 @@ function SecuritySettings() {
 export function LinkSettings() {
   const { s } = useSettingsData();
   const [reservedSlugs, setReservedSlugs] = useState("");
-  const [autoWrap, setAutoWrap] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => { if (s) { setReservedSlugs(s.reservedSlugs); setAutoWrap(s.autoWrapLinks || false); } }, [s]);
+  useEffect(() => { if (s) { setReservedSlugs(s.reservedSlugs); } }, [s]);
 
   async function save() {
     setBusy(true);
-    try { await api.updateSettings({ reservedSlugs, autoWrapLinks: autoWrap }); setSaved(true); setTimeout(() => setSaved(false), 2000); }
+    try { await api.updateSettings({ reservedSlugs }); setSaved(true); setTimeout(() => setSaved(false), 2000); }
     finally { setBusy(false); }
   }
   if (!s) return <div className="text-sm text-white/40">loading…</div>;
@@ -661,13 +660,6 @@ export function LinkSettings() {
       <Field label="Reserved Short Link Slugs" hint={`Slugs users cannot register. Built-in: ${s.builtinReserved.join(", ")}.`}>
         <textarea className="input w-full font-mono text-xs" rows={3} value={reservedSlugs} onChange={(e) => setReservedSlugs(e.target.value)} placeholder="pricing&#10;login&#10;about" />
       </Field>
-      <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
-        <Toggle on={autoWrap} onChange={setAutoWrap} />
-        <div>
-          <span className="block select-none text-xs font-semibold text-white/70">Auto Wrap Outbound Links</span>
-          <span className="select-none text-[10px] text-white/40">When sending mail, detect external URLs and wrap them as short links for click analytics.</span>
-        </div>
-      </div>
       <div className="border-t border-white/[0.06] pt-4 flex justify-end">
         <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save Settings"}</Button>
       </div>
@@ -680,14 +672,15 @@ export function MailSettings() {
   const [reservedMailboxes, setReservedMailboxes] = useState("");
   const [inboundToken, setInboundToken] = useState("");
   const [catchAll, setCatchAll] = useState(false);
+  const [autoWrap, setAutoWrap] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => { if (s) { setReservedMailboxes(s.reservedMailboxes); setInboundToken(s.inboundToken || ""); setCatchAll(s.catchAll || false); } }, [s]);
+  useEffect(() => { if (s) { setReservedMailboxes(s.reservedMailboxes); setInboundToken(s.inboundToken || ""); setCatchAll(s.catchAll || false); setAutoWrap(s.autoWrapLinks || false); } }, [s]);
 
   async function save() {
     setBusy(true);
-    try { await api.updateSettings({ reservedMailboxes, inboundToken, catchAll }); setSaved(true); setTimeout(() => setSaved(false), 2000); }
+    try { await api.updateSettings({ reservedMailboxes, inboundToken, catchAll, autoWrapLinks: autoWrap }); setSaved(true); setTimeout(() => setSaved(false), 2000); }
     finally { setBusy(false); }
   }
   if (!s) return <div className="text-sm text-white/40">loading…</div>;
@@ -717,6 +710,13 @@ export function MailSettings() {
         <div>
           <span className="block select-none text-xs font-semibold text-white/70">Enable Catch-All routing</span>
           <span className="select-none text-[10px] text-white/40">Auto-provision a local inbox when mail arrives for an unknown managed alias.</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
+        <Toggle on={autoWrap} onChange={setAutoWrap} />
+        <div>
+          <span className="block select-none text-xs font-semibold text-white/70">Auto Wrap Outbound Links</span>
+          <span className="select-none text-[10px] text-white/40">When sending mail, detect external URLs and wrap them as short links for click analytics.</span>
         </div>
       </div>
       <div className="border-t border-white/[0.06] pt-4 flex justify-end">

@@ -120,7 +120,7 @@ const STATIC_AREAS: Area[] = [
       {
         label: "Billing",
         items: [
-          { id: "billing",    label: "Invoices",   Icon: CreditCard, path: "/billing" },
+          { id: "billing",    label: "Billing",    Icon: CreditCard, path: "/billing" },
         ],
       },
       {
@@ -923,7 +923,7 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
 
         {err && <p className="mb-3 text-sm text-rose-400">{err}</p>}
 
-        <button className="btn-primary w-full" disabled={busy}>
+        <button type="submit" className="btn-primary w-full" disabled={busy}>
           {busy ? "…" : needs2FA ? "Verify" : "Sign in"}
         </button>
 

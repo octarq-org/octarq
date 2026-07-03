@@ -41,7 +41,7 @@ const DefaultRetentionDays = 90
 
 // Slugs that can never be short links because they collide with reserved
 // top-level routes.
-var builtinReservedSlugs = map[string]bool{"admin": true, "api": true, "assets": true}
+var builtinReservedSlugs = map[string]bool{"admin": true, "api": true, "assets": true, "portal": true}
 
 func (h *Handler) getSetting(key string) string {
 	var s models.Setting
@@ -131,7 +131,7 @@ func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"reservedSlugs":         h.getSetting(keyReservedSlugs),
 		"reservedMailboxes":     h.getSetting(keyReservedMailboxes),
-		"builtinReserved":       []string{"admin", "api", "assets"},
+		"builtinReserved":       []string{"admin", "api", "assets", "portal"},
 		"cloudflareTokenSet":    h.getSetting(keyCloudflareToken) != "",
 		"orgSlug":               org.Slug,
 		"inboundToken":          org.InboundToken,
