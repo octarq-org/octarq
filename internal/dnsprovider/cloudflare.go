@@ -1,16 +1,12 @@
 package dnsprovider
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"time"
-)
 
-const cfAPIBase = "https://api.cloudflare.com/client/v4"
+	"github.com/cloudflare/cloudflare-go"
+)
 
 func init() {
 	Register("cloudflare", func(creds []byte) (Provider, error) {
@@ -21,7 +17,11 @@ func init() {
 		if c.APIToken == "" {
 			return nil, fmt.Errorf("cloudflare: apiToken required")
 		}
-		return &Cloudflare{token: c.APIToken, hc: &http.Client{Timeout: 15 * time.Second}}, nil
+		api, err := cloudflare.NewWithAPIToken(c.APIToken)
+		if err != nil {
+			return nil, fmt.Errorf("cloudflare: initialize api client: %w", err)
+		}
+		return &Cloudflare{api: api}, nil
 	})
 }
 
@@ -29,174 +29,169 @@ type cfCreds struct {
 	APIToken string `json:"apiToken"`
 }
 
-// Cloudflare implements Provider against the Cloudflare API v4.
+// Cloudflare implements Provider using the official Cloudflare Go SDK.
 type Cloudflare struct {
-	token string
-	base  string
-	hc    *http.Client
-}
-
-type cfResp struct {
-	Success bool            `json:"success"`
-	Errors  []cfError       `json:"errors"`
-	Result  json.RawMessage `json:"result"`
-}
-
-type cfError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
-
-func (e cfError) String() string { return fmt.Sprintf("%d: %s", e.Code, e.Message) }
-
-func (c *Cloudflare) do(ctx context.Context, method, path string, body any) (json.RawMessage, error) {
-	var buf io.Reader
-	if body != nil {
-		b, err := json.Marshal(body)
-		if err != nil {
-			return nil, err
-		}
-		buf = bytes.NewReader(b)
-	}
-	base := c.base
-	if base == "" {
-		base = cfAPIBase
-	}
-	req, err := http.NewRequestWithContext(ctx, method, base+path, buf)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.hc.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	var out cfResp
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, fmt.Errorf("cloudflare: decode response: %w", err)
-	}
-	if !out.Success {
-		if len(out.Errors) > 0 {
-			return nil, fmt.Errorf("cloudflare: %s", out.Errors[0].String())
-		}
-		return nil, fmt.Errorf("cloudflare: request failed (HTTP %d)", resp.StatusCode)
-	}
-	return out.Result, nil
-}
-
-type cfRecord struct {
-	ID       string `json:"id,omitempty"`
-	Type     string `json:"type"`
-	Name     string `json:"name"`
-	Content  string `json:"content"`
-	TTL      int    `json:"ttl,omitempty"`
-	Proxied  bool   `json:"proxied"`
-	Comment  string `json:"comment"`
-	Priority *int   `json:"priority,omitempty"`
-}
-
-func toCF(r Record) cfRecord {
-	ttl := r.TTL
-	if ttl == 0 {
-		ttl = 1 // 1 = automatic in Cloudflare
-	}
-	return cfRecord{
-		ID: r.ID, Type: r.Type, Name: r.Name, Content: r.Content,
-		TTL: ttl, Proxied: r.Proxied, Comment: r.Comment, Priority: r.Priority,
-	}
-}
-
-func fromCF(r cfRecord) Record {
-	return Record{
-		ID: r.ID, Type: r.Type, Name: r.Name, Content: r.Content,
-		TTL: r.TTL, Proxied: r.Proxied, Comment: r.Comment, Priority: r.Priority,
-	}
+	api *cloudflare.API
 }
 
 func (c *Cloudflare) ListZones(ctx context.Context) ([]Zone, error) {
 	var zones []Zone
-	for page := 1; ; page++ {
-		raw, err := c.do(ctx, http.MethodGet, fmt.Sprintf("/zones?per_page=50&page=%d", page), nil)
-		if err != nil {
-			return nil, err
-		}
-		var batch []struct {
-			ID   string `json:"id"`
-			Name string `json:"name"`
-		}
-		if err := json.Unmarshal(raw, &batch); err != nil {
-			return nil, err
-		}
-		for _, z := range batch {
-			zones = append(zones, Zone{ID: z.ID, Name: z.Name})
-		}
-		if len(batch) < 50 {
-			break
-		}
-		if page >= 50 { // safety bound
-			break
-		}
+	cfZones, err := c.api.ListZones(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cloudflare: list zones: %w", err)
+	}
+	for _, z := range cfZones {
+		zones = append(zones, Zone{ID: z.ID, Name: z.Name})
 	}
 	return zones, nil
 }
 
 func (c *Cloudflare) ListRecords(ctx context.Context, zoneID string) ([]Record, error) {
-	raw, err := c.do(ctx, http.MethodGet, "/zones/"+zoneID+"/dns_records?per_page=500", nil)
-	if err != nil {
-		return nil, err
+	rc := cloudflare.ZoneIdentifier(zoneID)
+	var records []Record
+	params := cloudflare.ListDNSRecordsParams{}
+	params.PerPage = 100
+
+	for {
+		cfRecs, resultInfo, err := c.api.ListDNSRecords(ctx, rc, params)
+		if err != nil {
+			return nil, fmt.Errorf("cloudflare: list records: %w", err)
+		}
+		for _, r := range cfRecs {
+			var priority *int
+			if r.Priority != nil {
+				pVal := int(*r.Priority)
+				priority = &pVal
+			}
+			proxied := false
+			if r.Proxied != nil {
+				proxied = *r.Proxied
+			}
+			records = append(records, Record{
+				ID:       r.ID,
+				Type:     r.Type,
+				Name:     r.Name,
+				Content:  r.Content,
+				TTL:      r.TTL,
+				Proxied:  proxied,
+				Comment:  r.Comment,
+				Priority: priority,
+			})
+		}
+		if resultInfo == nil || resultInfo.Page >= resultInfo.TotalPages || len(cfRecs) == 0 {
+			break
+		}
+		params.Page = resultInfo.Page + 1
 	}
-	var recs []cfRecord
-	if err := json.Unmarshal(raw, &recs); err != nil {
-		return nil, err
-	}
-	out := make([]Record, len(recs))
-	for i, r := range recs {
-		out[i] = fromCF(r)
-	}
-	return out, nil
+	return records, nil
 }
 
 func (c *Cloudflare) CreateRecord(ctx context.Context, zoneID string, r Record) (Record, error) {
-	raw, err := c.do(ctx, http.MethodPost, "/zones/"+zoneID+"/dns_records", toCF(r))
+	rc := cloudflare.ZoneIdentifier(zoneID)
+
+	var priority *uint16
+	if r.Priority != nil {
+		pVal := uint16(*r.Priority)
+		priority = &pVal
+	}
+
+	params := cloudflare.CreateDNSRecordParams{
+		Type:     r.Type,
+		Name:     r.Name,
+		Content:  r.Content,
+		TTL:      r.TTL,
+		Proxied:  &r.Proxied,
+		Priority: priority,
+		Comment:  r.Comment,
+	}
+
+	cfRec, err := c.api.CreateDNSRecord(ctx, rc, params)
 	if err != nil {
-		return Record{}, err
+		return Record{}, fmt.Errorf("cloudflare: create record: %w", err)
 	}
-	var out cfRecord
-	if err := json.Unmarshal(raw, &out); err != nil {
-		return Record{}, err
+
+	var resPriority *int
+	if cfRec.Priority != nil {
+		pVal := int(*cfRec.Priority)
+		resPriority = &pVal
 	}
-	return fromCF(out), nil
+	proxied := false
+	if cfRec.Proxied != nil {
+		proxied = *cfRec.Proxied
+	}
+
+	return Record{
+		ID:       cfRec.ID,
+		Type:     cfRec.Type,
+		Name:     cfRec.Name,
+		Content:  cfRec.Content,
+		TTL:      cfRec.TTL,
+		Proxied:  proxied,
+		Comment:  cfRec.Comment,
+		Priority: resPriority,
+	}, nil
 }
 
 func (c *Cloudflare) UpdateRecord(ctx context.Context, zoneID string, r Record) (Record, error) {
-	raw, err := c.do(ctx, http.MethodPut, "/zones/"+zoneID+"/dns_records/"+r.ID, toCF(r))
+	rc := cloudflare.ZoneIdentifier(zoneID)
+
+	var priority *uint16
+	if r.Priority != nil {
+		pVal := uint16(*r.Priority)
+		priority = &pVal
+	}
+
+	params := cloudflare.UpdateDNSRecordParams{
+		ID:       r.ID,
+		Type:     r.Type,
+		Name:     r.Name,
+		Content:  r.Content,
+		TTL:      r.TTL,
+		Proxied:  &r.Proxied,
+		Priority: priority,
+		Comment:  &r.Comment,
+	}
+
+	cfRec, err := c.api.UpdateDNSRecord(ctx, rc, params)
 	if err != nil {
-		return Record{}, err
+		return Record{}, fmt.Errorf("cloudflare: update record: %w", err)
 	}
-	var out cfRecord
-	if err := json.Unmarshal(raw, &out); err != nil {
-		return Record{}, err
+
+	var resPriority *int
+	if cfRec.Priority != nil {
+		pVal := int(*cfRec.Priority)
+		resPriority = &pVal
 	}
-	return fromCF(out), nil
+	proxied := false
+	if cfRec.Proxied != nil {
+		proxied = *cfRec.Proxied
+	}
+
+	return Record{
+		ID:       cfRec.ID,
+		Type:     cfRec.Type,
+		Name:     cfRec.Name,
+		Content:  cfRec.Content,
+		TTL:      cfRec.TTL,
+		Proxied:  proxied,
+		Comment:  cfRec.Comment,
+		Priority: resPriority,
+	}, nil
 }
 
 func (c *Cloudflare) DeleteRecord(ctx context.Context, zoneID, recordID string) error {
-	_, err := c.do(ctx, http.MethodDelete, "/zones/"+zoneID+"/dns_records/"+recordID, nil)
-	return err
+	rc := cloudflare.ZoneIdentifier(zoneID)
+	err := c.api.DeleteDNSRecord(ctx, rc, recordID)
+	if err != nil {
+		return fmt.Errorf("cloudflare: delete record: %w", err)
+	}
+	return nil
 }
 
 func (c *Cloudflare) VerifyZone(ctx context.Context, zoneID string) (string, error) {
-	raw, err := c.do(ctx, http.MethodGet, "/zones/"+zoneID, nil)
+	zone, err := c.api.ZoneDetails(ctx, zoneID)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("cloudflare: verify zone: %w", err)
 	}
-	var z struct {
-		Name string `json:"name"`
-	}
-	if err := json.Unmarshal(raw, &z); err != nil {
-		return "", err
-	}
-	return z.Name, nil
+	return zone.Name, nil
 }

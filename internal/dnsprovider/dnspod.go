@@ -4,17 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
-	"time"
-)
 
-// dnspodAPIBase is the default base URL for the legacy DNSPod (dnsapi.cn) API.
-// It is a package var so tests can point the provider at an httptest server.
-var dnspodAPIBase = "https://dnsapi.cn"
+	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
+	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
+	dnspod "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/dnspod/v20210323"
+)
 
 func init() {
 	Register("dnspod", func(creds []byte) (Provider, error) {
@@ -22,16 +18,30 @@ func init() {
 		if err := json.Unmarshal(creds, &c); err != nil {
 			return nil, fmt.Errorf("parse dnspod creds: %w", err)
 		}
-		// Accept either the legacy combined login token ("ID,TOKEN") or the
-		// split secretId/secretKey fields, which we join into the same form.
-		loginToken := strings.TrimSpace(c.Token)
-		if loginToken == "" && c.SecretID != "" && c.SecretKey != "" {
-			loginToken = c.SecretID + "," + c.SecretKey
+
+		var secretID, secretKey string
+		if c.SecretID != "" && c.SecretKey != "" {
+			secretID = c.SecretID
+			secretKey = c.SecretKey
+		} else if c.Token != "" {
+			parts := strings.Split(c.Token, ",")
+			if len(parts) == 2 {
+				secretID = parts[0]
+				secretKey = parts[1]
+			}
 		}
-		if loginToken == "" {
-			return nil, fmt.Errorf("dnspod: token (\"id,token\") or secretId/secretKey required")
+
+		if secretID == "" || secretKey == "" {
+			return nil, fmt.Errorf("dnspod: secretId and secretKey (or legacy token) required")
 		}
-		return &DNSPod{loginToken: loginToken, base: dnspodAPIBase, hc: &http.Client{Timeout: 15 * time.Second}}, nil
+
+		credential := common.NewCredential(secretID, secretKey)
+		cpf := profile.NewClientProfile()
+		client, err := dnspod.NewClient(credential, "", cpf)
+		if err != nil {
+			return nil, fmt.Errorf("dnspod: initialize client: %w", err)
+		}
+		return &DNSPod{client: client}, nil
 	})
 }
 
@@ -41,219 +51,205 @@ type dpCreds struct {
 	SecretKey string `json:"secretKey"`
 }
 
-// DNSPod implements Provider against the legacy DNSPod login-token API
-// (https://dnsapi.cn). Zones are identified by their DNSPod numeric domain_id,
-// which callers store as the domain's ZoneID.
+// DNSPod implements Provider using the official Tencent Cloud DNSPod Go SDK.
 type DNSPod struct {
-	loginToken string
-	base       string
-	hc         *http.Client
-}
-
-// dpStatus is the common status envelope returned by every dnsapi.cn endpoint.
-type dpStatus struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-// post performs a form POST to a dnsapi.cn endpoint, decoding into v. The
-// login_token and format params are added automatically.
-func (d *DNSPod) post(ctx context.Context, path string, form url.Values, v any) error {
-	if form == nil {
-		form = url.Values{}
-	}
-	form.Set("login_token", d.loginToken)
-	form.Set("format", "json")
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, d.base+path, strings.NewReader(form.Encode()))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	resp, err := d.hc.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(body, v); err != nil {
-		return fmt.Errorf("dnspod: decode response: %w", err)
-	}
-	return nil
-}
-
-// dpRecord is a DNSPod record as returned by Record.List.
-type dpRecord struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Type   string `json:"type"`
-	Value  string `json:"value"`
-	TTL    string `json:"ttl"`
-	MX     string `json:"mx"`
-	Remark string `json:"remark"`
-}
-
-func dpToRecord(r dpRecord) Record {
-	out := Record{
-		ID:      r.ID,
-		Type:    r.Type,
-		Name:    r.Name,
-		Content: r.Value,
-		Comment: r.Remark,
-	}
-	if ttl, err := strconv.Atoi(r.TTL); err == nil {
-		out.TTL = ttl
-	}
-	if mx, err := strconv.Atoi(r.MX); err == nil && mx > 0 {
-		out.Priority = &mx
-	}
-	return out
+	client *dnspod.Client
 }
 
 func (d *DNSPod) ListZones(ctx context.Context) ([]Zone, error) {
-	var out struct {
-		Status  dpStatus `json:"status"`
-		Domains []struct {
-			ID   json.Number `json:"id"`
-			Name string      `json:"name"`
-		} `json:"domains"`
+	req := dnspod.NewDescribeDomainListRequest()
+	resp, err := d.client.DescribeDomainListWithContext(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("dnspod: list domains: %w", err)
 	}
-	if err := d.post(ctx, "/Domain.List", url.Values{}, &out); err != nil {
-		return nil, err
-	}
-	if out.Status.Code != "1" {
-		return nil, fmt.Errorf("dnspod: %s", out.Status.Message)
-	}
-	zones := make([]Zone, len(out.Domains))
-	for i, z := range out.Domains {
-		zones[i] = Zone{ID: z.ID.String(), Name: z.Name}
+	var zones []Zone
+	if resp.Response != nil {
+		for _, dm := range resp.Response.DomainList {
+			if dm.DomainId != nil && dm.Name != nil {
+				zones = append(zones, Zone{
+					ID:   strconv.FormatUint(*dm.DomainId, 10),
+					Name: *dm.Name,
+				})
+			}
+		}
 	}
 	return zones, nil
 }
 
 func (d *DNSPod) ListRecords(ctx context.Context, zoneID string) ([]Record, error) {
-	var out struct {
-		Status  dpStatus   `json:"status"`
-		Records []dpRecord `json:"records"`
+	req := dnspod.NewDescribeRecordListRequest()
+	zID, err := strconv.ParseUint(zoneID, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("dnspod: invalid zoneID %q: %w", zoneID, err)
 	}
-	form := url.Values{}
-	form.Set("domain_id", zoneID)
-	if err := d.post(ctx, "/Record.List", form, &out); err != nil {
-		return nil, err
-	}
-	// Code "10" means "no records", which is not an error.
-	if out.Status.Code != "1" && out.Status.Code != "10" {
-		return nil, fmt.Errorf("dnspod: %s", out.Status.Message)
-	}
-	recs := make([]Record, len(out.Records))
-	for i, r := range out.Records {
-		recs[i] = dpToRecord(r)
-	}
-	return recs, nil
-}
+	req.DomainId = &zID
 
-// recordForm builds the shared form fields for create/modify.
-func recordForm(zoneID string, r Record) url.Values {
-	form := url.Values{}
-	form.Set("domain_id", zoneID)
-	form.Set("sub_domain", subDomain(r.Name))
-	form.Set("record_type", r.Type)
-	form.Set("record_line", "默认") // "default" line
-	form.Set("value", r.Content)
-	if r.TTL > 0 {
-		form.Set("ttl", strconv.Itoa(r.TTL))
-	}
-	if r.Priority != nil {
-		form.Set("mx", strconv.Itoa(*r.Priority))
-	}
-	if r.Comment != "" {
-		form.Set("remark", r.Comment)
-	}
-	return form
-}
+	limit := uint64(3000)
+	req.Limit = &limit
 
-// subDomain reduces a full record name to its host portion. DNSPod expects the
-// sub-domain (e.g. "www", or "@" for the apex). We pass the name through and let
-// callers send the host part; an empty name becomes "@".
-func subDomain(name string) string {
-	if name == "" {
-		return "@"
+	resp, err := d.client.DescribeRecordListWithContext(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("dnspod: list records: %w", err)
 	}
-	return name
+
+	var records []Record
+	if resp.Response != nil {
+		for _, r := range resp.Response.RecordList {
+			if r.RecordId == nil || r.Type == nil || r.Name == nil || r.Value == nil {
+				continue
+			}
+
+			var priority *int
+			if r.MX != nil && *r.MX > 0 {
+				pVal := int(*r.MX)
+				priority = &pVal
+			}
+
+			ttl := 600
+			if r.TTL != nil {
+				ttl = int(*r.TTL)
+			}
+
+			records = append(records, Record{
+				ID:       strconv.FormatUint(*r.RecordId, 10),
+				Type:     *r.Type,
+				Name:     *r.Name,
+				Content:  *r.Value,
+				TTL:      ttl,
+				Priority: priority,
+				Comment:  getPtrString(r.Remark),
+			})
+		}
+	}
+	return records, nil
 }
 
 func (d *DNSPod) CreateRecord(ctx context.Context, zoneID string, r Record) (Record, error) {
-	var out struct {
-		Status dpStatus `json:"status"`
-		Record struct {
-			ID     json.Number `json:"id"`
-			Name   string      `json:"name"`
-			Value  string      `json:"value"`
-			Status string      `json:"status"`
-		} `json:"record"`
+	req := dnspod.NewCreateRecordRequest()
+	zID, err := strconv.ParseUint(zoneID, 10, 64)
+	if err != nil {
+		return Record{}, fmt.Errorf("dnspod: invalid zoneID %q: %w", zoneID, err)
 	}
-	if err := d.post(ctx, "/Record.Create", recordForm(zoneID, r), &out); err != nil {
-		return Record{}, err
+	req.DomainId = &zID
+	req.RecordType = &r.Type
+	req.SubDomain = &r.Name
+	req.Value = &r.Content
+
+	ttlVal := uint64(r.TTL)
+	if ttlVal > 0 {
+		req.TTL = &ttlVal
 	}
-	if out.Status.Code != "1" {
-		return Record{}, fmt.Errorf("dnspod: %s", out.Status.Message)
+
+	if r.Priority != nil {
+		mxVal := uint64(*r.Priority)
+		req.MX = &mxVal
 	}
-	r.ID = out.Record.ID.String()
+	if r.Comment != "" {
+		req.Remark = &r.Comment
+	}
+
+	line := "默认"
+	req.RecordLine = &line
+
+	resp, err := d.client.CreateRecordWithContext(ctx, req)
+	if err != nil {
+		return Record{}, fmt.Errorf("dnspod: create record: %w", err)
+	}
+
+	if resp.Response == nil || resp.Response.RecordId == nil {
+		return Record{}, fmt.Errorf("dnspod: create record returned empty response")
+	}
+
+	r.ID = strconv.FormatUint(*resp.Response.RecordId, 10)
 	return r, nil
 }
 
 func (d *DNSPod) UpdateRecord(ctx context.Context, zoneID string, r Record) (Record, error) {
-	form := recordForm(zoneID, r)
-	form.Set("record_id", r.ID)
-	var out struct {
-		Status dpStatus `json:"status"`
-		Record struct {
-			ID    json.Number `json:"id"`
-			Name  string      `json:"name"`
-			Value string      `json:"value"`
-		} `json:"record"`
+	req := dnspod.NewModifyRecordRequest()
+	zID, err := strconv.ParseUint(zoneID, 10, 64)
+	if err != nil {
+		return Record{}, fmt.Errorf("dnspod: invalid zoneID %q: %w", zoneID, err)
 	}
-	if err := d.post(ctx, "/Record.Modify", form, &out); err != nil {
-		return Record{}, err
+	req.DomainId = &zID
+
+	rID, err := strconv.ParseUint(r.ID, 10, 64)
+	if err != nil {
+		return Record{}, fmt.Errorf("dnspod: invalid recordID %q: %w", r.ID, err)
 	}
-	if out.Status.Code != "1" {
-		return Record{}, fmt.Errorf("dnspod: %s", out.Status.Message)
+	req.RecordId = &rID
+	req.RecordType = &r.Type
+	req.SubDomain = &r.Name
+	req.Value = &r.Content
+
+	ttlVal := uint64(r.TTL)
+	if ttlVal > 0 {
+		req.TTL = &ttlVal
 	}
+
+	if r.Priority != nil {
+		mxVal := uint64(*r.Priority)
+		req.MX = &mxVal
+	}
+	if r.Comment != "" {
+		req.Remark = &r.Comment
+	}
+
+	line := "默认"
+	req.RecordLine = &line
+
+	_, err = d.client.ModifyRecordWithContext(ctx, req)
+	if err != nil {
+		return Record{}, fmt.Errorf("dnspod: update record: %w", err)
+	}
+
 	return r, nil
 }
 
 func (d *DNSPod) DeleteRecord(ctx context.Context, zoneID, recordID string) error {
-	form := url.Values{}
-	form.Set("domain_id", zoneID)
-	form.Set("record_id", recordID)
-	var out struct {
-		Status dpStatus `json:"status"`
+	req := dnspod.NewDeleteRecordRequest()
+	zID, err := strconv.ParseUint(zoneID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("dnspod: invalid zoneID %q: %w", zoneID, err)
 	}
-	if err := d.post(ctx, "/Record.Remove", form, &out); err != nil {
-		return err
+	req.DomainId = &zID
+
+	rID, err := strconv.ParseUint(recordID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("dnspod: invalid recordID %q: %w", recordID, err)
 	}
-	if out.Status.Code != "1" {
-		return fmt.Errorf("dnspod: %s", out.Status.Message)
+	req.RecordId = &rID
+
+	_, err = d.client.DeleteRecordWithContext(ctx, req)
+	if err != nil {
+		return fmt.Errorf("dnspod: delete record: %w", err)
 	}
 	return nil
 }
 
 func (d *DNSPod) VerifyZone(ctx context.Context, zoneID string) (string, error) {
-	form := url.Values{}
-	form.Set("domain_id", zoneID)
-	var out struct {
-		Status dpStatus `json:"status"`
-		Domain struct {
-			Name string `json:"name"`
-		} `json:"domain"`
+	req := dnspod.NewDescribeDomainListRequest()
+	zID, err := strconv.ParseUint(zoneID, 10, 64)
+	if err != nil {
+		return "", fmt.Errorf("dnspod: invalid zoneID %q: %w", zoneID, err)
 	}
-	if err := d.post(ctx, "/Domain.Info", form, &out); err != nil {
-		return "", err
+
+	resp, err := d.client.DescribeDomainListWithContext(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("dnspod: verify zone: %w", err)
 	}
-	if out.Status.Code != "1" {
-		return "", fmt.Errorf("dnspod: %s", out.Status.Message)
+	if resp.Response != nil {
+		for _, dm := range resp.Response.DomainList {
+			if dm.DomainId != nil && *dm.DomainId == zID {
+				return *dm.Name, nil
+			}
+		}
 	}
-	return out.Domain.Name, nil
+	return "", fmt.Errorf("dnspod: zone ID %q not found", zoneID)
+}
+
+func getPtrString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

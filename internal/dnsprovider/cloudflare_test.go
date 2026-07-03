@@ -5,52 +5,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/cloudflare/cloudflare-go"
 )
-
-func TestToCFDefaultsTTL(t *testing.T) {
-	r := Record{Type: "A", Name: "x.example.com", Content: "1.2.3.4", Comment: "note"}
-	cf := toCF(r)
-	if cf.TTL != 1 {
-		t.Errorf("expected default TTL 1 (automatic), got %d", cf.TTL)
-	}
-	if cf.Comment != "note" {
-		t.Errorf("comment not mapped: %q", cf.Comment)
-	}
-}
-
-func TestToCFPreservesTTL(t *testing.T) {
-	if cf := toCF(Record{TTL: 300}); cf.TTL != 300 {
-		t.Errorf("expected TTL 300, got %d", cf.TTL)
-	}
-}
-
-func TestCFRoundtripMapping(t *testing.T) {
-	prio := 10
-	in := cfRecord{
-		ID: "id1", Type: "MX", Name: "example.com", Content: "mail.example.com",
-		TTL: 600, Proxied: false, Comment: "the note", Priority: &prio,
-	}
-	r := fromCF(in)
-	if r.ID != "id1" || r.Type != "MX" || r.Content != "mail.example.com" {
-		t.Errorf("fromCF basic fields wrong: %+v", r)
-	}
-	if r.Comment != "the note" {
-		t.Errorf("comment not mapped from CF: %q", r.Comment)
-	}
-	if r.Priority == nil || *r.Priority != 10 {
-		t.Errorf("priority not mapped from CF: %v", r.Priority)
-	}
-	// Round-trip back to CF preserves the user-supplied TTL.
-	if cf := toCF(r); cf.TTL != 600 {
-		t.Errorf("ttl lost on round-trip: %d", cf.TTL)
-	}
-}
 
 func newCloudflareServer(t *testing.T, handler http.HandlerFunc) *Cloudflare {
 	t.Helper()
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
-	return &Cloudflare{token: "test-token", base: srv.URL, hc: srv.Client()}
+	api, err := cloudflare.NewWithAPIToken("test-token", cloudflare.BaseURL(srv.URL), cloudflare.HTTPClient(srv.Client()))
+	if err != nil {
+		t.Fatalf("failed to initialize cloudflare api: %v", err)
+	}
+	return &Cloudflare{api: api}
 }
 
 func TestCloudflareListZones(t *testing.T) {
@@ -75,7 +42,7 @@ func TestCloudflareListRecords(t *testing.T) {
 		if r.URL.Path != "/zones/z1/dns_records" {
 			t.Errorf("path = %q", r.URL.Path)
 		}
-		w.Write([]byte(`{"success":true,"result":[{"id":"r1","type":"A","name":"www.example.com","content":"1.1.1.1","ttl":300}]}`))
+		w.Write([]byte(`{"success":true,"result":[{"id":"r1","type":"A","name":"www.example.com","content":"1.1.1.1","ttl":300}],"result_info":{"page":1,"per_page":100,"total_pages":1,"total_count":1}}`))
 	})
 
 	recs, err := c.ListRecords(context.Background(), "z1")
@@ -105,7 +72,7 @@ func TestCloudflareCreateRecord(t *testing.T) {
 
 func TestCloudflareUpdateRecord(t *testing.T) {
 	c := newCloudflareServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPut {
+		if r.Method != http.MethodPatch {
 			t.Errorf("method = %q", r.Method)
 		}
 		w.Write([]byte(`{"success":true,"result":{"id":"r2","type":"A","name":"test","content":"3.3.3.3"}}`))
@@ -158,7 +125,7 @@ func TestCloudflareFactoryRegistered(t *testing.T) {
 	if p == nil {
 		t.Fatal("nil provider")
 	}
-	
+
 	if _, err := New("cloudflare", []byte(`{}`)); err == nil {
 		t.Fatal("expected error for empty token")
 	}
