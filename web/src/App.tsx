@@ -895,7 +895,7 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
         </div>
 
         <label className="label">Username</label>
-        <input className="input mb-3" value={u} onChange={(e) => setU(e.target.value)} />
+        <input type="text" className="input mb-3" value={u} onChange={(e) => setU(e.target.value)} autoComplete="username" />
 
         <label className="label">Password</label>
         <input
@@ -903,8 +903,8 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
           className="input mb-4"
           value={p}
           onChange={(e) => setP(e.target.value)}
-          disabled={needs2FA}
-          autoFocus
+          autoComplete="current-password"
+          autoFocus={!needs2FA}
         />
 
         {needs2FA && (

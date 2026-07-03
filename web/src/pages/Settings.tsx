@@ -414,7 +414,13 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
                 <span className="text-xs text-white/35">{ua.os}</span>
               </div>
               <div className="flex items-center gap-3 mt-1">
-                <span className="text-xs text-white/40">{s.location ? `${s.location} (${s.ip})` : s.ip}</span>
+                <span className="text-xs text-white/40">
+                  {s.location === "Localhost"
+                    ? "Localhost"
+                    : s.location
+                    ? `${s.location} (${s.ip})`
+                    : s.ip}
+                </span>
                 <span className="text-xs text-white/30">Last seen {timeAgo(s.lastSeenAt)}</span>
                 <span className="text-xs text-white/25">Signed in {timeAgo(s.createdAt)}</span>
               </div>

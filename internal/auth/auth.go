@@ -81,20 +81,40 @@ func generateToken() string {
 	return hex.EncodeToString(b)
 }
 
-// SetSessionFromRequest creates a Session row (capturing IP and User-Agent)
-// and sets the session cookie. Use this on real login flows.
+// SetSessionFromRequest creates or refreshes a Session row (capturing IP and User-Agent)
+// and sets the session cookie. Logins from the same browser (same IP + User-Agent)
+// reuse the existing non-expired session instead of accumulating duplicates.
 func (m *Manager) SetSessionFromRequest(r *http.Request, w http.ResponseWriter, uid, orgID uint) {
+	ip := reporterIP(r)
+	ua := r.Header.Get("User-Agent")
 	token := generateToken()
+
 	if m.db != nil {
 		now := time.Now()
+		expires := now.Add(sessionTTL)
+
+		// Look for an existing non-expired session with the same fingerprint.
+		var existing models.Session
+		err := m.db.Where("user_id = ? AND ip = ? AND user_agent = ? AND expires_at > ?", uid, ip, ua, now).
+			First(&existing).Error
+		if err == nil {
+			// Refresh the existing session instead of creating a new one.
+			m.db.Model(&existing).Updates(map[string]any{
+				"last_seen_at": now,
+				"expires_at":   expires,
+			})
+			m.setCookie(w, existing.Token)
+			return
+		}
+
 		sess := models.Session{
 			UserID:     uid,
 			OrgID:      orgID,
 			Token:      token,
-			IP:         reporterIP(r),
-			UserAgent:  r.Header.Get("User-Agent"),
+			IP:         ip,
+			UserAgent:  ua,
 			LastSeenAt: now,
-			ExpiresAt:  now.Add(sessionTTL),
+			ExpiresAt:  expires,
 		}
 		m.db.Create(&sess)
 	}
