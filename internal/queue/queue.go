@@ -49,9 +49,18 @@ type task struct {
 // --- InMemoryQueue implementation ---
 
 type InMemoryQueue struct {
+	mu       sync.RWMutex
 	handlers map[string]Handler
 	ch       chan task
 	wg       sync.WaitGroup
+}
+
+// handler returns the registered handler for a task type under a read lock.
+func (q *InMemoryQueue) handler(taskType string) (Handler, bool) {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+	h, ok := q.handlers[taskType]
+	return h, ok
 }
 
 func newInMemoryQueue() *InMemoryQueue {
@@ -62,6 +71,8 @@ func newInMemoryQueue() *InMemoryQueue {
 }
 
 func (q *InMemoryQueue) Register(taskType string, h Handler) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 	q.handlers[taskType] = h
 }
 
@@ -76,7 +87,7 @@ func (q *InMemoryQueue) Start(ctx context.Context) error {
 					if !ok {
 						return
 					}
-					h, exists := q.handlers[t.Type]
+					h, exists := q.handler(t.Type)
 					if !exists {
 						log.Printf("queue: no handler registered for task type %q", t.Type)
 						continue
@@ -99,7 +110,7 @@ func (q *InMemoryQueue) Enqueue(ctx context.Context, taskType string, payload []
 		return nil
 	default:
 		// Queue full, fallback to instant goroutine execution
-		h, exists := q.handlers[taskType]
+		h, exists := q.handler(taskType)
 		if !exists {
 			return fmt.Errorf("queue: full and no handler registered for %q", taskType)
 		}
