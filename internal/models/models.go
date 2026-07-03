@@ -70,6 +70,10 @@ type Session struct {
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
+func (Session) TableName() string {
+	return "user_sessions"
+}
+
 // OrgMember links a User to an Org with a role.
 type OrgMember struct {
 	OrgID  uint   `gorm:"primaryKey;index:idx_org_user,unique" json:"orgId"`
