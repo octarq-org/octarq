@@ -2,6 +2,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net"
@@ -15,6 +16,8 @@ import (
 	"github.com/Jungley8/led/internal/auth"
 	"github.com/Jungley8/led/internal/crypto"
 	"github.com/Jungley8/led/internal/geo"
+	"github.com/Jungley8/led/internal/models"
+	"github.com/Jungley8/led/internal/queue"
 	"github.com/Jungley8/led/plugin"
 	"gorm.io/gorm"
 )
@@ -32,6 +35,7 @@ type Handler struct {
 	sendLimiter  *rateLimiter // outbound-email rate cap, keyed by org
 	plugins      []plugin.Plugin
 	lookupTXT    func(name string) ([]string, error)
+	queue        queue.Queue
 
 	// emailHandlers are notified after each inbound email is stored. They are
 	// registered by plugins via OnEmail and fired by emitEmail. Guarded by
@@ -68,13 +72,14 @@ func (h *Handler) emitEmail(e plugin.EmailEvent) {
 	}
 }
 
-func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *geo.Resolver) *Handler {
+func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *geo.Resolver, q queue.Queue) *Handler {
 	h := &Handler{
 		cfg:          cfg,
 		db:           db,
 		cipher:       c,
 		auth:         a,
 		geo:          g,
+		queue:        q,
 		loginLimiter: newRateLimiter(5, 15*time.Minute), // 5 fails / 15 mins
 		abuseLimiter: newRateLimiter(5, time.Hour),      // 5 reports / 1 hour
 		sendLimiter:  newRateLimiter(100, time.Hour),    // 100 outbound emails / org / hour
@@ -83,7 +88,34 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 	if cfg.BaseURL != "" {
 		h.oauth = auth.NewOAuthHandler(db, cfg.BaseURL, a, c)
 	}
+	h.registerQueueHandlers(q)
 	return h
+}
+
+func (h *Handler) registerQueueHandlers(q queue.Queue) {
+	q.Register("link.crawl", func(ctx context.Context, payload []byte) error {
+		var d struct {
+			ID     uint   `json:"id"`
+			Target string `json:"target"`
+		}
+		if err := json.Unmarshal(payload, &d); err != nil {
+			return err
+		}
+		title, _ := fetchPageMeta(ctx, d.Target)
+		if title != "" {
+			return h.db.Model(&models.Link{}).Where("id = ?", d.ID).Update("title", title).Error
+		}
+		return nil
+	})
+
+	q.Register("abuse.notify", func(ctx context.Context, payload []byte) error {
+		var rep models.AbuseReport
+		if err := json.Unmarshal(payload, &rep); err != nil {
+			return err
+		}
+		h.notifyAbuse(rep)
+		return nil
+	})
 }
 
 // DataRetentionDays returns the configured retention period for click events.

@@ -49,6 +49,10 @@ type Config struct {
 	// data. Defaults to 1 (the single-operator self-hosted case). On a
 	// multi-tenant deployment, run one MCP process per tenant with this set.
 	MCPOrgID uint
+
+	// RedisURL configures the optional Redis connection (e.g. "redis://localhost:6379").
+	// If empty, Redis-based features will be disabled or fall back to DB/in-memory.
+	RedisURL string
 }
 
 func env(key, def string) string {
@@ -139,6 +143,7 @@ func Load() (*Config, error) {
 		GeoIPDB:  env("LED_GEOIP_DB", ""),
 		BaseURL:  env("LED_BASE_URL", ""),
 		MCPOrgID: uint(envInt("LED_MCP_ORG_ID", 1)),
+		RedisURL: env("LED_REDIS_URL", ""),
 	}
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" {
 		return nil, fmt.Errorf("LED_DB_DRIVER must be sqlite or postgres, got %q", c.DBDriver)

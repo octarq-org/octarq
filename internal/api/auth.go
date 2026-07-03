@@ -101,6 +101,12 @@ func (h *Handler) logoutAll(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
+	var sessions []models.Session
+	h.db.Where("user_id = ?", uid).Find(&sessions)
+	ctx := r.Context()
+	for _, s := range sessions {
+		_ = h.auth.Cache().Delete(ctx, "session:"+s.Token)
+	}
 	h.db.Where("user_id = ?", uid).Delete(&models.Session{})
 	h.auth.Clear(r, w)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
@@ -159,6 +165,7 @@ func (h *Handler) revokeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.db.Delete(&sess)
+	_ = h.auth.Cache().Delete(r.Context(), "session:"+sess.Token)
 
 	// If the caller just revoked their own session, clear the cookie too.
 	isSelf := h.auth.SessionID(r) == sess.ID

@@ -3,11 +3,13 @@
 package shortlink
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/Jungley8/led/internal/cache"
 	"github.com/Jungley8/led/internal/eventbus"
 	"github.com/Jungley8/led/internal/geo"
 	"github.com/Jungley8/led/internal/models"
@@ -16,12 +18,18 @@ import (
 
 // Service handles redirect resolution and analytics.
 type Service struct {
-	db  *gorm.DB
-	geo *geo.Resolver
+	db    *gorm.DB
+	geo   *geo.Resolver
+	cache cache.Cache
 }
 
 func New(db *gorm.DB, g *geo.Resolver) *Service {
-	return &Service{db: db, geo: g}
+	return &Service{db: db, geo: g, cache: cache.New("")}
+}
+
+func (s *Service) WithCache(c cache.Cache) *Service {
+	s.cache = c
+	return s
 }
 
 // Lookup finds an enabled, non-archived link for (host, slug), preferring an
@@ -29,14 +37,32 @@ func New(db *gorm.DB, g *geo.Resolver) *Service {
 // limits are evaluated in Handle so an expired link can still honor ExpiredURL.
 func (s *Service) Lookup(host, slug string) (*models.Link, bool) {
 	host = stripPort(host)
+	ctx := context.Background()
+
 	var link models.Link
+	cacheKey := "link:redirect:" + host + ":" + slug
+
+	// Try reading from cache first
+	if s.cache.Get(ctx, cacheKey, &link) {
+		if link.ID == 0 {
+			// Cached negative result
+			return nil, false
+		}
+		return &link, true
+	}
+
 	err := s.db.Where("slug = ? AND (host = ? OR host = '')", slug, host).
 		Order("host DESC"). // non-empty host sorts first, so exact match wins
 		First(&link).Error
 	if err != nil {
+		// Cache negative result (1 minute TTL) to prevent DB hammering for invalid links
+		var empty models.Link
+		_ = s.cache.Set(ctx, cacheKey, &empty, time.Minute)
 		return nil, false
 	}
 	if !link.Enabled || link.Archived {
+		var empty models.Link
+		_ = s.cache.Set(ctx, cacheKey, &empty, time.Minute)
 		return nil, false
 	}
 	// A host-scoped link does not resolve if its host is a temporarily disabled
@@ -44,6 +70,9 @@ func (s *Service) Lookup(host, slug string) (*models.Link, bool) {
 	if link.Host != "" && s.linkHostDisabled(host) {
 		return nil, false
 	}
+
+	// Cache successful result (1 hour TTL)
+	_ = s.cache.Set(ctx, cacheKey, &link, time.Hour)
 	return &link, true
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/Jungley8/led/internal/crypto"
 	"github.com/Jungley8/led/internal/geo"
 	"github.com/Jungley8/led/internal/models"
+	"github.com/Jungley8/led/internal/queue"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
@@ -37,7 +38,7 @@ func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	}
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
-	h := New(cfg, db, cipher, authMgr, g)
+	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
 	return h.Routes(), db
 }
 

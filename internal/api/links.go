@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"html"
 	"io"
@@ -198,14 +199,14 @@ func (h *Handler) createLink(w http.ResponseWriter, r *http.Request) {
 	h.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
 
 	if l.Title == "" {
-		go func(id uint, target string) {
-			title, _ := fetchPageMeta(context.Background(), target)
-			if title != "" {
-				h.db.Model(&models.Link{}).Where("id = ?", id).Update("title", title)
-			}
-		}(l.ID, l.Target)
+		payload, _ := json.Marshal(map[string]any{
+			"id":     l.ID,
+			"target": l.Target,
+		})
+		_ = h.queue.Enqueue(r.Context(), "link.crawl", payload)
 	}
 
+	_ = h.auth.Cache().Delete(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
 	writeJSON(w, http.StatusCreated, view(l))
 }
 
@@ -263,6 +264,9 @@ func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request) {
 		}
 		l.Target = t
 	}
+	oldHost := l.Host
+	oldSlug := l.Slug
+
 	l.Host = strings.TrimSpace(d.Host)
 	l.Note = d.Note
 	l.Title = d.Title
@@ -281,6 +285,12 @@ func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusConflict, "slug already exists on this host")
 		return
 	}
+
+	_ = h.auth.Cache().Delete(r.Context(), "link:redirect:"+oldHost+":"+oldSlug)
+	if oldHost != l.Host || oldSlug != l.Slug {
+		_ = h.auth.Cache().Delete(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+	}
+
 	h.audit(r, "link.update", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
 	writeJSON(w, http.StatusOK, view(l))
 }
@@ -291,12 +301,14 @@ func (h *Handler) deleteLink(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad id")
 		return
 	}
-	// Only delete if the link belongs to this org.
-	res := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).Delete(&models.Link{})
-	if res.RowsAffected == 0 {
+	var l models.Link
+	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&l).Error != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return
 	}
+	h.db.Delete(&l)
+	_ = h.auth.Cache().Delete(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+
 	h.db.Where("link_id = ?", id).Delete(&models.LinkEvent{})
 	h.audit(r, "link.delete", "link", id, nil)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Jungley8/led/config"
+	"github.com/Jungley8/led/internal/cache"
 	"github.com/Jungley8/led/internal/crypto"
 	"github.com/Jungley8/led/internal/models"
 	"gorm.io/gorm"
@@ -40,10 +41,11 @@ type Manager struct {
 	cfg    *config.Config
 	cipher *crypto.Cipher
 	db     *gorm.DB // nil in stateless/test mode
+	cache  cache.Cache
 }
 
 func New(cfg *config.Config, c *crypto.Cipher) *Manager {
-	return &Manager{cfg: cfg, cipher: c}
+	return &Manager{cfg: cfg, cipher: c, cache: cache.New("")}
 }
 
 // WithDB attaches a database so sessions and API bearer tokens can be
@@ -51,6 +53,17 @@ func New(cfg *config.Config, c *crypto.Cipher) *Manager {
 func (m *Manager) WithDB(db *gorm.DB) *Manager {
 	m.db = db
 	return m
+}
+
+// WithCache attaches an optional Cache layer (Redis or Noop fallback) for session retrieval.
+func (m *Manager) WithCache(c cache.Cache) *Manager {
+	m.cache = c
+	return m
+}
+
+// Cache returns the attached cache instance.
+func (m *Manager) Cache() cache.Cache {
+	return m.cache
 }
 
 // Check verifies admin credentials.
@@ -120,14 +133,31 @@ func (m *Manager) setCookie(w http.ResponseWriter, token string) {
 }
 
 // sessionByToken looks up a non-expired Session row by its token.
-// Returns nil when not found or expired.
+// Returns nil when not found or expired. Checks cache first.
 func (m *Manager) sessionByToken(token string) *models.Session {
 	if m.db == nil || token == "" {
 		return nil
 	}
 	var s models.Session
+	ctx := context.Background()
+	// Try fetching from cache first
+	if m.cache.Get(ctx, "session:"+token, &s) {
+		// Verify if it is expired in case Redis TTL hasn't kicked in
+		if s.ExpiresAt.After(time.Now()) {
+			return &s
+		}
+		// If expired, clean it up
+		_ = m.cache.Delete(ctx, "session:"+token)
+	}
+
 	if err := m.db.Where("token = ? AND expires_at > ?", token, time.Now()).First(&s).Error; err != nil {
 		return nil
+	}
+
+	// Cache the retrieved session
+	ttl := time.Until(s.ExpiresAt)
+	if ttl > 0 {
+		_ = m.cache.Set(ctx, "session:"+token, &s, ttl)
 	}
 	return &s
 }
@@ -180,9 +210,10 @@ func (m *Manager) Authed(r *http.Request) bool {
 
 // Clear deletes the session row and clears the cookie (single-device logout).
 func (m *Manager) Clear(r *http.Request, w http.ResponseWriter) {
-	if m.db != nil {
-		token := cookieToken(r)
-		if token != "" {
+	token := cookieToken(r)
+	if token != "" {
+		_ = m.cache.Delete(context.Background(), "session:"+token)
+		if m.db != nil {
 			m.db.Where("token = ?", token).Delete(&models.Session{})
 		}
 	}
@@ -209,6 +240,8 @@ func (m *Manager) TouchSession(r *http.Request) {
 	}
 	if now.Sub(s.LastSeenAt) >= touchInterval {
 		m.db.Model(&s).Update("last_seen_at", now)
+		// Evict from cache to force update on next read
+		_ = m.cache.Delete(context.Background(), "session:"+token)
 	}
 }
 

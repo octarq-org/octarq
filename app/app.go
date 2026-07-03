@@ -27,6 +27,8 @@ import (
 	"github.com/Jungley8/led/config"
 	"github.com/Jungley8/led/internal/api"
 	"github.com/Jungley8/led/internal/auth"
+	"github.com/Jungley8/led/internal/cache"
+	"github.com/Jungley8/led/internal/queue"
 	"github.com/Jungley8/led/internal/cleanup"
 	"github.com/Jungley8/led/internal/crypto"
 	"github.com/Jungley8/led/internal/db"
@@ -76,7 +78,8 @@ func New() (*App, error) {
 	eventbus.Init(gdb)
 
 	cipher := crypto.New(cfg.SecretKey)
-	authMgr := auth.New(cfg, cipher).WithDB(gdb)
+	cacheLayer := cache.New(cfg.RedisURL)
+	authMgr := auth.New(cfg, cipher).WithDB(gdb).WithCache(cacheLayer)
 
 	geoResolver, err := geo.Open(cfg.GeoIPDB)
 	if err != nil {
@@ -139,7 +142,9 @@ func (a *App) RunMCP(ctx context.Context) error {
 		return err
 	}
 
-	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo)
+	taskQueue := queue.New(a.cfg.RedisURL)
+	go taskQueue.Start(ctx)
+	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo, taskQueue)
 	apiHandler.SetPlugins(a.plugins)
 	pctx := &plugin.Context{
 		DB:       a.gdb,
@@ -185,7 +190,13 @@ func (a *App) Run(ctx context.Context) error {
 
 	// 2. Core API mux, then let plugins mount their own routes onto it.
 	auth.InitGothStore(a.cfg.SecretKey)
-	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo)
+	taskQueue := queue.New(a.cfg.RedisURL)
+	go func() {
+		if err := taskQueue.Start(ctx); err != nil {
+			slog.Error("queue start failed", "err", err)
+		}
+	}()
+	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo, taskQueue)
 	apiHandler.SetPlugins(a.plugins)
 	mux := apiHandler.Routes()
 	pctx := &plugin.Context{
@@ -209,7 +220,7 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 
-	short := shortlink.New(a.gdb, a.geo)
+	short := shortlink.New(a.gdb, a.geo).WithCache(a.auth.Cache())
 	webFS, err := webembed.FS()
 	if err != nil {
 		return err

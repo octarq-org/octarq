@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -68,8 +69,9 @@ func (h *Handler) submitAbuse(w http.ResponseWriter, r *http.Request) {
 
 	h.abuseLimiter.recordFailure(ip)
 
-	// Best-effort notification to all enabled channels.
-	go h.notifyAbuse(rep)
+	// Best-effort notification to all enabled channels via task queue.
+	payload, _ := json.Marshal(rep)
+	_ = h.queue.Enqueue(r.Context(), "abuse.notify", payload)
 
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"ok": true,

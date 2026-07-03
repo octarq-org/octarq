@@ -79,7 +79,7 @@ func newTestService(t *testing.T) *Service {
 	// Clear any rows left by a prior test sharing the in-memory cache.
 	db.Where("1 = 1").Delete(&models.Link{})
 	g, _ := geo.Open("")
-	return &Service{db: db, geo: g}
+	return New(db, g)
 }
 
 func TestLookupHostPreference(t *testing.T) {

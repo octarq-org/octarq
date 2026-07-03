@@ -12,6 +12,7 @@ import (
 	"github.com/Jungley8/led/internal/geo"
 	"github.com/Jungley8/led/internal/mail"
 	"github.com/Jungley8/led/internal/models"
+	"github.com/Jungley8/led/internal/queue"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
@@ -31,7 +32,7 @@ func TestWrapLinksInEmail(t *testing.T) {
 	cipher := crypto.New(cfg.SecretKey)
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
-	h := New(cfg, db, cipher, authMgr, g)
+	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
 
 	// Set up custom link domain
 	db.Create(&models.Domain{
@@ -110,7 +111,7 @@ func TestWrapLinksAvoidDoubleWrapAndInternal(t *testing.T) {
 	cfg := &config.Config{SecretKey: "secret"}
 	cipher := crypto.New(cfg.SecretKey)
 	authMgr := auth.New(cfg, cipher).WithDB(db)
-	h := New(cfg, db, cipher, authMgr, nil)
+	h := New(cfg, db, cipher, authMgr, nil, queue.New(""))
 
 	db.Create(&models.Domain{
 		OrgID: 1,
