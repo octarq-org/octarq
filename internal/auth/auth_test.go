@@ -47,79 +47,88 @@ func testDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func TestSessionIssueValidateRoundtrip(t *testing.T) {
-	m := testManager(t)
-	tok := m.issue(1, 42, 0, time.Hour)
-	uid, orgID, _, ok := m.validate(tok)
-	if !ok {
-		t.Fatal("validate rejected a freshly issued token")
+func TestStatefulSessionRoundtrip(t *testing.T) {
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
+
+	rec := httptest.NewRecorder()
+	m.SetSession(rec, 1, 42)
+
+	cookies := rec.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("expected 1 cookie, got %d", len(cookies))
 	}
-	if uid != 1 {
-		t.Errorf("uid = %d, want 1", uid)
+	tokCookie := cookies[0]
+
+	req := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	req.AddCookie(tokCookie)
+
+	if !m.Authed(req) {
+		t.Fatal("expected request to be authenticated")
 	}
-	if orgID != 42 {
-		t.Errorf("orgID = %d, want 42", orgID)
+
+	if uid := m.UserID(req); uid != 1 {
+		t.Errorf("UserID = %d, want 1", uid)
+	}
+
+	if orgID := m.OrgID(req); orgID != 42 {
+		t.Errorf("OrgID = %d, want 42", orgID)
 	}
 }
 
-func TestSessionRejectsExpired(t *testing.T) {
-	m := testManager(t)
-	tok := m.issue(1, 1, 0, -time.Hour) // already expired
-	if _, _, _, ok := m.validate(tok); ok {
-		t.Fatal("validate accepted an expired token")
-	}
-}
+func TestStatefulSessionExpiryAndInvalidation(t *testing.T) {
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
 
-func TestSessionRejectsTamperedSignature(t *testing.T) {
-	m := testManager(t)
-	tok := m.issue(1, 1, 0, time.Hour)
-	if _, _, _, ok := m.validate(tok + "x"); ok {
-		t.Fatal("validate accepted a tampered signature")
-	}
-	if _, _, _, ok := m.validate("garbage"); ok {
-		t.Fatal("validate accepted a malformed token")
-	}
-}
+	rec := httptest.NewRecorder()
+	m.SetSession(rec, 1, 42)
+	tokCookie := rec.Result().Cookies()[0]
 
-// Attacker forges a token with a different orgID but keeps everything else valid.
-// The HMAC must cover the full uid:orgid|exp payload, so any mutation is rejected.
-func TestSessionRejectsTamperedOrgID(t *testing.T) {
-	m := testManager(t)
-	tok := m.issue(1, 1, 0, time.Hour) // org 1
+	// 1. Invalid token
+	reqBad := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	reqBad.AddCookie(&http.Cookie{Name: cookieName, Value: "garbage_token"})
+	if m.Authed(reqBad) {
+		t.Fatal("expected invalid token to be rejected")
+	}
 
-	// Forge: keep the real exp and sig but replace orgid with 2.
-	// Format: "uid:orgid:epoch|exp|sig"
-	import_parts := splitToken(tok)
-	if import_parts == nil {
-		t.Fatal("unexpected token format")
+	// 2. Expired session
+	var s models.Session
+	if err := db.Where("token = ?", tokCookie.Value).First(&s).Error; err != nil {
+		t.Fatalf("failed to find session: %v", err)
 	}
-	forged := "1:2:0|" + import_parts[1] + "|" + import_parts[2] // steal exp+sig from org-1 token
-	if _, _, _, ok := m.validate(forged); ok {
-		t.Fatal("validate accepted a token with tampered orgID")
+	s.ExpiresAt = time.Now().Add(-time.Hour)
+	if err := db.Save(&s).Error; err != nil {
+		t.Fatalf("failed to save expired session: %v", err)
 	}
-}
 
-// splitToken splits "uid:orgid|exp|sig" into ["uid:orgid", "exp", "sig"].
-func splitToken(tok string) []string {
-	parts := make([]string, 0, 3)
-	rest := tok
-	for i := 0; i < 2; i++ {
-		idx := len(rest) - 1
-		for idx >= 0 && rest[idx] != '|' {
-			idx--
-		}
-		if idx < 0 {
-			return nil
-		}
-		parts = append([]string{rest[idx+1:]}, parts...)
-		rest = rest[:idx]
+	reqExp := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	reqExp.AddCookie(tokCookie)
+	if m.Authed(reqExp) {
+		t.Fatal("expected expired session to be rejected")
 	}
-	parts = append([]string{rest}, parts...)
-	return parts
+
+	// 3. Clear session
+	rec2 := httptest.NewRecorder()
+	m.SetSession(rec2, 2, 42)
+	tokCookie2 := rec2.Result().Cookies()[0]
+	reqClear := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	reqClear.AddCookie(tokCookie2)
+
+	if !m.Authed(reqClear) {
+		t.Fatal("session should be authed before clear")
+	}
+
+	recClear := httptest.NewRecorder()
+	m.Clear(reqClear, recClear)
+
+	if m.Authed(reqClear) {
+		t.Fatal("session should be unauthed after clear")
+	}
 }
 
 func TestAuthedReadsCookie(t *testing.T) {
-	m := testManager(t)
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
 	rec := httptest.NewRecorder()
 	m.SetSession(rec, 1, 1)
 	req := httptest.NewRequest(http.MethodGet, "/api/links", nil)
@@ -132,7 +141,8 @@ func TestAuthedReadsCookie(t *testing.T) {
 }
 
 func TestOrgIDExtractedFromCookie(t *testing.T) {
-	m := testManager(t)
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
 	rec := httptest.NewRecorder()
 	m.SetSession(rec, 7, 99)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -148,7 +158,8 @@ func TestOrgIDExtractedFromCookie(t *testing.T) {
 }
 
 func TestOrgIDZeroWhenUnauthenticated(t *testing.T) {
-	m := testManager(t)
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	if got := m.OrgID(req); got != 0 {
 		t.Errorf("OrgID on unauthed request = %d, want 0", got)

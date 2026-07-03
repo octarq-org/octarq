@@ -67,12 +67,7 @@ func TestTokenLifecycleAndBearerAuth(t *testing.T) {
 		t.Fatalf("unauth create: got %d want 401", rec.Code)
 	}
 
-	// Create a token with a session cookie.
-	cfg := &config.Config{SecretKey: "secret"}
-	sessionMgr := auth.New(cfg, crypto.New("secret"))
-	cookieRec := httptest.NewRecorder()
-	sessionMgr.SetSession(cookieRec, 1, 1)
-	cookies := cookieRec.Result().Cookies()
+	cookies := sessionCookies(t, 1, 1)
 
 	req = httptest.NewRequest(http.MethodPost, "/api/tokens", strings.NewReader(`{"name":"ci","note":"ci use"}`))
 	for _, c := range cookies {

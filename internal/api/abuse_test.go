@@ -9,21 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Jungley8/led/internal/auth"
-	"github.com/Jungley8/led/internal/crypto"
-	"github.com/Jungley8/led/config"
 	"github.com/Jungley8/led/internal/models"
 )
 
 func TestAbuseEndpoints(t *testing.T) {
 	srv, _ := newTestHandler(t)
 
-	// Create a session for admin
-	cfg := &config.Config{SecretKey: "secret"}
-	sessionMgr := auth.New(cfg, crypto.New("secret"))
-	cookieRec := httptest.NewRecorder()
-	sessionMgr.SetSession(cookieRec, 1, 1)
-	cookies := cookieRec.Result().Cookies()
+	cookies := sessionCookies(t, 1, 1)
 
 	// 1. Submit abuse report (Public)
 	body := `{"slug":"nonexistent","reason":"phishing","description":"Phishing site"}`

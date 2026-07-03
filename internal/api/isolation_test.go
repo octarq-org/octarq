@@ -18,13 +18,20 @@ import (
 	"github.com/Jungley8/led/internal/crypto"
 	"github.com/Jungley8/led/config"
 	"github.com/Jungley8/led/internal/models"
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
 )
 
 // sessionCookies returns the cookies that represent a session for (uid, orgID).
 func sessionCookies(t *testing.T, uid, orgID uint) []*http.Cookie {
 	t.Helper()
+	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
+	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("sessionCookies open db: %v", err)
+	}
 	cfg := &config.Config{SecretKey: "secret"}
-	m := auth.New(cfg, crypto.New("secret"))
+	m := auth.New(cfg, crypto.New("secret")).WithDB(db)
 	rec := httptest.NewRecorder()
 	m.SetSession(rec, uid, orgID)
 	return rec.Result().Cookies()

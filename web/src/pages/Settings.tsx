@@ -378,13 +378,17 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
   }
   useEffect(() => { load(); }, []);
 
-  async function revoke(id: number) {
-    if (!confirm("Revoke this session? All devices will be signed out and you'll be re-authenticated.")) return;
+  async function revoke(id: number, isSelf: boolean) {
+    const msg = isSelf
+      ? "Log out from this device?"
+      : "Revoke this session? That device will be signed out immediately.";
+    if (!confirm(msg)) return;
     setRevoking(id);
     try {
       const r = await api.revokeSession(id);
-      if (r.reissued) {
-        // Fresh cookie re-issued — page still works; reload session list.
+      if (r.self) {
+        window.location.href = "/";
+      } else {
         load();
       }
     } catch (e: any) {
@@ -399,14 +403,14 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
 
   return (
     <div className="divide-y divide-white/[0.04] rounded-xl border border-white/[0.05] overflow-hidden">
-      {sessions.map((s, i) => {
+      {sessions.map((s) => {
         const ua = parseUA(s.userAgent);
         return (
           <div key={s.id} className="flex items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-medium text-white/85">{ua.browser}</span>
-                {i === 0 && <Badge tone="green">Current</Badge>}
+                {s.isCurrent && <Badge tone="green">Current</Badge>}
                 <span className="text-xs text-white/35">{ua.os}</span>
               </div>
               <div className="flex items-center gap-3 mt-1">
@@ -417,11 +421,11 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
             </div>
             <Button
               variant="danger"
-              onClick={() => revoke(s.id)}
+              onClick={() => revoke(s.id, s.isCurrent)}
               disabled={revoking === s.id}
               className="text-xs py-1 px-2.5 shrink-0"
             >
-              {revoking === s.id ? "…" : "Revoke"}
+              {revoking === s.id ? "…" : s.isCurrent ? "Log out" : "Revoke"}
             </Button>
           </div>
         );

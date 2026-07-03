@@ -75,6 +75,7 @@ export interface SessionRecord {
   userAgent: string;
   lastSeenAt: string;
   createdAt: string;
+  isCurrent?: boolean;
 }
 
 export interface LicenseActivateResult {
@@ -536,7 +537,7 @@ export const api = {
   logout: () => req<{ ok: boolean }>("POST", "/api/auth/logout"),
   logoutAll: () => req<{ ok: boolean }>("POST", "/api/auth/logout-all"),
   sessions: () => req<SessionRecord[]>("GET", "/api/auth/sessions"),
-  revokeSession: (id: number) => req<{ ok: boolean; reissued: boolean }>("DELETE", `/api/auth/sessions/${id}`),
+  revokeSession: (id: number) => req<{ ok: boolean; self: boolean }>("DELETE", `/api/auth/sessions/${id}`),
   acceptInvite: (token: string, password: string) =>
     req<{ ok: boolean }>("POST", "/api/auth/invite/accept", { token, password }),
 

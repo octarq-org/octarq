@@ -10,9 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Jungley8/led/config"
-	"github.com/Jungley8/led/internal/auth"
-	"github.com/Jungley8/led/internal/crypto"
 	"github.com/Jungley8/led/internal/dnsprovider"
 	"github.com/Jungley8/led/internal/models"
 )
@@ -48,12 +45,7 @@ func init() {
 func TestComprehensiveAPI(t *testing.T) {
 	srv, db := newTestHandler(t)
 
-	// Create a session for admin (uid=1, orgID=1)
-	cfg := &config.Config{SecretKey: "secret"}
-	sessionMgr := auth.New(cfg, crypto.New("secret"))
-	cookieRec := httptest.NewRecorder()
-	sessionMgr.SetSession(cookieRec, 1, 1)
-	cookies := cookieRec.Result().Cookies()
+	cookies := sessionCookies(t, 1, 1)
 
 	// 1. Overview API
 	{

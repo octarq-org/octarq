@@ -55,15 +55,18 @@ type User struct {
 	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
-// Session records a login event for display in the "active sessions" UI.
-// Validity is still governed by the cookie's SessionEpoch; this table is
-// for listing and approximate per-row revocation.
+// Session is a stateful login record. The random Token is stored in the
+// browser cookie; validity is determined by looking up this row — no epoch
+// math needed. Deleting a row instantly revokes that device's access.
 type Session struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
 	UserID     uint      `gorm:"not null;index" json:"userId"`
+	OrgID      uint      `gorm:"not null" json:"orgId"`
+	Token      string    `gorm:"uniqueIndex;size:64;not null" json:"-"` // random hex, stored in cookie
 	IP         string    `gorm:"size:64" json:"ip"`
 	UserAgent  string    `gorm:"size:512" json:"userAgent"`
 	LastSeenAt time.Time `json:"lastSeenAt"`
+	ExpiresAt  time.Time `json:"expiresAt"`
 	CreatedAt  time.Time `json:"createdAt"`
 }
 

@@ -34,10 +34,10 @@ func TestLogoutAllRevokesExistingCookie(t *testing.T) {
 		t.Fatalf("logout-all: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
-	var epoch uint
-	db.Model(&models.User{}).Where("email = ?", "admin").Pluck("session_epoch", &epoch)
-	if epoch != 1 {
-		t.Fatalf("session_epoch: got %d, want 1", epoch)
+	var count int64
+	db.Model(&models.Session{}).Count(&count)
+	if count != 0 {
+		t.Fatalf("outstanding sessions: got %d, want 0", count)
 	}
 
 	// The old cookie is now stale (epoch mismatch) → 401.

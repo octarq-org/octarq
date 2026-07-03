@@ -8,7 +8,6 @@ import (
 	"github.com/Jungley8/led/internal/models"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
@@ -45,8 +44,7 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.loginLimiter.reset(ip)
-	h.auth.SetSession(w, uid, orgID)
-	go h.createSessionRecord(r, uid)
+	h.auth.SetSessionFromRequest(r, w, uid, orgID)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "username": body.Username})
 }
 
@@ -91,13 +89,11 @@ func (h *Handler) verify2FA(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	h.loginLimiter.reset(ip)
-	h.auth.SetSession(w, uid, orgID)
-	go h.createSessionRecord(r, uid)
+	h.auth.SetSessionFromRequest(r, w, uid, orgID)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "username": body.Username})
 }
 
-// logoutAll invalidates every outstanding session for the caller by bumping the
-// user's SessionEpoch, then clears the current cookie.
+// logoutAll deletes every session row for the caller and clears the cookie.
 // POST /api/auth/logout-all
 func (h *Handler) logoutAll(w http.ResponseWriter, r *http.Request) {
 	uid := h.auth.UserID(r)
@@ -105,13 +101,8 @@ func (h *Handler) logoutAll(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	if err := h.db.Model(&models.User{}).Where("id = ?", uid).
-		UpdateColumn("session_epoch", gorm.Expr("session_epoch + 1")).Error; err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to revoke sessions")
-		return
-	}
 	h.db.Where("user_id = ?", uid).Delete(&models.Session{})
-	h.auth.Clear(w)
+	h.auth.Clear(r, w)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
@@ -127,36 +118,9 @@ func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 	return user.ID
 }
 
-// createSessionRecord inserts a new Session row for a login event.
-// Called asynchronously (go h.createSessionRecord) to avoid blocking the
-// login response.
-func (h *Handler) createSessionRecord(r *http.Request, uid uint) {
-	sess := models.Session{
-		UserID:     uid,
-		IP:         reporterIP(r),
-		UserAgent:  r.Header.Get("User-Agent"),
-		LastSeenAt: time.Now(),
-	}
-	h.db.Create(&sess)
-}
-
-// touchSession bumps LastSeenAt for the most-recent session of this user,
-// but at most once per minute to avoid write spam. Designed to be called
-// asynchronously (go h.touchSession(uid)).
-func (h *Handler) touchSession(uid uint) {
-	if uid == 0 {
-		return
-	}
-	now := time.Now()
-	var sess models.Session
-	if h.db.Where("user_id = ?", uid).Order("last_seen_at DESC").First(&sess).Error == nil {
-		if now.Sub(sess.LastSeenAt) > time.Minute {
-			h.db.Model(&sess).Update("last_seen_at", now)
-		}
-	}
-}
 
 // GET /api/auth/sessions — list sessions for the current user, newest first.
+// The session matching the caller's cookie is flagged isCurrent: true.
 func (h *Handler) listSessions(w http.ResponseWriter, r *http.Request) {
 	uid := h.auth.UserID(r)
 	if uid == 0 {
@@ -165,12 +129,23 @@ func (h *Handler) listSessions(w http.ResponseWriter, r *http.Request) {
 	}
 	var sessions []models.Session
 	h.db.Where("user_id = ?", uid).Order("last_seen_at DESC").Limit(20).Find(&sessions)
-	writeJSON(w, http.StatusOK, sessions)
+
+	currID := h.auth.SessionID(r)
+	type row struct {
+		models.Session
+		IsCurrent bool `json:"isCurrent"`
+	}
+	out := make([]row, len(sessions))
+	for i, s := range sessions {
+		out[i] = row{Session: s, IsCurrent: s.ID == currID}
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
-// DELETE /api/auth/sessions/{id} — revoke a session record.
-// Because cookies are stateless, revoking any session bumps the epoch
-// (invalidating all cookies) and re-issues a fresh cookie for the caller.
+// DELETE /api/auth/sessions/{id} — revoke a specific session row.
+// With stateful cookies, just deleting the row is sufficient: the next
+// request from that device will find no matching session and get a 401.
+// If the caller revokes their OWN session, the cookie is also cleared.
 func (h *Handler) revokeSession(w http.ResponseWriter, r *http.Request) {
 	uid := h.auth.UserID(r)
 	if uid == 0 {
@@ -184,20 +159,13 @@ func (h *Handler) revokeSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.db.Delete(&sess)
-	// Bump epoch to revoke all outstanding cookies, then re-issue for caller.
-	if err := h.db.Model(&models.User{}).Where("id = ?", uid).
-		UpdateColumn("session_epoch", gorm.Expr("session_epoch + 1")).Error; err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to revoke session")
-		return
+
+	// If the caller just revoked their own session, clear the cookie too.
+	isSelf := h.auth.SessionID(r) == sess.ID
+	if isSelf {
+		h.auth.Clear(r, w)
 	}
-	// Delete all remaining session records too.
-	h.db.Where("user_id = ?", uid).Delete(&models.Session{})
-	// Re-issue a fresh session cookie for the current operator.
-	orgID := h.auth.OrgID(r)
-	h.auth.SetSession(w, uid, orgID)
-	// Create a new session record for this re-login.
-	go h.createSessionRecord(r, uid)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "reissued": true})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "self": isSelf})
 }
 
 // bootstrapOrgID returns the ID of the admin's own org, creating it if it
@@ -235,7 +203,7 @@ func safeSlug(s string) string {
 }
 
 func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
-	h.auth.Clear(w)
+	h.auth.Clear(r, w)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
