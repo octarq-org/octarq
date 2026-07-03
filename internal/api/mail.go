@@ -375,7 +375,7 @@ func (h *Handler) inbound(w http.ResponseWriter, r *http.Request) {
 	// Best-effort notification; never block or fail the webhook.
 	text := fmt.Sprintf("📧 New mail to %s — From: %s — %s", to, parsed.From, parsed.Subject)
 	var channels []models.NotificationChannel
-	h.db.Where("enabled = ?", true).Find(&channels)
+	h.db.Where("owner_id = ? AND enabled = ?", mb.OrgID, true).Find(&channels)
 	if len(channels) > 0 {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
