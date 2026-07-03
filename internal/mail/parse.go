@@ -11,6 +11,21 @@ import (
 	"github.com/emersion/go-message/mail"
 )
 
+// Resource limits for parsing untrusted inbound mail. A single malformed or
+// hostile message must not be able to exhaust memory.
+const (
+	maxPartBytes = 10 << 20 // 10 MiB read from any single MIME part
+	maxParts     = 200      // maximum number of MIME parts walked
+)
+
+// readLimited reads up to maxPartBytes from r, discarding the rest so the
+// underlying reader is drained without buffering an unbounded payload.
+func readLimited(r io.Reader) []byte {
+	b, _ := io.ReadAll(io.LimitReader(r, maxPartBytes))
+	_, _ = io.Copy(io.Discard, r)
+	return b
+}
+
 func init() {
 	// Allow non-UTF-8 charsets in headers/bodies.
 	message.CharsetReader = charset.Reader
@@ -70,6 +85,7 @@ func Parse(raw []byte) (*Parsed, error) {
 		parseAuthResults(v, &p.Auth)
 	}
 
+	parts := 0
 	for {
 		part, err := mr.NextPart()
 		if err == io.EOF {
@@ -78,10 +94,13 @@ func Parse(raw []byte) (*Parsed, error) {
 		if err != nil {
 			break
 		}
+		if parts++; parts > maxParts {
+			break
+		}
 		switch hdr := part.Header.(type) {
 		case *mail.InlineHeader:
 			ct, _, _ := hdr.ContentType()
-			b, _ := io.ReadAll(part.Body)
+			b := readLimited(part.Body)
 			if strings.HasPrefix(ct, "text/html") {
 				p.HTML = string(b)
 			} else if strings.HasPrefix(ct, "text/plain") {
@@ -90,7 +109,7 @@ func Parse(raw []byte) (*Parsed, error) {
 		case *mail.AttachmentHeader:
 			ct, _, _ := hdr.ContentType()
 			filename, _ := hdr.Filename()
-			b, _ := io.ReadAll(part.Body)
+			b := readLimited(part.Body)
 			p.Attachments = append(p.Attachments, Attachment{
 				Filename: filename, ContentType: ct, Size: len(b),
 			})
