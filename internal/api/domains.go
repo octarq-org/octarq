@@ -291,7 +291,7 @@ func validateRecord(rec dnsprovider.Record) string {
 func (h *Handler) recordsProvider(r *http.Request) (dnsprovider.Provider, *models.Domain, error) {
 	id, _ := strconv.ParseUint(r.PathValue("id"), 10, 64)
 	var dom models.Domain
-	if h.db.First(&dom, id).Error != nil {
+	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&dom).Error != nil {
 		return nil, nil, errNotFound
 	}
 	prov, err := h.providerFor(dom)
