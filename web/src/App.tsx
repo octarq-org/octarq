@@ -904,11 +904,12 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
         </div>
 
         <label className="label">Username</label>
-        <input type="text" className="input mb-3" value={u} onChange={(e) => setU(e.target.value)} onKeyDown={onEnter} autoComplete="username" />
+        <input type="text" name="username" className="input mb-3" value={u} onChange={(e) => setU(e.target.value)} onKeyDown={onEnter} autoComplete="username" />
 
         <label className="label">Password</label>
         <input
           type="password"
+          name="password"
           className="input mb-4"
           value={p}
           onChange={(e) => setP(e.target.value)}
@@ -921,6 +922,7 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
           <>
             <label className="label">Authentication code</label>
             <input
+              name="otp"
               className="input mb-4"
               value={code}
               onChange={(e) => setCode(e.target.value)}
