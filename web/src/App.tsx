@@ -903,11 +903,12 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
           <h1 className="font-display text-lg font-semibold text-white">Sign in to led</h1>
         </div>
 
-        <label className="label">Username</label>
-        <input type="text" name="username" className="input mb-3" value={u} onChange={(e) => setU(e.target.value)} onKeyDown={onEnter} autoComplete="username" />
+        <label className="label" htmlFor="login-username">Username</label>
+        <input id="login-username" type="text" name="username" className="input mb-3" value={u} onChange={(e) => setU(e.target.value)} onKeyDown={onEnter} autoComplete="username" />
 
-        <label className="label">Password</label>
+        <label className="label" htmlFor="login-password">Password</label>
         <input
+          id="login-password"
           type="password"
           name="password"
           className="input mb-4"
@@ -920,8 +921,9 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
 
         {needs2FA && (
           <>
-            <label className="label">Authentication code</label>
+            <label className="label" htmlFor="login-otp">Authentication code</label>
             <input
+              id="login-otp"
               name="otp"
               className="input mb-4"
               value={code}
