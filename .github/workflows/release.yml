@@ -4,15 +4,57 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    paths-ignore:
+      - CHANGELOG.md   # avoid rebuilding on the auto-committed changelog
 
 permissions:
-  contents: read
+  contents: write   # create GitHub release + commit CHANGELOG.md
   packages: write
 
 env:
   IMAGE: ghcr.io/jungley8/led
 
 jobs:
+  # ── Generate CHANGELOG.md + GitHub release notes on tags ─────────────────
+  changelog:
+    name: Changelog & release notes
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes (this tag)
+        id: notes
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Regenerate full CHANGELOG.md
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --verbose
+        env:
+          OUTPUT: CHANGELOG.md
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.notes.outputs.content }}
+
+      - name: Commit CHANGELOG.md back to main
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(release): update CHANGELOG for ${{ github.ref_name }}"
+          file_pattern: CHANGELOG.md
+          branch: main
+
   docker:
     name: Build & push multi-arch image
     runs-on: ubuntu-latest
