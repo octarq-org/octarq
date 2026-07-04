@@ -152,6 +152,7 @@ export interface IssuedLicense {
 export interface BillingConfig {
   webhookSecretSet: boolean;
   providers: string[];
+  claimPageUrl?: string; // success_url to set on Payment Links (org-scoped)
 }
 
 export interface PriceMap {

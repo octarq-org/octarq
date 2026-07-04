@@ -87,6 +87,12 @@ export default function BillingPage() {
         <p className="text-xs text-white/40">
           Point your payment platform's webhook at <code>/api/billing/webhook/&lt;provider&gt;</code>.
         </p>
+        {cfg.claimPageUrl && (
+          <p className="mt-2 text-xs text-white/40">
+            On a Payment Link, set the success URL to{" "}
+            <code className="break-all">{cfg.claimPageUrl}</code> so buyers can claim their license.
+          </p>
+        )}
       </GlassCard>
 
       {/* Price map */}
