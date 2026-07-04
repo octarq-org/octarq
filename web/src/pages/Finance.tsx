@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Empty, Field, Modal, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard, LockedFeature } from "../ui";
-import { ShieldAlert, CreditCard, Calendar, TrendingUp, Trash2, Pencil, Landmark, Plus, ArrowUpRight, ArrowDownRight, Wallet, RefreshCw } from "lucide-react";
+import { ShieldAlert, CreditCard, Calendar, TrendingUp, Trash2, Pencil, Landmark, Plus, ArrowUpRight, ArrowDownRight, Wallet, RefreshCw, Check } from "lucide-react";
 import { api, Transaction } from "../api";
 
 const CURRENCIES = ["USD", "CNY", "EUR", "GBP", "JPY", "HKD", "SGD"];
@@ -180,6 +180,11 @@ export default function FinancePage() {
     api.deleteTransactionSeries(parentId).then(() => load());
   }
 
+  // Confirm a pending (e.g. AI OCR-extracted) transaction into the ledger.
+  function handleConfirmTransaction(targetTx: Transaction) {
+    api.confirmTransaction(targetTx.id).then(() => load());
+  }
+
   // Filter list
   const filteredTransactions = transactions.filter((tx) => {
     // 1. Cycle filter
@@ -338,7 +343,7 @@ export default function FinancePage() {
               </thead>
               <tbody className="divide-y divide-white/[0.04]">
                 {filteredTransactions.map((tx) => (
-                  <tr key={tx.id} className={`hover:bg-white/[0.02] transition-all ${tx.parentId ? "bg-white/[0.01]" : ""}`}>
+                  <tr key={tx.id} className={`hover:bg-white/[0.02] transition-all ${tx.status === "pending" ? "bg-amber-500/[0.06]" : tx.parentId ? "bg-white/[0.01]" : ""}`}>
                     <td className="px-5 py-4 font-mono text-xs text-white/60">{tx.date}</td>
                     <td className="px-5 py-4">
                       <Badge tone={tx.type === "income" ? "green" : "red"} className="uppercase font-bold tracking-wider text-[9px]">
@@ -350,6 +355,9 @@ export default function FinancePage() {
                         <span>{tx.title}</span>
                         {tx.parentId && (
                           <Badge tone="indigo" className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0">Recurring Series</Badge>
+                        )}
+                        {tx.status === "pending" && (
+                          <Badge tone="amber" className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0">Pending Review</Badge>
                         )}
                       </div>
                     </td>
@@ -372,6 +380,16 @@ export default function FinancePage() {
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex gap-2 justify-end">
+                        {tx.status === "pending" && (
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleConfirmTransaction(tx)}
+                            className="text-xs py-1 px-2.5 text-emerald-300 hover:bg-emerald-500/10"
+                            title="Confirm this auto-extracted transaction into the ledger"
+                          >
+                            <Check className="h-3.5 w-3.5 mr-1" /> Confirm
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           onClick={() => setEditingTx(tx)}

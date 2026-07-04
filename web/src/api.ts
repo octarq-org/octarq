@@ -525,6 +525,7 @@ export const api = {
   deleteBillingPrice: (id: number) => req<void>("DELETE", `/api/billing/prices/${id}`),
 
   // auth
+  authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean }>("GET", "/api/auth/config"),
   me: () => req<{ username: string; orgId: number }>("GET", "/api/auth/me"),
   login: (username: string, password: string) =>
     req<{ ok?: boolean; twoFactorRequired?: boolean; username: string }>(
@@ -672,6 +673,7 @@ export const api = {
   transactions: () => req<Transaction[]>("GET", "/api/transactions"),
   createTransaction: (d: Partial<Transaction>) => req<Transaction>("POST", "/api/transactions", d),
   updateTransaction: (id: number, d: Partial<Transaction>) => req<Transaction>("PUT", `/api/transactions/${id}`, d),
+  confirmTransaction: (id: number) => req<Transaction>("POST", `/api/transactions/${id}/confirm`),
   deleteTransaction: (id: number) => req<void>("DELETE", `/api/transactions/${id}`),
   deleteTransactionSeries: (parentId: string) => req<void>("DELETE", `/api/transactions/series/${parentId}`),
 
@@ -708,6 +710,8 @@ export const api = {
   customerLogout: () => req<{ ok: boolean }>("POST", "/api/customer/logout"),
   customerMe: () => req<{ email: string; createdAt: string }>("GET", "/api/customer/me"),
   claimAccount: (sessionId: string, password: string) => req<{ ok: boolean; email: string; emailVerified: boolean }>("POST", "/api/customer/claim-account", { sessionId, password }),
+  customerForgotPassword: (email: string) => req<{ ok: boolean; message: string }>("POST", "/api/customer/forgot-password", { email }),
+  customerResetPassword: (token: string, password: string) => req<{ ok: boolean }>("POST", "/api/customer/reset-password", { token, password }),
   portalLicenses: () => req<{ licenses: IssuedLicense[] }>("GET", "/api/portal/licenses"),
   portalDevices: (id: number) => req<LicenseDevice[]>("GET", `/api/portal/licenses/${id}/devices`),
   portalUnbindDevice: (id: number, deviceId: number) => req<{ ok: boolean }>("DELETE", `/api/portal/licenses/${id}/devices/${deviceId}`),
@@ -749,6 +753,7 @@ export interface Transaction {
   amount: number;
   currency: string;
   cycle: "one-off" | "monthly" | "yearly";
+  status?: "confirmed" | "pending";
   invoiceEmailId?: number;
 }
 
