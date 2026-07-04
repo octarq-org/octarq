@@ -6,9 +6,9 @@ package db
 import (
 	"fmt"
 
-	"github.com/glebarez/sqlite"
 	"github.com/Jungley8/led/config"
 	"github.com/Jungley8/led/internal/models"
+	"github.com/glebarez/sqlite"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -71,10 +71,10 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 			// Group by identical config to avoid duplicating the same account
 			if err := gdb.Where("config = ?", ld.Config).First(&acc).Error; err != nil {
 				acc = models.ProviderAccount{
-					OrgID: models.SingleUserID,
-					Name:    ld.Provider + " (Migrated)",
-					Type:    ld.Provider,
-					Config:  ld.Config,
+					OrgID:  models.SingleUserID,
+					Name:   ld.Provider + " (Migrated)",
+					Type:   ld.Provider,
+					Config: ld.Config,
 				}
 				gdb.Create(&acc)
 			}

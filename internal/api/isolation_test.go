@@ -14,9 +14,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jungley8/led/config"
 	"github.com/Jungley8/led/internal/auth"
 	"github.com/Jungley8/led/internal/crypto"
-	"github.com/Jungley8/led/config"
 	"github.com/Jungley8/led/internal/models"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -94,7 +94,9 @@ func TestOrgIsolation_Links(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create link: got %d — %s", rec.Code, rec.Body)
 	}
-	var link struct{ ID uint `json:"id"` }
+	var link struct {
+		ID uint `json:"id"`
+	}
 	json.Unmarshal(rec.Body.Bytes(), &link)
 	path := fmt.Sprintf("/api/links/%d", link.ID)
 
@@ -131,7 +133,9 @@ func TestOrgIsolation_Mailboxes(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create mailbox: got %d — %s", rec.Code, rec.Body)
 	}
-	var mb struct{ ID uint `json:"id"` }
+	var mb struct {
+		ID uint `json:"id"`
+	}
 	json.Unmarshal(rec.Body.Bytes(), &mb)
 	path := fmt.Sprintf("/api/mailboxes/%d", mb.ID)
 

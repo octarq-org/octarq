@@ -39,7 +39,7 @@ func (h *Handler) createSMTPSender(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sender := models.SMTPSender{
-		OrgID:   h.orgID(r),
+		OrgID:     h.orgID(r),
 		Name:      d.Name,
 		Host:      strings.TrimSpace(d.Host),
 		Port:      d.Port,

@@ -61,7 +61,7 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 		var rows []statKV
 		botFilter(h.db.Model(&models.LinkEvent{}).
 			Where("link_id IN (?) AND created_at >= ? AND "+col+" <> ''", orgLinks, since30)).
-			Select(col+" as key, count(*) as count").
+			Select(col + " as key, count(*) as count").
 			Group(col).Order("count DESC").Limit(8).Scan(&rows)
 		return rows
 	}

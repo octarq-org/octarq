@@ -47,7 +47,7 @@ Content-Type: text/html; charset=utf-8
 
 func TestParseAuthResults(t *testing.T) {
 	cases := []struct {
-		hdr          string
+		hdr              string
 		spf, dkim, dmarc string
 	}{
 		{

@@ -6,7 +6,7 @@ import (
 
 func TestSMTPSender(t *testing.T) {
 	sender := NewCustomSender("127.0.0.1", "9999", "user", "pass", "system@example.com")
-	
+
 	msg := Message{
 		To:      []string{"user@example.com"},
 		Subject: "Test Outbound Mail",

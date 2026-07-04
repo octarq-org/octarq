@@ -53,7 +53,7 @@ func (n *NoopCache) Set(ctx context.Context, key string, val any, ttl time.Durat
 	return nil
 }
 func (n *NoopCache) Delete(ctx context.Context, key string) error { return nil }
-func (n *NoopCache) IsRedis() bool                               { return false }
+func (n *NoopCache) IsRedis() bool                                { return false }
 
 // RedisCache implements Cache interface using Redis client.
 type RedisCache struct {

@@ -47,11 +47,11 @@ func (h *Handler) createToken(w http.ResponseWriter, r *http.Request) {
 	}
 	raw := newRawToken()
 	tok := models.Token{
-		OrgID: h.orgID(r),
-		Name:    d.Name,
-		Hash:    models.HashToken(raw),
-		Prefix:  tokenPrefix(raw),
-		Note:    d.Note,
+		OrgID:  h.orgID(r),
+		Name:   d.Name,
+		Hash:   models.HashToken(raw),
+		Prefix: tokenPrefix(raw),
+		Note:   d.Note,
 	}
 	if err := h.db.Create(&tok).Error; err != nil {
 		writeErr(w, http.StatusInternalServerError, "create token")

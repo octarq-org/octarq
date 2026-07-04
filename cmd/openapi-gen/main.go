@@ -392,7 +392,7 @@ func main() {
 							"content": map[string]any{
 								"application/json": map[string]any{
 									"schema": map[string]any{
-										"type": "array",
+										"type":  "array",
 										"items": map[string]any{"$ref": "#/components/schemas/LinkView"},
 									},
 								},
@@ -610,16 +610,16 @@ func main() {
 							"schema":      map[string]any{"type": "string"},
 						},
 						{
-							"name":        "limit",
-							"in":          "query",
-							"required":    false,
-							"schema":      map[string]any{"type": "integer", "default": 50},
+							"name":     "limit",
+							"in":       "query",
+							"required": false,
+							"schema":   map[string]any{"type": "integer", "default": 50},
 						},
 						{
-							"name":        "offset",
-							"in":          "query",
-							"required":    false,
-							"schema":      map[string]any{"type": "integer", "default": 0},
+							"name":     "offset",
+							"in":       "query",
+							"required": false,
+							"schema":   map[string]any{"type": "integer", "default": 0},
 						},
 					},
 					"responses": map[string]any{
@@ -628,7 +628,7 @@ func main() {
 							"content": map[string]any{
 								"application/json": map[string]any{
 									"schema": map[string]any{
-										"type": "array",
+										"type":  "array",
 										"items": map[string]any{"$ref": "#/components/schemas/Domain"},
 									},
 								},
@@ -791,7 +791,7 @@ func main() {
 							"content": map[string]any{
 								"application/json": map[string]any{
 									"schema": map[string]any{
-										"type": "array",
+										"type":  "array",
 										"items": map[string]any{"$ref": "#/components/schemas/DNSRecord"},
 									},
 								},
@@ -938,7 +938,7 @@ func main() {
 							"content": map[string]any{
 								"application/json": map[string]any{
 									"schema": map[string]any{
-										"type": "array",
+										"type":  "array",
 										"items": map[string]any{"$ref": "#/components/schemas/Mailbox"},
 									},
 								},
@@ -1088,7 +1088,7 @@ func main() {
 							"content": map[string]any{
 								"application/json": map[string]any{
 									"schema": map[string]any{
-										"type": "array",
+										"type":  "array",
 										"items": map[string]any{"$ref": "#/components/schemas/EmailListEntry"},
 									},
 								},

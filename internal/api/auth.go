@@ -124,7 +124,6 @@ func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 	return user.ID
 }
 
-
 // GET /api/auth/sessions — list sessions for the current user, newest first.
 // The session matching the caller's cookie is flagged isCurrent: true.
 func (h *Handler) listSessions(w http.ResponseWriter, r *http.Request) {
@@ -193,7 +192,6 @@ func maskIPServer(ip string) string {
 	}
 	return ip
 }
-
 
 // DELETE /api/auth/sessions/{id} — revoke a specific session row.
 // With stateful cookies, just deleting the row is sufficient: the next
@@ -325,4 +323,14 @@ func (h *Handler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 	h.audit(r, "user.activate", "user", user.ID, map[string]any{"email": user.Email})
 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// GET /api/auth/config (public) returns whether Google and GitHub logins are enabled.
+func (h *Handler) authConfig(w http.ResponseWriter, r *http.Request) {
+	googleEnabled := h.oauth != nil && h.getSetting(keyGoogleClientID) != "" && h.getSetting(keyGoogleClientSecret) != ""
+	githubEnabled := h.oauth != nil && h.getSetting(keyGitHubClientID) != "" && h.getSetting(keyGitHubClientSecret) != ""
+	writeJSON(w, http.StatusOK, map[string]any{
+		"googleEnabled": googleEnabled,
+		"githubEnabled": githubEnabled,
+	})
 }

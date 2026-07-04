@@ -83,7 +83,7 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 		queue:        q,
 		loginLimiter: newRateLimiter(cfg.RedisURL, "login", 5, 15*time.Minute), // 5 fails / 15 mins
 		abuseLimiter: newRateLimiter(cfg.RedisURL, "abuse", 5, time.Hour),      // 5 reports / 1 hour
-		sendLimiter:  newRateLimiter(cfg.RedisURL, "send", 100, time.Hour),    // 100 outbound emails / org / hour
+		sendLimiter:  newRateLimiter(cfg.RedisURL, "send", 100, time.Hour),     // 100 outbound emails / org / hour
 		lookupTXT:    net.LookupTXT,
 	}
 	if cfg.BaseURL != "" {
@@ -145,6 +145,7 @@ func (h *Handler) Routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/auth/logout", h.logout)
 	mux.HandleFunc("GET /api/auth/me", h.me)
 	mux.HandleFunc("POST /api/auth/invite/accept", h.acceptInvite)
+	mux.HandleFunc("GET /api/auth/config", h.authConfig)
 
 	// OAuth (no session required — these redirect to provider and back).
 	if h.oauth != nil {

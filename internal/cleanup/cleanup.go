@@ -22,7 +22,7 @@ func Start(ctx context.Context, db *gorm.DB, retentionDays func() int) {
 			return
 		}
 		cutoff := time.Now().AddDate(0, 0, -days)
-		
+
 		totalPurged := int64(0)
 		for {
 			var ids []uint
@@ -33,18 +33,18 @@ func Start(ctx context.Context, db *gorm.DB, retentionDays func() int) {
 			if len(ids) == 0 {
 				break
 			}
-			
+
 			res := db.Delete(&models.LinkEvent{}, ids)
 			if res.Error != nil {
 				log.Printf("cleanup: purge link_events batch: %v", res.Error)
 				return
 			}
 			totalPurged += res.RowsAffected
-			
+
 			// Yield execution briefly to keep the database responsive
 			time.Sleep(50 * time.Millisecond)
 		}
-		
+
 		if totalPurged > 0 {
 			log.Printf("cleanup: purged %d total link_events older than %d days", totalPurged, days)
 		}
@@ -62,6 +62,7 @@ func Start(ctx context.Context, db *gorm.DB, retentionDays func() int) {
 		}
 	}
 }
+
 // StartSessionCleanup deletes expired sessions once at startup and every hour.
 // It also removes legacy "Unknown" sessions (empty user_agent) left over from
 // old switchOrg calls that used SetSession instead of SetSessionFromRequest.

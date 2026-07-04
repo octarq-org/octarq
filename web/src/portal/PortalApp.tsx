@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Routes, Route, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError, IssuedLicense, LicenseDevice } from "../api";
 import { ScreenWrap, PageHeader, GlassCard, Badge, Button, Empty } from "../ui";
-import { KeyRound, LogOut, Laptop, ExternalLink, ShieldAlert, ArrowRight, CheckCircle } from "lucide-react";
+import { KeyRound, LogOut, Laptop, ExternalLink, ShieldAlert, ArrowRight, CheckCircle, ArrowLeft, Mail, Lock } from "lucide-react";
 
 export default function PortalApp() {
   const [customerEmail, setCustomerEmail] = useState<string | null>(null);
@@ -54,6 +54,8 @@ export default function PortalApp() {
         <Route path="/login" element={<LoginView onLogin={setCustomerEmail} />} />
         <Route path="/register" element={<RegisterView onRegister={setCustomerEmail} />} />
         <Route path="/claim" element={<ClaimView onClaim={setCustomerEmail} />} />
+        <Route path="/forgot-password" element={<ForgotPasswordView />} />
+        <Route path="/reset" element={<ResetPasswordView />} />
       </Routes>
     </div>
   );
@@ -91,12 +93,17 @@ function LoginView({ onLogin }: { onLogin: (email: string) => void }) {
   };
 
   return (
-    <ScreenWrap className="flex items-center justify-center min-h-[85vh]">
-      <GlassCard className="w-full max-w-md p-8">
+    <ScreenWrap className="flex items-center justify-center min-h-[85vh] p-4">
+      <GlassCard className="w-full max-w-md p-8 relative overflow-hidden shadow-glow">
+        <div className="absolute top-0 right-0 h-32 w-32 bg-indigo-500/5 blur-3xl rounded-full pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 h-32 w-32 bg-violet-500/5 blur-3xl rounded-full pointer-events-none" />
+
         <div className="text-center mb-6">
-          <KeyRound className="mx-auto h-12 w-12 text-indigo-400 mb-2" />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
+            <span className="font-display text-xl font-extrabold text-white">L</span>
+          </div>
           <h2 className="text-2xl font-bold text-white">Customer Portal</h2>
-          <p className="text-xs text-white/45 mt-1">Manage your licenses, devices, and billing</p>
+          <p className="text-xs text-white/45 mt-1.5 leading-relaxed">Manage your licenses, devices, and billing info</p>
         </div>
 
         {error && (
@@ -119,7 +126,12 @@ function LoginView({ onLogin }: { onLogin: (email: string) => void }) {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-white/60 mb-1">Password</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-xs font-medium text-white/60">Password</label>
+              <Link to="/forgot-password" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium">
+                Forgot password?
+              </Link>
+            </div>
             <input
               type="password"
               required
@@ -134,15 +146,19 @@ function LoginView({ onLogin }: { onLogin: (email: string) => void }) {
           </Button>
         </form>
 
-        <div className="mt-6 text-center text-xs text-white/40">
-          Need to link a purchase?{" "}
-          <Link to="/claim" className="text-indigo-400 hover:text-indigo-300 font-medium">
-            Claim License
-          </Link>
-          {" | "}
-          <Link to="/register" className="text-indigo-400 hover:text-indigo-300 font-medium">
-            Register Account
-          </Link>
+        <div className="mt-6 text-center text-xs text-white/40 flex flex-col gap-2">
+          <div>
+            Don't have a portal account yet?{" "}
+            <Link to="/register" className="text-indigo-400 hover:text-indigo-300 font-medium">
+              Register here
+            </Link>
+          </div>
+          <div className="text-[11px] text-white/30 border-t border-white/5 pt-3 mt-1">
+            Need to link a Stripe checkout?{" "}
+            <Link to="/claim" className="text-indigo-400 hover:text-indigo-300 font-medium">
+              Claim Purchase
+            </Link>
+          </div>
         </div>
       </GlassCard>
     </ScreenWrap>
@@ -173,12 +189,17 @@ function RegisterView({ onRegister }: { onRegister: (email: string) => void }) {
   };
 
   return (
-    <ScreenWrap className="flex items-center justify-center min-h-[85vh]">
-      <GlassCard className="w-full max-w-md p-8">
+    <ScreenWrap className="flex items-center justify-center min-h-[85vh] p-4">
+      <GlassCard className="w-full max-w-md p-8 relative overflow-hidden shadow-glow">
+        <div className="absolute top-0 right-0 h-32 w-32 bg-indigo-500/5 blur-3xl rounded-full pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 h-32 w-32 bg-violet-500/5 blur-3xl rounded-full pointer-events-none" />
+
         <div className="text-center mb-6">
-          <KeyRound className="mx-auto h-12 w-12 text-indigo-400 mb-2" />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
+            <span className="font-display text-xl font-extrabold text-white">L</span>
+          </div>
           <h2 className="text-2xl font-bold text-white">Create Portal Account</h2>
-          <p className="text-xs text-white/45 mt-1">Register to manage your purchases</p>
+          <p className="text-xs text-white/45 mt-1.5 leading-relaxed">Register to manage your purchases and licenses</p>
         </div>
 
         {error && (
@@ -250,7 +271,6 @@ function ClaimView({ onClaim }: { onClaim: (email: string) => void }) {
       }, 2000);
     } catch (err: any) {
       if (err.status === 409) {
-        // Account exists
         setError("An account already exists for this purchase. Please sign in to view your licenses.");
       } else {
         setError(err.error || "Could not claim purchase. Ensure the Session ID is correct.");
@@ -261,12 +281,17 @@ function ClaimView({ onClaim }: { onClaim: (email: string) => void }) {
   };
 
   return (
-    <ScreenWrap className="flex items-center justify-center min-h-[85vh]">
-      <GlassCard className="w-full max-w-md p-8">
+    <ScreenWrap className="flex items-center justify-center min-h-[85vh] p-4">
+      <GlassCard className="w-full max-w-md p-8 relative overflow-hidden shadow-glow">
+        <div className="absolute top-0 right-0 h-32 w-32 bg-indigo-500/5 blur-3xl rounded-full pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 h-32 w-32 bg-violet-500/5 blur-3xl rounded-full pointer-events-none" />
+
         <div className="text-center mb-6">
-          <CheckCircle className="mx-auto h-12 w-12 text-emerald-400 mb-2" />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 shadow-glow border border-emerald-500/20 text-emerald-400">
+            <CheckCircle className="h-6 w-6" />
+          </div>
           <h2 className="text-2xl font-bold text-white">Claim Your Purchase</h2>
-          <p className="text-xs text-white/45 mt-1">Set a password to activate your portal account</p>
+          <p className="text-xs text-white/45 mt-1.5 leading-relaxed">Set a password to link and activate your portal account</p>
         </div>
 
         {error && (
@@ -294,14 +319,14 @@ function ClaimView({ onClaim }: { onClaim: (email: string) => void }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-white/60 mb-1">Set Portal Password</label>
+              <label className="block text-xs font-medium text-white/60 mb-1">Set Portal Password (min 8 chars)</label>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
-                placeholder="Choose a password (min 8 chars)"
+                placeholder="Choose a password"
               />
             </div>
             <Button type="submit" disabled={submitting} className="w-full py-2.5 mt-2">
@@ -314,6 +339,204 @@ function ClaimView({ onClaim }: { onClaim: (email: string) => void }) {
           Already have a login?{" "}
           <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-medium">
             Sign In
+          </Link>
+        </div>
+      </GlassCard>
+    </ScreenWrap>
+  );
+}
+
+// ─── FORGOT PASSWORD VIEW ───────────────────────────────────────────────────
+function ForgotPasswordView() {
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccessMsg("");
+    setSubmitting(true);
+    try {
+      const res = await api.customerForgotPassword(email);
+      setSuccessMsg(res.message || "If an account exists for that email, a reset link has been sent.");
+    } catch (err: any) {
+      setError(err.error || "Could not request password reset. Please try again later.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <ScreenWrap className="flex items-center justify-center min-h-[85vh] p-4">
+      <GlassCard className="w-full max-w-md p-8 relative overflow-hidden shadow-glow">
+        <div className="absolute top-0 right-0 h-32 w-32 bg-indigo-500/5 blur-3xl rounded-full pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 h-32 w-32 bg-violet-500/5 blur-3xl rounded-full pointer-events-none" />
+
+        <div className="mb-6 text-center">
+          <KeyRound className="mx-auto h-12 w-12 text-indigo-400 mb-2" />
+          <h2 className="text-2xl font-bold text-white">Reset Password</h2>
+          <p className="text-xs text-white/45 mt-1">We'll send you an email with instructions to reset your password</p>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex gap-2 items-center">
+            <ShieldAlert className="h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {successMsg ? (
+          <div className="space-y-4 text-center">
+            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm">
+              {successMsg}
+            </div>
+            <Link to="/login" className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-medium">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Back to Sign In</span>
+            </Link>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-white/60 mb-1">Email Address</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                placeholder="you@domain.com"
+              />
+            </div>
+            <Button type="submit" disabled={submitting} className="w-full py-2.5 mt-2">
+              {submitting ? "Sending Reset Link..." : "Send Reset Link"}
+            </Button>
+          </form>
+        )}
+
+        {!successMsg && (
+          <div className="mt-6 text-center text-xs text-white/40">
+            Remembered your password?{" "}
+            <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1">
+              <span>Sign In</span>
+            </Link>
+          </div>
+        )}
+      </GlassCard>
+    </ScreenWrap>
+  );
+}
+
+// ─── RESET PASSWORD VIEW ─────────────────────────────────────────────────────
+function ResetPasswordView() {
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token") || "";
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!token) {
+      setError("Reset token is missing from the URL.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await api.customerResetPassword(token, password);
+      setSuccess(true);
+      setTimeout(() => {
+        navigate("/login", { replace: true });
+      }, 2000);
+    } catch (err: any) {
+      setError(err.error || "Failed to reset password. The link may have expired or is invalid.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <ScreenWrap className="flex items-center justify-center min-h-[85vh] p-4">
+      <GlassCard className="w-full max-w-md p-8 relative overflow-hidden shadow-glow">
+        <div className="absolute top-0 right-0 h-32 w-32 bg-indigo-500/5 blur-3xl rounded-full pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 h-32 w-32 bg-violet-500/5 blur-3xl rounded-full pointer-events-none" />
+
+        <div className="mb-6 text-center">
+          <KeyRound className="mx-auto h-12 w-12 text-indigo-400 mb-2" />
+          <h2 className="text-2xl font-bold text-white">Create New Password</h2>
+          <p className="text-xs text-white/45 mt-1">Please enter your new password below</p>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex gap-2 items-center">
+            <ShieldAlert className="h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {success ? (
+          <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm text-center">
+            Password successfully reset! Redirecting to login...
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!token && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs rounded-xl">
+                Warning: No token found in URL. You will not be able to reset your password.
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-medium text-white/60 mb-1">New Password (min 8 chars)</label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                placeholder="••••••••"
+                disabled={!token}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-white/60 mb-1">Confirm New Password</label>
+              <input
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                placeholder="••••••••"
+                disabled={!token}
+              />
+            </div>
+            <Button type="submit" disabled={submitting || !token} className="w-full py-2.5 mt-2">
+              {submitting ? "Resetting Password..." : "Reset Password"}
+            </Button>
+          </form>
+        )}
+
+        <div className="mt-6 text-center text-xs text-white/40">
+          <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1.5">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Back to Sign In</span>
           </Link>
         </div>
       </GlassCard>

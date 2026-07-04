@@ -97,7 +97,7 @@ func TestRoutingRulesRoundTrip(t *testing.T) {
 			t.Errorf("round-trip mismatch: in=%v out=%v", in, out)
 		}
 	}
-	
+
 	// Test scan invalid type
 	var out RoutingRules
 	if err := out.Scan(123); err == nil {

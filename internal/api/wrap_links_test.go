@@ -50,7 +50,7 @@ func TestWrapLinksInEmail(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/emails/send", nil)
-	
+
 	// Create and attach session cookies
 	cookieRec := httptest.NewRecorder()
 	authMgr.SetSession(cookieRec, 1, 1)

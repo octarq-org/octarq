@@ -37,10 +37,10 @@ func (h *Handler) createProviderAccount(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	acc := models.ProviderAccount{
-		OrgID: h.orgID(r),
-		Name:    d.Name,
-		Type:    d.Type,
-		Config:  enc,
+		OrgID:  h.orgID(r),
+		Name:   d.Name,
+		Type:   d.Type,
+		Config: enc,
 	}
 	if err := h.db.Create(&acc).Error; err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())

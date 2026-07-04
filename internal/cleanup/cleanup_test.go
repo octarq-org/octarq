@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	"github.com/Jungley8/led/internal/models"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 
