@@ -11,16 +11,12 @@ const PROVIDERS = ["claude", "openai", "gemini", "mistral", "cohere", "ollama"];
 export default function LLMProvidersSettings({ embed, onChanged }: { embed?: boolean; onChanged?: () => void }) {
   const [rows, setRows] = useState<LLMProvider[]>([]);
   const [error, setError] = useState<{ status: number } | null>(null);
-  const [unavailable, setUnavailable] = useState(false);
   const [editing, setEditing] = useState<LLMProvider | "new" | null>(null);
 
   function load() {
     api.llmProviders()
-      .then((r) => { setRows(r); setError(null); setUnavailable(false); onChanged?.(); })
-      .catch((e: ApiError) => {
-        if (e.status === 404) setUnavailable(true);
-        else setError({ status: e.status });
-      });
+      .then((r) => { setRows(r); setError(null); onChanged?.(); })
+      .catch((e: ApiError) => setError({ status: e.status }));
   }
   useEffect(load, []);
 
@@ -28,16 +24,6 @@ export default function LLMProvidersSettings({ embed, onChanged }: { embed?: boo
     if (!confirm("Delete this provider? Any AI feature using it will fall back to none.")) return;
     await api.deleteLlmProvider(id);
     load();
-  }
-
-  if (unavailable) {
-    return (
-      <ScreenWrap>
-        <GlassCard className="mx-auto mt-12 max-w-md p-6 text-center text-sm text-white/55">
-          LLM providers is an <span className="text-white/80">Octarq Elite</span> feature and isn't part of the open-source build.
-        </GlassCard>
-      </ScreenWrap>
-    );
   }
 
   if (error) {

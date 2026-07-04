@@ -25,13 +25,12 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !h.auth.Check(body.Username, body.Password) {
+	uid, orgID, ok := h.authenticate(body.Username, body.Password)
+	if !ok {
 		h.loginLimiter.recordFailure(ip)
 		writeErr(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
-	orgID := h.bootstrapOrgID()
-	uid := h.bootstrapUserID(body.Username, orgID)
 
 	// If this operator has TOTP 2FA enabled, defer the session: the client must
 	// re-post username+password plus a valid 6-digit code (or recovery code) to
@@ -67,13 +66,12 @@ func (h *Handler) verify2FA(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusTooManyRequests, "too many failed login attempts")
 		return
 	}
-	if !h.auth.Check(body.Username, body.Password) {
+	uid, orgID, ok := h.authenticate(body.Username, body.Password)
+	if !ok {
 		h.loginLimiter.recordFailure(ip)
 		writeErr(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
-	orgID := h.bootstrapOrgID()
-	uid := h.bootstrapUserID(body.Username, orgID)
 
 	var user models.User
 	if h.db.First(&user, uid).Error != nil {
@@ -330,7 +328,39 @@ func (h *Handler) authConfig(w http.ResponseWriter, r *http.Request) {
 	googleEnabled := h.oauth != nil && h.getSetting(keyGoogleClientID) != "" && h.getSetting(keyGoogleClientSecret) != ""
 	githubEnabled := h.oauth != nil && h.getSetting(keyGitHubClientID) != "" && h.getSetting(keyGitHubClientSecret) != ""
 	writeJSON(w, http.StatusOK, map[string]any{
-		"googleEnabled": googleEnabled,
-		"githubEnabled": githubEnabled,
+		"googleEnabled":       googleEnabled,
+		"githubEnabled":       githubEnabled,
+		"registrationEnabled": h.registrationEnabled(),
 	})
+}
+
+// authenticate resolves username+password to a (userID, orgID) pair. It accepts
+// two credential sources, in order:
+//  1. the instance admin credential (config-backed) → the admin's bootstrap org
+//  2. a database user carrying a bcrypt password hash (invited members and
+//     self-serve sign-ups) → the first org they belong to
+//
+// It returns ok=false when neither matches. Callers arm the failed-login limiter.
+func (h *Handler) authenticate(username, password string) (uid, orgID uint, ok bool) {
+	if h.auth.Check(username, password) {
+		orgID = h.bootstrapOrgID()
+		return h.bootstrapUserID(username, orgID), orgID, true
+	}
+
+	email := strings.ToLower(strings.TrimSpace(username))
+	var user models.User
+	if h.db.Where("LOWER(email) = ?", email).First(&user).Error != nil {
+		return 0, 0, false
+	}
+	if user.PasswordHash == "" {
+		return 0, 0, false
+	}
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) != nil {
+		return 0, 0, false
+	}
+	var member models.OrgMember
+	if h.db.Where("user_id = ?", user.ID).First(&member).Error != nil {
+		return 0, 0, false
+	}
+	return user.ID, member.OrgID, true
 }

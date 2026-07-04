@@ -329,7 +329,10 @@ type LinkEvent struct {
 	OS        string    `gorm:"size:64" json:"os"`
 	Referer   string    `gorm:"type:text" json:"referer"`
 	UA        string    `gorm:"type:text" json:"ua"`
-	IsBot     bool      `gorm:"default:false;index" json:"isBot"`
+	// Fingerprint is a stable, privacy-preserving per-device hash (anonymized IP
+	// + user-agent + accept-language). Used to dedup unique devices in analytics.
+	Fingerprint string `gorm:"size:64;index" json:"-"`
+	IsBot       bool   `gorm:"default:false;index" json:"isBot"`
 }
 
 // Mailbox is an address that can receive mail (prefix@domain).

@@ -141,6 +141,7 @@ func (h *Handler) Routes() *http.ServeMux {
 
 	// Auth (no session required).
 	mux.HandleFunc("POST /api/auth/login", h.login)
+	mux.HandleFunc("POST /api/auth/register", h.register)
 	mux.HandleFunc("POST /api/auth/2fa/verify", h.verify2FA)
 	mux.HandleFunc("POST /api/auth/logout", h.logout)
 	mux.HandleFunc("GET /api/auth/me", h.me)

@@ -386,6 +386,7 @@ export interface Settings {
   githubClientSecretSet: boolean;
   dataRetentionDays: number;
   autoWrapLinks: boolean;
+  allowRegistration: boolean;
 }
 
 // EmailAIAnnotation is the Inbox AI plugin's per-email analysis (Pro/elite).
@@ -483,6 +484,7 @@ export const api = {
     githubClientSecret?: string;
     dataRetentionDays?: number;
     autoWrapLinks?: boolean;
+    allowRegistration?: boolean;
   }) => req<Settings>("PUT", "/api/settings", s),
 
   // license (led-pro licensing plugin; absent in the OSS build → 404)
@@ -527,8 +529,10 @@ export const api = {
   deleteBillingPrice: (id: number) => req<void>("DELETE", `/api/billing/prices/${id}`),
 
   // auth
-  authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean }>("GET", "/api/auth/config"),
+  authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean }>("GET", "/api/auth/config"),
   me: () => req<{ username: string; orgId: number }>("GET", "/api/auth/me"),
+  register: (email: string, password: string) =>
+    req<{ ok: boolean; username: string }>("POST", "/api/auth/register", { email, password }),
   login: (username: string, password: string) =>
     req<{ ok?: boolean; twoFactorRequired?: boolean; username: string }>(
       "POST",

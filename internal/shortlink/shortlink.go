@@ -4,7 +4,9 @@ package shortlink
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
 	"html"
 	"net"
 	"net/http"
@@ -199,16 +201,26 @@ func anonymizeIP(raw string) string {
 	return v6.String()
 }
 
+// deviceFingerprint derives a stable, privacy-preserving per-device hash from
+// the already-anonymized IP, the user-agent, and the Accept-Language header.
+// It carries no more PII than the fields already stored, but collapses repeat
+// visits from one device into a single value so analytics can dedup them.
+func deviceFingerprint(anonIP, ua, acceptLang string) string {
+	sum := sha256.Sum256([]byte(anonIP + "\n" + ua + "\n" + acceptLang))
+	return hex.EncodeToString(sum[:16]) // 128-bit hex, fits size:64
+}
+
 // record writes a click event and increments the counter in the background.
 func (s *Service) record(r *http.Request, orgID uint, slug string, linkID uint, ip, country, region, city, ua string, info geo.UAInfo, bot bool) {
 	referer := r.Referer()
 	anonIP := anonymizeIP(ip)
+	fingerprint := deviceFingerprint(anonIP, ua, r.Header.Get("Accept-Language"))
 	go func() {
 		ev := models.LinkEvent{
 			LinkID: linkID, CreatedAt: time.Now(),
 			IP: anonIP, Country: country, Region: region, City: city,
 			Device: info.Device, Browser: info.Browser, OS: info.OS,
-			Referer: referer, UA: ua, IsBot: bot,
+			Referer: referer, UA: ua, Fingerprint: fingerprint, IsBot: bot,
 		}
 		s.db.Create(&ev)
 		if !bot {

@@ -8,27 +8,13 @@ import { KeyRound } from "lucide-react";
 export default function LicensesPage() {
   const [rows, setRows] = useState<IssuedLicense[]>([]);
   const [error, setError] = useState<{ status: number } | null>(null);
-  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     api.issued()
       .then(setRows)
-      .catch((e: ApiError) => {
-        if (e.status === 404) setUnavailable(true);
-        else setError({ status: e.status });
-      });
+      .catch((e: ApiError) => setError({ status: e.status }));
   }, []);
 
-  if (unavailable) {
-    return (
-      <ScreenWrap>
-        <GlassCard className="mx-auto mt-12 max-w-md p-6 text-center text-sm text-white/55">
-          License issuance is a <span className="text-white/80">Octarq Pro</span> feature and isn't part
-          of the open-source build.
-        </GlassCard>
-      </ScreenWrap>
-    );
-  }
   if (error) {
     return (
       <ScreenWrap>

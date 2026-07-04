@@ -62,7 +62,9 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 		q := botFilter(h.db.Model(&models.LinkEvent{}).
 			Where("link_id IN (?) AND created_at >= ? AND "+col+" <> ''", orgLinks, since30))
 		if col == "device" {
-			q = q.Select(col + " as key, count(distinct(ip || ' ' || ua)) as count")
+			// Dedup by device fingerprint; fall back to ip+ua for rows recorded
+			// before fingerprints were captured.
+			q = q.Select(col + " as key, count(distinct COALESCE(NULLIF(fingerprint, ''), ip || ' ' || ua)) as count")
 		} else {
 			q = q.Select(col + " as key, count(*) as count")
 		}

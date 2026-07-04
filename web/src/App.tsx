@@ -278,7 +278,10 @@ export default function App() {
         user={user}
         activeOrgId={activeOrgId}
         setActiveOrgId={setActiveOrgId}
-        onLogout={() => setAuthed(false)}
+        onLogout={async () => {
+          try { await api.logout(); } catch { /* clear locally even if the request fails */ }
+          setAuthed(false);
+        }}
       />
     );
   }
@@ -853,19 +856,20 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
   const [p, setP] = useState("");
   const [code, setCode] = useState("");
   const [needs2FA, setNeeds2FA] = useState(false);
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
-  const [oauthConfig, setOauthConfig] = useState<{ googleEnabled: boolean; githubEnabled: boolean } | null>(null);
+  const [oauthConfig, setOauthConfig] = useState<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean } | null>(null);
 
   useEffect(() => {
     api.authConfig()
       .then(setOauthConfig)
-      .catch(() => setOauthConfig({ googleEnabled: false, githubEnabled: false }));
+      .catch(() => setOauthConfig({ googleEnabled: false, githubEnabled: false, registrationEnabled: false }));
   }, []);
 
-  async function finishLogin() {
+  async function finishLogin(username: string) {
     const m = await api.me();
-    onLogin(u, m.orgId);
+    onLogin(username, m.orgId);
   }
 
   async function doSubmit() {
@@ -873,9 +877,14 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
     setBusy(true);
     setErr("");
     try {
+      if (mode === "register") {
+        await api.register(u.trim(), p);
+        await finishLogin(u.trim());
+        return;
+      }
       if (needs2FA) {
         await api.verify2FA(u, p, code.trim());
-        await finishLogin();
+        await finishLogin(u);
         return;
       }
       const res = await api.login(u, p);
@@ -883,12 +892,20 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
         setNeeds2FA(true);
         return;
       }
-      await finishLogin();
+      await finishLogin(u);
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "login failed");
+      setErr(e instanceof ApiError ? e.message : mode === "register" ? "sign up failed" : "login failed");
     } finally {
       setBusy(false);
     }
+  }
+
+  function switchMode(next: "login" | "register") {
+    setMode(next);
+    setErr("");
+    setNeeds2FA(false);
+    setCode("");
+    setU(next === "register" ? "" : "admin");
   }
 
   function submit(e: React.FormEvent) {
@@ -912,8 +929,8 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
             <span className="font-display text-xl font-extrabold text-white">L</span>
           </div>
-          <h1 className="font-display text-2xl font-bold text-white">Sign in to led</h1>
-          <p className="text-xs text-white/40 mt-1.5 leading-relaxed">Enter your credentials to access the operator workspace</p>
+          <h1 className="font-display text-2xl font-bold text-white">{mode === "register" ? "Create your account" : "Sign in to led"}</h1>
+          <p className="text-xs text-white/40 mt-1.5 leading-relaxed">{mode === "register" ? "Sign up to spin up your own workspace" : "Enter your credentials to access the operator workspace"}</p>
         </div>
 
         {err && (
@@ -925,17 +942,17 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
 
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="label" htmlFor="login-username">Username</label>
+            <label className="label" htmlFor="login-username">{mode === "register" ? "Email" : "Username"}</label>
             <input
               id="login-username"
-              type="text"
-              name="username"
+              type={mode === "register" ? "email" : "text"}
+              name={mode === "register" ? "email" : "username"}
               className="input animate-none"
               value={u}
               onChange={(e) => setU(e.target.value)}
               onKeyDown={onEnter}
-              autoComplete="username"
-              placeholder="admin@domain.com"
+              autoComplete={mode === "register" ? "email" : "username"}
+              placeholder={mode === "register" ? "you@domain.com" : "admin@domain.com"}
             />
           </div>
 
@@ -949,9 +966,9 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
               value={p}
               onChange={(e) => setP(e.target.value)}
               onKeyDown={onEnter}
-              autoComplete="current-password"
+              autoComplete={mode === "register" ? "new-password" : "current-password"}
               autoFocus={!needs2FA}
-              placeholder="••••••••"
+              placeholder={mode === "register" ? "At least 8 characters" : "••••••••"}
             />
           </div>
 
@@ -973,9 +990,23 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
           )}
 
           <button type="submit" className="btn-primary w-full py-2.5 mt-2" disabled={busy}>
-            {busy ? "Signing in..." : needs2FA ? "Verify OTP" : "Sign In"}
+            {busy ? (mode === "register" ? "Creating..." : "Signing in...") : mode === "register" ? "Create account" : needs2FA ? "Verify OTP" : "Sign In"}
           </button>
         </form>
+
+        {oauthConfig?.registrationEnabled && !needs2FA && (
+          <p className="mt-5 text-center text-xs text-white/40">
+            {mode === "register" ? (
+              <>Already have an account?{" "}
+                <button type="button" onClick={() => switchMode("login")} className="text-indigo-300 hover:underline font-medium">Sign in</button>
+              </>
+            ) : (
+              <>Don't have an account?{" "}
+                <button type="button" onClick={() => switchMode("register")} className="text-indigo-300 hover:underline font-medium">Create one</button>
+              </>
+            )}
+          </p>
+        )}
 
         {hasOauth && (
           <div className="mt-6 space-y-3">

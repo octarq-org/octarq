@@ -14,29 +14,15 @@ import { Store, Package, Tag, Download, KeyRound, Pencil, Trash2, Plus, External
 export default function StorefrontPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [error, setError] = useState<{ status: number } | null>(null);
-  const [unavailable, setUnavailable] = useState(false);
   const [editing, setEditing] = useState<Product | "new" | null>(null);
 
   function load() {
     api.products()
       .then((p) => { setProducts(p); setError(null); })
-      .catch((e: ApiError) => {
-        if (e.status === 404) setUnavailable(true);
-        else setError({ status: e.status });
-      });
+      .catch((e: ApiError) => setError({ status: e.status }));
   }
   useEffect(load, []);
 
-  if (unavailable) {
-    return (
-      <ScreenWrap>
-        <GlassCard className="mx-auto mt-12 max-w-md p-6 text-center text-sm text-white/55">
-          The storefront is a <span className="text-white/80">Octarq Pro</span> feature and isn't part
-          of the open-source build.
-        </GlassCard>
-      </ScreenWrap>
-    );
-  }
   if (error) {
     return (
       <ScreenWrap>

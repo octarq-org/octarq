@@ -289,21 +289,23 @@ function GeneralSettings() {
       </GlassCard>
 
       {isAdminOrOwner && (
-        <>
-          <GlassCard className="p-6 space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-white">Export Workspace Data</h2>
-              <p className="text-xs text-white/50 mt-1">
-                Download a complete copy of everything in this workspace including links, domains, mailboxes, and settings.
-              </p>
-            </div>
-            <div className="pt-2">
-              <Button variant="outline" onClick={handleExport} disabled={exporting}>
-                {exporting ? "Preparing…" : "Download my data"}
-              </Button>
-            </div>
-          </GlassCard>
+        <GlassCard className="p-6 space-y-4">
+          <div>
+            <h2 className="text-base font-bold text-white">Export Workspace Data</h2>
+            <p className="text-xs text-white/50 mt-1">
+              Download a complete copy of everything in this workspace including links, domains, mailboxes, and settings.
+            </p>
+          </div>
+          <div className="pt-2">
+            <Button variant="outline" onClick={handleExport} disabled={exporting}>
+              {exporting ? "Preparing…" : "Download my data"}
+            </Button>
+          </div>
+        </GlassCard>
+      )}
 
+      {isAdminOrOwner && (
+        <>
           <GlassCard className="p-6 border-red-500/20 bg-red-950/5 space-y-6">
             <div className="flex items-center gap-2 text-rose-400">
               <ShieldAlert size={20} />
@@ -469,13 +471,21 @@ function SecuritySettings() {
   const [githubSecret, setGithubSecret] = useState("");
   const [ssoBusy, setSsoBusy] = useState(false);
   const [ssoSaved, setSsoSaved] = useState(false);
+  const [allowReg, setAllowReg] = useState(true);
 
   useEffect(() => {
     if (ssoSettings) {
       setGoogleId(ssoSettings.googleClientId || "");
       setGithubId(ssoSettings.githubClientId || "");
+      setAllowReg(ssoSettings.allowRegistration);
     }
   }, [ssoSettings]);
+
+  async function toggleRegistration(next: boolean) {
+    setAllowReg(next);
+    try { await api.updateSettings({ allowRegistration: next }); ssoReload(); }
+    catch { setAllowReg(!next); }
+  }
 
   async function saveSso() {
     setSsoBusy(true);
@@ -616,6 +626,17 @@ function SecuritySettings() {
         </div>
         <p className="text-xs text-white/50">All devices where you're currently signed in. Revoking any session invalidates all cookies and re-authenticates you here.</p>
         <SessionsList onRevokeAll={logoutAll} />
+      </GlassCard>
+
+      <GlassCard className="p-6 space-y-4">
+        <h2 className="text-base font-bold text-white">Access control</h2>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-white/85">Allow public sign-up</p>
+            <p className="text-[10px] text-white/40 mt-0.5">When on, anyone can create an account with an email and password from the sign-in page. Turn off to make this an invite-only instance.</p>
+          </div>
+          <Toggle on={allowReg} onChange={toggleRegistration} />
+        </div>
       </GlassCard>
 
       <GlassCard className="p-6 space-y-6">
@@ -1714,7 +1735,13 @@ function BillingPlanSettings() {
                   </Button>
                 ) : (
                   <a
-                    href="https://octarq.com/pricing/"
+                    href={`https://octarq.com/pricing/${
+                      p.name.toLowerCase().includes("elite")
+                        ? "?plan=elite"
+                        : p.name.toLowerCase().includes("pro")
+                        ? "?plan=pro"
+                        : ""
+                    }`}
                     target="_blank"
                     rel="noreferrer"
                     className={`block w-full text-center text-xs font-semibold py-2 px-3 rounded-xl transition-colors ${
@@ -1723,7 +1750,7 @@ function BillingPlanSettings() {
                         : "bg-transparent border border-white/20 hover:bg-white/5 text-white"
                     }`}
                   >
-                    Upgrade Plan
+                    {p.price === "$0" ? "Downgrade" : "Upgrade Plan"}
                   </a>
                 )}
               </div>

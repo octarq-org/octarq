@@ -34,7 +34,14 @@ const (
 	keyGitHubClientSecret = "oauth.github.client_secret" // stored AES-GCM encrypted
 	keyDataRetentionDays  = "data_retention_days"        // 0 = disabled
 	keyAutoWrapLinks      = "auto_wrap_links"
+	keyAllowRegistration  = "allow_registration" // "false" disables public sign-up; default on
 )
+
+// registrationEnabled reports whether public email/password sign-up is allowed.
+// Absent setting → enabled (default on); only an explicit "false" disables it.
+func (h *Handler) registrationEnabled() bool {
+	return h.getSetting(keyAllowRegistration) != "false"
+}
 
 // DefaultRetentionDays is used when no retention setting is configured.
 const DefaultRetentionDays = 90
@@ -142,6 +149,7 @@ func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
 		"githubClientSecretSet": h.getSetting(keyGitHubClientSecret) != "",
 		"dataRetentionDays":     retDays,
 		"autoWrapLinks":         h.getSetting(keyAutoWrapLinks) == "true",
+		"allowRegistration":     h.registrationEnabled(),
 	})
 }
 
@@ -165,6 +173,7 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		GitHubClientSecret *string `json:"githubClientSecret"` // "" clears, omitted keeps
 		DataRetentionDays  *int    `json:"dataRetentionDays"`  // 0 = disabled
 		AutoWrapLinks      *bool   `json:"autoWrapLinks"`
+		AllowRegistration  *bool   `json:"allowRegistration"`
 	}
 	if err := readJSON(r, &d); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
@@ -242,6 +251,13 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 			val = "true"
 		}
 		h.setSetting(keyAutoWrapLinks, val)
+	}
+	if d.AllowRegistration != nil {
+		val := "false"
+		if *d.AllowRegistration {
+			val = "true"
+		}
+		h.setSetting(keyAllowRegistration, val)
 	}
 	h.audit(r, "settings.update", "settings", 0, nil)
 	h.getSettings(w, r)

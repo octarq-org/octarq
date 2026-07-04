@@ -13,35 +13,21 @@ export default function VPSPage() {
   const [editItem, setEditItem] = useState<VPS | null>(null);
   const [terminalVPS, setTerminalVPS] = useState<VPS | null>(null);
   const [error, setError] = useState<{ status: number } | null>(null);
-  const [unavailable, setUnavailable] = useState(false);
 
   function load() {
     api.vpsList()
       .then(setList)
-      .catch((err) => {
-        if (err.status === 404) setUnavailable(true);
-        else setError({ status: err.status });
-      });
+      .catch((err) => setError({ status: err.status }));
     api.sshKeys().then(setKeys).catch(() => {});
   }
 
   useEffect(() => {
     load();
     const t = setInterval(() => {
-      if (!error && !unavailable) load();
+      if (!error) load();
     }, 30000); // refresh status every 30s
     return () => clearInterval(t);
-  }, [error, unavailable]);
-
-  if (unavailable) {
-    return (
-      <ScreenWrap>
-        <GlassCard className="mx-auto mt-12 max-w-md p-6 text-center text-sm text-white/55">
-          Infrastructure Observability is a <span className="text-white/80">Octarq Pro</span> feature and isn't part of the open-source build.
-        </GlassCard>
-      </ScreenWrap>
-    );
-  }
+  }, [error]);
 
   if (error) {
     return (

@@ -7,30 +7,16 @@ export default function SSHKeysPage() {
   const [keys, setKeys] = useState<SSHKey[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [error, setError] = useState<{ status: number } | null>(null);
-  const [unavailable, setUnavailable] = useState(false);
 
   function load() {
     api.sshKeys()
       .then(setKeys)
-      .catch((err) => {
-        if (err.status === 404) setUnavailable(true);
-        else setError({ status: err.status });
-      });
+      .catch((err) => setError({ status: err.status }));
   }
 
   useEffect(() => {
     load();
   }, []);
-
-  if (unavailable) {
-    return (
-      <ScreenWrap>
-        <GlassCard className="mx-auto mt-12 max-w-md p-6 text-center text-sm text-white/55">
-          SSH Credentials Vault is a <span className="text-white/80">Octarq Pro</span> feature and isn't part of the open-source build.
-        </GlassCard>
-      </ScreenWrap>
-    );
-  }
 
   if (error) {
     return (

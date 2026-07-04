@@ -11,7 +11,6 @@ export default function BillingPage() {
   const [cfg, setCfg] = useState<BillingConfig | null>(null);
   const [prices, setPrices] = useState<PriceMap[]>([]);
   const [error, setError] = useState<{ status: number } | null>(null);
-  const [unavailable, setUnavailable] = useState(false);
   const [secret, setSecret] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -20,10 +19,7 @@ export default function BillingPage() {
   function load() {
     api.billingConfig()
       .then((c) => { setCfg(c); setError(null); api.billingPrices().then(setPrices).catch(() => {}); })
-      .catch((e: ApiError) => {
-        if (e.status === 404) setUnavailable(true);
-        else setError({ status: e.status });
-      });
+      .catch((e: ApiError) => setError({ status: e.status }));
   }
   useEffect(load, []);
 
@@ -44,16 +40,6 @@ export default function BillingPage() {
     load();
   }
 
-  if (unavailable) {
-    return (
-      <ScreenWrap>
-        <GlassCard className="mx-auto mt-12 max-w-md p-6 text-center text-sm text-white/55">
-          Billing is a <span className="text-white/80">Octarq Pro</span> feature and isn't part of the
-          open-source build.
-        </GlassCard>
-      </ScreenWrap>
-    );
-  }
   if (error) {
     return (
       <ScreenWrap>
