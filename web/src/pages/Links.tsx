@@ -333,15 +333,16 @@ function LinkEditorForm({
   return (
     <div className="space-y-4">
       <Field label="Destination Target URL">
-        <div className="flex gap-2">
-          <input
-            className="input w-full font-mono text-sm"
+        <div className="flex gap-2 items-start">
+          <textarea
+            className="input w-full font-mono text-sm resize-y"
+            rows={3}
             value={target}
             onChange={(e) => setTarget(e.target.value)}
             placeholder="https://example.com/blog-post-xyz"
             required
           />
-          <Button variant="subtle" className="shrink-0 text-xs py-1" type="button" onClick={() => setShowUtm((v) => !v)}>
+          <Button variant="subtle" className="shrink-0 text-xs py-2 mt-0.5" type="button" onClick={() => setShowUtm((v) => !v)}>
             UTM
           </Button>
         </div>

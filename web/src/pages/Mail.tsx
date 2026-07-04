@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api, Attachment, Domain, effectiveMailHosts, Email, Mailbox } from "../api";
 import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
 import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle } from "lucide-react";
@@ -23,7 +24,20 @@ export default function MailPage() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<'mail' | 'settings'>('mail');
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const tab = (tabParam === "settings") ? "settings" : "mail";
+  const setTab = (t: "mail" | "settings") => {
+    setSearchParams(prev => {
+      if (t === "mail") {
+        prev.delete("tab");
+      } else {
+        prev.set("tab", t);
+      }
+      return prev;
+    }, { replace: true });
+  };
 
   // Every mail host across all mail-enabled domains (incl. subdomains).
   const mailHostOptions = Array.from(new Set(domains.flatMap(effectiveMailHosts)));

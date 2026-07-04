@@ -66,7 +66,8 @@ export default function FinancePage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   // Pro-gate: 402 (unlicensed) → upsell, 404 (plugin absent in OSS build) → neutral note.
-  const [error, setError] = useState<{ status: number; message: string } | null>(null);
+  const [error, setError] = useState<{ status: number } | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
 
   function load() {
     api.transactions().then((res) => {
@@ -82,7 +83,8 @@ export default function FinancePage() {
         });
       }
     }).catch(err => {
-      setError({ status: err.status, message: err.message });
+      if (err.status === 404) setUnavailable(true);
+      else setError({ status: err.status });
     });
   }
 
@@ -200,6 +202,16 @@ export default function FinancePage() {
   const totalIncome = transactions.filter(t => t.type === "income").reduce((acc, t) => acc + t.amount, 0);
   const totalExpense = transactions.filter(t => t.type === "expense").reduce((acc, t) => acc + t.amount, 0);
   const netBalance = totalIncome - totalExpense;
+
+  if (unavailable) {
+    return (
+      <ScreenWrap>
+        <GlassCard className="mx-auto mt-12 max-w-md p-6 text-center text-sm text-white/55">
+          Bookkeeping is a <span className="text-white/80">Octarq Pro</span> feature and isn't part of the open-source build.
+        </GlassCard>
+      </ScreenWrap>
+    );
+  }
 
   if (error) {
     return (

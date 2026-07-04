@@ -9,6 +9,9 @@ export default function OverviewPage() {
   const [includeBot, setIncludeBot] = useState(false);
   const [smtpCount, setSmtpCount] = useState<number | null>(null);
   const [memberCount, setMemberCount] = useState<number | null>(null);
+  const [isPro, setIsPro] = useState(false);
+  const [productCount, setProductCount] = useState<number | null>(null);
+  const [priceCount, setPriceCount] = useState<number | null>(null);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem("dismiss_onboarding") === "true");
   const nav = useNavigate();
 
@@ -16,6 +19,15 @@ export default function OverviewPage() {
     api.overview(includeBot).then(setO).catch(() => {});
     api.smtpSenders().then(s => setSmtpCount(s.length)).catch(() => {});
     api.orgMembers().then(m => setMemberCount(m.length)).catch(() => {});
+    api.license()
+      .then(res => {
+        setIsPro(res.licensed);
+        if (res.licensed) {
+          api.products().then(p => setProductCount(p.length)).catch(() => {});
+          api.billingPrices().then(bp => setPriceCount(bp.length)).catch(() => {});
+        }
+      })
+      .catch(() => setIsPro(false));
   }, [includeBot]);
 
   const dismiss = () => {
@@ -45,7 +57,7 @@ export default function OverviewPage() {
       title: "Outbound SMTP Relay",
       description: "Deploy SMTP relay credentials to handle secure transactional email delivery.",
       completed: smtpCount !== null && smtpCount > 0,
-      path: "/settings/smtp",
+      path: "/mail?tab=settings",
     },
     {
       id: "colleague",
@@ -54,6 +66,22 @@ export default function OverviewPage() {
       completed: memberCount !== null && memberCount > 1,
       path: "/settings/members",
     },
+    ...(isPro ? [
+      {
+        id: "storefront",
+        title: "Digital Storefront",
+        description: "Configure products, pricing tiers, and downloads to sell your software.",
+        completed: productCount !== null && productCount > 0,
+        path: "/storefront",
+      },
+      {
+        id: "billing",
+        title: "Payment Webhooks",
+        description: "Connect Stripe or Polar checkout webhooks and map price IDs.",
+        completed: priceCount !== null && priceCount > 0,
+        path: "/billing",
+      }
+    ] : [])
   ];
 
   const completedCount = steps.filter(s => s.completed).length;
@@ -210,8 +238,8 @@ export default function OverviewPage() {
           )}
         </Panel>
 
-        <Panel title={`Top countries${includeBot ? " (incl. bots)" : ""}`}>
-          <BarList rows={o.countries} empty="No geo data (set LED_GEOIP_DB)" />
+        <Panel title={`Top cities${includeBot ? " (incl. bots)" : ""}`}>
+          <BarList rows={o.cities} empty="No geo data (set LED_GEOIP_DB)" />
         </Panel>
 
         <Panel title={`Devices${includeBot ? " (incl. bots)" : ""}`}>

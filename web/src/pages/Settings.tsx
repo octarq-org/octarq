@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, Settings as SettingsData, OrgMember, LicenseStatus } from "../api";
+import { api, ApiError, Settings as SettingsData, OrgMember, LicenseStatus, Overview } from "../api";
 import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign } from "lucide-react";
 import LLMProvidersSettings from "./LLMProviders";
@@ -13,7 +13,7 @@ export default function SettingsPage() {
         <Route path="/general" element={<GeneralSettings />} />
         <Route path="/security" element={<SecuritySettings />} />
         <Route path="/webhooks" element={<WebhooksSettings />} />
-        <Route path="/billing" element={<BillingPlanDemo />} />
+        <Route path="/billing" element={<BillingPlanSettings />} />
         <Route path="/license" element={<LicenseSettings />} />
         <Route path="/notifications" element={<NotificationChannels />} />
         <Route path="/members" element={<OrgMembersManager />} />
@@ -289,25 +289,37 @@ function GeneralSettings() {
       </GlassCard>
 
       {isAdminOrOwner && (
-        <GlassCard className="p-6 border-red-500/20 bg-red-950/5 space-y-6">
-          <div className="flex items-center gap-2 text-rose-400">
-            <ShieldAlert size={20} />
-            <h2 className="text-base font-bold">Danger Zone</h2>
-          </div>
-          <p className="text-xs text-white/60">
-            Download a complete copy of everything in this workspace, or permanently
-            delete the workspace and all of its links, domains, mailboxes, and history.
-            Only workspace owners and admins can do this.
-          </p>
-          <div className="flex flex-wrap gap-4 pt-2">
-            <Button variant="subtle" onClick={handleExport} disabled={exporting}>
-              {exporting ? "Preparing…" : "Download my data"}
-            </Button>
-            <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
-              Delete workspace
-            </Button>
-          </div>
-        </GlassCard>
+        <>
+          <GlassCard className="p-6 space-y-4">
+            <div>
+              <h2 className="text-base font-bold text-white">Export Workspace Data</h2>
+              <p className="text-xs text-white/50 mt-1">
+                Download a complete copy of everything in this workspace including links, domains, mailboxes, and settings.
+              </p>
+            </div>
+            <div className="pt-2">
+              <Button variant="outline" onClick={handleExport} disabled={exporting}>
+                {exporting ? "Preparing…" : "Download my data"}
+              </Button>
+            </div>
+          </GlassCard>
+
+          <GlassCard className="p-6 border-red-500/20 bg-red-950/5 space-y-6">
+            <div className="flex items-center gap-2 text-rose-400">
+              <ShieldAlert size={20} />
+              <h2 className="text-base font-bold">Danger Zone</h2>
+            </div>
+            <p className="text-xs text-white/60">
+              Permanently delete the workspace and all of its links, domains, mailboxes, and history.
+              This action cannot be undone and will immediately delete all configuration data.
+            </p>
+            <div className="pt-2">
+              <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
+                Delete workspace
+              </Button>
+            </div>
+          </GlassCard>
+        </>
       )}
 
       {showDeleteModal && (
@@ -1497,54 +1509,67 @@ function SMTPSenderModal({ sender, onClose, onSaved }: { sender: any; onClose: (
   );
 }
 
-function BillingPlanDemo() {
+function BillingPlanSettings() {
+  const [status, setStatus] = useState<LicenseStatus | null>(null);
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
+
+  useEffect(() => {
+    api.license()
+      .then(setStatus)
+      .catch((e: ApiError) => {
+        if (e.status === 404) setUnavailable(true);
+      });
+    api.overview(false)
+      .then(setOverview)
+      .catch(() => {});
+  }, []);
+
   const plans = [
     {
-      name: "Starter",
+      name: "Starter (OSS)",
       price: "$0",
       period: "forever",
-      description: "Ideal for personal sites & hobby projects.",
+      description: "Ideal for personal sites, hobby projects, and open-source hosting.",
       features: [
-        "Up to 3 Managed Domains",
-        "1,000 Short Links / month",
-        "1 Workspace Member",
+        "Core Domain Mapping",
+        "Unlimited Redirection Links",
         "Basic Click Analytics",
+        "Standard Email Routing",
         "Community Support",
       ],
-      current: false,
+      current: unavailable || !status?.licensed,
     },
     {
-      name: "Pro Professional",
+      name: "Octarq Pro",
       price: "$29",
       period: "month",
-      description: "Perfect for growing projects & small teams.",
+      description: "Perfect for growing projects, creators, and commercial workloads.",
       features: [
-        "Unlimited Managed Domains",
-        "100,000 Short Links / month",
-        "Up to 5 Workspace Members",
-        "Real-time Geolocation Stats",
-        "Catch-All Inboxes & Relays",
-        "VPS Control Panel",
-        "Priority Support",
+        "Everything in Starter",
+        "Direct VPS Control Panel",
+        "Secure SSH Credentials Vault",
+        "Outbound SMTP Relay",
+        "Storefront Product Catalog",
+        "Cryptographic License Issuance",
       ],
-      current: true,
+      current: !unavailable && status?.licensed && status.tier?.toLowerCase() === "pro",
       popular: true,
     },
     {
-      name: "Business Enterprise",
+      name: "Octarq Elite",
       price: "$99",
       period: "month",
-      description: "Dedicated resources & advanced security.",
+      description: "Full AI automation, dedicated resources, and advanced compliance.",
       features: [
-        "Everything in Pro Plan",
-        "Unlimited Short Links",
-        "Unlimited Workspace Members",
-        "Dedicated Mail Relays",
-        "SAML SSO / OAuth Sync",
-        "99.9% SLA Guarantee",
-        "24/7 Phone & Email Support",
+        "Everything in Pro",
+        "AI Inbox Automation & Summaries",
+        "Semantic OTP Code Routing",
+        "Multiple LLM Provider Keys",
+        "Comprehensive Audit Logging",
+        "Priority Support Escalation",
       ],
-      current: false,
+      current: !unavailable && status?.licensed && status.tier?.toLowerCase() === "elite",
     },
   ];
 
@@ -1552,43 +1577,77 @@ function BillingPlanDemo() {
     <div className="space-y-6">
       <PageHeader
         title="Billing & Plan"
-        description="Monitor your subscription package, resource metrics, and payment receipts"
+        description="Monitor your subscription package, license details, and usage metrics."
       />
-      {/* Current plan metrics */}
+
+      {/* Active plan card & metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <GlassCard className="p-5 flex flex-col justify-between">
           <div>
             <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mb-1">Active Plan</span>
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-              Pro Professional
-              <Badge tone="indigo">Active</Badge>
+            {unavailable ? (
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  Open Source
+                  <Badge tone="neutral">OSS Build</Badge>
+                </h3>
+                <p className="text-xs text-white/50 mt-1">No Pro/Elite license active</p>
+              </div>
+            ) : status?.licensed ? (
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2 capitalize">
+                  {status.tier} Tier
+                  <Badge tone="green">Active</Badge>
+                </h3>
+                <p className="text-xs text-white/50 mt-1 truncate" title={status.email}>
+                  Licensed to {status.email}
+                </p>
+                <p className="text-[10px] text-white/40 mt-0.5">
+                  {status.expiresAt ? `Expires ${status.expiresAt.slice(0, 10)}` : "Lifetime / Never expires"}
+                </p>
+              </div>
+            ) : (
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  Unlicensed
+                  <Badge tone="red">Locked</Badge>
+                </h3>
+                <p className="text-xs text-white/50 mt-1">Activate a license key to unlock features</p>
+              </div>
+            )}
+          </div>
+          <div className="mt-6 border-t border-white/[0.06] pt-4 flex flex-col gap-2">
+            {!unavailable && status?.licensed ? (
+              <a
+                href="https://app.octarq.com"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full text-center text-xs font-semibold py-2 px-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white transition-colors"
+              >
+                Manage Subscription on Octarq
+              </a>
+            ) : (
+              <a
+                href="https://octarq.com/pricing/"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full text-center text-xs font-semibold py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white transition-colors"
+              >
+                View Premium Plans
+              </a>
+            )}
+          </div>
+        </GlassCard>
+
+        <GlassCard className="p-5 flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mb-1">Redirection Links</span>
+            <h3 className="text-xl font-bold text-white">
+              {overview ? overview.links : "—"} Links
             </h3>
-            <p className="text-xs text-white/50 mt-1">Renews automatically on July 15, 2026</p>
-          </div>
-          <div className="mt-6 border-t border-white/[0.06] pt-4 flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold text-white">$29</span>
-            <span className="text-xs text-white/40">/ month</span>
-          </div>
-        </GlassCard>
-
-        <GlassCard className="p-5 flex flex-col justify-between">
-          <div>
-            <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mb-1">Link Usage</span>
-            <h3 className="text-xl font-bold text-white">42,890 / 100,000</h3>
-            <p className="text-xs text-white/50 mt-1">42.8% of monthly limit consumed</p>
-          </div>
-          <div className="mt-6">
-            <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full bg-indigo-500 rounded-full" style={{ width: "42.8%" }} />
-            </div>
-          </div>
-        </GlassCard>
-
-        <GlassCard className="p-5 flex flex-col justify-between">
-          <div>
-            <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mb-1">Active Domains</span>
-            <h3 className="text-xl font-bold text-white">14 Domains</h3>
-            <p className="text-xs text-white/50 mt-1">Unlimited domains allowed on Pro</p>
+            <p className="text-xs text-white/50 mt-1">
+              {overview ? `${overview.activeLinks} active redirects` : "Loading metrics…"}
+            </p>
           </div>
           <div className="mt-6 border-t border-white/[0.06] pt-4">
             <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
@@ -1596,33 +1655,30 @@ function BillingPlanDemo() {
             </span>
           </div>
         </GlassCard>
-      </div>
 
-      {/* Credit Card / Payment Method */}
-      <GlassCard className="p-6 space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold text-white">Payment Method</h3>
-          <p className="text-xs text-white/50">Primary card used for recurring renewals.</p>
-        </div>
-        <div className="flex items-center justify-between border border-white/[0.05] rounded-xl p-4 bg-black/20 max-w-md">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-12 bg-white/5 rounded border border-white/10 flex items-center justify-center">
-              <span className="font-extrabold text-[10px] tracking-widest text-white/60">VISA</span>
-            </div>
-            <div>
-              <span className="text-sm font-semibold text-white block">Visa ending in 4242</span>
-              <span className="text-[10px] text-white/40">Expires 12/28</span>
-            </div>
+        <GlassCard className="p-5 flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mb-1">Managed Domains</span>
+            <h3 className="text-xl font-bold text-white">
+              {overview ? overview.domains : "—"} Domains
+            </h3>
+            <p className="text-xs text-white/50 mt-1">
+              {overview ? `${overview.linkDomains} for links · ${overview.mailDomains} for mail` : "Loading metrics…"}
+            </p>
           </div>
-          <Button variant="ghost" className="text-xs py-1 px-2.5">Edit Card</Button>
-        </div>
-      </GlassCard>
+          <div className="mt-6 border-t border-white/[0.06] pt-4">
+            <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+              <Sparkles className="h-3.5 w-3.5" /> Unlimited domains
+            </span>
+          </div>
+        </GlassCard>
+      </div>
 
       {/* Plans comparison */}
       <div className="space-y-4">
         <div>
-          <h3 className="text-base font-bold text-white">Upgrade or Change Plan</h3>
-          <p className="text-xs text-white/50">Select a plan matching your workspace volume and infrastructure scale.</p>
+          <h3 className="text-base font-bold text-white">Octarq Plan Comparison</h3>
+          <p className="text-xs text-white/50">Compare feature availability across tiers in the self-hosted environment.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1657,45 +1713,24 @@ function BillingPlanDemo() {
                     Current Plan
                   </Button>
                 ) : (
-                  <Button variant={p.popular ? 'primary' : 'outline'} className="w-full text-xs">
-                    Upgrade to {p.name.split(' ')[0]}
-                  </Button>
+                  <a
+                    href="https://octarq.com/pricing/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`block w-full text-center text-xs font-semibold py-2 px-3 rounded-xl transition-colors ${
+                      p.popular
+                        ? "bg-indigo-500 hover:bg-indigo-600 text-white"
+                        : "bg-transparent border border-white/20 hover:bg-white/5 text-white"
+                    }`}
+                  >
+                    Upgrade Plan
+                  </a>
                 )}
               </div>
             </GlassCard>
           ))}
         </div>
       </div>
-
-      {/* Payment History */}
-      <GlassCard className="p-6 space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold text-white">Billing History</h3>
-          <p className="text-xs text-white/50">Receipts and invoices for your past payments.</p>
-        </div>
-        <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
-          <div className="flex justify-between items-center p-3 text-[11px] font-bold text-white/40 uppercase tracking-wider bg-white/[0.02]">
-            <span className="w-24">Date</span>
-            <span className="flex-1">Description</span>
-            <span className="w-20 text-right">Amount</span>
-            <span className="w-20 text-right">Status</span>
-          </div>
-          {[
-            { date: "June 15, 2026", desc: "Pro Plan - Monthly Subscription Renewal", amt: "$29.00", status: "Paid" },
-            { date: "May 15, 2026", desc: "Pro Plan - Monthly Subscription Renewal", amt: "$29.00", status: "Paid" },
-            { date: "Apr 15, 2026", desc: "Pro Plan - Monthly Subscription Renewal", amt: "$29.00", status: "Paid" },
-          ].map((item, i) => (
-            <div key={i} className="flex justify-between items-center p-3 text-xs">
-              <span className="w-24 text-white/60 font-mono">{item.date}</span>
-              <span className="flex-1 text-white font-medium">{item.desc}</span>
-              <span className="w-20 text-right text-white font-semibold font-mono">{item.amt}</span>
-              <span className="w-20 text-right">
-                <Badge tone="green">Paid</Badge>
-              </span>
-            </div>
-          ))}
-        </div>
-      </GlassCard>
     </div>
   );
 }

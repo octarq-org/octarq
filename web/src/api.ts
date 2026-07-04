@@ -336,6 +336,7 @@ export interface Overview {
   topLinks: { id: number; slug: string; host: string; clicks: number }[] | null;
   devices: StatKV[] | null;
   countries: StatKV[] | null;
+  cities: StatKV[] | null;
   recentEmails: { id: number; from: string; subject: string; read: boolean; receivedAt: string }[] | null;
 }
 

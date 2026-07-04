@@ -3,23 +3,23 @@
 // Rendered as a Settings sub-page. 402 → upsell note; OSS build → 404 note.
 import { useEffect, useState } from "react";
 import { api, ApiError, LLMProvider, LLMProviderInput } from "../api";
-import { PageHeader, GlassCard, Button, Badge, Modal, Field, Empty } from "../ui";
+import { PageHeader, GlassCard, Button, Badge, Modal, Field, Empty, LockedFeature, ScreenWrap } from "../ui";
 import { Bot, Plus } from "lucide-react";
 
 const PROVIDERS = ["claude", "openai", "gemini", "mistral", "cohere", "ollama"];
 
 export default function LLMProvidersSettings({ embed, onChanged }: { embed?: boolean; onChanged?: () => void }) {
   const [rows, setRows] = useState<LLMProvider[]>([]);
-  const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<{ status: number } | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
   const [editing, setEditing] = useState<LLMProvider | "new" | null>(null);
 
   function load() {
     api.llmProviders()
-      .then((r) => { setRows(r); setNote(null); onChanged?.(); })
+      .then((r) => { setRows(r); setError(null); setUnavailable(false); onChanged?.(); })
       .catch((e: ApiError) => {
-        if (e.status === 404) setNote("LLM features are part of Octarq Elite and aren't in the open-source build.");
-        else if (e.status === 402) setNote("LLM providers require an Elite license.");
-        else setNote(e.message);
+        if (e.status === 404) setUnavailable(true);
+        else setError({ status: e.status });
       });
   }
   useEffect(load, []);
@@ -30,16 +30,46 @@ export default function LLMProvidersSettings({ embed, onChanged }: { embed?: boo
     load();
   }
 
+  if (unavailable) {
+    return (
+      <ScreenWrap>
+        <GlassCard className="mx-auto mt-12 max-w-md p-6 text-center text-sm text-white/55">
+          LLM providers is an <span className="text-white/80">Octarq Elite</span> feature and isn't part of the open-source build.
+        </GlassCard>
+      </ScreenWrap>
+    );
+  }
+
+  if (error) {
+    return (
+      <ScreenWrap>
+        <LockedFeature
+          status={error.status}
+          tier="elite"
+          feature="LLM Providers"
+          description="Configure LLM backends once; AI features select one by name."
+          perks={[
+            "Bring your own keys for OpenAI, Claude, Gemini, Mistral, and more",
+            "Power semantic email summary, sorting, and OTP extraction",
+            "Shared backend configurations reusable across all workspace agents",
+          ]}
+          icon={<Bot className="h-7 w-7" />}
+          pricingHref="https://octarq.com/pricing/"
+        />
+      </ScreenWrap>
+    );
+  }
+
   return (
     <div>
       {!embed && (
         <PageHeader
           title="LLM Providers"
           description="Configure LLM backends once; AI features select one by name."
-          action={!note && <Button variant="primary" onClick={() => setEditing("new")}>+ Add provider</Button>}
+          action={<Button variant="primary" onClick={() => setEditing("new")}>+ Add provider</Button>}
         />
       )}
-      {embed && !note && (
+      {embed && (
         <div className="flex justify-between items-center mb-4 pt-4 border-t border-white/[0.04]">
           <div className="text-xs font-semibold text-white/70">
             LLM API Keys & Providers
@@ -49,9 +79,7 @@ export default function LLMProvidersSettings({ embed, onChanged }: { embed?: boo
         </div>
       )}
 
-      {note ? (
-        <GlassCard className="p-6 text-sm text-white/55">{note}</GlassCard>
-      ) : rows.length === 0 ? (
+      {rows.length === 0 ? (
         <Empty>
           <Bot className="mb-2 h-10 w-10 text-white/30" />
           <p className="text-sm text-white/50">No LLM providers yet.</p>

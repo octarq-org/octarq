@@ -338,10 +338,14 @@ func (h *Handler) linkStats(w http.ResponseWriter, r *http.Request) {
 
 	top := func(col string) []statKV {
 		rows := make([]statKV, 0)
-		h.db.Model(&models.LinkEvent{}).
-			Select(col+" as key, count(*) as count").
-			Where("link_id = ? AND created_at >= ? AND "+col+" <> ''", id, since).
-			Group(col).Order("count DESC").Limit(10).Scan(&rows)
+		q := h.db.Model(&models.LinkEvent{}).
+			Where("link_id = ? AND created_at >= ? AND "+col+" <> ''", id, since)
+		if col == "device" {
+			q = q.Select(col + " as key, count(distinct(ip || ' ' || ua)) as count")
+		} else {
+			q = q.Select(col + " as key, count(*) as count")
+		}
+		q.Group(col).Order("count DESC").Limit(10).Scan(&rows)
 		return rows
 	}
 

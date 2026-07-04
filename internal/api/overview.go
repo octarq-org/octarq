@@ -59,10 +59,14 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 
 	top := func(col string) []statKV {
 		var rows []statKV
-		botFilter(h.db.Model(&models.LinkEvent{}).
-			Where("link_id IN (?) AND created_at >= ? AND "+col+" <> ''", orgLinks, since30)).
-			Select(col + " as key, count(*) as count").
-			Group(col).Order("count DESC").Limit(8).Scan(&rows)
+		q := botFilter(h.db.Model(&models.LinkEvent{}).
+			Where("link_id IN (?) AND created_at >= ? AND "+col+" <> ''", orgLinks, since30))
+		if col == "device" {
+			q = q.Select(col + " as key, count(distinct(ip || ' ' || ua)) as count")
+		} else {
+			q = q.Select(col + " as key, count(*) as count")
+		}
+		q.Group(col).Order("count DESC").Limit(8).Scan(&rows)
 		return rows
 	}
 
@@ -141,6 +145,7 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 		"topLinks":     topLinks,
 		"devices":      top("device"),
 		"countries":    top("country"),
+		"cities":       top("city"),
 		"recentEmails": recent,
 		"includeBot":   includeBot,
 	})

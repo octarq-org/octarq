@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError, IssuedLicense, LicenseDevice } from "../api";
-import { ScreenWrap, PageHeader, GlassCard, Badge, Button, Empty } from "../ui";
+import { ScreenWrap, PageHeader, GlassCard, Badge, Button, Empty, Field } from "../ui";
 import { KeyRound, LogOut, Laptop, ExternalLink, ShieldAlert, ArrowRight, CheckCircle, ArrowLeft, Mail, Lock } from "lucide-react";
 
 export default function PortalApp() {
@@ -114,33 +114,36 @@ function LoginView({ onLogin }: { onLogin: (email: string) => void }) {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-white/60 mb-1">Email Address</label>
+          <Field label="Email Address">
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+              className="input font-sans text-sm"
               placeholder="you@domain.com"
             />
-          </div>
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="block text-xs font-medium text-white/60">Password</label>
-              <Link to="/forgot-password" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium">
-                Forgot password?
-              </Link>
+          </Field>
+          <Field
+            label="Password"
+            hint=""
+          >
+            <div className="relative">
+              <div className="absolute right-0 -top-6">
+                <Link to="/forgot-password" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium">
+                  Forgot password?
+                </Link>
+              </div>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input font-sans text-sm"
+                placeholder="••••••••"
+              />
             </div>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
-              placeholder="••••••••"
-            />
-          </div>
+          </Field>
           <Button type="submit" disabled={submitting} className="w-full py-2.5 mt-2">
             {submitting ? "Signing in..." : "Sign In"}
           </Button>
@@ -210,28 +213,26 @@ function RegisterView({ onRegister }: { onRegister: (email: string) => void }) {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-white/60 mb-1">Email Address</label>
+          <Field label="Email Address">
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+              className="input font-sans text-sm"
               placeholder="you@domain.com"
             />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-white/60 mb-1">Password (min 8 chars)</label>
+          </Field>
+          <Field label="Password" hint="At least 8 characters">
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+              className="input font-sans text-sm"
               placeholder="••••••••"
             />
-          </div>
+          </Field>
           <Button type="submit" disabled={submitting} className="w-full py-2.5 mt-2">
             {submitting ? "Registering..." : "Register"}
           </Button>
@@ -307,28 +308,26 @@ function ClaimView({ onClaim }: { onClaim: (email: string) => void }) {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-white/60 mb-1">Stripe Checkout / Purchase Session ID</label>
+            <Field label="Stripe Checkout / Purchase Session ID">
               <input
                 type="text"
                 required
                 value={sessionId}
                 onChange={(e) => setSessionId(e.target.value)}
-                className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="input font-sans text-sm"
                 placeholder="cs_live_..."
               />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-white/60 mb-1">Set Portal Password (min 8 chars)</label>
+            </Field>
+            <Field label="Set Portal Password" hint="At least 8 characters">
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="input font-sans text-sm"
                 placeholder="Choose a password"
               />
-            </div>
+            </Field>
             <Button type="submit" disabled={submitting} className="w-full py-2.5 mt-2">
               {submitting ? "Linking Purchase..." : "Link Purchase & Sign In"}
             </Button>
@@ -399,17 +398,16 @@ function ForgotPasswordView() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-white/60 mb-1">Email Address</label>
+            <Field label="Email Address">
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="input font-sans text-sm"
                 placeholder="you@domain.com"
               />
-            </div>
+            </Field>
             <Button type="submit" disabled={submitting} className="w-full py-2.5 mt-2">
               {submitting ? "Sending Reset Link..." : "Send Reset Link"}
             </Button>
@@ -503,30 +501,28 @@ function ResetPasswordView() {
                 Warning: No token found in URL. You will not be able to reset your password.
               </div>
             )}
-            <div>
-              <label className="block text-xs font-medium text-white/60 mb-1">New Password (min 8 chars)</label>
+            <Field label="New Password" hint="At least 8 characters">
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="input font-sans text-sm"
                 placeholder="••••••••"
                 disabled={!token}
               />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-white/60 mb-1">Confirm New Password</label>
+            </Field>
+            <Field label="Confirm New Password">
               <input
                 type="password"
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                className="input font-sans text-sm"
                 placeholder="••••••••"
                 disabled={!token}
               />
-            </div>
+            </Field>
             <Button type="submit" disabled={submitting || !token} className="w-full py-2.5 mt-2">
               {submitting ? "Resetting Password..." : "Reset Password"}
             </Button>
