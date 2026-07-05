@@ -451,14 +451,14 @@ function Shell({
   }, [activeOrgId]);
 
   const currentArea = settingsActive ? SETTINGS_AREA : (areas.find((a) => a.id === activeArea) ?? areas[0]);
-  const activeOrgName = orgs.find((o) => o.id === activeOrgId)?.name ?? "Personal Workspace";
+  const activeOrgName = orgs.find((o) => o.id === activeOrgId)?.name ?? t("app.personalWorkspace");
 
   function handleCreateOrg(e: React.FormEvent) {
     e.preventDefault();
     if (!newOrgName.trim()) return;
     api.createOrg({ name: newOrgName })
       .then((org) => api.switchOrg(org.id).then(() => window.location.reload()))
-      .catch((e) => alert(e.message || "Couldn't create the workspace"));
+      .catch((e) => alert(e.message || t("app.createWorkspaceFailed")));
   }
 
   const selectArea = (id: AreaId) => {
@@ -521,9 +521,9 @@ function Shell({
               <Route path="/inbox-ai"   element={<InboxAIPage />} />
               <Route path="/vps"        element={<VPSPage />} />
               <Route path="/sshkeys"    element={<SSHKeysPage />} />
-              <Route path="/assets/certificates" element={<ComingSoonPage title="Certificates & SSL" description="Track and renew your SSL certificates" />} />
-              <Route path="/assets/databases"    element={<ComingSoonPage title="Managed Databases" description="Provision and monitor PostgreSQL, Redis, or MySQL database instances" />} />
-              <Route path="/assets/storage"      element={<ComingSoonPage title="Object Storage" description="Configure Cloudflare R2, AWS S3, or Backblaze B2 buckets" />} />
+              <Route path="/assets/certificates" element={<ComingSoonPage title={t("app.certsTitle")} description={t("app.certsDesc")} />} />
+              <Route path="/assets/databases"    element={<ComingSoonPage title={t("app.databasesTitle")} description={t("app.databasesDesc")} />} />
+              <Route path="/assets/storage"      element={<ComingSoonPage title={t("app.storageTitle")} description={t("app.storageDesc")} />} />
               <Route path="/finance"    element={<FinancePage />} />
               <Route path="/storefront" element={<StorefrontPage />} />
               <Route path="/licenses"   element={<LicensesPage />} />
@@ -548,24 +548,24 @@ function Shell({
       />
 
       {creatingOrg && (
-        <Modal title="Create Workspace" onClose={() => setCreatingOrg(false)}>
+        <Modal title={t("app.createWorkspace")} onClose={() => setCreatingOrg(false)}>
           <form onSubmit={handleCreateOrg} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="label">Workspace Name</label>
+              <label className="label">{t("app.workspaceName")}</label>
               <input
                 className="input w-full"
                 value={newOrgName}
                 onChange={(e) => setNewOrgName(e.target.value)}
-                placeholder="e.g. Acme Corporation"
+                placeholder={t("app.workspaceNamePlaceholder")}
                 autoFocus
               />
             </div>
             <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
               <Button type="button" variant="ghost" onClick={() => setCreatingOrg(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" variant="primary" disabled={!newOrgName.trim()}>
-                Create & Switch
+                {t("app.createAndSwitch")}
               </Button>
             </div>
           </form>
@@ -954,7 +954,7 @@ function AreaPanel({ area, currentPath, onCollapse }: { area: Area; currentPath:
         </div>
         <button
           onClick={onCollapse}
-          title="Collapse menu"
+          title={t("app.collapseMenu")}
           className="mt-0.5 shrink-0 rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white"
         >
           <PanelLeft className="h-4 w-4" strokeWidth={1.75} />
@@ -1025,6 +1025,7 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
   const [busy, setBusy] = useState(false);
   const [oauthConfig, setOauthConfig] = useState<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean } | null>(null);
   const appName = useAppName();
+  const { t } = useTranslation();
 
   useEffect(() => {
     api.authConfig()
@@ -1094,8 +1095,8 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
             <span className="font-display text-xl font-extrabold text-white">{brandInitial(appName)}</span>
           </div>
-          <h1 className="font-display text-2xl font-bold text-white">{mode === "register" ? "Create your account" : `Sign in to ${appName}`}</h1>
-          <p className="text-xs text-white/40 mt-1.5 leading-relaxed">{mode === "register" ? "Sign up to spin up your own workspace" : "Enter your credentials to access the operator workspace"}</p>
+          <h1 className="font-display text-2xl font-bold text-white">{mode === "register" ? t("app.createAccount") : t("app.signInTo", { app: appName })}</h1>
+          <p className="text-xs text-white/40 mt-1.5 leading-relaxed">{mode === "register" ? t("app.registerSubtitle") : t("app.loginSubtitle")}</p>
         </div>
 
         {err && (
@@ -1107,7 +1108,7 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
 
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="label" htmlFor="login-username">{mode === "register" ? "Email" : "Username"}</label>
+            <label className="label" htmlFor="login-username">{mode === "register" ? t("app.email") : t("app.username")}</label>
             <input
               id="login-username"
               type={mode === "register" ? "email" : "text"}
@@ -1117,12 +1118,12 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
               onChange={(e) => setU(e.target.value)}
               onKeyDown={onEnter}
               autoComplete={mode === "register" ? "email" : "username"}
-              placeholder={mode === "register" ? "you@domain.com" : "admin@domain.com"}
+              placeholder={mode === "register" ? t("app.emailPlaceholder") : t("app.usernamePlaceholder")}
             />
           </div>
 
           <div>
-            <label className="label" htmlFor="login-password">Password</label>
+            <label className="label" htmlFor="login-password">{t("app.password")}</label>
             <input
               id="login-password"
               type="password"
@@ -1133,13 +1134,13 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
               onKeyDown={onEnter}
               autoComplete={mode === "register" ? "new-password" : "current-password"}
               autoFocus={!needs2FA}
-              placeholder={mode === "register" ? "At least 8 characters" : "••••••••"}
+              placeholder={mode === "register" ? t("app.passwordRegisterPlaceholder") : "••••••••"}
             />
           </div>
 
           {needs2FA && (
             <div>
-              <label className="label" htmlFor="login-otp">Authentication code</label>
+              <label className="label" htmlFor="login-otp">{t("app.authCode")}</label>
               <input
                 id="login-otp"
                 name="otp"
@@ -1147,7 +1148,7 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 onKeyDown={onEnter}
-                placeholder="6-digit code or recovery code"
+                placeholder={t("app.authCodePlaceholder")}
                 autoComplete="one-time-code"
                 autoFocus
               />
@@ -1155,19 +1156,19 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
           )}
 
           <button type="submit" className="btn-primary w-full py-2.5 mt-2" disabled={busy}>
-            {busy ? (mode === "register" ? "Creating..." : "Signing in...") : mode === "register" ? "Create account" : needs2FA ? "Verify OTP" : "Sign In"}
+            {busy ? (mode === "register" ? t("app.creating") : t("app.signingIn")) : mode === "register" ? t("app.createAccountBtn") : needs2FA ? t("app.verifyOtp") : t("app.signIn")}
           </button>
         </form>
 
         {oauthConfig?.registrationEnabled && !needs2FA && (
           <p className="mt-5 text-center text-xs text-white/40">
             {mode === "register" ? (
-              <>Already have an account?{" "}
-                <button type="button" onClick={() => switchMode("login")} className="text-indigo-300 hover:underline font-medium">Sign in</button>
+              <>{t("app.haveAccount")}{" "}
+                <button type="button" onClick={() => switchMode("login")} className="text-indigo-300 hover:underline font-medium">{t("app.signInLink")}</button>
               </>
             ) : (
-              <>Don't have an account?{" "}
-                <button type="button" onClick={() => switchMode("register")} className="text-indigo-300 hover:underline font-medium">Create one</button>
+              <>{t("app.noAccount")}{" "}
+                <button type="button" onClick={() => switchMode("register")} className="text-indigo-300 hover:underline font-medium">{t("app.createOne")}</button>
               </>
             )}
           </p>
@@ -1177,7 +1178,7 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
           <div className="mt-6 space-y-3">
             <div className="flex items-center gap-2 text-xs text-white/30">
               <span className="h-px flex-1 bg-white/10" />
-              <span>or continue with</span>
+              <span>{t("app.orContinueWith")}</span>
               <span className="h-px flex-1 bg-white/10" />
             </div>
             <div className="grid grid-cols-1 gap-2">
@@ -1216,6 +1217,7 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
 
 
 function ComingSoonPage({ title, description }: { title: string; description: string }) {
+  const { t } = useTranslation();
   return (
     <ScreenWrap>
       <PageHeader title={title} description={description} />
@@ -1223,9 +1225,9 @@ function ComingSoonPage({ title, description }: { title: string; description: st
         <div className="h-16 w-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-4 animate-pulse">
           <Boxes className="h-8 w-8" />
         </div>
-        <h3 className="text-lg font-bold text-white mb-2">Workspace Asset Integration Coming Soon</h3>
+        <h3 className="text-lg font-bold text-white mb-2">{t("app.comingSoonTitle")}</h3>
         <p className="text-sm text-white/50 max-w-sm leading-relaxed">
-          We are currently building the direct connector client for this asset category. Look forward to direct API sync in the next update.
+          {t("app.comingSoonBody")}
         </p>
       </GlassCard>
     </ScreenWrap>
