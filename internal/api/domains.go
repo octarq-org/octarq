@@ -394,56 +394,61 @@ func (h *Handler) deleteRecord(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
-// GET /api/domains/{id}/verify-dns
-func (h *Handler) verifyDomainDNS(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
-	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
-	}
-	var dom models.Domain
-	if err := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&dom).Error; err != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
-	}
+type dnsRecordStatus struct {
+	Set     bool   `json:"set"`
+	Healthy bool   `json:"healthy"`
+	Value   string `json:"value,omitempty"`
+}
 
-	domainName := dom.Name
+type dnsDKIMStatus struct {
+	dnsRecordStatus
+	Selector string `json:"selector,omitempty"`
+}
 
-	// 1. SPF record check
-	spfSet := false
-	spfHealthy := false
-	spfValue := ""
-	spfRecords, _ := h.lookupTXT(domainName)
+// hostDNSStatus is the SPF/DMARC/DKIM posture for a single mail hostname.
+type hostDNSStatus struct {
+	Host  string          `json:"host"`
+	SPF   dnsRecordStatus `json:"spf"`
+	DMARC dnsRecordStatus `json:"dmarc"`
+	DKIM  dnsDKIMStatus   `json:"dkim"`
+}
+
+// checkHostDNS resolves and evaluates the SPF, DMARC and DKIM records for one
+// hostname. SPF/DMARC/DKIM are per-host records, so a domain that runs mail on
+// a subdomain (e.g. mail.example.com) must be probed at that subdomain rather
+// than the apex.
+func (h *Handler) checkHostDNS(host string) hostDNSStatus {
+	status := hostDNSStatus{Host: host}
+
+	// 1. SPF record — lives directly on the host as a TXT record.
+	spfRecords, _ := h.lookupTXT(host)
 	for _, record := range spfRecords {
 		lower := strings.ToLower(strings.TrimSpace(record))
 		if strings.Contains(lower, "v=spf1") {
-			spfSet = true
-			spfValue = record
+			status.SPF.Set = true
+			status.SPF.Value = record
 			if strings.HasPrefix(strings.ReplaceAll(lower, " ", ""), "v=spf1") {
-				spfHealthy = true
+				status.SPF.Healthy = true
 			}
 			break
 		}
 	}
 
-	// 2. DMARC record check
-	dmarcSet := false
-	dmarcHealthy := false
-	dmarcValue := ""
-	dmarcRecords, _ := h.lookupTXT("_dmarc." + domainName)
+	// 2. DMARC record — published at _dmarc.<host>.
+	dmarcRecords, _ := h.lookupTXT("_dmarc." + host)
 	for _, record := range dmarcRecords {
 		lower := strings.ToLower(strings.TrimSpace(record))
 		if strings.Contains(lower, "v=dmarc1") {
-			dmarcSet = true
-			dmarcValue = record
+			status.DMARC.Set = true
+			status.DMARC.Value = record
 			if strings.Contains(lower, "p=none") || strings.Contains(lower, "p=quarantine") || strings.Contains(lower, "p=reject") {
-				dmarcHealthy = true
+				status.DMARC.Healthy = true
 			}
 			break
 		}
 	}
 
-	// 3. DKIM record check (probing common selectors)
+	// 3. DKIM record — probe common selectors at <selector>._domainkey.<host>.
 	selectors := []string{"default", "led", "google", "mail", "k1", "sig1"}
 	type dkimResult struct {
 		selector string
@@ -454,7 +459,7 @@ func (h *Handler) verifyDomainDNS(w http.ResponseWriter, r *http.Request) {
 	resultChan := make(chan dkimResult, len(selectors))
 	for _, sel := range selectors {
 		go func(s string) {
-			records, err := h.lookupTXT(s + "._domainkey." + domainName)
+			records, err := h.lookupTXT(s + "._domainkey." + host)
 			if err == nil {
 				for _, r := range records {
 					lower := strings.ToLower(strings.TrimSpace(r))
@@ -472,46 +477,58 @@ func (h *Handler) verifyDomainDNS(w http.ResponseWriter, r *http.Request) {
 			resultChan <- dkimResult{}
 		}(sel)
 	}
-
-	var dkimRes dkimResult
 	for i := 0; i < len(selectors); i++ {
-		res := <-resultChan
-		if res.set {
-			dkimRes = res
+		if res := <-resultChan; res.set {
+			status.DKIM = dnsDKIMStatus{
+				dnsRecordStatus: dnsRecordStatus{Set: res.set, Healthy: res.healthy, Value: res.value},
+				Selector:        res.selector,
+			}
 		}
 	}
 
-	type recordStatus struct {
-		Set     bool   `json:"set"`
-		Healthy bool   `json:"healthy"`
-		Value   string `json:"value,omitempty"`
+	return status
+}
+
+// GET /api/domains/{id}/verify-dns
+func (h *Handler) verifyDomainDNS(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(r)
+	if !ok {
+		writeErr(w, http.StatusBadRequest, "bad id")
+		return
+	}
+	var dom models.Domain
+	if err := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&dom).Error; err != nil {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
 	}
 
-	type dkimStatus struct {
-		recordStatus
-		Selector string `json:"selector,omitempty"`
+	// Verify every enabled mail host. Records are per-host, so a domain serving
+	// mail from subdomains needs each one checked; an empty list falls back to
+	// the apex (matching how mailboxes resolve elsewhere).
+	hosts := dom.MailHosts.Enabled()
+	if len(hosts) == 0 {
+		hosts = []string{dom.Name}
 	}
 
-	response := map[string]any{
-		"spf": recordStatus{
-			Set:     spfSet,
-			Healthy: spfHealthy,
-			Value:   spfValue,
-		},
-		"dmarc": recordStatus{
-			Set:     dmarcSet,
-			Healthy: dmarcHealthy,
-			Value:   dmarcValue,
-		},
-		"dkim": dkimStatus{
-			recordStatus: recordStatus{
-				Set:     dkimRes.set,
-				Healthy: dkimRes.healthy,
-				Value:   dkimRes.value,
-			},
-			Selector: dkimRes.selector,
-		},
+	results := make([]hostDNSStatus, 0, len(hosts))
+	for _, host := range hosts {
+		results = append(results, h.checkHostDNS(host))
 	}
 
-	writeJSON(w, http.StatusOK, response)
+	// Top-level fields describe the apex (or the first host when the apex isn't
+	// itself a mail host), preserving the original single-host response shape.
+	primary := results[0]
+	for _, res := range results {
+		if res.Host == dom.Name {
+			primary = res
+			break
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"spf":   primary.SPF,
+		"dmarc": primary.DMARC,
+		"dkim":  primary.DKIM,
+		"hosts": results,
+	})
 }

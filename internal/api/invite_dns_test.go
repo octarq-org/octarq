@@ -256,3 +256,81 @@ func TestVerifyDNS(t *testing.T) {
 		t.Errorf("DKIM should not be set or healthy: %+v", resUnhealthy.Dkim)
 	}
 }
+
+// TestVerifyDNSMailHosts checks that verification probes each enabled mail host
+// (including subdomains) rather than only the apex.
+func TestVerifyDNSMailHosts(t *testing.T) {
+	h, srv, db := newTestHandlerWithInstance(t)
+	const orgID = uint(1)
+	adminUID := seedOrgMember(t, db, orgID, "admin@example.com", "owner")
+	adminSession := sessionCookies(t, adminUID, orgID)
+
+	dom := models.Domain{
+		OrgID:   orgID,
+		Name:    "mytestdomain.com",
+		ForMail: true,
+		MailHosts: models.HostList{
+			{Host: "mytestdomain.com", Enabled: true},
+			{Host: "mail.mytestdomain.com", Enabled: true},
+			{Host: "old.mytestdomain.com", Enabled: false}, // disabled — must be skipped
+		},
+	}
+	if err := db.Create(&dom).Error; err != nil {
+		t.Fatalf("failed to create domain: %v", err)
+	}
+
+	// Apex is healthy; the subdomain has SPF only.
+	h.lookupTXT = func(name string) ([]string, error) {
+		switch name {
+		case "mytestdomain.com":
+			return []string{"v=spf1 include:_spf.google.com ~all"}, nil
+		case "_dmarc.mytestdomain.com":
+			return []string{"v=DMARC1; p=reject"}, nil
+		case "default._domainkey.mytestdomain.com":
+			return []string{"v=DKIM1; k=rsa; p=MIIBIjANBg"}, nil
+		case "mail.mytestdomain.com":
+			return []string{"v=spf1 -all"}, nil
+		case "old.mytestdomain.com":
+			t.Errorf("disabled host old.mytestdomain.com should not be probed")
+			return nil, fmt.Errorf("should not happen")
+		default:
+			return nil, fmt.Errorf("dns lookup failed")
+		}
+	}
+
+	rec := do(srv, "GET", fmt.Sprintf("/api/domains/%d/verify-dns", dom.ID), adminSession, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("verify-dns failed: status %d, body %s", rec.Code, rec.Body.String())
+	}
+
+	var res struct {
+		Spf   struct{ Set, Healthy bool } `json:"spf"`
+		Hosts []struct {
+			Host  string                      `json:"host"`
+			Spf   struct{ Set, Healthy bool } `json:"spf"`
+			Dmarc struct{ Set, Healthy bool } `json:"dmarc"`
+		} `json:"hosts"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	if len(res.Hosts) != 2 {
+		t.Fatalf("expected 2 enabled mail hosts, got %d: %+v", len(res.Hosts), res.Hosts)
+	}
+	// Top-level mirrors the apex.
+	if !res.Spf.Set || !res.Spf.Healthy {
+		t.Errorf("top-level SPF should mirror healthy apex: %+v", res.Spf)
+	}
+
+	byHost := map[string]struct{ SPFHealthy, DMARCSet bool }{}
+	for _, hh := range res.Hosts {
+		byHost[hh.Host] = struct{ SPFHealthy, DMARCSet bool }{hh.Spf.Healthy, hh.Dmarc.Set}
+	}
+	if apex := byHost["mytestdomain.com"]; !apex.SPFHealthy || !apex.DMARCSet {
+		t.Errorf("apex host wrong: %+v", apex)
+	}
+	if sub := byHost["mail.mytestdomain.com"]; !sub.SPFHealthy || sub.DMARCSet {
+		t.Errorf("subdomain host should have SPF but no DMARC: %+v", sub)
+	}
+}

@@ -239,6 +239,32 @@ export interface DNSRecord {
   priority?: number | null;
 }
 
+export interface DNSRecordStatus {
+  set: boolean;
+  healthy: boolean;
+  value?: string;
+}
+
+export interface DKIMStatus extends DNSRecordStatus {
+  selector?: string;
+}
+
+export interface HostDNSStatus {
+  host: string;
+  spf: DNSRecordStatus;
+  dmarc: DNSRecordStatus;
+  dkim: DKIMStatus;
+}
+
+// verify-dns response: top-level fields describe the apex (back-compat);
+// `hosts` carries per-mail-host results (subdomains included).
+export interface DNSVerifyResult {
+  spf: DNSRecordStatus;
+  dmarc: DNSRecordStatus;
+  dkim: DKIMStatus;
+  hosts: HostDNSStatus[];
+}
+
 export interface Mailbox {
   id: number;
   address: string;
@@ -610,7 +636,7 @@ export const api = {
   createDomain: (d: any) => req<Domain>("POST", "/api/domains", d),
   updateDomain: (id: number, d: any) => req<Domain>("PUT", `/api/domains/${id}`, d),
   deleteDomain: (id: number) => req("DELETE", `/api/domains/${id}`),
-  verifyDNS: (id: number) => req<{ spf: boolean; dkim: boolean; dmarc: boolean }>("GET", `/api/domains/${id}/verify-dns`),
+  verifyDNS: (id: number) => req<DNSVerifyResult>("GET", `/api/domains/${id}/verify-dns`),
   records: (id: number) => req<DNSRecord[]>("GET", `/api/domains/${id}/records`),
   createRecord: (id: number, r: Partial<DNSRecord>) =>
     req<DNSRecord>("POST", `/api/domains/${id}/records`, r),
