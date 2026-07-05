@@ -15,6 +15,11 @@ import (
 // cookies; a short key is brute-forceable.
 const minSecretKeyLen = 16
 
+// DefaultAppName is the fallback product name shown in the UI when LED_APP_NAME
+// is not set. Downstream builds (e.g. the commercial led-pro) override it at
+// compile time via -ldflags="-X github.com/Jungley8/led/config.DefaultAppName=…".
+var DefaultAppName = "led"
+
 // Config holds all runtime configuration for led.
 type Config struct {
 	Listen    string // e.g. ":8080"
@@ -151,7 +156,7 @@ func Load() (*Config, error) {
 	c := &Config{
 		Listen:        env("LED_LISTEN", ":8080"),
 		AdminHost:     env("LED_ADMIN_HOST", ""),
-		AppName:       env("LED_APP_NAME", "led"),
+		AppName:       env("LED_APP_NAME", DefaultAppName),
 		DBDriver:      env("LED_DB_DRIVER", "sqlite"),
 		DBDSN:         env("LED_DB_DSN", "led.db"),
 		SecretKey:     env("LED_SECRET_KEY", ""),
