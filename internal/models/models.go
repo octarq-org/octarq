@@ -438,6 +438,15 @@ type UserSetting struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// PluginSetting records whether a Pro plugin is enabled for a given workspace
+// (org). Absence of a row means disabled — plugins are opt-in per workspace.
+type PluginSetting struct {
+	OrgID     uint      `gorm:"primaryKey" json:"orgId"`
+	Plugin    string    `gorm:"primaryKey;size:64" json:"plugin"`
+	Enabled   bool      `gorm:"default:false" json:"enabled"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // Webhook represents a registered HTTP webhook endpoint for event streaming.
 type Webhook struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
@@ -454,7 +463,7 @@ type Webhook struct {
 // AllModels lists every model for AutoMigrate.
 func AllModels() []any {
 	return []any{
-		&Org{}, &User{}, &OrgMember{}, &UserSetting{},
+		&Org{}, &User{}, &OrgMember{}, &UserSetting{}, &PluginSetting{},
 		&ProviderAccount{}, &Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{},
 		&Token{}, &Setting{}, &SMTPSender{}, &NotificationChannel{},
 		&AbuseReport{}, &AuditLog{}, &Webhook{}, &Session{},

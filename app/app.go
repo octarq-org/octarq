@@ -45,6 +45,38 @@ import (
 	"gorm.io/gorm"
 )
 
+// gatedMux wraps the shared API mux so every route a plugin registers is guarded
+// by a per-workspace "plugin enabled" check. It satisfies plugin.Mux; when the
+// caller's workspace has the plugin disabled, the wrapped handler answers 404
+// before running. Requests with no workspace in session (public plugin routes
+// such as payment webhooks and the customer portal) pass through unchanged —
+// they aren't workspace-scoped and can't be org-gated here.
+type gatedMux struct {
+	real    *http.ServeMux
+	plugin  string
+	enabled func(r *http.Request, plugin string) (allowed, scoped bool)
+}
+
+func (g *gatedMux) Handle(pattern string, h http.Handler) {
+	g.real.Handle(pattern, g.wrap(h))
+}
+
+func (g *gatedMux) HandleFunc(pattern string, h func(http.ResponseWriter, *http.Request)) {
+	g.real.Handle(pattern, g.wrap(http.HandlerFunc(h)))
+}
+
+func (g *gatedMux) wrap(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if allowed, scoped := g.enabled(r, g.plugin); scoped && !allowed {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":"plugin not enabled for this workspace"}`))
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
 // App holds the wired core dependencies and any registered plugins.
 type App struct {
 	cfg     *config.Config
@@ -212,8 +244,18 @@ func (a *App) Run(ctx context.Context) error {
 		DNS:      apiHandler.DNSManager(),
 		SendMail: a.sendMail,
 	}
+	// Every plugin route is gated by a per-workspace "enabled" check: when the
+	// caller's workspace has the plugin disabled, the app answers 404 before the
+	// handler runs. Plugins are opt-in per workspace.
+	enabled := func(r *http.Request, name string) (allowed, scoped bool) {
+		oid := a.auth.OrgID(r)
+		if oid == 0 {
+			return false, false // no workspace in session (webhooks, portal) → not gated
+		}
+		return apiHandler.PluginEnabled(oid, name), true
+	}
 	for _, p := range a.plugins {
-		p.Mount(mux, pctx)
+		p.Mount(&gatedMux{real: mux, plugin: p.Name(), enabled: enabled}, pctx)
 		slog.Info("plugin mounted", "name", p.Name())
 		if s, ok := p.(plugin.Starter); ok {
 			go s.Start(ctx)

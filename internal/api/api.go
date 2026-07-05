@@ -271,6 +271,8 @@ func (h *Handler) Routes() *http.ServeMux {
 
 	// Menu and User Settings
 	p("GET /api/menus", h.listMenus)
+	p("GET /api/plugins", h.listPlugins)
+	p("PUT /api/plugins/{name}", h.updatePlugin)
 	p("GET /api/user/settings", h.getUserSettings)
 	p("PUT /api/user/settings", h.updateUserSettings)
 

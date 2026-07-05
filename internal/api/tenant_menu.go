@@ -424,8 +424,13 @@ func (h *Handler) listMenus(w http.ResponseWriter, r *http.Request) {
 		{ID: "abuse", Label: "Abuse", Path: "/abuse", Icon: "🛡️", Category: "Compliance"},
 	}
 
-	// Query from plugin providers if they satisfy MenuProvider
+	// Query from plugin providers if they satisfy MenuProvider — but only for
+	// plugins the caller's workspace has enabled (plugins are opt-in per org).
+	orgID := h.orgID(r)
 	for _, p := range h.plugins {
+		if !h.PluginEnabled(orgID, p.Name()) {
+			continue
+		}
 		if mp, ok := p.(plugin.MenuProvider); ok {
 			for _, m := range mp.Menus() {
 				menus = append(menus, MenuItem{

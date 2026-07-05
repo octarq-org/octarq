@@ -112,16 +112,28 @@ type DNSManager interface {
 	Delete(ctx context.Context, domainID uint, recordID string) error
 }
 
+// Mux is the subset of *http.ServeMux a plugin uses to register routes. The app
+// passes a wrapper (not the raw mux) so it can gate every plugin route behind a
+// per-workspace "plugin enabled" check without the plugin having to opt in.
+// *http.ServeMux satisfies this interface, so plugin bodies are unchanged.
+type Mux interface {
+	Handle(pattern string, handler http.Handler)
+	HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request))
+}
+
 // Plugin is a unit of Pro functionality mounted onto the core app.
 type Plugin interface {
-	// Name is a short identifier used in logs.
+	// Name is a short, stable identifier used in logs, the plugin registry, and
+	// the per-workspace enable/disable setting (e.g. "ai", "infra", "billing").
 	Name() string
 	// Models returns the GORM models this plugin owns. They are collected and
 	// migrated together with core models before any route is served.
 	Models() []any
 	// Mount registers the plugin's HTTP routes (typically under /api/...) on the
-	// shared API mux. Use ctx.Guard to require a session.
-	Mount(mux *http.ServeMux, ctx *Context)
+	// shared API mux. Use ctx.Guard to require a session. Every route registered
+	// here is automatically gated: if the plugin is disabled for the caller's
+	// workspace, the app answers 404 before the handler runs.
+	Mount(mux Mux, ctx *Context)
 }
 
 // Starter is an optional interface a Plugin may implement. If present, the app

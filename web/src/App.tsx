@@ -22,6 +22,7 @@ import {
   User,
   Wallet,
   Workflow,
+  Puzzle,
   Bell,
   Users,
   Database,
@@ -193,6 +194,7 @@ const SETTINGS_AREA: Area = {
       label: "Workspace",
       items: [
         { id: "general",       label: "General",     Icon: Settings,    path: "/settings/general" },
+        { id: "plugins",       label: "Plugins",     Icon: Puzzle,      path: "/settings/plugins" },
         { id: "members",       label: "Members",     Icon: Users,       path: "/settings/members" },
         { id: "webhooks",      label: "Webhooks",    Icon: Webhook,     path: "/settings/webhooks" },
         { id: "notifications", label: "Alerts",      Icon: Bell,        path: "/settings/notifications" },
@@ -339,8 +341,15 @@ function Shell({
       audit: { label: "Audit", Icon: ScrollText, path: "/audit" },
     };
 
-    api.menus()
-      .then((menus) => {
+    Promise.all([api.menus().catch(() => []), api.plugins().catch(() => [])])
+      .then(([menus, plugins]) => {
+        // Paths owned by a disabled plugin are hidden from the sidebar. Dynamic
+        // plugin menus are already filtered server-side; this also drops the
+        // statically-declared Pro items (Storefront, Servers, …) when off.
+        const disabledPaths = new Set(
+          plugins.filter((p) => !p.enabled).flatMap((p) => p.menus.map((m) => m.path)),
+        );
+
         // Build full catalog including dynamic plugin menus
         const catalog = { ...MASTER_MENU_ITEMS };
         menus.forEach((m) => {
@@ -358,10 +367,11 @@ function Shell({
         const extras = menus.filter((m) => !staticPaths.has(m.path));
 
         const nextAreas = STATIC_AREAS.map((staticArea) => {
-          // Deep copy groups to avoid mutating global STATIC_AREAS
+          // Deep copy groups to avoid mutating global STATIC_AREAS; drop items
+          // owned by a plugin the workspace has disabled.
           const groups = staticArea.groups.map((g) => ({
             label: g.label,
-            items: [...g.items],
+            items: g.items.filter((i) => !disabledPaths.has(i.path)),
           }));
 
           const areaExtras = extras.filter((m) => areaForCategory(m.category) === staticArea.id);

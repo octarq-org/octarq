@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Settings as SettingsData, OrgMember, LicenseStatus, Overview } from "../api";
 import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
-import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign } from "lucide-react";
+import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
+import { PluginInfo } from "../api";
 import LLMProvidersSettings from "./LLMProviders";
 
 export default function SettingsPage() {
@@ -11,6 +12,7 @@ export default function SettingsPage() {
       <Routes>
         <Route path="/" element={<Navigate to="/settings/general" replace />} />
         <Route path="/general" element={<GeneralSettings />} />
+        <Route path="/plugins" element={<PluginsSettings />} />
         <Route path="/security" element={<SecuritySettings />} />
         <Route path="/webhooks" element={<WebhooksSettings />} />
         <Route path="/billing" element={<BillingPlanSettings />} />
@@ -19,6 +21,89 @@ export default function SettingsPage() {
         <Route path="/members" element={<OrgMembersManager />} />
       </Routes>
     </ScreenWrap>
+  );
+}
+
+// PluginsSettings lets an owner/admin turn Pro plugins on or off for this
+// workspace. Plugins are opt-in: everything is disabled until enabled here, and
+// a disabled plugin's sidebar items and API routes are both hidden.
+const PLUGIN_META: Record<string, { label: string; description: string }> = {
+  ai: { label: "AI Inbox", description: "LLM-powered email summaries, sorting, and OTP extraction." },
+  infra: { label: "Infrastructure", description: "VPS server monitoring and the SSH credentials vault." },
+  finance: { label: "Bookkeeping", description: "Subscription tracking and expense bookkeeping." },
+  product: { label: "Storefront", description: "Sell products — catalog, pricing tiers, and downloads." },
+  billing: { label: "Billing", description: "Stripe / Polar checkout webhooks and price mapping." },
+  issuer: { label: "License Issuance", description: "Cryptographic per-product license signing and registry." },
+  portal: { label: "Customer Portal", description: "Self-serve portal for your customers' licenses and devices." },
+};
+
+function PluginsSettings() {
+  const [plugins, setPlugins] = useState<PluginInfo[] | null>(null);
+  const [err, setErr] = useState("");
+
+  function load() {
+    api.plugins().then(setPlugins).catch((e: ApiError) => setErr(e.message || "Failed to load plugins"));
+  }
+  useEffect(load, []);
+
+  async function toggle(name: string, enabled: boolean) {
+    setErr("");
+    // optimistic; revert on failure
+    setPlugins((prev) => prev?.map((p) => (p.name === name ? { ...p, enabled } : p)) ?? prev);
+    try {
+      await api.updatePlugin(name, enabled);
+    } catch (e) {
+      setPlugins((prev) => prev?.map((p) => (p.name === name ? { ...p, enabled: !enabled } : p)) ?? prev);
+      setErr(e instanceof ApiError ? e.message : "Failed to update plugin");
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Plugins" description="Enable the Pro features this workspace uses. Everything is off by default." />
+
+      {err && (
+        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex gap-2 items-center">
+          <ShieldAlert className="h-4 w-4 shrink-0" /><span>{err}</span>
+        </div>
+      )}
+
+      {plugins === null ? (
+        <GlassCard className="p-6 text-sm text-white/50">Loading plugins…</GlassCard>
+      ) : plugins.length === 0 ? (
+        <GlassCard className="p-6 text-sm text-white/55">
+          No plugins are available in this build. Pro plugins ship with <span className="text-white/80">Octarq</span>.
+        </GlassCard>
+      ) : (
+        <div className="space-y-3">
+          {plugins.map((p) => {
+            const meta = PLUGIN_META[p.name] ?? { label: p.name, description: "" };
+            return (
+              <GlassCard key={p.name} className="p-5 flex items-center justify-between gap-4">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-indigo-300">
+                    <Puzzle className="h-4.5 w-4.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-white">{meta.label}</h3>
+                      {p.enabled ? <Badge tone="green">On</Badge> : <Badge tone="neutral">Off</Badge>}
+                    </div>
+                    {meta.description && <p className="text-xs text-white/45 mt-0.5">{meta.description}</p>}
+                    {p.menus.length > 0 && (
+                      <p className="text-[10px] text-white/30 mt-1">
+                        Adds: {p.menus.map((m) => m.label).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <Toggle on={p.enabled} onChange={(v) => toggle(p.name, v)} />
+              </GlassCard>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
