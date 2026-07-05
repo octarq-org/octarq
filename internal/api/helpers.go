@@ -138,7 +138,7 @@ func (h *Handler) providerFor(dom models.Domain) (dnsprovider.Provider, error) {
 	}
 	creds, err := h.cipher.Decrypt(acc.Config)
 	if err != nil {
-		return nil, errors.New("decrypt provider credentials")
+		return nil, errors.New("stored API token could not be decrypted — re-save this provider's API token under Settings → DNS Providers (the encryption key or database changed since it was saved)")
 	}
 	return dnsprovider.New(acc.Type, creds)
 }

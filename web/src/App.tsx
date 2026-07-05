@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -31,6 +31,7 @@ import {
   Store,
   PanelLeft,
   Webhook,
+  Search,
 } from "lucide-react";
 import { api, ApiError, MenuItem, Org } from "./api";
 import { useAppName, brandInitial } from "./brand";
@@ -329,6 +330,19 @@ function Shell({
     return next;
   });
 
+  // ⌘K / Ctrl-K command palette for primary navigation.
+  const [cmdOpen, setCmdOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCmdOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const settingsActive = location.pathname.startsWith("/settings") || location.pathname.startsWith("/personal");
   const activeArea: AreaId = settingsActive ? "settings" : areaForPath(location.pathname);
 
@@ -441,9 +455,15 @@ function Shell({
       .catch((e) => alert(e.message || "Couldn't create the workspace"));
   }
 
+  const selectArea = (id: AreaId) => {
+    if (id === "settings") { navigate("/settings"); return; }
+    const area = areas.find((a) => a.id === id)!;
+    navigate(area.groups[0]?.items[0]?.path ?? "/overview");
+  };
+
   return (
-    <div className="led-aurora flex h-screen w-full overflow-hidden text-white">
-      <IconRail
+    <div className="led-aurora flex h-screen w-full flex-col overflow-hidden text-white">
+      <TopBar
         areas={areas}
         activeArea={activeArea}
         settingsActive={settingsActive}
@@ -451,19 +471,17 @@ function Shell({
         activeOrgId={activeOrgId}
         activeOrgName={activeOrgName}
         user={user}
-        onSelectArea={(id) => {
-          const area = areas.find((a) => a.id === id)!;
-          const firstPath = area.groups[0]?.items[0]?.path ?? "/overview";
-          navigate(firstPath);
-        }}
+        onSelectArea={selectArea}
         onSwitchOrg={(id) =>
           api.switchOrg(id).then(() => { setActiveOrgId(id); window.location.reload(); })
         }
         onCreateOrg={() => setCreatingOrg(true)}
         onOpenSettings={() => navigate("/settings")}
+        onOpenCommand={() => setCmdOpen(true)}
         onLogout={onLogout}
       />
 
+      <div className="flex min-h-0 flex-1 overflow-hidden">
       <AnimatePresence mode="wait">
         {!panelCollapsed && (
           <AreaPanel
@@ -513,6 +531,14 @@ function Shell({
           </div>
         </div>
       </main>
+      </div>
+
+      <CommandPalette
+        open={cmdOpen}
+        onClose={() => setCmdOpen(false)}
+        areas={areas}
+        onNavigate={(path) => { navigate(path); setCmdOpen(false); }}
+      />
 
       {creatingOrg && (
         <Modal title="Create Workspace" onClose={() => setCreatingOrg(false)}>
@@ -542,49 +568,9 @@ function Shell({
   );
 }
 
-// ─── IconRail ─────────────────────────────────────────────────────────────────
+// ─── TopBar ───────────────────────────────────────────────────────────────────
 
-function RailButton({
-  active,
-  onClick,
-  children,
-  label,
-  expanded,
-}: {
-  active?: boolean;
-  onClick?: () => void;
-  children: React.ReactNode;
-  label: string;
-  expanded?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      title={expanded ? undefined : label}
-      className={`group relative flex h-11 items-center rounded-xl text-white/55 transition-colors hover:text-white ${
-        expanded ? "w-48 justify-start gap-3 px-3" : "w-11 justify-center"
-      }`}
-    >
-      {active && (
-        <motion.span
-          layoutId="rail-active"
-          transition={{ type: "spring", stiffness: 500, damping: 38 }}
-          className="absolute inset-0 rounded-xl bg-white/[0.08] ring-1 ring-inset ring-white/10"
-        />
-      )}
-      {active && (
-        <span className="absolute -left-2 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-indigo-400" />
-      )}
-      <span className={`relative flex items-center ${active ? "text-white" : ""}`}>{children}</span>
-      {expanded && (
-        <span className={`relative whitespace-nowrap text-sm font-medium ${active ? "text-white" : ""}`}>{label}</span>
-      )}
-    </button>
-  );
-}
-
-function IconRail({
+function TopBar({
   areas,
   activeArea,
   settingsActive,
@@ -596,6 +582,7 @@ function IconRail({
   onSwitchOrg,
   onCreateOrg,
   onOpenSettings,
+  onOpenCommand,
   onLogout,
 }: {
   areas: Area[];
@@ -609,21 +596,12 @@ function IconRail({
   onSwitchOrg: (id: number) => void;
   onCreateOrg: () => void;
   onOpenSettings: () => void;
+  onOpenCommand: () => void;
   onLogout: () => void;
 }) {
   const [wsOpen, setWsOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
-  // Pin the rail open to show top-level menu names; persisted across sessions.
-  const [expanded, setExpanded] = useState(() => {
-    try { return localStorage.getItem("rail_expanded") === "1"; } catch { return false; }
-  });
-  const toggleExpanded = () => {
-    setExpanded((v) => {
-      const next = !v;
-      try { localStorage.setItem("rail_expanded", next ? "1" : "0"); } catch { /* ignore */ }
-      return next;
-    });
-  };
+  const appName = useAppName();
 
   const initials = activeOrgName
     .split(/\s+/)
@@ -631,47 +609,30 @@ function IconRail({
     .map((w) => w[0])
     .join("")
     .toUpperCase();
-
   const userInitials = user.slice(0, 2).toUpperCase();
-  const appName = useAppName();
 
   return (
-    <div className={`relative z-30 flex h-full flex-col items-center border-r border-white/[0.06] bg-[#07070b]/60 py-3 backdrop-blur-xl transition-[width] duration-200 ${expanded ? "w-56" : "w-16"}`}>
-      {/* Logo */}
-      <div className={`mb-3 flex items-center transition-all ${expanded ? "w-48 gap-3 pl-0.5 pr-1" : "h-10 w-10 justify-center"}`}>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
-          <span className="font-display text-base font-extrabold text-white">{brandInitial(appName)}</span>
+    <header className="relative z-30 flex h-14 shrink-0 items-center gap-3 border-b border-white/[0.06] bg-[#07070b]/70 px-3 backdrop-blur-xl">
+      {/* Brand */}
+      <div className="flex items-center gap-2.5 pr-1">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
+          <span className="font-display text-sm font-extrabold text-white">{brandInitial(appName)}</span>
         </div>
-        {expanded && (
-          <span className="font-display text-lg font-bold text-white tracking-wide">{appName}</span>
-        )}
+        <span className="hidden font-display text-[15px] font-bold tracking-wide text-white sm:block">{appName}</span>
       </div>
 
       {/* Workspace switcher */}
-      <div className={`relative mb-4 ${expanded ? "w-48" : "w-10"}`}>
+      <div className="relative">
         <button
           onClick={() => setWsOpen((v) => !v)}
           aria-label="Switch workspace"
-          className={`relative flex h-10 items-center rounded-xl text-xs font-semibold text-indigo-300 ring-1 ring-inset ring-white/10 transition hover:ring-white/25 bg-indigo-500/15 ${
-            expanded ? "w-48 justify-start gap-3 pl-2 pr-2.5" : "w-10 justify-center"
-          }`}
+          className="flex h-9 items-center gap-2 rounded-xl bg-indigo-500/15 pl-1.5 pr-2 text-xs font-semibold text-indigo-300 ring-1 ring-inset ring-white/10 transition hover:ring-white/25"
         >
-          {expanded ? (
-            <>
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-500/25 text-[10px] font-bold text-indigo-300">
-                {initials}
-              </span>
-              <span className="flex-1 truncate text-sm font-medium text-white/90 text-left">
-                {activeOrgName}
-              </span>
-              <ChevronsUpDown className="h-4 w-4 shrink-0 text-white/50" />
-            </>
-          ) : (
-            <>
-              {initials}
-              <ChevronsUpDown className="absolute -bottom-1 -right-1 h-3 w-3 rounded bg-[#0c0c12] p-px text-white/50" />
-            </>
-          )}
+          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-500/25 text-[10px] font-bold text-indigo-300">
+            {initials}
+          </span>
+          <span className="max-w-[130px] truncate text-sm font-medium text-white/90">{activeOrgName}</span>
+          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-white/50" />
         </button>
 
         <AnimatePresence>
@@ -679,22 +640,20 @@ function IconRail({
             <>
               <div className="fixed inset-0 z-40" onClick={() => setWsOpen(false)} />
               <motion.div
-                initial={{ opacity: 0, scale: 0.95, x: -4 }}
-                animate={{ opacity: 1, scale: 1, x: 0 }}
+                initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.14 }}
-                className={`glass-strong absolute top-0 z-50 w-64 rounded-2xl p-1.5 shadow-2xl ${expanded ? "left-[216px]" : "left-12"}`}
+                className="glass-strong absolute left-0 top-11 z-50 w-64 rounded-2xl p-1.5 shadow-2xl"
               >
-                <p className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wide text-white/40">
-                  Workspaces
-                </p>
+                <p className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wide text-white/40">Workspaces</p>
                 {orgs.map((o) => (
                   <button
                     key={o.id}
                     onClick={() => { onSwitchOrg(o.id); setWsOpen(false); }}
                     className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition hover:bg-white/5"
                   >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-semibold ring-1 ring-inset ring-white/10 bg-indigo-500/15 text-indigo-300">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/15 text-[11px] font-semibold text-indigo-300 ring-1 ring-inset ring-white/10">
                       {o.name.slice(0, 2).toUpperCase()}
                     </span>
                     <span className="flex-1 truncate text-sm text-white">{o.name}</span>
@@ -714,106 +673,233 @@ function IconRail({
         </AnimatePresence>
       </div>
 
-      <div className={`mb-4 h-px bg-white/10 transition-all ${expanded ? "w-48" : "w-7"}`} />
-
-      {/* Area nav */}
-      <nav className="flex flex-1 flex-col items-center gap-1.5">
-        {areas.map((a) => (
-          <RailButton
-            key={a.id}
-            label={a.title}
-            expanded={expanded}
-            active={activeArea === a.id && !settingsActive}
-            onClick={() => onSelectArea(a.id)}
-          >
-            <a.Icon className="h-5 w-5" strokeWidth={1.75} />
-          </RailButton>
-        ))}
+      {/* Area tabs */}
+      <nav className="ml-1 flex items-center gap-1 overflow-x-auto">
+        {areas.map((a) => {
+          const active = activeArea === a.id && !settingsActive;
+          return (
+            <button
+              key={a.id}
+              onClick={() => onSelectArea(a.id)}
+              className={`relative flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                active ? "text-white" : "text-white/55 hover:text-white"
+              }`}
+            >
+              {active && (
+                <motion.span
+                  layoutId="area-tab-active"
+                  transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                  className="absolute inset-0 rounded-xl bg-white/[0.08] ring-1 ring-inset ring-white/10"
+                />
+              )}
+              <a.Icon className="relative h-4 w-4" strokeWidth={1.75} />
+              <span className="relative whitespace-nowrap">{a.title}</span>
+            </button>
+          );
+        })}
       </nav>
 
-      {/* Bottom: collapse toggle + settings + avatar */}
-      <div className="flex flex-col items-center gap-1.5">
-        <RailButton label={expanded ? "Collapse" : "Expand"} expanded={expanded} onClick={toggleExpanded}>
-          <PanelLeft className={`h-5 w-5 transition-transform ${expanded ? "" : "rotate-180"}`} strokeWidth={1.75} />
-        </RailButton>
-        <RailButton label="Settings" expanded={expanded} active={settingsActive} onClick={onOpenSettings}>
-          <Settings className="h-5 w-5" strokeWidth={1.75} />
-        </RailButton>
+      <div className="flex-1" />
 
-        <div className={`relative mt-1 ${expanded ? "w-48" : ""}`}>
-          <button
-            onClick={() => setUserOpen((v) => !v)}
-            aria-label="Account menu"
-            className={`flex items-center transition ${
-              expanded
-                ? "h-11 w-48 justify-start gap-3 rounded-xl hover:bg-white/5 text-white pl-1"
-                : "h-9 w-9 justify-center rounded-full bg-gradient-to-br from-indigo-400/30 to-violet-400/30 text-xs font-semibold text-white ring-1 ring-inset ring-white/15 hover:ring-white/30"
-            }`}
-          >
-            {expanded ? (
-              <>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400/30 to-violet-400/30 text-xs font-semibold text-white ring-1 ring-inset ring-white/15">
-                  {userInitials}
-                </span>
-                <span className="flex-1 min-w-0 text-left">
-                  <span className="block truncate text-sm font-medium text-white/90">{user}</span>
-                </span>
-              </>
-            ) : (
-              userInitials
-            )}
-          </button>
+      {/* Command palette trigger */}
+      <button
+        onClick={onOpenCommand}
+        className="flex h-9 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-2.5 text-white/45 transition-colors hover:bg-white/[0.06] hover:text-white/70"
+      >
+        <Search className="h-4 w-4" />
+        <span className="hidden text-xs md:block">Search…</span>
+        <kbd className="hidden rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-white/45 md:block">⌘K</kbd>
+      </button>
 
-          <AnimatePresence>
-            {userOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setUserOpen(false)} />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 6 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.14 }}
-                  className={`glass-strong absolute bottom-0 z-50 w-60 rounded-2xl p-1.5 shadow-2xl ${
-                    expanded ? "left-[216px]" : "left-12"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 px-2 py-2">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400/30 to-violet-400/30 text-xs font-semibold text-white ring-1 ring-inset ring-white/15">
-                      {userInitials}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm text-white">{user}</span>
-                    </span>
-                  </div>
-                  <div className="my-1 h-px bg-white/[0.08]" />
-                  {[
-                    { Icon: User,       label: "Personal settings", path: "/personal" },
-                    { Icon: CreditCard, label: "Billing & plan",    path: "/settings/billing" },
-                  ].map((m) => (
-                    <NavLink
-                      key={m.label}
-                      to={m.path}
-                      onClick={() => setUserOpen(false)}
-                      className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-white/75 transition hover:bg-white/5 hover:text-white"
-                    >
-                      <m.Icon className="h-4 w-4" />
-                      {m.label}
-                    </NavLink>
-                  ))}
-                  <div className="my-1 h-px bg-white/[0.08]" />
-                  <button
-                    onClick={onLogout}
-                    className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-rose-300/90 transition hover:bg-rose-500/10"
+      {/* Settings */}
+      <button
+        onClick={onOpenSettings}
+        aria-label="Settings"
+        title="Settings"
+        className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${
+          settingsActive ? "bg-white/[0.08] text-white ring-1 ring-inset ring-white/10" : "text-white/55 hover:bg-white/5 hover:text-white"
+        }`}
+      >
+        <Settings className="h-5 w-5" strokeWidth={1.75} />
+      </button>
+
+      {/* User menu */}
+      <div className="relative">
+        <button
+          onClick={() => setUserOpen((v) => !v)}
+          aria-label="Account menu"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400/30 to-violet-400/30 text-xs font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:ring-white/30"
+        >
+          {userInitials}
+        </button>
+
+        <AnimatePresence>
+          {userOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setUserOpen(false)} />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.14 }}
+                className="glass-strong absolute right-0 top-11 z-50 w-60 rounded-2xl p-1.5 shadow-2xl"
+              >
+                <div className="flex items-center gap-2.5 px-2 py-2">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400/30 to-violet-400/30 text-xs font-semibold text-white ring-1 ring-inset ring-white/15">
+                    {userInitials}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm text-white">{user}</span>
+                  </span>
+                </div>
+                <div className="my-1 h-px bg-white/[0.08]" />
+                {[
+                  { Icon: User, label: "Personal settings", path: "/personal" },
+                  { Icon: CreditCard, label: "Billing & plan", path: "/settings/billing" },
+                ].map((m) => (
+                  <NavLink
+                    key={m.label}
+                    to={m.path}
+                    onClick={() => setUserOpen(false)}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-white/75 transition hover:bg-white/5 hover:text-white"
                   >
-                    <LogOut className="h-4 w-4" />
-                    Sign out
-                  </button>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-        </div>
+                    <m.Icon className="h-4 w-4" />
+                    {m.label}
+                  </NavLink>
+                ))}
+                <div className="my-1 h-px bg-white/[0.08]" />
+                <button
+                  onClick={onLogout}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-rose-300/90 transition hover:bg-rose-500/10"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </button>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
+    </header>
+  );
+}
+
+// ─── CommandPalette ───────────────────────────────────────────────────────────
+
+function CommandPalette({
+  open,
+  onClose,
+  areas,
+  onNavigate,
+}: {
+  open: boolean;
+  onClose: () => void;
+  areas: Area[];
+  onNavigate: (path: string) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [sel, setSel] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Flatten every nav item (areas + settings) into a flat, searchable list.
+  const commands = useMemo(
+    () =>
+      [...areas, SETTINGS_AREA].flatMap((a) =>
+        a.groups.flatMap((g) =>
+          g.items.map((i) => ({
+            id: i.path,
+            label: i.label,
+            area: a.title,
+            group: g.label,
+            path: i.path,
+            Icon: i.Icon,
+            iconStr: i.iconStr,
+          })),
+        ),
+      ),
+    [areas],
+  );
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return commands;
+    return commands.filter(
+      (c) =>
+        c.label.toLowerCase().includes(needle) ||
+        c.area.toLowerCase().includes(needle) ||
+        c.group.toLowerCase().includes(needle) ||
+        c.path.toLowerCase().includes(needle),
+    );
+  }, [q, commands]);
+
+  useEffect(() => {
+    if (open) {
+      setQ("");
+      setSel(0);
+      const t = setTimeout(() => inputRef.current?.focus(), 20);
+      return () => clearTimeout(t);
+    }
+  }, [open]);
+  useEffect(() => { setSel(0); }, [q]);
+
+  if (!open) return null;
+
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setSel((s) => Math.min(s + 1, filtered.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setSel((s) => Math.max(s - 1, 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); const c = filtered[sel]; if (c) onNavigate(c.path); }
+    else if (e.key === "Escape") { e.preventDefault(); onClose(); }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 px-4 pt-[12vh] backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98, y: -8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.14 }}
+        className="glass-strong w-full max-w-xl overflow-hidden rounded-2xl shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 border-b border-white/[0.08] px-4">
+          <Search className="h-4 w-4 shrink-0 text-white/40" />
+          <input
+            ref={inputRef}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={onKey}
+            placeholder="Search pages…"
+            className="w-full bg-transparent py-3.5 text-sm text-white placeholder:text-white/35 focus:outline-none"
+          />
+          <kbd className="shrink-0 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-white/40">esc</kbd>
+        </div>
+        <div className="max-h-[50vh] overflow-y-auto p-1.5">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-8 text-center text-sm text-white/40">No matches for “{q}”.</div>
+          ) : (
+            filtered.map((c, i) => (
+              <button
+                key={c.id}
+                onMouseEnter={() => setSel(i)}
+                onClick={() => onNavigate(c.path)}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                  i === sel ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"
+                }`}
+              >
+                {c.iconStr ? (
+                  <span className="w-4 text-center text-sm">{c.iconStr}</span>
+                ) : (
+                  <c.Icon className="h-4 w-4 shrink-0 text-white/60" strokeWidth={1.75} />
+                )}
+                <span className="flex-1 truncate text-sm text-white">{c.label}</span>
+                <span className="shrink-0 text-[11px] text-white/35">{c.area} · {c.group}</span>
+              </button>
+            ))
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 }

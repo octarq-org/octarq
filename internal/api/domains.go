@@ -86,7 +86,7 @@ func (h *Handler) syncDomains(w http.ResponseWriter, r *http.Request) {
 
 	creds, err := h.cipher.Decrypt(acc.Config)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "decrypt provider credentials")
+		writeErr(w, http.StatusInternalServerError, "stored API token could not be decrypted — re-save this provider's API token under Settings → DNS Providers (the encryption key or database changed since it was saved)")
 		return
 	}
 
