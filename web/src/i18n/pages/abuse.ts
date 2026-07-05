@@ -1,0 +1,26 @@
+export const abuse = {
+  en: {
+    pageTitle: "Abuse Reports",
+    pageDesc: "Manage reports of spam or malicious links",
+    loading: "loading…",
+    emptyState: "No abuse reports found.",
+    target: "Target:",
+    ip: "IP: {{ip}}",
+    noDescription: "No description provided.",
+    dismissSafe: "Dismiss (Safe)",
+    markReviewed: "Mark Reviewed",
+    updateFailed: "Failed to update status: {{error}}",
+  },
+  zh: {
+    pageTitle: "滥用举报",
+    pageDesc: "管理垃圾信息或恶意链接的举报",
+    loading: "加载中…",
+    emptyState: "暂无滥用举报。",
+    target: "目标：",
+    ip: "IP：{{ip}}",
+    noDescription: "未提供描述。",
+    dismissSafe: "忽略（安全）",
+    markReviewed: "标记为已审核",
+    updateFailed: "更新状态失败：{{error}}",
+  },
+};

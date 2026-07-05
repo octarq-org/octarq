@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { api, AbuseReport } from "../api";
 import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
+import { useTranslation } from "../i18n";
 
 export default function AbusePage() {
+  const { t } = useTranslation();
   const [reports, setReports] = useState<AbuseReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("open");
@@ -23,7 +25,7 @@ export default function AbusePage() {
       await api.updateAbuseReport(id, status);
       load();
     } catch (e: any) {
-      alert("Failed to update status: " + e.message);
+      alert(t("abuse.updateFailed", { error: e.message }));
     }
   };
 
@@ -42,8 +44,8 @@ export default function AbusePage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="Abuse Reports"
-        description="Manage reports of spam or malicious links"
+        title={t("abuse.pageTitle")}
+        description={t("abuse.pageDesc")}
       />
 
       <div className="mb-6 flex flex-wrap gap-2">
@@ -60,10 +62,10 @@ export default function AbusePage() {
       </div>
 
       {loading ? (
-        <div className="text-white/40 py-12 text-center">loading…</div>
+        <div className="text-white/40 py-12 text-center">{t("abuse.loading")}</div>
       ) : reports.length === 0 ? (
         <GlassCard className="p-10 text-center text-white/40">
-          No abuse reports found.
+          {t("abuse.emptyState")}
         </GlassCard>
       ) : (
         <div className="space-y-4">
@@ -81,7 +83,7 @@ export default function AbusePage() {
                     </Badge>
                   </div>
                   <div className="mt-2 text-sm text-white/55 break-all">
-                    Target:{" "}
+                    {t("abuse.target")}{" "}
                     <a
                       href={r.target}
                       target="_blank"
@@ -94,12 +96,12 @@ export default function AbusePage() {
                 </div>
                 <div className="text-left sm:text-right text-xs text-white/40">
                   <div title={r.createdAt}>{timeAgo(r.createdAt)}</div>
-                  <div className="mt-1">IP: {r.reporterIp}</div>
+                  <div className="mt-1">{t("abuse.ip", { ip: r.reporterIp })}</div>
                 </div>
               </div>
 
               <div className="mt-4 text-sm text-white/75 bg-white/[0.03] p-4 rounded-xl border border-white/[0.06] font-normal leading-relaxed">
-                {r.description || <span className="text-white/30 italic">No description provided.</span>}
+                {r.description || <span className="text-white/30 italic">{t("abuse.noDescription")}</span>}
               </div>
 
               {r.status === "open" && (
@@ -109,14 +111,14 @@ export default function AbusePage() {
                     onClick={() => updateStatus(r.id, "dismissed")}
                     className="text-xs py-1.5"
                   >
-                    Dismiss (Safe)
+                    {t("abuse.dismissSafe")}
                   </Button>
                   <Button
                     variant="danger"
                     onClick={() => updateStatus(r.id, "reviewed")}
                     className="text-xs py-1.5"
                   >
-                    Mark Reviewed
+                    {t("abuse.markReviewed")}
                   </Button>
                 </div>
               )}

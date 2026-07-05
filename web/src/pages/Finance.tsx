@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Empty, Field, Modal, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard, LockedFeature } from "../ui";
 import { ShieldAlert, CreditCard, Calendar, TrendingUp, Trash2, Pencil, Landmark, Plus, ArrowUpRight, ArrowDownRight, Wallet, RefreshCw, Check } from "lucide-react";
 import { api, Transaction } from "../api";
+import { useTranslation } from "../i18n";
 
 const CURRENCIES = ["USD", "CNY", "EUR", "GBP", "JPY", "HKD", "SGD"];
 
@@ -10,6 +11,7 @@ function fmtCost(cost: number, currency: string) {
 }
 
 export default function FinancePage() {
+  const { t } = useTranslation();
   const [filterType, setFilterType] = useState<"all" | "recurring" | "one-off">("all");
   const [flowFilter, setFlowFilter] = useState<"all" | "income" | "expense">("all");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -100,14 +102,10 @@ export default function FinancePage() {
   // Delete transaction or series
   function handleDeleteTransaction(targetTx: Transaction) {
     if (!targetTx.parentId) {
-      if (!confirm("Are you sure you want to delete this transaction record?")) return;
+      if (!confirm(t("finance.confirmDeleteTx"))) return;
       api.deleteTransaction(targetTx.id).then(() => load());
     } else {
-      const choice = confirm(
-        "This transaction belongs to a recurring series.\n\n" +
-        "Click OK to delete THIS SPECIFIC OCCURRENCE only.\n" +
-        "Click Cancel to keep it."
-      );
+      const choice = confirm(t("finance.confirmDeleteOccurrence"));
       if (choice) {
         api.deleteTransaction(targetTx.id).then(() => load());
       }
@@ -116,7 +114,7 @@ export default function FinancePage() {
 
   // Delete entire recurring series
   function handleDeleteSeries(parentId: string) {
-    if (!confirm("Are you sure you want to delete the ENTIRE recurring series? This will erase all history for this contract.")) return;
+    if (!confirm(t("finance.confirmDeleteSeries"))) return;
     api.deleteTransactionSeries(parentId).then(() => load());
   }
 
@@ -147,12 +145,12 @@ export default function FinancePage() {
         <LockedFeature
           status={error.status}
           tier="pro"
-          feature="FinOps Spend Optimization"
-          description="Gain deep visibility into your operational cash flow and subscription expenditures with proactive lifecycle alerts."
+          feature={t("finance.lockedFeature")}
+          description={t("finance.lockedDesc")}
           perks={[
-            "Consolidated subscription tracking with annualized run-rate analysis",
-            "Automated renewal alerts dispatched to your preferred notification channels",
-            "Unified income and expense ledger for cash flow optimization",
+            t("finance.perk1"),
+            t("finance.perk2"),
+            t("finance.perk3"),
           ]}
           icon={<Landmark className="h-7 w-7" />}
           pricingHref="https://octarq.com/pricing/"
@@ -164,11 +162,11 @@ export default function FinancePage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="Bookkeeping"
-        description="Consolidated subscription expense ledger & cash flow tracking"
+        title={t("finance.pageTitle")}
+        description={t("finance.pageDesc")}
         action={
           <Button variant="primary" onClick={() => setShowAddModal(true)} className="gap-1">
-            <Plus className="h-4 w-4" /> Add Transaction
+            <Plus className="h-4 w-4" /> {t("finance.addTransaction")}
           </Button>
         }
       />
@@ -176,25 +174,25 @@ export default function FinancePage() {
       {/* Cash Ledger Stats Card Group */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <StatCard
-          label="Total Revenue Income"
+          label={t("finance.statRevenueLabel")}
           value={fmtCost(totalIncome, "USD")}
-          delta="Total cash inflows received"
+          delta={t("finance.statRevenueDelta")}
           icon={<ArrowUpRight className="h-4 w-4 text-emerald-400" />}
           positive={true}
           index={0}
         />
         <StatCard
-          label="Total Expenditures"
+          label={t("finance.statExpenseLabel")}
           value={fmtCost(totalExpense, "USD")}
-          delta="Total subscription & one-off fees"
+          delta={t("finance.statExpenseDelta")}
           icon={<ArrowDownRight className="h-4 w-4 text-rose-400" />}
           positive={false}
           index={1}
         />
         <StatCard
-          label="Net Cash Profit"
+          label={t("finance.statNetLabel")}
           value={fmtCost(netBalance, "USD")}
-          delta={netBalance >= 0 ? "Surplus" : "Deficit"}
+          delta={netBalance >= 0 ? t("finance.surplus") : t("finance.deficit")}
           icon={<Wallet className="h-4 w-4" />}
           positive={netBalance >= 0}
           index={2}
@@ -211,7 +209,7 @@ export default function FinancePage() {
               filterType === "all" ? "bg-white/[0.08] text-white shadow-glow" : "text-white/50 hover:text-white/80"
             }`}
           >
-            All Logs ({transactions.length})
+            {t("finance.filterAllLogs", { count: transactions.length })}
           </button>
           <button
             onClick={() => setFilterType("recurring")}
@@ -219,7 +217,7 @@ export default function FinancePage() {
               filterType === "recurring" ? "bg-white/[0.08] text-white shadow-glow" : "text-white/50 hover:text-white/80"
             }`}
           >
-            <RefreshCw className="h-3 w-3" /> Recurring ({transactions.filter(t => t.cycle !== "one-off").length})
+            <RefreshCw className="h-3 w-3" /> {t("finance.filterRecurring", { count: transactions.filter(tx => tx.cycle !== "one-off").length })}
           </button>
           <button
             onClick={() => setFilterType("one-off")}
@@ -227,7 +225,7 @@ export default function FinancePage() {
               filterType === "one-off" ? "bg-white/[0.08] text-white shadow-glow" : "text-white/50 hover:text-white/80"
             }`}
           >
-            One-off Ledger ({transactions.filter(t => t.cycle === "one-off").length})
+            {t("finance.filterOneOff", { count: transactions.filter(tx => tx.cycle === "one-off").length })}
           </button>
         </div>
 
@@ -239,7 +237,7 @@ export default function FinancePage() {
               flowFilter === "all" ? "bg-white/[0.08] text-white shadow-glow" : "text-white/50 hover:text-white/80"
             }`}
           >
-            All Flows
+            {t("finance.filterAllFlows")}
           </button>
           <button
             onClick={() => setFlowFilter("income")}
@@ -247,7 +245,7 @@ export default function FinancePage() {
               flowFilter === "income" ? "bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/10" : "text-white/50 hover:text-white/80"
             }`}
           >
-            Income Only ({transactions.filter(t => t.type === "income").length})
+            {t("finance.filterIncomeOnly", { count: transactions.filter(tx => tx.type === "income").length })}
           </button>
           <button
             onClick={() => setFlowFilter("expense")}
@@ -255,7 +253,7 @@ export default function FinancePage() {
               flowFilter === "expense" ? "bg-rose-500/15 text-rose-400 font-bold border border-rose-500/10" : "text-white/50 hover:text-white/80"
             }`}
           >
-            Expenses Only ({transactions.filter(t => t.type === "expense").length})
+            {t("finance.filterExpensesOnly", { count: transactions.filter(tx => tx.type === "expense").length })}
           </button>
         </div>
       </div>
@@ -264,7 +262,7 @@ export default function FinancePage() {
       {filteredTransactions.length === 0 ? (
         <Empty>
           <Landmark className="h-10 w-10 text-white/30 mb-2" />
-          <p className="text-sm text-white/50">No transaction logs match current filters.</p>
+          <p className="text-sm text-white/50">{t("finance.emptyState")}</p>
         </Empty>
       ) : (
         <GlassCard className="overflow-hidden">
@@ -272,12 +270,12 @@ export default function FinancePage() {
             <table className="w-full text-sm border-collapse">
               <thead className="border-b border-white/[0.06] bg-white/[0.02] text-white/55">
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider">
-                  <th className="px-5 py-3.5">Date</th>
-                  <th className="px-5 py-3.5">Flow</th>
-                  <th className="px-5 py-3.5">Title</th>
-                  <th className="px-5 py-3.5">Category</th>
-                  <th className="px-5 py-3.5">Cycle</th>
-                  <th className="px-5 py-3.5 text-right">Amount</th>
+                  <th className="px-5 py-3.5">{t("finance.thDate")}</th>
+                  <th className="px-5 py-3.5">{t("finance.thFlow")}</th>
+                  <th className="px-5 py-3.5">{t("finance.thTitle")}</th>
+                  <th className="px-5 py-3.5">{t("finance.thCategory")}</th>
+                  <th className="px-5 py-3.5">{t("finance.thCycle")}</th>
+                  <th className="px-5 py-3.5 text-right">{t("finance.thAmount")}</th>
                   <th className="px-5 py-3.5"></th>
                 </tr>
               </thead>
@@ -287,17 +285,17 @@ export default function FinancePage() {
                     <td className="px-5 py-4 font-mono text-xs text-white/60">{tx.date}</td>
                     <td className="px-5 py-4">
                       <Badge tone={tx.type === "income" ? "green" : "red"} className="uppercase font-bold tracking-wider text-[9px]">
-                        {tx.type}
+                        {tx.type === "income" ? t("finance.flowIncome") : t("finance.flowExpense")}
                       </Badge>
                     </td>
                     <td className="px-5 py-4 text-white font-medium">
                       <div className="flex items-center gap-2">
                         <span>{tx.title}</span>
                         {tx.parentId && (
-                          <Badge tone="indigo" className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0">Recurring Series</Badge>
+                          <Badge tone="indigo" className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0">{t("finance.badgeRecurringSeries")}</Badge>
                         )}
                         {tx.status === "pending" && (
-                          <Badge tone="amber" className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0">Pending Review</Badge>
+                          <Badge tone="amber" className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0">{t("finance.badgePendingReview")}</Badge>
                         )}
                       </div>
                     </td>
@@ -308,10 +306,10 @@ export default function FinancePage() {
                     </td>
                     <td className="px-5 py-4 capitalize text-xs text-white/65">
                       {tx.cycle === "one-off" ? (
-                        <span className="text-white/40">One-off</span>
+                        <span className="text-white/40">{t("finance.cycleOneOff")}</span>
                       ) : (
                         <span className="text-indigo-400 font-semibold flex items-center gap-1">
-                          <RefreshCw className="h-3 w-3" /> {tx.cycle}
+                          <RefreshCw className="h-3 w-3" /> {tx.cycle === "monthly" ? t("finance.cycleMonthly") : t("finance.cycleYearly")}
                         </span>
                       )}
                     </td>
@@ -325,9 +323,9 @@ export default function FinancePage() {
                             variant="ghost"
                             onClick={() => handleConfirmTransaction(tx)}
                             className="text-xs py-1 px-2.5 text-emerald-300 hover:bg-emerald-500/10"
-                            title="Confirm this auto-extracted transaction into the ledger"
+                            title={t("finance.confirmTitle")}
                           >
-                            <Check className="h-3.5 w-3.5 mr-1" /> Confirm
+                            <Check className="h-3.5 w-3.5 mr-1" /> {t("finance.confirmBtn")}
                           </Button>
                         )}
                         <Button
@@ -335,7 +333,7 @@ export default function FinancePage() {
                           onClick={() => setEditingTx(tx)}
                           className="text-xs py-1 px-2.5"
                         >
-                          <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                          <Pencil className="h-3.5 w-3.5 mr-1" /> {t("finance.editBtn")}
                         </Button>
                         <Button
                           variant="danger"
@@ -349,9 +347,9 @@ export default function FinancePage() {
                             variant="danger"
                             onClick={() => handleDeleteSeries(tx.parentId!)}
                             className="text-[10px] py-1 px-2 bg-rose-950/20 hover:bg-rose-900/40 text-rose-300 border-rose-900/30"
-                            title="Delete entire recurring series history"
+                            title={t("finance.deleteContractTitle")}
                           >
-                            Delete Contract
+                            {t("finance.deleteContract")}
                           </Button>
                         )}
                       </div>
@@ -399,6 +397,7 @@ function AddTransactionModal({
     date: string;
   }) => void;
 }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [type, setType] = useState<"income" | "expense">("expense");
   const [category, setCategory] = useState("SaaS Tools");
@@ -433,23 +432,23 @@ function AddTransactionModal({
   }
 
   return (
-    <Modal title="Log Financial Transaction" onClose={onClose}>
+    <Modal title={t("finance.addModalTitle")} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Transaction Title">
-          <input className="input w-full font-sans" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="e.g. Vercel Hosting / Consulting Retainer" autoFocus />
+        <Field label={t("finance.fieldTransactionTitle")}>
+          <input className="input w-full font-sans" value={title} onChange={(e) => setTitle(e.target.value)} required placeholder={t("finance.titlePlaceholder")} autoFocus />
         </Field>
 
         <div className="flex gap-4">
           <div className="flex-1">
-            <Field label="Flow Type">
+            <Field label={t("finance.fieldFlowType")}>
               <select className="input w-full text-sm" value={type} onChange={(e) => setType(e.target.value as "income" | "expense")}>
-                <option value="expense">Expenditure (Out)</option>
-                <option value="income">Revenue Income (In)</option>
+                <option value="expense">{t("finance.optExpenditure")}</option>
+                <option value="income">{t("finance.optRevenue")}</option>
               </select>
             </Field>
           </div>
           <div className="flex-1">
-            <Field label="Category / Vendor">
+            <Field label={t("finance.fieldCategoryVendor")}>
               <select className="input w-full text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
                 {categories.map((c) => <option key={c}>{c}</option>)}
               </select>
@@ -459,12 +458,12 @@ function AddTransactionModal({
 
         <div className="flex gap-4">
           <div className="flex-1">
-            <Field label="Amount">
+            <Field label={t("finance.fieldAmount")}>
               <input className="input w-full font-mono text-sm" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required placeholder="0.00" />
             </Field>
           </div>
           <div className="w-28">
-            <Field label="Currency">
+            <Field label={t("finance.fieldCurrency")}>
               <select className="input w-full text-sm" value={currency} onChange={(e) => setCurrency(e.target.value)}>
                 {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
               </select>
@@ -473,12 +472,12 @@ function AddTransactionModal({
         </div>
 
         <div className="border-t border-white/[0.05] pt-4 space-y-4">
-          <Field label="Payment Cycle / Term">
+          <Field label={t("finance.fieldPaymentCycle")}>
             <div className="flex gap-4 mt-1">
               {([
-                { value: "one-off", label: "One-off (一次性)" },
-                { value: "monthly", label: "Monthly (每月)" },
-                { value: "yearly", label: "Yearly (每年)" },
+                { value: "one-off", label: t("finance.cycleOptOneOff") },
+                { value: "monthly", label: t("finance.cycleOptMonthly") },
+                { value: "yearly", label: t("finance.cycleOptYearly") },
               ] as const).map((item) => (
                 <label key={item.value} className="flex items-center gap-2 cursor-pointer select-none">
                   <input
@@ -495,15 +494,15 @@ function AddTransactionModal({
             </div>
           </Field>
 
-          <Field label={cycle === "one-off" ? "Transaction Date" : "Billing Cycle Start Date"}>
+          <Field label={cycle === "one-off" ? t("finance.fieldTransactionDate") : t("finance.fieldBillingStartDate")}>
             <input className="input w-full text-sm font-sans" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
           </Field>
         </div>
 
         <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
-          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="ghost" onClick={onClose}>{t("finance.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={!title.trim() || !amount}>
-            Save Record
+            {t("finance.saveRecord")}
           </Button>
         </div>
       </form>
@@ -524,6 +523,7 @@ function EditTransactionModal({
     scope: "one" | "all"
   ) => void;
 }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState(tx.title);
   const [category, setCategory] = useState(tx.category);
   const [amount, setAmount] = useState(tx.amount.toString());
@@ -561,28 +561,28 @@ function EditTransactionModal({
   }
 
   return (
-    <Modal title={tx.parentId ? "Adjust Occurrence" : "Edit Transaction"} onClose={onClose}>
+    <Modal title={tx.parentId ? t("finance.editModalTitleAdjust") : t("finance.editModalTitleEdit")} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {tx.parentId && (
           <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3 text-xs text-indigo-200">
-            💡 This transaction belongs to a recurring contract. You can edit this single instance or the entire future series.
+            {t("finance.recurringInfo")}
           </div>
         )}
 
-        <Field label="Title">
+        <Field label={t("finance.fieldTitle")}>
           <input className="input w-full font-sans" value={title} onChange={(e) => setTitle(e.target.value)} required />
         </Field>
 
         <div className="flex gap-4">
           <div className="flex-1">
-            <Field label="Category">
+            <Field label={t("finance.fieldCategory")}>
               <select className="input w-full text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
                 {categories.map((c) => <option key={c}>{c}</option>)}
               </select>
             </Field>
           </div>
           <div className="w-28">
-            <Field label="Currency">
+            <Field label={t("finance.fieldCurrency")}>
               <select className="input w-full text-sm" value={currency} onChange={(e) => setCurrency(e.target.value)}>
                 {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
               </select>
@@ -592,19 +592,19 @@ function EditTransactionModal({
 
         <div className="flex gap-4">
           <div className="flex-1">
-            <Field label="Amount">
+            <Field label={t("finance.fieldAmount")}>
               <input className="input w-full font-mono text-sm" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
             </Field>
           </div>
           <div className="flex-1">
-            <Field label="Occurrence Date">
+            <Field label={t("finance.fieldOccurrenceDate")}>
               <input className="input w-full text-sm font-sans" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             </Field>
           </div>
         </div>
 
         {tx.parentId && (
-          <Field label="Update Scope">
+          <Field label={t("finance.fieldUpdateScope")}>
             <div className="flex gap-4 mt-1.5">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
@@ -615,7 +615,7 @@ function EditTransactionModal({
                   onChange={() => setEditScope("one")}
                   className="accent-indigo-500"
                 />
-                <span className="text-xs text-white/80 font-medium">Apply to THIS occurrence only</span>
+                <span className="text-xs text-white/80 font-medium">{t("finance.scopeThisOnly")}</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
@@ -626,16 +626,16 @@ function EditTransactionModal({
                   onChange={() => setEditScope("all")}
                   className="accent-indigo-500"
                 />
-                <span className="text-xs text-white/80 font-medium">Apply to FUTURE occurrences in series</span>
+                <span className="text-xs text-white/80 font-medium">{t("finance.scopeFuture")}</span>
               </label>
             </div>
           </Field>
         )}
 
         <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
-          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="ghost" onClick={onClose}>{t("finance.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={!title.trim() || !amount}>
-            Save Changes
+            {t("finance.saveChanges")}
           </Button>
         </div>
       </form>

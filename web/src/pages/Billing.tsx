@@ -6,8 +6,10 @@ import { useEffect, useState } from "react";
 import { api, ApiError, BillingConfig, PriceMap, PriceMapInput } from "../api";
 import { ScreenWrap, PageHeader, GlassCard, Button, Badge, Field, Modal, Empty, LockedFeature } from "../ui";
 import { Receipt, Plus } from "lucide-react";
+import { useTranslation } from "../i18n";
 
 export default function BillingPage() {
+  const { t } = useTranslation();
   const [cfg, setCfg] = useState<BillingConfig | null>(null);
   const [prices, setPrices] = useState<PriceMap[]>([]);
   const [error, setError] = useState<{ status: number } | null>(null);
@@ -29,13 +31,13 @@ export default function BillingPage() {
     try {
       await api.updateBillingConfig({ webhookSecret });
       setSecret("");
-      setMsg("Saved.");
+      setMsg(t("billing.saved"));
       load();
     } catch (e) { setMsg((e as ApiError).message); } finally { setBusy(false); }
   }
 
   async function delPrice(id: number) {
-    if (!confirm("Delete this price mapping? Checkouts using it will be rejected until re-mapped.")) return;
+    if (!confirm(t("billing.confirmDelete"))) return;
     await api.deleteBillingPrice(id);
     load();
   }
@@ -46,12 +48,12 @@ export default function BillingPage() {
         <LockedFeature
           status={error.status}
           tier="pro"
-          feature="Billing"
-          description="Take payments and auto-issue licenses for your products."
+          feature={t("billing.lockedFeature")}
+          description={t("billing.lockedDesc")}
           perks={[
-            "Map each Stripe payment link to a product + tier — no checkout metadata",
-            "Webhook secret stored encrypted, editable here",
-            "Issuance recorded under Licenses",
+            t("billing.perk1"),
+            t("billing.perk2"),
+            t("billing.perk3"),
           ]}
           icon={<Receipt className="h-7 w-7" />}
           pricingHref="https://octarq.com/pricing/"
@@ -59,24 +61,24 @@ export default function BillingPage() {
       </ScreenWrap>
     );
   }
-  if (!cfg) return <ScreenWrap><div className="p-8 text-center text-white/40">Loading…</div></ScreenWrap>;
+  if (!cfg) return <ScreenWrap><div className="p-8 text-center text-white/40">{t("billing.loading")}</div></ScreenWrap>;
 
   return (
     <ScreenWrap>
-      <PageHeader title="Billing" description="Connect Stripe or Polar and map your plans to the licenses they grant." />
+      <PageHeader title={t("billing.pageTitle")} description={t("billing.pageDesc")} />
 
       <GlassCard className="mb-4 p-5">
         <div className="mb-3 flex items-center gap-2 text-sm text-white/70">
-          Webhook routes live:
+          {t("billing.webhookRoutesLive")}
           {cfg.providers.map((p) => <Badge key={p} tone="indigo">{p}</Badge>)}
         </div>
         <p className="text-xs text-white/40">
-          Point your payment platform's webhook at <code>/api/billing/webhook/&lt;provider&gt;</code>.
+          {t("billing.pointWebhook")} <code>/api/billing/webhook/&lt;provider&gt;</code>.
         </p>
         {cfg.claimPageUrl && (
           <p className="mt-2 text-xs text-white/40">
-            On a Payment Link, set the success URL to{" "}
-            <code className="break-all">{cfg.claimPageUrl}</code> so buyers can claim their license.
+            {t("billing.successUrlHintBefore")}{" "}
+            <code className="break-all">{cfg.claimPageUrl}</code> {t("billing.successUrlHintAfter")}
           </p>
         )}
       </GlassCard>
@@ -85,28 +87,27 @@ export default function BillingPage() {
       <GlassCard className="mb-4 p-5">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-white/90">Price map</h3>
+            <h3 className="text-sm font-semibold text-white/90">{t("billing.priceMap")}</h3>
             <p className="text-xs text-white/40">
-              Map each Stripe Payment Link (<code>plink_…</code>) to a product + tier. The webhook
-              resolves sales through this table — no <code>metadata</code> to set on checkout.
+              {t("billing.priceMapHintBefore")}<code>plink_…</code>{t("billing.priceMapHintMid")} <code>metadata</code> {t("billing.priceMapHintAfter")}
             </p>
           </div>
-          <Button variant="subtle" onClick={() => setEditing("new")}><Plus className="h-3.5 w-3.5" /> Mapping</Button>
+          <Button variant="subtle" onClick={() => setEditing("new")}><Plus className="h-3.5 w-3.5" /> {t("billing.mapping")}</Button>
         </div>
         {prices.length === 0 ? (
           <Empty>
             <Receipt className="mb-2 h-8 w-8 text-white/30" />
-            <p className="text-sm text-white/45">No mappings yet — add one per Payment Link.</p>
+            <p className="text-sm text-white/45">{t("billing.noMappings")}</p>
           </Empty>
         ) : (
           <div className="overflow-hidden rounded-xl border border-white/8">
             <table className="w-full text-sm">
               <thead className="text-left text-white/40">
                 <tr className="border-b border-white/8">
-                  <th className="px-3 py-2 font-medium">Stripe ref</th>
-                  <th className="px-3 py-2 font-medium">Product</th>
-                  <th className="px-3 py-2 font-medium">Tier</th>
-                  <th className="px-3 py-2 font-medium">Term</th>
+                  <th className="px-3 py-2 font-medium">{t("billing.thStripeRef")}</th>
+                  <th className="px-3 py-2 font-medium">{t("billing.thProduct")}</th>
+                  <th className="px-3 py-2 font-medium">{t("billing.thTier")}</th>
+                  <th className="px-3 py-2 font-medium">{t("billing.thTerm")}</th>
                   <th className="px-3 py-2"></th>
                 </tr>
               </thead>
@@ -118,9 +119,9 @@ export default function BillingPage() {
                     <td className="px-3 py-2"><Badge tone="violet">{m.tier}</Badge></td>
                     <td className="px-3 py-2 text-white/45">{m.term || "—"}</td>
                     <td className="px-3 py-2 text-right">
-                      <button onClick={() => setEditing(m)} className="text-xs text-white/50 hover:text-white">Edit</button>
+                      <button onClick={() => setEditing(m)} className="text-xs text-white/50 hover:text-white">{t("billing.edit")}</button>
                       <span className="text-white/20"> · </span>
-                      <button onClick={() => delPrice(m.id)} className="text-xs text-rose-300/80 hover:text-rose-300">Delete</button>
+                      <button onClick={() => delPrice(m.id)} className="text-xs text-rose-300/80 hover:text-rose-300">{t("billing.delete")}</button>
                     </td>
                   </tr>
                 ))}
@@ -133,18 +134,18 @@ export default function BillingPage() {
       {/* Webhook secret */}
       <GlassCard className="p-5">
         <Field
-          label="Stripe webhook secret"
-          hint={cfg.webhookSecretSet ? "A secret is set — enter a new one to replace it." : "Not set. Paste your whsec_… secret."}
+          label={t("billing.webhookSecretLabel")}
+          hint={cfg.webhookSecretSet ? t("billing.webhookSecretSetHint") : t("billing.webhookSecretUnsetHint")}
         >
           <input className="input w-full font-mono text-xs" type="password" value={secret}
             onChange={(e) => setSecret(e.target.value)} placeholder={cfg.webhookSecretSet ? "••••••••" : "whsec_…"} />
         </Field>
         <div className="flex items-center gap-2">
           <Button variant="primary" onClick={() => saveSecret(secret.trim())} disabled={busy || secret.trim() === ""}>
-            Save secret
+            {t("billing.saveSecret")}
           </Button>
           {cfg.webhookSecretSet && (
-            <Button variant="danger" onClick={() => saveSecret("")} disabled={busy}>Clear</Button>
+            <Button variant="danger" onClick={() => saveSecret("")} disabled={busy}>{t("billing.clear")}</Button>
           )}
         </div>
         {msg && <p className="mt-3 text-sm text-emerald-300">{msg}</p>}
@@ -162,6 +163,7 @@ export default function BillingPage() {
 }
 
 function PriceModal({ price, onClose, onSaved }: { price: PriceMap | null; onClose: () => void; onSaved: () => void }) {
+  const { t } = useTranslation();
   const [f, setF] = useState<PriceMapInput>({
     stripeRef: price?.stripeRef ?? "",
     productSlug: price?.productSlug ?? "",
@@ -180,32 +182,32 @@ function PriceModal({ price, onClose, onSaved }: { price: PriceMap | null; onClo
   }
 
   return (
-    <Modal title={price ? "Edit price mapping" : "New price mapping"} onClose={onClose}>
-      <Field label="Stripe ref" hint="The Payment Link id (plink_…) — find it on the link in Stripe.">
+    <Modal title={price ? t("billing.editModalTitle") : t("billing.newModalTitle")} onClose={onClose}>
+      <Field label={t("billing.stripeRefLabel")} hint={t("billing.stripeRefHint")}>
         <input className="input w-full font-mono text-xs" value={f.stripeRef}
           onChange={(e) => setF({ ...f, stripeRef: e.target.value })} placeholder="plink_…" />
       </Field>
       <div className="grid gap-x-3 sm:grid-cols-3">
-        <Field label="Product slug"><input className="input w-full" value={f.productSlug} onChange={(e) => setF({ ...f, productSlug: e.target.value })} placeholder="octarq" /></Field>
-        <Field label="Tier">
+        <Field label={t("billing.productSlugLabel")}><input className="input w-full" value={f.productSlug} onChange={(e) => setF({ ...f, productSlug: e.target.value })} placeholder="octarq" /></Field>
+        <Field label={t("billing.tierLabel")}>
           <select className="input w-full" value={f.tier} onChange={(e) => setF({ ...f, tier: e.target.value })}>
             <option value="pro">pro</option>
             <option value="elite">elite</option>
           </select>
         </Field>
-        <Field label="Term" hint="for expiry">
+        <Field label={t("billing.termLabel")} hint={t("billing.termHint")}>
           <select className="input w-full" value={f.term} onChange={(e) => setF({ ...f, term: e.target.value })}>
-            <option value="">(subscription)</option>
-            <option value="monthly">monthly</option>
-            <option value="yearly">yearly</option>
-            <option value="lifetime">lifetime</option>
+            <option value="">{t("billing.termSubscription")}</option>
+            <option value="monthly">{t("billing.termMonthly")}</option>
+            <option value="yearly">{t("billing.termYearly")}</option>
+            <option value="lifetime">{t("billing.termLifetime")}</option>
           </select>
         </Field>
       </div>
       <div className="mt-2 flex justify-end gap-2">
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="ghost" onClick={onClose}>{t("billing.cancel")}</Button>
         <Button variant="primary" onClick={save} disabled={busy || f.stripeRef.trim() === "" || f.productSlug.trim() === ""}>
-          {busy ? "Saving…" : "Save"}
+          {busy ? t("billing.saving") : t("billing.save")}
         </Button>
       </div>
     </Modal>

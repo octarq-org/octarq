@@ -10,6 +10,14 @@ import { sshKeys } from "./sshKeys";
 import { finance } from "./finance";
 import { storefront } from "./storefront";
 import { personal } from "./personal";
+import { settings } from "./settings";
+import { billing } from "./billing";
+import { licenses } from "./licenses";
+import { audit } from "./audit";
+import { abuse } from "./abuse";
+import { invite } from "./invite";
+import { llmProviders } from "./llmProviders";
+import { uiCommon } from "./uiCommon";
 
 const NS = {
   overview,
@@ -22,6 +30,14 @@ const NS = {
   finance,
   storefront,
   personal,
+  settings,
+  billing,
+  licenses,
+  audit,
+  abuse,
+  invite,
+  llmProviders,
+  uiCommon,
 };
 
 export const pagesEn = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v.en]));

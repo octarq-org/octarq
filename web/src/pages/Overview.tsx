@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, Overview } from "../api";
+import { useTranslation } from "../i18n";
 import { AreaChart, BarList, timeAgo, ScreenWrap, PageHeader, StatCard, GlassCard } from "../ui";
 import { Link2, Mail, Globe, MousePointerClick, CheckCircle2, Circle, ArrowRight, Sparkles, X } from "lucide-react";
 
@@ -14,6 +15,7 @@ export default function OverviewPage() {
   const [priceCount, setPriceCount] = useState<number | null>(null);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem("dismiss_onboarding") === "true");
   const nav = useNavigate();
+  const { t } = useTranslation();
 
   useEffect(() => {
     api.overview(includeBot).then(setO).catch(() => {});
@@ -35,49 +37,49 @@ export default function OverviewPage() {
     setDismissed(true);
   };
 
-  if (!o) return <div className="grid h-64 place-items-center text-white/40">loading…</div>;
+  if (!o) return <div className="grid h-64 place-items-center text-white/40">{t("overview.loading")}</div>;
 
   const steps = [
     {
       id: "domain",
-      title: "Domain Orchestration",
-      description: "Configure a custom domain to serve branded links and secure email routes.",
+      title: t("overview.stepDomainTitle"),
+      description: t("overview.stepDomainDesc"),
       completed: o.domains > 0,
       path: "/domains",
     },
     {
       id: "link",
-      title: "Branded Link Redirection",
-      description: "Launch your first branded shortlink to optimize click-through conversion rates.",
+      title: t("overview.stepLinkTitle"),
+      description: t("overview.stepLinkDesc"),
       completed: o.links > 0,
       path: "/links",
     },
     {
       id: "smtp",
-      title: "Outbound SMTP Relay",
-      description: "Deploy SMTP relay credentials to handle secure transactional email delivery.",
+      title: t("overview.stepSmtpTitle"),
+      description: t("overview.stepSmtpDesc"),
       completed: smtpCount !== null && smtpCount > 0,
       path: "/mail?tab=settings",
     },
     {
       id: "colleague",
-      title: "Multi-Tenant Collaboration",
-      description: "Invite team operators to collaborate in your unified environment.",
+      title: t("overview.stepColleagueTitle"),
+      description: t("overview.stepColleagueDesc"),
       completed: memberCount !== null && memberCount > 1,
       path: "/settings/members",
     },
     ...(isPro ? [
       {
         id: "storefront",
-        title: "Digital Storefront",
-        description: "Configure products, pricing tiers, and downloads to sell your software.",
+        title: t("overview.stepStorefrontTitle"),
+        description: t("overview.stepStorefrontDesc"),
         completed: productCount !== null && productCount > 0,
         path: "/storefront",
       },
       {
         id: "billing",
-        title: "Payment Webhooks",
-        description: "Connect Stripe or Polar checkout webhooks and map price IDs.",
+        title: t("overview.stepBillingTitle"),
+        description: t("overview.stepBillingDesc"),
         completed: priceCount !== null && priceCount > 0,
         path: "/billing",
       }
@@ -88,14 +90,14 @@ export default function OverviewPage() {
   const progressPercent = Math.round((completedCount / steps.length) * 100);
 
   const botLabel = includeBot
-    ? `incl. ${o.botClicks30d} bot`
-    : `${o.botClicks30d} bot hidden`;
+    ? t("overview.botInclLabel", { count: o.botClicks30d })
+    : t("overview.botHiddenLabel", { count: o.botClicks30d });
 
   return (
     <ScreenWrap>
       <PageHeader
-        title="Overview"
-        description="Unified analytics across links, mail & DNS"
+        title={t("overview.title")}
+        description={t("overview.description")}
       />
 
       {!dismissed && (
@@ -105,7 +107,7 @@ export default function OverviewPage() {
           <button 
             onClick={dismiss} 
             className="absolute top-4 right-4 p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors"
-            title="Dismiss checklist"
+            title={t("overview.dismissChecklist")}
           >
             <X size={16} />
           </button>
@@ -114,15 +116,15 @@ export default function OverviewPage() {
             <div>
               <div className="flex items-center gap-2 text-indigo-400">
                 <Sparkles size={18} className="animate-pulse" />
-                <span className="text-xs font-semibold uppercase tracking-wider">Getting Started</span>
+                <span className="text-xs font-semibold uppercase tracking-wider">{t("overview.gettingStarted")}</span>
               </div>
-              <h2 className="text-xl font-bold text-white mt-1">Maximize your platform performance</h2>
-              <p className="text-xs text-white/50 mt-1">Follow these steps to optimize your marketing redirection and email relay capabilities.</p>
+              <h2 className="text-xl font-bold text-white mt-1">{t("overview.maximizePerformance")}</h2>
+              <p className="text-xs text-white/50 mt-1">{t("overview.gettingStartedDesc")}</p>
             </div>
             
             <div className="flex items-center gap-3 shrink-0">
               <div className="text-right">
-                <span className="text-xs text-white/40">Setup Progress</span>
+                <span className="text-xs text-white/40">{t("overview.setupProgress")}</span>
                 <span className="block text-lg font-bold text-indigo-300">{progressPercent}%</span>
               </div>
               <div className="w-32 bg-white/10 h-2 rounded-full overflow-hidden">
@@ -167,36 +169,36 @@ export default function OverviewPage() {
 
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard
-          label="Total Clicks"
+          label={t("overview.totalClicks")}
           value={o.totalClicks.toLocaleString()}
-          delta={`${o.clicks7d} in 7d`}
+          delta={t("overview.clicks7d", { count: o.clicks7d })}
           positive={true}
           icon={<MousePointerClick className="h-4 w-4" />}
           onClick={() => nav("/links")}
           index={0}
         />
         <StatCard
-          label="Short Links"
+          label={t("overview.shortLinks")}
           value={o.links.toLocaleString()}
-          delta={`${o.activeLinks} active`}
+          delta={t("overview.activeLinks", { count: o.activeLinks })}
           positive={true}
           icon={<Link2 className="h-4 w-4" />}
           onClick={() => nav("/links")}
           index={1}
         />
         <StatCard
-          label="Mailboxes"
+          label={t("overview.mailboxes")}
           value={o.mailboxes.toLocaleString()}
-          delta={`${o.unread} unread`}
+          delta={t("overview.unread", { count: o.unread })}
           positive={false}
           icon={<Mail className="h-4 w-4" />}
           onClick={() => nav("/mail")}
           index={2}
         />
         <StatCard
-          label="Domains"
+          label={t("overview.domains")}
           value={o.domains.toLocaleString()}
-          delta={`${o.linkDomains} link · ${o.mailDomains} mail`}
+          delta={t("overview.domainsDelta", { link: o.linkDomains, mail: o.mailDomains })}
           positive={true}
           icon={<Globe className="h-4 w-4" />}
           onClick={() => nav("/domains")}
@@ -206,9 +208,9 @@ export default function OverviewPage() {
 
       <GlassCard className="mb-6 p-5">
         <div className="mb-4 flex items-center justify-between gap-2">
-          <h3 className="font-display font-semibold text-white">Clicks · last 30 days</h3>
+          <h3 className="font-display font-semibold text-white">{t("overview.clicksLast30")}</h3>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-white/40">{o.clicks30d} total · {botLabel}</span>
+            <span className="text-sm text-white/40">{t("overview.clicksTotal", { count: o.clicks30d })} · {botLabel}</span>
             <BotToggle value={includeBot} onChange={setIncludeBot} />
           </div>
         </div>
@@ -216,9 +218,9 @@ export default function OverviewPage() {
       </GlassCard>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Panel title="Top links">
+        <Panel title={t("overview.topLinks")}>
           {!o.topLinks || o.topLinks.length === 0 ? (
-            <p className="text-sm text-white/30">No links yet</p>
+            <p className="text-sm text-white/30">{t("overview.noLinks")}</p>
           ) : (
             <div className="space-y-1">
               {o.topLinks.map((l) => (
@@ -238,19 +240,19 @@ export default function OverviewPage() {
           )}
         </Panel>
 
-        <Panel title={`Top cities${includeBot ? " (incl. bots)" : ""}`}>
-          <BarList rows={o.cities} empty="No geo data (set LED_GEOIP_DB)" />
+        <Panel title={`${t("overview.topCities")}${includeBot ? " " + t("overview.inclBots") : ""}`}>
+          <BarList rows={o.cities} empty={t("overview.noGeoData")} />
         </Panel>
 
-        <Panel title={`Devices${includeBot ? " (incl. bots)" : ""}`}>
+        <Panel title={`${t("overview.devices")}${includeBot ? " " + t("overview.inclBots") : ""}`}>
           <BarList rows={o.devices} />
         </Panel>
       </div>
 
       <div className="mt-6">
-        <Panel title="Recent mail">
+        <Panel title={t("overview.recentMail")}>
           {!o.recentEmails || o.recentEmails.length === 0 ? (
-            <p className="text-sm text-white/30">No mail yet</p>
+            <p className="text-sm text-white/30">{t("overview.noMail")}</p>
           ) : (
             <div className="divide-y divide-white/[0.04]">
               {o.recentEmails.map((e) => (
@@ -261,9 +263,9 @@ export default function OverviewPage() {
                 >
                   {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />}
                   <span className={`w-40 shrink-0 truncate text-sm ${e.read ? "text-white/55" : "font-semibold"}`}>
-                    {e.from || "(unknown)"}
+                    {e.from || t("overview.unknownSender")}
                   </span>
-                  <span className="flex-1 truncate text-sm text-white/55">{e.subject || "(no subject)"}</span>
+                  <span className="flex-1 truncate text-sm text-white/55">{e.subject || t("overview.noSubject")}</span>
                   <span className="shrink-0 text-xs text-white/40">{timeAgo(e.receivedAt)}</span>
                 </button>
               ))}
@@ -276,17 +278,18 @@ export default function OverviewPage() {
 }
 
 function BotToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+  const { t } = useTranslation();
   return (
     <button
       onClick={() => onChange(!value)}
-      title={value ? "Hide bot traffic" : "Show bot traffic"}
+      title={value ? t("overview.hideBotTraffic") : t("overview.showBotTraffic")}
       className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition ${
         value
           ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
           : "bg-white/[0.06] text-white/55 hover:bg-white/[0.06]"
       }`}
     >
-      <span>{value ? "🤖 bots on" : "🤖 bots off"}</span>
+      <span>{value ? t("overview.botsOn") : t("overview.botsOff")}</span>
     </button>
   );
 }

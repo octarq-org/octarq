@@ -4,6 +4,7 @@ import { Empty, Field, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge,
 import { Terminal as XTerminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { Server, Key, Cpu, Terminal, Pencil, Trash2 } from "lucide-react";
+import { useTranslation } from "../i18n";
 import "@xterm/xterm/css/xterm.css";
 
 export default function VPSPage() {
@@ -13,6 +14,7 @@ export default function VPSPage() {
   const [editItem, setEditItem] = useState<VPS | null>(null);
   const [terminalVPS, setTerminalVPS] = useState<VPS | null>(null);
   const [error, setError] = useState<{ status: number } | null>(null);
+  const { t } = useTranslation();
 
   function load() {
     api.vpsList()
@@ -23,10 +25,10 @@ export default function VPSPage() {
 
   useEffect(() => {
     load();
-    const t = setInterval(() => {
+    const timer = setInterval(() => {
       if (!error) load();
     }, 30000); // refresh status every 30s
-    return () => clearInterval(t);
+    return () => clearInterval(timer);
   }, [error]);
 
   if (error) {
@@ -35,12 +37,12 @@ export default function VPSPage() {
         <LockedFeature
           status={error.status}
           tier="pro"
-          feature="Infrastructure Observability"
-          description="Consolidate system health tracking and secure browser SSH terminal sessions into a unified dashboard."
+          feature={t("vps.feature")}
+          description={t("vps.lockedDesc")}
           perks={[
-            "Uptime & liveness monitoring with instant alert integrations",
-            "Encrypted SSH credentials vault with AES-GCM encryption",
-            "Direct browser-based SSH terminal without local clients",
+            t("vps.perkMonitoring"),
+            t("vps.perkVault"),
+            t("vps.perkTerminal"),
           ]}
           icon={<Server className="h-7 w-7" />}
           pricingHref="https://octarq.com/pricing/"
@@ -52,11 +54,11 @@ export default function VPSPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="Servers"
-        description="Host health, uptime monitoring & secure connection terminal"
+        title={t("vps.pageTitle")}
+        description={t("vps.pageDesc")}
         action={
           <Button variant="primary" onClick={() => setShowAdd(true)}>
-            + Add VPS
+            {t("vps.addVps")}
           </Button>
         }
       />
@@ -64,16 +66,16 @@ export default function VPSPage() {
       {list.length === 0 ? (
         <Empty>
           <Server className="h-10 w-10 text-white/30 mb-2" />
-          <p className="text-sm text-white/50">No servers added yet.</p>
+          <p className="text-sm text-white/50">{t("vps.emptyText")}</p>
           <Button variant="primary" className="mt-4" onClick={() => setShowAdd(true)}>
-            Add VPS
+            {t("vps.emptyAdd")}
           </Button>
         </Empty>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {list.map((vps) => {
             const statusTone = vps.status === "online" ? "green" : vps.status === "offline" ? "red" : "neutral";
-            const keyName = keys.find(k => k.id === vps.sshKeyId)?.name || "Unknown key";
+            const keyName = keys.find(k => k.id === vps.sshKeyId)?.name || t("vps.unknownKey");
 
             return (
               <GlassCard key={vps.id} className="p-5 flex flex-col sm:flex-row gap-5 items-start sm:items-center">
@@ -86,29 +88,29 @@ export default function VPSPage() {
                     }`} />
                     <h3 className="font-semibold text-base truncate text-white">{vps.name}</h3>
                     <Badge tone={statusTone} className="capitalize text-[10px]">
-                      {vps.status}
+                      {vps.status === "online" ? t("vps.statusOnline") : vps.status === "offline" ? t("vps.statusOffline") : vps.status}
                     </Badge>
                   </div>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-white/55 mt-3">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-white/35">IP:</span> 
+                      <span className="text-white/35">{t("vps.ipLabel")}</span>{" "}
                       <span className="font-mono truncate">{vps.ip}:{vps.port}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-white/35">User:</span> 
+                      <span className="text-white/35">{t("vps.userLabel")}</span>{" "}
                       <span className="font-medium">{vps.user}</span>
                     </div>
                     <div className="flex items-center gap-1.5 min-w-0 sm:col-span-2">
                       <Key className="h-3.5 w-3.5 text-white/30 shrink-0" />
-                      <span className="text-white/35">Key:</span> 
+                      <span className="text-white/35">{t("vps.keyLabel")}</span>{" "}
                       <span className="truncate font-medium text-white/70">{keyName}</span>
                     </div>
                   </div>
                   
                   <div className="text-[11px] text-white/35 mt-4 border-t border-white/[0.04] pt-3">
-                    {vps.lastChecked ? `Last active ${timeAgo(vps.lastChecked)}` : "Pending initial connectivity test"}
-                    {vps.failCount > 0 && vps.status !== "online" && ` (${vps.failCount} failed attempts)`}
+                    {vps.lastChecked ? t("vps.lastActive", { time: timeAgo(vps.lastChecked) }) : t("vps.pendingTest")}
+                    {vps.failCount > 0 && vps.status !== "online" && ` ${t("vps.failedAttempts", { count: vps.failCount })}`}
                   </div>
                 </div>
                 
@@ -119,7 +121,7 @@ export default function VPSPage() {
                     className="flex-1 sm:flex-none py-1.5 text-xs gap-1.5"
                   >
                     <Terminal className="h-3.5 w-3.5" />
-                    Terminal
+                    {t("vps.terminal")}
                   </Button>
                   <div className="flex sm:flex-row gap-2 w-full">
                     <Button 
@@ -128,19 +130,19 @@ export default function VPSPage() {
                       className="flex-1 py-1.5 text-xs gap-1"
                     >
                       <Pencil className="h-3 w-3" />
-                      Edit
+                      {t("vps.edit")}
                     </Button>
                     <Button 
                       variant="danger"
                       onClick={async () => {
-                        if (!confirm(`Remove VPS ${vps.name}?`)) return;
+                        if (!confirm(t("vps.confirmRemove", { name: vps.name }))) return;
                         await api.deleteVPS(vps.id);
                         load();
                       }}
                       className="flex-1 py-1.5 text-xs gap-1 bg-rose-500/10 hover:bg-rose-500/25"
                     >
                       <Trash2 className="h-3 w-3" />
-                      Remove
+                      {t("vps.remove")}
                     </Button>
                   </div>
                 </div>
@@ -175,6 +177,7 @@ function VPSModal({ keys, vps, onClose, onSaved }: { keys: SSHKey[]; vps: VPS | 
   
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const { t } = useTranslation();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -203,37 +206,37 @@ function VPSModal({ keys, vps, onClose, onSaved }: { keys: SSHKey[]; vps: VPS | 
   }
 
   return (
-    <Modal title={vps ? "Edit Server" : "Register Server"} onClose={onClose}>
+    <Modal title={vps ? t("vps.editServer") : t("vps.registerServer")} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Server Friendly Name">
-          <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} required autoFocus placeholder="e.g. Production API" />
+        <Field label={t("vps.nameLabel")}>
+          <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} required autoFocus placeholder={t("vps.namePlaceholder")} />
         </Field>
         
         <div className="flex gap-4">
           <div className="flex-[3]">
-            <Field label="IP Address or Hostname">
+            <Field label={t("vps.ipHostLabel")}>
               <input className="input w-full font-mono" value={ip} onChange={(e) => setIp(e.target.value)} required placeholder="192.168.1.1" />
             </Field>
           </div>
           <div className="flex-1">
-            <Field label="Port">
+            <Field label={t("vps.portLabel")}>
               <input className="input w-full font-mono" type="number" min="1" max="65535" value={port} onChange={(e) => setPort(e.target.value)} required />
             </Field>
           </div>
         </div>
 
-        <Field label="SSH Login Username">
+        <Field label={t("vps.usernameLabel")}>
           <input className="input w-full font-mono" value={user} onChange={(e) => setUser(e.target.value)} required />
         </Field>
 
-        <Field label="SSH Authorization Key" hint="Choose the private key configured to access this VPS.">
+        <Field label={t("vps.sshKeyLabel")} hint={t("vps.sshKeyHint")}>
           <select 
             className="input w-full" 
             value={sshKeyId} 
             onChange={(e) => setSshKeyId(e.target.value)}
             required
           >
-            <option value="" disabled>-- select a key --</option>
+            <option value="" disabled>{t("vps.selectKey")}</option>
             {keys.map((k) => (
               <option key={k.id} value={k.id.toString()}>{k.name} ({k.type})</option>
             ))}
@@ -243,9 +246,9 @@ function VPSModal({ keys, vps, onClose, onSaved }: { keys: SSHKey[]; vps: VPS | 
         {err && <p className="text-sm text-red-400 font-medium">{err}</p>}
         
         <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
-          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="ghost" onClick={onClose}>{t("vps.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={busy || !name || !ip || !sshKeyId}>
-            {busy ? "Saving..." : "Save Config"}
+            {busy ? t("vps.saving") : t("vps.saveConfig")}
           </Button>
         </div>
       </form>
@@ -259,6 +262,7 @@ function TerminalModal({ vps, onClose }: { vps: VPS; onClose: () => void }) {
   const wsRef = useRef<WebSocket | null>(null);
   
   const [status, setStatus] = useState("Connecting...");
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -320,7 +324,7 @@ function TerminalModal({ vps, onClose }: { vps: VPS; onClose: () => void }) {
 
     ws.onclose = () => {
       setStatus("Disconnected");
-      term.write("\r\n\x1b[31m[Connection Closed]\x1b[m\r\n");
+      term.write(`\r\n\x1b[31m${t("vps.connectionClosed")}\x1b[m\r\n`);
     };
     
     ws.onerror = () => {
@@ -360,7 +364,10 @@ function TerminalModal({ vps, onClose }: { vps: VPS; onClose: () => void }) {
             status === "Connecting..." ? "bg-yellow-500/20 text-yellow-400" :
             "bg-red-500/20 text-red-400"
           }`}>
-            {status}
+            {status === "Connecting..." ? t("vps.termConnecting") :
+             status === "Connected" ? t("vps.termConnected") :
+             status === "Disconnected" ? t("vps.termDisconnected") :
+             status === "Error" ? t("vps.termError") : status}
           </span>
         </div>
         <Button 
@@ -368,7 +375,7 @@ function TerminalModal({ vps, onClose }: { vps: VPS; onClose: () => void }) {
           onClick={onClose}
           className="text-xs py-1 px-2.5"
         >
-          Close Terminal
+          {t("vps.closeTerminal")}
         </Button>
       </div>
       <div className="flex-1 w-full relative">

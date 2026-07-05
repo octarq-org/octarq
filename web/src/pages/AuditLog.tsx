@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { api, AuditLog } from "../api";
 import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge } from "../ui";
+import { useTranslation } from "../i18n";
 
 export default function AuditLogPage() {
+  const { t } = useTranslation();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -22,15 +24,15 @@ export default function AuditLogPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="Audit Log"
-        description="History of administrative actions across your workspace"
+        title={t("audit.pageTitle")}
+        description={t("audit.pageDesc")}
       />
 
       {loading ? (
-        <div className="text-white/40 py-12 text-center">loading…</div>
+        <div className="text-white/40 py-12 text-center">{t("audit.loading")}</div>
       ) : logs.length === 0 ? (
         <GlassCard className="p-10 text-center text-white/40">
-          No audit logs found.
+          {t("audit.emptyState")}
         </GlassCard>
       ) : (
         <GlassCard className="overflow-hidden">
@@ -38,12 +40,12 @@ export default function AuditLogPage() {
             <table className="w-full text-left text-sm border-collapse">
               <thead className="border-b border-white/[0.06] bg-white/[0.02] text-white/55">
                 <tr>
-                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">Time</th>
-                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">Actor</th>
-                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">Action</th>
-                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">Target</th>
-                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">IP Address</th>
-                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">Meta Context</th>
+                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">{t("audit.colTime")}</th>
+                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">{t("audit.colActor")}</th>
+                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">{t("audit.colAction")}</th>
+                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">{t("audit.colTarget")}</th>
+                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">{t("audit.colIp")}</th>
+                  <th className="px-5 py-3.5 font-semibold text-xs uppercase tracking-wider">{t("audit.colMeta")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.04]">
@@ -54,9 +56,9 @@ export default function AuditLogPage() {
                     </td>
                     <td className="whitespace-nowrap px-5 py-4 text-sm font-medium">
                       {l.actorId === 0 ? (
-                        <span className="text-white/40 italic">system/token</span>
+                        <span className="text-white/40 italic">{t("audit.systemActor")}</span>
                       ) : (
-                        <span className="text-white/80">User #{l.actorId}</span>
+                        <span className="text-white/80">{t("audit.user", { id: l.actorId })}</span>
                       )}
                     </td>
                     <td className="whitespace-nowrap px-5 py-4">

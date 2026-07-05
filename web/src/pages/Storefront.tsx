@@ -10,11 +10,13 @@ import {
   ScreenWrap, PageHeader, GlassCard, Button, Badge, Modal, Field, Empty, Toggle, LockedFeature, timeAgo,
 } from "../ui";
 import { Store, Package, Tag, Download, KeyRound, Pencil, Trash2, Plus, ExternalLink } from "lucide-react";
+import { useTranslation } from "../i18n";
 
 export default function StorefrontPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [error, setError] = useState<{ status: number } | null>(null);
   const [editing, setEditing] = useState<Product | "new" | null>(null);
+  const { t } = useTranslation();
 
   function load() {
     api.products()
@@ -29,12 +31,12 @@ export default function StorefrontPage() {
         <LockedFeature
           status={error.status}
           tier="pro"
-          feature="Storefront"
-          description="Sell your own products from Octarq — catalog, pricing, and downloads."
+          feature={t("storefront.lockedFeature")}
+          description={t("storefront.lockedDescription")}
           perks={[
-            "Manage products and pricing plans in one place",
-            "Public pricing page reads prices from a single source",
-            "Deliver downloads to buyers, gated by their license",
+            t("storefront.lockedPerk1"),
+            t("storefront.lockedPerk2"),
+            t("storefront.lockedPerk3"),
           ]}
           icon={<Store className="h-7 w-7" />}
           pricingHref="https://octarq.com/pricing/"
@@ -46,16 +48,16 @@ export default function StorefrontPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="Storefront"
-        description="Your products, pricing, and downloads"
-        action={<Button variant="primary" onClick={() => setEditing("new")}>+ Add product</Button>}
+        title={t("storefront.pageTitle")}
+        description={t("storefront.pageDesc")}
+        action={<Button variant="primary" onClick={() => setEditing("new")}>{t("storefront.addProduct")}</Button>}
       />
 
       {products.length === 0 ? (
         <Empty>
           <Package className="mb-2 h-10 w-10 text-white/30" />
-          <p className="text-sm text-white/50">No products yet.</p>
-          <Button variant="primary" className="mt-4" onClick={() => setEditing("new")}>Add product</Button>
+          <p className="text-sm text-white/50">{t("storefront.noProducts")}</p>
+          <Button variant="primary" className="mt-4" onClick={() => setEditing("new")}>{t("storefront.addProductShort")}</Button>
         </Empty>
       ) : (
         <div className="space-y-4">
@@ -77,17 +79,18 @@ export default function StorefrontPage() {
 }
 
 const TABS = [
-  { id: "plans", label: "Plans", Icon: Tag },
-  { id: "releases", label: "Releases", Icon: Download },
-  { id: "key", label: "Signing key", Icon: KeyRound },
+  { id: "plans", labelKey: "storefront.tabPlans", Icon: Tag },
+  { id: "releases", labelKey: "storefront.tabReleases", Icon: Download },
+  { id: "key", labelKey: "storefront.tabKey", Icon: KeyRound },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
 function ProductCard({ product, onEdit, onChanged }: { product: Product; onEdit: () => void; onChanged: () => void }) {
   const [tab, setTab] = useState<TabId>("plans");
+  const { t } = useTranslation();
 
   async function del() {
-    if (!confirm(`Delete "${product.name}" and all its plans & releases?`)) return;
+    if (!confirm(t("storefront.confirmDeleteProduct", { name: product.name }))) return;
     await api.deleteProduct(product.id);
     onChanged();
   }
@@ -120,7 +123,7 @@ function ProductCard({ product, onEdit, onChanged }: { product: Product; onEdit:
       </div>
 
       <div className="mt-4 flex gap-1 border-b border-white/5">
-        {TABS.map(({ id, label, Icon }) => (
+        {TABS.map(({ id, labelKey, Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
@@ -128,7 +131,7 @@ function ProductCard({ product, onEdit, onChanged }: { product: Product; onEdit:
               (tab === id ? "border-b-2 border-indigo-400 text-white" : "text-white/45 hover:text-white/70")}
           >
             <Icon className="h-4 w-4" />
-            {label}
+            {t(labelKey)}
           </button>
         ))}
       </div>
@@ -147,12 +150,13 @@ function ProductCard({ product, onEdit, onChanged }: { product: Product; onEdit:
 function PlansSection({ productId }: { productId: number }) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [editing, setEditing] = useState<Plan | "new" | null>(null);
+  const { t } = useTranslation();
 
   function load() { api.plans(productId).then(setPlans).catch(() => {}); }
   useEffect(load, [productId]);
 
   async function del(id: number) {
-    if (!confirm("Delete this plan?")) return;
+    if (!confirm(t("storefront.confirmDeletePlan"))) return;
     await api.deletePlan(id);
     load();
   }
@@ -160,27 +164,27 @@ function PlansSection({ productId }: { productId: number }) {
   return (
     <div>
       <div className="mb-2 flex justify-end">
-        <Button variant="subtle" onClick={() => setEditing("new")}><Plus className="h-3.5 w-3.5" /> Plan</Button>
+        <Button variant="subtle" onClick={() => setEditing("new")}><Plus className="h-3.5 w-3.5" /> {t("storefront.planButton")}</Button>
       </div>
       {plans.length === 0 ? (
-        <p className="py-3 text-center text-sm text-white/35">No plans yet.</p>
+        <p className="py-3 text-center text-sm text-white/35">{t("storefront.noPlans")}</p>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {plans.map((pl) => (
             <div key={pl.id} className="rounded-xl border border-white/8 bg-white/[0.02] p-3">
               <div className="flex items-center justify-between">
                 <span className="font-medium text-white">{pl.name}</span>
-                {pl.highlighted && <Badge tone="violet">featured</Badge>}
+                {pl.highlighted && <Badge tone="violet">{t("storefront.featured")}</Badge>}
               </div>
               <div className="mt-1 text-sm text-white/70">
-                {pl.priceCents === 0 ? "Free" : `${pl.currency} ${(pl.priceCents / 100).toFixed(2)}`}
+                {pl.priceCents === 0 ? t("storefront.priceFree") : `${pl.currency} ${(pl.priceCents / 100).toFixed(2)}`}
                 <span className="text-white/40"> / {pl.interval}</span>
                 {pl.tier && <span className="ml-1 text-xs text-violet-300">· {pl.tier}</span>}
               </div>
               <div className="mt-2 flex gap-1">
-                <button onClick={() => setEditing(pl)} className="text-xs text-white/50 hover:text-white">Edit</button>
+                <button onClick={() => setEditing(pl)} className="text-xs text-white/50 hover:text-white">{t("storefront.edit")}</button>
                 <span className="text-white/20">·</span>
-                <button onClick={() => del(pl.id)} className="text-xs text-rose-300/80 hover:text-rose-300">Delete</button>
+                <button onClick={() => del(pl.id)} className="text-xs text-rose-300/80 hover:text-rose-300">{t("storefront.delete")}</button>
               </div>
             </div>
           ))}
@@ -203,12 +207,13 @@ function PlansSection({ productId }: { productId: number }) {
 function ReleasesSection({ productId }: { productId: number }) {
   const [releases, setReleases] = useState<Release[]>([]);
   const [adding, setAdding] = useState(false);
+  const { t } = useTranslation();
 
   function load() { api.releases(productId).then(setReleases).catch(() => {}); }
   useEffect(load, [productId]);
 
   async function del(id: number) {
-    if (!confirm("Delete this release?")) return;
+    if (!confirm(t("storefront.confirmDeleteRelease"))) return;
     await api.deleteRelease(id);
     load();
   }
@@ -216,11 +221,11 @@ function ReleasesSection({ productId }: { productId: number }) {
   return (
     <div>
       <div className="mb-2 flex justify-end">
-        <Button variant="subtle" onClick={() => setAdding(true)}><Plus className="h-3.5 w-3.5" /> Release</Button>
+        <Button variant="subtle" onClick={() => setAdding(true)}><Plus className="h-3.5 w-3.5" /> {t("storefront.releaseButton")}</Button>
       </div>
       {releases.length === 0 ? (
         <p className="py-3 text-center text-sm text-white/35">
-          No releases yet. Buyers download the latest <em>stable</em> release via their license.
+          {t("storefront.noReleasesPre")}<em>{t("storefront.noReleasesStable")}</em>{t("storefront.noReleasesPost")}
         </p>
       ) : (
         <div className="space-y-2">
@@ -232,7 +237,7 @@ function ReleasesSection({ productId }: { productId: number }) {
                   <Badge tone={rel.channel === "stable" ? "green" : "amber"}>{rel.channel}</Badge>
                   <span className="text-xs text-white/35">{timeAgo(rel.createdAt)}</span>
                 </div>
-                <button onClick={() => del(rel.id)} className="text-xs text-rose-300/80 hover:text-rose-300">Delete</button>
+                <button onClick={() => del(rel.id)} className="text-xs text-rose-300/80 hover:text-rose-300">{t("storefront.delete")}</button>
               </div>
               {rel.assets && rel.assets.length > 0 && (
                 <ul className="mt-2 space-y-1">
@@ -269,6 +274,7 @@ function KeySection({ productId }: { productId: number }) {
   const [privKey, setPrivKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   function load() { api.productKey(productId).then(setInfo).catch(() => {}); }
   useEffect(load, [productId]);
@@ -286,47 +292,46 @@ function KeySection({ productId }: { productId: number }) {
   }
 
   async function del() {
-    if (!confirm("Delete this product's signing key? Licenses already issued for it will no longer verify, and you can't issue new ones until you add a key.")) return;
+    if (!confirm(t("storefront.confirmDeleteKey"))) return;
     setBusy(true);
     try { await api.deleteProductKey(productId); setNote(null); load(); }
     catch (e) { alert((e as ApiError).message); } finally { setBusy(false); }
   }
 
-  if (!info) return <p className="py-3 text-center text-sm text-white/35">Loading…</p>;
+  if (!info) return <p className="py-3 text-center text-sm text-white/35">{t("storefront.loading")}</p>;
 
   return (
     <div className="space-y-3">
       <p className="text-xs text-white/45">
-        Each product is signed with its own key. Buyers' builds embed the <strong>public</strong> key
-        to self-verify; the <strong>private</strong> key stays here, encrypted, and never leaves this server.
+        {t("storefront.keyIntroPre")}<strong>{t("storefront.keyIntroPublic")}</strong>{t("storefront.keyIntroMid")}<strong>{t("storefront.keyIntroPrivate")}</strong>{t("storefront.keyIntroPost")}
       </p>
 
       {info.hasKey ? (
         <div className="rounded-xl border border-white/8 bg-white/[0.02] p-3">
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-xs text-white/40">Public key {info.createdAt && `· added ${info.createdAt.slice(0, 10)}`}</span>
-            <button onClick={del} disabled={busy} className="text-xs text-rose-300/80 hover:text-rose-300">Delete</button>
+            <span className="text-xs text-white/40">{t("storefront.publicKey")} {info.createdAt && `· ${t("storefront.addedOn", { date: info.createdAt.slice(0, 10) })}`}</span>
+            <button onClick={del} disabled={busy} className="text-xs text-rose-300/80 hover:text-rose-300">{t("storefront.delete")}</button>
           </div>
           <code className="block break-all font-mono text-xs text-emerald-300/90">{info.publicKey}</code>
-          <p className="mt-2 text-xs text-white/35">Embed this in the product's build (<code>license.publicKeyB64</code>).</p>
+          <p className="mt-2 text-xs text-white/35">{t("storefront.embedNotePre")}<code>license.publicKeyB64</code>{t("storefront.embedNotePost")}</p>
         </div>
       ) : (
         <div className="rounded-xl border border-amber-400/20 bg-amber-500/[0.04] p-3">
-          <p className="text-sm text-amber-200/90">No signing key — this product can't issue licenses yet.</p>
+          <p className="text-sm text-amber-200/90">{t("storefront.noKeyWarning")}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button variant="primary" onClick={() => create()} disabled={busy}>Generate key</Button>
+            <Button variant="primary" onClick={() => create()} disabled={busy}>{t("storefront.generateKey")}</Button>
             <Button variant="subtle" onClick={() => setMode(mode === "import" ? "none" : "import")} disabled={busy}>
-              Import existing
+              {t("storefront.importExisting")}
             </Button>
           </div>
           {mode === "import" && (
             <div className="mt-3">
-              <Field label="Private key (base64)" hint="Use this for a product whose public key is already embedded in its build (e.g. led-pro itself).">
+              <Field label={t("storefront.privateKeyLabel")} hint={t("storefront.privateKeyHint")}>
                 <textarea className="input w-full font-mono text-xs" rows={3} value={privKey}
-                  onChange={(e) => setPrivKey(e.target.value)} placeholder="base64 ed25519 private key" />
+                  onChange={(e) => setPrivKey(e.target.value)} placeholder={t("storefront.privateKeyPlaceholder")} />
               </Field>
               <Button variant="primary" onClick={() => create(privKey.trim())} disabled={busy || privKey.trim() === ""}>
-                Import key
+                {t("storefront.importKey")}
               </Button>
             </div>
           )}
@@ -347,6 +352,7 @@ function ProductModal({ product, onClose, onSaved }: { product: Product | null; 
     status: product?.status ?? "draft",
   });
   const [busy, setBusy] = useState(false);
+  const { t } = useTranslation();
 
   async function save() {
     setBusy(true);
@@ -358,21 +364,21 @@ function ProductModal({ product, onClose, onSaved }: { product: Product | null; 
   }
 
   return (
-    <Modal title={product ? "Edit product" : "New product"} onClose={onClose}>
-      <Field label="Name"><input className="input w-full" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
-      <Field label="Slug" hint="Used in the public storefront URL. Leave blank to derive from the name.">
+    <Modal title={product ? t("storefront.editProduct") : t("storefront.newProduct")} onClose={onClose}>
+      <Field label={t("storefront.fieldName")}><input className="input w-full" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
+      <Field label={t("storefront.fieldSlug")} hint={t("storefront.slugHint")}>
         <input className="input w-full" value={f.slug} onChange={(e) => setF({ ...f, slug: e.target.value })} placeholder="octarq" />
       </Field>
-      <Field label="Tagline"><input className="input w-full" value={f.tagline} onChange={(e) => setF({ ...f, tagline: e.target.value })} /></Field>
-      <Field label="Description"><textarea className="input w-full" rows={3} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></Field>
-      <Field label="Homepage URL"><input className="input w-full" value={f.homepageUrl} onChange={(e) => setF({ ...f, homepageUrl: e.target.value })} placeholder="https://octarq.com" /></Field>
+      <Field label={t("storefront.fieldTagline")}><input className="input w-full" value={f.tagline} onChange={(e) => setF({ ...f, tagline: e.target.value })} /></Field>
+      <Field label={t("storefront.fieldDescription")}><textarea className="input w-full" rows={3} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></Field>
+      <Field label={t("storefront.fieldHomepageUrl")}><input className="input w-full" value={f.homepageUrl} onChange={(e) => setF({ ...f, homepageUrl: e.target.value })} placeholder="https://octarq.com" /></Field>
       <div className="mb-3 flex items-center gap-3">
         <Toggle on={f.status === "active"} onChange={(v) => setF({ ...f, status: v ? "active" : "draft" })} />
-        <span className="text-sm text-white/70">Active (visible in the public storefront)</span>
+        <span className="text-sm text-white/70">{t("storefront.activeLabel")}</span>
       </div>
       <div className="flex justify-end gap-2">
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button variant="primary" onClick={save} disabled={busy || f.name.trim() === ""}>{busy ? "Saving…" : "Save"}</Button>
+        <Button variant="ghost" onClick={onClose}>{t("storefront.cancel")}</Button>
+        <Button variant="primary" onClick={save} disabled={busy || f.name.trim() === ""}>{busy ? t("storefront.saving") : t("storefront.save")}</Button>
       </div>
     </Modal>
   );
@@ -386,6 +392,7 @@ function PlanModal({ productId, plan, onClose, onSaved }: { productId: number; p
     highlighted: plan?.highlighted ?? false, sort: plan?.sort ?? 0,
   });
   const [busy, setBusy] = useState(false);
+  const { t } = useTranslation();
 
   async function save() {
     setBusy(true);
@@ -403,28 +410,28 @@ function PlanModal({ productId, plan, onClose, onSaved }: { productId: number; p
   }
 
   return (
-    <Modal title={plan ? "Edit plan" : "New plan"} onClose={onClose}>
+    <Modal title={plan ? t("storefront.editPlan") : t("storefront.newPlan")} onClose={onClose}>
       <div className="grid gap-x-3 sm:grid-cols-2">
-        <Field label="Name"><input className="input w-full" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Pro" /></Field>
-        <Field label="License tier" hint="pro / elite / blank"><input className="input w-full" value={f.tier} onChange={(e) => setF({ ...f, tier: e.target.value })} placeholder="pro" /></Field>
-        <Field label="Price"><input className="input w-full" type="number" step="0.01" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} placeholder="5.00" /></Field>
-        <Field label="Currency"><input className="input w-full" value={f.currency} onChange={(e) => setF({ ...f, currency: e.target.value })} /></Field>
-        <Field label="Interval">
+        <Field label={t("storefront.fieldName")}><input className="input w-full" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Pro" /></Field>
+        <Field label={t("storefront.fieldLicenseTier")} hint={t("storefront.licenseTierHint")}><input className="input w-full" value={f.tier} onChange={(e) => setF({ ...f, tier: e.target.value })} placeholder="pro" /></Field>
+        <Field label={t("storefront.fieldPrice")}><input className="input w-full" type="number" step="0.01" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} placeholder="5.00" /></Field>
+        <Field label={t("storefront.fieldCurrency")}><input className="input w-full" value={f.currency} onChange={(e) => setF({ ...f, currency: e.target.value })} /></Field>
+        <Field label={t("storefront.fieldInterval")}>
           <select className="input w-full" value={f.interval} onChange={(e) => setF({ ...f, interval: e.target.value as Plan["interval"] })}>
-            <option value="month">month</option><option value="year">year</option><option value="once">once</option>
+            <option value="month">{t("storefront.intervalMonth")}</option><option value="year">{t("storefront.intervalYear")}</option><option value="once">{t("storefront.intervalOnce")}</option>
           </select>
         </Field>
-        <Field label="Sort"><input className="input w-full" type="number" value={f.sort} onChange={(e) => setF({ ...f, sort: parseInt(e.target.value || "0") })} /></Field>
+        <Field label={t("storefront.fieldSort")}><input className="input w-full" type="number" value={f.sort} onChange={(e) => setF({ ...f, sort: parseInt(e.target.value || "0") })} /></Field>
       </div>
-      <Field label="Features (one per line)"><textarea className="input w-full" rows={4} value={f.features} onChange={(e) => setF({ ...f, features: e.target.value })} /></Field>
-      <Field label="Checkout URL" hint="Stripe Payment Link for this plan"><input className="input w-full" value={f.checkoutUrl} onChange={(e) => setF({ ...f, checkoutUrl: e.target.value })} /></Field>
+      <Field label={t("storefront.fieldFeatures")}><textarea className="input w-full" rows={4} value={f.features} onChange={(e) => setF({ ...f, features: e.target.value })} /></Field>
+      <Field label={t("storefront.fieldCheckoutUrl")} hint={t("storefront.checkoutUrlHint")}><input className="input w-full" value={f.checkoutUrl} onChange={(e) => setF({ ...f, checkoutUrl: e.target.value })} /></Field>
       <div className="mb-3 flex items-center gap-3">
         <Toggle on={f.highlighted} onChange={(v) => setF({ ...f, highlighted: v })} />
-        <span className="text-sm text-white/70">Featured plan</span>
+        <span className="text-sm text-white/70">{t("storefront.featuredPlan")}</span>
       </div>
       <div className="flex justify-end gap-2">
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button variant="primary" onClick={save} disabled={busy || f.name.trim() === ""}>{busy ? "Saving…" : "Save"}</Button>
+        <Button variant="ghost" onClick={onClose}>{t("storefront.cancel")}</Button>
+        <Button variant="primary" onClick={save} disabled={busy || f.name.trim() === ""}>{busy ? t("storefront.saving") : t("storefront.save")}</Button>
       </div>
     </Modal>
   );
@@ -436,6 +443,7 @@ function ReleaseModal({ productId, onClose, onSaved }: { productId: number; onCl
   const [notes, setNotes] = useState("");
   const [assets, setAssets] = useState<ReleaseAsset[]>([{ label: "", url: "", os: "", arch: "", kind: "binary" }]);
   const [busy, setBusy] = useState(false);
+  const { t } = useTranslation();
 
   function setAsset(i: number, patch: Partial<ReleaseAsset>) {
     setAssets(assets.map((a, j) => (j === i ? { ...a, ...patch } : a)));
@@ -452,39 +460,39 @@ function ReleaseModal({ productId, onClose, onSaved }: { productId: number; onCl
   }
 
   return (
-    <Modal title="New release" onClose={onClose} wide>
+    <Modal title={t("storefront.newRelease")} onClose={onClose} wide>
       <div className="grid gap-x-3 sm:grid-cols-2">
-        <Field label="Version"><input className="input w-full" value={version} onChange={(e) => setVersion(e.target.value)} placeholder="v1.2.0" /></Field>
-        <Field label="Channel">
+        <Field label={t("storefront.fieldVersion")}><input className="input w-full" value={version} onChange={(e) => setVersion(e.target.value)} placeholder="v1.2.0" /></Field>
+        <Field label={t("storefront.fieldChannel")}>
           <select className="input w-full" value={channel} onChange={(e) => setChannel(e.target.value as "stable" | "beta")}>
-            <option value="stable">stable</option><option value="beta">beta</option>
+            <option value="stable">{t("storefront.channelStable")}</option><option value="beta">{t("storefront.channelBeta")}</option>
           </select>
         </Field>
       </div>
-      <Field label="Release notes"><textarea className="input w-full" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+      <Field label={t("storefront.fieldReleaseNotes")}><textarea className="input w-full" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
 
-      <label className="label">Assets</label>
+      <label className="label">{t("storefront.assets")}</label>
       <div className="space-y-2">
         {assets.map((a, i) => (
           <div key={i} className="grid grid-cols-12 gap-2">
-            <input className="input col-span-3" placeholder="label" value={a.label} onChange={(e) => setAsset(i, { label: e.target.value })} />
-            <input className="input col-span-4" placeholder="url / image ref" value={a.url} onChange={(e) => setAsset(i, { url: e.target.value })} />
-            <input className="input col-span-2" placeholder="os" value={a.os} onChange={(e) => setAsset(i, { os: e.target.value })} />
-            <input className="input col-span-1" placeholder="arch" value={a.arch} onChange={(e) => setAsset(i, { arch: e.target.value })} />
+            <input className="input col-span-3" placeholder={t("storefront.assetLabelPlaceholder")} value={a.label} onChange={(e) => setAsset(i, { label: e.target.value })} />
+            <input className="input col-span-4" placeholder={t("storefront.assetUrlPlaceholder")} value={a.url} onChange={(e) => setAsset(i, { url: e.target.value })} />
+            <input className="input col-span-2" placeholder={t("storefront.assetOsPlaceholder")} value={a.os} onChange={(e) => setAsset(i, { os: e.target.value })} />
+            <input className="input col-span-1" placeholder={t("storefront.assetArchPlaceholder")} value={a.arch} onChange={(e) => setAsset(i, { arch: e.target.value })} />
             <select className="input col-span-2" value={a.kind} onChange={(e) => setAsset(i, { kind: e.target.value })}>
-              <option value="binary">binary</option><option value="image">image</option><option value="checksum">checksum</option>
+              <option value="binary">{t("storefront.assetKindBinary")}</option><option value="image">{t("storefront.assetKindImage")}</option><option value="checksum">{t("storefront.assetKindChecksum")}</option>
             </select>
           </div>
         ))}
       </div>
       <button className="mt-2 text-xs text-indigo-300 hover:underline"
               onClick={() => setAssets([...assets, { label: "", url: "", os: "", arch: "", kind: "binary" }])}>
-        + add asset
+        {t("storefront.addAsset")}
       </button>
 
       <div className="mt-4 flex justify-end gap-2">
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button variant="primary" onClick={save} disabled={busy || version.trim() === ""}>{busy ? "Saving…" : "Create release"}</Button>
+        <Button variant="ghost" onClick={onClose}>{t("storefront.cancel")}</Button>
+        <Button variant="primary" onClick={save} disabled={busy || version.trim() === ""}>{busy ? t("storefront.saving") : t("storefront.createRelease")}</Button>
       </div>
     </Modal>
   );

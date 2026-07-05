@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { api, SSHKey } from "../api";
 import { Empty, Field, Modal, timeAgo, Code, ScreenWrap, PageHeader, GlassCard, Badge, Button, LockedFeature } from "../ui";
 import { Key, ClipboardCopy, Trash2 } from "lucide-react";
+import { useTranslation } from "../i18n";
 
 export default function SSHKeysPage() {
+  const { t } = useTranslation();
   const [keys, setKeys] = useState<SSHKey[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [error, setError] = useState<{ status: number } | null>(null);
@@ -24,12 +26,12 @@ export default function SSHKeysPage() {
         <LockedFeature
           status={error.status}
           tier="pro"
-          feature="SSH Credentials Vault"
-          description="An encrypted vault for the private keys that power VPS access and secure connections."
+          feature={t("sshKeys.lockedFeature")}
+          description={t("sshKeys.lockedDescription")}
           perks={[
-            "AES-GCM encryption at rest with just-in-time decryption in memory",
-            "Flexible key creation (Ed25519) or secure private key importing",
-            "Direct browser-based SSH terminal integration",
+            t("sshKeys.lockedPerk1"),
+            t("sshKeys.lockedPerk2"),
+            t("sshKeys.lockedPerk3"),
           ]}
           icon={<Key className="h-7 w-7" />}
           pricingHref="https://octarq.com/pricing/"
@@ -47,11 +49,11 @@ export default function SSHKeysPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="SSH Vault"
-        description="Encrypted SSH credentials store with AES-GCM encryption at rest"
+        title={t("sshKeys.pageTitle")}
+        description={t("sshKeys.pageDesc")}
         action={
           <Button variant="primary" onClick={() => setShowAdd(true)}>
-            + New Key
+            {t("sshKeys.newKey")}
           </Button>
         }
       />
@@ -59,9 +61,9 @@ export default function SSHKeysPage() {
       {keys.length === 0 ? (
         <Empty>
           <Key className="h-10 w-10 text-white/30 mb-2" />
-          <p className="text-sm text-white/50">No SSH keys yet.</p>
+          <p className="text-sm text-white/50">{t("sshKeys.emptyState")}</p>
           <Button variant="primary" className="mt-4" onClick={() => setShowAdd(true)}>
-            Add Key
+            {t("sshKeys.addKey")}
           </Button>
         </Empty>
       ) : (
@@ -75,10 +77,10 @@ export default function SSHKeysPage() {
                 </Badge>
               </div>
               
-              <div className="text-[11px] text-white/35 mb-4">Added {timeAgo(k.createdAt)}</div>
-              
+              <div className="text-[11px] text-white/35 mb-4">{t("sshKeys.added", { time: timeAgo(k.createdAt) })}</div>
+
               <div className="mb-4 flex-1">
-                <div className="text-[11px] font-medium text-white/40 mb-1">Public Key</div>
+                <div className="text-[11px] font-medium text-white/40 mb-1">{t("sshKeys.publicKey")}</div>
                 <div className="text-xs break-all leading-normal bg-black/30 border border-white/[0.04] p-2.5 rounded-lg select-all font-mono">
                   {k.pubKey.length > 55 ? k.pubKey.slice(0, 52) + "..." : k.pubKey}
                 </div>
@@ -89,17 +91,17 @@ export default function SSHKeysPage() {
                   variant="ghost"
                   onClick={() => {
                     navigator.clipboard.writeText(k.pubKey);
-                    alert("Public key copied to clipboard");
+                    alert(t("sshKeys.copiedToClipboard"));
                   }}
                   className="text-xs py-1 px-2.5 text-indigo-300 hover:text-indigo-200"
                 >
                   <ClipboardCopy className="h-3.5 w-3.5 mr-1" />
-                  Copy PubKey
+                  {t("sshKeys.copyPubKey")}
                 </Button>
                 <Button
                   variant="danger"
                   onClick={async () => {
-                    if (!confirm(`Delete key ${k.name}? Any VPS using this key will fail health checks.`)) return;
+                    if (!confirm(t("sshKeys.deleteConfirm", { name: k.name }))) return;
                     try {
                       await api.deleteSSHKey(k.id);
                       load();
@@ -110,7 +112,7 @@ export default function SSHKeysPage() {
                   className="text-xs py-1 px-2.5 text-rose-300 hover:text-rose-200 bg-rose-500/0 hover:bg-rose-500/10 border-0"
                 >
                   <Trash2 className="h-3.5 w-3.5 mr-1" />
-                  Delete
+                  {t("sshKeys.deleteLabel")}
                 </Button>
               </div>
             </GlassCard>
@@ -124,6 +126,7 @@ export default function SSHKeysPage() {
 }
 
 function AddModal({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [type, setType] = useState("ed25519");
   const [privKey, setPrivKey] = useState("");
@@ -158,15 +161,15 @@ function AddModal({ onClose, onAdded }: { onClose: () => void; onAdded: () => vo
 
   if (generatedPrivKey) {
     return (
-      <Modal title="Key Generated Successfully" onClose={onClose} wide>
+      <Modal title={t("sshKeys.generatedTitle")} onClose={onClose} wide>
         <div className="mb-4 text-emerald-400 flex items-center gap-2 text-sm font-medium">
           <span className="text-xl">✓</span>
-          The SSH key pair was successfully generated.
+          {t("sshKeys.generatedSuccess")}
         </div>
         <div className="mb-4">
           <p className="text-sm text-white/75 mb-2 leading-relaxed">
-            Please copy this private key and store it securely if you need it outside of led. 
-            <span className="font-bold text-rose-400"> It will not be shown again.</span>
+            {t("sshKeys.generatedInstructionPre")}
+            <span className="font-bold text-rose-400">{t("sshKeys.generatedInstructionWarn")}</span>
           </p>
           <textarea
             readOnly
@@ -183,40 +186,40 @@ function AddModal({ onClose, onAdded }: { onClose: () => void; onAdded: () => vo
           }}
           className="w-full"
         >
-          I have saved it, finish
+          {t("sshKeys.savedFinish")}
         </Button>
       </Modal>
     );
   }
 
   return (
-    <Modal title="Create SSH Key" onClose={onClose}>
+    <Modal title={t("sshKeys.createTitle")} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Key Friendly Name" hint="A memorable name for this key, e.g. 'prod-key'">
+        <Field label={t("sshKeys.nameLabel")} hint={t("sshKeys.nameHint")}>
           <input
             className="input w-full"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
             autoFocus
-            placeholder="e.g. prod-core-key"
+            placeholder={t("sshKeys.namePlaceholder")}
           />
         </Field>
-        
-        <Field label="Key Type / Action">
+
+        <Field label={t("sshKeys.typeLabel")}>
           <select 
             className="input w-full" 
             value={type} 
             onChange={(e) => setType(e.target.value)}
           >
-            <option value="ed25519">Generate new Ed25519 pair (Recommended)</option>
-            <option value="rsa">Generate new RSA pair</option>
-            <option value="imported">Import existing private key</option>
+            <option value="ed25519">{t("sshKeys.optionEd25519")}</option>
+            <option value="rsa">{t("sshKeys.optionRsa")}</option>
+            <option value="imported">{t("sshKeys.optionImported")}</option>
           </select>
         </Field>
 
         {type === "imported" && (
-          <Field label="Private Key" hint="Paste your PEM encoded private key">
+          <Field label={t("sshKeys.privateKeyLabel")} hint={t("sshKeys.privateKeyHint")}>
             <textarea
               className="input w-full h-32 font-mono text-xs"
               placeholder="-----BEGIN OPENSSH PRIVATE KEY-----..."
@@ -231,10 +234,10 @@ function AddModal({ onClose, onAdded }: { onClose: () => void; onAdded: () => vo
         
         <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
           <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
+            {t("sshKeys.cancel")}
           </Button>
           <Button type="submit" variant="primary" disabled={busy || !name}>
-            {busy ? "..." : (type === "imported" ? "Import" : "Generate")}
+            {busy ? "..." : (type === "imported" ? t("sshKeys.importBtn") : t("sshKeys.generateBtn"))}
           </Button>
         </div>
       </form>

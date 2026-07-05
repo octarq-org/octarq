@@ -4,6 +4,7 @@ import { api, ApiError, Settings as SettingsData, OrgMember, LicenseStatus, Over
 import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { PluginInfo } from "../api";
+import { useTranslation } from "../i18n";
 import LLMProvidersSettings from "./LLMProviders";
 
 export default function SettingsPage() {
@@ -37,11 +38,12 @@ const PLUGIN_DESC: Record<string, string> = {
 };
 
 function PluginsSettings() {
+  const { t } = useTranslation();
   const [plugins, setPlugins] = useState<PluginInfo[] | null>(null);
   const [err, setErr] = useState("");
 
   function load() {
-    api.plugins().then(setPlugins).catch((e: ApiError) => setErr(e.message || "Failed to load plugins"));
+    api.plugins().then(setPlugins).catch((e: ApiError) => setErr(e.message || t("settings.failedLoadPlugins")));
   }
   useEffect(load, []);
 
@@ -53,13 +55,13 @@ function PluginsSettings() {
       await api.updatePlugin(key, enabled);
     } catch (e) {
       setPlugins((prev) => prev?.map((p) => (p.key === key ? { ...p, enabled: !enabled } : p)) ?? prev);
-      setErr(e instanceof ApiError ? e.message : "Failed to update plugin");
+      setErr(e instanceof ApiError ? e.message : t("settings.failedUpdatePlugin"));
     }
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Plugins" description="Enable the Pro features this workspace uses. Everything is off by default." />
+      <PageHeader title={t("settings.pluginsTitle")} description={t("settings.pluginsDescription")} />
 
       {err && (
         <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex gap-2 items-center">
@@ -68,15 +70,15 @@ function PluginsSettings() {
       )}
 
       {plugins === null ? (
-        <GlassCard className="p-6 text-sm text-white/50">Loading plugins…</GlassCard>
+        <GlassCard className="p-6 text-sm text-white/50">{t("settings.loadingPlugins")}</GlassCard>
       ) : plugins.length === 0 ? (
         <GlassCard className="p-6 text-sm text-white/55">
-          No plugins are available in this build. Pro plugins ship with <span className="text-white/80">Octarq</span>.
+          {t("settings.noPluginsPre")}<span className="text-white/80">Octarq</span>.
         </GlassCard>
       ) : (
         <div className="space-y-3">
           {plugins.map((p) => {
-            const description = PLUGIN_DESC[p.key] ?? "";
+            const description = PLUGIN_DESC[p.key] ? t("settings.pluginDesc." + p.key) : "";
             return (
               <GlassCard key={p.key} className="p-5 flex items-center justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0">
@@ -86,12 +88,12 @@ function PluginsSettings() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-bold text-white">{p.title}</h3>
-                      {p.enabled ? <Badge tone="green">On</Badge> : <Badge tone="neutral">Off</Badge>}
+                      {p.enabled ? <Badge tone="green">{t("settings.badgeOn")}</Badge> : <Badge tone="neutral">{t("settings.badgeOff")}</Badge>}
                     </div>
                     {description && <p className="text-xs text-white/45 mt-0.5">{description}</p>}
                     {p.menus.length > 0 && (
                       <p className="text-[10px] text-white/30 mt-1">
-                        Adds: {p.menus.map((m) => m.label).join(" · ")}
+                        {t("settings.pluginAdds", { items: p.menus.map((m) => m.label).join(" · ") })}
                       </p>
                     )}
                   </div>
@@ -110,6 +112,7 @@ function PluginsSettings() {
 // backing API is the led-pro `licensing` plugin; in the OSS build it 404s and we
 // show a neutral note instead.
 function LicenseSettings() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<LicenseStatus | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const [token, setToken] = useState("");
@@ -135,8 +138,8 @@ function LicenseSettings() {
       setMsg({
         kind: "ok",
         text: r.envOverride
-          ? `Saved a ${r.tier} license, but LED_PRO_LICENSE is set in the environment and takes precedence — unset it and restart to use this key.`
-          : `Saved a ${r.tier} license for ${r.email}. Restart led to apply it.`,
+          ? t("settings.savedEnvOverride", { tier: r.tier })
+          : t("settings.savedLicense", { tier: r.tier, email: r.email }),
       });
       load();
     } catch (e) {
@@ -147,12 +150,12 @@ function LicenseSettings() {
   }
 
   async function deactivate() {
-    if (!confirm("Remove the saved license? Pro features lock after the next restart.")) return;
+    if (!confirm(t("settings.confirmRemoveLicense"))) return;
     setBusy(true);
     setMsg(null);
     try {
       await api.deactivateLicense();
-      setMsg({ kind: "ok", text: "License removed. Restart led to apply." });
+      setMsg({ kind: "ok", text: t("settings.licenseRemoved") });
       load();
     } catch (e) {
       setMsg({ kind: "err", text: (e as ApiError).message });
@@ -164,12 +167,11 @@ function LicenseSettings() {
   if (unavailable) {
     return (
       <div>
-        <PageHeader title="License" description="Manage your led-pro license key" />
+        <PageHeader title={t("settings.licenseTitle")} description={t("settings.licenseDescManage")} />
         <GlassCard className="p-6 text-sm text-white/55">
-          This is the open-source build of led — there are no Pro features to license.
-          Pro and Elite are part of <span className="text-white/80">Octarq</span>.{" "}
+          {t("settings.ossNotePre")}<span className="text-white/80">Octarq</span>.{" "}
           <a className="text-indigo-300 hover:underline" href="https://octarq.com/pricing/" target="_blank" rel="noreferrer">
-            See the plans →
+            {t("settings.seePlans")}
           </a>
         </GlassCard>
       </div>
@@ -178,7 +180,7 @@ function LicenseSettings() {
 
   return (
     <div>
-      <PageHeader title="License" description="Activate Pro / Elite with the key you bought" />
+      <PageHeader title={t("settings.licenseTitle")} description={t("settings.licenseDescActivate")} />
 
       {status && (
         <GlassCard className="mb-4 p-5">
@@ -189,24 +191,23 @@ function LicenseSettings() {
                 <Badge tone="green">{(status.tier || "").toUpperCase()}</Badge>
                 <span className="text-sm text-white/70">{status.email}</span>
                 <span className="text-xs text-white/40">
-                  {status.expiresAt ? `expires ${status.expiresAt.slice(0, 10)}` : "never expires"} · from {status.source}
+                  {status.expiresAt ? t("settings.expiresOn", { date: status.expiresAt.slice(0, 10) }) : t("settings.neverExpires")} · {t("settings.fromSource", { source: status.source })}
                 </span>
               </div>
             ) : (
-              <span className="text-sm text-white/60">No active license — Pro features are locked.</span>
+              <span className="text-sm text-white/60">{t("settings.noActiveLicense")}</span>
             )}
           </div>
           {status.envOverride && (
             <p className="mt-3 text-xs text-amber-300/90">
-              A license is set via the <code>LED_PRO_LICENSE</code> environment variable, which
-              overrides any key saved here.
+              {t("settings.envVarNotePre")}<code>LED_PRO_LICENSE</code>{t("settings.envVarNotePost")}
             </p>
           )}
         </GlassCard>
       )}
 
       <GlassCard className="p-5">
-        <Field label="License key" hint="Paste the key from your purchase email or claim page.">
+        <Field label={t("settings.licenseKeyLabel")} hint={t("settings.licenseKeyHint")}>
           <textarea
             className="input w-full font-mono text-xs"
             rows={4}
@@ -217,11 +218,11 @@ function LicenseSettings() {
         </Field>
         <div className="mt-3 flex items-center gap-2">
           <Button variant="primary" onClick={activate} disabled={busy || token.trim() === ""}>
-            {busy ? "Saving…" : "Activate"}
+            {busy ? t("settings.saving") : t("settings.activate")}
           </Button>
           {status?.licensed && status.source === "file" && (
             <Button variant="danger" onClick={deactivate} disabled={busy}>
-              Remove license
+              {t("settings.removeLicense")}
             </Button>
           )}
         </div>
@@ -229,7 +230,7 @@ function LicenseSettings() {
           <p className={`mt-3 text-sm ${msg.kind === "ok" ? "text-emerald-300" : "text-rose-300"}`}>{msg.text}</p>
         )}
         <p className="mt-4 text-xs text-white/35">
-          Changes take effect on the next restart — the server reads the license at startup.
+          {t("settings.licenseRestartNote")}
         </p>
       </GlassCard>
     </div>
@@ -247,10 +248,12 @@ function useSettingsData() {
 }
 
 function SavedBadge({ on }: { on: boolean }) {
-  return on ? <Badge tone="green">✓ Saved</Badge> : null;
+  const { t } = useTranslation();
+  return on ? <Badge tone="green">{t("settings.saved")}</Badge> : null;
 }
 
 function GeneralSettings() {
+  const { t } = useTranslation();
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const [workspaceSaved, setWorkspaceSaved] = useState(false);
@@ -285,7 +288,7 @@ function GeneralSettings() {
       await api.updateOrg({ name: workspaceName });
       setWorkspaceSaved(true);
       setTimeout(() => window.location.reload(), 800);
-    } catch (err: any) { alert(err.message || "rename failed"); } finally { setWorkspaceBusy(false); }
+    } catch (err: any) { alert(err.message || t("settings.renameFailed")); } finally { setWorkspaceBusy(false); }
   }
 
   async function save() {
@@ -311,7 +314,7 @@ function GeneralSettings() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err: any) {
-      alert(err.message || "Export failed");
+      alert(err.message || t("settings.exportFailed"));
     } finally {
       setExporting(false);
     }
@@ -319,18 +322,18 @@ function GeneralSettings() {
 
   async function handlePurge() {
     if (deleteConfirmationText !== "DELETE MY DATA") {
-      alert("Please type 'DELETE MY DATA' exactly to confirm.");
+      alert(t("settings.typeToConfirm", { phrase: "DELETE MY DATA" }));
       return;
     }
     setPurging(true);
     try {
       await api.purgeAccountData();
-      alert("Your workspace and all of its data have been deleted.");
+      alert(t("settings.workspaceDeleted"));
       setShowDeleteModal(false);
       setDeleteConfirmationText("");
       window.location.reload();
     } catch (err: any) {
-      alert(err.message || "Couldn't delete the workspace. Please try again.");
+      alert(err.message || t("settings.deleteWorkspaceFailed"));
     } finally {
       setPurging(false);
     }
@@ -340,19 +343,19 @@ function GeneralSettings() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="General" description="Your workspace name, data settings, and privacy controls." />
+      <PageHeader title={t("settings.generalTitle")} description={t("settings.generalDescription")} />
 
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white">Workspace Profile</h2>
-          {workspaceSaved && <Badge tone="green">✓ Updated</Badge>}
+          <h2 className="text-base font-bold text-white">{t("settings.workspaceProfile")}</h2>
+          {workspaceSaved && <Badge tone="green">{t("settings.updated")}</Badge>}
         </div>
         <form onSubmit={renameWorkspace} className="max-w-md">
-          <Field label="Workspace Name" hint="Shown in the workspace switcher and header.">
+          <Field label={t("settings.workspaceNameLabel")} hint={t("settings.workspaceNameHint")}>
             <div className="flex gap-2">
               <input className="input flex-1 text-sm" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} placeholder="Acme Production" required />
               <Button type="submit" variant="primary" disabled={workspaceBusy || !workspaceName.trim()} className="shrink-0">
-                {workspaceBusy ? "Updating…" : "Update"}
+                {workspaceBusy ? t("settings.updating") : t("settings.update")}
               </Button>
             </div>
           </Field>
@@ -361,28 +364,28 @@ function GeneralSettings() {
 
       <GlassCard className="p-6 space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white">Data retention</h2>
+          <h2 className="text-base font-bold text-white">{t("settings.dataRetention")}</h2>
           <SavedBadge on={saved} />
         </div>
-        <Field label="Keep click history for (days)" hint="Older click history is removed automatically. Set to 0 to keep it forever.">
+        <Field label={t("settings.retentionLabel")} hint={t("settings.retentionHint")}>
           <input type="number" min={0} className="input w-32 font-mono text-sm" value={retention} onChange={(e) => setRetention(Number(e.target.value))} />
         </Field>
         <div className="border-t border-white/[0.06] pt-6">
-          <Button variant="primary" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+          <Button variant="primary" onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("settings.save")}</Button>
         </div>
       </GlassCard>
 
       {isAdminOrOwner && (
         <GlassCard className="p-6 space-y-4">
           <div>
-            <h2 className="text-base font-bold text-white">Export Workspace Data</h2>
+            <h2 className="text-base font-bold text-white">{t("settings.exportWorkspaceData")}</h2>
             <p className="text-xs text-white/50 mt-1">
-              Download a complete copy of everything in this workspace including links, domains, mailboxes, and settings.
+              {t("settings.exportWorkspaceDesc")}
             </p>
           </div>
           <div className="pt-2">
             <Button variant="outline" onClick={handleExport} disabled={exporting}>
-              {exporting ? "Preparing…" : "Download my data"}
+              {exporting ? t("settings.preparing") : t("settings.downloadMyData")}
             </Button>
           </div>
         </GlassCard>
@@ -393,15 +396,14 @@ function GeneralSettings() {
           <GlassCard className="p-6 border-red-500/20 bg-red-950/5 space-y-6">
             <div className="flex items-center gap-2 text-rose-400">
               <ShieldAlert size={20} />
-              <h2 className="text-base font-bold">Danger Zone</h2>
+              <h2 className="text-base font-bold">{t("settings.dangerZone")}</h2>
             </div>
             <p className="text-xs text-white/60">
-              Permanently delete the workspace and all of its links, domains, mailboxes, and history.
-              This action cannot be undone and will immediately delete all configuration data.
+              {t("settings.dangerZoneDesc")}
             </p>
             <div className="pt-2">
               <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
-                Delete workspace
+                {t("settings.deleteWorkspace")}
               </Button>
             </div>
           </GlassCard>
@@ -409,13 +411,13 @@ function GeneralSettings() {
       )}
 
       {showDeleteModal && (
-        <Modal title="Delete this workspace?" onClose={() => { setShowDeleteModal(false); setDeleteConfirmationText(""); }}>
+        <Modal title={t("settings.deleteWorkspaceModalTitle")} onClose={() => { setShowDeleteModal(false); setDeleteConfirmationText(""); }}>
           <div className="space-y-4">
             <p className="text-sm text-white/70">
-              This permanently deletes the workspace and everything in it — links, domains, mailboxes, and history. This can't be undone.
+              {t("settings.deleteWorkspaceModalDesc")}
             </p>
             <p className="text-sm text-white/70">
-              Please type <span className="font-mono font-bold text-red-400 select-all">DELETE MY DATA</span> to confirm this action.
+              {t("settings.confirmTypePre")}<span className="font-mono font-bold text-red-400 select-all">DELETE MY DATA</span>{t("settings.confirmTypePost")}
             </p>
             <input
               type="text"
@@ -426,14 +428,14 @@ function GeneralSettings() {
             />
             <div className="flex justify-end gap-3 pt-2">
               <Button variant="ghost" onClick={() => { setShowDeleteModal(false); setDeleteConfirmationText(""); }}>
-                Cancel
+                {t("settings.cancel")}
               </Button>
               <Button
                 variant="danger"
                 disabled={deleteConfirmationText !== "DELETE MY DATA" || purging}
                 onClick={handlePurge}
               >
-                {purging ? "Deleting…" : "Permanently delete"}
+                {purging ? t("settings.deleting") : t("settings.permanentlyDelete")}
               </Button>
             </div>
           </div>
@@ -467,6 +469,7 @@ function parseUA(ua: string): { browser: string; os: string } {
 
 
 function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
+  const { t } = useTranslation();
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [revoking, setRevoking] = useState<number | null>(null);
@@ -479,8 +482,8 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
 
   async function revoke(id: number, isSelf: boolean) {
     const msg = isSelf
-      ? "Log out from this device?"
-      : "Revoke this session? That device will be signed out immediately.";
+      ? t("settings.logoutThisDevice")
+      : t("settings.revokeSessionConfirm");
     if (!confirm(msg)) return;
     setRevoking(id);
     try {
@@ -491,14 +494,14 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
         load();
       }
     } catch (e: any) {
-      alert(e.message || "Revoke failed");
+      alert(e.message || t("settings.revokeFailed"));
     } finally {
       setRevoking(null);
     }
   }
 
-  if (loading) return <div className="text-xs text-white/40 py-4 text-center">Loading sessions…</div>;
-  if (sessions.length === 0) return <div className="text-xs text-white/40 py-4 text-center">No session records found.</div>;
+  if (loading) return <div className="text-xs text-white/40 py-4 text-center">{t("settings.loadingSessions")}</div>;
+  if (sessions.length === 0) return <div className="text-xs text-white/40 py-4 text-center">{t("settings.noSessions")}</div>;
 
   return (
     <div className="divide-y divide-white/[0.04] rounded-xl border border-white/[0.05] overflow-hidden">
@@ -509,13 +512,13 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-medium text-white/85">{ua.browser}</span>
-                {s.isCurrent && <Badge tone="green">Current</Badge>}
+                {s.isCurrent && <Badge tone="green">{t("settings.current")}</Badge>}
                 <span className="text-xs text-white/35">{ua.os}</span>
               </div>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-xs text-white/40">{s.location || s.ip}</span>
-                <span className="text-xs text-white/30">Last seen {timeAgo(s.lastSeenAt)}</span>
-                <span className="text-xs text-white/25">Signed in {timeAgo(s.createdAt)}</span>
+                <span className="text-xs text-white/30">{t("settings.lastSeen", { time: timeAgo(s.lastSeenAt) })}</span>
+                <span className="text-xs text-white/25">{t("settings.signedIn", { time: timeAgo(s.createdAt) })}</span>
               </div>
             </div>
             <Button
@@ -524,7 +527,7 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
               disabled={revoking === s.id}
               className="text-xs py-1 px-2.5 shrink-0"
             >
-              {revoking === s.id ? "…" : s.isCurrent ? "Log out" : "Revoke"}
+              {revoking === s.id ? "…" : s.isCurrent ? t("settings.logOut") : t("settings.revoke")}
             </Button>
           </div>
         );
@@ -534,6 +537,7 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
 }
 
 function SecuritySettings() {
+  const { t } = useTranslation();
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -597,7 +601,7 @@ function SecuritySettings() {
     try {
       setSetup(await api.twoFASetup());
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "failed to start setup");
+      setErr(e instanceof ApiError ? e.message : t("settings.failedStartSetup"));
     } finally { setBusy(false); }
   }
 
@@ -609,7 +613,7 @@ function SecuritySettings() {
       setSetup(null); setEnrollCode("");
       await load();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "invalid code");
+      setErr(e instanceof ApiError ? e.message : t("settings.invalidCode"));
     } finally { setBusy(false); }
   }
 
@@ -618,44 +622,44 @@ function SecuritySettings() {
     try {
       await api.twoFADisable({ code: disableCode.trim() });
       setDisableCode("");
-      setMsg("Two-factor authentication disabled.");
+      setMsg(t("settings.twoFADisabledMsg"));
       await load();
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "verification failed");
+      setErr(e instanceof ApiError ? e.message : t("settings.verificationFailed"));
     } finally { setBusy(false); }
   }
 
   async function logoutAll() {
-    if (!confirm("Sign out of every device? You'll need to sign in again.")) return;
+    if (!confirm(t("settings.signOutEveryDevice"))) return;
     setBusy(true); setErr("");
     try {
       await api.logoutAll();
       // The current session cookie is now revoked; bounce to the login screen.
       window.location.href = "/";
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "failed");
+      setErr(e instanceof ApiError ? e.message : t("settings.failed"));
       setBusy(false);
     }
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Security" description="Two-factor authentication, session management, and Single Sign-On." />
+      <PageHeader title={t("settings.securityTitle")} description={t("settings.securityDescription")} />
 
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white flex items-center gap-2"><Shield className="h-4 w-4" /> Two-Factor Authentication (TOTP)</h2>
-          <Badge tone={enabled ? "green" : "neutral"}>{enabled == null ? "…" : enabled ? "Enabled" : "Disabled"}</Badge>
+          <h2 className="text-base font-bold text-white flex items-center gap-2"><Shield className="h-4 w-4" /> {t("settings.twoFATitle")}</h2>
+          <Badge tone={enabled ? "green" : "neutral"}>{enabled == null ? "…" : enabled ? t("settings.enabled") : t("settings.disabled")}</Badge>
         </div>
-        <p className="text-xs text-white/50">Require a time-based one-time code from an authenticator app (Google Authenticator, 1Password, Authy) in addition to your password.</p>
+        <p className="text-xs text-white/50">{t("settings.twoFADesc")}</p>
 
         {err && <p className="text-sm text-rose-400">{err}</p>}
         {msg && <p className="text-sm text-emerald-400">{msg}</p>}
 
         {recoveryCodes && (
           <div className="rounded-xl border border-amber-400/30 bg-amber-400/[0.06] p-4">
-            <p className="text-xs font-bold text-amber-300 mb-2">Save your recovery codes</p>
-            <p className="text-[11px] text-white/50 mb-3">Each code can be used once if you lose your authenticator. They will not be shown again.</p>
+            <p className="text-xs font-bold text-amber-300 mb-2">{t("settings.saveRecoveryCodes")}</p>
+            <p className="text-[11px] text-white/50 mb-3">{t("settings.recoveryCodesDesc")}</p>
             <div className="grid grid-cols-2 gap-1 font-mono text-xs text-white/80">
               {recoveryCodes.map((c) => <span key={c}>{c}</span>)}
             </div>
@@ -663,14 +667,14 @@ function SecuritySettings() {
         )}
 
         {!enabled && !setup && (
-          <Button variant="primary" onClick={beginSetup} disabled={busy}>{busy ? "…" : "Enable 2FA"}</Button>
+          <Button variant="primary" onClick={beginSetup} disabled={busy}>{busy ? "…" : t("settings.enable2FA")}</Button>
         )}
 
         {!enabled && setup && (
           <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
-            <p className="text-xs text-white/60">Add this account to your authenticator app, then enter the 6-digit code to confirm.</p>
+            <p className="text-xs text-white/60">{t("settings.scanInstructions")}</p>
             <img
-              alt="TOTP QR code"
+              alt={t("settings.qrAlt")}
               className="rounded-lg bg-white p-2"
               width={160}
               height={160}

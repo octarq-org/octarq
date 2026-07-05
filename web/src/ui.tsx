@@ -4,6 +4,7 @@ import { twMerge } from "tailwind-merge";
 import { motion } from "framer-motion";
 import { HostEntry } from "./api";
 import { useAppName } from "./brand";
+import { useTranslation } from "./i18n";
 
 // ─── GlassCard ──────────────────────────────────────────────────────────────
 
@@ -137,6 +138,7 @@ export function LockedFeature({
   const locked = status === 402 || status === 404;
   const label = TIER_LABEL[tier];
   const appName = useAppName();
+  const { t } = useTranslation();
 
   return (
     <GlassCard
@@ -161,8 +163,8 @@ export function LockedFeature({
         </div>
         <p className="text-sm leading-relaxed text-white/50">
           {locked
-            ? <>This is a <span className="font-medium text-violet-200">{appName} {label}</span> feature.{description ? ` ${description}` : ""}</>
-            : `${feature} is not available or disabled in this installation.`}
+            ? <>{t("uiCommon.lockedIntroPre")}<span className="font-medium text-violet-200">{appName} {label}</span>{t("uiCommon.lockedIntroPost")}{description ? ` ${description}` : ""}</>
+            : t("uiCommon.notAvailable", { feature })}
         </p>
       </div>
 
@@ -180,7 +182,7 @@ export function LockedFeature({
       {locked && (
         <div className="flex flex-col items-stretch gap-2 pt-1 sm:flex-row">
           <Button variant="primary" onClick={() => (window.location.href = "/admin/settings/license")}>
-            Upgrade to {label}
+            {t("uiCommon.upgradeTo", { tier: label })}
           </Button>
           {pricingHref && (
             <a
@@ -189,7 +191,7 @@ export function LockedFeature({
               rel="noreferrer"
               className="inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm font-medium text-white/65 transition-colors hover:bg-white/5 hover:text-white"
             >
-              Compare plans
+              {t("uiCommon.comparePlans")}
             </a>
           )}
         </div>
@@ -381,7 +383,7 @@ export function HostList({
   suggestions = [],
   placeholder,
   baseDomain,
-  emptyText = "No hosts added yet.",
+  emptyText,
 }: {
   hosts: HostEntry[];
   onChange: (hosts: HostEntry[]) => void;
@@ -391,6 +393,7 @@ export function HostList({
   emptyText?: string;
 }) {
   const [draft, setDraft] = useState("");
+  const { t } = useTranslation();
 
   function resolve(raw: string): string {
     const v = raw.trim().toLowerCase();
@@ -413,7 +416,7 @@ export function HostList({
     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
       <div className="mb-2 flex flex-wrap gap-1.5">
         {hosts.length === 0 ? (
-          <span className="text-xs text-white/40">{emptyText}</span>
+          <span className="text-xs text-white/40">{emptyText ?? t("uiCommon.hostListEmpty")}</span>
         ) : (
           hosts.map((h) => (
             <span
@@ -427,7 +430,7 @@ export function HostList({
               <button
                 type="button"
                 className={`cursor-pointer hover:text-white text-xs ${h.enabled ? "text-indigo-400" : "text-white/35"}`}
-                title={h.enabled ? "Disable host" : "Enable host"}
+                title={h.enabled ? t("uiCommon.disableHost") : t("uiCommon.enableHost")}
                 onClick={() =>
                   onChange(hosts.map((x) => (x.host === h.host ? { ...x, enabled: !x.enabled } : x)))
                 }
@@ -438,7 +441,7 @@ export function HostList({
               <button
                 type="button"
                 className="text-white/30 hover:text-rose-400 ml-0.5"
-                title="remove"
+                title={t("uiCommon.remove")}
                 onClick={() => onChange(hosts.filter((x) => x.host !== h.host))}
               >
                 ✕
@@ -452,7 +455,7 @@ export function HostList({
           <input
             className="input w-full"
             value={draft}
-            placeholder={placeholder ?? "type a host and press Enter"}
+            placeholder={placeholder ?? t("uiCommon.hostPlaceholder")}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") { e.preventDefault(); add(draft); }
@@ -465,12 +468,12 @@ export function HostList({
           )}
         </div>
         <button className="btn-primary shrink-0" type="button" disabled={!draft.trim()} onClick={() => add(draft)}>
-          + Add
+          {t("uiCommon.addHost")}
         </button>
       </div>
       {freshSuggestions.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-white/40">Quick add:</span>
+          <span className="text-xs text-white/40">{t("uiCommon.quickAdd")}</span>
           {freshSuggestions.map((s) => (
             <button
               key={s}
@@ -524,17 +527,18 @@ export function Guide({
 
 export function Code({ children }: { children: string }) {
   const [copied, setCopied] = useState(false);
+  const { t } = useTranslation();
   return (
     <code
       className="cursor-pointer break-all rounded-lg bg-white/[0.06] px-1.5 py-0.5 font-mono text-[12px] text-indigo-200 hover:bg-white/10"
-      title="click to copy"
+      title={t("uiCommon.clickToCopy")}
       onClick={() => {
         navigator.clipboard.writeText(children);
         setCopied(true);
         setTimeout(() => setCopied(false), 1000);
       }}
     >
-      {copied ? "copied ✓" : children}
+      {copied ? t("uiCommon.copied") : children}
     </code>
   );
 }
@@ -548,8 +552,9 @@ export function AreaChart({
   series: { key: string; count: number }[];
   height?: number;
 }) {
+  const { t } = useTranslation();
   if (!series || !series.length)
-    return <div className="grid h-28 place-items-center text-sm text-white/35">No data yet</div>;
+    return <div className="grid h-28 place-items-center text-sm text-white/35">{t("uiCommon.noDataYet")}</div>;
 
   const w = 600;
   const h = height;
@@ -590,13 +595,14 @@ export function BarList({
   rows: { key: string; count: number }[] | null;
   empty?: string;
 }) {
+  const { t } = useTranslation();
   if (!rows || rows.length === 0) return <p className="text-sm text-white/35">{empty}</p>;
   const max = Math.max(...rows.map((r) => r.count), 1);
   return (
     <div className="space-y-1.5">
       {rows.map((r) => (
         <div key={r.key} className="flex items-center gap-2 text-sm">
-          <span className="w-24 truncate text-white/70">{r.key || "(direct)"}</span>
+          <span className="w-24 truncate text-white/70">{r.key || t("uiCommon.direct")}</span>
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/8">
             <div
               className="h-full rounded-full bg-indigo-500/60"

@@ -34,6 +34,7 @@ export const personal = {
     cancel: "Cancel",
     generating: "Generating...",
     generateToken: "Generate Token",
+    failed: "failed",
   },
   zh: {
     profileTitle: "我的资料",
@@ -70,5 +71,6 @@ export const personal = {
     cancel: "取消",
     generating: "生成中...",
     generateToken: "生成令牌",
+    failed: "失败",
   },
 };

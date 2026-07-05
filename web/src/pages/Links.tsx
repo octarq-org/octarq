@@ -3,6 +3,7 @@ import { api, Domain, effectiveLinkHosts, Link, LinkStats } from "../api";
 import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard } from "../ui";
 import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe, Settings } from "lucide-react";
 import { LinkSettings } from "./Settings";
+import { useTranslation } from "../i18n";
 
 export default function LinksPage() {
   const [links, setLinks] = useState<Link[]>([]);
@@ -16,6 +17,7 @@ export default function LinksPage() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
   const [tab, setTab] = useState<'links' | 'settings'>('links');
+  const { t } = useTranslation();
 
   const linkHostOptions = Array.from(new Set(domains.flatMap(effectiveLinkHosts)));
 
@@ -37,10 +39,10 @@ export default function LinksPage() {
   }
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       loadMore(true);
     }, 200);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [q, archived]);
 
   useEffect(() => {
@@ -72,12 +74,12 @@ export default function LinksPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="Links"
-        description="Short links with click analytics, redirection & routing"
+        title={t("links.pageTitle")}
+        description={t("links.pageDescription")}
         action={
           <div className="flex items-center gap-2">
             <Button variant="primary" onClick={() => setActive("new")} className="gap-1.5 py-1.5 text-xs">
-              + New Link
+              {t("links.newLink")}
             </Button>
           </div>
         }
@@ -92,7 +94,7 @@ export default function LinksPage() {
               : 'border-transparent text-white/45 hover:text-white/70'
           }`}
         >
-          Links
+          {t("links.tabLinks")}
         </button>
         <button
           onClick={() => setTab('settings')}
@@ -102,7 +104,7 @@ export default function LinksPage() {
               : 'border-transparent text-white/45 hover:text-white/70'
           }`}
         >
-          Settings
+          {t("links.tabSettings")}
         </button>
       </div>
 
@@ -114,7 +116,7 @@ export default function LinksPage() {
             <div className="relative flex-1">
               <input
                 className="input w-full !pl-8"
-                placeholder="Search links…"
+                placeholder={t("links.searchPlaceholder")}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
@@ -124,16 +126,16 @@ export default function LinksPage() {
               variant={archived ? "primary" : "subtle"}
               onClick={() => setArchived((a) => !a)}
               className="shrink-0 py-2 px-3 text-xs"
-              title="Toggle archived view"
+              title={t("links.toggleArchivedTitle")}
             >
-              {archived ? "Archived" : "Active"}
+              {archived ? t("links.archived") : t("links.active")}
             </Button>
           </div>
           
           <GlassCard className="overflow-hidden">
             <div className="overflow-y-auto max-h-[600px] divide-y divide-white/[0.04]" onScroll={handleScroll}>
               {links.length === 0 && !loading ? (
-                <div className="p-8 text-center text-white/40 text-sm">No links found.</div>
+                <div className="p-8 text-center text-white/40 text-sm">{t("links.noLinksFound")}</div>
               ) : (
                 <>
                   {links.map((l) => (
@@ -149,13 +151,13 @@ export default function LinksPage() {
                           /{l.slug}
                         </span>
                         <Badge tone="neutral" className="text-[10px]">
-                          {l.clicks} clicks
+                          {t("links.clicksCount", { count: l.clicks })}
                         </Badge>
                       </div>
                       <div className="truncate text-xs text-white/50 mt-1.5 font-mono">{l.target}</div>
                     </button>
                   ))}
-                  {loading && <div className="p-3 text-center text-xs text-white/40">Loading…</div>}
+                  {loading && <div className="p-3 text-center text-xs text-white/40">{t("links.loading")}</div>}
                 </>
               )}
             </div>
@@ -168,7 +170,7 @@ export default function LinksPage() {
             <GlassCard className="p-5">
               <h2 className="mb-4 text-lg font-bold text-white flex items-center gap-2">
                 <Link2 className="h-5 w-5 text-indigo-400" />
-                Create New Link
+                {t("links.createNewLink")}
               </h2>
               <LinkEditorForm
                 link={null}
@@ -191,16 +193,16 @@ export default function LinksPage() {
                   <div className="flex flex-wrap gap-2">
                     <Button variant="subtle" className="text-xs py-1.5 px-3 gap-1.5" onClick={() => copy(active)}>
                       <Copy className="h-3.5 w-3.5" />
-                      {copied === active.id ? "Copied!" : "Copy Link"}
+                      {copied === active.id ? t("links.copied") : t("links.copyLink")}
                     </Button>
                     <Button variant="outline" className="text-xs py-1.5 px-3 gap-1.5" onClick={() => toggleArchive(active)}>
                       <Archive className="h-3.5 w-3.5" />
-                      {active.archived ? "Unarchive" : "Archive"}
+                      {active.archived ? t("links.unarchive") : t("links.archive")}
                     </Button>
                     <Button
                       variant="danger"
                       onClick={async () => {
-                        if (confirm(`Delete /${active.slug}?`)) {
+                        if (confirm(t("links.confirmDelete", { slug: active.slug }))) {
                           await api.deleteLink(active.id);
                           setActive(null);
                           loadMore(true);
@@ -209,7 +211,7 @@ export default function LinksPage() {
                       className="text-xs py-1.5 px-3 gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-0"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                      Delete
+                      {t("links.delete")}
                     </Button>
                   </div>
                 </div>
@@ -231,12 +233,12 @@ export default function LinksPage() {
               <GlassCard className="p-5 flex flex-col items-center gap-4">
                 <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider self-start flex items-center gap-1.5">
                   <QrCode className="h-4 w-4 text-indigo-400" />
-                  Link QR Code
+                  {t("links.linkQrCode")}
                 </h3>
                 <div className="bg-white p-3 rounded-2xl shadow-glow">
                   <img
                     src={`/api/links/${active.id}/qr`}
-                    alt="QR"
+                    alt={t("links.qrAlt")}
                     className="rounded-lg"
                     width={180}
                     height={180}
@@ -244,14 +246,14 @@ export default function LinksPage() {
                 </div>
                 <Button variant="ghost" className="text-xs py-1.5 px-4 gap-1.5" onClick={() => window.open(`/api/links/${active.id}/qr`)}>
                   <Download className="h-3.5 w-3.5" />
-                  Download QR Code
+                  {t("links.downloadQrCode")}
                 </Button>
               </GlassCard>
             </div>
           ) : (
             <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-white/40 border border-white/[0.04]/40">
               <Link2 className="h-10 w-10 mb-2 opacity-50 text-indigo-400" />
-              <p className="text-sm">Select a short link from the sidebar list to inspect click history & metrics.</p>
+              <p className="text-sm">{t("links.emptyDetail")}</p>
             </GlassCard>
           )}
         </div>
@@ -277,6 +279,7 @@ function LinkEditorForm({
   onCancel: () => void;
   onSaved: (l?: any) => void;
 }) {
+  const { t } = useTranslation();
   const [slug, setSlug] = useState(link?.slug ?? "");
   const [host, setHost] = useState(link?.host ?? "");
   const [target, setTarget] = useState(link?.target ?? "");
@@ -326,13 +329,13 @@ function LinkEditorForm({
       else res = await api.createLink(payload);
       onSaved(res);
     } catch (e: any) {
-      setErr(e.message ?? "save failed");
+      setErr(e.message ?? t("links.saveFailed"));
     }
   }
 
   return (
     <div className="space-y-4">
-      <Field label="Destination Target URL">
+      <Field label={t("links.destinationTargetUrl")}>
         <div className="flex gap-2 items-start">
           <textarea
             className="input w-full font-mono text-sm resize-y"
@@ -350,12 +353,12 @@ function LinkEditorForm({
       {showUtm && <UtmBuilder target={target} onApply={setTarget} />}
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Short Slug" hint="Leave empty for auto-generated slug">
+        <Field label={t("links.shortSlug")} hint={t("links.shortSlugHint")}>
           <input className="input w-full font-mono" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. promo2026" />
         </Field>
-        <Field label="Routing Host Domain" hint={hosts.length ? "Configured domains" : "Configure domains first"}>
+        <Field label={t("links.routingHostDomain")} hint={hosts.length ? t("links.configuredDomains") : t("links.configureDomainsFirst")}>
           <select className="input w-full" value={host} onChange={(e) => setHost(e.target.value)}>
-            <option value="">Default (Apex Domain)</option>
+            <option value="">{t("links.defaultApexDomain")}</option>
             {hosts.map((h) => (
               <option key={h} value={h}>
                 {h}
@@ -366,28 +369,28 @@ function LinkEditorForm({
         </Field>
       </div>
 
-      <Field label="Metadata Page Title">
+      <Field label={t("links.metadataPageTitle")}>
         <div className="flex gap-2">
-          <input className="input w-full text-sm" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Auto-populated title for page previews" />
+          <input className="input w-full text-sm" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("links.metadataPlaceholder")} />
           <Button variant="subtle" className="shrink-0 text-xs py-1" type="button" onClick={fetchTitle} disabled={fetching}>
-            {fetching ? "..." : "Fetch"}
+            {fetching ? t("links.fetching") : t("links.fetch")}
           </Button>
         </div>
       </Field>
 
-      <Field label="Tags" hint="Comma-separated tokens">
+      <Field label={t("links.tags")} hint={t("links.tagsHint")}>
         <input className="input w-full text-sm" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. q3-ads, product-hunt" />
       </Field>
 
-      <Field label="Internal Admin Note">
-        <textarea className="input w-full text-sm" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Notes visible only to team members" />
+      <Field label={t("links.internalAdminNote")}>
+        <textarea className="input w-full text-sm" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("links.notePlaceholder")} />
       </Field>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Access Protection Password" hint={link?.hasPassword ? "Key set. Fill to overwrite, blank to keep" : "Optional password check"}>
+        <Field label={t("links.accessProtectionPassword")} hint={link?.hasPassword ? t("links.passwordSetHint") : t("links.passwordOptionalHint")}>
           <input className="input w-full font-mono text-sm" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
         </Field>
-        <Field label="Total Click Limitation" hint="0 = Unlimited redirects">
+        <Field label={t("links.totalClickLimitation")} hint={t("links.clickLimitHint")}>
           <input
             type="number"
             min={0}
@@ -399,27 +402,27 @@ function LinkEditorForm({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Automatic Expiry Date">
+        <Field label={t("links.automaticExpiryDate")}>
           <input type="datetime-local" className="input w-full text-sm" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
         </Field>
-        <Field label="Redirect URL After Expiry" hint="Destination target after link has expired">
+        <Field label={t("links.redirectUrlAfterExpiry")} hint={t("links.redirectUrlHint")}>
           <input className="input w-full text-sm font-mono" value={expiredUrl} onChange={(e) => setExpiredUrl(e.target.value)} placeholder="e.g. https://my-site.com/expired" />
         </Field>
       </div>
 
       <div className="flex items-center gap-3 pt-2">
         <Toggle on={enabled} onChange={setEnabled} />
-        <span className="text-sm text-white/60 select-none">Link Routing Active</span>
+        <span className="text-sm text-white/60 select-none">{t("links.linkRoutingActive")}</span>
       </div>
 
       {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
 
       <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
         <Button variant="ghost" onClick={onCancel}>
-          Cancel
+          {t("links.cancel")}
         </Button>
         <Button variant="primary" onClick={save} disabled={!target}>
-          Save Link
+          {t("links.saveLink")}
         </Button>
       </div>
     </div>
@@ -427,6 +430,7 @@ function LinkEditorForm({
 }
 
 function UtmBuilder({ target, onApply }: { target: string; onApply: (url: string) => void }) {
+  const { t } = useTranslation();
   const [utm, setUtm] = useState({ source: "", medium: "", campaign: "", term: "", content: "" });
   function apply() {
     if (!target) return;
@@ -469,53 +473,55 @@ function UtmBuilder({ target, onApply }: { target: string; onApply: (url: string
         />
       ))}
       <Button variant="subtle" className="sm:col-span-2 md:col-span-3 h-8 text-xs py-1.5" onClick={apply}>
-        Apply UTM Parameters
+        {t("links.applyUtmParameters")}
       </Button>
     </div>
   );
 }
 
 function StatsView({ link }: { link: Link }) {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<LinkStats | null>(null);
   useEffect(() => {
     setStats(null);
     api.linkStats(link.id).then(setStats);
   }, [link.id]);
   
-  if (!stats) return <div className="text-white/40 p-4 text-xs">Loading analytics…</div>;
+  if (!stats) return <div className="text-white/40 p-4 text-xs">{t("links.loadingAnalytics")}</div>;
   
   return (
     <GlassCard className="p-5 space-y-5">
       <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider flex items-center gap-1.5">
         <Eye className="h-4 w-4 text-indigo-400" />
-        Click Performance Analytics
+        {t("links.clickPerformanceAnalytics")}
       </h3>
       <div className="grid grid-cols-3 gap-4">
-        <StatCard label="Total Clicks" value={stats.total} index={0} />
-        <StatCard label={`Last ${stats.days}d`} value={stats.windowed} index={1} />
-        <StatCard label="Tracking Window" value={`${stats.series?.length || 0}d`} index={2} />
+        <StatCard label={t("links.totalClicks")} value={stats.total} index={0} />
+        <StatCard label={t("links.lastDays", { days: stats.days })} value={stats.windowed} index={1} />
+        <StatCard label={t("links.trackingWindow")} value={`${stats.series?.length || 0}d`} index={2} />
       </div>
       <Spark series={stats.series} />
       <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-2 border-t border-white/[0.04]">
-        <TopList title="Countries" icon={<Globe className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.countries} />
-        <TopList title="Regions" icon={<ExternalLink className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.regions} />
-        <TopList title="Devices" icon={<Eye className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.devices} />
-        <TopList title="Browsers" icon={<Link2 className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.browsers} />
-        <TopList title="Referers" icon={<Tag className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.referers} />
+        <TopList title={t("links.countries")} icon={<Globe className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.countries} />
+        <TopList title={t("links.regions")} icon={<ExternalLink className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.regions} />
+        <TopList title={t("links.devices")} icon={<Eye className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.devices} />
+        <TopList title={t("links.browsers")} icon={<Link2 className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.browsers} />
+        <TopList title={t("links.referers")} icon={<Tag className="h-3 w-3 text-white/40 mr-1 inline" />} rows={stats.referers} />
       </div>
     </GlassCard>
   );
 }
 
 function Spark({ series }: { series: { key: string; count: number }[] }) {
-  if (!series || !series.length) return <p className="text-xs text-white/40 italic">No click data in active window.</p>;
+  const { t } = useTranslation();
+  if (!series || !series.length) return <p className="text-xs text-white/40 italic">{t("links.noClickData")}</p>;
   const max = Math.max(...series.map((s) => s.count), 1);
   return (
     <div className="rounded-xl bg-black/30 border border-white/[0.05] flex h-24 items-end gap-1 p-3">
       {series.map((s) => (
         <div
           key={s.key}
-          title={`${s.key}: ${s.count} clicks`}
+          title={t("links.clicksTooltip", { key: s.key, count: s.count })}
           className="flex-1 rounded-t-md bg-indigo-500/70 hover:bg-indigo-400 transition-all cursor-pointer"
           style={{ height: `${(s.count / max) * 100}%`, minHeight: 3 }}
         />
@@ -525,6 +531,7 @@ function Spark({ series }: { series: { key: string; count: number }[] }) {
 }
 
 function TopList({ title, icon, rows }: { title: string; icon?: React.ReactNode; rows: { key: string; count: number }[] | null }) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-2">
       <div className="text-[11px] font-semibold uppercase tracking-wider text-white/35 flex items-center">
@@ -537,7 +544,7 @@ function TopList({ title, icon, rows }: { title: string; icon?: React.ReactNode;
         <div className="space-y-1.5">
           {rows.map((r) => (
             <div key={r.key} className="flex justify-between text-xs font-normal">
-              <span className="truncate text-white/70 mr-2 font-mono" title={r.key || "Direct/Unknown"}>{r.key || "(direct)"}</span>
+              <span className="truncate text-white/70 mr-2 font-mono" title={r.key || t("links.directUnknown")}>{r.key || t("links.direct")}</span>
               <span className="text-white/45 font-semibold font-mono">{r.count}</span>
             </div>
           ))}
