@@ -52,6 +52,7 @@ import AbusePage from "./pages/Abuse";
 import PersonalSettingsPage from "./pages/PersonalSettings";
 import InviteAcceptPage from "./pages/InviteAccept";
 import { Modal, Button, ScreenWrap, PageHeader, GlassCard } from "./ui";
+import { useTranslation, LANGS } from "./i18n";
 
 // ─── Area definitions ──────────────────────────────────────────────────────
 
@@ -313,11 +314,15 @@ function Shell({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [areas, setAreas] = useState<Area[]>(STATIC_AREAS);
   const [orgs, setOrgs]   = useState<Org[]>([]);
   const [creatingOrg, setCreatingOrg] = useState(false);
   const [newOrgName, setNewOrgName]   = useState("");
+  // Multi-workspace is a Pro feature. The OSS binary registers no Pro plugins,
+  // so a non-empty plugin list means this is a Pro build where it's available.
+  const [isProBuild, setIsProBuild] = useState(false);
 
   // Collapse the second-level area panel to widen the content area. Persisted,
   // and kept in the layout (not AreaPanel) so it survives area switches.
@@ -368,6 +373,7 @@ function Shell({
 
     Promise.all([api.menus().catch(() => []), api.plugins().catch(() => [])])
       .then(([menus, plugins]) => {
+        setIsProBuild(plugins.length > 0);
         // Paths owned by a disabled plugin are hidden from the sidebar. Dynamic
         // plugin menus are already filtered server-side; this also drops the
         // statically-declared Pro items (Storefront, Servers, …) when off.
@@ -471,6 +477,7 @@ function Shell({
         activeOrgId={activeOrgId}
         activeOrgName={activeOrgName}
         user={user}
+        showWorkspaceSwitcher={isProBuild}
         onSelectArea={selectArea}
         onSwitchOrg={(id) =>
           api.switchOrg(id).then(() => { setActiveOrgId(id); window.location.reload(); })
@@ -497,7 +504,7 @@ function Shell({
         {panelCollapsed && (
           <button
             onClick={togglePanel}
-            title={`Show ${currentArea.title} menu`}
+            title={t(`areas.${currentArea.id}.title`, currentArea.title)}
             className="group absolute left-0 top-1/2 z-30 flex -translate-y-1/2 items-center gap-1 rounded-r-xl border border-l-0 border-white/[0.08] bg-white/[0.04] py-3 pl-1 pr-1.5 text-white/45 backdrop-blur-xl transition-colors hover:bg-white/[0.08] hover:text-white"
           >
             <PanelLeft className="h-4 w-4 rotate-180" strokeWidth={1.75} />
@@ -578,6 +585,7 @@ function TopBar({
   activeOrgId,
   activeOrgName,
   user,
+  showWorkspaceSwitcher,
   onSelectArea,
   onSwitchOrg,
   onCreateOrg,
@@ -592,6 +600,7 @@ function TopBar({
   activeOrgId: number;
   activeOrgName: string;
   user: string;
+  showWorkspaceSwitcher: boolean;
   onSelectArea: (id: AreaId) => void;
   onSwitchOrg: (id: number) => void;
   onCreateOrg: () => void;
@@ -602,6 +611,7 @@ function TopBar({
   const [wsOpen, setWsOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const appName = useAppName();
+  const { t, lang, setLang } = useTranslation();
 
   const initials = activeOrgName
     .split(/\s+/)
@@ -621,11 +631,12 @@ function TopBar({
         <span className="hidden font-display text-[15px] font-bold tracking-wide text-white sm:block">{appName}</span>
       </div>
 
-      {/* Workspace switcher */}
+      {/* Workspace switcher — Pro only (multi-tenancy) */}
+      {showWorkspaceSwitcher && (
       <div className="relative">
         <button
           onClick={() => setWsOpen((v) => !v)}
-          aria-label="Switch workspace"
+          aria-label={t("topbar.switchWorkspace")}
           className="flex h-9 items-center gap-2 rounded-xl bg-indigo-500/15 pl-1.5 pr-2 text-xs font-semibold text-indigo-300 ring-1 ring-inset ring-white/10 transition hover:ring-white/25"
         >
           <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-500/25 text-[10px] font-bold text-indigo-300">
@@ -646,7 +657,7 @@ function TopBar({
                 transition={{ duration: 0.14 }}
                 className="glass-strong absolute left-0 top-11 z-50 w-64 rounded-2xl p-1.5 shadow-2xl"
               >
-                <p className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wide text-white/40">Workspaces</p>
+                <p className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wide text-white/40">{t("topbar.workspaces")}</p>
                 {orgs.map((o) => (
                   <button
                     key={o.id}
@@ -665,13 +676,14 @@ function TopBar({
                   onClick={() => { onCreateOrg(); setWsOpen(false); }}
                   className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-indigo-300 transition hover:bg-white/5"
                 >
-                  + New workspace
+                  {t("topbar.newWorkspace")}
                 </button>
               </motion.div>
             </>
           )}
         </AnimatePresence>
       </div>
+      )}
 
       {/* Area tabs */}
       <nav className="ml-1 flex items-center gap-1 overflow-x-auto">
@@ -693,7 +705,7 @@ function TopBar({
                 />
               )}
               <a.Icon className="relative h-4 w-4" strokeWidth={1.75} />
-              <span className="relative whitespace-nowrap">{a.title}</span>
+              <span className="relative whitespace-nowrap">{t(`areas.${a.id}.title`, a.title)}</span>
             </button>
           );
         })}
@@ -707,15 +719,15 @@ function TopBar({
         className="flex h-9 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-2.5 text-white/45 transition-colors hover:bg-white/[0.06] hover:text-white/70"
       >
         <Search className="h-4 w-4" />
-        <span className="hidden text-xs md:block">Search…</span>
+        <span className="hidden text-xs md:block">{t("common.search")}</span>
         <kbd className="hidden rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-white/45 md:block">⌘K</kbd>
       </button>
 
       {/* Settings */}
       <button
         onClick={onOpenSettings}
-        aria-label="Settings"
-        title="Settings"
+        aria-label={t("topbar.settings")}
+        title={t("topbar.settings")}
         className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${
           settingsActive ? "bg-white/[0.08] text-white ring-1 ring-inset ring-white/10" : "text-white/55 hover:bg-white/5 hover:text-white"
         }`}
@@ -727,7 +739,7 @@ function TopBar({
       <div className="relative">
         <button
           onClick={() => setUserOpen((v) => !v)}
-          aria-label="Account menu"
+          aria-label={t("topbar.account")}
           className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400/30 to-violet-400/30 text-xs font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:ring-white/30"
         >
           {userInitials}
@@ -754,11 +766,11 @@ function TopBar({
                 </div>
                 <div className="my-1 h-px bg-white/[0.08]" />
                 {[
-                  { Icon: User, label: "Personal settings", path: "/personal" },
-                  { Icon: CreditCard, label: "Billing & plan", path: "/settings/billing" },
+                  { Icon: User, label: t("topbar.personalSettings"), path: "/personal" },
+                  { Icon: CreditCard, label: t("topbar.billingPlan"), path: "/settings/billing" },
                 ].map((m) => (
                   <NavLink
-                    key={m.label}
+                    key={m.path}
                     to={m.path}
                     onClick={() => setUserOpen(false)}
                     className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-white/75 transition hover:bg-white/5 hover:text-white"
@@ -768,12 +780,28 @@ function TopBar({
                   </NavLink>
                 ))}
                 <div className="my-1 h-px bg-white/[0.08]" />
+                {/* Language switcher */}
+                <div className="flex items-center gap-1 px-2 py-1.5">
+                  <span className="mr-auto text-[11px] font-medium uppercase tracking-wide text-white/40">{t("common.language")}</span>
+                  {LANGS.map((l) => (
+                    <button
+                      key={l.code}
+                      onClick={() => setLang(l.code)}
+                      className={`rounded-lg px-2 py-1 text-xs font-medium transition-colors ${
+                        lang === l.code ? "bg-white/[0.1] text-white" : "text-white/50 hover:text-white"
+                      }`}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="my-1 h-px bg-white/[0.08]" />
                 <button
                   onClick={onLogout}
                   className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-rose-300/90 transition hover:bg-rose-500/10"
                 >
                   <LogOut className="h-4 w-4" />
-                  Sign out
+                  {t("common.signOut")}
                 </button>
               </motion.div>
             </>
@@ -800,24 +828,26 @@ function CommandPalette({
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { t } = useTranslation();
 
   // Flatten every nav item (areas + settings) into a flat, searchable list.
+  // Labels are translated so search matches the language the user sees.
   const commands = useMemo(
     () =>
       [...areas, SETTINGS_AREA].flatMap((a) =>
         a.groups.flatMap((g) =>
           g.items.map((i) => ({
             id: i.path,
-            label: i.label,
-            area: a.title,
-            group: g.label,
+            label: t(`nav.${i.id}`, i.label),
+            area: t(`areas.${a.id}.title`, a.title),
+            group: t(`groups.${g.label}`, g.label),
             path: i.path,
             Icon: i.Icon,
             iconStr: i.iconStr,
           })),
         ),
       ),
-    [areas],
+    [areas, t],
   );
 
   const filtered = useMemo(() => {
@@ -870,14 +900,14 @@ function CommandPalette({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKey}
-            placeholder="Search pages…"
+            placeholder={t("command.placeholder")}
             className="w-full bg-transparent py-3.5 text-sm text-white placeholder:text-white/35 focus:outline-none"
           />
           <kbd className="shrink-0 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-white/40">esc</kbd>
         </div>
         <div className="max-h-[50vh] overflow-y-auto p-1.5">
           {filtered.length === 0 ? (
-            <div className="px-3 py-8 text-center text-sm text-white/40">No matches for “{q}”.</div>
+            <div className="px-3 py-8 text-center text-sm text-white/40">{t("command.empty", { q })}</div>
           ) : (
             filtered.map((c, i) => (
               <button
@@ -907,6 +937,7 @@ function CommandPalette({
 // ─── AreaPanel ────────────────────────────────────────────────────────────────
 
 function AreaPanel({ area, currentPath, onCollapse }: { area: Area; currentPath: string; onCollapse: () => void }) {
+  const { t } = useTranslation();
   return (
     <motion.div
       initial={{ opacity: 0, x: -10 }}
@@ -918,8 +949,8 @@ function AreaPanel({ area, currentPath, onCollapse }: { area: Area; currentPath:
       {/* Header */}
       <div className="flex items-start justify-between gap-2 px-4 pb-3 pt-4">
         <div className="min-w-0">
-          <h2 className="font-display text-[17px] font-bold tracking-tight text-white truncate">{area.title}</h2>
-          <p className="text-[12px] text-white/45 truncate">{area.subtitle}</p>
+          <h2 className="font-display text-[17px] font-bold tracking-tight text-white truncate">{t(`areas.${area.id}.title`, area.title)}</h2>
+          <p className="text-[12px] text-white/45 truncate">{t(`areas.${area.id}.subtitle`, area.subtitle)}</p>
         </div>
         <button
           onClick={onCollapse}
@@ -935,7 +966,7 @@ function AreaPanel({ area, currentPath, onCollapse }: { area: Area; currentPath:
         {area.groups.map((group) => (
           <div key={group.label} className="mb-4">
             <p className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wider text-white/30">
-              {group.label}
+              {t(`groups.${group.label}`, group.label)}
             </p>
             <div className="space-y-0.5">
               {group.items.map((item) => {
@@ -965,7 +996,7 @@ function AreaPanel({ area, currentPath, onCollapse }: { area: Area; currentPath:
                         strokeWidth={1.75}
                       />
                     )}
-                    <span className="relative flex-1">{item.label}</span>
+                    <span className="relative flex-1">{t(`nav.${item.id}`, item.label)}</span>
                     {item.badge !== undefined && (
                       <span className="relative text-[11px] font-medium text-white/35">
                         {item.badge}
