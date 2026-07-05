@@ -4,6 +4,7 @@ import { api, Attachment, Domain, effectiveMailHosts, Email, Mailbox } from "../
 import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
 import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle } from "lucide-react";
 import { MailSettings, SMTPSenders } from "./Settings";
+import { useTranslation } from "../i18n";
 
 interface ReplyDraft {
   to: string;
@@ -26,6 +27,7 @@ export default function MailPage() {
   const [loading, setLoading] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const { t } = useTranslation();
   const tabParam = searchParams.get("tab");
   const tab = (tabParam === "settings") ? "settings" : "mail";
   const setTab = (t: "mail" | "settings") => {
@@ -96,20 +98,20 @@ export default function MailPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="Mail"
-        description="Custom domain email reading, replying & SMTP relays"
+        title={t("mail.pageTitle")}
+        description={t("mail.pageDesc")}
         action={
           <div className="flex gap-2">
             <Button variant="ghost" onClick={markAllRead} className="py-1.5 text-xs">
-              Mark Read
+              {t("mail.markRead")}
             </Button>
             <Button variant="outline" onClick={() => setCompose(true)} className="gap-1.5 py-1.5 text-xs">
               <Send className="h-3.5 w-3.5" />
-              Compose
+              {t("mail.compose")}
             </Button>
             <Button variant="primary" onClick={() => setNewBox(true)} className="gap-1.5 py-1.5 text-xs">
               <Plus className="h-3.5 w-3.5" />
-              New Mailbox
+              {t("mail.newMailbox")}
             </Button>
           </div>
         }
@@ -124,7 +126,7 @@ export default function MailPage() {
               : 'border-transparent text-white/45 hover:text-white/70'
           }`}
         >
-          Mail
+          {t("mail.tabMail")}
         </button>
         <button
           onClick={() => setTab('settings')}
@@ -134,19 +136,19 @@ export default function MailPage() {
               : 'border-transparent text-white/45 hover:text-white/70'
           }`}
         >
-          Settings
+          {t("mail.tabSettings")}
         </button>
       </div>
 
       {tab === 'mail' && (<>
 
       {boxes.length === 0 && (
-        <Guide title="Set up mail receiving with Cloudflare Email Routing" open>
+        <Guide title={t("mail.guideTitle")} open>
           <ol className="ml-4 list-decimal space-y-1.5 text-sm leading-relaxed text-white/70">
-            <li>Add a domain in <b>Domains</b>, toggle <b>Accept email</b>, and list its mail hosts.</li>
-            <li>In Cloudflare → <b>Email → Email Routing</b>, enable routing.</li>
-            <li>Deploy <Code>deploy/cloudflare-email-worker.js</Code> with <Code>LED_ENDPOINT</Code> set to your <b>Inbound Webhook URL</b> (copy it from <b>Settings → Mailboxes</b> — the token is in the path, no header needed), then point a catch-all route at it.</li>
-            <li>To send replies, configure an SMTP relay via Settings.</li>
+            <li>{t("mail.guideStep1Pre")}<b>{t("mail.guideStep1Domains")}</b>{t("mail.guideStep1Mid")}<b>{t("mail.guideStep1AcceptEmail")}</b>{t("mail.guideStep1Post")}</li>
+            <li>{t("mail.guideStep2Pre")}<b>{t("mail.guideStep2Routing")}</b>{t("mail.guideStep2Post")}</li>
+            <li>{t("mail.guideStep3Pre")}<Code>deploy/cloudflare-email-worker.js</Code>{t("mail.guideStep3Mid1")}<Code>LED_ENDPOINT</Code>{t("mail.guideStep3Mid2")}<b>{t("mail.guideStep3WebhookUrl")}</b>{t("mail.guideStep3Mid3")}<b>{t("mail.guideStep3SettingsMailboxes")}</b>{t("mail.guideStep3Post")}</li>
+            <li>{t("mail.guideStep4")}</li>
           </ol>
         </Guide>
       )}
@@ -160,7 +162,7 @@ export default function MailPage() {
               value={active === undefined ? "" : active}
               onChange={(e) => setActive(e.target.value ? Number(e.target.value) : undefined)}
             >
-              <option value="">All Mailboxes</option>
+              <option value="">{t("mail.allMailboxes")}</option>
               {boxes.map(b => (
                 <option key={b.id} value={b.id}>{b.address} {b.unread > 0 ? `(${b.unread})` : ""}</option>
               ))}
@@ -168,7 +170,7 @@ export default function MailPage() {
             {active !== undefined && (
               <Button
                 variant="ghost"
-                title="Edit Mailbox"
+                title={t("mail.editMailbox")}
                 onClick={() => setEditBox(boxes.find(b => b.id === active) || null)}
                 className="shrink-0 p-2"
               >
@@ -180,7 +182,7 @@ export default function MailPage() {
           <div className="mb-3">
             <input
               className="input w-full"
-              placeholder="Search emails…"
+              placeholder={t("mail.searchPlaceholder")}
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
@@ -189,7 +191,7 @@ export default function MailPage() {
           <GlassCard className="overflow-hidden">
             <div className="overflow-y-auto max-h-[600px] divide-y divide-white/[0.04]" onScroll={handleScroll}>
               {emails.length === 0 && !loading ? (
-                <div className="p-8 text-center text-white/40 text-sm">No messages.</div>
+                <div className="p-8 text-center text-white/40 text-sm">{t("mail.noMessages")}</div>
               ) : (
                 <>
                   {emails.map((e) => (
@@ -201,7 +203,7 @@ export default function MailPage() {
                       <div className="flex items-center justify-between w-full mb-1 gap-2">
                         <div className="flex items-center gap-2 overflow-hidden">
                           {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />}
-                          <span className={`truncate text-sm ${e.read ? "text-white/55" : "font-semibold text-white"}`}>{e.from || "(unknown)"}</span>
+                          <span className={`truncate text-sm ${e.read ? "text-white/55" : "font-semibold text-white"}`}>{e.from || t("mail.unknownSender")}</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0 ml-2">
                           <AuthBadges spf={e.authSpf} dkim={e.authDkim} dmarc={e.authDmarc} compact />
@@ -209,11 +211,11 @@ export default function MailPage() {
                         </div>
                       </div>
                       <div className={`truncate text-xs ${e.read ? "text-white/40" : "text-white/70"}`}>
-                        {e.subject || "(no subject)"}
+                        {e.subject || t("mail.noSubject")}
                       </div>
                     </button>
                   ))}
-                  {loading && <div className="p-3 text-center text-xs text-white/40">Loading…</div>}
+                  {loading && <div className="p-3 text-center text-xs text-white/40">{t("mail.loading")}</div>}
                 </>
               )}
             </div>
@@ -238,7 +240,7 @@ export default function MailPage() {
           ) : (
             <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-white/40 border border-white/[0.04]/40">
               <Inbox className="h-10 w-10 mb-2 opacity-50 text-indigo-400" />
-              <p className="text-sm">Select an email message from the inbox list to read.</p>
+              <p className="text-sm">{t("mail.selectEmail")}</p>
             </GlassCard>
           )}
         </div>
@@ -249,11 +251,11 @@ export default function MailPage() {
       {tab === 'settings' && (
         <div className="space-y-8">
           <div>
-            <h3 className="text-sm font-semibold text-white/70 mb-3">Inbound Configuration</h3>
+            <h3 className="text-sm font-semibold text-white/70 mb-3">{t("mail.inboundConfig")}</h3>
             <GlassCard className="p-6"><MailSettings /></GlassCard>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white/70 mb-3">SMTP Outgoing Gateways</h3>
+            <h3 className="text-sm font-semibold text-white/70 mb-3">{t("mail.smtpGateways")}</h3>
             <GlassCard className="p-6"><SMTPSenders /></GlassCard>
           </div>
         </div>
@@ -310,15 +312,16 @@ function EmailViewForm({
   onChanged: () => void;
 }) {
   const [note, setNote] = useState(email.note ?? "");
+  const { t } = useTranslation();
   const attachments = parseAttachments(email.attachments);
   return (
     <GlassCard className="flex flex-col h-full max-h-full min-h-0">
       <div className="p-5 border-b border-white/[0.06] flex justify-between items-start shrink-0 gap-4">
          <div>
-           <h2 className="text-lg font-bold text-white mb-2 leading-snug">{email.subject || "(no subject)"}</h2>
+           <h2 className="text-lg font-bold text-white mb-2 leading-snug">{email.subject || t("mail.noSubject")}</h2>
            <div className="text-xs text-white/55 space-y-1.5">
-             <div><span className="text-white/45">From:</span> <span className="font-semibold text-white/80">{email.from}</span></div>
-             <div><span className="text-white/45">To:</span> <span className="text-white/70">{email.to}</span></div>
+             <div><span className="text-white/45">{t("mail.fromLabel")}</span> <span className="font-semibold text-white/80">{email.from}</span></div>
+             <div><span className="text-white/45">{t("mail.toLabel")}</span> <span className="text-white/70">{email.to}</span></div>
              <div className="text-[11px] text-white/35 pt-0.5">{new Date(email.receivedAt).toLocaleString()}</div>
              <div className="mt-2.5 flex flex-wrap gap-1.5 pt-1">
                <AuthBadges spf={email.authSpf} dkim={email.authDkim} dmarc={email.authDmarc} />
@@ -332,7 +335,7 @@ function EmailViewForm({
       
       <div className="flex-1 overflow-y-auto p-5 min-h-[400px] bg-black/10">
         {email.html ? (
-          <iframe srcDoc={email.html} className="h-full min-h-[400px] w-full bg-white rounded-xl shadow-inner border-0" sandbox="" title="email" />
+          <iframe srcDoc={email.html} className="h-full min-h-[400px] w-full bg-white rounded-xl shadow-inner border-0" sandbox="" title={t("mail.iframeTitle")} />
         ) : (
           <pre className="whitespace-pre-wrap break-words font-sans text-sm text-white/85 leading-relaxed">{email.text}</pre>
         )}
@@ -342,9 +345,9 @@ function EmailViewForm({
         {attachments.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-2">
             {attachments.map((a, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.05] border border-white/[0.06] px-2.5 py-1 text-xs text-white/85" title={`${a.contentType} · ${a.size} bytes`}>
+              <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.05] border border-white/[0.06] px-2.5 py-1 text-xs text-white/85" title={t("mail.attachmentTitle", { type: a.contentType, size: a.size })}>
                 <Paperclip className="h-3 w-3 text-indigo-400" />
-                {a.filename || "attachment"} ({Math.max(1, Math.round(a.size / 1024))} KB)
+                {a.filename || t("mail.attachmentFallback")} ({Math.max(1, Math.round(a.size / 1024))} KB)
               </span>
             ))}
           </div>
@@ -352,8 +355,8 @@ function EmailViewForm({
         
         <div className="flex flex-col sm:flex-row items-end gap-3 pt-2">
           <div className="w-full sm:flex-1">
-            <Field label="Note Memo">
-              <input className="input w-full" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a private note..." />
+            <Field label={t("mail.noteMemo")}>
+              <input className="input w-full" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("mail.notePlaceholder")} />
             </Field>
           </div>
           <div className="flex gap-2 w-full sm:w-auto shrink-0 pb-1">
@@ -362,11 +365,11 @@ function EmailViewForm({
               onClick={async () => {
                 await api.updateEmail(email.id, { note });
                 onChanged();
-                alert("Note saved");
+                alert(t("mail.noteSaved"));
               }}
               className="text-xs py-1.5 px-3"
             >
-              Save Note
+              {t("mail.saveNote")}
             </Button>
             <Button
               variant="primary"
@@ -379,7 +382,7 @@ function EmailViewForm({
               className="text-xs py-1.5 px-3 gap-1"
             >
               <Reply className="h-3.5 w-3.5" />
-              Reply
+              {t("mail.reply")}
             </Button>
             <Button 
               variant="ghost"
@@ -392,7 +395,7 @@ function EmailViewForm({
             <Button
               variant="danger"
               onClick={async () => {
-                if (confirm("Delete this email?")) {
+                if (confirm(t("mail.deleteEmailConfirm"))) {
                   await api.deleteEmail(email.id);
                   onChanged();
                   onClose();
@@ -425,6 +428,7 @@ function MailboxEditor({
   const [note, setNote] = useState(box?.note ?? "");
   const [enabled, setEnabled] = useState(box?.enabled ?? true);
   const [err, setErr] = useState("");
+  const { t } = useTranslation();
 
   async function save() {
     setErr("");
@@ -433,37 +437,37 @@ function MailboxEditor({
         await api.updateMailbox(box.id, { note, enabled });
       } else {
         if (!prefix.trim() || !domain) {
-          setErr("prefix and domain are required");
+          setErr(t("mail.prefixDomainRequired"));
           return;
         }
         await api.createMailbox({ address: `${prefix.trim()}@${domain}`, note, enabled });
       }
       onSaved();
     } catch (e: any) {
-      setErr(e.message ?? "save failed");
+      setErr(e.message ?? t("mail.saveFailed"));
     }
   }
 
   return (
-    <Modal title={box ? "Edit Mailbox" : "Create Mailbox"} onClose={onClose}>
+    <Modal title={box ? t("mail.editMailbox") : t("mail.createMailbox")} onClose={onClose}>
       <div className="space-y-4">
         {box ? (
-          <Field label="Mailbox Address">
+          <Field label={t("mail.mailboxAddress")}>
             <input className="input w-full font-mono text-sm" value={box.address} disabled />
           </Field>
         ) : hosts.length === 0 ? (
           <p className="rounded bg-amber-500/10 p-3 text-xs text-amber-300 flex items-center gap-1.5">
             <AlertTriangle className="h-4 w-4" />
-            No mail-enabled hosts. Configure your custom domain first.
+            {t("mail.noHosts")}
           </p>
         ) : (
-          <Field label="Mailbox Prefix" hint="Choose username part of address">
+          <Field label={t("mail.mailboxPrefix")} hint={t("mail.prefixHint")}>
             <div className="flex items-center gap-2">
               <input
                 className="input w-full font-mono text-sm"
                 value={prefix}
                 onChange={(e) => setPrefix(e.target.value)}
-                placeholder="e.g. sales"
+                placeholder={t("mail.prefixPlaceholder")}
                 autoFocus
               />
               <span className="text-white/40">@</span>
@@ -477,34 +481,34 @@ function MailboxEditor({
             </div>
           </Field>
         )}
-        <Field label="Note Memo">
-          <textarea className="input w-full text-sm" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. support operations" />
+        <Field label={t("mail.noteMemo")}>
+          <textarea className="input w-full text-sm" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("mail.noteMemoPlaceholder")} />
         </Field>
         <div className="flex items-center gap-3 py-1">
           <Toggle on={enabled} onChange={setEnabled} />
-          <span className="text-sm text-white/60 select-none">Mail Receiving Enabled</span>
+          <span className="text-sm text-white/60 select-none">{t("mail.mailReceivingEnabled")}</span>
         </div>
         {box && (
           <Button
             variant="danger"
             onClick={async () => {
-              if (confirm(`Delete mailbox ${box.address} and all its email messages?`)) {
+              if (confirm(t("mail.deleteMailboxConfirm", { address: box.address }))) {
                 await api.deleteMailbox(box.id);
                 onSaved();
               }
             }}
             className="w-full text-xs py-1.5 bg-rose-500/10 hover:bg-rose-500/25 border-0 mt-2"
           >
-            Delete Mailbox Completely
+            {t("mail.deleteMailboxCompletely")}
           </Button>
         )}
         {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
         <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t("mail.cancel")}
           </Button>
           <Button variant="primary" onClick={save}>
-            Save Configuration
+            {t("mail.saveConfiguration")}
           </Button>
         </div>
       </div>
@@ -523,6 +527,7 @@ function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () => void }
   const [ok, setOk] = useState(false);
   const [autoWrapLinksEnabled, setAutoWrapLinksEnabled] = useState(false);
   const [trackLinks, setTrackLinks] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     api.smtpSenders().then((s) => {
@@ -550,31 +555,31 @@ function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () => void }
       });
       setOk(true);
     } catch (e: any) {
-      setErr(e.message ?? "send failed");
+      setErr(e.message ?? t("mail.sendFailed"));
     }
   }
 
   return (
-    <Modal title="Compose Mail" onClose={onClose}>
+    <Modal title={t("mail.composeMail")} onClose={onClose}>
       {ok ? (
         <div className="py-6 text-center space-y-4">
           <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 mx-auto">
             <CheckCircle className="h-6 w-6" />
           </div>
-          <p className="text-white font-semibold">Message Sent Successfully</p>
+          <p className="text-white font-semibold">{t("mail.messageSent")}</p>
           <Button variant="primary" onClick={onClose} className="w-full">
-            Done
+            {t("mail.done")}
           </Button>
         </div>
       ) : (
         <div className="space-y-4">
-          <Field label="SMTP Connection" hint="Pick credentials used to send this mail">
+          <Field label={t("mail.smtpConnection")} hint={t("mail.smtpConnectionHint")}>
             <select
               className="input w-full text-sm"
               value={smtpSenderId}
               onChange={(e) => setSmtpSenderId(Number(e.target.value))}
             >
-              <option value={0}>System Default SMTP settings</option>
+              <option value={0}>{t("mail.systemDefaultSmtp")}</option>
               {senders.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name} ({s.fromEmail})
@@ -582,17 +587,17 @@ function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () => void }
               ))}
             </select>
           </Field>
-          <Field label="From (Override)" hint="SMTP servers may reject mismatched send addresses">
-            <input className="input w-full font-mono text-sm" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="e.g. custom@domain.com" />
+          <Field label={t("mail.fromOverride")} hint={t("mail.fromOverrideHint")}>
+            <input className="input w-full font-mono text-sm" value={from} onChange={(e) => setFrom(e.target.value)} placeholder={t("mail.fromPlaceholder")} />
           </Field>
-          <Field label="To (Recipients)" hint="Comma-separated email addresses">
-            <input className="input w-full font-mono text-sm" value={to} onChange={(e) => setTo(e.target.value)} placeholder="hello@world.com" required />
+          <Field label={t("mail.toRecipients")} hint={t("mail.toHint")}>
+            <input className="input w-full font-mono text-sm" value={to} onChange={(e) => setTo(e.target.value)} placeholder={t("mail.toPlaceholder")} required />
           </Field>
-          <Field label="Subject Title">
-            <input className="input w-full text-sm" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject line" required />
+          <Field label={t("mail.subjectTitle")}>
+            <input className="input w-full text-sm" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t("mail.subjectPlaceholder")} required />
           </Field>
-          <Field label="Plaintext Message Body">
-            <textarea className="input w-full text-sm font-sans" rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder="Type mail content here..." required />
+          <Field label={t("mail.bodyLabel")}>
+            <textarea className="input w-full text-sm font-sans" rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder={t("mail.bodyPlaceholder")} required />
           </Field>
           {autoWrapLinksEnabled && (
             <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-300 select-none">
@@ -602,16 +607,16 @@ function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () => void }
                 onChange={(e) => setTrackLinks(e.target.checked)}
                 className="rounded border-zinc-700 bg-zinc-900/50 text-purple-600 focus:ring-purple-500"
               />
-              <span>Track outbound links in email (Wrap with short links)</span>
+              <span>{t("mail.trackLinks")}</span>
             </label>
           )}
           {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
           <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
             <Button variant="ghost" onClick={onClose}>
-              Cancel
+              {t("mail.cancel")}
             </Button>
             <Button variant="primary" onClick={send} disabled={!to || !subject}>
-              Send Mail
+              {t("mail.sendMail")}
             </Button>
           </div>
         </div>

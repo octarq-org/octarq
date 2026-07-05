@@ -3,6 +3,7 @@ import { api, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSReco
 import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "./Settings";
+import { useTranslation } from "../i18n";
 
 interface HostRow {
   host: string;
@@ -24,6 +25,7 @@ function mergeHosts(domain: Domain): HostRow[] {
 }
 
 export default function DomainsPage() {
+  const { t } = useTranslation();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [accounts, setAccounts] = useState<ProviderAccount[]>([]);
   const [active, setActive] = useState<Domain | "new" | null>(null);
@@ -49,7 +51,7 @@ export default function DomainsPage() {
       const res = await api.verifyDNS(active.id);
       setDnsStatus(res);
     } catch (e: any) {
-      alert(e.message || "Failed to verify DNS setup");
+      alert(e.message || t("domains.verifyFailed"));
     } finally {
       setVerifying(false);
     }
@@ -100,17 +102,17 @@ export default function DomainsPage() {
   return (
     <ScreenWrap>
       <PageHeader
-        title="DNS"
-        description="Sync & manage DNS records across Cloudflare and DNSPod"
+        title={t("domains.pageTitle")}
+        description={t("domains.pageDescription")}
         action={
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => setSyncing(true)} className="gap-1.5 py-1.5 text-xs">
               <RefreshCw className="h-3.5 w-3.5" />
-              Sync Cloudflare
+              {t("domains.syncCloudflare")}
             </Button>
             <Button variant="primary" onClick={() => setActive("new")} className="gap-1.5 py-1.5 text-xs">
               <Plus className="h-3.5 w-3.5" />
-              Add Domain
+              {t("domains.addDomain")}
             </Button>
           </div>
         }
@@ -125,7 +127,7 @@ export default function DomainsPage() {
               : 'border-transparent text-white/45 hover:text-white/70'
           }`}
         >
-          DNS
+          {t("domains.tabDns")}
         </button>
         <button
           onClick={() => setTab('settings')}
@@ -135,7 +137,7 @@ export default function DomainsPage() {
               : 'border-transparent text-white/45 hover:text-white/70'
           }`}
         >
-          Settings
+          {t("domains.tabSettings")}
         </button>
       </div>
 
@@ -147,7 +149,7 @@ export default function DomainsPage() {
           <div className="mb-3">
             <input
               className="input w-full"
-              placeholder="Search domains…"
+              placeholder={t("domains.searchDomains")}
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
@@ -155,7 +157,7 @@ export default function DomainsPage() {
           <GlassCard className="overflow-hidden">
             <div className="overflow-y-auto max-h-[600px] divide-y divide-white/[0.04]" onScroll={handleScroll}>
               {domains.length === 0 && !loading ? (
-                <div className="p-8 text-center text-white/40 text-sm">No domains found.</div>
+                <div className="p-8 text-center text-white/40 text-sm">{t("domains.noDomainsFound")}</div>
               ) : (
                 <>
                   {domains.map((d) => (
@@ -171,14 +173,14 @@ export default function DomainsPage() {
                         <div className="flex gap-2 shrink-0">
                           <button
                             className="p-1 hover:bg-white/10 rounded transition-colors"
-                            title="Toggle Link routing"
+                            title={t("domains.toggleLinkRouting")}
                             onClick={(e) => { e.stopPropagation(); toggleService(d, "forLink"); }}
                           >
                             <LinkIcon className={`h-3.5 w-3.5 ${d.forLink ? "text-indigo-400" : "text-white/20"}`} />
                           </button>
                           <button
                             className="p-1 hover:bg-white/10 rounded transition-colors"
-                            title="Toggle Mail routing"
+                            title={t("domains.toggleMailRouting")}
                             onClick={(e) => { e.stopPropagation(); toggleService(d, "forMail"); }}
                           >
                             <Mail className={`h-3.5 w-3.5 ${d.forMail ? "text-emerald-400" : "text-white/20"}`} />
@@ -188,7 +190,7 @@ export default function DomainsPage() {
                       {d.note && <div className="truncate text-[11px] text-amber-300/70 mt-1.5 font-medium">📝 {d.note}</div>}
                     </div>
                   ))}
-                  {loading && <div className="p-3 text-center text-xs text-white/40">Loading…</div>}
+                  {loading && <div className="p-3 text-center text-xs text-white/40">{t("domains.loading")}</div>}
                 </>
               )}
             </div>
@@ -201,7 +203,7 @@ export default function DomainsPage() {
             <GlassCard className="p-5">
               <h2 className="mb-4 text-lg font-bold text-white flex items-center gap-2">
                 <Globe className="h-5 w-5 text-indigo-400" />
-                Add Domain Zone
+                {t("domains.addDomainZone")}
               </h2>
               <DomainEditorForm
                 domain={null}
@@ -224,7 +226,7 @@ export default function DomainsPage() {
                   <Button
                     variant="danger"
                     onClick={async () => {
-                      if (confirm(`Remove ${active.name}?`)) {
+                      if (confirm(t("domains.removeConfirm", { name: active.name }))) {
                         await api.deleteDomain(active.id);
                         setActive(null);
                         loadMore(true);
@@ -233,7 +235,7 @@ export default function DomainsPage() {
                     className="py-1 px-2.5 text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-0"
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-1" />
-                    Delete
+                    {t("domains.delete")}
                   </Button>
                 </div>
                 
@@ -250,7 +252,7 @@ export default function DomainsPage() {
               </GlassCard>
               
               <GlassCard className="p-5">
-                <h3 className="mb-4 text-sm font-semibold text-white/80 uppercase tracking-wider">Managed Hosts</h3>
+                <h3 className="mb-4 text-sm font-semibold text-white/80 uppercase tracking-wider">{t("domains.managedHosts")}</h3>
                 <DomainHostManager
                   domain={active}
                   onReload={async () => {
@@ -264,32 +266,32 @@ export default function DomainsPage() {
 
               <GlassCard className="p-5 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider">DNS Setup Verification</h3>
+                  <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider">{t("domains.dnsSetupVerification")}</h3>
                   <Button 
                     variant="subtle" 
                     onClick={verifyDns}
                     disabled={verifying}
                     className="text-xs py-1 px-2.5"
                   >
-                    {verifying ? "Verifying..." : "Verify DNS Setup"}
+                    {verifying ? t("domains.verifying") : t("domains.verifyDnsSetup")}
                   </Button>
                 </div>
                 <p className="text-xs text-white/50 leading-relaxed">
-                  Check that each mail host's SPF, DKIM and DMARC records are set for email delivery, and that each short-link host resolves to this app.
+                  {t("domains.verificationHint")}
                 </p>
                 {dnsStatus === null ? (
                   <div className="grid grid-cols-3 gap-3 pt-2">
                     {(["SPF", "DKIM", "DMARC"] as const).map((label) => (
                       <div key={label} className="flex flex-col items-center p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                        <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">{label} Status</span>
-                        <div className="mt-2"><Badge tone="neutral">Unknown</Badge></div>
+                        <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">{t("domains.statusLabel", { label })}</span>
+                        <div className="mt-2"><Badge tone="neutral">{t("domains.unknown")}</Badge></div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="space-y-4 pt-2">
                     <div className="space-y-3">
-                      <span className="text-[10px] uppercase font-bold text-white/35 tracking-wider">Mail hosts</span>
+                      <span className="text-[10px] uppercase font-bold text-white/35 tracking-wider">{t("domains.mailHosts")}</span>
                       {(dnsStatus.hosts?.length
                         ? dnsStatus.hosts
                         : [{ host: active.name, spf: dnsStatus.spf, dmarc: dnsStatus.dmarc, dkim: dnsStatus.dkim }]
@@ -299,7 +301,7 @@ export default function DomainsPage() {
                     </div>
                     {!!dnsStatus.links?.length && (
                       <div className="space-y-2">
-                        <span className="text-[10px] uppercase font-bold text-white/35 tracking-wider">Short-link hosts</span>
+                        <span className="text-[10px] uppercase font-bold text-white/35 tracking-wider">{t("domains.shortLinkHosts")}</span>
                         {dnsStatus.links.map((lh) => (
                           <LinkHostRow key={lh.host} link={lh} />
                         ))}
@@ -311,7 +313,7 @@ export default function DomainsPage() {
               </GlassCard>
 
               <GlassCard className="p-5">
-                <h3 className="mb-4 text-sm font-semibold text-white/80 uppercase tracking-wider">DNS Records</h3>
+                <h3 className="mb-4 text-sm font-semibold text-white/80 uppercase tracking-wider">{t("domains.dnsRecords")}</h3>
                 <RecordsView domain={active} />
               </GlassCard>
             </div>
@@ -320,32 +322,32 @@ export default function DomainsPage() {
               <div className="h-14 w-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-4">
                 <Globe className="h-7 w-7" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-1.5">Add your first domain</h3>
+              <h3 className="text-lg font-bold text-white mb-1.5">{t("domains.addFirstDomain")}</h3>
               <p className="text-sm text-white/50 max-w-sm leading-relaxed mb-6">
-                Import every zone from a connected DNS provider in one step, or add a domain manually.
+                {t("domains.addFirstDomainHint")}
               </p>
               {accounts.length > 0 ? (
                 <Button variant="primary" onClick={() => setSyncing(true)} className="gap-1.5">
                   <RefreshCw className="h-4 w-4" />
-                  Sync from {accounts.length === 1 ? accounts[0].name : "provider"}
+                  {t("domains.syncFrom", { name: accounts.length === 1 ? accounts[0].name : t("domains.provider") })}
                 </Button>
               ) : (
                 <Button variant="primary" onClick={() => setTab('settings')} className="gap-1.5">
                   <Plus className="h-4 w-4" />
-                  Connect a DNS provider
+                  {t("domains.connectProvider")}
                 </Button>
               )}
               <button
                 onClick={() => setActive("new")}
                 className="mt-3 text-xs text-white/45 hover:text-white/70 underline underline-offset-2 transition-colors"
               >
-                or add a domain manually
+                {t("domains.orAddManually")}
               </button>
             </GlassCard>
           ) : (
             <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-white/40 border border-white/[0.04]/40">
               <Globe className="h-10 w-10 mb-2 opacity-50 text-indigo-400" />
-              <p className="text-sm">Select a domain from the sidebar list to manage DNS & routing.</p>
+              <p className="text-sm">{t("domains.selectDomainHint")}</p>
             </GlassCard>
           )}
         </div>
@@ -375,8 +377,9 @@ export default function DomainsPage() {
 
 // Three-state badge: healthy (green), present-but-misconfigured (amber), missing (red).
 function DnsStatusBadge({ status, label }: { status: DNSRecordStatus; label: string }) {
+  const { t } = useTranslation();
   const tone = status.healthy ? "green" : status.set ? "amber" : "red";
-  const text = status.healthy ? "✓ Configured" : status.set ? "! Misconfigured" : "✗ Missing";
+  const text = status.healthy ? t("domains.configured") : status.set ? t("domains.misconfigured") : t("domains.missing");
   return (
     <div className="flex flex-col items-center p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
       <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">{label}</span>
@@ -405,13 +408,14 @@ function DnsHostRow({ host }: { host: HostDNSStatus }) {
 // Short-link host: CNAME confirmed into zone (green), resolves but target
 // unverified — e.g. proxied/A-record (amber), or not resolving (red).
 function LinkHostRow({ link }: { link: LinkHostStatus }) {
+  const { t } = useTranslation();
   const tone = link.healthy ? "green" : link.set ? "amber" : "red";
-  const text = link.healthy ? "✓ Points to zone" : link.set ? "! Unverified" : "✗ Not resolving";
+  const text = link.healthy ? t("domains.pointsToZone") : link.set ? t("domains.unverified") : t("domains.notResolving");
   const detail = link.healthy
     ? `CNAME → ${link.cname}`
     : link.set
-      ? (link.cname ? `CNAME → ${link.cname}` : `resolves, but no CNAME into ${link.target}`)
-      : `add a CNAME → ${link.target}`;
+      ? (link.cname ? `CNAME → ${link.cname}` : t("domains.resolvesNoCname", { target: link.target }))
+      : t("domains.addCname", { target: link.target });
   return (
     <div className="flex items-center gap-3 rounded-xl bg-white/[0.015] border border-white/[0.04] p-3">
       <LinkIcon className="h-3.5 w-3.5 text-indigo-400/70 shrink-0" />
@@ -426,20 +430,22 @@ function LinkHostRow({ link }: { link: LinkHostStatus }) {
 
 // LinkHostGuide explains how to point a short-link subdomain at this app.
 function LinkHostGuide({ apex }: { apex: string }) {
+  const { t } = useTranslation();
   return (
-    <Guide title="How to point a short-link host at this app">
-      <p>Each short-link host (e.g. <Code>{`go.${apex}`}</Code>) needs a DNS record so visitors reach this server:</p>
+    <Guide title={t("domains.guideTitle")}>
+      <p>{t("domains.guideEachHost")}<Code>{`go.${apex}`}</Code>) {t("domains.guideIntro")}</p>
       <ul className="list-disc pl-4 space-y-1">
-        <li><b>CNAME</b> the link host to <Code>{apex}</Code> (recommended). The apex itself must already resolve to this server's IP.</li>
-        <li>Or add an <b>A / AAAA</b> record pointing straight at this server's IP.</li>
-        <li>On Cloudflare you can keep the record <b>proxied</b> (orange cloud) for TLS &amp; caching — verification will then show <b>Unverified</b> since the CNAME is flattened, which is expected.</li>
+        <li><b>CNAME</b> {t("domains.guideCnameTo")} <Code>{apex}</Code> {t("domains.guideCnameRec")}</li>
+        <li>{t("domains.guideOrAdd")} <b>A / AAAA</b> {t("domains.guideAaaaRec")}</li>
+        <li>{t("domains.guideProxiedIntro")} <b>{t("domains.guideProxiedWord")}</b> {t("domains.guideProxiedMid")} <b>{t("domains.guideUnverifiedWord")}</b> {t("domains.guideProxiedEnd")}</li>
       </ul>
-      <p className="text-white/40">Tip: use the <b>+ Subdomain</b> preset in DNS Records → “Set Link CNAME” to create this record automatically.</p>
+      <p className="text-white/40">{t("domains.guideTipIntro")} <b>{t("domains.guideSubdomainPreset")}</b> {t("domains.guideTipEnd")}</p>
     </Guide>
   );
 }
 
 function DomainEditorForm({ domain, accounts, onCancel, onSaved }: { domain: Domain | null; accounts: ProviderAccount[]; onCancel: () => void; onSaved: (d?: any) => void; }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(domain?.name ?? "");
   const [providerAccountId, setProviderAccountId] = useState(domain?.providerAccountId || accounts[0]?.id || 0);
   const [zoneId, setZoneId] = useState(domain?.zoneId ?? "");
@@ -460,51 +466,52 @@ function DomainEditorForm({ domain, accounts, onCancel, onSaved }: { domain: Dom
       if (domain) res = await api.updateDomain(domain.id, payload);
       else res = await api.createDomain(payload);
       onSaved(res);
-    } catch (e: any) { setErr(e.message ?? "save failed"); }
+    } catch (e: any) { setErr(e.message ?? t("domains.saveFailed")); }
     finally { setBusy(false); }
   }
 
   return (
     <div className="space-y-4">
-      <Field label="Domain Name">
+      <Field label={t("domains.domainName")}>
         <input className="input w-full font-mono" value={name} onChange={(e) => setName(e.target.value)} placeholder="example.com" disabled={!!domain} required />
       </Field>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="DNS Provider Connection">
+        <Field label={t("domains.dnsProviderConnection")}>
           <select className="input w-full" value={providerAccountId} onChange={(e) => setProviderAccountId(Number(e.target.value))}>
             {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.type})</option>)}
-            {accounts.length === 0 && <option value={0}>No accounts available</option>}
+            {accounts.length === 0 && <option value={0}>{t("domains.noAccountsAvailable")}</option>}
           </select>
         </Field>
-        <Field label="Zone Identifier (Zone ID)">
-          <input className="input w-full font-mono text-xs" value={zoneId} onChange={(e) => setZoneId(e.target.value)} placeholder="Auto-discovered if using Cloudflare" />
+        <Field label={t("domains.zoneIdentifier")}>
+          <input className="input w-full font-mono text-xs" value={zoneId} onChange={(e) => setZoneId(e.target.value)} placeholder={t("domains.zoneIdPlaceholder")} />
         </Field>
       </div>
-      <Field label="Internal Admin Note">
-        <textarea className="input w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note for team members" />
+      <Field label={t("domains.internalAdminNote")}>
+        <textarea className="input w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("domains.notePlaceholder")} />
       </Field>
       {!domain && (
         <>
-          <Field label="Short-link Routing Subdomains">
-            <HostList hosts={linkHosts} onChange={setLinkHosts} suggestions={linkSubs} placeholder="go.example.com" baseDomain={name || undefined} emptyText="No shortlink subdomains." />
+          <Field label={t("domains.shortLinkSubdomains")}>
+            <HostList hosts={linkHosts} onChange={setLinkHosts} suggestions={linkSubs} placeholder="go.example.com" baseDomain={name || undefined} emptyText={t("domains.noShortlinkSubdomains")} />
           </Field>
-          <Field label="Inbound Mail Routing Subdomains">
-            <HostList hosts={mailHosts} onChange={setMailHosts} suggestions={mailSubs} placeholder="mail.example.com" baseDomain={name || undefined} emptyText="No mailbox subdomains." />
+          <Field label={t("domains.inboundMailSubdomains")}>
+            <HostList hosts={mailHosts} onChange={setMailHosts} suggestions={mailSubs} placeholder="mail.example.com" baseDomain={name || undefined} emptyText={t("domains.noMailboxSubdomains")} />
           </Field>
         </>
       )}
       {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
       <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
         {onCancel && (
-          <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+          <Button type="button" variant="ghost" onClick={onCancel}>{t("domains.cancel")}</Button>
         )}
-        <Button variant="primary" onClick={save} disabled={busy || !name}>{busy ? "Saving..." : "Save Basic Info"}</Button>
+        <Button variant="primary" onClick={save} disabled={busy || !name}>{busy ? t("domains.saving") : t("domains.saveBasicInfo")}</Button>
       </div>
     </div>
   );
 }
 
 function DomainHostManager({ domain, onReload }: { domain: Domain; onReload: () => void }) {
+  const { t } = useTranslation();
   const [busy, setBusy] = useState<string | null>(null);
   const hosts = useMemo(() => mergeHosts(domain), [domain]);
 
@@ -560,15 +567,15 @@ function DomainHostManager({ domain, onReload }: { domain: Domain; onReload: () 
   return (
     <div className="bg-black/25 rounded-2xl p-4 border border-white/[0.05] space-y-4">
       {hosts.length === 0 ? (
-        <p className="text-sm text-white/30">No active hosts registered. Add one below.</p>
+        <p className="text-sm text-white/30">{t("domains.noActiveHosts")}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-white/40 border-b border-white/[0.06] font-semibold uppercase tracking-wider">
-                <th className="py-2.5 pr-4">Host</th>
-                <th className="py-2.5 pr-4 text-indigo-400">🔗 Link</th>
-                <th className="py-2.5 pr-4 text-emerald-400">✉️ Mail</th>
+                <th className="py-2.5 pr-4">{t("domains.thHost")}</th>
+                <th className="py-2.5 pr-4 text-indigo-400">{t("domains.thLink")}</th>
+                <th className="py-2.5 pr-4 text-emerald-400">{t("domains.thMail")}</th>
                 <th className="py-2.5 text-right" />
               </tr>
             </thead>
@@ -588,7 +595,7 @@ function DomainHostManager({ domain, onReload }: { domain: Domain; onReload: () 
                         }`}
                       >
                         <span className={`h-1.5 w-1.5 rounded-full ${h.linkEnabled ? "bg-indigo-400" : "bg-white/[0.06]"}`} />
-                        {h.linkEnabled ? "on" : "off"}
+                        {h.linkEnabled ? t("domains.on") : t("domains.off")}
                       </button>
                     ) : (
                       <button
@@ -596,7 +603,7 @@ function DomainHostManager({ domain, onReload }: { domain: Domain; onReload: () 
                         onClick={() => addHost(h.host, true, false)}
                         className="text-xs text-white/30 hover:text-indigo-400 transition-colors px-2 py-0.5 disabled:opacity-50"
                       >
-                        + add
+                        {t("domains.addShort")}
                       </button>
                     )}
                   </td>
@@ -612,7 +619,7 @@ function DomainHostManager({ domain, onReload }: { domain: Domain; onReload: () 
                         }`}
                       >
                         <span className={`h-1.5 w-1.5 rounded-full ${h.mailEnabled ? "bg-emerald-400" : "bg-white/[0.06]"}`} />
-                        {h.mailEnabled ? "on" : "off"}
+                        {h.mailEnabled ? t("domains.on") : t("domains.off")}
                       </button>
                     ) : (
                       <button
@@ -620,7 +627,7 @@ function DomainHostManager({ domain, onReload }: { domain: Domain; onReload: () 
                         onClick={() => addHost(h.host, false, true)}
                         className="text-xs text-white/30 hover:text-emerald-400 transition-colors px-2 py-0.5 disabled:opacity-50"
                       >
-                        + add
+                        {t("domains.addShort")}
                       </button>
                     )}
                   </td>
@@ -628,10 +635,10 @@ function DomainHostManager({ domain, onReload }: { domain: Domain; onReload: () 
                     <button
                       disabled={!!busy}
                       onClick={() => removeHost(h.host)}
-                      title="Remove host"
+                      title={t("domains.removeHost")}
                       className="text-xs text-rose-400/70 hover:text-rose-300 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-30 px-2.5 py-0.5"
                     >
-                      Remove
+                      {t("domains.remove")}
                     </button>
                   </td>
                 </tr>
@@ -646,6 +653,7 @@ function DomainHostManager({ domain, onReload }: { domain: Domain; onReload: () 
 }
 
 function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; onAdd: (host: string, forLink: boolean, forMail: boolean) => void; }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState("");
   const [forLink, setForLink] = useState(true);
   const [forMail, setForMail] = useState(false);
@@ -682,7 +690,7 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
       <div className="relative flex-1 min-w-[150px]">
         <input
           className="input h-9 text-xs py-1.5 w-full"
-          placeholder="e.g. blog or cname"
+          placeholder={t("domains.hostDraftPlaceholder")}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
@@ -695,14 +703,14 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
       </div>
       <label className="flex items-center gap-1.5 text-xs text-white/60 cursor-pointer select-none">
         <input type="checkbox" checked={forLink} onChange={(e) => setForLink(e.target.checked)} className="accent-indigo-500" />
-        🔗 Link
+        {t("domains.thLink")}
       </label>
       <label className="flex items-center gap-1.5 text-xs text-white/60 cursor-pointer select-none">
         <input type="checkbox" checked={forMail} onChange={(e) => setForMail(e.target.checked)} className="accent-emerald-500" />
-        ✉️ Mail
+        {t("domains.thMail")}
       </label>
       <Button variant="primary" className="h-9 py-1 px-3 text-xs" disabled={busy || !draft.trim() || (!forLink && !forMail)} onClick={submit}>
-        + Add Host
+        {t("domains.addHostButton")}
       </Button>
       {suggestions.length > 0 && (
         <div className="flex flex-wrap gap-1.5 w-full mt-2 px-1">
@@ -724,53 +732,54 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
 }
 
 function SyncModal({ accounts, onClose, onSynced }: { accounts: ProviderAccount[]; onClose: () => void; onSynced: () => void }) {
+  const { t } = useTranslation();
   const [accountId, setAccountId] = useState<number>(accounts[0]?.id || 0);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [result, setResult] = useState<{ total: number; created: number; updated: number } | null>(null);
 
   async function run() {
-    if (!accountId) return setErr("Please select a provider account");
+    if (!accountId) return setErr(t("domains.selectProviderAccount"));
     setBusy(true); setErr("");
     try { const r = await api.syncDomains(accountId); setResult(r); }
-    catch (e: any) { setErr(e.message ?? "sync failed"); }
+    catch (e: any) { setErr(e.message ?? t("domains.syncFailed")); }
     finally { setBusy(false); }
   }
 
   return (
-    <Modal title="Sync DNS Zones" onClose={onClose}>
+    <Modal title={t("domains.syncDnsZones")} onClose={onClose}>
       {result ? (
         <div className="py-4 text-center space-y-4">
           <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 mx-auto">
             <ShieldCheck className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-white font-semibold">{result.total} zones detected</p>
+            <p className="text-white font-semibold">{t("domains.zonesDetected", { count: result.total })}</p>
             <p className="text-xs text-white/55 mt-1">
-              Created <span className="text-emerald-400 font-bold">{result.created}</span> new, updated <span className="text-indigo-400 font-bold">{result.updated}</span> records.
+              {t("domains.createdPrefix")} <span className="text-emerald-400 font-bold">{result.created}</span> {t("domains.updatedMid")} <span className="text-indigo-400 font-bold">{result.updated}</span> {t("domains.recordsSuffix")}
             </p>
           </div>
-          <p className="text-[11px] text-white/40 max-w-xs mx-auto">Use the 🔗 Link / ✉️ Mail toggles on each domain row to route active services.</p>
-          <Button variant="primary" onClick={onSynced} className="w-full">Done</Button>
+          <p className="text-[11px] text-white/40 max-w-xs mx-auto">{t("domains.syncToggleHint")}</p>
+          <Button variant="primary" onClick={onSynced} className="w-full">{t("domains.done")}</Button>
         </div>
       ) : accounts.length === 0 ? (
         <div className="py-4 text-center space-y-2 text-white/55">
-          <p className="font-semibold">No Provider Accounts Found</p>
-          <p className="text-xs text-white/40">Configure your Cloudflare/DNSPod keys in Settings before syncing.</p>
+          <p className="font-semibold">{t("domains.noProviderAccounts")}</p>
+          <p className="text-xs text-white/40">{t("domains.noProviderAccountsHint")}</p>
         </div>
       ) : (
         <>
-          <p className="mb-4 text-xs text-white/55 leading-relaxed">Select a Cloudflare or DNSPod credentials connection. LED will query active domains and auto-populate your zone details.</p>
-          <Field label="DNS Provider Connection">
+          <p className="mb-4 text-xs text-white/55 leading-relaxed">{t("domains.syncIntro")}</p>
+          <Field label={t("domains.dnsProviderConnection")}>
             <select className="input w-full" value={accountId} onChange={e => setAccountId(Number(e.target.value))}>
-              <option value={0}>Select account...</option>
+              <option value={0}>{t("domains.selectAccount")}</option>
               {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.type})</option>)}
             </select>
           </Field>
           {err && <p className="mb-4 text-sm text-rose-400 font-medium">{err}</p>}
           <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
-            <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button variant="primary" onClick={run} disabled={busy || !accountId}>{busy ? "Querying API..." : "Sync Zones"}</Button>
+            <Button variant="ghost" onClick={onClose}>{t("domains.cancel")}</Button>
+            <Button variant="primary" onClick={run} disabled={busy || !accountId}>{busy ? t("domains.queryingApi") : t("domains.syncZones")}</Button>
           </div>
         </>
       )}
@@ -781,6 +790,7 @@ function SyncModal({ accounts, onClose, onSynced }: { accounts: ProviderAccount[
 const RECORD_TYPES = ["A", "AAAA", "CNAME", "TXT", "MX", "NS", "CAA"];
 
 function RecordsView({ domain }: { domain: Domain }) {
+  const { t } = useTranslation();
   const [records, setRecords] = useState<DNSRecord[] | null>(null);
   const [err, setErr] = useState("");
   const [editing, setEditing] = useState<DNSRecord | "new" | "subdomain" | null>(null);
@@ -790,7 +800,7 @@ function RecordsView({ domain }: { domain: Domain }) {
   async function load() {
     setErr("");
     try { setRecords(await api.records(domain.id)); }
-    catch (e: any) { setErr(e.message ?? "failed to load records"); setRecords([]); }
+    catch (e: any) { setErr(e.message ?? t("domains.loadRecordsFailed")); setRecords([]); }
   }
   useEffect(() => { load(); }, [domain.id]);
 
@@ -808,31 +818,31 @@ function RecordsView({ domain }: { domain: Domain }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <select className="input min-w-[120px] text-xs py-1" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-          <option value="">All types</option>
-          {presentTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+          <option value="">{t("domains.allTypes")}</option>
+          {presentTypes.map((rt) => <option key={rt} value={rt}>{rt}</option>)}
         </select>
-        <input className="input flex-1 min-w-[140px] text-xs py-1" placeholder="Filter name / content / comment…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <Button variant="subtle" onClick={() => setEditing("subdomain")} className="py-1 px-3 text-xs">+ Preset</Button>
-        <Button variant="primary" onClick={() => setEditing("new")} className="py-1 px-3 text-xs">+ Custom</Button>
+        <input className="input flex-1 min-w-[140px] text-xs py-1" placeholder={t("domains.filterPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Button variant="subtle" onClick={() => setEditing("subdomain")} className="py-1 px-3 text-xs">{t("domains.presetButton")}</Button>
+        <Button variant="primary" onClick={() => setEditing("new")} className="py-1 px-3 text-xs">{t("domains.customButton")}</Button>
       </div>
-      
-      <p className="text-[11px] text-white/35">Notes map directly to Cloudflare/DNSPod TXT comments · Showing {filtered.length} of {records?.length ?? 0} records</p>
+
+      <p className="text-[11px] text-white/35">{t("domains.recordsNote", { shown: filtered.length, total: records?.length ?? 0 })}</p>
       
       {err && <p className="rounded bg-rose-500/10 p-3 text-xs text-rose-400 font-medium">{err}</p>}
       
       {records === null ? (
-        <p className="text-white/40 p-6 text-center text-xs">loading records…</p>
+        <p className="text-white/40 p-6 text-center text-xs">{t("domains.loadingRecords")}</p>
       ) : filtered.length === 0 ? (
-        <p className="text-white/40 p-6 text-center text-xs">No records matching search query.</p>
+        <p className="text-white/40 p-6 text-center text-xs">{t("domains.noRecordsMatching")}</p>
       ) : (
         <div className="bg-black/20 rounded-2xl border border-white/[0.05] overflow-hidden">
           <table className="w-full text-xs">
             <thead>
               <tr className="text-left text-white/40 border-b border-white/[0.06] bg-white/[0.01]">
-                <th className="py-2.5 pl-4 font-semibold uppercase tracking-wider">Type</th>
-                <th className="py-2.5 font-semibold uppercase tracking-wider">Name</th>
-                <th className="py-2.5 font-semibold uppercase tracking-wider">Content</th>
-                <th className="py-2.5 font-semibold uppercase tracking-wider">Note</th>
+                <th className="py-2.5 pl-4 font-semibold uppercase tracking-wider">{t("domains.thType")}</th>
+                <th className="py-2.5 font-semibold uppercase tracking-wider">{t("domains.thName")}</th>
+                <th className="py-2.5 font-semibold uppercase tracking-wider">{t("domains.thContent")}</th>
+                <th className="py-2.5 font-semibold uppercase tracking-wider">{t("domains.thNote")}</th>
                 <th className="py-2.5 pr-4 text-right" />
               </tr>
             </thead>
@@ -843,7 +853,7 @@ function RecordsView({ domain }: { domain: Domain }) {
                     <span className="inline-flex items-center gap-1.5">
                       <span className="font-mono text-white/85 bg-white/5 px-2 py-0.5 rounded-lg border border-white/[0.04]">{r.type}</span>
                       {r.proxied && (
-                        <span title="Cloudflare Proxied">
+                        <span title={t("domains.cloudflareProxied")}>
                           <Cloud className="h-3 w-3 text-amber-500 fill-amber-500/10" />
                         </span>
                       )}
@@ -854,8 +864,8 @@ function RecordsView({ domain }: { domain: Domain }) {
                   <td className="max-w-[120px] truncate text-indigo-300/80">{r.comment}</td>
                   <td className="py-3 pr-4 text-right">
                     <div className="flex gap-1.5 justify-end">
-                      <Button variant="ghost" className="px-2 py-0.5 text-[10px]" onClick={() => setEditing(r)}>Edit</Button>
-                      <Button variant="danger" className="px-2 py-0.5 text-[10px] text-rose-400 bg-rose-500/0 hover:bg-rose-500/10 border-0" onClick={async () => { if (confirm(`Delete ${r.type} ${r.name}?`)) { await api.deleteRecord(domain.id, r.id); load(); } }}>Del</Button>
+                      <Button variant="ghost" className="px-2 py-0.5 text-[10px]" onClick={() => setEditing(r)}>{t("domains.edit")}</Button>
+                      <Button variant="danger" className="px-2 py-0.5 text-[10px] text-rose-400 bg-rose-500/0 hover:bg-rose-500/10 border-0" onClick={async () => { if (confirm(t("domains.deleteRecordConfirm", { type: r.type, name: r.name }))) { await api.deleteRecord(domain.id, r.id); load(); } }}>{t("domains.del")}</Button>
                     </div>
                   </td>
                 </tr>
@@ -879,6 +889,7 @@ function RecordsView({ domain }: { domain: Domain }) {
 }
 
 function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClose, onSaved }: { domainId: number; domainName: string; linkHost?: string; record: DNSRecord | null; subdomain?: boolean; onClose: () => void; onSaved: () => void; }) {
+  const { t } = useTranslation();
   const [type, setType] = useState(record?.type ?? "A");
   const [name, setName] = useState(record?.name ?? "");
   const [content, setContent] = useState(record?.content ?? "");
@@ -889,7 +900,7 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
 
   const needsPriority = ["MX", "SRV", "URI"].includes(type.toUpperCase());
   const canProxy = ["A", "AAAA", "CNAME"].includes(type.toUpperCase());
-  const contentHint: Record<string, string> = { A: "IPv4 address", AAAA: "IPv6 address", CNAME: "target hostname", TXT: "text value", MX: "mail server hostname", NS: "nameserver hostname", CAA: '0 issue "letsencrypt.org"' };
+  const contentHint: Record<string, string> = { A: t("domains.hintIpv4"), AAAA: t("domains.hintIpv6"), CNAME: t("domains.hintCname"), TXT: t("domains.hintTxt"), MX: t("domains.hintMx"), NS: t("domains.hintNs"), CAA: '0 issue "letsencrypt.org"' };
 
   const linkSub = linkHost && linkHost.endsWith("." + domainName) ? linkHost.slice(0, -(domainName.length + 1)) : linkHost === domainName ? "@" : "go";
 
@@ -906,62 +917,62 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
       if (record) await api.updateRecord(domainId, record.id, payload);
       else await api.createRecord(domainId, payload);
       onSaved();
-    } catch (e: any) { setErr(e.message ?? "save failed"); }
+    } catch (e: any) { setErr(e.message ?? t("domains.saveFailed")); }
   }
 
   return (
-    <Modal title={record ? "Modify Record" : subdomain ? "Preset Configurator" : "Create Record"} onClose={onClose}>
+    <Modal title={record ? t("domains.modifyRecord") : subdomain ? t("domains.presetConfigurator") : t("domains.createRecord")} onClose={onClose}>
       {subdomain && (
         <div className="mb-4 flex gap-2.5">
           <Button variant="subtle" className="flex-1 py-1.5 text-xs gap-1.5" onClick={() => preset("link")}>
             <LinkIcon className="h-3.5 w-3.5 text-indigo-400" />
-            Set Link CNAME
+            {t("domains.setLinkCname")}
           </Button>
           <Button variant="subtle" className="flex-1 py-1.5 text-xs gap-1.5" onClick={() => preset("mail")}>
             <Mail className="h-3.5 w-3.5 text-emerald-400" />
-            Set MX records
+            {t("domains.setMxRecords")}
           </Button>
         </div>
       )}
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Record Type">
+          <Field label={t("domains.recordType")}>
             <select className="input w-full" value={type} onChange={(e) => setType(e.target.value)}>
-              {RECORD_TYPES.map((t) => <option key={t}>{t}</option>)}
+              {RECORD_TYPES.map((rt) => <option key={rt}>{rt}</option>)}
             </select>
           </Field>
-          <Field label="Name (Host)">
-            <input className="input w-full font-mono" value={name} onChange={(e) => setName(e.target.value)} placeholder="@ or subdomain" />
+          <Field label={t("domains.nameHost")}>
+            <input className="input w-full font-mono" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("domains.namePlaceholder")} />
           </Field>
         </div>
         
         <div className={needsPriority ? "grid grid-cols-[1fr_120px] gap-4" : ""}>
-          <Field label="Target Value" hint={contentHint[type.toUpperCase()]}>
+          <Field label={t("domains.targetValue")} hint={contentHint[type.toUpperCase()]}>
             <input className="input w-full font-mono text-xs" value={content} onChange={(e) => setContent(e.target.value)} required />
           </Field>
           {needsPriority && (
-            <Field label="Priority">
+            <Field label={t("domains.priority")}>
               <input type="number" min={0} className="input w-full" value={priority} onChange={(e) => setPriority(Number(e.target.value))} />
             </Field>
           )}
         </div>
 
-        <Field label="Metadata Description / Comment">
-          <input className="input w-full text-xs" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="e.g. DNS verified token or note" />
+        <Field label={t("domains.metadataComment")}>
+          <input className="input w-full text-xs" value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("domains.commentPlaceholder")} />
         </Field>
 
         {canProxy && (
           <div className="flex items-center gap-2 pt-1">
             <Toggle on={proxied} onChange={setProxied} />
-            <span className="text-xs text-white/60 select-none">Proxied (Cloudflare Caching and SSL Proxy)</span>
+            <span className="text-xs text-white/60 select-none">{t("domains.proxiedLabel")}</span>
           </div>
         )}
 
         {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
         
         <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={save}>Save Record</Button>
+          <Button variant="ghost" onClick={onClose}>{t("domains.cancel")}</Button>
+          <Button variant="primary" onClick={save}>{t("domains.saveRecord")}</Button>
         </div>
       </div>
     </Modal>

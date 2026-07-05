@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { en } from "./en";
 import { zh } from "./zh";
+import { pagesEn, pagesZh } from "./pages";
 
 export type Lang = "en" | "zh";
 
@@ -9,7 +10,11 @@ export const LANGS: { code: Lang; label: string }[] = [
   { code: "zh", label: "中文" },
 ];
 
-const RESOURCES: Record<Lang, Record<string, any>> = { en, zh };
+// Shell resources (en/zh) plus per-page namespaces merged in from ./pages.
+const RESOURCES: Record<Lang, Record<string, any>> = {
+  en: { ...en, ...pagesEn },
+  zh: { ...zh, ...pagesZh },
+};
 
 // Detect the initial language: an explicit choice wins, otherwise fall back to
 // the browser's preference (any zh-* locale → Chinese), else English.

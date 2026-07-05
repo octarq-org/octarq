@@ -1,0 +1,28 @@
+// Per-page i18n namespaces. Each page owns one file exporting `{ en, zh }` so
+// pages can be translated independently without touching a shared dictionary.
+import { overview } from "./overview";
+import { links } from "./links";
+import { domains } from "./domains";
+import { mail } from "./mail";
+import { inboxAi } from "./inboxAi";
+import { vps } from "./vps";
+import { sshKeys } from "./sshKeys";
+import { finance } from "./finance";
+import { storefront } from "./storefront";
+import { personal } from "./personal";
+
+const NS = {
+  overview,
+  links,
+  domains,
+  mail,
+  inboxAi,
+  vps,
+  sshKeys,
+  finance,
+  storefront,
+  personal,
+};
+
+export const pagesEn = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v.en]));
+export const pagesZh = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v.zh]));
