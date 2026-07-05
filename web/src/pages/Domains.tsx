@@ -288,7 +288,10 @@ export default function DomainsPage() {
                   </div>
                 ) : (
                   <div className="space-y-3 pt-2">
-                    {dnsStatus.hosts.map((host) => (
+                    {(dnsStatus.hosts?.length
+                      ? dnsStatus.hosts
+                      : [{ host: active.name, spf: dnsStatus.spf, dmarc: dnsStatus.dmarc, dkim: dnsStatus.dkim }]
+                    ).map((host) => (
                       <DnsHostRow key={host.host} host={host} />
                     ))}
                   </div>
