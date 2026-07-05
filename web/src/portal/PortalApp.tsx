@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError, IssuedLicense, LicenseDevice } from "../api";
+import { useAppName, brandInitial } from "../brand";
 import { ScreenWrap, PageHeader, GlassCard, Badge, Button, Empty, Field } from "../ui";
 import { KeyRound, LogOut, Laptop, ExternalLink, ShieldAlert, ArrowRight, CheckCircle, ArrowLeft, Mail, Lock } from "lucide-react";
 
@@ -76,6 +77,7 @@ function LoginView({ onLogin }: { onLogin: (email: string) => void }) {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+  const appName = useAppName();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,7 +102,7 @@ function LoginView({ onLogin }: { onLogin: (email: string) => void }) {
 
         <div className="text-center mb-6">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
-            <span className="font-display text-xl font-extrabold text-white">L</span>
+            <span className="font-display text-xl font-extrabold text-white">{brandInitial(appName)}</span>
           </div>
           <h2 className="text-2xl font-bold text-white">Customer Portal</h2>
           <p className="text-xs text-white/45 mt-1.5 leading-relaxed">Manage your licenses, devices, and billing info</p>
@@ -175,6 +177,7 @@ function RegisterView({ onRegister }: { onRegister: (email: string) => void }) {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+  const appName = useAppName();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -199,7 +202,7 @@ function RegisterView({ onRegister }: { onRegister: (email: string) => void }) {
 
         <div className="text-center mb-6">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
-            <span className="font-display text-xl font-extrabold text-white">L</span>
+            <span className="font-display text-xl font-extrabold text-white">{brandInitial(appName)}</span>
           </div>
           <h2 className="text-2xl font-bold text-white">Create Portal Account</h2>
           <p className="text-xs text-white/45 mt-1.5 leading-relaxed">Register to manage your purchases and licenses</p>

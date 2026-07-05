@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { twMerge } from "tailwind-merge";
 import { motion } from "framer-motion";
 import { HostEntry } from "./api";
+import { useAppName } from "./brand";
 
 // ─── GlassCard ──────────────────────────────────────────────────────────────
 
@@ -122,7 +123,7 @@ export function LockedFeature({
   icon,
   pricingHref,
 }: {
-  status: number;        // 402 → locked (show upsell); else → unavailable in this build
+  status: number;        // 402 (unlicensed) or 404 (plugin not in this build) → upsell
   tier?: "pro" | "elite";
   feature: string;       // e.g. "VPS Infrastructure"
   description?: string;  // one line on what the feature does
@@ -130,8 +131,12 @@ export function LockedFeature({
   icon?: ReactNode;      // lucide icon node from the caller (keeps ui.tsx icon-free)
   pricingHref?: string;  // optional "compare plans" link to the landing page
 }) {
-  const locked = status === 402;
+  // Both "unlicensed" (402) and "not built into this installation" (404) are
+  // gated Pro states — show one unified upsell mask. Only genuinely unexpected
+  // failures fall through to the neutral message.
+  const locked = status === 402 || status === 404;
   const label = TIER_LABEL[tier];
+  const appName = useAppName();
 
   return (
     <GlassCard
@@ -156,7 +161,7 @@ export function LockedFeature({
         </div>
         <p className="text-sm leading-relaxed text-white/50">
           {locked
-            ? <>This is a <span className="font-medium text-violet-200">led {label}</span> feature.{description ? ` ${description}` : ""}</>
+            ? <>This is a <span className="font-medium text-violet-200">{appName} {label}</span> feature.{description ? ` ${description}` : ""}</>
             : `${feature} is not available or disabled in this installation.`}
         </p>
       </div>

@@ -327,10 +327,15 @@ func (h *Handler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) authConfig(w http.ResponseWriter, r *http.Request) {
 	googleEnabled := h.oauth != nil && h.getSetting(keyGoogleClientID) != "" && h.getSetting(keyGoogleClientSecret) != ""
 	githubEnabled := h.oauth != nil && h.getSetting(keyGitHubClientID) != "" && h.getSetting(keyGitHubClientSecret) != ""
+	appName := h.cfg.AppName
+	if appName == "" {
+		appName = "led"
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"googleEnabled":       googleEnabled,
 		"githubEnabled":       githubEnabled,
 		"registrationEnabled": h.registrationEnabled(),
+		"appName":             appName,
 	})
 }
 

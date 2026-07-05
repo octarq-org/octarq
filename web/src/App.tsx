@@ -32,6 +32,7 @@ import {
   Webhook,
 } from "lucide-react";
 import { api, ApiError, MenuItem, Org } from "./api";
+import { useAppName, brandInitial } from "./brand";
 import OverviewPage from "./pages/Overview";
 import LinksPage from "./pages/Links";
 import DomainsPage from "./pages/Domains";
@@ -245,6 +246,7 @@ export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [user, setUser] = useState("");
   const [activeOrgId, setActiveOrgId] = useState<number>(0);
+  const appName = useAppName();
 
   useEffect(() => {
     api.me()
@@ -260,7 +262,7 @@ export default function App() {
       <div className="led-aurora grid h-full place-items-center text-white/40">
         <div className="flex flex-col items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow flex items-center justify-center">
-            <span className="font-display text-base font-extrabold text-white">L</span>
+            <span className="font-display text-base font-extrabold text-white">{brandInitial(appName)}</span>
           </div>
           <span className="text-sm">loading…</span>
         </div>
@@ -596,16 +598,17 @@ function IconRail({
     .toUpperCase();
 
   const userInitials = user.slice(0, 2).toUpperCase();
+  const appName = useAppName();
 
   return (
     <div className={`relative z-30 flex h-full flex-col items-center border-r border-white/[0.06] bg-[#07070b]/60 py-3 backdrop-blur-xl transition-[width] duration-200 ${expanded ? "w-56" : "w-16"}`}>
       {/* Logo */}
       <div className={`mb-3 flex items-center transition-all ${expanded ? "w-48 gap-3 pl-0.5 pr-1" : "h-10 w-10 justify-center"}`}>
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
-          <span className="font-display text-base font-extrabold text-white">L</span>
+          <span className="font-display text-base font-extrabold text-white">{brandInitial(appName)}</span>
         </div>
         {expanded && (
-          <span className="font-display text-lg font-bold text-white tracking-wide">led</span>
+          <span className="font-display text-lg font-bold text-white tracking-wide">{appName}</span>
         )}
       </div>
 
@@ -860,6 +863,7 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [oauthConfig, setOauthConfig] = useState<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean } | null>(null);
+  const appName = useAppName();
 
   useEffect(() => {
     api.authConfig()
@@ -927,9 +931,9 @@ function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
         
         <div className="mb-6 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
-            <span className="font-display text-xl font-extrabold text-white">L</span>
+            <span className="font-display text-xl font-extrabold text-white">{brandInitial(appName)}</span>
           </div>
-          <h1 className="font-display text-2xl font-bold text-white">{mode === "register" ? "Create your account" : "Sign in to led"}</h1>
+          <h1 className="font-display text-2xl font-bold text-white">{mode === "register" ? "Create your account" : `Sign in to ${appName}`}</h1>
           <p className="text-xs text-white/40 mt-1.5 leading-relaxed">{mode === "register" ? "Sign up to spin up your own workspace" : "Enter your credentials to access the operator workspace"}</p>
         </div>
 

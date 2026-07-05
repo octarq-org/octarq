@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { api } from "../api";
+import { useAppName, brandInitial } from "../brand";
 import { Button } from "../ui";
 import { Sparkles, KeyRound } from "lucide-react";
 
 export default function InviteAcceptPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") || "";
+  const appName = useAppName();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -52,7 +54,7 @@ export default function InviteAcceptPage() {
 
         <div className="mb-6 text-center">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
-            <span className="font-display text-xl font-extrabold text-white">L</span>
+            <span className="font-display text-xl font-extrabold text-white">{brandInitial(appName)}</span>
           </div>
           <h1 className="font-display text-xl font-bold text-white flex items-center justify-center gap-2">
             <Sparkles className="h-5 w-5 text-indigo-400 animate-pulse" />
