@@ -164,3 +164,42 @@ type MenuProvider interface {
 type MCPProvider interface {
 	RegisterMCP(srv *mcp.Server)
 }
+
+// Info is optional presentation/enablement metadata for a plugin. A plugin that
+// does not implement Describer is treated as a standalone, user-toggleable
+// feature keyed and titled by its Name().
+type Info struct {
+	// Title is the human label shown in the plugin manager (e.g. "Commerce").
+	// Empty falls back to Name(), or, for a group, to the first member that
+	// sets one.
+	Title string
+	// Group joins sibling plugins under a single toggle. Plugins sharing a Group
+	// are enabled/disabled together as one feature; empty means the plugin is its
+	// own feature. The enablement key is Group when set, otherwise Name().
+	Group string
+	// Core marks always-on plumbing (e.g. license activation, buyer identity):
+	// never gated, not shown in the plugin manager, cannot be disabled.
+	Core bool
+}
+
+// Describer is the optional interface a Plugin implements to supply Info.
+type Describer interface {
+	Describe() Info
+}
+
+// Describe returns a plugin's Info, or a zero-value default (all fields empty).
+func Describe(p Plugin) Info {
+	if d, ok := p.(Describer); ok {
+		return d.Describe()
+	}
+	return Info{}
+}
+
+// FeatureKey is the enable/disable unit for a plugin: its group if set, else its
+// name. Plugins in the same group share one key and toggle together.
+func FeatureKey(p Plugin) string {
+	if g := Describe(p).Group; g != "" {
+		return g
+	}
+	return p.Name()
+}

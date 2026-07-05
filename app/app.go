@@ -244,18 +244,23 @@ func (a *App) Run(ctx context.Context) error {
 		DNS:      apiHandler.DNSManager(),
 		SendMail: a.sendMail,
 	}
-	// Every plugin route is gated by a per-workspace "enabled" check: when the
-	// caller's workspace has the plugin disabled, the app answers 404 before the
-	// handler runs. Plugins are opt-in per workspace.
-	enabled := func(r *http.Request, name string) (allowed, scoped bool) {
+	// Non-core plugin routes are gated by a per-workspace feature toggle: when the
+	// caller's workspace has the feature disabled, the app answers 404 before the
+	// handler runs. Core plumbing (license activation, buyer identity) mounts
+	// ungated — it must always work.
+	enabled := func(r *http.Request, featureKey string) (allowed, scoped bool) {
 		oid := a.auth.OrgID(r)
 		if oid == 0 {
 			return false, false // no workspace in session (webhooks, portal) → not gated
 		}
-		return apiHandler.PluginEnabled(oid, name), true
+		return apiHandler.PluginEnabled(oid, featureKey), true
 	}
 	for _, p := range a.plugins {
-		p.Mount(&gatedMux{real: mux, plugin: p.Name(), enabled: enabled}, pctx)
+		if plugin.Describe(p).Core {
+			p.Mount(mux, pctx)
+		} else {
+			p.Mount(&gatedMux{real: mux, plugin: plugin.FeatureKey(p), enabled: enabled}, pctx)
+		}
 		slog.Info("plugin mounted", "name", p.Name())
 		if s, ok := p.(plugin.Starter); ok {
 			go s.Start(ctx)

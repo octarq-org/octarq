@@ -708,8 +708,8 @@ export const api = {
   // menus and user settings
   menus: () => req<MenuItem[]>("GET", "/api/menus"),
   plugins: () => req<PluginInfo[]>("GET", "/api/plugins"),
-  updatePlugin: (name: string, enabled: boolean) =>
-    req<{ ok: boolean }>("PUT", `/api/plugins/${name}`, { enabled }),
+  updatePlugin: (key: string, enabled: boolean) =>
+    req<{ ok: boolean }>("PUT", `/api/plugins/${key}`, { enabled }),
   getUserSettings: () => req<Record<string, string>>("GET", "/api/user/settings"),
   updateUserSettings: (key: string, value: string) => req<{ ok: boolean }>("PUT", "/api/user/settings", { key, value }),
 
@@ -753,7 +753,8 @@ export interface MenuItem {
 }
 
 export interface PluginInfo {
-  name: string;
+  key: string;
+  title: string;
   enabled: boolean;
   menus: MenuItem[];
 }

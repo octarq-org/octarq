@@ -17,6 +17,64 @@ func (fakePlugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{{ID: "fake", Label: "Fake", Path: "/fake", Category: "Operations"}}
 }
 
+// groupedPlugin is a member of a multi-plugin feature.
+type groupedPlugin struct {
+	name, group, path string
+}
+
+func (g groupedPlugin) Name() string                          { return g.name }
+func (g groupedPlugin) Models() []any                         { return nil }
+func (g groupedPlugin) Mount(_ plugin.Mux, _ *plugin.Context) {}
+func (g groupedPlugin) Describe() plugin.Info                 { return plugin.Info{Title: "Commerce", Group: g.group} }
+func (g groupedPlugin) Menus() []plugin.MenuItem {
+	return []plugin.MenuItem{{ID: g.name, Label: g.name, Path: g.path, Category: "Commerce"}}
+}
+
+// corePlugin is always-on plumbing; it must be hidden from the registry.
+type corePlugin struct{}
+
+func (corePlugin) Name() string                          { return "licensing" }
+func (corePlugin) Models() []any                         { return nil }
+func (corePlugin) Mount(_ plugin.Mux, _ *plugin.Context) {}
+func (corePlugin) Describe() plugin.Info                 { return plugin.Info{Core: true} }
+
+// TestPluginGroupingAndCore verifies grouped plugins collapse into one feature
+// toggled together, and core plugins are excluded from the registry.
+func TestPluginGroupingAndCore(t *testing.T) {
+	h, srv, _ := newTestHandlerWithInstance(t)
+	h.SetPlugins([]plugin.Plugin{
+		groupedPlugin{name: "product", group: "commerce", path: "/storefront"},
+		groupedPlugin{name: "billing", group: "commerce", path: "/billing"},
+		corePlugin{},
+	})
+	cookies := loginCookies(t, srv)
+
+	// Registry: one "commerce" feature (not two), no core plugin.
+	rec := do(srv, "GET", "/api/plugins", cookies, "")
+	var feats []struct {
+		Key   string `json:"key"`
+		Title string `json:"title"`
+		Menus []struct {
+			Path string `json:"path"`
+		} `json:"menus"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &feats)
+	if len(feats) != 1 || feats[0].Key != "commerce" {
+		t.Fatalf("want a single 'commerce' feature, got %+v", feats)
+	}
+	if feats[0].Title != "Commerce" || len(feats[0].Menus) != 2 {
+		t.Fatalf("commerce should carry both member menus + title, got %+v", feats[0])
+	}
+
+	// Enabling the group surfaces both members' menus at once.
+	if rec := do(srv, "PUT", "/api/plugins/commerce", cookies, `{"enabled":true}`); rec.Code != http.StatusOK {
+		t.Fatalf("enable commerce: got %d", rec.Code)
+	}
+	if !menuHasPath(t, srv, cookies, "/storefront") || !menuHasPath(t, srv, cookies, "/billing") {
+		t.Fatal("both grouped menus should appear once the feature is enabled")
+	}
+}
+
 // TestPluginRegistryToggleAndMenuFilter verifies plugins are opt-in per
 // workspace: disabled by default, toggleable by an admin, and their menus only
 // appear in /api/menus once enabled.
@@ -57,18 +115,18 @@ func pluginEnabled(t *testing.T, srv http.Handler, cookies []*http.Cookie, name 
 		t.Fatalf("list plugins: got %d", rec.Code)
 	}
 	var list []struct {
-		Name    string `json:"name"`
+		Key     string `json:"key"`
 		Enabled bool   `json:"enabled"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
 		t.Fatalf("decode plugins: %v", err)
 	}
 	for _, p := range list {
-		if p.Name == name {
+		if p.Key == name {
 			return p.Enabled
 		}
 	}
-	t.Fatalf("plugin %q not in registry", name)
+	t.Fatalf("feature %q not in registry", name)
 	return false
 }
 

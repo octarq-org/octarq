@@ -27,14 +27,13 @@ export default function SettingsPage() {
 // PluginsSettings lets an owner/admin turn Pro plugins on or off for this
 // workspace. Plugins are opt-in: everything is disabled until enabled here, and
 // a disabled plugin's sidebar items and API routes are both hidden.
-const PLUGIN_META: Record<string, { label: string; description: string }> = {
-  ai: { label: "AI Inbox", description: "LLM-powered email summaries, sorting, and OTP extraction." },
-  infra: { label: "Infrastructure", description: "VPS server monitoring and the SSH credentials vault." },
-  finance: { label: "Bookkeeping", description: "Subscription tracking and expense bookkeeping." },
-  product: { label: "Storefront", description: "Sell products — catalog, pricing tiers, and downloads." },
-  billing: { label: "Billing", description: "Stripe / Polar checkout webhooks and price mapping." },
-  issuer: { label: "License Issuance", description: "Cryptographic per-product license signing and registry." },
-  portal: { label: "Customer Portal", description: "Self-serve portal for your customers' licenses and devices." },
+// Descriptions keyed by feature key (backend supplies the title). Unknown keys
+// fall back to just the title + its menu list.
+const PLUGIN_DESC: Record<string, string> = {
+  ai: "LLM-powered email summaries, sorting, and OTP extraction.",
+  infra: "VPS server monitoring and the SSH credentials vault.",
+  finance: "Subscription tracking and expense bookkeeping.",
+  commerce: "Sell software end-to-end — storefront, license issuance, and checkout billing.",
 };
 
 function PluginsSettings() {
@@ -46,14 +45,14 @@ function PluginsSettings() {
   }
   useEffect(load, []);
 
-  async function toggle(name: string, enabled: boolean) {
+  async function toggle(key: string, enabled: boolean) {
     setErr("");
     // optimistic; revert on failure
-    setPlugins((prev) => prev?.map((p) => (p.name === name ? { ...p, enabled } : p)) ?? prev);
+    setPlugins((prev) => prev?.map((p) => (p.key === key ? { ...p, enabled } : p)) ?? prev);
     try {
-      await api.updatePlugin(name, enabled);
+      await api.updatePlugin(key, enabled);
     } catch (e) {
-      setPlugins((prev) => prev?.map((p) => (p.name === name ? { ...p, enabled: !enabled } : p)) ?? prev);
+      setPlugins((prev) => prev?.map((p) => (p.key === key ? { ...p, enabled: !enabled } : p)) ?? prev);
       setErr(e instanceof ApiError ? e.message : "Failed to update plugin");
     }
   }
@@ -77,19 +76,19 @@ function PluginsSettings() {
       ) : (
         <div className="space-y-3">
           {plugins.map((p) => {
-            const meta = PLUGIN_META[p.name] ?? { label: p.name, description: "" };
+            const description = PLUGIN_DESC[p.key] ?? "";
             return (
-              <GlassCard key={p.name} className="p-5 flex items-center justify-between gap-4">
+              <GlassCard key={p.key} className="p-5 flex items-center justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-indigo-300">
                     <Puzzle className="h-4.5 w-4.5" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-white">{meta.label}</h3>
+                      <h3 className="text-sm font-bold text-white">{p.title}</h3>
                       {p.enabled ? <Badge tone="green">On</Badge> : <Badge tone="neutral">Off</Badge>}
                     </div>
-                    {meta.description && <p className="text-xs text-white/45 mt-0.5">{meta.description}</p>}
+                    {description && <p className="text-xs text-white/45 mt-0.5">{description}</p>}
                     {p.menus.length > 0 && (
                       <p className="text-[10px] text-white/30 mt-1">
                         Adds: {p.menus.map((m) => m.label).join(" · ")}
@@ -97,7 +96,7 @@ function PluginsSettings() {
                     )}
                   </div>
                 </div>
-                <Toggle on={p.enabled} onChange={(v) => toggle(p.name, v)} />
+                <Toggle on={p.enabled} onChange={(v) => toggle(p.key, v)} />
               </GlassCard>
             );
           })}
