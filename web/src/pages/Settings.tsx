@@ -1277,40 +1277,6 @@ function OrgMembersManager() {
   );
 }
 
-// GlobalCloudflareToken is the fallback Cloudflare API token used by sync when a
-// domain has no dedicated credentials. It lived in the old General Settings; it
-// belongs with DNS Providers.
-function GlobalCloudflareToken() {
-  const { s, reload } = useSettingsData();
-  const [token, setToken] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
-  if (!s) return null;
-
-  async function save() {
-    if (!token.trim()) return;
-    setBusy(true);
-    try { await api.updateSettings({ cloudflareToken: token.trim() }); setToken(""); setSaved(true); setTimeout(() => setSaved(false), 2000); reload(); }
-    finally { setBusy(false); }
-  }
-
-  return (
-    <GlassCard className="mb-4 p-6 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white/80">Global Cloudflare API Token</h3>
-        <SavedBadge on={saved} />
-      </div>
-      <Field label="API token" hint={s.cloudflareTokenSet ? "A global token is set. Enter a new one to overwrite." : "Fallback token for sync when a domain has no dedicated key. Needs Zone:Read + DNS:Edit."}>
-        <div className="flex gap-2">
-          <input type="password" className="input w-full font-mono text-xs" value={token} onChange={(e) => setToken(e.target.value)} placeholder={s.cloudflareTokenSet ? "•••••••• (set)" : "Cloudflare API token"} />
-          <Button variant="primary" onClick={save} disabled={busy || !token.trim()}>{busy ? "Saving…" : "Save"}</Button>
-          {s.cloudflareTokenSet && <Button variant="danger" onClick={async () => { if (confirm("Clear stored token?")) { await api.updateSettings({ cloudflareToken: "" }); reload(); } }} className="px-3 py-1 text-xs">Clear</Button>}
-        </div>
-      </Field>
-    </GlassCard>
-  );
-}
-
 export function ProviderAccounts({ embed }: { embed?: boolean }) {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1349,8 +1315,6 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
           + Add Provider
         </Button>
       </div>
-
-      <GlobalCloudflareToken />
 
       {loading ? (
         <div className="text-white/40 text-sm py-4 text-center">loading…</div>

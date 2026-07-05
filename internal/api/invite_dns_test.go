@@ -334,3 +334,80 @@ func TestVerifyDNSMailHosts(t *testing.T) {
 		t.Errorf("subdomain host should have SPF but no DMARC: %+v", sub)
 	}
 }
+
+// TestVerifyDNSLinkHosts checks CNAME resolution for enabled short-link hosts.
+func TestVerifyDNSLinkHosts(t *testing.T) {
+	h, srv, db := newTestHandlerWithInstance(t)
+	const orgID = uint(1)
+	adminUID := seedOrgMember(t, db, orgID, "admin@example.com", "owner")
+	adminSession := sessionCookies(t, adminUID, orgID)
+
+	dom := models.Domain{
+		OrgID:   orgID,
+		Name:    "mytestdomain.com",
+		ForLink: true,
+		LinkHosts: models.HostList{
+			{Host: "go.mytestdomain.com", Enabled: true},   // CNAME into zone → healthy
+			{Host: "s.mytestdomain.com", Enabled: true},    // proxied/A-only → set, unverified
+			{Host: "dead.mytestdomain.com", Enabled: true}, // NXDOMAIN → not set
+			{Host: "off.mytestdomain.com", Enabled: false}, // disabled → skipped
+		},
+	}
+	if err := db.Create(&dom).Error; err != nil {
+		t.Fatalf("failed to create domain: %v", err)
+	}
+
+	h.lookupTXT = func(string) ([]string, error) { return nil, fmt.Errorf("no txt") }
+	h.lookupCNAME = func(name string) (string, error) {
+		switch name {
+		case "go.mytestdomain.com":
+			return "mytestdomain.com.", nil
+		case "s.mytestdomain.com":
+			return "s.mytestdomain.com.", nil // flattened/A-only: resolves to self
+		case "off.mytestdomain.com":
+			t.Errorf("disabled link host should not be probed")
+			return "", fmt.Errorf("should not happen")
+		default:
+			return "", fmt.Errorf("no such host")
+		}
+	}
+
+	rec := do(srv, "GET", fmt.Sprintf("/api/domains/%d/verify-dns", dom.ID), adminSession, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("verify-dns failed: status %d, body %s", rec.Code, rec.Body.String())
+	}
+
+	var res struct {
+		Links []struct {
+			Host    string `json:"host"`
+			Set     bool   `json:"set"`
+			Healthy bool   `json:"healthy"`
+			CNAME   string `json:"cname"`
+		} `json:"links"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(res.Links) != 3 {
+		t.Fatalf("expected 3 enabled link hosts, got %d: %+v", len(res.Links), res.Links)
+	}
+	byHost := map[string]struct {
+		Set, Healthy bool
+		CNAME        string
+	}{}
+	for _, l := range res.Links {
+		byHost[l.Host] = struct {
+			Set, Healthy bool
+			CNAME        string
+		}{l.Set, l.Healthy, l.CNAME}
+	}
+	if g := byHost["go.mytestdomain.com"]; !g.Set || !g.Healthy || g.CNAME != "mytestdomain.com" {
+		t.Errorf("go host should be healthy CNAME into zone: %+v", g)
+	}
+	if s := byHost["s.mytestdomain.com"]; !s.Set || s.Healthy {
+		t.Errorf("s host should resolve but be unverified: %+v", s)
+	}
+	if d := byHost["dead.mytestdomain.com"]; d.Set || d.Healthy {
+		t.Errorf("dead host should not resolve: %+v", d)
+	}
+}

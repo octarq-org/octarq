@@ -35,6 +35,7 @@ type Handler struct {
 	sendLimiter  *rateLimiter // outbound-email rate cap, keyed by org
 	plugins      []plugin.Plugin
 	lookupTXT    func(name string) ([]string, error)
+	lookupCNAME  func(name string) (string, error)
 	queue        queue.Queue
 
 	// emailHandlers are notified after each inbound email is stored. They are
@@ -85,6 +86,7 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 		abuseLimiter: newRateLimiter(cfg.RedisURL, "abuse", 5, time.Hour),      // 5 reports / 1 hour
 		sendLimiter:  newRateLimiter(cfg.RedisURL, "send", 100, time.Hour),     // 100 outbound emails / org / hour
 		lookupTXT:    net.LookupTXT,
+		lookupCNAME:  net.LookupCNAME,
 	}
 	if cfg.BaseURL != "" {
 		h.oauth = auth.NewOAuthHandler(db, cfg.BaseURL, a, c)

@@ -256,13 +256,23 @@ export interface HostDNSStatus {
   dkim: DKIMStatus;
 }
 
+export interface LinkHostStatus {
+  host: string;
+  set: boolean;      // resolves (has a CNAME record)
+  healthy: boolean;  // CNAME points into the domain's zone
+  cname?: string;    // observed CNAME target
+  target: string;    // expected target (the apex domain)
+}
+
 // verify-dns response: top-level fields describe the apex (back-compat);
-// `hosts` carries per-mail-host results (subdomains included).
+// `hosts` carries per-mail-host results (subdomains included);
+// `links` carries per-short-link-host CNAME resolution.
 export interface DNSVerifyResult {
   spf: DNSRecordStatus;
   dmarc: DNSRecordStatus;
   dkim: DKIMStatus;
   hosts: HostDNSStatus[];
+  links: LinkHostStatus[];
 }
 
 export interface Mailbox {
@@ -400,7 +410,6 @@ export interface Settings {
   reservedSlugs: string;
   reservedMailboxes: string;
   builtinReserved: string[];
-  cloudflareTokenSet: boolean;
   orgSlug: string;
   inboundToken: string;
   catchAll: boolean;
@@ -499,7 +508,6 @@ export const api = {
   updateSettings: (s: {
     reservedSlugs?: string;
     reservedMailboxes?: string;
-    cloudflareToken?: string;
     inboundToken?: string;
     catchAll?: boolean;
     telegramBotToken?: string;

@@ -489,6 +489,43 @@ func (h *Handler) checkHostDNS(host string) hostDNSStatus {
 	return status
 }
 
+// linkHostStatus is the CNAME-resolution posture for a single short-link host.
+type linkHostStatus struct {
+	Host    string `json:"host"`
+	Set     bool   `json:"set"`             // resolves (has a CNAME record at all)
+	Healthy bool   `json:"healthy"`         // CNAME points into the domain's zone
+	CNAME   string `json:"cname,omitempty"` // observed CNAME target
+	Target  string `json:"target"`          // expected target (the apex domain)
+}
+
+// checkLinkHost verifies that a short-link host is a CNAME pointing at the app.
+// The recommended setup CNAMEs each link host to the apex domain, so a target
+// that equals or sits within the zone is healthy. A host that only has an A
+// record (or a Cloudflare-proxied/flattened CNAME resolving to itself) counts
+// as resolving but unverified — the setup guide covers those cases.
+func (h *Handler) checkLinkHost(host, apex string) linkHostStatus {
+	st := linkHostStatus{Host: host, Target: apex}
+	cname, err := h.lookupCNAME(host)
+	if err != nil {
+		return st // NXDOMAIN / no resolution
+	}
+	cname = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(cname)), ".")
+	host = strings.ToLower(host)
+	apex = strings.ToLower(apex)
+	if cname == "" || cname == host {
+		// No external CNAME (A-only or proxied flattening) — resolves but the
+		// target can't be confirmed via DNS.
+		st.Set = cname != ""
+		return st
+	}
+	st.CNAME = cname
+	st.Set = true
+	if cname == apex || strings.HasSuffix(cname, "."+apex) {
+		st.Healthy = true
+	}
+	return st
+}
+
 // GET /api/domains/{id}/verify-dns
 func (h *Handler) verifyDomainDNS(w http.ResponseWriter, r *http.Request) {
 	id, ok := idParam(r)
@@ -525,10 +562,17 @@ func (h *Handler) verifyDomainDNS(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Short-link hosts are verified by CNAME resolution into the zone.
+	links := make([]linkHostStatus, 0)
+	for _, host := range dom.LinkHosts.Enabled() {
+		links = append(links, h.checkLinkHost(host, dom.Name))
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"spf":   primary.SPF,
 		"dmarc": primary.DMARC,
 		"dkim":  primary.DKIM,
 		"hosts": results,
+		"links": links,
 	})
 }

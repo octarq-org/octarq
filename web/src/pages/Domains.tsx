@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { api, DNSRecord, DNSVerifyResult, HostDNSStatus, DNSRecordStatus, Domain, HostEntry, ProviderAccount } from "../api";
-import { Empty, Field, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
+import { api, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus, Domain, HostEntry, ProviderAccount } from "../api";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "./Settings";
 
@@ -275,7 +275,7 @@ export default function DomainsPage() {
                   </Button>
                 </div>
                 <p className="text-xs text-white/50 leading-relaxed">
-                  Check if SPF, DKIM, and DMARC TXT records are configured correctly for each mail host to ensure email delivery and protect your domain reputation.
+                  Check that each mail host's SPF, DKIM and DMARC records are set for email delivery, and that each short-link host resolves to this app.
                 </p>
                 {dnsStatus === null ? (
                   <div className="grid grid-cols-3 gap-3 pt-2">
@@ -287,15 +287,27 @@ export default function DomainsPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="space-y-3 pt-2">
-                    {(dnsStatus.hosts?.length
-                      ? dnsStatus.hosts
-                      : [{ host: active.name, spf: dnsStatus.spf, dmarc: dnsStatus.dmarc, dkim: dnsStatus.dkim }]
-                    ).map((host) => (
-                      <DnsHostRow key={host.host} host={host} />
-                    ))}
+                  <div className="space-y-4 pt-2">
+                    <div className="space-y-3">
+                      <span className="text-[10px] uppercase font-bold text-white/35 tracking-wider">Mail hosts</span>
+                      {(dnsStatus.hosts?.length
+                        ? dnsStatus.hosts
+                        : [{ host: active.name, spf: dnsStatus.spf, dmarc: dnsStatus.dmarc, dkim: dnsStatus.dkim }]
+                      ).map((host) => (
+                        <DnsHostRow key={host.host} host={host} />
+                      ))}
+                    </div>
+                    {!!dnsStatus.links?.length && (
+                      <div className="space-y-2">
+                        <span className="text-[10px] uppercase font-bold text-white/35 tracking-wider">Short-link hosts</span>
+                        {dnsStatus.links.map((lh) => (
+                          <LinkHostRow key={lh.host} link={lh} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
+                <LinkHostGuide apex={active.name} />
               </GlassCard>
 
               <GlassCard className="p-5">
@@ -303,6 +315,33 @@ export default function DomainsPage() {
                 <RecordsView domain={active} />
               </GlassCard>
             </div>
+          ) : domains.length === 0 && !loading ? (
+            <GlassCard className="flex flex-col items-center justify-center py-16 px-6 text-center border border-white/[0.04]/40">
+              <div className="h-14 w-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-4">
+                <Globe className="h-7 w-7" />
+              </div>
+              <h3 className="text-lg font-bold text-white mb-1.5">Add your first domain</h3>
+              <p className="text-sm text-white/50 max-w-sm leading-relaxed mb-6">
+                Import every zone from a connected DNS provider in one step, or add a domain manually.
+              </p>
+              {accounts.length > 0 ? (
+                <Button variant="primary" onClick={() => setSyncing(true)} className="gap-1.5">
+                  <RefreshCw className="h-4 w-4" />
+                  Sync from {accounts.length === 1 ? accounts[0].name : "provider"}
+                </Button>
+              ) : (
+                <Button variant="primary" onClick={() => setTab('settings')} className="gap-1.5">
+                  <Plus className="h-4 w-4" />
+                  Connect a DNS provider
+                </Button>
+              )}
+              <button
+                onClick={() => setActive("new")}
+                className="mt-3 text-xs text-white/45 hover:text-white/70 underline underline-offset-2 transition-colors"
+              >
+                or add a domain manually
+              </button>
+            </GlassCard>
           ) : (
             <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-white/40 border border-white/[0.04]/40">
               <Globe className="h-10 w-10 mb-2 opacity-50 text-indigo-400" />
@@ -360,6 +399,43 @@ function DnsHostRow({ host }: { host: HostDNSStatus }) {
         <DnsStatusBadge status={host.dmarc} label="DMARC" />
       </div>
     </div>
+  );
+}
+
+// Short-link host: CNAME confirmed into zone (green), resolves but target
+// unverified — e.g. proxied/A-record (amber), or not resolving (red).
+function LinkHostRow({ link }: { link: LinkHostStatus }) {
+  const tone = link.healthy ? "green" : link.set ? "amber" : "red";
+  const text = link.healthy ? "✓ Points to zone" : link.set ? "! Unverified" : "✗ Not resolving";
+  const detail = link.healthy
+    ? `CNAME → ${link.cname}`
+    : link.set
+      ? (link.cname ? `CNAME → ${link.cname}` : `resolves, but no CNAME into ${link.target}`)
+      : `add a CNAME → ${link.target}`;
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-white/[0.015] border border-white/[0.04] p-3">
+      <LinkIcon className="h-3.5 w-3.5 text-indigo-400/70 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-mono text-white/70 truncate">{link.host}</div>
+        <div className="text-[10px] text-white/40 truncate font-mono">{detail}</div>
+      </div>
+      <Badge tone={tone as any}>{text}</Badge>
+    </div>
+  );
+}
+
+// LinkHostGuide explains how to point a short-link subdomain at this app.
+function LinkHostGuide({ apex }: { apex: string }) {
+  return (
+    <Guide title="How to point a short-link host at this app">
+      <p>Each short-link host (e.g. <Code>{`go.${apex}`}</Code>) needs a DNS record so visitors reach this server:</p>
+      <ul className="list-disc pl-4 space-y-1">
+        <li><b>CNAME</b> the link host to <Code>{apex}</Code> (recommended). The apex itself must already resolve to this server's IP.</li>
+        <li>Or add an <b>A / AAAA</b> record pointing straight at this server's IP.</li>
+        <li>On Cloudflare you can keep the record <b>proxied</b> (orange cloud) for TLS &amp; caching — verification will then show <b>Unverified</b> since the CNAME is flattened, which is expected.</li>
+      </ul>
+      <p className="text-white/40">Tip: use the <b>+ Subdomain</b> preset in DNS Records → “Set Link CNAME” to create this record automatically.</p>
+    </Guide>
   );
 }
 

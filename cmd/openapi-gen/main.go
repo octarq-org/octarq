@@ -741,7 +741,7 @@ func main() {
 				"get": map[string]any{
 					"tags":        []string{"Domains"},
 					"summary":     "Verify DNS records status",
-					"description": "Perform live DNS queries to verify SPF, DMARC, and DKIM setups for email sending on this domain.",
+					"description": "Perform live DNS queries to verify SPF, DMARC, and DKIM for each mail host, plus CNAME resolution for each short-link host. Top-level spf/dmarc/dkim mirror the apex mail host.",
 					"parameters": []map[string]any{
 						{
 							"name":     "id",
@@ -761,6 +761,14 @@ func main() {
 											"spf":   map[string]any{"$ref": "#/components/schemas/RecordStatus"},
 											"dmarc": map[string]any{"$ref": "#/components/schemas/RecordStatus"},
 											"dkim":  map[string]any{"$ref": "#/components/schemas/DKIMStatus"},
+											"hosts": map[string]any{
+												"type":  "array",
+												"items": map[string]any{"type": "object"},
+											},
+											"links": map[string]any{
+												"type":  "array",
+												"items": map[string]any{"type": "object"},
+											},
 										},
 									},
 								},
@@ -1433,7 +1441,6 @@ func main() {
 						"reservedSlugs":         map[string]any{"type": "string", "example": "admin\napi\nassets"},
 						"reservedMailboxes":     map[string]any{"type": "string", "example": "abuse\npostmaster"},
 						"builtinReserved":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "example": []string{"admin", "api", "assets", "portal"}},
-						"cloudflareTokenSet":    map[string]any{"type": "boolean", "example": true},
 						"inboundToken":          map[string]any{"type": "string", "example": "secret_inbound_token"},
 						"catchAll":              map[string]any{"type": "boolean", "example": false},
 						"googleClientId":        map[string]any{"type": "string", "example": "google-oauth-client-id"},
@@ -1449,7 +1456,6 @@ func main() {
 					"properties": map[string]any{
 						"reservedSlugs":      map[string]any{"type": "string", "example": "admin\napi\nassets"},
 						"reservedMailboxes":  map[string]any{"type": "string", "example": "abuse\npostmaster"},
-						"cloudflareToken":    map[string]any{"type": "string", "description": "Global Cloudflare token credentials. Send \"\" to clear, omit to preserve.", "example": "cf_token_secret"},
 						"inboundToken":       map[string]any{"type": "string", "example": "new_secret_inbound_token"},
 						"catchAll":           map[string]any{"type": "boolean"},
 						"googleClientId":     map[string]any{"type": "string"},

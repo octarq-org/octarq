@@ -26,7 +26,6 @@ func (h *Handler) currentOrg(r *http.Request) models.Org {
 const (
 	keyReservedSlugs      = "reserved_slugs"
 	keyReservedMailboxes  = "reserved_mailboxes"
-	keyCloudflareToken    = "cloudflare_token" // stored AES-GCM encrypted
 	keyCatchAll           = "catch_all"
 	keyGoogleClientID     = "oauth.google.client_id"
 	keyGoogleClientSecret = "oauth.google.client_secret" // stored AES-GCM encrypted
@@ -112,19 +111,6 @@ func (h *Handler) isReservedMailbox(addr string) bool {
 	return false
 }
 
-// cloudflareToken returns the decrypted global Cloudflare token, if configured.
-func (h *Handler) cloudflareToken() string {
-	enc := h.getSetting(keyCloudflareToken)
-	if enc == "" {
-		return ""
-	}
-	b, err := h.cipher.Decrypt(enc)
-	if err != nil {
-		return ""
-	}
-	return string(b)
-}
-
 // --- handlers ---
 
 func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
@@ -139,7 +125,6 @@ func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
 		"reservedSlugs":         h.getSetting(keyReservedSlugs),
 		"reservedMailboxes":     h.getSetting(keyReservedMailboxes),
 		"builtinReserved":       []string{"admin", "api", "assets", "portal"},
-		"cloudflareTokenSet":    h.getSetting(keyCloudflareToken) != "",
 		"orgSlug":               org.Slug,
 		"inboundToken":          org.InboundToken,
 		"catchAll":              h.getSetting(keyCatchAll) == "true",
@@ -164,7 +149,6 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	var d struct {
 		ReservedSlugs      *string `json:"reservedSlugs"`
 		ReservedMailboxes  *string `json:"reservedMailboxes"`
-		CloudflareToken    *string `json:"cloudflareToken"` // "" clears, omitted keeps
 		InboundToken       *string `json:"inboundToken"`
 		CatchAll           *bool   `json:"catchAll"`
 		GoogleClientID     *string `json:"googleClientId"`
@@ -184,18 +168,6 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if d.ReservedMailboxes != nil {
 		h.setSetting(keyReservedMailboxes, strings.Join(splitList(*d.ReservedMailboxes), "\n"))
-	}
-	if d.CloudflareToken != nil {
-		if *d.CloudflareToken == "" {
-			h.setSetting(keyCloudflareToken, "")
-		} else {
-			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*d.CloudflareToken)))
-			if err != nil {
-				writeErr(w, http.StatusInternalServerError, "encrypt token")
-				return
-			}
-			h.setSetting(keyCloudflareToken, enc)
-		}
 	}
 	if d.InboundToken != nil {
 		// Per-org: empty string rotates to a fresh UUID; a value sets it explicitly.
