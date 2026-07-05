@@ -412,7 +412,9 @@ function Shell({
           };
         });
 
-        setAreas(nextAreas);
+        // Drop whole areas (e.g. "Commerce") that have no visible items left —
+        // otherwise a disabled feature still shows an empty top-level section.
+        setAreas(nextAreas.filter((a) => a.groups.length > 0));
       })
       .catch(() => {});
   }, [activeOrgId]);
