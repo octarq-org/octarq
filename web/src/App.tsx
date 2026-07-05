@@ -318,6 +318,17 @@ function Shell({
   const [creatingOrg, setCreatingOrg] = useState(false);
   const [newOrgName, setNewOrgName]   = useState("");
 
+  // Collapse the second-level area panel to widen the content area. Persisted,
+  // and kept in the layout (not AreaPanel) so it survives area switches.
+  const [panelCollapsed, setPanelCollapsed] = useState(() => {
+    try { return localStorage.getItem("area_panel_collapsed") === "1"; } catch { return false; }
+  });
+  const togglePanel = () => setPanelCollapsed((v) => {
+    const next = !v;
+    try { localStorage.setItem("area_panel_collapsed", next ? "1" : "0"); } catch { /* ignore */ }
+    return next;
+  });
+
   const settingsActive = location.pathname.startsWith("/settings") || location.pathname.startsWith("/personal");
   const activeArea: AreaId = settingsActive ? "settings" : areaForPath(location.pathname);
 
@@ -454,14 +465,26 @@ function Shell({
       />
 
       <AnimatePresence mode="wait">
-        <AreaPanel
-          key={activeArea}
-          area={currentArea}
-          currentPath={location.pathname}
-        />
+        {!panelCollapsed && (
+          <AreaPanel
+            key={activeArea}
+            area={currentArea}
+            currentPath={location.pathname}
+            onCollapse={togglePanel}
+          />
+        )}
       </AnimatePresence>
 
       <main className="relative flex-1 overflow-hidden">
+        {panelCollapsed && (
+          <button
+            onClick={togglePanel}
+            title={`Show ${currentArea.title} menu`}
+            className="group absolute left-0 top-1/2 z-30 flex -translate-y-1/2 items-center gap-1 rounded-r-xl border border-l-0 border-white/[0.08] bg-white/[0.04] py-3 pl-1 pr-1.5 text-white/45 backdrop-blur-xl transition-colors hover:bg-white/[0.08] hover:text-white"
+          >
+            <PanelLeft className="h-4 w-4 rotate-180" strokeWidth={1.75} />
+          </button>
+        )}
         <div className="h-full overflow-y-auto">
           <div className="mx-auto w-full max-w-6xl px-8 py-8">
             <Routes>
@@ -797,7 +820,7 @@ function IconRail({
 
 // ─── AreaPanel ────────────────────────────────────────────────────────────────
 
-function AreaPanel({ area, currentPath }: { area: Area; currentPath: string }) {
+function AreaPanel({ area, currentPath, onCollapse }: { area: Area; currentPath: string; onCollapse: () => void }) {
   return (
     <motion.div
       initial={{ opacity: 0, x: -10 }}
@@ -807,9 +830,18 @@ function AreaPanel({ area, currentPath }: { area: Area; currentPath: string }) {
       className="relative z-20 flex h-full w-60 flex-col border-r border-white/[0.06] bg-[#0c0c12]/40 backdrop-blur-xl"
     >
       {/* Header */}
-      <div className="px-4 pb-3 pt-4">
-        <h2 className="font-display text-[17px] font-bold tracking-tight text-white">{area.title}</h2>
-        <p className="text-[12px] text-white/45">{area.subtitle}</p>
+      <div className="flex items-start justify-between gap-2 px-4 pb-3 pt-4">
+        <div className="min-w-0">
+          <h2 className="font-display text-[17px] font-bold tracking-tight text-white truncate">{area.title}</h2>
+          <p className="text-[12px] text-white/45 truncate">{area.subtitle}</p>
+        </div>
+        <button
+          onClick={onCollapse}
+          title="Collapse menu"
+          className="mt-0.5 shrink-0 rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white"
+        >
+          <PanelLeft className="h-4 w-4" strokeWidth={1.75} />
+        </button>
       </div>
 
       {/* Grouped nav */}
