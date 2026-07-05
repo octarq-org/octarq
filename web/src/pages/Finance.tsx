@@ -5,54 +5,6 @@ import { api, Transaction } from "../api";
 
 const CURRENCIES = ["USD", "CNY", "EUR", "GBP", "JPY", "HKD", "SGD"];
 
-// Generate pre-populated historical occurrences for default recurring series
-const generateDefaultSeries = (
-  parentId: string,
-  title: string,
-  type: "income" | "expense",
-  category: string,
-  amount: number,
-  currency: string,
-  cycle: "monthly" | "yearly",
-  startMonth: number // 0-indexed
-): Omit<Transaction, "id">[] => {
-  const list: Omit<Transaction, "id">[] = [];
-  const today = new Date();
-  
-  // Generate occurrences from startMonth of 2026 up to today
-  for (let m = startMonth; m <= today.getMonth(); m++) {
-    const dayStr = String(15).padStart(2, "0");
-    const monthStr = String(m + 1).padStart(2, "0");
-    list.push({
-      parentId,
-      date: `2026-${monthStr}-${dayStr}`,
-      type,
-      title,
-      category,
-      amount,
-      currency,
-      cycle,
-    });
-  }
-  return list;
-};
-
-const getDefaultTransactions = (): Omit<Transaction, "id">[] => {
-  const list: Omit<Transaction, "id">[] = [
-    { date: "2026-06-25", type: "income", title: "Domain Sale: webdev.io", category: "Domain Trading", amount: 1850.00, currency: "USD", cycle: "one-off" },
-    { date: "2026-06-22", type: "expense", title: "Hetzner Cloud VPS rental", category: "Infrastructure", amount: 48.50, currency: "USD", cycle: "one-off" },
-    { date: "2026-06-18", type: "expense", title: "AWS Route53 renew: mycorp.com", category: "Domain Registration", amount: 12.00, currency: "USD", cycle: "one-off" },
-  ];
-
-  // Recurring expense series: GitHub Copilot (Monthly, from February 2026)
-  list.push(...generateDefaultSeries("series-github", "GitHub Copilot Subscription", "expense", "SaaS Tools", 10.00, "USD", "monthly", 1));
-
-  // Recurring income series: VPS Tenant leasing (Monthly, from March 2026)
-  list.push(...generateDefaultSeries("series-vps-rent", "VPS Leasing: Client A", "income", "Services", 120.00, "USD", "monthly", 2));
-
-  return list;
-};
-
 function fmtCost(cost: number, currency: string) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 2 }).format(cost);
 }
@@ -69,19 +21,7 @@ export default function FinancePage() {
   const [error, setError] = useState<{ status: number } | null>(null);
 
   function load() {
-    api.transactions().then((res) => {
-      if (res.length > 0) {
-        setTransactions(res);
-      } else {
-        // Seed mock data if database is empty
-        const defaults = getDefaultTransactions();
-        Promise.all(defaults.map(tx => {
-          return api.createTransaction(tx);
-        })).then(() => {
-          api.transactions().then(setTransactions);
-        });
-      }
-    }).catch(err => {
+    api.transactions().then(setTransactions).catch(err => {
       setError({ status: err.status });
     });
   }
