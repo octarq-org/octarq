@@ -191,6 +191,8 @@ func (a *App) RunMCP(ctx context.Context) error {
 		DNS:            apiHandler.DNSManager(),
 		SendMail:       a.sendMail,
 		SetLLMResolver: apiHandler.SetLLMResolver,
+		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
+		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,
 	}
 	throwaway := http.NewServeMux()
 	for _, p := range a.plugins {

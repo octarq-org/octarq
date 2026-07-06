@@ -121,7 +121,7 @@ func (h *Handler) setSetting(key, value string) error {
 	}).Create(&models.Setting{Key: key, Value: value}).Error
 }
 
-func (h *Handler) getWorkspaceSetting(orgID uint, key string) string {
+func (h *Handler) GetWorkspaceSetting(orgID uint, key string) string {
 	var s models.WorkspaceSetting
 	if h.db.First(&s, "org_id = ? AND key = ?", orgID, key).Error == nil {
 		return s.Value
@@ -129,7 +129,7 @@ func (h *Handler) getWorkspaceSetting(orgID uint, key string) string {
 	return ""
 }
 
-func (h *Handler) setWorkspaceSetting(orgID uint, key, value string) error {
+func (h *Handler) SetWorkspaceSetting(orgID uint, key, value string) error {
 	return h.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "org_id"}, {Name: "key"}},
 		DoUpdates: clause.AssignmentColumns([]string{"value"}),
@@ -176,7 +176,7 @@ func (h *Handler) isReservedMailbox(orgID uint, addr string) bool {
 	if at := strings.Index(local, "@"); at >= 0 {
 		local = local[:at]
 	}
-	for _, r := range splitList(h.getWorkspaceSetting(orgID, keyReservedMailboxes)) {
+	for _, r := range splitList(h.GetWorkspaceSetting(orgID, keyReservedMailboxes)) {
 		if r == local {
 			return true
 		}
@@ -189,11 +189,11 @@ func (h *Handler) isReservedMailbox(orgID uint, addr string) bool {
 func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
 	org := h.currentOrg(r)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"reservedMailboxes": h.getWorkspaceSetting(org.ID, keyReservedMailboxes),
+		"reservedMailboxes": h.GetWorkspaceSetting(org.ID, keyReservedMailboxes),
 		"orgSlug":           org.Slug,
 		"inboundToken":      org.InboundToken,
-		"catchAll":          h.getWorkspaceSetting(org.ID, keyCatchAll) == "true",
-		"autoWrapLinks":     h.getWorkspaceSetting(org.ID, keyAutoWrapLinks) == "true",
+		"catchAll":          h.GetWorkspaceSetting(org.ID, keyCatchAll) == "true",
+		"autoWrapLinks":     h.GetWorkspaceSetting(org.ID, keyAutoWrapLinks) == "true",
 		"isInstanceAdmin":   h.isInstanceAdmin(r),
 	})
 }
@@ -260,7 +260,7 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 
 
 	if d.ReservedMailboxes != nil {
-		h.setWorkspaceSetting(h.orgID(r), keyReservedMailboxes, strings.Join(splitList(*d.ReservedMailboxes), "\n"))
+		h.SetWorkspaceSetting(h.orgID(r), keyReservedMailboxes, strings.Join(splitList(*d.ReservedMailboxes), "\n"))
 	}
 	if d.InboundToken != nil {
 		// Per-org: empty string rotates to a fresh UUID; a value sets it explicitly.
@@ -275,7 +275,7 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		if *d.CatchAll {
 			val = "true"
 		}
-		h.setWorkspaceSetting(h.orgID(r), keyCatchAll, val)
+		h.SetWorkspaceSetting(h.orgID(r), keyCatchAll, val)
 	}
 
 
@@ -284,7 +284,7 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		if *d.AutoWrapLinks {
 			val = "true"
 		}
-		h.setWorkspaceSetting(h.orgID(r), keyAutoWrapLinks, val)
+		h.SetWorkspaceSetting(h.orgID(r), keyAutoWrapLinks, val)
 	}
 	h.audit(r, "settings.update", "settings", 0, nil)
 	h.getSettings(w, r)

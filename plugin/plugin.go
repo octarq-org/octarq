@@ -93,6 +93,10 @@ type Context struct {
 	// cache internally and return an error describing how to configure when no
 	// backend is usable.
 	SetLLMResolver func(resolver func() (llmprovider.Provider, error))
+	// GetWorkspaceSetting reads a per-org setting value.
+	GetWorkspaceSetting func(orgID uint, key string) string
+	// SetWorkspaceSetting writes a per-org setting value.
+	SetWorkspaceSetting func(orgID uint, key, value string) error
 }
 
 // DNSRecord is a provider-agnostic DNS record, mirroring the fields of led's
