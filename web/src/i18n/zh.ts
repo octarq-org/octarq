@@ -100,7 +100,7 @@ export const zh: Resources = {
     sshkeys: "SSH 密钥库",
     databases: "数据库",
     storage: "对象存储",
-    abuse: "滥用防护",
+    abuse: "滥用举报",
     audit: "审计",
     general: "通用",
     plugins: "插件",

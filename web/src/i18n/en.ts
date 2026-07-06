@@ -99,7 +99,7 @@ export const en = {
     sshkeys: "SSH Vault",
     databases: "Databases",
     storage: "Object Storage",
-    abuse: "Abuse",
+    abuse: "Abuse Reports",
     audit: "Audit",
     general: "General",
     plugins: "Plugins",

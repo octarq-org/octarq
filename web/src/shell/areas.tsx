@@ -143,7 +143,7 @@ export const STATIC_AREAS: Area[] = [
       {
         label: "Security",
         items: [
-          { id: "abuse",    label: "Abuse",      Icon: ShieldAlert, path: "/abuse" },
+          { id: "abuse",    label: "Abuse Reports",      Icon: ShieldAlert, path: "/abuse" },
         ],
       },
       {

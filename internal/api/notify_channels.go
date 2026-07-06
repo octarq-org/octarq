@@ -68,9 +68,21 @@ func (h *Handler) updateNotificationChannel(w http.ResponseWriter, r *http.Reque
 	}
 	if d.Enabled != nil {
 		ch.Enabled = *d.Enabled
-	}
 	h.db.Save(&ch)
-	h.audit(r, "notification.update", "notification_channel", ch.ID, nil)
+	meta := make(map[string]any)
+	if d.Name != nil {
+		meta["name"] = *d.Name
+	}
+	if d.Type != nil {
+		meta["type"] = *d.Type
+	}
+	if d.Config != nil {
+		meta["config"] = "[REDACTED]"
+	}
+	if d.Enabled != nil {
+		meta["enabled"] = *d.Enabled
+	}
+	h.audit(r, "notification.update", "notification_channel", ch.ID, meta)
 	writeJSON(w, http.StatusOK, ch)
 }
 

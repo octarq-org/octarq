@@ -86,9 +86,12 @@ func (h *Handler) updateMailbox(w http.ResponseWriter, r *http.Request) {
 	mb.Note = d.Note
 	if d.Enabled != nil {
 		mb.Enabled = *d.Enabled
-	}
 	h.db.Save(&mb)
-	h.audit(r, "mailbox.update", "mailbox", mb.ID, nil)
+	meta := map[string]any{
+		"note":    mb.Note,
+		"enabled": mb.Enabled,
+	}
+	h.audit(r, "mailbox.update", "mailbox", mb.ID, meta)
 	writeJSON(w, http.StatusOK, mb)
 }
 

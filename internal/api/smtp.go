@@ -98,7 +98,17 @@ func (h *Handler) updateSMTPSender(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.db.Save(&sender)
-	h.audit(r, "smtp.update", "smtp_sender", sender.ID, nil)
+	meta := map[string]any{
+		"name":      sender.Name,
+		"host":      sender.Host,
+		"port":      sender.Port,
+		"user":      sender.User,
+		"fromEmail": sender.FromEmail,
+	}
+	if d.Pass != "" {
+		meta["pass"] = "[REDACTED]"
+	}
+	h.audit(r, "smtp.update", "smtp_sender", sender.ID, meta)
 	writeJSON(w, http.StatusOK, sender)
 }
 

@@ -286,7 +286,21 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		h.SetWorkspaceSetting(h.orgID(r), keyAutoWrapLinks, val)
 	}
-	h.audit(r, "settings.update", "settings", 0, nil)
+
+	meta := make(map[string]any)
+	if d.ReservedMailboxes != nil {
+		meta["reservedMailboxes"] = *d.ReservedMailboxes
+	}
+	if d.InboundToken != nil {
+		meta["inboundToken"] = "[REDACTED]"
+	}
+	if d.CatchAll != nil {
+		meta["catchAll"] = *d.CatchAll
+	}
+	if d.AutoWrapLinks != nil {
+		meta["autoWrapLinks"] = *d.AutoWrapLinks
+	}
+	h.audit(r, "settings.update", "settings", 0, meta)
 	h.getSettings(w, r)
 }
 
@@ -377,9 +391,19 @@ func (h *Handler) updateInstanceSettings(w http.ResponseWriter, r *http.Request)
 	if d.RatelimitApiRpm != nil {
 		h.setSetting(keyRatelimitAPIRPM, strconv.Itoa(*d.RatelimitApiRpm))
 	}
-	if d.RatelimitRedirectRpm != nil {
-		h.setSetting(keyRatelimitRedirRPM, strconv.Itoa(*d.RatelimitRedirectRpm))
-	}
-	h.audit(r, "instance_settings.update", "settings", 0, nil)
+	meta := make(map[string]any)
+	if d.ReservedSlugs != nil { meta["reservedSlugs"] = *d.ReservedSlugs }
+	if d.GoogleClientID != nil { meta["googleClientId"] = *d.GoogleClientID }
+	if d.GoogleClientSecret != nil { meta["googleClientSecret"] = "[REDACTED]" }
+	if d.GitHubClientID != nil { meta["githubClientId"] = *d.GitHubClientID }
+	if d.GitHubClientSecret != nil { meta["githubClientSecret"] = "[REDACTED]" }
+	if d.DataRetentionDays != nil { meta["dataRetentionDays"] = *d.DataRetentionDays }
+	if d.AllowRegistration != nil { meta["allowRegistration"] = *d.AllowRegistration }
+	if d.AppName != nil { meta["appName"] = *d.AppName }
+	if d.MetricsToken != nil { meta["metricsToken"] = "[REDACTED]" }
+	if d.RatelimitAuthRpm != nil { meta["ratelimitAuthRpm"] = *d.RatelimitAuthRpm }
+	if d.RatelimitApiRpm != nil { meta["ratelimitApiRpm"] = *d.RatelimitApiRpm }
+	if d.RatelimitRedirectRpm != nil { meta["ratelimitRedirectRpm"] = *d.RatelimitRedirectRpm }
+	h.audit(r, "instance_settings.update", "settings", 0, meta)
 	h.getInstanceSettings(w, r)
 }

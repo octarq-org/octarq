@@ -113,7 +113,16 @@ func (h *Handler) updateWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.db.Save(&hook)
-	h.audit(r, "webhook.update", "webhook", hook.ID, nil)
+	meta := map[string]any{
+		"name":    hook.Name,
+		"url":     hook.URL,
+		"events":  hook.Events,
+		"enabled": hook.Enabled,
+	}
+	if d.Secret != "" {
+		meta["secret"] = "[REDACTED]"
+	}
+	h.audit(r, "webhook.update", "webhook", hook.ID, meta)
 	writeJSON(w, http.StatusOK, hook)
 }
 

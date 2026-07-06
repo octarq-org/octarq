@@ -76,9 +76,19 @@ func (h *Handler) updateProviderAccount(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		acc.Config = enc
-	}
 	h.db.Save(&acc)
-	h.audit(r, "provider.update", "provider", acc.ID, nil)
+	meta := make(map[string]any)
+	if strings.TrimSpace(d.Name) != "" {
+		meta["name"] = acc.Name
+	}
+	if len(d.Config) > 0 {
+		redactedConfig := make(map[string]string)
+		for k := range d.Config {
+			redactedConfig[k] = "[REDACTED]"
+		}
+		meta["config"] = redactedConfig
+	}
+	h.audit(r, "provider.update", "provider", acc.ID, meta)
 	writeJSON(w, http.StatusOK, acc)
 }
 
