@@ -34,6 +34,12 @@ and [dub](https://github.com/dubinc/dub), rebuilt to ship as **one binary / one 
   accepts either a session cookie or `Authorization: Bearer led_…`. Only a SHA-256
   hash is stored, and the raw token is shown once at creation.
 - **Notification channels** — receive alerts via Telegram Bot or Webhook when new mail arrives, managed entirely from the dashboard.
+- **AI assists (BYO key)** — one-click **AI slug suggestions** when creating a
+  link and an on-demand **AI summary** for any email, powered by whatever LLM
+  you configure (`LED_LLM_*` env — Claude, OpenAI-compatible, Gemini, Mistral,
+  Cohere, or local Ollama). Unconfigured = the buttons simply don't appear.
+  Unattended automation (auto-summarize every inbound mail, OTP push, daily
+  briefing) is part of the commercial build.
 - **One binary** — pure-Go SQLite (no cgo), React dashboard embedded via `go:embed`.
   Postgres supported by flipping two env vars.
 

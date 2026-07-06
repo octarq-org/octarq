@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Attachment, Domain, effectiveMailHosts, Email, Mailbox } from "../../api";
 import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../../ui";
-import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle } from "lucide-react";
+import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle, Sparkles } from "lucide-react";
 import { MailSettings, SMTPSenders } from "../Settings";
 import { useTranslation } from "../../i18n";
 import { ReplyDraft } from "./types";
@@ -31,6 +31,26 @@ export function EmailViewForm({
   const [note, setNote] = useState(email.note ?? "");
   const { t } = useTranslation();
   const attachments = parseAttachments(email.attachments);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [summary, setSummary] = useState("");
+
+  useEffect(() => {
+    api.aiAssistStatus().then((s) => setAiEnabled(s.configured)).catch(() => {});
+  }, []);
+  useEffect(() => setSummary(""), [email.id]);
+
+  async function summarize() {
+    setAiBusy(true);
+    try {
+      const r = await api.aiSummarizeEmail(email.id);
+      setSummary(r.summary);
+    } catch {
+      setSummary(t("mail.aiSummaryFailed"));
+    } finally {
+      setAiBusy(false);
+    }
+  }
   return (
     <GlassCard className="flex flex-col h-full max-h-full min-h-0">
       <div className="p-5 border-b border-white/[0.06] flex justify-between items-start shrink-0 gap-4">
@@ -50,6 +70,15 @@ export function EmailViewForm({
          </Button>
       </div>
       
+      {summary && (
+        <div className="mx-5 mt-4 rounded-xl bg-indigo-500/10 border border-indigo-400/20 p-3.5 shrink-0">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-indigo-300 mb-1.5">
+            <Sparkles className="h-3 w-3" />
+            {t("mail.aiSummaryTitle")}
+          </div>
+          <p className="text-sm text-white/85 leading-relaxed whitespace-pre-wrap">{summary}</p>
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto p-5 min-h-[400px] bg-black/10">
         {email.html ? (
           <iframe srcDoc={email.html} className="h-full min-h-[400px] w-full bg-white rounded-xl shadow-inner border-0" sandbox="" title={t("mail.iframeTitle")} />
@@ -77,6 +106,12 @@ export function EmailViewForm({
             </Field>
           </div>
           <div className="flex gap-2 w-full sm:w-auto shrink-0 pb-1">
+            {aiEnabled && (
+              <Button variant="subtle" onClick={summarize} disabled={aiBusy} className="text-xs py-1.5 px-3 gap-1">
+                <Sparkles className="h-3.5 w-3.5" />
+                {aiBusy ? t("mail.aiSummarizing") : t("mail.aiSummarize")}
+              </Button>
+            )}
             <Button
               variant="subtle"
               onClick={async () => {

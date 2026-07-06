@@ -65,6 +65,9 @@ export const links = {
     noClickData: "No click data in active window.",
     directUnknown: "Direct/Unknown",
     direct: "(direct)",
+    aiSuggest: "AI Suggest",
+    aiSuggesting: "Thinking…",
+    aiSuggestFailed: "AI suggestion failed",
   },
   zh: {
     pageTitle: "短链接",
@@ -132,5 +135,8 @@ export const links = {
     noClickData: "当前窗口内没有点击数据。",
     directUnknown: "直接/未知",
     direct: "（直接访问）",
+    aiSuggest: "AI 建议",
+    aiSuggesting: "思考中…",
+    aiSuggestFailed: "AI 建议失败",
   },
 };

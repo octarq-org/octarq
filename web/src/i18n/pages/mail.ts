@@ -78,6 +78,10 @@ export const mail = {
     trackLinks: "Track outbound links in email (Wrap with short links)",
     sendFailed: "send failed",
     sendMail: "Send Mail",
+    aiSummarize: "AI Summary",
+    aiSummarizing: "Summarizing…",
+    aiSummaryTitle: "AI Summary",
+    aiSummaryFailed: "AI summary failed",
   },
   zh: {
     pageTitle: "邮件",
@@ -158,5 +162,9 @@ export const mail = {
     trackLinks: "跟踪邮件中的外链（用短链包裹）",
     sendFailed: "发送失败",
     sendMail: "发送邮件",
+    aiSummarize: "AI 摘要",
+    aiSummarizing: "摘要生成中…",
+    aiSummaryTitle: "AI 摘要",
+    aiSummaryFailed: "AI 摘要失败",
   },
 };

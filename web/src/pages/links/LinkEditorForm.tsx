@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, Domain, effectiveLinkHosts, Link, LinkStats } from "../../api";
 import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard } from "../../ui";
-import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe, Settings } from "lucide-react";
+import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe, Settings, Sparkles } from "lucide-react";
 import { LinkSettings } from "../Settings";
 import { useTranslation } from "../../i18n";
 
@@ -31,6 +31,27 @@ export function LinkEditorForm({
   const [err, setErr] = useState("");
   const [fetching, setFetching] = useState(false);
   const [showUtm, setShowUtm] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiSlugs, setAiSlugs] = useState<string[]>([]);
+
+  useEffect(() => {
+    api.aiAssistStatus().then((s) => setAiEnabled(s.configured)).catch(() => {});
+  }, []);
+
+  async function suggestSlugs() {
+    if (!target) return;
+    setAiBusy(true);
+    setAiSlugs([]);
+    try {
+      const r = await api.aiSuggestSlug(target, title || undefined);
+      setAiSlugs(r.slugs);
+    } catch {
+      setErr(t("links.aiSuggestFailed"));
+    } finally {
+      setAiBusy(false);
+    }
+  }
 
   async function fetchTitle() {
     if (!target) return;
@@ -91,7 +112,29 @@ export function LinkEditorForm({
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label={t("links.shortSlug")} hint={t("links.shortSlugHint")}>
-          <input className="input w-full font-mono" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. promo2026" />
+          <div className="flex gap-2">
+            <input className="input w-full font-mono" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. promo2026" />
+            {aiEnabled && (
+              <Button variant="subtle" className="shrink-0 text-xs py-1 gap-1" type="button" onClick={suggestSlugs} disabled={aiBusy || !target}>
+                <Sparkles className="h-3.5 w-3.5" />
+                {aiBusy ? t("links.aiSuggesting") : t("links.aiSuggest")}
+              </Button>
+            )}
+          </div>
+          {aiSlugs.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {aiSlugs.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSlug(s)}
+                  className="rounded-lg bg-indigo-500/10 border border-indigo-400/20 px-2.5 py-1 text-xs font-mono text-indigo-300 hover:bg-indigo-500/20"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
         </Field>
         <Field label={t("links.routingHostDomain")} hint={hosts.length ? t("links.configuredDomains") : t("links.configureDomainsFirst")}>
           <select className="input w-full" value={host} onChange={(e) => setHost(e.target.value)}>

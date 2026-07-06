@@ -422,6 +422,11 @@ export interface Settings {
   dataRetentionDays: number;
   autoWrapLinks: boolean;
   allowRegistration: boolean;
+  appName: string; // raw setting; "" = built-in default
+  metricsTokenSet: boolean;
+  ratelimitAuthRpm: number;
+  ratelimitApiRpm: number;
+  ratelimitRedirectRpm: number;
 }
 
 // EmailAIAnnotation is the Inbox AI plugin's per-email analysis (Pro/elite).
@@ -519,6 +524,11 @@ export const api = {
     dataRetentionDays?: number;
     autoWrapLinks?: boolean;
     allowRegistration?: boolean;
+    appName?: string; // "" resets to built-in default
+    metricsToken?: string; // "" clears (loopback-only)
+    ratelimitAuthRpm?: number;
+    ratelimitApiRpm?: number;
+    ratelimitRedirectRpm?: number;
   }) => req<Settings>("PUT", "/api/settings", s),
 
   // license (led-pro licensing plugin; absent in the OSS build → 404)
@@ -613,6 +623,12 @@ export const api = {
       "GET",
       `/api/links/metadata?url=${encodeURIComponent(url)}`,
     ),
+
+  // single-step AI assists (OSS, BYO key — buttons hide when unconfigured)
+  aiAssistStatus: () => req<{ configured: boolean; provider: string }>("GET", "/api/ai/assist/status"),
+  aiSuggestSlug: (target: string, title?: string) =>
+    req<{ slugs: string[] }>("POST", "/api/ai/assist/suggest-slug", { target, title }),
+  aiSummarizeEmail: (id: number) => req<{ summary: string }>("POST", `/api/ai/assist/summarize-email/${id}`),
 
   // domains
   dnsProviders: () => req<string[]>("GET", "/api/dns/providers"),

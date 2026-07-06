@@ -18,6 +18,7 @@ import (
 	"github.com/Jungley8/led/internal/geo"
 	"github.com/Jungley8/led/internal/models"
 	"github.com/Jungley8/led/internal/queue"
+	"github.com/Jungley8/led/llmprovider"
 	"github.com/Jungley8/led/plugin"
 	"gorm.io/gorm"
 )
@@ -37,6 +38,12 @@ type Handler struct {
 	lookupTXT    func(name string) ([]string, error)
 	lookupCNAME  func(name string) (string, error)
 	queue        queue.Queue
+
+	// llmResolver supplies the LLM backend for the single-step AI assists
+	// (ai.go). Defaults to the env-backed envLLMResolver; the Pro ai plugin
+	// swaps in its DB-backed provider via SetLLMResolver during Mount.
+	llmMu       sync.RWMutex
+	llmResolver func() (llmprovider.Provider, error)
 
 	// emailHandlers are notified after each inbound email is stored. They are
 	// registered by plugins via OnEmail and fired by emitEmail. Guarded by
@@ -87,6 +94,7 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 		sendLimiter:  newRateLimiter(cfg.RedisURL, "send", 100, time.Hour),     // 100 outbound emails / org / hour
 		lookupTXT:    net.LookupTXT,
 		lookupCNAME:  net.LookupCNAME,
+		llmResolver:  envLLMResolver(),
 	}
 	if cfg.BaseURL != "" {
 		h.oauth = auth.NewOAuthHandler(db, cfg.BaseURL, a, c)
@@ -231,6 +239,14 @@ func (h *Handler) Routes() *http.ServeMux {
 	p("PUT /api/emails/{id}", h.updateEmail)
 	p("DELETE /api/emails/{id}", h.deleteEmail)
 	p("POST /api/emails/send", h.sendEmail)
+
+	// Single-step AI assists (OSS, BYO key via LED_LLM_* env — see ai.go).
+	// Namespaced under /api/ai/assist/ because the led-pro ai plugin owns
+	// /api/ai/status, /api/ai/emails and /api/ai/settings on the same mux —
+	// a duplicate pattern would panic at mount time in the Pro build.
+	p("GET /api/ai/assist/status", h.aiStatus)
+	p("POST /api/ai/assist/suggest-slug", h.aiSuggestSlug)
+	p("POST /api/ai/assist/summarize-email/{id}", h.aiSummarizeEmail)
 
 	p("GET /api/tokens", h.listTokens)
 	p("POST /api/tokens", h.createToken)

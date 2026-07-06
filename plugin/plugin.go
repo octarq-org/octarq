@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Jungley8/led/llmprovider"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"gorm.io/gorm"
 )
@@ -84,6 +85,14 @@ type Context struct {
 	// org has no sender configured. Plugins use it for verification / password
 	// reset without importing led's internal packages.
 	SendMail func(orgID uint, to, subject, htmlBody, textBody string) error
+	// SetLLMResolver replaces the LLM backend behind the core's single-step AI
+	// assists (/api/ai/assist/*). The core's default resolver reads the LED_LLM_*
+	// environment; the Pro ai plugin injects its DB-backed (dashboard-configured)
+	// provider here so the assists follow the exact same configuration as Inbox
+	// AI. The resolver runs on every assist request and must therefore be cheap —
+	// cache internally and return an error describing how to configure when no
+	// backend is usable.
+	SetLLMResolver func(resolver func() (llmprovider.Provider, error))
 }
 
 // DNSRecord is a provider-agnostic DNS record, mirroring the fields of led's
