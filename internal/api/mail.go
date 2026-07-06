@@ -424,11 +424,11 @@ func (h *Handler) resolveMailbox(orgID uint, addr string) (*models.Mailbox, bool
 	if err := h.db.Where("address = ? AND enabled = ? AND owner_id = ?", addr, true, orgID).First(&mb).Error; err == nil {
 		return &mb, true
 	}
-	if h.getSetting(keyCatchAll) != "true" {
+	if h.getWorkspaceSetting(orgID, keyCatchAll) != "true" {
 		return nil, false
 	}
 	// Reserved local-parts are never auto-created by catch-all.
-	if h.isReservedMailbox(addr) {
+	if h.isReservedMailbox(orgID, addr) {
 		return nil, false
 	}
 	at := strings.LastIndex(addr, "@")

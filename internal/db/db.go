@@ -82,5 +82,19 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 		}
 	}
 
+	// Data migration: move org-level settings from global settings to workspace_settings (for org 1)
+	for _, key := range []string{"catch_all", "auto_wrap_links", "reserved_mailboxes"} {
+		var s models.Setting
+		if err := gdb.Where("key = ?", key).First(&s).Error; err == nil {
+			var count int64
+			gdb.Model(&models.WorkspaceSetting{}).Where("org_id = ? AND key = ?", 1, key).Count(&count)
+			if count == 0 {
+				gdb.Create(&models.WorkspaceSetting{OrgID: 1, Key: key, Value: s.Value})
+			}
+			gdb.Delete(&s)
+		}
+	}
+
 	return nil
 }
+

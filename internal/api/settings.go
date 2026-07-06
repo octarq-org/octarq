@@ -121,6 +121,22 @@ func (h *Handler) setSetting(key, value string) error {
 	}).Create(&models.Setting{Key: key, Value: value}).Error
 }
 
+func (h *Handler) getWorkspaceSetting(orgID uint, key string) string {
+	var s models.WorkspaceSetting
+	if h.db.First(&s, "org_id = ? AND key = ?", orgID, key).Error == nil {
+		return s.Value
+	}
+	return ""
+}
+
+func (h *Handler) setWorkspaceSetting(orgID uint, key, value string) error {
+	return h.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "org_id"}, {Name: "key"}},
+		DoUpdates: clause.AssignmentColumns([]string{"value"}),
+	}).Create(&models.WorkspaceSetting{OrgID: orgID, Key: key, Value: value}).Error
+}
+
+
 // splitList parses a comma/newline/space-separated list into a normalized,
 // lowercased, de-duplicated slice.
 func splitList(s string) []string {
@@ -155,12 +171,12 @@ func (h *Handler) isReservedSlug(slug string) bool {
 
 // isReservedMailbox reports whether a mailbox local-part is reserved (excluded
 // from catch-all auto-creation).
-func (h *Handler) isReservedMailbox(addr string) bool {
+func (h *Handler) isReservedMailbox(orgID uint, addr string) bool {
 	local := strings.ToLower(addr)
 	if at := strings.Index(local, "@"); at >= 0 {
 		local = local[:at]
 	}
-	for _, r := range splitList(h.getSetting(keyReservedMailboxes)) {
+	for _, r := range splitList(h.getWorkspaceSetting(orgID, keyReservedMailboxes)) {
 		if r == local {
 			return true
 		}
@@ -180,17 +196,17 @@ func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
 	org := h.currentOrg(r)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"reservedSlugs":         h.getSetting(keyReservedSlugs),
-		"reservedMailboxes":     h.getSetting(keyReservedMailboxes),
+		"reservedMailboxes":     h.getWorkspaceSetting(org.ID, keyReservedMailboxes),
 		"builtinReserved":       []string{"admin", "api", "assets", "portal"},
 		"orgSlug":               org.Slug,
 		"inboundToken":          org.InboundToken,
-		"catchAll":              h.getSetting(keyCatchAll) == "true",
+		"catchAll":              h.getWorkspaceSetting(org.ID, keyCatchAll) == "true",
 		"googleClientId":        h.getSetting(keyGoogleClientID),
 		"googleClientSecretSet": h.getSetting(keyGoogleClientSecret) != "",
 		"githubClientId":        h.getSetting(keyGitHubClientID),
 		"githubClientSecretSet": h.getSetting(keyGitHubClientSecret) != "",
 		"dataRetentionDays":     retDays,
-		"autoWrapLinks":         h.getSetting(keyAutoWrapLinks) == "true",
+		"autoWrapLinks":         h.getWorkspaceSetting(org.ID, keyAutoWrapLinks) == "true",
 		"allowRegistration":     h.registrationEnabled(),
 		"appName":               h.getSetting(keyAppName), // raw value; empty = default
 		"metricsTokenSet":       h.getSetting(keyMetricsToken) != "",
@@ -261,7 +277,7 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		h.setSetting(keyReservedSlugs, strings.Join(splitList(*d.ReservedSlugs), "\n"))
 	}
 	if d.ReservedMailboxes != nil {
-		h.setSetting(keyReservedMailboxes, strings.Join(splitList(*d.ReservedMailboxes), "\n"))
+		h.setWorkspaceSetting(h.orgID(r), keyReservedMailboxes, strings.Join(splitList(*d.ReservedMailboxes), "\n"))
 	}
 	if d.InboundToken != nil {
 		// Per-org: empty string rotates to a fresh UUID; a value sets it explicitly.
@@ -276,7 +292,7 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		if *d.CatchAll {
 			val = "true"
 		}
-		h.setSetting(keyCatchAll, val)
+		h.setWorkspaceSetting(h.orgID(r), keyCatchAll, val)
 	}
 	if d.GoogleClientID != nil {
 		h.setSetting(keyGoogleClientID, strings.TrimSpace(*d.GoogleClientID))
@@ -316,7 +332,7 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		if *d.AutoWrapLinks {
 			val = "true"
 		}
-		h.setSetting(keyAutoWrapLinks, val)
+		h.setWorkspaceSetting(h.orgID(r), keyAutoWrapLinks, val)
 	}
 	if d.AllowRegistration != nil {
 		val := "false"

@@ -375,6 +375,13 @@ type Setting struct {
 	Value string `gorm:"type:text" json:"value"`
 }
 
+// WorkspaceSetting is a key/value runtime configuration entry scoped to a specific org.
+type WorkspaceSetting struct {
+	OrgID uint   `gorm:"primaryKey" json:"orgId"`
+	Key   string `gorm:"primaryKey;size:64" json:"key"`
+	Value string `gorm:"type:text" json:"value"`
+}
+
 type SMTPSender struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
 	OrgID     uint      `gorm:"column:owner_id;index" json:"-"`
@@ -465,7 +472,7 @@ func AllModels() []any {
 	return []any{
 		&Org{}, &User{}, &OrgMember{}, &UserSetting{}, &PluginSetting{},
 		&ProviderAccount{}, &Domain{}, &Link{}, &LinkEvent{}, &Mailbox{}, &Email{},
-		&Token{}, &Setting{}, &SMTPSender{}, &NotificationChannel{},
+		&Token{}, &Setting{}, &WorkspaceSetting{}, &SMTPSender{}, &NotificationChannel{},
 		&AbuseReport{}, &AuditLog{}, &Webhook{}, &Session{},
 	}
 }
