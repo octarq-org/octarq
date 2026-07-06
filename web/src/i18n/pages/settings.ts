@@ -153,6 +153,7 @@ export const settings = {
     secretValue: "Secret value",
     clearGoogleSecret: "Clear Google secret?",
     clearGithubSecret: "Clear GitHub secret?",
+    clearMetricsToken: "Clear Metrics token?",
     clear: "Clear",
 
     // LinkSettings
@@ -500,6 +501,7 @@ export const settings = {
     secretValue: "密钥值",
     clearGoogleSecret: "清除 Google 密钥？",
     clearGithubSecret: "清除 GitHub 密钥？",
+    clearMetricsToken: "清除 Metrics 令牌？",
     clear: "清除",
 
     // LinkSettings

@@ -154,7 +154,7 @@ export function InstanceSettings() {
                 variant="ghost"
                 className="shrink-0 text-xs text-rose-400 hover:text-rose-300"
                 onClick={async () => {
-                  if (confirm(t("settings.clearGoogleSecret"))) {
+                  if (confirm(t("settings.clearMetricsToken"))) {
                     await api.updateInstanceSettings({ metricsToken: "" });
                     reload();
                   }
