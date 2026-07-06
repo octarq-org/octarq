@@ -288,11 +288,11 @@ func main() {
 			"/api/settings": map[string]any{
 				"get": map[string]any{
 					"tags":        []string{"Settings"},
-					"summary":     "Get settings",
-					"description": "Retrieve system-wide runtime settings.",
+					"summary":     "Get workspace settings",
+					"description": "Retrieve tenant-scoped workspace settings.",
 					"responses": map[string]any{
 						"200": map[string]any{
-							"description": "Current settings",
+							"description": "Current workspace settings",
 							"content": map[string]any{
 								"application/json": map[string]any{
 									"schema": map[string]any{"$ref": "#/components/schemas/Settings"},
@@ -304,8 +304,8 @@ func main() {
 				},
 				"put": map[string]any{
 					"tags":        []string{"Settings"},
-					"summary":     "Update settings",
-					"description": "Modify system-wide runtime settings.",
+					"summary":     "Update workspace settings",
+					"description": "Modify tenant-scoped workspace settings.",
 					"requestBody": map[string]any{
 						"required": true,
 						"content": map[string]any{
@@ -316,7 +316,7 @@ func main() {
 					},
 					"responses": map[string]any{
 						"200": map[string]any{
-							"description": "Updated settings",
+							"description": "Updated workspace settings",
 							"content": map[string]any{
 								"application/json": map[string]any{
 									"schema": map[string]any{"$ref": "#/components/schemas/Settings"},
@@ -328,6 +328,60 @@ func main() {
 							"content":     errorResponseContent(),
 						},
 						"401": unauthorizedResponse(),
+					},
+				},
+			},
+			"/api/instance-settings": map[string]any{
+				"get": map[string]any{
+					"tags":        []string{"Settings"},
+					"summary":     "Get instance settings",
+					"description": "Retrieve instance-level settings. Requires instance administrator role.",
+					"responses": map[string]any{
+						"200": map[string]any{
+							"description": "Current instance settings",
+							"content": map[string]any{
+								"application/json": map[string]any{
+									"schema": map[string]any{"$ref": "#/components/schemas/InstanceSettings"},
+								},
+							},
+						},
+						"401": unauthorizedResponse(),
+						"403": map[string]any{
+							"description": "Forbidden",
+							"content":     errorResponseContent(),
+						},
+					},
+				},
+				"put": map[string]any{
+					"tags":        []string{"Settings"},
+					"summary":     "Update instance settings",
+					"description": "Modify instance-level settings. Requires instance administrator role.",
+					"requestBody": map[string]any{
+						"required": true,
+						"content": map[string]any{
+							"application/json": map[string]any{
+								"schema": map[string]any{"$ref": "#/components/schemas/InstanceSettingsPatch"},
+							},
+						},
+					},
+					"responses": map[string]any{
+						"200": map[string]any{
+							"description": "Updated instance settings",
+							"content": map[string]any{
+								"application/json": map[string]any{
+									"schema": map[string]any{"$ref": "#/components/schemas/InstanceSettings"},
+								},
+							},
+						},
+						"400": map[string]any{
+							"description": "Invalid request body",
+							"content":     errorResponseContent(),
+						},
+						"401": unauthorizedResponse(),
+						"403": map[string]any{
+							"description": "Forbidden",
+							"content":     errorResponseContent(),
+						},
 						"500": map[string]any{
 							"description": "Encryption failure",
 							"content":     errorResponseContent(),
@@ -1438,32 +1492,56 @@ func main() {
 				"Settings": map[string]any{
 					"type": "object",
 					"properties": map[string]any{
-						"reservedSlugs":         map[string]any{"type": "string", "example": "admin\napi\nassets"},
 						"reservedMailboxes":     map[string]any{"type": "string", "example": "abuse\npostmaster"},
-						"builtinReserved":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "example": []string{"admin", "api", "assets", "portal"}},
+						"orgSlug":               map[string]any{"type": "string", "example": "myorg"},
 						"inboundToken":          map[string]any{"type": "string", "example": "secret_inbound_token"},
 						"catchAll":              map[string]any{"type": "boolean", "example": false},
-						"googleClientId":        map[string]any{"type": "string", "example": "google-oauth-client-id"},
-						"googleClientSecretSet": map[string]any{"type": "boolean", "example": true},
-						"githubClientId":        map[string]any{"type": "string", "example": "github-oauth-client-id"},
-						"githubClientSecretSet": map[string]any{"type": "boolean", "example": false},
-						"dataRetentionDays":     map[string]any{"type": "integer", "example": 90},
 						"autoWrapLinks":         map[string]any{"type": "boolean", "example": true},
+						"isInstanceAdmin":       map[string]any{"type": "boolean", "example": false},
 					},
 				},
 				"SettingsPatch": map[string]any{
 					"type": "object",
 					"properties": map[string]any{
-						"reservedSlugs":      map[string]any{"type": "string", "example": "admin\napi\nassets"},
 						"reservedMailboxes":  map[string]any{"type": "string", "example": "abuse\npostmaster"},
 						"inboundToken":       map[string]any{"type": "string", "example": "new_secret_inbound_token"},
 						"catchAll":           map[string]any{"type": "boolean"},
+						"autoWrapLinks":      map[string]any{"type": "boolean"},
+					},
+				},
+				"InstanceSettings": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"reservedSlugs":         map[string]any{"type": "string", "example": "admin\napi\nassets"},
+						"builtinReserved":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "example": []string{"admin", "api", "assets", "portal"}},
+						"googleClientId":        map[string]any{"type": "string", "example": "google-oauth-client-id"},
+						"googleClientSecretSet": map[string]any{"type": "boolean", "example": true},
+						"githubClientId":        map[string]any{"type": "string", "example": "github-oauth-client-id"},
+						"githubClientSecretSet": map[string]any{"type": "boolean", "example": false},
+						"dataRetentionDays":     map[string]any{"type": "integer", "example": 90},
+						"allowRegistration":     map[string]any{"type": "boolean", "example": true},
+						"appName":               map[string]any{"type": "string", "example": "led"},
+						"metricsTokenSet":       map[string]any{"type": "boolean", "example": false},
+						"ratelimitAuthRpm":      map[string]any{"type": "integer", "example": 60},
+						"ratelimitApiRpm":       map[string]any{"type": "integer", "example": 600},
+						"ratelimitRedirectRpm":  map[string]any{"type": "integer", "example": 6000},
+					},
+				},
+				"InstanceSettingsPatch": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"reservedSlugs":      map[string]any{"type": "string", "example": "admin\napi\nassets"},
 						"googleClientId":     map[string]any{"type": "string"},
 						"googleClientSecret": map[string]any{"type": "string", "description": "Google Client Secret credentials. Send \"\" to clear, omit to preserve."},
 						"githubClientId":     map[string]any{"type": "string"},
 						"githubClientSecret": map[string]any{"type": "string", "description": "GitHub Client Secret credentials. Send \"\" to clear, omit to preserve."},
 						"dataRetentionDays":  map[string]any{"type": "integer"},
-						"autoWrapLinks":      map[string]any{"type": "boolean"},
+						"allowRegistration":  map[string]any{"type": "boolean"},
+						"appName":            map[string]any{"type": "string"},
+						"metricsToken":       map[string]any{"type": "string", "description": "Metrics token. Send \"\" to clear, omit to preserve."},
+						"ratelimitAuthRpm":   map[string]any{"type": "integer"},
+						"ratelimitApiRpm":    map[string]any{"type": "integer"},
+						"ratelimitRedirectRpm": map[string]any{"type": "integer"},
 					},
 				},
 				"LinkView": map[string]any{

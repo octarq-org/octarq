@@ -77,8 +77,8 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("get settings failed: got %d", rec.Code)
 		}
 
-		// PUT settings
-		body := `{"data_retention_days":"30"}`
+		// PUT settings (workspace)
+		body := `{"catchAll":true}`
 		reqPut := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))
 		for _, c := range cookies {
 			reqPut.AddCookie(c)
@@ -87,6 +87,29 @@ func TestComprehensiveAPI(t *testing.T) {
 		srv.ServeHTTP(recPut, reqPut)
 		if recPut.Code != http.StatusOK {
 			t.Errorf("put settings failed: got %d (%s)", recPut.Code, recPut.Body.String())
+		}
+
+		// GET instance settings
+		reqInst := httptest.NewRequest(http.MethodGet, "/api/instance-settings", nil)
+		for _, c := range cookies {
+			reqInst.AddCookie(c)
+		}
+		recInst := httptest.NewRecorder()
+		srv.ServeHTTP(recInst, reqInst)
+		if recInst.Code != http.StatusOK {
+			t.Errorf("get instance settings failed: got %d (%s)", recInst.Code, recInst.Body.String())
+		}
+
+		// PUT instance settings
+		bodyInst := `{"dataRetentionDays":30}`
+		reqPutInst := httptest.NewRequest(http.MethodPut, "/api/instance-settings", strings.NewReader(bodyInst))
+		for _, c := range cookies {
+			reqPutInst.AddCookie(c)
+		}
+		recPutInst := httptest.NewRecorder()
+		srv.ServeHTTP(recPutInst, reqPutInst)
+		if recPutInst.Code != http.StatusOK {
+			t.Errorf("put instance settings failed: got %d (%s)", recPutInst.Code, recPutInst.Body.String())
 		}
 	}
 
