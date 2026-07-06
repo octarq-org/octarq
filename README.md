@@ -151,8 +151,7 @@ tool so the AI can compute any metric without a bespoke endpoint.
 only a single `SELECT`/`WITH` runs (writes, `PRAGMA`, `ATTACH` are rejected,
 inside a read-only transaction); results are row-capped; and sensitive columns
 (password/token hashes, encrypted provider credentials, raw email bodies) are
-redacted. Tools are scoped to one operator via `LED_MCP_ORG_ID`; for a
-multi-tenant deployment, run one `led mcp` process per tenant.
+redacted. Tools are scoped dynamically via HTTP headers or query parameter tokens (`?token=led_...` / `Authorization: Bearer led_...`) corresponding to the operator's workspace on `/api/mcp/sse` and `/api/mcp/stream`.
 
 ### LLM provider
 

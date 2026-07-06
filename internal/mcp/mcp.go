@@ -35,7 +35,7 @@ const version = "0.1.0"
 // server bundles the dependencies the tool handlers share.
 type server struct {
 	gdb   *gorm.DB
-	orgID uint // tenant scope for the convenience tools (LED_MCP_ORG_ID, default 1)
+	orgID uint // tenant scope for the tools (defaults to 1 for Stdio CLI, dynamically set via HTTP tokens for remote SSE)
 }
 
 // Run loads configuration, opens the database read-only-style, builds the MCP
