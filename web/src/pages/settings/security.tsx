@@ -109,41 +109,7 @@ export function SecuritySettings() {
   // Disable state.
   const [disableCode, setDisableCode] = useState("");
 
-  // SSO state (merged from SignInSettings).
   const { s: wS } = useSettingsData();
-  const { s: ssoSettings, reload: ssoReload } = useInstanceSettingsData();
-  const [googleId, setGoogleId] = useState("");
-  const [googleSecret, setGoogleSecret] = useState("");
-  const [githubId, setGithubId] = useState("");
-  const [githubSecret, setGithubSecret] = useState("");
-  const [ssoBusy, setSsoBusy] = useState(false);
-  const [ssoSaved, setSsoSaved] = useState(false);
-  const [allowReg, setAllowReg] = useState(true);
-
-  useEffect(() => {
-    if (ssoSettings) {
-      setGoogleId(ssoSettings.googleClientId || "");
-      setGithubId(ssoSettings.githubClientId || "");
-      setAllowReg(ssoSettings.allowRegistration);
-    }
-  }, [ssoSettings]);
-
-  async function toggleRegistration(next: boolean) {
-    setAllowReg(next);
-    try { await api.updateInstanceSettings({ allowRegistration: next }); ssoReload(); }
-    catch { setAllowReg(!next); }
-  }
-
-  async function saveSso() {
-    setSsoBusy(true);
-    try {
-      const p: any = { googleClientId: googleId.trim(), githubClientId: githubId.trim() };
-      if (googleSecret.trim()) p.googleClientSecret = googleSecret.trim();
-      if (githubSecret.trim()) p.githubClientSecret = githubSecret.trim();
-      await api.updateInstanceSettings(p);
-      setGoogleSecret(""); setGithubSecret(""); setSsoSaved(true); setTimeout(() => setSsoSaved(false), 2000); ssoReload();
-    } finally { setSsoBusy(false); }
-  }
 
   async function load() {
     try {
@@ -275,49 +241,7 @@ export function SecuritySettings() {
         <SessionsList onRevokeAll={logoutAll} />
       </GlassCard>
 
-      {wS?.isInstanceAdmin && (
-        <>
-          <GlassCard className="p-6 space-y-4">
-            <h2 className="text-base font-bold text-white">Access control</h2>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm text-white/85">Allow public sign-up</p>
-                <p className="text-[10px] text-white/40 mt-0.5">When on, anyone can create an account with an email and password from the sign-in page. Turn off to make this an invite-only instance.</p>
-              </div>
-              <Toggle on={allowReg} onChange={toggleRegistration} />
-            </div>
-          </GlassCard>
 
-          <GlassCard className="p-6 space-y-6">
-            <div className="flex items-center justify-between"><h2 className="text-base font-bold text-white">Single Sign-On</h2><SavedBadge on={ssoSaved} /></div>
-            <p className="text-[10px] text-white/40">Let people sign in with Google or GitHub. Make sure the server callback URLs match your LED base URL. Credentials are stored encrypted.</p>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
-                <p className="flex items-center gap-1.5 text-xs font-bold text-white/85"><span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> Google Sign-In</p>
-                <Field label="Google Client ID"><input className="input w-full text-xs" value={googleId} onChange={(e) => setGoogleId(e.target.value)} placeholder="*.apps.googleusercontent.com" /></Field>
-                <Field label="Google Client Secret">
-                  <div className="flex gap-2">
-                    <input className="input w-full font-mono text-xs" type="password" value={googleSecret} onChange={(e) => setGoogleSecret(e.target.value)} placeholder={ssoSettings?.googleClientSecretSet ? "•••••••• (Set)" : "Secret value"} />
-                    {ssoSettings?.googleClientSecretSet && <Button variant="danger" onClick={async () => { if (confirm("Clear Google secret?")) { await api.updateInstanceSettings({ googleClientSecret: "" }); ssoReload(); } }} className="px-2.5 py-1 text-xs">Clear</Button>}
-                  </div>
-                </Field>
-                <p className="text-[10px] text-white/30">Callback URL: <span className="font-mono text-white/50">{"{HOST}/api/auth/google/callback"}</span></p>
-              </div>
-              <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
-                <p className="flex items-center gap-1.5 text-xs font-bold text-white/85"><span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> GitHub Integration</p>
-                <Field label="GitHub Client ID"><input className="input w-full text-xs" value={githubId} onChange={(e) => setGithubId(e.target.value)} placeholder="Ov23li…" /></Field>
-                <Field label="GitHub Client Secret">
-                  <div className="flex gap-2">
-                    <input className="input w-full font-mono text-xs" type="password" value={githubSecret} onChange={(e) => setGithubSecret(e.target.value)} placeholder={ssoSettings?.githubClientSecretSet ? "•••••••• (Set)" : "Secret value"} />
-                    {ssoSettings?.githubClientSecretSet && <Button variant="danger" onClick={async () => { if (confirm("Clear GitHub secret?")) { await api.updateInstanceSettings({ githubClientSecret: "" }); ssoReload(); } }} className="px-2.5 py-1 text-xs">Clear</Button>}
-                  </div>
-                </Field>
-              </div>
-            </div>
-            <div className="border-t border-white/[0.06] pt-6"><Button variant="primary" onClick={saveSso} disabled={ssoBusy}>{ssoBusy ? "Saving…" : "Save"}</Button></div>
-          </GlassCard>
-        </>
-      )}
     </div>
   );
 }

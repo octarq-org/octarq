@@ -187,6 +187,12 @@ export const SETTINGS_AREA: Area = {
         { id: "license", label: "License",        Icon: KeyRound,   path: "/settings/license" },
       ],
     },
+    {
+      label: "Instance",
+      items: [
+        { id: "instance", label: "Instance Settings", Icon: Server, path: "/settings/instance" },
+      ],
+    },
   ],
 };
 

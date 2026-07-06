@@ -12,21 +12,7 @@ export function GeneralSettings() {
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const [workspaceSaved, setWorkspaceSaved] = useState(false);
-  const [retention, setRetention] = useState(90);
-  const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  const [appName, setAppName] = useState("");
-  const [rlAuth, setRlAuth] = useState(60);
-  const [rlApi, setRlApi] = useState(600);
-  const [rlRedirect, setRlRedirect] = useState(6000);
-  const [metricsToken, setMetricsToken] = useState("");
-  const [metricsTokenSet, setMetricsTokenSet] = useState(false);
-  const [instanceBusy, setInstanceBusy] = useState(false);
-  const [instanceSaved, setInstanceSaved] = useState(false);
-
   const [role, setRole] = useState<string | null>(null);
-  const [isInstanceAdmin, setIsInstanceAdmin] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [purging, setPurging] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -40,40 +26,7 @@ export function GeneralSettings() {
         setRole(o.role || "member");
       }
     })).catch(() => {});
-    api.settings().then((v) => {
-      setIsInstanceAdmin(v.isInstanceAdmin);
-      if (v.isInstanceAdmin) {
-        api.instanceSettings().then((iv) => {
-          setRetention(iv.dataRetentionDays ?? 90);
-          setAppName(iv.appName ?? "");
-          setRlAuth(iv.ratelimitAuthRpm ?? 60);
-          setRlApi(iv.ratelimitApiRpm ?? 600);
-          setRlRedirect(iv.ratelimitRedirectRpm ?? 6000);
-          setMetricsTokenSet(iv.metricsTokenSet ?? false);
-        });
-      }
-    });
   }, []);
-
-  async function saveInstance(extra: { metricsToken?: string } = {}) {
-    setInstanceBusy(true);
-    try {
-      const payload: Parameters<typeof api.updateInstanceSettings>[0] = {
-        appName,
-        ratelimitAuthRpm: rlAuth,
-        ratelimitApiRpm: rlApi,
-        ratelimitRedirectRpm: rlRedirect,
-        ...( "metricsToken" in extra ? extra : metricsToken ? { metricsToken } : {}),
-      };
-      const v = await api.updateInstanceSettings(payload);
-      setMetricsTokenSet(v.metricsTokenSet);
-      setMetricsToken("");
-      setInstanceSaved(true);
-      setTimeout(() => setInstanceSaved(false), 2000);
-    } finally {
-      setInstanceBusy(false);
-    }
-  }
 
   async function renameWorkspace(e: React.FormEvent) {
     e.preventDefault();
@@ -84,15 +37,6 @@ export function GeneralSettings() {
       setWorkspaceSaved(true);
       setTimeout(() => window.location.reload(), 800);
     } catch (err: any) { alert(err.message || t("settings.renameFailed")); } finally { setWorkspaceBusy(false); }
-  }
-
-  async function save() {
-    setBusy(true);
-    try {
-      await api.updateInstanceSettings({ dataRetentionDays: retention });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } finally { setBusy(false); }
   }
 
   async function handleExport() {
@@ -157,64 +101,7 @@ export function GeneralSettings() {
         </form>
       </GlassCard>
 
-      {isInstanceAdmin && (
-        <GlassCard className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-white">{t("settings.dataRetention")}</h2>
-            <SavedBadge on={saved} />
-          </div>
-          <Field label={t("settings.retentionLabel")} hint={t("settings.retentionHint")}>
-            <input type="number" min={0} className="input w-32 font-mono text-sm" value={retention} onChange={(e) => setRetention(Number(e.target.value))} />
-          </Field>
-          <div className="border-t border-white/[0.06] pt-6">
-            <Button variant="primary" onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("settings.save")}</Button>
-          </div>
-        </GlassCard>
-      )}
 
-      {isInstanceAdmin && (
-        <GlassCard className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-white">{t("settings.instanceTitle")}</h2>
-              <p className="text-xs text-white/50 mt-1">{t("settings.instanceDesc")}</p>
-            </div>
-            <SavedBadge on={instanceSaved} />
-          </div>
-          <Field label={t("settings.instanceAppName")} hint={t("settings.instanceAppNameHint")}>
-            <input className="input w-full max-w-md text-sm" value={appName} onChange={(e) => setAppName(e.target.value)} placeholder="led" />
-          </Field>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl">
-            <Field label={t("settings.instanceRlAuth")} hint={t("settings.instanceRlHint")}>
-              <input type="number" min={0} className="input w-full font-mono text-sm" value={rlAuth} onChange={(e) => setRlAuth(Number(e.target.value))} />
-            </Field>
-            <Field label={t("settings.instanceRlApi")}>
-              <input type="number" min={0} className="input w-full font-mono text-sm" value={rlApi} onChange={(e) => setRlApi(Number(e.target.value))} />
-            </Field>
-            <Field label={t("settings.instanceRlRedirect")}>
-              <input type="number" min={0} className="input w-full font-mono text-sm" value={rlRedirect} onChange={(e) => setRlRedirect(Number(e.target.value))} />
-            </Field>
-          </div>
-          <Field
-            label={t("settings.instanceMetricsToken")}
-            hint={metricsTokenSet ? t("settings.instanceMetricsTokenSetHint") : t("settings.instanceMetricsTokenHint")}
-          >
-            <div className="flex gap-2 max-w-md">
-              <input className="input w-full font-mono text-sm" type="password" value={metricsToken} onChange={(e) => setMetricsToken(e.target.value)} placeholder={metricsTokenSet ? "••••••••" : ""} />
-              {metricsTokenSet && (
-                <Button variant="ghost" className="shrink-0 text-xs" onClick={() => saveInstance({ metricsToken: "" })} disabled={instanceBusy}>
-                  {t("settings.instanceMetricsClear")}
-                </Button>
-              )}
-            </div>
-          </Field>
-          <div className="border-t border-white/[0.06] pt-6">
-            <Button variant="primary" onClick={() => saveInstance()} disabled={instanceBusy}>
-              {instanceBusy ? t("settings.saving") : t("settings.save")}
-            </Button>
-          </div>
-        </GlassCard>
-      )}
 
       {isAdminOrOwner && (
         <GlassCard className="p-6 space-y-4">

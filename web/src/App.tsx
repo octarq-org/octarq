@@ -139,6 +139,7 @@ function Shell({
   // Multi-workspace is a Pro feature. The OSS binary registers no Pro plugins,
   // so a non-empty plugin list means this is a Pro build where it's available.
   const [isProBuild, setIsProBuild] = useState(false);
+  const [isInstanceAdmin, setIsInstanceAdmin] = useState(false);
 
   // Collapse the second-level area panel to widen the content area. Persisted,
   // and kept in the layout (not AreaPanel) so it survives area switches.
@@ -170,6 +171,7 @@ function Shell({
   // Load orgs + dynamic menus + user settings layout
   useEffect(() => {
     api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
+    api.settings().then((s) => setIsInstanceAdmin(!!s.isInstanceAdmin)).catch(() => {});
 
     const MASTER_MENU_ITEMS: Record<string, { label: string; Icon: React.ElementType; path: string; iconStr?: string }> = {
       overview: { label: "Overview", Icon: LayoutDashboard, path: "/overview" },
@@ -266,7 +268,15 @@ function Shell({
       .catch(() => {});
   }, [activeOrgId]);
 
-  const currentArea = settingsActive ? SETTINGS_AREA : (areas.find((a) => a.id === activeArea) ?? areas[0]);
+  const currentSettingsArea = useMemo(() => {
+    if (isInstanceAdmin) return SETTINGS_AREA;
+    return {
+      ...SETTINGS_AREA,
+      groups: SETTINGS_AREA.groups.filter((g) => g.label !== "Instance"),
+    };
+  }, [isInstanceAdmin]);
+
+  const currentArea = settingsActive ? currentSettingsArea : (areas.find((a) => a.id === activeArea) ?? areas[0]);
   const activeOrgName = orgs.find((o) => o.id === activeOrgId)?.name ?? t("app.personalWorkspace");
 
   function handleCreateOrg(e: React.FormEvent) {

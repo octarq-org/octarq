@@ -13,6 +13,7 @@ import { SecuritySettings } from "./settings/security";
 import { WebhooksSettings, NotificationChannels } from "./settings/webhooks";
 import { OrgMembersManager } from "./settings/members";
 import { BillingPlanSettings } from "./settings/billingPlan";
+import { InstanceSettings } from "./settings/instance";
 
 // Re-exported for other pages that embed a settings section.
 export { ProviderAccounts } from "./settings/providers";
@@ -32,6 +33,7 @@ export default function SettingsPage() {
         <Route path="/license" element={<LicenseSettings />} />
         <Route path="/notifications" element={<NotificationChannels />} />
         <Route path="/members" element={<OrgMembersManager />} />
+        <Route path="/instance" element={<InstanceSettings />} />
       </Routes>
     </ScreenWrap>
   );
