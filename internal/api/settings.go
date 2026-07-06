@@ -200,10 +200,25 @@ func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// isInstanceAdmin reports whether the current user is an owner of the bootstrap org (org 1),
+// and thus holds instance-level administrative privileges.
+func (h *Handler) isInstanceAdmin(r *http.Request) bool {
+	uid := h.auth.UserID(r)
+	if uid == 0 {
+		return false
+	}
+	var role string
+	if err := h.db.Model(&models.OrgMember{}).
+		Where("org_id = ? AND user_id = ?", 1, uid).
+		Pluck("role", &role).Error; err != nil {
+		return false
+	}
+	return role == "owner"
+}
+
 func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
-	// These are instance-level secrets (OAuth client secrets, Cloudflare token,
-	// catch-all, retention). Only org owners/admins may change them; a plain
-	// member must not be able to rewrite the instance's auth or DNS config.
+	// Base permission: Only org owners/admins may change settings for their org.
+	// Instance-level settings have an additional check below requiring instance admin.
 	if role := h.callerOrgRole(r); role != "owner" && role != "admin" {
 		writeErr(w, http.StatusForbidden, "owner or admin role required")
 		return
@@ -228,6 +243,18 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := readJSON(r, &d); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+
+	hasInstanceUpdates := d.ReservedSlugs != nil || d.GoogleClientID != nil ||
+		d.GoogleClientSecret != nil || d.GitHubClientID != nil ||
+		d.GitHubClientSecret != nil || d.DataRetentionDays != nil ||
+		d.AllowRegistration != nil || d.AppName != nil ||
+		d.MetricsToken != nil || d.RatelimitAuthRpm != nil ||
+		d.RatelimitApiRpm != nil || d.RatelimitRedirectRpm != nil
+
+	if hasInstanceUpdates && !h.isInstanceAdmin(r) {
+		writeErr(w, http.StatusForbidden, "instance admin role required to update instance settings")
 		return
 	}
 	if d.ReservedSlugs != nil {
