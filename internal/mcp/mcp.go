@@ -47,17 +47,8 @@ func Run(ctx context.Context) error {
 
 // RunWithPlugins is identical to Run but lets the caller supply registered
 // Pro plugins so they can register their custom MCP write or finance tools.
-func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("mcp: load config: %w", err)
-	}
-	gdb, err := db.Open(cfg)
-	if err != nil {
-		return fmt.Errorf("mcp: open db: %w", err)
-	}
-
-	s := &server{gdb: gdb, orgID: cfg.MCPOrgID}
+func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin) *mcp.Server {
+	s := &server{gdb: gdb, orgID: orgID}
 
 	impl := &mcp.Implementation{Name: "led", Version: version}
 	opts := &mcp.ServerOptions{
@@ -74,7 +65,20 @@ func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
 			mp.RegisterMCP(srv)
 		}
 	}
+	return srv
+}
 
+func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("mcp: load config: %w", err)
+	}
+	gdb, err := db.Open(cfg)
+	if err != nil {
+		return fmt.Errorf("mcp: open db: %w", err)
+	}
+
+	srv := NewServerInstance(gdb, 1, plugins) // Default to org 1 for Stdio CLI
 	return srv.Run(ctx, &mcp.StdioTransport{})
 }
 
@@ -119,11 +123,10 @@ func (s *server) registerTools(srv *mcp.Server) {
 
 // jsonResult marshals v to pretty JSON and wraps it as an MCP text result,
 // returning v as the structured output too.
-func jsonResult[T any](v T) (*mcp.CallToolResult, T, error) {
+func jsonResult[T any](v T) (*mcp.CallToolResult, any, error) {
 	buf, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		var zero T
-		return nil, zero, err
+		return nil, nil, err
 	}
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{&mcp.TextContent{Text: string(buf)}},

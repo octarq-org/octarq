@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Jungley8/led/internal/dnsprovider"
 	"github.com/Jungley8/led/internal/models"
@@ -110,6 +111,31 @@ func TestComprehensiveAPI(t *testing.T) {
 		srv.ServeHTTP(recPutInst, reqPutInst)
 		if recPutInst.Code != http.StatusOK {
 			t.Errorf("put instance settings failed: got %d (%s)", recPutInst.Code, recPutInst.Body.String())
+		}
+
+		// 2.5 MCP API tests
+		// GET /api/mcp/sse without auth -> 401
+		reqMcpUnauth := httptest.NewRequest(http.MethodGet, "/api/mcp/sse", nil)
+		recMcpUnauth := httptest.NewRecorder()
+		srv.ServeHTTP(recMcpUnauth, reqMcpUnauth)
+		if recMcpUnauth.Code != http.StatusUnauthorized {
+			t.Errorf("expected 401 for unauth mcp, got %d", recMcpUnauth.Code)
+		}
+
+		// GET /api/mcp/sse with auth (cancel via context to avoid blocking)
+		ctxMcp, cancelMcp := context.WithCancel(context.Background())
+		reqMcpAuth := httptest.NewRequest(http.MethodGet, "/api/mcp/sse", nil).WithContext(ctxMcp)
+		for _, c := range cookies {
+			reqMcpAuth.AddCookie(c)
+		}
+		recMcpAuth := httptest.NewRecorder()
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			cancelMcp()
+		}()
+		srv.ServeHTTP(recMcpAuth, reqMcpAuth)
+		if recMcpAuth.Code != http.StatusOK {
+			t.Errorf("expected 200 for auth mcp sse, got %d (%s)", recMcpAuth.Code, recMcpAuth.Body.String())
 		}
 	}
 

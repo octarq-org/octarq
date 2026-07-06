@@ -34,7 +34,7 @@ type linkOut struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-func (s *server) listLinks(ctx context.Context, _ *mcp.CallToolRequest, in listLinksInput) (*mcp.CallToolResult, []linkOut, error) {
+func (s *server) listLinks(ctx context.Context, _ *mcp.CallToolRequest, in listLinksInput) (*mcp.CallToolResult, any, error) {
 	q := s.gdb.WithContext(ctx).Model(&models.Link{}).
 		Where("owner_id = ?", s.ownerScope()).
 		Order("clicks DESC").
@@ -72,7 +72,7 @@ type mailboxOut struct {
 	Unread  int64  `json:"unread"`
 }
 
-func (s *server) listMailboxes(ctx context.Context, _ *mcp.CallToolRequest, _ listMailboxesInput) (*mcp.CallToolResult, []mailboxOut, error) {
+func (s *server) listMailboxes(ctx context.Context, _ *mcp.CallToolRequest, _ listMailboxesInput) (*mcp.CallToolResult, any, error) {
 	var mbs []models.Mailbox
 	if err := s.gdb.WithContext(ctx).
 		Where("owner_id = ?", s.ownerScope()).
@@ -107,7 +107,7 @@ type emailOut struct {
 	ReceivedAt time.Time `json:"receivedAt"`
 }
 
-func (s *server) listEmails(ctx context.Context, _ *mcp.CallToolRequest, in listEmailsInput) (*mcp.CallToolResult, []emailOut, error) {
+func (s *server) listEmails(ctx context.Context, _ *mcp.CallToolRequest, in listEmailsInput) (*mcp.CallToolResult, any, error) {
 	// Scope emails to mailboxes the operator owns (emails have no owner_id of
 	// their own — ownership is via the mailbox).
 	var mailboxIDs []uint
@@ -153,7 +153,7 @@ type domainOut struct {
 	ZoneID  string `json:"zoneId"`
 }
 
-func (s *server) listDomains(ctx context.Context, _ *mcp.CallToolRequest, _ listDomainsInput) (*mcp.CallToolResult, []domainOut, error) {
+func (s *server) listDomains(ctx context.Context, _ *mcp.CallToolRequest, _ listDomainsInput) (*mcp.CallToolResult, any, error) {
 	var doms []models.Domain
 	if err := s.gdb.WithContext(ctx).
 		Where("owner_id = ?", s.ownerScope()).
@@ -181,7 +181,7 @@ type queryOutput struct {
 	Truncated bool `json:"truncated"`
 }
 
-func (s *server) queryDBReadonly(ctx context.Context, _ *mcp.CallToolRequest, in queryInput) (*mcp.CallToolResult, queryOutput, error) {
+func (s *server) queryDBReadonly(ctx context.Context, _ *mcp.CallToolRequest, in queryInput) (*mcp.CallToolResult, any, error) {
 	cols, rows, err := s.runReadOnlyQuery(ctx, in.Query)
 	if err != nil {
 		// Audit the rejected/failed attempt too — the audit trail is exactly

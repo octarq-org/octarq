@@ -56,10 +56,6 @@ type Config struct {
 	// e.g. "https://app.example.com". Leave empty to disable OAuth login.
 	BaseURL string
 
-	// MCPOrgID scopes the `led mcp` server's convenience tools to one tenant's
-	// data. Defaults to 1 (the single-operator self-hosted case). On a
-	// multi-tenant deployment, run one MCP process per tenant with this set.
-	MCPOrgID uint
 
 	// RedisURL configures the optional Redis connection (e.g. "redis://localhost:6379").
 	// If empty, Redis-based features will be disabled or fall back to DB/in-memory.
@@ -155,7 +151,6 @@ func Load() (*Config, error) {
 
 		GeoIPDB:  env("LED_GEOIP_DB", ""),
 		BaseURL:  env("LED_BASE_URL", ""),
-		MCPOrgID: uint(envInt("LED_MCP_ORG_ID", 1)),
 		RedisURL: env("LED_REDIS_URL", ""),
 	}
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" {

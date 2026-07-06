@@ -31,6 +31,11 @@ const (
 	sessionIDKey contextKey = "session_id"
 )
 
+// WithOrgID returns a new context containing the organization ID.
+func WithOrgID(ctx context.Context, orgID uint) context.Context {
+	return context.WithValue(ctx, orgIDKey, orgID)
+}
+
 const (
 	cookieName    = "led_session"
 	sessionTTL    = 7 * 24 * time.Hour

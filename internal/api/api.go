@@ -181,6 +181,10 @@ func (h *Handler) Routes() *http.ServeMux {
 	// Health check (public - no auth required).
 	mux.HandleFunc("GET /api/health", h.health)
 
+	// MCP SSE and Streamable HTTP endpoints.
+	mux.Handle("/api/mcp/sse", h.mcpSSEHandler())
+	mux.Handle("/api/mcp/stream", h.mcpStreamHandler())
+
 	// Everything below requires a session.
 	p := func(pattern string, fn http.HandlerFunc) {
 		mux.Handle(pattern, h.auth.Require(fn))
