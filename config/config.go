@@ -15,19 +15,16 @@ import (
 // cookies; a short key is brute-forceable.
 const minSecretKeyLen = 16
 
-// DefaultAppName is the fallback product name shown in the UI when LED_APP_NAME
-// is not set. Downstream builds (e.g. the commercial led-pro) override it at
-// compile time via -ldflags="-X github.com/Jungley8/led/config.DefaultAppName=…".
+// DefaultAppName is the fallback product name shown in the UI when the
+// `app_name` runtime setting (Settings → General) is empty. Downstream builds
+// (e.g. the commercial led-pro) override it at compile time via
+// -ldflags="-X github.com/Jungley8/led/config.DefaultAppName=…".
 var DefaultAppName = "led"
 
 // Config holds all runtime configuration for led.
 type Config struct {
 	Listen    string // e.g. ":8080"
 	AdminHost string // host that serves the dashboard; empty = serve dashboard on any non-link host
-
-	// AppName is the product name shown throughout the web UI (brand text, logo
-	// initial, document title). Sourced from LED_APP_NAME; defaults to "led".
-	AppName string
 
 	DBDriver string // "sqlite" | "postgres"
 	DBDSN    string // sqlite: file path; postgres: connection string
@@ -156,7 +153,6 @@ func Load() (*Config, error) {
 	c := &Config{
 		Listen:        env("LED_LISTEN", ":8080"),
 		AdminHost:     env("LED_ADMIN_HOST", ""),
-		AppName:       env("LED_APP_NAME", DefaultAppName),
 		DBDriver:      env("LED_DB_DRIVER", "sqlite"),
 		DBDSN:         env("LED_DB_DSN", "led.db"),
 		SecretKey:     env("LED_SECRET_KEY", ""),

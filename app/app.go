@@ -179,17 +179,18 @@ func (a *App) RunMCP(ctx context.Context) error {
 	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo, taskQueue)
 	apiHandler.SetPlugins(a.plugins)
 	pctx := &plugin.Context{
-		DB:       a.gdb,
-		Guard:    a.auth.Require,
-		Notify:   notify.Send,
-		UserID:   a.auth.UserID,
-		OrgID:    a.auth.OrgID,
-		Audit:    apiHandler.Audit,
-		Encrypt:  a.cipher.Encrypt,
-		Decrypt:  a.cipher.Decrypt,
-		OnEmail:  apiHandler.OnEmail,
-		DNS:      apiHandler.DNSManager(),
-		SendMail: a.sendMail,
+		DB:             a.gdb,
+		Guard:          a.auth.Require,
+		Notify:         notify.Send,
+		UserID:         a.auth.UserID,
+		OrgID:          a.auth.OrgID,
+		Audit:          apiHandler.Audit,
+		Encrypt:        a.cipher.Encrypt,
+		Decrypt:        a.cipher.Decrypt,
+		OnEmail:        apiHandler.OnEmail,
+		DNS:            apiHandler.DNSManager(),
+		SendMail:       a.sendMail,
+		SetLLMResolver: apiHandler.SetLLMResolver,
 	}
 	throwaway := http.NewServeMux()
 	for _, p := range a.plugins {
@@ -232,17 +233,18 @@ func (a *App) Run(ctx context.Context) error {
 	apiHandler.SetPlugins(a.plugins)
 	mux := apiHandler.Routes()
 	pctx := &plugin.Context{
-		DB:       a.gdb,
-		Guard:    a.auth.Require,
-		Notify:   notify.Send,
-		UserID:   a.auth.UserID,
-		OrgID:    a.auth.OrgID,
-		Audit:    apiHandler.Audit,
-		Encrypt:  a.cipher.Encrypt,
-		Decrypt:  a.cipher.Decrypt,
-		OnEmail:  apiHandler.OnEmail,
-		DNS:      apiHandler.DNSManager(),
-		SendMail: a.sendMail,
+		DB:             a.gdb,
+		Guard:          a.auth.Require,
+		Notify:         notify.Send,
+		UserID:         a.auth.UserID,
+		OrgID:          a.auth.OrgID,
+		Audit:          apiHandler.Audit,
+		Encrypt:        a.cipher.Encrypt,
+		Decrypt:        a.cipher.Decrypt,
+		OnEmail:        apiHandler.OnEmail,
+		DNS:            apiHandler.DNSManager(),
+		SendMail:       a.sendMail,
+		SetLLMResolver: apiHandler.SetLLMResolver,
 	}
 	// Non-core plugin routes are gated by a per-workspace feature toggle: when the
 	// caller's workspace has the feature disabled, the app answers 404 before the
@@ -272,7 +274,10 @@ func (a *App) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	srv, err := server.New(a.cfg, mux, short, webFS)
+	srv, err := server.New(a.cfg, mux, short, webFS, server.RuntimeSettings{
+		MetricsToken: apiHandler.MetricsToken,
+		RateLimits:   apiHandler.RateLimits,
+	})
 	if err != nil {
 		return err
 	}

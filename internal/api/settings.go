@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Jungley8/led/config"
 	"github.com/Jungley8/led/internal/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm/clause"
@@ -34,7 +35,63 @@ const (
 	keyDataRetentionDays  = "data_retention_days"        // 0 = disabled
 	keyAutoWrapLinks      = "auto_wrap_links"
 	keyAllowRegistration  = "allow_registration" // "false" disables public sign-up; default on
+	keyAppName            = "app_name"           // UI product name; empty = config.DefaultAppName
+	keyMetricsToken       = "metrics_token"      // /metrics bearer; stored AES-GCM encrypted; empty = loopback-only
+	keyRatelimitAuthRPM   = "ratelimit_auth_rpm"
+	keyRatelimitAPIRPM    = "ratelimit_api_rpm"
+	keyRatelimitRedirRPM  = "ratelimit_redirect_rpm"
 )
+
+// Rate-limit defaults (requests per minute per IP) when the setting is unset.
+const (
+	defaultAuthRPM     = 60
+	defaultAPIRPM      = 600
+	defaultRedirectRPM = 6000
+)
+
+// AppName returns the runtime product name (Settings → General), falling back
+// to config.DefaultAppName.
+func (h *Handler) AppName() string {
+	if v := strings.TrimSpace(h.getSetting(keyAppName)); v != "" {
+		return v
+	}
+	return config.DefaultAppName
+}
+
+// MetricsToken returns the decrypted /metrics bearer token; empty means the
+// endpoint is loopback-only. Consumed by the edge middleware via a TTL cache.
+func (h *Handler) MetricsToken() string {
+	enc := h.getSetting(keyMetricsToken)
+	if enc == "" {
+		return ""
+	}
+	b, err := h.cipher.Decrypt(enc)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+// RateLimits returns the per-IP requests-per-minute budgets (auth, api,
+// redirect tiers) from settings, with defaults for unset/invalid values.
+// A stored 0 or negative disables that tier's limiting.
+func (h *Handler) RateLimits() (authRPM, apiRPM, redirectRPM int) {
+	return h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
+		h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
+		h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM)
+}
+
+func (h *Handler) settingInt(key string, def int) int {
+	v := strings.TrimSpace(h.getSetting(key))
+	if v == "" {
+		return def
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return def
+	}
+	return n
+}
 
 // registrationEnabled reports whether public email/password sign-up is allowed.
 // Absent setting → enabled (default on); only an explicit "false" disables it.
@@ -135,6 +192,11 @@ func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
 		"dataRetentionDays":     retDays,
 		"autoWrapLinks":         h.getSetting(keyAutoWrapLinks) == "true",
 		"allowRegistration":     h.registrationEnabled(),
+		"appName":               h.getSetting(keyAppName), // raw value; empty = default
+		"metricsTokenSet":       h.getSetting(keyMetricsToken) != "",
+		"ratelimitAuthRpm":      h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
+		"ratelimitApiRpm":       h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
+		"ratelimitRedirectRpm":  h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM),
 	})
 }
 
@@ -147,17 +209,22 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var d struct {
-		ReservedSlugs      *string `json:"reservedSlugs"`
-		ReservedMailboxes  *string `json:"reservedMailboxes"`
-		InboundToken       *string `json:"inboundToken"`
-		CatchAll           *bool   `json:"catchAll"`
-		GoogleClientID     *string `json:"googleClientId"`
-		GoogleClientSecret *string `json:"googleClientSecret"` // "" clears, omitted keeps
-		GitHubClientID     *string `json:"githubClientId"`
-		GitHubClientSecret *string `json:"githubClientSecret"` // "" clears, omitted keeps
-		DataRetentionDays  *int    `json:"dataRetentionDays"`  // 0 = disabled
-		AutoWrapLinks      *bool   `json:"autoWrapLinks"`
-		AllowRegistration  *bool   `json:"allowRegistration"`
+		ReservedSlugs        *string `json:"reservedSlugs"`
+		ReservedMailboxes    *string `json:"reservedMailboxes"`
+		InboundToken         *string `json:"inboundToken"`
+		CatchAll             *bool   `json:"catchAll"`
+		GoogleClientID       *string `json:"googleClientId"`
+		GoogleClientSecret   *string `json:"googleClientSecret"` // "" clears, omitted keeps
+		GitHubClientID       *string `json:"githubClientId"`
+		GitHubClientSecret   *string `json:"githubClientSecret"` // "" clears, omitted keeps
+		DataRetentionDays    *int    `json:"dataRetentionDays"`  // 0 = disabled
+		AutoWrapLinks        *bool   `json:"autoWrapLinks"`
+		AllowRegistration    *bool   `json:"allowRegistration"`
+		AppName              *string `json:"appName"`      // "" resets to the built-in default
+		MetricsToken         *string `json:"metricsToken"` // "" clears (loopback-only), omitted keeps
+		RatelimitAuthRpm     *int    `json:"ratelimitAuthRpm"`
+		RatelimitApiRpm      *int    `json:"ratelimitApiRpm"`
+		RatelimitRedirectRpm *int    `json:"ratelimitRedirectRpm"`
 	}
 	if err := readJSON(r, &d); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
@@ -230,6 +297,30 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 			val = "true"
 		}
 		h.setSetting(keyAllowRegistration, val)
+	}
+	if d.AppName != nil {
+		h.setSetting(keyAppName, strings.TrimSpace(*d.AppName))
+	}
+	if d.MetricsToken != nil {
+		if *d.MetricsToken == "" {
+			h.setSetting(keyMetricsToken, "")
+		} else {
+			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*d.MetricsToken)))
+			if err != nil {
+				writeErr(w, http.StatusInternalServerError, "encrypt token")
+				return
+			}
+			h.setSetting(keyMetricsToken, enc)
+		}
+	}
+	if d.RatelimitAuthRpm != nil {
+		h.setSetting(keyRatelimitAuthRPM, strconv.Itoa(*d.RatelimitAuthRpm))
+	}
+	if d.RatelimitApiRpm != nil {
+		h.setSetting(keyRatelimitAPIRPM, strconv.Itoa(*d.RatelimitApiRpm))
+	}
+	if d.RatelimitRedirectRpm != nil {
+		h.setSetting(keyRatelimitRedirRPM, strconv.Itoa(*d.RatelimitRedirectRpm))
 	}
 	h.audit(r, "settings.update", "settings", 0, nil)
 	h.getSettings(w, r)

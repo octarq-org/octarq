@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -134,26 +133,33 @@ func newRateLimiter() *rateLimiter {
 	return &rateLimiter{
 		window: time.Minute,
 		limits: map[tier]int{
-			tierAuth:     envInt("LED_RATELIMIT_AUTH_RPM", 60),
-			tierAPI:      envInt("LED_RATELIMIT_API_RPM", 600),
-			tierRedirect: envInt("LED_RATELIMIT_REDIRECT_RPM", 6000),
+			tierAuth:     defaultAuthRPM,
+			tierAPI:      defaultAPIRPM,
+			tierRedirect: defaultRedirectRPM,
 		},
 		counters:  make(map[string]*rlCounter),
 		lastSweep: time.Now(),
 	}
 }
 
+// setLimits replaces the per-tier budgets (from the runtime settings refresh).
+func (rl *rateLimiter) setLimits(authRPM, apiRPM, redirectRPM int) {
+	rl.mu.Lock()
+	rl.limits = map[tier]int{tierAuth: authRPM, tierAPI: apiRPM, tierRedirect: redirectRPM}
+	rl.mu.Unlock()
+}
+
 // allow reports whether a request from ip in the given tier may proceed. When
 // denied it also returns the Retry-After duration until the window resets. A
 // non-positive limit disables the tier (always allowed).
 func (rl *rateLimiter) allow(t tier, ip string, now time.Time) (bool, time.Duration) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
 	limit := rl.limits[t]
 	if limit <= 0 {
 		return true, 0
 	}
-
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
 
 	rl.sweepLocked(now)
 
@@ -323,26 +329,80 @@ func (sr *statusRecorder) Flush() {
 // Middleware
 // -----------------------------------------------------------------------------
 
+// Rate-limit defaults (requests per minute per IP), used until the first
+// settings refresh and when a setting is absent. Kept in sync with the API
+// layer's defaults for the same settings keys.
+const (
+	defaultAuthRPM     = 60
+	defaultAPIRPM      = 600
+	defaultRedirectRPM = 6000
+)
+
+// settingsRefreshInterval bounds how often the edge middleware re-reads its
+// DB-backed runtime settings (rate limits, metrics token). The redirect hot
+// path must never query the settings table per request.
+const settingsRefreshInterval = 30 * time.Second
+
+// RuntimeSettings supplies the DB-backed runtime configuration the edge
+// middleware needs. Both funcs are optional (nil = built-in defaults); they are
+// polled at most once per settingsRefreshInterval.
+type RuntimeSettings struct {
+	// MetricsToken returns the /metrics bearer token; empty = loopback-only.
+	MetricsToken func() string
+	// RateLimits returns the per-IP RPM budgets for the auth/api/redirect tiers.
+	RateLimits func() (authRPM, apiRPM, redirectRPM int)
+}
+
 // middleware bundles the edge concerns (request IDs, rate limiting, metrics,
 // access logging) wrapped around the router.
 type middleware struct {
-	limiter      *rateLimiter
-	metrics      *metrics
+	limiter  *rateLimiter
+	metrics  *metrics
+	settings RuntimeSettings
+
+	confMu       sync.Mutex
+	confAt       time.Time
 	metricsToken string
 }
 
-func newMiddleware() *middleware {
+func newMiddleware(rs RuntimeSettings) *middleware {
 	return &middleware{
-		limiter:      newRateLimiter(),
-		metrics:      newMetrics(),
-		metricsToken: strings.TrimSpace(os.Getenv("LED_METRICS_TOKEN")),
+		limiter:  newRateLimiter(),
+		metrics:  newMetrics(),
+		settings: rs,
 	}
+}
+
+// refreshConfig re-reads the DB-backed runtime settings at most once per
+// settingsRefreshInterval, so setting changes apply without a restart while the
+// hot path stays off the database.
+func (mw *middleware) refreshConfig(now time.Time) {
+	mw.confMu.Lock()
+	defer mw.confMu.Unlock()
+	if now.Sub(mw.confAt) < settingsRefreshInterval && !mw.confAt.IsZero() {
+		return
+	}
+	mw.confAt = now
+	if mw.settings.MetricsToken != nil {
+		mw.metricsToken = strings.TrimSpace(mw.settings.MetricsToken())
+	}
+	if mw.settings.RateLimits != nil {
+		mw.limiter.setLimits(mw.settings.RateLimits())
+	}
+}
+
+// currentMetricsToken returns the cached metrics token.
+func (mw *middleware) currentMetricsToken() string {
+	mw.confMu.Lock()
+	defer mw.confMu.Unlock()
+	return mw.metricsToken
 }
 
 // handle applies the edge middleware and then dispatches to next.
 func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	start := time.Now()
 	ip := clientIP(r)
+	mw.refreshConfig(start)
 
 	// 1. Request ID: reuse a sane inbound one, else generate.
 	rid := sanitizeRequestID(r.Header.Get("X-Request-Id"))
@@ -395,8 +455,9 @@ func (mw *middleware) finish(r *http.Request, ip, rid string, status int, start 
 }
 
 // serveMetrics gates and serves the expvar snapshot as JSON. It is closed by
-// default: allowed only when the caller presents the LED_METRICS_TOKEN bearer,
-// or (when no token is configured) originates from loopback.
+// default: allowed only when the caller presents the metrics-token bearer
+// (Settings → the metrics_token setting), or (when no token is configured)
+// originates from loopback.
 func (mw *middleware) serveMetrics(w http.ResponseWriter, r *http.Request) {
 	if !mw.metricsAllowed(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
@@ -407,24 +468,11 @@ func (mw *middleware) serveMetrics(w http.ResponseWriter, r *http.Request) {
 }
 
 func (mw *middleware) metricsAllowed(r *http.Request) bool {
-	if mw.metricsToken != "" {
+	if token := mw.currentMetricsToken(); token != "" {
 		got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 		got = strings.TrimSpace(got)
-		if got != "" && subtle.ConstantTimeCompare([]byte(got), []byte(mw.metricsToken)) == 1 {
-			return true
-		}
-		return false
+		return got != "" && subtle.ConstantTimeCompare([]byte(got), []byte(token)) == 1
 	}
 	// No token configured: bind to loopback only.
 	return isLoopback(r)
-}
-
-// envInt reads an integer env var, falling back to def on absence/parse error.
-func envInt(key string, def int) int {
-	if v, ok := os.LookupEnv(key); ok {
-		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
-			return n
-		}
-	}
-	return def
 }

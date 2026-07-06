@@ -1,5 +1,5 @@
-// Brand name resolution. The product name is env-driven on the server
-// (LED_APP_NAME) and surfaced via GET /api/auth/config. We fetch it once,
+// Brand name resolution. The product name is a runtime setting on the server
+// (Settings → General → app_name) and surfaced via GET /api/auth/config. We fetch it once,
 // cache it module-wide, and re-render subscribers when it resolves. Components
 // call useAppName(); nothing hardcodes "led" anymore.
 import { useEffect, useState } from "react";

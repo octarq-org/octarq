@@ -33,7 +33,9 @@ type Server struct {
 }
 
 // New builds the combined handler. webFS is the embedded dist directory.
-func New(cfg *config.Config, apiHandler http.Handler, short *shortlink.Service, webFS fs.FS) (*Server, error) {
+// rs supplies the DB-backed runtime settings for the edge middleware (rate
+// limits, metrics token); zero value = built-in defaults.
+func New(cfg *config.Config, apiHandler http.Handler, short *shortlink.Service, webFS fs.FS, rs RuntimeSettings) (*Server, error) {
 	idx, err := fs.ReadFile(webFS, "index.html")
 	if err != nil {
 		return nil, err
@@ -46,7 +48,7 @@ func New(cfg *config.Config, apiHandler http.Handler, short *shortlink.Service, 
 		static: http.StripPrefix("/admin/", http.FileServer(http.FS(webFS))),
 		spaIdx: idx,
 		assets: webFS,
-		mw:     newMiddleware(),
+		mw:     newMiddleware(rs),
 	}
 
 	pSub, err := fs.Sub(webFS, "portal")

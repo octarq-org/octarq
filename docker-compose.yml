@@ -9,7 +9,6 @@ services:
       LED_SECRET_KEY: ${LED_SECRET_KEY:?set in .env}
       LED_ADMIN_PASSWORD: ${LED_ADMIN_PASSWORD:?set in .env}
       LED_ADMIN_USER: ${LED_ADMIN_USER:-admin}
-      LED_INBOUND_TOKEN: ${LED_INBOUND_TOKEN:-}
       LED_ADMIN_HOST: ${LED_ADMIN_HOST:-}
       # SQLite by default; data persisted in the named volume below.
       LED_DB_DRIVER: ${LED_DB_DRIVER:-sqlite}

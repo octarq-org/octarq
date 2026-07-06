@@ -27,7 +27,7 @@ func TestServer(t *testing.T) {
 		AdminHost: "admin.example.com",
 	}
 
-	srv, err := New(cfg, mockAPI{}, nil, webFS)
+	srv, err := New(cfg, mockAPI{}, nil, webFS, RuntimeSettings{})
 	if err != nil {
 		t.Fatalf("expected no error building server, got %v", err)
 	}

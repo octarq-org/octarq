@@ -100,7 +100,7 @@ func TestMiddleware429AfterThreshold(t *testing.T) {
 // TestRequestIDHeader ensures every response carries an X-Request-Id, and an
 // inbound sane ID is echoed back.
 func TestRequestIDHeader(t *testing.T) {
-	mw := newMiddleware()
+	mw := newMiddleware(RuntimeSettings{})
 
 	req := httptest.NewRequest("GET", "/anything", nil)
 	req.RemoteAddr = "10.0.0.2:1"
@@ -150,11 +150,9 @@ func TestMetricsGating(t *testing.T) {
 
 	// Token configured: wrong/absent token refused, correct token served even
 	// from a remote address.
-	mwToken := &middleware{
-		limiter:      newRateLimiter(),
-		metrics:      newMetrics(),
-		metricsToken: "s3cret",
-	}
+	// Token supplied through the DB-backed settings seam, picked up by the
+	// first refreshConfig.
+	mwToken := newMiddleware(RuntimeSettings{MetricsToken: func() string { return "s3cret" }})
 	reqBad := httptest.NewRequest("GET", "/metrics", nil)
 	reqBad.RemoteAddr = "8.8.8.8:1"
 	recBad := httptest.NewRecorder()
