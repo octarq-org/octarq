@@ -170,7 +170,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if err := db.Migrate(a.gdb, extra...); err != nil {
 		return err
 	}
-	if err := a.cipher.EnableEnvelope(settingsStore{a.gdb}, a.cfg.OldSecretKeys...); err != nil {
+	if err := a.cipher.EnableEnvelope(settingsStore{a.gdb}); err != nil {
 		return err
 	}
 
@@ -217,7 +217,7 @@ func (a *App) Run(ctx context.Context) error {
 
 	// 1b. Upgrade the cipher to envelope mode now that the settings table exists
 	//     (loads or creates the DEK; re-wraps it under a rotated key if needed).
-	if err := a.cipher.EnableEnvelope(settingsStore{a.gdb}, a.cfg.OldSecretKeys...); err != nil {
+	if err := a.cipher.EnableEnvelope(settingsStore{a.gdb}); err != nil {
 		return err
 	}
 

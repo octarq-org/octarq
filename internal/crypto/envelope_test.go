@@ -65,46 +65,12 @@ func TestEnvelopeReloadSameDEK(t *testing.T) {
 	}
 }
 
-func TestMasterKeyRotationRewrapsDEK(t *testing.T) {
-	store := newMemStore()
-
-	c1 := New("old-master")
-	if err := c1.EnableEnvelope(store); err != nil {
-		t.Fatalf("c1 EnableEnvelope: %v", err)
-	}
-	data, _ := c1.Encrypt([]byte("payload"))
-	wrappedBefore, _ := store.Get(dekSettingKey)
-
-	// Rotate: new master with the old one supplied as the rotation key.
-	c2 := New("new-master")
-	if err := c2.EnableEnvelope(store, "old-master"); err != nil {
-		t.Fatalf("c2 EnableEnvelope (rotation): %v", err)
-	}
-	if wrappedAfter, _ := store.Get(dekSettingKey); wrappedAfter == wrappedBefore {
-		t.Error("DEK was not re-wrapped under the new master key")
-	}
-	// Data encrypted under the old instance still decrypts — it's under the DEK,
-	// which survived rotation untouched.
-	if got, err := c2.Decrypt(data); err != nil || string(got) != "payload" {
-		t.Fatalf("data unreadable after rotation: got %q err %v", got, err)
-	}
-
-	// A fresh instance under only the new master (old key dropped) still works.
-	c3 := New("new-master")
-	if err := c3.EnableEnvelope(store); err != nil {
-		t.Fatalf("c3 EnableEnvelope (post-rotation, old key dropped): %v", err)
-	}
-	if got, err := c3.Decrypt(data); err != nil || string(got) != "payload" {
-		t.Fatalf("data unreadable after dropping old key: got %q err %v", got, err)
-	}
-}
-
 func TestWrongMasterFailsToUnwrap(t *testing.T) {
 	store := newMemStore()
 	if err := New("right").EnableEnvelope(store); err != nil {
 		t.Fatalf("EnableEnvelope: %v", err)
 	}
-	// A different master with no rotation key cannot unwrap the DEK.
+	// A different master cannot unwrap the DEK.
 	if err := New("wrong").EnableEnvelope(store); err == nil {
 		t.Fatal("expected EnableEnvelope to fail unwrapping the DEK with the wrong master")
 	}

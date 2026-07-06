@@ -8,11 +8,6 @@
 // from LED_SECRET_KEY and stored in the settings table. Rotating LED_SECRET_KEY
 // therefore only re-wraps the one DEK — the bulk data is never touched. This is
 // the standard KMS/Vault envelope pattern.
-//
-// Rotation: start once with LED_SECRET_KEY=new and LED_SECRET_KEY_OLD=old. On
-// boot the DEK is unwrapped with the old key and re-wrapped under the new one
-// (saved), after which LED_SECRET_KEY_OLD can be dropped. Cookies signed under
-// the old key become invalid on rotation, so sessions simply re-login.
 package crypto
 
 import (
@@ -54,23 +49,15 @@ func New(secret string) *Cipher {
 }
 
 // EnableEnvelope loads the wrapped DEK from the store (generating a fresh random
-// one on first run). For a key rotation, pass the previous master secret(s) in
-// rotateFrom: the DEK is unwrapped with whichever key works and then re-wrapped
-// under the current KEK and saved, so the next restart needs only the current
-// LED_SECRET_KEY. Idempotent.
-func (c *Cipher) EnableEnvelope(store SecretStore, rotateFrom ...string) error {
+// one on first run). Idempotent.
+func (c *Cipher) EnableEnvelope(store SecretStore) error {
 	if wrapped, ok := store.Get(dekSettingKey); ok && wrapped != "" {
-		dek, rewrapped, err := c.unwrapDEK(wrapped, rotateFrom)
+		dek, err := c.unwrapDEK(wrapped)
 		if err != nil {
-			return fmt.Errorf("crypto: cannot unwrap DEK with LED_SECRET_KEY (rotating? set LED_SECRET_KEY_OLD): %w", err)
+			return fmt.Errorf("crypto: cannot unwrap DEK with LED_SECRET_KEY: %w", err)
 		}
 		c.dek = dek
 		c.ready = true
-		if rewrapped {
-			if w, err := sealWith(c.kek, c.dek[:]); err == nil {
-				_ = store.Set(dekSettingKey, w)
-			}
-		}
 		return nil
 	}
 
@@ -86,33 +73,18 @@ func (c *Cipher) EnableEnvelope(store SecretStore, rotateFrom ...string) error {
 	return store.Set(dekSettingKey, w)
 }
 
-// unwrapDEK opens the wrapped DEK with the current KEK, falling back to each
-// rotateFrom key. rewrapped is true when an old key opened it (caller should
-// re-wrap under the current KEK).
-func (c *Cipher) unwrapDEK(wrapped string, rotateFrom []string) (dek [32]byte, rewrapped bool, err error) {
+// unwrapDEK opens the wrapped DEK with the current KEK.
+func (c *Cipher) unwrapDEK(wrapped string) (dek [32]byte, err error) {
 	if pt, e := openWith(c.kek, wrapped); e == nil {
 		if len(pt) != 32 {
-			return dek, false, errors.New("crypto: wrapped DEK has wrong length")
+			return dek, errors.New("crypto: wrapped DEK has wrong length")
 		}
 		copy(dek[:], pt)
-		return dek, false, nil
+		return dek, nil
 	} else {
 		err = e
 	}
-	for _, old := range rotateFrom {
-		if old == "" {
-			continue
-		}
-		oldKEK := sha256.Sum256([]byte(old))
-		if pt, e := openWith(oldKEK, wrapped); e == nil {
-			if len(pt) != 32 {
-				return dek, false, errors.New("crypto: wrapped DEK has wrong length")
-			}
-			copy(dek[:], pt)
-			return dek, true, nil
-		}
-	}
-	return dek, false, err
+	return dek, err
 }
 
 // Encrypt seals plaintext at rest under the DEK and returns

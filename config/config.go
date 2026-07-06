@@ -34,14 +34,6 @@ type Config struct {
 	// With envelope encryption it is the KEK that wraps the data key (DEK).
 	SecretKey string
 
-	// OldSecretKeys are previous LED_SECRET_KEY values, kept only during a key
-	// rotation. They let the binary unwrap the DEK (and read not-yet-migrated
-	// legacy ciphertext / sessions) that were written under the old key. On
-	// startup the DEK is automatically re-wrapped under the current SecretKey, so
-	// these can be dropped on the next restart. Sourced from LED_SECRET_KEY_OLD
-	// (comma-separated).
-	OldSecretKeys []string
-
 	AdminUser     string
 	AdminPassword string
 
@@ -171,12 +163,6 @@ func Load() (*Config, error) {
 	}
 	if c.SecretKey == "" {
 		return nil, fmt.Errorf("LED_SECRET_KEY is required (used for sessions and credential encryption)")
-	}
-	// Optional rotation fallbacks: previous master keys, newest-first.
-	for _, k := range strings.Split(env("LED_SECRET_KEY_OLD", ""), ",") {
-		if k = strings.TrimSpace(k); k != "" {
-			c.OldSecretKeys = append(c.OldSecretKeys, k)
-		}
 	}
 
 	// Secure cookies: auto-on when prod-looking, overridable by env.
