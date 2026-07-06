@@ -83,6 +83,7 @@ export const zh: Resources = {
     System: "系统",
     Account: "账户",
     Subscriptions: "订阅",
+    Instance: "实例",
   },
   nav: {
     overview: "概览",
@@ -110,5 +111,6 @@ export const zh: Resources = {
     security: "安全",
     tokens: "API 令牌",
     license: "许可证",
+    instance: "实例配置",
   },
 };

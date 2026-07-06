@@ -82,6 +82,7 @@ export const en = {
     System: "System",
     Account: "Account",
     Subscriptions: "Subscriptions",
+    Instance: "Instance",
   },
   nav: {
     overview: "Overview",
@@ -109,6 +110,7 @@ export const en = {
     security: "Security",
     tokens: "API Tokens",
     license: "License",
+    instance: "Instance Settings",
   },
 };
 

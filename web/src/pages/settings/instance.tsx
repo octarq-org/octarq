@@ -96,7 +96,7 @@ export function InstanceSettings() {
   if (!settings) {
     return (
       <div className="flex h-32 items-center justify-center text-sm text-white/40">
-        Loading instance settings...
+        {t("settings.loadingInstanceSettings")}
       </div>
     );
   }
@@ -104,8 +104,8 @@ export function InstanceSettings() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Instance Config"
-        description="Global, multi-tenant administrative settings for this entire deployment."
+        title={t("settings.instanceTitle")}
+        description={t("settings.instanceDesc")}
       />
 
       {/* App configuration */}
@@ -113,7 +113,7 @@ export function InstanceSettings() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Server className="h-5 w-5 text-indigo-400" />
-            <h2 className="text-base font-bold text-white">General Info</h2>
+            <h2 className="text-base font-bold text-white">{t("settings.generalInfo")}</h2>
           </div>
           <SavedBadge on={saved} />
         </div>
@@ -154,7 +154,7 @@ export function InstanceSettings() {
                 variant="ghost"
                 className="shrink-0 text-xs text-rose-400 hover:text-rose-300"
                 onClick={async () => {
-                  if (confirm("Clear metrics token?")) {
+                  if (confirm(t("settings.clearGoogleSecret"))) {
                     await api.updateInstanceSettings({ metricsToken: "" });
                     reload();
                   }
@@ -178,7 +178,7 @@ export function InstanceSettings() {
       <GlassCard className="p-6 space-y-6">
         <div className="flex items-center gap-2">
           <Sliders className="h-5 w-5 text-indigo-400" />
-          <h2 className="text-base font-bold text-white">Rate Limiting</h2>
+          <h2 className="text-base font-bold text-white">{t("settings.rateLimiting")}</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl">
           <Field label={t("settings.instanceRlAuth")} hint={t("settings.instanceRlHint")}>
@@ -220,14 +220,14 @@ export function InstanceSettings() {
       <GlassCard className="p-6 space-y-6">
         <div className="flex items-center gap-2">
           <Globe className="h-5 w-5 text-indigo-400" />
-          <h2 className="text-base font-bold text-white">Access & SSO Authentication</h2>
+          <h2 className="text-base font-bold text-white">{t("settings.accessAndSso")}</h2>
         </div>
 
         <div className="flex items-center justify-between gap-4 border-b border-white/[0.06] pb-6">
           <div>
-            <p className="text-sm font-medium text-white/85">Allow public sign-up</p>
+            <p className="text-sm font-medium text-white/85">{t("settings.allowPublicSignup")}</p>
             <p className="text-[11px] text-white/40 mt-0.5">
-              When on, anyone can create an account with an email and password from the sign-in page. Turn off to make this an invite-only instance.
+              {t("settings.allowPublicSignupDesc")}
             </p>
           </div>
           <Toggle on={allowReg} onChange={toggleRegistration} />
@@ -235,19 +235,19 @@ export function InstanceSettings() {
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white/90">Single Sign-On (SSO)</h3>
+            <h3 className="text-sm font-bold text-white/90">{t("settings.singleSignOn")}</h3>
             <SavedBadge on={ssoSaved} />
           </div>
           <p className="text-[11px] text-white/40">
-            Let users sign in using third-party identity providers. Callback URLs must match your public LED base URL. Credentials are stored encrypted.
+            {t("settings.ssoDesc")}
           </p>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
               <p className="flex items-center gap-1.5 text-xs font-bold text-white/85">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> Google Sign-In
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> {t("settings.googleSignIn")}
               </p>
-              <Field label="Google Client ID">
+              <Field label={t("settings.googleClientId")}>
                 <input
                   className="input w-full text-xs"
                   value={googleId}
@@ -255,27 +255,27 @@ export function InstanceSettings() {
                   placeholder="*.apps.googleusercontent.com"
                 />
               </Field>
-              <Field label="Google Client Secret">
+              <Field label={t("settings.googleClientSecret")}>
                 <div className="flex gap-2">
                   <input
                     className="input w-full font-mono text-xs"
                     type="password"
                     value={googleSecret}
                     onChange={(e) => setGoogleSecret(e.target.value)}
-                    placeholder={settings.googleClientSecretSet ? "•••••••• (Set)" : "Secret value"}
+                    placeholder={settings.googleClientSecretSet ? t("settings.secretSet") : t("settings.secretValue")}
                   />
                   {settings.googleClientSecretSet && (
                     <Button
                       variant="danger"
                       onClick={async () => {
-                        if (confirm("Clear Google secret?")) {
+                        if (confirm(t("settings.clearGoogleSecret"))) {
                           await api.updateInstanceSettings({ googleClientSecret: "" });
                           reload();
                         }
                       }}
                       className="px-2.5 py-1 text-xs"
                     >
-                      Clear
+                      {t("settings.clear")}
                     </Button>
                   )}
                 </div>
@@ -287,9 +287,9 @@ export function InstanceSettings() {
 
             <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
               <p className="flex items-center gap-1.5 text-xs font-bold text-white/85">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> GitHub Integration
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /> {t("settings.githubIntegration")}
               </p>
-              <Field label="GitHub Client ID">
+              <Field label={t("settings.githubClientId")}>
                 <input
                   className="input w-full text-xs"
                   value={githubId}
@@ -297,27 +297,27 @@ export function InstanceSettings() {
                   placeholder="Ov23li…"
                 />
               </Field>
-              <Field label="GitHub Client Secret">
+              <Field label={t("settings.githubClientSecret")}>
                 <div className="flex gap-2">
                   <input
                     className="input w-full font-mono text-xs"
                     type="password"
                     value={githubSecret}
                     onChange={(e) => setGithubSecret(e.target.value)}
-                    placeholder={settings.githubClientSecretSet ? "•••••••• (Set)" : "Secret value"}
+                    placeholder={settings.githubClientSecretSet ? t("settings.secretSet") : t("settings.secretValue")}
                   />
                   {settings.githubClientSecretSet && (
                     <Button
                       variant="danger"
                       onClick={async () => {
-                        if (confirm("Clear GitHub secret?")) {
+                        if (confirm(t("settings.clearGithubSecret"))) {
                           await api.updateInstanceSettings({ githubClientSecret: "" });
                           reload();
                         }
                       }}
                       className="px-2.5 py-1 text-xs"
                     >
-                      Clear
+                      {t("settings.clear")}
                     </Button>
                   )}
                 </div>
@@ -331,7 +331,7 @@ export function InstanceSettings() {
 
         <div className="border-t border-white/[0.06] pt-6">
           <Button variant="primary" onClick={saveSso} disabled={ssoBusy}>
-            {ssoBusy ? "Saving..." : "Save SSO Options"}
+            {ssoBusy ? t("settings.savingDots") : t("settings.saveSsoOptions")}
           </Button>
         </div>
       </GlassCard>
