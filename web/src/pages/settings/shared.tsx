@@ -16,6 +16,14 @@ export function useSettingsData() {
   return { s, reload };
 }
 
+export function useInstanceSettingsData() {
+  const { s: wS } = useSettingsData();
+  const [s, setS] = useState<import("../../api").InstanceSettings | null>(null);
+  const reload = () => api.instanceSettings().then(setS);
+  useEffect(() => { if (wS?.isInstanceAdmin) reload(); }, [wS?.isInstanceAdmin]);
+  return { s, reload };
+}
+
 export function SavedBadge({ on }: { on: boolean }) {
   const { t } = useTranslation();
   return on ? <Badge tone="green">{t("settings.saved")}</Badge> : null;

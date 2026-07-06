@@ -26,6 +26,7 @@ export function GeneralSettings() {
   const [instanceSaved, setInstanceSaved] = useState(false);
 
   const [role, setRole] = useState<string | null>(null);
+  const [isInstanceAdmin, setIsInstanceAdmin] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [purging, setPurging] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -40,26 +41,31 @@ export function GeneralSettings() {
       }
     })).catch(() => {});
     api.settings().then((v) => {
-      setRetention(v.dataRetentionDays ?? 90);
-      setAppName(v.appName ?? "");
-      setRlAuth(v.ratelimitAuthRpm ?? 60);
-      setRlApi(v.ratelimitApiRpm ?? 600);
-      setRlRedirect(v.ratelimitRedirectRpm ?? 6000);
-      setMetricsTokenSet(v.metricsTokenSet ?? false);
+      setIsInstanceAdmin(v.isInstanceAdmin);
+      if (v.isInstanceAdmin) {
+        api.instanceSettings().then((iv) => {
+          setRetention(iv.dataRetentionDays ?? 90);
+          setAppName(iv.appName ?? "");
+          setRlAuth(iv.ratelimitAuthRpm ?? 60);
+          setRlApi(iv.ratelimitApiRpm ?? 600);
+          setRlRedirect(iv.ratelimitRedirectRpm ?? 6000);
+          setMetricsTokenSet(iv.metricsTokenSet ?? false);
+        });
+      }
     });
   }, []);
 
   async function saveInstance(extra: { metricsToken?: string } = {}) {
     setInstanceBusy(true);
     try {
-      const payload: Parameters<typeof api.updateSettings>[0] = {
+      const payload: Parameters<typeof api.updateInstanceSettings>[0] = {
         appName,
         ratelimitAuthRpm: rlAuth,
         ratelimitApiRpm: rlApi,
         ratelimitRedirectRpm: rlRedirect,
         ...( "metricsToken" in extra ? extra : metricsToken ? { metricsToken } : {}),
       };
-      const v = await api.updateSettings(payload);
+      const v = await api.updateInstanceSettings(payload);
       setMetricsTokenSet(v.metricsTokenSet);
       setMetricsToken("");
       setInstanceSaved(true);
@@ -83,7 +89,7 @@ export function GeneralSettings() {
   async function save() {
     setBusy(true);
     try {
-      await api.updateSettings({ dataRetentionDays: retention });
+      await api.updateInstanceSettings({ dataRetentionDays: retention });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } finally { setBusy(false); }
@@ -151,20 +157,22 @@ export function GeneralSettings() {
         </form>
       </GlassCard>
 
-      <GlassCard className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white">{t("settings.dataRetention")}</h2>
-          <SavedBadge on={saved} />
-        </div>
-        <Field label={t("settings.retentionLabel")} hint={t("settings.retentionHint")}>
-          <input type="number" min={0} className="input w-32 font-mono text-sm" value={retention} onChange={(e) => setRetention(Number(e.target.value))} />
-        </Field>
-        <div className="border-t border-white/[0.06] pt-6">
-          <Button variant="primary" onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("settings.save")}</Button>
-        </div>
-      </GlassCard>
+      {isInstanceAdmin && (
+        <GlassCard className="p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-white">{t("settings.dataRetention")}</h2>
+            <SavedBadge on={saved} />
+          </div>
+          <Field label={t("settings.retentionLabel")} hint={t("settings.retentionHint")}>
+            <input type="number" min={0} className="input w-32 font-mono text-sm" value={retention} onChange={(e) => setRetention(Number(e.target.value))} />
+          </Field>
+          <div className="border-t border-white/[0.06] pt-6">
+            <Button variant="primary" onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("settings.save")}</Button>
+          </div>
+        </GlassCard>
+      )}
 
-      {isAdminOrOwner && (
+      {isInstanceAdmin && (
         <GlassCard className="p-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>

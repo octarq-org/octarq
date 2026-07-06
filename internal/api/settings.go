@@ -187,26 +187,36 @@ func (h *Handler) isReservedMailbox(orgID uint, addr string) bool {
 // --- handlers ---
 
 func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
+	org := h.currentOrg(r)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"reservedMailboxes": h.getWorkspaceSetting(org.ID, keyReservedMailboxes),
+		"orgSlug":           org.Slug,
+		"inboundToken":      org.InboundToken,
+		"catchAll":          h.getWorkspaceSetting(org.ID, keyCatchAll) == "true",
+		"autoWrapLinks":     h.getWorkspaceSetting(org.ID, keyAutoWrapLinks) == "true",
+		"isInstanceAdmin":   h.isInstanceAdmin(r),
+	})
+}
+
+func (h *Handler) getInstanceSettings(w http.ResponseWriter, r *http.Request) {
+	if !h.isInstanceAdmin(r) {
+		writeErr(w, http.StatusForbidden, "instance admin role required")
+		return
+	}
 	retDays := DefaultRetentionDays
 	if v := h.getSetting(keyDataRetentionDays); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			retDays = n
 		}
 	}
-	org := h.currentOrg(r)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"reservedSlugs":         h.getSetting(keyReservedSlugs),
-		"reservedMailboxes":     h.getWorkspaceSetting(org.ID, keyReservedMailboxes),
 		"builtinReserved":       []string{"admin", "api", "assets", "portal"},
-		"orgSlug":               org.Slug,
-		"inboundToken":          org.InboundToken,
-		"catchAll":              h.getWorkspaceSetting(org.ID, keyCatchAll) == "true",
 		"googleClientId":        h.getSetting(keyGoogleClientID),
 		"googleClientSecretSet": h.getSetting(keyGoogleClientSecret) != "",
 		"githubClientId":        h.getSetting(keyGitHubClientID),
 		"githubClientSecretSet": h.getSetting(keyGitHubClientSecret) != "",
 		"dataRetentionDays":     retDays,
-		"autoWrapLinks":         h.getWorkspaceSetting(org.ID, keyAutoWrapLinks) == "true",
 		"allowRegistration":     h.registrationEnabled(),
 		"appName":               h.getSetting(keyAppName), // raw value; empty = default
 		"metricsTokenSet":       h.getSetting(keyMetricsToken) != "",
@@ -233,49 +243,22 @@ func (h *Handler) isInstanceAdmin(r *http.Request) bool {
 }
 
 func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
-	// Base permission: Only org owners/admins may change settings for their org.
-	// Instance-level settings have an additional check below requiring instance admin.
 	if role := h.callerOrgRole(r); role != "owner" && role != "admin" {
 		writeErr(w, http.StatusForbidden, "owner or admin role required")
 		return
 	}
 	var d struct {
-		ReservedSlugs        *string `json:"reservedSlugs"`
-		ReservedMailboxes    *string `json:"reservedMailboxes"`
-		InboundToken         *string `json:"inboundToken"`
-		CatchAll             *bool   `json:"catchAll"`
-		GoogleClientID       *string `json:"googleClientId"`
-		GoogleClientSecret   *string `json:"googleClientSecret"` // "" clears, omitted keeps
-		GitHubClientID       *string `json:"githubClientId"`
-		GitHubClientSecret   *string `json:"githubClientSecret"` // "" clears, omitted keeps
-		DataRetentionDays    *int    `json:"dataRetentionDays"`  // 0 = disabled
-		AutoWrapLinks        *bool   `json:"autoWrapLinks"`
-		AllowRegistration    *bool   `json:"allowRegistration"`
-		AppName              *string `json:"appName"`      // "" resets to the built-in default
-		MetricsToken         *string `json:"metricsToken"` // "" clears (loopback-only), omitted keeps
-		RatelimitAuthRpm     *int    `json:"ratelimitAuthRpm"`
-		RatelimitApiRpm      *int    `json:"ratelimitApiRpm"`
-		RatelimitRedirectRpm *int    `json:"ratelimitRedirectRpm"`
+		ReservedMailboxes *string `json:"reservedMailboxes"`
+		InboundToken      *string `json:"inboundToken"`
+		CatchAll          *bool   `json:"catchAll"`
+		AutoWrapLinks     *bool   `json:"autoWrapLinks"`
 	}
 	if err := readJSON(r, &d); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
 		return
 	}
 
-	hasInstanceUpdates := d.ReservedSlugs != nil || d.GoogleClientID != nil ||
-		d.GoogleClientSecret != nil || d.GitHubClientID != nil ||
-		d.GitHubClientSecret != nil || d.DataRetentionDays != nil ||
-		d.AllowRegistration != nil || d.AppName != nil ||
-		d.MetricsToken != nil || d.RatelimitAuthRpm != nil ||
-		d.RatelimitApiRpm != nil || d.RatelimitRedirectRpm != nil
 
-	if hasInstanceUpdates && !h.isInstanceAdmin(r) {
-		writeErr(w, http.StatusForbidden, "instance admin role required to update instance settings")
-		return
-	}
-	if d.ReservedSlugs != nil {
-		h.setSetting(keyReservedSlugs, strings.Join(splitList(*d.ReservedSlugs), "\n"))
-	}
 	if d.ReservedMailboxes != nil {
 		h.setWorkspaceSetting(h.orgID(r), keyReservedMailboxes, strings.Join(splitList(*d.ReservedMailboxes), "\n"))
 	}
@@ -293,6 +276,45 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 			val = "true"
 		}
 		h.setWorkspaceSetting(h.orgID(r), keyCatchAll, val)
+	}
+
+
+	if d.AutoWrapLinks != nil {
+		val := "false"
+		if *d.AutoWrapLinks {
+			val = "true"
+		}
+		h.setWorkspaceSetting(h.orgID(r), keyAutoWrapLinks, val)
+	}
+	h.audit(r, "settings.update", "settings", 0, nil)
+	h.getSettings(w, r)
+}
+
+func (h *Handler) updateInstanceSettings(w http.ResponseWriter, r *http.Request) {
+	if !h.isInstanceAdmin(r) {
+		writeErr(w, http.StatusForbidden, "instance admin role required")
+		return
+	}
+	var d struct {
+		ReservedSlugs        *string `json:"reservedSlugs"`
+		GoogleClientID       *string `json:"googleClientId"`
+		GoogleClientSecret   *string `json:"googleClientSecret"`
+		GitHubClientID       *string `json:"githubClientId"`
+		GitHubClientSecret   *string `json:"githubClientSecret"`
+		DataRetentionDays    *int    `json:"dataRetentionDays"`
+		AllowRegistration    *bool   `json:"allowRegistration"`
+		AppName              *string `json:"appName"`
+		MetricsToken         *string `json:"metricsToken"`
+		RatelimitAuthRpm     *int    `json:"ratelimitAuthRpm"`
+		RatelimitApiRpm      *int    `json:"ratelimitApiRpm"`
+		RatelimitRedirectRpm *int    `json:"ratelimitRedirectRpm"`
+	}
+	if err := readJSON(r, &d); err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	if d.ReservedSlugs != nil {
+		h.setSetting(keyReservedSlugs, strings.Join(splitList(*d.ReservedSlugs), "\n"))
 	}
 	if d.GoogleClientID != nil {
 		h.setSetting(keyGoogleClientID, strings.TrimSpace(*d.GoogleClientID))
@@ -327,13 +349,6 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	if d.DataRetentionDays != nil {
 		h.setSetting(keyDataRetentionDays, strconv.Itoa(*d.DataRetentionDays))
 	}
-	if d.AutoWrapLinks != nil {
-		val := "false"
-		if *d.AutoWrapLinks {
-			val = "true"
-		}
-		h.setWorkspaceSetting(h.orgID(r), keyAutoWrapLinks, val)
-	}
 	if d.AllowRegistration != nil {
 		val := "false"
 		if *d.AllowRegistration {
@@ -365,6 +380,6 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	if d.RatelimitRedirectRpm != nil {
 		h.setSetting(keyRatelimitRedirRPM, strconv.Itoa(*d.RatelimitRedirectRpm))
 	}
-	h.audit(r, "settings.update", "settings", 0, nil)
-	h.getSettings(w, r)
+	h.audit(r, "instance_settings.update", "settings", 0, nil)
+	h.getInstanceSettings(w, r)
 }

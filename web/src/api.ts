@@ -407,22 +407,24 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
 }
 
 export interface Settings {
-  reservedSlugs: string;
   reservedMailboxes: string;
-  builtinReserved: string[];
   orgSlug: string;
   inboundToken: string;
   catchAll: boolean;
-  telegramBotToken: string;
-  telegramChatId: string;
+  autoWrapLinks: boolean;
+  isInstanceAdmin: boolean;
+}
+
+export interface InstanceSettings {
+  reservedSlugs: string;
+  builtinReserved: string[];
   googleClientId: string;
   googleClientSecretSet: boolean;
   githubClientId: string;
   githubClientSecretSet: boolean;
   dataRetentionDays: number;
-  autoWrapLinks: boolean;
   allowRegistration: boolean;
-  appName: string; // raw setting; "" = built-in default
+  appName: string;
   metricsTokenSet: boolean;
   ratelimitAuthRpm: number;
   ratelimitApiRpm: number;
@@ -511,25 +513,27 @@ export const api = {
   // settings
   settings: () => req<Settings>("GET", "/api/settings"),
   updateSettings: (s: {
-    reservedSlugs?: string;
     reservedMailboxes?: string;
     inboundToken?: string;
     catchAll?: boolean;
-    telegramBotToken?: string;
-    telegramChatId?: string;
+    autoWrapLinks?: boolean;
+  }) => req<Settings>("PUT", "/api/settings", s),
+
+  instanceSettings: () => req<InstanceSettings>("GET", "/api/instance-settings"),
+  updateInstanceSettings: (s: {
+    reservedSlugs?: string;
     googleClientId?: string;
     googleClientSecret?: string;
     githubClientId?: string;
     githubClientSecret?: string;
     dataRetentionDays?: number;
-    autoWrapLinks?: boolean;
     allowRegistration?: boolean;
-    appName?: string; // "" resets to built-in default
-    metricsToken?: string; // "" clears (loopback-only)
+    appName?: string;
+    metricsToken?: string;
     ratelimitAuthRpm?: number;
     ratelimitApiRpm?: number;
     ratelimitRedirectRpm?: number;
-  }) => req<Settings>("PUT", "/api/settings", s),
+  }) => req<InstanceSettings>("PUT", "/api/instance-settings", s),
 
   // license (led-pro licensing plugin; absent in the OSS build → 404)
   license: () => req<LicenseStatus>("GET", "/api/license"),

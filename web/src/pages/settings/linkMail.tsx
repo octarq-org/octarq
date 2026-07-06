@@ -5,19 +5,22 @@ import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import LLMProvidersSettings from "../LLMProviders";
-import { useSettingsData, SavedBadge } from "./shared";
+import { useSettingsData, useInstanceSettingsData, SavedBadge } from "./shared";
 
 export function LinkSettings() {
-  const { s } = useSettingsData();
+  const { s: wS } = useSettingsData();
+  const { s } = useInstanceSettingsData();
   const [reservedSlugs, setReservedSlugs] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => { if (s) { setReservedSlugs(s.reservedSlugs); } }, [s]);
 
+  if (!wS?.isInstanceAdmin) return null;
+
   async function save() {
     setBusy(true);
-    try { await api.updateSettings({ reservedSlugs }); setSaved(true); setTimeout(() => setSaved(false), 2000); }
+    try { await api.updateInstanceSettings({ reservedSlugs }); setSaved(true); setTimeout(() => setSaved(false), 2000); }
     finally { setBusy(false); }
   }
   if (!s) return <div className="text-sm text-white/40">loading…</div>;
@@ -25,7 +28,7 @@ export function LinkSettings() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white/90">Short Links Settings</h2>
+        <h2 className="text-sm font-semibold text-white/90">Short Links Settings (Instance)</h2>
         <SavedBadge on={saved} />
       </div>
       <Field label="Reserved Short Link Slugs" hint={`Slugs users cannot register. Built-in: ${s.builtinReserved.join(", ")}.`}>
