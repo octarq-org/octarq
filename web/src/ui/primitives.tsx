@@ -1,10 +1,10 @@
-import { ReactNode, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-import { twMerge } from "tailwind-merge";
+import { ReactNode, useState } from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 import { motion } from "framer-motion";
-import { HostEntry } from "../api";
-import { useAppName } from "../brand";
 import { useTranslation } from "../i18n";
+import { cn } from "./cn";
+import { Dialog } from "./base/dialog";
+import { Switch } from "./base/switch";
 
 export function GlassCard({
   className,
@@ -16,7 +16,7 @@ export function GlassCard({
   strong?: boolean;
 }) {
   return (
-    <div className={twMerge(strong ? "glass-strong" : "glass", "rounded-2xl", className)}>
+    <div className={cn(strong ? "glass-strong" : "glass", "rounded-2xl", className)}>
       {children}
     </div>
   );
@@ -24,17 +24,27 @@ export function GlassCard({
 
 // ─── Badge ───────────────────────────────────────────────────────────────────
 
-type BadgeTone = "indigo" | "violet" | "green" | "amber" | "red" | "neutral" | "cyan";
+// cva variants — the shadcn pattern: a base class string plus a `tone` axis,
+// combined with the caller's className through cn().
+const badgeVariants = cva(
+  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+  {
+    variants: {
+      tone: {
+        indigo:  "bg-indigo-500/15 text-indigo-300 ring-indigo-400/20",
+        violet:  "bg-violet-500/15 text-violet-300 ring-violet-400/20",
+        green:   "bg-emerald-500/15 text-emerald-300 ring-emerald-400/20",
+        amber:   "bg-amber-500/15  text-amber-300  ring-amber-400/20",
+        red:     "bg-rose-500/15   text-rose-300   ring-rose-400/20",
+        cyan:    "bg-cyan-500/15   text-cyan-300   ring-cyan-400/20",
+        neutral: "bg-white/[0.08]  text-white/70   ring-white/10",
+      },
+    },
+    defaultVariants: { tone: "neutral" },
+  },
+);
 
-const BADGE_TONE: Record<BadgeTone, string> = {
-  indigo:  "bg-indigo-500/15 text-indigo-300 ring-indigo-400/20",
-  violet:  "bg-violet-500/15 text-violet-300 ring-violet-400/20",
-  green:   "bg-emerald-500/15 text-emerald-300 ring-emerald-400/20",
-  amber:   "bg-amber-500/15  text-amber-300  ring-amber-400/20",
-  red:     "bg-rose-500/15   text-rose-300   ring-rose-400/20",
-  cyan:    "bg-cyan-500/15   text-cyan-300   ring-cyan-400/20",
-  neutral: "bg-white/[0.08]  text-white/70   ring-white/10",
-};
+type BadgeTone = NonNullable<VariantProps<typeof badgeVariants>["tone"]>;
 
 export function Badge({
   children,
@@ -45,30 +55,28 @@ export function Badge({
   tone?: BadgeTone;
   className?: string;
 }) {
-  return (
-    <span
-      className={twMerge(
-        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
-        BADGE_TONE[tone],
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
+  return <span className={cn(badgeVariants({ tone }), className)}>{children}</span>;
 }
 
 // ─── Button ──────────────────────────────────────────────────────────────────
 
-type ButtonVariant = "primary" | "ghost" | "outline" | "subtle" | "danger";
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        primary: "bg-indigo-500 text-white hover:bg-indigo-400 shadow-[0_8px_30px_-8px_rgba(99,102,241,0.6)]",
+        ghost:   "text-white/65 hover:text-white hover:bg-white/5",
+        outline: "border border-white/10 text-white/80 hover:bg-white/5 hover:border-white/20",
+        subtle:  "bg-white/5 text-white/80 hover:bg-white/10",
+        danger:  "text-rose-300/90 hover:bg-rose-500/10 hover:text-rose-300",
+      },
+    },
+    defaultVariants: { variant: "primary" },
+  },
+);
 
-const BTN_VARIANT: Record<ButtonVariant, string> = {
-  primary: "bg-indigo-500 text-white hover:bg-indigo-400 shadow-[0_8px_30px_-8px_rgba(99,102,241,0.6)]",
-  ghost:   "text-white/65 hover:text-white hover:bg-white/5",
-  outline: "border border-white/10 text-white/80 hover:bg-white/5 hover:border-white/20",
-  subtle:  "bg-white/5 text-white/80 hover:bg-white/10",
-  danger:  "text-rose-300/90 hover:bg-rose-500/10 hover:text-rose-300",
-};
+type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
 
 export function Button({
   children,
@@ -77,14 +85,7 @@ export function Button({
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
   return (
-    <button
-      className={twMerge(
-        "inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-50",
-        BTN_VARIANT[variant],
-        className,
-      )}
-      {...props}
-    >
+    <button className={cn(buttonVariants({ variant }), className)} {...props}>
       {children}
     </button>
   );
@@ -95,7 +96,7 @@ export function Button({
 export function ProPill({ className, children }: { className?: string; children?: ReactNode }) {
   return (
     <span
-      className={twMerge(
+      className={cn(
         "inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-500/25 to-violet-500/25 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200 ring-1 ring-inset ring-violet-400/30",
         className,
       )}
@@ -137,7 +138,7 @@ export function StatCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
       onClick={onClick}
-      className={twMerge(
+      className={cn(
         "glass rounded-2xl p-4 text-left transition-all duration-150",
         onClick ? "cursor-pointer hover:bg-white/[0.06] active:scale-[0.98]" : ""
       )}
@@ -201,6 +202,11 @@ export function ScreenWrap({ children, className }: { children: ReactNode; class
 
 // ─── Modal ───────────────────────────────────────────────────────────────────
 
+// Modal keeps its render-when-open API — callers mount it conditionally and pass
+// onClose — but is now backed by the Base UI Dialog wrapper, which supplies the
+// focus trap, scroll lock, Escape handling, backdrop-click close, and aria
+// wiring that this component used to approximate by hand. It's always "open"
+// while mounted; any close intent (Escape, backdrop, ✕) routes to onClose.
 export function Modal({
   title,
   onClose,
@@ -212,31 +218,10 @@ export function Modal({
   children: ReactNode;
   wide?: boolean;
 }) {
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [onClose]);
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-16 modal-overlay bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className={`glass-strong w-full rounded-2xl p-5 modal-card relative z-50 ${wide ? "max-w-3xl" : "max-w-md"}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold text-white">{title}</h2>
-          <button className="btn-ghost rounded-xl px-2 py-1 text-white/50 hover:text-white" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>,
-    document.body
+  return (
+    <Dialog open onOpenChange={(next) => { if (!next) onClose(); }} title={title} wide={wide}>
+      {children}
+    </Dialog>
   );
 }
 
@@ -272,19 +257,11 @@ export function Empty({ children }: { children: ReactNode }) {
 
 // ─── Toggle ──────────────────────────────────────────────────────────────────
 
+// Toggle keeps its `{ on, onChange }` API but is now the accessible Base UI
+// Switch (role="switch", keyboard-operable, focus-visible ring) instead of a
+// bare <button>.
 export function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      onClick={() => onChange(!on)}
-      className={`relative h-5 w-9 rounded-full transition-all duration-300 ${on ? "bg-indigo-500" : "bg-white/15"}`}
-    >
-      <span
-        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all duration-300 shadow-sm ${
-          on ? "left-4 scale-110" : "left-0.5 scale-90 opacity-70"
-        }`}
-      />
-    </button>
-  );
+  return <Switch checked={on} onCheckedChange={onChange} />;
 }
 
 // ─── HostList ─────────────────────────────────────────────────────────────────
