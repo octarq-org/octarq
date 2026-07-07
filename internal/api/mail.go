@@ -86,6 +86,7 @@ func (h *Handler) updateMailbox(w http.ResponseWriter, r *http.Request) {
 	mb.Note = d.Note
 	if d.Enabled != nil {
 		mb.Enabled = *d.Enabled
+	}
 	h.db.Save(&mb)
 	meta := map[string]any{
 		"note":    mb.Note,

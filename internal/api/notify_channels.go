@@ -68,6 +68,7 @@ func (h *Handler) updateNotificationChannel(w http.ResponseWriter, r *http.Reque
 	}
 	if d.Enabled != nil {
 		ch.Enabled = *d.Enabled
+	}
 	h.db.Save(&ch)
 	meta := make(map[string]any)
 	if d.Name != nil {

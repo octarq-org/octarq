@@ -76,6 +76,7 @@ func (h *Handler) updateProviderAccount(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		acc.Config = enc
+	}
 	h.db.Save(&acc)
 	meta := make(map[string]any)
 	if strings.TrimSpace(d.Name) != "" {
