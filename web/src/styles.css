@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap');
 @import "tailwindcss";
+/* Base UI Dialog/Tooltip enter-exit + the existing animate-* keyframes share one
+   animation vocabulary. tw-animate-css resolves to
+   node_modules/tw-animate-css/dist/tw-animate.css via its package "style" export. */
+@import "tw-animate-css";
 
 html,
 body,
@@ -8,14 +12,74 @@ body,
   margin: 0;
 }
 
+/* ─── Design tokens ──────────────────────────────────────────────────────────
+   shadcn-style single source of truth. These NAME the palette/radii/blur the
+   glass theme ALREADY uses — nothing is restyled; the classes below are
+   re-expressed in terms of these vars so plugin components and future shadcn
+   components resolve the same values. Raw values live in :root; @theme inline
+   re-exports them as Tailwind tokens so utilities like bg-primary /
+   text-muted-foreground / rounded-lg / ring-ring resolve to this palette. */
 :root {
   color-scheme: dark;
+
+  /* Radius — btn/input = 0.75rem, cards = rounded-2xl (1rem) */
+  --radius: 0.75rem;
+
+  /* Surfaces */
+  --background: #07070b;                          /* body / app background */
+  --foreground: #e7e7ef;                          /* default body text */
+  --card: rgba(22, 22, 32, 0.55);                 /* .glass / .card fill */
+  --card-foreground: #e7e7ef;
+  --popover: rgba(13, 13, 20, 0.96);              /* .glass-strong / modal fill */
+  --popover-foreground: #ffffff;
+  --muted: rgba(255, 255, 255, 0.05);
+  --muted-foreground: rgba(255, 255, 255, 0.50);  /* .label — AA-passing floor */
+
+  /* Accents */
+  --primary: #6366f1;                             /* indigo-500 */
+  --primary-hover: #818cf8;                       /* indigo-400 */
+  --primary-foreground: #ffffff;
+  --accent-indigo: #6366f1;
+  --accent-violet: #8b5cf6;                        /* violet-500 */
+
+  /* Lines & focus */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.10);
+  --input: rgba(255, 255, 255, 0.10);
+  --ring: #6366f1;
+
+  /* Glass blur radii */
+  --blur-glass: 18px;
+  --blur-glass-strong: 22px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent-indigo: var(--accent-indigo);
+  --color-accent-violet: var(--accent-violet);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #07070b;
-  color: #e7e7ef;
+  background-color: var(--background);
+  color: var(--foreground);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -35,17 +99,17 @@ body {
 
 /* Glass surface */
 .glass {
-  background: rgba(22, 22, 32, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(140%);
 }
 
 .glass-strong {
-  background: rgba(13, 13, 20, 0.96);
+  background: var(--popover);
   border: 1px solid rgba(255, 255, 255, 0.09);
-  backdrop-filter: blur(22px) saturate(150%);
-  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(var(--blur-glass-strong)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--blur-glass-strong)) saturate(150%);
 }
 
 /* Glow shadow */
@@ -70,9 +134,11 @@ body {
   background: transparent;
 }
 
-/* Focus */
+/* Focus — global focus-visible ring, sourced from the --ring token so the
+   base primitives' focus-visible:ring-indigo-400 utilities and this outline
+   share one accent. */
 *:focus-visible {
-  outline: 2px solid #6366f1;
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
@@ -102,13 +168,13 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-primary,
 .btn {
-  background-color: #6366f1;
-  color: white;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
   box-shadow: 0 8px 30px -8px rgba(99, 102, 241, 0.6);
 }
 .btn-primary:hover,
 .btn:hover {
-  background-color: #818cf8;
+  background-color: var(--primary-hover);
 }
 .btn-primary:disabled,
 .btn:disabled {
@@ -157,10 +223,10 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .card {
-  background: rgba(22, 22, 32, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(140%);
   border-radius: 1rem;
 }
 
@@ -182,7 +248,7 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 0.25rem;
   font-size: 0.75rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.50);
+  color: var(--muted-foreground);
 }
 
 /* Modal Animations */
@@ -204,3 +270,24 @@ h1, h2, h3, h4, h5, h6 {
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-expand { animation: expand-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* ─── Reduced motion ─────────────────────────────────────────────────────────
+   Honour prefers-reduced-motion for ALL CSS-driven animation: the modal/overlay
+   enter, .animate-expand, tw-animate-css enter/exit utilities, and CSS
+   transitions. framer-motion animations (StatCard, ScreenWrap, Toggle thumb) are
+   JS-driven inline transforms and are NOT covered here — those need a
+   component-level guard (MotionConfig reducedMotion="user" / useReducedMotion);
+   see docs/ACCESSIBILITY.md. Near-zero (not 0) keeps animationend/transitionend
+   listeners firing so open/close state still settles. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
