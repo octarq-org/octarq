@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Jungley8/led/internal/mail"
-	"github.com/Jungley8/led/internal/models"
-	"github.com/Jungley8/led/plugin"
+	"github.com/octarq-org/led/internal/mail"
+	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/led/plugin"
 	"gorm.io/gorm"
 )
 

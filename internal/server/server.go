@@ -14,8 +14,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Jungley8/led/config"
-	"github.com/Jungley8/led/internal/shortlink"
+	"github.com/octarq-org/led/config"
+	"github.com/octarq-org/led/internal/shortlink"
 )
 
 // Server is the top-level HTTP handler.

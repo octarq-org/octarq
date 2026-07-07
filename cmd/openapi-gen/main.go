@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Jungley8/led/openapi"
+	"github.com/octarq-org/led/openapi"
 )
 
 func main() {

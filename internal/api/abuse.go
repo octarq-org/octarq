@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Jungley8/led/internal/models"
-	"github.com/Jungley8/led/internal/notify"
+	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/led/internal/notify"
 )
 
 var validAbuseReasons = map[string]bool{

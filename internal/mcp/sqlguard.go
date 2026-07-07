@@ -1,6 +1,6 @@
 package mcp
 
-import "github.com/Jungley8/led/plugin"
+import "github.com/octarq-org/led/plugin"
 
 const maxRows = plugin.MaxRows
 

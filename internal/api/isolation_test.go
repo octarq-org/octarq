@@ -14,10 +14,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Jungley8/led/config"
-	"github.com/Jungley8/led/internal/auth"
-	"github.com/Jungley8/led/internal/crypto"
-	"github.com/Jungley8/led/internal/models"
+	"github.com/octarq-org/led/config"
+	"github.com/octarq-org/led/internal/auth"
+	"github.com/octarq-org/led/internal/crypto"
+	"github.com/octarq-org/led/internal/models"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )

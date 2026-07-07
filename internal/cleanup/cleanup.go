@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/Jungley8/led/internal/models"
+	"github.com/octarq-org/led/internal/models"
 	"gorm.io/gorm"
 )
 

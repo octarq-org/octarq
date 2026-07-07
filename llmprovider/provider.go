@@ -3,7 +3,7 @@
 // public, importable package (NOT internal) on purpose: both the OSS `led mcp`
 // server and the commercial led-pro AI plugins build on this single seam, so it
 // must live outside internal/ where external modules can import it
-// (github.com/Jungley8/led/llmprovider).
+// (github.com/octarq-org/led/llmprovider).
 //
 // Backends are not hand-written per vendor. The broad set — OpenAI (and any
 // OpenAI-compatible endpoint), Google Gemini, Mistral, Cohere, Ollama (local) —

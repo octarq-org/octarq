@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/Jungley8/led/plugin"
+	"github.com/octarq-org/led/plugin"
 )
 
 func Generate(w io.Writer, plugins []plugin.Plugin) error {

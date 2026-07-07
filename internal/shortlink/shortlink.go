@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Jungley8/led/internal/cache"
-	"github.com/Jungley8/led/internal/eventbus"
-	"github.com/Jungley8/led/internal/geo"
-	"github.com/Jungley8/led/internal/models"
+	"github.com/octarq-org/led/internal/cache"
+	"github.com/octarq-org/led/internal/eventbus"
+	"github.com/octarq-org/led/internal/geo"
+	"github.com/octarq-org/led/internal/models"
 	"gorm.io/gorm"
 )
 

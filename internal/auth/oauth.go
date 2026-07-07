@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Jungley8/led/internal/crypto"
-	"github.com/Jungley8/led/internal/models"
+	"github.com/octarq-org/led/internal/crypto"
+	"github.com/octarq-org/led/internal/models"
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"

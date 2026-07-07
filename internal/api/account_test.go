@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Jungley8/led/internal/models"
+	"github.com/octarq-org/led/internal/models"
 )
 
 func TestAccountExportAndPurge(t *testing.T) {

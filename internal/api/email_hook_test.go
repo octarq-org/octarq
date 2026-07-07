@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Jungley8/led/plugin"
+	"github.com/octarq-org/led/plugin"
 )
 
 // TestEmitEmailFansOut verifies OnEmail handlers all receive the event and that

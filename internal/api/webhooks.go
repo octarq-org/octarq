@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Jungley8/led/internal/models"
+	"github.com/octarq-org/led/internal/models"
 )
 
 func (h *Handler) listWebhooks(w http.ResponseWriter, r *http.Request) {

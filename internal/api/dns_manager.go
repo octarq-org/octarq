@@ -3,9 +3,9 @@ package api
 import (
 	"context"
 
-	"github.com/Jungley8/led/internal/dnsprovider"
-	"github.com/Jungley8/led/internal/models"
-	"github.com/Jungley8/led/plugin"
+	"github.com/octarq-org/led/internal/dnsprovider"
+	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/led/plugin"
 )
 
 // dnsManager adapts the core's per-domain DNS provider to the stable

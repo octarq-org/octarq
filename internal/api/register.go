@@ -5,7 +5,7 @@ import (
 	"net/mail"
 	"strings"
 
-	"github.com/Jungley8/led/internal/models"
+	"github.com/octarq-org/led/internal/models"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )

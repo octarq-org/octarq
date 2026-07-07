@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Jungley8/led/config"
-	"github.com/Jungley8/led/internal/models"
+	"github.com/octarq-org/led/config"
+	"github.com/octarq-org/led/internal/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm/clause"
 )

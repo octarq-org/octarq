@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Jungley8/led/internal/models"
-	"github.com/Jungley8/led/plugin"
+	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/led/plugin"
 	"gorm.io/gorm/clause"
 )
 

@@ -1,7 +1,7 @@
 # led — link · email · domain
 
-[![CI](https://github.com/Jungley8/led/actions/workflows/ci.yml/badge.svg)](https://github.com/Jungley8/led/actions/workflows/ci.yml)
-[![Release image](https://github.com/Jungley8/led/actions/workflows/release.yml/badge.svg)](https://github.com/Jungley8/led/actions/workflows/release.yml)
+[![CI](https://github.com/octarq-org/led/actions/workflows/ci.yml/badge.svg)](https://github.com/octarq-org/led/actions/workflows/ci.yml)
+[![Release image](https://github.com/octarq-org/led/actions/workflows/release.yml/badge.svg)](https://github.com/octarq-org/led/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A self-hosted **short link, mailbox, and DNS management** service in a single Go
@@ -156,7 +156,7 @@ redacted. Tools are scoped dynamically via HTTP headers or query parameter token
 ### LLM provider
 
 AI features (the MCP server's own tools need no LLM, but the Pro Inbox-AI plugin
-does) share one importable abstraction, `github.com/Jungley8/led/llmprovider`.
+does) share one importable abstraction, `github.com/octarq-org/led/llmprovider`.
 It is **multi-vendor**: the broad set — OpenAI (and any OpenAI-compatible
 endpoint via a base URL), Google Gemini, Mistral, Cohere, and Ollama (local) —
 is provided by the open-source [langchaingo](https://github.com/tmc/langchaingo)

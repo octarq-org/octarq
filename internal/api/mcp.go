@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Jungley8/led/internal/auth"
-	mcp_internal "github.com/Jungley8/led/internal/mcp"
-	"github.com/Jungley8/led/internal/models"
+	"github.com/octarq-org/led/internal/auth"
+	mcp_internal "github.com/octarq-org/led/internal/mcp"
+	"github.com/octarq-org/led/internal/models"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

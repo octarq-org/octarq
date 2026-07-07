@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Jungley8/led/internal/dnsprovider"
-	"github.com/Jungley8/led/internal/models"
+	"github.com/octarq-org/led/internal/dnsprovider"
+	"github.com/octarq-org/led/internal/models"
 	"gorm.io/gorm"
 )
 

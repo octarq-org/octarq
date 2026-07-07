@@ -20,9 +20,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/Jungley8/led/app"
-	"github.com/Jungley8/led/internal/mcp"
-	"github.com/Jungley8/led/openapi"
+	"github.com/octarq-org/led/app"
+	"github.com/octarq-org/led/internal/mcp"
+	"github.com/octarq-org/led/openapi"
 )
 
 func main() {

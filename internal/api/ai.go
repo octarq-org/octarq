@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Jungley8/led/internal/models"
-	"github.com/Jungley8/led/llmprovider"
+	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/led/llmprovider"
 )
 
 // Single-step, user-triggered AI assists for the open-source build: suggest a

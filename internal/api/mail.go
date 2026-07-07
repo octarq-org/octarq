@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Jungley8/led/internal/eventbus"
-	"github.com/Jungley8/led/internal/mail"
-	"github.com/Jungley8/led/internal/models"
-	"github.com/Jungley8/led/internal/notify"
-	"github.com/Jungley8/led/plugin"
+	"github.com/octarq-org/led/internal/eventbus"
+	"github.com/octarq-org/led/internal/mail"
+	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/led/internal/notify"
+	"github.com/octarq-org/led/plugin"
 )
 
 // --- mailboxes ---

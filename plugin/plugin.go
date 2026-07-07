@@ -15,7 +15,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Jungley8/led/llmprovider"
+	"github.com/octarq-org/led/llmprovider"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"gorm.io/gorm"
 )

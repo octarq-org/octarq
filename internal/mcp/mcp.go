@@ -22,9 +22,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Jungley8/led/config"
-	"github.com/Jungley8/led/internal/db"
-	"github.com/Jungley8/led/plugin"
+	"github.com/octarq-org/led/config"
+	"github.com/octarq-org/led/internal/db"
+	"github.com/octarq-org/led/plugin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"gorm.io/gorm"
 )

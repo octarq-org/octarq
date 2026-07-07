@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/Jungley8/led/plugin"
+	"github.com/octarq-org/led/plugin"
 )
 
 type fakePlugin struct{}

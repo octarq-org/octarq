@@ -3,8 +3,8 @@ package api
 import (
 	"testing"
 
-	"github.com/Jungley8/led/internal/dnsprovider"
-	"github.com/Jungley8/led/plugin"
+	"github.com/octarq-org/led/internal/dnsprovider"
+	"github.com/octarq-org/led/plugin"
 )
 
 // TestDNSRecordMappingRoundTrip ensures the plugin↔dnsprovider record conversion

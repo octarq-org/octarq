@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Jungley8/led/internal/models"
+	"github.com/octarq-org/led/internal/models"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )

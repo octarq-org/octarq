@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/Jungley8/led/internal/models"
+	"github.com/octarq-org/led/internal/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

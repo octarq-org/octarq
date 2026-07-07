@@ -159,7 +159,7 @@ All notable changes to this project are documented here.
 
 ### 🐛 Bug Fixes
 
-- Correct module path to github.com/Jungley8/led
+- Correct module path to github.com/octarq-org/led
 
 ## [0.1.0] - 2026-06-26
 

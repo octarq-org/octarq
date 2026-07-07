@@ -18,7 +18,7 @@ const minSecretKeyLen = 16
 // DefaultAppName is the fallback product name shown in the UI when the
 // `app_name` runtime setting (Settings → General) is empty. Downstream builds
 // (e.g. the commercial led-pro) override it at compile time via
-// -ldflags="-X github.com/Jungley8/led/config.DefaultAppName=…".
+// -ldflags="-X github.com/octarq-org/led/config.DefaultAppName=…".
 var DefaultAppName = "led"
 
 // Config holds all runtime configuration for led.
