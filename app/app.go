@@ -157,6 +157,11 @@ func (a *App) sendMail(orgID uint, to, subject, htmlBody, textBody string) error
 // models are migrated and their routes mounted.
 func (a *App) Use(p plugin.Plugin) { a.plugins = append(a.plugins, p) }
 
+// Plugins returns the registered plugins.
+func (a *App) Plugins() []plugin.Plugin {
+	return a.plugins
+}
+
 // RunMCP runs the MCP server with the registered plugins over stdio. It mounts
 // the plugins with the same plugin.Context the HTTP server uses, so their MCP
 // tool handlers have their dependencies wired (DB, DNS manager, Encrypt/Decrypt)

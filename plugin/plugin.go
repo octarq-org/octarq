@@ -178,6 +178,13 @@ type MCPProvider interface {
 	RegisterMCP(srv *mcp.Server)
 }
 
+// OpenAPIContributor is an optional interface a Plugin may implement if it
+// registers paths or schemas in the OpenAPI specification.
+type OpenAPIContributor interface {
+	OpenAPIPaths() map[string]any
+	OpenAPISchemas() map[string]any
+}
+
 // Info is optional presentation/enablement metadata for a plugin. A plugin that
 // does not implement Describer is treated as a standalone, user-toggleable
 // feature keyed and titled by its Name().

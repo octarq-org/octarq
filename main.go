@@ -22,6 +22,7 @@ import (
 
 	"github.com/Jungley8/led/app"
 	"github.com/Jungley8/led/internal/mcp"
+	"github.com/Jungley8/led/openapi"
 )
 
 func main() {
@@ -34,6 +35,14 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "mcp" {
 		if err := mcp.Run(context.Background()); err != nil {
 			slog.Error("mcp failed", "err", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if len(os.Args) > 1 && os.Args[1] == "openapi" {
+		if err := openapi.Generate(os.Stdout, nil); err != nil {
+			slog.Error("openapi generation failed", "err", err)
 			os.Exit(1)
 		}
 		return
