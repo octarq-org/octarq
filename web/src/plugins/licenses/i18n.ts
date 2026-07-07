@@ -1,3 +1,7 @@
+// Translation namespace for the licenses plugin, injected via UIPlugin.i18n
+// (see ./index.ts) and merged under the `licenses.*` key. Previously lived in
+// web/src/i18n/pages/licenses.ts and was baked into the central bundle; now the
+// plugin owns it, so a build that doesn't compose the plugin never ships it.
 export const licenses = {
   en: {
     lockedFeature: "License Issuance Control",

@@ -1,10 +1,23 @@
-// Licenses — the issuer plugin's read-only record of every license minted
-// (GET /api/issued). License-gated: 402 → upsell; OSS build → 404 note.
+// Licenses page — the issuer plugin's read-only record of every license minted
+// (GET /api/issued). License-gated: 402 → upsell; plugin absent → 404 note.
+//
+// This is the same page that used to live at web/src/pages/Licenses.tsx, now
+// composed through the frontend plugin SDK. Behavior is unchanged: it imports
+// its UI from `@led/plugin-sdk` (the stable plugin surface) instead of reaching
+// into `../ui` directly, and its translation namespace is injected by the
+// plugin (see ./index.ts) rather than baked into the central i18n bundle.
 import { useEffect, useState } from "react";
-import { api, ApiError, IssuedLicense } from "../api";
-import { ScreenWrap, PageHeader, GlassCard, Badge, Empty, LockedFeature } from "../ui";
+import { api, ApiError, IssuedLicense } from "../../api";
+import {
+  ScreenWrap,
+  PageHeader,
+  GlassCard,
+  Badge,
+  Empty,
+  LockedFeature,
+  useTranslation,
+} from "@led/plugin-sdk";
 import { KeyRound } from "lucide-react";
-import { useTranslation } from "../i18n";
 
 export default function LicensesPage() {
   const { t } = useTranslation();
