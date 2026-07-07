@@ -1,40 +1,30 @@
-// The stable shared-UI surface a plugin is allowed to import. This is the
-// curated subset of the app's `../ui` barrel we commit to keeping stable for
-// plugin authors — plugins import from here (`@led/plugin-sdk`), never from
-// `../ui` directly, so the app's internal component churn can't break them.
+// The shared-UI surface a plugin may import from `@led/plugin-sdk`.
 //
-// Re-exported (not re-implemented) so there is a single source of truth for
-// each component; when this becomes a published package, this file becomes its
-// public component export.
-export {
-  GlassCard,
-  Badge,
-  Button,
-  ProPill,
-  StatCard,
-  PageHeader,
-  ScreenWrap,
-  Modal,
-  Field,
-  Empty,
-  Toggle,
-  Guide,
-  Code,
-  TIER_LABEL,
-  LockedFeature,
-} from "../ui";
+// It unions the package's pure component set with the handful of app-COUPLED
+// components that can't live in the package because they read the app's React
+// context (i18n / brand):
+//   - package (packages/plugin-sdk): GlassCard, Button, Badge, Modal, Toggle,
+//     Field, Empty, PageHeader, ScreenWrap, StatCard, ProPill, TIER_LABEL, and
+//     the new Input/Textarea/Select/Tabs/Tooltip/Table/Skeleton set.
+//   - app: `Code` (uses `useTranslation` for its copy affordance), `Guide`
+//     (kept app-side alongside Code), and `LockedFeature` (uses the app's brand
+//     + i18n). `useTranslation` itself is re-exported so plugin pages translate
+//     through the same provider.
+//
+// The package is imported by SOURCE PATH, not by the `@led/plugin-sdk` name,
+// which is aliased back to this facade.
+export * from "../../../packages/plugin-sdk/src/ui";
 
-// Also re-export the i18n hook so plugin pages translate through the same
-// provider and can register their own namespace via `UIPlugin.i18n`.
 export { useTranslation } from "../i18n";
+export { Code, Guide, LockedFeature } from "../ui";
 
 import { KeyRound } from "lucide-react";
 import { LockedFeature } from "../ui";
 
-// The SDK-provided component for the gated 402/404 states, matching led's
-// convention: 402 (unlicensed) → upsell, 404 (plugin not in this build) →
-// neutral note. It wraps the app's `LockedFeature` with sensible defaults so a
-// plugin page can degrade in one line:
+// The convenience component for the gated 402 (unlicensed) / 404 (plugin not in
+// this build) states, matching led's convention: 402 → upsell, 404 → neutral
+// note. It wraps the app's `LockedFeature` with a default icon so a plugin page
+// can degrade in one line:
 //
 //   if (err) return <ScreenWrap><LockedFallback status={err.status} feature="…" /></ScreenWrap>;
 export function LockedFallback({

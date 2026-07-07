@@ -1,0 +1,6 @@
+# pnpm workspace rooted at web/ (where packageManager + the lockfile live, so
+# CI's `cd web && pnpm install` and its web/pnpm-lock.yaml cache key are
+# unchanged). The frontend plugin SDK is a sibling package at the repo root.
+packages:
+  - "."
+  - "../packages/*"
