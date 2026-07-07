@@ -1,8 +1,8 @@
 // The frontend plugin registry — the runtime seam the app reads to discover
 // composed plugins. It is populated exactly once, at module-eval time, by the
-// build-time injection module (../plugins/index.ts): the OSS build registers
-// nothing (registry stays empty ⇒ Pro routes 404-degrade), a commercial build
-// registers real plugin modules.
+// build-time injection module (the app's plugins/index.ts): the OSS build
+// registers nothing (registry stays empty ⇒ Pro routes 404-degrade), a
+// commercial build registers real plugin modules.
 //
 // This is the JS mirror of `app.App.Use(plugin.Plugin)` on the Go side.
 import type { PluginI18n, PluginMenuItem, UIPlugin, UIRoute } from "./types";

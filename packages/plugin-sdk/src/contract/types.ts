@@ -1,12 +1,12 @@
 // The frontend plugin contract — the UI analog of the Go `plugin.Plugin`
 // interface. A commercial or third-party plugin ships a module conforming to
 // `UIPlugin`; the app composes it into the route/menu/i18n registry AT BUILD
-// TIME (see ../plugins/index.ts). This mirrors the backend seam: Go code
+// TIME (see the app's plugins/index.ts). This mirrors the backend seam: Go code
 // implements `plugin.Plugin`, JS code implements `UIPlugin`, and both are
 // composed without forking led.
 //
-// This module deliberately imports nothing app-internal so it can be lifted
-// out verbatim into a published `@led/plugin-sdk` package later.
+// This module deliberately imports nothing app-internal — it is the published
+// public contract of `@led/plugin-sdk`.
 import type { ComponentType, LazyExoticComponent } from "react";
 
 // A lazily-loaded page component. Plugins wrap their page in `React.lazy` so the
@@ -46,7 +46,7 @@ export interface PluginI18n {
 }
 
 // The component a plugin renders for the gated 402 (unlicensed) / 404 (plugin
-// not in this build) states — the SDK ships `LockedFallback` for this. Kept in
+// not in this build) states — the app ships `LockedFallback` for this. Kept in
 // the contract so the app's plugin-route boundary can degrade to it if a page
 // chunk fails to load.
 export type LockedFallback = ComponentType<{ status: number }>;

@@ -4,9 +4,8 @@ import { cn } from "../cn";
 
 // Dialog is a shadcn-style wrapper over Base UI's accessible Dialog primitive.
 // Base UI gives us focus trapping, scroll locking, Escape-to-close, and the
-// aria wiring for free — replacing the app's previous hand-rolled portal that
-// re-implemented (some of) that by hand. The higher-level `Modal` in
-// ../primitives adapts it to the app's `{ title, onClose }` render-when-open API.
+// aria wiring for free. The higher-level `Modal` in ../primitives adapts it to
+// the app's `{ title, onClose }` render-when-open API.
 //
 // Composition follows Base UI's canonical minimal pattern (Backdrop + Popup as
 // direct children of Portal); the Popup is fixed-positioned near the top to
