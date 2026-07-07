@@ -14,7 +14,12 @@
     "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@led/plugin-sdk": ["./src/plugin-sdk"],
+      "#led-plugins": ["./src/plugins/index.ts"]
+    }
   },
   "include": ["src"]
 }

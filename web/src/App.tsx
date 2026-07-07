@@ -44,7 +44,6 @@ import SSHKeysPage from "./pages/SSHKeys";
 import VPSPage from "./pages/VPS";
 import FinancePage from "./pages/Finance";
 import StorefrontPage from "./pages/Storefront";
-import LicensesPage from "./pages/Licenses";
 import BillingPage from "./pages/Billing";
 import InboxAIPage from "./pages/InboxAI";
 import AuditLogPage from "./pages/AuditLog";
@@ -58,6 +57,8 @@ import { TopBar } from "./shell/TopBar";
 import { CommandPalette } from "./shell/CommandPalette";
 import { AreaPanel } from "./shell/AreaPanel";
 import { Login } from "./shell/Login";
+import { uiMenus } from "./plugin-sdk";
+import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
 
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -190,8 +191,12 @@ function Shell({
     };
 
     Promise.all([api.menus().catch(() => []), api.plugins().catch(() => [])])
-      .then(([menus, plugins]) => {
+      .then(([backendMenus, plugins]) => {
         setIsProBuild(plugins.length > 0);
+        // Sidebar entries from build-time-composed frontend plugins (UIPlugin.menu)
+        // are folded in beside dynamic backend menus and placed by the same
+        // areaForCategory logic — no parallel mechanism. Empty in the OSS build.
+        const menus = [...backendMenus, ...uiMenus()];
         // Paths owned by a disabled plugin are hidden from the sidebar. Dynamic
         // plugin menus are already filtered server-side; this also drops the
         // statically-declared Pro items (Storefront, Servers, …) when off.
@@ -352,14 +357,19 @@ function Shell({
               <Route path="/assets/storage"      element={<ComingSoonPage title={t("app.storageTitle")} description={t("app.storageDesc")} />} />
               <Route path="/finance"    element={<FinancePage />} />
               <Route path="/storefront" element={<StorefrontPage />} />
-              <Route path="/licenses"   element={<LicensesPage />} />
               <Route path="/billing"    element={<BillingPage />} />
               <Route path="/audit"      element={<AuditLogPage />} />
               <Route path="/abuse"      element={<AbusePage />} />
               <Route path="/settings/*" element={<SettingsPage />} />
               <Route path="/personal/*" element={<PersonalSettingsPage />} />
               <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
-              <Route path="*"           element={<Navigate to="/overview" replace />} />
+              {/* Build-time-composed frontend plugins (e.g. licenses). Empty in
+                  the OSS build ⇒ their paths fall to the neutral fallback below. */}
+              {pluginRouteElements()}
+              {/* Unknown paths 404-degrade to a neutral note instead of silently
+                  redirecting — a Pro plugin path with no composed plugin lands
+                  here, matching led's "not in this build" convention. */}
+              <Route path="*"           element={<PluginUnavailable />} />
             </Routes>
           </div>
         </div>

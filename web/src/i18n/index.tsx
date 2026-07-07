@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, ReactNode } fr
 import { en } from "./en";
 import { zh } from "./zh";
 import { pagesEn, pagesZh } from "./pages";
+import { uiPluginI18n } from "../plugin-sdk";
 
 export type Lang = "en" | "zh";
 
@@ -61,13 +62,22 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, [lang]);
 
   const value = useMemo<I18nCtx>(() => {
+    // Merge namespaces contributed by composed frontend plugins (UIPlugin.i18n)
+    // over the core resources. Done here at render time — not at module eval —
+    // so it is independent of whether the plugin injection module happened to
+    // evaluate before this one.
+    const pluginNs = uiPluginI18n();
+    const dict: Record<Lang, Record<string, any>> = {
+      en: { ...RESOURCES.en, ...pluginNs.en },
+      zh: { ...RESOURCES.zh, ...pluginNs.zh },
+    };
     // t(key), t(key, fallback), t(key, vars), or t(key, fallback, vars).
     const t: TFunc = (key, fallbackOrVars, vars) => {
       let fallback: string | undefined;
       let interp = vars;
       if (typeof fallbackOrVars === "string") fallback = fallbackOrVars;
       else if (fallbackOrVars) interp = fallbackOrVars;
-      const hit = lookup(RESOURCES[lang], key) ?? lookup(RESOURCES.en, key) ?? fallback ?? key;
+      const hit = lookup(dict[lang], key) ?? lookup(dict.en, key) ?? fallback ?? key;
       return interpolate(hit, interp);
     };
     return { lang, setLang: setLangState, t };

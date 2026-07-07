@@ -12,7 +12,9 @@ import { storefront } from "./storefront";
 import { personal } from "./personal";
 import { settings } from "./settings";
 import { billing } from "./billing";
-import { licenses } from "./licenses";
+// Note: the `licenses` namespace moved out of this central bundle — it is now
+// owned by the licenses UIPlugin (web/src/plugins/licenses) and injected via
+// UIPlugin.i18n when that plugin is composed in.
 import { audit } from "./audit";
 import { abuse } from "./abuse";
 import { invite } from "./invite";
@@ -32,7 +34,6 @@ const NS = {
   personal,
   settings,
   billing,
-  licenses,
   audit,
   abuse,
   invite,
