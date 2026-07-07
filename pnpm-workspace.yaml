@@ -1,0 +1,9 @@
+# pnpm workspace root.
+#
+# Only publishable packages are members of this workspace. The dashboard in
+# web/ intentionally stays OUT of the workspace: it keeps its own
+# web/pnpm-lock.yaml and is built standalone by .github/workflows/ci.yml
+# (cache-dependency-path: web/pnpm-lock.yaml). Do not add web/ here without
+# also reworking that CI job.
+packages:
+  - "packages/*"

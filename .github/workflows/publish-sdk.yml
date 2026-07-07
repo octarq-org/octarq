@@ -1,0 +1,99 @@
+name: Publish SDK
+
+# Publishes @led/plugin-sdk.
+#
+# Two paths:
+#   1. push to main  -> changesets flow. If unconsumed changesets exist, the
+#      changesets action opens/updates a "Version Packages" PR. When that PR is
+#      merged (a subsequent push to main with the version bump committed and the
+#      changeset files removed), the same action runs `pnpm changeset publish`
+#      and pushes the package. This is self-guarding: with no changesets there
+#      is nothing to version, and after publishing the changesets are gone, so
+#      it cannot loop.
+#   2. push of an `sdk-v*` tag -> direct one-shot publish of the current SDK
+#      version (escape hatch / manual release).
+
+on:
+  push:
+    branches: [main]
+    tags: ["sdk-v*"]
+
+# Top-level: least privilege. The changesets job widens this locally.
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-sdk-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ── Changesets-driven release on main ────────────────────────────────────
+  release:
+    name: Version or publish (changesets)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # commit version bumps / push tags
+      packages: write        # publish to GitHub Packages
+      pull-requests: write   # open the "Version Packages" PR
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4 # keep in sync with root package.json "packageManager"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: "@led"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build SDK
+        run: pnpm --filter @led/plugin-sdk build
+
+      - name: Create Release PR or publish
+        uses: changesets/action@v1
+        with:
+          version: pnpm run version-packages
+          publish: pnpm run release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # setup-node wrote ~/.npmrc; changeset publish -> pnpm publish reads
+          # NODE_AUTH_TOKEN for //npm.pkg.github.com/:_authToken.
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── One-shot publish on an sdk-v* tag ────────────────────────────────────
+  tag-publish:
+    name: Publish on sdk-v* tag
+    if: startsWith(github.ref, 'refs/tags/sdk-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: "@led"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build SDK
+        run: pnpm --filter @led/plugin-sdk build
+
+      - name: Publish
+        run: pnpm publish --filter @led/plugin-sdk --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

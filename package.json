@@ -1,0 +1,15 @@
+{
+  "name": "led-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Workspace root for the led monorepo. Publishable packages live under packages/*; the dashboard app lives in web/ and is built independently.",
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.11"
+  }
+}
