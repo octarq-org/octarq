@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -86,7 +87,15 @@ type App struct {
 	auth    *auth.Manager
 	geo     *geo.Resolver
 	plugins []plugin.Plugin
+	webFS   fs.FS // overrides the embedded OSS dashboard when set (see WithWebFS)
 }
+
+// WithWebFS overrides the embedded open-source dashboard with a caller-supplied
+// filesystem. The commercial build (octarq-pro) uses this to serve a dashboard
+// built with its plugin pages injected (VITE_OCTARQ_PLUGINS=pro) instead of the
+// core's OSS bundle, whose empty plugin registry 404-degrades those pages. Pass
+// an fs.FS rooted where the core's webembed.FS() would be (index.html at root).
+func (a *App) WithWebFS(f fs.FS) *App { a.webFS = f; return a }
 
 // New loads configuration and opens the database (without migrating). Call
 // Use to register plugins, then Run.
@@ -281,9 +290,13 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	short := shortlink.New(a.gdb, a.geo).WithCache(a.auth.Cache())
-	webFS, err := webembed.FS()
-	if err != nil {
-		return err
+	webFS := a.webFS
+	if webFS == nil {
+		embedded, err := webembed.FS()
+		if err != nil {
+			return err
+		}
+		webFS = embedded
 	}
 	// CSRFGuard wraps the fully-assembled mux (core + plugin routes) to block
 	// cross-site state-changing requests riding the session cookie; bearer/webhook
