@@ -28,7 +28,10 @@ export default defineConfig({
   // The dashboard SPA is mounted under /admin so short-link slugs own the root.
   base: "/admin/",
   build: {
-    outDir: "../webembed/dist",
+    // OCTARQ_WEBEMBED_OUT lets a commercial build (octarq-pro) redirect the
+    // output elsewhere while reusing this exact build; defaults to the core's
+    // embedded dist.
+    outDir: process.env.OCTARQ_WEBEMBED_OUT || "../webembed/dist",
     emptyOutDir: true,
   },
   server: {

@@ -6,7 +6,7 @@
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "dev": "vite --host",
-    "build": "vite build && vite build --config vite.portal.config.ts && mv ../webembed/dist/portal/portal.html ../webembed/dist/portal/index.html",
+    "build": "vite build && vite build --config vite.portal.config.ts && mv \"${OCTARQ_WEBEMBED_OUT:-../webembed/dist}/portal/portal.html\" \"${OCTARQ_WEBEMBED_OUT:-../webembed/dist}/portal/index.html\"",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview --host"
   },

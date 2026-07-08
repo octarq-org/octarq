@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   base: "/portal/",
   build: {
-    outDir: "../webembed/dist/portal",
+    outDir: (process.env.OCTARQ_WEBEMBED_OUT || "../webembed/dist") + "/portal",
     emptyOutDir: true,
     rollupOptions: {
       input: {
