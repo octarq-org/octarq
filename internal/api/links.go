@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/models"
 	qrcode "github.com/skip2/go-qrcode"
 )
 

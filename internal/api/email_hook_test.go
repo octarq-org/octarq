@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/led/plugin"
+	"github.com/octarq-org/octarq/plugin"
 )
 
 // TestEmitEmailFansOut verifies OnEmail handlers all receive the event and that

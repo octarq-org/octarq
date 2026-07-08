@@ -1,13 +1,13 @@
 // The example plugin's frontend entry — the JS half's UIPlugin, mirroring the
 // Go half's plugin.Plugin in hello.go. A host composes it at build time with
-// `registerUIPlugin(helloPlugin)` (see led's web/src/plugins/index.ts for the
+// `registerUIPlugin(helloPlugin)` (see octarq's web/src/plugins/index.ts for the
 // commercial-build injection point).
 //
 // In a real distribution this file is the `main`/`exports` of a published npm
-// package (e.g. `@acme/led-plugin-hello`) that depends on `@led/plugin-sdk` as a
+// package (e.g. `@acme/octarq-plugin-hello`) that depends on `@octarq-org/plugin-sdk` as a
 // peer; the host imports it by name instead of by relative path.
 import { lazy } from "react";
-import type { UIPlugin } from "@led/plugin-sdk";
+import type { UIPlugin } from "@octarq-org/plugin-sdk";
 
 export const helloPlugin: UIPlugin = {
   name: "hello",

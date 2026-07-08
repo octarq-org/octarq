@@ -1,7 +1,7 @@
-# led — link · email · domain
+# octarq — link · email · domain
 
-[![CI](https://github.com/octarq-org/led/actions/workflows/ci.yml/badge.svg)](https://github.com/octarq-org/led/actions/workflows/ci.yml)
-[![Release image](https://github.com/octarq-org/led/actions/workflows/release.yml/badge.svg)](https://github.com/octarq-org/led/actions/workflows/release.yml)
+[![CI](https://github.com/octarq-org/octarq/actions/workflows/ci.yml/badge.svg)](https://github.com/octarq-org/octarq/actions/workflows/ci.yml)
+[![Release image](https://github.com/octarq-org/octarq/actions/workflows/release.yml/badge.svg)](https://github.com/octarq-org/octarq/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A self-hosted **short link, mailbox, and DNS management** service in a single Go
@@ -10,7 +10,7 @@ and [dub](https://github.com/dubinc/dub), rebuilt to ship as **one binary / one 
 
 > Single-user today. The schema already carries an owner id on every row, so
 > multi-user / multi-org (under a commercial license) drops in without a migration.
-> *Bootstrap: the admin env user gets its own org (slug derived from `LED_ADMIN_USER`); OAuth users each get their own personal org. The two are always isolated regardless of login order.*
+> *Bootstrap: the admin env user gets its own org (slug derived from `OCTARQ_ADMIN_USER`); OAuth users each get their own personal org. The two are always isolated regardless of login order.*
 
 ## Features
 
@@ -36,7 +36,7 @@ and [dub](https://github.com/dubinc/dub), rebuilt to ship as **one binary / one 
 - **Notification channels** — receive alerts via Telegram Bot or Webhook when new mail arrives, managed entirely from the dashboard.
 - **AI assists (BYO key)** — one-click **AI slug suggestions** when creating a
   link and an on-demand **AI summary** for any email, powered by whatever LLM
-  you configure (`LED_LLM_*` env — Claude, OpenAI-compatible, Gemini, Mistral,
+  you configure (`OCTARQ_LLM_*` env — Claude, OpenAI-compatible, Gemini, Mistral,
   Cohere, or local Ollama). Unconfigured = the buttons simply don't appear.
   Unattended automation (auto-summarize every inbound mail, OTP push, daily
   briefing) is part of the commercial build.
@@ -51,9 +51,9 @@ and [dub](https://github.com/dubinc/dub), rebuilt to ship as **one binary / one 
 ## Quick start
 
 ```bash
-cp .env.example .env          # set LED_SECRET_KEY + LED_ADMIN_PASSWORD
+cp .env.example .env          # set OCTARQ_SECRET_KEY + OCTARQ_ADMIN_PASSWORD
 make release                  # build web + binary  (or: make all)
-./led                         # serves dashboard + API + redirects on :8080
+./octarq                         # serves dashboard + API + redirects on :8080
 ```
 
 Or with Docker:
@@ -69,16 +69,16 @@ assets (`make web`) — or build them in a separate CI step — use the
 image with no Node stage:
 
 ```bash
-docker build -f deploy/Dockerfile.binary -t led:latest .
+docker build -f deploy/Dockerfile.binary -t octarq:latest .
 ```
 
 Open `http://localhost:8080` (redirects to `/admin`), sign in with
-`LED_ADMIN_USER` / `LED_ADMIN_PASSWORD`.
+`OCTARQ_ADMIN_USER` / `OCTARQ_ADMIN_PASSWORD`.
 
 ## Architecture
 
 ```
-            ┌──────────────────────────── led (single binary) ────────────────────────────┐
+            ┌──────────────────────────── octarq (single binary) ────────────────────────────┐
   browser → │  host router                                                                  │
             │   ├─ /api/v1/*     → JSON API (auth, links, domains, mailboxes, emails)       │
             │   ├─ /admin/*      → embedded React dashboard (SPA)                            │
@@ -96,7 +96,7 @@ Open `http://localhost:8080` (redirects to `/admin`), sign in with
 - The dashboard lives under **`/admin`** so the entire root namespace belongs to
   short links — `https://go.example.com/abc` is never shadowed by a dashboard route.
 - `/` redirects to `/admin/`.
-- `LED_ADMIN_HOST` (e.g. `admin.example.com`), when set, restricts `/admin` to
+- `OCTARQ_ADMIN_HOST` (e.g. `admin.example.com`), when set, restricts `/admin` to
   that host so pure link hosts don't expose the dashboard; unset = served anywhere.
 - Reserved slugs (`admin`, `api`, `assets`, plus any you configure in **Settings**)
   can't be used for short links.
@@ -104,27 +104,27 @@ Open `http://localhost:8080` (redirects to `/admin`), sign in with
 ## Geo analytics (optional)
 
 Country / region / city in the click breakdowns come from a MaxMind **GeoLite2-City**
-database, which led doesn't bundle (licensing + ~60 MB). Bring your own and point
-`LED_GEOIP_DB` at it — unset just leaves geo columns blank. You can grab it from a
+database, which octarq doesn't bundle (licensing + ~60 MB). Bring your own and point
+`OCTARQ_GEOIP_DB` at it — unset just leaves geo columns blank. You can grab it from a
 **no-key community mirror** (jsDelivr / GitHub, auto-updated) or MaxMind directly
 with a free key. For both, plus how to wire it into **Docker / Kubernetes**
 (including a bake-into-an-image Dockerfile for k8s), see [`deploy/GEOIP.md`](deploy/GEOIP.md).
 
 ## Email receiving (Cloudflare)
 
-led receives mail through Cloudflare Email Routing rather than running its own
+octarq receives mail through Cloudflare Email Routing rather than running its own
 SMTP server, so no port 25 / MX / anti-spam ops are required:
 
 1. Enable Email Routing on your domain in Cloudflare.
-2. Deploy `deploy/cloudflare-email-worker.js` as a Worker; set `LED_ENDPOINT`
-   and `LED_TOKEN` (must match the **Inbound Token** you configure in Settings).
+2. Deploy `deploy/cloudflare-email-worker.js` as a Worker; set `OCTARQ_ENDPOINT`
+   and `OCTARQ_TOKEN` (must match the **Inbound Token** you configure in Settings).
 3. Point a catch-all route at the Worker.
 
 Mark a domain as **Accept email** in the dashboard; if **Catch-all** is enabled in Settings, mail to any unknown address on it will automatically create a new mailbox.
 
-## AI · MCP server (`led mcp`)
+## AI · MCP server (`octarq mcp`)
 
-led ships a built-in [Model Context Protocol](https://modelcontextprotocol.io)
+octarq ships a built-in [Model Context Protocol](https://modelcontextprotocol.io)
 server so an AI client — Claude Code, Claude Desktop, Cursor — can read your
 self-hosted company backend directly: *"which links got the most clicks?"*,
 *"what mail landed today?"*, *"how many SaaS am I paying for?"*.
@@ -132,13 +132,13 @@ self-hosted company backend directly: *"which links got the most clicks?"*,
 Run it over stdio (the universal local MCP transport):
 
 ```bash
-led mcp
+octarq mcp
 ```
 
 Then point your client at it. For Claude Desktop, add to its MCP config:
 
 ```json
-{ "mcpServers": { "led": { "command": "/path/to/led", "args": ["mcp"] } } }
+{ "mcpServers": { "octarq": { "command": "/path/to/octarq", "args": ["mcp"] } } }
 ```
 
 It reads the same `.env` / environment as the server (same database).
@@ -156,7 +156,7 @@ redacted. Tools are scoped dynamically via HTTP headers or query parameter token
 ### LLM provider
 
 AI features (the MCP server's own tools need no LLM, but the Pro Inbox-AI plugin
-does) share one importable abstraction, `github.com/octarq-org/led/llmprovider`.
+does) share one importable abstraction, `github.com/octarq-org/octarq/llmprovider`.
 It is **multi-vendor**: the broad set — OpenAI (and any OpenAI-compatible
 endpoint via a base URL), Google Gemini, Mistral, Cohere, and Ollama (local) —
 is provided by the open-source [langchaingo](https://github.com/tmc/langchaingo)
@@ -164,7 +164,7 @@ framework through one adapter; Claude rides the official Anthropic SDK (so the
 Opus 4.7+ family works correctly). Switch vendor by name — no per-vendor code.
 Defaults: `claude-opus-4-8` for reasoning, `claude-haiku-4-5` for cheap
 classification. In the Pro build it is configured from the dashboard (Inbox AI →
-*Configure*, key stored encrypted in the DB); `LED_LLM_*` env vars (see
+*Configure*, key stored encrypted in the DB); `OCTARQ_LLM_*` env vars (see
 [`.env.example`](.env.example)) are the fallback.
 
 ## Configuration
@@ -175,7 +175,7 @@ All configuration is via environment variables — see [`.env.example`](.env.exa
 
 ```bash
 # terminal 1: API on :8080
-LED_SECRET_KEY=dev LED_ADMIN_PASSWORD=dev go run .
+OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .
 # terminal 2: Vite dev server with hot reload, proxies /api → :8080
 make dev
 ```

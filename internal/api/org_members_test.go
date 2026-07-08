@@ -12,7 +12,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/models"
 )
 
 // seedOrgMember inserts a user + membership row and returns the user id. The

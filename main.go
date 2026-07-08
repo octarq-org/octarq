@@ -1,15 +1,15 @@
-// Command led is a single-binary domain / short-link / email management
+// Command octarq is a single-binary domain / short-link / email management
 // service (link · email · domain). It serves an embedded React dashboard,
 // a JSON API, and a short-link redirector from one process.
 //
 // This is the open-core binary: it runs the app with no Pro plugins. The
-// commercial build (private led-core module) reuses the same app package and
+// commercial build (private octarq-core module) reuses the same app package and
 // registers additional plugins before Run — see the plugin package.
 //
 // Subcommands:
 //
-//	led          run the HTTP server (default)
-//	led mcp      run the Model Context Protocol server over stdio, exposing
+//	octarq          run the HTTP server (default)
+//	octarq mcp      run the Model Context Protocol server over stdio, exposing
 //	             read-only short-link / email / domain tools (plus a guarded
 //	             read-only SQL tool) to AI clients such as Claude Code, Claude
 //	             Desktop and Cursor. See internal/mcp.
@@ -20,9 +20,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/octarq-org/led/app"
-	"github.com/octarq-org/led/internal/mcp"
-	"github.com/octarq-org/led/openapi"
+	"github.com/octarq-org/octarq/app"
+	"github.com/octarq-org/octarq/internal/mcp"
+	"github.com/octarq-org/octarq/openapi"
 )
 
 func main() {
@@ -30,7 +30,7 @@ func main() {
 	// app lifecycle logs both flow through this default logger.
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
 
-	// Dispatch subcommands before standing up the full server. `led mcp` runs a
+	// Dispatch subcommands before standing up the full server. `octarq mcp` runs a
 	// stdio MCP server instead of the HTTP service.
 	if len(os.Args) > 1 && os.Args[1] == "mcp" {
 		if err := mcp.Run(context.Background()); err != nil {

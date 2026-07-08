@@ -1,6 +1,6 @@
 # deploy/Dockerfile.geoip
 #
-# Bakes a MaxMind GeoLite2-City.mmdb INTO a private led image. This is the
+# Bakes a MaxMind GeoLite2-City.mmdb INTO a private octarq image. This is the
 # cleanest option for Kubernetes: bind-mounting a host file is awkward there, and
 # the ~60 MB database is far too large for a ConfigMap (1 MB limit). A baked image
 # is immutable and rolls out atomically — no volume to provision.
@@ -8,23 +8,23 @@
 # ⚠️  LICENSE: GeoLite2 is offered under CC BY-SA 4.0 — redistribution is allowed
 # WITH attribution + share-alike. Simplest is to keep this baked image PRIVATE
 # (your own registry / clusters) and avoid the attribution burden; publish it only
-# if you're prepared to carry MaxMind's attribution. The base led image contains
+# if you're prepared to carry MaxMind's attribution. The base octarq image contains
 # no database and has no such constraint.
 #
 # Usage:
 #   1. Download GeoLite2-City.mmdb into the build context — see deploy/GEOIP.md.
-#   2. Build the base led image first (the normal Dockerfile, or Dockerfile.binary):
-#        docker build -t led:base .
+#   2. Build the base octarq image first (the normal Dockerfile, or Dockerfile.binary):
+#        docker build -t octarq:base .
 #   3. Layer the database on top:
-#        docker build -f deploy/Dockerfile.geoip --build-arg BASE=led:base \
-#          -t registry.example.com/led:geoip .
-#   4. Deploy that private image — no volume, no env wiring needed; LED_GEOIP_DB
+#        docker build -f deploy/Dockerfile.geoip --build-arg BASE=octarq:base \
+#          -t registry.example.com/octarq:geoip .
+#   4. Deploy that private image — no volume, no env wiring needed; OCTARQ_GEOIP_DB
 #      is already set below.
 
-ARG BASE=led:latest
+ARG BASE=octarq:latest
 FROM ${BASE}
 
 # The base runtime is distroless/scratch with its ENTRYPOINT already set; we only
-# add the database file and point led at it.
+# add the database file and point octarq at it.
 COPY GeoLite2-City.mmdb /geoip/GeoLite2-City.mmdb
-ENV LED_GEOIP_DB=/geoip/GeoLite2-City.mmdb
+ENV OCTARQ_GEOIP_DB=/geoip/GeoLite2-City.mmdb

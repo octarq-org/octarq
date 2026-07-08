@@ -1,4 +1,4 @@
-// The shared-UI surface a plugin may import from `@led/plugin-sdk`.
+// The shared-UI surface a plugin may import from `@octarq-org/plugin-sdk`.
 //
 // It unions the package's pure component set with the handful of app-COUPLED
 // components that can't live in the package because they read the app's React
@@ -11,7 +11,7 @@
 //     + i18n). `useTranslation` itself is re-exported so plugin pages translate
 //     through the same provider.
 //
-// The package is imported by SOURCE PATH, not by the `@led/plugin-sdk` name,
+// The package is imported by SOURCE PATH, not by the `@octarq-org/plugin-sdk` name,
 // which is aliased back to this facade.
 export * from "../../../packages/plugin-sdk/src/ui";
 
@@ -22,7 +22,7 @@ import { KeyRound } from "lucide-react";
 import { LockedFeature } from "../ui";
 
 // The convenience component for the gated 402 (unlicensed) / 404 (plugin not in
-// this build) states, matching led's convention: 402 → upsell, 404 → neutral
+// this build) states, matching octarq's convention: 402 → upsell, 404 → neutral
 // note. It wraps the app's `LockedFeature` with a default icon so a plugin page
 // can degrade in one line:
 //

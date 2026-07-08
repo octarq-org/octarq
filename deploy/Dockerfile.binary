@@ -2,20 +2,20 @@
 # webembed/dist (e.g. `make web` ran, or CI built it in a prior step).
 # Produces a tiny scratch image — no registry pull needed for the runtime stage.
 #
-#   docker build -f deploy/Dockerfile.binary -t led:latest .
+#   docker build -f deploy/Dockerfile.binary -t octarq:latest .
 
 FROM golang:1.25 AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /led .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /octarq .
 
 FROM scratch
-# CA certificates so led can reach Cloudflare / DNSPod / Telegram over HTTPS.
+# CA certificates so octarq can reach Cloudflare / DNSPod / Telegram over HTTPS.
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=build /led /led
+COPY --from=build /octarq /octarq
 EXPOSE 8080
 VOLUME ["/data"]
-ENV LED_DB_DSN=/data/led.db
-ENTRYPOINT ["/led"]
+ENV OCTARQ_DB_DSN=/data/octarq.db
+ENTRYPOINT ["/octarq"]

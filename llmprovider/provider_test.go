@@ -123,8 +123,8 @@ func TestNamesIncludesAllVendors(t *testing.T) {
 }
 
 func TestOptionsFromEnv(t *testing.T) {
-	t.Setenv("LED_LLM_PROVIDER", "claude")
-	t.Setenv("LED_LLM_API_KEY", "")
+	t.Setenv("OCTARQ_LLM_PROVIDER", "claude")
+	t.Setenv("OCTARQ_LLM_API_KEY", "")
 	t.Setenv("ANTHROPIC_API_KEY", "fallback-key")
 	o := OptionsFromEnv()
 	if o.Provider != "claude" {

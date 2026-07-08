@@ -10,7 +10,7 @@ export interface TabItem {
 }
 
 // Tabs wraps Base UI's accessible Tabs primitive (roving tabindex, arrow-key
-// navigation, aria wiring) with led's glass theme and an animated active
+// navigation, aria wiring) with octarq's glass theme and an animated active
 // Indicator. Pass `items`, each supplying its own label + panel content.
 export function Tabs({
   value,

@@ -15,12 +15,12 @@ RUN go mod download
 COPY . .
 # Bring in the freshly built dashboard so go:embed picks it up.
 COPY --from=web /app/webembed/dist ./webembed/dist
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /led .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /octarq .
 
 # ---- Stage 3: minimal runtime ----
 FROM gcr.io/distroless/static-debian12
-COPY --from=build /led /led
+COPY --from=build /octarq /octarq
 EXPOSE 8080
 VOLUME ["/data"]
-ENV LED_DB_DSN=/data/led.db
-ENTRYPOINT ["/led"]
+ENV OCTARQ_DB_DSN=/data/octarq.db
+ENTRYPOINT ["/octarq"]

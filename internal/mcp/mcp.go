@@ -1,4 +1,4 @@
-// Package mcp implements led's Model Context Protocol server: the `led mcp`
+// Package mcp implements octarq's Model Context Protocol server: the `octarq mcp`
 // subcommand. It turns the existing self-hosted "one-person company" database
 // into something an AI assistant (Claude Code, Claude Desktop, Cursor) can read
 // directly — "how many SaaS did I pay for this month?", "what mail landed
@@ -11,7 +11,7 @@
 // Finance/Infra tools belong to the Pro plugins.
 //
 // Transport is stdio (the universal local MCP transport): a client launches
-// `led mcp` as a subprocess and speaks JSON-RPC over stdin/stdout. The server is
+// `octarq mcp` as a subprocess and speaks JSON-RPC over stdin/stdout. The server is
 // built on the official MCP Go SDK so we don't hand-roll the protocol.
 package mcp
 
@@ -23,9 +23,9 @@ import (
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/octarq-org/led/config"
-	"github.com/octarq-org/led/internal/db"
-	"github.com/octarq-org/led/plugin"
+	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/internal/db"
+	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
 
@@ -40,7 +40,7 @@ type server struct {
 
 // Run loads configuration, opens the database read-only-style, builds the MCP
 // server with every tool registered, and serves over stdio until ctx is
-// cancelled or stdin closes. It is the body of the `led mcp` subcommand.
+// cancelled or stdin closes. It is the body of the `octarq mcp` subcommand.
 func Run(ctx context.Context) error {
 	return RunWithPlugins(ctx, nil)
 }
@@ -50,9 +50,9 @@ func Run(ctx context.Context) error {
 func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin) *mcp.Server {
 	s := &server{gdb: gdb, orgID: orgID}
 
-	impl := &mcp.Implementation{Name: "led", Version: version}
+	impl := &mcp.Implementation{Name: "octarq", Version: version}
 	opts := &mcp.ServerOptions{
-		Instructions: "led is a self-hosted one-person-company backend. These tools " +
+		Instructions: "octarq is a self-hosted one-person-company backend. These tools " +
 			"read/write short links, email, and domains, plus run guarded read-only SQL. " +
 			"Everything is scoped to the operator's data.",
 	}
@@ -106,7 +106,7 @@ func (s *server) registerTools(srv *mcp.Server) {
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name: "query_db_readonly",
-		Description: "Run an arbitrary read-only SQL SELECT against led's database and return rows as JSON. " +
+		Description: "Run an arbitrary read-only SQL SELECT against octarq's database and return rows as JSON. " +
 			"Use this to compute any metric the dedicated tools don't cover (click trends, spend, mail volume…). " +
 			"Only a single SELECT/WITH query is allowed; writes, PRAGMA and ATTACH are rejected; results are row-capped " +
 			"and sensitive columns (password hashes, token hashes, encrypted credentials, raw email bodies) are redacted. " +

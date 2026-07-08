@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/led/internal/models"
-	"github.com/octarq-org/led/internal/notify"
+	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/notify"
 )
 
 func (h *Handler) listNotificationChannels(w http.ResponseWriter, r *http.Request) {
@@ -114,7 +114,7 @@ func (h *Handler) testNotificationChannel(w http.ResponseWriter, r *http.Request
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	if err := notify.Send(ctx, ch.Type, ch.Config, "🔔 Test notification from led!"); err != nil {
+	if err := notify.Send(ctx, ch.Type, ch.Config, "🔔 Test notification from octarq!"); err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}

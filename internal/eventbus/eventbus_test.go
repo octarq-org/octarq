@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -61,9 +61,9 @@ func TestDeliverAndHMACSignature(t *testing.T) {
 		t.Errorf("expected Content-Type application/json, got %q", receivedHeaders.Get("Content-Type"))
 	}
 
-	sigHeader := receivedHeaders.Get("X-Led-Signature")
+	sigHeader := receivedHeaders.Get("X-Octarq-Signature")
 	if sigHeader == "" {
-		t.Fatal("missing X-Led-Signature header")
+		t.Fatal("missing X-Octarq-Signature header")
 	}
 
 	if !strings.HasPrefix(sigHeader, "sha256=") {

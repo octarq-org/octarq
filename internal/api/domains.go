@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/octarq-org/led/internal/dnsprovider"
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/dnsprovider"
+	"github.com/octarq-org/octarq/internal/models"
 )
 
 // providerErr logs an upstream DNS-provider failure and returns it as a 400 so
@@ -449,7 +449,7 @@ func (h *Handler) checkHostDNS(host string) hostDNSStatus {
 	}
 
 	// 3. DKIM record — probe common selectors at <selector>._domainkey.<host>.
-	selectors := []string{"default", "led", "google", "mail", "k1", "sig1"}
+	selectors := []string{"default", "octarq", "google", "mail", "k1", "sig1"}
 	type dkimResult struct {
 		selector string
 		value    string

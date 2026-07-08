@@ -1,6 +1,6 @@
 name: Publish SDK
 
-# Publishes @led/plugin-sdk.
+# Publishes @octarq-org/plugin-sdk.
 #
 # Two paths:
 #   1. push to main  -> changesets flow. If unconsumed changesets exist, the
@@ -51,12 +51,12 @@ jobs:
           node-version: 22
           cache: pnpm
           registry-url: https://npm.pkg.github.com
-          scope: "@led"
+          scope: "@octarq"
 
       - run: pnpm install --frozen-lockfile
 
       - name: Build SDK
-        run: pnpm --filter @led/plugin-sdk build
+        run: pnpm --filter @octarq-org/plugin-sdk build
 
       - name: Create Release PR or publish
         uses: changesets/action@v1
@@ -86,14 +86,14 @@ jobs:
           node-version: 22
           cache: pnpm
           registry-url: https://npm.pkg.github.com
-          scope: "@led"
+          scope: "@octarq"
 
       - run: pnpm install --frozen-lockfile
 
       - name: Build SDK
-        run: pnpm --filter @led/plugin-sdk build
+        run: pnpm --filter @octarq-org/plugin-sdk build
 
       - name: Publish
-        run: pnpm publish --filter @led/plugin-sdk --no-git-checks
+        run: pnpm publish --filter @octarq-org/plugin-sdk --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

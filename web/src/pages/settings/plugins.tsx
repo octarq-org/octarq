@@ -90,6 +90,6 @@ export function PluginsSettings() {
   );
 }
 
-// LicenseSettings is where a customer pastes the led-pro key they bought. The
-// backing API is the led-pro `licensing` plugin; in the OSS build it 404s and we
+// LicenseSettings is where a customer pastes the octarq-pro key they bought. The
+// backing API is the octarq-pro `licensing` plugin; in the OSS build it 404s and we
 // show a neutral note instead.

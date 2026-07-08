@@ -1,4 +1,4 @@
-// LLM Providers — the reusable registry of LLM backends (led-pro ai plugin).
+// LLM Providers — the reusable registry of LLM backends (octarq-pro ai plugin).
 // Inbox AI and other AI features select a provider from this list by id.
 // Rendered as a Settings sub-page. 402 → upsell note; OSS build → 404 note.
 import { useEffect, useState } from "react";

@@ -5,9 +5,9 @@
 // Kept out of App.tsx so the routing shell doesn't grow a plugin-plumbing bulge.
 import { Component, ReactNode, Suspense } from "react";
 import { Route } from "react-router-dom";
-import { GlassCard, PageHeader, ScreenWrap, useTranslation } from "@led/plugin-sdk";
-import { uiPlugins } from "@led/plugin-sdk";
-import type { LockedFallbackType } from "@led/plugin-sdk";
+import { GlassCard, PageHeader, ScreenWrap, useTranslation } from "@octarq-org/plugin-sdk";
+import { uiPlugins } from "@octarq-org/plugin-sdk";
+import type { LockedFallbackType } from "@octarq-org/plugin-sdk";
 
 // Neutral "this feature isn't part of this build" note — the frontend mirror of
 // the backend answering 404 for a plugin that isn't mounted. Shown for any

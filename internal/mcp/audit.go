@@ -1,6 +1,6 @@
 // Audit trail for AI database access through the MCP server.
 //
-// Every query_db_readonly call — successful or rejected — is recorded in led's
+// Every query_db_readonly call — successful or rejected — is recorded in octarq's
 // audit_logs table, so an operator can review exactly what an AI client asked
 // the database, catching hallucinated or unexpected queries. ActorID is 0 (the
 // access is system/AI-initiated, not a dashboard user). This is the OSS-side
@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// auditRow mirrors led's audit_logs table (the mcp package avoids importing
+// auditRow mirrors octarq's audit_logs table (the mcp package avoids importing
 // internal/models so it stays a thin tool layer).
 type auditRow struct {
 	ID         uint `gorm:"primaryKey"`

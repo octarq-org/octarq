@@ -96,7 +96,7 @@ export function LicenseSettings() {
           </div>
           {status.envOverride && (
             <p className="mt-3 text-xs text-amber-300/90">
-              {t("settings.envVarNotePre")}<code>LED_PRO_LICENSE</code>{t("settings.envVarNotePost")}
+              {t("settings.envVarNotePre")}<code>OCTARQ_PRO_LICENSE</code>{t("settings.envVarNotePost")}
             </p>
           )}
         </GlassCard>

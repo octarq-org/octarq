@@ -3,8 +3,8 @@ package db
 import (
 	"testing"
 
-	"github.com/octarq-org/led/config"
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/internal/models"
 )
 
 func TestDB(t *testing.T) {

@@ -30,7 +30,7 @@ func newRateLimiter(redisURL string, prefix string, limit int, window time.Durat
 			defer cancel()
 			if client.Ping(ctx).Err() == nil {
 				s, err := redisstore.NewStoreWithOptions(client, limiter.StoreOptions{
-					Prefix: "led:limit:" + prefix + ":",
+					Prefix: "octarq:limit:" + prefix + ":",
 				})
 				if err == nil {
 					store = s

@@ -1,6 +1,6 @@
-// App-side facade for `@led/plugin-sdk`.
+// App-side facade for `@octarq-org/plugin-sdk`.
 //
-// The `@led/plugin-sdk` alias (vite.config.ts + tsconfig paths) resolves HERE,
+// The `@octarq-org/plugin-sdk` alias (vite.config.ts + tsconfig paths) resolves HERE,
 // not to the published package, on purpose: a plugin needs ONE import surface
 // that unions two things a published package alone can't provide together —
 //

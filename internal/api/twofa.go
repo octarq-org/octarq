@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/models"
 	"github.com/pquerna/otp/totp"
 	"github.com/skip2/go-qrcode"
 	"golang.org/x/crypto/bcrypt"
@@ -51,7 +51,7 @@ func (h *Handler) setup2FA(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	issuer := "led"
+	issuer := "octarq"
 	if h.cfg.AdminHost != "" {
 		issuer = h.cfg.AdminHost
 	}

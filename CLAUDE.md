@@ -1,4 +1,4 @@
-# Working in this repo (led)
+# Working in this repo (octarq)
 
 Conventions for how I want changes made here. Not feature docs — see README.
 
@@ -16,7 +16,7 @@ Conventions for how I want changes made here. Not feature docs — see README.
 
 - **Always start dev servers with `--host`** so they're reachable on the network.
   Frontend: `cd web && pnpm dev --host`.
-- Backend: `LED_SECRET_KEY=dev LED_ADMIN_PASSWORD=dev go run .` (serves `:8080`).
+- Backend: `OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .` (serves `:8080`).
 - Full build: `make release`.
 
 ## Verify before saying "done"

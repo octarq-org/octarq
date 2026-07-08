@@ -3,10 +3,10 @@
 // `UIPlugin`; the app composes it into the route/menu/i18n registry AT BUILD
 // TIME (see the app's plugins/index.ts). This mirrors the backend seam: Go code
 // implements `plugin.Plugin`, JS code implements `UIPlugin`, and both are
-// composed without forking led.
+// composed without forking octarq.
 //
 // This module deliberately imports nothing app-internal — it is the published
-// public contract of `@led/plugin-sdk`.
+// public contract of `@octarq-org/plugin-sdk`.
 import type { ComponentType, LazyExoticComponent } from "react";
 
 // A lazily-loaded page component. Plugins wrap their page in `React.lazy` so the

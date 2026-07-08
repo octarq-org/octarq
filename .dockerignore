@@ -2,7 +2,7 @@
 *.db
 *.db-*
 .env
-led
+octarq
 web/node_modules
 web/.vite
 *.mmdb

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/octarq-org/led/config"
+	"github.com/octarq-org/octarq/config"
 )
 
 type mockAPI struct{}

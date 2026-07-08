@@ -10,7 +10,7 @@ export interface SelectOption {
 
 // Select wraps Base UI's Select primitive — an accessible, keyboard-navigable
 // listbox with a portalled, positioned popup — into a compact `{ value, onValueChange,
-// options }` API carrying led's glass theme. For richer composition use Base
+// options }` API carrying octarq's glass theme. For richer composition use Base
 // UI's Select parts directly.
 export function Select({
   value,

@@ -146,7 +146,7 @@ export default function MailPage() {
           <ol className="ml-4 list-decimal space-y-1.5 text-sm leading-relaxed text-white/70">
             <li>{t("mail.guideStep1Pre")}<b>{t("mail.guideStep1Domains")}</b>{t("mail.guideStep1Mid")}<b>{t("mail.guideStep1AcceptEmail")}</b>{t("mail.guideStep1Post")}</li>
             <li>{t("mail.guideStep2Pre")}<b>{t("mail.guideStep2Routing")}</b>{t("mail.guideStep2Post")}</li>
-            <li>{t("mail.guideStep3Pre")}<Code>deploy/cloudflare-email-worker.js</Code>{t("mail.guideStep3Mid1")}<Code>LED_ENDPOINT</Code>{t("mail.guideStep3Mid2")}<b>{t("mail.guideStep3WebhookUrl")}</b>{t("mail.guideStep3Mid3")}<b>{t("mail.guideStep3SettingsMailboxes")}</b>{t("mail.guideStep3Post")}</li>
+            <li>{t("mail.guideStep3Pre")}<Code>deploy/cloudflare-email-worker.js</Code>{t("mail.guideStep3Mid1")}<Code>OCTARQ_ENDPOINT</Code>{t("mail.guideStep3Mid2")}<b>{t("mail.guideStep3WebhookUrl")}</b>{t("mail.guideStep3Mid3")}<b>{t("mail.guideStep3SettingsMailboxes")}</b>{t("mail.guideStep3Post")}</li>
             <li>{t("mail.guideStep4")}</li>
           </ol>
         </Guide>

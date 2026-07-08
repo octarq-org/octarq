@@ -10,13 +10,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/octarq-org/led/internal/models"
-	"github.com/octarq-org/led/llmprovider"
+	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/llmprovider"
 )
 
 // Single-step, user-triggered AI assists for the open-source build: suggest a
 // short-link slug, summarize one email on demand. Configuration is BYO key via
-// the LED_LLM_* environment (llmprovider.FromEnv) — no key, no AI, and the
+// the OCTARQ_LLM_* environment (llmprovider.FromEnv) — no key, no AI, and the
 // endpoints say so instead of erroring. Unattended AI automation (per-email
 // pipelines, briefings) lives in the commercial plugins, not here.
 
@@ -25,9 +25,9 @@ const aiTimeout = 60 * time.Second
 // errLLMNotConfigured is what the default (env-backed) resolver returns when
 // nothing points at a usable backend. Injected resolvers return their own
 // configuration hint (e.g. "select a provider in Inbox AI → Configure").
-var errLLMNotConfigured = errors.New("AI is not configured: set LED_LLM_API_KEY (or ANTHROPIC_API_KEY), or point LED_LLM_PROVIDER/LED_LLM_BASE_URL at a local model")
+var errLLMNotConfigured = errors.New("AI is not configured: set OCTARQ_LLM_API_KEY (or ANTHROPIC_API_KEY), or point OCTARQ_LLM_PROVIDER/OCTARQ_LLM_BASE_URL at a local model")
 
-// envLLMResolver is the core's default LLM resolver: LED_LLM_* environment,
+// envLLMResolver is the core's default LLM resolver: OCTARQ_LLM_* environment,
 // built at most once (env doesn't change at runtime). The Pro ai plugin
 // replaces it via SetLLMResolver with its DB-backed provider so the assists
 // follow the dashboard configuration.

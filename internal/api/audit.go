@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/models"
 )
 
 // listAuditLogs returns audit log entries for the session org, newest first.

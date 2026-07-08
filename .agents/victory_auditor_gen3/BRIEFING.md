@@ -1,12 +1,12 @@
 # BRIEFING — 2026-06-30T14:27:20Z
 
 ## Mission
-Perform a post-victory audit for the project described in /Volumes/PHD/code/led/ORIGINAL_REQUEST.md.
+Perform a post-victory audit for the project described in /Volumes/PHD/code/octarq/ORIGINAL_REQUEST.md.
 
 ## 🔒 My Identity
 - Archetype: victory_auditor
 - Roles: critic, specialist, auditor, victory_verifier
-- Working directory: /Volumes/PHD/code/led/.agents/victory_auditor_gen3/
+- Working directory: /Volumes/PHD/code/octarq/.agents/victory_auditor_gen3/
 - Original parent: cf3f103c-cbd2-46bb-980e-4ebc3036e5ad
 - Target: full project
 
@@ -19,7 +19,7 @@ Perform a post-victory audit for the project described in /Volumes/PHD/code/led/
 - Updated: 2026-06-30T14:27:20Z
 
 ## Audit Scope
-- **Work product**: /Volumes/PHD/code/led/
+- **Work product**: /Volumes/PHD/code/octarq/
 - **Profile loaded**: General Project
 - **Audit type**: victory audit
 
@@ -40,7 +40,7 @@ Perform a post-victory audit for the project described in /Volumes/PHD/code/led/
 - Confirmed victory after verifying all frontend and backend checks pass cleanly.
 
 ## Artifact Index
-- /Volumes/PHD/code/led/.agents/victory_auditor_gen3/ORIGINAL_REQUEST.md — Audit request and criteria
-- /Volumes/PHD/code/led/.agents/victory_auditor_gen3/BRIEFING.md — Situational awareness briefing
-- /Volumes/PHD/code/led/.agents/victory_auditor_gen3/progress.md — Audit progress log
-- /Volumes/PHD/code/led/.agents/victory_auditor_gen3/handoff.md — Detailed handoff report
+- /Volumes/PHD/code/octarq/.agents/victory_auditor_gen3/ORIGINAL_REQUEST.md — Audit request and criteria
+- /Volumes/PHD/code/octarq/.agents/victory_auditor_gen3/BRIEFING.md — Situational awareness briefing
+- /Volumes/PHD/code/octarq/.agents/victory_auditor_gen3/progress.md — Audit progress log
+- /Volumes/PHD/code/octarq/.agents/victory_auditor_gen3/handoff.md — Detailed handoff report

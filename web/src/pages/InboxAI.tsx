@@ -1,4 +1,4 @@
-// Inbox AI page — surfaces the led-pro `ai` plugin's per-email analysis:
+// Inbox AI page — surfaces the octarq-pro `ai` plugin's per-email analysis:
 // one-line summaries, category labels, importance scores, and extracted
 // verification codes. It is an elite-tier Pro feature; when the backend reports
 // the feature unlicensed or unconfigured, the page explains how to enable it

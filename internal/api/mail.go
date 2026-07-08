@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/led/internal/eventbus"
-	"github.com/octarq-org/led/internal/mail"
-	"github.com/octarq-org/led/internal/models"
-	"github.com/octarq-org/led/internal/notify"
-	"github.com/octarq-org/led/plugin"
+	"github.com/octarq-org/octarq/internal/eventbus"
+	"github.com/octarq-org/octarq/internal/mail"
+	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/notify"
+	"github.com/octarq-org/octarq/plugin"
 )
 
 // --- mailboxes ---
@@ -297,7 +297,7 @@ func (h *Handler) sendEmail(w http.ResponseWriter, r *http.Request) {
 
 // --- inbound webhook (Cloudflare Email Routing -> Worker -> here) ---
 //
-// The Worker POSTs the raw RFC822 message body with header X-Led-Token.
+// The Worker POSTs the raw RFC822 message body with header X-Octarq-Token.
 // We parse it, match (or catch-all create) a mailbox by recipient, and store.
 
 func (h *Handler) inbound(w http.ResponseWriter, r *http.Request) {
@@ -323,7 +323,7 @@ func (h *Handler) inbound(w http.ResponseWriter, r *http.Request) {
 
 	// The Worker may pass the intended recipient explicitly (more reliable than
 	// the To header after routing).
-	to := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Led-To")))
+	to := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Octarq-To")))
 	if to == "" {
 		to = strings.ToLower(parsed.To)
 	}

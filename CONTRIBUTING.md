@@ -1,6 +1,6 @@
-# Contributing to led
+# Contributing to octarq
 
-Thanks for helping improve led. This covers core contributions; if you want to
+Thanks for helping improve octarq. This covers core contributions; if you want to
 build a **feature as a plugin** (the way Pro features and third-party extensions
 are built, with no fork), see the **[plugin development guide](docs/PLUGINS.md)**.
 
@@ -13,7 +13,7 @@ are built, with no fork), see the **[plugin development guide](docs/PLUGINS.md)*
 
 ## Running it
 
-- Backend: `LED_SECRET_KEY=dev LED_ADMIN_PASSWORD=dev go run .` (serves `:8080`).
+- Backend: `OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .` (serves `:8080`).
 - Frontend dev: `cd web && pnpm dev --host`.
 - Full build: `make release`.
 
@@ -38,7 +38,7 @@ over spinning up Docker locally.
   handles **402** (upsell) and **404** (plugin absent in this build) — never a
   raw error.
 - **Shared UI** lives in `web/src/ui` (shadcn / Base UI backed) and is re-exported
-  to plugins via `@led/plugin-sdk`. Build UI from those primitives.
+  to plugins via `@octarq-org/plugin-sdk`. Build UI from those primitives.
 - **Security-sensitive changes** (auth, crypto, tenant isolation, SSRF) must come
   with tests; see `internal/api/isolation_test.go` and `internal/api/csrf_test.go`
   for the patterns.

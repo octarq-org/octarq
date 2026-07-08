@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/octarq-org/led/internal/models"
-	"github.com/octarq-org/led/plugin"
+	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm/clause"
 )
 

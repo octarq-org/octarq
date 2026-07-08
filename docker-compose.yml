@@ -1,30 +1,30 @@
 services:
-  led:
+  octarq:
     build: .
-    # image: ghcr.io/jungley8/led:latest   # or pull the published image instead of building
+    # image: ghcr.io/jungley8/octarq:latest   # or pull the published image instead of building
     ports:
-      # Host port is configurable: if 8080 is taken, set LED_PORT=9000 in .env.
-      - "${LED_PORT:-8080}:8080"
+      # Host port is configurable: if 8080 is taken, set OCTARQ_PORT=9000 in .env.
+      - "${OCTARQ_PORT:-8080}:8080"
     environment:
-      LED_SECRET_KEY: ${LED_SECRET_KEY:?set in .env}
-      LED_ADMIN_PASSWORD: ${LED_ADMIN_PASSWORD:?set in .env}
-      LED_ADMIN_USER: ${LED_ADMIN_USER:-admin}
-      LED_ADMIN_HOST: ${LED_ADMIN_HOST:-}
+      OCTARQ_SECRET_KEY: ${OCTARQ_SECRET_KEY:?set in .env}
+      OCTARQ_ADMIN_PASSWORD: ${OCTARQ_ADMIN_PASSWORD:?set in .env}
+      OCTARQ_ADMIN_USER: ${OCTARQ_ADMIN_USER:-admin}
+      OCTARQ_ADMIN_HOST: ${OCTARQ_ADMIN_HOST:-}
       # SQLite by default; data persisted in the named volume below.
-      LED_DB_DRIVER: ${LED_DB_DRIVER:-sqlite}
-      LED_DB_DSN: ${LED_DB_DSN:-/data/led.db}
+      OCTARQ_DB_DRIVER: ${OCTARQ_DB_DRIVER:-sqlite}
+      OCTARQ_DB_DSN: ${OCTARQ_DB_DSN:-/data/octarq.db}
       # Optional GeoLite2 mmdb for click geo stats (see the volume mount below).
-      LED_GEOIP_DB: ${LED_GEOIP_DB:-}
+      OCTARQ_GEOIP_DB: ${OCTARQ_GEOIP_DB:-}
     volumes:
-      - led-data:/data
+      - octarq-data:/data
       # To enable GeoIP (full guide incl. where to download + k8s: deploy/GEOIP.md):
       #  1. Upload GeoLite2-City.mmdb to the HOST (e.g. same folder as this file).
       #  2. Uncomment the line below, using an ABSOLUTE host path on the left.
       #     The file must already exist, or Docker creates an empty directory.
       #     Mount under /geoip (NOT /data, which is the named volume above).
-      #  3. Set LED_GEOIP_DB=/geoip/GeoLite2-City.mmdb (the path on the RIGHT).
-      # - /opt/1panel/docker/compose/led/GeoLite2-City.mmdb:/geoip/GeoLite2-City.mmdb:ro
+      #  3. Set OCTARQ_GEOIP_DB=/geoip/GeoLite2-City.mmdb (the path on the RIGHT).
+      # - /opt/1panel/docker/compose/octarq/GeoLite2-City.mmdb:/geoip/GeoLite2-City.mmdb:ro
     restart: unless-stopped
 
 volumes:
-  led-data:
+  octarq-data:

@@ -5,7 +5,7 @@
 //
 // Secrets at rest are encrypted under a random Data Encryption Key (DEK). The
 // DEK itself is wrapped (encrypted) under a Key Encryption Key (KEK) derived
-// from LED_SECRET_KEY and stored in the settings table. Rotating LED_SECRET_KEY
+// from OCTARQ_SECRET_KEY and stored in the settings table. Rotating OCTARQ_SECRET_KEY
 // therefore only re-wraps the one DEK — the bulk data is never touched. This is
 // the standard KMS/Vault envelope pattern.
 package crypto
@@ -34,7 +34,7 @@ type SecretStore interface {
 }
 
 // Cipher encrypts secrets at rest (under the DEK) and signs session cookies
-// (under the KEK). The KEK is derived from LED_SECRET_KEY; the DEK is loaded by
+// (under the KEK). The KEK is derived from OCTARQ_SECRET_KEY; the DEK is loaded by
 // EnableEnvelope. Until then only Sign/Verify (which use the KEK) are usable.
 type Cipher struct {
 	kek   [32]byte
@@ -54,7 +54,7 @@ func (c *Cipher) EnableEnvelope(store SecretStore) error {
 	if wrapped, ok := store.Get(dekSettingKey); ok && wrapped != "" {
 		dek, err := c.unwrapDEK(wrapped)
 		if err != nil {
-			return fmt.Errorf("crypto: cannot unwrap DEK with LED_SECRET_KEY: %w", err)
+			return fmt.Errorf("crypto: cannot unwrap DEK with OCTARQ_SECRET_KEY: %w", err)
 		}
 		c.dek = dek
 		c.ready = true

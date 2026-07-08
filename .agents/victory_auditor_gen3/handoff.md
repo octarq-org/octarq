@@ -27,7 +27,7 @@
   `git status --porcelain` outputs only `?? .agents/`, showing no uncommitted changes in production directories.
 - Inspected `web/src/App.tsx` (lines 608-800) for `IconRail` layout behavior:
   - When `expanded` is true:
-    - Logo (lines 634-641) renders text `<span className="font-display text-lg font-bold text-white tracking-wide">led</span>` next to the Logo icon.
+    - Logo (lines 634-641) renders text `<span className="font-display text-lg font-bold text-white tracking-wide">octarq</span>` next to the Logo icon.
     - Workspace switcher (lines 644-668) renders `<span className="flex-1 truncate text-sm font-medium text-white/90 text-left">{activeOrgName}</span>` next to initials.
     - User avatar (lines 736-758) renders `<span className="block truncate text-sm font-medium text-white/90">{user}</span>` next to user initials circle.
   - When `expanded` is false:
@@ -43,7 +43,7 @@
   Ran `npx tsc --noEmit` in `web/` which succeeded without errors.
 - Checked backend tests under race detector:
   Ran `go test ./... -race -count=1` which succeeded without warnings or errors.
-- Ran `make release` which successfully completed `vite build` and `CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o led .`
+- Ran `make release` which successfully completed `vite build` and `CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o octarq .`
 
 ## 2. Logic Chain
 1. Git branch and log check confirm that the active branch is `main` and that the three commits from `fix/tenant-authz-and-geoip-docs` have been successfully cherry-picked and match exactly.

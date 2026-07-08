@@ -1,6 +1,6 @@
 package mcp
 
-import "github.com/octarq-org/led/plugin"
+import "github.com/octarq-org/octarq/plugin"
 
 const maxRows = plugin.MaxRows
 

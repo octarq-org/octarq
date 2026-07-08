@@ -7,7 +7,7 @@
 // module is never registered, so `/licenses` 404-degrades via the app's neutral
 // plugin fallback — exactly the "plugin not in this build" convention.
 import { lazy } from "react";
-import type { UIPlugin } from "@led/plugin-sdk";
+import type { UIPlugin } from "@octarq-org/plugin-sdk";
 import { licenses } from "./i18n";
 
 export const licensesPlugin: UIPlugin = {

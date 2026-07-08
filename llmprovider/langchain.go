@@ -28,7 +28,7 @@ import (
 
 // Default model ids per vendor. These are fallbacks only — every consumer can
 // override per call (Request.Model) or per deployment (Options.Model /
-// LED_LLM_MODEL / the dashboard), so a vendor renaming a model never breaks the
+// OCTARQ_LLM_MODEL / the dashboard), so a vendor renaming a model never breaks the
 // build, just change the setting.
 var vendorDefaults = map[string]struct{ reasoning, cheap string }{
 	"openai":  {"gpt-4o", "gpt-4o-mini"},

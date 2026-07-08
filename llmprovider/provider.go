@@ -1,9 +1,9 @@
 // Package llmprovider abstracts large-language-model backends behind one small
 // interface, the same way internal/dnsprovider abstracts DNS APIs. It is a
-// public, importable package (NOT internal) on purpose: both the OSS `led mcp`
-// server and the commercial led-pro AI plugins build on this single seam, so it
+// public, importable package (NOT internal) on purpose: both the OSS `octarq mcp`
+// server and the commercial octarq-pro AI plugins build on this single seam, so it
 // must live outside internal/ where external modules can import it
-// (github.com/octarq-org/led/llmprovider).
+// (github.com/octarq-org/octarq/llmprovider).
 //
 // Backends are not hand-written per vendor. The broad set — OpenAI (and any
 // OpenAI-compatible endpoint), Google Gemini, Mistral, Cohere, Ollama (local) —
@@ -134,7 +134,7 @@ var registry = map[string]Factory{}
 // Register makes a backend available by name. Called from each backend's init().
 func Register(name string, f Factory) { registry[name] = f }
 
-// Names returns the registered backend names (for diagnostics / `led doctor`).
+// Names returns the registered backend names (for diagnostics / `octarq doctor`).
 func Names() []string {
 	out := make([]string, 0, len(registry))
 	for k := range registry {
@@ -157,32 +157,32 @@ func New(o Options) (Provider, error) {
 	return f(o)
 }
 
-// FromEnv builds a Provider from environment variables, so the OSS `led mcp`
-// command and the led-pro AI plugin share one configuration path:
+// FromEnv builds a Provider from environment variables, so the OSS `octarq mcp`
+// command and the octarq-pro AI plugin share one configuration path:
 //
-//	LED_LLM_PROVIDER     backend name (default "claude")
-//	LED_LLM_API_KEY      cloud API key; falls back to ANTHROPIC_API_KEY
-//	LED_LLM_BASE_URL     endpoint override (proxy / local Ollama)
-//	LED_LLM_MODEL        default reasoning model override
-//	LED_LLM_CHEAP_MODEL  cheap classification/summary model override
+//	OCTARQ_LLM_PROVIDER     backend name (default "claude")
+//	OCTARQ_LLM_API_KEY      cloud API key; falls back to ANTHROPIC_API_KEY
+//	OCTARQ_LLM_BASE_URL     endpoint override (proxy / local Ollama)
+//	OCTARQ_LLM_MODEL        default reasoning model override
+//	OCTARQ_LLM_CHEAP_MODEL  cheap classification/summary model override
 func FromEnv() (Provider, error) {
 	return New(OptionsFromEnv())
 }
 
-// OptionsFromEnv reads the LED_LLM_* environment into an Options. Exposed
+// OptionsFromEnv reads the OCTARQ_LLM_* environment into an Options. Exposed
 // separately so callers can inspect or tweak (e.g. inject an HTTPClient) before
 // calling New.
 func OptionsFromEnv() Options {
-	apiKey := os.Getenv("LED_LLM_API_KEY")
+	apiKey := os.Getenv("OCTARQ_LLM_API_KEY")
 	if apiKey == "" {
 		apiKey = os.Getenv("ANTHROPIC_API_KEY")
 	}
 	return Options{
-		Provider:   os.Getenv("LED_LLM_PROVIDER"),
+		Provider:   os.Getenv("OCTARQ_LLM_PROVIDER"),
 		APIKey:     apiKey,
-		BaseURL:    os.Getenv("LED_LLM_BASE_URL"),
-		Model:      os.Getenv("LED_LLM_MODEL"),
-		CheapModel: os.Getenv("LED_LLM_CHEAP_MODEL"),
+		BaseURL:    os.Getenv("OCTARQ_LLM_BASE_URL"),
+		Model:      os.Getenv("OCTARQ_LLM_MODEL"),
+		CheapModel: os.Getenv("OCTARQ_LLM_CHEAP_MODEL"),
 	}
 }
 

@@ -1,4 +1,4 @@
-// @led/plugin-sdk/ui — the shared UI surface (the `./ui` subpath export).
+// @octarq-org/plugin-sdk/ui — the shared UI surface (the `./ui` subpath export).
 //
 // Every component here is pure: it depends only on React, Base UI, and the
 // glass theme classes (glass/glass-strong/label, defined in the host app's

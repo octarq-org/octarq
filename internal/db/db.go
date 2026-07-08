@@ -7,8 +7,8 @@ import (
 	"fmt"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/led/config"
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

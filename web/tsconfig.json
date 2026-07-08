@@ -17,8 +17,8 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@led/plugin-sdk": ["./src/plugin-sdk"],
-      "#led-plugins": ["./src/plugins/index.ts"]
+      "@octarq-org/plugin-sdk": ["./src/plugin-sdk"],
+      "#octarq-plugins": ["./src/plugins/index.ts"]
     }
   },
   "include": ["src"]

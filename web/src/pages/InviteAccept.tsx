@@ -50,7 +50,7 @@ export default function InviteAcceptPage() {
   }
 
   return (
-    <div className="led-aurora grid h-screen w-full place-items-center p-4">
+    <div className="octarq-aurora grid h-screen w-full place-items-center p-4">
       <div className="glass-strong w-full max-w-md rounded-2xl p-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 h-32 w-32 bg-indigo-500/5 blur-2xl rounded-full pointer-events-none" />
 

@@ -7,8 +7,8 @@ All notable changes to this project are documented here.
 ### 🔒 Security
 
 - **security**: Store only the SHA-256 hash of session tokens
-- **security**: Ignore X-Forwarded-For unless LED_TRUST_PROXY is set
-- **security**: Enforce LED_SECRET_KEY minimum length
+- **security**: Ignore X-Forwarded-For unless OCTARQ_TRUST_PROXY is set
+- **security**: Enforce OCTARQ_SECRET_KEY minimum length
 - **security**: Constant-time secret comparisons and escape password-gate path
 - **security**: Prevent SMTP header injection and bound inbound-mail parsing
 - **security**: Scope abuse reports and their notifications per org
@@ -159,7 +159,7 @@ All notable changes to this project are documented here.
 
 ### 🐛 Bug Fixes
 
-- Correct module path to github.com/octarq-org/led
+- Correct module path to github.com/octarq-org/octarq
 
 ## [0.1.0] - 2026-06-26
 
@@ -180,7 +180,7 @@ All notable changes to this project are documented here.
 - **links**: Per-domain short-link host (subdomain), expressed end-to-end
 - Cloudflare zone sync, service-aware pickers, deeper link/mail/dns
 - **p4**: API tokens, DNSPod provider, Telegram notify, unit tests
-- Led MVP — self-hosted link/email/domain service (P0–P3)
+- Octarq MVP — self-hosted link/email/domain service (P0–P3)
 
 ### 🐛 Bug Fixes
 
@@ -212,6 +212,6 @@ All notable changes to this project are documented here.
 - Gofmt -w (fix CI gofmt check)
 - Update web build artifacts
 - Optimize UI and interactions according to modern web guidance
-- Drop LED_BASE_URL, make docker host port configurable, trim README
+- Drop OCTARQ_BASE_URL, make docker host port configurable, trim README
 
 

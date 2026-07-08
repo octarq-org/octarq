@@ -60,7 +60,7 @@ type Parsed struct {
 	Auth        AuthResults
 }
 
-// Parse reads a raw email and extracts the fields led stores.
+// Parse reads a raw email and extracts the fields octarq stores.
 func Parse(raw []byte) (*Parsed, error) {
 	mr, err := mail.CreateReader(strings.NewReader(string(raw)))
 	if err != nil {

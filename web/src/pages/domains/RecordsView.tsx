@@ -123,8 +123,8 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
   const linkSub = linkHost && linkHost.endsWith("." + domainName) ? linkHost.slice(0, -(domainName.length + 1)) : linkHost === domainName ? "@" : "go";
 
   function preset(kind: "link" | "mail") {
-    if (kind === "link") { setType("CNAME"); setName(name || linkSub); setContent(domainName); setComment("led short-link host"); setProxied(true); }
-    else { setType("MX"); setName(name || "mail"); setContent("route1.mx.cloudflare.net"); setComment("led mailbox (Cloudflare Email Routing)"); setProxied(false); setPriority(10); }
+    if (kind === "link") { setType("CNAME"); setName(name || linkSub); setContent(domainName); setComment("octarq short-link host"); setProxied(true); }
+    else { setType("MX"); setName(name || "mail"); setContent("route1.mx.cloudflare.net"); setComment("octarq mailbox (Cloudflare Email Routing)"); setProxied(false); setPriority(10); }
   }
 
   async function save() {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/models"
 )
 
 func TestAbuseEndpoints(t *testing.T) {

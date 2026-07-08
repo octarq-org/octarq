@@ -15,10 +15,10 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/led/config"
-	"github.com/octarq-org/led/internal/auth"
-	"github.com/octarq-org/led/internal/crypto"
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/internal/auth"
+	"github.com/octarq-org/octarq/internal/crypto"
+	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -257,7 +257,7 @@ func TestTamperedSessionIsRejected(t *testing.T) {
 	tampered := make([]*http.Cookie, len(org1))
 	copy(tampered, org1)
 	for i, c := range tampered {
-		if c.Name == "led_session" {
+		if c.Name == "octarq_session" {
 			cp := *c
 			cp.Value = cp.Value + "tampered"
 			tampered[i] = &cp

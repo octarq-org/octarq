@@ -2,7 +2,7 @@ import { Switch as BaseSwitch } from "@base-ui/react/switch";
 import { cn } from "../cn";
 
 // Switch is a shadcn-style wrapper over Base UI's accessible Switch primitive
-// (role="switch", keyboard-toggleable, focus-visible ring) carrying led's glass
+// (role="switch", keyboard-toggleable, focus-visible ring) carrying octarq's glass
 // theme. The higher-level `Toggle` in ../primitives adapts it to the app's
 // `{ on, onChange }` API; plugin authors can use either.
 export function Switch({

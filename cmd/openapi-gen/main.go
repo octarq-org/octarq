@@ -5,11 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/octarq-org/led/openapi"
+	"github.com/octarq-org/octarq/openapi"
 )
 
 func main() {
-	outDir := "../led-pro/web/public"
+	outDir := "../octarq-pro/web/public"
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		fmt.Printf("Error creating output directory: %v\n", err)
 		os.Exit(1)

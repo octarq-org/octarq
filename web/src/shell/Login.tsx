@@ -75,7 +75,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
   const hasOauth = oauthConfig && (oauthConfig.googleEnabled || oauthConfig.githubEnabled);
 
   return (
-    <div className="led-aurora grid h-full place-items-center p-4">
+    <div className="octarq-aurora grid h-full place-items-center p-4">
       <div className="glass-strong w-full max-w-md rounded-2xl p-8 relative overflow-hidden shadow-glow">
         <div className="absolute top-0 right-0 h-32 w-32 bg-indigo-500/5 blur-3xl rounded-full pointer-events-none" />
         <div className="absolute -bottom-10 -left-10 h-32 w-32 bg-violet-500/5 blur-3xl rounded-full pointer-events-none" />

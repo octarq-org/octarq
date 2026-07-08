@@ -5,7 +5,7 @@ Coordinate git operations and navigation sidebar layout fixes by spawning the Pr
 
 ## 🔒 My Identity
 - Archetype: sentinel
-- Working directory: /Volumes/PHD/code/led/.agents/sentinel
+- Working directory: /Volumes/PHD/code/octarq/.agents/sentinel
 - Orchestrator: e3dda338-dc52-4be3-8948-d41ccc7981f2
 - Victory Auditor: c3df02e5-d3c2-4963-857c-a58ba087e0b8
 
@@ -27,4 +27,4 @@ Coordinate git operations and navigation sidebar layout fixes by spawning the Pr
 - **Retry count**: 2
 
 ## Artifact Index
-- /Volumes/PHD/code/led/ORIGINAL_REQUEST.md — Verbatim user request
+- /Volumes/PHD/code/octarq/ORIGINAL_REQUEST.md — Verbatim user request

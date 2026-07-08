@@ -11,7 +11,7 @@ export const fieldClass =
   "disabled:cursor-not-allowed disabled:opacity-50";
 
 // Input wraps Base UI's Input primitive (which auto-integrates with Base UI
-// Field for validation/aria when nested in one) and carries led's glass theme.
+// Field for validation/aria when nested in one) and carries octarq's glass theme.
 // Accepts all native <input> attributes.
 export function Input({
   className,

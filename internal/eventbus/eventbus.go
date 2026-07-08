@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -102,13 +102,13 @@ func deliver(ctx context.Context, url, secret string, body []byte) {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "led-webhook-dispatcher/1.0")
+	req.Header.Set("User-Agent", "octarq-webhook-dispatcher/1.0")
 
 	// Calculate HMAC-SHA256 signature
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(body)
 	sig := hex.EncodeToString(mac.Sum(nil))
-	req.Header.Set("X-Led-Signature", "sha256="+sig)
+	req.Header.Set("X-Octarq-Signature", "sha256="+sig)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {

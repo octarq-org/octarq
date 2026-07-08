@@ -13,8 +13,8 @@ import (
 	"github.com/markbates/goth/gothic"
 	"github.com/markbates/goth/providers/github"
 	"github.com/markbates/goth/providers/google"
-	"github.com/octarq-org/led/internal/crypto"
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/crypto"
+	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -24,7 +24,7 @@ var (
 )
 
 // InitGothStore sets the gorilla session store goth uses internally.
-// Call once at startup with the same secret key used for led sessions.
+// Call once at startup with the same secret key used for octarq sessions.
 func InitGothStore(secretKey string) {
 	gothic.Store = sessions.NewCookieStore([]byte(secretKey))
 }

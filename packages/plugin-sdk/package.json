@@ -1,14 +1,14 @@
 {
-  "name": "@led/plugin-sdk",
+  "name": "@octarq-org/plugin-sdk",
   "version": "0.0.0",
-  "description": "Frontend plugin SDK for led: the UIPlugin contract, registry, and shared glass-themed UI components.",
+  "description": "Frontend plugin SDK for octarq: the UIPlugin contract, registry, and shared glass-themed UI components.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
   "packageManager": "pnpm@9.15.4",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/octarq-org/led.git",
+    "url": "git+https://github.com/octarq-org/octarq.git",
     "directory": "packages/plugin-sdk"
   },
   "publishConfig": {

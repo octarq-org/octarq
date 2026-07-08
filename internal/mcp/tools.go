@@ -1,4 +1,4 @@
-// Tool handlers for the led MCP server. Each is a read-only projection over the
+// Tool handlers for the octarq MCP server. Each is a read-only projection over the
 // core models, scoped to the operator's tenant. They deliberately omit secret
 // fields (passwords, raw bodies) — the model never needs them and the roadmap's
 // guardrails forbid leaking them.
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/models"
 )
 
 // --- list_links ---

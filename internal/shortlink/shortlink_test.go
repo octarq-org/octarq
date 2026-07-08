@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/led/internal/geo"
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/geo"
+	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
 

@@ -16,10 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/led/config"
-	"github.com/octarq-org/led/internal/cache"
-	"github.com/octarq-org/led/internal/crypto"
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/internal/cache"
+	"github.com/octarq-org/octarq/internal/crypto"
+	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -37,7 +37,7 @@ func WithOrgID(ctx context.Context, orgID uint) context.Context {
 }
 
 const (
-	cookieName    = "led_session"
+	cookieName    = "octarq_session"
 	sessionTTL    = 7 * 24 * time.Hour
 	touchInterval = time.Minute
 )

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/led/internal/dnsprovider"
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/dnsprovider"
+	"github.com/octarq-org/octarq/internal/models"
 )
 
 type mockProvider struct{}
@@ -555,7 +555,7 @@ func TestComprehensiveAPI(t *testing.T) {
 
 		body := "From: alice@example.com\r\nTo: support@example.com\r\nSubject: Help\r\n\r\nHello Support"
 		req := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/my-inbound-token", strings.NewReader(body))
-		req.Header.Set("X-Led-To", "support@example.com")
+		req.Header.Set("X-Octarq-To", "support@example.com")
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK {
@@ -564,7 +564,7 @@ func TestComprehensiveAPI(t *testing.T) {
 
 		// Wrong token → 401. Unknown org slug → 404.
 		bad := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/nope", strings.NewReader(body))
-		bad.Header.Set("X-Led-To", "support@example.com")
+		bad.Header.Set("X-Octarq-To", "support@example.com")
 		badRec := httptest.NewRecorder()
 		srv.ServeHTTP(badRec, bad)
 		if badRec.Code != http.StatusUnauthorized {

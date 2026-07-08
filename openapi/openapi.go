@@ -4,16 +4,16 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/octarq-org/led/plugin"
+	"github.com/octarq-org/octarq/plugin"
 )
 
 func Generate(w io.Writer, plugins []plugin.Plugin) error {
 	spec := map[string]any{
 		"openapi": "3.0.3",
 		"info": map[string]any{
-			"title":       "Led API Reference",
+			"title":       "Octarq API Reference",
 			"version":     "1.0.0",
-			"description": "API documentation for Led, the self-hosted link shortener and temporary email server.",
+			"description": "API documentation for Octarq, the self-hosted link shortener and temporary email server.",
 		},
 		"servers": []any{
 			map[string]any{
@@ -31,7 +31,7 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 				"post": map[string]any{
 					"tags":        []string{"Auth"},
 					"summary":     "Log in",
-					"description": "Log in with credentials and establish a session. Returns a session cookie `led_session`.",
+					"description": "Log in with credentials and establish a session. Returns a session cookie `octarq_session`.",
 					"security":    []any{}, // Login doesn't require authentication
 					"requestBody": map[string]any{
 						"required": true,
@@ -1363,7 +1363,7 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 										},
 										"subject": map[string]any{
 											"type":    "string",
-											"example": "Hello from Led",
+											"example": "Hello from Octarq",
 										},
 										"text": map[string]any{
 											"type":    "string",
@@ -1466,7 +1466,7 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 				"cookieAuth": map[string]any{
 					"type": "apiKey",
 					"in":   "cookie",
-					"name": "led_session",
+					"name": "octarq_session",
 				},
 				"bearerAuth": map[string]any{
 					"type":   "http",
@@ -1512,7 +1512,7 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 						"githubClientSecretSet": map[string]any{"type": "boolean", "example": false},
 						"dataRetentionDays":     map[string]any{"type": "integer", "example": 90},
 						"allowRegistration":     map[string]any{"type": "boolean", "example": true},
-						"appName":               map[string]any{"type": "string", "example": "led"},
+						"appName":               map[string]any{"type": "string", "example": "octarq"},
 						"metricsTokenSet":       map[string]any{"type": "boolean", "example": false},
 						"ratelimitAuthRpm":      map[string]any{"type": "integer", "example": 60},
 						"ratelimitApiRpm":       map[string]any{"type": "integer", "example": 600},
@@ -1637,7 +1637,7 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 						"priority": map[string]any{"type": "integer", "nullable": true, "example": nil},
 						"ttl":      map[string]any{"type": "integer", "example": 3600},
 						"proxied":  map[string]any{"type": "boolean", "example": false},
-						"comment":  map[string]any{"type": "string", "example": "Pointing to Led server"},
+						"comment":  map[string]any{"type": "string", "example": "Pointing to Octarq server"},
 					},
 				},
 				"DNSRecordInput": map[string]any{

@@ -37,7 +37,7 @@ export function WebhooksSettings() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Webhooks" description="Send click and email events to your own systems in real time. Every request is signed so you can verify it came from led." />
+      <PageHeader title="Webhooks" description="Send click and email events to your own systems in real time. Every request is signed so you can verify it came from octarq." />
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-white">Outbound Event Webhooks</h2>
@@ -73,8 +73,8 @@ export function WebhooksSettings() {
         <Modal title="Add Webhook Endpoint" onClose={() => setShow(false)}>
           <form onSubmit={create} className="space-y-4">
             <Field label="Endpoint Name"><input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder="n8n automation" required autoFocus /></Field>
-            <Field label="Endpoint URL"><input className="input w-full font-mono text-xs" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://your-server.com/webhooks/led" required /></Field>
-            <Field label="Signing Secret (Optional)" hint="Signs the payload in X-Led-Signature. Leave empty to auto-generate.">
+            <Field label="Endpoint URL"><input className="input w-full font-mono text-xs" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://your-server.com/webhooks/octarq" required /></Field>
+            <Field label="Signing Secret (Optional)" hint="Signs the payload in X-Octarq-Signature. Leave empty to auto-generate.">
               <input className="input w-full font-mono text-xs" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder="Custom signing secret" />
             </Field>
             <Field label="Event Subscriptions">

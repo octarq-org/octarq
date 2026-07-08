@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/models"
 )
 
 // tokenAlphabet length-independent random token body. We use URL-safe base64

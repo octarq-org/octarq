@@ -9,7 +9,7 @@ import { cn } from "../cn";
 //
 // Composition follows Base UI's canonical minimal pattern (Backdrop + Popup as
 // direct children of Portal); the Popup is fixed-positioned near the top to
-// preserve led's existing modal placement, and caps its height so long forms
+// preserve octarq's existing modal placement, and caps its height so long forms
 // scroll inside the card rather than the page.
 export function Dialog({
   open,

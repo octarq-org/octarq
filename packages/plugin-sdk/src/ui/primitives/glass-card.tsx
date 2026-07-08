@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { cn } from "../cn";
 
-// GlassCard is the frosted surface every panel in led sits on. `strong` picks
+// GlassCard is the frosted surface every panel in octarq sits on. `strong` picks
 // the higher-contrast `glass-strong` theme class (defined in the app's
 // styles.css); the base variant uses `glass`.
 export function GlassCard({

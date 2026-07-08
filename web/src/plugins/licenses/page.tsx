@@ -3,7 +3,7 @@
 //
 // This is the same page that used to live at web/src/pages/Licenses.tsx, now
 // composed through the frontend plugin SDK. Behavior is unchanged: it imports
-// its UI from `@led/plugin-sdk` (the stable plugin surface) instead of reaching
+// its UI from `@octarq-org/plugin-sdk` (the stable plugin surface) instead of reaching
 // into `../ui` directly, and its translation namespace is injected by the
 // plugin (see ./index.ts) rather than baked into the central i18n bundle.
 import { useEffect, useState } from "react";
@@ -16,7 +16,7 @@ import {
   Empty,
   LockedFeature,
   useTranslation,
-} from "@led/plugin-sdk";
+} from "@octarq-org/plugin-sdk";
 import { KeyRound } from "lucide-react";
 
 export default function LicensesPage() {

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/models"
 )
 
 // Data portability (GDPR/CCPA): an operator can export everything their org
@@ -56,7 +56,7 @@ func (h *Handler) exportAccount(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Disposition",
-		fmt.Sprintf("attachment; filename=\"led-export-org%d-%s.json\"", org, time.Now().UTC().Format("20060102")))
+		fmt.Sprintf("attachment; filename=\"octarq-export-org%d-%s.json\"", org, time.Now().UTC().Format("20060102")))
 	writeJSON(w, http.StatusOK, map[string]any{
 		"exportedAt":           time.Now().UTC().Format(time.RFC3339),
 		"orgId":                org,

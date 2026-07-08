@@ -3,9 +3,9 @@ package api
 import (
 	"context"
 
-	"github.com/octarq-org/led/internal/dnsprovider"
-	"github.com/octarq-org/led/internal/models"
-	"github.com/octarq-org/led/plugin"
+	"github.com/octarq-org/octarq/internal/dnsprovider"
+	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugin"
 )
 
 // dnsManager adapts the core's per-domain DNS provider to the stable

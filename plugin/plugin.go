@@ -1,7 +1,7 @@
 // Package plugin defines the contract a commercial (Pro) module implements to
-// extend led without forking it. It is the public, importable seam of the
+// extend octarq without forking it. It is the public, importable seam of the
 // Core-as-Library split: the open-core binary depends only on this package and
-// app; the private led-core consumer registers plugins through it.
+// app; the private octarq-core consumer registers plugins through it.
 //
 // AutoMigrate timing: a plugin contributes its GORM models via Models(). The
 // app intentionally does NOT migrate at db-open time — it waits until every
@@ -16,13 +16,13 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/octarq-org/led/llmprovider"
+	"github.com/octarq-org/octarq/llmprovider"
 	"gorm.io/gorm"
 )
 
 // EmailEvent is a stable, external snapshot of a freshly received inbound email,
 // delivered to handlers registered via Context.OnEmail. It mirrors only the
-// fields a plugin needs so plugins never import led's internal/models. The full
+// fields a plugin needs so plugins never import octarq's internal/models. The full
 // row (including Raw RFC822 bytes, e.g. for attachment OCR) remains reachable
 // via the shared DB using ID.
 //
@@ -43,7 +43,7 @@ type EmailEvent struct {
 
 // Context carries the shared dependencies a plugin needs to wire its routes.
 // It exposes only stable, external types so plugins in a separate module never
-// reach into led's internal packages.
+// reach into octarq's internal packages.
 type Context struct {
 	// DB is the shared GORM handle. By the time Mount is called the plugin's
 	// own Models() have already been migrated.
@@ -54,7 +54,7 @@ type Context struct {
 	// Notify delivers a notification via a configured channel. typ is the
 	// channel type ("telegram", "webhook"), cfgJSON is the channel's JSON
 	// config blob, and text is the message body. It mirrors notify.Send so
-	// plugins never import led's internal/notify package directly.
+	// plugins never import octarq's internal/notify package directly.
 	Notify func(ctx context.Context, typ, cfgJSON, text string) error
 	// UserID extracts the authenticated user ID from the request session (0 if unauthed).
 	UserID func(*http.Request) uint
@@ -64,7 +64,7 @@ type Context struct {
 	// "resource.verb" convention (e.g. "subscription.create"). targetType is
 	// the resource name, targetID is its primary key, meta is optional JSON
 	// context (pass nil to omit). Mirrors the core h.audit() helper so plugins
-	// never import led's internal/api or internal/models directly.
+	// never import octarq's internal/api or internal/models directly.
 	Audit func(r *http.Request, action, targetType string, targetID uint, meta map[string]any)
 	// Encrypt seals plaintext with AES-256-GCM and returns base64(nonce||ciphertext).
 	Encrypt func(plaintext []byte) (string, error)
@@ -76,17 +76,17 @@ type Context struct {
 	// the context it captures. This is the inbound hook Inbox AI subscribes to.
 	OnEmail func(handler func(EmailEvent))
 	// DNS manages DNS records for a domain through the core's configured provider
-	// (Cloudflare, …) so a plugin can change real records without importing led's
+	// (Cloudflare, …) so a plugin can change real records without importing octarq's
 	// internal/dnsprovider. This is what makes "point the A record at a new IP"
 	// an actual operation rather than a flag flip.
 	DNS DNSManager
 	// SendMail sends a transactional email through the org's configured SMTP
 	// sender (the first models.SMTPSender for that org). Returns an error if the
 	// org has no sender configured. Plugins use it for verification / password
-	// reset without importing led's internal packages.
+	// reset without importing octarq's internal packages.
 	SendMail func(orgID uint, to, subject, htmlBody, textBody string) error
 	// SetLLMResolver replaces the LLM backend behind the core's single-step AI
-	// assists (/api/ai/assist/*). The core's default resolver reads the LED_LLM_*
+	// assists (/api/ai/assist/*). The core's default resolver reads the OCTARQ_LLM_*
 	// environment; the Pro ai plugin injects its DB-backed (dashboard-configured)
 	// provider here so the assists follow the exact same configuration as Inbox
 	// AI. The resolver runs on every assist request and must therefore be cheap —
@@ -99,7 +99,7 @@ type Context struct {
 	SetWorkspaceSetting func(orgID uint, key, value string) error
 }
 
-// DNSRecord is a provider-agnostic DNS record, mirroring the fields of led's
+// DNSRecord is a provider-agnostic DNS record, mirroring the fields of octarq's
 // internal dnsprovider.Record using only stable types so plugins in a separate
 // module never import internal packages. An empty ID on a write means "create".
 type DNSRecord struct {
@@ -114,7 +114,7 @@ type DNSRecord struct {
 }
 
 // DNSManager is the DNS-management seam exposed to plugins via Context.DNS. All
-// operations take a led domain ID and resolve its zone + provider internally.
+// operations take a octarq domain ID and resolve its zone + provider internally.
 type DNSManager interface {
 	// List returns all records in the domain's zone.
 	List(ctx context.Context, domainID uint) ([]DNSRecord, error)

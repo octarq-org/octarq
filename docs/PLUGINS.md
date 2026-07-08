@@ -1,23 +1,23 @@
-# Writing a led plugin
+# Writing a octarq plugin
 
-led is extended by **plugins**, not forks. A plugin is a self-contained feature
+octarq is extended by **plugins**, not forks. A plugin is a self-contained feature
 with two halves that mirror each other:
 
 - a **Go module** implementing the backend contract `plugin.Plugin`, and
 - a **JS package** implementing the frontend contract `UIPlugin` (from
-  `@led/plugin-sdk`).
+  `@octarq-org/plugin-sdk`).
 
-The commercial build (led-pro) is nothing more than led-core plus a set of these
+The commercial build (octarq-pro) is nothing more than octarq-core plus a set of these
 plugins. Anything it can do, a community plugin can do the same way. The working
 reference for everything below is [`examples/plugin-hello`](../examples/plugin-hello),
 a minimal full-stack plugin you can copy.
 
 ```
 your-plugin/
-├── go.mod                 # a Go module: github.com/you/led-plugin-foo
+├── go.mod                 # a Go module: github.com/you/octarq-plugin-foo
 ├── foo.go                 # implements plugin.Plugin (+ optional MenuProvider)
 └── web/
-    ├── index.ts           # implements UIPlugin  (@led/plugin-sdk)
+    ├── index.ts           # implements UIPlugin  (@octarq-org/plugin-sdk)
     └── Page.tsx           # your lazy-loaded page(s)
 ```
 
@@ -34,7 +34,7 @@ There is **no runtime plugin loading**. Both halves are composed at build time:
   ships a byte of your UI (the page lands in its own lazy chunk that is only
   referenced when composed in). See `web/src/plugins/index.ts` (open-source: empty)
   vs `web/src/plugins/index.pro.ts` (commercial: registers plugins), selected by
-  the `#led-plugins` build alias.
+  the `#octarq-plugins` build alias.
 
 Because a compiled-in plugin runs **in-process with full access** (DB, secrets,
 network), this model fits a **curated / operator-opt-in** ecosystem: the operator
@@ -84,8 +84,8 @@ Key rules:
   neutral "not in this build" fallback for. You don't write that check.
 - **License-gate Pro routes with 402.** If a route needs a paid tier, return
   **402 Payment Required** when the license lacks it; the frontend shows the
-  upsell. (led-pro's plugins use `lic.HasTier(...)`.)
-- **Never import led's `internal/*`.** Everything a plugin needs is on
+  upsell. (octarq-pro's plugins use `lic.HasTier(...)`.)
+- **Never import octarq's `internal/*`.** Everything a plugin needs is on
   `plugin.Context`: `DB`, `Guard`, `Encrypt`/`Decrypt` (AES-256-GCM, for secrets
   at rest — never store plaintext), `Audit`, `Notify`, `SendMail`, `OnEmail`
   (inbound-mail hook), `DNS`, `UserID`/`OrgID`, and
@@ -109,7 +109,7 @@ From `examples/plugin-hello/web/index.ts`:
 
 ```ts
 import { lazy } from "react";
-import type { UIPlugin } from "@led/plugin-sdk";
+import type { UIPlugin } from "@octarq-org/plugin-sdk";
 
 export const helloPlugin: UIPlugin = {
   name: "hello",
@@ -123,12 +123,12 @@ Key rules:
 
 - **Wrap each page in `React.lazy`.** This is what makes an uncomposed build ship
   none of your bytes, and gives each page its own async chunk.
-- **Build your UI from `@led/plugin-sdk`.** It re-exports the shared component
+- **Build your UI from `@octarq-org/plugin-sdk`.** It re-exports the shared component
   library — `GlassCard`, `Button`, `Badge`, `Field`, `Modal`, `Toggle`, `Empty`,
   `PageHeader`, `LockedFeature`, `useTranslation`, … These are now backed by
   shadcn / Base UI primitives (accessible, keyboard-operable) while carrying
-  led's glass theme, so your page matches the app and gets a11y for free. Import
-  by name from `@led/plugin-sdk`, never reach into app-internal paths.
+  octarq's glass theme, so your page matches the app and gets a11y for free. Import
+  by name from `@octarq-org/plugin-sdk`, never reach into app-internal paths.
 - **Handle 402 and 404.** On **402** render `LockedFeature` (upsell); on **404**
   (plugin/endpoint absent in this build) render a neutral note. `lockedFallback`
   is the component the route boundary degrades to if a page chunk fails.
@@ -149,11 +149,11 @@ app.Run(ctx)
 ```
 
 Frontend — the host's injection module registers your UI plugin (this is the
-`#led-plugins` target; led-pro provides its own):
+`#octarq-plugins` target; octarq-pro provides its own):
 
 ```ts
-import { registerUIPlugin } from "@led/plugin-sdk";
-import { helloPlugin } from "@acme/led-plugin-hello";
+import { registerUIPlugin } from "@octarq-org/plugin-sdk";
+import { helloPlugin } from "@acme/octarq-plugin-hello";
 registerUIPlugin(helloPlugin);
 ```
 
@@ -165,8 +165,8 @@ Build the frontend (`pnpm build` bakes it into `webembed/dist`), then
 A plugin is **one repo** with the two halves. In a real distribution:
 
 - The Go module is `go get`-able; a host adds it to its build.
-- The `web/` package is published to npm (e.g. `@acme/led-plugin-hello`) with
-  `@led/plugin-sdk` and `react` as **peer** dependencies; the host imports it by
+- The `web/` package is published to npm (e.g. `@acme/octarq-plugin-hello`) with
+  `@octarq-org/plugin-sdk` and `react` as **peer** dependencies; the host imports it by
   name and registers it in its injection module.
 
 The example's `web/tsconfig.json` maps the SDK/React locally only because it
@@ -179,6 +179,6 @@ resolves them as normal peers and needs no such mapping.
 - [ ] Backend routes registered on the passed `Mux`; secrets via `ctx.Encrypt`.
 - [ ] Pro-only routes return **402** without the tier; you rely on the host's
       auto-**404** for the disabled-feature case.
-- [ ] Pages are `React.lazy`; UI built from `@led/plugin-sdk`; 402/404 handled.
+- [ ] Pages are `React.lazy`; UI built from `@octarq-org/plugin-sdk`; 402/404 handled.
 - [ ] i18n keys live under your `name` namespace.
 - [ ] `go build ./...` and `pnpm build` are green; `go:embed` produces one binary.

@@ -89,7 +89,7 @@ body {
 }
 
 /* App background aurora */
-.led-aurora {
+.octarq-aurora {
   background:
     radial-gradient(60rem 40rem at 12% -10%, rgba(99, 102, 241, 0.18), transparent 60%),
     radial-gradient(50rem 38rem at 95% 8%, rgba(139, 92, 246, 0.16), transparent 55%),

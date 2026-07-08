@@ -1,4 +1,4 @@
-// Storefront — the led-pro `product` plugin's admin UI. Manage the products a
+// Storefront — the octarq-pro `product` plugin's admin UI. Manage the products a
 // one-person company sells, their pricing plans (read by the public pricing
 // page), and their downloadable releases (served to buyers by /api/delivery once
 // they hold a valid license). License-gated: 402 → upsell; OSS build → 404 note.

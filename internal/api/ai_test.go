@@ -11,13 +11,13 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/led/config"
-	"github.com/octarq-org/led/internal/auth"
-	"github.com/octarq-org/led/internal/crypto"
-	"github.com/octarq-org/led/internal/geo"
-	"github.com/octarq-org/led/internal/models"
-	"github.com/octarq-org/led/internal/queue"
-	"github.com/octarq-org/led/llmprovider"
+	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/internal/auth"
+	"github.com/octarq-org/octarq/internal/crypto"
+	"github.com/octarq-org/octarq/internal/geo"
+	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/queue"
+	"github.com/octarq-org/octarq/llmprovider"
 	"gorm.io/gorm"
 )
 
@@ -75,10 +75,10 @@ func TestAIStatusUnconfigured(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &st); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	// No LED_LLM_* env in tests → unconfigured, and the LLM endpoints refuse
+	// No OCTARQ_LLM_* env in tests → unconfigured, and the LLM endpoints refuse
 	// with a hint instead of calling out.
 	if st.Configured {
-		t.Skip("LED_LLM_*/ANTHROPIC_API_KEY set in this environment")
+		t.Skip("OCTARQ_LLM_*/ANTHROPIC_API_KEY set in this environment")
 	}
 	req = httptest.NewRequest(http.MethodPost, "/api/ai/assist/suggest-slug", strings.NewReader(`{"target":"https://example.com"}`))
 	for _, c := range sessionCookies(t, 1, 1) {
@@ -89,8 +89,8 @@ func TestAIStatusUnconfigured(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("unconfigured suggest-slug: got %d want 400 (%s)", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "LED_LLM_API_KEY") {
-		t.Errorf("error should hint at LED_LLM_API_KEY: %s", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), "OCTARQ_LLM_API_KEY") {
+		t.Errorf("error should hint at OCTARQ_LLM_API_KEY: %s", rec.Body.String())
 	}
 }
 
@@ -142,7 +142,7 @@ func TestParseSlugList(t *testing.T) {
 		in   string
 		want []string
 	}{
-		{`["go-fast","led-live","ship-it"]`, []string{"go-fast", "led-live", "ship-it"}},
+		{`["go-fast","octarq-live","ship-it"]`, []string{"go-fast", "octarq-live", "ship-it"}},
 		{"```json\n[\"promo-2026\"]\n```", []string{"promo-2026"}},
 		{"Here you go:\n- launch-day\n- big-sale\n", []string{"launch-day", "big-sale"}},
 		{`["Has Space", "UPPER", "ok-slug"]`, []string{"upper", "ok-slug"}}, // lowercased; invalid dropped

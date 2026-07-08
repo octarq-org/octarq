@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/models"
 	"github.com/pquerna/otp/totp"
 )
 
@@ -24,7 +24,7 @@ func TestLogoutClearsCookie(t *testing.T) {
 	// The Set-Cookie clears the session (MaxAge<0 / empty value).
 	var cleared bool
 	for _, c := range rec.Result().Cookies() {
-		if c.Name == "led_session" && (c.MaxAge < 0 || c.Value == "") {
+		if c.Name == "octarq_session" && (c.MaxAge < 0 || c.Value == "") {
 			cleared = true
 		}
 	}
@@ -165,7 +165,7 @@ func TestInboundWebhookAuth(t *testing.T) {
 	msg := "From: a@x.com\r\nTo: hi@acme.test\r\nSubject: Hi\r\n\r\nbody"
 	post := func(path string) int {
 		req := httptest.NewRequest("POST", path, strings.NewReader(msg))
-		req.Header.Set("X-Led-To", "hi@acme.test")
+		req.Header.Set("X-Octarq-To", "hi@acme.test")
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, req)
 		return rec.Code

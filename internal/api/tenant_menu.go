@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/led/internal/mail"
-	"github.com/octarq-org/led/internal/models"
-	"github.com/octarq-org/led/plugin"
+	"github.com/octarq-org/octarq/internal/mail"
+	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
 
@@ -348,8 +348,8 @@ func (h *Handler) sendInviteEmail(orgID uint, to, acceptURL string) {
 	msg := mail.Message{
 		From:    s.FromEmail,
 		To:      []string{to},
-		Subject: "You've been invited to led",
-		Text: fmt.Sprintf("You've been invited to join a workspace on led.\n\n"+
+		Subject: "You've been invited to octarq",
+		Text: fmt.Sprintf("You've been invited to join a workspace on octarq.\n\n"+
 			"Accept your invite and set a password here:\n%s\n\n"+
 			"This link expires in 24 hours.", acceptURL),
 	}

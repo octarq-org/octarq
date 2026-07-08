@@ -123,7 +123,7 @@ export function InstanceSettings() {
               className="input w-full text-sm"
               value={appName}
               onChange={(e) => setAppName(e.target.value)}
-              placeholder="led"
+              placeholder="octarq"
             />
           </Field>
           <Field label={t("settings.retentionLabel")} hint={t("settings.retentionHint")}>

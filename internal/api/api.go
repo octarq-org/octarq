@@ -1,4 +1,4 @@
-// Package api implements led's JSON HTTP API.
+// Package api implements octarq's JSON HTTP API.
 package api
 
 import (
@@ -12,14 +12,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/octarq-org/led/config"
-	"github.com/octarq-org/led/internal/auth"
-	"github.com/octarq-org/led/internal/crypto"
-	"github.com/octarq-org/led/internal/geo"
-	"github.com/octarq-org/led/internal/models"
-	"github.com/octarq-org/led/internal/queue"
-	"github.com/octarq-org/led/llmprovider"
-	"github.com/octarq-org/led/plugin"
+	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/internal/auth"
+	"github.com/octarq-org/octarq/internal/crypto"
+	"github.com/octarq-org/octarq/internal/geo"
+	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/queue"
+	"github.com/octarq-org/octarq/llmprovider"
+	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
 
@@ -246,8 +246,8 @@ func (h *Handler) Routes() *http.ServeMux {
 	p("DELETE /api/emails/{id}", h.deleteEmail)
 	p("POST /api/emails/send", h.sendEmail)
 
-	// Single-step AI assists (OSS, BYO key via LED_LLM_* env — see ai.go).
-	// Namespaced under /api/ai/assist/ because the led-pro ai plugin owns
+	// Single-step AI assists (OSS, BYO key via OCTARQ_LLM_* env — see ai.go).
+	// Namespaced under /api/ai/assist/ because the octarq-pro ai plugin owns
 	// /api/ai/status, /api/ai/emails and /api/ai/settings on the same mux —
 	// a duplicate pattern would panic at mount time in the Pro build.
 	p("GET /api/ai/assist/status", h.aiStatus)

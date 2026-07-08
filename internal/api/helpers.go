@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/octarq-org/led/internal/dnsprovider"
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/dnsprovider"
+	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
 

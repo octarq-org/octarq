@@ -1,7 +1,7 @@
 import { HTMLAttributes, TableHTMLAttributes, ThHTMLAttributes, TdHTMLAttributes } from "react";
 import { cn } from "../cn";
 
-// A small set of themed table primitives — native table elements carrying led's
+// A small set of themed table primitives — native table elements carrying octarq's
 // glass styling. Compose them like plain <table>/<thead>/<tr>/<th>/<td>:
 //
 //   <Table>

@@ -1,4 +1,4 @@
-// The `@led/plugin-sdk` contract sub-barrel: the pure, app-independent plugin
+// The `@octarq-org/plugin-sdk` contract sub-barrel: the pure, app-independent plugin
 // contract and its registry. Re-exported by the package root (`src/index.ts`).
 export type {
   UIPlugin,

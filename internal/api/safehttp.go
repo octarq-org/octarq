@@ -11,7 +11,7 @@ import (
 )
 
 // SSRF protection for server-side fetches of user-supplied URLs (the link
-// title-preview feature). Without it, a user could point led at internal
+// title-preview feature). Without it, a user could point octarq at internal
 // addresses — http://127.0.0.1, the cloud metadata endpoint 169.254.169.254,
 // RFC1918 ranges — and use the server as a proxy to probe the private network
 // or steal instance credentials.
@@ -92,6 +92,6 @@ func safeGet(ctx context.Context, rawURL string) (*http.Response, error) {
 	if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
 		return nil, fmt.Errorf("ssrf guard: disallowed scheme %q", req.URL.Scheme)
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; led-link-preview/1.0)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; octarq-link-preview/1.0)")
 	return safePreviewClient.Do(req)
 }

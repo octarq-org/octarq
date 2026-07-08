@@ -1,4 +1,4 @@
-// Package notify delivers best-effort notifications about led events.
+// Package notify delivers best-effort notifications about octarq events.
 package notify
 
 import (

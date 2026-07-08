@@ -14,8 +14,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/octarq-org/led/config"
-	"github.com/octarq-org/led/internal/shortlink"
+	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/internal/shortlink"
 )
 
 // Server is the top-level HTTP handler.
@@ -150,7 +150,7 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 }
 
 // dashboardAllowed reports whether the dashboard may be served for this host.
-// When LED_ADMIN_HOST is set, the dashboard is restricted to that host so pure
+// When OCTARQ_ADMIN_HOST is set, the dashboard is restricted to that host so pure
 // link hosts don't expose it; otherwise it is served on any host.
 func (s *Server) dashboardAllowed(host string) bool {
 	if s.cfg.AdminHost == "" {

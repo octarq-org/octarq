@@ -49,7 +49,7 @@ export const storefront = {
     generateKey: "Generate key",
     importExisting: "Import existing",
     privateKeyLabel: "Private key (base64)",
-    privateKeyHint: "Use this for a product whose public key is already embedded in its build (e.g. led-pro itself).",
+    privateKeyHint: "Use this for a product whose public key is already embedded in its build (e.g. octarq-pro itself).",
     privateKeyPlaceholder: "base64 ed25519 private key",
     importKey: "Import key",
     // Product modal
@@ -149,7 +149,7 @@ export const storefront = {
     generateKey: "生成密钥",
     importExisting: "导入现有密钥",
     privateKeyLabel: "私钥（base64）",
-    privateKeyHint: "适用于公钥已嵌入其构建的产品（例如 led-pro 本身）。",
+    privateKeyHint: "适用于公钥已嵌入其构建的产品（例如 octarq-pro 本身）。",
     privateKeyPlaceholder: "base64 ed25519 私钥",
     importKey: "导入密钥",
     // Product modal

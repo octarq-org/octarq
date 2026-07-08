@@ -1,4 +1,4 @@
-// Thin fetch wrapper around the led JSON API.
+// Thin fetch wrapper around the octarq JSON API.
 
 export interface Link {
   id: number;
@@ -504,7 +504,7 @@ export const api = {
   aiSettings: () => req<AISettings>("GET", "/api/ai/settings"),
   updateAiSettings: (s: AISettingsPatch) => req<AISettings>("PUT", "/api/ai/settings", s),
 
-  // LLM provider registry (led-pro ai plugin; absent in OSS build → 404)
+  // LLM provider registry (octarq-pro ai plugin; absent in OSS build → 404)
   llmProviders: () => req<LLMProvider[]>("GET", "/api/llm-providers"),
   createLlmProvider: (p: LLMProviderInput) => req<LLMProvider>("POST", "/api/llm-providers", p),
   updateLlmProvider: (id: number, p: LLMProviderInput) => req<LLMProvider>("PUT", `/api/llm-providers/${id}`, p),
@@ -535,13 +535,13 @@ export const api = {
     ratelimitRedirectRpm?: number;
   }) => req<InstanceSettings>("PUT", "/api/instance-settings", s),
 
-  // license (led-pro licensing plugin; absent in the OSS build → 404)
+  // license (octarq-pro licensing plugin; absent in the OSS build → 404)
   license: () => req<LicenseStatus>("GET", "/api/license"),
   activateLicense: (token: string) =>
     req<LicenseActivateResult>("POST", "/api/license", { token }),
   deactivateLicense: () => req<{ ok: boolean; requiresRestart: boolean }>("DELETE", "/api/license"),
 
-  // storefront (led-pro product plugin; absent in OSS build → 404)
+  // storefront (octarq-pro product plugin; absent in OSS build → 404)
   products: () => req<Product[]>("GET", "/api/products"),
   createProduct: (p: ProductInput) => req<Product>("POST", "/api/products", p),
   updateProduct: (id: number, p: ProductInput) => req<Product>("PUT", `/api/products/${id}`, p),
@@ -555,7 +555,7 @@ export const api = {
     req<Release>("POST", `/api/products/${productId}/releases`, rel),
   deleteRelease: (id: number) => req<void>("DELETE", `/api/releases/${id}`),
 
-  // issuer: per-product signing keys + issuance records (led-pro issuer plugin)
+  // issuer: per-product signing keys + issuance records (octarq-pro issuer plugin)
   productKey: (productId: number) => req<ProductKeyInfo>("GET", `/api/products/${productId}/key`),
   createProductKey: (productId: number, privateKey?: string) =>
     req<{ productId: number; publicKey: string; note: string }>(
@@ -567,7 +567,7 @@ export const api = {
   issued: (productId?: number) =>
     req<IssuedLicense[]>("GET", `/api/issued${productId ? `?productId=${productId}` : ""}`),
 
-  // billing config + price map (led-pro billing plugin)
+  // billing config + price map (octarq-pro billing plugin)
   billingConfig: () => req<BillingConfig>("GET", "/api/billing/config"),
   updateBillingConfig: (p: { webhookSecret?: string }) =>
     req<BillingConfig>("PUT", "/api/billing/config", p),
@@ -767,7 +767,7 @@ export const api = {
   getUserSettings: () => req<Record<string, string>>("GET", "/api/user/settings"),
   updateUserSettings: (key: string, value: string) => req<{ ok: boolean }>("PUT", "/api/user/settings", { key, value }),
 
-  // Customer & Portal APIs (led-pro customer / portal plugins)
+  // Customer & Portal APIs (octarq-pro customer / portal plugins)
   customerRegister: (email: string, password: string) => req<{ ok: boolean; email: string; emailVerified: boolean }>("POST", "/api/customer/register", { email, password }),
   customerLogin: (email: string, password: string) => req<{ ok: boolean; email: string }>("POST", "/api/customer/login", { email, password }),
   customerLogout: () => req<{ ok: boolean }>("POST", "/api/customer/logout"),

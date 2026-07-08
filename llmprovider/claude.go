@@ -35,7 +35,7 @@ type Claude struct {
 
 func newClaude(o Options) (Provider, error) {
 	if o.APIKey == "" {
-		return nil, fmt.Errorf("llmprovider/claude: API key is required (set LED_LLM_API_KEY or ANTHROPIC_API_KEY)")
+		return nil, fmt.Errorf("llmprovider/claude: API key is required (set OCTARQ_LLM_API_KEY or ANTHROPIC_API_KEY)")
 	}
 	opts := []option.RequestOption{option.WithAPIKey(o.APIKey)}
 	if o.BaseURL != "" {

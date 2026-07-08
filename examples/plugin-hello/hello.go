@@ -1,9 +1,9 @@
-// Package hello is a minimal, copy-me example of a led plugin: the Go half of a
+// Package hello is a minimal, copy-me example of a octarq plugin: the Go half of a
 // full-stack feature. It implements plugin.Plugin (Name/Models/Mount) plus the
 // optional plugin.MenuProvider, and exposes one trivial read-only endpoint.
 //
 // The JS half lives in ./web and implements the frontend `UIPlugin` contract
-// against @led/plugin-sdk. Together they show the symmetry led is built on:
+// against @octarq-org/plugin-sdk. Together they show the symmetry octarq is built on:
 // a Go module + a JS package, each conforming to its side's plugin contract,
 // composed into the app WITHOUT forking it — the Go plugin mounted via
 // app.App.Use(...), the UI plugin composed at build time via registerUIPlugin.
@@ -14,7 +14,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/octarq-org/led/plugin"
+	"github.com/octarq-org/octarq/plugin"
 )
 
 // Plugin is the exported unit a host wires up with app.App.Use(hello.Plugin{}).

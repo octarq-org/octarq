@@ -6,34 +6,34 @@ import (
 )
 
 func TestLoadRequiresSecretKey(t *testing.T) {
-	t.Setenv("LED_SECRET_KEY", "")
-	t.Setenv("LED_ADMIN_PASSWORD", "pw")
+	t.Setenv("OCTARQ_SECRET_KEY", "")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
 	if _, err := Load(); err == nil {
-		t.Fatal("expected error when LED_SECRET_KEY is unset")
+		t.Fatal("expected error when OCTARQ_SECRET_KEY is unset")
 	}
 }
 
 func TestLoadRequiresAdminPassword(t *testing.T) {
-	t.Setenv("LED_SECRET_KEY", "s")
-	t.Setenv("LED_ADMIN_PASSWORD", "")
+	t.Setenv("OCTARQ_SECRET_KEY", "s")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "")
 	if _, err := Load(); err == nil {
-		t.Fatal("expected error when LED_ADMIN_PASSWORD is unset")
+		t.Fatal("expected error when OCTARQ_ADMIN_PASSWORD is unset")
 	}
 }
 
 func TestLoadRejectsBadDriver(t *testing.T) {
-	t.Setenv("LED_SECRET_KEY", "s")
-	t.Setenv("LED_ADMIN_PASSWORD", "pw")
-	t.Setenv("LED_DB_DRIVER", "mysql")
+	t.Setenv("OCTARQ_SECRET_KEY", "s")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
+	t.Setenv("OCTARQ_DB_DRIVER", "mysql")
 	if _, err := Load(); err == nil {
 		t.Fatal("expected error for unsupported driver")
 	}
 }
 
 func TestLoadAppliesDefaults(t *testing.T) {
-	t.Setenv("LED_SECRET_KEY", "s")
-	t.Setenv("LED_ADMIN_PASSWORD", "pw")
-	t.Setenv("LED_DB_DRIVER", "sqlite")
+	t.Setenv("OCTARQ_SECRET_KEY", "s")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
+	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -44,8 +44,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	if cfg.AdminUser != "admin" {
 		t.Errorf("AdminUser default = %q want admin", cfg.AdminUser)
 	}
-	if cfg.DBDSN != "led.db" {
-		t.Errorf("DBDSN default = %q want led.db", cfg.DBDSN)
+	if cfg.DBDSN != "octarq.db" {
+		t.Errorf("DBDSN default = %q want octarq.db", cfg.DBDSN)
 	}
 }
 

@@ -1,11 +1,11 @@
-// Package app is the public composition root for led. It wires config, the
+// Package app is the public composition root for octarq. It wires config, the
 // database, auth, the core API, the short-link redirector and the embedded
 // dashboard into one HTTP server — and lets external (Pro) modules extend it
 // through the plugin package without forking.
 //
 // This is the importable seam of the Core-as-Library split: the open-core
 // binary (cmd in this repo) calls New().Run() with no plugins; the private
-// led-core consumer calls Use() for each Pro plugin before Run().
+// octarq-core consumer calls Use() for each Pro plugin before Run().
 //
 // AutoMigrate timing: New() opens the database but does NOT migrate. Run()
 // collects core models plus every registered plugin's Models() and migrates
@@ -24,24 +24,24 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/octarq-org/led/config"
-	"github.com/octarq-org/led/internal/api"
-	"github.com/octarq-org/led/internal/auth"
-	"github.com/octarq-org/led/internal/cache"
-	"github.com/octarq-org/led/internal/cleanup"
-	"github.com/octarq-org/led/internal/crypto"
-	"github.com/octarq-org/led/internal/db"
-	"github.com/octarq-org/led/internal/eventbus"
-	"github.com/octarq-org/led/internal/geo"
-	"github.com/octarq-org/led/internal/mail"
-	"github.com/octarq-org/led/internal/mcp"
-	"github.com/octarq-org/led/internal/models"
-	"github.com/octarq-org/led/internal/notify"
-	"github.com/octarq-org/led/internal/queue"
-	"github.com/octarq-org/led/internal/server"
-	"github.com/octarq-org/led/internal/shortlink"
-	"github.com/octarq-org/led/plugin"
-	"github.com/octarq-org/led/webembed"
+	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/internal/api"
+	"github.com/octarq-org/octarq/internal/auth"
+	"github.com/octarq-org/octarq/internal/cache"
+	"github.com/octarq-org/octarq/internal/cleanup"
+	"github.com/octarq-org/octarq/internal/crypto"
+	"github.com/octarq-org/octarq/internal/db"
+	"github.com/octarq-org/octarq/internal/eventbus"
+	"github.com/octarq-org/octarq/internal/geo"
+	"github.com/octarq-org/octarq/internal/mail"
+	"github.com/octarq-org/octarq/internal/mcp"
+	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/notify"
+	"github.com/octarq-org/octarq/internal/queue"
+	"github.com/octarq-org/octarq/internal/server"
+	"github.com/octarq-org/octarq/internal/shortlink"
+	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/webembed"
 	"gorm.io/gorm"
 )
 
@@ -99,7 +99,7 @@ func New() (*App, error) {
 	// browsers — a common "login works but every next request is 401" trap in
 	// local/HTTP setups. Warn loudly with the escape hatch.
 	if cfg.SecureCookies && !strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://") {
-		slog.Warn("secure cookies are on but the base URL is not https — browsers will drop the session cookie over plain HTTP; set LED_SECURE_COOKIES=false for local HTTP development")
+		slog.Warn("secure cookies are on but the base URL is not https — browsers will drop the session cookie over plain HTTP; set OCTARQ_SECURE_COOKIES=false for local HTTP development")
 	}
 
 	gdb, err := db.Open(cfg)
@@ -139,7 +139,7 @@ func (a *App) Notify(ctx context.Context, typ, cfgJSON, text string) error {
 // sendMail is the implementation behind plugin.Context.SendMail. It resolves the
 // org's first configured SMTP sender, decrypts its password, and relays the
 // message — mirroring internal/api.Handler.sendEmail so plugins can send
-// transactional mail without importing led's internal packages.
+// transactional mail without importing octarq's internal packages.
 func (a *App) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
 	var s models.SMTPSender
 	if err := a.gdb.Where("owner_id = ? ", orgID).Order("id").First(&s).Error; err != nil {
@@ -299,7 +299,7 @@ func (a *App) Run(ctx context.Context) error {
 	go cleanup.StartSessionCleanup(ctx, a.gdb)
 
 	go func() {
-		slog.Info("led listening", "addr", a.cfg.Listen, "db", a.cfg.DBDriver)
+		slog.Info("octarq listening", "addr", a.cfg.Listen, "db", a.cfg.DBDriver)
 		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("listen failed", "err", err)
 			os.Exit(1)

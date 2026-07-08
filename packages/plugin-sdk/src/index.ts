@@ -1,4 +1,4 @@
-// @led/plugin-sdk — package root (the `.` export).
+// @octarq-org/plugin-sdk — package root (the `.` export).
 //
 // This entry carries ONLY the pure, app-independent plugin contract and its
 // registry. The shared UI surface lives under the `./ui` subpath export so a

@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

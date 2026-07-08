@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/led/internal/cache"
-	"github.com/octarq-org/led/internal/eventbus"
-	"github.com/octarq-org/led/internal/geo"
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/internal/cache"
+	"github.com/octarq-org/octarq/internal/eventbus"
+	"github.com/octarq-org/octarq/internal/geo"
+	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
 

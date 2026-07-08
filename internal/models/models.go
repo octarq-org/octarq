@@ -1,4 +1,4 @@
-// Package models defines the GORM persistence schema for led.
+// Package models defines the GORM persistence schema for octarq.
 //
 // Every user-facing entity (Link, Mailbox, Domain) carries a Note field —
 // a free-text remark that upstream wr.do does not support. DNS records get
@@ -266,7 +266,7 @@ type ProviderAccount struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// Domain is a domain managed by led, tied to a DNS provider account.
+// Domain is a domain managed by octarq, tied to a DNS provider account.
 type Domain struct {
 	ID                uint   `gorm:"primaryKey" json:"id"`
 	OrgID             uint   `gorm:"column:owner_id;index;default:1" json:"-"`

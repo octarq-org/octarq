@@ -80,7 +80,7 @@ export default function App() {
     content = <InviteAcceptPage />;
   } else if (authed === null) {
     content = (
-      <div className="led-aurora grid h-full place-items-center text-white/40">
+      <div className="octarq-aurora grid h-full place-items-center text-white/40">
         <div className="flex flex-col items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow flex items-center justify-center">
             <span className="font-display text-base font-extrabold text-white">{brandInitial(appName)}</span>
@@ -299,7 +299,7 @@ function Shell({
   };
 
   return (
-    <div className="led-aurora flex h-screen w-full flex-col overflow-hidden text-white">
+    <div className="octarq-aurora flex h-screen w-full flex-col overflow-hidden text-white">
       <TopBar
         areas={areas}
         activeArea={activeArea}
@@ -368,7 +368,7 @@ function Shell({
               {pluginRouteElements()}
               {/* Unknown paths 404-degrade to a neutral note instead of silently
                   redirecting — a Pro plugin path with no composed plugin lands
-                  here, matching led's "not in this build" convention. */}
+                  here, matching octarq's "not in this build" convention. */}
               <Route path="*"           element={<PluginUnavailable />} />
             </Routes>
           </div>

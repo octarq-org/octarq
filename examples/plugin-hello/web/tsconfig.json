@@ -1,5 +1,5 @@
 {
-  "//": "Standalone type-check for the example plugin's JS half. It resolves react and the SDK from the led web workspace so a third party can validate their plugin against @led/plugin-sdk without a full install. Run: npx tsc -p examples/plugin-hello/web/tsconfig.json --noEmit (from web/, or with cwd anywhere).",
+  "//": "Standalone type-check for the example plugin's JS half. It resolves react and the SDK from the octarq web workspace so a third party can validate their plugin against @octarq-org/plugin-sdk without a full install. Run: npx tsc -p examples/plugin-hello/web/tsconfig.json --noEmit (from web/, or with cwd anywhere).",
   "compilerOptions": {
     "target": "ES2020",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
@@ -12,7 +12,7 @@
     "allowImportingTsExtensions": true,
     "baseUrl": ".",
     "paths": {
-      "@led/plugin-sdk": ["../../../web/src/plugin-sdk"],
+      "@octarq-org/plugin-sdk": ["../../../web/src/plugin-sdk"],
       "react": ["../../../web/node_modules/@types/react"],
       "react/jsx-runtime": ["../../../web/node_modules/@types/react/jsx-runtime"],
       "react-dom": ["../../../web/node_modules/@types/react-dom"],

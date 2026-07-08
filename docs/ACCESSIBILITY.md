@@ -1,4 +1,4 @@
-# Accessibility audit — led dashboard shared UI
+# Accessibility audit — octarq dashboard shared UI
 
 Scope: the shared primitives (`web/src/ui/primitives.tsx`, `web/src/ui/base/*`) and
 the app shell (`web/src/App.tsx`) after the migration to Base UI / shadcn-style

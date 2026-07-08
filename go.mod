@@ -1,4 +1,4 @@
-module github.com/octarq-org/led
+module github.com/octarq-org/octarq
 
 go 1.25.0
 

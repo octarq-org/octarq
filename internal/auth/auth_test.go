@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/led/config"
-	"github.com/octarq-org/led/internal/crypto"
-	"github.com/octarq-org/led/internal/models"
+	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/internal/crypto"
+	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
 
