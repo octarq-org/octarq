@@ -12,8 +12,11 @@
 /vendor
 
 # node
+/node_modules
 web/node_modules
 web/.vite
+packages/*/node_modules
+packages/*/dist
 
 # geoip
 *.mmdb

@@ -5,6 +5,16 @@
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "packageManager": "pnpm@9.15.4",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/octarq-org/led.git",
+    "directory": "packages/plugin-sdk"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
   "files": [
     "dist"
   ],
@@ -20,7 +30,8 @@
   },
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "tsup"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
