@@ -50,6 +50,13 @@ type Config struct {
 	// OCTARQ_TRUST_PROXY=true|1. Off by default.
 	TrustProxy bool
 
+	// AllowPrivateWebhooks lets outbound webhook / notification delivery reach
+	// private, loopback, or link-local addresses. Off by default so a tenant
+	// can't point a webhook at internal services or cloud metadata (SSRF); a
+	// self-hoster running their own receiver on the same box/LAN opts in via
+	// OCTARQ_ALLOW_PRIVATE_WEBHOOKS=true|1. Never relaxes the link-preview client.
+	AllowPrivateWebhooks bool
+
 	GeoIPDB string // optional path to a MaxMind GeoLite2-City.mmdb
 
 	// BaseURL is the public-facing URL used to build OAuth callback URIs,
@@ -147,6 +154,8 @@ func Load() (*Config, error) {
 		AdminPassword: env("OCTARQ_ADMIN_PASSWORD", ""),
 
 		TrustProxy: strings.EqualFold(strings.TrimSpace(env("OCTARQ_TRUST_PROXY", "")), "true") || strings.TrimSpace(env("OCTARQ_TRUST_PROXY", "")) == "1",
+
+		AllowPrivateWebhooks: strings.EqualFold(strings.TrimSpace(env("OCTARQ_ALLOW_PRIVATE_WEBHOOKS", "")), "true") || strings.TrimSpace(env("OCTARQ_ALLOW_PRIVATE_WEBHOOKS", "")) == "1",
 
 		GeoIPDB:  env("OCTARQ_GEOIP_DB", ""),
 		BaseURL:  env("OCTARQ_BASE_URL", ""),

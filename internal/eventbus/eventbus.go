@@ -13,12 +13,16 @@ import (
 	"time"
 
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/safehttp"
 	"gorm.io/gorm"
 )
 
 var (
-	db         *gorm.DB
-	httpClient = &http.Client{Timeout: 10 * time.Second}
+	db *gorm.DB
+	// SSRF-hardened: webhook URLs are tenant-supplied, so delivery must not reach
+	// internal services or cloud metadata (relaxable for trusted self-hosted
+	// receivers via OCTARQ_ALLOW_PRIVATE_WEBHOOKS).
+	httpClient = safehttp.NewWebhookClient(10 * time.Second)
 )
 
 // Init initializes the eventbus with the shared GORM database connection.

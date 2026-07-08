@@ -38,6 +38,7 @@ import (
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/notify"
 	"github.com/octarq-org/octarq/internal/queue"
+	"github.com/octarq-org/octarq/internal/safehttp"
 	"github.com/octarq-org/octarq/internal/server"
 	"github.com/octarq-org/octarq/internal/shortlink"
 	"github.com/octarq-org/octarq/plugin"
@@ -108,6 +109,9 @@ func New() (*App, error) {
 	}
 
 	eventbus.Init(gdb)
+	// Opt webhook/notification delivery into private targets only when the operator
+	// has explicitly allowed it (trusted internal receivers); default stays strict.
+	safehttp.SetAllowPrivateWebhooks(cfg.AllowPrivateWebhooks)
 
 	cipher := crypto.New(cfg.SecretKey)
 	cacheLayer := cache.New(cfg.RedisURL)

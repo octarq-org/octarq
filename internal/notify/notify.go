@@ -12,6 +12,8 @@ import (
 
 	"github.com/nikoksr/notify"
 	"github.com/nikoksr/notify/service/telegram"
+
+	"github.com/octarq-org/octarq/internal/safehttp"
 )
 
 // Send dispatches a notification via the specified channel type.
@@ -78,7 +80,8 @@ func sendWebhook(ctx context.Context, cfgJSON, text string) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	hc := &http.Client{Timeout: 10 * time.Second}
+	// SSRF-hardened: a notification channel's webhook URL is user-supplied.
+	hc := safehttp.NewWebhookClient(10 * time.Second)
 	resp, err := hc.Do(req)
 	if err != nil {
 		return err
