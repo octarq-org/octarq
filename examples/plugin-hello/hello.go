@@ -14,7 +14,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Jungley8/led/plugin"
+	"github.com/octarq-org/led/plugin"
 )
 
 // Plugin is the exported unit a host wires up with app.App.Use(hello.Plugin{}).

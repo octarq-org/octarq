@@ -10,7 +10,7 @@ module example.com/plugin-hello
 
 go 1.25.0
 
-require github.com/Jungley8/led v0.0.0
+require github.com/octarq-org/led v0.0.0
 
 require (
 	cloud.google.com/go v0.123.0 // indirect
@@ -77,4 +77,4 @@ require (
 	gorm.io/gorm v1.31.1 // indirect
 )
 
-replace github.com/Jungley8/led => ../..
+replace github.com/octarq-org/led => ../..
