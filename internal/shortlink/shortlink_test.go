@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/led/internal/geo"
 	"github.com/octarq-org/led/internal/models"
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 

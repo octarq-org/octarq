@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/led/internal/models"
 	"github.com/google/uuid"
+	"github.com/octarq-org/led/internal/models"
 	"golang.org/x/crypto/bcrypt"
 )
 

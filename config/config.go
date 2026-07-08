@@ -56,7 +56,6 @@ type Config struct {
 	// e.g. "https://app.example.com". Leave empty to disable OAuth login.
 	BaseURL string
 
-
 	// RedisURL configures the optional Redis connection (e.g. "redis://localhost:6379").
 	// If empty, Redis-based features will be disabled or fall back to DB/in-memory.
 	RedisURL string

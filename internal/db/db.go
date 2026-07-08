@@ -6,9 +6,9 @@ package db
 import (
 	"fmt"
 
+	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/led/config"
 	"github.com/octarq-org/led/internal/models"
-	"github.com/glebarez/sqlite"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -97,4 +97,3 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 
 	return nil
 }
-

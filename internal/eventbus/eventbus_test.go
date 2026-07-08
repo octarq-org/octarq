@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/led/internal/models"
 	"github.com/glebarez/sqlite"
+	"github.com/octarq-org/led/internal/models"
 	"gorm.io/gorm"
 )
 

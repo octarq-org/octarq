@@ -22,10 +22,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/octarq-org/led/config"
 	"github.com/octarq-org/led/internal/db"
 	"github.com/octarq-org/led/plugin"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"gorm.io/gorm"
 )
 

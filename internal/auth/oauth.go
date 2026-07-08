@@ -7,14 +7,14 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/octarq-org/led/internal/crypto"
-	"github.com/octarq-org/led/internal/models"
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
 	"github.com/markbates/goth/providers/github"
 	"github.com/markbates/goth/providers/google"
+	"github.com/octarq-org/led/internal/crypto"
+	"github.com/octarq-org/led/internal/models"
 	"gorm.io/gorm"
 )
 

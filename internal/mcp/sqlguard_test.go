@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/led/internal/models"
 	"github.com/octarq-org/led/plugin"
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 

@@ -14,11 +14,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/led/config"
 	"github.com/octarq-org/led/internal/auth"
 	"github.com/octarq-org/led/internal/crypto"
 	"github.com/octarq-org/led/internal/models"
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 

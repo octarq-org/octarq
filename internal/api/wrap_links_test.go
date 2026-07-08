@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/led/config"
 	"github.com/octarq-org/led/internal/auth"
 	"github.com/octarq-org/led/internal/crypto"
@@ -13,7 +14,6 @@ import (
 	"github.com/octarq-org/led/internal/mail"
 	"github.com/octarq-org/led/internal/models"
 	"github.com/octarq-org/led/internal/queue"
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 

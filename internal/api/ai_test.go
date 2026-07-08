@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/led/config"
 	"github.com/octarq-org/led/internal/auth"
 	"github.com/octarq-org/led/internal/crypto"
@@ -17,7 +18,6 @@ import (
 	"github.com/octarq-org/led/internal/models"
 	"github.com/octarq-org/led/internal/queue"
 	"github.com/octarq-org/led/llmprovider"
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 

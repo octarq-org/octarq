@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/octarq-org/led/config"
 	"github.com/octarq-org/led/internal/models"
-	"github.com/google/uuid"
 	"gorm.io/gorm/clause"
 )
 
@@ -136,7 +136,6 @@ func (h *Handler) SetWorkspaceSetting(orgID uint, key, value string) error {
 	}).Create(&models.WorkspaceSetting{OrgID: orgID, Key: key, Value: value}).Error
 }
 
-
 // splitList parses a comma/newline/space-separated list into a normalized,
 // lowercased, de-duplicated slice.
 func splitList(s string) []string {
@@ -258,7 +257,6 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	if d.ReservedMailboxes != nil {
 		h.SetWorkspaceSetting(h.orgID(r), keyReservedMailboxes, strings.Join(splitList(*d.ReservedMailboxes), "\n"))
 	}
@@ -277,7 +275,6 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		h.SetWorkspaceSetting(h.orgID(r), keyCatchAll, val)
 	}
-
 
 	if d.AutoWrapLinks != nil {
 		val := "false"
@@ -392,18 +389,42 @@ func (h *Handler) updateInstanceSettings(w http.ResponseWriter, r *http.Request)
 		h.setSetting(keyRatelimitAPIRPM, strconv.Itoa(*d.RatelimitApiRpm))
 	}
 	meta := make(map[string]any)
-	if d.ReservedSlugs != nil { meta["reservedSlugs"] = *d.ReservedSlugs }
-	if d.GoogleClientID != nil { meta["googleClientId"] = *d.GoogleClientID }
-	if d.GoogleClientSecret != nil { meta["googleClientSecret"] = "[REDACTED]" }
-	if d.GitHubClientID != nil { meta["githubClientId"] = *d.GitHubClientID }
-	if d.GitHubClientSecret != nil { meta["githubClientSecret"] = "[REDACTED]" }
-	if d.DataRetentionDays != nil { meta["dataRetentionDays"] = *d.DataRetentionDays }
-	if d.AllowRegistration != nil { meta["allowRegistration"] = *d.AllowRegistration }
-	if d.AppName != nil { meta["appName"] = *d.AppName }
-	if d.MetricsToken != nil { meta["metricsToken"] = "[REDACTED]" }
-	if d.RatelimitAuthRpm != nil { meta["ratelimitAuthRpm"] = *d.RatelimitAuthRpm }
-	if d.RatelimitApiRpm != nil { meta["ratelimitApiRpm"] = *d.RatelimitApiRpm }
-	if d.RatelimitRedirectRpm != nil { meta["ratelimitRedirectRpm"] = *d.RatelimitRedirectRpm }
+	if d.ReservedSlugs != nil {
+		meta["reservedSlugs"] = *d.ReservedSlugs
+	}
+	if d.GoogleClientID != nil {
+		meta["googleClientId"] = *d.GoogleClientID
+	}
+	if d.GoogleClientSecret != nil {
+		meta["googleClientSecret"] = "[REDACTED]"
+	}
+	if d.GitHubClientID != nil {
+		meta["githubClientId"] = *d.GitHubClientID
+	}
+	if d.GitHubClientSecret != nil {
+		meta["githubClientSecret"] = "[REDACTED]"
+	}
+	if d.DataRetentionDays != nil {
+		meta["dataRetentionDays"] = *d.DataRetentionDays
+	}
+	if d.AllowRegistration != nil {
+		meta["allowRegistration"] = *d.AllowRegistration
+	}
+	if d.AppName != nil {
+		meta["appName"] = *d.AppName
+	}
+	if d.MetricsToken != nil {
+		meta["metricsToken"] = "[REDACTED]"
+	}
+	if d.RatelimitAuthRpm != nil {
+		meta["ratelimitAuthRpm"] = *d.RatelimitAuthRpm
+	}
+	if d.RatelimitApiRpm != nil {
+		meta["ratelimitApiRpm"] = *d.RatelimitApiRpm
+	}
+	if d.RatelimitRedirectRpm != nil {
+		meta["ratelimitRedirectRpm"] = *d.RatelimitRedirectRpm
+	}
 	h.audit(r, "instance_settings.update", "settings", 0, meta)
 	h.getInstanceSettings(w, r)
 }

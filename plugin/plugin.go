@@ -15,8 +15,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/octarq-org/led/llmprovider"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/octarq-org/led/llmprovider"
 	"gorm.io/gorm"
 )
 

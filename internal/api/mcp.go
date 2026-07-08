@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/octarq-org/led/internal/auth"
 	mcp_internal "github.com/octarq-org/led/internal/mcp"
 	"github.com/octarq-org/led/internal/models"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // mcpAuth is a middleware that authenticates MCP requests. It checks the session cookie,

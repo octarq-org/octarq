@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/octarq-org/led/internal/models"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/octarq-org/led/internal/models"
 )
 
 // --- list_links ---
