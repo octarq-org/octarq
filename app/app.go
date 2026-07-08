@@ -229,7 +229,7 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	// 2. Core API mux, then let plugins mount their own routes onto it.
-	auth.InitGothStore(a.cfg.SecretKey)
+	auth.InitGothStore(a.cfg.SecretKey, a.cfg.SecureCookies)
 	taskQueue := queue.New(a.cfg.RedisURL)
 	go func() {
 		if err := taskQueue.Start(ctx); err != nil {
@@ -281,7 +281,10 @@ func (a *App) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	srv, err := server.New(a.cfg, mux, short, webFS, server.RuntimeSettings{
+	// CSRFGuard wraps the fully-assembled mux (core + plugin routes) to block
+	// cross-site state-changing requests riding the session cookie; bearer/webhook
+	// clients (no session cookie) pass through untouched.
+	srv, err := server.New(a.cfg, api.CSRFGuard(mux), short, webFS, server.RuntimeSettings{
 		MetricsToken: apiHandler.MetricsToken,
 		RateLimits:   apiHandler.RateLimits,
 	})

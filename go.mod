@@ -1,6 +1,6 @@
 module github.com/octarq-org/octarq
 
-go 1.25.0
+go 1.25.11
 
 require (
 	github.com/anthropics/anthropic-sdk-go v1.52.0

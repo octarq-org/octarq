@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -298,7 +299,7 @@ func TestOAuthHandlerUpsertUser(t *testing.T) {
 	m := New(cfg, crypto.New("secret")).WithDB(db)
 	handler := NewOAuthHandler(db, "http://localhost", m, crypto.New("secret"))
 
-	InitGothStore("secret")
+	InitGothStore("secret", false)
 
 	reqBegin := httptest.NewRequest(http.MethodGet, "/auth/begin/unconfigured", nil)
 	reqBegin.SetPathValue("provider", "unconfigured")
@@ -333,5 +334,47 @@ func TestOAuthHandlerUpsertUser(t *testing.T) {
 	}
 	if u2.ID != u.ID || o2.ID != o.ID {
 		t.Errorf("upsertUser existing did not return same user/org")
+	}
+}
+
+// TestOAuthUpsertRespectsRegistrationGate verifies OAuth can't provision a
+// brand-new account when public registration is disabled, but still lets an
+// already-provisioned user sign in.
+func TestOAuthUpsertRespectsRegistrationGate(t *testing.T) {
+	db := testDB(t)
+	cfg := &config.Config{SecretKey: "secret"}
+	m := New(cfg, crypto.New("secret")).WithDB(db)
+	handler := NewOAuthHandler(db, "http://localhost", m, crypto.New("secret"))
+
+	// Turn registration off (invite-only instance).
+	if err := db.Create(&models.Setting{Key: "allow_registration", Value: "false"}).Error; err != nil {
+		t.Fatalf("seed setting: %v", err)
+	}
+
+	// Unknown email → refused with the sentinel error, no account created.
+	if _, _, err := handler.upsertUser("stranger@example.com", "", "google"); !errors.Is(err, errRegistrationDisabled) {
+		t.Fatalf("expected errRegistrationDisabled for unknown email, got %v", err)
+	}
+	var count int64
+	db.Model(&models.User{}).Where("email = ?", "stranger@example.com").Count(&count)
+	if count != 0 {
+		t.Errorf("stranger account should not have been created, found %d", count)
+	}
+
+	// A pre-existing user still resolves even while registration is off.
+	existing := models.User{Email: "member@example.com"}
+	if err := db.Create(&existing).Error; err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	org := models.Org{Name: "member@example.com", Slug: "member-example-com", InboundToken: "tok"}
+	db.Create(&org)
+	db.Create(&models.OrgMember{OrgID: org.ID, UserID: existing.ID, Role: "owner"})
+
+	u, _, err := handler.upsertUser("member@example.com", "", "google")
+	if err != nil {
+		t.Fatalf("existing user should sign in despite gate: %v", err)
+	}
+	if u.ID != existing.ID {
+		t.Errorf("resolved wrong user: got %d want %d", u.ID, existing.ID)
 	}
 }

@@ -23,10 +23,22 @@ var (
 	loadedCreds = make(map[string]string) // key: provider name, value: client_id:client_secret
 )
 
-// InitGothStore sets the gorilla session store goth uses internally.
-// Call once at startup with the same secret key used for octarq sessions.
-func InitGothStore(secretKey string) {
-	gothic.Store = sessions.NewCookieStore([]byte(secretKey))
+// InitGothStore sets the gorilla session store goth uses internally to hold the
+// short-lived OAuth state (the CSRF nonce for the round-trip). Call once at
+// startup with the same secret key used for octarq sessions. secure mirrors the
+// session cookie's Secure flag so the state cookie isn't sent in cleartext over
+// plain HTTP in production; SameSite=Lax and a 10-minute lifetime bound it to
+// the in-flight login rather than lingering for weeks (gorilla's default).
+func InitGothStore(secretKey string, secure bool) {
+	store := sessions.NewCookieStore([]byte(secretKey))
+	store.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   600,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	}
+	gothic.Store = store
 }
 
 // OAuthHandler handles OAuth begin and callback for a given provider.
@@ -137,8 +149,14 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Upsert User.
+	// Upsert User. When public registration is disabled (invite-only instance),
+	// OAuth must not be a side door: existing users may still sign in, but an
+	// unknown email is refused instead of silently provisioning a new account.
 	user, org, err := h.upsertUser(email, gothUser.AvatarURL, provider)
+	if errors.Is(err, errRegistrationDisabled) {
+		http.Error(w, "This instance is invite-only; ask an admin to add your account first.", http.StatusForbidden)
+		return
+	}
 	if err != nil {
 		log.Printf("oauth upsert error: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -149,11 +167,31 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/", http.StatusFound)
 }
 
-// upsertUser finds or creates the User + default Org + OrgMember.
+// errRegistrationDisabled is returned by upsertUser when an unknown email tries
+// to sign in via OAuth on an instance that has public registration turned off.
+var errRegistrationDisabled = errors.New("registration disabled")
+
+// registrationEnabled reports whether new accounts may be provisioned. Mirrors
+// api.Handler.registrationEnabled (default on unless the setting is "false") but
+// reads the DB directly so the auth package stays decoupled from api.
+func (h *OAuthHandler) registrationEnabled() bool {
+	var s models.Setting
+	if err := h.db.Where("key = ?", "allow_registration").First(&s).Error; err != nil {
+		return true // no row → default on
+	}
+	return s.Value != "false"
+}
+
+// upsertUser finds or creates the User + default Org + OrgMember. Creating a
+// brand-new user is gated on registrationEnabled so OAuth can't bypass an
+// invite-only instance; a known user always resolves regardless of the setting.
 func (h *OAuthHandler) upsertUser(email, avatarURL, provider string) (*models.User, *models.Org, error) {
 	var user models.User
 	err := h.db.Where("email = ?", email).First(&user).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
+		if !h.registrationEnabled() {
+			return nil, nil, errRegistrationDisabled
+		}
 		user = models.User{Email: email, PasswordHash: ""}
 		if err := h.db.Create(&user).Error; err != nil {
 			return nil, nil, err

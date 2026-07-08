@@ -159,6 +159,22 @@ func (h *Handler) getLink(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, view(l))
 }
 
+// normalizeTarget trims a user-supplied redirect target, defaults a bare host
+// to https, and rejects anything that isn't a well-formed http(s) URL. This
+// keeps javascript:, data:, and other dangerous schemes out of a stored link
+// (which is later emitted verbatim in a 302 Location header). Returns the
+// normalized URL and true on success, or ("", false) when it must be refused.
+func normalizeTarget(raw string) (string, bool) {
+	if !strings.Contains(raw, "://") {
+		raw = "https://" + raw
+	}
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return "", false
+	}
+	return raw, true
+}
+
 func (h *Handler) createLink(w http.ResponseWriter, r *http.Request) {
 	var d linkDTO
 	if err := readJSON(r, &d); err != nil {
@@ -170,9 +186,12 @@ func (h *Handler) createLink(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "target is required")
 		return
 	}
-	if !strings.Contains(d.Target, "://") {
-		d.Target = "https://" + d.Target
+	normalized, ok := normalizeTarget(d.Target)
+	if !ok {
+		writeErr(w, http.StatusBadRequest, "target must be an http(s) URL")
+		return
 	}
+	d.Target = normalized
 	slug := strings.TrimSpace(d.Slug)
 	if slug == "" {
 		slug = randomSlug(6)
@@ -258,11 +277,12 @@ func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request) {
 		l.Slug = slug
 	}
 	if d.Target != "" {
-		t := strings.TrimSpace(d.Target)
-		if !strings.Contains(t, "://") {
-			t = "https://" + t
+		normalized, ok := normalizeTarget(strings.TrimSpace(d.Target))
+		if !ok {
+			writeErr(w, http.StatusBadRequest, "target must be an http(s) URL")
+			return
 		}
-		l.Target = t
+		l.Target = normalized
 	}
 	oldHost := l.Host
 	oldSlug := l.Slug
