@@ -1,7 +1,7 @@
 services:
   octarq:
     build: .
-    # image: ghcr.io/jungley8/octarq:latest   # or pull the published image instead of building
+    # image: ghcr.io/octarq-org/octarq:latest   # or pull the published image instead of building
     ports:
       # Host port is configurable: if 8080 is taken, set OCTARQ_PORT=9000 in .env.
       - "${OCTARQ_PORT:-8080}:8080"

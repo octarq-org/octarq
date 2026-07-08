@@ -12,7 +12,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE: ghcr.io/jungley8/octarq
+  IMAGE: ghcr.io/octarq-org/octarq
 
 jobs:
   # ── Generate CHANGELOG.md + GitHub release notes on tags ─────────────────
