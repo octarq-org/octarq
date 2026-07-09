@@ -27,9 +27,25 @@ export function StatCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
       onClick={onClick}
+      // When clickable, expose button semantics so it's keyboard-operable
+      // (Enter/Space) and focus-visible — not just mouse-clickable.
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
       className={cn(
         "glass rounded-2xl p-4 text-left transition-all duration-150",
-        onClick ? "cursor-pointer hover:bg-white/[0.06] active:scale-[0.98]" : "",
+        onClick
+          ? "cursor-pointer hover:bg-white/[0.06] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
+          : "",
       )}
     >
       <div className="mb-2 flex items-center justify-between">

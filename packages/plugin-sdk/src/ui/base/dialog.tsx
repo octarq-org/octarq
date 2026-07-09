@@ -39,7 +39,10 @@ export function Dialog({
             <BaseDialog.Title className="font-display text-lg font-semibold text-white">
               {title}
             </BaseDialog.Title>
-            <BaseDialog.Close className="btn-ghost rounded-xl px-2 py-1 text-white/50 hover:text-white">
+            <BaseDialog.Close
+              aria-label="Close"
+              className="btn-ghost rounded-xl px-2 py-1 text-white/50 hover:text-white"
+            >
               ✕
             </BaseDialog.Close>
           </div>
