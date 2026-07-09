@@ -50,7 +50,7 @@ type User struct {
 	TOTPSecret  string `gorm:"size:512" json:"-"`
 	TOTPEnabled bool   `gorm:"not null;default:0" json:"-"`
 	// LastTOTPCode prevents replay attacks within the 30s window.
-	LastTOTPCode  string `gorm:"size:32" json:"-"`
+	LastTOTPCode string `gorm:"size:32" json:"-"`
 	// RecoveryCodes is a JSON array of bcrypt-hashed one-time recovery codes.
 	RecoveryCodes string    `gorm:"type:text" json:"-"`
 	CreatedAt     time.Time `json:"createdAt"`

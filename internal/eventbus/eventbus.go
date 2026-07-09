@@ -22,7 +22,7 @@ var (
 	// SSRF-hardened: webhook URLs are tenant-supplied, so delivery must not reach
 	// internal services or cloud metadata (relaxable for trusted self-hosted
 	// receivers via OCTARQ_ALLOW_PRIVATE_WEBHOOKS).
-	httpClient = safehttp.NewWebhookClient(10 * time.Second)
+	httpClient    = safehttp.NewWebhookClient(10 * time.Second)
 	decryptSecret func(string) (string, bool)
 )
 

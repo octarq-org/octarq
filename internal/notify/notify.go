@@ -10,10 +10,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/safehttp"
 	"github.com/nikoksr/notify"
 	"github.com/nikoksr/notify/service/telegram"
-
+	"github.com/octarq-org/octarq/internal/safehttp"
 )
 
 // webhookClient is SSRF-hardened: notification webhook URLs are user-supplied,

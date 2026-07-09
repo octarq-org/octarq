@@ -2,11 +2,11 @@ package api
 
 import (
 	"context"
-	"net/http"
-	"time"
-	"net"
-	"syscall"
 	"fmt"
+	"net"
+	"net/http"
+	"syscall"
+	"time"
 
 	"github.com/octarq-org/octarq/internal/safehttp"
 )
