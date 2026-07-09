@@ -30,12 +30,13 @@ export function Guide({
       <button
         className="flex w-full items-center justify-between px-3 py-2 text-left text-white/70 hover:bg-white/5"
         onClick={() => setShow((s) => !s)}
+        aria-expanded={show}
       >
         <span className="flex items-center gap-2">
           <span>💡</span>
           {title}
         </span>
-        <span className="text-white/35">{show ? "▾" : "▸"}</span>
+        <span className="text-white/35" aria-hidden="true">{show ? "▾" : "▸"}</span>
       </button>
       {show && (
         <div className="space-y-2 border-t border-white/[0.06] px-3 py-3 text-white/55 animate-expand">
@@ -51,14 +52,24 @@ export function Guide({
 export function Code({ children }: { children: string }) {
   const [copied, setCopied] = useState(false);
   const { t } = useTranslation();
+  const copy = () => {
+    navigator.clipboard.writeText(children);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1000);
+  };
   return (
     <code
-      className="cursor-pointer break-all rounded-lg bg-white/[0.06] px-1.5 py-0.5 font-mono text-[12px] text-indigo-200 hover:bg-white/10"
+      role="button"
+      tabIndex={0}
+      aria-label={t("uiCommon.clickToCopy")}
+      className="cursor-pointer break-all rounded-lg bg-white/[0.06] px-1.5 py-0.5 font-mono text-[12px] text-indigo-200 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
       title={t("uiCommon.clickToCopy")}
-      onClick={() => {
-        navigator.clipboard.writeText(children);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1000);
+      onClick={copy}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          copy();
+        }
       }}
     >
       {copied ? t("uiCommon.copied") : children}
