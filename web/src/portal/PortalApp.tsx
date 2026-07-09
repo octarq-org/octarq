@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { Routes, Route, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError, IssuedLicense, LicenseDevice } from "../api";
 import { useAppName, brandInitial } from "../brand";
+import { useTranslation } from "../i18n";
 import { ScreenWrap, PageHeader, GlassCard, Badge, Button, Empty, Field } from "../ui";
 import { KeyRound, LogOut, Laptop, ExternalLink, ShieldAlert, ArrowRight, CheckCircle, ArrowLeft, Mail, Lock } from "lucide-react";
 
 export default function PortalApp() {
+  const { t } = useTranslation();
   const [customerEmail, setCustomerEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -34,7 +36,7 @@ export default function PortalApp() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0b0b0f] text-white/50 text-sm">
-        Loading Portal...
+        {t("portal.loading")}
       </div>
     );
   }
@@ -72,6 +74,7 @@ function LoginRedirect() {
 
 // ─── LOGIN VIEW ──────────────────────────────────────────────────────────────
 function LoginView({ onLogin }: { onLogin: (email: string) => void }) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -88,7 +91,7 @@ function LoginView({ onLogin }: { onLogin: (email: string) => void }) {
       onLogin(res.email);
       navigate("/", { replace: true });
     } catch (err: any) {
-      setError(err.error || "Invalid credentials");
+      setError(err.error || t("portal.invalidCredentials"));
     } finally {
       setSubmitting(false);
     }
@@ -104,8 +107,8 @@ function LoginView({ onLogin }: { onLogin: (email: string) => void }) {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
             <span className="font-display text-xl font-extrabold text-white">{brandInitial(appName)}</span>
           </div>
-          <h2 className="text-2xl font-bold text-white">Customer Portal</h2>
-          <p className="text-xs text-white/45 mt-1.5 leading-relaxed">Manage your licenses, devices, and billing info</p>
+          <h2 className="text-2xl font-bold text-white">{t("portal.customerPortal")}</h2>
+          <p className="text-xs text-white/45 mt-1.5 leading-relaxed">{t("portal.loginTagline")}</p>
         </div>
 
         {error && (
@@ -116,7 +119,7 @@ function LoginView({ onLogin }: { onLogin: (email: string) => void }) {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Field label="Email Address">
+          <Field label={t("portal.emailAddress")}>
             <input
               type="email"
               required
@@ -127,13 +130,13 @@ function LoginView({ onLogin }: { onLogin: (email: string) => void }) {
             />
           </Field>
           <Field
-            label="Password"
+            label={t("portal.password")}
             hint=""
           >
             <div className="relative">
               <div className="absolute right-0 -top-6">
                 <Link to="/forgot-password" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium">
-                  Forgot password?
+                  {t("portal.forgotPassword")}
                 </Link>
               </div>
               <input
@@ -147,21 +150,21 @@ function LoginView({ onLogin }: { onLogin: (email: string) => void }) {
             </div>
           </Field>
           <Button type="submit" disabled={submitting} className="w-full py-2.5 mt-2">
-            {submitting ? "Signing in..." : "Sign In"}
+            {submitting ? t("portal.signingIn") : t("portal.signIn")}
           </Button>
         </form>
 
         <div className="mt-6 text-center text-xs text-white/40 flex flex-col gap-2">
           <div>
-            Don't have a portal account yet?{" "}
+            {t("portal.noAccount")}{" "}
             <Link to="/register" className="text-indigo-400 hover:text-indigo-300 font-medium">
-              Register here
+              {t("portal.registerHere")}
             </Link>
           </div>
           <div className="text-[11px] text-white/30 border-t border-white/5 pt-3 mt-1">
-            Need to link a Stripe checkout?{" "}
+            {t("portal.justBought")}{" "}
             <Link to="/claim" className="text-indigo-400 hover:text-indigo-300 font-medium">
-              Claim Purchase
+              {t("portal.claimPurchase")}
             </Link>
           </div>
         </div>
@@ -172,6 +175,7 @@ function LoginView({ onLogin }: { onLogin: (email: string) => void }) {
 
 // ─── REGISTER VIEW ───────────────────────────────────────────────────────────
 function RegisterView({ onRegister }: { onRegister: (email: string) => void }) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -188,7 +192,7 @@ function RegisterView({ onRegister }: { onRegister: (email: string) => void }) {
       onRegister(res.email);
       navigate("/", { replace: true });
     } catch (err: any) {
-      setError(err.error || "Registration failed");
+      setError(err.error || t("portal.registrationFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -204,8 +208,8 @@ function RegisterView({ onRegister }: { onRegister: (email: string) => void }) {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
             <span className="font-display text-xl font-extrabold text-white">{brandInitial(appName)}</span>
           </div>
-          <h2 className="text-2xl font-bold text-white">Create Portal Account</h2>
-          <p className="text-xs text-white/45 mt-1.5 leading-relaxed">Register to manage your purchases and licenses</p>
+          <h2 className="text-2xl font-bold text-white">{t("portal.createAccount")}</h2>
+          <p className="text-xs text-white/45 mt-1.5 leading-relaxed">{t("portal.registerTagline")}</p>
         </div>
 
         {error && (
@@ -216,7 +220,7 @@ function RegisterView({ onRegister }: { onRegister: (email: string) => void }) {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Field label="Email Address">
+          <Field label={t("portal.emailAddress")}>
             <input
               type="email"
               required
@@ -226,7 +230,7 @@ function RegisterView({ onRegister }: { onRegister: (email: string) => void }) {
               placeholder="you@domain.com"
             />
           </Field>
-          <Field label="Password" hint="At least 8 characters">
+          <Field label={t("portal.password")} hint={t("portal.passwordHint8")}>
             <input
               type="password"
               required
@@ -237,14 +241,14 @@ function RegisterView({ onRegister }: { onRegister: (email: string) => void }) {
             />
           </Field>
           <Button type="submit" disabled={submitting} className="w-full py-2.5 mt-2">
-            {submitting ? "Registering..." : "Register"}
+            {submitting ? t("portal.registering") : t("portal.createAccount")}
           </Button>
         </form>
 
         <div className="mt-6 text-center text-xs text-white/40">
-          Already have an account?{" "}
+          {t("portal.alreadyHaveAccount")}{" "}
           <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-medium">
-            Sign In
+            {t("portal.signIn")}
           </Link>
         </div>
       </GlassCard>
@@ -254,6 +258,7 @@ function RegisterView({ onRegister }: { onRegister: (email: string) => void }) {
 
 // ─── CLAIM VIEW ──────────────────────────────────────────────────────────────
 function ClaimView({ onClaim }: { onClaim: (email: string) => void }) {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const [sessionId, setSessionId] = useState(searchParams.get("sessionId") || "");
   const [password, setPassword] = useState("");
@@ -275,9 +280,9 @@ function ClaimView({ onClaim }: { onClaim: (email: string) => void }) {
       }, 2000);
     } catch (err: any) {
       if (err.status === 409) {
-        setError("An account already exists for this purchase. Please sign in to view your licenses.");
+        setError(t("portal.claimConflict"));
       } else {
-        setError(err.error || "Could not claim purchase. Ensure the Session ID is correct.");
+        setError(err.error || t("portal.claimFailed"));
       }
     } finally {
       setSubmitting(false);
@@ -294,8 +299,8 @@ function ClaimView({ onClaim }: { onClaim: (email: string) => void }) {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 shadow-glow border border-emerald-500/20 text-emerald-400">
             <CheckCircle className="h-6 w-6" />
           </div>
-          <h2 className="text-2xl font-bold text-white">Claim Your Purchase</h2>
-          <p className="text-xs text-white/45 mt-1.5 leading-relaxed">Set a password to link and activate your portal account</p>
+          <h2 className="text-2xl font-bold text-white">{t("portal.claimTitle")}</h2>
+          <p className="text-xs text-white/45 mt-1.5 leading-relaxed">{t("portal.claimTagline")}</p>
         </div>
 
         {error && (
@@ -307,11 +312,11 @@ function ClaimView({ onClaim }: { onClaim: (email: string) => void }) {
 
         {success ? (
           <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm text-center">
-            Account successfully claimed! Redirecting...
+            {t("portal.claimSuccess")}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Field label="Stripe Checkout / Purchase Session ID">
+            <Field label={t("portal.orderIdLabel")} hint={t("portal.orderIdHint")}>
               <input
                 type="text"
                 required
@@ -321,26 +326,26 @@ function ClaimView({ onClaim }: { onClaim: (email: string) => void }) {
                 placeholder="cs_live_..."
               />
             </Field>
-            <Field label="Set Portal Password" hint="At least 8 characters">
+            <Field label={t("portal.setPassword")} hint={t("portal.passwordHint8")}>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="input font-sans text-sm"
-                placeholder="Choose a password"
+                placeholder={t("portal.choosePassword")}
               />
             </Field>
             <Button type="submit" disabled={submitting} className="w-full py-2.5 mt-2">
-              {submitting ? "Linking Purchase..." : "Link Purchase & Sign In"}
+              {submitting ? t("portal.linking") : t("portal.linkAndSignIn")}
             </Button>
           </form>
         )}
 
         <div className="mt-6 text-center text-xs text-white/40">
-          Already have a login?{" "}
+          {t("portal.alreadyHaveAccount")}{" "}
           <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-medium">
-            Sign In
+            {t("portal.signIn")}
           </Link>
         </div>
       </GlassCard>
@@ -350,6 +355,7 @@ function ClaimView({ onClaim }: { onClaim: (email: string) => void }) {
 
 // ─── FORGOT PASSWORD VIEW ───────────────────────────────────────────────────
 function ForgotPasswordView() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -362,9 +368,9 @@ function ForgotPasswordView() {
     setSubmitting(true);
     try {
       const res = await api.customerForgotPassword(email);
-      setSuccessMsg(res.message || "If an account exists for that email, a reset link has been sent.");
+      setSuccessMsg(res.message || t("portal.resetSentFallback"));
     } catch (err: any) {
-      setError(err.error || "Could not request password reset. Please try again later.");
+      setError(err.error || t("portal.resetRequestFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -378,8 +384,8 @@ function ForgotPasswordView() {
 
         <div className="mb-6 text-center">
           <KeyRound className="mx-auto h-12 w-12 text-indigo-400 mb-2" />
-          <h2 className="text-2xl font-bold text-white">Reset Password</h2>
-          <p className="text-xs text-white/45 mt-1">We'll send you an email with instructions to reset your password</p>
+          <h2 className="text-2xl font-bold text-white">{t("portal.resetPassword")}</h2>
+          <p className="text-xs text-white/45 mt-1">{t("portal.forgotTagline")}</p>
         </div>
 
         {error && (
@@ -396,12 +402,12 @@ function ForgotPasswordView() {
             </div>
             <Link to="/login" className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-medium">
               <ArrowLeft className="h-3.5 w-3.5" />
-              <span>Back to Sign In</span>
+              <span>{t("portal.backToSignIn")}</span>
             </Link>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Field label="Email Address">
+            <Field label={t("portal.emailAddress")}>
               <input
                 type="email"
                 required
@@ -412,16 +418,16 @@ function ForgotPasswordView() {
               />
             </Field>
             <Button type="submit" disabled={submitting} className="w-full py-2.5 mt-2">
-              {submitting ? "Sending Reset Link..." : "Send Reset Link"}
+              {submitting ? t("portal.sending") : t("portal.sendResetLink")}
             </Button>
           </form>
         )}
 
         {!successMsg && (
           <div className="mt-6 text-center text-xs text-white/40">
-            Remembered your password?{" "}
+            {t("portal.rememberedPassword")}{" "}
             <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1">
-              <span>Sign In</span>
+              <span>{t("portal.signIn")}</span>
             </Link>
           </div>
         )}
@@ -432,6 +438,7 @@ function ForgotPasswordView() {
 
 // ─── RESET PASSWORD VIEW ─────────────────────────────────────────────────────
 function ResetPasswordView() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") || "";
   const [password, setPassword] = useState("");
@@ -446,17 +453,17 @@ function ResetPasswordView() {
     setError("");
 
     if (!token) {
-      setError("Reset token is missing from the URL.");
+      setError(t("portal.tokenMissing"));
       return;
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters long.");
+      setError(t("portal.passwordTooShort"));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError(t("portal.passwordsMismatch"));
       return;
     }
 
@@ -468,7 +475,7 @@ function ResetPasswordView() {
         navigate("/login", { replace: true });
       }, 2000);
     } catch (err: any) {
-      setError(err.error || "Failed to reset password. The link may have expired or is invalid.");
+      setError(err.error || t("portal.resetFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -482,8 +489,8 @@ function ResetPasswordView() {
 
         <div className="mb-6 text-center">
           <KeyRound className="mx-auto h-12 w-12 text-indigo-400 mb-2" />
-          <h2 className="text-2xl font-bold text-white">Create New Password</h2>
-          <p className="text-xs text-white/45 mt-1">Please enter your new password below</p>
+          <h2 className="text-2xl font-bold text-white">{t("portal.setNewPassword")}</h2>
+          <p className="text-xs text-white/45 mt-1">{t("portal.resetTagline")}</p>
         </div>
 
         {error && (
@@ -495,16 +502,16 @@ function ResetPasswordView() {
 
         {success ? (
           <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm text-center">
-            Password successfully reset! Redirecting to login...
+            {t("portal.resetSuccess")}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {!token && (
               <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs rounded-xl">
-                Warning: No token found in URL. You will not be able to reset your password.
+                {t("portal.noTokenWarning")}
               </div>
             )}
-            <Field label="New Password" hint="At least 8 characters">
+            <Field label={t("portal.newPassword")} hint={t("portal.passwordHint8")}>
               <input
                 type="password"
                 required
@@ -515,7 +522,7 @@ function ResetPasswordView() {
                 disabled={!token}
               />
             </Field>
-            <Field label="Confirm New Password">
+            <Field label={t("portal.confirmNewPassword")}>
               <input
                 type="password"
                 required
@@ -527,7 +534,7 @@ function ResetPasswordView() {
               />
             </Field>
             <Button type="submit" disabled={submitting || !token} className="w-full py-2.5 mt-2">
-              {submitting ? "Resetting Password..." : "Reset Password"}
+              {submitting ? t("portal.resetting") : t("portal.resetPassword")}
             </Button>
           </form>
         )}
@@ -535,7 +542,7 @@ function ResetPasswordView() {
         <div className="mt-6 text-center text-xs text-white/40">
           <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1.5">
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Back to Sign In</span>
+            <span>{t("portal.backToSignIn")}</span>
           </Link>
         </div>
       </GlassCard>
@@ -545,6 +552,7 @@ function ResetPasswordView() {
 
 // ─── DASHBOARD VIEW ──────────────────────────────────────────────────────────
 function DashboardView({ email, onLogout }: { email: string; onLogout: () => void }) {
+  const { t } = useTranslation();
   const [licenses, setLicenses] = useState<IssuedLicense[]>([]);
   const [selectedLicense, setSelectedLicense] = useState<IssuedLicense | null>(null);
   const [devices, setDevices] = useState<LicenseDevice[]>([]);
@@ -594,7 +602,7 @@ function DashboardView({ email, onLogout }: { email: string; onLogout: () => voi
       const res = await api.portalBillingPortal();
       window.location.href = res.url;
     } catch (e: any) {
-      alert(e.error || "Could not open billing portal");
+      alert(e.error || t("portal.billingPortalFailed"));
     } finally {
       setClaimingBilling(false);
     }
@@ -606,18 +614,18 @@ function DashboardView({ email, onLogout }: { email: string; onLogout: () => voi
         <div>
           <h1 className="text-xl font-bold text-white flex items-center gap-2">
             <KeyRound className="h-5 w-5 text-indigo-400" />
-            <span>Customer Portal</span>
+            <span>{t("portal.customerPortal")}</span>
           </h1>
           <p className="text-xs text-white/50">{email}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleBillingPortal} disabled={claimingBilling} className="text-xs py-1.5 h-8">
             <ExternalLink className="h-3.5 w-3.5" />
-            <span>{claimingBilling ? "Loading..." : "Billing & Invoices"}</span>
+            <span>{claimingBilling ? t("portal.loading") : t("portal.billingInvoices")}</span>
           </Button>
           <Button variant="ghost" onClick={onLogout} className="text-xs py-1.5 h-8">
             <LogOut className="h-3.5 w-3.5" />
-            <span>Logout</span>
+            <span>{t("portal.signOut")}</span>
           </Button>
         </div>
       </div>
@@ -625,38 +633,38 @@ function DashboardView({ email, onLogout }: { email: string; onLogout: () => voi
       {unverified ? (
         <GlassCard className="p-6 text-center max-w-lg mx-auto mt-8">
           <ShieldAlert className="h-10 w-10 text-amber-400 mx-auto mb-3" />
-          <h3 className="font-semibold text-lg">Verify Your Account</h3>
+          <h3 className="font-semibold text-lg">{t("portal.noPurchaseLinked")}</h3>
           <p className="text-sm text-white/60 mt-2 mb-4">
-            To view purchased licenses, you must link your purchase to this account.
+            {t("portal.noPurchaseLinkedDesc")}
           </p>
           <Link to="/claim">
             <Button>
-              <span>Claim / Link Purchase</span>
+              <span>{t("portal.linkPurchaseBtn")}</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
         </GlassCard>
       ) : loadingLics ? (
-        <div className="text-center py-10 text-white/40 text-sm">Loading your licenses...</div>
+        <div className="text-center py-10 text-white/40 text-sm">{t("portal.loadingLicenses")}</div>
       ) : licenses.length === 0 ? (
         <Empty>
           <KeyRound className="h-10 w-10 text-white/20 mb-2" />
-          <p className="text-sm text-white/50">No licenses linked to your account.</p>
-          <p className="text-xs text-white/35 mt-1">If you just made a purchase, click "Claim License" below to link it.</p>
+          <p className="text-sm text-white/50">{t("portal.noLicenses")}</p>
+          <p className="text-xs text-white/35 mt-1">{t("portal.noLicensesHint")}</p>
           <Link to="/claim" className="mt-4">
-            <Button variant="outline">Link a Purchase</Button>
+            <Button variant="outline">{t("portal.linkPurchaseBtn")}</Button>
           </Link>
         </Empty>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-white/40">My Licenses</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-white/40">{t("portal.myLicenses")}</h2>
             {licenses.map((lic) => (
               <GlassCard key={lic.id} className={`p-5 transition-all ${selectedLicense?.id === lic.id ? "ring-1 ring-indigo-500/50" : ""}`}>
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-white">License Key</span>
+                      <span className="text-sm font-bold text-white">{t("portal.licenseKey")}</span>
                       <Badge tone={lic.status === "active" ? "green" : "red"}>{lic.status}</Badge>
                       <Badge tone="violet">{lic.tier.toUpperCase()}</Badge>
                     </div>
@@ -665,31 +673,31 @@ function DashboardView({ email, onLogout }: { email: string; onLogout: () => voi
                     </code>
                   </div>
                   <Button variant="subtle" onClick={() => viewDevices(lic)} className="text-xs">
-                    <span>Manage Seats</span>
+                    <span>{t("portal.manageDevices")}</span>
                   </Button>
                 </div>
                 <div className="flex gap-4 text-xs text-white/50 border-t border-white/5 pt-3">
-                  <div>Product ID: <span className="text-white/80">#{lic.productId}</span></div>
-                  <div>Provider: <span className="text-white/80">{lic.provider}</span></div>
-                  <div>Expires: <span className="text-white/80">{lic.expiresAt ? lic.expiresAt.slice(0, 10) : "Never"}</span></div>
+                  <div>{t("portal.productLabel")} <span className="text-white/80">#{lic.productId}</span></div>
+                  <div>{t("portal.purchasedVia")} <span className="text-white/80">{lic.provider}</span></div>
+                  <div>{t("portal.expiresLabel")} <span className="text-white/80">{lic.expiresAt ? lic.expiresAt.slice(0, 10) : t("portal.never")}</span></div>
                 </div>
               </GlassCard>
             ))}
           </div>
 
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-white/40 mb-4">Device Seats</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-white/40 mb-4">{t("portal.devicesTitle")}</h2>
             {selectedLicense ? (
               <GlassCard className="p-4 space-y-4">
                 <div>
-                  <h3 className="text-sm font-medium text-white">Devices for #{selectedLicense.id}</h3>
+                  <h3 className="text-sm font-medium text-white">{t("portal.devicesOnLicense")}</h3>
                   <p className="text-[11px] text-indigo-300 select-all font-mono truncate">{selectedLicense.token}</p>
                 </div>
 
                 {loadingDevs ? (
-                  <div className="text-center py-6 text-xs text-white/40">Loading devices...</div>
+                  <div className="text-center py-6 text-xs text-white/40">{t("portal.loadingDevices")}</div>
                 ) : devices.length === 0 ? (
-                  <p className="text-xs text-white/45 text-center py-6">No devices bound to this license seat yet.</p>
+                  <p className="text-xs text-white/45 text-center py-6">{t("portal.noDevices")}</p>
                 ) : (
                   <div className="space-y-3 divide-y divide-white/5">
                     {devices.map((dev, idx) => (
@@ -697,14 +705,14 @@ function DashboardView({ email, onLogout }: { email: string; onLogout: () => voi
                         <div className="min-w-0 pr-2">
                           <p className="text-xs font-semibold text-white/90 truncate flex items-center gap-1.5">
                             <Laptop className="h-3.5 w-3.5 text-white/40" />
-                            <span>{dev.name || "Unknown Machine"}</span>
+                            <span>{dev.name || t("portal.unknownDevice")}</span>
                           </p>
                           <p className="text-[10px] text-white/40 mt-0.5 truncate">
-                            Last active: {dev.lastSeenAt.slice(0, 10)}
+                            {t("portal.lastActive", { date: dev.lastSeenAt.slice(0, 10) })}
                           </p>
                         </div>
                         <Button variant="danger" onClick={() => handleUnbind(dev.id)} className="text-[11px] px-2 py-1 h-6">
-                          Unbind
+                          {t("portal.removeDevice")}
                         </Button>
                       </div>
                     ))}
@@ -713,7 +721,7 @@ function DashboardView({ email, onLogout }: { email: string; onLogout: () => voi
               </GlassCard>
             ) : (
               <GlassCard className="p-6 text-center text-xs text-white/40">
-                Select a license key to view and manage bound active device seats.
+                {t("portal.selectLicense")}
               </GlassCard>
             )}
           </div>

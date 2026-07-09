@@ -10,6 +10,9 @@ import (
 func (h *Handler) listSMTPSenders(w http.ResponseWriter, r *http.Request) {
 	var senders []models.SMTPSender
 	h.orgDB(r).Order("name ASC").Find(&senders)
+	for i := range senders {
+		senders[i].PassSet = senders[i].Pass != ""
+	}
 	writeJSON(w, http.StatusOK, senders)
 }
 
@@ -53,6 +56,7 @@ func (h *Handler) createSMTPSender(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.audit(r, "smtp.create", "smtp_sender", sender.ID, map[string]any{"name": sender.Name, "host": sender.Host})
+	sender.PassSet = sender.Pass != ""
 	writeJSON(w, http.StatusCreated, sender)
 }
 
@@ -109,6 +113,7 @@ func (h *Handler) updateSMTPSender(w http.ResponseWriter, r *http.Request) {
 		meta["pass"] = "[REDACTED]"
 	}
 	h.audit(r, "smtp.update", "smtp_sender", sender.ID, meta)
+	sender.PassSet = sender.Pass != ""
 	writeJSON(w, http.StatusOK, sender)
 }
 

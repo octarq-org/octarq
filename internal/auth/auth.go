@@ -322,6 +322,9 @@ func (m *Manager) tokenAuthed(r *http.Request) bool {
 	if m.db.Where("hash = ?", hash).First(&tok).Error != nil {
 		return false
 	}
+	if tok.Expired() {
+		return false
+	}
 	id := tok.ID
 	db := m.db
 	go func() {
@@ -356,7 +359,7 @@ func (m *Manager) Require(next http.Handler) http.Handler {
 			if raw := bearerToken(r); strings.HasPrefix(raw, "led_") {
 				hash := models.HashToken(raw)
 				var tok models.Token
-				if m.db.Where("hash = ?", hash).First(&tok).Error == nil {
+				if m.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() {
 					uid, orgID, authed = 0, tok.OrgID, true
 					id := tok.ID
 					db := m.db

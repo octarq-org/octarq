@@ -242,6 +242,95 @@ func TestBearerTokenOrgIsolation(t *testing.T) {
 	}
 }
 
+// --- email isolation ---
+//
+// Emails are reachable only through a mailbox the caller's org owns. A tenant
+// must not read, fetch raw, or delete another tenant's email by guessing its ID.
+
+func TestOrgIsolation_Emails(t *testing.T) {
+	srv, db := newTestHandler(t)
+	org1 := sessionCookies(t, 1, 1)
+	org2 := sessionCookies(t, 2, 2)
+
+	// Org 1 owns a mailbox; drop an email straight into it.
+	mb := models.Mailbox{OrgID: 1, Address: "sec@org1.test", Enabled: true}
+	if err := db.Create(&mb).Error; err != nil {
+		t.Fatalf("create mailbox: %v", err)
+	}
+	em := models.Email{MailboxID: mb.ID, Subject: "top-secret-subject", Text: "confidential", Raw: []byte("raw-bytes")}
+	if err := db.Create(&em).Error; err != nil {
+		t.Fatalf("create email: %v", err)
+	}
+	base := fmt.Sprintf("/api/emails/%d", em.ID)
+
+	// Org 2 must not read, fetch raw, or delete it.
+	if rec := do(srv, http.MethodGet, base, org2, ""); rec.Code != http.StatusNotFound {
+		t.Errorf("cross-org GET email: got %d, want 404", rec.Code)
+	}
+	if rec := do(srv, http.MethodGet, base+"/raw", org2, ""); rec.Code != http.StatusNotFound {
+		t.Errorf("cross-org GET raw email: got %d, want 404", rec.Code)
+	}
+	if rec := do(srv, http.MethodDelete, base, org2, ""); rec.Code != http.StatusNotFound {
+		t.Errorf("cross-org DELETE email: got %d, want 404", rec.Code)
+	}
+	// Org 2's inbox listing must not leak the subject.
+	if rec := do(srv, http.MethodGet, "/api/emails", org2, ""); strings.Contains(rec.Body.String(), "top-secret-subject") {
+		t.Error("org2 email list leaked org1's email")
+	}
+	// Org 1 can read its own email.
+	if rec := do(srv, http.MethodGet, base, org1, ""); rec.Code != http.StatusOK {
+		t.Errorf("org1 self GET email: got %d, want 200", rec.Code)
+	}
+}
+
+// --- session revocation ---
+//
+// A user can list and revoke their own sessions; one tenant cannot revoke
+// another's session by ID, and a revoked session's cookie stops authenticating.
+
+func TestSessionRevocation(t *testing.T) {
+	srv, _ := newTestHandler(t)
+	org1 := sessionCookies(t, 1, 1)
+	org2 := sessionCookies(t, 2, 2)
+
+	// The session works before revocation.
+	if rec := do(srv, http.MethodGet, "/api/links", org1, ""); rec.Code != http.StatusOK {
+		t.Fatalf("valid session rejected: %d", rec.Code)
+	}
+
+	// List org1's sessions and grab the id.
+	rec := do(srv, http.MethodGet, "/api/auth/sessions", org1, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list sessions: got %d — %s", rec.Code, rec.Body)
+	}
+	var sessions []struct {
+		ID uint `json:"id"`
+	}
+	json.Unmarshal(rec.Body.Bytes(), &sessions)
+	if len(sessions) == 0 {
+		t.Fatalf("expected at least one session, got none: %s", rec.Body)
+	}
+	sid := sessions[0].ID
+	path := fmt.Sprintf("/api/auth/sessions/%d", sid)
+
+	// Org 2 must not revoke org 1's session (scoped by user_id → 404).
+	if rec := do(srv, http.MethodDelete, path, org2, ""); rec.Code != http.StatusNotFound {
+		t.Errorf("cross-user revoke: got %d, want 404", rec.Code)
+	}
+	// The session must still work after the failed cross-user attempt.
+	if rec := do(srv, http.MethodGet, "/api/links", org1, ""); rec.Code != http.StatusOK {
+		t.Errorf("session wrongly killed by cross-user revoke: %d", rec.Code)
+	}
+
+	// Org 1 revokes its own session; the cookie stops authenticating.
+	if rec := do(srv, http.MethodDelete, path, org1, ""); rec.Code != http.StatusOK {
+		t.Fatalf("self revoke: got %d — %s", rec.Code, rec.Body)
+	}
+	if rec := do(srv, http.MethodGet, "/api/links", org1, ""); rec.Code != http.StatusUnauthorized {
+		t.Errorf("revoked session still valid: got %d, want 401", rec.Code)
+	}
+}
+
 // --- session token cannot be replayed after tampering ---
 
 func TestTamperedSessionIsRejected(t *testing.T) {

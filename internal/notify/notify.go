@@ -10,11 +10,15 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/octarq-org/octarq/internal/safehttp"
 	"github.com/nikoksr/notify"
 	"github.com/nikoksr/notify/service/telegram"
 
-	"github.com/octarq-org/octarq/internal/safehttp"
 )
+
+// webhookClient is SSRF-hardened: notification webhook URLs are user-supplied,
+// so a channel pointed at an internal/metadata address must be refused.
+var webhookClient = safehttp.NewWebhookClient(10 * time.Second)
 
 // Send dispatches a notification via the specified channel type.
 // If the type is unknown, it returns an error.
@@ -76,6 +80,9 @@ func sendWebhook(ctx context.Context, cfgJSON, text string) error {
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cfg.URL, bytes.NewReader(body))
 	if err != nil {
+		return err
+	}
+	if err := safehttp.ValidateScheme(req.URL.Scheme); err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")

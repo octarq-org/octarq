@@ -20,6 +20,7 @@ import { abuse } from "./abuse";
 import { invite } from "./invite";
 import { llmProviders } from "./llmProviders";
 import { uiCommon } from "./uiCommon";
+import { portal } from "./portal";
 
 const NS = {
   overview,
@@ -39,6 +40,7 @@ const NS = {
   invite,
   llmProviders,
   uiCommon,
+  portal,
 };
 
 export const pagesEn = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v.en]));

@@ -47,7 +47,14 @@ func Run(ctx context.Context) error {
 
 // RunWithPlugins is identical to Run but lets the caller supply registered
 // Pro plugins so they can register their custom MCP write or finance tools.
-func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin) *mcp.Server {
+//
+// allowRawSQL gates the general-purpose query_db_readonly tool. It must be true
+// ONLY for the single-operator stdio transport (`led mcp`), where the caller has
+// local access to the whole database anyway. Over the HTTP/SSE transports the
+// caller is one tenant among many (orgID comes from their API token), and raw
+// SQL cannot be safely scoped to a single owner_id — so it is never registered
+// there. The tenant-scoped convenience tools remain available on every transport.
+func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, allowRawSQL bool) *mcp.Server {
 	s := &server{gdb: gdb, orgID: orgID}
 
 	impl := &mcp.Implementation{Name: "octarq", Version: version}
@@ -57,7 +64,7 @@ func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin) *mcp.S
 			"Everything is scoped to the operator's data.",
 	}
 	srv := mcp.NewServer(impl, opts)
-	s.registerTools(srv)
+	s.registerTools(srv, allowRawSQL)
 
 	// Register any plugin-supplied MCP tools.
 	for _, p := range plugins {
@@ -78,12 +85,16 @@ func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
 		return fmt.Errorf("mcp: open db: %w", err)
 	}
 
-	srv := NewServerInstance(gdb, 1, plugins) // Default to org 1 for Stdio CLI
+	// Stdio CLI: single local operator, org 1, and raw SQL is allowed (the caller
+	// already has full local DB access).
+	srv := NewServerInstance(gdb, 1, plugins, true)
 	return srv.Run(ctx, &mcp.StdioTransport{})
 }
 
-// registerTools wires every tool onto the server.
-func (s *server) registerTools(srv *mcp.Server) {
+// registerTools wires every tool onto the server. The general-purpose raw-SQL
+// tool is registered only when allowRawSQL is set (stdio transport); see
+// NewServerInstance for why it is withheld from the multi-tenant HTTP transports.
+func (s *server) registerTools(srv *mcp.Server, allowRawSQL bool) {
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "list_links",
 		Description: "List short links with their click counts. Optionally filter by host or tag, and limit the count.",

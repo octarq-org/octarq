@@ -8,6 +8,7 @@ import LLMProvidersSettings from "../LLMProviders";
 import { useSettingsData, SavedBadge } from "./shared";
 
 export function BillingPlanSettings() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<LicenseStatus | null>(null);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [unavailable, setUnavailable] = useState(false);
@@ -25,47 +26,50 @@ export function BillingPlanSettings() {
 
   const plans = [
     {
-      name: "Starter (OSS)",
+      id: "starter",
+      name: t("settings.planStarterName"),
       price: "$0",
-      period: "forever",
-      description: "Ideal for personal sites, hobby projects, and open-source hosting.",
+      period: t("settings.periodForever"),
+      description: t("settings.starterDesc"),
       features: [
-        "Core Domain Mapping",
-        "Unlimited Redirection Links",
-        "Basic Click Analytics",
-        "Standard Email Routing",
-        "Community Support",
+        t("settings.featCoreDomainMapping"),
+        t("settings.featUnlimitedLinks"),
+        t("settings.featBasicAnalytics"),
+        t("settings.featStandardEmail"),
+        t("settings.featCommunitySupport"),
       ],
       current: unavailable || !status?.licensed,
     },
     {
-      name: "Octarq Pro",
+      id: "pro",
+      name: t("settings.planProName"),
       price: "$29",
-      period: "month",
-      description: "Perfect for growing projects, creators, and commercial workloads.",
+      period: t("settings.periodMonth"),
+      description: t("settings.proDesc"),
       features: [
-        "Everything in Starter",
-        "Direct VPS Control Panel",
-        "Secure SSH Credentials Vault",
-        "Outbound SMTP Relay",
-        "Storefront Product Catalog",
-        "Cryptographic License Issuance",
+        t("settings.featEverythingStarter"),
+        t("settings.featVpsPanel"),
+        t("settings.featSshVault"),
+        t("settings.featSmtpRelay"),
+        t("settings.featStorefront"),
+        t("settings.featLicenseIssuance"),
       ],
       current: !unavailable && status?.licensed && status.tier?.toLowerCase() === "pro",
       popular: true,
     },
     {
-      name: "Octarq Elite",
+      id: "elite",
+      name: t("settings.planEliteName"),
       price: "$99",
-      period: "month",
-      description: "Full AI automation, dedicated resources, and advanced compliance.",
+      period: t("settings.periodMonth"),
+      description: t("settings.eliteDesc"),
       features: [
-        "Everything in Pro",
-        "AI Inbox Automation & Summaries",
-        "Semantic OTP Code Routing",
-        "Multiple LLM Provider Keys",
-        "Comprehensive Audit Logging",
-        "Priority Support Escalation",
+        t("settings.featEverythingPro"),
+        t("settings.featAiInbox"),
+        t("settings.featOtpRouting"),
+        t("settings.featMultipleLlm"),
+        t("settings.featAuditLogging"),
+        t("settings.featPrioritySupport"),
       ],
       current: !unavailable && status?.licensed && status.tier?.toLowerCase() === "elite",
     },
@@ -74,43 +78,43 @@ export function BillingPlanSettings() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Billing & Plan"
-        description="Monitor your subscription package, license details, and usage metrics."
+        title={t("settings.billingTitle")}
+        description={t("settings.billingDescription")}
       />
 
       {/* Active plan card & metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <GlassCard className="p-5 flex flex-col justify-between">
           <div>
-            <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mb-1">Active Plan</span>
+            <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mb-1">{t("settings.activePlan")}</span>
             {unavailable ? (
               <div>
                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  Open Source
-                  <Badge tone="neutral">OSS Build</Badge>
+                  {t("settings.openSource")}
+                  <Badge tone="neutral">{t("settings.ossBuild")}</Badge>
                 </h3>
-                <p className="text-xs text-white/50 mt-1">No Pro/Elite license active</p>
+                <p className="text-xs text-white/50 mt-1">{t("settings.noProEliteActive")}</p>
               </div>
             ) : status?.licensed ? (
               <div>
                 <h3 className="text-xl font-bold text-white flex items-center gap-2 capitalize">
-                  {status.tier} Tier
-                  <Badge tone="green">Active</Badge>
+                  {status.tier} {t("settings.tierWord")}
+                  <Badge tone="green">{t("settings.active")}</Badge>
                 </h3>
                 <p className="text-xs text-white/50 mt-1 truncate" title={status.email}>
-                  Licensed to {status.email}
+                  {t("settings.licensedTo", { email: status.email || "" })}
                 </p>
                 <p className="text-[10px] text-white/40 mt-0.5">
-                  {status.expiresAt ? `Expires ${status.expiresAt.slice(0, 10)}` : "Lifetime / Never expires"}
+                  {status.expiresAt ? t("settings.expiresDate", { date: status.expiresAt.slice(0, 10) }) : t("settings.lifetimeNeverExpires")}
                 </p>
               </div>
             ) : (
               <div>
                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  Unlicensed
-                  <Badge tone="red">Locked</Badge>
+                  {t("settings.unlicensed")}
+                  <Badge tone="red">{t("settings.locked")}</Badge>
                 </h3>
-                <p className="text-xs text-white/50 mt-1">Activate a license key to unlock features</p>
+                <p className="text-xs text-white/50 mt-1">{t("settings.activateToUnlock")}</p>
               </div>
             )}
           </div>
@@ -122,7 +126,7 @@ export function BillingPlanSettings() {
                 rel="noreferrer"
                 className="w-full text-center text-xs font-semibold py-2 px-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white transition-colors"
               >
-                Manage Subscription on Octarq
+                {t("settings.manageSubscription")}
               </a>
             ) : (
               <a
@@ -131,7 +135,7 @@ export function BillingPlanSettings() {
                 rel="noreferrer"
                 className="w-full text-center text-xs font-semibold py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white transition-colors"
               >
-                View Premium Plans
+                {t("settings.viewPremiumPlans")}
               </a>
             )}
           </div>
@@ -139,34 +143,34 @@ export function BillingPlanSettings() {
 
         <GlassCard className="p-5 flex flex-col justify-between">
           <div>
-            <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mb-1">Redirection Links</span>
+            <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mb-1">{t("settings.redirectionLinks")}</span>
             <h3 className="text-xl font-bold text-white">
-              {overview ? overview.links : "—"} Links
+              {overview ? overview.links : "—"} {t("settings.linksUnit")}
             </h3>
             <p className="text-xs text-white/50 mt-1">
-              {overview ? `${overview.activeLinks} active redirects` : "Loading metrics…"}
+              {overview ? t("settings.activeRedirects", { count: String(overview.activeLinks) }) : t("settings.loadingMetrics")}
             </p>
           </div>
           <div className="mt-6 border-t border-white/[0.06] pt-4">
             <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
-              <Sparkles className="h-3.5 w-3.5" /> No limits applied
+              <Sparkles className="h-3.5 w-3.5" /> {t("settings.noLimitsApplied")}
             </span>
           </div>
         </GlassCard>
 
         <GlassCard className="p-5 flex flex-col justify-between">
           <div>
-            <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mb-1">Managed Domains</span>
+            <span className="text-[10px] text-white/40 uppercase tracking-widest block font-bold mb-1">{t("settings.managedDomains")}</span>
             <h3 className="text-xl font-bold text-white">
-              {overview ? overview.domains : "—"} Domains
+              {overview ? overview.domains : "—"} {t("settings.domainsUnit")}
             </h3>
             <p className="text-xs text-white/50 mt-1">
-              {overview ? `${overview.linkDomains} for links · ${overview.mailDomains} for mail` : "Loading metrics…"}
+              {overview ? t("settings.domainsBreakdown", { link: String(overview.linkDomains), mail: String(overview.mailDomains) }) : t("settings.loadingMetrics")}
             </p>
           </div>
           <div className="mt-6 border-t border-white/[0.06] pt-4">
             <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
-              <Sparkles className="h-3.5 w-3.5" /> Unlimited domains
+              <Sparkles className="h-3.5 w-3.5" /> {t("settings.unlimitedDomains")}
             </span>
           </div>
         </GlassCard>
@@ -175,16 +179,16 @@ export function BillingPlanSettings() {
       {/* Plans comparison */}
       <div className="space-y-4">
         <div>
-          <h3 className="text-base font-bold text-white">Octarq Plan Comparison</h3>
-          <p className="text-xs text-white/50">Compare feature availability across tiers in the self-hosted environment.</p>
+          <h3 className="text-base font-bold text-white">{t("settings.planComparison")}</h3>
+          <p className="text-xs text-white/50">{t("settings.planComparisonDesc")}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {plans.map((p) => (
-            <GlassCard key={p.name} className={`p-5 flex flex-col justify-between border-t-2 relative ${p.current ? 'border-t-indigo-500 bg-indigo-500/[0.02]' : 'border-t-white/10'}`}>
+            <GlassCard key={p.id} className={`p-5 flex flex-col justify-between border-t-2 relative ${p.current ? 'border-t-indigo-500 bg-indigo-500/[0.02]' : 'border-t-white/10'}`}>
               {p.popular && (
                 <span className="absolute -top-3 right-4 bg-indigo-500 text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded-full shadow-glow">
-                  Popular
+                  {t("settings.popular")}
                 </span>
               )}
               <div className="space-y-4">
@@ -208,16 +212,12 @@ export function BillingPlanSettings() {
               <div className="mt-6 pt-2">
                 {p.current ? (
                   <Button variant="subtle" className="w-full text-xs cursor-default" disabled>
-                    Current Plan
+                    {t("settings.currentPlan")}
                   </Button>
                 ) : (
                   <a
                     href={`https://octarq.com/pricing/${
-                      p.name.toLowerCase().includes("elite")
-                        ? "?plan=elite"
-                        : p.name.toLowerCase().includes("pro")
-                        ? "?plan=pro"
-                        : ""
+                      p.id === "elite" ? "?plan=elite" : p.id === "pro" ? "?plan=pro" : ""
                     }`}
                     target="_blank"
                     rel="noreferrer"
@@ -227,7 +227,7 @@ export function BillingPlanSettings() {
                         : "bg-transparent border border-white/20 hover:bg-white/5 text-white"
                     }`}
                   >
-                    {p.price === "$0" ? "Downgrade" : "Upgrade Plan"}
+                    {p.price === "$0" ? t("settings.downgrade") : t("settings.upgradePlan")}
                   </a>
                 )}
               </div>

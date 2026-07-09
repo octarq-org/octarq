@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/Jungley8/led/internal/safehttp"
 )
 
 func TestDisallowedIP(t *testing.T) {
@@ -28,8 +30,8 @@ func TestDisallowedIP(t *testing.T) {
 	}
 	for _, c := range cases {
 		ip := net.ParseIP(c.ip)
-		if got := disallowedIP(ip); got != c.blocked {
-			t.Errorf("disallowedIP(%s) = %v, want %v", c.ip, got, c.blocked)
+		if got := safehttp.DisallowedIP(ip); got != c.blocked {
+			t.Errorf("DisallowedIP(%s) = %v, want %v", c.ip, got, c.blocked)
 		}
 	}
 }

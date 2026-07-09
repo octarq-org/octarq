@@ -36,7 +36,12 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/api": `http://localhost:${backendPort}`,
+      "/api": {
+        target: `http://localhost:${backendPort}`,
+
+        // 🔑 必须为 false（不设默认为 false，绝对不要写成 true）
+        changeOrigin: false,
+      },
     },
   },
 });

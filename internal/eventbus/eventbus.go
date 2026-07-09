@@ -23,11 +23,29 @@ var (
 	// internal services or cloud metadata (relaxable for trusted self-hosted
 	// receivers via OCTARQ_ALLOW_PRIVATE_WEBHOOKS).
 	httpClient = safehttp.NewWebhookClient(10 * time.Second)
+	decryptSecret func(string) (string, bool)
 )
 
 // Init initializes the eventbus with the shared GORM database connection.
 func Init(gdb *gorm.DB) {
 	db = gdb
+}
+
+// SetSecretDecryptor registers how a stored (encrypted) webhook secret is
+// unwrapped before it is used to HMAC-sign the payload.
+func SetSecretDecryptor(fn func(string) (string, bool)) {
+	decryptSecret = fn
+}
+
+// signingSecret resolves the plaintext HMAC secret for a stored value, falling
+// back to the raw value for legacy plaintext rows or when no decryptor is set.
+func signingSecret(stored string) string {
+	if decryptSecret != nil {
+		if pt, ok := decryptSecret(stored); ok {
+			return pt
+		}
+	}
+	return stored
 }
 
 // EventPayload defines the JSON structure sent to webhook endpoints.
@@ -105,11 +123,15 @@ func deliver(ctx context.Context, url, secret string, body []byte) {
 	if err != nil {
 		return
 	}
+	if err := safehttp.ValidateScheme(req.URL.Scheme); err != nil {
+		log.Printf("eventbus: refusing webhook delivery to %s: %v", url, err)
+		return
+	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "octarq-webhook-dispatcher/1.0")
 
-	// Calculate HMAC-SHA256 signature
-	mac := hmac.New(sha256.New, []byte(secret))
+	// Calculate HMAC-SHA256 signature over the plaintext signing secret.
+	mac := hmac.New(sha256.New, []byte(signingSecret(secret)))
 	mac.Write(body)
 	sig := hex.EncodeToString(mac.Sum(nil))
 	req.Header.Set("X-Octarq-Signature", "sha256="+sig)

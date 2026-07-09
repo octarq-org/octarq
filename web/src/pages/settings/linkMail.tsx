@@ -8,6 +8,7 @@ import LLMProvidersSettings from "../LLMProviders";
 import { useSettingsData, useInstanceSettingsData, SavedBadge } from "./shared";
 
 export function LinkSettings() {
+  const { t } = useTranslation();
   const { s: wS } = useSettingsData();
   const { s } = useInstanceSettingsData();
   const [reservedSlugs, setReservedSlugs] = useState("");
@@ -23,25 +24,26 @@ export function LinkSettings() {
     try { await api.updateInstanceSettings({ reservedSlugs }); setSaved(true); setTimeout(() => setSaved(false), 2000); }
     finally { setBusy(false); }
   }
-  if (!s) return <div className="text-sm text-white/40">loading…</div>;
+  if (!s) return <div className="text-sm text-white/40">{t("settings.loadingLower")}</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white/90">Short Links Settings (Instance)</h2>
+        <h2 className="text-sm font-semibold text-white/90">{t("settings.shortLinksSettings")}</h2>
         <SavedBadge on={saved} />
       </div>
-      <Field label="Reserved Short Link Slugs" hint={`Slugs users cannot register. Built-in: ${s.builtinReserved.join(", ")}.`}>
+      <Field label={t("settings.reservedSlugsLabel")} hint={t("settings.reservedSlugsHint", { list: s.builtinReserved.join(", ") })}>
         <textarea className="input w-full font-mono text-xs" rows={3} value={reservedSlugs} onChange={(e) => setReservedSlugs(e.target.value)} placeholder="pricing&#10;login&#10;about" />
       </Field>
       <div className="border-t border-white/[0.06] pt-4 flex justify-end">
-        <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save Settings"}</Button>
+        <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("settings.saveSettings")}</Button>
       </div>
     </div>
   );
 }
 
 export function MailSettings() {
+  const { t } = useTranslation();
   const { s } = useSettingsData();
   const [reservedMailboxes, setReservedMailboxes] = useState("");
   const [inboundToken, setInboundToken] = useState("");
@@ -57,18 +59,18 @@ export function MailSettings() {
     try { await api.updateSettings({ reservedMailboxes, inboundToken, catchAll, autoWrapLinks: autoWrap }); setSaved(true); setTimeout(() => setSaved(false), 2000); }
     finally { setBusy(false); }
   }
-  if (!s) return <div className="text-sm text-white/40">loading…</div>;
+  if (!s) return <div className="text-sm text-white/40">{t("settings.loadingLower")}</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white/90">Inbound Mailboxes Settings</h2>
+        <h2 className="text-sm font-semibold text-white/90">{t("settings.inboundMailboxesSettings")}</h2>
         <SavedBadge on={saved} />
       </div>
-      <Field label="Reserved Inbound Mailbox Prefixes" hint="Prefixes catch-all won't auto-provision (e.g. admin, postmaster).">
+      <Field label={t("settings.reservedMailboxesLabel")} hint={t("settings.reservedMailboxesHint")}>
         <textarea className="input w-full font-mono text-xs" rows={2} value={reservedMailboxes} onChange={(e) => setReservedMailboxes(e.target.value)} placeholder="admin&#10;postmaster" />
       </Field>
-      <Field label="Inbound Webhook URL" hint="Point the Cloudflare Email Worker at this exact URL — the token is in the path, so no header is needed.">
+      <Field label={t("settings.inboundWebhookUrlLabel")} hint={t("settings.inboundWebhookUrlHint")}>
         <input
           readOnly
           className="input w-full font-mono text-xs"
@@ -76,25 +78,25 @@ export function MailSettings() {
           onFocus={(e) => e.currentTarget.select()}
         />
       </Field>
-      <Field label="Inbound token" hint="Your workspace's secret, embedded in the URL above. Clear this box and Save to generate a new one (the old URL stops working).">
-        <input className="input w-full font-mono text-xs" value={inboundToken} onChange={(e) => setInboundToken(e.target.value)} placeholder="(leave empty and save to generate a new one)" />
+      <Field label={t("settings.inboundTokenLabel")} hint={t("settings.inboundTokenHint")}>
+        <input className="input w-full font-mono text-xs" value={inboundToken} onChange={(e) => setInboundToken(e.target.value)} placeholder={t("settings.inboundTokenPlaceholder")} />
       </Field>
       <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
         <Toggle on={catchAll} onChange={setCatchAll} />
         <div>
-          <span className="block select-none text-xs font-semibold text-white/70">Enable Catch-All routing</span>
-          <span className="select-none text-[10px] text-white/40">Auto-provision a local inbox when mail arrives for an unknown managed alias.</span>
+          <span className="block select-none text-xs font-semibold text-white/70">{t("settings.enableCatchAll")}</span>
+          <span className="select-none text-[10px] text-white/40">{t("settings.enableCatchAllDesc")}</span>
         </div>
       </div>
       <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
         <Toggle on={autoWrap} onChange={setAutoWrap} />
         <div>
-          <span className="block select-none text-xs font-semibold text-white/70">Auto Wrap Outbound Links</span>
-          <span className="select-none text-[10px] text-white/40">When sending mail, detect external URLs and wrap them as short links for click analytics.</span>
+          <span className="block select-none text-xs font-semibold text-white/70">{t("settings.autoWrapLinks")}</span>
+          <span className="select-none text-[10px] text-white/40">{t("settings.autoWrapLinksDesc")}</span>
         </div>
       </div>
       <div className="border-t border-white/[0.06] pt-4 flex justify-end">
-        <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save Settings"}</Button>
+        <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("settings.saveSettings")}</Button>
       </div>
     </div>
   );

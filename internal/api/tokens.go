@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/octarq-org/octarq/internal/models"
 )
@@ -35,6 +36,9 @@ func (h *Handler) createToken(w http.ResponseWriter, r *http.Request) {
 	var d struct {
 		Name string `json:"name"`
 		Note string `json:"note"`
+		// ExpiresInDays optionally bounds the token's lifetime. 0 / omitted = never
+		// expires (back-compat). Negative is rejected.
+		ExpiresInDays int `json:"expiresInDays"`
 	}
 	if err := readJSON(r, &d); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid body")
@@ -45,13 +49,23 @@ func (h *Handler) createToken(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "name is required")
 		return
 	}
+	if d.ExpiresInDays < 0 {
+		writeErr(w, http.StatusBadRequest, "expiresInDays must be zero (never) or positive")
+		return
+	}
+	var expiresAt *time.Time
+	if d.ExpiresInDays > 0 {
+		t := time.Now().AddDate(0, 0, d.ExpiresInDays)
+		expiresAt = &t
+	}
 	raw := newRawToken()
 	tok := models.Token{
-		OrgID:  h.orgID(r),
-		Name:   d.Name,
-		Hash:   models.HashToken(raw),
-		Prefix: tokenPrefix(raw),
-		Note:   d.Note,
+		OrgID:     h.orgID(r),
+		Name:      d.Name,
+		Hash:      models.HashToken(raw),
+		Prefix:    tokenPrefix(raw),
+		Note:      d.Note,
+		ExpiresAt: expiresAt,
 	}
 	if err := h.db.Create(&tok).Error; err != nil {
 		writeErr(w, http.StatusInternalServerError, "create token")
@@ -64,6 +78,7 @@ func (h *Handler) createToken(w http.ResponseWriter, r *http.Request) {
 		"name":      tok.Name,
 		"note":      tok.Note,
 		"prefix":    tok.Prefix,
+		"expiresAt": tok.ExpiresAt,
 		"createdAt": tok.CreatedAt,
 		"token":     raw,
 	})

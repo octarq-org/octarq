@@ -63,9 +63,10 @@ func New(cfg *config.Config, apiHandler http.Handler, short *shortlink.Service, 
 	return s, nil
 }
 
-// setSecurityHeaders applies baseline hardening headers to every response.
-// CSP is intentionally omitted here — the SPA needs a tailored policy (framer
-// motion injects inline styles) that must be tested before enforcing.
+// setSecurityHeaders applies baseline hardening headers to every response. The
+// CSP still allows 'unsafe-inline' for scripts and styles because the SPA (and
+// framer-motion's injected styles) rely on it; tightening script-src to nonces
+// or hashes is a follow-up, not yet done.
 func setSecurityHeaders(w http.ResponseWriter, r *http.Request) {
 	h := w.Header()
 	h.Set("X-Content-Type-Options", "nosniff")

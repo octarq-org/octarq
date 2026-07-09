@@ -244,7 +244,15 @@ type Token struct {
 	Prefix     string     `gorm:"size:32" json:"prefix"`        // e.g. "led_abcd" for identification
 	Note       string     `gorm:"type:text" json:"note"`
 	LastUsedAt *time.Time `json:"lastUsedAt"`
-	CreatedAt  time.Time  `json:"createdAt"`
+	// ExpiresAt bounds the token's validity. NULL = never expires (back-compat for
+	// tokens minted before expiry support). Auth paths reject an expired token.
+	ExpiresAt *time.Time `json:"expiresAt"`
+	CreatedAt time.Time  `json:"createdAt"`
+}
+
+// Expired reports whether the token has a set expiry that is in the past.
+func (t Token) Expired() bool {
+	return t.ExpiresAt != nil && t.ExpiresAt.Before(time.Now())
 }
 
 // HashToken returns the SHA-256 hex digest of a raw API token. The stored hash
@@ -264,6 +272,10 @@ type ProviderAccount struct {
 	Config    string    `gorm:"type:text" json:"-"`   // AES-GCM encrypted credentials JSON
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+	// HasCredentials is computed (not persisted): the encrypted Config never
+	// leaves the server, so the dashboard uses this flag to show "credentials are
+	// set — leave blank to keep" instead of an empty field that looks unconfigured.
+	HasCredentials bool `gorm:"-" json:"hasCredentials"`
 }
 
 // Domain is a domain managed by octarq, tied to a DNS provider account.
@@ -393,6 +405,10 @@ type SMTPSender struct {
 	FromEmail string    `json:"fromEmail"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+	// PassSet is computed (not persisted): the encrypted password never leaves the
+	// server, so the dashboard shows "password is set — leave blank to keep it"
+	// rather than an empty field that looks like nothing was ever entered.
+	PassSet bool `gorm:"-" json:"passSet"`
 }
 
 type NotificationChannel struct {

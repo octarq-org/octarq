@@ -24,7 +24,7 @@ func (h *Handler) mcpAuth(next http.Handler) http.Handler {
 		if strings.HasPrefix(token, "led_") {
 			hash := models.HashToken(token)
 			var tok models.Token
-			if h.db.Where("hash = ?", hash).First(&tok).Error == nil {
+			if h.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() {
 				ctx := auth.WithOrgID(r.Context(), tok.OrgID)
 				id := tok.ID
 				db := h.db
@@ -45,7 +45,9 @@ func (h *Handler) mcpAuth(next http.Handler) http.Handler {
 func (h *Handler) mcpSSEHandler() http.Handler {
 	handler := mcp.NewSSEHandler(func(r *http.Request) *mcp.Server {
 		orgID := h.orgID(r)
-		return mcp_internal.NewServerInstance(h.db, orgID, h.plugins)
+		// allowRawSQL=false: over HTTP the caller is one tenant among many, and raw
+		// SQL can't be scoped to a single owner_id. Only the tenant-scoped tools run.
+		return mcp_internal.NewServerInstance(h.db, orgID, h.plugins, false)
 	}, &mcp.SSEOptions{
 		DisableLocalhostProtection: true,
 	})
@@ -56,7 +58,9 @@ func (h *Handler) mcpSSEHandler() http.Handler {
 func (h *Handler) mcpStreamHandler() http.Handler {
 	handler := mcp.NewStreamableHTTPHandler(func(r *http.Request) *mcp.Server {
 		orgID := h.orgID(r)
-		return mcp_internal.NewServerInstance(h.db, orgID, h.plugins)
+		// allowRawSQL=false: over HTTP the caller is one tenant among many, and raw
+		// SQL can't be scoped to a single owner_id. Only the tenant-scoped tools run.
+		return mcp_internal.NewServerInstance(h.db, orgID, h.plugins, false)
 	}, &mcp.StreamableHTTPOptions{
 		DisableLocalhostProtection: true,
 	})

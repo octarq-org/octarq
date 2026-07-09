@@ -52,6 +52,8 @@ jobs:
   web:
     name: Frontend build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # auto-commit webembed/dist on main
     defaults:
       run:
         working-directory: web
@@ -70,8 +72,24 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Advisory only: surfaces known CVEs in frontend deps without gating the
+      # build (a fresh upstream advisory shouldn't block an unrelated merge).
+      - name: Audit dependencies
+        run: pnpm audit --prod || true
+
       - name: Type-check
         run: pnpm typecheck
 
       - name: Build dashboard
         run: pnpm build
+
+      # webembed/dist must stay committed: led-pro consumes led as a Go module
+      # and gets the embedded dashboard from the module zip. CI keeps it fresh
+      # so nobody has to build and commit dist locally. Commits made with
+      # GITHUB_TOKEN don't retrigger workflows, so this can't loop.
+      - name: Commit refreshed webembed/dist (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(web): refresh embedded dashboard build [auto]"
+          file_pattern: webembed/dist

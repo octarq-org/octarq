@@ -205,39 +205,39 @@ export function SecuritySettings() {
               height={160}
               src={setup.qrDataUri}
             />
-            <Field label="Setup key (if you can't scan)">
+            <Field label={t("settings.setupKeyLabel")}>
               <input className="input w-full font-mono text-xs" readOnly value={setup.secret} />
             </Field>
             <a className="block break-all text-[10px] text-indigo-300/70 hover:underline" href={setup.otpauthUrl}>{setup.otpauthUrl}</a>
-            <Field label="Verification code">
+            <Field label={t("settings.verificationCode")}>
               <input className="input w-full text-sm" value={enrollCode} onChange={(e) => setEnrollCode(e.target.value)} placeholder="123456" autoComplete="one-time-code" />
             </Field>
             <div className="flex gap-2">
-              <Button variant="primary" onClick={confirmEnable} disabled={busy || !enrollCode.trim()}>{busy ? "…" : "Confirm & Enable"}</Button>
-              <Button variant="ghost" onClick={() => { setSetup(null); setEnrollCode(""); }}>Cancel</Button>
+              <Button variant="primary" onClick={confirmEnable} disabled={busy || !enrollCode.trim()}>{busy ? "…" : t("settings.confirmEnable")}</Button>
+              <Button variant="ghost" onClick={() => { setSetup(null); setEnrollCode(""); }}>{t("settings.cancel")}</Button>
             </div>
           </div>
         )}
 
         {enabled && (
           <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
-            <p className="text-xs text-white/60">Enter a current authenticator code (or a recovery code) to turn off 2FA.</p>
-            <Field label="Verification code">
-              <input className="input w-full text-sm" value={disableCode} onChange={(e) => setDisableCode(e.target.value)} placeholder="123456 or recovery code" autoComplete="one-time-code" />
+            <p className="text-xs text-white/60">{t("settings.disableInstructions")}</p>
+            <Field label={t("settings.verificationCode")}>
+              <input className="input w-full text-sm" value={disableCode} onChange={(e) => setDisableCode(e.target.value)} placeholder={t("settings.disableCodePlaceholder")} autoComplete="one-time-code" />
             </Field>
-            <Button variant="danger" onClick={disable} disabled={busy || !disableCode.trim()}>{busy ? "…" : "Disable 2FA"}</Button>
+            <Button variant="danger" onClick={disable} disabled={busy || !disableCode.trim()}>{busy ? "…" : t("settings.disable2FA")}</Button>
           </div>
         )}
       </GlassCard>
 
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white">Active sessions</h2>
+          <h2 className="text-base font-bold text-white">{t("settings.activeSessions")}</h2>
           <Button variant="danger" onClick={logoutAll} disabled={busy} className="text-xs py-1 px-3">
-            Sign out of all
+            {t("settings.signOutOfAll")}
           </Button>
         </div>
-        <p className="text-xs text-white/50">All devices where you're currently signed in. Revoking any session invalidates all cookies and re-authenticates you here.</p>
+        <p className="text-xs text-white/50">{t("settings.activeSessionsDesc")}</p>
         <SessionsList onRevokeAll={logoutAll} />
       </GlassCard>
 

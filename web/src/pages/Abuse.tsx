@@ -54,9 +54,9 @@ export default function AbusePage() {
             key={filter}
             variant={statusFilter === filter ? "primary" : "subtle"}
             onClick={() => setStatusFilter(filter)}
-            className="capitalize rounded-full px-4 py-1 text-xs"
+            className="rounded-full px-4 py-1 text-xs"
           >
-            {filter}
+            {t("abuse.filter" + filter.charAt(0).toUpperCase() + filter.slice(1))}
           </Button>
         ))}
       </div>
@@ -76,10 +76,10 @@ export default function AbusePage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-semibold text-lg text-rose-400">/{r.slug}</h3>
                     <Badge tone={getReasonTone(r.reason)} className="uppercase tracking-wider">
-                      {r.reason}
+                      {t("abuse.reason" + r.reason.charAt(0).toUpperCase() + r.reason.slice(1)) || r.reason}
                     </Badge>
                     <Badge tone={getStatusTone(r.status)} className="capitalize">
-                      {r.status}
+                      {t("abuse.filter" + r.status.charAt(0).toUpperCase() + r.status.slice(1)) || r.status}
                     </Badge>
                   </div>
                   <div className="mt-2 text-sm text-white/55 break-all">

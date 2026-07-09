@@ -8,6 +8,7 @@ import LLMProvidersSettings from "../LLMProviders";
 import { useSettingsData, SavedBadge } from "./shared";
 
 export function OrgMembersManager() {
+  const { t } = useTranslation();
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
@@ -41,19 +42,19 @@ export function OrgMembersManager() {
       setRole("member");
       load();
     } catch (e: any) {
-      setErr(e.message || "Failed to add member");
+      setErr(e.message || t("settings.failedAddMember"));
     } finally {
       setBusy(false);
     }
   }
 
   async function handleRemove(userId: number) {
-    if (!confirm("Remove this member from the workspace? They will lose access instantly.")) return;
+    if (!confirm(t("settings.confirmRemoveMember"))) return;
     try {
       await api.deleteOrgMember(userId);
       load();
     } catch (e: any) {
-      alert(e.message || "Failed to remove member");
+      alert(e.message || t("settings.failedRemoveMember"));
     }
   }
 
@@ -66,14 +67,14 @@ export function OrgMembersManager() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Workspace Members"
-        description="Invite teammates and manage their roles in this workspace."
+        title={t("settings.workspaceMembers")}
+        description={t("settings.workspaceMembersDesc")}
       />
       <GlassCard className="p-6 space-y-6">
 
       <form onSubmit={handleAdd} className="bg-black/25 p-4 rounded-xl border border-white/[0.05] flex flex-wrap sm:flex-nowrap gap-4 items-end">
         <div className="flex-1 min-w-[200px]">
-          <label className="label text-xs">Invite Colleague by Email</label>
+          <label className="label text-xs">{t("settings.inviteByEmail")}</label>
           <input
             className="input w-full text-sm mt-1"
             value={email}
@@ -83,21 +84,21 @@ export function OrgMembersManager() {
           />
         </div>
         <div className="w-32">
-          <label className="label text-xs">Access Role</label>
+          <label className="label text-xs">{t("settings.accessRole")}</label>
           <select className="input w-full text-xs mt-1" value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="member">Member</option>
-            <option value="admin">Admin</option>
-            <option value="owner">Owner</option>
+            <option value="member">{t("settings.roleMember")}</option>
+            <option value="admin">{t("settings.roleAdmin")}</option>
+            <option value="owner">{t("settings.roleOwner")}</option>
           </select>
         </div>
         <Button variant="primary" className="py-2 text-xs shrink-0" disabled={busy || !email}>
-          {busy ? "Inviting..." : "Invite Member"}
+          {busy ? t("settings.inviting") : t("settings.inviteMember")}
         </Button>
       </form>
       {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
 
       {loading ? (
-        <div className="text-white/40 text-sm py-4 text-center">loading members list…</div>
+        <div className="text-white/40 text-sm py-4 text-center">{t("settings.loadingMembers")}</div>
       ) : (
         <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
           {(members || []).map((m) => (
@@ -105,7 +106,7 @@ export function OrgMembersManager() {
               <div className="flex items-center gap-2.5">
                 <span className="font-semibold text-sm text-white">{m.email}</span>
                 <Badge tone={getRoleTone(m.role)} className="capitalize text-[10px] tracking-wide font-semibold px-2">
-                  {m.role}
+                  {m.role === "owner" ? t("settings.roleOwner") : m.role === "admin" ? t("settings.roleAdmin") : t("settings.roleMember")}
                 </Badge>
               </div>
               <Button
@@ -113,7 +114,7 @@ export function OrgMembersManager() {
                 onClick={() => handleRemove(m.userId)}
                 className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
               >
-                Remove
+                {t("settings.remove")}
               </Button>
             </div>
           ))}

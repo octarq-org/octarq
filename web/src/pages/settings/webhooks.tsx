@@ -8,6 +8,7 @@ import LLMProvidersSettings from "../LLMProviders";
 import { useSettingsData, SavedBadge } from "./shared";
 
 export function WebhooksSettings() {
+  const { t } = useTranslation();
   const [webhooks, setWebhooks] = useState<any[]>([]);
   const [show, setShow] = useState(false);
   const [name, setName] = useState("");
@@ -21,7 +22,7 @@ export function WebhooksSettings() {
   function load() { api.webhooks().then(setWebhooks).catch(() => {}); }
   useEffect(load, []);
 
-  async function del(id: number) { if (!confirm("Delete this webhook endpoint?")) return; await api.deleteWebhook(id); setWebhooks((w) => w.filter((h) => h.id !== id)); }
+  async function del(id: number) { if (!confirm(t("settings.confirmDeleteWebhook"))) return; await api.deleteWebhook(id); setWebhooks((w) => w.filter((h) => h.id !== id)); }
   async function toggle(h: any) { const u = await api.updateWebhook(h.id, { enabled: !h.enabled }); setWebhooks((w) => w.map((x) => x.id === h.id ? u : x)); }
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -32,21 +33,21 @@ export function WebhooksSettings() {
       if (!all) { const l: string[] = []; if (evClick) l.push("link.click"); if (evEmail) l.push("email.receive"); events = l.join(",") || "*"; }
       const created = await api.createWebhook({ name: name.trim(), url: url.trim(), secret: secret.trim() || undefined, events, enabled: true } as any);
       setWebhooks((w) => [created, ...w]); setShow(false); setName(""); setUrl(""); setSecret("");
-    } catch (err: any) { alert(err.message || "create failed"); } finally { setBusy(false); }
+    } catch (err: any) { alert(err.message || t("settings.createFailed")); } finally { setBusy(false); }
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Webhooks" description="Send click and email events to your own systems in real time. Every request is signed so you can verify it came from octarq." />
+      <PageHeader title={t("settings.webhooksTitle")} description={t("settings.webhooksDescription")} />
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white">Outbound Event Webhooks</h2>
+          <h2 className="text-base font-bold text-white">{t("settings.outboundEventWebhooks")}</h2>
           <Button variant="ghost" onClick={() => { setName(""); setUrl(""); setSecret(""); setAll(true); setEvClick(false); setEvEmail(false); setShow(true); }} className="flex items-center gap-1.5 px-3 py-1 text-xs">
-            <Plus className="h-3 w-3" /> Add Webhook
+            <Plus className="h-3 w-3" /> {t("settings.addWebhook")}
           </Button>
         </div>
         {webhooks.length === 0 ? (
-          <div className="select-none rounded border border-dashed border-white/[0.06] py-4 text-center text-xs text-white/40">No outbound webhooks configured.</div>
+          <div className="select-none rounded border border-dashed border-white/[0.06] py-4 text-center text-xs text-white/40">{t("settings.noWebhooks")}</div>
         ) : (
           <div className="space-y-3.5">
             {webhooks.map((w) => (
@@ -54,14 +55,14 @@ export function WebhooksSettings() {
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-white/80">{w.name}</span>
-                    <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[9px] uppercase text-white/45">{w.events === "*" ? "all events" : w.events}</span>
+                    <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[9px] uppercase text-white/45">{w.events === "*" ? t("settings.allEvents") : w.events}</span>
                   </div>
                   <div className="select-all truncate font-mono text-xs text-white/45">{w.url}</div>
-                  <div className="select-all font-mono text-[10px] text-zinc-500">Secret: {w.secret}</div>
+                  <div className="select-all font-mono text-[10px] text-zinc-500">{t("settings.secretLabel")} {w.secret}</div>
                 </div>
                 <div className="flex shrink-0 items-center gap-3 self-end md:self-auto">
                   <Toggle on={w.enabled} onChange={() => toggle(w)} />
-                  <Button variant="danger" onClick={() => del(w.id)} className="flex items-center gap-1 px-2.5 py-1 text-xs"><Trash2 className="h-3 w-3" /> Delete</Button>
+                  <Button variant="danger" onClick={() => del(w.id)} className="flex items-center gap-1 px-2.5 py-1 text-xs"><Trash2 className="h-3 w-3" /> {t("settings.delete")}</Button>
                 </div>
               </div>
             ))}
@@ -70,18 +71,18 @@ export function WebhooksSettings() {
       </GlassCard>
 
       {show && (
-        <Modal title="Add Webhook Endpoint" onClose={() => setShow(false)}>
+        <Modal title={t("settings.addWebhookEndpoint")} onClose={() => setShow(false)}>
           <form onSubmit={create} className="space-y-4">
-            <Field label="Endpoint Name"><input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder="n8n automation" required autoFocus /></Field>
-            <Field label="Endpoint URL"><input className="input w-full font-mono text-xs" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://your-server.com/webhooks/octarq" required /></Field>
-            <Field label="Signing Secret (Optional)" hint="Signs the payload in X-Octarq-Signature. Leave empty to auto-generate.">
-              <input className="input w-full font-mono text-xs" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder="Custom signing secret" />
+            <Field label={t("settings.endpointName")}><input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder="n8n automation" required autoFocus /></Field>
+            <Field label={t("settings.endpointUrl")}><input className="input w-full font-mono text-xs" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://your-server.com/webhooks/led" required /></Field>
+            <Field label={t("settings.signingSecretOptional")} hint={t("settings.signingSecretHint")}>
+              <input className="input w-full font-mono text-xs" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={t("settings.signingSecretPlaceholder")} />
             </Field>
-            <Field label="Event Subscriptions">
+            <Field label={t("settings.eventSubscriptions")}>
               <div className="mt-1 space-y-2">
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
                   <input type="checkbox" checked={all} onChange={(e) => { setAll(e.target.checked); if (e.target.checked) { setEvClick(false); setEvEmail(false); } }} />
-                  <span>All Events (*)</span>
+                  <span>{t("settings.allEventsStar")}</span>
                 </label>
                 {!all && (
                   <div className="space-y-2 pl-6">
@@ -92,8 +93,8 @@ export function WebhooksSettings() {
               </div>
             </Field>
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setShow(false)}>Cancel</Button>
-              <Button type="submit" variant="primary" disabled={busy}>{busy ? "Adding…" : "Add"}</Button>
+              <Button variant="ghost" onClick={() => setShow(false)}>{t("settings.cancel")}</Button>
+              <Button type="submit" variant="primary" disabled={busy}>{busy ? t("settings.adding") : t("settings.add")}</Button>
             </div>
           </form>
         </Modal>
@@ -103,6 +104,7 @@ export function WebhooksSettings() {
 }
 
 export function NotificationChannels() {
+  const { t } = useTranslation();
   const [channels, setChannels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<any | null>(null);
@@ -120,7 +122,7 @@ export function NotificationChannels() {
   }, []);
 
   async function remove(id: number) {
-    if (!confirm("Delete this notification channel?")) return;
+    if (!confirm(t("settings.confirmDeleteChannel"))) return;
     await api.deleteNotificationChannel(id);
     load();
   }
@@ -128,9 +130,9 @@ export function NotificationChannels() {
   async function test(id: number) {
     try {
       await api.testNotificationChannel(id);
-      alert("Test alert sent successfully!");
+      alert(t("settings.testAlertSent"));
     } catch (err: any) {
-      alert("Test failed: " + err.message);
+      alert(t("settings.testFailed", { msg: err.message }));
     }
   }
 
@@ -142,22 +144,22 @@ export function NotificationChannels() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Alerts"
-        description="Get notified in Telegram, Slack, or your own webhook when important events happen."
+        title={t("settings.alertsTitle")}
+        description={t("settings.alertsDescription")}
         action={
           <Button variant="primary" onClick={() => setEditing({ type: "telegram", config: "{}" })}>
-            + Add Channel
+            {t("settings.addChannel")}
           </Button>
         }
       />
       <GlassCard className="p-6">
 
       {loading ? (
-        <div className="text-white/40 text-sm py-6 text-center">loading…</div>
+        <div className="text-white/40 text-sm py-6 text-center">{t("settings.loadingLower")}</div>
       ) : channels.length === 0 ? (
         <Empty>
           <Bell className="h-8 w-8 text-white/30 mb-1" />
-          <div className="text-xs text-white/50">No notification channels configured.</div>
+          <div className="text-xs text-white/50">{t("settings.noChannels")}</div>
         </Empty>
       ) : (
         <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
@@ -172,9 +174,9 @@ export function NotificationChannels() {
                     <Badge tone={channelTypeTone} className="uppercase tracking-wider text-[9px]">
                       {c.type}
                     </Badge>
-                    {!c.enabled && <Badge tone="neutral">disabled</Badge>}
+                    {!c.enabled && <Badge tone="neutral">{t("settings.badgeDisabled")}</Badge>}
                   </div>
-                  <div className="text-[11px] text-white/35 mt-1">Added {timeAgo(c.createdAt)}</div>
+                  <div className="text-[11px] text-white/35 mt-1">{t("settings.added", { time: timeAgo(c.createdAt) })}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Button
@@ -182,10 +184,10 @@ export function NotificationChannels() {
                     onClick={() => toggleEnabled(c)}
                     className="text-xs py-1 px-2.5"
                   >
-                    {c.enabled ? "Disable" : "Enable"}
+                    {c.enabled ? t("settings.disable") : t("settings.enable")}
                   </Button>
                   <Button variant="outline" onClick={() => test(c.id)} className="text-xs py-1 px-2.5">
-                    Test
+                    {t("settings.test")}
                   </Button>
                   <Button variant="ghost" onClick={() => setEditing(c)} className="text-xs py-1 px-2.5">
                     <Pencil className="h-3 w-3" />
@@ -220,6 +222,7 @@ export function NotificationChannels() {
 }
 
 function EditNotificationChannel({ channel, onClose, onSaved }: { channel: any; onClose: () => void; onSaved: () => void }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(channel?.name || "");
   const [type, setType] = useState(channel?.type || "telegram");
   const [enabled, setEnabled] = useState(channel?.id ? channel.enabled : true);
@@ -260,16 +263,16 @@ function EditNotificationChannel({ channel, onClose, onSaved }: { channel: any; 
       }
       onSaved();
     } catch (err: any) {
-      setError(err.message || "Failed to save");
+      setError(err.message || t("settings.failedToSave"));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Modal title={channel ? "Edit Alert Channel" : "Create Alert Channel"} onClose={onClose}>
+    <Modal title={channel ? t("settings.editAlertChannel") : t("settings.createAlertChannel")} onClose={onClose}>
       <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4">
-        <Field label="Channel Name" hint="A memorable identifier for this trigger">
+        <Field label={t("settings.channelName")} hint={t("settings.channelNameHint")}>
           <input
             className="input w-full"
             value={name}
@@ -280,26 +283,26 @@ function EditNotificationChannel({ channel, onClose, onSaved }: { channel: any; 
           />
         </Field>
         
-        <Field label="Channel Integration Type">
+        <Field label={t("settings.channelIntegrationType")}>
           <select className="input w-full" value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="telegram">Telegram Bot webhook</option>
-            <option value="webhook">Custom HTTP POST Webhook</option>
+            <option value="telegram">{t("settings.optTelegram")}</option>
+            <option value="webhook">{t("settings.optWebhook")}</option>
           </select>
         </Field>
 
         {type === "telegram" && (
           <>
-            <Field label="Bot Authentication Token" hint="Token issued by Telegram @BotFather">
+            <Field label={t("settings.botAuthToken")} hint={t("settings.botAuthTokenHint")}>
               <input className="input w-full font-mono text-xs" value={botToken} onChange={(e) => setBotToken(e.target.value)} required />
             </Field>
-            <Field label="Telegram Chat ID" hint="Channel group ID or user chat ID to forward alerts">
+            <Field label={t("settings.telegramChatId")} hint={t("settings.telegramChatIdHint")}>
               <input className="input w-full font-mono text-xs" value={chatId} onChange={(e) => setChatId(e.target.value)} required />
             </Field>
           </>
         )}
 
         {type === "webhook" && (
-          <Field label="Custom HTTP Target URL" hint="Receives JSON payload POST: { text: 'string' }">
+          <Field label={t("settings.customHttpTargetUrl")} hint={t("settings.customHttpTargetHint")}>
             <input className="input w-full font-mono text-xs" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://my-webhook.com/alerts" required />
           </Field>
         )}
@@ -308,13 +311,13 @@ function EditNotificationChannel({ channel, onClose, onSaved }: { channel: any; 
 
         <div className="flex items-center gap-3 pt-2">
           <Toggle on={enabled} onChange={setEnabled} />
-          <span className="text-sm text-white/60 select-none">Channel Enabled</span>
+          <span className="text-sm text-white/60 select-none">{t("settings.channelEnabled")}</span>
         </div>
 
-        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
-          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/6">
+          <Button type="button" variant="ghost" onClick={onClose}>{t("settings.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={busy || !name}>
-            {busy ? "Saving..." : "Save Channel"}
+            {busy ? t("settings.savingDots") : t("settings.saveChannel")}
           </Button>
         </div>
       </form>

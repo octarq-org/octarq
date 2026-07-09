@@ -19,11 +19,11 @@ export const inboxAi = {
     tabSettings: "Settings",
     lockedFeature: "AI Inbox Automation",
     lockedDescription:
-      "Leverage large language models to automate email sorting, priority indexing, and real-time multi-factor authentication routing.",
-    perkClassification: "Semantic classification and automated tagging (Invoices, OTPs, Support, Marketing)",
-    perkSummaries: "Executive summaries and importance priority scoring",
-    perkRouting: "Instant verification-code (OTP) routing to your alert channels",
-    perkByoLlm: "Bring-Your-Own-LLM (BYO-LLM) model architecture",
+      "Let AI sort your mail, summarize it, and forward verification codes the moment they arrive.",
+    perkClassification: "Automatic tagging: invoices, OTPs, support, marketing",
+    perkSummaries: "Summaries with importance scores",
+    perkRouting: "Verification codes forwarded instantly to your channels",
+    perkByoLlm: "Works with your own AI provider keys",
     categoryAll: "All",
     emptyState:
       "No analyzed email yet. As mail arrives it is summarized automatically; you can also re-run analysis from any row.",
@@ -52,11 +52,11 @@ export const inboxAi = {
     tabSettings: "设置",
     lockedFeature: "AI 收件箱自动化",
     lockedDescription:
-      "利用大语言模型自动完成邮件分拣、优先级索引以及实时多因素身份验证路由。",
-    perkClassification: "语义分类与自动打标（账单、OTP、支持、营销）",
-    perkSummaries: "要点摘要与重要性优先级评分",
-    perkRouting: "即时将验证码（OTP）路由到你的告警渠道",
-    perkByoLlm: "自带 LLM（BYO-LLM）模型架构",
+      "让 AI 自动整理邮件、生成摘要，并在验证码到达时第一时间转发给你。",
+    perkClassification: "自动分类打标：账单、验证码、支持、营销",
+    perkSummaries: "邮件摘要与重要度评分",
+    perkRouting: "验证码即时转发到你的通知渠道",
+    perkByoLlm: "支持使用你自己的 AI 提供商密钥",
     categoryAll: "全部",
     emptyState:
       "尚无已分析的邮件。邮件到达时会自动生成摘要；你也可以在任意行重新运行分析。",

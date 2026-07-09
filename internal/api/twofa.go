@@ -163,7 +163,7 @@ func (h *Handler) disable2FA(w http.ResponseWriter, r *http.Request) {
 		verified = h.verifyTOTPOrRecovery(&user, code)
 	}
 	if !verified && body.Password != "" {
-		verified = h.auth.Check(user.Email, body.Password)
+		verified = h.verifyUserPassword(&user, body.Password)
 	}
 	if !verified {
 		writeErr(w, http.StatusUnauthorized, "verification failed")
@@ -179,6 +179,18 @@ func (h *Handler) disable2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+// verifyUserPassword checks a plaintext password against the user's own bcrypt
+// hash. For the config-admin bootstrap user (which carries no stored hash), it
+// falls back to the instance admin credential. This ensures a regular user
+// re-authenticates with THEIR password — not the operator's — for sensitive
+// actions like disabling 2FA.
+func (h *Handler) verifyUserPassword(user *models.User, password string) bool {
+	if user.PasswordHash != "" {
+		return bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) == nil
+	}
+	return h.auth.Check(user.Email, password)
 }
 
 // verifyTOTPOrRecovery validates code against the user's TOTP secret, or against

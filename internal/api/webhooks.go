@@ -9,9 +9,38 @@ import (
 	"github.com/octarq-org/octarq/internal/models"
 )
 
+// webhookSecretPlaintext returns the usable signing secret for a stored webhook.
+// Secrets are AES-GCM encrypted at rest; older rows may still hold plaintext, so
+// a failed decrypt falls back to the raw value for backward compatibility.
+func (h *Handler) webhookSecretPlaintext(stored string) string {
+	if stored == "" {
+		return ""
+	}
+	if b, err := h.cipher.Decrypt(stored); err == nil {
+		return string(b)
+	}
+	return stored // legacy plaintext row
+}
+
+// encryptWebhookSecret seals a plaintext signing secret for storage.
+func (h *Handler) encryptWebhookSecret(plaintext string) (string, error) {
+	return h.cipher.Encrypt([]byte(plaintext))
+}
+
+// decryptedForResponse returns a copy of the hook with its secret decrypted, so
+// the dashboard (behind auth) can display/copy the signing secret while the
+// value stays encrypted at rest.
+func (h *Handler) decryptedForResponse(hook models.Webhook) models.Webhook {
+	hook.Secret = h.webhookSecretPlaintext(hook.Secret)
+	return hook
+}
+
 func (h *Handler) listWebhooks(w http.ResponseWriter, r *http.Request) {
 	var hooks []models.Webhook
 	h.orgDB(r).Order("created_at DESC").Find(&hooks)
+	for i := range hooks {
+		hooks[i] = h.decryptedForResponse(hooks[i])
+	}
 	writeJSON(w, http.StatusOK, hooks)
 }
 
@@ -52,11 +81,17 @@ func (h *Handler) createWebhook(w http.ResponseWriter, r *http.Request) {
 		enabled = *d.Enabled
 	}
 
+	encSecret, err := h.encryptWebhookSecret(secret)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "failed to secure secret")
+		return
+	}
+
 	hook := models.Webhook{
 		OrgID:   h.orgID(r),
 		Name:    d.Name,
 		URL:     d.URL,
-		Secret:  secret,
+		Secret:  encSecret,
 		Events:  events,
 		Enabled: enabled,
 	}
@@ -67,6 +102,7 @@ func (h *Handler) createWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.audit(r, "webhook.create", "webhook", hook.ID, map[string]any{"name": hook.Name, "url": hook.URL})
+	hook.Secret = secret // return the plaintext secret to the creator
 	writeJSON(w, http.StatusCreated, hook)
 }
 
@@ -98,7 +134,12 @@ func (h *Handler) updateWebhook(w http.ResponseWriter, r *http.Request) {
 	hook.Name = strings.TrimSpace(d.Name)
 	hook.URL = strings.TrimSpace(d.URL)
 	if d.Secret != "" {
-		hook.Secret = strings.TrimSpace(d.Secret)
+		enc, err := h.encryptWebhookSecret(strings.TrimSpace(d.Secret))
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "failed to secure secret")
+			return
+		}
+		hook.Secret = enc
 	}
 	if d.Events != "" {
 		hook.Events = strings.TrimSpace(d.Events)
@@ -123,7 +164,7 @@ func (h *Handler) updateWebhook(w http.ResponseWriter, r *http.Request) {
 		meta["secret"] = "[REDACTED]"
 	}
 	h.audit(r, "webhook.update", "webhook", hook.ID, meta)
-	writeJSON(w, http.StatusOK, hook)
+	writeJSON(w, http.StatusOK, h.decryptedForResponse(hook))
 }
 
 func (h *Handler) deleteWebhook(w http.ResponseWriter, r *http.Request) {

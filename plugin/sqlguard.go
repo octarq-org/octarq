@@ -34,6 +34,24 @@ var BannedKeywords = []string{
 	"grant", "revoke", "merge", "upsert",
 }
 
+// BannedIdentifiers are table and column names a read-only query may never
+// reference. Output-column redaction alone is bypassable (SELECT password_hash
+// AS x hides the name), so we reject the query outright if it so much as
+// mentions a secret-bearing table or column. Tables holding credentials,
+// password/token hashes, or another tenant's account data are off-limits; the
+// analytics tables (links, link_events, emails, domains, …) stay queryable.
+var BannedIdentifiers = []string{
+	// secret-bearing / cross-tenant tables
+	"users", "user_sessions", "tokens", "provider_accounts", "settings",
+	"workspace_settings", "org_members", "orgs", "product_keys",
+	"issued_licenses", "license_devices", "webhooks",
+	// secret-bearing columns (in case a JOIN or view exposes them)
+	"password", "password_hash", "passwordhash", "hash", "secret",
+	"private_key", "privatekey", "private_key_enc", "token",
+	"access_token", "refresh_token", "totp_secret", "recovery_codes",
+	"inbound_token", "invite_token",
+}
+
 // ValidateReadOnlyQuery checks a user-supplied SQL string against the guardrails
 // and returns a normalized, LIMIT-bounded query ready to execute, or an error.
 func ValidateReadOnlyQuery(query string) (string, error) {
@@ -60,6 +78,14 @@ func ValidateReadOnlyQuery(query string) (string, error) {
 	for _, kw := range BannedKeywords {
 		if ContainsWord(lower, kw) {
 			return "", fmt.Errorf("disallowed keyword %q in a read-only query", kw)
+		}
+	}
+
+	// Reject any reference to a secret-bearing or cross-tenant table/column. This
+	// closes the output-alias bypass of column-name redaction.
+	for _, id := range BannedIdentifiers {
+		if ContainsWord(lower, id) {
+			return "", fmt.Errorf("disallowed table/column %q in a read-only query", id)
 		}
 	}
 

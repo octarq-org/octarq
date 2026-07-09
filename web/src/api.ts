@@ -36,6 +36,7 @@ export interface ProviderAccount {
   name: string;
   type: string;
   config: any;
+  hasCredentials: boolean; // credentials are set (encrypted at rest, never returned)
   createdAt: string;
   updatedAt: string;
 }
@@ -47,6 +48,7 @@ export interface SMTPSender {
   port: number;
   user: string;
   fromEmail: string;
+  passSet: boolean; // password is set (encrypted at rest, never returned)
   createdAt: string;
 }
 

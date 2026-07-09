@@ -123,6 +123,16 @@ func New() (*App, error) {
 	safehttp.SetAllowPrivateWebhooks(cfg.AllowPrivateWebhooks)
 
 	cipher := crypto.New(cfg.SecretKey)
+	// Webhook signing secrets are AES-GCM encrypted at rest; teach the eventbus how
+	// to unwrap them before HMAC-signing a delivery. (Envelope mode is enabled in
+	// Run before any delivery fires.)
+	eventbus.SetSecretDecryptor(func(stored string) (string, bool) {
+		b, err := cipher.Decrypt(stored)
+		if err != nil {
+			return "", false
+		}
+		return string(b), true
+	})
 	cacheLayer := cache.New(cfg.RedisURL)
 	authMgr := auth.New(cfg, cipher).WithDB(gdb).WithCache(cacheLayer)
 

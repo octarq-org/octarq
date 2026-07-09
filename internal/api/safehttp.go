@@ -2,12 +2,13 @@ package api
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"net"
 	"net/http"
-	"syscall"
 	"time"
+	"net"
+	"syscall"
+	"fmt"
+
+	"github.com/octarq-org/octarq/internal/safehttp"
 )
 
 // SSRF protection for server-side fetches of user-supplied URLs (the link
@@ -60,27 +61,7 @@ func safeControl(network, address string, _ syscall.RawConn) error {
 // safePreviewClient is the shared client for fetching user-supplied URLs. It
 // blocks non-public destinations (incl. across redirects), caps redirects, and
 // has tight timeouts so a slow or huge target can't tie up the server.
-var safePreviewClient = &http.Client{
-	Timeout: 10 * time.Second,
-	Transport: &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout: 5 * time.Second,
-			Control: safeControl,
-		}).DialContext,
-		TLSHandshakeTimeout:   5 * time.Second,
-		ResponseHeaderTimeout: 8 * time.Second,
-		DisableKeepAlives:     true,
-	},
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= 5 {
-			return errors.New("ssrf guard: too many redirects")
-		}
-		if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
-			return fmt.Errorf("ssrf guard: disallowed redirect scheme %q", req.URL.Scheme)
-		}
-		return nil
-	},
-}
+var safePreviewClient = safehttp.NewClient(10 * time.Second)
 
 // safeGet issues a guarded GET for a user-supplied URL. It rejects any scheme
 // other than http/https before dialing (so file://, gopher://, etc. never run).

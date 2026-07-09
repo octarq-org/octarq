@@ -37,6 +37,11 @@ func TestValidateReadOnlyQueryRejects(t *testing.T) {
 		"SELECT * FROM links; DROP TABLE links", // multi-statement
 		"SELECT 1; SELECT 2",                    // multi-statement
 		"VACUUM",
+		"SELECT * FROM users",                    // secret-bearing table
+		"SELECT * FROM tokens",                   // token hashes
+		"SELECT config FROM provider_accounts",   // encrypted credentials
+		"SELECT password_hash AS x FROM users",   // alias bypass of redaction
+		"SELECT * FROM emails JOIN users ON 1=1", // secret table via join
 	}
 	for _, q := range cases {
 		if _, err := validateReadOnlyQuery(q); err == nil {
@@ -82,9 +87,10 @@ func TestRedactRow(t *testing.T) {
 	}
 }
 
-// TestRunReadOnlyQueryRedactsSecrets is an end-to-end check: a SELECT * over a
-// seeded users table must come back with the password hash redacted.
-func TestRunReadOnlyQueryRedactsSecrets(t *testing.T) {
+// TestRunReadOnlyQueryRejectsSecretTable is an end-to-end check: querying a
+// secret-bearing table (users) is rejected outright, so no password hash can be
+// exfiltrated — not even via an output-column alias that would dodge redaction.
+func TestRunReadOnlyQueryRejectsSecretTable(t *testing.T) {
 	gdb, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
@@ -95,19 +101,13 @@ func TestRunReadOnlyQueryRedactsSecrets(t *testing.T) {
 	gdb.Create(&models.User{Email: "boss@co", PasswordHash: "TOPSECRET"})
 
 	s := &server{gdb: gdb, orgID: 1}
-	cols, rows, err := s.runReadOnlyQuery(context.Background(), "SELECT * FROM users")
-	if err != nil {
-		t.Fatalf("runReadOnlyQuery: %v", err)
+	// Direct table access is blocked…
+	if _, _, err := s.runReadOnlyQuery(context.Background(), "SELECT * FROM users"); err == nil {
+		t.Error("expected SELECT * FROM users to be rejected")
 	}
-	if len(rows) != 1 {
-		t.Fatalf("expected 1 row, got %d", len(rows))
-	}
-	_ = cols
-	if rows[0]["password_hash"] != plugin.RedactedValue {
-		t.Errorf("password_hash leaked: %v", rows[0]["password_hash"])
-	}
-	if rows[0]["email"] != "boss@co" {
-		t.Errorf("email = %v", rows[0]["email"])
+	// …and so is the alias trick that previously dodged column-name redaction.
+	if _, _, err := s.runReadOnlyQuery(context.Background(), "SELECT password_hash AS x FROM users"); err == nil {
+		t.Error("expected aliased password_hash select to be rejected")
 	}
 }
 

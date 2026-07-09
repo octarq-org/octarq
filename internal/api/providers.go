@@ -16,6 +16,9 @@ type providerAccountDTO struct {
 func (h *Handler) listProviderAccounts(w http.ResponseWriter, r *http.Request) {
 	var accounts []models.ProviderAccount
 	h.orgDB(r).Order("created_at DESC").Find(&accounts)
+	for i := range accounts {
+		accounts[i].HasCredentials = accounts[i].Config != ""
+	}
 	writeJSON(w, http.StatusOK, accounts)
 }
 
@@ -47,6 +50,7 @@ func (h *Handler) createProviderAccount(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	h.audit(r, "provider.create", "provider", acc.ID, map[string]any{"name": acc.Name, "type": acc.Type})
+	acc.HasCredentials = acc.Config != ""
 	writeJSON(w, http.StatusCreated, acc)
 }
 
@@ -90,6 +94,7 @@ func (h *Handler) updateProviderAccount(w http.ResponseWriter, r *http.Request) 
 		meta["config"] = redactedConfig
 	}
 	h.audit(r, "provider.update", "provider", acc.ID, meta)
+	acc.HasCredentials = acc.Config != ""
 	writeJSON(w, http.StatusOK, acc)
 }
 
