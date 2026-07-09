@@ -13,9 +13,13 @@ name: Publish SDK
 #   2. push of an `sdk-v*` tag -> direct one-shot publish of the current SDK
 #      version (escape hatch / manual release).
 
+# Gated to manual dispatch + sdk-v* tags until the first release: the SDK is
+# unpublished (v0.0.0) and the octarq-org GitHub Packages org isn't set up yet,
+# so auto-running changeset publish on every push to main just fails. Once ready
+# to publish, add `branches: [main]` back (or use `workflow_dispatch`).
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
     tags: ["sdk-v*"]
 
 # Top-level: least privilege. The changesets job widens this locally.
@@ -31,7 +35,7 @@ jobs:
   # ── Changesets-driven release on main ────────────────────────────────────
   release:
     name: Version or publish (changesets)
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write        # commit version bumps / push tags
@@ -51,7 +55,7 @@ jobs:
           node-version: 22
           cache: pnpm
           registry-url: https://npm.pkg.github.com
-          scope: "@octarq"
+          scope: "@octarq-org"
 
       - run: pnpm install --frozen-lockfile
 
@@ -86,7 +90,7 @@ jobs:
           node-version: 22
           cache: pnpm
           registry-url: https://npm.pkg.github.com
-          scope: "@octarq"
+          scope: "@octarq-org"
 
       - run: pnpm install --frozen-lockfile
 
