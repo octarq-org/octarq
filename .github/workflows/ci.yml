@@ -83,7 +83,7 @@ jobs:
       - name: Build dashboard
         run: pnpm build
 
-      # webembed/dist must stay committed: led-pro consumes led as a Go module
+      # webembed/dist must stay committed: octarq-pro consumes octarq as a Go module
       # and gets the embedded dashboard from the module zip. CI keeps it fresh
       # so nobody has to build and commit dist locally. Commits made with
       # GITHUB_TOKEN don't retrigger workflows, so this can't loop.
