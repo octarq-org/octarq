@@ -60,7 +60,7 @@ export default function SSHKeysPage() {
 
       {keys.length === 0 ? (
         <Empty>
-          <Key className="h-10 w-10 text-white/30 mb-2" />
+          <Key className="h-10 w-10 text-white/50 mb-2" />
           <p className="text-sm text-white/50">{t("sshKeys.emptyState")}</p>
           <Button variant="primary" className="mt-4" onClick={() => setShowAdd(true)}>
             {t("sshKeys.addKey")}
@@ -77,7 +77,7 @@ export default function SSHKeysPage() {
                 </Badge>
               </div>
               
-              <div className="text-[11px] text-white/35 mb-4">{t("sshKeys.added", { time: timeAgo(k.createdAt) })}</div>
+              <div className="text-[11px] text-white/50 mb-4">{t("sshKeys.added", { time: timeAgo(k.createdAt) })}</div>
 
               <div className="mb-4 flex-1">
                 <div className="text-[11px] font-medium text-white/40 mb-1">{t("sshKeys.publicKey")}</div>

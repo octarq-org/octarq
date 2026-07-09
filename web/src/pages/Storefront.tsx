@@ -55,7 +55,7 @@ export default function StorefrontPage() {
 
       {products.length === 0 ? (
         <Empty>
-          <Package className="mb-2 h-10 w-10 text-white/30" />
+          <Package className="mb-2 h-10 w-10 text-white/50" />
           <p className="text-sm text-white/50">{t("storefront.noProducts")}</p>
           <Button variant="primary" className="mt-4" onClick={() => setEditing("new")}>{t("storefront.addProductShort")}</Button>
         </Empty>
@@ -167,7 +167,7 @@ function PlansSection({ productId }: { productId: number }) {
         <Button variant="subtle" onClick={() => setEditing("new")}><Plus className="h-3.5 w-3.5" /> {t("storefront.planButton")}</Button>
       </div>
       {plans.length === 0 ? (
-        <p className="py-3 text-center text-sm text-white/35">{t("storefront.noPlans")}</p>
+        <p className="py-3 text-center text-sm text-white/50">{t("storefront.noPlans")}</p>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {plans.map((pl) => (
@@ -224,7 +224,7 @@ function ReleasesSection({ productId }: { productId: number }) {
         <Button variant="subtle" onClick={() => setAdding(true)}><Plus className="h-3.5 w-3.5" /> {t("storefront.releaseButton")}</Button>
       </div>
       {releases.length === 0 ? (
-        <p className="py-3 text-center text-sm text-white/35">
+        <p className="py-3 text-center text-sm text-white/50">
           {t("storefront.noReleasesPre")}<em>{t("storefront.noReleasesStable")}</em>{t("storefront.noReleasesPost")}
         </p>
       ) : (
@@ -235,7 +235,7 @@ function ReleasesSection({ productId }: { productId: number }) {
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-sm text-white">{rel.version}</span>
                   <Badge tone={rel.channel === "stable" ? "green" : "amber"}>{rel.channel}</Badge>
-                  <span className="text-xs text-white/35">{timeAgo(rel.createdAt)}</span>
+                  <span className="text-xs text-white/50">{timeAgo(rel.createdAt)}</span>
                 </div>
                 <button onClick={() => del(rel.id)} className="text-xs text-rose-300/80 hover:text-rose-300">{t("storefront.delete")}</button>
               </div>
@@ -243,10 +243,10 @@ function ReleasesSection({ productId }: { productId: number }) {
                 <ul className="mt-2 space-y-1">
                   {rel.assets.map((a, i) => (
                     <li key={i} className="flex items-center gap-2 text-xs text-white/55">
-                      <Download className="h-3 w-3 text-white/30" />
+                      <Download className="h-3 w-3 text-white/50" />
                       <span className="text-white/70">{a.label || a.url}</span>
-                      {(a.os || a.arch) && <span className="text-white/35">{[a.os, a.arch].filter(Boolean).join("/")}</span>}
-                      <span className="text-white/30">{a.kind}</span>
+                      {(a.os || a.arch) && <span className="text-white/50">{[a.os, a.arch].filter(Boolean).join("/")}</span>}
+                      <span className="text-white/50">{a.kind}</span>
                     </li>
                   ))}
                 </ul>
@@ -298,7 +298,7 @@ function KeySection({ productId }: { productId: number }) {
     catch (e) { alert((e as ApiError).message); } finally { setBusy(false); }
   }
 
-  if (!info) return <p className="py-3 text-center text-sm text-white/35">{t("storefront.loading")}</p>;
+  if (!info) return <p className="py-3 text-center text-sm text-white/50">{t("storefront.loading")}</p>;
 
   return (
     <div className="space-y-3">
@@ -313,7 +313,7 @@ function KeySection({ productId }: { productId: number }) {
             <button onClick={del} disabled={busy} className="text-xs text-rose-300/80 hover:text-rose-300">{t("storefront.delete")}</button>
           </div>
           <code className="block break-all font-mono text-xs text-emerald-300/90">{info.publicKey}</code>
-          <p className="mt-2 text-xs text-white/35">{t("storefront.embedNotePre")}<code>license.publicKeyB64</code>{t("storefront.embedNotePost")}</p>
+          <p className="mt-2 text-xs text-white/50">{t("storefront.embedNotePre")}<code>license.publicKeyB64</code>{t("storefront.embedNotePost")}</p>
         </div>
       ) : (
         <div className="rounded-xl border border-amber-400/20 bg-amber-500/[0.04] p-3">

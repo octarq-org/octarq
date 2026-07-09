@@ -123,7 +123,7 @@ export default function LinksPage() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-white/30" />
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-white/50" />
             </div>
             <Button
               variant={archived ? "primary" : "subtle"}

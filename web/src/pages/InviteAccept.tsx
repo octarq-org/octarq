@@ -94,7 +94,7 @@ export default function InviteAcceptPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
-                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-white/30" />
+                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-white/50" />
               </div>
             </div>
 
@@ -109,7 +109,7 @@ export default function InviteAcceptPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
-                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-white/30" />
+                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-white/50" />
               </div>
             </div>
 

@@ -101,7 +101,7 @@ export default function AbusePage() {
               </div>
 
               <div className="mt-4 text-sm text-white/75 bg-white/[0.03] p-4 rounded-xl border border-white/[0.06] font-normal leading-relaxed">
-                {r.description || <span className="text-white/30 italic">{t("abuse.noDescription")}</span>}
+                {r.description || <span className="text-white/50 italic">{t("abuse.noDescription")}</span>}
               </div>
 
               {r.status === "open" && (

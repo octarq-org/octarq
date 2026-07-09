@@ -152,7 +152,7 @@ function ApiTokens() {
           <div className="text-white/40 text-sm py-6 text-center">{t("personal.loading")}</div>
         ) : tokens.length === 0 ? (
           <Empty>
-            <Key className="h-8 w-8 text-white/30 mb-1" />
+            <Key className="h-8 w-8 text-white/50 mb-1" />
             <div className="text-xs text-white/50">{t("personal.noTokens")}</div>
           </Empty>
         ) : (
@@ -167,7 +167,7 @@ function ApiTokens() {
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-[11px] text-white/35">
+                  <span className="text-[11px] text-white/50">
                     {timer.lastUsedAt ? t("personal.usedAgo", { time: timeAgo(timer.lastUsedAt) }) : t("personal.neverUsed")}
                   </span>
                   <Button

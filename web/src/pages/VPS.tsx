@@ -65,7 +65,7 @@ export default function VPSPage() {
 
       {list.length === 0 ? (
         <Empty>
-          <Server className="h-10 w-10 text-white/30 mb-2" />
+          <Server className="h-10 w-10 text-white/50 mb-2" />
           <p className="text-sm text-white/50">{t("vps.emptyText")}</p>
           <Button variant="primary" className="mt-4" onClick={() => setShowAdd(true)}>
             {t("vps.emptyAdd")}
@@ -94,21 +94,21 @@ export default function VPSPage() {
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-white/55 mt-3">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-white/35">{t("vps.ipLabel")}</span>{" "}
+                      <span className="text-white/50">{t("vps.ipLabel")}</span>{" "}
                       <span className="font-mono truncate">{vps.ip}:{vps.port}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-white/35">{t("vps.userLabel")}</span>{" "}
+                      <span className="text-white/50">{t("vps.userLabel")}</span>{" "}
                       <span className="font-medium">{vps.user}</span>
                     </div>
                     <div className="flex items-center gap-1.5 min-w-0 sm:col-span-2">
-                      <Key className="h-3.5 w-3.5 text-white/30 shrink-0" />
-                      <span className="text-white/35">{t("vps.keyLabel")}</span>{" "}
+                      <Key className="h-3.5 w-3.5 text-white/50 shrink-0" />
+                      <span className="text-white/50">{t("vps.keyLabel")}</span>{" "}
                       <span className="truncate font-medium text-white/70">{keyName}</span>
                     </div>
                   </div>
                   
-                  <div className="text-[11px] text-white/35 mt-4 border-t border-white/[0.04] pt-3">
+                  <div className="text-[11px] text-white/50 mt-4 border-t border-white/[0.04] pt-3">
                     {vps.lastChecked ? t("vps.lastActive", { time: timeAgo(vps.lastChecked) }) : t("vps.pendingTest")}
                     {vps.failCount > 0 && vps.status !== "online" && ` ${t("vps.failedAttempts", { count: vps.failCount })}`}
                   </div>

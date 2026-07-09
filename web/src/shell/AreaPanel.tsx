@@ -33,7 +33,7 @@ export function AreaPanel({ area, currentPath, onCollapse }: { area: Area; curre
       <div className="flex-1 overflow-y-auto px-3 pb-3">
         {area.groups.map((group) => (
           <div key={group.label} className="mb-4">
-            <p className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wider text-white/30">
+            <p className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wider text-white/50">
               {t(`groups.${group.label}`, group.label)}
             </p>
             <div className="space-y-0.5">
@@ -66,7 +66,7 @@ export function AreaPanel({ area, currentPath, onCollapse }: { area: Area; curre
                     )}
                     <span className="relative flex-1">{t(`nav.${item.id}`, item.label)}</span>
                     {item.badge !== undefined && (
-                      <span className="relative text-[11px] font-medium text-white/35">
+                      <span className="relative text-[11px] font-medium text-white/50">
                         {item.badge}
                       </span>
                     )}

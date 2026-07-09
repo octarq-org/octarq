@@ -59,7 +59,7 @@ export function EmailViewForm({
            <div className="text-xs text-white/55 space-y-1.5">
              <div><span className="text-white/45">{t("mail.fromLabel")}</span> <span className="font-semibold text-white/80">{email.from}</span></div>
              <div><span className="text-white/45">{t("mail.toLabel")}</span> <span className="text-white/70">{email.to}</span></div>
-             <div className="text-[11px] text-white/35 pt-0.5">{new Date(email.receivedAt).toLocaleString()}</div>
+             <div className="text-[11px] text-white/50 pt-0.5">{new Date(email.receivedAt).toLocaleString()}</div>
              <div className="mt-2.5 flex flex-wrap gap-1.5 pt-1">
                <AuthBadges spf={email.authSpf} dkim={email.authDkim} dmarc={email.authDmarc} />
              </div>

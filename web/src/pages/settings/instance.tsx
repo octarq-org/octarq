@@ -280,7 +280,7 @@ export function InstanceSettings() {
                   )}
                 </div>
               </Field>
-              <p className="text-[10px] text-white/30">
+              <p className="text-[10px] text-white/50">
                 Callback URL: <span className="font-mono text-white/50">{"{HOST}/api/auth/google/callback"}</span>
               </p>
             </div>
@@ -322,7 +322,7 @@ export function InstanceSettings() {
                   )}
                 </div>
               </Field>
-              <p className="text-[10px] text-white/30">
+              <p className="text-[10px] text-white/50">
                 Callback URL: <span className="font-mono text-white/50">{"{HOST}/api/auth/github/callback"}</span>
               </p>
             </div>

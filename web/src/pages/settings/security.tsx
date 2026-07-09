@@ -71,11 +71,11 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-medium text-white/85">{ua.browser}</span>
                 {s.isCurrent && <Badge tone="green">{t("settings.current")}</Badge>}
-                <span className="text-xs text-white/35">{ua.os}</span>
+                <span className="text-xs text-white/50">{ua.os}</span>
               </div>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-xs text-white/40">{s.location || s.ip}</span>
-                <span className="text-xs text-white/30">{t("settings.lastSeen", { time: timeAgo(s.lastSeenAt) })}</span>
+                <span className="text-xs text-white/50">{t("settings.lastSeen", { time: timeAgo(s.lastSeenAt) })}</span>
                 <span className="text-xs text-white/25">{t("settings.signedIn", { time: timeAgo(s.createdAt) })}</span>
               </div>
             </div>

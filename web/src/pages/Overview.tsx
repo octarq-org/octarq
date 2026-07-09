@@ -220,7 +220,7 @@ export default function OverviewPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Panel title={t("overview.topLinks")}>
           {!o.topLinks || o.topLinks.length === 0 ? (
-            <p className="text-sm text-white/30">{t("overview.noLinks")}</p>
+            <p className="text-sm text-white/50">{t("overview.noLinks")}</p>
           ) : (
             <div className="space-y-1">
               {o.topLinks.map((l) => (
@@ -252,7 +252,7 @@ export default function OverviewPage() {
       <div className="mt-6">
         <Panel title={t("overview.recentMail")}>
           {!o.recentEmails || o.recentEmails.length === 0 ? (
-            <p className="text-sm text-white/30">{t("overview.noMail")}</p>
+            <p className="text-sm text-white/50">{t("overview.noMail")}</p>
           ) : (
             <div className="divide-y divide-white/[0.04]">
               {o.recentEmails.map((e) => (
@@ -297,7 +297,7 @@ function BotToggle({ value, onChange }: { value: boolean; onChange: (v: boolean)
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <GlassCard className="p-5">
-      <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-white/35">{title}</h3>
+      <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-white/50">{title}</h3>
       {children}
     </GlassCard>
   );

@@ -36,7 +36,7 @@ export function Guide({
           <span>💡</span>
           {title}
         </span>
-        <span className="text-white/35" aria-hidden="true">{show ? "▾" : "▸"}</span>
+        <span className="text-white/50" aria-hidden="true">{show ? "▾" : "▸"}</span>
       </button>
       {show && (
         <div className="space-y-2 border-t border-white/[0.06] px-3 py-3 text-white/55 animate-expand">

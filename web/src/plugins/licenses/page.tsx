@@ -55,7 +55,7 @@ export default function LicensesPage() {
       <PageHeader title={t("licenses.pageTitle")} description={t("licenses.pageDesc")} />
       {rows.length === 0 ? (
         <Empty>
-          <KeyRound className="mb-2 h-10 w-10 text-white/30" />
+          <KeyRound className="mb-2 h-10 w-10 text-white/50" />
           <p className="text-sm text-white/50">{t("licenses.emptyState")}</p>
         </Empty>
       ) : (

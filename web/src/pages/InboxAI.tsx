@@ -230,7 +230,7 @@ export default function InboxAIPage() {
                               <span className="truncate text-sm font-medium text-white/90">{r.subject}</span>
                             </div>
                             <p className="mt-1 truncate text-sm text-white/60">{r.summary}</p>
-                            <p className="mt-0.5 text-xs text-white/35">
+                            <p className="mt-0.5 text-xs text-white/50">
                               {r.from} · {timeAgo(r.createdAt)}
                             </p>
                           </div>

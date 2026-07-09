@@ -74,7 +74,7 @@ export function PluginsSettings() {
                     </div>
                     {description && <p className="text-xs text-white/45 mt-0.5">{description}</p>}
                     {p.menus.length > 0 && (
-                      <p className="text-[10px] text-white/30 mt-1">
+                      <p className="text-[10px] text-white/50 mt-1">
                         {t("settings.pluginAdds", { items: p.menus.map((m) => m.label).join(" · ") })}
                       </p>
                     )}

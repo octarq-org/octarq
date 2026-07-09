@@ -62,12 +62,12 @@ function TopList({ title, icon, rows }: { title: string; icon?: React.ReactNode;
   const { t } = useTranslation();
   return (
     <div className="space-y-2">
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-white/35 flex items-center">
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-white/50 flex items-center">
         {icon}
         {title}
       </div>
       {!rows || rows.length === 0 ? (
-        <p className="text-xs text-white/30 italic">—</p>
+        <p className="text-xs text-white/50 italic">—</p>
       ) : (
         <div className="space-y-1.5">
           {rows.map((r) => (

@@ -96,7 +96,7 @@ export default function BillingPage() {
         </div>
         {prices.length === 0 ? (
           <Empty>
-            <Receipt className="mb-2 h-8 w-8 text-white/30" />
+            <Receipt className="mb-2 h-8 w-8 text-white/50" />
             <p className="text-sm text-white/45">{t("billing.noMappings")}</p>
           </Empty>
         ) : (

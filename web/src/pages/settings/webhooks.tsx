@@ -158,7 +158,7 @@ export function NotificationChannels() {
         <div className="text-white/40 text-sm py-6 text-center">{t("settings.loadingLower")}</div>
       ) : channels.length === 0 ? (
         <Empty>
-          <Bell className="h-8 w-8 text-white/30 mb-1" />
+          <Bell className="h-8 w-8 text-white/50 mb-1" />
           <div className="text-xs text-white/50">{t("settings.noChannels")}</div>
         </Empty>
       ) : (
@@ -176,7 +176,7 @@ export function NotificationChannels() {
                     </Badge>
                     {!c.enabled && <Badge tone="neutral">{t("settings.badgeDisabled")}</Badge>}
                   </div>
-                  <div className="text-[11px] text-white/35 mt-1">{t("settings.added", { time: timeAgo(c.createdAt) })}</div>
+                  <div className="text-[11px] text-white/50 mt-1">{t("settings.added", { time: timeAgo(c.createdAt) })}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Button

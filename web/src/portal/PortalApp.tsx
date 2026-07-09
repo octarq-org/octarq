@@ -161,7 +161,7 @@ function LoginView({ onLogin }: { onLogin: (email: string) => void }) {
               {t("portal.registerHere")}
             </Link>
           </div>
-          <div className="text-[11px] text-white/30 border-t border-white/5 pt-3 mt-1">
+          <div className="text-[11px] text-white/50 border-t border-white/5 pt-3 mt-1">
             {t("portal.justBought")}{" "}
             <Link to="/claim" className="text-indigo-400 hover:text-indigo-300 font-medium">
               {t("portal.claimPurchase")}
@@ -650,7 +650,7 @@ function DashboardView({ email, onLogout }: { email: string; onLogout: () => voi
         <Empty>
           <KeyRound className="h-10 w-10 text-white/20 mb-2" />
           <p className="text-sm text-white/50">{t("portal.noLicenses")}</p>
-          <p className="text-xs text-white/35 mt-1">{t("portal.noLicensesHint")}</p>
+          <p className="text-xs text-white/50 mt-1">{t("portal.noLicensesHint")}</p>
           <Link to="/claim" className="mt-4">
             <Button variant="outline">{t("portal.linkPurchaseBtn")}</Button>
           </Link>

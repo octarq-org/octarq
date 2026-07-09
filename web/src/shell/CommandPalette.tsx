@@ -91,7 +91,7 @@ export function CommandPalette({
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKey}
             placeholder={t("command.placeholder")}
-            className="w-full bg-transparent py-3.5 text-sm text-white placeholder:text-white/35 focus:outline-none"
+            className="w-full bg-transparent py-3.5 text-sm text-white placeholder:text-white/50 focus:outline-none"
           />
           <kbd className="shrink-0 rounded bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-medium text-white/40">esc</kbd>
         </div>
@@ -114,7 +114,7 @@ export function CommandPalette({
                   <c.Icon className="h-4 w-4 shrink-0 text-white/60" strokeWidth={1.75} />
                 )}
                 <span className="flex-1 truncate text-sm text-white">{c.label}</span>
-                <span className="shrink-0 text-[11px] text-white/35">{c.area} · {c.group}</span>
+                <span className="shrink-0 text-[11px] text-white/50">{c.area} · {c.group}</span>
               </button>
             ))
           )}

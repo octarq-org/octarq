@@ -125,7 +125,7 @@ export function LicenseSettings() {
         {msg && (
           <p className={`mt-3 text-sm ${msg.kind === "ok" ? "text-emerald-300" : "text-rose-300"}`}>{msg.text}</p>
         )}
-        <p className="mt-4 text-xs text-white/35">
+        <p className="mt-4 text-xs text-white/50">
           {t("settings.licenseRestartNote")}
         </p>
       </GlassCard>

@@ -44,7 +44,7 @@ export function RecordsView({ domain }: { domain: Domain }) {
         <Button variant="primary" onClick={() => setEditing("new")} className="py-1 px-3 text-xs">{t("domains.customButton")}</Button>
       </div>
 
-      <p className="text-[11px] text-white/35">{t("domains.recordsNote", { shown: filtered.length, total: records?.length ?? 0 })}</p>
+      <p className="text-[11px] text-white/50">{t("domains.recordsNote", { shown: filtered.length, total: records?.length ?? 0 })}</p>
       
       {err && <p className="rounded bg-rose-500/10 p-3 text-xs text-rose-400 font-medium">{err}</p>}
       

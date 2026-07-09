@@ -61,7 +61,7 @@ export default function LLMProvidersSettings({ embed, onChanged }: { embed?: boo
         <div className="flex justify-between items-center mb-4 pt-4 border-t border-white/[0.04]">
           <div className="text-xs font-semibold text-white/70">
             {t("llmProviders.embedTitle")}
-            <div className="text-[10px] text-white/35 font-normal mt-0.5">{t("llmProviders.embedHint")}</div>
+            <div className="text-[10px] text-white/50 font-normal mt-0.5">{t("llmProviders.embedHint")}</div>
           </div>
           <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setEditing("new")}>{t("llmProviders.addProvider")}</Button>
         </div>
@@ -69,7 +69,7 @@ export default function LLMProvidersSettings({ embed, onChanged }: { embed?: boo
 
       {rows.length === 0 ? (
         <Empty>
-          <Bot className="mb-2 h-10 w-10 text-white/30" />
+          <Bot className="mb-2 h-10 w-10 text-white/50" />
           <p className="text-sm text-white/50">{t("llmProviders.emptyTitle")}</p>
           <Button variant="primary" className="mt-4" onClick={() => setEditing("new")}>{t("llmProviders.emptyAction")}</Button>
         </Empty>

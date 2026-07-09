@@ -40,7 +40,7 @@ export function SMTPSenders() {
       <div className="flex justify-between items-center">
         <div className="text-xs font-semibold text-white/70">
           {t("settings.smtpOutgoingGateways")}
-          <div className="text-[10px] text-white/35 font-normal mt-0.5">{t("settings.smtpOutgoingGatewaysDesc")}</div>
+          <div className="text-[10px] text-white/50 font-normal mt-0.5">{t("settings.smtpOutgoingGatewaysDesc")}</div>
         </div>
         <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
           {t("settings.addSmtp")}
@@ -50,7 +50,7 @@ export function SMTPSenders() {
         <div className="text-white/40 text-sm py-6 text-center">{t("settings.loadingLower")}</div>
       ) : senders.length === 0 ? (
         <Empty>
-          <Send className="h-8 w-8 text-white/30 mb-1" />
+          <Send className="h-8 w-8 text-white/50 mb-1" />
           <div className="text-xs text-white/50">{t("settings.noSmtpSenders")}</div>
         </Empty>
       ) : (

@@ -258,7 +258,7 @@ export default function FinancePage() {
       {/* Unified Table */}
       {filteredTransactions.length === 0 ? (
         <Empty>
-          <Landmark className="h-10 w-10 text-white/30 mb-2" />
+          <Landmark className="h-10 w-10 text-white/50 mb-2" />
           <p className="text-sm text-white/50">{t("finance.emptyState")}</p>
         </Empty>
       ) : (

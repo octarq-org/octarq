@@ -40,7 +40,7 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
       <div className="flex justify-between items-center">
         <div className="text-xs font-semibold text-white/70">
           {t("settings.dnsApiAccounts")}
-          <div className="text-[10px] text-white/35 font-normal mt-0.5">{t("settings.dnsApiAccountsDesc")}</div>
+          <div className="text-[10px] text-white/50 font-normal mt-0.5">{t("settings.dnsApiAccountsDesc")}</div>
         </div>
         <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
           {t("settings.addProvider")}
@@ -51,7 +51,7 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
         <div className="text-white/40 text-sm py-4 text-center">{t("settings.loadingLower")}</div>
       ) : accounts.length === 0 ? (
         <Empty>
-          <Cloud className="h-8 w-8 text-white/30 mb-1" />
+          <Cloud className="h-8 w-8 text-white/50 mb-1" />
           <div className="text-xs text-white/50">{t("settings.noDnsProviders")}</div>
         </Empty>
       ) : (

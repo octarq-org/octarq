@@ -277,7 +277,7 @@ export default function DomainsPage() {
                 ) : (
                   <div className="space-y-4 pt-2">
                     <div className="space-y-3">
-                      <span className="text-[10px] uppercase font-bold text-white/35 tracking-wider">{t("domains.mailHosts")}</span>
+                      <span className="text-[10px] uppercase font-bold text-white/50 tracking-wider">{t("domains.mailHosts")}</span>
                       {(dnsStatus.hosts?.length
                         ? dnsStatus.hosts
                         : [{ host: active.name, spf: dnsStatus.spf, dmarc: dnsStatus.dmarc, dkim: dnsStatus.dkim }]
@@ -287,7 +287,7 @@ export default function DomainsPage() {
                     </div>
                     {!!dnsStatus.links?.length && (
                       <div className="space-y-2">
-                        <span className="text-[10px] uppercase font-bold text-white/35 tracking-wider">{t("domains.shortLinkHosts")}</span>
+                        <span className="text-[10px] uppercase font-bold text-white/50 tracking-wider">{t("domains.shortLinkHosts")}</span>
                         {dnsStatus.links.map((lh) => (
                           <LinkHostRow key={lh.host} link={lh} />
                         ))}

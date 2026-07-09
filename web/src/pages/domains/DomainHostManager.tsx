@@ -63,7 +63,7 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
   return (
     <div className="bg-black/25 rounded-2xl p-4 border border-white/[0.05] space-y-4">
       {hosts.length === 0 ? (
-        <p className="text-sm text-white/30">{t("domains.noActiveHosts")}</p>
+        <p className="text-sm text-white/50">{t("domains.noActiveHosts")}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -97,7 +97,7 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
                       <button
                         disabled={!!busy}
                         onClick={() => addHost(h.host, true, false)}
-                        className="text-xs text-white/30 hover:text-indigo-400 transition-colors px-2 py-0.5 disabled:opacity-50"
+                        className="text-xs text-white/50 hover:text-indigo-400 transition-colors px-2 py-0.5 disabled:opacity-50"
                       >
                         {t("domains.addShort")}
                       </button>
@@ -121,7 +121,7 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
                       <button
                         disabled={!!busy}
                         onClick={() => addHost(h.host, false, true)}
-                        className="text-xs text-white/30 hover:text-emerald-400 transition-colors px-2 py-0.5 disabled:opacity-50"
+                        className="text-xs text-white/50 hover:text-emerald-400 transition-colors px-2 py-0.5 disabled:opacity-50"
                       >
                         {t("domains.addShort")}
                       </button>
@@ -192,7 +192,7 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
           onKeyDown={(e) => e.key === "Enter" && submit()}
         />
         {draft && !draft.includes(".") && (
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] text-white/35">
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] text-white/50">
             → {draft.trim().toLowerCase()}.{domain.name}
           </span>
         )}

@@ -15,7 +15,7 @@ export function AreaChart({
 }) {
   const { t } = useTranslation();
   if (!series || !series.length)
-    return <div className="grid h-28 place-items-center text-sm text-white/35">{t("uiCommon.noDataYet")}</div>;
+    return <div className="grid h-28 place-items-center text-sm text-white/50">{t("uiCommon.noDataYet")}</div>;
 
   const w = 600;
   const h = height;
@@ -57,7 +57,7 @@ export function BarList({
   empty?: string;
 }) {
   const { t } = useTranslation();
-  if (!rows || rows.length === 0) return <p className="text-sm text-white/35">{empty}</p>;
+  if (!rows || rows.length === 0) return <p className="text-sm text-white/50">{empty}</p>;
   const max = Math.max(...rows.map((r) => r.count), 1);
   return (
     <div className="space-y-1.5">

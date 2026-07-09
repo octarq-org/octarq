@@ -165,7 +165,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
 
         {hasOauth && (
           <div className="mt-6 space-y-3">
-            <div className="flex items-center gap-2 text-xs text-white/30">
+            <div className="flex items-center gap-2 text-xs text-white/50">
               <span className="h-px flex-1 bg-white/10" />
               <span>{t("app.orContinueWith")}</span>
               <span className="h-px flex-1 bg-white/10" />
