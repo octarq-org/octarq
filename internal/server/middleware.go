@@ -398,11 +398,24 @@ func (mw *middleware) currentMetricsToken() string {
 	return mw.metricsToken
 }
 
+// setSecurityHeaders applies baseline hardening headers to every response.
+func setSecurityHeaders(w http.ResponseWriter, r *http.Request) {
+	h := w.Header()
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("X-Frame-Options", "SAMEORIGIN")
+	h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'")
+	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+		h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+	}
+}
+
 // handle applies the edge middleware and then dispatches to next.
 func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
 	start := time.Now()
 	ip := clientIP(r)
 	mw.refreshConfig(start)
+	setSecurityHeaders(w, r)
 
 	// 1. Request ID: reuse a sane inbound one, else generate.
 	rid := sanitizeRequestID(r.Header.Get("X-Request-Id"))

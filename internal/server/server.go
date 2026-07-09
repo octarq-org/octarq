@@ -63,23 +63,6 @@ func New(cfg *config.Config, apiHandler http.Handler, short *shortlink.Service, 
 	return s, nil
 }
 
-// setSecurityHeaders applies baseline hardening headers to every response. The
-// CSP still allows 'unsafe-inline' for scripts and styles because the SPA (and
-// framer-motion's injected styles) rely on it; tightening script-src to nonces
-// or hashes is a follow-up, not yet done.
-func setSecurityHeaders(w http.ResponseWriter, r *http.Request) {
-	h := w.Header()
-	h.Set("X-Content-Type-Options", "nosniff")
-	h.Set("X-Frame-Options", "SAMEORIGIN")
-	h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
-	h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'")
-	// HSTS only over HTTPS (directly or behind a TLS-terminating proxy), so a
-	// plain-HTTP dev/localhost run isn't pinned to https.
-	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
-		h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
-	}
-}
-
 // ServeHTTP applies the edge middleware (request IDs, rate limiting, metrics,
 // access logging) and then dispatches to the router.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +71,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // route performs the actual path-based dispatch.
 func (s *Server) route(w http.ResponseWriter, r *http.Request) {
-	setSecurityHeaders(w, r)
 	path := r.URL.Path
 
 	// 1. API and inbound webhook.

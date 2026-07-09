@@ -23,4 +23,5 @@ COPY --from=build /octarq /octarq
 EXPOSE 8080
 VOLUME ["/data"]
 ENV OCTARQ_DB_DSN=/data/octarq.db
+USER 65532:65532
 ENTRYPOINT ["/octarq"]

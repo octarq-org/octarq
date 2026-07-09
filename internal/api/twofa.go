@@ -202,8 +202,13 @@ func (h *Handler) verifyTOTPOrRecovery(user *models.User, code string) bool {
 		return false
 	}
 	if user.TOTPSecret != "" {
+		if user.LastTOTPCode != "" && user.LastTOTPCode == code {
+			return false // Replay attack prevention
+		}
 		if secret, err := h.cipher.Decrypt(user.TOTPSecret); err == nil {
 			if totp.Validate(code, string(secret)) {
+				h.db.Model(user).Update("last_totp_code", code)
+				user.LastTOTPCode = code
 				return true
 			}
 		}

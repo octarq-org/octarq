@@ -8,7 +8,7 @@ import (
 
 // sessionCookieName is the browser session cookie (mirrors auth.cookieName).
 // Its presence marks a request as browser-driven and therefore CSRF-relevant.
-const sessionCookieName = "led_session"
+const sessionCookieName = "octarq_session"
 
 // CSRFGuard wraps an API handler and blocks cross-site state-changing requests
 // that ride on the ambient session cookie. Bearer-token / webhook-token clients
