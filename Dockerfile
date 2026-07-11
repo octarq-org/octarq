@@ -1,16 +1,20 @@
 # ---- Stage 1: build the React dashboard ----
 # The dashboard's pnpm workspace (web/pnpm-workspace.yaml) includes the sibling
-# @octarq-org/plugin-sdk at ../packages/*, so both trees must be present for the
-# workspace dependency to resolve. Manifests first for layer caching.
+# @octarq-org/plugin-sdk at ../packages/* and the example plugin
+# @acme/octarq-plugin-hello at ../examples/plugin-hello/web (the OSS default
+# manifest composes it), so all three trees must be present for the workspace
+# dependencies to resolve. Manifests first for layer caching.
 FROM node:22-alpine AS web
 RUN corepack enable
 WORKDIR /app
 COPY web/package.json web/pnpm-lock.yaml* web/pnpm-workspace.yaml ./web/
 COPY packages/plugin-sdk/package.json ./packages/plugin-sdk/
+COPY examples/plugin-hello/web/package.json ./examples/plugin-hello/web/
 WORKDIR /app/web
 RUN pnpm install --frozen-lockfile || pnpm install
 WORKDIR /app
 COPY packages/ ./packages/
+COPY examples/ ./examples/
 COPY web/ ./web/
 WORKDIR /app/web
 RUN pnpm build
