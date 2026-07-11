@@ -10,6 +10,7 @@ import {
   Link2,
   Mail,
   Puzzle,
+  ScrollText,
   Server,
   Settings,
   Shield,
@@ -135,10 +136,10 @@ export const STATIC_AREAS: Area[] = [
         ],
       },
       {
-        // Audit is a Pro plugin (plugins/audit, category "System") — injected
-        // dynamically only in a composed build.
         label: "System",
-        items: [],
+        items: [
+          { id: "audit", label: "Audit Log", Icon: ScrollText, path: "/audit" },
+        ],
       },
     ],
   },

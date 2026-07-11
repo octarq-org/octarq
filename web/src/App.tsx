@@ -41,6 +41,7 @@ import DomainsPage from "./pages/Domains";
 import MailPage from "./pages/Mail";
 import SettingsPage from "./pages/Settings";
 import AbusePage from "./pages/Abuse";
+import AuditLogPage from "./pages/Audit";
 import PersonalSettingsPage from "./pages/PersonalSettings";
 import InviteAcceptPage from "./pages/InviteAccept";
 import { Modal, Button, ScreenWrap, PageHeader, GlassCard } from "./ui";
@@ -346,6 +347,7 @@ function Shell({
               <Route path="/assets/databases"    element={<ComingSoonPage title={t("app.databasesTitle")} description={t("app.databasesDesc")} />} />
               <Route path="/assets/storage"      element={<ComingSoonPage title={t("app.storageTitle")} description={t("app.storageDesc")} />} />
               <Route path="/abuse"      element={<AbusePage />} />
+              <Route path="/audit"      element={<AuditLogPage />} />
               <Route path="/settings/*" element={<SettingsPage />} />
               <Route path="/personal/*" element={<PersonalSettingsPage />} />
               <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />

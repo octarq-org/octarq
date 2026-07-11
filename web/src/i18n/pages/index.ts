@@ -7,11 +7,12 @@ import { mail } from "./mail";
 import { personal } from "./personal";
 import { settings } from "./settings";
 // Note: the Pro namespaces (licenses, inboxAi, llmProviders, vps, sshKeys,
-// finance, storefront, billing, audit) moved out of this central bundle — each
-// is now owned by its UIPlugin (web/src/plugins/*) and injected via
-// UIPlugin.i18n only when that plugin is composed in (the Pro build). The OSS
-// bundle never ships them.
+// finance, storefront, billing) are owned by their UIPlugin (octarq-pro
+// packages) and injected via UIPlugin.i18n only when composed into the Pro
+// build. The OSS bundle never ships them. Audit is a *core* feature (its backend
+// is core, /api/audit), so its namespace lives here.
 import { abuse } from "./abuse";
+import { audit } from "./audit";
 import { invite } from "./invite";
 import { uiCommon } from "./uiCommon";
 import { portal } from "./portal";
@@ -24,6 +25,7 @@ const NS = {
   personal,
   settings,
   abuse,
+  audit,
   invite,
   uiCommon,
   portal,
