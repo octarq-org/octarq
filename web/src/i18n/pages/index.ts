@@ -4,21 +4,15 @@ import { overview } from "./overview";
 import { links } from "./links";
 import { domains } from "./domains";
 import { mail } from "./mail";
-import { inboxAi } from "./inboxAi";
-import { vps } from "./vps";
-import { sshKeys } from "./sshKeys";
-import { finance } from "./finance";
-import { storefront } from "./storefront";
 import { personal } from "./personal";
 import { settings } from "./settings";
-import { billing } from "./billing";
-// Note: the `licenses` namespace moved out of this central bundle — it is now
-// owned by the licenses UIPlugin (web/src/plugins/licenses) and injected via
-// UIPlugin.i18n when that plugin is composed in.
-import { audit } from "./audit";
+// Note: the Pro namespaces (licenses, inboxAi, llmProviders, vps, sshKeys,
+// finance, storefront, billing, audit) moved out of this central bundle — each
+// is now owned by its UIPlugin (web/src/plugins/*) and injected via
+// UIPlugin.i18n only when that plugin is composed in (the Pro build). The OSS
+// bundle never ships them.
 import { abuse } from "./abuse";
 import { invite } from "./invite";
-import { llmProviders } from "./llmProviders";
 import { uiCommon } from "./uiCommon";
 import { portal } from "./portal";
 
@@ -27,18 +21,10 @@ const NS = {
   links,
   domains,
   mail,
-  inboxAi,
-  vps,
-  sshKeys,
-  finance,
-  storefront,
   personal,
   settings,
-  billing,
-  audit,
   abuse,
   invite,
-  llmProviders,
   uiCommon,
   portal,
 };

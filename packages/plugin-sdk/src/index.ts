@@ -1,7 +1,14 @@
 // @octarq-org/plugin-sdk — package root (the `.` export).
 //
-// This entry carries ONLY the pure, app-independent plugin contract and its
-// registry. The shared UI surface lives under the `./ui` subpath export so a
-// consumer that only needs the contract (e.g. a build-time injection module)
-// never pulls the component tree.
+// Carries the full plugin surface so a plugin package has ONE import specifier:
+//   - contract + registry (the UIPlugin type, registerUIPlugin, uiPluginI18n…)
+//   - ui (glass-themed components, incl. LockedFeature/LockedFallback)
+//   - i18n (I18nProvider + useTranslation, host feeds resources)
+//   - brand (BrandProvider + useAppName, host feeds the product name)
+// The pure component set is still also available under the `./ui` subpath for a
+// consumer that wants only components. ESM tree-shaking prunes anything unused
+// (e.g. the build-time injection module that imports only registerUIPlugin).
 export * from "./contract";
+export * from "./ui";
+export * from "./i18n";
+export * from "./brand";

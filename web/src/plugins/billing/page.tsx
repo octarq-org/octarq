@@ -3,10 +3,10 @@
 // through the map means operators never set checkout metadata. License-gated:
 // 402 → upsell; OSS build → 404 note. Issuance itself lives under Licenses.
 import { useEffect, useState } from "react";
-import { api, ApiError, BillingConfig, PriceMap, PriceMapInput } from "../api";
-import { ScreenWrap, PageHeader, GlassCard, Button, Badge, Field, Modal, Empty, LockedFeature } from "../ui";
+import { api, ApiError, BillingConfig, PriceMap, PriceMapInput } from "../../api";
+import { ScreenWrap, PageHeader, GlassCard, Button, Badge, Field, Modal, Empty, LockedFeature } from "@octarq-org/plugin-sdk";
 import { Receipt, Plus } from "lucide-react";
-import { useTranslation } from "../i18n";
+import { useTranslation } from "@octarq-org/plugin-sdk";
 
 export default function BillingPage() {
   const { t } = useTranslation();

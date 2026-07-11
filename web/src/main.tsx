@@ -9,6 +9,7 @@ import { MotionConfig } from "framer-motion";
 import "#octarq-plugins";
 import App from "./App";
 import { I18nProvider } from "./i18n";
+import { BrandBridge } from "./brand";
 import "./styles.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -16,10 +17,14 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     {/* Honor the OS "reduce motion" setting for every framer-motion animation
         (StatCard/ScreenWrap enter, dropdowns, …) — a11y baseline. */}
     <MotionConfig reducedMotion="user">
+      {/* I18nProvider + BrandBridge feed the SDK's i18n/brand context, which the
+          shared UI and plugin packages read. */}
       <I18nProvider>
-        <BrowserRouter basename="/admin">
-          <App />
-        </BrowserRouter>
+        <BrandBridge>
+          <BrowserRouter basename="/admin">
+            <App />
+          </BrowserRouter>
+        </BrandBridge>
       </I18nProvider>
     </MotionConfig>
   </React.StrictMode>,

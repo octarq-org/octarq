@@ -13,6 +13,26 @@
 //   registerUIPlugin(helloPlugin);
 import { registerUIPlugin } from "@octarq-org/plugin-sdk";
 import { licensesPlugin } from "./licenses";
+import { inboxAiPlugin } from "./inbox-ai";
+import { llmProvidersPlugin } from "./llm-providers";
+import { vpsPlugin } from "./vps";
+import { sshKeysPlugin } from "./ssh-keys";
+import { financePlugin } from "./finance";
+import { storefrontPlugin } from "./storefront";
+import { billingPlugin } from "./billing";
+import { auditPlugin } from "./audit";
 
-// The licenses PoC: the existing Pro page, now composed through the SDK.
+// The Pro plugin set: every former Pro page, now composed through the SDK so its
+// route, sidebar entry, and i18n are absent from the OSS build. Order is
+// cosmetic — routes/menus are placed by path/category, not registration order.
 registerUIPlugin(licensesPlugin);
+registerUIPlugin(inboxAiPlugin);
+// Route-less: owns the llmProviders.* i18n namespace for the panel embedded in
+// the inbox-ai page. No route/menu of its own.
+registerUIPlugin(llmProvidersPlugin);
+registerUIPlugin(vpsPlugin);
+registerUIPlugin(sshKeysPlugin);
+registerUIPlugin(financePlugin);
+registerUIPlugin(storefrontPlugin);
+registerUIPlugin(billingPlugin);
+registerUIPlugin(auditPlugin);

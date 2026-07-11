@@ -5,12 +5,12 @@
 import { useEffect, useState } from "react";
 import {
   api, ApiError, Product, ProductInput, Plan, PlanInput, Release, ReleaseInput, ReleaseAsset, ProductKeyInfo,
-} from "../api";
+} from "../../api";
 import {
   ScreenWrap, PageHeader, GlassCard, Button, Badge, Modal, Field, Empty, Toggle, LockedFeature, timeAgo,
-} from "../ui";
+} from "@octarq-org/plugin-sdk";
 import { Store, Package, Tag, Download, KeyRound, Pencil, Trash2, Plus, ExternalLink } from "lucide-react";
-import { useTranslation } from "../i18n";
+import { useTranslation } from "@octarq-org/plugin-sdk";
 
 export default function StorefrontPage() {
   const [products, setProducts] = useState<Product[]>([]);

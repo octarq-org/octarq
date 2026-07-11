@@ -1,7 +1,6 @@
 import {
   Bell,
   Boxes,
-  Bot,
   CreditCard,
   Database,
   Globe,
@@ -11,12 +10,10 @@ import {
   Link2,
   Mail,
   Puzzle,
-  ScrollText,
   Server,
   Settings,
   Shield,
   ShieldAlert,
-  Store,
   User,
   Users,
   Wallet,
@@ -73,7 +70,8 @@ export const STATIC_AREAS: Area[] = [
         label: "Messaging",
         items: [
           { id: "mail",    label: "Mail",     Icon: Mail,   path: "/mail" },
-          { id: "inbox-ai", label: "AI Inbox", Icon: Bot,    path: "/inbox-ai" },
+          // AI Inbox is a Pro plugin now — its menu entry is injected dynamically
+          // (plugins/inbox-ai, category "Messaging") only in a composed build.
         ],
       },
     ],
@@ -83,26 +81,17 @@ export const STATIC_AREAS: Area[] = [
     title: "Commerce",
     subtitle: "Revenue, store & cost analysis",
     Icon: Wallet,
+    // Every commerce feature is a Pro plugin. These group shells stay so the
+    // dynamic plugin menus land in the right group/order (matched by label) in a
+    // composed build; in the OSS build all groups are empty and the whole
+    // Commerce area is dropped by the empty-area filter in App.tsx.
     groups: [
-      {
-        label: "Sales",
-        items: [
-          { id: "storefront", label: "Storefront", Icon: Store,      path: "/storefront" },
-          { id: "licenses",   label: "Licenses",   Icon: KeyRound,   path: "/licenses" },
-        ],
-      },
-      {
-        label: "Billing",
-        items: [
-          { id: "billing",    label: "Billing",    Icon: CreditCard, path: "/billing" },
-        ],
-      },
-      {
-        label: "Finance",
-        items: [
-          { id: "finance",    label: "Bookkeeping",Icon: Wallet,     path: "/finance" },
-        ],
-      },
+      // Storefront + Licenses → plugins/storefront, plugins/licenses (category "Sales").
+      { label: "Sales", items: [] },
+      // Billing → plugins/billing (category "Billing").
+      { label: "Billing", items: [] },
+      // Bookkeeping → plugins/finance (category "Finance").
+      { label: "Finance", items: [] },
     ],
   },
   {
@@ -119,11 +108,10 @@ export const STATIC_AREAS: Area[] = [
         ],
       },
       {
+        // Servers + SSH Vault are Pro plugins (plugins/vps, plugins/ssh-keys,
+        // category "Hosting") — injected dynamically only in a composed build.
         label: "Hosting",
-        items: [
-          { id: "vps",     label: "Servers",   Icon: Server,   path: "/vps" },
-          { id: "sshkeys", label: "SSH Vault", Icon: KeyRound, path: "/sshkeys" },
-        ],
+        items: [],
       },
       {
         label: "Storage & Databases",
@@ -147,10 +135,10 @@ export const STATIC_AREAS: Area[] = [
         ],
       },
       {
+        // Audit is a Pro plugin (plugins/audit, category "System") — injected
+        // dynamically only in a composed build.
         label: "System",
-        items: [
-          { id: "audit",    label: "Audit",      Icon: ScrollText,  path: "/audit" },
-        ],
+        items: [],
       },
     ],
   },
@@ -214,7 +202,7 @@ export function areaForPath(path: string): AreaId {
 export function areaForCategory(cat?: string): AreaId {
   const c = (cat ?? "").toLowerCase();
   if (c.includes("asset") || c.includes("infra") || c.includes("network") || c.includes("compute") || c.includes("hosting")) return "assets";
-  if (c.includes("insight") || c.includes("analytic") || c.includes("compliance") || c.includes("governance") || c.includes("audit") || c.includes("abuse")) return "insights";
-  if (c.includes("commerce") || c.includes("sell") || c.includes("billing") || c.includes("storefront") || c.includes("license") || c.includes("finance")) return "commerce";
+  if (c.includes("insight") || c.includes("analytic") || c.includes("compliance") || c.includes("governance") || c.includes("audit") || c.includes("abuse") || c.includes("system")) return "insights";
+  if (c.includes("commerce") || c.includes("sell") || c.includes("sale") || c.includes("billing") || c.includes("storefront") || c.includes("license") || c.includes("finance")) return "commerce";
   return "operations";
 }

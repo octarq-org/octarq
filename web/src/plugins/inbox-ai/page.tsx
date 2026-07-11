@@ -4,11 +4,11 @@
 // the feature unlicensed or unconfigured, the page explains how to enable it
 // instead of showing an empty table.
 import { useEffect, useState } from "react";
-import { api, AIStatus, AISettings, EmailAIAnnotation, ApiError, LLMProvider } from "../api";
-import { ScreenWrap, PageHeader, GlassCard, Badge, Button, Empty, ProPill, Field, timeAgo, LockedFeature } from "../ui";
+import { api, AIStatus, AISettings, EmailAIAnnotation, ApiError, LLMProvider } from "../../api";
+import { ScreenWrap, PageHeader, GlassCard, Badge, Button, Empty, ProPill, Field, timeAgo, LockedFeature } from "@octarq-org/plugin-sdk";
 import { Sparkles } from "lucide-react";
-import LLMProvidersSettings from "./LLMProviders";
-import { useTranslation } from "../i18n";
+import LLMProvidersSettings from "../llm-providers/page";
+import { useTranslation } from "@octarq-org/plugin-sdk";
 
 // Category → badge tone + label, so the list reads at a glance.
 const CATEGORY_META: Record<string, { tone: any; label: string }> = {

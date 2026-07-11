@@ -17,7 +17,7 @@ export const licensesPlugin: UIPlugin = {
   ],
   // Commerce area, matching where the static sidebar already places Licenses.
   menu: [
-    { id: "licenses", label: "Licenses", path: "/licenses", icon: "🔑", category: "commerce" },
+    { id: "licenses", label: "Licenses", path: "/licenses", icon: "🔑", category: "Sales" },
   ],
   i18n: licenses,
 };

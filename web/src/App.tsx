@@ -40,13 +40,6 @@ import LinksPage from "./pages/Links";
 import DomainsPage from "./pages/Domains";
 import MailPage from "./pages/Mail";
 import SettingsPage from "./pages/Settings";
-import SSHKeysPage from "./pages/SSHKeys";
-import VPSPage from "./pages/VPS";
-import FinancePage from "./pages/Finance";
-import StorefrontPage from "./pages/Storefront";
-import BillingPage from "./pages/Billing";
-import InboxAIPage from "./pages/InboxAI";
-import AuditLogPage from "./pages/AuditLog";
 import AbusePage from "./pages/Abuse";
 import PersonalSettingsPage from "./pages/PersonalSettings";
 import InviteAcceptPage from "./pages/InviteAccept";
@@ -349,16 +342,9 @@ function Shell({
               <Route path="/links"      element={<LinksPage />} />
               <Route path="/domains"    element={<DomainsPage />} />
               <Route path="/mail"       element={<MailPage />} />
-              <Route path="/inbox-ai"   element={<InboxAIPage />} />
-              <Route path="/vps"        element={<VPSPage />} />
-              <Route path="/sshkeys"    element={<SSHKeysPage />} />
               <Route path="/assets/certificates" element={<ComingSoonPage title={t("app.certsTitle")} description={t("app.certsDesc")} />} />
               <Route path="/assets/databases"    element={<ComingSoonPage title={t("app.databasesTitle")} description={t("app.databasesDesc")} />} />
               <Route path="/assets/storage"      element={<ComingSoonPage title={t("app.storageTitle")} description={t("app.storageDesc")} />} />
-              <Route path="/finance"    element={<FinancePage />} />
-              <Route path="/storefront" element={<StorefrontPage />} />
-              <Route path="/billing"    element={<BillingPage />} />
-              <Route path="/audit"      element={<AuditLogPage />} />
               <Route path="/abuse"      element={<AbusePage />} />
               <Route path="/settings/*" element={<SettingsPage />} />
               <Route path="/personal/*" element={<PersonalSettingsPage />} />

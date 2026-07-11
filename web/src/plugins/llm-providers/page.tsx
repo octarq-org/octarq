@@ -2,10 +2,10 @@
 // Inbox AI and other AI features select a provider from this list by id.
 // Rendered as a Settings sub-page. 402 → upsell note; OSS build → 404 note.
 import { useEffect, useState } from "react";
-import { api, ApiError, LLMProvider, LLMProviderInput } from "../api";
-import { PageHeader, GlassCard, Button, Badge, Modal, Field, Empty, LockedFeature, ScreenWrap } from "../ui";
+import { api, ApiError, LLMProvider, LLMProviderInput } from "../../api";
+import { PageHeader, GlassCard, Button, Badge, Modal, Field, Empty, LockedFeature, ScreenWrap } from "@octarq-org/plugin-sdk";
 import { Bot, Plus } from "lucide-react";
-import { useTranslation } from "../i18n";
+import { useTranslation } from "@octarq-org/plugin-sdk";
 
 const PROVIDERS = ["claude", "openai", "gemini", "mistral", "cohere", "ollama"];
 

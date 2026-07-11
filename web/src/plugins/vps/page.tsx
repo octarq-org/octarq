@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { api, VPS, SSHKey } from "../api";
-import { Empty, Field, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, LockedFeature } from "../ui";
+import { api, VPS, SSHKey } from "../../api";
+import { Empty, Field, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, LockedFeature } from "@octarq-org/plugin-sdk";
 import { Terminal as XTerminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { Server, Key, Cpu, Terminal, Pencil, Trash2 } from "lucide-react";
-import { useTranslation } from "../i18n";
+import { useTranslation } from "@octarq-org/plugin-sdk";
 import "@xterm/xterm/css/xterm.css";
 
 export default function VPSPage() {

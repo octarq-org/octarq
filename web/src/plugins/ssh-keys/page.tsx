@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { api, SSHKey } from "../api";
-import { Empty, Field, Modal, timeAgo, Code, ScreenWrap, PageHeader, GlassCard, Badge, Button, LockedFeature } from "../ui";
+import { api, SSHKey } from "../../api";
+import { Empty, Field, Modal, timeAgo, Code, ScreenWrap, PageHeader, GlassCard, Badge, Button, LockedFeature } from "@octarq-org/plugin-sdk";
 import { Key, ClipboardCopy, Trash2 } from "lucide-react";
-import { useTranslation } from "../i18n";
+import { useTranslation } from "@octarq-org/plugin-sdk";
 
 export default function SSHKeysPage() {
   const { t } = useTranslation();

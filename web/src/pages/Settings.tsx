@@ -5,7 +5,6 @@ import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { PluginInfo } from "../api";
 import { useTranslation } from "../i18n";
-import LLMProvidersSettings from "./LLMProviders";
 import { PluginsSettings } from "./settings/plugins";
 import { LicenseSettings } from "./settings/license";
 import { GeneralSettings } from "./settings/general";

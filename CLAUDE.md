@@ -45,10 +45,15 @@ module and gets the embedded dashboard from the module zip.
 - **Frontend Pro/optional features degrade gracefully**: a page hitting a plugin
   endpoint should handle **402** (show an upsell, e.g. `LockedFeature`) and **404**
   (the plugin isn't in this build — show a neutral note), never a raw error.
-- **Sidebar menus**: prefer static placement in `STATIC_AREAS` over dynamic plugin
-  menus; the dynamic-fallback group is **"More"**, never "Plugin(s)". Adding a
-  top-level area means updating `AreaId`, `STATIC_AREAS`, and `areaForCategory`
-  together.
+- **Sidebar menus**: **core** pages use static placement in `STATIC_AREAS`;
+  **Pro/plugin** pages use the plugin's dynamic `menu` (`UIPlugin.menu` →
+  `uiMenus()`) so they're absent from the OSS build instead of showing a dead
+  "not in this build" link. A migrated Pro area keeps its **empty group shells**
+  in `STATIC_AREAS` (items `[]`) so the dynamic menu lands in the right
+  group/order — its `category` is matched to the group label via
+  `areaForCategory`; empty groups/areas are dropped at runtime in `App.tsx`. The
+  dynamic-fallback group is **"More"**, never "Plugin(s)". Adding a top-level area
+  means updating `AreaId`, `STATIC_AREAS`, and `areaForCategory` together.
 
 ## Sandbox note
 

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Empty, Field, Modal, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard, LockedFeature } from "../../ui";
+import { Empty, Field, Modal, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard, LockedFeature } from "@octarq-org/plugin-sdk";
 import { ShieldAlert, CreditCard, Calendar, TrendingUp, Trash2, Pencil, Landmark, Plus, ArrowUpRight, ArrowDownRight, Wallet, RefreshCw, Check } from "lucide-react";
 import { api, Transaction } from "../../api";
-import { useTranslation } from "../../i18n";
+import { useTranslation } from "@octarq-org/plugin-sdk";
 import { CURRENCIES, fmtCost } from "./shared";
 
 export function AddTransactionModal({
