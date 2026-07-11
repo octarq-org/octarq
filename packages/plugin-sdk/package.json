@@ -1,6 +1,6 @@
 {
   "name": "@octarq-org/plugin-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Frontend plugin SDK for octarq: the UIPlugin contract, registry, and shared glass-themed UI components.",
   "license": "MIT",
   "type": "module",
