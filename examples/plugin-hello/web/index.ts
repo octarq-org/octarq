@@ -34,3 +34,7 @@ export const helloPlugin: UIPlugin = {
     },
   },
 };
+
+// A plugin package default-exports its UIPlugin (or an array of them), so the
+// manifest can compose it with `import helloPlugin from "@acme/octarq-plugin-hello"`.
+export default helloPlugin;

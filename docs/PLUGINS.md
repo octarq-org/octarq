@@ -29,12 +29,13 @@ There is **no runtime plugin loading**. Both halves are composed at build time:
   before `app.Run()`. The result is a single Go binary; `go:embed` bakes the
   frontend into it. (This is the same model as Caddy/`xcaddy`: pick your plugins,
   build a binary.)
-- **Frontend** — the host's build-time *injection module* calls
-  `registerUIPlugin(fooPlugin)`. A build that never imports your package never
-  ships a byte of your UI (the page lands in its own lazy chunk that is only
-  referenced when composed in). See `web/src/plugins/index.ts` (open-source: empty)
-  vs `web/src/plugins/index.pro.ts` (commercial: registers plugins), selected by
-  the `#octarq-plugins` build alias.
+- **Frontend** — the host lists your package in its **plugin manifest**
+  (`web/octarq.plugins.json`); the build generates the `#octarq-plugins` module
+  that imports it and calls `registerUIPlugin(fooPlugin)`. A build whose manifest
+  doesn't name your package never ships a byte of your UI (the page lands in its
+  own lazy chunk, only referenced when composed in). The OSS default manifest
+  lists the example plugin; a commercial build points at its own manifest via
+  `OCTARQ_PLUGINS_MANIFEST` / `OCTARQ_PLUGINS` (see `web/plugins-manifest.ts`).
 
 Because a compiled-in plugin runs **in-process with full access** (DB, secrets,
 network), this model fits a **curated / operator-opt-in** ecosystem: the operator
@@ -148,14 +149,18 @@ app.Use(hello.Plugin{})   // + any other plugins
 app.Run(ctx)
 ```
 
-Frontend — the host's injection module registers your UI plugin (this is the
-`#octarq-plugins` target; octarq-pro provides its own):
+Frontend — add your package to the host's plugin manifest
+(`web/octarq.plugins.json`); the build imports and registers it for you:
 
-```ts
-import { registerUIPlugin } from "@octarq-org/plugin-sdk";
-import { helloPlugin } from "@acme/octarq-plugin-hello";
-registerUIPlugin(helloPlugin);
+```json
+{ "plugins": ["@acme/octarq-plugin-hello"] }
 ```
+
+Each entry is a package specifier (its default export is the UIPlugin) or
+`{ "from": "<spec>", "import": "<namedExport>" }`. To compose a different set
+without editing the file, pass `OCTARQ_PLUGINS='["@acme/octarq-plugin-hello"]'`
+or point `OCTARQ_PLUGINS_MANIFEST` at another manifest (octarq-pro does the
+latter for its Pro edition).
 
 Build the frontend (`pnpm build` bakes it into `webembed/dist`), then
 `go build` the binary. One binary, both halves, no fork, no runtime fetch.

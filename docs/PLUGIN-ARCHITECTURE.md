@@ -59,21 +59,33 @@ interface UIPlugin {
 registerUIPlugin(p); uiRoutes(); uiMenus(); uiPluginI18n()
 ```
 
-**The injection seam** (in the core `web/`):
+**The injection seam is a manifest** (in the core `web/`) — WHICH plugins a build
+ships is *data*, not code:
 
-- `web/src/plugins/index.ts` — the **OSS** injection module: registry stays empty.
-- `web/src/plugins/index.pro.ts` — the **commercial** module: `registerUIPlugin(licensesPlugin)`, etc.
-- `web/vite.config.ts` maps the `#octarq-plugins` alias to one of the two, keyed on
-  **`VITE_OCTARQ_PLUGINS=pro`**. `web/src/main.tsx` imports `#octarq-plugins` for
-  its side effects.
-- Result: a build that doesn't set the flag never references the Pro page chunks
-  (verified: `grep "No licenses issued yet"` is **absent** from an OSS build,
-  **present** in a `VITE_OCTARQ_PLUGINS=pro` build).
+- `web/octarq.plugins.json` — the plugin **manifest**: a list of the UI plugins
+  composed into this build. Each entry is a package specifier (its default export
+  is the UIPlugin) or `{ from, import }` for a named/local export. The committed
+  file is the **OSS default edition**: it lists the example plugin
+  (`@acme/octarq-plugin-hello`), so the plugin system works out of the box.
+- `web/plugins-manifest.ts` — a Vite plugin that serves the `#octarq-plugins`
+  virtual module, generated from the active manifest (`import` + `registerUIPlugin`
+  for each entry). `web/src/main.tsx` imports `#octarq-plugins` for its side
+  effects. This replaces the old two-file seam (`index.ts` / `index.pro.ts`) and
+  the `VITE_OCTARQ_PLUGINS` switch.
+- **Choosing an edition** = pointing at a different manifest, highest precedence
+  first: `OCTARQ_PLUGINS` env (inline JSON array — **dynamic CI injection**, no
+  file to edit) › `OCTARQ_PLUGINS_MANIFEST` env (path to a manifest file — a
+  commercial build ships its own; octarq-pro points here) › the committed
+  `web/octarq.plugins.json`.
+- Result: a build never references a plugin its manifest doesn't name (verified:
+  the licenses page markers `LicensesPage`/`getApiIssued`/`No licenses issued`
+  are **absent** from the OSS/example build, **present** only when a manifest
+  composes `@octarq-org/plugin-issuer`).
 
 `web/src/App.tsx` renders `pluginRouteElements()` and folds `uiMenus()` into the
 sidebar via the existing `areaForCategory`; a route with no registered plugin
-404-degrades (neutral note). Licenses is the reference plugin, extracted to
-`web/src/plugins/licenses/`.
+404-degrades (neutral note). Licenses is the reference plugin, now published as
+the standalone package `@octarq-org/plugin-issuer` (octarq-pro `packages/`).
 
 ## 4. Shared UI (`@octarq-org/plugin-sdk`)
 
@@ -101,13 +113,17 @@ commercial build overrides it:
 2. **`OCTARQ_WEBEMBED_OUT`** (core `web/vite.config.ts` + `vite.portal.config.ts`
    + build script) — makes the admin+portal build outDir overridable so the
    commercial build reuses the exact same build; default unchanged.
-3. **octarq-pro `webembed/`** — its own package embedding a dashboard built with
-   `VITE_OCTARQ_PLUGINS=pro` into `octarq-pro/webembed/dist` (via `make web`,
-   which runs `OCTARQ_WEBEMBED_OUT=$(CURDIR)/webembed/dist VITE_OCTARQ_PLUGINS=pro
-   pnpm build` against `../octarq/web`). `main.go` calls `a.WithWebFS(webembed.FS())`.
+3. **octarq-pro `webembed/`** — its own package embedding a dashboard built
+   against octarq-pro's plugin manifest into `octarq-pro/webembed/dist` (via
+   `make web`, which runs `OCTARQ_WEBEMBED_OUT=$(CURDIR)/webembed/dist
+   OCTARQ_PLUGINS_MANIFEST=$(CURDIR)/octarq.plugins.json pnpm build` against
+   `../octarq/web`). `main.go` calls `a.WithWebFS(webembed.FS())`. CI's
+   `dashboard.yml` builds and commits this dist with a Packages token so the
+   private plugin packages resolve.
 
 The committed pro dist means `go build`/Docker embed it with no cross-repo
-frontend build; `make web` regenerates it when the core dashboard changes.
+frontend build; `make web` (or `dashboard.yml`) regenerates it when the core
+dashboard or the plugin set changes.
 
 **Proven end-to-end:** OSS dashboard has no Pro pages (404-degrade); octarq-pro's
 embedded dashboard renders the real licenses page.
@@ -117,11 +133,13 @@ embedded dashboard renders the real licenses page.
 1. Backend plugin (`plugin.Plugin`) mounts routes, 402-gates on tier — lives in
    octarq-pro (or core for a community plugin).
 2. Frontend page (`UIPlugin`) built from `@octarq-org/plugin-sdk`, handles 402/404.
-   For Pro pages the page source lives in core `web/src/plugins/<feat>/` and is
-   registered only in `index.pro.ts`.
-3. OSS build: registry empty → page 404-degrades (or shows upsell on 402).
-4. Commercial build: `VITE_OCTARQ_PLUGINS=pro` composes the page; octarq-pro
-   embeds that dist via `WithWebFS`; the licensed backend serves it.
+   The end state is a standalone package (`octarq-pro/packages/plugin-<feat>/`,
+   consuming the SDK + `@octarq-org/api-client`) named in the Pro manifest;
+   pages still mid-migration live in core `web/src/plugins/<feat>/` and are
+   bridged by a `{ from: "./src/plugins/<feat>", import }` manifest entry.
+3. OSS build: manifest omits it → page 404-degrades (or shows upsell on 402).
+4. Commercial build: octarq-pro's manifest names it → composed into the dist;
+   octarq-pro embeds that dist via `WithWebFS`; the licensed backend serves it.
 
 ## 7. Publishing the SDK
 
@@ -139,9 +157,11 @@ Core (octarq):
 - `app/app.go` — `Use`, `gatedMux`, `WithWebFS`, CSRF wrap, server wiring.
 - `packages/plugin-sdk/` — the SDK package (contract + shadcn UI).
 - `web/src/plugin-sdk/` — app-side facade re-exporting the package.
-- `web/src/plugins/{index.ts,index.pro.ts,PluginRoutes.tsx,licenses/}` — registry + injection + reference plugin.
-- `web/vite.config.ts` / `vite.portal.config.ts` — `#octarq-plugins` alias, `OCTARQ_WEBEMBED_OUT`.
-- `examples/plugin-hello/` — full-stack community plugin template.
+- `web/octarq.plugins.json` — the plugin manifest (OSS default edition).
+- `web/plugins-manifest.ts` — Vite plugin generating the `#octarq-plugins` virtual module from the manifest.
+- `web/src/plugins/{PluginRoutes.tsx,<feat>/}` — route renderer + Pro pages still mid-migration.
+- `web/vite.config.ts` / `vite.portal.config.ts` — `octarqPlugins()`, `OCTARQ_WEBEMBED_OUT`.
+- `examples/plugin-hello/web/` — the example plugin, packaged as `@acme/octarq-plugin-hello` (OSS default).
 - `docs/{PLUGINS.md,PUBLISHING.md,ACCESSIBILITY.md}`.
 
 octarq-pro:

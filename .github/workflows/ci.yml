@@ -70,7 +70,13 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
 
-      - run: pnpm install --frozen-lockfile
+      # Not --frozen: web/package.json lists @octarq-org/plugin-issuer as an
+      # OPTIONAL dep (a private GitHub Packages tarball this public build has no
+      # token for). pnpm excludes it gracefully, but its resolution can't be
+      # pinned into the committed lockfile without auth, so a frozen install
+      # would fail on the mismatch. The OSS build never composes it anyway — its
+      # manifest (web/octarq.plugins.json) ships only the example plugin.
+      - run: pnpm install --no-frozen-lockfile
 
       # Advisory only: surfaces known CVEs in frontend deps without gating the
       # build (a fresh upstream advisory shouldn't block an unrelated merge).

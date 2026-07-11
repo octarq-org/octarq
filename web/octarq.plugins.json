@@ -1,0 +1,6 @@
+{
+  "$comment": "Frontend plugin manifest — the list of UI plugins composed into THIS build. This committed file is the OSS default edition: it ships the example plugin so the plugin system is demonstrated out of the box. A commercial build overrides it (OCTARQ_PLUGINS_MANIFEST / OCTARQ_PLUGINS env — see plugins-manifest.ts). Each entry is a package specifier (default export = the UIPlugin) or { from, import } for a named/local export.",
+  "plugins": [
+    "@acme/octarq-plugin-hello"
+  ]
+}

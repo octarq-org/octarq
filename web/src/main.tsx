@@ -3,9 +3,10 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
 // Compose build-time frontend plugins into the registry before anything reads
-// it. `#octarq-plugins` resolves to the empty OSS injection module by default, and
-// to ./plugins/index.pro.ts in a commercial build (VITE_OCTARQ_PLUGINS=pro) — so
-// the OSS bundle never imports, and never ships, any Pro page (see vite.config).
+// it. `#octarq-plugins` is a virtual module generated from the active plugin
+// manifest (see plugins-manifest.ts): it imports and registers exactly the
+// plugins that edition ships. A build never imports — and never bundles — a
+// plugin its manifest doesn't name.
 import "#octarq-plugins";
 import App from "./App";
 import { I18nProvider } from "./i18n";
