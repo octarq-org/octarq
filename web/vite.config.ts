@@ -41,6 +41,10 @@ const devSharedAliases = devRoots.length
       "react-dom": here("./node_modules/react-dom"),
       "react/jsx-runtime": here("./node_modules/react/jsx-runtime"),
       "lucide-react": here("./node_modules/lucide-react"),
+      // @xterm/* live here as devDependencies so the infra plugin's terminal page
+      // resolves them in dev-from-source without installing the edition workspace.
+      "@xterm/xterm": here("./node_modules/@xterm/xterm"),
+      "@xterm/addon-fit": here("./node_modules/@xterm/addon-fit"),
     }
   : {};
 
