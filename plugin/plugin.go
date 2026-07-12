@@ -8,6 +8,34 @@
 // plugin has been registered, then runs AutoMigrate over the union of core and
 // plugin models exactly once. A plugin therefore never has to (and must not)
 // call AutoMigrate itself; doing so early would race the core schema.
+//
+// # Optional capabilities and compile-time assertions
+//
+// Beyond the required Plugin interface, a plugin opts into extra capabilities
+// by implementing optional interfaces (Starter, MenuProvider, MCPProvider,
+// OpenAPIContributor, Describer). The app detects them via runtime type
+// assertion, which means a typo'd method name or a drifted signature does NOT
+// fail the build — the capability is silently never invoked. To catch that at
+// compile time, every plugin MUST pair each optional interface it implements
+// with a compile-time assertion:
+//
+//	var (
+//		_ plugin.Plugin       = (*Plugin)(nil)
+//		_ plugin.Starter      = (*Plugin)(nil)
+//		_ plugin.MenuProvider = (*Plugin)(nil)
+//	)
+//
+// (use the value form `Plugin{}` if the plugin uses value receivers). See
+// examples/plugin-hello for the canonical shape.
+//
+// # Context evolution policy
+//
+// Context is the dependency bag handed to Mount and is shared by every plugin,
+// in and out of tree. Its fields are ADDITIVE-ONLY: adding a new field is
+// backward-compatible (existing plugins ignore it); renaming, removing, or
+// changing the type of an existing field is a breaking change that requires a
+// major version bump of this module. Plugins must tolerate zero-valued fields
+// they don't use — never assume every field is populated in every host.
 package plugin
 
 import (
