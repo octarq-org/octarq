@@ -13,17 +13,27 @@ const backendPort = process.env.OCTARQ_PORT ?? "8680";
 // `{ "from": "../../octarq-pro/packages/plugin-x/src" }` manifest entry). Those
 // files live outside this repo, so Vite's dev server must be allowed to read
 // them: OCTARQ_DEV_ROOTS is a colon-separated list of absolute dirs to permit.
-// The plugin source's own deps (api-client, xterm, …) resolve from that edition's
-// node_modules; React and the SDK are deduped/aliased below so the out-of-root
-// source shares the app's single instance (one React, one plugin registry).
+// React and the SDK are deduped/aliased below so the out-of-root source shares
+// the app's single instance (one React, one plugin registry).
 const devRoots = (process.env.OCTARQ_DEV_ROOTS ?? "").split(":").map((p) => p.trim()).filter(Boolean);
+
+// Edition-specific deps the plugin source imports but this repo doesn't have
+// (e.g. octarq-pro's @octarq-org/api-client). The edition resolves them via
+// OCTARQ_DEV_ALIASES — a JSON map of import specifier → absolute path — so
+// dev-from-source needs no install of the edition's workspace. Example:
+// {"@octarq-org/api-client":"/abs/octarq-pro/packages/api-client"}.
+let devEditionAliases: Record<string, string> = {};
+try {
+  devEditionAliases = JSON.parse(process.env.OCTARQ_DEV_ALIASES ?? "{}");
+} catch (e) {
+  throw new Error(`OCTARQ_DEV_ALIASES is not valid JSON: ${(e as Error).message}`);
+}
 
 // When composing plugins from external source (dev-from-source), force the UI
 // libraries they share with the app to THIS repo's single copy — otherwise the
 // out-of-root source resolves its own react/lucide from the edition's
 // node_modules and you get duplicate-React hook crashes / mismatched context.
-// Edition-specific plugin deps (@octarq-org/api-client, @xterm/*) still resolve
-// from the edition. No-op for a normal build (devRoots empty).
+// No-op for a normal build (devRoots empty).
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 const devSharedAliases = devRoots.length
   ? {
@@ -50,6 +60,7 @@ export default defineConfig({
       // registry, one i18n/brand context). Keep in sync with tsconfig.json paths.
       "@octarq-org/plugin-sdk": fileURLToPath(new URL("./src/plugin-sdk", import.meta.url)),
       ...devSharedAliases,
+      ...devEditionAliases,
     },
   },
   // The dashboard SPA is mounted under /admin so short-link slugs own the root.
@@ -64,7 +75,7 @@ export default defineConfig({
   server: {
     // Permit reading plugin source from external edition roots (dev-from-source).
     // Empty OCTARQ_DEV_ROOTS → just the workspace root, i.e. default behavior.
-    fs: { allow: [searchForWorkspaceRoot(process.cwd()), ...devRoots] },
+    fs: { allow: [searchForWorkspaceRoot(process.cwd()), ...devRoots, ...Object.values(devEditionAliases)] },
     proxy: {
       "/api": {
         target: `http://localhost:${backendPort}`,
