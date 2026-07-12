@@ -45,15 +45,19 @@ module and gets the embedded dashboard from the module zip.
 - **Frontend Pro/optional features degrade gracefully**: a page hitting a plugin
   endpoint should handle **402** (show an upsell, e.g. `LockedFeature`) and **404**
   (the plugin isn't in this build — show a neutral note), never a raw error.
-- **Sidebar menus**: **core** pages use static placement in `STATIC_AREAS`;
-  **Pro/plugin** pages use the plugin's dynamic `menu` (`UIPlugin.menu` →
-  `uiMenus()`) so they're absent from the OSS build instead of showing a dead
-  "not in this build" link. A migrated Pro area keeps its **empty group shells**
-  in `STATIC_AREAS` (items `[]`) so the dynamic menu lands in the right
-  group/order — its `category` is matched to the group label via
-  `areaForCategory`; empty groups/areas are dropped at runtime in `App.tsx`. The
-  dynamic-fallback group is **"More"**, never "Plugin(s)". Adding a top-level area
-  means updating `AreaId`, `STATIC_AREAS`, and `areaForCategory` together.
+- **Sidebar menus & routes**: **every business page is a UIPlugin** — core
+  features live in `web/src/plugins/core/` (always composed, imported from
+  `main.tsx` before the `#octarq-plugins` manifest module), Pro/third-party
+  ones come from the manifest. All flow through the same registry
+  (`registerUIPlugin` → `uiRoutes()`/`uiMenus()`); the shell (`App.tsx`) owns
+  only auth, settings, org handling, Overview and the plugin pipeline — never
+  add a hardcoded business route there. `STATIC_AREAS` holds only **area/group
+  shells** (label + order, items `[]`); a menu's `category` must equal its
+  group label (`areaForCategory` places it), registration order is item order
+  within a group, and empty groups/areas are dropped at runtime. The
+  dynamic-fallback group is **"More"**, never "Plugin(s)". Plugins can declare
+  new top-level areas via `UIPlugin.areas`; icons are string keys resolved by
+  the single `PLUGIN_ICONS` table in `shell/areas.tsx`.
 
 ## Sandbox note
 

@@ -3,10 +3,12 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
 // Compose build-time frontend plugins into the registry before anything reads
-// it. `#octarq-plugins` is a virtual module generated from the active plugin
-// manifest (see plugins-manifest.ts): it imports and registers exactly the
-// plugins that edition ships. A build never imports — and never bundles — a
-// plugin its manifest doesn't name.
+// it. Core-feature plugins first (always composed, in every edition — see
+// plugins/core/index.ts), then `#octarq-plugins`, a virtual module generated
+// from the active plugin manifest (see plugins-manifest.ts): it imports and
+// registers exactly the plugins that edition ships. A build never imports —
+// and never bundles — a plugin its manifest doesn't name.
+import "./plugins/core";
 import "#octarq-plugins";
 import App from "./App";
 import { I18nProvider } from "./i18n";

@@ -71,20 +71,12 @@ export const STATIC_AREAS: Area[] = [
           { id: "overview", label: "Overview", Icon: LayoutDashboard, path: "/overview" },
         ],
       },
-      {
-        label: "Marketing",
-        items: [
-          { id: "links",   label: "Links",    Icon: Link2,  path: "/links" },
-        ],
-      },
-      {
-        label: "Messaging",
-        items: [
-          { id: "mail",    label: "Mail",     Icon: Mail,   path: "/mail" },
-          // AI Inbox is a Pro plugin now — its menu entry is injected dynamically
-          // (@octarq-org/plugin-ai, category "Messaging") only in a composed build.
-        ],
-      },
+      // Links → core plugin (plugins/core/links.ts, category "Marketing").
+      { label: "Marketing", items: [] },
+      // Mail → core plugin (plugins/core/mail.ts, category "Messaging").
+      // AI Inbox is a Pro plugin — its menu entry is injected dynamically
+      // (@octarq-org/plugin-ai, category "Messaging") only in a composed build.
+      { label: "Messaging", items: [] },
     ],
   },
   {
@@ -111,26 +103,15 @@ export const STATIC_AREAS: Area[] = [
     subtitle: "Servers, network & databases",
     Icon: Boxes,
     groups: [
-      {
-        label: "Network",
-        items: [
-          { id: "domains", label: "DNS",          Icon: Globe,    path: "/domains" },
-          { id: "certs",   label: "Certificates", Icon: Shield,  path: "/assets/certificates" },
-        ],
-      },
-      {
-        // Servers + SSH Vault are Pro plugins (plugins/vps, plugins/ssh-keys,
-        // category "Hosting") — injected dynamically only in a composed build.
-        label: "Hosting",
-        items: [],
-      },
-      {
-        label: "Storage & Databases",
-        items: [
-          { id: "databases", label: "Databases", Icon: Database,  path: "/assets/databases" },
-          { id: "storage",   label: "Object Storage", Icon: HardDrive, path: "/assets/storage" },
-        ],
-      },
+      // DNS → core plugin (plugins/core/domains.ts); Certificates → core
+      // plugin (plugins/core/assets.ts). Both use category "Network".
+      { label: "Network", items: [] },
+      // Servers + SSH Vault are Pro plugins (plugins/vps, plugins/ssh-keys,
+      // category "Hosting") — injected dynamically only in a composed build.
+      { label: "Hosting", items: [] },
+      // Databases + Object Storage → core plugin (plugins/core/assets.ts,
+      // category "Storage & Databases").
+      { label: "Storage & Databases", items: [] },
     ],
   },
   {
@@ -139,18 +120,10 @@ export const STATIC_AREAS: Area[] = [
     subtitle: "Abuse defense & activity logs",
     Icon: ShieldAlert,
     groups: [
-      {
-        label: "Security",
-        items: [
-          { id: "abuse",    label: "Abuse Reports",      Icon: ShieldAlert, path: "/abuse" },
-        ],
-      },
-      {
-        label: "System",
-        items: [
-          { id: "audit", label: "Audit Log", Icon: ScrollText, path: "/audit" },
-        ],
-      },
+      // Abuse Reports → core plugin (plugins/core/abuse.ts, category "Security").
+      { label: "Security", items: [] },
+      // Audit Log → core plugin (plugins/core/audit.ts, category "System").
+      { label: "System", items: [] },
     ],
   },
 ];
@@ -220,19 +193,20 @@ export function areaForCategory(cat?: string, pluginAreas: UIArea[] = []): AreaI
     (a) => a.id.toLowerCase() === c || a.title.toLowerCase() === c,
   );
   if (pluginHit) return pluginHit.id;
-  if (c.includes("asset") || c.includes("infra") || c.includes("network") || c.includes("compute") || c.includes("hosting")) return "assets";
-  if (c.includes("insight") || c.includes("analytic") || c.includes("compliance") || c.includes("governance") || c.includes("audit") || c.includes("abuse") || c.includes("system")) return "insights";
+  if (c.includes("asset") || c.includes("infra") || c.includes("network") || c.includes("compute") || c.includes("hosting") || c.includes("storage") || c.includes("database")) return "assets";
+  if (c.includes("insight") || c.includes("analytic") || c.includes("compliance") || c.includes("governance") || c.includes("audit") || c.includes("abuse") || c.includes("security") || c.includes("system")) return "insights";
   if (c.includes("commerce") || c.includes("sell") || c.includes("sale") || c.includes("billing") || c.includes("storefront") || c.includes("license") || c.includes("finance")) return "commerce";
   return "operations";
 }
 
-// ─── Plugin-contributed areas ───────────────────────────────────────────────
+// ─── Plugin-contributed icons & areas ───────────────────────────────────────
 
-// The contract keeps UIArea.icon a string key (icon-library-free); the app maps
-// it to lucide here, mirroring how menu iconStr stays a string until render.
-// Unknown/missing keys fall back to Puzzle — a plugin area never breaks on an
-// unmapped icon.
-const AREA_ICONS: Record<string, React.ElementType> = {
+// The contract keeps plugin icons (UIArea.icon, PluginMenuItem.icon) as string
+// keys so it stays icon-library-free; the app maps them to lucide HERE — the
+// single icon-key→component table for both plugin areas and plugin menu items
+// (core plugins use these keys too). A menu icon that isn't a known key is
+// rendered literally (emoji); an unknown AREA icon falls back to Puzzle.
+const PLUGIN_ICONS: Record<string, React.ElementType> = {
   bell: Bell,
   bot: Bot,
   boxes: Boxes,
@@ -259,6 +233,13 @@ const AREA_ICONS: Record<string, React.ElementType> = {
   workflow: Workflow,
 };
 
+// Resolve a plugin menu icon key to its lucide component, or undefined when
+// the string isn't a known key (then the sidebar renders it as literal text /
+// emoji via NavItem.iconStr — the pre-existing dynamic-menu behavior).
+export function menuIcon(key?: string): React.ElementType | undefined {
+  return key ? PLUGIN_ICONS[key.toLowerCase()] : undefined;
+}
+
 // Materialize a plugin-declared area (UIPlugin.areas) into the app's Area
 // shape: an empty shell whose groups are filled by the same menu-merge pipeline
 // (areaForCategory) as every other area; empty shells are dropped at runtime.
@@ -267,7 +248,7 @@ export function pluginAreaToArea(a: UIArea): Area {
     id: a.id,
     title: a.title,
     subtitle: a.subtitle ?? "",
-    Icon: AREA_ICONS[(a.icon ?? "").toLowerCase()] ?? Puzzle,
+    Icon: menuIcon(a.icon) ?? Puzzle,
     groups: [],
   };
 }

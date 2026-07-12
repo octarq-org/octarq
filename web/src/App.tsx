@@ -1,52 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  Bot,
-  Boxes,
-  CalendarClock,
-  CheckIcon,
-  ChevronsUpDown,
-  CreditCard,
-  Globe,
-  KeyRound,
-  LayoutDashboard,
-  LineChart,
-  Link2,
-  LogOut,
-  Mail,
-  ScrollText,
-  Server,
-  Settings,
-  ShieldAlert,
-  User,
-  Wallet,
-  Workflow,
-  Puzzle,
-  Bell,
-  Users,
-  Database,
-  HardDrive,
-  Shield,
-  Store,
-  PanelLeft,
-  Webhook,
-  Search,
-} from "lucide-react";
-import { api, ApiError, MenuItem, Org } from "./api";
+import { Globe, PanelLeft } from "lucide-react";
+import { api, MenuItem, Org, PluginInfo } from "./api";
 import { useAppName, brandInitial } from "./brand";
 import OverviewPage from "./pages/Overview";
-import LinksPage from "./pages/Links";
-import DomainsPage from "./pages/Domains";
-import MailPage from "./pages/Mail";
 import SettingsPage from "./pages/Settings";
-import AbusePage from "./pages/Abuse";
-import AuditLogPage from "./pages/Audit";
 import PersonalSettingsPage from "./pages/PersonalSettings";
 import InviteAcceptPage from "./pages/InviteAccept";
-import { Modal, Button, ScreenWrap, PageHeader, GlassCard } from "./ui";
+import { Modal, Button } from "./ui";
 import { useTranslation } from "./i18n";
-import { Area, AreaId, STATIC_AREAS, SETTINGS_AREA, areaForPath, areaForCategory, pluginAreaToArea } from "./shell/areas";
+import { Area, AreaId, STATIC_AREAS, SETTINGS_AREA, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
 import { TopBar } from "./shell/TopBar";
 import { CommandPalette } from "./shell/CommandPalette";
 import { AreaPanel } from "./shell/AreaPanel";
@@ -110,6 +74,105 @@ export default function App() {
   );
 }
 
+// ─── Sidebar merge ────────────────────────────────────────────────────────────
+
+// Merge every menu source into the final area list — ONE pipeline:
+//   STATIC_AREAS      area/group shells + the few shell-owned items (Overview);
+//   uiMenus()         build-time-composed frontend plugins (core features AND
+//                     Pro alike — see plugins/core/index.ts);
+//   backendMenus      dynamic menus from Go plugins (api.menus());
+// each item is routed to an area by the shared areaForCategory and into the
+// group whose label matches its category. Called with empty backend data for
+// the initial synchronous render (uiMenus() is populated at module eval, so
+// core items never flash in and out), then again once the API answers.
+function mergeAreas(backendMenus: MenuItem[], plugins: PluginInfo[]): Area[] {
+  // On duplicate paths the frontend plugin entry wins: the OSS backend also
+  // announces core paths (/links, /mail, …) in api.menus() for API consumers,
+  // but the composed core plugin carries the richer icon/category placement.
+  const seenPaths = new Set<string>();
+  const menus = [...uiMenus(), ...backendMenus].filter((m) => {
+    if (seenPaths.has(m.path)) return false;
+    seenPaths.add(m.path);
+    return true;
+  });
+
+  // Paths owned by a disabled Go plugin are hidden from the sidebar. Dynamic
+  // plugin menus are already filtered server-side; this also drops statically
+  // composed frontend items (core or Pro) whose backend half is toggled off.
+  const disabledPaths = new Set(
+    plugins.filter((p) => !p.enabled).flatMap((p) => p.menus.map((m) => m.path)),
+  );
+
+  // Top-level areas: the static ones plus any NEW areas declared by composed
+  // frontend plugins (UIPlugin.areas → uiAreas()). Plugin areas start as empty
+  // shells — like Commerce's group shells — and are filled by the same
+  // category-merge below; still-empty ones are dropped by the empty-area
+  // filter at the end. "settings" and ids colliding with a static area can't
+  // be redeclared.
+  const pluginAreas = uiAreas().filter(
+    (pa) => pa.id !== "settings" && !STATIC_AREAS.some((sa) => sa.id === pa.id),
+  );
+  const baseAreas = [...STATIC_AREAS, ...pluginAreas.map(pluginAreaToArea)];
+
+  const staticPaths = new Set(baseAreas.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.path))));
+  const extras = menus.filter((m) => !staticPaths.has(m.path) && !disabledPaths.has(m.path));
+
+  const nextAreas = baseAreas.map((staticArea) => {
+    // Deep copy groups to avoid mutating global STATIC_AREAS; drop items
+    // owned by a plugin the workspace has disabled.
+    const groups = staticArea.groups.map((g) => ({
+      label: g.label,
+      items: g.items.filter((i) => !disabledPaths.has(i.path)),
+    }));
+
+    // A category matching a plugin-declared area (id/title) lands there;
+    // otherwise the built-in keyword routing applies — one pipeline.
+    const areaExtras = extras.filter((m) => areaForCategory(m.category, pluginAreas) === staticArea.id);
+
+    areaExtras.forEach((m) => {
+      // Known icon keys resolve to lucide (single map in shell/areas.tsx);
+      // anything else renders literally as text/emoji via iconStr.
+      const KeyIcon = menuIcon(m.icon);
+      const item = {
+        id: m.id,
+        label: m.label,
+        Icon: KeyIcon ?? Globe,
+        iconStr: KeyIcon ? undefined : m.icon,
+        path: m.path,
+      };
+
+      // Check if there is an existing group matching the category name (case-insensitive)
+      const matchedGroup = groups.find(
+        (g) => g.label.toLowerCase() === (m.category || "").toLowerCase()
+      );
+
+      if (matchedGroup) {
+        matchedGroup.items.push(item);
+      } else {
+        const groupName = m.category || "More";
+        const dynamicGroup = groups.find((g) => g.label === groupName);
+        if (dynamicGroup) {
+          dynamicGroup.items.push(item);
+        } else {
+          groups.push({
+            label: groupName,
+            items: [item],
+          });
+        }
+      }
+    });
+
+    return {
+      ...staticArea,
+      groups: groups.filter((g) => g.items.length > 0),
+    };
+  });
+
+  // Drop whole areas (e.g. "Commerce") that have no visible items left —
+  // otherwise a disabled feature still shows an empty top-level section.
+  return nextAreas.filter((a) => a.groups.length > 0);
+}
+
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
 function Shell({
@@ -127,7 +190,7 @@ function Shell({
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const [areas, setAreas] = useState<Area[]>(STATIC_AREAS);
+  const [areas, setAreas] = useState<Area[]>(() => mergeAreas([], []));
   const [orgs, setOrgs]   = useState<Org[]>([]);
   const [creatingOrg, setCreatingOrg] = useState(false);
   const [newOrgName, setNewOrgName]   = useState("");
@@ -170,114 +233,10 @@ function Shell({
     api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
     api.settings().then((s) => setIsInstanceAdmin(!!s.isInstanceAdmin)).catch(() => {});
 
-    const MASTER_MENU_ITEMS: Record<string, { label: string; Icon: React.ElementType; path: string; iconStr?: string }> = {
-      overview: { label: "Overview", Icon: LayoutDashboard, path: "/overview" },
-      links: { label: "Links", Icon: Link2, path: "/links" },
-      mail: { label: "Mail", Icon: Mail, path: "/mail" },
-      "inbox-ai": { label: "AI Inbox", Icon: Bot, path: "/inbox-ai" },
-      domains: { label: "DNS", Icon: Globe, path: "/domains" },
-      certs: { label: "Certificates", Icon: Shield, path: "/assets/certificates" },
-      vps: { label: "Servers", Icon: Server, path: "/vps" },
-      sshkeys: { label: "SSH Vault", Icon: KeyRound, path: "/sshkeys" },
-      databases: { label: "Databases", Icon: Database, path: "/assets/databases" },
-      storage: { label: "Object Storage", Icon: HardDrive, path: "/assets/storage" },
-      finance: { label: "Bookkeeping", Icon: Wallet, path: "/finance" },
-      abuse: { label: "Abuse", Icon: ShieldAlert, path: "/abuse" },
-      audit: { label: "Audit", Icon: ScrollText, path: "/audit" },
-    };
-
     Promise.all([api.menus().catch(() => []), api.plugins().catch(() => [])])
       .then(([backendMenus, plugins]) => {
         setIsProBuild(plugins.length > 0);
-        // Sidebar entries from build-time-composed frontend plugins (UIPlugin.menu)
-        // are folded in beside dynamic backend menus and placed by the same
-        // areaForCategory logic — no parallel mechanism. Empty in the OSS build.
-        const menus = [...backendMenus, ...uiMenus()];
-        // Paths owned by a disabled plugin are hidden from the sidebar. Dynamic
-        // plugin menus are already filtered server-side; this also drops the
-        // statically-declared Pro items (Storefront, Servers, …) when off.
-        const disabledPaths = new Set(
-          plugins.filter((p) => !p.enabled).flatMap((p) => p.menus.map((m) => m.path)),
-        );
-
-        // Build full catalog including dynamic plugin menus
-        const catalog = { ...MASTER_MENU_ITEMS };
-        menus.forEach((m) => {
-          if (!catalog[m.id]) {
-            catalog[m.id] = {
-              label: m.label,
-              Icon: Globe,
-              iconStr: m.icon,
-              path: m.path,
-            };
-          }
-        });
-
-        // Top-level areas: the static ones plus any NEW areas declared by
-        // composed frontend plugins (UIPlugin.areas → uiAreas()). Plugin areas
-        // start as empty shells — like Commerce's group shells — and are filled
-        // by the same category-merge below; still-empty ones are dropped by the
-        // empty-area filter at the end. "settings" and ids colliding with a
-        // static area can't be redeclared. Empty in the OSS build.
-        const pluginAreas = uiAreas().filter(
-          (pa) => pa.id !== "settings" && !STATIC_AREAS.some((sa) => sa.id === pa.id),
-        );
-        const baseAreas = [...STATIC_AREAS, ...pluginAreas.map(pluginAreaToArea)];
-
-        const staticPaths = new Set(baseAreas.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.path))));
-        const extras = menus.filter((m) => !staticPaths.has(m.path));
-
-        const nextAreas = baseAreas.map((staticArea) => {
-          // Deep copy groups to avoid mutating global STATIC_AREAS; drop items
-          // owned by a plugin the workspace has disabled.
-          const groups = staticArea.groups.map((g) => ({
-            label: g.label,
-            items: g.items.filter((i) => !disabledPaths.has(i.path)),
-          }));
-
-          // A category matching a plugin-declared area (id/title) lands there;
-          // otherwise the built-in keyword routing applies — one pipeline.
-          const areaExtras = extras.filter((m) => areaForCategory(m.category, pluginAreas) === staticArea.id);
-
-          areaExtras.forEach((m) => {
-            const item = {
-              id: m.id,
-              label: m.label,
-              Icon: Globe,
-              iconStr: m.icon,
-              path: m.path,
-            };
-
-            // Check if there is an existing group matching the category name (case-insensitive)
-            const matchedGroup = groups.find(
-              (g) => g.label.toLowerCase() === (m.category || "").toLowerCase()
-            );
-
-            if (matchedGroup) {
-              matchedGroup.items.push(item);
-            } else {
-              const groupName = m.category || "More";
-              const dynamicGroup = groups.find((g) => g.label === groupName);
-              if (dynamicGroup) {
-                dynamicGroup.items.push(item);
-              } else {
-                groups.push({
-                  label: groupName,
-                  items: [item],
-                });
-              }
-            }
-          });
-
-          return {
-            ...staticArea,
-            groups: groups.filter((g) => g.items.length > 0),
-          };
-        });
-
-        // Drop whole areas (e.g. "Commerce") that have no visible items left —
-        // otherwise a disabled feature still shows an empty top-level section.
-        setAreas(nextAreas.filter((a) => a.groups.length > 0));
+        setAreas(mergeAreas(backendMenus, plugins));
       })
       .catch(() => {});
   }, [activeOrgId]);
@@ -355,19 +314,11 @@ function Shell({
             <Routes>
               <Route path="/"           element={<Navigate to="/overview" replace />} />
               <Route path="/overview"   element={<OverviewPage />} />
-              <Route path="/links"      element={<LinksPage />} />
-              <Route path="/domains"    element={<DomainsPage />} />
-              <Route path="/mail"       element={<MailPage />} />
-              <Route path="/assets/certificates" element={<ComingSoonPage title={t("app.certsTitle")} description={t("app.certsDesc")} />} />
-              <Route path="/assets/databases"    element={<ComingSoonPage title={t("app.databasesTitle")} description={t("app.databasesDesc")} />} />
-              <Route path="/assets/storage"      element={<ComingSoonPage title={t("app.storageTitle")} description={t("app.storageDesc")} />} />
-              <Route path="/abuse"      element={<AbusePage />} />
-              <Route path="/audit"      element={<AuditLogPage />} />
               <Route path="/settings/*" element={<SettingsPage />} />
               <Route path="/personal/*" element={<PersonalSettingsPage />} />
               <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
-              {/* Build-time-composed frontend plugins (e.g. licenses). Empty in
-                  the OSS build ⇒ their paths fall to the neutral fallback below. */}
+              {/* Every business page — core (plugins/core) and edition-composed
+                  (manifest) — flows through the same registry. */}
               {pluginRouteElements()}
               {/* Unknown paths 404-degrade to a neutral note instead of silently
                   redirecting — a Pro plugin path with no composed plugin lands
@@ -411,23 +362,5 @@ function Shell({
         </Modal>
       )}
     </div>
-  );
-}
-
-function ComingSoonPage({ title, description }: { title: string; description: string }) {
-  const { t } = useTranslation();
-  return (
-    <ScreenWrap>
-      <PageHeader title={title} description={description} />
-      <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center">
-        <div className="h-16 w-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-4 animate-pulse">
-          <Boxes className="h-8 w-8" />
-        </div>
-        <h3 className="text-lg font-bold text-white mb-2">{t("app.comingSoonTitle")}</h3>
-        <p className="text-sm text-white/50 max-w-sm leading-relaxed">
-          {t("app.comingSoonBody")}
-        </p>
-      </GlassCard>
-    </ScreenWrap>
   );
 }
