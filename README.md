@@ -104,11 +104,14 @@ Open `http://localhost:8080` (redirects to `/admin`), sign in with
 ## Geo analytics (optional)
 
 Country / region / city in the click breakdowns come from a MaxMind **GeoLite2-City**
-database, which octarq doesn't bundle (licensing + ~60 MB). Bring your own and point
-`OCTARQ_GEOIP_DB` at it — unset just leaves geo columns blank. You can grab it from a
-**no-key community mirror** (jsDelivr / GitHub, auto-updated) or MaxMind directly
-with a free key. For both, plus how to wire it into **Docker / Kubernetes**
-(including a bake-into-an-image Dockerfile for k8s), see [`deploy/GEOIP.md`](deploy/GEOIP.md).
+database, which octarq doesn't bundle (licensing + ~60 MB). The easiest setup: set
+**`OCTARQ_MAXMIND_LICENSE_KEY`** (free key from maxmind.com) and octarq
+**auto-downloads** the database at startup — checksum-verified, stored next to the
+sqlite db, reused on later starts, and hot-loaded in the background so boot isn't
+blocked. Alternatively bring your own `.mmdb` and point `OCTARQ_GEOIP_DB` at it
+(this takes precedence); with neither set, geo columns just stay blank. Community
+mirrors, Docker/Kubernetes wiring, and a bake-into-an-image Dockerfile live in
+[`deploy/GEOIP.md`](deploy/GEOIP.md).
 
 ## Email receiving (Cloudflare)
 

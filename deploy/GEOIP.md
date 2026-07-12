@@ -5,11 +5,24 @@ breakdowns. This is **optional** — without a database, geo columns are simply
 empty and everything else works. The lookup uses MaxMind's free **GeoLite2-City**
 database (an `.mmdb` file).
 
-octarq doesn't ship the database (licensing terms + ~60 MB), so you bring your own.
-Point octarq at it with **`OCTARQ_GEOIP_DB`** (path to the `.mmdb`); an empty/unset value
-disables geo lookups.
+octarq doesn't ship the database (licensing terms + ~60 MB), but it can fetch it
+for you. Two ways to enable geo:
 
-## 1. Get GeoLite2-City.mmdb
+- **Auto-download (recommended)**: set **`OCTARQ_MAXMIND_LICENSE_KEY`** to a free
+  MaxMind license key (see Option B below for getting one) and leave
+  `OCTARQ_GEOIP_DB` unset. At startup octarq downloads GeoLite2-City from MaxMind
+  in the background (sha256-verified), stores the `.mmdb` in the data directory
+  next to the sqlite database (`/data` in the Docker image), and hot-loads it —
+  geo columns stay blank only until the download finishes (~a minute). On later
+  starts the existing file is reused, no re-download; when it's older than ~60
+  days octarq logs a hint — delete the file and restart to fetch a fresh copy.
+  Download failures (bad key, no network) log a warning and leave geo disabled.
+- **Bring your own**: point **`OCTARQ_GEOIP_DB`** at an `.mmdb` you obtained
+  yourself (steps below). This always takes precedence over auto-download.
+
+With neither set, geo lookups are disabled.
+
+## 1. Get GeoLite2-City.mmdb (manual route)
 
 You have two ways to obtain the file. The community mirrors need **no account and
 no license key** and are the easiest; MaxMind's official download is the freshest
