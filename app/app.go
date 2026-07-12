@@ -240,6 +240,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo, taskQueue)
 	apiHandler.SetPlugins(a.plugins)
 	throwaway := apiHandler.Routes()
+	services := plugin.NewRegistry()
 	pctx := &plugin.Context{
 		Huma:                apiHandler.Huma(),
 		DB:                  a.gdb,
@@ -256,6 +257,8 @@ func (a *App) RunMCP(ctx context.Context) error {
 		SetLLMResolver:      apiHandler.SetLLMResolver,
 		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
 		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,
+		Provide:             services.Provide,
+		Lookup:              services.Lookup,
 	}
 	enabled := func(r *http.Request, featureKey string) (allowed, scoped bool) {
 		oid := a.auth.OrgID(r)
@@ -280,6 +283,11 @@ func (a *App) RunMCP(ctx context.Context) error {
 			}
 			p.Mount(&gatedMux{real: throwaway, plugin: plugin.FeatureKey(p), enabled: enabled}, &pctxCopy)
 		}
+	}
+	// Two plugins Providing the same service name is a wiring bug — refuse to
+	// serve, same as a table collision.
+	if err := services.Err(); err != nil {
+		return err
 	}
 
 	return mcp.RunWithPlugins(ctx, a.plugins)
@@ -321,6 +329,7 @@ func (a *App) Run(ctx context.Context) error {
 	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo, taskQueue)
 	apiHandler.SetPlugins(a.plugins)
 	mux := apiHandler.Routes()
+	services := plugin.NewRegistry()
 	pctx := &plugin.Context{
 		Huma:           apiHandler.Huma(),
 		DB:             a.gdb,
@@ -335,6 +344,8 @@ func (a *App) Run(ctx context.Context) error {
 		DNS:            apiHandler.DNSManager(),
 		SendMail:       a.sendMail,
 		SetLLMResolver: apiHandler.SetLLMResolver,
+		Provide:        services.Provide,
+		Lookup:         services.Lookup,
 	}
 	// Non-core plugin routes are gated by a per-workspace feature toggle: when the
 	// caller's workspace has the feature disabled, the app answers 404 before the
@@ -364,6 +375,16 @@ func (a *App) Run(ctx context.Context) error {
 			p.Mount(&gatedMux{real: mux, plugin: plugin.FeatureKey(p), enabled: enabled}, &pctxCopy)
 		}
 		slog.Info("plugin mounted", "name", p.Name())
+	}
+	// Two plugins Providing the same service name is a wiring bug — refuse to
+	// serve, same as a table collision.
+	if err := services.Err(); err != nil {
+		return err
+	}
+	// Launch Starters only after EVERY plugin has mounted (and Provided): this
+	// is the ordering guarantee that makes Start-time Lookup of another
+	// plugin's services safe regardless of registration order.
+	for _, p := range a.plugins {
 		if s, ok := p.(plugin.Starter); ok {
 			go s.Start(ctx)
 		}

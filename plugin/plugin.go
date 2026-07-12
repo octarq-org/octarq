@@ -28,6 +28,33 @@
 // (use the value form `Plugin{}` if the plugin uses value receivers). See
 // examples/plugin-hello for the canonical shape.
 //
+// # Inter-plugin services
+//
+// Two separately-compiled plugins interact through the service registry on
+// Context — Provide and Lookup — never by importing each other. A provider
+// registers a service value during Mount under a stable string name; the
+// naming convention is "<pluginName>.<service>" (e.g. "billing.issuer",
+// "hello.greeter"). The service value should be an interface defined in an
+// importable package (the provider's own, or a shared contract package) so a
+// consumer can retrieve it with the typed helper LookupAs.
+//
+// Lifecycle rules:
+//
+//   - Mount runs once per plugin, in registration (app.Use) order, on a
+//     single goroutine. Provide must only be called during Mount.
+//   - Lookup during Mount only sees services from plugins registered earlier.
+//     Registration order is an app-wiring detail, so a cross-plugin consumer
+//     must resolve lazily — in Start (the app launches Start goroutines only
+//     after every plugin has mounted) or per-request — and degrade gracefully
+//     when the name is absent (the provider may not be in this build).
+//   - Providing the same name twice is a startup error: app.Run and
+//     app.RunMCP refuse to serve.
+//   - After the mount phase the registry is effectively read-only and safe
+//     for concurrent Lookup from any goroutine.
+//
+// See Registry for the backing implementation and LookupAs for the canonical
+// consumer shape.
+//
 // # Context evolution policy
 //
 // Context is the dependency bag handed to Mount and is shared by every plugin,
@@ -124,6 +151,16 @@ type Context struct {
 	// cache internally and return an error describing how to configure when no
 	// backend is usable.
 	SetLLMResolver func(resolver func() (llmprovider.Provider, error))
+	// Provide registers a service for other plugins to Lookup, under a stable
+	// name following the "<pluginName>.<service>" convention. Call it only
+	// during Mount. Providing a name twice is a startup error (the app refuses
+	// to serve). See the "Inter-plugin services" section of the package doc.
+	Provide func(name string, svc any)
+	// Lookup resolves a service registered via Provide. During Mount it only
+	// sees plugins mounted earlier, so cross-plugin consumers must call it
+	// lazily — in Start or per-request. Safe for concurrent use after the
+	// mount phase. Prefer the typed helper LookupAs.
+	Lookup func(name string) (any, bool)
 	// GetWorkspaceSetting reads a per-org setting value.
 	GetWorkspaceSetting func(orgID uint, key string) string
 	// SetWorkspaceSetting writes a per-org setting value.
@@ -181,9 +218,11 @@ type Plugin interface {
 }
 
 // Starter is an optional interface a Plugin may implement. If present, the app
-// calls Start in a goroutine after all plugins are mounted, passing the
+// calls Start in a goroutine after ALL plugins are mounted, passing the
 // server's root context so the plugin can run background work (e.g. schedulers)
-// and stop cleanly on shutdown.
+// and stop cleanly on shutdown. Because every Mount (and therefore every
+// Provide) has completed by then, Start is the earliest safe point to Lookup
+// services from other plugins regardless of registration order.
 type Starter interface {
 	Start(ctx context.Context)
 }

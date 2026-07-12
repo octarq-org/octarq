@@ -20,6 +20,35 @@ import (
 // Plugin is the exported unit a host wires up with app.App.Use(hello.Plugin{}).
 type Plugin struct{}
 
+// Greeter is the service this plugin offers to OTHER plugins through the
+// inter-plugin registry (ctx.Provide in Mount, name "hello.greeter" — the
+// "<pluginName>.<service>" convention). The provider owns the interface; a
+// consumer imports this package for the type only and resolves the
+// implementation lazily — in its Start (which the app runs only after ALL
+// plugins have mounted) or per-request, never in its own Mount:
+//
+//	func (p *Consumer) Mount(mux plugin.Mux, ctx *plugin.Context) { p.ctx = ctx }
+//
+//	func (p *Consumer) Start(ctx context.Context) {
+//		g, ok := plugin.LookupAs[hello.Greeter](p.ctx, "hello.greeter")
+//		if !ok {
+//			return // hello isn't in this build — degrade gracefully
+//		}
+//		_ = g.Greet("world")
+//	}
+//
+//	var (
+//		_ plugin.Plugin  = (*Consumer)(nil)
+//		_ plugin.Starter = (*Consumer)(nil)
+//	)
+type Greeter interface {
+	Greet(who string) string
+}
+
+type greeter struct{}
+
+func (greeter) Greet(who string) string { return "hello, " + who + "!" }
+
 // Name is the stable identifier — matches the frontend UIPlugin's `name` so the
 // two halves of the feature are traceable to each other.
 func (Plugin) Name() string { return "hello" }
@@ -32,6 +61,14 @@ func (Plugin) Models() []any { return nil }
 // the app answers 404 before the handler runs — which is exactly the state the
 // frontend page renders its neutral "not in this build" fallback for.
 func (Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
+	// Offer Greeter to other plugins. Mount is the only place to Provide; a
+	// duplicate name is a startup error, so the app fails fast on collisions.
+	// The nil check follows the Context evolution policy: tolerate hosts that
+	// predate a field.
+	if ctx.Provide != nil {
+		ctx.Provide("hello.greeter", Greeter(greeter{}))
+	}
+
 	mux.Handle("GET /api/hello/ping", ctx.Guard(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
