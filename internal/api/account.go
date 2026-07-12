@@ -155,4 +155,3 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 	out.Body.OK = true
 	return out, nil
 }
-

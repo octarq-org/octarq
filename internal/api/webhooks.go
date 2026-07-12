@@ -246,4 +246,3 @@ func (h *Handler) deleteWebhook(ctx context.Context, input *DeleteWebhookInput) 
 	h.audit(r, "webhook.delete", "webhook", input.ID, nil)
 	return &DeleteWebhookOutput{Body: map[string]bool{"ok": true}}, nil
 }
-

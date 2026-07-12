@@ -364,7 +364,7 @@ func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput
 		meta["autoWrapLinks"] = *input.Body.AutoWrapLinks
 	}
 	h.audit(r, "settings.update", "settings", 0, meta)
-	
+
 	org := h.currentOrg(r)
 	out := &UpdateSettingsOutput{
 		Body: map[string]any{
@@ -418,7 +418,7 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	if !h.isInstanceAdmin(r) {
 		return nil, huma.Error403Forbidden("instance admin role required")
 	}
-	
+
 	if input.Body.ReservedSlugs != nil {
 		h.setSetting(keyReservedSlugs, strings.Join(splitList(*input.Body.ReservedSlugs), "\n"))
 	}
@@ -518,7 +518,7 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 		meta["ratelimitRedirectRpm"] = *input.Body.RatelimitRedirectRpm
 	}
 	h.audit(r, "instance_settings.update", "settings", 0, meta)
-	
+
 	retDays := DefaultRetentionDays
 	if v := h.getSetting(keyDataRetentionDays); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
@@ -544,4 +544,3 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	}
 	return out, nil
 }
-

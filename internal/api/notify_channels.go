@@ -225,4 +225,3 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 	out.Body.OK = true
 	return out, nil
 }
-

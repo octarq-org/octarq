@@ -154,4 +154,3 @@ func (h *Handler) deleteToken(ctx context.Context, input *DeleteTokenInput) (*De
 	out.Body.OK = true
 	return out, nil
 }
-

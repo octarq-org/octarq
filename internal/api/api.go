@@ -181,7 +181,7 @@ func (h *Handler) Routes() *http.ServeMux {
 			!strings.HasPrefix(path, "/api/auth/invite/accept") &&
 			!strings.HasPrefix(path, "/api/webhook/") &&
 			!strings.HasPrefix(path, "/api/health") {
-			
+
 			r, _ := humago.Unwrap(ctx)
 			if r != nil {
 				r2, ok := h.auth.AuthenticateRequest(r)

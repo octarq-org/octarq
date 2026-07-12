@@ -60,4 +60,3 @@ func (h *Handler) health(ctx context.Context, input *HealthInput) (*HealthOutput
 	out.Body.Time = time.Now().Format(time.RFC3339)
 	return out, nil
 }
-

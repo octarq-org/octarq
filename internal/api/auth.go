@@ -495,7 +495,7 @@ type AuthConfigOutput struct {
 func (h *Handler) authConfig(ctx context.Context, input *AuthConfigInput) (*AuthConfigOutput, error) {
 	googleEnabled := h.oauth != nil && h.getSetting(keyGoogleClientID) != "" && h.getSetting(keyGoogleClientSecret) != ""
 	githubEnabled := h.oauth != nil && h.getSetting(keyGitHubClientID) != "" && h.getSetting(keyGitHubClientSecret) != ""
-	
+
 	out := &AuthConfigOutput{}
 	out.Body.GoogleEnabled = googleEnabled
 	out.Body.GithubEnabled = githubEnabled

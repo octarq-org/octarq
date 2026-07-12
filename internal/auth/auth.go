@@ -421,7 +421,6 @@ func (m *Manager) AuthenticateRequest(r *http.Request) (*http.Request, bool) {
 	return r.WithContext(ctx), true
 }
 
-
 // reporterIP extracts the best-effort client IP from the request. Proxy
 // headers are honoured only when trustProxy is set, otherwise a client could
 // spoof X-Forwarded-For to evade the login rate limiter.

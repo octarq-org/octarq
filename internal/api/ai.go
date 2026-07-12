@@ -262,4 +262,3 @@ func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailI
 	out.Body.Summary = strings.TrimSpace(resp.Text)
 	return out, nil
 }
-

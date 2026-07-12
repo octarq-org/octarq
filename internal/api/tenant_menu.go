@@ -654,4 +654,3 @@ func (h *Handler) updateUserSettings(ctx context.Context, input *UpdateUserSetti
 	out.Body.OK = true
 	return out, nil
 }
-

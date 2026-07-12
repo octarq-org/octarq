@@ -184,4 +184,3 @@ func (h *Handler) updatePlugin(ctx context.Context, input *UpdatePluginInput) (*
 	out.Body.OK = true
 	return out, nil
 }
-

@@ -188,4 +188,3 @@ func (h *Handler) updateAbuseReport(ctx context.Context, input *UpdateAbuseRepor
 	rep.Status = status
 	return &UpdateAbuseReportOutput{Body: rep}, nil
 }
-

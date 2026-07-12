@@ -184,4 +184,3 @@ func (h *Handler) deleteProviderAccount(ctx context.Context, input *DeleteProvid
 	h.audit(r, "provider.delete", "provider", input.ID, nil)
 	return &DeleteProviderAccountOutput{Body: map[string]bool{"ok": true}}, nil
 }
-

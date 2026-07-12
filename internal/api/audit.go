@@ -55,4 +55,3 @@ func (h *Handler) listAuditLogs(ctx context.Context, input *ListAuditLogsInput) 
 	q.Limit(limit).Offset(offset).Find(&logs)
 	return &ListAuditLogsOutput{Body: logs}, nil
 }
-
