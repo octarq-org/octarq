@@ -51,8 +51,9 @@ const bak = (f) => `${f}.manifest-bak`;
 for (const f of files) copyFileSync(f, bak(f));
 let failed;
 try {
-  // `pnpm add` (not `install`) — it takes no --frozen-lockfile flag.
-  execFileSync("pnpm", ["add", "-O", ...specs], { cwd: WEB_ROOT, stdio: "inherit" });
+  // `pnpm add` (not `install`) — it takes no --frozen-lockfile flag. `-w` targets
+  // the workspace root importer (web/ is a workspace root, so a bare add is refused).
+  execFileSync("pnpm", ["add", "-O", "-w", ...specs], { cwd: WEB_ROOT, stdio: "inherit" });
 } catch (err) {
   failed = err;
 } finally {
