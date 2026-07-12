@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, Overview } from "../api";
 import { useTranslation } from "../i18n";
+import { ExtensionSlot } from "../plugin-sdk";
 import { AreaChart, BarList, timeAgo, ScreenWrap, PageHeader, StatCard, GlassCard } from "../ui";
 import { Link2, Mail, Globe, MousePointerClick, CheckCircle2, Circle, ArrowRight, Sparkles, X } from "lucide-react";
 
@@ -273,6 +274,10 @@ export default function OverviewPage() {
           )}
         </Panel>
       </div>
+
+      {/* Extension point for plugin dashboard widgets (UIPlugin.widgets, slot
+          "home-overview"). Renders nothing in the OSS build (empty registry). */}
+      <ExtensionSlot name="home-overview" />
     </ScreenWrap>
   );
 }

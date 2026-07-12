@@ -17,9 +17,36 @@ export type LazyPage = LazyExoticComponent<ComponentType<Record<string, never>>>
 
 // A route contributed by a plugin. `path` is an absolute admin path (e.g.
 // "/licenses"); it is rendered under the same `/admin` basename as core routes.
+// `requiredTier` is advisory metadata for future gating UI (e.g. badging a
+// route as "elite"); actual enforcement stays server-side — the backend answers
+// 402 and the page/boundary degrades to the upsell. There is deliberately no
+// client-side license check.
 export interface UIRoute {
   path: string;
   Component: LazyPage;
+  requiredTier?: string;
+}
+
+// A dashboard widget contributed by a plugin. `slot` names an extension point
+// the app renders with <ExtensionSlot name="..."/> (e.g. "home-overview");
+// widgets registered for that slot render there in ascending `order`. Like
+// routes, the component is lazy so an unvisited slot costs nothing.
+export interface UIWidget {
+  slot: string;
+  Component: LazyPage;
+  order?: number;
+}
+
+// A NEW top-level sidebar area contributed by a plugin. `icon` is a string key
+// the host app maps to its icon set (lucide) — kept as a string so the contract
+// stays icon-library-free, mirroring PluginMenuItem.icon. A plugin's menu items
+// whose `category` matches the area's id or title land in this area through the
+// same `areaForCategory` pipeline as every other menu.
+export interface UIArea {
+  id: string;
+  title: string;
+  subtitle?: string;
+  icon?: string;
 }
 
 // A sidebar entry contributed by a plugin. Shape matches the backend
@@ -58,6 +85,8 @@ export interface UIPlugin {
   name: string;
   routes: UIRoute[];
   menu?: PluginMenuItem[];
+  widgets?: UIWidget[];
+  areas?: UIArea[];
   i18n?: PluginI18n;
   lockedFallback?: LockedFallback;
 }

@@ -46,12 +46,12 @@ import PersonalSettingsPage from "./pages/PersonalSettings";
 import InviteAcceptPage from "./pages/InviteAccept";
 import { Modal, Button, ScreenWrap, PageHeader, GlassCard } from "./ui";
 import { useTranslation } from "./i18n";
-import { Area, AreaId, STATIC_AREAS, SETTINGS_AREA, areaForPath, areaForCategory } from "./shell/areas";
+import { Area, AreaId, STATIC_AREAS, SETTINGS_AREA, areaForPath, areaForCategory, pluginAreaToArea } from "./shell/areas";
 import { TopBar } from "./shell/TopBar";
 import { CommandPalette } from "./shell/CommandPalette";
 import { AreaPanel } from "./shell/AreaPanel";
 import { Login } from "./shell/Login";
-import { uiMenus } from "./plugin-sdk";
+import { uiAreas, uiMenus } from "./plugin-sdk";
 import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
 
 
@@ -161,7 +161,9 @@ function Shell({
   }, []);
 
   const settingsActive = location.pathname.startsWith("/settings") || location.pathname.startsWith("/personal");
-  const activeArea: AreaId = settingsActive ? "settings" : areaForPath(location.pathname);
+  // Resolve against the merged runtime areas (static + plugin areas + dynamic
+  // menu items) so paths owned by plugin-contributed areas highlight correctly.
+  const activeArea: AreaId = settingsActive ? "settings" : areaForPath(location.pathname, areas);
 
   // Load orgs + dynamic menus + user settings layout
   useEffect(() => {
@@ -211,10 +213,21 @@ function Shell({
           }
         });
 
-        const staticPaths = new Set(STATIC_AREAS.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.path))));
+        // Top-level areas: the static ones plus any NEW areas declared by
+        // composed frontend plugins (UIPlugin.areas → uiAreas()). Plugin areas
+        // start as empty shells — like Commerce's group shells — and are filled
+        // by the same category-merge below; still-empty ones are dropped by the
+        // empty-area filter at the end. "settings" and ids colliding with a
+        // static area can't be redeclared. Empty in the OSS build.
+        const pluginAreas = uiAreas().filter(
+          (pa) => pa.id !== "settings" && !STATIC_AREAS.some((sa) => sa.id === pa.id),
+        );
+        const baseAreas = [...STATIC_AREAS, ...pluginAreas.map(pluginAreaToArea)];
+
+        const staticPaths = new Set(baseAreas.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.path))));
         const extras = menus.filter((m) => !staticPaths.has(m.path));
 
-        const nextAreas = STATIC_AREAS.map((staticArea) => {
+        const nextAreas = baseAreas.map((staticArea) => {
           // Deep copy groups to avoid mutating global STATIC_AREAS; drop items
           // owned by a plugin the workspace has disabled.
           const groups = staticArea.groups.map((g) => ({
@@ -222,7 +235,9 @@ function Shell({
             items: g.items.filter((i) => !disabledPaths.has(i.path)),
           }));
 
-          const areaExtras = extras.filter((m) => areaForCategory(m.category) === staticArea.id);
+          // A category matching a plugin-declared area (id/title) lands there;
+          // otherwise the built-in keyword routing applies — one pipeline.
+          const areaExtras = extras.filter((m) => areaForCategory(m.category, pluginAreas) === staticArea.id);
 
           areaExtras.forEach((m) => {
             const item = {
@@ -288,8 +303,8 @@ function Shell({
 
   const selectArea = (id: AreaId) => {
     if (id === "settings") { navigate("/settings"); return; }
-    const area = areas.find((a) => a.id === id)!;
-    navigate(area.groups[0]?.items[0]?.path ?? "/overview");
+    const area = areas.find((a) => a.id === id);
+    navigate(area?.groups[0]?.items[0]?.path ?? "/overview");
   };
 
   return (

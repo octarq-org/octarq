@@ -5,7 +5,7 @@
 // commercial build registers real plugin modules.
 //
 // This is the JS mirror of `app.App.Use(plugin.Plugin)` on the Go side.
-import type { PluginI18n, PluginMenuItem, UIPlugin, UIRoute } from "./types";
+import type { PluginI18n, PluginMenuItem, UIArea, UIPlugin, UIRoute, UIWidget } from "./types";
 
 const REGISTRY: UIPlugin[] = [];
 
@@ -30,6 +30,29 @@ export function uiRoutes(): UIRoute[] {
 // dynamic backend menus and placed by the shared `areaForCategory`.
 export function uiMenus(): PluginMenuItem[] {
   return REGISTRY.flatMap((p) => p.menu ?? []);
+}
+
+// Every widget registered for `slot`, across all plugins, in ascending `order`
+// (missing order sorts as 0; ties keep registration order — Array.sort is
+// stable). Rendered by <ExtensionSlot name={slot}/>. Empty registry ⇒ empty
+// array ⇒ the slot renders nothing (the OSS build).
+export function uiWidgets(slot: string): UIWidget[] {
+  return REGISTRY.flatMap((p) => p.widgets ?? [])
+    .filter((w) => w.slot === slot)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
+// Every NEW top-level area contributed by plugins, flattened and deduped by id
+// (first registration wins, matching registerUIPlugin's idempotence). The app
+// appends these to its static areas and routes menus into them through the
+// shared `areaForCategory` pipeline.
+export function uiAreas(): UIArea[] {
+  const seen = new Set<string>();
+  return REGISTRY.flatMap((p) => p.areas ?? []).filter((a) => {
+    if (seen.has(a.id)) return false;
+    seen.add(a.id);
+    return true;
+  });
 }
 
 // Merged plugin i18n namespaces, keyed by plugin name, per language. The

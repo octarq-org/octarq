@@ -3,11 +3,11 @@
 // any path a plugin would own but isn't composed in.
 //
 // Kept out of App.tsx so the routing shell doesn't grow a plugin-plumbing bulge.
-import { Component, ReactNode, Suspense } from "react";
+import { Suspense } from "react";
 import { Route } from "react-router-dom";
 import { GlassCard, PageHeader, ScreenWrap, useTranslation } from "@octarq-org/plugin-sdk";
 import { uiPlugins } from "@octarq-org/plugin-sdk";
-import type { LockedFallbackType } from "@octarq-org/plugin-sdk";
+import { ProGate } from "./ProGate";
 
 // Neutral "this feature isn't part of this build" note — the frontend mirror of
 // the backend answering 404 for a plugin that isn't mounted. Shown for any
@@ -27,29 +27,11 @@ export function PluginUnavailable() {
   );
 }
 
-// Boundary that degrades a plugin page to its lockedFallback (or the neutral
-// note) if its lazy chunk throws — so a half-composed build never white-screens.
-class PluginBoundary extends Component<
-  { fallback: LockedFallbackType | undefined; children: ReactNode },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  render() {
-    if (this.state.failed) {
-      const Fallback = this.props.fallback;
-      // 404 status: the page couldn't be composed/loaded in this build.
-      return Fallback ? <Fallback status={404} /> : <PluginUnavailable />;
-    }
-    return this.props.children;
-  }
-}
-
 // The composed plugin routes, as an array of <Route> for <Routes>. Empty when
 // the registry is empty (OSS build) — then every such path falls to App's
-// catch-all neutral fallback.
+// catch-all neutral fallback. Every element is wrapped in ProGate — the
+// centralized degrade boundary (402 ⇒ upsell, 404/chunk failure ⇒ neutral
+// note) — so pages degrade uniformly even without per-page handling.
 export function pluginRouteElements() {
   return uiPlugins().flatMap((plugin) =>
     plugin.routes.map((route) => {
@@ -59,11 +41,11 @@ export function pluginRouteElements() {
           key={route.path}
           path={route.path}
           element={
-            <PluginBoundary fallback={plugin.lockedFallback}>
+            <ProGate plugin={plugin} route={route}>
               <Suspense fallback={null}>
                 <Page />
               </Suspense>
-            </PluginBoundary>
+            </ProGate>
           }
         />
       );

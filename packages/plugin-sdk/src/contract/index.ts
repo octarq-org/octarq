@@ -3,6 +3,8 @@
 export type {
   UIPlugin,
   UIRoute,
+  UIWidget,
+  UIArea,
   PluginMenuItem,
   PluginI18n,
   LazyPage,
@@ -14,6 +16,10 @@ export {
   uiPlugins,
   uiRoutes,
   uiMenus,
+  uiWidgets,
+  uiAreas,
   uiPluginI18n,
   resetRegistry,
 } from "./registry";
+
+export { ExtensionSlot } from "./ExtensionSlot";
