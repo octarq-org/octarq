@@ -1,80 +1,93 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"net/mail"
 	"strings"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/google/uuid"
 	"github.com/octarq-org/octarq/internal/models"
 	"golang.org/x/crypto/bcrypt"
 )
 
+type RegisterInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+}
+
+func (i *RegisterInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type RegisterOutput struct {
+	Body struct {
+		OK       bool   `json:"ok"`
+		Username string `json:"username"`
+	}
+}
+
 // POST /api/auth/register (public) — self-serve email/password sign-up.
 // Gated by the instance-level allow_registration setting (default on). On
 // success it provisions a fresh personal workspace with the user as owner and
 // logs them straight in.
-func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) register(ctx context.Context, input *RegisterInput) (*RegisterOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, w := humago.Unwrap(input.Ctx)
 	if !h.registrationEnabled() {
-		writeErr(w, http.StatusForbidden, "registration is disabled")
-		return
-	}
-	var body struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-	if err := readJSON(r, &body); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+		return nil, huma.Error403Forbidden("registration is disabled")
 	}
 	ip := reporterIP(r)
 	if !h.loginLimiter.allow(ip) {
-		writeErr(w, http.StatusTooManyRequests, "too many attempts")
-		return
+		return nil, huma.Error429TooManyRequests("too many attempts")
 	}
-	email := strings.ToLower(strings.TrimSpace(body.Email))
+	email := strings.ToLower(strings.TrimSpace(input.Body.Email))
 	if addr, err := mail.ParseAddress(email); err != nil || addr.Address != email || !strings.Contains(email, "@") {
-		writeErr(w, http.StatusBadRequest, "a valid email is required")
-		return
+		return nil, huma.Error400BadRequest("a valid email is required")
 	}
-	if len(body.Password) < 8 {
-		writeErr(w, http.StatusBadRequest, "password must be at least 8 characters")
-		return
+	if len(input.Body.Password) < 8 {
+		return nil, huma.Error400BadRequest("password must be at least 8 characters")
 	}
 
 	// Reject duplicates case-insensitively (also covers OAuth-provisioned users).
 	var existing models.User
 	if h.db.Where("LOWER(email) = ?", email).First(&existing).Error == nil {
-		writeErr(w, http.StatusConflict, "an account with this email already exists")
-		return
+		return nil, huma.NewError(http.StatusConflict, "an account with this email already exists")
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(input.Body.Password), bcrypt.DefaultCost)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to hash password")
-		return
+		return nil, huma.Error500InternalServerError("failed to hash password")
 	}
 
 	user := models.User{Email: email, PasswordHash: string(hash)}
 	if err := h.db.Create(&user).Error; err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to create account")
-		return
+		return nil, huma.Error500InternalServerError("failed to create account")
 	}
 
 	org := models.Org{Name: email, Slug: h.uniqueOrgSlug(email), InboundToken: uuid.NewString()}
 	if err := h.db.Create(&org).Error; err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to create workspace")
-		return
+		return nil, huma.Error500InternalServerError("failed to create workspace")
 	}
 	if err := h.db.Create(&models.OrgMember{OrgID: org.ID, UserID: user.ID, Role: "owner"}).Error; err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to create workspace")
-		return
+		return nil, huma.Error500InternalServerError("failed to create workspace")
 	}
 
 	h.audit(r, "user.register", "user", user.ID, map[string]any{"email": email})
 	h.loginLimiter.reset(ip)
 	h.auth.SetSessionFromRequest(r, w, user.ID, org.ID)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "username": email})
+	out := &RegisterOutput{}
+	out.Body.OK = true
+	out.Body.Username = email
+	return out, nil
 }
 
 // uniqueOrgSlug derives a URL-safe slug from an email and guarantees it neither

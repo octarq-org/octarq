@@ -1,10 +1,12 @@
 package api
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
 )
 
@@ -14,12 +16,34 @@ import (
 // json:"-" tag — and notification-channel configs are redacted, since an export
 // file shouldn't hand back live bot tokens / webhook URLs.
 
+type ExportAccountInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *ExportAccountInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ExportAccountOutput struct {
+	ContentDisposition string `header:"Content-Disposition"`
+	ContentType        string `header:"Content-Type"`
+	Body               map[string]any
+}
+
 // exportAccount returns a JSON bundle of every record the active org owns.
 // Owner/admin only. GET /api/account/export
-func (h *Handler) exportAccount(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) (*ExportAccountOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	if role := h.callerOrgRole(r); role != "owner" && role != "admin" {
-		writeErr(w, http.StatusForbidden, "forbidden: only owner/admin can export org data")
-		return
+		return nil, huma.Error403Forbidden("forbidden: only owner/admin can export org data")
 	}
 	org := h.orgID(r)
 
@@ -54,10 +78,10 @@ func (h *Handler) exportAccount(w http.ResponseWriter, r *http.Request) {
 		chOut[i] = channelOut{NotificationChannel: c, Config: "[redacted]"}
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Content-Disposition",
-		fmt.Sprintf("attachment; filename=\"octarq-export-org%d-%s.json\"", org, time.Now().UTC().Format("20060102")))
-	writeJSON(w, http.StatusOK, map[string]any{
+	out := &ExportAccountOutput{}
+	out.ContentType = "application/json; charset=utf-8"
+	out.ContentDisposition = fmt.Sprintf("attachment; filename=\"octarq-export-org%d-%s.json\"", org, time.Now().UTC().Format("20060102"))
+	out.Body = map[string]any{
 		"exportedAt":           time.Now().UTC().Format(time.RFC3339),
 		"orgId":                org,
 		"links":                links,
@@ -69,27 +93,45 @@ func (h *Handler) exportAccount(w http.ResponseWriter, r *http.Request) {
 		"providerAccounts":     providers, // credentials excluded (json:"-")
 		"notificationChannels": chOut,     // configs redacted
 		"note":                 "Secret material (token hashes, encrypted credentials, SMTP passwords, channel configs) is intentionally excluded.",
-	})
+	}
+	return out, nil
+}
+
+type PurgeAccountInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
+		Confirm string `json:"confirm"`
+	}
+}
+
+func (i *PurgeAccountInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type PurgeAccountOutput struct {
+	Body struct {
+		OK bool `json:"ok"`
+	}
 }
 
 // purgeAccount permanently deletes all data the active org owns. Owner only, and
 // guarded by a typed confirmation. DELETE /api/account/data
 // Body: {"confirm": "DELETE MY DATA"}
-func (h *Handler) purgeAccount(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*PurgeAccountOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	if role := h.callerOrgRole(r); role != "owner" {
-		writeErr(w, http.StatusForbidden, "forbidden: only an owner can destroy org data")
-		return
+		return nil, huma.Error403Forbidden("forbidden: only an owner can destroy org data")
 	}
-	var body struct {
-		Confirm string `json:"confirm"`
-	}
-	if err := readJSON(r, &body); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
-	}
-	if body.Confirm != "DELETE MY DATA" {
-		writeErr(w, http.StatusBadRequest, `confirmation required: send {"confirm":"DELETE MY DATA"}`)
-		return
+	if input.Body.Confirm != "DELETE MY DATA" {
+		return nil, huma.Error400BadRequest(`confirmation required: send {"confirm":"DELETE MY DATA"}`)
 	}
 	org := h.orgID(r)
 
@@ -109,5 +151,8 @@ func (h *Handler) purgeAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.audit(r, "account.purge", "org", org, nil)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	out := &PurgeAccountOutput{}
+	out.Body.OK = true
+	return out, nil
 }
+

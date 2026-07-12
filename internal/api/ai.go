@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/llmprovider"
 )
@@ -71,49 +73,79 @@ func (h *Handler) llm() (llmprovider.Provider, error) {
 	return p, err
 }
 
-func (h *Handler) aiStatus(w http.ResponseWriter, r *http.Request) {
-	p, err := h.llm()
-	if err != nil {
-		writeJSON(w, http.StatusOK, map[string]any{"configured": false, "provider": ""})
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"configured": true,
-		"provider":   p.Name(),
-	})
+type AIStatusInput struct {
+	Ctx huma.Context `hidden:"true"`
 }
 
-// requireLLM resolves the provider or writes the appropriate error response.
-func (h *Handler) requireLLM(w http.ResponseWriter) (llmprovider.Provider, bool) {
-	p, err := h.llm()
-	if err != nil {
-		writeErr(w, http.StatusBadRequest, err.Error())
-		return nil, false
-	}
-	return p, true
+func (i *AIStatusInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
 }
 
-func (h *Handler) aiSuggestSlug(w http.ResponseWriter, r *http.Request) {
-	var d struct {
+type AIStatusOutput struct {
+	Body struct {
+		Configured bool   `json:"configured"`
+		Provider   string `json:"provider"`
+	}
+}
+
+func (h *Handler) aiStatus(ctx context.Context, input *AIStatusInput) (*AIStatusOutput, error) {
+	p, err := h.llm()
+	out := &AIStatusOutput{}
+	if err != nil {
+		out.Body.Configured = false
+		out.Body.Provider = ""
+		return out, nil
+	}
+	out.Body.Configured = true
+	out.Body.Provider = p.Name()
+	return out, nil
+}
+
+type AISuggestSlugInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
 		Target string `json:"target"`
-		Title  string `json:"title"`
+		Title  string `json:"title,omitempty"`
 	}
-	if err := readJSON(r, &d); err != nil || strings.TrimSpace(d.Target) == "" {
-		writeErr(w, http.StatusBadRequest, "target is required")
-		return
+}
+
+func (i *AISuggestSlugInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type AISuggestSlugOutput struct {
+	Body struct {
+		Slugs []string `json:"slugs"`
 	}
-	p, ok := h.requireLLM(w)
+}
+
+func (h *Handler) aiSuggestSlug(ctx context.Context, input *AISuggestSlugInput) (*AISuggestSlugOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	target := strings.TrimSpace(input.Body.Target)
+	if target == "" {
+		return nil, huma.Error400BadRequest("target is required")
+	}
+	p, err := h.llm()
+	if err != nil {
+		return nil, huma.Error400BadRequest(err.Error())
 	}
 
-	prompt := "Suggest short-link slugs for this destination.\nURL: " + d.Target
-	if d.Title != "" {
-		prompt += "\nPage title: " + d.Title
+	prompt := "Suggest short-link slugs for this destination.\nURL: " + target
+	if input.Body.Title != "" {
+		prompt += "\nPage title: " + input.Body.Title
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), aiTimeout)
+	ctxCtx, cancel := context.WithTimeout(r.Context(), aiTimeout)
 	defer cancel()
-	resp, err := p.Complete(ctx, llmprovider.Request{
+	resp, err := p.Complete(ctxCtx, llmprovider.Request{
 		Model: p.CheapModel(),
 		System: "You generate URL slugs. Reply with ONLY a JSON array of 3 to 5 strings. " +
 			"Each slug is lowercase, 3-30 chars, [a-z0-9-] only, memorable, and reflects the page content.",
@@ -122,15 +154,15 @@ func (h *Handler) aiSuggestSlug(w http.ResponseWriter, r *http.Request) {
 		JSON:      true,
 	})
 	if err != nil {
-		writeErr(w, http.StatusBadGateway, "AI request failed: "+err.Error())
-		return
+		return nil, huma.NewError(http.StatusBadGateway, "AI request failed: "+err.Error())
 	}
 	slugs := parseSlugList(resp.Text)
 	if len(slugs) == 0 {
-		writeErr(w, http.StatusBadGateway, "AI returned no usable slugs")
-		return
+		return nil, huma.NewError(http.StatusBadGateway, "AI returned no usable slugs")
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"slugs": slugs})
+	out := &AISuggestSlugOutput{}
+	out.Body.Slugs = slugs
+	return out, nil
 }
 
 var slugRe = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
@@ -167,24 +199,41 @@ func parseSlugList(text string) []string {
 
 var htmlTagRe = regexp.MustCompile(`(?s)<style.*?</style>|<script.*?</script>|<[^>]*>`)
 
-func (h *Handler) aiSummarizeEmail(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
-	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+type AISummarizeEmailInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *AISummarizeEmailInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type AISummarizeEmailOutput struct {
+	Body struct {
+		Summary string `json:"summary"`
 	}
-	if !h.emailBelongsToOrg(id, h.orgID(r)) {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+}
+
+func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailInput) (*AISummarizeEmailOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !h.emailBelongsToOrg(input.ID, h.orgID(r)) {
+		return nil, huma.Error404NotFound("not found")
 	}
 	var e models.Email
-	if h.db.First(&e, id).Error != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if h.db.First(&e, input.ID).Error != nil {
+		return nil, huma.Error404NotFound("not found")
 	}
-	p, ok := h.requireLLM(w)
-	if !ok {
-		return
+	p, err := h.llm()
+	if err != nil {
+		return nil, huma.Error400BadRequest(err.Error())
 	}
 
 	body := e.Text
@@ -197,9 +246,9 @@ func (h *Handler) aiSummarizeEmail(w http.ResponseWriter, r *http.Request) {
 	}
 	content := "From: " + e.FromAddr + "\nSubject: " + e.Subject + "\n\n" + body
 
-	ctx, cancel := context.WithTimeout(r.Context(), aiTimeout)
+	ctxCtx, cancel := context.WithTimeout(r.Context(), aiTimeout)
 	defer cancel()
-	resp, err := p.Complete(ctx, llmprovider.Request{
+	resp, err := p.Complete(ctxCtx, llmprovider.Request{
 		Model: p.CheapModel(),
 		System: "Summarize this email in 2-3 sentences, in the same language the email is written in. " +
 			"Lead with what it is (bill, verification code, newsletter, personal, ...) and any action or deadline. Plain text only.",
@@ -207,8 +256,10 @@ func (h *Handler) aiSummarizeEmail(w http.ResponseWriter, r *http.Request) {
 		MaxTokens: 300,
 	})
 	if err != nil {
-		writeErr(w, http.StatusBadGateway, "AI request failed: "+err.Error())
-		return
+		return nil, huma.NewError(http.StatusBadGateway, "AI request failed: "+err.Error())
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"summary": strings.TrimSpace(resp.Text)})
+	out := &AISummarizeEmailOutput{}
+	out.Body.Summary = strings.TrimSpace(resp.Text)
+	return out, nil
 }
+

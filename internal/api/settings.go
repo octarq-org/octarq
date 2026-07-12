@@ -1,10 +1,13 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/google/uuid"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/models"
@@ -185,22 +188,66 @@ func (h *Handler) isReservedMailbox(orgID uint, addr string) bool {
 
 // --- handlers ---
 
-func (h *Handler) getSettings(w http.ResponseWriter, r *http.Request) {
-	org := h.currentOrg(r)
-	writeJSON(w, http.StatusOK, map[string]any{
-		"reservedMailboxes": h.GetWorkspaceSetting(org.ID, keyReservedMailboxes),
-		"orgSlug":           org.Slug,
-		"inboundToken":      org.InboundToken,
-		"catchAll":          h.GetWorkspaceSetting(org.ID, keyCatchAll) == "true",
-		"autoWrapLinks":     h.GetWorkspaceSetting(org.ID, keyAutoWrapLinks) == "true",
-		"isInstanceAdmin":   h.isInstanceAdmin(r),
-	})
+type GetSettingsInput struct {
+	Ctx huma.Context `hidden:"true"`
 }
 
-func (h *Handler) getInstanceSettings(w http.ResponseWriter, r *http.Request) {
+func (i *GetSettingsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type GetSettingsOutput struct {
+	Body map[string]any
+}
+
+func (h *Handler) getSettings(ctx context.Context, input *GetSettingsInput) (*GetSettingsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	org := h.currentOrg(r)
+	out := &GetSettingsOutput{
+		Body: map[string]any{
+			"reservedMailboxes": h.GetWorkspaceSetting(org.ID, keyReservedMailboxes),
+			"orgSlug":           org.Slug,
+			"inboundToken":      org.InboundToken,
+			"catchAll":          h.GetWorkspaceSetting(org.ID, keyCatchAll) == "true",
+			"autoWrapLinks":     h.GetWorkspaceSetting(org.ID, keyAutoWrapLinks) == "true",
+			"isInstanceAdmin":   h.isInstanceAdmin(r),
+		},
+	}
+	return out, nil
+}
+
+type GetInstanceSettingsInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *GetInstanceSettingsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type GetInstanceSettingsOutput struct {
+	Body map[string]any
+}
+
+func (h *Handler) getInstanceSettings(ctx context.Context, input *GetInstanceSettingsInput) (*GetInstanceSettingsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	if !h.isInstanceAdmin(r) {
-		writeErr(w, http.StatusForbidden, "instance admin role required")
-		return
+		return nil, huma.Error403Forbidden("instance admin role required")
 	}
 	retDays := DefaultRetentionDays
 	if v := h.getSetting(keyDataRetentionDays); v != "" {
@@ -208,21 +255,24 @@ func (h *Handler) getInstanceSettings(w http.ResponseWriter, r *http.Request) {
 			retDays = n
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"reservedSlugs":         h.getSetting(keyReservedSlugs),
-		"builtinReserved":       []string{"admin", "api", "assets", "portal"},
-		"googleClientId":        h.getSetting(keyGoogleClientID),
-		"googleClientSecretSet": h.getSetting(keyGoogleClientSecret) != "",
-		"githubClientId":        h.getSetting(keyGitHubClientID),
-		"githubClientSecretSet": h.getSetting(keyGitHubClientSecret) != "",
-		"dataRetentionDays":     retDays,
-		"allowRegistration":     h.registrationEnabled(),
-		"appName":               h.getSetting(keyAppName), // raw value; empty = default
-		"metricsTokenSet":       h.getSetting(keyMetricsToken) != "",
-		"ratelimitAuthRpm":      h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
-		"ratelimitApiRpm":       h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
-		"ratelimitRedirectRpm":  h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM),
-	})
+	out := &GetInstanceSettingsOutput{
+		Body: map[string]any{
+			"reservedSlugs":         h.getSetting(keyReservedSlugs),
+			"builtinReserved":       []string{"admin", "api", "assets", "portal"},
+			"googleClientId":        h.getSetting(keyGoogleClientID),
+			"googleClientSecretSet": h.getSetting(keyGoogleClientSecret) != "",
+			"githubClientId":        h.getSetting(keyGitHubClientID),
+			"githubClientSecretSet": h.getSetting(keyGitHubClientSecret) != "",
+			"dataRetentionDays":     retDays,
+			"allowRegistration":     h.registrationEnabled(),
+			"appName":               h.getSetting(keyAppName), // raw value; empty = default
+			"metricsTokenSet":       h.getSetting(keyMetricsToken) != "",
+			"ratelimitAuthRpm":      h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
+			"ratelimitApiRpm":       h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
+			"ratelimitRedirectRpm":  h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM),
+		},
+	}
+	return out, nil
 }
 
 // isInstanceAdmin reports whether the current user is an owner of the bootstrap org (org 1),
@@ -241,190 +291,257 @@ func (h *Handler) isInstanceAdmin(r *http.Request) bool {
 	return role == "owner"
 }
 
-func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
+type UpdateSettingsInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
+		ReservedMailboxes *string `json:"reservedMailboxes,omitempty"`
+		InboundToken      *string `json:"inboundToken,omitempty"`
+		CatchAll          *bool   `json:"catchAll,omitempty"`
+		AutoWrapLinks     *bool   `json:"autoWrapLinks,omitempty"`
+	}
+}
+
+func (i *UpdateSettingsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type UpdateSettingsOutput struct {
+	Body map[string]any
+}
+
+func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput) (*UpdateSettingsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	if role := h.callerOrgRole(r); role != "owner" && role != "admin" {
-		writeErr(w, http.StatusForbidden, "owner or admin role required")
-		return
-	}
-	var d struct {
-		ReservedMailboxes *string `json:"reservedMailboxes"`
-		InboundToken      *string `json:"inboundToken"`
-		CatchAll          *bool   `json:"catchAll"`
-		AutoWrapLinks     *bool   `json:"autoWrapLinks"`
-	}
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+		return nil, huma.Error403Forbidden("owner or admin role required")
 	}
 
-	if d.ReservedMailboxes != nil {
-		h.SetWorkspaceSetting(h.orgID(r), keyReservedMailboxes, strings.Join(splitList(*d.ReservedMailboxes), "\n"))
+	if input.Body.ReservedMailboxes != nil {
+		h.SetWorkspaceSetting(h.orgID(r), keyReservedMailboxes, strings.Join(splitList(*input.Body.ReservedMailboxes), "\n"))
 	}
-	if d.InboundToken != nil {
+	if input.Body.InboundToken != nil {
 		// Per-org: empty string rotates to a fresh UUID; a value sets it explicitly.
-		tok := strings.TrimSpace(*d.InboundToken)
+		tok := strings.TrimSpace(*input.Body.InboundToken)
 		if tok == "" {
 			tok = uuid.NewString()
 		}
 		h.db.Model(&models.Org{}).Where("id = ?", h.orgID(r)).Update("inbound_token", tok)
 	}
-	if d.CatchAll != nil {
+	if input.Body.CatchAll != nil {
 		val := "false"
-		if *d.CatchAll {
+		if *input.Body.CatchAll {
 			val = "true"
 		}
 		h.SetWorkspaceSetting(h.orgID(r), keyCatchAll, val)
 	}
 
-	if d.AutoWrapLinks != nil {
+	if input.Body.AutoWrapLinks != nil {
 		val := "false"
-		if *d.AutoWrapLinks {
+		if *input.Body.AutoWrapLinks {
 			val = "true"
 		}
 		h.SetWorkspaceSetting(h.orgID(r), keyAutoWrapLinks, val)
 	}
 
 	meta := make(map[string]any)
-	if d.ReservedMailboxes != nil {
-		meta["reservedMailboxes"] = *d.ReservedMailboxes
+	if input.Body.ReservedMailboxes != nil {
+		meta["reservedMailboxes"] = *input.Body.ReservedMailboxes
 	}
-	if d.InboundToken != nil {
+	if input.Body.InboundToken != nil {
 		meta["inboundToken"] = "[REDACTED]"
 	}
-	if d.CatchAll != nil {
-		meta["catchAll"] = *d.CatchAll
+	if input.Body.CatchAll != nil {
+		meta["catchAll"] = *input.Body.CatchAll
 	}
-	if d.AutoWrapLinks != nil {
-		meta["autoWrapLinks"] = *d.AutoWrapLinks
+	if input.Body.AutoWrapLinks != nil {
+		meta["autoWrapLinks"] = *input.Body.AutoWrapLinks
 	}
 	h.audit(r, "settings.update", "settings", 0, meta)
-	h.getSettings(w, r)
+	
+	org := h.currentOrg(r)
+	out := &UpdateSettingsOutput{
+		Body: map[string]any{
+			"reservedMailboxes": h.GetWorkspaceSetting(org.ID, keyReservedMailboxes),
+			"orgSlug":           org.Slug,
+			"inboundToken":      org.InboundToken,
+			"catchAll":          h.GetWorkspaceSetting(org.ID, keyCatchAll) == "true",
+			"autoWrapLinks":     h.GetWorkspaceSetting(org.ID, keyAutoWrapLinks) == "true",
+			"isInstanceAdmin":   h.isInstanceAdmin(r),
+		},
+	}
+	return out, nil
 }
 
-func (h *Handler) updateInstanceSettings(w http.ResponseWriter, r *http.Request) {
+type UpdateInstanceSettingsInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
+		ReservedSlugs        *string `json:"reservedSlugs,omitempty"`
+		GoogleClientID       *string `json:"googleClientId,omitempty"`
+		GoogleClientSecret   *string `json:"googleClientSecret,omitempty"`
+		GitHubClientID       *string `json:"githubClientId,omitempty"`
+		GitHubClientSecret   *string `json:"githubClientSecret,omitempty"`
+		DataRetentionDays    *int    `json:"dataRetentionDays,omitempty"`
+		AllowRegistration    *bool   `json:"allowRegistration,omitempty"`
+		AppName              *string `json:"appName,omitempty"`
+		MetricsToken         *string `json:"metricsToken,omitempty"`
+		RatelimitAuthRpm     *int    `json:"ratelimitAuthRpm,omitempty"`
+		RatelimitApiRpm      *int    `json:"ratelimitApiRpm,omitempty"`
+		RatelimitRedirectRpm *int    `json:"ratelimitRedirectRpm,omitempty"`
+	}
+}
+
+func (i *UpdateInstanceSettingsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type UpdateInstanceSettingsOutput struct {
+	Body map[string]any
+}
+
+func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInstanceSettingsInput) (*UpdateInstanceSettingsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	if !h.isInstanceAdmin(r) {
-		writeErr(w, http.StatusForbidden, "instance admin role required")
-		return
+		return nil, huma.Error403Forbidden("instance admin role required")
 	}
-	var d struct {
-		ReservedSlugs        *string `json:"reservedSlugs"`
-		GoogleClientID       *string `json:"googleClientId"`
-		GoogleClientSecret   *string `json:"googleClientSecret"`
-		GitHubClientID       *string `json:"githubClientId"`
-		GitHubClientSecret   *string `json:"githubClientSecret"`
-		DataRetentionDays    *int    `json:"dataRetentionDays"`
-		AllowRegistration    *bool   `json:"allowRegistration"`
-		AppName              *string `json:"appName"`
-		MetricsToken         *string `json:"metricsToken"`
-		RatelimitAuthRpm     *int    `json:"ratelimitAuthRpm"`
-		RatelimitApiRpm      *int    `json:"ratelimitApiRpm"`
-		RatelimitRedirectRpm *int    `json:"ratelimitRedirectRpm"`
+	
+	if input.Body.ReservedSlugs != nil {
+		h.setSetting(keyReservedSlugs, strings.Join(splitList(*input.Body.ReservedSlugs), "\n"))
 	}
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+	if input.Body.GoogleClientID != nil {
+		h.setSetting(keyGoogleClientID, strings.TrimSpace(*input.Body.GoogleClientID))
 	}
-	if d.ReservedSlugs != nil {
-		h.setSetting(keyReservedSlugs, strings.Join(splitList(*d.ReservedSlugs), "\n"))
-	}
-	if d.GoogleClientID != nil {
-		h.setSetting(keyGoogleClientID, strings.TrimSpace(*d.GoogleClientID))
-	}
-	if d.GoogleClientSecret != nil {
-		if *d.GoogleClientSecret == "" {
+	if input.Body.GoogleClientSecret != nil {
+		if *input.Body.GoogleClientSecret == "" {
 			h.setSetting(keyGoogleClientSecret, "")
 		} else {
-			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*d.GoogleClientSecret)))
+			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*input.Body.GoogleClientSecret)))
 			if err != nil {
-				writeErr(w, http.StatusInternalServerError, "encrypt token")
-				return
+				return nil, huma.Error500InternalServerError("encrypt token")
 			}
 			h.setSetting(keyGoogleClientSecret, enc)
 		}
 	}
-	if d.GitHubClientID != nil {
-		h.setSetting(keyGitHubClientID, strings.TrimSpace(*d.GitHubClientID))
+	if input.Body.GitHubClientID != nil {
+		h.setSetting(keyGitHubClientID, strings.TrimSpace(*input.Body.GitHubClientID))
 	}
-	if d.GitHubClientSecret != nil {
-		if *d.GitHubClientSecret == "" {
+	if input.Body.GitHubClientSecret != nil {
+		if *input.Body.GitHubClientSecret == "" {
 			h.setSetting(keyGitHubClientSecret, "")
 		} else {
-			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*d.GitHubClientSecret)))
+			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*input.Body.GitHubClientSecret)))
 			if err != nil {
-				writeErr(w, http.StatusInternalServerError, "encrypt token")
-				return
+				return nil, huma.Error500InternalServerError("encrypt token")
 			}
 			h.setSetting(keyGitHubClientSecret, enc)
 		}
 	}
-	if d.DataRetentionDays != nil {
-		h.setSetting(keyDataRetentionDays, strconv.Itoa(*d.DataRetentionDays))
+	if input.Body.DataRetentionDays != nil {
+		h.setSetting(keyDataRetentionDays, strconv.Itoa(*input.Body.DataRetentionDays))
 	}
-	if d.AllowRegistration != nil {
+	if input.Body.AllowRegistration != nil {
 		val := "false"
-		if *d.AllowRegistration {
+		if *input.Body.AllowRegistration {
 			val = "true"
 		}
 		h.setSetting(keyAllowRegistration, val)
 	}
-	if d.AppName != nil {
-		h.setSetting(keyAppName, strings.TrimSpace(*d.AppName))
+	if input.Body.AppName != nil {
+		h.setSetting(keyAppName, strings.TrimSpace(*input.Body.AppName))
 	}
-	if d.MetricsToken != nil {
-		if *d.MetricsToken == "" {
+	if input.Body.MetricsToken != nil {
+		if *input.Body.MetricsToken == "" {
 			h.setSetting(keyMetricsToken, "")
 		} else {
-			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*d.MetricsToken)))
+			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*input.Body.MetricsToken)))
 			if err != nil {
-				writeErr(w, http.StatusInternalServerError, "encrypt token")
-				return
+				return nil, huma.Error500InternalServerError("encrypt token")
 			}
 			h.setSetting(keyMetricsToken, enc)
 		}
 	}
-	if d.RatelimitAuthRpm != nil {
-		h.setSetting(keyRatelimitAuthRPM, strconv.Itoa(*d.RatelimitAuthRpm))
+	if input.Body.RatelimitAuthRpm != nil {
+		h.setSetting(keyRatelimitAuthRPM, strconv.Itoa(*input.Body.RatelimitAuthRpm))
 	}
-	if d.RatelimitApiRpm != nil {
-		h.setSetting(keyRatelimitAPIRPM, strconv.Itoa(*d.RatelimitApiRpm))
+	if input.Body.RatelimitApiRpm != nil {
+		h.setSetting(keyRatelimitAPIRPM, strconv.Itoa(*input.Body.RatelimitApiRpm))
 	}
 	meta := make(map[string]any)
-	if d.ReservedSlugs != nil {
-		meta["reservedSlugs"] = *d.ReservedSlugs
+	if input.Body.ReservedSlugs != nil {
+		meta["reservedSlugs"] = *input.Body.ReservedSlugs
 	}
-	if d.GoogleClientID != nil {
-		meta["googleClientId"] = *d.GoogleClientID
+	if input.Body.GoogleClientID != nil {
+		meta["googleClientId"] = *input.Body.GoogleClientID
 	}
-	if d.GoogleClientSecret != nil {
+	if input.Body.GoogleClientSecret != nil {
 		meta["googleClientSecret"] = "[REDACTED]"
 	}
-	if d.GitHubClientID != nil {
-		meta["githubClientId"] = *d.GitHubClientID
+	if input.Body.GitHubClientID != nil {
+		meta["githubClientId"] = *input.Body.GitHubClientID
 	}
-	if d.GitHubClientSecret != nil {
+	if input.Body.GitHubClientSecret != nil {
 		meta["githubClientSecret"] = "[REDACTED]"
 	}
-	if d.DataRetentionDays != nil {
-		meta["dataRetentionDays"] = *d.DataRetentionDays
+	if input.Body.DataRetentionDays != nil {
+		meta["dataRetentionDays"] = *input.Body.DataRetentionDays
 	}
-	if d.AllowRegistration != nil {
-		meta["allowRegistration"] = *d.AllowRegistration
+	if input.Body.AllowRegistration != nil {
+		meta["allowRegistration"] = *input.Body.AllowRegistration
 	}
-	if d.AppName != nil {
-		meta["appName"] = *d.AppName
+	if input.Body.AppName != nil {
+		meta["appName"] = *input.Body.AppName
 	}
-	if d.MetricsToken != nil {
+	if input.Body.MetricsToken != nil {
 		meta["metricsToken"] = "[REDACTED]"
 	}
-	if d.RatelimitAuthRpm != nil {
-		meta["ratelimitAuthRpm"] = *d.RatelimitAuthRpm
+	if input.Body.RatelimitAuthRpm != nil {
+		meta["ratelimitAuthRpm"] = *input.Body.RatelimitAuthRpm
 	}
-	if d.RatelimitApiRpm != nil {
-		meta["ratelimitApiRpm"] = *d.RatelimitApiRpm
+	if input.Body.RatelimitApiRpm != nil {
+		meta["ratelimitApiRpm"] = *input.Body.RatelimitApiRpm
 	}
-	if d.RatelimitRedirectRpm != nil {
-		meta["ratelimitRedirectRpm"] = *d.RatelimitRedirectRpm
+	if input.Body.RatelimitRedirectRpm != nil {
+		meta["ratelimitRedirectRpm"] = *input.Body.RatelimitRedirectRpm
 	}
 	h.audit(r, "instance_settings.update", "settings", 0, meta)
-	h.getInstanceSettings(w, r)
+	
+	retDays := DefaultRetentionDays
+	if v := h.getSetting(keyDataRetentionDays); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			retDays = n
+		}
+	}
+	out := &UpdateInstanceSettingsOutput{
+		Body: map[string]any{
+			"reservedSlugs":         h.getSetting(keyReservedSlugs),
+			"builtinReserved":       []string{"admin", "api", "assets", "portal"},
+			"googleClientId":        h.getSetting(keyGoogleClientID),
+			"googleClientSecretSet": h.getSetting(keyGoogleClientSecret) != "",
+			"githubClientId":        h.getSetting(keyGitHubClientID),
+			"githubClientSecretSet": h.getSetting(keyGitHubClientSecret) != "",
+			"dataRetentionDays":     retDays,
+			"allowRegistration":     h.registrationEnabled(),
+			"appName":               h.getSetting(keyAppName),
+			"metricsTokenSet":       h.getSetting(keyMetricsToken) != "",
+			"ratelimitAuthRpm":      h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
+			"ratelimitApiRpm":       h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
+			"ratelimitRedirectRpm":  h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM),
+		},
+	}
+	return out, nil
 }
+

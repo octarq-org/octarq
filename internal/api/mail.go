@@ -9,10 +9,11 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/internal/models"
@@ -22,7 +23,28 @@ import (
 
 // --- mailboxes ---
 
-func (h *Handler) listMailboxes(w http.ResponseWriter, r *http.Request) {
+type ListMailboxesInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *ListMailboxesInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListMailboxesOutput struct {
+	Body []models.Mailbox
+}
+
+func (h *Handler) listMailboxes(ctx context.Context, input *ListMailboxesInput) (*ListMailboxesOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	var boxes []models.Mailbox
 	h.orgDB(r).Order("created_at DESC").Find(&boxes)
 	// Attach unread counts.
@@ -31,61 +53,88 @@ func (h *Handler) listMailboxes(w http.ResponseWriter, r *http.Request) {
 			Where("mailbox_id = ? AND read = ?", boxes[i].ID, false).
 			Count(&boxes[i].Unread)
 	}
-	writeJSON(w, http.StatusOK, boxes)
+	return &ListMailboxesOutput{Body: boxes}, nil
 }
 
 type mailboxDTO struct {
-	Address string `json:"address"`
-	Note    string `json:"note"`
-	Enabled *bool  `json:"enabled"`
+	Address string `json:"address,omitempty"`
+	Note    string `json:"note,omitempty"`
+	Enabled *bool  `json:"enabled,omitempty"`
 }
 
-func (h *Handler) createMailbox(w http.ResponseWriter, r *http.Request) {
-	var d mailboxDTO
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+type CreateMailboxInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body mailboxDTO
+}
+
+func (i *CreateMailboxInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type CreateMailboxOutput struct {
+	Body models.Mailbox
+}
+
+func (h *Handler) createMailbox(ctx context.Context, input *CreateMailboxInput) (*CreateMailboxOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
-	d.Address = strings.TrimSpace(strings.ToLower(d.Address))
-	if !strings.Contains(d.Address, "@") {
-		writeErr(w, http.StatusBadRequest, "address must be a full email")
-		return
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	addr := strings.TrimSpace(strings.ToLower(input.Body.Address))
+	if !strings.Contains(addr, "@") {
+		return nil, huma.Error400BadRequest("address must be a full email")
 	}
 	enabled := true
-	if d.Enabled != nil {
-		enabled = *d.Enabled
+	if input.Body.Enabled != nil {
+		enabled = *input.Body.Enabled
 	}
 	mb := models.Mailbox{
 		OrgID:   h.orgID(r),
-		Address: d.Address, Note: d.Note, Enabled: enabled,
+		Address: addr, Note: input.Body.Note, Enabled: enabled,
 	}
 	if err := h.db.Create(&mb).Error; err != nil {
-		writeErr(w, http.StatusConflict, "mailbox already exists")
-		return
+		return nil, huma.NewError(http.StatusConflict, "mailbox already exists")
 	}
 	h.audit(r, "mailbox.create", "mailbox", mb.ID, map[string]any{"address": mb.Address})
-	writeJSON(w, http.StatusCreated, mb)
+	return &CreateMailboxOutput{Body: mb}, nil
 }
 
-func (h *Handler) updateMailbox(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
+type UpdateMailboxInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	ID   uint         `path:"id"`
+	Body mailboxDTO
+}
+
+func (i *UpdateMailboxInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type UpdateMailboxOutput struct {
+	Body models.Mailbox
+}
+
+func (h *Handler) updateMailbox(ctx context.Context, input *UpdateMailboxInput) (*UpdateMailboxOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var mb models.Mailbox
-	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&mb).Error != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&mb).Error != nil {
+		return nil, huma.Error404NotFound("not found")
 	}
-	var d mailboxDTO
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
-	}
-	mb.Note = d.Note
-	if d.Enabled != nil {
-		mb.Enabled = *d.Enabled
+	mb.Note = input.Body.Note
+	if input.Body.Enabled != nil {
+		mb.Enabled = *input.Body.Enabled
 	}
 	h.db.Save(&mb)
 	meta := map[string]any{
@@ -93,206 +142,336 @@ func (h *Handler) updateMailbox(w http.ResponseWriter, r *http.Request) {
 		"enabled": mb.Enabled,
 	}
 	h.audit(r, "mailbox.update", "mailbox", mb.ID, meta)
-	writeJSON(w, http.StatusOK, mb)
+	return &UpdateMailboxOutput{Body: mb}, nil
 }
 
-func (h *Handler) deleteMailbox(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
+type DeleteMailboxInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *DeleteMailboxInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type DeleteMailboxOutput struct {
+	Body map[string]bool
+}
+
+func (h *Handler) deleteMailbox(ctx context.Context, input *DeleteMailboxInput) (*DeleteMailboxOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	res := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).Delete(&models.Mailbox{})
+	res := h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).Delete(&models.Mailbox{})
 	if res.RowsAffected == 0 {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+		return nil, huma.Error404NotFound("not found")
 	}
-	h.db.Where("mailbox_id = ?", id).Delete(&models.Email{})
-	h.audit(r, "mailbox.delete", "mailbox", id, nil)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	h.db.Where("mailbox_id = ?", input.ID).Delete(&models.Email{})
+	h.audit(r, "mailbox.delete", "mailbox", input.ID, nil)
+	return &DeleteMailboxOutput{Body: map[string]bool{"ok": true}}, nil
 }
 
 // --- emails ---
 
-func (h *Handler) listEmails(w http.ResponseWriter, r *http.Request) {
+type ListEmailsInput struct {
+	Ctx     huma.Context `hidden:"true"`
+	Mailbox string       `query:"mailbox"`
+	Q       string       `query:"q"`
+	Limit   int          `query:"limit"`
+	Offset  int          `query:"offset"`
+}
+
+func (i *ListEmailsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListEmailsOutput struct {
+	Body []models.Email
+}
+
+func (h *Handler) listEmails(ctx context.Context, input *ListEmailsInput) (*ListEmailsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	orgMailboxes := h.db.Model(&models.Mailbox{}).Select("id").Where("owner_id = ?", h.orgID(r))
 	q := h.db.Where("mailbox_id IN (?)", orgMailboxes).Order("received_at DESC").Omit("Raw", "HTML")
-	if mb := r.URL.Query().Get("mailbox"); mb != "" {
-		q = q.Where("mailbox_id = ?", mb)
+	if input.Mailbox != "" {
+		q = q.Where("mailbox_id = ?", input.Mailbox)
 	}
-	if s := r.URL.Query().Get("q"); s != "" {
-		like := "%" + s + "%"
+	if input.Q != "" {
+		like := "%" + input.Q + "%"
 		q = q.Where("subject LIKE ? OR from_addr LIKE ? OR text LIKE ? OR note LIKE ?", like, like, like, like)
 	}
 	limit := 50
-	if l, _ := strconv.Atoi(r.URL.Query().Get("limit")); l > 0 && l <= 500 {
-		limit = l
+	if input.Limit > 0 && input.Limit <= 500 {
+		limit = input.Limit
 	}
 	offset := 0
-	if o, _ := strconv.Atoi(r.URL.Query().Get("offset")); o > 0 {
-		offset = o
+	if input.Offset > 0 {
+		offset = input.Offset
 	}
 	q = q.Limit(limit).Offset(offset)
 	var emails []models.Email
 	q.Find(&emails)
-	writeJSON(w, http.StatusOK, emails)
+	return &ListEmailsOutput{Body: emails}, nil
 }
 
-func (h *Handler) getEmail(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
-	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+type GetEmailInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *GetEmailInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type GetEmailOutput struct {
+	Body models.Email
+}
+
+func (h *Handler) getEmail(ctx context.Context, input *GetEmailInput) (*GetEmailOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
-	if !h.emailBelongsToOrg(id, h.orgID(r)) {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !h.emailBelongsToOrg(input.ID, h.orgID(r)) {
+		return nil, huma.Error404NotFound("not found")
 	}
 	var e models.Email
-	if h.db.First(&e, id).Error != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if h.db.First(&e, input.ID).Error != nil {
+		return nil, huma.Error404NotFound("not found")
 	}
 	if !e.Read {
 		h.db.Model(&e).Update("read", true)
 		e.Read = true
 	}
-	writeJSON(w, http.StatusOK, e)
+	return &GetEmailOutput{Body: e}, nil
 }
 
-func (h *Handler) updateEmail(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
-	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+type UpdateEmailInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	ID   uint         `path:"id"`
+	Body struct {
+		Read *bool   `json:"read,omitempty"`
+		Note *string `json:"note,omitempty"`
 	}
-	if !h.emailBelongsToOrg(id, h.orgID(r)) {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+}
+
+func (i *UpdateEmailInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type UpdateEmailOutput struct {
+	Body models.Email
+}
+
+func (h *Handler) updateEmail(ctx context.Context, input *UpdateEmailInput) (*UpdateEmailOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !h.emailBelongsToOrg(input.ID, h.orgID(r)) {
+		return nil, huma.Error404NotFound("not found")
 	}
 	var e models.Email
-	if h.db.First(&e, id).Error != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if h.db.First(&e, input.ID).Error != nil {
+		return nil, huma.Error404NotFound("not found")
 	}
-	var d struct {
-		Read *bool   `json:"read"`
-		Note *string `json:"note"`
+	if input.Body.Read != nil {
+		e.Read = *input.Body.Read
 	}
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
-	}
-	if d.Read != nil {
-		e.Read = *d.Read
-	}
-	if d.Note != nil {
-		e.Note = *d.Note
+	if input.Body.Note != nil {
+		e.Note = *input.Body.Note
 	}
 	h.db.Save(&e)
-	writeJSON(w, http.StatusOK, e)
+	return &UpdateEmailOutput{Body: e}, nil
+}
+
+type ReadAllEmailsInput struct {
+	Ctx     huma.Context `hidden:"true"`
+	Mailbox string       `query:"mailbox"`
+}
+
+func (i *ReadAllEmailsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ReadAllEmailsOutput struct {
+	Body map[string]any
 }
 
 // readAllEmails marks every email read, optionally scoped to one mailbox.
-func (h *Handler) readAllEmails(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) readAllEmails(ctx context.Context, input *ReadAllEmailsInput) (*ReadAllEmailsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	orgMailboxes := h.db.Model(&models.Mailbox{}).Select("id").Where("owner_id = ?", h.orgID(r))
 	q := h.db.Model(&models.Email{}).Where("read = ? AND mailbox_id IN (?)", false, orgMailboxes)
-	if mb := r.URL.Query().Get("mailbox"); mb != "" {
-		q = q.Where("mailbox_id = ?", mb)
+	if input.Mailbox != "" {
+		q = q.Where("mailbox_id = ?", input.Mailbox)
 	}
 	res := q.Update("read", true)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "updated": res.RowsAffected})
+	return &ReadAllEmailsOutput{
+		Body: map[string]any{"ok": true, "updated": res.RowsAffected},
+	}, nil
+}
+
+type RawEmailInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *RawEmailInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
 }
 
 // rawEmail streams the original RFC822 message as a downloadable .eml file.
-func (h *Handler) rawEmail(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
-	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+func (h *Handler) rawEmail(ctx context.Context, input *RawEmailInput) (*struct{}, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
-	if !h.emailBelongsToOrg(id, h.orgID(r)) {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	r, w := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !h.emailBelongsToOrg(input.ID, h.orgID(r)) {
+		return nil, huma.Error404NotFound("not found")
 	}
 	var e models.Email
-	if h.db.First(&e, id).Error != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if h.db.First(&e, input.ID).Error != nil {
+		return nil, huma.Error404NotFound("not found")
 	}
 	w.Header().Set("Content-Type", "message/rfc822")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"email-%d.eml\"", e.ID))
 	w.Write(e.Raw)
+	return nil, nil
 }
 
-func (h *Handler) deleteEmail(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
+type DeleteEmailInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *DeleteEmailInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type DeleteEmailOutput struct {
+	Body map[string]bool
+}
+
+func (h *Handler) deleteEmail(ctx context.Context, input *DeleteEmailInput) (*DeleteEmailOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if !h.emailBelongsToOrg(id, h.orgID(r)) {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if !h.emailBelongsToOrg(input.ID, h.orgID(r)) {
+		return nil, huma.Error404NotFound("not found")
 	}
-	h.db.Delete(&models.Email{}, id)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	h.db.Delete(&models.Email{}, input.ID)
+	return &DeleteEmailOutput{Body: map[string]bool{"ok": true}}, nil
 }
 
-func (h *Handler) sendEmail(w http.ResponseWriter, r *http.Request) {
-	var payload struct {
+type SendEmailInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
 		mail.Message
 		SMTPSenderID uint `json:"smtpSenderId"`
 		TrackLinks   bool `json:"trackLinks"`
 	}
-	if err := readJSON(r, &payload); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+}
+
+func (i *SendEmailInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type SendEmailOutput struct {
+	Body map[string]bool
+}
+
+func (h *Handler) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEmailOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
-	if len(payload.To) == 0 {
-		writeErr(w, http.StatusBadRequest, "to is required")
-		return
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if len(input.Body.To) == 0 {
+		return nil, huma.Error400BadRequest("to is required")
 	}
 
 	// Rate-limit outbound mail per org so a leaked API token or a runaway client
 	// can't burn the sending domain's / relay IP's reputation into an RBL.
 	orgKey := fmt.Sprintf("org:%d", h.orgID(r))
 	if !h.sendLimiter.allow(orgKey) {
-		writeErr(w, http.StatusTooManyRequests, "send rate limit exceeded (max 100/hour) — try again later")
-		return
+		return nil, huma.Error429TooManyRequests("send rate limit exceeded (max 100/hour) — try again later")
 	}
 
-	var sender mail.Sender
-	if payload.SMTPSenderID == 0 {
-		writeErr(w, http.StatusBadRequest, "no SMTP sender selected")
-		return
+	if input.Body.SMTPSenderID == 0 {
+		return nil, huma.Error400BadRequest("no SMTP sender selected")
 	}
 	var s models.SMTPSender
-	if err := h.db.Where("id = ? AND owner_id = ?", payload.SMTPSenderID, h.orgID(r)).First(&s).Error; err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid smtp sender id")
-		return
+	if err := h.db.Where("id = ? AND owner_id = ?", input.Body.SMTPSenderID, h.orgID(r)).First(&s).Error; err != nil {
+		return nil, huma.Error400BadRequest("invalid smtp sender id")
 	}
 	pass, err := h.cipher.Decrypt(s.Pass)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "decrypt failed")
-		return
+		return nil, huma.Error500InternalServerError("decrypt failed")
 	}
 	// Force the From header to the sender's verified address — never trust a
 	// client-supplied From, which would let a caller spoof arbitrary senders
 	// through the relay.
-	payload.Message.From = s.FromEmail
-	sender = mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
+	msg := input.Body.Message
+	msg.From = s.FromEmail
+	sender := mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
 
-	if payload.TrackLinks {
-		h.wrapLinksInEmail(r, &payload.Message)
+	if input.Body.TrackLinks {
+		h.wrapLinksInEmail(r, &msg)
 	}
 
-	if err := sender.Send(payload.Message); err != nil {
-		writeErr(w, http.StatusBadRequest, "send failed: "+err.Error())
-		return
+	if err := sender.Send(msg); err != nil {
+		return nil, huma.Error400BadRequest("send failed: " + err.Error())
 	}
 	h.sendLimiter.recordFailure(orgKey) // count this send against the per-org cap
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	return &SendEmailOutput{Body: map[string]bool{"ok": true}}, nil
 }
 
 // --- inbound webhook (Cloudflare Email Routing -> Worker -> here) ---
@@ -300,24 +479,40 @@ func (h *Handler) sendEmail(w http.ResponseWriter, r *http.Request) {
 // The Worker POSTs the raw RFC822 message body with header X-Octarq-Token.
 // We parse it, match (or catch-all create) a mailbox by recipient, and store.
 
-func (h *Handler) inbound(w http.ResponseWriter, r *http.Request) {
+type InboundInput struct {
+	Ctx     huma.Context `hidden:"true"`
+	OrgSlug string       `path:"orgSlug"`
+	Token   string       `path:"token"`
+}
+
+func (i *InboundInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type InboundOutput struct {
+	Body map[string]any
+}
+
+func (h *Handler) inbound(ctx context.Context, input *InboundInput) (*InboundOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
 	// The {orgSlug} path segment names the tenant: a shared inbound host can't be
 	// told apart by Host, so delivery is confined to this org's mailboxes.
 	var org models.Org
-	if h.db.Where("slug = ?", r.PathValue("orgSlug")).First(&org).Error != nil {
-		writeErr(w, http.StatusNotFound, "unknown org")
-		return
+	if h.db.Where("slug = ?", input.OrgSlug).First(&org).Error != nil {
+		return nil, huma.Error404NotFound("unknown org")
 	}
 	// Auth is the org's per-tenant token, carried in the path so the Cloudflare
 	// worker needs only this one URL and no custom header.
-	if org.InboundToken == "" || !secureEqual(r.PathValue("token"), org.InboundToken) {
-		writeErr(w, http.StatusUnauthorized, "bad token")
-		return
+	if org.InboundToken == "" || !secureEqual(input.Token, org.InboundToken) {
+		return nil, huma.Error401Unauthorized("bad token")
 	}
 	raw, err := io.ReadAll(io.LimitReader(r.Body, 25<<20)) // 25 MiB cap
 	if err != nil {
-		writeErr(w, http.StatusBadRequest, "read body")
-		return
+		return nil, huma.Error400BadRequest("read body")
 	}
 	parsed, _ := mail.Parse(raw)
 
@@ -332,8 +527,7 @@ func (h *Handler) inbound(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		// Unknown recipient and catch-all disabled: accept silently so the
 		// Worker doesn't bounce, but drop.
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "stored": false})
-		return
+		return &InboundOutput{Body: map[string]any{"ok": true, "stored": false}}, nil
 	}
 
 	att := ""
@@ -382,15 +576,15 @@ func (h *Handler) inbound(w http.ResponseWriter, r *http.Request) {
 	h.db.Where("owner_id = ? AND enabled = ?", mb.OrgID, true).Find(&channels)
 	if len(channels) > 0 {
 		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 			for _, ch := range channels {
-				_ = notify.Send(ctx, ch.Type, ch.Config, text)
+				_ = notify.Send(ctxCtx, ch.Type, ch.Config, text)
 			}
 		}()
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "stored": true, "id": e.ID})
+	return &InboundOutput{Body: map[string]any{"ok": true, "stored": true, "id": e.ID}}, nil
 }
 
 // mailHostDisabled reports whether host is listed as a mail host on some domain
@@ -567,25 +761,41 @@ func (h *Handler) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 	}
 }
 
+type EmailBounceWebhookInput struct {
+	Ctx     huma.Context `hidden:"true"`
+	OrgSlug string       `path:"orgSlug"`
+	Token   string       `path:"token"`
+}
+
+func (i *EmailBounceWebhookInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type EmailBounceWebhookOutput struct {
+	Body map[string]any
+}
+
 // POST /api/webhook/{orgSlug}/email/bounce/{token}
-func (h *Handler) emailBounceWebhook(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) emailBounceWebhook(ctx context.Context, input *EmailBounceWebhookInput) (*EmailBounceWebhookOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
 	// Authenticate + scope by tenant (same scheme as inbound): the {orgSlug}
 	// names the org, the {token} must match its per-org secret. Without this a
 	// forged POST could spam an org's notification channels and audit log.
 	var org models.Org
-	if h.db.Where("slug = ?", r.PathValue("orgSlug")).First(&org).Error != nil {
-		writeErr(w, http.StatusNotFound, "unknown org")
-		return
+	if h.db.Where("slug = ?", input.OrgSlug).First(&org).Error != nil {
+		return nil, huma.Error404NotFound("unknown org")
 	}
-	if org.InboundToken == "" || !secureEqual(r.PathValue("token"), org.InboundToken) {
-		writeErr(w, http.StatusUnauthorized, "bad token")
-		return
+	if org.InboundToken == "" || !secureEqual(input.Token, org.InboundToken) {
+		return nil, huma.Error401Unauthorized("bad token")
 	}
 
 	body, err := io.ReadAll(io.LimitReader(r.Body, 5<<20)) // 5 MiB cap
 	if err != nil {
-		writeErr(w, http.StatusBadRequest, "read body")
-		return
+		return nil, huma.Error400BadRequest("read body")
 	}
 
 	// Check for AWS SNS wrapped payload
@@ -600,8 +810,7 @@ func (h *Handler) emailBounceWebhook(w http.ResponseWriter, r *http.Request) {
 					// influenced, so it must never be fetched blindly.
 					if !isAWSSNSURL(subURL) {
 						log.Printf("bounce: refusing SNS SubscribeURL with non-AWS host: %s", subURL)
-						writeErr(w, http.StatusBadRequest, "invalid SubscribeURL")
-						return
+						return nil, huma.Error400BadRequest("invalid SubscribeURL")
 					}
 					go func() {
 						resp, err := safeGet(context.Background(), subURL)
@@ -612,8 +821,9 @@ func (h *Handler) emailBounceWebhook(w http.ResponseWriter, r *http.Request) {
 							log.Printf("AWS SNS subscription confirmation failed: %v", err)
 						}
 					}()
-					writeJSON(w, http.StatusOK, map[string]any{"ok": true, "message": "Subscription confirmation triggered"})
-					return
+					return &EmailBounceWebhookOutput{
+						Body: map[string]any{"ok": true, "message": "Subscription confirmation triggered"},
+					}, nil
 				}
 			}
 			if snsType == "Notification" {
@@ -627,8 +837,9 @@ func (h *Handler) emailBounceWebhook(w http.ResponseWriter, r *http.Request) {
 
 	events := extractBounceEvents(body)
 	if len(events) == 0 {
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "processed": 0})
-		return
+		return &EmailBounceWebhookOutput{
+			Body: map[string]any{"ok": true, "processed": 0},
+		}, nil
 	}
 
 	ip := reporterIP(r)
@@ -669,16 +880,18 @@ func (h *Handler) emailBounceWebhook(w http.ResponseWriter, r *http.Request) {
 		h.db.Where("owner_id = ? AND enabled = ?", mb.OrgID, true).Find(&channels)
 		if len(channels) > 0 {
 			go func(chans []models.NotificationChannel, txt string) {
-				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 				for _, ch := range chans {
-					_ = notify.Send(ctx, ch.Type, ch.Config, txt)
+					_ = notify.Send(ctxCtx, ch.Type, ch.Config, txt)
 				}
 			}(channels, alertText)
 		}
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "processed": processedCount})
+	return &EmailBounceWebhookOutput{
+		Body: map[string]any{"ok": true, "processed": processedCount},
+	}, nil
 }
 
 type bounceEvent struct {

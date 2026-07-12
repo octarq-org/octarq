@@ -1,122 +1,187 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
 )
 
 type providerAccountDTO struct {
-	Name   string         `json:"name"`
-	Type   string         `json:"type"`
-	Config map[string]any `json:"config"`
+	Name   string         `json:"name,omitempty"`
+	Type   string         `json:"type,omitempty"`
+	Config map[string]any `json:"config,omitempty"`
 }
 
-func (h *Handler) listProviderAccounts(w http.ResponseWriter, r *http.Request) {
+type ListProviderAccountsInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *ListProviderAccountsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListProviderAccountsOutput struct {
+	Body []models.ProviderAccount
+}
+
+func (h *Handler) listProviderAccounts(ctx context.Context, input *ListProviderAccountsInput) (*ListProviderAccountsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	var accounts []models.ProviderAccount
 	h.orgDB(r).Order("created_at DESC").Find(&accounts)
 	for i := range accounts {
 		accounts[i].HasCredentials = accounts[i].Config != ""
 	}
-	writeJSON(w, http.StatusOK, accounts)
+	return &ListProviderAccountsOutput{Body: accounts}, nil
 }
 
-func (h *Handler) createProviderAccount(w http.ResponseWriter, r *http.Request) {
-	var d providerAccountDTO
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+type CreateProviderAccountInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body providerAccountDTO
+}
+
+func (i *CreateProviderAccountInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type CreateProviderAccountOutput struct {
+	Body models.ProviderAccount
+}
+
+func (h *Handler) createProviderAccount(ctx context.Context, input *CreateProviderAccountInput) (*CreateProviderAccountOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
-	d.Name = strings.TrimSpace(d.Name)
-	d.Type = strings.TrimSpace(d.Type)
-	if d.Name == "" || d.Type == "" {
-		writeErr(w, http.StatusBadRequest, "name and type are required")
-		return
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	enc, err := h.encryptConfig(d.Config)
+	name := strings.TrimSpace(input.Body.Name)
+	typ := strings.TrimSpace(input.Body.Type)
+	if name == "" || typ == "" {
+		return nil, huma.Error400BadRequest("name and type are required")
+	}
+	enc, err := h.encryptConfig(input.Body.Config)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "encrypt config")
-		return
+		return nil, huma.Error500InternalServerError("encrypt config")
 	}
 	acc := models.ProviderAccount{
 		OrgID:  h.orgID(r),
-		Name:   d.Name,
-		Type:   d.Type,
+		Name:   name,
+		Type:   typ,
 		Config: enc,
 	}
 	if err := h.db.Create(&acc).Error; err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
-		return
+		return nil, huma.Error500InternalServerError(err.Error())
 	}
 	h.audit(r, "provider.create", "provider", acc.ID, map[string]any{"name": acc.Name, "type": acc.Type})
 	acc.HasCredentials = acc.Config != ""
-	writeJSON(w, http.StatusCreated, acc)
+	return &CreateProviderAccountOutput{Body: acc}, nil
 }
 
-func (h *Handler) updateProviderAccount(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
+type UpdateProviderAccountInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	ID   uint         `path:"id"`
+	Body providerAccountDTO
+}
+
+func (i *UpdateProviderAccountInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type UpdateProviderAccountOutput struct {
+	Body models.ProviderAccount
+}
+
+func (h *Handler) updateProviderAccount(ctx context.Context, input *UpdateProviderAccountInput) (*UpdateProviderAccountOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var acc models.ProviderAccount
-	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&acc).Error != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&acc).Error != nil {
+		return nil, huma.Error404NotFound("not found")
 	}
-	var d providerAccountDTO
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+	if strings.TrimSpace(input.Body.Name) != "" {
+		acc.Name = strings.TrimSpace(input.Body.Name)
 	}
-	if strings.TrimSpace(d.Name) != "" {
-		acc.Name = strings.TrimSpace(d.Name)
-	}
-	if len(d.Config) > 0 {
-		enc, err := h.encryptConfig(d.Config)
+	if len(input.Body.Config) > 0 {
+		enc, err := h.encryptConfig(input.Body.Config)
 		if err != nil {
-			writeErr(w, http.StatusInternalServerError, "encrypt config")
-			return
+			return nil, huma.Error500InternalServerError("encrypt config")
 		}
 		acc.Config = enc
 	}
 	h.db.Save(&acc)
 	meta := make(map[string]any)
-	if strings.TrimSpace(d.Name) != "" {
+	if strings.TrimSpace(input.Body.Name) != "" {
 		meta["name"] = acc.Name
 	}
-	if len(d.Config) > 0 {
+	if len(input.Body.Config) > 0 {
 		redactedConfig := make(map[string]string)
-		for k := range d.Config {
+		for k := range input.Body.Config {
 			redactedConfig[k] = "[REDACTED]"
 		}
 		meta["config"] = redactedConfig
 	}
 	h.audit(r, "provider.update", "provider", acc.ID, meta)
 	acc.HasCredentials = acc.Config != ""
-	writeJSON(w, http.StatusOK, acc)
+	return &UpdateProviderAccountOutput{Body: acc}, nil
 }
 
-func (h *Handler) deleteProviderAccount(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
+type DeleteProviderAccountInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *DeleteProviderAccountInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type DeleteProviderAccountOutput struct {
+	Body map[string]bool
+}
+
+func (h *Handler) deleteProviderAccount(ctx context.Context, input *DeleteProviderAccountInput) (*DeleteProviderAccountOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
 	// Check if any domain is using this account
 	var count int64
-	h.db.Model(&models.Domain{}).Where("provider_account_id = ?", id).Count(&count)
+	h.db.Model(&models.Domain{}).Where("provider_account_id = ?", input.ID).Count(&count)
 	if count > 0 {
-		writeErr(w, http.StatusConflict, "cannot delete provider account because it is used by one or more domains")
-		return
+		return nil, huma.NewError(http.StatusConflict, "cannot delete provider account because it is used by one or more domains")
 	}
 
-	if res := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).Delete(&models.ProviderAccount{}); res.RowsAffected == 0 {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).Delete(&models.ProviderAccount{}); res.RowsAffected == 0 {
+		return nil, huma.Error404NotFound("not found")
 	}
-	h.audit(r, "provider.delete", "provider", id, nil)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	h.audit(r, "provider.delete", "provider", input.ID, nil)
+	return &DeleteProviderAccountOutput{Body: map[string]bool{"ok": true}}, nil
 }
+

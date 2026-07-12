@@ -1,9 +1,11 @@
 package api
 
 import (
-	"net/http"
+	"context"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm/clause"
@@ -57,7 +59,28 @@ type featureOut struct {
 // and the menu links it owns (so the UI can toggle it and the sidebar can hide
 // the right items). Core plumbing plugins are omitted — they're always on.
 // GET /api/plugins
-func (h *Handler) listPlugins(w http.ResponseWriter, r *http.Request) {
+type ListPluginsInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *ListPluginsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListPluginsOutput struct {
+	Body []featureOut
+}
+
+func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*ListPluginsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	orgID := h.orgID(r)
 
 	enabled := map[string]bool{}
@@ -98,18 +121,44 @@ func (h *Handler) listPlugins(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, *f)
 	}
-	writeJSON(w, http.StatusOK, out)
+	return &ListPluginsOutput{Body: out}, nil
 }
 
 // updatePlugin enables or disables a feature for the caller's workspace. Only an
 // owner or admin may change it, since it flips whole feature areas on or off.
 // PUT /api/plugins/{name}  {"enabled": true}   (name is the feature key)
-func (h *Handler) updatePlugin(w http.ResponseWriter, r *http.Request) {
-	if role := h.callerOrgRole(r); role != "owner" && role != "admin" {
-		writeErr(w, http.StatusForbidden, "owner or admin role required")
-		return
+type UpdatePluginInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Name string       `path:"name"`
+	Body struct {
+		Enabled bool `json:"enabled"`
 	}
-	key := r.PathValue("name")
+}
+
+func (i *UpdatePluginInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type UpdatePluginOutput struct {
+	Body struct {
+		OK bool `json:"ok"`
+	}
+}
+
+func (h *Handler) updatePlugin(ctx context.Context, input *UpdatePluginInput) (*UpdatePluginOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if role := h.callerOrgRole(r); role != "owner" && role != "admin" {
+		return nil, huma.Error403Forbidden("owner or admin role required")
+	}
+	key := input.Name
 	known := false
 	for _, p := range h.plugins {
 		if !plugin.Describe(p).Core && plugin.FeatureKey(p) == key {
@@ -118,28 +167,21 @@ func (h *Handler) updatePlugin(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !known {
-		writeErr(w, http.StatusNotFound, "unknown feature")
-		return
-	}
-
-	var body struct {
-		Enabled bool `json:"enabled"`
-	}
-	if err := readJSON(r, &body); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+		return nil, huma.Error404NotFound("unknown feature")
 	}
 
 	orgID := h.orgID(r)
-	ps := models.PluginSetting{OrgID: orgID, Plugin: key, Enabled: body.Enabled, UpdatedAt: time.Now()}
+	ps := models.PluginSetting{OrgID: orgID, Plugin: key, Enabled: input.Body.Enabled, UpdatedAt: time.Now()}
 	if err := h.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "org_id"}, {Name: "plugin"}},
 		DoUpdates: clause.AssignmentColumns([]string{"enabled", "updated_at"}),
 	}).Create(&ps).Error; err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to save plugin setting")
-		return
+		return nil, huma.Error500InternalServerError("failed to save plugin setting")
 	}
 
-	h.audit(r, "plugin.toggle", "plugin", 0, map[string]any{"feature": key, "enabled": body.Enabled})
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	h.audit(r, "plugin.toggle", "plugin", 0, map[string]any{"feature": key, "enabled": input.Body.Enabled})
+	out := &UpdatePluginOutput{}
+	out.Body.OK = true
+	return out, nil
 }
+

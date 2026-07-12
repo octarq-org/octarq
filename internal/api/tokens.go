@@ -1,12 +1,14 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"net/http"
 	"strings"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
 )
 
@@ -26,74 +28,130 @@ func tokenPrefix(raw string) string {
 	return raw[:8]
 }
 
-func (h *Handler) listTokens(w http.ResponseWriter, r *http.Request) {
-	var toks []models.Token
-	h.orgDB(r).Order("created_at DESC").Find(&toks)
-	writeJSON(w, http.StatusOK, toks)
+type ListTokensInput struct {
+	Ctx huma.Context `hidden:"true"`
 }
 
-func (h *Handler) createToken(w http.ResponseWriter, r *http.Request) {
-	var d struct {
-		Name string `json:"name"`
-		Note string `json:"note"`
-		// ExpiresInDays optionally bounds the token's lifetime. 0 / omitted = never
-		// expires (back-compat). Negative is rejected.
-		ExpiresInDays int `json:"expiresInDays"`
+func (i *ListTokensInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListTokensOutput struct {
+	Body []models.Token
+}
+
+func (h *Handler) listTokens(ctx context.Context, input *ListTokensInput) (*ListTokensOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	d.Name = strings.TrimSpace(d.Name)
-	if d.Name == "" {
-		writeErr(w, http.StatusBadRequest, "name is required")
-		return
+	var toks []models.Token
+	h.orgDB(r).Order("created_at DESC").Find(&toks)
+	return &ListTokensOutput{Body: toks}, nil
+}
+
+type CreateTokenInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
+		Name          string `json:"name"`
+		Note          string `json:"note,omitempty"`
+		ExpiresInDays int    `json:"expiresInDays,omitempty"`
 	}
-	if d.ExpiresInDays < 0 {
-		writeErr(w, http.StatusBadRequest, "expiresInDays must be zero (never) or positive")
-		return
+}
+
+func (i *CreateTokenInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type CreateTokenOutput struct {
+	Body map[string]any
+}
+
+func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*CreateTokenOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	name := strings.TrimSpace(input.Body.Name)
+	if name == "" {
+		return nil, huma.Error400BadRequest("name is required")
+	}
+	if input.Body.ExpiresInDays < 0 {
+		return nil, huma.Error400BadRequest("expiresInDays must be zero (never) or positive")
 	}
 	var expiresAt *time.Time
-	if d.ExpiresInDays > 0 {
-		t := time.Now().AddDate(0, 0, d.ExpiresInDays)
+	if input.Body.ExpiresInDays > 0 {
+		t := time.Now().AddDate(0, 0, input.Body.ExpiresInDays)
 		expiresAt = &t
 	}
 	raw := newRawToken()
 	tok := models.Token{
 		OrgID:     h.orgID(r),
-		Name:      d.Name,
+		Name:      name,
 		Hash:      models.HashToken(raw),
 		Prefix:    tokenPrefix(raw),
-		Note:      d.Note,
+		Note:      input.Body.Note,
 		ExpiresAt: expiresAt,
 	}
 	if err := h.db.Create(&tok).Error; err != nil {
-		writeErr(w, http.StatusInternalServerError, "create token")
-		return
+		return nil, huma.Error500InternalServerError("create token")
 	}
 	h.audit(r, "token.create", "token", tok.ID, map[string]any{"name": tok.Name, "prefix": tok.Prefix})
 	// The raw token is returned ONLY here; it is never stored or shown again.
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"id":        tok.ID,
-		"name":      tok.Name,
-		"note":      tok.Note,
-		"prefix":    tok.Prefix,
-		"expiresAt": tok.ExpiresAt,
-		"createdAt": tok.CreatedAt,
-		"token":     raw,
-	})
+	return &CreateTokenOutput{
+		Body: map[string]any{
+			"id":        tok.ID,
+			"name":      tok.Name,
+			"note":      tok.Note,
+			"prefix":    tok.Prefix,
+			"expiresAt": tok.ExpiresAt,
+			"createdAt": tok.CreatedAt,
+			"token":     raw,
+		},
+	}, nil
 }
 
-func (h *Handler) deleteToken(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
-	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
-	}
-	if res := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).Delete(&models.Token{}); res.RowsAffected == 0 {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
-	}
-	h.audit(r, "token.delete", "token", id, nil)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+type DeleteTokenInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
 }
+
+func (i *DeleteTokenInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type DeleteTokenOutput struct {
+	Body struct {
+		OK bool `json:"ok"`
+	}
+}
+
+func (h *Handler) deleteToken(ctx context.Context, input *DeleteTokenInput) (*DeleteTokenOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).Delete(&models.Token{}); res.RowsAffected == 0 {
+		return nil, huma.Error404NotFound("not found")
+	}
+	h.audit(r, "token.delete", "token", input.ID, nil)
+	out := &DeleteTokenOutput{}
+	out.Body.OK = true
+	return out, nil
+}
+

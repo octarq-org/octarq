@@ -11,10 +11,11 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
 	qrcode "github.com/skip2/go-qrcode"
 )
@@ -63,18 +64,18 @@ func randomSlug(n int) string {
 
 // linkDTO is the create/update payload.
 type linkDTO struct {
-	Host       string     `json:"host"`
-	Slug       string     `json:"slug"`
+	Host       string     `json:"host,omitempty"`
+	Slug       string     `json:"slug,omitempty"`
 	Target     string     `json:"target"`
-	Password   string     `json:"password"`
-	Note       string     `json:"note"`
-	Title      string     `json:"title"`
-	Tags       string     `json:"tags"`
-	ExpiresAt  *time.Time `json:"expiresAt"`
-	ExpiredURL string     `json:"expiredUrl"`
-	ClickLimit int64      `json:"clickLimit"`
-	Archived   *bool      `json:"archived"`
-	Enabled    *bool      `json:"enabled"`
+	Password   string     `json:"password,omitempty"`
+	Note       string     `json:"note,omitempty"`
+	Title      string     `json:"title,omitempty"`
+	Tags       string     `json:"tags,omitempty"`
+	ExpiresAt  *time.Time `json:"expiresAt,omitempty"`
+	ExpiredURL string     `json:"expiredUrl,omitempty"`
+	ClickLimit int64      `json:"clickLimit,omitempty"`
+	Archived   *bool      `json:"archived,omitempty"`
+	Enabled    *bool      `json:"enabled,omitempty"`
 }
 
 type linkView struct {
@@ -86,32 +87,59 @@ func view(l models.Link) linkView {
 	return linkView{Link: l, HasPassword: l.Password != ""}
 }
 
-func (h *Handler) listLinks(w http.ResponseWriter, r *http.Request) {
+type ListLinksInput struct {
+	Ctx      huma.Context `hidden:"true"`
+	Archived string       `query:"archived"`
+	Q        string       `query:"q"`
+	Tag      string       `query:"tag"`
+	Host     string       `query:"host"`
+	Limit    int          `query:"limit"`
+	Offset   int          `query:"offset"`
+}
+
+func (i *ListLinksInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListLinksOutput struct {
+	Body []linkView
+}
+
+func (h *Handler) listLinks(ctx context.Context, input *ListLinksInput) (*ListLinksOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	var links []models.Link
 	q := h.orgDB(r).Order("created_at DESC")
 	// Archived links are hidden unless explicitly requested (?archived=1).
-	if r.URL.Query().Get("archived") == "1" {
+	if input.Archived == "1" {
 		q = q.Where("archived = ?", true)
 	} else {
 		q = q.Where("archived = ?", false)
 	}
-	if s := r.URL.Query().Get("q"); s != "" {
-		like := "%" + s + "%"
+	if input.Q != "" {
+		like := "%" + input.Q + "%"
 		q = q.Where("slug LIKE ? OR target LIKE ? OR note LIKE ? OR title LIKE ? OR tags LIKE ?", like, like, like, like, like)
 	}
-	if tag := r.URL.Query().Get("tag"); tag != "" {
-		q = q.Where("tags LIKE ?", "%"+tag+"%")
+	if input.Tag != "" {
+		q = q.Where("tags LIKE ?", "%"+input.Tag+"%")
 	}
-	if host := r.URL.Query().Get("host"); host != "" {
-		q = q.Where("host = ?", host)
+	if input.Host != "" {
+		q = q.Where("host = ?", input.Host)
 	}
 	limit := 50
-	if l, _ := strconv.Atoi(r.URL.Query().Get("limit")); l > 0 && l <= 500 {
-		limit = l
+	if input.Limit > 0 && input.Limit <= 500 {
+		limit = input.Limit
 	}
 	offset := 0
-	if o, _ := strconv.Atoi(r.URL.Query().Get("offset")); o > 0 {
-		offset = o
+	if input.Offset > 0 {
+		offset = input.Offset
 	}
 	q = q.Limit(limit).Offset(offset)
 	q.Find(&links)
@@ -119,44 +147,82 @@ func (h *Handler) listLinks(w http.ResponseWriter, r *http.Request) {
 	for i, l := range links {
 		out[i] = view(l)
 	}
-	writeJSON(w, http.StatusOK, out)
+	return &ListLinksOutput{Body: out}, nil
+}
+
+type LinkMetadataInput struct {
+	Ctx huma.Context `hidden:"true"`
+	URL string       `query:"url"`
+}
+
+func (i *LinkMetadataInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type LinkMetadataOutput struct {
+	Body map[string]any
 }
 
 // linkMetadata fetches the target page's <title>, description, and favicon so
 // the dashboard can prefill a link's title (dub-style). Best-effort.
-func (h *Handler) linkMetadata(w http.ResponseWriter, r *http.Request) {
-	raw := strings.TrimSpace(r.URL.Query().Get("url"))
+func (h *Handler) linkMetadata(ctx context.Context, input *LinkMetadataInput) (*LinkMetadataOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	raw := strings.TrimSpace(input.URL)
 	if raw == "" {
-		writeErr(w, http.StatusBadRequest, "url required")
-		return
+		return nil, huma.Error400BadRequest("url required")
 	}
 	if !strings.Contains(raw, "://") {
 		raw = "https://" + raw
 	}
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
-		writeErr(w, http.StatusBadRequest, "invalid url")
-		return
+		return nil, huma.Error400BadRequest("invalid url")
 	}
 	title, desc := fetchPageMeta(r.Context(), raw)
 	favicon := u.Scheme + "://" + u.Host + "/favicon.ico"
-	writeJSON(w, http.StatusOK, map[string]any{
-		"title": title, "description": desc, "favicon": favicon,
-	})
+	return &LinkMetadataOutput{
+		Body: map[string]any{
+			"title": title, "description": desc, "favicon": favicon,
+		},
+	}, nil
 }
 
-func (h *Handler) getLink(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
+type GetLinkInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *GetLinkInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type GetLinkOutput struct {
+	Body linkView
+}
+
+func (h *Handler) getLink(ctx context.Context, input *GetLinkInput) (*GetLinkOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var l models.Link
-	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&l).Error != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&l).Error != nil {
+		return nil, huma.Error404NotFound("not found")
 	}
-	writeJSON(w, http.StatusOK, view(l))
+	return &GetLinkOutput{Body: view(l)}, nil
 }
 
 // normalizeTarget trims a user-supplied redirect target, defaults a bare host
@@ -175,45 +241,57 @@ func normalizeTarget(raw string) (string, bool) {
 	return raw, true
 }
 
-func (h *Handler) createLink(w http.ResponseWriter, r *http.Request) {
-	var d linkDTO
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+type CreateLinkInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body linkDTO
+}
+
+func (i *CreateLinkInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type CreateLinkOutput struct {
+	Body linkView
+}
+
+func (h *Handler) createLink(ctx context.Context, input *CreateLinkInput) (*CreateLinkOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
-	d.Target = strings.TrimSpace(d.Target)
-	if d.Target == "" {
-		writeErr(w, http.StatusBadRequest, "target is required")
-		return
-	}
-	normalized, ok := normalizeTarget(d.Target)
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "target must be an http(s) URL")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	d.Target = normalized
-	slug := strings.TrimSpace(d.Slug)
+	target := strings.TrimSpace(input.Body.Target)
+	if target == "" {
+		return nil, huma.Error400BadRequest("target is required")
+	}
+	normalized, ok := normalizeTarget(target)
+	if !ok {
+		return nil, huma.Error400BadRequest("target must be an http(s) URL")
+	}
+	slug := strings.TrimSpace(input.Body.Slug)
 	if slug == "" {
 		slug = randomSlug(6)
 	}
 	if h.isReservedSlug(slug) {
-		writeErr(w, http.StatusConflict, "slug is reserved")
-		return
+		return nil, huma.NewError(http.StatusConflict, "slug is reserved")
 	}
 	enabled := true
-	if d.Enabled != nil {
-		enabled = *d.Enabled
+	if input.Body.Enabled != nil {
+		enabled = *input.Body.Enabled
 	}
 	l := models.Link{
 		OrgID: h.orgID(r),
-		Host:  strings.TrimSpace(d.Host), Slug: slug, Target: d.Target,
-		Password: d.Password, Note: d.Note, Title: d.Title, Tags: d.Tags,
-		ExpiresAt: d.ExpiresAt, ExpiredURL: d.ExpiredURL, ClickLimit: d.ClickLimit,
+		Host:  strings.TrimSpace(input.Body.Host), Slug: slug, Target: normalized,
+		Password: input.Body.Password, Note: input.Body.Note, Title: input.Body.Title, Tags: input.Body.Tags,
+		ExpiresAt: input.Body.ExpiresAt, ExpiredURL: input.Body.ExpiredURL, ClickLimit: input.Body.ClickLimit,
 		Enabled: enabled,
 	}
 	if err := h.db.Create(&l).Error; err != nil {
-		writeErr(w, http.StatusConflict, "slug already exists on this host")
-		return
+		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
 	}
 	h.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
 
@@ -226,10 +304,27 @@ func (h *Handler) createLink(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = h.auth.Cache().Delete(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
-	writeJSON(w, http.StatusCreated, view(l))
+	return &CreateLinkOutput{Body: view(l)}, nil
 }
 
-func (h *Handler) exportLinksCSV(w http.ResponseWriter, r *http.Request) {
+type ExportLinksCSVInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *ExportLinksCSVInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+func (h *Handler) exportLinksCSV(ctx context.Context, input *ExportLinksCSVInput) (*struct{}, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, w := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	var links []models.Link
 	h.orgDB(r).Order("created_at DESC").Find(&links)
 
@@ -250,60 +345,70 @@ func (h *Handler) exportLinksCSV(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	cw.Flush()
+	return nil, nil
 }
 
-func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
+type UpdateLinkInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	ID   uint         `path:"id"`
+	Body linkDTO
+}
+
+func (i *UpdateLinkInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type UpdateLinkOutput struct {
+	Body linkView
+}
+
+func (h *Handler) updateLink(ctx context.Context, input *UpdateLinkInput) (*UpdateLinkOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var l models.Link
-	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&l).Error != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&l).Error != nil {
+		return nil, huma.Error404NotFound("not found")
 	}
-	var d linkDTO
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
-	}
-	if d.Slug != "" {
-		slug := strings.TrimSpace(d.Slug)
+	if input.Body.Slug != "" {
+		slug := strings.TrimSpace(input.Body.Slug)
 		if slug != l.Slug && h.isReservedSlug(slug) {
-			writeErr(w, http.StatusConflict, "slug is reserved")
-			return
+			return nil, huma.NewError(http.StatusConflict, "slug is reserved")
 		}
 		l.Slug = slug
 	}
-	if d.Target != "" {
-		normalized, ok := normalizeTarget(strings.TrimSpace(d.Target))
+	if input.Body.Target != "" {
+		normalized, ok := normalizeTarget(strings.TrimSpace(input.Body.Target))
 		if !ok {
-			writeErr(w, http.StatusBadRequest, "target must be an http(s) URL")
-			return
+			return nil, huma.Error400BadRequest("target must be an http(s) URL")
 		}
 		l.Target = normalized
 	}
 	oldHost := l.Host
 	oldSlug := l.Slug
 
-	l.Host = strings.TrimSpace(d.Host)
-	l.Note = d.Note
-	l.Title = d.Title
-	l.Tags = d.Tags
-	l.Password = d.Password
-	l.ExpiresAt = d.ExpiresAt
-	l.ExpiredURL = d.ExpiredURL
-	l.ClickLimit = d.ClickLimit
-	if d.Archived != nil {
-		l.Archived = *d.Archived
+	l.Host = strings.TrimSpace(input.Body.Host)
+	l.Note = input.Body.Note
+	l.Title = input.Body.Title
+	l.Tags = input.Body.Tags
+	l.Password = input.Body.Password
+	l.ExpiresAt = input.Body.ExpiresAt
+	l.ExpiredURL = input.Body.ExpiredURL
+	l.ClickLimit = input.Body.ClickLimit
+	if input.Body.Archived != nil {
+		l.Archived = *input.Body.Archived
 	}
-	if d.Enabled != nil {
-		l.Enabled = *d.Enabled
+	if input.Body.Enabled != nil {
+		l.Enabled = *input.Body.Enabled
 	}
 	if err := h.db.Save(&l).Error; err != nil {
-		writeErr(w, http.StatusConflict, "slug already exists on this host")
-		return
+		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
 	}
 
 	_ = h.auth.Cache().Delete(r.Context(), "link:redirect:"+oldHost+":"+oldSlug)
@@ -312,54 +417,85 @@ func (h *Handler) updateLink(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.audit(r, "link.update", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
-	writeJSON(w, http.StatusOK, view(l))
+	return &UpdateLinkOutput{Body: view(l)}, nil
 }
 
-func (h *Handler) deleteLink(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
+type DeleteLinkInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *DeleteLinkInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type DeleteLinkOutput struct {
+	Body map[string]bool
+}
+
+func (h *Handler) deleteLink(ctx context.Context, input *DeleteLinkInput) (*DeleteLinkOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var l models.Link
-	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&l).Error != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&l).Error != nil {
+		return nil, huma.Error404NotFound("not found")
 	}
 	h.db.Delete(&l)
 	_ = h.auth.Cache().Delete(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
 
-	h.db.Where("link_id = ?", id).Delete(&models.LinkEvent{})
-	h.audit(r, "link.delete", "link", id, nil)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	h.db.Where("link_id = ?", input.ID).Delete(&models.LinkEvent{})
+	h.audit(r, "link.delete", "link", input.ID, nil)
+	return &DeleteLinkOutput{Body: map[string]bool{"ok": true}}, nil
+}
+
+type LinkStatsInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	ID   uint         `path:"id"`
+	Days int          `query:"days"`
+}
+
+func (i *LinkStatsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type LinkStatsOutput struct {
+	Body map[string]any
 }
 
 // linkStats returns basic analytics: totals, a daily time series, and the
 // top referers / countries / devices / browsers over the requested window.
-func (h *Handler) linkStats(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
+func (h *Handler) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkStatsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	// Ensure the link belongs to the caller's org before exposing its analytics.
 	var l models.Link
-	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&l).Error != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&l).Error != nil {
+		return nil, huma.Error404NotFound("not found")
 	}
 	days := 30
-	if d := r.URL.Query().Get("days"); d != "" {
-		if n, err := strconv.Atoi(d); err == nil && n > 0 && n <= 365 {
-			days = n
-		}
+	if input.Days > 0 && input.Days <= 365 {
+		days = input.Days
 	}
 	since := time.Now().AddDate(0, 0, -days)
 
 	top := func(col string) []statKV {
 		rows := make([]statKV, 0)
 		q := h.db.Model(&models.LinkEvent{}).
-			Where("link_id = ? AND created_at >= ? AND "+col+" <> ''", id, since)
+			Where("link_id = ? AND created_at >= ? AND "+col+" <> ''", input.ID, since)
 		if col == "device" {
 			q = q.Select(col + " as key, count(distinct(ip || ' ' || ua)) as count")
 		} else {
@@ -370,32 +506,34 @@ func (h *Handler) linkStats(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var total int64
-	h.db.Model(&models.LinkEvent{}).Where("link_id = ?", id).Count(&total)
+	h.db.Model(&models.LinkEvent{}).Where("link_id = ?", input.ID).Count(&total)
 
 	series := make([]statKV, 0)
 	h.db.Model(&models.LinkEvent{}).
 		Select("strftime('%Y-%m-%d', created_at) as key, count(*) as count").
-		Where("link_id = ? AND created_at >= ?", id, since).
+		Where("link_id = ? AND created_at >= ?", input.ID, since).
 		Group("key").Order("key ASC").Scan(&series)
 	// Postgres uses to_char; fall back when sqlite strftime yields nothing.
 	if len(series) == 0 && h.cfg.DBDriver == "postgres" {
 		h.db.Model(&models.LinkEvent{}).
 			Select("to_char(created_at, 'YYYY-MM-DD') as key, count(*) as count").
-			Where("link_id = ? AND created_at >= ?", id, since).
+			Where("link_id = ? AND created_at >= ?", input.ID, since).
 			Group("key").Order("key ASC").Scan(&series)
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"total":     total,
-		"windowed":  sum(series),
-		"days":      days,
-		"series":    series,
-		"referers":  top("referer"),
-		"countries": top("country"),
-		"regions":   top("region"),
-		"devices":   top("device"),
-		"browsers":  top("browser"),
-	})
+	return &LinkStatsOutput{
+		Body: map[string]any{
+			"total":     total,
+			"windowed":  sum(series),
+			"days":      days,
+			"series":    series,
+			"referers":  top("referer"),
+			"countries": top("country"),
+			"regions":   top("region"),
+			"devices":   top("device"),
+			"browsers":  top("browser"),
+		},
+	}, nil
 }
 
 // statKV is a key/count pair used across link analytics responses.
@@ -412,25 +550,37 @@ func sum(kvs []statKV) int64 {
 	return t
 }
 
-func (h *Handler) linkQR(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
+type LinkQRInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *LinkQRInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+func (h *Handler) linkQR(ctx context.Context, input *LinkQRInput) (*struct{}, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, w := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var l models.Link
-	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&l).Error != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&l).Error != nil {
+		return nil, huma.Error404NotFound("not found")
 	}
 	target := shortURL(r, l)
 	png, err := qrcode.Encode(target, qrcode.Medium, 320)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "qr failed")
-		return
+		return nil, huma.Error500InternalServerError("qr failed")
 	}
 	w.Header().Set("Content-Type", "image/png")
 	w.Write(png)
+	return nil, nil
 }
 
 // shortURL builds the public URL for a link. When the link has its own host it
