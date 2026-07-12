@@ -1,13 +1,15 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/pquerna/otp/totp"
 	"github.com/skip2/go-qrcode"
@@ -17,40 +19,74 @@ import (
 // recoveryCodeCount is how many one-time recovery codes are minted at enrollment.
 const recoveryCodeCount = 8
 
-// currentUser loads the session user's row, or writes a 401 and returns false.
-func (h *Handler) currentUser(w http.ResponseWriter, r *http.Request) (models.User, bool) {
-	uid := h.auth.UserID(r)
-	if uid == 0 {
-		writeErr(w, http.StatusUnauthorized, "unauthorized")
-		return models.User{}, false
+type TwoFAStatusInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *TwoFAStatusInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type TwoFAStatusOutput struct {
+	Body struct {
+		Enabled bool `json:"enabled"`
 	}
-	var user models.User
-	if err := h.db.First(&user, uid).Error; err != nil {
-		writeErr(w, http.StatusUnauthorized, "user not found")
-		return models.User{}, false
-	}
-	return user, true
 }
 
 // twoFAStatus reports whether 2FA is enabled for the caller.
 // GET /api/auth/2fa/status
-func (h *Handler) twoFAStatus(w http.ResponseWriter, r *http.Request) {
-	user, ok := h.currentUser(w, r)
-	if !ok {
-		return
+func (h *Handler) twoFAStatus(ctx context.Context, input *TwoFAStatusInput) (*TwoFAStatusOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"enabled": user.TOTPEnabled})
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	uid := h.auth.UserID(r)
+	var user models.User
+	if err := h.db.First(&user, uid).Error; err != nil {
+		return nil, huma.Error401Unauthorized("user not found")
+	}
+	out := &TwoFAStatusOutput{}
+	out.Body.Enabled = user.TOTPEnabled
+	return out, nil
+}
+
+type Setup2FAInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *Setup2FAInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type Setup2FAOutput struct {
+	Body map[string]any
 }
 
 // setup2FA generates a fresh (pending, not-yet-enabled) TOTP secret, stores it
 // encrypted, and returns the otpauth:// URI + base32 secret so the client can
 // render a QR code.
 // POST /api/auth/2fa/setup
-func (h *Handler) setup2FA(w http.ResponseWriter, r *http.Request) {
-	user, ok := h.currentUser(w, r)
-	if !ok {
-		return
+func (h *Handler) setup2FA(ctx context.Context, input *Setup2FAInput) (*Setup2FAOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	uid := h.auth.UserID(r)
+	var user models.User
+	if err := h.db.First(&user, uid).Error; err != nil {
+		return nil, huma.Error401Unauthorized("user not found")
+	}
+
 	issuer := "octarq"
 	if h.cfg.AdminHost != "" {
 		issuer = h.cfg.AdminHost
@@ -60,13 +96,11 @@ func (h *Handler) setup2FA(w http.ResponseWriter, r *http.Request) {
 		AccountName: user.Email,
 	})
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to generate secret")
-		return
+		return nil, huma.Error500InternalServerError("failed to generate secret")
 	}
 	enc, err := h.cipher.Encrypt([]byte(key.Secret()))
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to encrypt secret")
-		return
+		return nil, huma.Error500InternalServerError("failed to encrypt secret")
 	}
 	// Store the pending secret but keep 2FA disabled until the user proves they
 	// can produce a code (enable step).
@@ -74,8 +108,7 @@ func (h *Handler) setup2FA(w http.ResponseWriter, r *http.Request) {
 		"totp_secret":  enc,
 		"totp_enabled": false,
 	}).Error; err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to store secret")
-		return
+		return nil, huma.Error500InternalServerError("failed to store secret")
 	}
 	// Render the QR server-side as a data URI. The otpauth URL contains the TOTP
 	// secret, so it must never be sent to a third-party QR service.
@@ -86,88 +119,125 @@ func (h *Handler) setup2FA(w http.ResponseWriter, r *http.Request) {
 	if png, err := qrcode.Encode(key.URL(), qrcode.Medium, 256); err == nil {
 		resp["qrDataUri"] = "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)
 	}
-	writeJSON(w, http.StatusOK, resp)
+	return &Setup2FAOutput{Body: resp}, nil
+}
+
+type Enable2FAInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
+		Code string `json:"code"`
+	}
+}
+
+func (i *Enable2FAInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type Enable2FAOutput struct {
+	Body map[string]any
 }
 
 // enable2FA verifies a code against the pending secret and, on success, turns
 // 2FA on and returns freshly minted one-time recovery codes (shown once).
 // POST /api/auth/2fa/enable  {code}
-func (h *Handler) enable2FA(w http.ResponseWriter, r *http.Request) {
-	user, ok := h.currentUser(w, r)
+func (h *Handler) enable2FA(ctx context.Context, input *Enable2FAInput) (*Enable2FAOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var body struct {
-		Code string `json:"code"`
+	uid := h.auth.UserID(r)
+	var user models.User
+	if err := h.db.First(&user, uid).Error; err != nil {
+		return nil, huma.Error401Unauthorized("user not found")
 	}
-	if err := readJSON(r, &body); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
-	}
+
 	if user.TOTPSecret == "" {
-		writeErr(w, http.StatusBadRequest, "2FA setup not started")
-		return
+		return nil, huma.Error400BadRequest("2FA setup not started")
 	}
 	secret, err := h.cipher.Decrypt(user.TOTPSecret)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to read secret")
-		return
+		return nil, huma.Error500InternalServerError("failed to read secret")
 	}
-	if !totp.Validate(strings.TrimSpace(body.Code), string(secret)) {
-		writeErr(w, http.StatusBadRequest, "invalid code")
-		return
+	if !totp.Validate(strings.TrimSpace(input.Body.Code), string(secret)) {
+		return nil, huma.Error400BadRequest("invalid code")
 	}
 
 	plainCodes, hashed, err := generateRecoveryCodes(recoveryCodeCount)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to generate recovery codes")
-		return
+		return nil, huma.Error500InternalServerError("failed to generate recovery codes")
 	}
 	hashedJSON, _ := json.Marshal(hashed)
 	if err := h.db.Model(&user).Updates(map[string]any{
 		"totp_enabled":   true,
 		"recovery_codes": string(hashedJSON),
 	}).Error; err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to enable 2FA")
-		return
+		return nil, huma.Error500InternalServerError("failed to enable 2FA")
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"ok":            true,
-		"recoveryCodes": plainCodes,
-	})
+	return &Enable2FAOutput{
+		Body: map[string]any{
+			"ok":            true,
+			"recoveryCodes": plainCodes,
+		},
+	}, nil
+}
+
+type Disable2FAInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
+		Code     string `json:"code,omitempty"`
+		Password string `json:"password,omitempty"`
+	}
+}
+
+func (i *Disable2FAInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type Disable2FAOutput struct {
+	Body struct {
+		OK bool `json:"ok"`
+	}
 }
 
 // disable2FA turns 2FA off after re-verifying the caller with either a current
 // TOTP/recovery code or their password.
 // POST /api/auth/2fa/disable  {code, password}
-func (h *Handler) disable2FA(w http.ResponseWriter, r *http.Request) {
-	user, ok := h.currentUser(w, r)
+func (h *Handler) disable2FA(ctx context.Context, input *Disable2FAInput) (*Disable2FAOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var body struct {
-		Code     string `json:"code"`
-		Password string `json:"password"`
+	uid := h.auth.UserID(r)
+	var user models.User
+	if err := h.db.First(&user, uid).Error; err != nil {
+		return nil, huma.Error401Unauthorized("user not found")
 	}
-	if err := readJSON(r, &body); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
-	}
+
 	if !user.TOTPEnabled {
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
-		return
+		out := &Disable2FAOutput{}
+		out.Body.OK = true
+		return out, nil
 	}
 
 	verified := false
-	if code := strings.TrimSpace(body.Code); code != "" {
+	if code := strings.TrimSpace(input.Body.Code); code != "" {
 		verified = h.verifyTOTPOrRecovery(&user, code)
 	}
-	if !verified && body.Password != "" {
-		verified = h.verifyUserPassword(&user, body.Password)
+	if !verified && input.Body.Password != "" {
+		verified = h.verifyUserPassword(&user, input.Body.Password)
 	}
 	if !verified {
-		writeErr(w, http.StatusUnauthorized, "verification failed")
-		return
+		return nil, huma.Error401Unauthorized("verification failed")
 	}
 
 	if err := h.db.Model(&user).Updates(map[string]any{
@@ -175,10 +245,11 @@ func (h *Handler) disable2FA(w http.ResponseWriter, r *http.Request) {
 		"totp_secret":    "",
 		"recovery_codes": "",
 	}).Error; err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to disable 2FA")
-		return
+		return nil, huma.Error500InternalServerError("failed to disable 2FA")
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	out := &Disable2FAOutput{}
+	out.Body.OK = true
+	return out, nil
 }
 
 // verifyUserPassword checks a plaintext password against the user's own bcrypt

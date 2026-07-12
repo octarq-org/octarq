@@ -1,11 +1,13 @@
 package api
 
 import (
+	"context"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/dnsprovider"
 	"github.com/octarq-org/octarq/internal/models"
 )
@@ -13,13 +15,26 @@ import (
 // providerErr logs an upstream DNS-provider failure and returns it as a 400 so
 // the real message reaches the browser. (A 5xx would be replaced by the
 // Cloudflare proxy's own error page, hiding the cause.)
-func (h *Handler) providerErr(w http.ResponseWriter, action string, err error) {
+func (h *Handler) providerErr(action string, err error) error {
 	log.Printf("dns provider: %s failed: %v", action, err)
-	writeErr(w, http.StatusBadRequest, action+": "+err.Error())
+	return huma.Error400BadRequest(action + ": " + err.Error())
 }
 
-func (h *Handler) dnsProviders(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, dnsprovider.Names())
+type DNSProvidersInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *DNSProvidersInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type DNSProvidersOutput struct {
+	Body []string
+}
+
+func (h *Handler) dnsProviders(ctx context.Context, input *DNSProvidersInput) (*DNSProvidersOutput, error) {
+	return &DNSProvidersOutput{Body: dnsprovider.Names()}, nil
 }
 
 // normalizeHost cleans a user-supplied host into a bare lowercase hostname
@@ -63,42 +78,54 @@ func normalizeHosts(hosts []hostEntry) models.HostList {
 	return out
 }
 
+type SyncDomainsInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
+		ProviderAccountID uint `json:"providerAccountId,omitempty"`
+	}
+}
+
+func (i *SyncDomainsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type SyncDomainsOutput struct {
+	Body map[string]any
+}
+
 // syncDomains imports every zone the given credentials can access, creating a
 // Domain for each new zone and refreshing the zone id / stored credentials on
 // existing ones. User flags (forLink/forMail/note) on existing domains are kept.
-func (h *Handler) syncDomains(w http.ResponseWriter, r *http.Request) {
-	var d struct {
-		ProviderAccountID uint `json:"providerAccountId"`
+func (h *Handler) syncDomains(ctx context.Context, input *SyncDomainsInput) (*SyncDomainsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if d.ProviderAccountID == 0 {
-		writeErr(w, http.StatusBadRequest, "providerAccountId is required")
-		return
+	if input.Body.ProviderAccountID == 0 {
+		return nil, huma.Error400BadRequest("providerAccountId is required")
 	}
 	var acc models.ProviderAccount
-	if err := h.db.Where("id = ? AND owner_id = ?", d.ProviderAccountID, h.orgID(r)).First(&acc).Error; err != nil {
-		writeErr(w, http.StatusNotFound, "provider account not found")
-		return
+	if err := h.db.Where("id = ? AND owner_id = ?", input.Body.ProviderAccountID, h.orgID(r)).First(&acc).Error; err != nil {
+		return nil, huma.Error404NotFound("provider account not found")
 	}
 
 	creds, err := h.cipher.Decrypt(acc.Config)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "stored API token could not be decrypted — re-save this provider's API token under Settings → DNS Providers (the encryption key or database changed since it was saved)")
-		return
+		return nil, huma.Error500InternalServerError("stored API token could not be decrypted — re-save this provider's API token under Settings → DNS Providers (the encryption key or database changed since it was saved)")
 	}
 
 	prov, err := dnsprovider.New(acc.Type, creds)
 	if err != nil {
-		writeErr(w, http.StatusBadRequest, err.Error())
-		return
+		return nil, huma.Error400BadRequest(err.Error())
 	}
 	zones, err := prov.ListZones(r.Context())
 	if err != nil {
-		h.providerErr(w, "list zones", err)
-		return
+		return nil, h.providerErr("list zones", err)
 	}
 	var created, updated int
 	for _, z := range zones {
@@ -117,46 +144,72 @@ func (h *Handler) syncDomains(w http.ResponseWriter, r *http.Request) {
 			created++
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"ok": true, "total": len(zones), "created": created, "updated": updated,
-	})
+	return &SyncDomainsOutput{
+		Body: map[string]any{
+			"ok": true, "total": len(zones), "created": created, "updated": updated,
+		},
+	}, nil
 }
 
 // domainDTO is the create/update payload.
 // LinkHosts/MailHosts are pointers so we can distinguish "not sent" (nil)
 // from "explicitly set to empty" ([]) in PATCH-style updates.
 type domainDTO struct {
-	Name              string `json:"name"`
-	ProviderAccountID uint   `json:"providerAccountId"`
-	ZoneID            string `json:"zoneId"`
-	Note              string `json:"note"`
+	Name              string `json:"name,omitempty"`
+	ProviderAccountID uint   `json:"providerAccountId,omitempty"`
+	ZoneID            string `json:"zoneId,omitempty"`
+	Note              string `json:"note,omitempty"`
 	// ForLink/ForMail are pointer booleans so "not sent" (nil) is distinct
 	// from an explicit true/false, enabling domain-level master toggles that
 	// are independent of the individual host lists.
-	ForMail   *bool        `json:"forMail"`
-	ForLink   *bool        `json:"forLink"`
-	LinkHosts *[]hostEntry `json:"linkHosts"`
-	MailHosts *[]hostEntry `json:"mailHosts"`
+	ForMail   *bool        `json:"forMail,omitempty"`
+	ForLink   *bool        `json:"forLink,omitempty"`
+	LinkHosts *[]hostEntry `json:"linkHosts,omitempty"`
+	MailHosts *[]hostEntry `json:"mailHosts,omitempty"`
 }
 
-func (h *Handler) listDomains(w http.ResponseWriter, r *http.Request) {
+type ListDomainsInput struct {
+	Ctx    huma.Context `hidden:"true"`
+	Q      string       `query:"q"`
+	Limit  int          `query:"limit"`
+	Offset int          `query:"offset"`
+}
+
+func (i *ListDomainsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListDomainsOutput struct {
+	Body []models.Domain
+}
+
+func (h *Handler) listDomains(ctx context.Context, input *ListDomainsInput) (*ListDomainsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	var ds []models.Domain
 	q := h.orgDB(r).Order("created_at DESC")
-	if s := r.URL.Query().Get("q"); s != "" {
-		like := "%" + s + "%"
+	if input.Q != "" {
+		like := "%" + input.Q + "%"
 		q = q.Where("name LIKE ? OR note LIKE ?", like, like)
 	}
 	limit := 50
-	if l, _ := strconv.Atoi(r.URL.Query().Get("limit")); l > 0 && l <= 500 {
-		limit = l
+	if input.Limit > 0 && input.Limit <= 500 {
+		limit = input.Limit
 	}
 	offset := 0
-	if o, _ := strconv.Atoi(r.URL.Query().Get("offset")); o > 0 {
-		offset = o
+	if input.Offset > 0 {
+		offset = input.Offset
 	}
 	q = q.Limit(limit).Offset(offset)
 	q.Find(&ds)
-	writeJSON(w, http.StatusOK, ds)
+	return &ListDomainsOutput{Body: ds}, nil
 }
 
 // ownsProviderAccount reports whether the given provider account id belongs to
@@ -169,121 +222,162 @@ func (h *Handler) ownsProviderAccount(r *http.Request, id uint) bool {
 	return h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&acc).Error == nil
 }
 
-func (h *Handler) createDomain(w http.ResponseWriter, r *http.Request) {
-	var d domainDTO
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+type CreateDomainInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body domainDTO
+}
+
+func (i *CreateDomainInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type CreateDomainOutput struct {
+	Body models.Domain
+}
+
+func (h *Handler) createDomain(ctx context.Context, input *CreateDomainInput) (*CreateDomainOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
-	d.Name = strings.TrimSpace(strings.ToLower(d.Name))
-	if d.Name == "" || d.ProviderAccountID == 0 {
-		writeErr(w, http.StatusBadRequest, "name and provider account are required")
-		return
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if !h.ownsProviderAccount(r, d.ProviderAccountID) {
-		writeErr(w, http.StatusNotFound, "provider account not found")
-		return
+	name := strings.TrimSpace(strings.ToLower(input.Body.Name))
+	if name == "" || input.Body.ProviderAccountID == 0 {
+		return nil, huma.Error400BadRequest("name and provider account are required")
+	}
+
+	if !h.ownsProviderAccount(r, input.Body.ProviderAccountID) {
+		return nil, huma.Error404NotFound("provider account not found")
 	}
 	var linkHosts, mailHosts []hostEntry
-	if d.LinkHosts != nil {
-		linkHosts = *d.LinkHosts
+	if input.Body.LinkHosts != nil {
+		linkHosts = *input.Body.LinkHosts
 	}
-	if d.MailHosts != nil {
-		mailHosts = *d.MailHosts
+	if input.Body.MailHosts != nil {
+		mailHosts = *input.Body.MailHosts
 	}
 	dom := models.Domain{
 		OrgID:             h.orgID(r),
-		Name:              d.Name,
-		ProviderAccountID: d.ProviderAccountID,
-		ZoneID:            d.ZoneID,
-		Note:              d.Note,
+		Name:              name,
+		ProviderAccountID: input.Body.ProviderAccountID,
+		ZoneID:            input.Body.ZoneID,
+		Note:              input.Body.Note,
 		LinkHosts:         normalizeHosts(linkHosts),
 		MailHosts:         normalizeHosts(mailHosts),
 	}
 	// On creation, derive master switches from host presence unless explicitly set.
-	if d.ForLink != nil {
-		dom.ForLink = *d.ForLink
+	if input.Body.ForLink != nil {
+		dom.ForLink = *input.Body.ForLink
 	} else {
 		dom.ForLink = len(dom.LinkHosts) > 0
 	}
-	if d.ForMail != nil {
-		dom.ForMail = *d.ForMail
+	if input.Body.ForMail != nil {
+		dom.ForMail = *input.Body.ForMail
 	} else {
 		dom.ForMail = len(dom.MailHosts) > 0
 	}
 	// Best-effort credential check.
 	if prov, err := h.providerFor(dom); err == nil && dom.ZoneID != "" {
 		if name, err := prov.VerifyZone(r.Context(), dom.ZoneID); err != nil {
-			writeErr(w, http.StatusBadRequest, "provider verification failed: "+err.Error())
-			return
+			return nil, huma.Error400BadRequest("provider verification failed: " + err.Error())
 		} else if dom.Name == "" {
 			dom.Name = name
 		}
 	}
 	if err := h.db.Create(&dom).Error; err != nil {
-		writeErr(w, http.StatusConflict, "domain already exists")
-		return
+		return nil, huma.NewError(http.StatusConflict, "domain already exists")
 	}
 	h.audit(r, "domain.create", "domain", dom.ID, map[string]any{"name": dom.Name})
-	writeJSON(w, http.StatusCreated, dom)
+	return &CreateDomainOutput{Body: dom}, nil
 }
 
-func (h *Handler) updateDomain(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
+type UpdateDomainInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	ID   uint         `path:"id"`
+	Body domainDTO
+}
+
+func (i *UpdateDomainInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type UpdateDomainOutput struct {
+	Body models.Domain
+}
+
+func (h *Handler) updateDomain(ctx context.Context, input *UpdateDomainInput) (*UpdateDomainOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var dom models.Domain
-	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&dom).Error != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&dom).Error != nil {
+		return nil, huma.Error404NotFound("not found")
 	}
-	var d domainDTO
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
-	}
-	dom.Note = d.Note
-	dom.ZoneID = d.ZoneID
+	dom.Note = input.Body.Note
+	dom.ZoneID = input.Body.ZoneID
 	// Apply master switches when explicitly provided.
-	if d.ForLink != nil {
-		dom.ForLink = *d.ForLink
+	if input.Body.ForLink != nil {
+		dom.ForLink = *input.Body.ForLink
 	}
-	if d.ForMail != nil {
-		dom.ForMail = *d.ForMail
+	if input.Body.ForMail != nil {
+		dom.ForMail = *input.Body.ForMail
 	}
 	// Only overwrite host lists when they were present in the payload.
-	if d.LinkHosts != nil {
-		dom.LinkHosts = normalizeHosts(*d.LinkHosts)
+	if input.Body.LinkHosts != nil {
+		dom.LinkHosts = normalizeHosts(*input.Body.LinkHosts)
 	}
-	if d.MailHosts != nil {
-		dom.MailHosts = normalizeHosts(*d.MailHosts)
+	if input.Body.MailHosts != nil {
+		dom.MailHosts = normalizeHosts(*input.Body.MailHosts)
 	}
-	if d.ProviderAccountID != 0 {
-		if !h.ownsProviderAccount(r, d.ProviderAccountID) {
-			writeErr(w, http.StatusNotFound, "provider account not found")
-			return
+	if input.Body.ProviderAccountID != 0 {
+		if !h.ownsProviderAccount(r, input.Body.ProviderAccountID) {
+			return nil, huma.Error404NotFound("provider account not found")
 		}
-		dom.ProviderAccountID = d.ProviderAccountID
+		dom.ProviderAccountID = input.Body.ProviderAccountID
 	}
 	h.db.Save(&dom)
 	h.audit(r, "domain.update", "domain", dom.ID, map[string]any{"name": dom.Name})
-	writeJSON(w, http.StatusOK, dom)
+	return &UpdateDomainOutput{Body: dom}, nil
 }
 
-func (h *Handler) deleteDomain(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
+type DeleteDomainInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *DeleteDomainInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type DeleteDomainOutput struct {
+	Body map[string]bool
+}
+
+func (h *Handler) deleteDomain(ctx context.Context, input *DeleteDomainInput) (*DeleteDomainOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if res := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).Delete(&models.Domain{}); res.RowsAffected == 0 {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).Delete(&models.Domain{}); res.RowsAffected == 0 {
+		return nil, huma.Error404NotFound("not found")
 	}
-	h.audit(r, "domain.delete", "domain", id, nil)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	h.audit(r, "domain.delete", "domain", input.ID, nil)
+	return &DeleteDomainOutput{Body: map[string]bool{"ok": true}}, nil
 }
 
 // validateRecord catches the most common reasons Cloudflare rejects a record
@@ -306,8 +400,7 @@ func validateRecord(rec dnsprovider.Record) string {
 
 // --- DNS records (live via provider) ---
 
-func (h *Handler) recordsProvider(r *http.Request) (dnsprovider.Provider, *models.Domain, error) {
-	id, _ := strconv.ParseUint(r.PathValue("id"), 10, 64)
+func (h *Handler) recordsProvider(r *http.Request, id uint) (dnsprovider.Provider, *models.Domain, error) {
 	var dom models.Domain
 	if h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&dom).Error != nil {
 		return nil, nil, errNotFound
@@ -316,82 +409,154 @@ func (h *Handler) recordsProvider(r *http.Request) (dnsprovider.Provider, *model
 	return prov, &dom, err
 }
 
-func (h *Handler) listRecords(w http.ResponseWriter, r *http.Request) {
-	prov, dom, err := h.recordsProvider(r)
+type ListRecordsInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *ListRecordsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListRecordsOutput struct {
+	Body []dnsprovider.Record
+}
+
+func (h *Handler) listRecords(ctx context.Context, input *ListRecordsInput) (*ListRecordsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	prov, dom, err := h.recordsProvider(r, input.ID)
 	if err != nil {
-		writeErr(w, http.StatusBadRequest, err.Error())
-		return
+		return nil, huma.Error400BadRequest(err.Error())
 	}
 	recs, err := prov.ListRecords(r.Context(), dom.ZoneID)
 	if err != nil {
-		h.providerErr(w, "list records", err)
-		return
+		return nil, h.providerErr("list records", err)
 	}
-	writeJSON(w, http.StatusOK, recs)
+	return &ListRecordsOutput{Body: recs}, nil
 }
 
-func (h *Handler) createRecord(w http.ResponseWriter, r *http.Request) {
-	prov, dom, err := h.recordsProvider(r)
+type CreateRecordInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	ID   uint         `path:"id"`
+	Body dnsprovider.Record
+}
+
+func (i *CreateRecordInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type CreateRecordOutput struct {
+	Body dnsprovider.Record
+}
+
+func (h *Handler) createRecord(ctx context.Context, input *CreateRecordInput) (*CreateRecordOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	prov, dom, err := h.recordsProvider(r, input.ID)
 	if err != nil {
-		writeErr(w, http.StatusBadRequest, err.Error())
-		return
+		return nil, huma.Error400BadRequest(err.Error())
 	}
 	if dom.ZoneID == "" {
-		writeErr(w, http.StatusBadRequest, "this domain has no Zone ID — sync from Cloudflare or set it in the domain settings")
-		return
+		return nil, huma.Error400BadRequest("this domain has no Zone ID — sync from Cloudflare or set it in the domain settings")
 	}
-	var rec dnsprovider.Record
-	if err := readJSON(r, &rec); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+	if msg := validateRecord(input.Body); msg != "" {
+		return nil, huma.Error400BadRequest(msg)
 	}
-	if msg := validateRecord(rec); msg != "" {
-		writeErr(w, http.StatusBadRequest, msg)
-		return
-	}
-	out, err := prov.CreateRecord(r.Context(), dom.ZoneID, rec)
+	out, err := prov.CreateRecord(r.Context(), dom.ZoneID, input.Body)
 	if err != nil {
-		h.providerErr(w, "create record", err)
-		return
+		return nil, h.providerErr("create record", err)
 	}
-	writeJSON(w, http.StatusCreated, out)
+	return &CreateRecordOutput{Body: out}, nil
 }
 
-func (h *Handler) updateRecord(w http.ResponseWriter, r *http.Request) {
-	prov, dom, err := h.recordsProvider(r)
+type UpdateRecordInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	ID   uint         `path:"id"`
+	RID  string       `path:"rid"`
+	Body dnsprovider.Record
+}
+
+func (i *UpdateRecordInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type UpdateRecordOutput struct {
+	Body dnsprovider.Record
+}
+
+func (h *Handler) updateRecord(ctx context.Context, input *UpdateRecordInput) (*UpdateRecordOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	prov, dom, err := h.recordsProvider(r, input.ID)
 	if err != nil {
-		writeErr(w, http.StatusBadRequest, err.Error())
-		return
+		return nil, huma.Error400BadRequest(err.Error())
 	}
-	var rec dnsprovider.Record
-	if err := readJSON(r, &rec); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
-	}
-	rec.ID = r.PathValue("rid")
+	rec := input.Body
+	rec.ID = input.RID
 	if msg := validateRecord(rec); msg != "" {
-		writeErr(w, http.StatusBadRequest, msg)
-		return
+		return nil, huma.Error400BadRequest(msg)
 	}
 	out, err := prov.UpdateRecord(r.Context(), dom.ZoneID, rec)
 	if err != nil {
-		h.providerErr(w, "update record", err)
-		return
+		return nil, h.providerErr("update record", err)
 	}
-	writeJSON(w, http.StatusOK, out)
+	return &UpdateRecordOutput{Body: out}, nil
 }
 
-func (h *Handler) deleteRecord(w http.ResponseWriter, r *http.Request) {
-	prov, dom, err := h.recordsProvider(r)
+type DeleteRecordInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+	RID string       `path:"rid"`
+}
+
+func (i *DeleteRecordInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type DeleteRecordOutput struct {
+	Body map[string]any
+}
+
+func (h *Handler) deleteRecord(ctx context.Context, input *DeleteRecordInput) (*DeleteRecordOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	prov, dom, err := h.recordsProvider(r, input.ID)
 	if err != nil {
-		writeErr(w, http.StatusBadRequest, err.Error())
-		return
+		return nil, huma.Error400BadRequest(err.Error())
 	}
-	if err := prov.DeleteRecord(r.Context(), dom.ZoneID, r.PathValue("rid")); err != nil {
-		h.providerErr(w, "delete record", err)
-		return
+	if err := prov.DeleteRecord(r.Context(), dom.ZoneID, input.RID); err != nil {
+		return nil, h.providerErr("delete record", err)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	return &DeleteRecordOutput{Body: map[string]any{"ok": true}}, nil
 }
 
 type dnsRecordStatus struct {
@@ -526,17 +691,33 @@ func (h *Handler) checkLinkHost(host, apex string) linkHostStatus {
 	return st
 }
 
+type VerifyDomainDNSInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *VerifyDomainDNSInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type VerifyDomainDNSOutput struct {
+	Body map[string]any
+}
+
 // GET /api/domains/{id}/verify-dns
-func (h *Handler) verifyDomainDNS(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
+func (h *Handler) verifyDomainDNS(ctx context.Context, input *VerifyDomainDNSInput) (*VerifyDomainDNSOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var dom models.Domain
-	if err := h.db.Where("id = ? AND owner_id = ?", id, h.orgID(r)).First(&dom).Error; err != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if err := h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&dom).Error; err != nil {
+		return nil, huma.Error404NotFound("not found")
 	}
 
 	// Verify every enabled mail host. Records are per-host, so a domain serving
@@ -568,11 +749,13 @@ func (h *Handler) verifyDomainDNS(w http.ResponseWriter, r *http.Request) {
 		links = append(links, h.checkLinkHost(host, dom.Name))
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"spf":   primary.SPF,
-		"dmarc": primary.DMARC,
-		"dkim":  primary.DKIM,
-		"hosts": results,
-		"links": links,
-	})
+	return &VerifyDomainDNSOutput{
+		Body: map[string]any{
+			"spf":   primary.SPF,
+			"dmarc": primary.DMARC,
+			"dkim":  primary.DKIM,
+			"hosts": results,
+			"links": links,
+		},
+	}, nil
 }

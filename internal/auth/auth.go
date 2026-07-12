@@ -383,6 +383,44 @@ func (m *Manager) Require(next http.Handler) http.Handler {
 	})
 }
 
+// AuthenticateRequest validates the session cookie or bearer token and returns
+// a new request with credentials in the context. On failure, returns false.
+func (m *Manager) AuthenticateRequest(r *http.Request) (*http.Request, bool) {
+	var uid, orgID, sessID uint
+	var authed bool
+
+	if token := cookieToken(r); token != "" {
+		if s := m.sessionByToken(token); s != nil {
+			uid, orgID, sessID, authed = s.UserID, s.OrgID, s.ID, true
+		}
+	}
+
+	if !authed && m.db != nil {
+		if raw := bearerToken(r); strings.HasPrefix(raw, "led_") {
+			hash := models.HashToken(raw)
+			var tok models.Token
+			if m.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() {
+				uid, orgID, authed = 0, tok.OrgID, true
+				id := tok.ID
+				db := m.db
+				go func() {
+					now := time.Now()
+					db.Model(&models.Token{}).Where("id = ?", id).Update("last_used_at", &now)
+				}()
+			}
+		}
+	}
+
+	if !authed {
+		return r, false
+	}
+
+	ctx := context.WithValue(r.Context(), userIDKey, uid)
+	ctx = context.WithValue(ctx, orgIDKey, orgID)
+	ctx = context.WithValue(ctx, sessionIDKey, sessID)
+	return r.WithContext(ctx), true
+}
+
 // reporterIP extracts the best-effort client IP from the request. Proxy
 // headers are honoured only when trustProxy is set, otherwise a client could
 // spoof X-Forwarded-For to evade the login rate limiter.

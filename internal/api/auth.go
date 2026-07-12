@@ -1,113 +1,169 @@
 package api
 
 import (
-	"net/http"
+	"context"
 	"strings"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/google/uuid"
 	"github.com/octarq-org/octarq/internal/models"
 	"golang.org/x/crypto/bcrypt"
 )
 
-func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
+type LoginInput struct {
+	Body struct {
+		Username string `json:"username" doc:"The user's email address" example:"admin@example.com"`
+		Password string `json:"password" doc:"The user's password" example:"securepassword"`
 	}
-	if err := readJSON(r, &body); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *LoginInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type LoginOutput struct {
+	Body struct {
+		OK                bool   `json:"ok,omitempty"`
+		Username          string `json:"username"`
+		TwoFactorRequired bool   `json:"twoFactorRequired,omitempty"`
 	}
+}
+
+// loginHuma is the huma-adapted login handler
+func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, w := humago.Unwrap(input.Ctx)
+
 	ip := reporterIP(r)
 	if !h.loginLimiter.allow(ip) {
-		writeErr(w, http.StatusTooManyRequests, "too many failed login attempts")
-		return
+		return nil, huma.Error429TooManyRequests("too many failed login attempts")
 	}
 
-	uid, orgID, ok := h.authenticate(body.Username, body.Password)
+	uid, orgID, ok := h.authenticate(input.Body.Username, input.Body.Password)
 	if !ok {
 		h.loginLimiter.recordFailure(ip)
-		writeErr(w, http.StatusUnauthorized, "invalid credentials")
-		return
+		return nil, huma.Error401Unauthorized("invalid credentials")
 	}
 
-	// If this operator has TOTP 2FA enabled, defer the session: the client must
-	// re-post username+password plus a valid 6-digit code (or recovery code) to
-	// /api/auth/2fa/verify. We keep the failed-login limiter armed until that
-	// second factor succeeds.
 	var user models.User
 	if h.db.First(&user, uid).Error == nil && user.TOTPEnabled {
-		writeJSON(w, http.StatusOK, map[string]any{"twoFactorRequired": true, "username": body.Username})
-		return
+		out := &LoginOutput{}
+		out.Body.TwoFactorRequired = true
+		out.Body.Username = input.Body.Username
+		return out, nil
 	}
 
 	h.loginLimiter.reset(ip)
 	h.auth.SetSessionFromRequest(r, w, uid, orgID)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "username": body.Username})
+
+	out := &LoginOutput{}
+	out.Body.OK = true
+	out.Body.Username = input.Body.Username
+	return out, nil
 }
 
 // verify2FA completes a login that requires a second factor. The client re-sends
 // username+password (re-verified here, so the challenge can't be forged) along
 // with a TOTP code or a one-time recovery code. On success the session is set.
 // POST /api/auth/2fa/verify  {username, password, code}
-func (h *Handler) verify2FA(w http.ResponseWriter, r *http.Request) {
-	var body struct {
+type Verify2FAInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
 		Code     string `json:"code"`
 	}
-	if err := readJSON(r, &body); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+}
+
+func (i *Verify2FAInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type Verify2FAOutput struct {
+	Body struct {
+		OK       bool   `json:"ok"`
+		Username string `json:"username"`
 	}
+}
+
+func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify2FAOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, w := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
 	if !h.loginLimiter.allow(ip) {
-		writeErr(w, http.StatusTooManyRequests, "too many failed login attempts")
-		return
+		return nil, huma.Error429TooManyRequests("too many failed login attempts")
 	}
-	uid, orgID, ok := h.authenticate(body.Username, body.Password)
+	uid, orgID, ok := h.authenticate(input.Body.Username, input.Body.Password)
 	if !ok {
 		h.loginLimiter.recordFailure(ip)
-		writeErr(w, http.StatusUnauthorized, "invalid credentials")
-		return
+		return nil, huma.Error401Unauthorized("invalid credentials")
 	}
 
 	var user models.User
 	if h.db.First(&user, uid).Error != nil {
-		writeErr(w, http.StatusUnauthorized, "invalid credentials")
-		return
+		return nil, huma.Error401Unauthorized("invalid credentials")
 	}
-	// If 2FA isn't actually enabled, treat the password as sufficient.
 	if user.TOTPEnabled {
-		if !h.verifyTOTPOrRecovery(&user, strings.TrimSpace(body.Code)) {
+		if !h.verifyTOTPOrRecovery(&user, strings.TrimSpace(input.Body.Code)) {
 			h.loginLimiter.recordFailure(ip)
-			writeErr(w, http.StatusUnauthorized, "invalid 2FA code")
-			return
+			return nil, huma.Error401Unauthorized("invalid 2FA code")
 		}
 	}
 	h.loginLimiter.reset(ip)
 	h.auth.SetSessionFromRequest(r, w, uid, orgID)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "username": body.Username})
+	out := &Verify2FAOutput{}
+	out.Body.OK = true
+	out.Body.Username = input.Body.Username
+	return out, nil
+}
+
+type LogoutAllInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *LogoutAllInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type LogoutAllOutput struct {
+	Body struct {
+		OK bool `json:"ok"`
+	}
 }
 
 // logoutAll deletes every session row for the caller and clears the cookie.
 // POST /api/auth/logout-all
-func (h *Handler) logoutAll(w http.ResponseWriter, r *http.Request) {
-	uid := h.auth.UserID(r)
-	if uid == 0 {
-		writeErr(w, http.StatusUnauthorized, "unauthorized")
-		return
+func (h *Handler) logoutAll(ctx context.Context, input *LogoutAllInput) (*LogoutAllOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
+	r, w := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	uid := h.auth.UserID(r)
 	var sessions []models.Session
 	h.db.Where("user_id = ?", uid).Find(&sessions)
-	ctx := r.Context()
+	ctxCtx := r.Context()
 	for _, s := range sessions {
-		_ = h.auth.Cache().Delete(ctx, "session:"+s.Token)
+		_ = h.auth.Cache().Delete(ctxCtx, "session:"+s.Token)
 	}
 	h.db.Where("user_id = ?", uid).Delete(&models.Session{})
 	h.auth.Clear(r, w)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	out := &LogoutAllOutput{}
+	out.Body.OK = true
+	return out, nil
 }
 
 // bootstrapUserID finds or creates the user for the admin login.
@@ -122,28 +178,46 @@ func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 	return user.ID
 }
 
+type ListSessionsInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *ListSessionsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type SessionRow struct {
+	ID         uint      `json:"id"`
+	IP         string    `json:"ip"`
+	UserAgent  string    `json:"userAgent"`
+	LastSeenAt time.Time `json:"lastSeenAt"`
+	CreatedAt  time.Time `json:"createdAt"`
+	IsCurrent  bool      `json:"isCurrent"`
+	Location   string    `json:"location,omitempty"`
+}
+
+type ListSessionsOutput struct {
+	Body []SessionRow
+}
+
 // GET /api/auth/sessions — list sessions for the current user, newest first.
 // The session matching the caller's cookie is flagged isCurrent: true.
-func (h *Handler) listSessions(w http.ResponseWriter, r *http.Request) {
-	uid := h.auth.UserID(r)
-	if uid == 0 {
-		writeErr(w, http.StatusUnauthorized, "unauthorized")
-		return
+func (h *Handler) listSessions(ctx context.Context, input *ListSessionsInput) (*ListSessionsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	uid := h.auth.UserID(r)
 	var sessions []models.Session
 	h.db.Where("user_id = ?", uid).Order("last_seen_at DESC").Limit(20).Find(&sessions)
 
 	currID := h.auth.SessionID(r)
-	type row struct {
-		ID         uint      `json:"id"`
-		IP         string    `json:"ip"` // pre-masked; raw value never leaves server
-		UserAgent  string    `json:"userAgent"`
-		LastSeenAt time.Time `json:"lastSeenAt"`
-		CreatedAt  time.Time `json:"createdAt"`
-		IsCurrent  bool      `json:"isCurrent"`
-		Location   string    `json:"location,omitempty"`
-	}
-	out := make([]row, len(sessions))
+	out := make([]SessionRow, len(sessions))
 	for i, s := range sessions {
 		ipClean := strings.Trim(s.IP, "[]")
 		maskedIP := maskIPServer(ipClean)
@@ -161,7 +235,7 @@ func (h *Handler) listSessions(w http.ResponseWriter, r *http.Request) {
 				location = city
 			}
 		}
-		out[i] = row{
+		out[i] = SessionRow{
 			ID:         s.ID,
 			IP:         maskedIP,
 			UserAgent:  s.UserAgent,
@@ -171,7 +245,7 @@ func (h *Handler) listSessions(w http.ResponseWriter, r *http.Request) {
 			Location:   location,
 		}
 	}
-	writeJSON(w, http.StatusOK, out)
+	return &ListSessionsOutput{Body: out}, nil
 }
 
 // maskIPServer redacts the last octet/group of an IP (GDPR-style).
@@ -191,21 +265,40 @@ func maskIPServer(ip string) string {
 	return ip
 }
 
+type RevokeSessionInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *RevokeSessionInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type RevokeSessionOutput struct {
+	Body struct {
+		OK   bool `json:"ok"`
+		Self bool `json:"self"`
+	}
+}
+
 // DELETE /api/auth/sessions/{id} — revoke a specific session row.
 // With stateful cookies, just deleting the row is sufficient: the next
 // request from that device will find no matching session and get a 401.
 // If the caller revokes their OWN session, the cookie is also cleared.
-func (h *Handler) revokeSession(w http.ResponseWriter, r *http.Request) {
-	uid := h.auth.UserID(r)
-	if uid == 0 {
-		writeErr(w, http.StatusUnauthorized, "unauthorized")
-		return
+func (h *Handler) revokeSession(ctx context.Context, input *RevokeSessionInput) (*RevokeSessionOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
-	idStr := r.PathValue("id")
+	r, w := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	uid := h.auth.UserID(r)
 	var sess models.Session
-	if err := h.db.Where("id = ? AND user_id = ?", idStr, uid).First(&sess).Error; err != nil {
-		writeErr(w, http.StatusNotFound, "session not found")
-		return
+	if err := h.db.Where("id = ? AND user_id = ?", input.ID, uid).First(&sess).Error; err != nil {
+		return nil, huma.Error404NotFound("session not found")
 	}
 	h.db.Delete(&sess)
 	_ = h.auth.Cache().Delete(r.Context(), "session:"+sess.Token)
@@ -215,7 +308,10 @@ func (h *Handler) revokeSession(w http.ResponseWriter, r *http.Request) {
 	if isSelf {
 		h.auth.Clear(r, w)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "self": isSelf})
+	out := &RevokeSessionOutput{}
+	out.Body.OK = true
+	out.Body.Self = isSelf
+	return out, nil
 }
 
 // bootstrapOrgID returns the ID of the admin's own org, creating it if it
@@ -252,61 +348,114 @@ func safeSlug(s string) string {
 	return string(b)
 }
 
-func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
-	h.auth.Clear(r, w)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+type LogoutInput struct {
+	Ctx huma.Context `hidden:"true"`
 }
 
-func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
-	if !h.auth.Authed(r) {
-		writeErr(w, http.StatusUnauthorized, "unauthorized")
-		return
+func (i *LogoutInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type LogoutOutput struct {
+	Body struct {
+		OK bool `json:"ok"`
+	}
+}
+
+func (h *Handler) logout(ctx context.Context, input *LogoutInput) (*LogoutOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, w := humago.Unwrap(input.Ctx)
+	h.auth.Clear(r, w)
+	out := &LogoutOutput{}
+	out.Body.OK = true
+	return out, nil
+}
+
+type MeInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *MeInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type MeOutput struct {
+	Body struct {
+		Username string `json:"username"`
+		OrgID    uint   `json:"orgId"`
+	}
+}
+
+func (h *Handler) me(ctx context.Context, input *MeInput) (*MeOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	uid := h.auth.UserID(r)
 	var user models.User
 	if err := h.db.First(&user, uid).Error; err != nil {
-		writeErr(w, http.StatusUnauthorized, "user not found")
-		return
+		return nil, huma.Error401Unauthorized("user not found")
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"username": user.Email, "orgId": h.orgID(r)})
+	out := &MeOutput{}
+	out.Body.Username = user.Email
+	out.Body.OrgID = h.orgID(r)
+	return out, nil
 }
 
-// POST /api/auth/invite/accept
-func (h *Handler) acceptInvite(w http.ResponseWriter, r *http.Request) {
-	var body struct {
+type AcceptInviteInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
 		Token    string `json:"token"`
 		Password string `json:"password"`
 	}
-	if err := readJSON(r, &body); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+}
+
+func (i *AcceptInviteInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type AcceptInviteOutput struct {
+	Body struct {
+		OK bool `json:"ok"`
 	}
-	token := strings.TrimSpace(body.Token)
+}
+
+// POST /api/auth/invite/accept
+func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*AcceptInviteOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	token := strings.TrimSpace(input.Body.Token)
 	if token == "" {
-		writeErr(w, http.StatusBadRequest, "token is required")
-		return
+		return nil, huma.Error400BadRequest("token is required")
 	}
-	password := body.Password
+	password := input.Body.Password
 	if len(password) < 8 {
-		writeErr(w, http.StatusBadRequest, "password must be at least 8 characters")
-		return
+		return nil, huma.Error400BadRequest("password must be at least 8 characters")
 	}
 
 	var user models.User
 	if err := h.db.Where("invite_token = ?", token).First(&user).Error; err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid token")
-		return
+		return nil, huma.Error400BadRequest("invalid token")
 	}
 
 	if user.InviteExpiresAt == nil || user.InviteExpiresAt.Before(time.Now()) {
-		writeErr(w, http.StatusBadRequest, "invite token has expired")
-		return
+		return nil, huma.Error400BadRequest("invite token has expired")
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to hash password")
-		return
+		return nil, huma.Error500InternalServerError("failed to hash password")
 	}
 
 	user.PasswordHash = string(hash)
@@ -314,25 +463,45 @@ func (h *Handler) acceptInvite(w http.ResponseWriter, r *http.Request) {
 	user.InviteExpiresAt = nil
 
 	if err := h.db.Save(&user).Error; err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to save user settings")
-		return
+		return nil, huma.Error500InternalServerError("failed to save user settings")
 	}
 
 	h.audit(r, "user.activate", "user", user.ID, map[string]any{"email": user.Email})
 
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	out := &AcceptInviteOutput{}
+	out.Body.OK = true
+	return out, nil
+}
+
+type AuthConfigInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *AuthConfigInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type AuthConfigOutput struct {
+	Body struct {
+		GoogleEnabled       bool   `json:"googleEnabled"`
+		GithubEnabled       bool   `json:"githubEnabled"`
+		RegistrationEnabled bool   `json:"registrationEnabled"`
+		AppName             string `json:"appName"`
+	}
 }
 
 // GET /api/auth/config (public) returns whether Google and GitHub logins are enabled.
-func (h *Handler) authConfig(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) authConfig(ctx context.Context, input *AuthConfigInput) (*AuthConfigOutput, error) {
 	googleEnabled := h.oauth != nil && h.getSetting(keyGoogleClientID) != "" && h.getSetting(keyGoogleClientSecret) != ""
 	githubEnabled := h.oauth != nil && h.getSetting(keyGitHubClientID) != "" && h.getSetting(keyGitHubClientSecret) != ""
-	writeJSON(w, http.StatusOK, map[string]any{
-		"googleEnabled":       googleEnabled,
-		"githubEnabled":       githubEnabled,
-		"registrationEnabled": h.registrationEnabled(),
-		"appName":             h.AppName(),
-	})
+
+	out := &AuthConfigOutput{}
+	out.Body.GoogleEnabled = googleEnabled
+	out.Body.GithubEnabled = githubEnabled
+	out.Body.RegistrationEnabled = h.registrationEnabled()
+	out.Body.AppName = h.AppName()
+	return out, nil
 }
 
 // authenticate resolves username+password to a (userID, orgID) pair. It accepts

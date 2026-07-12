@@ -142,7 +142,7 @@ func TestComprehensiveAPI(t *testing.T) {
 	// 3. SMTP Senders CRUD
 	{
 		// Create SMTPSender
-		body := `{"name":"test-sender","host":"smtp.example.com","port":587,"user":"user","pass":"pass","from":"test@example.com"}`
+		body := `{"name":"test-sender","host":"smtp.example.com","port":587,"user":"user","pass":"pass","fromEmail":"test@example.com"}`
 		req := httptest.NewRequest(http.MethodPost, "/api/smtp-senders", strings.NewReader(body))
 		for _, c := range cookies {
 			req.AddCookie(c)

@@ -14,13 +14,13 @@ import (
 
 // Record is a provider-agnostic DNS record.
 type Record struct {
-	ID       string `json:"id"`
+	ID       string `json:"id,omitempty"`
 	Type     string `json:"type"` // A, AAAA, CNAME, TXT, MX, ...
 	Name     string `json:"name"`
 	Content  string `json:"content"`
 	TTL      int    `json:"ttl"`
-	Proxied  bool   `json:"proxied"`
-	Comment  string `json:"comment"` // the per-record note
+	Proxied  bool   `json:"proxied,omitempty"`
+	Comment  string `json:"comment,omitempty"` // the per-record note
 	Priority *int   `json:"priority,omitempty"`
 }
 

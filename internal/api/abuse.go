@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/notify"
 )
@@ -16,58 +17,71 @@ var validAbuseReasons = map[string]bool{
 	"spam": true, "phishing": true, "malware": true, "other": true,
 }
 
-// submitAbuse is a public (no auth) endpoint for reporting a short link.
-// POST /abuse  {"slug":"abc","reason":"phishing","description":"..."}
-func (h *Handler) submitAbuse(w http.ResponseWriter, r *http.Request) {
-	ip := reporterIP(r)
-	if !h.abuseLimiter.allow(ip) {
-		writeErr(w, http.StatusTooManyRequests, "too many reports from this IP, try again later")
-		return
-	}
-	var d struct {
+type SubmitAbuseInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
 		Slug        string `json:"slug"`
 		Reason      string `json:"reason"`
 		Description string `json:"description"`
 	}
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
+}
+
+func (i *SubmitAbuseInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type SubmitAbuseOutput struct {
+	Body struct {
+		OK bool `json:"ok"`
+		ID uint `json:"id"`
 	}
-	d.Slug = strings.TrimSpace(d.Slug)
-	d.Reason = strings.TrimSpace(strings.ToLower(d.Reason))
-	if d.Slug == "" {
-		writeErr(w, http.StatusBadRequest, "slug is required")
-		return
+}
+
+// submitAbuse is a public (no auth) endpoint for reporting a short link.
+// POST /abuse  {"slug":"abc","reason":"phishing","description":"..."}
+func (h *Handler) submitAbuse(ctx context.Context, input *SubmitAbuseInput) (*SubmitAbuseOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
-	if !validAbuseReasons[d.Reason] {
-		writeErr(w, http.StatusBadRequest, "reason must be one of: spam, phishing, malware, other")
-		return
+	r, _ := humago.Unwrap(input.Ctx)
+	ip := reporterIP(r)
+	if !h.abuseLimiter.allow(ip) {
+		return nil, huma.Error429TooManyRequests("too many reports from this IP, try again later")
 	}
-	if len(d.Description) > 2000 {
-		d.Description = d.Description[:2000]
+	slug := strings.TrimSpace(input.Body.Slug)
+	reason := strings.TrimSpace(strings.ToLower(input.Body.Reason))
+	if slug == "" {
+		return nil, huma.Error400BadRequest("slug is required")
+	}
+	if !validAbuseReasons[reason] {
+		return nil, huma.Error400BadRequest("reason must be one of: spam, phishing, malware, other")
+	}
+	description := input.Body.Description
+	if len(description) > 2000 {
+		description = description[:2000]
 	}
 
 	// Resolve the slug to get the current target and owning org for context.
 	var target string
 	var orgID uint
 	var link models.Link
-	if h.db.Where("slug = ?", d.Slug).First(&link).Error == nil {
+	if h.db.Where("slug = ?", slug).First(&link).Error == nil {
 		target = link.Target
 		orgID = link.OrgID
 	}
 
 	rep := models.AbuseReport{
 		OrgID:       orgID,
-		Slug:        d.Slug,
+		Slug:        slug,
 		Target:      target,
-		Reason:      d.Reason,
-		Description: d.Description,
+		Reason:      reason,
+		Description: description,
 		ReporterIP:  ip,
 		Status:      "open",
 	}
 	if err := h.db.Create(&rep).Error; err != nil {
-		writeErr(w, http.StatusInternalServerError, "failed to save report")
-		return
+		return nil, huma.Error500InternalServerError("failed to save report")
 	}
 
 	h.abuseLimiter.recordFailure(ip)
@@ -76,10 +90,10 @@ func (h *Handler) submitAbuse(w http.ResponseWriter, r *http.Request) {
 	payload, _ := json.Marshal(rep)
 	_ = h.queue.Enqueue(r.Context(), "abuse.notify", payload)
 
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"ok": true,
-		"id": rep.ID,
-	})
+	out := &SubmitAbuseOutput{}
+	out.Body.OK = true
+	out.Body.ID = rep.ID
+	return out, nil
 }
 
 func (h *Handler) notifyAbuse(rep models.AbuseReport) {
@@ -100,45 +114,77 @@ func (h *Handler) notifyAbuse(rep models.AbuseReport) {
 	}
 }
 
+type ListAbuseReportsInput struct {
+	Ctx    huma.Context `hidden:"true"`
+	Status string       `query:"status"`
+}
+
+func (i *ListAbuseReportsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListAbuseReportsOutput struct {
+	Body []models.AbuseReport
+}
+
 // listAbuseReports returns open reports (admin-only, session required).
 // GET /api/abuse?status=open
-func (h *Handler) listAbuseReports(w http.ResponseWriter, r *http.Request) {
-	status := r.URL.Query().Get("status")
+func (h *Handler) listAbuseReports(ctx context.Context, input *ListAbuseReportsInput) (*ListAbuseReportsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	q := h.orgDB(r).Order("created_at DESC")
-	if status != "" {
-		q = q.Where("status = ?", status)
+	if input.Status != "" {
+		q = q.Where("status = ?", input.Status)
 	}
 	var reports []models.AbuseReport
 	q.Find(&reports)
-	writeJSON(w, http.StatusOK, reports)
+	return &ListAbuseReportsOutput{Body: reports}, nil
+}
+
+type UpdateAbuseReportInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	ID   uint         `path:"id"`
+	Body struct {
+		Status string `json:"status"`
+	}
+}
+
+func (i *UpdateAbuseReportInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type UpdateAbuseReportOutput struct {
+	Body models.AbuseReport
 }
 
 // updateAbuseReport lets admins change the status of a report.
 // PUT /api/abuse/{id}  {"status":"reviewed"}
-func (h *Handler) updateAbuseReport(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
+func (h *Handler) updateAbuseReport(ctx context.Context, input *UpdateAbuseReportInput) (*UpdateAbuseReportOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, http.StatusBadRequest, "bad id")
-		return
+		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var rep models.AbuseReport
-	if h.orgDB(r).First(&rep, id).Error != nil {
-		writeErr(w, http.StatusNotFound, "not found")
-		return
+	if h.orgDB(r).First(&rep, input.ID).Error != nil {
+		return nil, huma.Error404NotFound("not found")
 	}
-	var d struct {
-		Status string `json:"status"`
+	status := strings.TrimSpace(input.Body.Status)
+	if status != "open" && status != "reviewed" && status != "dismissed" {
+		return nil, huma.Error400BadRequest("status must be open, reviewed, or dismissed")
 	}
-	if err := readJSON(r, &d); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid body")
-		return
-	}
-	d.Status = strings.TrimSpace(d.Status)
-	if d.Status != "open" && d.Status != "reviewed" && d.Status != "dismissed" {
-		writeErr(w, http.StatusBadRequest, "status must be open, reviewed, or dismissed")
-		return
-	}
-	h.db.Model(&rep).Update("status", d.Status)
-	rep.Status = d.Status
-	writeJSON(w, http.StatusOK, rep)
+	h.db.Model(&rep).Update("status", status)
+	rep.Status = status
+	return &UpdateAbuseReportOutput{Body: rep}, nil
 }

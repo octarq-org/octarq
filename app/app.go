@@ -25,6 +25,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/api"
 	"github.com/octarq-org/octarq/internal/auth"
@@ -76,6 +78,34 @@ func (g *gatedMux) wrap(h http.Handler) http.Handler {
 			return
 		}
 		h.ServeHTTP(w, r)
+	})
+}
+
+type gatedAPI struct {
+	huma.API
+	gAdapter huma.Adapter
+}
+
+func (g *gatedAPI) Adapter() huma.Adapter {
+	return g.gAdapter
+}
+
+type gatedAdapter struct {
+	huma.Adapter
+	plugin  string
+	enabled func(r *http.Request, plugin string) (allowed, scoped bool)
+}
+
+func (g *gatedAdapter) Handle(op *huma.Operation, handler func(ctx huma.Context)) {
+	g.Adapter.Handle(op, func(ctx huma.Context) {
+		r, w := humago.Unwrap(ctx)
+		if allowed, scoped := g.enabled(r, g.plugin); scoped && !allowed {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":"plugin not enabled for this workspace"}`))
+			return
+		}
+		handler(ctx)
 	})
 }
 
@@ -206,7 +236,9 @@ func (a *App) RunMCP(ctx context.Context) error {
 	go taskQueue.Start(ctx)
 	apiHandler := api.New(a.cfg, a.gdb, a.cipher, a.auth, a.geo, taskQueue)
 	apiHandler.SetPlugins(a.plugins)
+	throwaway := apiHandler.Routes()
 	pctx := &plugin.Context{
+		Huma:                apiHandler.Huma(),
 		DB:                  a.gdb,
 		Guard:               a.auth.Require,
 		Notify:              notify.Send,
@@ -222,9 +254,29 @@ func (a *App) RunMCP(ctx context.Context) error {
 		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
 		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,
 	}
-	throwaway := http.NewServeMux()
+	enabled := func(r *http.Request, featureKey string) (allowed, scoped bool) {
+		oid := a.auth.OrgID(r)
+		if oid == 0 {
+			return false, false
+		}
+		return apiHandler.PluginEnabled(oid, featureKey), true
+	}
 	for _, p := range a.plugins {
-		p.Mount(throwaway, pctx)
+		pctxCopy := *pctx
+		if plugin.Describe(p).Core {
+			pctxCopy.Huma = apiHandler.Huma()
+			p.Mount(throwaway, &pctxCopy)
+		} else {
+			pctxCopy.Huma = &gatedAPI{
+				API: apiHandler.Huma(),
+				gAdapter: &gatedAdapter{
+					Adapter: apiHandler.Huma().Adapter(),
+					plugin:  plugin.FeatureKey(p),
+					enabled: enabled,
+				},
+			}
+			p.Mount(&gatedMux{real: throwaway, plugin: plugin.FeatureKey(p), enabled: enabled}, &pctxCopy)
+		}
 	}
 
 	return mcp.RunWithPlugins(ctx, a.plugins)
@@ -263,6 +315,7 @@ func (a *App) Run(ctx context.Context) error {
 	apiHandler.SetPlugins(a.plugins)
 	mux := apiHandler.Routes()
 	pctx := &plugin.Context{
+		Huma:           apiHandler.Huma(),
 		DB:             a.gdb,
 		Guard:          a.auth.Require,
 		Notify:         notify.Send,
@@ -288,10 +341,20 @@ func (a *App) Run(ctx context.Context) error {
 		return apiHandler.PluginEnabled(oid, featureKey), true
 	}
 	for _, p := range a.plugins {
+		pctxCopy := *pctx
 		if plugin.Describe(p).Core {
-			p.Mount(mux, pctx)
+			pctxCopy.Huma = apiHandler.Huma()
+			p.Mount(mux, &pctxCopy)
 		} else {
-			p.Mount(&gatedMux{real: mux, plugin: plugin.FeatureKey(p), enabled: enabled}, pctx)
+			pctxCopy.Huma = &gatedAPI{
+				API: apiHandler.Huma(),
+				gAdapter: &gatedAdapter{
+					Adapter: apiHandler.Huma().Adapter(),
+					plugin:  plugin.FeatureKey(p),
+					enabled: enabled,
+				},
+			}
+			p.Mount(&gatedMux{real: mux, plugin: plugin.FeatureKey(p), enabled: enabled}, &pctxCopy)
 		}
 		slog.Info("plugin mounted", "name", p.Name())
 		if s, ok := p.(plugin.Starter); ok {

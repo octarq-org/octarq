@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/auth"
 	"github.com/octarq-org/octarq/internal/crypto"
@@ -51,10 +53,15 @@ type Handler struct {
 	// dispatch happens on the inbound webhook path.
 	emailMu       sync.RWMutex
 	emailHandlers []func(plugin.EmailEvent)
+	humaAPI       huma.API
 }
 
 func (h *Handler) SetPlugins(plugins []plugin.Plugin) {
 	h.plugins = plugins
+}
+
+func (h *Handler) Huma() huma.API {
+	return h.humaAPI
 }
 
 // OnEmail registers a handler invoked asynchronously after each inbound email is
@@ -149,14 +156,60 @@ func (h *Handler) DataRetentionDays() int {
 func (h *Handler) Routes() *http.ServeMux {
 	mux := http.NewServeMux()
 
+	config := huma.DefaultConfig("Octarq API", "1.0.0")
+	api := humago.New(mux, config)
+	h.humaAPI = api
+
+	// Override validation error status from 422 to 400 for consistency with tests and clients.
+	oldNewError := huma.NewError
+	huma.NewError = func(status int, msg string, errs ...error) huma.StatusError {
+		if status == 422 {
+			status = 400
+		}
+		return oldNewError(status, msg, errs...)
+	}
+
+	// Early authentication middleware to avoid validation failures returning 400/422 for unauthenticated requests.
+	api.UseMiddleware(func(ctx huma.Context, next func(huma.Context)) {
+		path := ctx.URL().Path
+		if strings.HasPrefix(path, "/api/") &&
+			!strings.HasPrefix(path, "/api/auth/login") &&
+			!strings.HasPrefix(path, "/api/auth/register") &&
+			!strings.HasPrefix(path, "/api/auth/2fa/verify") &&
+			!strings.HasPrefix(path, "/api/auth/logout") &&
+			!strings.HasPrefix(path, "/api/auth/config") &&
+			!strings.HasPrefix(path, "/api/auth/invite/accept") &&
+			!strings.HasPrefix(path, "/api/webhook/") &&
+			!strings.HasPrefix(path, "/api/health") {
+
+			r, _ := humago.Unwrap(ctx)
+			if r != nil {
+				r2, ok := h.auth.AuthenticateRequest(r)
+				if !ok {
+					huma.WriteErr(api, ctx, http.StatusUnauthorized, "unauthorized")
+					return
+				}
+				ctx = huma.WithContext(ctx, r2.Context())
+			}
+		}
+		next(ctx)
+	})
+
 	// Auth (no session required).
-	mux.HandleFunc("POST /api/auth/login", h.login)
-	mux.HandleFunc("POST /api/auth/register", h.register)
-	mux.HandleFunc("POST /api/auth/2fa/verify", h.verify2FA)
-	mux.HandleFunc("POST /api/auth/logout", h.logout)
-	mux.HandleFunc("GET /api/auth/me", h.me)
-	mux.HandleFunc("POST /api/auth/invite/accept", h.acceptInvite)
-	mux.HandleFunc("GET /api/auth/config", h.authConfig)
+	huma.Register(api, huma.Operation{
+		OperationID: "login",
+		Method:      "POST",
+		Path:        "/api/auth/login",
+		Summary:     "Log in",
+		Tags:        []string{"Auth"},
+	}, h.loginHuma)
+
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/register", Summary: "Register", Tags: []string{"Auth"}}, h.register)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/2fa/verify", Summary: "Verify 2FA", Tags: []string{"Auth"}}, h.verify2FA)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/logout", Summary: "Log out", Tags: []string{"Auth"}}, h.logout)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/me", Summary: "Me", Tags: []string{"Auth"}}, h.me)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/invite/accept", Summary: "Accept Invite", Tags: []string{"Auth"}}, h.acceptInvite)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/config", Summary: "Auth Config", Tags: []string{"Auth"}}, h.authConfig)
 
 	// OAuth (no session required — these redirect to provider and back).
 	if h.oauth != nil {
@@ -164,141 +217,114 @@ func (h *Handler) Routes() *http.ServeMux {
 		mux.HandleFunc("GET /auth/callback/{provider}", h.oauth.Callback)
 	}
 
-	// Inbound email webhook, n8n-style: the tenant slug and an unguessable per-org
-	// token both live in the path, so the Cloudflare worker needs just this one URL
-	// (no custom header). The slug scopes delivery to that org's mailboxes; the
-	// token authenticates.
-	mux.HandleFunc("POST /api/webhook/{orgSlug}/email/inbound/{token}", h.inbound)
-
-	// Mail bounce/complaint webhook — same tenant-first, path-token scheme as
-	// inbound: the slug names the org and the per-org token authenticates, so a
-	// forged POST can't spam an org's notification channels.
-	mux.HandleFunc("POST /api/webhook/{orgSlug}/email/bounce/{token}", h.emailBounceWebhook)
-
-	// Abuse reporting (public — no auth required to submit).
-	mux.HandleFunc("POST /abuse", h.submitAbuse)
-
-	// Health check (public - no auth required).
-	mux.HandleFunc("GET /api/health", h.health)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/webhook/{orgSlug}/email/inbound/{token}", Summary: "Inbound Email", Tags: []string{"Webhook"}}, h.inbound)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/webhook/{orgSlug}/email/bounce/{token}", Summary: "Email Bounce Webhook", Tags: []string{"Webhook"}}, h.emailBounceWebhook)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/abuse", Summary: "Submit Abuse", Tags: []string{"Public"}, DefaultStatus: 201}, h.submitAbuse)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/health", Summary: "Health Check", Tags: []string{"Public"}}, h.health)
 
 	// MCP SSE and Streamable HTTP endpoints.
 	mux.Handle("/api/mcp/sse", h.mcpSSEHandler())
 	mux.Handle("/api/mcp/stream", h.mcpStreamHandler())
 
-	// Everything below requires a session.
-	p := func(pattern string, fn http.HandlerFunc) {
-		mux.Handle(pattern, h.auth.Require(fn))
-	}
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/overview", Summary: "Overview Stats", Tags: []string{"Dashboard"}}, h.overview)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/settings", Summary: "Get Settings", Tags: []string{"Settings"}}, h.getSettings)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/settings", Summary: "Update Settings", Tags: []string{"Settings"}}, h.updateSettings)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/instance-settings", Summary: "Get Instance Settings", Tags: []string{"Settings"}}, h.getInstanceSettings)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/instance-settings", Summary: "Update Instance Settings", Tags: []string{"Settings"}}, h.updateInstanceSettings)
 
-	p("GET /api/overview", h.overview)
-	p("GET /api/settings", h.getSettings)
-	p("PUT /api/settings", h.updateSettings)
-	p("GET /api/instance-settings", h.getInstanceSettings)
-	p("PUT /api/instance-settings", h.updateInstanceSettings)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/webhooks", Summary: "List Webhooks", Tags: []string{"Webhooks"}}, h.listWebhooks)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/webhooks", Summary: "Create Webhook", Tags: []string{"Webhooks"}, DefaultStatus: 201}, h.createWebhook)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/webhooks/{id}", Summary: "Update Webhook", Tags: []string{"Webhooks"}}, h.updateWebhook)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/webhooks/{id}", Summary: "Delete Webhook", Tags: []string{"Webhooks"}}, h.deleteWebhook)
 
-	p("GET /api/webhooks", h.listWebhooks)
-	p("POST /api/webhooks", h.createWebhook)
-	p("PUT /api/webhooks/{id}", h.updateWebhook)
-	p("DELETE /api/webhooks/{id}", h.deleteWebhook)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links", Summary: "List Links", Tags: []string{"Links"}}, h.listLinks)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/export.csv", Summary: "Export Links CSV", Tags: []string{"Links"}}, h.exportLinksCSV)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/metadata", Summary: "Link Metadata", Tags: []string{"Links"}}, h.linkMetadata)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/links", Summary: "Create Link", Tags: []string{"Links"}, DefaultStatus: 201}, h.createLink)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}", Summary: "Get Link", Tags: []string{"Links"}}, h.getLink)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/links/{id}", Summary: "Update Link", Tags: []string{"Links"}}, h.updateLink)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/links/{id}", Summary: "Delete Link", Tags: []string{"Links"}}, h.deleteLink)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}/stats", Summary: "Link Stats", Tags: []string{"Links"}}, h.linkStats)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}/qr", Summary: "Link QR Code", Tags: []string{"Links"}}, h.linkQR)
 
-	p("GET /api/links", h.listLinks)
-	p("GET /api/links/export.csv", h.exportLinksCSV)
-	p("GET /api/links/metadata", h.linkMetadata)
-	p("POST /api/links", h.createLink)
-	p("GET /api/links/{id}", h.getLink)
-	p("PUT /api/links/{id}", h.updateLink)
-	p("DELETE /api/links/{id}", h.deleteLink)
-	p("GET /api/links/{id}/stats", h.linkStats)
-	p("GET /api/links/{id}/qr", h.linkQR)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/dns/providers", Summary: "DNS Providers", Tags: []string{"DNS"}}, h.dnsProviders)
 
-	p("GET /api/dns/providers", h.dnsProviders)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/provider-accounts", Summary: "List Provider Accounts", Tags: []string{"Providers"}}, h.listProviderAccounts)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/provider-accounts", Summary: "Create Provider Account", Tags: []string{"Providers"}, DefaultStatus: 201}, h.createProviderAccount)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/provider-accounts/{id}", Summary: "Update Provider Account", Tags: []string{"Providers"}}, h.updateProviderAccount)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/provider-accounts/{id}", Summary: "Delete Provider Account", Tags: []string{"Providers"}}, h.deleteProviderAccount)
 
-	p("GET /api/provider-accounts", h.listProviderAccounts)
-	p("POST /api/provider-accounts", h.createProviderAccount)
-	p("PUT /api/provider-accounts/{id}", h.updateProviderAccount)
-	p("DELETE /api/provider-accounts/{id}", h.deleteProviderAccount)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/smtp-senders", Summary: "List SMTP Senders", Tags: []string{"SMTP"}}, h.listSMTPSenders)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/smtp-senders", Summary: "Create SMTP Sender", Tags: []string{"SMTP"}, DefaultStatus: 201}, h.createSMTPSender)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/smtp-senders/{id}", Summary: "Update SMTP Sender", Tags: []string{"SMTP"}}, h.updateSMTPSender)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/smtp-senders/{id}", Summary: "Delete SMTP Sender", Tags: []string{"SMTP"}}, h.deleteSMTPSender)
 
-	p("GET /api/smtp-senders", h.listSMTPSenders)
-	p("POST /api/smtp-senders", h.createSMTPSender)
-	p("PUT /api/smtp-senders/{id}", h.updateSMTPSender)
-	p("DELETE /api/smtp-senders/{id}", h.deleteSMTPSender)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/domains/sync", Summary: "Sync Domains", Tags: []string{"Domains"}}, h.syncDomains)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/domains", Summary: "List Domains", Tags: []string{"Domains"}}, h.listDomains)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/domains", Summary: "Create Domain", Tags: []string{"Domains"}, DefaultStatus: 201}, h.createDomain)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/domains/{id}", Summary: "Update Domain", Tags: []string{"Domains"}}, h.updateDomain)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/domains/{id}", Summary: "Delete Domain", Tags: []string{"Domains"}}, h.deleteDomain)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/domains/{id}/verify-dns", Summary: "Verify Domain DNS", Tags: []string{"Domains"}}, h.verifyDomainDNS)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/domains/{id}/records", Summary: "List DNS Records", Tags: []string{"Domains"}}, h.listRecords)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/domains/{id}/records", Summary: "Create DNS Record", Tags: []string{"Domains"}, DefaultStatus: 201}, h.createRecord)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/domains/{id}/records/{rid}", Summary: "Update DNS Record", Tags: []string{"Domains"}}, h.updateRecord)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/domains/{id}/records/{rid}", Summary: "Delete DNS Record", Tags: []string{"Domains"}}, h.deleteRecord)
 
-	p("POST /api/domains/sync", h.syncDomains)
-	p("GET /api/domains", h.listDomains)
-	p("POST /api/domains", h.createDomain)
-	p("PUT /api/domains/{id}", h.updateDomain)
-	p("DELETE /api/domains/{id}", h.deleteDomain)
-	p("GET /api/domains/{id}/verify-dns", h.verifyDomainDNS)
-	p("GET /api/domains/{id}/records", h.listRecords)
-	p("POST /api/domains/{id}/records", h.createRecord)
-	p("PUT /api/domains/{id}/records/{rid}", h.updateRecord)
-	p("DELETE /api/domains/{id}/records/{rid}", h.deleteRecord)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/mailboxes", Summary: "List Mailboxes", Tags: []string{"Mailboxes"}}, h.listMailboxes)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/mailboxes", Summary: "Create Mailbox", Tags: []string{"Mailboxes"}, DefaultStatus: 201}, h.createMailbox)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/mailboxes/{id}", Summary: "Update Mailbox", Tags: []string{"Mailboxes"}}, h.updateMailbox)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/mailboxes/{id}", Summary: "Delete Mailbox", Tags: []string{"Mailboxes"}}, h.deleteMailbox)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails", Summary: "List Emails", Tags: []string{"Emails"}}, h.listEmails)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/emails/read-all", Summary: "Mark All Emails Read", Tags: []string{"Emails"}}, h.readAllEmails)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails/{id}", Summary: "Get Email", Tags: []string{"Emails"}}, h.getEmail)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails/{id}/raw", Summary: "Get Raw Email EML", Tags: []string{"Emails"}}, h.rawEmail)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/emails/{id}", Summary: "Update Email State", Tags: []string{"Emails"}}, h.updateEmail)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/emails/{id}", Summary: "Delete Email", Tags: []string{"Emails"}}, h.deleteEmail)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/emails/send", Summary: "Send Email", Tags: []string{"Emails"}}, h.sendEmail)
 
-	p("GET /api/mailboxes", h.listMailboxes)
-	p("POST /api/mailboxes", h.createMailbox)
-	p("PUT /api/mailboxes/{id}", h.updateMailbox)
-	p("DELETE /api/mailboxes/{id}", h.deleteMailbox)
-	p("GET /api/emails", h.listEmails)
-	p("POST /api/emails/read-all", h.readAllEmails)
-	p("GET /api/emails/{id}", h.getEmail)
-	p("GET /api/emails/{id}/raw", h.rawEmail)
-	p("PUT /api/emails/{id}", h.updateEmail)
-	p("DELETE /api/emails/{id}", h.deleteEmail)
-	p("POST /api/emails/send", h.sendEmail)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/ai/assist/status", Summary: "Get AI Assist Status", Tags: []string{"AI"}}, h.aiStatus)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/ai/assist/suggest-slug", Summary: "Suggest Link Slug via AI", Tags: []string{"AI"}}, h.aiSuggestSlug)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/ai/assist/summarize-email/{id}", Summary: "Summarize Email via AI", Tags: []string{"AI"}}, h.aiSummarizeEmail)
 
-	// Single-step AI assists (OSS, BYO key via OCTARQ_LLM_* env — see ai.go).
-	// Namespaced under /api/ai/assist/ because the octarq-pro ai plugin owns
-	// /api/ai/status, /api/ai/emails and /api/ai/settings on the same mux —
-	// a duplicate pattern would panic at mount time in the Pro build.
-	p("GET /api/ai/assist/status", h.aiStatus)
-	p("POST /api/ai/assist/suggest-slug", h.aiSuggestSlug)
-	p("POST /api/ai/assist/summarize-email/{id}", h.aiSummarizeEmail)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/tokens", Summary: "List API Tokens", Tags: []string{"Tokens"}}, h.listTokens)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/tokens", Summary: "Create API Token", Tags: []string{"Tokens"}, DefaultStatus: 201}, h.createToken)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/tokens/{id}", Summary: "Delete API Token", Tags: []string{"Tokens"}}, h.deleteToken)
 
-	p("GET /api/tokens", h.listTokens)
-	p("POST /api/tokens", h.createToken)
-	p("DELETE /api/tokens/{id}", h.deleteToken)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notification-channels", Summary: "List Notification Channels", Tags: []string{"Notification Channels"}}, h.listNotificationChannels)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/notification-channels", Summary: "Create Notification Channel", Tags: []string{"Notification Channels"}, DefaultStatus: 201}, h.createNotificationChannel)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/notification-channels/{id}", Summary: "Update Notification Channel", Tags: []string{"Notification Channels"}}, h.updateNotificationChannel)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/notification-channels/{id}", Summary: "Delete Notification Channel", Tags: []string{"Notification Channels"}}, h.deleteNotificationChannel)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/notification-channels/{id}/test", Summary: "Test Notification Channel", Tags: []string{"Notification Channels"}}, h.testNotificationChannel)
 
-	p("GET /api/notification-channels", h.listNotificationChannels)
-	p("POST /api/notification-channels", h.createNotificationChannel)
-	p("PUT /api/notification-channels/{id}", h.updateNotificationChannel)
-	p("DELETE /api/notification-channels/{id}", h.deleteNotificationChannel)
-	p("POST /api/notification-channels/{id}/test", h.testNotificationChannel)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/abuse", Summary: "List Abuse Reports", Tags: []string{"Abuse"}}, h.listAbuseReports)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/abuse/{id}", Summary: "Update Abuse Report", Tags: []string{"Abuse"}}, h.updateAbuseReport)
 
-	// Abuse reports: submit is public, list/update require admin session.
-	p("GET /api/abuse", h.listAbuseReports)
-	p("PUT /api/abuse/{id}", h.updateAbuseReport)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/audit", Summary: "List Audit Logs", Tags: []string{"Audit Logs"}}, h.listAuditLogs)
 
-	// Audit log (session required, read-only for now).
-	p("GET /api/audit", h.listAuditLogs)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/switch-org", Summary: "Switch Org", Tags: []string{"Org Management"}}, h.switchOrg)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/orgs", Summary: "List Orgs", Tags: []string{"Org Management"}}, h.listOrgs)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/orgs", Summary: "Create Org", Tags: []string{"Org Management"}, DefaultStatus: 201}, h.createOrg)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/org", Summary: "Update Org Details", Tags: []string{"Org Management"}}, h.updateOrg)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/org/members", Summary: "List Org Members", Tags: []string{"Org Management"}}, h.listOrgMembers)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/org/members", Summary: "Add Org Member", Tags: []string{"Org Management"}}, h.addOrgMember)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/org/members/{userId}", Summary: "Remove Org Member", Tags: []string{"Org Management"}}, h.removeOrgMember)
 
-	// Multi-tenant Organization Management
-	p("POST /api/auth/switch-org", h.switchOrg)
-	p("GET /api/orgs", h.listOrgs)
-	p("POST /api/orgs", h.createOrg)
-	p("PUT /api/org", h.updateOrg)
-	p("GET /api/org/members", h.listOrgMembers)
-	p("POST /api/org/members", h.addOrgMember)
-	p("DELETE /api/org/members/{userId}", h.removeOrgMember)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/account/export", Summary: "Export Org Data", Tags: []string{"Account"}}, h.exportAccount)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/account/data", Summary: "Purge Org Data", Tags: []string{"Account"}}, h.purgeAccount)
 
-	// Data portability (GDPR/CCPA): export everything, or destroy it.
-	p("GET /api/account/export", h.exportAccount)
-	p("DELETE /api/account/data", h.purgeAccount)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/logout-all", Summary: "Logout All Sessions", Tags: []string{"Sessions"}}, h.logoutAll)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/sessions", Summary: "List Active Sessions", Tags: []string{"Sessions"}}, h.listSessions)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/auth/sessions/{id}", Summary: "Revoke Session", Tags: []string{"Sessions"}}, h.revokeSession)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/2fa/status", Summary: "Get 2FA Status", Tags: []string{"2FA"}}, h.twoFAStatus)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/2fa/setup", Summary: "Setup 2FA", Tags: []string{"2FA"}}, h.setup2FA)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/2fa/enable", Summary: "Enable 2FA", Tags: []string{"2FA"}}, h.enable2FA)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/2fa/disable", Summary: "Disable 2FA", Tags: []string{"2FA"}}, h.disable2FA)
 
-	// Operator account security: session revocation + TOTP 2FA.
-	p("POST /api/auth/logout-all", h.logoutAll)
-	p("GET /api/auth/sessions", h.listSessions)
-	p("DELETE /api/auth/sessions/{id}", h.revokeSession)
-	p("GET /api/auth/2fa/status", h.twoFAStatus)
-	p("POST /api/auth/2fa/setup", h.setup2FA)
-	p("POST /api/auth/2fa/enable", h.enable2FA)
-	p("POST /api/auth/2fa/disable", h.disable2FA)
-
-	// Menu and User Settings
-	p("GET /api/menus", h.listMenus)
-	p("GET /api/plugins", h.listPlugins)
-	p("PUT /api/plugins/{name}", h.updatePlugin)
-	p("GET /api/user/settings", h.getUserSettings)
-	p("PUT /api/user/settings", h.updateUserSettings)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/menus", Summary: "List Menu Toggles", Tags: []string{"UI Settings"}}, h.listMenus)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/plugins", Summary: "List Plugins", Tags: []string{"UI Settings"}}, h.listPlugins)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/plugins/{name}", Summary: "Toggle Plugin", Tags: []string{"UI Settings"}}, h.updatePlugin)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/user/settings", Summary: "Get User Settings", Tags: []string{"UI Settings"}}, h.getUserSettings)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/user/settings", Summary: "Update User Settings", Tags: []string{"UI Settings"}}, h.updateUserSettings)
 
 	// URL rewriting for API versioning (/api/v1/xxx -> /api/xxx)
 	mux.HandleFunc("/api/v1/", func(w http.ResponseWriter, r *http.Request) {

@@ -1,23 +1,48 @@
 package api
 
 import (
-	"net/http"
+	"context"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
 
+type OverviewInput struct {
+	Ctx        huma.Context `hidden:"true"`
+	IncludeBot bool         `query:"includeBot"`
+}
+
+func (i *OverviewInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type OverviewOutput struct {
+	Body map[string]any
+}
+
 // overview returns aggregate dashboard statistics for the home page.
 // Query param: includeBot=true — when present, bot clicks are counted alongside
 // human clicks so the caller can compare bot vs human traffic.
-func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*OverviewOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
 	go h.auth.TouchSession(r)
 	now := time.Now()
 	since30 := now.AddDate(0, 0, -30)
 	since7 := now.AddDate(0, 0, -7)
 	org := h.orgID(r)
-	includeBot := r.URL.Query().Get("includeBot") == "true"
+	includeBot := input.IncludeBot
 
 	// botFilter applies is_bot=false unless the caller explicitly wants bot traffic.
 	botFilter := func(q *gorm.DB) *gorm.DB {
@@ -128,27 +153,30 @@ func (h *Handler) overview(w http.ResponseWriter, r *http.Request) {
 		return n
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"links":        count(&models.Link{}),
-		"activeLinks":  count(&models.Link{}, "archived = ? AND enabled = ?", false, true),
-		"domains":      count(&models.Domain{}),
-		"linkDomains":  count(&models.Domain{}, "for_link = ?", true),
-		"mailDomains":  count(&models.Domain{}, "for_mail = ?", true),
-		"mailboxes":    count(&models.Mailbox{}),
-		"emails":       emailCount(),
-		"unread":       emailCount("read = ?", false),
-		"tokens":       count(&models.Token{}),
-		"totalClicks":  totalClicks,
-		"clicks7d":     clickCount("created_at >= ?", since7),
-		"clicks30d":    clickCount("created_at >= ?", since30),
-		"botClicks7d":  botCount("created_at >= ?", since7),
-		"botClicks30d": botCount("created_at >= ?", since30),
-		"series":       series,
-		"topLinks":     topLinks,
-		"devices":      top("device"),
-		"countries":    top("country"),
-		"cities":       top("city"),
-		"recentEmails": recent,
-		"includeBot":   includeBot,
-	})
+	out := &OverviewOutput{
+		Body: map[string]any{
+			"links":        count(&models.Link{}),
+			"activeLinks":  count(&models.Link{}, "archived = ? AND enabled = ?", false, true),
+			"domains":      count(&models.Domain{}),
+			"linkDomains":  count(&models.Domain{}, "for_link = ?", true),
+			"mailDomains":  count(&models.Domain{}, "for_mail = ?", true),
+			"mailboxes":    count(&models.Mailbox{}),
+			"emails":       emailCount(),
+			"unread":       emailCount("read = ?", false),
+			"tokens":       count(&models.Token{}),
+			"totalClicks":  totalClicks,
+			"clicks7d":     clickCount("created_at >= ?", since7),
+			"clicks30d":    clickCount("created_at >= ?", since30),
+			"botClicks7d":  botCount("created_at >= ?", since7),
+			"botClicks30d": botCount("created_at >= ?", since30),
+			"series":       series,
+			"topLinks":     topLinks,
+			"devices":      top("device"),
+			"countries":    top("country"),
+			"cities":       top("city"),
+			"recentEmails": recent,
+			"includeBot":   includeBot,
+		},
+	}
+	return out, nil
 }

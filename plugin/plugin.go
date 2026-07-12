@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/octarq-org/octarq/llmprovider"
 	"gorm.io/gorm"
@@ -45,6 +46,8 @@ type EmailEvent struct {
 // It exposes only stable, external types so plugins in a separate module never
 // reach into octarq's internal packages.
 type Context struct {
+	// Huma is the shared Huma API instance.
+	Huma huma.API
 	// DB is the shared GORM handle. By the time Mount is called the plugin's
 	// own Models() have already been migrated.
 	DB *gorm.DB
