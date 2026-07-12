@@ -27,6 +27,23 @@ export function PluginUnavailable() {
   );
 }
 
+// Neutral "you don't have permission" note — the 403 sibling of
+// PluginUnavailable. Rendered by ProGate when the backend answers 403 or when
+// a route's advisory requiredRole isn't met by the current user.
+export function AccessDenied() {
+  const { t } = useTranslation();
+  return (
+    <ScreenWrap>
+      <GlassCard className="mx-auto mt-12 flex max-w-md flex-col items-center gap-3 px-6 py-14 text-center">
+        <PageHeader
+          title={t("uiCommon.accessDeniedTitle")}
+          description={t("uiCommon.accessDeniedBody")}
+        />
+      </GlassCard>
+    </ScreenWrap>
+  );
+}
+
 // The composed plugin routes, as an array of <Route> for <Routes>. Empty when
 // the registry is empty (OSS build) — then every such path falls to App's
 // catch-all neutral fallback. Every element is wrapped in ProGate — the

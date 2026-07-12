@@ -387,6 +387,10 @@ type MeOutput struct {
 	Body struct {
 		Username string `json:"username"`
 		OrgID    uint   `json:"orgId"`
+		// Role the user holds in the active org: "owner" | "admin" | "member",
+		// or "" when no membership row exists. Advisory for the frontend
+		// (menu/route gating UX); handlers keep enforcing via callerOrgRole.
+		Role string `json:"role"`
 	}
 }
 
@@ -407,6 +411,7 @@ func (h *Handler) me(ctx context.Context, input *MeInput) (*MeOutput, error) {
 	out := &MeOutput{}
 	out.Body.Username = user.Email
 	out.Body.OrgID = h.orgID(r)
+	out.Body.Role = h.callerOrgRole(r)
 	return out, nil
 }
 

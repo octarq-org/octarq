@@ -11,6 +11,7 @@ import InviteAcceptPage from "./pages/InviteAccept";
 import { Modal, Button } from "./ui";
 import { useTranslation } from "./i18n";
 import { Area, AreaId, STATIC_AREAS, SETTINGS_AREA, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
+import { RoleProvider, roleSatisfies } from "./shell/role";
 import { TopBar } from "./shell/TopBar";
 import { CommandPalette } from "./shell/CommandPalette";
 import { AreaPanel } from "./shell/AreaPanel";
@@ -25,11 +26,14 @@ export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [user, setUser] = useState("");
   const [activeOrgId, setActiveOrgId] = useState<number>(0);
+  // Org role from /api/auth/me ("owner" | "admin" | "member") — advisory input
+  // for requiredRole gating (sidebar filter + ProGate pre-check). UX only.
+  const [role, setRole] = useState<string | undefined>(undefined);
   const appName = useAppName();
 
   useEffect(() => {
     api.me()
-      .then((m) => { setUser(m.username); setActiveOrgId(m.orgId); setAuthed(true); })
+      .then((m) => { setUser(m.username); setActiveOrgId(m.orgId); setRole(m.role); setAuthed(true); })
       .catch(() => setAuthed(false));
   }, []);
 
@@ -50,13 +54,18 @@ export default function App() {
   } else if (!authed) {
     content = (
       <Login
-        onLogin={(u, orgId) => { setUser(u); setActiveOrgId(orgId); setAuthed(true); }}
+        onLogin={(u, orgId) => {
+          setUser(u); setActiveOrgId(orgId); setAuthed(true);
+          // The login response carries no role — refetch me for it.
+          api.me().then((m) => setRole(m.role)).catch(() => {});
+        }}
       />
     );
   } else {
     content = (
       <Shell
         user={user}
+        role={role}
         activeOrgId={activeOrgId}
         setActiveOrgId={setActiveOrgId}
         onLogout={async () => {
@@ -85,7 +94,17 @@ export default function App() {
 // group whose label matches its category. Called with empty backend data for
 // the initial synchronous render (uiMenus() is populated at module eval, so
 // core items never flash in and out), then again once the API answers.
-function mergeAreas(backendMenus: MenuItem[], plugins: PluginInfo[]): Area[] {
+// `role`/`isInstanceAdmin` drive the requiredRole filter: menu entries whose
+// advisory requiredRole the current user doesn't meet are dropped here — the
+// single place — so the sidebar AND the command palette (both fed by the
+// resulting areas) agree. Ranking lives in roleSatisfies (shell/role.tsx),
+// shared with ProGate's route pre-check.
+function mergeAreas(
+  backendMenus: MenuItem[],
+  plugins: PluginInfo[],
+  role: string | undefined,
+  isInstanceAdmin: boolean,
+): Area[] {
   // On duplicate paths the frontend plugin entry wins: the OSS backend also
   // announces core paths (/links, /mail, …) in api.menus() for API consumers,
   // but the composed core plugin carries the richer icon/category placement.
@@ -115,7 +134,12 @@ function mergeAreas(backendMenus: MenuItem[], plugins: PluginInfo[]): Area[] {
   const baseAreas = [...STATIC_AREAS, ...pluginAreas.map(pluginAreaToArea)];
 
   const staticPaths = new Set(baseAreas.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.path))));
-  const extras = menus.filter((m) => !staticPaths.has(m.path) && !disabledPaths.has(m.path));
+  const extras = menus.filter(
+    (m) =>
+      !staticPaths.has(m.path) &&
+      !disabledPaths.has(m.path) &&
+      roleSatisfies(m.requiredRole, role, isInstanceAdmin),
+  );
 
   const nextAreas = baseAreas.map((staticArea) => {
     // Deep copy groups to avoid mutating global STATIC_AREAS; drop items
@@ -177,11 +201,13 @@ function mergeAreas(backendMenus: MenuItem[], plugins: PluginInfo[]): Area[] {
 
 function Shell({
   user,
+  role,
   activeOrgId,
   setActiveOrgId,
   onLogout,
 }: {
   user: string;
+  role?: string;
   activeOrgId: number;
   setActiveOrgId: (id: number) => void;
   onLogout: () => void;
@@ -190,7 +216,12 @@ function Shell({
   const navigate = useNavigate();
   const { t } = useTranslation();
 
-  const [areas, setAreas] = useState<Area[]>(() => mergeAreas([], []));
+  // Raw nav inputs from the API; `areas` is DERIVED from them (plus the
+  // role/admin flags) so a late-arriving isInstanceAdmin re-runs the same
+  // mergeAreas pipeline instead of a second filtering pass.
+  const [backendNav, setBackendNav] = useState<{ menus: MenuItem[]; plugins: PluginInfo[] }>(
+    { menus: [], plugins: [] },
+  );
   const [orgs, setOrgs]   = useState<Org[]>([]);
   const [creatingOrg, setCreatingOrg] = useState(false);
   const [newOrgName, setNewOrgName]   = useState("");
@@ -223,6 +254,13 @@ function Shell({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const areas = useMemo(
+    () => mergeAreas(backendNav.menus, backendNav.plugins, role, isInstanceAdmin),
+    [backendNav, role, isInstanceAdmin],
+  );
+  // The same role inputs, for ProGate's per-route requiredRole pre-check.
+  const roleCtx = useMemo(() => ({ role, isInstanceAdmin }), [role, isInstanceAdmin]);
+
   const settingsActive = location.pathname.startsWith("/settings") || location.pathname.startsWith("/personal");
   // Resolve against the merged runtime areas (static + plugin areas + dynamic
   // menu items) so paths owned by plugin-contributed areas highlight correctly.
@@ -236,7 +274,7 @@ function Shell({
     Promise.all([api.menus().catch(() => []), api.plugins().catch(() => [])])
       .then(([backendMenus, plugins]) => {
         setIsProBuild(plugins.length > 0);
-        setAreas(mergeAreas(backendMenus, plugins));
+        setBackendNav({ menus: backendMenus, plugins });
       })
       .catch(() => {});
   }, [activeOrgId]);
@@ -267,6 +305,7 @@ function Shell({
   };
 
   return (
+    <RoleProvider value={roleCtx}>
     <div className="octarq-aurora flex h-screen w-full flex-col overflow-hidden text-white">
       <TopBar
         areas={areas}
@@ -362,5 +401,6 @@ function Shell({
         </Modal>
       )}
     </div>
+    </RoleProvider>
   );
 }

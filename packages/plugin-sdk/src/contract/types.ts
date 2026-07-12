@@ -21,10 +21,16 @@ export type LazyPage = LazyExoticComponent<ComponentType<Record<string, never>>>
 // route as "elite"); actual enforcement stays server-side — the backend answers
 // 402 and the page/boundary degrades to the upsell. There is deliberately no
 // client-side license check.
+// `requiredRole` is the same kind of advisory metadata for role gating: the
+// minimum org role needed to use the page (host apps rank e.g.
+// member < admin < owner). The host's route boundary may pre-render an
+// access-denied state instead of mounting the page, and hide matching menu
+// entries — pure UX; the server stays authoritative and answers 403.
 export interface UIRoute {
   path: string;
   Component: LazyPage;
   requiredTier?: string;
+  requiredRole?: string;
 }
 
 // A dashboard widget contributed by a plugin. `slot` names an extension point
@@ -53,13 +59,16 @@ export interface UIArea {
 // `MenuItem` (api.MenuItem) so plugin menus flow through the exact same
 // area-placement logic (`areaForCategory`) as dynamic backend menus — no
 // parallel mechanism. `category` picks the top-level area; `icon` is an emoji
-// or icon key rendered by the sidebar.
+// or icon key rendered by the sidebar. `requiredRole` mirrors
+// UIRoute.requiredRole: advisory minimum org role — the host hides the entry
+// from navigation for users below it (UX only, not security).
 export interface PluginMenuItem {
   id: string;
   label: string;
   path: string;
   icon: string;
   category: string;
+  requiredRole?: string;
 }
 
 // A pair of per-language namespace objects a plugin injects into i18n. The key

@@ -580,7 +580,7 @@ export const api = {
 
   // auth
   authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean; appName: string }>("GET", "/api/auth/config"),
-  me: () => req<{ username: string; orgId: number }>("GET", "/api/auth/me"),
+  me: () => req<{ username: string; orgId: number; role?: string }>("GET", "/api/auth/me"),
   register: (email: string, password: string) =>
     req<{ ok: boolean; username: string }>("POST", "/api/auth/register", { email, password }),
   login: (username: string, password: string) =>
@@ -806,6 +806,10 @@ export interface MenuItem {
   path: string;
   icon: string;
   category: string;
+  // Advisory minimum org role (member < admin < owner) — items the current
+  // user doesn't meet are hidden from the sidebar/command palette. Mirrors
+  // PluginMenuItem.requiredRole; enforcement stays server-side.
+  requiredRole?: string;
 }
 
 export interface PluginInfo {

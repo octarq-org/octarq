@@ -4,6 +4,13 @@
 //
 //   402 (unlicensed)          → the upsell (the plugin's lockedFallback, or the
 //                               SDK's LockedFeature as the default)
+//   403 (forbidden)           → the neutral AccessDenied note ("you lack
+//                               permission") — also pre-rendered, without
+//                               mounting the page, when the route declares a
+//                               requiredRole the current user doesn't meet
+//                               (member < admin < owner; instance admin
+//                               bypasses). UX only — the server stays
+//                               authoritative.
 //   404 (not in this build)   → the neutral PluginUnavailable note
 //   chunk-load / render crash → treated as 404 (the page couldn't be composed)
 //
@@ -24,7 +31,8 @@ import {
 } from "react";
 import { LockedFeature } from "@octarq-org/plugin-sdk";
 import type { UIPlugin, UIRoute } from "@octarq-org/plugin-sdk";
-import { PluginUnavailable } from "./PluginRoutes";
+import { AccessDenied, PluginUnavailable } from "./PluginRoutes";
+import { roleSatisfies, useCurrentRole } from "../shell/role";
 
 export interface ProGateContextValue {
   // Degrade the current route to the standard gated state for `status`
@@ -46,6 +54,9 @@ export function useProGate(): ProGateContextValue {
 // The standard degraded rendering, shared by the declarative (`degrade`) and
 // exceptional (error boundary) paths.
 function GateFallback({ status, plugin }: { status: number; plugin: UIPlugin }) {
+  // 403 is a role problem, not a licensing/build problem — it always renders
+  // the neutral access-denied note (lockedFallback is the 402/404 seam).
+  if (status === 403) return <AccessDenied />;
   const Fallback = plugin.lockedFallback;
   if (Fallback) return <Fallback status={status} />;
   // 402 without a plugin-supplied fallback still upsells — never a raw error.
@@ -83,11 +94,19 @@ export function ProGate({
   children: ReactNode;
 }) {
   const [status, setStatus] = useState<number | null>(null);
+  const { role, isInstanceAdmin } = useCurrentRole();
   const ctx = useMemo<ProGateContextValue>(
     () => ({ degrade: setStatus, requiredTier: route.requiredTier }),
     [route.requiredTier],
   );
   if (status !== null) return <GateFallback status={status} plugin={plugin} />;
+  // Declarative pre-check: a route announcing a requiredRole the current user
+  // doesn't meet renders access-denied WITHOUT mounting the page. Same ranking
+  // as the sidebar filter (roleSatisfies) — and still just UX; the backend's
+  // own 403 lands in the exact same fallback via degrade()/the boundary.
+  if (!roleSatisfies(route.requiredRole, role, isInstanceAdmin)) {
+    return <GateFallback status={403} plugin={plugin} />;
+  }
   return (
     <ProGateContext.Provider value={ctx}>
       <GateBoundary plugin={plugin}>{children}</GateBoundary>
