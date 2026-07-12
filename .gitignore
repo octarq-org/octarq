@@ -22,6 +22,9 @@ examples/*/web/node_modules
 # geoip
 *.mmdb
 
+# manifest-plugin install snapshots (web/scripts/install-manifest-plugins.mjs)
+*.manifest-bak
+
 # air (hot-reload tmp)
 .air/
 

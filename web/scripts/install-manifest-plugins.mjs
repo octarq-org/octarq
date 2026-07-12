@@ -24,6 +24,26 @@ import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { resolveEntries, parseEntry, WEB_ROOT } from "../plugins-manifest-core.mjs";
 
+const pkg = join(WEB_ROOT, "package.json");
+const lock = join(WEB_ROOT, "pnpm-lock.yaml");
+const bak = (f) => `${f}.manifest-bak`;
+
+// Self-heal from a previous crashed run: if the process was killed mid-install
+// (SIGKILL, OOM, power loss) the finally-block restore never ran, leaving a
+// stale .manifest-bak next to a dirty live file. Restore the snapshot over the
+// live file before doing anything else, so this run starts from the committed
+// state instead of compounding on a half-mutated package.json/lockfile.
+for (const f of [pkg, lock]) {
+  const b = bak(f);
+  if (existsSync(b)) {
+    console.warn(
+      `[octarq-plugins] stale ${b} found (previous run was interrupted) — restoring it over ${f}`,
+    );
+    copyFileSync(b, f);
+    rmSync(b);
+  }
+}
+
 function installed(name) {
   return existsSync(join(WEB_ROOT, "node_modules", ...name.split("/"), "package.json"));
 }
@@ -43,10 +63,7 @@ if (specs.length === 0) {
 
 console.log(`[octarq-plugins] installing manifest plugins: ${specs.join(", ")}`);
 
-const pkg = join(WEB_ROOT, "package.json");
-const lock = join(WEB_ROOT, "pnpm-lock.yaml");
 const files = [pkg, lock].filter((f) => existsSync(f));
-const bak = (f) => `${f}.manifest-bak`;
 
 for (const f of files) copyFileSync(f, bak(f));
 let failed;
