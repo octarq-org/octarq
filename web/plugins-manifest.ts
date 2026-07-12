@@ -8,67 +8,46 @@
 // build ships is now data, not code, so an edition is chosen by pointing at a
 // different manifest instead of editing the source.
 //
-// The generated module is the frontend analog of a octarq-pro binary calling
+// The manifest is the single source of truth: packages it lists that aren't
+// already in node_modules are fetched by scripts/install-manifest-plugins.mjs
+// (run before the Vite build), so a build can compose third-party plugins by
+// manifest alone — without adding them to this package's package.json. A package
+// that still isn't resolvable here (e.g. a private plugin the build has no token
+// for) is skipped with a warning, mirroring optionalDependencies' "excluded if
+// it can't be installed" degradation; the corresponding page then 404s gracefully.
+//
+// The generated module is the frontend analog of an octarq-pro binary calling
 // `app.App.Use(...)` for each Go plugin — composition still happens at build
 // time, entirely outside the OSS core.
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { Plugin } from "vite";
-
-const WEB_ROOT = dirname(fileURLToPath(import.meta.url));
+import { resolveEntries, parseEntry, WEB_ROOT } from "./plugins-manifest-core.mjs";
 
 const VIRTUAL_ID = "#octarq-plugins";
 const RESOLVED_ID = "\0octarq-plugins";
 
-// A manifest entry is either a bare module specifier (the package's *default*
-// export is the UIPlugin, or an array of them) or an object naming a specific
-// export. The object form is mainly a migration bridge: it lets a build compose
-// a plugin whose source still lives locally (`from: "./src/plugins/vps"`,
-// resolved relative to the web root) or a package that only has a named export,
-// before it becomes a standalone default-exporting package.
-type ManifestEntry = string | { from: string; import?: string };
-type Manifest = { plugins?: ManifestEntry[] };
-
-// Resolve the active manifest, highest precedence first:
-//   1. OCTARQ_PLUGINS          — an inline JSON array of entries (or a simple
-//                                comma-separated list of package specifiers).
-//                                For dynamic CI injection with no file to edit.
-//   2. OCTARQ_PLUGINS_MANIFEST — a path to a JSON manifest file. For a repo that
-//                                ships its own edition (octarq-pro points here).
-//   3. web/octarq.plugins.json — the committed default (the OSS edition: it
-//                                lists the example plugin).
-function resolveEntries(): ManifestEntry[] {
-  const inline = process.env.OCTARQ_PLUGINS?.trim();
-  if (inline) {
-    if (inline.startsWith("[")) return JSON.parse(inline) as ManifestEntry[];
-    return inline.split(",").map((s) => s.trim()).filter(Boolean);
-  }
-  const file = process.env.OCTARQ_PLUGINS_MANIFEST
-    ? resolve(process.env.OCTARQ_PLUGINS_MANIFEST)
-    : resolve(WEB_ROOT, "octarq.plugins.json");
-  const parsed = JSON.parse(readFileSync(file, "utf8")) as Manifest;
-  return parsed.plugins ?? [];
+// Is a bare package name present in node_modules? Checks for the package's
+// package.json rather than require.resolve so packages with an `exports` map
+// (which can make require.resolve throw even when installed) aren't misjudged.
+function installed(name: string): boolean {
+  return existsSync(join(WEB_ROOT, "node_modules", ...name.split("/"), "package.json"));
 }
 
-// Resolve a specifier: relative paths (a local, not-yet-packaged plugin) are
-// made absolute against the web root so they resolve from the virtual module,
-// which has no real path of its own; package specifiers pass through untouched.
-function resolveSpec(spec: string): string {
-  return spec.startsWith(".") ? resolve(WEB_ROOT, spec) : spec;
-}
-
-function generate(entries: ManifestEntry[]): string {
+function generate(entries: ReturnType<typeof resolveEntries>): string {
   const lines = [
     "// AUTO-GENERATED from the plugin manifest — do not edit.",
     'import { registerUIPlugin } from "@octarq-org/plugin-sdk";',
   ];
   const locals: string[] = [];
   entries.forEach((entry, i) => {
-    const spec = typeof entry === "string" ? entry : entry.from;
-    const named = typeof entry === "string" ? undefined : entry.import;
+    const { isLocal, importSpec, named } = parseEntry(entry);
+    if (!isLocal && !installed(importSpec)) {
+      console.warn(`[octarq-plugins] skipping "${importSpec}" — not installed; its page will 404-degrade`);
+      return;
+    }
     const local = `__p${i}`;
-    const from = JSON.stringify(resolveSpec(spec));
+    const from = JSON.stringify(importSpec);
     lines.push(named ? `import { ${named} as ${local} } from ${from};` : `import ${local} from ${from};`);
     locals.push(local);
   });

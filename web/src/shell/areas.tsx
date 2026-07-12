@@ -72,7 +72,7 @@ export const STATIC_AREAS: Area[] = [
         items: [
           { id: "mail",    label: "Mail",     Icon: Mail,   path: "/mail" },
           // AI Inbox is a Pro plugin now — its menu entry is injected dynamically
-          // (plugins/inbox-ai, category "Messaging") only in a composed build.
+          // (@octarq-org/plugin-ai, category "Messaging") only in a composed build.
         ],
       },
     ],
@@ -87,11 +87,11 @@ export const STATIC_AREAS: Area[] = [
     // composed build; in the OSS build all groups are empty and the whole
     // Commerce area is dropped by the empty-area filter in App.tsx.
     groups: [
-      // Storefront + Licenses → plugins/storefront, plugins/licenses (category "Sales").
+      // Storefront + Licenses → @octarq-org/plugin-storefront, @octarq-org/plugin-issuer (category "Sales").
       { label: "Sales", items: [] },
-      // Billing → plugins/billing (category "Billing").
+      // Billing → @octarq-org/plugin-billing (category "Billing").
       { label: "Billing", items: [] },
-      // Bookkeeping → plugins/finance (category "Finance").
+      // Bookkeeping → @octarq-org/plugin-finance (category "Finance").
       { label: "Finance", items: [] },
     ],
   },
