@@ -52,9 +52,16 @@ type User struct {
 	// LastTOTPCode prevents replay attacks within the 30s window.
 	LastTOTPCode string `gorm:"size:32" json:"-"`
 	// RecoveryCodes is a JSON array of bcrypt-hashed one-time recovery codes.
-	RecoveryCodes string    `gorm:"type:text" json:"-"`
-	CreatedAt     time.Time `json:"createdAt"`
-	UpdatedAt     time.Time `json:"updatedAt"`
+	RecoveryCodes string `gorm:"type:text" json:"-"`
+	// IsInstanceAdmin marks the single bootstrap operator account (the user
+	// created from OCTARQ_ADMIN_*). It is the stable identity that grants
+	// instance-level administrative privileges (/api/instance-settings), set
+	// deterministically at first admin login. It must NEVER be derived from
+	// org_id ordering: on a fresh instance with registration/OAuth enabled an
+	// attacker could otherwise register before the operator and inherit org 1.
+	IsInstanceAdmin bool      `gorm:"not null;default:0" json:"-"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
 // Session is a stateful login record. The random Token is stored in the

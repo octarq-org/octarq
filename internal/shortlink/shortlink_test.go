@@ -42,6 +42,10 @@ func TestAnonymizeIP(t *testing.T) {
 }
 
 func TestClientIPPrecedence(t *testing.T) {
+	// Precedence only applies when the proxy is trusted.
+	SetTrustProxy(true)
+	defer SetTrustProxy(false)
+
 	// X-Forwarded-For wins, taking the first hop.
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.RemoteAddr = "10.0.0.9:1234"
@@ -64,6 +68,21 @@ func TestClientIPPrecedence(t *testing.T) {
 	r.RemoteAddr = "10.0.0.9:1234"
 	if got := clientIP(r); got != "10.0.0.9" {
 		t.Errorf("RemoteAddr fallback: got %q want 10.0.0.9", got)
+	}
+}
+
+// TestClientIPIgnoresProxyHeadersWhenUntrusted asserts that when trustProxy is
+// off (the default), spoofable X-Forwarded-For / X-Real-IP headers are ignored
+// and only RemoteAddr is used — a client can't forge its analytics attribution.
+func TestClientIPIgnoresProxyHeadersWhenUntrusted(t *testing.T) {
+	SetTrustProxy(false) // default, but be explicit
+
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.RemoteAddr = "10.0.0.9:1234"
+	r.Header.Set("X-Forwarded-For", "1.2.3.4, 5.6.7.8")
+	r.Header.Set("X-Real-IP", "9.9.9.9")
+	if got := clientIP(r); got != "10.0.0.9" {
+		t.Errorf("untrusted proxy: got %q want 10.0.0.9 (headers must be ignored)", got)
 	}
 }
 

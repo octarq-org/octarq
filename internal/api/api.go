@@ -171,6 +171,19 @@ func (h *Handler) Routes() *http.ServeMux {
 
 	// Early authentication middleware to avoid validation failures returning 400/422 for unauthenticated requests.
 	api.UseMiddleware(func(ctx huma.Context, next func(huma.Context)) {
+		// A plugin may mark a SPECIFIC operation as public by setting
+		// Metadata["public"] = true on its huma.Operation. Such a handler
+		// authenticates its own callers (buyer-session cookie, or is
+		// intentionally public), so the dashboard-auth gate is skipped for it —
+		// and ONLY for it. This is exact per-operation opt-in: it can never
+		// widen to sibling routes the way a path-prefix allowlist would.
+		// OPERATOR routes must NEVER be marked public.
+		if op := ctx.Operation(); op != nil {
+			if v, _ := op.Metadata["public"].(bool); v {
+				next(ctx)
+				return
+			}
+		}
 		path := ctx.URL().Path
 		if strings.HasPrefix(path, "/api/") &&
 			!strings.HasPrefix(path, "/api/auth/login") &&

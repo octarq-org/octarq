@@ -245,12 +245,26 @@ func (s *Service) record(r *http.Request, orgID uint, slug string, linkID uint, 
 	}()
 }
 
+// trustProxy gates whether proxy-supplied client-IP headers are honoured when
+// attributing analytics. Set once from config via SetTrustProxy; when false,
+// X-Forwarded-For / X-Real-IP are ignored so a client can't spoof its IP (and
+// thus its geo/attribution) by sending those headers directly.
+var trustProxy bool
+
+// SetTrustProxy configures whether proxy-supplied client-IP headers are trusted.
+// Call once at startup from config, mirroring auth.New / server construction.
+func SetTrustProxy(v bool) { trustProxy = v }
+
 func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.Split(xff, ",")[0])
-	}
-	if rip := r.Header.Get("X-Real-IP"); rip != "" {
-		return rip
+	if trustProxy {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			if first := strings.TrimSpace(strings.Split(xff, ",")[0]); first != "" {
+				return first
+			}
+		}
+		if rip := strings.TrimSpace(r.Header.Get("X-Real-IP")); rip != "" {
+			return rip
+		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {

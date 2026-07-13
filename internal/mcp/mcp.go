@@ -36,6 +36,10 @@ const version = "0.1.0"
 type server struct {
 	gdb   *gorm.DB
 	orgID uint // tenant scope for the tools (defaults to 1 for Stdio CLI, dynamically set via HTTP tokens for remote SSE)
+	// rawSQLEnabled records whether the general-purpose query_db_readonly tool
+	// was actually registered on this instance. It exists so the networked-
+	// transport invariant (raw SQL is never exposed over HTTP/SSE) is testable.
+	rawSQLEnabled bool
 }
 
 // Run loads configuration, opens the database read-only-style, builds the MCP
@@ -54,7 +58,25 @@ func Run(ctx context.Context) error {
 // caller is one tenant among many (orgID comes from their API token), and raw
 // SQL cannot be safely scoped to a single owner_id — so it is never registered
 // there. The tenant-scoped convenience tools remain available on every transport.
+// NewNetworkedServerInstance builds an MCP server for a networked transport
+// (HTTP/SSE), where the caller is one tenant among many (orgID comes from their
+// API token) and raw SQL cannot be safely scoped to a single owner_id. It hard-
+// wires allowRawSQL=false so the raw-SQL tool can NEVER be exposed over the
+// network: the invariant is enforced in code, not by convention at the call
+// site. All networked callers MUST use this constructor.
+func NewNetworkedServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin) *mcp.Server {
+	return NewServerInstance(gdb, orgID, plugins, false)
+}
+
 func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, allowRawSQL bool) *mcp.Server {
+	srv, _ := buildServerInstance(gdb, orgID, plugins, allowRawSQL)
+	return srv
+}
+
+// buildServerInstance is the single chokepoint that constructs an MCP server. It
+// returns the internal *server so the raw-SQL invariant can be asserted in
+// tests. rawSQLEnabled on the returned *server reflects what was actually wired.
+func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, allowRawSQL bool) (*mcp.Server, *server) {
 	s := &server{gdb: gdb, orgID: orgID}
 
 	impl := &mcp.Implementation{Name: "octarq", Version: version}
@@ -72,7 +94,7 @@ func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, allowR
 			mp.RegisterMCP(srv)
 		}
 	}
-	return srv
+	return srv, s
 }
 
 func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
@@ -115,14 +137,22 @@ func (s *server) registerTools(srv *mcp.Server, allowRawSQL bool) {
 		Description: "List managed domains and what each is used for (mail / links).",
 	}, s.listDomains)
 
-	mcp.AddTool(srv, &mcp.Tool{
-		Name: "query_db_readonly",
-		Description: "Run an arbitrary read-only SQL SELECT against octarq's database and return rows as JSON. " +
-			"Use this to compute any metric the dedicated tools don't cover (click trends, spend, mail volume…). " +
-			"Only a single SELECT/WITH query is allowed; writes, PRAGMA and ATTACH are rejected; results are row-capped " +
-			"and sensitive columns (password hashes, token hashes, encrypted credentials, raw email bodies) are redacted. " +
-			"Tables include: links, link_events, mailboxes, emails, domains, provider_accounts, tokens, notification_channels.",
-	}, s.queryDBReadonly)
+	// The general-purpose raw-SQL tool is registered ONLY on the single-operator
+	// stdio transport (allowRawSQL). Over a networked transport the caller is one
+	// tenant among many and raw SQL cannot be scoped to a single owner_id, so it
+	// is withheld. This is a hard invariant enforced here in code; the networked
+	// constructor (NewNetworkedServerInstance) can never reach this branch.
+	if allowRawSQL {
+		mcp.AddTool(srv, &mcp.Tool{
+			Name: "query_db_readonly",
+			Description: "Run an arbitrary read-only SQL SELECT against octarq's database and return rows as JSON. " +
+				"Use this to compute any metric the dedicated tools don't cover (click trends, spend, mail volume…). " +
+				"Only a single SELECT/WITH query is allowed; writes, PRAGMA and ATTACH are rejected; results are row-capped " +
+				"and sensitive columns (password hashes, token hashes, encrypted credentials, raw email bodies) are redacted. " +
+				"Tables include: links, link_events, mailboxes, emails, domains, provider_accounts, tokens, notification_channels.",
+		}, s.queryDBReadonly)
+		s.rawSQLEnabled = true
+	}
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "export_data",

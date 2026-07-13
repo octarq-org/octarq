@@ -275,20 +275,28 @@ func (h *Handler) getInstanceSettings(ctx context.Context, input *GetInstanceSet
 	return out, nil
 }
 
-// isInstanceAdmin reports whether the current user is an owner of the bootstrap org (org 1),
-// and thus holds instance-level administrative privileges.
+// isInstanceAdmin reports whether the current user is the bootstrap operator
+// account (the user created from OCTARQ_ADMIN_*), and thus holds instance-level
+// administrative privileges (/api/instance-settings).
+//
+// Privilege is bound to the stable User.IsInstanceAdmin flag — NOT to org_id
+// ordering. The old "owner of org 1" check was a privilege-assignment vuln: on
+// a fresh instance with registration/OAuth enabled, whoever registers first
+// gets org 1 and would inherit instance admin. The flag is set deterministically
+// for the configured admin account at first login (bootstrapUserID), so login
+// order can never grant it to an attacker.
 func (h *Handler) isInstanceAdmin(r *http.Request) bool {
 	uid := h.auth.UserID(r)
 	if uid == 0 {
 		return false
 	}
-	var role string
-	if err := h.db.Model(&models.OrgMember{}).
-		Where("org_id = ? AND user_id = ?", 1, uid).
-		Pluck("role", &role).Error; err != nil {
+	var isAdmin bool
+	if err := h.db.Model(&models.User{}).
+		Where("id = ?", uid).
+		Pluck("is_instance_admin", &isAdmin).Error; err != nil {
 		return false
 	}
-	return role == "owner"
+	return isAdmin
 }
 
 type UpdateSettingsInput struct {

@@ -390,6 +390,7 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 
+	shortlink.SetTrustProxy(a.cfg.TrustProxy)
 	short := shortlink.New(a.gdb, a.geo).WithCache(a.auth.Cache())
 	webFS := a.webFS
 	if webFS == nil {

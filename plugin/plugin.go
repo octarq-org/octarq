@@ -102,6 +102,24 @@ type EmailEvent struct {
 // reach into octarq's internal packages.
 type Context struct {
 	// Huma is the shared Huma API instance.
+	//
+	// Public (self-authenticated) routes: the core dashboard-auth middleware
+	// 401s every /api/ operation that isn't in its hardcoded core allowlist.
+	// A plugin route that must be reachable without a dashboard session — a
+	// buyer-facing endpoint that checks its own buyer-session cookie, or an
+	// intentionally public one — opts out by setting the boolean metadata key
+	// "public" to true on its huma.Operation:
+	//
+	//	huma.Register(ctx.Huma, huma.Operation{
+	//		Method: "POST", Path: "/api/customer/login",
+	//		Metadata: map[string]any{"public": true},
+	//	}, handler)
+	//
+	// The middleware skips ONLY the dashboard-auth check for that exact
+	// operation — such a handler is responsible for authenticating its own
+	// callers. This is exact, per-operation opt-in; it cannot widen to sibling
+	// routes the way a path-prefix allowlist would. OPERATOR routes (anything
+	// acting on operator/tenant-admin data) must NEVER be marked public.
 	Huma huma.API
 	// DB is the shared GORM handle. By the time Mount is called the plugin's
 	// own Models() have already been migrated.

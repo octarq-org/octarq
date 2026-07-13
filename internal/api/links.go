@@ -241,6 +241,31 @@ func normalizeTarget(raw string) (string, bool) {
 	return raw, true
 }
 
+// validateRedirectTargets checks every user-supplied redirect target on a link
+// that is later emitted verbatim in a 302 Location header — the ExpiredURL and
+// each RoutingRule.Target — against normalizeTarget's http(s) scheme allowlist.
+// Unlike the primary Target these are not normalized in place (they may be
+// stored raw), so this rejects javascript:, data:, etc. at write time. An empty
+// ExpiredURL is allowed (it just means "404 when expired"). It normalizes the
+// accepted values in place so a bare host defaults to https like Target does.
+func validateRedirectTargets(l *models.Link) error {
+	if l.ExpiredURL != "" {
+		n, ok := normalizeTarget(strings.TrimSpace(l.ExpiredURL))
+		if !ok {
+			return huma.Error400BadRequest("expiredUrl must be an http(s) URL")
+		}
+		l.ExpiredURL = n
+	}
+	for i := range l.RoutingRules {
+		n, ok := normalizeTarget(strings.TrimSpace(l.RoutingRules[i].Target))
+		if !ok {
+			return huma.Error400BadRequest("routing rule target must be an http(s) URL")
+		}
+		l.RoutingRules[i].Target = n
+	}
+	return nil
+}
+
 type CreateLinkInput struct {
 	Ctx  huma.Context `hidden:"true"`
 	Body linkDTO
@@ -289,6 +314,9 @@ func (h *Handler) createLink(ctx context.Context, input *CreateLinkInput) (*Crea
 		Password: input.Body.Password, Note: input.Body.Note, Title: input.Body.Title, Tags: input.Body.Tags,
 		ExpiresAt: input.Body.ExpiresAt, ExpiredURL: input.Body.ExpiredURL, ClickLimit: input.Body.ClickLimit,
 		Enabled: enabled,
+	}
+	if err := validateRedirectTargets(&l); err != nil {
+		return nil, err
 	}
 	if err := h.db.Create(&l).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
@@ -406,6 +434,9 @@ func (h *Handler) updateLink(ctx context.Context, input *UpdateLinkInput) (*Upda
 	}
 	if input.Body.Enabled != nil {
 		l.Enabled = *input.Body.Enabled
+	}
+	if err := validateRedirectTargets(&l); err != nil {
+		return nil, err
 	}
 	if err := h.db.Save(&l).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")

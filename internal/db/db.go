@@ -95,5 +95,27 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 		}
 	}
 
+	// Data migration: backfill User.IsInstanceAdmin for existing installs.
+	// Instance admin used to be derived from "owner of org 1"; it is now a
+	// stable per-user flag set at admin login (see api.bootstrapUserID). For a
+	// pre-existing deployment whose admin may not log in again immediately, seed
+	// the flag once for the current org-1 owner so it doesn't lose admin. Guard
+	// on "no user already flagged" so this runs exactly once and a fresh install
+	// (where the flag is set the proper way at first login) is never touched.
+	{
+		var flagged int64
+		gdb.Model(&models.User{}).Where("is_instance_admin = ?", true).Count(&flagged)
+		if flagged == 0 {
+			var ownerID uint
+			if err := gdb.Model(&models.OrgMember{}).
+				Where("org_id = ? AND role = ?", 1, "owner").
+				Order("user_id ASC").
+				Limit(1).
+				Pluck("user_id", &ownerID).Error; err == nil && ownerID != 0 {
+				gdb.Model(&models.User{}).Where("id = ?", ownerID).Update("is_instance_admin", true)
+			}
+		}
+	}
+
 	return nil
 }

@@ -166,14 +166,20 @@ func (h *Handler) logoutAll(ctx context.Context, input *LogoutAllInput) (*Logout
 	return out, nil
 }
 
-// bootstrapUserID finds or creates the user for the admin login.
+// bootstrapUserID finds or creates the user for the admin login. This account —
+// keyed on the configured OCTARQ_ADMIN_USER email — is the ONLY instance admin;
+// it is marked with IsInstanceAdmin here so the privilege is bound to a stable
+// identity rather than to org_id ordering (see isInstanceAdmin).
 func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 	var user models.User
 	if err := h.db.Where("email = ?", username).First(&user).Error; err != nil {
-		user = models.User{Email: username, PasswordHash: ""}
+		user = models.User{Email: username, PasswordHash: "", IsInstanceAdmin: true}
 		h.db.Create(&user)
 		// Link to the bootstrap org as owner.
 		h.db.Create(&models.OrgMember{OrgID: orgID, UserID: user.ID, Role: "owner"})
+	} else if !user.IsInstanceAdmin {
+		// Backfill for accounts created before this column existed.
+		h.db.Model(&user).Update("is_instance_admin", true)
 	}
 	return user.ID
 }

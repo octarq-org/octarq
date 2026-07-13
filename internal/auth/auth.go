@@ -36,6 +36,12 @@ func WithOrgID(ctx context.Context, orgID uint) context.Context {
 	return context.WithValue(ctx, orgIDKey, orgID)
 }
 
+// WithUserID returns a new context containing the authenticated user ID, using
+// the same key UserID reads. Mirrors WithOrgID.
+func WithUserID(ctx context.Context, uid uint) context.Context {
+	return context.WithValue(ctx, userIDKey, uid)
+}
+
 const (
 	cookieName    = "octarq_session"
 	sessionTTL    = 7 * 24 * time.Hour

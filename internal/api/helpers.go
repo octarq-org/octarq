@@ -129,8 +129,13 @@ func (h *Handler) providerFor(dom models.Domain) (dnsprovider.Provider, error) {
 	if dom.ProviderAccountID == 0 {
 		return nil, errors.New("domain has no provider account configured")
 	}
+	// Scope the provider-account lookup to the domain's owning org. Callers
+	// already pre-scope the Domain, so this is defense-in-depth: it prevents a
+	// domain from ever resolving credentials belonging to another tenant even
+	// if a future caller forgets to scope the domain first.
 	var acc models.ProviderAccount
-	if err := h.db.First(&acc, dom.ProviderAccountID).Error; err != nil {
+	if err := h.db.Where("id = ? AND owner_id = ?", dom.ProviderAccountID, dom.OrgID).
+		First(&acc).Error; err != nil {
 		return nil, errors.New("provider account not found")
 	}
 	if acc.Config == "" {
