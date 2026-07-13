@@ -86,7 +86,7 @@ func TestTokenLifecycleAndBearerAuth(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
 		t.Fatalf("decode create response: %v", err)
 	}
-	if !strings.HasPrefix(created.Token, "led_") {
+	if !strings.HasPrefix(created.Token, "oct_") {
 		t.Fatalf("raw token not returned: %q", created.Token)
 	}
 
@@ -118,7 +118,7 @@ func TestTokenLifecycleAndBearerAuth(t *testing.T) {
 
 	// A bad bearer token is rejected.
 	req = httptest.NewRequest(http.MethodGet, "/api/links", nil)
-	req.Header.Set("Authorization", "Bearer led_totallybogus0000000000000000000000")
+	req.Header.Set("Authorization", "Bearer oct_totallybogus0000000000000000000000")
 	rec = httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnauthorized {

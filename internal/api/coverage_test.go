@@ -385,7 +385,7 @@ func TestTokensCRUD(t *testing.T) {
 	cookies := loginCookies(t, srv)
 
 	rec := do(srv, "POST", "/api/tokens", cookies, `{"name":"ci"}`)
-	if rec.Code != http.StatusCreated || !strings.Contains(rec.Body.String(), "led_") {
+	if rec.Code != http.StatusCreated || !strings.Contains(rec.Body.String(), "oct_") {
 		t.Fatalf("create token: got %d (%s)", rec.Code, rec.Body.String())
 	}
 	var tok struct {

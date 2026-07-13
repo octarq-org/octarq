@@ -54,12 +54,12 @@ type metrics struct {
 func newMetrics() *metrics {
 	return &metrics{
 		startedAt: time.Now(),
-		requests:  getOrNewInt("led_requests_total"),
-		status2xx: getOrNewInt("led_responses_2xx"),
-		status3xx: getOrNewInt("led_responses_3xx"),
-		status4xx: getOrNewInt("led_responses_4xx"),
-		status5xx: getOrNewInt("led_responses_5xx"),
-		inFlight:  getOrNewInt("led_requests_in_flight"),
+		requests:  getOrNewInt("octarq_requests_total"),
+		status2xx: getOrNewInt("octarq_responses_2xx"),
+		status3xx: getOrNewInt("octarq_responses_3xx"),
+		status4xx: getOrNewInt("octarq_responses_4xx"),
+		status5xx: getOrNewInt("octarq_responses_5xx"),
+		inFlight:  getOrNewInt("octarq_requests_in_flight"),
 	}
 }
 

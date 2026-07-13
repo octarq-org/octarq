@@ -21,7 +21,7 @@ func (h *Handler) mcpAuth(next http.Handler) http.Handler {
 		}
 
 		token := r.URL.Query().Get("token")
-		if strings.HasPrefix(token, "led_") {
+		if strings.HasPrefix(token, "oct_") {
 			hash := models.HashToken(token)
 			var tok models.Token
 			if h.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() {

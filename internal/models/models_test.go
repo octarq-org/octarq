@@ -61,11 +61,11 @@ func TestHostListLegacyScan(t *testing.T) {
 }
 
 func TestHashTokenDeterministicAndDistinct(t *testing.T) {
-	a := HashToken("led_abc")
-	if a != HashToken("led_abc") {
+	a := HashToken("oct_abc")
+	if a != HashToken("oct_abc") {
 		t.Error("HashToken not deterministic")
 	}
-	if a == HashToken("led_xyz") {
+	if a == HashToken("oct_xyz") {
 		t.Error("HashToken collided on different inputs")
 	}
 	// SHA-256 hex is 64 chars.

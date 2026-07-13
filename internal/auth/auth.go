@@ -3,7 +3,7 @@
 // cookie carries the row's random Token. Deleting the row revokes access
 // immediately — no epoch math or cookie re-signing needed.
 //
-// API bearer-token authentication (Authorization: Bearer led_…) is also
+// API bearer-token authentication (Authorization: Bearer oct_…) is also
 // supported and does not use the sessions table.
 package auth
 
@@ -297,7 +297,7 @@ func (m *Manager) TouchSession(r *http.Request) {
 	}
 }
 
-// bearerToken extracts a "led_" token from the Authorization header.
+// bearerToken extracts a "oct_" token from the Authorization header.
 func bearerToken(r *http.Request) string {
 	h := r.Header.Get("Authorization")
 	const pfx = "Bearer "
@@ -314,7 +314,7 @@ func (m *Manager) tokenAuthed(r *http.Request) bool {
 		return false
 	}
 	raw := bearerToken(r)
-	if !strings.HasPrefix(raw, "led_") {
+	if !strings.HasPrefix(raw, "oct_") {
 		return false
 	}
 	hash := models.HashToken(raw)
@@ -356,7 +356,7 @@ func (m *Manager) Require(next http.Handler) http.Handler {
 
 		// 2. Bearer token (API access, no session row).
 		if !authed && m.db != nil {
-			if raw := bearerToken(r); strings.HasPrefix(raw, "led_") {
+			if raw := bearerToken(r); strings.HasPrefix(raw, "oct_") {
 				hash := models.HashToken(raw)
 				var tok models.Token
 				if m.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() {
@@ -396,7 +396,7 @@ func (m *Manager) AuthenticateRequest(r *http.Request) (*http.Request, bool) {
 	}
 
 	if !authed && m.db != nil {
-		if raw := bearerToken(r); strings.HasPrefix(raw, "led_") {
+		if raw := bearerToken(r); strings.HasPrefix(raw, "oct_") {
 			hash := models.HashToken(raw)
 			var tok models.Token
 			if m.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() {

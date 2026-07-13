@@ -196,7 +196,7 @@ func TestBearerTokenOrgIsolation(t *testing.T) {
 	do(srv, http.MethodPost, "/api/links", org2, `{"slug":"bearer-org2","target":"https://org2.example"}`)
 
 	// Token for Org 1
-	rawTok1 := "led_bearertesttoken1111111111111111111"
+	rawTok1 := "oct_bearertesttoken1111111111111111111"
 	db.Create(&models.Token{
 		OrgID:  1,
 		Name:   "bearer-test-1",
@@ -205,7 +205,7 @@ func TestBearerTokenOrgIsolation(t *testing.T) {
 	})
 
 	// Token for Org 2
-	rawTok2 := "led_bearertesttoken2222222222222222222"
+	rawTok2 := "oct_bearertesttoken2222222222222222222"
 	db.Create(&models.Token{
 		OrgID:  2,
 		Name:   "bearer-test-2",

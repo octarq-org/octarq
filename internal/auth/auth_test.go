@@ -174,7 +174,7 @@ func TestBearerTokenAuth(t *testing.T) {
 	db := testDB(t)
 	m := testManager(t).WithDB(db)
 
-	raw := "led_validtoken123456789012345678901234"
+	raw := "oct_validtoken123456789012345678901234"
 	tok := models.Token{Name: "ci", Hash: models.HashToken(raw), Prefix: raw[:8]}
 	if err := db.Create(&tok).Error; err != nil {
 		t.Fatalf("create token: %v", err)
@@ -187,7 +187,7 @@ func TestBearerTokenAuth(t *testing.T) {
 	}
 
 	bad := httptest.NewRequest(http.MethodGet, "/api/links", nil)
-	bad.Header.Set("Authorization", "Bearer led_unknowntoken000000000000000000000")
+	bad.Header.Set("Authorization", "Bearer oct_unknowntoken000000000000000000000")
 	if m.APIAuthed(bad) {
 		t.Fatal("APIAuthed accepted an unknown bearer token")
 	}
@@ -234,7 +234,7 @@ func TestRequireMiddleware(t *testing.T) {
 	}
 
 	// Case 3: Authorized via Bearer Token
-	raw := "led_testtoken_require_middleware_9999"
+	raw := "oct_testtoken_require_middleware_9999"
 	tok := models.Token{
 		OrgID:  88,
 		Name:   "test-token",

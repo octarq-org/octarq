@@ -17,7 +17,7 @@ import (
 func newRawToken() string {
 	b := make([]byte, 24) // 24 bytes -> 32 url-safe chars
 	rand.Read(b)
-	return "led_" + base64.RawURLEncoding.EncodeToString(b)
+	return "oct_" + base64.RawURLEncoding.EncodeToString(b)
 }
 
 // tokenPrefix is the short, non-secret identifier shown in the list.

@@ -243,7 +243,7 @@ type Token struct {
 	OrgID      uint       `gorm:"column:owner_id;index;default:1" json:"-"`
 	Name       string     `gorm:"size:255" json:"name"`
 	Hash       string     `gorm:"uniqueIndex;size:64" json:"-"` // SHA-256 hex of the raw token
-	Prefix     string     `gorm:"size:32" json:"prefix"`        // e.g. "led_abcd" for identification
+	Prefix     string     `gorm:"size:32" json:"prefix"`        // e.g. "oct_abcd" for identification
 	Note       string     `gorm:"type:text" json:"note"`
 	LastUsedAt *time.Time `json:"lastUsedAt"`
 	// ExpiresAt bounds the token's validity. NULL = never expires (back-compat for

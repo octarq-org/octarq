@@ -16,7 +16,7 @@ func TestAccountExportAndPurge(t *testing.T) {
 
 	// Seed a couple of org-owned records + a secret-bearing one.
 	db.Create(&models.Link{OrgID: org, Slug: "exp1", Target: "https://e.com"})
-	db.Create(&models.Token{OrgID: org, Name: "t", Hash: models.HashToken("led_acct_export_token_000000000000"), Prefix: "led_acct"})
+	db.Create(&models.Token{OrgID: org, Name: "t", Hash: models.HashToken("oct_acct_export_token_000000000000"), Prefix: "oct_acct"})
 	db.Create(&models.SMTPSender{OrgID: org, Name: "relay", Host: "smtp.x", FromEmail: "a@x.com", Pass: "supersecret"})
 
 	// Export must include data but never leak the secrets.
@@ -28,7 +28,7 @@ func TestAccountExportAndPurge(t *testing.T) {
 	if !containsAll(body, `"exp1"`, `"relay"`) {
 		t.Errorf("export missing expected records: %s", body)
 	}
-	if containsAny(body, "supersecret", models.HashToken("led_acct_export_token_000000000000")) {
+	if containsAny(body, "supersecret", models.HashToken("oct_acct_export_token_000000000000")) {
 		t.Error("export leaked a secret (smtp pass or token hash)")
 	}
 
