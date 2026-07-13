@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap');
 @import "tailwindcss";
+@source "../../packages/plugin-sdk/src/ui/**/*.tsx";
+@source "../../packages/plugin-*/src/**/*.tsx";
 /* Base UI Dialog/Tooltip enter-exit + the existing animate-* keyframes share one
    animation vocabulary. tw-animate-css resolves to
    node_modules/tw-animate-css/dist/tw-animate.css via its package "style" export. */
