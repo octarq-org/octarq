@@ -8,8 +8,10 @@ A self-hosted **short link, mailbox, and DNS management** service in a single Go
 binary with an embedded React dashboard. Inspired by [wr.do](https://github.com/oiov/wr.do)
 and [dub](https://github.com/dubinc/dub), rebuilt to ship as **one binary / one Docker image**.
 
-> Single-user today. The schema already carries an owner id on every row, so
-> multi-user / multi-org (under a commercial license) drops in without a migration.
+> Multi-user / multi-workspace: every row is org-scoped, members carry a role
+> (**member < admin < owner**; the instance admin bypasses), and members are
+> invited by email — the invite link lets them set a password
+> (`/admin/invite/accept`), or they can sign in via OAuth (email-match).
 > *Bootstrap: the admin env user gets its own org (slug derived from `OCTARQ_ADMIN_USER`); OAuth users each get their own personal org. The two are always isolated regardless of login order.*
 
 ## Features
@@ -40,13 +42,22 @@ and [dub](https://github.com/dubinc/dub), rebuilt to ship as **one binary / one 
   Cohere, or local Ollama). Unconfigured = the buttons simply don't appear.
   Unattended automation (auto-summarize every inbound mail, OTP push, daily
   briefing) is part of the commercial build.
+- **Workspaces & roles** — multiple orgs with isolated data, an org switcher,
+  member management with **owner / admin / member** roles enforced server-side
+  (and mirrored in the UI: menus and routes the role can't use are hidden or
+  render an access-denied note), and email invites with a set-password flow.
+- **Plugin architecture** — everything outside the shell (auth, settings, org
+  handling, Overview) is a **plugin**: a Go module implementing `plugin.Plugin`
+  paired with a JS `UIPlugin` from `@octarq-org/plugin-sdk`, composed at build
+  time. Even octarq's own links/mail/DNS pages are plugins going through the
+  same registry. See [docs/PLUGINS.md](docs/PLUGINS.md).
 - **One binary** — pure-Go SQLite (no cgo), React dashboard embedded via `go:embed`.
   Postgres supported by flipping two env vars.
 
-> The embedded dashboard also ships UI for **Pro** features (VPS, Finance, Inbox AI,
-> Storefront…). In this open-source build their backends aren't present, so those
-> pages degrade gracefully to a neutral "unavailable" / upgrade note rather than
-> erroring — they light up only on the commercial build.
+> A path owned by a plugin that isn't composed into your build renders a neutral
+> "not part of this build" note; an unlicensed **Pro** route (backend answers
+> 402) renders an upsell — never a raw error. The commercial build is the same
+> core plus extra plugins (VPS, Finance, Inbox AI, Storefront…).
 
 ## Quick start
 
@@ -192,9 +203,11 @@ make dev
 - [x] **P4** open API tokens (bearer auth), system notification channels (Telegram, Webhook)
 - [x] **P5** multi-tenant / multi-org — `Org` + `User` + `OrgMember` (owner/admin/member),
   tamper-proof org-scoped session, per-org data isolation (tested), org switcher,
-  member management with role enforcement, OAuth users get their own org
-  - [ ] invited members can currently sign in only via **OAuth** (email-match);
-        a set-password / invite-accept flow for password login is still open
+  member management with role enforcement, OAuth users get their own org,
+  email invites with a set-password accept flow (`/admin/invite/accept`)
+- [x] **P6** plugin architecture — symmetric Go (`plugin.Plugin`) + JS (`UIPlugin`)
+  build-time composition, `@octarq-org/plugin-sdk`, core pages demoted to plugins,
+  inter-plugin service registry (Provide/Lookup), advisory role/tier gating
 
 ## License
 

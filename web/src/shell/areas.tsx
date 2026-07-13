@@ -106,7 +106,7 @@ export const STATIC_AREAS: Area[] = [
       // DNS → core plugin (plugins/core/domains.ts); Certificates → core
       // plugin (plugins/core/assets.ts). Both use category "Network".
       { label: "Network", items: [] },
-      // Servers + SSH Vault are Pro plugins (plugins/vps, plugins/ssh-keys,
+      // Servers + SSH Vault are Pro plugins (@octarq-org/plugin-infra,
       // category "Hosting") — injected dynamically only in a composed build.
       { label: "Hosting", items: [] },
       // Databases + Object Storage → core plugin (plugins/core/assets.ts,
@@ -186,7 +186,7 @@ export function areaForPath(path: string, areas: Area[] = STATIC_AREAS): AreaId 
 // Map a dynamic menu category to an area. A category naming a plugin-declared
 // area (by id or title) lands there; otherwise the built-in keyword routing
 // applies. Keep the keywords in sync with the Category strings plugins set in
-// their Menus() — see docs/SIDEBAR-MENU.md.
+// their Menus() — see docs/PLUGINS.md.
 export function areaForCategory(cat?: string, pluginAreas: UIArea[] = []): AreaId {
   const c = (cat ?? "").toLowerCase();
   const pluginHit = pluginAreas.find(

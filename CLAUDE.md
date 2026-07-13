@@ -32,14 +32,15 @@ Run these and make sure they pass — don't claim a change works on inspection a
 this repo that's the faster loop. Only commit/push when asked.
 
 **Never build or commit `webembed/dist` manually.** CI auto-commits a fresh build
-on every push to main. It must stay tracked in git — led-pro consumes led as a Go
-module and gets the embedded dashboard from the module zip.
+on every push to main. It must stay tracked in git — octarq-pro consumes octarq as
+a Go module and gets the embedded dashboard from the module zip.
 
 ## Code conventions
 
 - **Single source of truth — derive, don't duplicate.** E.g. `areaForPath` in
-  `web/src/App.tsx` is derived from `STATIC_AREAS`; never reintroduce a parallel
-  hardcoded path→area mapping. When you catch this kind of duplication, collapse it.
+  `web/src/shell/areas.tsx` is derived from the area/menu data; never reintroduce a
+  parallel hardcoded path→area mapping. When you catch this kind of duplication,
+  collapse it.
 - **Don't cram.** Split overgrown components/config into focused modules rather than
   piling more into one (the settings pages and sidebar areas follow this).
 - **Frontend Pro/optional features degrade gracefully**: a page hitting a plugin

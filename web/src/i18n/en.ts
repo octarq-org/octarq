@@ -4,10 +4,8 @@ export const en = {
   common: {
     search: "Search…",
     cancel: "Cancel",
-    save: "Save",
     signOut: "Sign out",
     language: "Language",
-    loading: "loading…",
   },
   app: {
     collapseMenu: "Collapse menu",

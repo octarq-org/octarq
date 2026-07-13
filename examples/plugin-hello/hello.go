@@ -78,13 +78,15 @@ func (Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	})))
 }
 
-// Menus contributes a sidebar link for the frontend. The Category ("operations")
-// is placed by the same areaForCategory logic core menus use. Implementing this
-// optional interface is how a plugin gets a nav entry without the frontend
-// hardcoding it.
+// Menus contributes a sidebar link for the frontend. Category names the
+// sidebar GROUP the entry joins — by convention it equals the group's label
+// ("Workspace" is the group holding Overview); a category with no matching
+// group creates one, placed in a top-level area by the shared areaForCategory
+// keyword routing. Implementing this optional interface is how a plugin gets a
+// nav entry without the frontend hardcoding it.
 func (Plugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{
-		{ID: "hello", Label: "Hello", Path: "/hello", Icon: "👋", Category: "operations"},
+		{ID: "hello", Label: "Hello", Path: "/hello", Icon: "👋", Category: "Workspace"},
 	}
 }
 

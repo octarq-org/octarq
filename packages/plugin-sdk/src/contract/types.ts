@@ -1,9 +1,11 @@
 // The frontend plugin contract — the UI analog of the Go `plugin.Plugin`
 // interface. A commercial or third-party plugin ships a module conforming to
 // `UIPlugin`; the app composes it into the route/menu/i18n registry AT BUILD
-// TIME (see the app's plugins/index.ts). This mirrors the backend seam: Go code
-// implements `plugin.Plugin`, JS code implements `UIPlugin`, and both are
-// composed without forking octarq.
+// TIME (the app's main.tsx imports its always-on core plugins from
+// plugins/core, then the `#octarq-plugins` module generated from the plugin
+// manifest). This mirrors the backend seam: Go code implements
+// `plugin.Plugin`, JS code implements `UIPlugin`, and both are composed
+// without forking octarq.
 //
 // This module deliberately imports nothing app-internal — it is the published
 // public contract of `@octarq-org/plugin-sdk`.

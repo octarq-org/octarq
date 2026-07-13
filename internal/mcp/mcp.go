@@ -49,7 +49,7 @@ func Run(ctx context.Context) error {
 // Pro plugins so they can register their custom MCP write or finance tools.
 //
 // allowRawSQL gates the general-purpose query_db_readonly tool. It must be true
-// ONLY for the single-operator stdio transport (`led mcp`), where the caller has
+// ONLY for the single-operator stdio transport (`octarq mcp`), where the caller has
 // local access to the whole database anyway. Over the HTTP/SSE transports the
 // caller is one tenant among many (orgID comes from their API token), and raw
 // SQL cannot be safely scoped to a single owner_id — so it is never registered

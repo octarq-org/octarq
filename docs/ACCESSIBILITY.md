@@ -120,20 +120,13 @@ comfort:
 
 ---
 
-## 5. Reduced motion — remaining gap  [REC]
+## 5. Reduced motion — FIXED
 
-CSS animations are now guarded (§2). framer-motion is **not**: its animations are
-JS-applied inline transforms that ignore the CSS media query. Affected:
-
-- `web/src/ui/primitives.tsx:136` `StatCard` (initial/animate y+opacity, staggered).
-- `web/src/ui/primitives.tsx:192` `ScreenWrap` (per-screen enter).
-- `web/src/App.tsx:658` workspace dropdown, and the account dropdown (scale/opacity).
-
-Fix (one line, app root): wrap the tree in framer-motion's
-`<MotionConfig reducedMotion="user">`, which makes every `motion.*` respect
-`prefers-reduced-motion`. Alternatively guard individual components with
-`useReducedMotion()`. (The `Switch`/`Toggle` thumb uses CSS `transition`, so it is
-already covered by the §2 block.)
+CSS animations are guarded (§2), and framer-motion is now too: `main.tsx` wraps
+the tree in `<MotionConfig reducedMotion="user">`, which makes every `motion.*`
+(StatCard/ScreenWrap enter, the TopBar workspace/account dropdowns) respect
+`prefers-reduced-motion`. (The `Switch`/`Toggle` thumb uses CSS `transition`, so
+it is already covered by the §2 block.)
 
 ---
 
@@ -147,5 +140,5 @@ already covered by the §2 block.)
   keyboard-enable `Code` and clickable `StatCard`, `aria-current` on active rail item,
   `aria-expanded`/menu semantics (or Base UI `Menu`) for the two dropdowns,
   `aria-label="Close"` on the dialog ✕, `aria-expanded` on the `Guide` disclosure.
-- **Reduced motion:** CSS handled; add `<MotionConfig reducedMotion="user">` for
-  framer-motion.
+- **Reduced motion:** handled — CSS media-query block plus
+  `<MotionConfig reducedMotion="user">` in `main.tsx` for framer-motion.

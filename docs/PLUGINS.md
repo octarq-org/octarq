@@ -7,8 +7,11 @@ with two halves that mirror each other:
 - a **JS package** implementing the frontend contract `UIPlugin` (from
   `@octarq-org/plugin-sdk`).
 
-The commercial build (octarq-pro) is nothing more than octarq-core plus a set of these
-plugins. Anything it can do, a community plugin can do the same way. The working
+The commercial build (octarq-pro) is nothing more than the open-source core plus a
+set of these plugins. Anything it can do, a community plugin can do the same way —
+in fact **octarq's own core pages (links, mail, DNS, abuse, audit) are UIPlugins
+too** (`web/src/plugins/core/`, always composed); the shell owns only auth,
+settings, org handling, Overview and the plugin pipeline. The working
 reference for everything below is [`examples/plugin-hello`](../examples/plugin-hello),
 a minimal full-stack plugin you can copy.
 
@@ -53,11 +56,17 @@ type Plugin interface {
 }
 ```
 
-Optionally implement `MenuProvider` to contribute a sidebar entry:
+Beyond the required interface, a plugin opts into capabilities by implementing
+optional interfaces:
 
 ```go
-type MenuProvider interface { Menus() []MenuItem }
+type MenuProvider interface { Menus() []MenuItem }      // sidebar entries
+type Starter interface { Start(ctx context.Context) }   // background work
+// also: MCPProvider, OpenAPIContributor, Describer — see plugin/plugin.go
 ```
+
+`Start` runs in its own goroutine only **after every plugin has mounted**, so it
+is the earliest safe point to look up services from other plugins.
 
 From `examples/plugin-hello/hello.go`:
 
@@ -72,7 +81,7 @@ func (Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 
 func (Plugin) Menus() []plugin.MenuItem {
     return []plugin.MenuItem{
-        {ID: "hello", Label: "Hello", Path: "/hello", Icon: "👋", Category: "operations"},
+        {ID: "hello", Label: "Hello", Path: "/hello", Icon: "👋", Category: "Workspace"},
     }
 }
 ```
@@ -92,15 +101,39 @@ Key rules:
   (inbound-mail hook), `DNS`, `UserID`/`OrgID`, and
   `GetWorkspaceSetting`/`SetWorkspaceSetting`. Non-startup config belongs in the
   shared `settings` table via those helpers, not env vars.
-- Add compile-time assertions: `var _ plugin.Plugin = Plugin{}`.
+- **Talk to other plugins through the service registry**, never by importing
+  them: the provider calls `ctx.Provide("<pluginName>.<service>", svc)` during
+  `Mount` (e.g. `"hello.greeter"`); a consumer resolves it **lazily** — in
+  `Start` or per-request, never in its own `Mount` — with the typed helper
+  `plugin.LookupAs[T](ctx, name)` and degrades gracefully when it's absent.
+  Providing the same name twice is a startup error.
+- **Own your tables.** All models (core + every plugin) are AutoMigrated once,
+  after registration; a startup preflight fails if two different plugin model
+  types claim the same table. Mirroring an *existing core* table with a local
+  struct (`TableName()` override) is the allowed convention for reading core
+  data without importing `internal/models`.
+- **Pair every interface you implement with a compile-time assertion** —
+  optional capabilities are detected by runtime type assertion, so a typo'd
+  method silently never runs without these:
+
+  ```go
+  var (
+      _ plugin.Plugin       = Plugin{}
+      _ plugin.MenuProvider = Plugin{}
+      _ plugin.Starter      = Plugin{} // for each optional interface you claim
+  )
+  ```
 
 ## The frontend half — `UIPlugin`
 
 ```ts
 interface UIPlugin {
   name: string;                 // match the Go Plugin.Name()
-  routes: { path: string; Component: LazyPage }[];   // LazyPage = React.lazy(...)
-  menu?: PluginMenuItem[];      // same shape as the backend MenuItem
+  routes: { path: string; Component: LazyPage;       // LazyPage = React.lazy(...)
+            requiredTier?: string; requiredRole?: string }[];
+  menu?: PluginMenuItem[];      // same shape as the backend MenuItem (+ requiredRole)
+  widgets?: { slot: string; Component: LazyPage; order?: number }[];
+  areas?: { id: string; title: string; subtitle?: string; icon?: string }[];
   i18n?: { en: {...}; zh: {...} };
   lockedFallback?: ComponentType<{ status: number }>;
 }
@@ -115,7 +148,7 @@ import type { UIPlugin } from "@octarq-org/plugin-sdk";
 export const helloPlugin: UIPlugin = {
   name: "hello",
   routes: [{ path: "/hello", Component: lazy(() => import("./Page")) }],
-  menu:  [{ id: "hello", label: "Hello", path: "/hello", icon: "👋", category: "operations" }],
+  menu:  [{ id: "hello", label: "Hello", path: "/hello", icon: "👋", category: "Workspace" }],
   i18n:  { en: { pageTitle: "Hello Plugin", /* ... */ }, zh: { /* ... */ } },
 };
 ```
@@ -130,9 +163,25 @@ Key rules:
   shadcn / Base UI primitives (accessible, keyboard-operable) while carrying
   octarq's glass theme, so your page matches the app and gets a11y for free. Import
   by name from `@octarq-org/plugin-sdk`, never reach into app-internal paths.
-- **Handle 402 and 404.** On **402** render `LockedFeature` (upsell); on **404**
-  (plugin/endpoint absent in this build) render a neutral note. `lockedFallback`
-  is the component the route boundary degrades to if a page chunk fails.
+- **Gated states are centralized in `ProGate`.** Every plugin route element is
+  wrapped in it: **402** → the upsell (`lockedFallback`, or the SDK's
+  `LockedFeature` by default), **403** → a neutral access-denied note, **404**
+  and chunk-load/render failures → the neutral "not part of this build" note.
+  A page can degrade declaratively via `useProGate().degrade(err.status)` from
+  a data-fetch catch, or keep handling 402/404 itself — the gate is the safety
+  net, never a raw error.
+- **`category` must equal the sidebar group label** it joins (e.g. `"Workspace"`,
+  `"Marketing"`, `"Network"`); a category with no matching group creates one,
+  routed to a top-level area by `areaForCategory`'s keywords. A plugin can also
+  declare a **new top-level area** (`areas`) and point menu categories at its
+  id/title. Icons are string keys resolved by the app's single `PLUGIN_ICONS`
+  table (unknown menu icons render literally, e.g. an emoji).
+- **`requiredRole`/`requiredTier` are advisory UX only.** The host hides menu
+  entries and pre-renders access-denied for users below `requiredRole`
+  (member < admin < owner, instance admin bypasses) — but the server stays
+  authoritative: enforce with 403/402 in your backend half.
+- **Widgets** render into named `<ExtensionSlot>`s — the Overview page renders
+  slot `"home-overview"` — ordered by ascending `order`.
 - **i18n namespace = your `name`.** Your `i18n.en`/`i18n.zh` merge under
   `"<name>"`, so a `pageTitle` key is read as `t("hello.pageTitle")`. This keeps
   plugin translations from colliding with core or each other.
@@ -181,7 +230,10 @@ resolves them as normal peers and needs no such mapping.
 ## Checklist
 
 - [ ] `Plugin.Name()` and `UIPlugin.name` are identical.
-- [ ] Backend routes registered on the passed `Mux`; secrets via `ctx.Encrypt`.
+- [ ] A compile-time `var _ plugin.X = Plugin{}` assert for **every** interface
+      the plugin implements (Plugin + each optional one).
+- [ ] Backend routes registered on the passed `Mux`; secrets via `ctx.Encrypt`;
+      cross-plugin services via `ctx.Provide` / lazy `plugin.LookupAs`.
 - [ ] Pro-only routes return **402** without the tier; you rely on the host's
       auto-**404** for the disabled-feature case.
 - [ ] Pages are `React.lazy`; UI built from `@octarq-org/plugin-sdk`; 402/404 handled.

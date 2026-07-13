@@ -73,7 +73,7 @@ export function WebhooksSettings() {
         <Modal title={t("settings.addWebhookEndpoint")} onClose={() => setShow(false)}>
           <form onSubmit={create} className="space-y-4">
             <Field label={t("settings.endpointName")}><input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder="n8n automation" required autoFocus /></Field>
-            <Field label={t("settings.endpointUrl")}><input className="input w-full font-mono text-xs" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://your-server.com/webhooks/led" required /></Field>
+            <Field label={t("settings.endpointUrl")}><input className="input w-full font-mono text-xs" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://your-server.com/webhooks/octarq" required /></Field>
             <Field label={t("settings.signingSecretOptional")} hint={t("settings.signingSecretHint")}>
               <input className="input w-full font-mono text-xs" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={t("settings.signingSecretPlaceholder")} />
             </Field>

@@ -2,7 +2,7 @@
 
 The frontend plugin SDK is published from `packages/plugin-sdk/` using
 [Changesets](https://github.com/changesets/changesets). The default registry is
-**GitHub Packages** (private, org-scoped `@octarq`). Switching to public npm is a
+**GitHub Packages** (private, org-scoped `@octarq-org`). Switching to public npm is a
 one-line change (see the end of this doc).
 
 ---
@@ -103,8 +103,8 @@ Notes:
   public, so `restricted` is the safe default here. (It mirrors `access` in
   `.changeset/config.json`.)
 - `repository.url` must point at the `octarq` repo and the package must be scoped
-  `@octarq` so GitHub Packages links it to the repository. GitHub Packages requires
-  the scope to match the owner (`@octarq` maps to the owning org/user configured
+  `@octarq-org` so GitHub Packages links it to the repository. GitHub Packages requires
+  the scope to match the owner (`@octarq-org` maps to the owning org/user configured
   for the repo — confirm the org name matches; see "Secrets & org settings").
 - `license` and `repository` are required for a clean public listing; keep
   `"private"` **out** of this package's `package.json` (a private package cannot
@@ -114,13 +114,13 @@ Notes:
 
 ## 3. Consuming `@octarq-org/plugin-sdk` from GitHub Packages
 
-Consumers (octarq-pro, community plugin authors) must route the `@octarq` scope to
+Consumers (octarq-pro, community plugin authors) must route the `@octarq-org` scope to
 GitHub Packages and authenticate.
 
 ### `.npmrc` in the consumer project
 
 ```ini
-@octarq:registry=https://npm.pkg.github.com
+@octarq-org:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
@@ -176,7 +176,7 @@ unless there's demand.
 
 - **GitHub Packages (default):** no extra secret — the workflow uses the
   built-in `${{ secrets.GITHUB_TOKEN }}` with `permissions: packages: write`.
-  Confirm the repo's **owner/org** matches the `@octarq` scope; if the GitHub
+  Confirm the repo's **owner/org** matches the `@octarq-org` scope; if the GitHub
   org/user is not literally `octarq`, GitHub Packages will reject the scope and the
   package name/scope (and `repository.url`) must be reconciled with the actual
   owner, or an org named `octarq` must own the repo.

@@ -5,10 +5,8 @@ export const zh: Resources = {
   common: {
     search: "搜索…",
     cancel: "取消",
-    save: "保存",
     signOut: "退出登录",
     language: "语言",
-    loading: "加载中…",
   },
   app: {
     collapseMenu: "收起菜单",

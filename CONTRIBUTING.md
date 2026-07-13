@@ -25,6 +25,7 @@ Run these and make sure they pass — don't claim a change works on inspection a
 - `go test ./... -race`
 - `gofmt -w` (keep gofmt-clean; match surrounding style)
 - in `web/`: `npx tsc --noEmit`
+- if you touched `packages/plugin-sdk/`: `pnpm --filter @octarq-org/plugin-sdk test`
 
 CI runs the same, plus builds the dashboard. Prefer pushing and relying on CI
 over spinning up Docker locally.
@@ -34,9 +35,15 @@ over spinning up Docker locally.
 - **Single source of truth — derive, don't duplicate.** Collapse parallel
   hardcoded mappings when you find them.
 - **Don't cram.** Split overgrown components/config into focused modules.
-- **Optional/Pro features degrade gracefully.** A page hitting a plugin endpoint
-  handles **402** (upsell) and **404** (plugin absent in this build) — never a
-  raw error.
+- **Every business page is a UIPlugin.** The shell (`web/src/App.tsx`) owns only
+  auth, settings, org handling, Overview and the plugin pipeline; core features
+  live in `web/src/plugins/core/` and register through the same
+  `registerUIPlugin` registry as Pro/third-party plugins. Never add a hardcoded
+  business route to the shell.
+- **Optional/Pro features degrade gracefully.** Every plugin route is wrapped in
+  `ProGate`: **402** → upsell, **403** → access denied, **404** / chunk failure →
+  a neutral "not in this build" note — never a raw error. Pages may still handle
+  these themselves; the gate is the safety net.
 - **Shared UI** lives in `web/src/ui` (shadcn / Base UI backed) and is re-exported
   to plugins via `@octarq-org/plugin-sdk`. Build UI from those primitives.
 - **Security-sensitive changes** (auth, crypto, tenant isolation, SSRF) must come

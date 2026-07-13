@@ -13,7 +13,7 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 		"info": map[string]any{
 			"title":       "Octarq API Reference",
 			"version":     "1.0.0",
-			"description": "API documentation for Octarq, the self-hosted link shortener and temporary email server.",
+			"description": "API documentation for Octarq, the self-hosted short-link, mailbox and DNS management service.",
 		},
 		"servers": []any{
 			map[string]any{
