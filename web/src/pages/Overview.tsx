@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api, Overview } from "../api";
 import { useTranslation } from "../i18n";
 import { ExtensionSlot } from "../plugin-sdk";
-import { AreaChart, BarList, timeAgo, ScreenWrap, PageHeader, StatCard, GlassCard } from "../ui";
+import { AreaChart, BarList, timeAgo, ScreenWrap, PageHeader, StatCard, GlassCard, Skeleton } from "../ui";
 import { Link2, Mail, Globe, MousePointerClick, CheckCircle2, Circle, ArrowRight, Sparkles, X } from "lucide-react";
 
 export default function OverviewPage() {
@@ -38,7 +38,28 @@ export default function OverviewPage() {
     setDismissed(true);
   };
 
-  if (!o) return <div className="grid h-64 place-items-center text-white/40">{t("overview.loading")}</div>;
+  if (!o) return (
+    // Skeleton mirrors the real layout (title + 4 stat tiles + chart) so the
+    // page doesn't jump when data arrives — replaces a bare "loading…" line.
+    <div className="animate-in fade-in duration-200" aria-busy="true" aria-label={t("overview.loading")}>
+      <div className="mb-6 space-y-2">
+        <Skeleton className="h-7 w-48" />
+        <Skeleton className="h-4 w-72" />
+      </div>
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="glass rounded-2xl p-4">
+            <Skeleton className="mb-3 h-3 w-20" />
+            <Skeleton className="h-7 w-16" />
+          </div>
+        ))}
+      </div>
+      <div className="glass rounded-2xl p-6">
+        <Skeleton className="mb-4 h-4 w-32" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    </div>
+  );
 
   const steps = [
     {

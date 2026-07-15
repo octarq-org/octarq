@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Settings as SettingsData, OrgMember, LicenseStatus, Overview, PluginInfo } from "../../api";
-import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../../ui";
+import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useSettingsData, SavedBadge } from "./shared";
@@ -32,7 +32,7 @@ export function WebhooksSettings() {
       if (!all) { const l: string[] = []; if (evClick) l.push("link.click"); if (evEmail) l.push("email.receive"); events = l.join(",") || "*"; }
       const created = await api.createWebhook({ name: name.trim(), url: url.trim(), secret: secret.trim() || undefined, events, enabled: true } as any);
       setWebhooks((w) => [created, ...w]); setShow(false); setName(""); setUrl(""); setSecret("");
-    } catch (err: any) { alert(err.message || t("settings.createFailed")); } finally { setBusy(false); }
+    } catch (err: any) { toast.error(err.message || t("settings.createFailed")); } finally { setBusy(false); }
   }
 
   return (
@@ -129,9 +129,9 @@ export function NotificationChannels() {
   async function test(id: number) {
     try {
       await api.testNotificationChannel(id);
-      alert(t("settings.testAlertSent"));
+      toast.success(t("settings.testAlertSent"));
     } catch (err: any) {
-      alert(t("settings.testFailed", { msg: err.message }));
+      toast.error(t("settings.testFailed", { msg: err.message }));
     }
   }
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus, Domain, HostEntry, ProviderAccount } from "../api";
-import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "./Settings";
 import { useTranslation } from "../i18n";
@@ -37,7 +37,7 @@ export default function DomainsPage() {
       const res = await api.verifyDNS(active.id);
       setDnsStatus(res);
     } catch (e: any) {
-      alert(e.message || t("domains.verifyFailed"));
+      toast.error(e.message || t("domains.verifyFailed"));
     } finally {
       setVerifying(false);
     }

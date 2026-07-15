@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, AbuseReport } from "../api";
-import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
+import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../ui";
 import { useTranslation } from "../i18n";
 
 export default function AbusePage() {
@@ -25,7 +25,7 @@ export default function AbusePage() {
       await api.updateAbuseReport(id, status);
       load();
     } catch (e: any) {
-      alert(t("abuse.updateFailed", { error: e.message }));
+      toast.error(t("abuse.updateFailed", { error: e.message }));
     }
   };
 

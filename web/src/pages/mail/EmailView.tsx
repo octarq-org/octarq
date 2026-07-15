@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Attachment, Domain, effectiveMailHosts, Email, Mailbox } from "../../api";
-import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../../ui";
+import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
 import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle, Sparkles } from "lucide-react";
 import { MailSettings, SMTPSenders } from "../Settings";
 import { useTranslation } from "../../i18n";
@@ -117,7 +117,7 @@ export function EmailViewForm({
               onClick={async () => {
                 await api.updateEmail(email.id, { note });
                 onChanged();
-                alert(t("mail.noteSaved"));
+                toast.success(t("mail.noteSaved"));
               }}
               className="text-xs py-1.5 px-3"
             >

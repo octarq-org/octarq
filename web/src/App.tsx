@@ -8,7 +8,7 @@ import OverviewPage from "./pages/Overview";
 import SettingsPage from "./pages/Settings";
 import PersonalSettingsPage from "./pages/PersonalSettings";
 import InviteAcceptPage from "./pages/InviteAccept";
-import { Modal, Button } from "./ui";
+import { Modal, Button, toast } from "./ui";
 import { useTranslation } from "./i18n";
 import { Area, AreaId, STATIC_AREAS, SETTINGS_AREA, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
 import { RoleProvider, roleSatisfies } from "./shell/role";
@@ -66,6 +66,7 @@ export default function App() {
       <Shell
         user={user}
         role={role}
+        setRole={setRole}
         activeOrgId={activeOrgId}
         setActiveOrgId={setActiveOrgId}
         onLogout={async () => {
@@ -202,12 +203,14 @@ function mergeAreas(
 function Shell({
   user,
   role,
+  setRole,
   activeOrgId,
   setActiveOrgId,
   onLogout,
 }: {
   user: string;
   role?: string;
+  setRole: (role: string | undefined) => void;
   activeOrgId: number;
   setActiveOrgId: (id: number) => void;
   onLogout: () => void;
@@ -215,6 +218,11 @@ function Shell({
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
+
+  // Bumped on every workspace switch to remount the routed content, so each
+  // page refetches for the new workspace — an in-app refresh that replaces the
+  // old full-page window.location.reload().
+  const [orgEpoch, setOrgEpoch] = useState(0);
 
   // Raw nav inputs from the API; `areas` is DERIVED from them (plus the
   // role/admin flags) so a late-arriving isInstanceAdmin re-runs the same
@@ -231,9 +239,14 @@ function Shell({
   const [isInstanceAdmin, setIsInstanceAdmin] = useState(false);
 
   // Collapse the second-level area panel to widen the content area. Persisted,
-  // and kept in the layout (not AreaPanel) so it survives area switches.
+  // and kept in the layout (not AreaPanel) so it survives area switches. On
+  // narrow screens the rail is an overlay drawer, so it starts collapsed there
+  // regardless of the stored preference.
   const [panelCollapsed, setPanelCollapsed] = useState(() => {
-    try { return localStorage.getItem("area_panel_collapsed") === "1"; } catch { return false; }
+    try {
+      if (typeof window !== "undefined" && window.innerWidth < 768) return true;
+      return localStorage.getItem("area_panel_collapsed") === "1";
+    } catch { return false; }
   });
   const togglePanel = () => setPanelCollapsed((v) => {
     const next = !v;
@@ -266,8 +279,11 @@ function Shell({
   // menu items) so paths owned by plugin-contributed areas highlight correctly.
   const activeArea: AreaId = settingsActive ? "settings" : areaForPath(location.pathname, areas);
 
-  // Load orgs + dynamic menus + user settings layout
+  // Load orgs + dynamic menus + user settings layout. Also refreshes the org
+  // role here (not just on mount) so switching to a workspace where the user
+  // has a different role re-runs the sidebar/ProGate role gating.
   useEffect(() => {
+    api.me().then((m) => setRole(m.role)).catch(() => {});
     api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
     api.settings().then((s) => setIsInstanceAdmin(!!s.isInstanceAdmin)).catch(() => {});
 
@@ -278,6 +294,14 @@ function Shell({
       })
       .catch(() => {});
   }, [activeOrgId]);
+
+  // Settings pages that mutate the workspace list (rename) fire this instead of
+  // reloading the page; refetch the orgs so the switcher/name update in place.
+  useEffect(() => {
+    const refresh = () => api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
+    window.addEventListener("octarq:orgs-changed", refresh);
+    return () => window.removeEventListener("octarq:orgs-changed", refresh);
+  }, []);
 
   const currentSettingsArea = useMemo(() => {
     if (isInstanceAdmin) return SETTINGS_AREA;
@@ -290,12 +314,26 @@ function Shell({
   const currentArea = settingsActive ? currentSettingsArea : (areas.find((a) => a.id === activeArea) ?? areas[0]);
   const activeOrgName = orgs.find((o) => o.id === activeOrgId)?.name ?? t("app.personalWorkspace");
 
+  // Apply an active-workspace change in-app: point the shell at the new org
+  // (its useEffect refetches menus/plugins/role/settings), remount the routed
+  // content so every page reloads its data, and land on Overview.
+  function switchToOrg(id: number) {
+    setActiveOrgId(id);
+    setOrgEpoch((e) => e + 1);
+    navigate("/overview");
+  }
+
   function handleCreateOrg(e: React.FormEvent) {
     e.preventDefault();
     if (!newOrgName.trim()) return;
     api.createOrg({ name: newOrgName })
-      .then((org) => api.switchOrg(org.id).then(() => window.location.reload()))
-      .catch((e) => alert(e.message || t("app.createWorkspaceFailed")));
+      .then((org) => api.switchOrg(org.id).then(() => {
+        setCreatingOrg(false);
+        setNewOrgName("");
+        switchToOrg(org.id);
+        toast.success(t("app.workspaceCreated", "Workspace created"));
+      }))
+      .catch((e) => toast.error(e.message || t("app.createWorkspaceFailed")));
   }
 
   const selectArea = (id: AreaId) => {
@@ -304,9 +342,28 @@ function Shell({
     navigate(area?.groups[0]?.items[0]?.path ?? "/overview");
   };
 
+  // Move focus to the main region after route changes so keyboard and
+  // screen-reader users land on the new page rather than being stranded on a
+  // now-unmounted control. Skip the initial mount (don't steal focus on load);
+  // preventScroll keeps the viewport steady.
+  const mainRef = useRef<HTMLElement>(null);
+  const firstNav = useRef(true);
+  useEffect(() => {
+    if (firstNav.current) { firstNav.current = false; return; }
+    mainRef.current?.focus({ preventScroll: true });
+  }, [location.pathname]);
+
   return (
     <RoleProvider value={roleCtx}>
     <div className="octarq-aurora flex h-screen w-full flex-col overflow-hidden text-white">
+      {/* Keyboard skip link — first focusable element, visually hidden until
+          focused, jumps past the nav chrome straight to page content. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-[60] focus:rounded-xl focus:bg-indigo-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:shadow-glow"
+      >
+        {t("app.skipToContent", "Skip to content")}
+      </a>
       <TopBar
         areas={areas}
         activeArea={activeArea}
@@ -320,7 +377,9 @@ function Shell({
         onTogglePanel={togglePanel}
         onSelectArea={selectArea}
         onSwitchOrg={(id) =>
-          api.switchOrg(id).then(() => { setActiveOrgId(id); window.location.reload(); })
+          api.switchOrg(id)
+            .then(() => switchToOrg(id))
+            .catch((e) => toast.error(e.message || t("app.switchWorkspaceFailed", "Couldn't switch workspace")))
         }
         onCreateOrg={() => setCreatingOrg(true)}
         onOpenSettings={() => navigate("/settings")}
@@ -328,27 +387,41 @@ function Shell({
         onLogout={onLogout}
       />
 
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
+      {/* Mobile scrim — the rail overlays content below md, so a tap-away layer
+          closes it. Hidden on md+ where the rail is inline. */}
+      {!panelCollapsed && (
+        <button
+          aria-label={t("app.collapseMenu")}
+          onClick={togglePanel}
+          className="absolute inset-0 z-20 bg-black/50 backdrop-blur-sm md:hidden"
+        />
+      )}
       {/* Second-level nav rail. Width-animated so collapsing widens the content
           area smoothly instead of unmounting the panel and snapping the layout.
           The inner AreaPanel stays a fixed w-60 so its contents don't reflow
-          while the parent clips from 240 → 0. */}
+          while the parent clips from 240 → 0. Below md it's an absolute overlay
+          (doesn't push content); at md+ it's an inline column. */}
       <motion.aside
         initial={false}
         animate={{ width: panelCollapsed ? 0 : 240 }}
         transition={{ type: "spring", stiffness: 420, damping: 42 }}
-        className="relative z-20 shrink-0 overflow-hidden"
+        className="absolute inset-y-0 left-0 z-30 shrink-0 overflow-hidden md:relative md:inset-auto"
         // `inert` (not aria-hidden) so the clipped links drop out of the tab
         // order and the AT tree together when collapsed — no focusable elements
         // left inside a hidden region.
         {...(panelCollapsed ? { inert: "" } : {})}
       >
-        <AreaPanel area={currentArea} currentPath={location.pathname} />
+        <AreaPanel
+          area={currentArea}
+          currentPath={location.pathname}
+          onNavigate={() => { if (window.innerWidth < 768) setPanelCollapsed(true); }}
+        />
       </motion.aside>
 
-      <main className="relative flex-1 overflow-hidden">
+      <main ref={mainRef} id="main-content" tabIndex={-1} className="relative flex-1 overflow-hidden outline-none">
         <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-          <div className="mx-auto w-full max-w-6xl px-8 py-8">
+          <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-8 py-8">
             <Routes>
               <Route path="/"           element={<Navigate to="/overview" replace />} />
               <Route path="/overview"   element={<OverviewPage />} />

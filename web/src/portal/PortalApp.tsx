@@ -3,7 +3,7 @@ import { Routes, Route, Link, useNavigate, useSearchParams } from "react-router-
 import { api, ApiError, IssuedLicense, LicenseDevice } from "../api";
 import { useAppName, brandInitial } from "../brand";
 import { useTranslation } from "../i18n";
-import { ScreenWrap, PageHeader, GlassCard, Badge, Button, Empty, Field } from "../ui";
+import { ScreenWrap, PageHeader, GlassCard, Badge, Button, Empty, Field, toast } from "../ui";
 import { KeyRound, LogOut, Laptop, ExternalLink, ShieldAlert, ArrowRight, CheckCircle, ArrowLeft, Mail, Lock } from "lucide-react";
 
 export default function PortalApp() {
@@ -602,7 +602,7 @@ function DashboardView({ email, onLogout }: { email: string; onLogout: () => voi
       const res = await api.portalBillingPortal();
       window.location.href = res.url;
     } catch (e: any) {
-      alert(e.error || t("portal.billingPortalFailed"));
+      toast.error(e.error || t("portal.billingPortalFailed"));
     } finally {
       setClaimingBilling(false);
     }

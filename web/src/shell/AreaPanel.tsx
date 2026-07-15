@@ -7,7 +7,17 @@ import { Area } from "./areas";
 // fixed-width (w-60) content block; the collapse animation and the toggle
 // affordance live in the shell (App.tsx / TopBar) so this stays presentational
 // and the panel width is owned in one place.
-export function AreaPanel({ area, currentPath }: { area: Area; currentPath: string }) {
+export function AreaPanel({
+  area,
+  currentPath,
+  onNavigate,
+}: {
+  area: Area;
+  currentPath: string;
+  // Fired when a nav item is chosen — the shell uses it to close the mobile
+  // drawer after navigation.
+  onNavigate?: () => void;
+}) {
   const { t } = useTranslation();
   return (
     <div className="flex h-full w-60 flex-col border-r border-white/[0.06] bg-[#0c0c12]/40 backdrop-blur-xl">
@@ -35,6 +45,7 @@ export function AreaPanel({ area, currentPath }: { area: Area; currentPath: stri
                   <NavLink
                     key={item.id}
                     to={item.path}
+                    onClick={onNavigate}
                     className={`group relative flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] transition-colors ${
                       active ? "text-white" : "text-white/65 hover:text-white"
                     }`}
@@ -43,7 +54,7 @@ export function AreaPanel({ area, currentPath }: { area: Area; currentPath: stri
                       <motion.span
                         layoutId="panel-active"
                         transition={{ type: "spring", stiffness: 500, damping: 40 }}
-                        className="absolute inset-0 rounded-xl bg-white/[0.07] ring-1 ring-inset ring-white/10"
+                        className="absolute inset-0 rounded-xl bg-white/[0.08] ring-1 ring-inset ring-white/10"
                       />
                     )}
                     {item.iconStr ? (

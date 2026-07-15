@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap');
+/* Inter + Outfit are loaded via <link rel="stylesheet"> in index.html /
+   portal.html (with preconnect) so they don't block CSS parsing. */
 @import "tailwindcss";
 @source "../../packages/plugin-sdk/src/ui/**/*.tsx";
 @source "../../packages/plugin-*/src/**/*.tsx";

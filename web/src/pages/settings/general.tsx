@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Settings as SettingsData, OrgMember, LicenseStatus, Overview, PluginInfo } from "../../api";
-import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../../ui";
+import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useSettingsData, SavedBadge } from "./shared";
@@ -34,8 +34,11 @@ export function GeneralSettings() {
     try {
       await api.updateOrg({ name: workspaceName });
       setWorkspaceSaved(true);
-      setTimeout(() => window.location.reload(), 800);
-    } catch (err: any) { alert(err.message || t("settings.renameFailed")); } finally { setWorkspaceBusy(false); }
+      toast.success(t("settings.renameSaved", "Workspace name updated"));
+      // Tell the shell to refresh the workspace list/switcher in place instead
+      // of a full-page reload.
+      window.dispatchEvent(new Event("octarq:orgs-changed"));
+    } catch (err: any) { toast.error(err.message || t("settings.renameFailed")); } finally { setWorkspaceBusy(false); }
   }
 
   async function handleExport() {
@@ -52,7 +55,7 @@ export function GeneralSettings() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err: any) {
-      alert(err.message || t("settings.exportFailed"));
+      toast.error(err.message || t("settings.exportFailed"));
     } finally {
       setExporting(false);
     }
@@ -60,18 +63,20 @@ export function GeneralSettings() {
 
   async function handlePurge() {
     if (deleteConfirmationText !== "DELETE MY DATA") {
-      alert(t("settings.typeToConfirm", { phrase: "DELETE MY DATA" }));
+      toast.error(t("settings.typeToConfirm", { phrase: "DELETE MY DATA" }));
       return;
     }
     setPurging(true);
     try {
       await api.purgeAccountData();
-      alert(t("settings.workspaceDeleted"));
+      toast.success(t("settings.workspaceDeleted"));
       setShowDeleteModal(false);
       setDeleteConfirmationText("");
-      window.location.reload();
+      // The active workspace no longer exists — reload to re-establish a valid
+      // session/active org. Brief delay so the confirmation toast is seen.
+      setTimeout(() => window.location.reload(), 700);
     } catch (err: any) {
-      alert(err.message || t("settings.deleteWorkspaceFailed"));
+      toast.error(err.message || t("settings.deleteWorkspaceFailed"));
     } finally {
       setPurging(false);
     }
