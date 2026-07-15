@@ -1,36 +1,28 @@
 import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
-import { PanelLeft } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { Area } from "./areas";
 
-export function AreaPanel({ area, currentPath, onCollapse }: { area: Area; currentPath: string; onCollapse: () => void }) {
+// AreaPanel renders the second-level navigation for the active area. It is a
+// fixed-width (w-60) content block; the collapse animation and the toggle
+// affordance live in the shell (App.tsx / TopBar) so this stays presentational
+// and the panel width is owned in one place.
+export function AreaPanel({ area, currentPath }: { area: Area; currentPath: string }) {
   const { t } = useTranslation();
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -10 }}
-      transition={{ duration: 0.2 }}
-      className="relative z-20 flex h-full w-60 flex-col border-r border-white/[0.06] bg-[#0c0c12]/40 backdrop-blur-xl"
-    >
+    <div className="flex h-full w-60 flex-col border-r border-white/[0.06] bg-[#0c0c12]/40 backdrop-blur-xl">
       {/* Header */}
-      <div className="flex items-start justify-between gap-2 px-4 pb-3 pt-4">
-        <div className="min-w-0">
-          <h2 className="font-display text-[17px] font-bold tracking-tight text-white truncate">{t(`areas.${area.id}.title`, area.title)}</h2>
-          <p className="text-[12px] text-white/45 truncate">{t(`areas.${area.id}.subtitle`, area.subtitle)}</p>
-        </div>
-        <button
-          onClick={onCollapse}
-          title={t("app.collapseMenu")}
-          className="mt-0.5 shrink-0 rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white"
-        >
-          <PanelLeft className="h-4 w-4" strokeWidth={1.75} />
-        </button>
+      <div className="px-4 pb-3 pt-4">
+        <h2 className="truncate font-display text-[17px] font-bold tracking-tight text-white">
+          {t(`areas.${area.id}.title`, area.title)}
+        </h2>
+        <p className="truncate text-[12px] text-white/45">
+          {t(`areas.${area.id}.subtitle`, area.subtitle)}
+        </p>
       </div>
 
       {/* Grouped nav */}
-      <div className="flex-1 overflow-y-auto px-3 pb-3">
+      <div className="flex-1 overflow-y-auto px-3 pb-3 [scrollbar-gutter:stable]">
         {area.groups.map((group) => (
           <div key={group.label} className="mb-4">
             <p className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wider text-white/50">
@@ -60,11 +52,11 @@ export function AreaPanel({ area, currentPath, onCollapse }: { area: Area; curre
                       </span>
                     ) : (
                       <item.Icon
-                        className={`relative h-[18px] w-[18px] ${active ? "text-indigo-300" : ""}`}
+                        className={`relative h-[18px] w-[18px] ${active ? "text-indigo-300" : "text-white/70 group-hover:text-white"}`}
                         strokeWidth={1.75}
                       />
                     )}
-                    <span className="relative flex-1">{t(`nav.${item.id}`, item.label)}</span>
+                    <span className="relative flex-1 truncate">{t(`nav.${item.id}`, item.label)}</span>
                     {item.badge !== undefined && (
                       <span className="relative text-[11px] font-medium text-white/50">
                         {item.badge}
@@ -77,6 +69,6 @@ export function AreaPanel({ area, currentPath, onCollapse }: { area: Area; curre
           </div>
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
-import { Globe, PanelLeft } from "lucide-react";
+import { motion } from "framer-motion";
+import { Globe } from "lucide-react";
 import { api, MenuItem, Org, PluginInfo } from "./api";
 import { useAppName, brandInitial } from "./brand";
 import OverviewPage from "./pages/Overview";
@@ -316,6 +316,8 @@ function Shell({
         activeOrgName={activeOrgName}
         user={user}
         showWorkspaceSwitcher={isProBuild}
+        panelCollapsed={panelCollapsed}
+        onTogglePanel={togglePanel}
         onSelectArea={selectArea}
         onSwitchOrg={(id) =>
           api.switchOrg(id).then(() => { setActiveOrgId(id); window.location.reload(); })
@@ -327,28 +329,25 @@ function Shell({
       />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-      <AnimatePresence mode="wait">
-        {!panelCollapsed && (
-          <AreaPanel
-            key={activeArea}
-            area={currentArea}
-            currentPath={location.pathname}
-            onCollapse={togglePanel}
-          />
-        )}
-      </AnimatePresence>
+      {/* Second-level nav rail. Width-animated so collapsing widens the content
+          area smoothly instead of unmounting the panel and snapping the layout.
+          The inner AreaPanel stays a fixed w-60 so its contents don't reflow
+          while the parent clips from 240 → 0. */}
+      <motion.aside
+        initial={false}
+        animate={{ width: panelCollapsed ? 0 : 240 }}
+        transition={{ type: "spring", stiffness: 420, damping: 42 }}
+        className="relative z-20 shrink-0 overflow-hidden"
+        // `inert` (not aria-hidden) so the clipped links drop out of the tab
+        // order and the AT tree together when collapsed — no focusable elements
+        // left inside a hidden region.
+        {...(panelCollapsed ? { inert: "" } : {})}
+      >
+        <AreaPanel area={currentArea} currentPath={location.pathname} />
+      </motion.aside>
 
       <main className="relative flex-1 overflow-hidden">
-        {panelCollapsed && (
-          <button
-            onClick={togglePanel}
-            title={t(`areas.${currentArea.id}.title`, currentArea.title)}
-            className="group absolute left-0 top-1/2 z-30 flex -translate-y-1/2 items-center gap-1 rounded-r-xl border border-l-0 border-white/[0.08] bg-white/[0.04] py-3 pl-1 pr-1.5 text-white/45 backdrop-blur-xl transition-colors hover:bg-white/[0.08] hover:text-white"
-          >
-            <PanelLeft className="h-4 w-4 rotate-180" strokeWidth={1.75} />
-          </button>
-        )}
-        <div className="h-full overflow-y-auto">
+        <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
           <div className="mx-auto w-full max-w-6xl px-8 py-8">
             <Routes>
               <Route path="/"           element={<Navigate to="/overview" replace />} />

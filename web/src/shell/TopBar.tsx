@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronsUpDown, CheckIcon, Search, Settings, User, CreditCard, LogOut } from "lucide-react";
+import { ChevronsUpDown, CheckIcon, Search, Settings, User, CreditCard, LogOut, PanelLeft } from "lucide-react";
 import { Org } from "../api";
 import { useAppName, brandInitial } from "../brand";
 import { useTranslation, LANGS } from "../i18n";
@@ -16,6 +16,8 @@ export function TopBar({
   activeOrgName,
   user,
   showWorkspaceSwitcher,
+  panelCollapsed,
+  onTogglePanel,
   onSelectArea,
   onSwitchOrg,
   onCreateOrg,
@@ -31,6 +33,8 @@ export function TopBar({
   activeOrgName: string;
   user: string;
   showWorkspaceSwitcher: boolean;
+  panelCollapsed: boolean;
+  onTogglePanel: () => void;
   onSelectArea: (id: AreaId) => void;
   onSwitchOrg: (id: number) => void;
   onCreateOrg: () => void;
@@ -53,6 +57,21 @@ export function TopBar({
 
   return (
     <header className="relative z-30 flex h-14 shrink-0 items-center gap-3 border-b border-white/[0.06] bg-[#07070b]/70 px-3 backdrop-blur-xl">
+      {/* Sidebar toggle — always visible so collapse/expand is discoverable
+          from one place, independent of which area is open. */}
+      <button
+        onClick={onTogglePanel}
+        aria-label={t("app.collapseMenu")}
+        aria-pressed={panelCollapsed}
+        title={t("app.collapseMenu")}
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/55 transition-colors hover:bg-white/5 hover:text-white"
+      >
+        <PanelLeft
+          className={`h-[18px] w-[18px] transition-transform duration-200 ${panelCollapsed ? "rotate-180" : ""}`}
+          strokeWidth={1.75}
+        />
+      </button>
+
       {/* Brand */}
       <div className="flex items-center gap-2.5 pr-1">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
