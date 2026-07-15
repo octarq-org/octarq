@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, Domain, effectiveLinkHosts, Link, LinkStats } from "../../api";
-import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard } from "../../ui";
+import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard, Select } from "../../ui";
 import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe, Settings, Sparkles } from "lucide-react";
 import { LinkSettings } from "../Settings";
 import { useTranslation } from "../../i18n";
@@ -137,15 +137,15 @@ export function LinkEditorForm({
           )}
         </Field>
         <Field label={t("links.routingHostDomain")} hint={hosts.length ? t("links.configuredDomains") : t("links.configureDomainsFirst")}>
-          <select className="input w-full" value={host} onChange={(e) => setHost(e.target.value)}>
-            <option value="">{t("links.defaultApexDomain")}</option>
-            {hosts.map((h) => (
-              <option key={h} value={h}>
-                {h}
-              </option>
-            ))}
-            {host && !hosts.includes(host) && <option value={host}>{host}</option>}
-          </select>
+          <Select
+            value={host}
+            onValueChange={setHost}
+            options={[
+              { value: "", label: t("links.defaultApexDomain") },
+              ...hosts.map((h) => ({ value: h, label: h })),
+              ...(host && !hosts.includes(host) ? [{ value: host, label: host }] : []),
+            ]}
+          />
         </Field>
       </div>
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Attachment, Domain, effectiveMailHosts, Email, Mailbox } from "../api";
-import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
+import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../ui";
 import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle } from "lucide-react";
 import { MailSettings, SMTPSenders } from "./Settings";
 import { useTranslation } from "../i18n";
@@ -156,16 +156,19 @@ export default function MailPage() {
         {/* Left column - list */}
         <div className="flex flex-col min-h-0 w-full">
           <div className="mb-3 flex items-center gap-2">
-            <select
-              className="input flex-1 min-w-0"
-              value={active === undefined ? "" : active}
-              onChange={(e) => setActive(e.target.value ? Number(e.target.value) : undefined)}
-            >
-              <option value="">{t("mail.allMailboxes")}</option>
-              {boxes.map(b => (
-                <option key={b.id} value={b.id}>{b.address} {b.unread > 0 ? `(${b.unread})` : ""}</option>
-              ))}
-            </select>
+            <div className="min-w-0 flex-1">
+              <Select
+                value={active === undefined ? "" : String(active)}
+                onValueChange={(v) => setActive(v ? Number(v) : undefined)}
+                options={[
+                  { value: "", label: t("mail.allMailboxes") },
+                  ...boxes.map((b) => ({
+                    value: String(b.id),
+                    label: `${b.address}${b.unread > 0 ? ` (${b.unread})` : ""}`,
+                  })),
+                ]}
+              />
+            </div>
             {active !== undefined && (
               <Button
                 variant="ghost"

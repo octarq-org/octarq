@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Settings as SettingsData, OrgMember, LicenseStatus, Overview, PluginInfo } from "../../api";
-import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
+import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, toast } from "../../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useSettingsData, SavedBadge } from "./shared";
@@ -138,9 +138,12 @@ function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onC
         </Field>
         {!account && (
           <Field label={t("settings.dnsProviderType")}>
-            <select className="input w-full text-sm" value={type} onChange={e => setType(e.target.value)}>
-              {types.map(ty => <option key={ty} value={ty} className="capitalize">{ty}</option>)}
-            </select>
+            <Select
+              value={type}
+              onValueChange={setType}
+              className="text-sm"
+              options={types.map((ty) => ({ value: ty, label: <span className="capitalize">{ty}</span> }))}
+            />
           </Field>
         )}
         <Field label={t("settings.apiKeysCredentials")} hint={account ? t("settings.apiKeysHintExisting") : t("settings.apiKeysHintNew")}>

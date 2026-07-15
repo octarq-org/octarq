@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Attachment, Domain, effectiveMailHosts, Email, Mailbox } from "../../api";
-import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../../ui";
+import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../ui";
 import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle } from "lucide-react";
 import { MailSettings, SMTPSenders } from "../Settings";
 import { useTranslation } from "../../i18n";
@@ -65,13 +65,14 @@ export function MailboxEditor({
                 autoFocus
               />
               <span className="text-white/40">@</span>
-              <select className="input w-full text-sm" value={domain} onChange={(e) => setDomain(e.target.value)}>
-                {hosts.map((h) => (
-                  <option key={h} value={h}>
-                    {h}
-                  </option>
-                ))}
-              </select>
+              <div className="min-w-0 flex-1">
+                <Select
+                  className="text-sm"
+                  value={domain}
+                  onValueChange={setDomain}
+                  options={hosts.map((h) => ({ value: h, label: h }))}
+                />
+              </div>
             </div>
           </Field>
         )}

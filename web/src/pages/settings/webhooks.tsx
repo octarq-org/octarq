@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Settings as SettingsData, OrgMember, LicenseStatus, Overview, PluginInfo } from "../../api";
-import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
+import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, toast } from "../../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useSettingsData, SavedBadge } from "./shared";
@@ -283,10 +283,14 @@ function EditNotificationChannel({ channel, onClose, onSaved }: { channel: any; 
         </Field>
         
         <Field label={t("settings.channelIntegrationType")}>
-          <select className="input w-full" value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="telegram">{t("settings.optTelegram")}</option>
-            <option value="webhook">{t("settings.optWebhook")}</option>
-          </select>
+          <Select
+            value={type}
+            onValueChange={setType}
+            options={[
+              { value: "telegram", label: t("settings.optTelegram") },
+              { value: "webhook", label: t("settings.optWebhook") },
+            ]}
+          />
         </Field>
 
         {type === "telegram" && (

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus, Domain, HostEntry, ProviderAccount } from "../../api";
-import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../../ui";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "../Settings";
 import { useTranslation } from "../../i18n";
@@ -45,10 +45,14 @@ export function SyncModal({ accounts, onClose, onSynced }: { accounts: ProviderA
         <>
           <p className="mb-4 text-xs text-white/55 leading-relaxed">{t("domains.syncIntro")}</p>
           <Field label={t("domains.dnsProviderConnection")}>
-            <select className="input w-full" value={accountId} onChange={e => setAccountId(Number(e.target.value))}>
-              <option value={0}>{t("domains.selectAccount")}</option>
-              {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({a.type})</option>)}
-            </select>
+            <Select
+              value={String(accountId)}
+              onValueChange={(v) => setAccountId(Number(v))}
+              options={[
+                { value: "0", label: t("domains.selectAccount") },
+                ...accounts.map((a) => ({ value: String(a.id), label: `${a.name} (${a.type})` })),
+              ]}
+            />
           </Field>
           {err && <p className="mb-4 text-sm text-rose-400 font-medium">{err}</p>}
           <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
