@@ -1,11 +1,22 @@
-import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChevronsUpDown, CheckIcon, Search, Settings, User, CreditCard, LogOut } from "lucide-react";
+import { motion } from "framer-motion";
+import { Menu } from "@base-ui/react/menu";
+import { ChevronsUpDown, CheckIcon, Search, Settings, User, CreditCard, LogOut, PanelLeft } from "lucide-react";
 import { Org } from "../api";
+import { cn } from "../ui";
 import { useAppName, brandInitial } from "../brand";
 import { useTranslation, LANGS } from "../i18n";
 import { Area, AreaId } from "./areas";
+
+// Shared glass styling for the Base UI Menu popups/items used below. Base UI
+// gives us Esc-to-close, roving arrow-key focus, focus-return to the trigger,
+// outside-click dismissal and portalled positioning — replacing the previous
+// hand-rolled `fixed inset-0` overlays.
+const MENU_POPUP =
+  "glass-strong z-50 origin-[var(--transform-origin)] rounded-2xl p-1.5 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)] outline-none " +
+  "transition-[transform,opacity] duration-150 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0";
+const MENU_ITEM =
+  "flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-white/80 outline-none transition-colors data-[highlighted]:bg-white/10 data-[highlighted]:text-white";
 
 export function TopBar({
   areas,
@@ -16,6 +27,8 @@ export function TopBar({
   activeOrgName,
   user,
   showWorkspaceSwitcher,
+  panelCollapsed,
+  onTogglePanel,
   onSelectArea,
   onSwitchOrg,
   onCreateOrg,
@@ -31,6 +44,8 @@ export function TopBar({
   activeOrgName: string;
   user: string;
   showWorkspaceSwitcher: boolean;
+  panelCollapsed: boolean;
+  onTogglePanel: () => void;
   onSelectArea: (id: AreaId) => void;
   onSwitchOrg: (id: number) => void;
   onCreateOrg: () => void;
@@ -38,8 +53,6 @@ export function TopBar({
   onOpenCommand: () => void;
   onLogout: () => void;
 }) {
-  const [wsOpen, setWsOpen] = useState(false);
-  const [userOpen, setUserOpen] = useState(false);
   const appName = useAppName();
   const { t, lang, setLang } = useTranslation();
 
@@ -53,6 +66,21 @@ export function TopBar({
 
   return (
     <header className="relative z-30 flex h-14 shrink-0 items-center gap-3 border-b border-white/[0.06] bg-[#07070b]/70 px-3 backdrop-blur-xl">
+      {/* Sidebar toggle — always visible so collapse/expand is discoverable
+          from one place, independent of which area is open. */}
+      <button
+        onClick={onTogglePanel}
+        aria-label={t("app.collapseMenu")}
+        aria-pressed={panelCollapsed}
+        title={t("app.collapseMenu")}
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/55 transition-colors hover:bg-white/5 hover:text-white"
+      >
+        <PanelLeft
+          className={`h-[18px] w-[18px] transition-transform duration-200 ${panelCollapsed ? "rotate-180" : ""}`}
+          strokeWidth={1.75}
+        />
+      </button>
+
       {/* Brand */}
       <div className="flex items-center gap-2.5 pr-1">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
@@ -63,56 +91,38 @@ export function TopBar({
 
       {/* Workspace switcher — Pro only (multi-tenancy) */}
       {showWorkspaceSwitcher && (
-      <div className="relative">
-        <button
-          onClick={() => setWsOpen((v) => !v)}
-          aria-label={t("topbar.switchWorkspace")}
-          className="flex h-9 items-center gap-2 rounded-xl bg-indigo-500/15 pl-1.5 pr-2 text-xs font-semibold text-indigo-300 ring-1 ring-inset ring-white/10 transition hover:ring-white/25"
-        >
-          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-500/25 text-[10px] font-bold text-indigo-300">
-            {initials}
-          </span>
-          <span className="max-w-[130px] truncate text-sm font-medium text-white/90">{activeOrgName}</span>
-          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-white/50" />
-        </button>
-
-        <AnimatePresence>
-          {wsOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setWsOpen(false)} />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.14 }}
-                className="glass-strong absolute left-0 top-11 z-50 w-64 rounded-2xl p-1.5 shadow-2xl"
-              >
-                <p className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wide text-white/40">{t("topbar.workspaces")}</p>
+        <Menu.Root>
+          <Menu.Trigger
+            aria-label={t("topbar.switchWorkspace")}
+            className="flex h-9 items-center gap-2 rounded-xl bg-indigo-500/15 pl-1.5 pr-2 text-xs font-semibold text-indigo-300 ring-1 ring-inset ring-white/10 transition hover:ring-white/25 data-[popup-open]:ring-white/25"
+          >
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-500/25 text-[10px] font-bold text-indigo-300">
+              {initials}
+            </span>
+            <span className="max-w-[130px] truncate text-sm font-medium text-white/90">{activeOrgName}</span>
+            <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-white/50" />
+          </Menu.Trigger>
+          <Menu.Portal>
+            <Menu.Positioner side="bottom" align="start" sideOffset={8} className="z-50 outline-none">
+              <Menu.Popup className={cn(MENU_POPUP, "w-64")}>
+                <div className="px-2 py-1.5 text-[11px] font-medium uppercase tracking-wide text-white/40">{t("topbar.workspaces")}</div>
                 {orgs.map((o) => (
-                  <button
-                    key={o.id}
-                    onClick={() => { onSwitchOrg(o.id); setWsOpen(false); }}
-                    className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition hover:bg-white/5"
-                  >
+                  <Menu.Item key={o.id} onClick={() => onSwitchOrg(o.id)} className={MENU_ITEM}>
                     <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/15 text-[11px] font-semibold text-indigo-300 ring-1 ring-inset ring-white/10">
                       {o.name.slice(0, 2).toUpperCase()}
                     </span>
                     <span className="flex-1 truncate text-sm text-white">{o.name}</span>
                     {o.id === activeOrgId && <CheckIcon className="h-4 w-4 text-indigo-400" />}
-                  </button>
+                  </Menu.Item>
                 ))}
-                <div className="my-1 h-px bg-white/[0.06]" />
-                <button
-                  onClick={() => { onCreateOrg(); setWsOpen(false); }}
-                  className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-indigo-300 transition hover:bg-white/5"
-                >
+                <Menu.Separator className="my-1 h-px bg-white/[0.06]" />
+                <Menu.Item onClick={onCreateOrg} className={cn(MENU_ITEM, "text-indigo-300")}>
                   {t("topbar.newWorkspace")}
-                </button>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-      </div>
+                </Menu.Item>
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
       )}
 
       {/* Area tabs */}
@@ -166,78 +176,61 @@ export function TopBar({
       </button>
 
       {/* User menu */}
-      <div className="relative">
-        <button
-          onClick={() => setUserOpen((v) => !v)}
+      <Menu.Root>
+        <Menu.Trigger
           aria-label={t("topbar.account")}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400/30 to-violet-400/30 text-xs font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:ring-white/30"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400/30 to-violet-400/30 text-xs font-semibold text-white ring-1 ring-inset ring-white/15 transition hover:ring-white/30 data-[popup-open]:ring-white/30"
         >
           {userInitials}
-        </button>
-
-        <AnimatePresence>
-          {userOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setUserOpen(false)} />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.14 }}
-                className="glass-strong absolute right-0 top-11 z-50 w-60 rounded-2xl p-1.5 shadow-2xl"
-              >
-                <div className="flex items-center gap-2.5 px-2 py-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400/30 to-violet-400/30 text-xs font-semibold text-white ring-1 ring-inset ring-white/15">
-                    {userInitials}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm text-white">{user}</span>
-                  </span>
-                </div>
-                <div className="my-1 h-px bg-white/[0.08]" />
-                {[
-                  { Icon: User, label: t("topbar.personalSettings"), path: "/personal" },
-                  { Icon: CreditCard, label: t("topbar.billingPlan"), path: "/settings/billing" },
-                ].map((m) => (
-                  <NavLink
-                    key={m.path}
-                    to={m.path}
-                    onClick={() => setUserOpen(false)}
-                    className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-white/75 transition hover:bg-white/5 hover:text-white"
-                  >
-                    <m.Icon className="h-4 w-4" />
-                    {m.label}
-                  </NavLink>
-                ))}
-                <div className="my-1 h-px bg-white/[0.08]" />
-                {/* Language switcher */}
-                <div className="flex items-center gap-1 px-2 py-1.5">
-                  <span className="mr-auto text-[11px] font-medium uppercase tracking-wide text-white/40">{t("common.language")}</span>
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Positioner side="bottom" align="end" sideOffset={8} className="z-50 outline-none">
+            <Menu.Popup className={cn(MENU_POPUP, "w-60")}>
+              <div className="flex items-center gap-2.5 px-2 py-2">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400/30 to-violet-400/30 text-xs font-semibold text-white ring-1 ring-inset ring-white/15">
+                  {userInitials}
+                </span>
+                <span className="block min-w-0 truncate text-sm text-white">{user}</span>
+              </div>
+              <Menu.Separator className="my-1 h-px bg-white/[0.08]" />
+              <Menu.Item render={<NavLink to="/personal" />} className={cn(MENU_ITEM, "text-white/75")}>
+                <User className="h-4 w-4" />
+                {t("topbar.personalSettings")}
+              </Menu.Item>
+              <Menu.Item render={<NavLink to="/settings/billing" />} className={cn(MENU_ITEM, "text-white/75")}>
+                <CreditCard className="h-4 w-4" />
+                {t("topbar.billingPlan")}
+              </Menu.Item>
+              <Menu.Separator className="my-1 h-px bg-white/[0.08]" />
+              {/* Language: a proper radio group so arrow keys move between the
+                  segments and the selection is announced; staying open on pick. */}
+              <Menu.RadioGroup value={lang} onValueChange={(v) => setLang(v as typeof lang)}>
+                <div className="px-2 pb-1 pt-0.5 text-[11px] font-medium uppercase tracking-wide text-white/40">{t("common.language")}</div>
+                <div className="flex gap-1 px-1 pb-1">
                   {LANGS.map((l) => (
-                    <button
+                    <Menu.RadioItem
                       key={l.code}
-                      onClick={() => setLang(l.code)}
-                      className={`rounded-lg px-2 py-1 text-xs font-medium transition-colors ${
-                        lang === l.code ? "bg-white/[0.1] text-white" : "text-white/50 hover:text-white"
-                      }`}
+                      value={l.code}
+                      closeOnClick={false}
+                      className="flex-1 cursor-pointer rounded-lg px-2 py-1 text-center text-xs font-medium text-white/50 outline-none transition-colors data-[highlighted]:text-white data-[checked]:bg-white/[0.1] data-[checked]:text-white"
                     >
                       {l.label}
-                    </button>
+                    </Menu.RadioItem>
                   ))}
                 </div>
-                <div className="my-1 h-px bg-white/[0.08]" />
-                <button
-                  onClick={onLogout}
-                  className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-rose-300/90 transition hover:bg-rose-500/10"
-                >
-                  <LogOut className="h-4 w-4" />
-                  {t("common.signOut")}
-                </button>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-      </div>
+              </Menu.RadioGroup>
+              <Menu.Separator className="my-1 h-px bg-white/[0.08]" />
+              <Menu.Item
+                onClick={onLogout}
+                className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-rose-300/90 outline-none transition-colors data-[highlighted]:bg-rose-500/10 data-[highlighted]:text-rose-200"
+              >
+                <LogOut className="h-4 w-4" />
+                {t("common.signOut")}
+              </Menu.Item>
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.Root>
     </header>
   );
 }

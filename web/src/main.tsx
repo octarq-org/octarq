@@ -13,6 +13,7 @@ import "#octarq-plugins";
 import App from "./App";
 import { I18nProvider } from "./i18n";
 import { BrandBridge } from "./brand";
+import { ToastProvider } from "./ui";
 import "./styles.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -24,9 +25,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           shared UI and plugin packages read. */}
       <I18nProvider>
         <BrandBridge>
-          <BrowserRouter basename="/admin">
-            <App />
-          </BrowserRouter>
+          <ToastProvider>
+            <BrowserRouter basename="/admin">
+              <App />
+            </BrowserRouter>
+          </ToastProvider>
         </BrandBridge>
       </I18nProvider>
     </MotionConfig>

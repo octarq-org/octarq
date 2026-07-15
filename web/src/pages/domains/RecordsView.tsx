@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus, Domain, HostEntry, ProviderAccount } from "../../api";
-import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../../ui";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "../Settings";
 import { useTranslation } from "../../i18n";
@@ -35,10 +35,17 @@ export function RecordsView({ domain }: { domain: Domain }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <select className="input min-w-[120px] text-xs py-1" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-          <option value="">{t("domains.allTypes")}</option>
-          {presentTypes.map((rt) => <option key={rt} value={rt}>{rt}</option>)}
-        </select>
+        <div className="min-w-[120px]">
+          <Select
+            className="text-xs"
+            value={typeFilter}
+            onValueChange={setTypeFilter}
+            options={[
+              { value: "", label: t("domains.allTypes") },
+              ...presentTypes.map((rt) => ({ value: rt, label: rt })),
+            ]}
+          />
+        </div>
         <input className="input flex-1 min-w-[140px] text-xs py-1" placeholder={t("domains.filterPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} />
         <Button variant="subtle" onClick={() => setEditing("subdomain")} className="py-1 px-3 text-xs">{t("domains.presetButton")}</Button>
         <Button variant="primary" onClick={() => setEditing("new")} className="py-1 px-3 text-xs">{t("domains.customButton")}</Button>
@@ -155,9 +162,11 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <Field label={t("domains.recordType")}>
-            <select className="input w-full" value={type} onChange={(e) => setType(e.target.value)}>
-              {RECORD_TYPES.map((rt) => <option key={rt}>{rt}</option>)}
-            </select>
+            <Select
+              value={type}
+              onValueChange={setType}
+              options={RECORD_TYPES.map((rt) => ({ value: rt, label: rt }))}
+            />
           </Field>
           <Field label={t("domains.nameHost")}>
             <input className="input w-full font-mono" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("domains.namePlaceholder")} />

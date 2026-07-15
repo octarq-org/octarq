@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Token } from "../api";
-import { Empty, Field, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../ui";
+import { Empty, Field, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../ui";
 import { User, Key, Settings, CheckCircle, Trash2, Eye, ClipboardCopy } from "lucide-react";
 import { useTranslation } from "../i18n";
 
@@ -197,7 +197,7 @@ function ApiTokens() {
               variant="primary"
               onClick={async () => {
                 await navigator.clipboard?.writeText(created.token);
-                alert(t("personal.tokenCopied"));
+                toast.success(t("personal.tokenCopied"));
               }}
               className="w-full gap-1.5"
             >

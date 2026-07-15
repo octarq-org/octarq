@@ -10,3 +10,4 @@ export { cn } from "./cn";
 export * from "./base";
 export * from "./primitives";
 export * from "./locked";
+export { ToastProvider, useToast, toast, type ToastTone } from "./toast";

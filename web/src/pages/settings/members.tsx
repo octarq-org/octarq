@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Settings as SettingsData, OrgMember, LicenseStatus, Overview, PluginInfo } from "../../api";
-import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../../ui";
+import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, toast } from "../../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useSettingsData, SavedBadge } from "./shared";
@@ -53,7 +53,7 @@ export function OrgMembersManager() {
       await api.deleteOrgMember(userId);
       load();
     } catch (e: any) {
-      alert(e.message || t("settings.failedRemoveMember"));
+      toast.error(e.message || t("settings.failedRemoveMember"));
     }
   }
 
@@ -84,11 +84,16 @@ export function OrgMembersManager() {
         </div>
         <div className="w-32">
           <label className="label text-xs">{t("settings.accessRole")}</label>
-          <select className="input w-full text-xs mt-1" value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="member">{t("settings.roleMember")}</option>
-            <option value="admin">{t("settings.roleAdmin")}</option>
-            <option value="owner">{t("settings.roleOwner")}</option>
-          </select>
+          <Select
+            className="mt-1 text-xs"
+            value={role}
+            onValueChange={setRole}
+            options={[
+              { value: "member", label: t("settings.roleMember") },
+              { value: "admin", label: t("settings.roleAdmin") },
+              { value: "owner", label: t("settings.roleOwner") },
+            ]}
+          />
         </div>
         <Button variant="primary" className="py-2 text-xs shrink-0" disabled={busy || !email}>
           {busy ? t("settings.inviting") : t("settings.inviteMember")}

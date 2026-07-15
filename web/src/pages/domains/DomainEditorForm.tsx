@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus, Domain, HostEntry, ProviderAccount } from "../../api";
-import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../../ui";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "../Settings";
 import { useTranslation } from "../../i18n";
@@ -38,10 +38,15 @@ export function DomainEditorForm({ domain, accounts, onCancel, onSaved }: { doma
       </Field>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label={t("domains.dnsProviderConnection")}>
-          <select className="input w-full" value={providerAccountId} onChange={(e) => setProviderAccountId(Number(e.target.value))}>
-            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.type})</option>)}
-            {accounts.length === 0 && <option value={0}>{t("domains.noAccountsAvailable")}</option>}
-          </select>
+          <Select
+            value={String(providerAccountId)}
+            onValueChange={(v) => setProviderAccountId(Number(v))}
+            options={
+              accounts.length === 0
+                ? [{ value: "0", label: t("domains.noAccountsAvailable") }]
+                : accounts.map((a) => ({ value: String(a.id), label: `${a.name} (${a.type})` }))
+            }
+          />
         </Field>
         <Field label={t("domains.zoneIdentifier")}>
           <input className="input w-full font-mono text-xs" value={zoneId} onChange={(e) => setZoneId(e.target.value)} placeholder={t("domains.zoneIdPlaceholder")} />

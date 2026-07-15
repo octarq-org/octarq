@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Attachment, Domain, effectiveMailHosts, Email, Mailbox } from "../../api";
-import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../../ui";
+import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../ui";
 import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle } from "lucide-react";
 import { MailSettings, SMTPSenders } from "../Settings";
 import { useTranslation } from "../../i18n";
@@ -65,18 +65,15 @@ export function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () =>
       ) : (
         <div className="space-y-4">
           <Field label={t("mail.smtpConnection")} hint={t("mail.smtpConnectionHint")}>
-            <select
-              className="input w-full text-sm"
-              value={smtpSenderId}
-              onChange={(e) => setSmtpSenderId(Number(e.target.value))}
-            >
-              <option value={0}>{t("mail.systemDefaultSmtp")}</option>
-              {senders.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.fromEmail})
-                </option>
-              ))}
-            </select>
+            <Select
+              className="text-sm"
+              value={String(smtpSenderId)}
+              onValueChange={(v) => setSmtpSenderId(Number(v))}
+              options={[
+                { value: "0", label: t("mail.systemDefaultSmtp") },
+                ...senders.map((s) => ({ value: String(s.id), label: `${s.name} (${s.fromEmail})` })),
+              ]}
+            />
           </Field>
           <Field label={t("mail.fromOverride")} hint={t("mail.fromOverrideHint")}>
             <input className="input w-full font-mono text-sm" value={from} onChange={(e) => setFrom(e.target.value)} placeholder={t("mail.fromPlaceholder")} />

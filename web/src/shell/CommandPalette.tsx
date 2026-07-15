@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { Search } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { Area, SETTINGS_AREA } from "./areas";
@@ -56,33 +56,28 @@ export function CommandPalette({
     if (open) {
       setQ("");
       setSel(0);
-      const t = setTimeout(() => inputRef.current?.focus(), 20);
-      return () => clearTimeout(t);
     }
   }, [open]);
   useEffect(() => { setSel(0); }, [q]);
 
-  if (!open) return null;
-
+  // Arrow/Enter drive the result list; Base UI Dialog owns Escape, focus
+  // trapping, scroll locking, backdrop dismissal and focus return to the ⌘K
+  // trigger — replacing the previous hand-rolled fixed-overlay + manual Escape.
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") { e.preventDefault(); setSel((s) => Math.min(s + 1, filtered.length - 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setSel((s) => Math.max(s - 1, 0)); }
     else if (e.key === "Enter") { e.preventDefault(); const c = filtered[sel]; if (c) onNavigate(c.path); }
-    else if (e.key === "Escape") { e.preventDefault(); onClose(); }
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 px-4 pt-[12vh] backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.98, y: -8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.14 }}
-        className="glass-strong w-full max-w-xl overflow-hidden rounded-2xl shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <BaseDialog.Root open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <BaseDialog.Portal>
+        <BaseDialog.Backdrop className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm modal-overlay" />
+        <BaseDialog.Popup
+          initialFocus={inputRef}
+          aria-label={t("command.placeholder")}
+          className="glass-strong modal-card fixed left-1/2 top-[12vh] z-[100] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl shadow-2xl outline-none"
+        >
         <div className="flex items-center gap-3 border-b border-white/[0.08] px-4">
           <Search className="h-4 w-4 shrink-0 text-white/40" />
           <input
@@ -119,7 +114,8 @@ export function CommandPalette({
             ))
           )}
         </div>
-      </motion.div>
-    </div>
+        </BaseDialog.Popup>
+      </BaseDialog.Portal>
+    </BaseDialog.Root>
   );
 }
