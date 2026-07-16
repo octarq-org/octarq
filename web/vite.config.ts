@@ -75,6 +75,16 @@ export default defineConfig({
     // embedded dist.
     outDir: process.env.OCTARQ_WEBEMBED_OUT || "../webembed/dist",
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-icons': ['lucide-react'],
+          'vendor-ui': ['@base-ui/react']
+        }
+      }
+    }
   },
   server: {
     // Permit reading plugin source from external edition roots (dev-from-source).
