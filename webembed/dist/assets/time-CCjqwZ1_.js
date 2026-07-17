@@ -1,0 +1,1 @@
+function e(t){const r=new Date(t).getTime(),o=Math.floor((Date.now()-r)/1e3);return o<60?`${o}s ago`:o<3600?`${Math.floor(o/60)}m ago`:o<86400?`${Math.floor(o/3600)}h ago`:`${Math.floor(o/86400)}d ago`}export{e as t};
