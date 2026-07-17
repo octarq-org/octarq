@@ -39,7 +39,9 @@ func newTestHandlerWithInstance(t *testing.T) (*Handler, http.Handler, *gorm.DB)
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
-	return h, h.Routes(), db
+	srv := h.Routes()
+	mountCoreDNS(h, db, authMgr, cipher)
+	return h, srv, db
 }
 
 func TestInviteFlow(t *testing.T) {

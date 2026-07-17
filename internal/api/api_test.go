@@ -14,8 +14,29 @@ import (
 	"github.com/octarq-org/octarq/internal/geo"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/queue"
+	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/plugins/dns"
 	"gorm.io/gorm"
 )
+
+// mountCoreDNS mounts the built-in dns Core plugin onto the handler's API so the
+// domain / provider-account / DNS-record routes (extracted out of the Handler,
+// see docs/CORE-PLUGIN-EXTRACTION.md) are present in the test server exactly as
+// the app mounts them in production. Uses default (net) DNS resolvers — tests
+// that stub resolution live in plugins/dns.
+func mountCoreDNS(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypto.Cipher) {
+	reg := plugin.NewRegistry()
+	dns.New().Mount(nil, &plugin.Context{
+		Huma:    h.Huma(),
+		DB:      db,
+		OrgID:   authMgr.OrgID,
+		Audit:   h.Audit,
+		Encrypt: cipher.Encrypt,
+		Decrypt: cipher.Decrypt,
+		Provide: reg.Provide,
+		Lookup:  reg.Lookup,
+	})
+}
 
 func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	t.Helper()
@@ -39,7 +60,9 @@ func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
-	return h.Routes(), db
+	srv := h.Routes()
+	mountCoreDNS(h, db, authMgr, cipher)
+	return srv, db
 }
 
 // apiEnvStore backs crypto.EnableEnvelope with the test DB's settings table.

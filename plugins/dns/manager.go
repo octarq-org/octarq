@@ -1,4 +1,4 @@
-package api
+package dns
 
 import (
 	"context"
@@ -8,22 +8,23 @@ import (
 	"github.com/octarq-org/octarq/plugin"
 )
 
-// dnsManager adapts the core's per-domain DNS provider to the stable
+// dnsManager adapts the plugin's per-domain DNS provider to the stable
 // plugin.DNSManager seam, so Pro plugins (e.g. the AI MCP tools) can change real
 // DNS records without importing internal/dnsprovider. It resolves each domain's
 // zone and credentials via the same providerFor() the dashboard uses.
-type dnsManager struct{ h *Handler }
+type dnsManager struct{ p *Plugin }
 
-// DNSManager returns the plugin-facing DNS manager backed by this handler.
-func (h *Handler) DNSManager() plugin.DNSManager { return dnsManager{h} }
+// DNSManager returns the plugin-facing DNS manager backed by this plugin. The
+// app provides it as the "dns.manager" service and wires ctx.DNS to it.
+func (p *Plugin) DNSManager() plugin.DNSManager { return dnsManager{p} }
 
 // resolve loads a domain and builds its DNS provider.
 func (m dnsManager) resolve(domainID uint) (models.Domain, dnsprovider.Provider, error) {
 	var dom models.Domain
-	if err := m.h.db.First(&dom, domainID).Error; err != nil {
+	if err := m.p.db.First(&dom, domainID).Error; err != nil {
 		return dom, nil, err
 	}
-	prov, err := m.h.providerFor(dom)
+	prov, err := m.p.providerFor(dom)
 	return dom, prov, err
 }
 

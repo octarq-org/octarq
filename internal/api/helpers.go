@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/octarq-org/octarq/internal/dnsprovider"
 	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
@@ -111,39 +110,5 @@ func (h *Handler) Audit(r *http.Request, action, targetType string, targetID uin
 	h.audit(r, action, targetType, targetID, meta)
 }
 
-// encryptConfig serializes and AES-GCM-encrypts a provider credentials map.
-func (h *Handler) encryptConfig(cfg map[string]any) (string, error) {
-	if len(cfg) == 0 {
-		return "", nil
-	}
-	b, err := json.Marshal(cfg)
-	if err != nil {
-		return "", err
-	}
-	return h.cipher.Encrypt(b)
-}
-
-// providerFor decrypts a domain's stored credentials and builds its DNS
-// provider.
-func (h *Handler) providerFor(dom models.Domain) (dnsprovider.Provider, error) {
-	if dom.ProviderAccountID == 0 {
-		return nil, errors.New("domain has no provider account configured")
-	}
-	// Scope the provider-account lookup to the domain's owning org. Callers
-	// already pre-scope the Domain, so this is defense-in-depth: it prevents a
-	// domain from ever resolving credentials belonging to another tenant even
-	// if a future caller forgets to scope the domain first.
-	var acc models.ProviderAccount
-	if err := h.db.Where("id = ? AND owner_id = ?", dom.ProviderAccountID, dom.OrgID).
-		First(&acc).Error; err != nil {
-		return nil, errors.New("provider account not found")
-	}
-	if acc.Config == "" {
-		return nil, errors.New("provider account has no credentials configured")
-	}
-	creds, err := h.cipher.Decrypt(acc.Config)
-	if err != nil {
-		return nil, errors.New("stored API token could not be decrypted — re-save this provider's API token under Settings → DNS Providers (the encryption key or database changed since it was saved)")
-	}
-	return dnsprovider.New(acc.Type, creds)
-}
+// Domain/DNS provider helpers (encryptConfig, providerFor) moved to the dns
+// Core plugin (plugins/dns). See docs/CORE-PLUGIN-EXTRACTION.md.
