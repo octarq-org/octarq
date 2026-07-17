@@ -264,22 +264,7 @@ func (h *Handler) Routes() *http.ServeMux {
 	// built-in dns Core plugin (plugins/dns), mounted by the app. See
 	// docs/CORE-PLUGIN-EXTRACTION.md.
 
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/smtp-senders", Summary: "List SMTP Senders", Tags: []string{"SMTP"}}, h.listSMTPSenders)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/smtp-senders", Summary: "Create SMTP Sender", Tags: []string{"SMTP"}, DefaultStatus: 201}, h.createSMTPSender)
-	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/smtp-senders/{id}", Summary: "Update SMTP Sender", Tags: []string{"SMTP"}}, h.updateSMTPSender)
-	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/smtp-senders/{id}", Summary: "Delete SMTP Sender", Tags: []string{"SMTP"}}, h.deleteSMTPSender)
 
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/mailboxes", Summary: "List Mailboxes", Tags: []string{"Mailboxes"}}, h.listMailboxes)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/mailboxes", Summary: "Create Mailbox", Tags: []string{"Mailboxes"}, DefaultStatus: 201}, h.createMailbox)
-	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/mailboxes/{id}", Summary: "Update Mailbox", Tags: []string{"Mailboxes"}}, h.updateMailbox)
-	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/mailboxes/{id}", Summary: "Delete Mailbox", Tags: []string{"Mailboxes"}}, h.deleteMailbox)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails", Summary: "List Emails", Tags: []string{"Emails"}}, h.listEmails)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/emails/read-all", Summary: "Mark All Emails Read", Tags: []string{"Emails"}}, h.readAllEmails)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails/{id}", Summary: "Get Email", Tags: []string{"Emails"}}, h.getEmail)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails/{id}/raw", Summary: "Get Raw Email EML", Tags: []string{"Emails"}}, h.rawEmail)
-	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/emails/{id}", Summary: "Update Email State", Tags: []string{"Emails"}}, h.updateEmail)
-	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/emails/{id}", Summary: "Delete Email", Tags: []string{"Emails"}}, h.deleteEmail)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/emails/send", Summary: "Send Email", Tags: []string{"Emails"}}, h.sendEmail)
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/ai/assist/status", Summary: "Get AI Assist Status", Tags: []string{"AI"}}, h.aiStatus)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/ai/assist/suggest-slug", Summary: "Suggest Link Slug via AI", Tags: []string{"AI"}}, h.aiSuggestSlug)

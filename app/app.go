@@ -46,6 +46,7 @@ import (
 	"github.com/octarq-org/octarq/internal/shortlink"
 	"github.com/octarq-org/octarq/plugin"
 	"github.com/octarq-org/octarq/plugins/dns"
+	mailplugin "github.com/octarq-org/octarq/plugins/mail"
 	"github.com/octarq-org/octarq/webembed"
 	"gorm.io/gorm"
 )
@@ -184,6 +185,7 @@ func New() (*App, error) {
 	// default-on plugins (docs/CORE-PLUGIN-EXTRACTION.md). They mount ungated like
 	// any Core plugin, so every binary — open-core and Pro — gets them.
 	a.Use(dns.New())
+	a.Use(mailplugin.New())
 	return a, nil
 }
 
