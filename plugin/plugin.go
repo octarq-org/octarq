@@ -181,6 +181,7 @@ type Context struct {
 	Lookup func(name string) (any, bool)
 	// GetWorkspaceSetting reads a per-org setting value.
 	GetWorkspaceSetting func(orgID uint, key string) string
+	GetGlobalSetting    func(key string) string
 	// SetWorkspaceSetting writes a per-org setting value.
 	SetWorkspaceSetting func(orgID uint, key, value string) error
 }

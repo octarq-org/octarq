@@ -457,19 +457,6 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 	return &SendEmailOutput{Body: map[string]bool{"ok": true}}, nil
 }
 
-// --- inbound webhook (Cloudflare Email Routing -> Worker -> here) ---
-//
-// The Worker POSTs the raw RFC822 message body with header X-Octarq-Token.
-// We parse it, match (or catch-all create) a mailbox by recipient, and store.
-
-// mailHostDisabled reports whether host is listed as a mail host on some domain
-// but every such listing is disabled (so mail to it should be dropped).
-
-// resolveMailbox finds an enabled mailbox for the address within the given org,
-// optionally creating one when catch-all is on and the recipient's domain (also
-// owned by that org) is managed for mail. Scoping by org keeps one tenant's
-// inbound webhook from delivering into another tenant's mailboxes.
-
 func (p *Plugin) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 	orgID := p.orgID(r)
 
@@ -535,7 +522,7 @@ func (p *Plugin) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 			var slug string
 			for i := 0; i < 5; i++ {
 				slug = randomSlug(6)
-				if !p.isReservedSlug(r, slug) {
+				if !p.isReservedSlug(slug) {
 					var count int64
 					p.db.Model(&models.Link{}).Where("slug = ?", slug).Count(&count)
 					if count == 0 {

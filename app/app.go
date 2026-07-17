@@ -309,6 +309,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 		SendMail:            a.sendMail,
 		SetLLMResolver:      apiHandler.SetLLMResolver,
 		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
+		GetGlobalSetting:    apiHandler.GetGlobalSetting,
 		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,
 		Provide:             services.Provide,
 		Lookup:              services.Lookup,

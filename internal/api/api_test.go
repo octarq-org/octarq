@@ -49,6 +49,7 @@ func mountCoreMail(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypt
 		Encrypt:             cipher.Encrypt,
 		Decrypt:             cipher.Decrypt,
 		GetWorkspaceSetting: h.GetWorkspaceSetting,
+		GetGlobalSetting:    h.GetGlobalSetting,
 		Provide:             reg.Provide,
 		Lookup:              reg.Lookup,
 	})

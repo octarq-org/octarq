@@ -145,7 +145,6 @@ func TestInviteFlow(t *testing.T) {
 	}
 }
 
-
 // TestVerifyDNSMailHosts checks that verification probes each enabled mail host
 // (including subdomains) rather than only the apex.
 

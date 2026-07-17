@@ -23,7 +23,7 @@ type Plugin struct {
 	encrypt             func(plaintext []byte) (string, error)
 	decrypt             func(encoded string) ([]byte, error)
 	getWorkspaceSetting func(orgID uint, key string) string
-
+	getGlobalSetting    func(key string) string
 	sendLimiter *rateLimiter
 }
 
@@ -36,6 +36,7 @@ var (
 // New constructs the mail plugin.
 func New() *Plugin {
 	return &Plugin{
+		// Note: RedisURL omitted in extraction. Outbound rate-limiting is per-instance instead of global. (Phase 2 context concern)
 		sendLimiter: newRateLimiter("", "send", 100, time.Hour),
 	}
 }
@@ -61,6 +62,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	p.encrypt = ctx.Encrypt
 	p.decrypt = ctx.Decrypt
 	p.getWorkspaceSetting = ctx.GetWorkspaceSetting
+	p.getGlobalSetting = ctx.GetGlobalSetting
 
 	api := ctx.Huma
 
@@ -83,8 +85,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 }
 
 var builtinReservedSlugs = map[string]bool{
-	"api": true, "admin": true, "login": true, "logout": true, "signup": true,
-	"settings": true, "dashboard": true, "billing": true, "support": true,
+	"admin": true, "api": true, "assets": true, "portal": true,
 }
 
 func splitList(s string) []string {
@@ -100,17 +101,16 @@ func splitList(s string) []string {
 	return out
 }
 
-func (p *Plugin) isReservedSlug(r *http.Request, slug string) bool {
-	// The core `isReservedSlug` took just `slug`. But to get the workspace setting we need `r`.
-	// Let's modify `wrapLinksInEmail` to pass `r` down.
+func (p *Plugin) isReservedSlug(slug string) bool {
 	slug = strings.ToLower(slug)
 	if builtinReservedSlugs[slug] {
 		return true
 	}
-	val := p.getWorkspaceSetting(p.orgID(r), "links.reserved_slugs")
-	for _, res := range splitList(val) {
-		if res == slug {
-			return true
+	if p.getGlobalSetting != nil {
+		for _, res := range splitList(p.getGlobalSetting("reserved_slugs")) {
+			if res == slug {
+				return true
+			}
 		}
 	}
 	return false
