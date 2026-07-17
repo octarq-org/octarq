@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Globe } from "lucide-react";
 import { api, MenuItem, Org, PluginInfo } from "./api";
 import { useAppName, brandInitial } from "./brand";
-import OverviewPage from "./pages/Overview";
-import SettingsPage from "./pages/Settings";
-import PersonalSettingsPage from "./pages/PersonalSettings";
-import InviteAcceptPage from "./pages/InviteAccept";
+// Route-level code splitting: each top-level page ships as its own chunk,
+// loaded on first navigation behind the Suspense boundary below.
+const OverviewPage = lazy(() => import("./pages/Overview"));
+const SettingsPage = lazy(() => import("./pages/Settings"));
+const PersonalSettingsPage = lazy(() => import("./pages/PersonalSettings"));
+const InviteAcceptPage = lazy(() => import("./pages/InviteAccept"));
 import { Modal, Button, toast } from "./ui";
 import { useTranslation } from "./i18n";
 import { Area, AreaId, STATIC_AREAS, SETTINGS_AREA, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
@@ -18,6 +20,18 @@ import { AreaPanel } from "./shell/AreaPanel";
 import { Login } from "./shell/Login";
 import { uiAreas, uiMenus } from "./plugin-sdk";
 import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
+
+
+// Fallback while a route's lazily-loaded chunk is fetched — a subtle centered
+// spinner instead of a blank gap. Shared with the Settings sub-router. The spin
+// animation degrades under the global prefers-reduced-motion rule.
+export function RouteFallback() {
+  return (
+    <div className="grid h-64 place-items-center" role="status" aria-live="polite">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/15 border-t-white/60" />
+    </div>
+  );
+}
 
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -422,6 +436,7 @@ function Shell({
       <main ref={mainRef} id="main-content" tabIndex={-1} className="relative flex-1 overflow-hidden outline-none">
         <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
           <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-8 py-8">
+            <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/"           element={<Navigate to="/overview" replace />} />
               <Route path="/overview"   element={<OverviewPage />} />
@@ -436,6 +451,7 @@ function Shell({
                   here, matching octarq's "not in this build" convention. */}
               <Route path="*"           element={<PluginUnavailable />} />
             </Routes>
+            </Suspense>
           </div>
         </div>
       </main>
