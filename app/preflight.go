@@ -74,3 +74,25 @@ func preflightTableCollisions(namer schema.Namer, plugins []plugin.Plugin) error
 	}
 	return nil
 }
+
+// preflightDependencies validates that every mounted plugin's Requires set is
+// satisfied by the set of mounted plugins. Refuses startup if any required
+// plugin is missing.
+func preflightDependencies(plugins []plugin.Plugin) error {
+	registered := make(map[string]bool, len(plugins))
+	for _, p := range plugins {
+		registered[p.Name()] = true
+	}
+	for _, p := range plugins {
+		info := plugin.Describe(p)
+		for _, req := range info.Requires {
+			if !registered[req] {
+				return fmt.Errorf(
+					"preflight: plugin %q requires plugin %q, which is not mounted (check build tags octarq_no%s / composition)",
+					p.Name(), req, req,
+				)
+			}
+		}
+	}
+	return nil
+}

@@ -1,21 +1,8 @@
 // Thin fetch wrapper around the octarq JSON API.
 
-export interface Link {
-  id: number;
-  host: string;
-  slug: string;
-  target: string;
-  note: string;
-  title: string;
-  tags: string;
-  expiresAt: string | null;
-  expiredUrl: string;
-  clickLimit: number;
-  archived: boolean;
-  enabled: boolean;
-  clicks: number;
-  hasPassword: boolean;
-  createdAt: string;
+export interface StatKV {
+  key: string;
+  count: number;
 }
 
 export interface Domain {
@@ -230,99 +217,6 @@ export function effectiveMailHosts(d: Domain): string[] {
   return (d.mailHosts ?? []).filter((h) => h.enabled).map((h) => h.host);
 }
 
-export interface DNSRecord {
-  id: string;
-  type: string;
-  name: string;
-  content: string;
-  ttl: number;
-  proxied: boolean;
-  comment: string;
-  priority?: number | null;
-}
-
-export interface DNSRecordStatus {
-  set: boolean;
-  healthy: boolean;
-  value?: string;
-}
-
-export interface DKIMStatus extends DNSRecordStatus {
-  selector?: string;
-}
-
-export interface HostDNSStatus {
-  host: string;
-  spf: DNSRecordStatus;
-  dmarc: DNSRecordStatus;
-  dkim: DKIMStatus;
-}
-
-export interface LinkHostStatus {
-  host: string;
-  set: boolean;      // resolves (has a CNAME record)
-  healthy: boolean;  // CNAME points into the domain's zone
-  cname?: string;    // observed CNAME target
-  target: string;    // expected target (the apex domain)
-}
-
-// verify-dns response: top-level fields describe the apex (back-compat);
-// `hosts` carries per-mail-host results (subdomains included);
-// `links` carries per-short-link-host CNAME resolution.
-export interface DNSVerifyResult {
-  spf: DNSRecordStatus;
-  dmarc: DNSRecordStatus;
-  dkim: DKIMStatus;
-  hosts: HostDNSStatus[];
-  links: LinkHostStatus[];
-}
-
-export interface Mailbox {
-  id: number;
-  address: string;
-  note: string;
-  enabled: boolean;
-  unread: number;
-}
-
-export interface Attachment {
-  filename: string;
-  contentType: string;
-  size: number;
-}
-
-export interface Email {
-  id: number;
-  mailboxId: number;
-  from: string;
-  to: string;
-  subject: string;
-  text: string;
-  html: string;
-  read: boolean;
-  note: string;
-  attachments: string; // JSON string of Attachment[]
-  authSpf: string;   // pass|fail|softfail|neutral|none|""
-  authDkim: string;  // pass|fail|none|""
-  authDmarc: string; // pass|fail|none|""
-  receivedAt: string;
-}
-
-export interface StatKV {
-  key: string;
-  count: number;
-}
-export interface LinkStats {
-  total: number;
-  windowed: number;
-  days: number;
-  series: StatKV[];
-  referers: StatKV[] | null;
-  countries: StatKV[] | null;
-  regions: StatKV[] | null;
-  devices: StatKV[] | null;
-  browsers: StatKV[] | null;
-}
 
 export interface Subscription {
   id: number;
@@ -386,7 +280,7 @@ class ApiError extends Error {
   }
 }
 
-async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
+export async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method,
     headers: body ? { "Content-Type": "application/json" } : undefined,
@@ -607,29 +501,6 @@ export const api = {
   twoFADisable: (opts: { code?: string; password?: string }) =>
     req<{ ok: boolean }>("POST", "/api/auth/2fa/disable", opts),
 
-  // links
-  links: (params: { q?: string; tag?: string; host?: string; archived?: boolean; limit?: number; offset?: number } = {}) => {
-    const sp = new URLSearchParams();
-    if (params.q) sp.set("q", params.q);
-    if (params.tag) sp.set("tag", params.tag);
-    if (params.host) sp.set("host", params.host);
-    if (params.archived) sp.set("archived", "1");
-    if (params.limit) sp.set("limit", params.limit.toString());
-    if (params.offset) sp.set("offset", params.offset.toString());
-    const qs = sp.toString();
-    return req<Link[]>("GET", `/api/links${qs ? `?${qs}` : ""}`);
-  },
-  createLink: (l: Partial<Link> & { password?: string }) => req<Link>("POST", "/api/links", l),
-  updateLink: (id: number, l: Partial<Link> & { password?: string }) =>
-    req<Link>("PUT", `/api/links/${id}`, l),
-  deleteLink: (id: number) => req("DELETE", `/api/links/${id}`),
-  linkStats: (id: number, days = 30) => req<LinkStats>("GET", `/api/links/${id}/stats?days=${days}`),
-  linkMetadata: (url: string) =>
-    req<{ title: string; description: string; favicon: string }>(
-      "GET",
-      `/api/links/metadata?url=${encodeURIComponent(url)}`,
-    ),
-
   // single-step AI assists (OSS, BYO key — buttons hide when unconfigured)
   aiAssistStatus: () => req<{ configured: boolean; provider: string }>("GET", "/api/ai/assist/status"),
   aiSuggestSlug: (target: string, title?: string) =>
@@ -649,12 +520,6 @@ export const api = {
   updateSMTPSender: (id: number, s: any) => req<SMTPSender>("PUT", `/api/smtp-senders/${id}`, s),
   deleteSMTPSender: (id: number) => req("DELETE", `/api/smtp-senders/${id}`),
 
-  syncDomains: (providerAccountId: number) =>
-    req<{ ok: boolean; total: number; created: number; updated: number }>(
-      "POST",
-      "/api/domains/sync",
-      { providerAccountId },
-    ),
   domains: (q?: { q?: string; limit?: number; offset?: number }) => {
     const params = new URLSearchParams();
     if (q?.q) params.set("q", q.q);
@@ -663,43 +528,6 @@ export const api = {
     const query = params.toString();
     return req<Domain[]>("GET", `/api/domains${query ? "?" + query : ""}`);
   },
-  createDomain: (d: any) => req<Domain>("POST", "/api/domains", d),
-  updateDomain: (id: number, d: any) => req<Domain>("PUT", `/api/domains/${id}`, d),
-  deleteDomain: (id: number) => req("DELETE", `/api/domains/${id}`),
-  verifyDNS: (id: number) => req<DNSVerifyResult>("GET", `/api/domains/${id}/verify-dns`),
-  records: (id: number) => req<DNSRecord[]>("GET", `/api/domains/${id}/records`),
-  createRecord: (id: number, r: Partial<DNSRecord>) =>
-    req<DNSRecord>("POST", `/api/domains/${id}/records`, r),
-  updateRecord: (id: number, rid: string, r: Partial<DNSRecord>) =>
-    req<DNSRecord>("PUT", `/api/domains/${id}/records/${rid}`, r),
-  deleteRecord: (id: number, rid: string) => req("DELETE", `/api/domains/${id}/records/${rid}`),
-
-  // mail
-  mailboxes: () => req<Mailbox[]>("GET", "/api/mailboxes"),
-  createMailbox: (m: Partial<Mailbox>) => req<Mailbox>("POST", "/api/mailboxes", m),
-  updateMailbox: (id: number, m: Partial<Mailbox>) => req<Mailbox>("PUT", `/api/mailboxes/${id}`, m),
-  deleteMailbox: (id: number) => req("DELETE", `/api/mailboxes/${id}`),
-  emails: (mailboxId?: number, params?: { q?: string; limit?: number; offset?: number }) => {
-    const sp = new URLSearchParams();
-    if (mailboxId) sp.set("mailbox", mailboxId.toString());
-    if (params?.q) sp.set("q", params.q);
-    if (params?.limit) sp.set("limit", params.limit.toString());
-    if (params?.offset) sp.set("offset", params.offset.toString());
-    const qs = sp.toString();
-    return req<Email[]>("GET", `/api/emails${qs ? "?" + qs : ""}`);
-  },
-  email: (id: number) => req<Email>("GET", `/api/emails/${id}`),
-  updateEmail: (id: number, e: { read?: boolean; note?: string }) =>
-    req<Email>("PUT", `/api/emails/${id}`, e),
-  deleteEmail: (id: number) => req("DELETE", `/api/emails/${id}`),
-  readAllEmails: (mailbox?: number) =>
-    req<{ ok: boolean; updated: number }>(
-      "POST",
-      `/api/emails/read-all${mailbox ? `?mailbox=${mailbox}` : ""}`,
-    ),
-  rawEmailUrl: (id: number) => `/api/emails/${id}/raw`,
-  sendEmail: (m: { from?: string; to: string[]; subject: string; text?: string; html?: string; smtpSenderId?: number; trackLinks?: boolean }) =>
-    req("POST", "/api/emails/send", m),
 
   // tokens
   tokens: () => req<Token[]>("GET", "/api/tokens"),

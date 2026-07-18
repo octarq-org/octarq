@@ -10,8 +10,6 @@ import (
 	"sync"
 	"time"
 
-	mailmodels "github.com/octarq-org/octarq/plugins/mail"
-
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/llmprovider"
@@ -225,11 +223,14 @@ func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailI
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if !h.emailBelongsToOrg(input.ID, h.orgID(r)) {
-		return nil, huma.Error404NotFound("not found")
+	var fromAddr, subject, body string
+	var found bool
+	if getEmail, ok := h.LookupService("mail.email.get"); ok {
+		if fn, ok := getEmail.(func(orgID uint, id uint) (string, string, string, bool)); ok {
+			fromAddr, subject, body, found = fn(h.orgID(r), input.ID)
+		}
 	}
-	var e mailmodels.Email
-	if h.db.First(&e, input.ID).Error != nil {
+	if !found {
 		return nil, huma.Error404NotFound("not found")
 	}
 	p, err := h.llm()
@@ -237,15 +238,11 @@ func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailI
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 
-	body := e.Text
-	if strings.TrimSpace(body) == "" {
-		body = htmlTagRe.ReplaceAllString(e.HTML, " ")
-	}
 	const maxBody = 8000
 	if len(body) > maxBody {
 		body = body[:maxBody]
 	}
-	content := "From: " + e.FromAddr + "\nSubject: " + e.Subject + "\n\n" + body
+	content := "From: " + fromAddr + "\nSubject: " + subject + "\n\n" + body
 
 	ctxCtx, cancel := context.WithTimeout(r.Context(), aiTimeout)
 	defer cancel()

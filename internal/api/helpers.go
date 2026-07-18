@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	mailmodels "github.com/octarq-org/octarq/plugins/mail"
-
 	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
@@ -56,15 +54,6 @@ func splitHostPort(addr string) (host, port string, err error) {
 		return "", "", errors.New("no port")
 	}
 	return import_net_SplitHostPort(addr)
-}
-
-// emailBelongsToOrg verifies an email's mailbox is owned by the given org.
-func (h *Handler) emailBelongsToOrg(emailID, orgID uint) bool {
-	var count int64
-	h.db.Model(&mailmodels.Email{}).
-		Joins("JOIN mailboxes ON mailboxes.id = emails.mailbox_id AND mailboxes.owner_id = ?", orgID).
-		Where("emails.id = ?", emailID).Count(&count)
-	return count > 0
 }
 
 // orgID extracts the authenticated org ID from the request session.

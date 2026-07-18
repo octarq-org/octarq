@@ -10,11 +10,8 @@ import (
 	"strings"
 	"time"
 
-	mailmodels "github.com/octarq-org/octarq/plugins/mail"
-
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
@@ -415,28 +412,18 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 // error: a missing sender or a send failure is logged and swallowed so the
 // invite itself still succeeds.
 func (h *Handler) sendInviteEmail(orgID uint, to, acceptURL string) {
-	var s mailmodels.SMTPSender
-	if err := h.db.Where("owner_id = ?", orgID).Order("id").First(&s).Error; err != nil {
-		log.Printf("invite email skipped for %s: no SMTP sender for org %d", to, orgID)
-		return
+	if sendMail, ok := h.LookupService("mail.send"); ok {
+		if fn, ok := sendMail.(func(orgID uint, to, subject, htmlBody, textBody string) error); ok {
+			text := fmt.Sprintf("You've been invited to join a workspace on octarq.\n\n"+
+				"Accept your invite and set a password here:\n%s\n\n"+
+				"This link expires in 24 hours.", acceptURL)
+			if err := fn(orgID, to, "You've been invited to octarq", "", text); err != nil {
+				log.Printf("invite email to %s failed: %v", to, err)
+			}
+			return
+		}
 	}
-	pass, err := h.cipher.Decrypt(s.Pass)
-	if err != nil {
-		log.Printf("invite email skipped for %s: decrypt SMTP pass: %v", to, err)
-		return
-	}
-	sender := mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
-	msg := mail.Message{
-		From:    s.FromEmail,
-		To:      []string{to},
-		Subject: "You've been invited to octarq",
-		Text: fmt.Sprintf("You've been invited to join a workspace on octarq.\n\n"+
-			"Accept your invite and set a password here:\n%s\n\n"+
-			"This link expires in 24 hours.", acceptURL),
-	}
-	if err := sender.Send(msg); err != nil {
-		log.Printf("invite email to %s failed: %v", to, err)
-	}
+	log.Printf("invite email skipped for %s: mail plugin not mounted", to)
 }
 
 type RemoveOrgMemberInput struct {

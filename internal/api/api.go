@@ -22,7 +22,6 @@ import (
 	"github.com/octarq-org/octarq/internal/queue"
 	"github.com/octarq-org/octarq/llmprovider"
 	"github.com/octarq-org/octarq/plugin"
-	"github.com/octarq-org/octarq/plugins/links"
 	"gorm.io/gorm"
 )
 
@@ -52,11 +51,23 @@ type Handler struct {
 	// registered by plugins via OnEmail and fired by emitEmail. Guarded by
 	// emailMu because registration happens during plugin Mount (startup) while
 	// dispatch happens on the inbound webhook path.
-	humaAPI huma.API
+	lookupService func(name string) (any, bool)
+	humaAPI       huma.API
 }
 
 func (h *Handler) SetPlugins(plugins []plugin.Plugin) {
 	h.plugins = plugins
+}
+
+func (h *Handler) SetServiceLookup(lookup func(name string) (any, bool)) {
+	h.lookupService = lookup
+}
+
+func (h *Handler) LookupService(name string) (any, bool) {
+	if h.lookupService == nil {
+		return nil, false
+	}
+	return h.lookupService(name)
 }
 
 func (h *Handler) Huma() huma.API {
@@ -87,21 +98,6 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 }
 
 func (h *Handler) registerQueueHandlers(q queue.Queue) {
-	q.Register("link.crawl", func(ctx context.Context, payload []byte) error {
-		var d struct {
-			ID     uint   `json:"id"`
-			Target string `json:"target"`
-		}
-		if err := json.Unmarshal(payload, &d); err != nil {
-			return err
-		}
-		title, _ := fetchPageMeta(ctx, d.Target)
-		if title != "" {
-			return h.db.Model(&links.Link{}).Where("id = ?", d.ID).Update("title", title).Error
-		}
-		return nil
-	})
-
 	q.Register("abuse.notify", func(ctx context.Context, payload []byte) error {
 		var rep models.AbuseReport
 		if err := json.Unmarshal(payload, &rep); err != nil {

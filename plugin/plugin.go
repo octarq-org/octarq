@@ -56,13 +56,6 @@
 // consumer shape.
 //
 // # Context evolution policy
-//
-// Context is the dependency bag handed to Mount and is shared by every plugin,
-// in and out of tree. Its fields are ADDITIVE-ONLY: adding a new field is
-// backward-compatible (existing plugins ignore it); renaming, removing, or
-// changing the type of an existing field is a breaking change that requires a
-// major version bump of this module. Plugins must tolerate zero-valued fields
-// they don't use — never assume every field is populated in every host.
 package plugin
 
 import (
@@ -75,6 +68,26 @@ import (
 	"github.com/octarq-org/octarq/llmprovider"
 	"gorm.io/gorm"
 )
+
+// ServiceDNSManager is the well-known service name under which the DNS manager is provided.
+const ServiceDNSManager = "dns.manager"
+
+type contextKey string
+
+const orgIDKey contextKey = "org_id"
+
+// WithOrgID returns a new context containing the organization ID for MCP / request scopes.
+func WithOrgID(ctx context.Context, orgID uint) context.Context {
+	return context.WithValue(ctx, orgIDKey, orgID)
+}
+
+// OrgIDFromContext extracts the organization ID from the context (0 if unset).
+func OrgIDFromContext(ctx context.Context) uint {
+	if id, ok := ctx.Value(orgIDKey).(uint); ok {
+		return id
+	}
+	return 0
+}
 
 // EmailEvent is a stable, external snapshot of a freshly received inbound email,
 // delivered to handlers registered via Context.OnEmail. It mirrors only the
@@ -186,6 +199,8 @@ type Context struct {
 	SetWorkspaceSetting func(orgID uint, key, value string) error
 	// Enqueue adds a task to the background job queue.
 	Enqueue func(ctx context.Context, taskType string, payload []byte) error
+	// RegisterTask registers a handler for a task type in the background job queue.
+	RegisterTask func(taskType string, handler func(ctx context.Context, payload []byte) error)
 	// CacheGet retrieves a key from the global cache.
 	CacheGet func(ctx context.Context, key string, val any) bool
 	// CacheSet sets a key in the global cache.
@@ -305,6 +320,9 @@ type Info struct {
 	// Core marks always-on plumbing (e.g. license activation, buyer identity):
 	// never gated, not shown in the plugin manager, cannot be disabled.
 	Core bool
+	// Requires lists names of plugins that must be mounted for this plugin to
+	// function. Validated at boot time.
+	Requires []string
 }
 
 // Describer is the optional interface a Plugin implements to supply Info.

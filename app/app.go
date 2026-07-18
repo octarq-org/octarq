@@ -37,16 +37,13 @@ import (
 	"github.com/octarq-org/octarq/internal/db"
 	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/geo"
-	"github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/internal/mcp"
 	"github.com/octarq-org/octarq/internal/notify"
 	"github.com/octarq-org/octarq/internal/queue"
 	"github.com/octarq-org/octarq/internal/safehttp"
 	"github.com/octarq-org/octarq/internal/server"
 	"github.com/octarq-org/octarq/plugin"
-	"github.com/octarq-org/octarq/plugins/dns"
-	linksplugin "github.com/octarq-org/octarq/plugins/links"
-	mailplugin "github.com/octarq-org/octarq/plugins/mail"
+	"github.com/octarq-org/octarq/plugins/builtin"
 	"github.com/octarq-org/octarq/webembed"
 	"gorm.io/gorm"
 )
@@ -113,13 +110,14 @@ func (g *gatedAdapter) Handle(op *huma.Operation, handler func(ctx huma.Context)
 
 // App holds the wired core dependencies and any registered plugins.
 type App struct {
-	cfg     *config.Config
-	gdb     *gorm.DB
-	cipher  *crypto.Cipher
-	auth    *auth.Manager
-	geo     *geo.Resolver
-	plugins []plugin.Plugin
-	webFS   fs.FS // overrides the embedded OSS dashboard when set (see WithWebFS)
+	cfg      *config.Config
+	gdb      *gorm.DB
+	cipher   *crypto.Cipher
+	auth     *auth.Manager
+	geo      *geo.Resolver
+	plugins  []plugin.Plugin
+	services *plugin.Registry
+	webFS    fs.FS // overrides the embedded OSS dashboard when set (see WithWebFS)
 }
 
 // WithWebFS overrides the embedded open-source dashboard with a caller-supplied
@@ -140,8 +138,8 @@ func New() (*App, error) {
 	// Secure session cookies over a non-HTTPS base URL are silently dropped by
 	// browsers — a common "login works but every next request is 401" trap in
 	// local/HTTP setups. Warn loudly with the escape hatch.
-	if cfg.SecureCookies && !strings.HasPrefix(strings.ToLower(cfg.BaseURL), "https://") {
-		slog.Warn("secure cookies are on but the base URL is not https — browsers will drop the session cookie over plain HTTP; set OCTARQ_SECURE_COOKIES=false for local HTTP development")
+	if strings.HasPrefix(cfg.BaseURL, "http://") && cfg.SecureCookies {
+		slog.Warn("OCTARQ_SECURE_COOKIES is true over http:// — browser will reject session cookie. Set OCTARQ_SECURE_COOKIES=false for local HTTP.", "baseURL", cfg.BaseURL)
 	}
 
 	gdb, err := db.Open(cfg)
@@ -153,7 +151,6 @@ func New() (*App, error) {
 	// Opt webhook/notification delivery into private targets only when the operator
 	// has explicitly allowed it (trusted internal receivers); default stays strict.
 	safehttp.SetAllowPrivateWebhooks(cfg.AllowPrivateWebhooks)
-	linksplugin.SetTrustProxy(cfg.TrustProxy)
 
 	cipher := crypto.New(cfg.SecretKey)
 	// Webhook signing secrets are AES-GCM encrypted at rest; teach the eventbus how
@@ -185,9 +182,9 @@ func New() (*App, error) {
 	// Built-in Core features, extracted from the monolithic API handler into
 	// default-on plugins (docs/CORE-PLUGIN-EXTRACTION.md). They mount ungated like
 	// any Core plugin, so every binary — open-core and Pro — gets them.
-	a.Use(dns.New())
-	a.Use(mailplugin.New())
-	a.Use(linksplugin.New())
+	for _, p := range builtin.All() {
+		a.Use(p)
+	}
 	return a, nil
 }
 
@@ -204,16 +201,14 @@ func (a *App) Notify(ctx context.Context, typ, cfgJSON, text string) error {
 // message — mirroring internal/api.Handler.sendEmail so plugins can send
 // transactional mail without importing octarq's internal packages.
 func (a *App) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
-	var s mailplugin.SMTPSender
-	if err := a.gdb.Where("owner_id = ? ", orgID).Order("id").First(&s).Error; err != nil {
-		return fmt.Errorf("no SMTP sender configured for org %d", orgID)
+	if a.services != nil {
+		if v, ok := a.services.Lookup("mail.send"); ok {
+			if fn, ok := v.(func(uint, string, string, string, string) error); ok {
+				return fn(orgID, to, subject, htmlBody, textBody)
+			}
+		}
 	}
-	pass, err := a.cipher.Decrypt(s.Pass)
-	if err != nil {
-		return err
-	}
-	sender := mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
-	return sender.Send(mail.Message{From: s.FromEmail, To: []string{to}, Subject: subject, HTML: htmlBody, Text: textBody})
+	return fmt.Errorf("no mail plugin mounted to send email for org %d", orgID)
 }
 
 // Use registers a plugin. All plugins must be registered before Run so their
@@ -221,7 +216,7 @@ func (a *App) sendMail(orgID uint, to, subject, htmlBody, textBody string) error
 func (a *App) Use(p plugin.Plugin) { a.plugins = append(a.plugins, p) }
 
 // lazyDNSManager resolves the plugin.DNSManager that the dns Core plugin
-// provides under dns.ServiceDNSManager, on each call. ctx.DNS used to be the API
+// provides under plugin.ServiceDNSManager, on each call. ctx.DNS used to be the API
 // Handler's own manager; with domain/DNS extracted into the dns plugin
 // (docs/CORE-PLUGIN-EXTRACTION.md) the plugin provides the seam during Mount and
 // consumers (Pro infra / ai MCP tools) resolve it here at request time — after
@@ -233,7 +228,7 @@ type lazyDNSManager struct {
 var _ plugin.DNSManager = (*lazyDNSManager)(nil)
 
 func (l *lazyDNSManager) resolve() (plugin.DNSManager, error) {
-	if v, ok := l.lookup(dns.ServiceDNSManager); ok {
+	if v, ok := l.lookup(plugin.ServiceDNSManager); ok {
 		if m, ok := v.(plugin.DNSManager); ok {
 			return m, nil
 		}
@@ -276,6 +271,9 @@ func (a *App) Plugins() []plugin.Plugin {
 // — without this, plugin MCP tools would run with nil dependencies. The HTTP mux
 // they mount onto is discarded; only the captured context matters here.
 func (a *App) RunMCP(ctx context.Context) error {
+	if err := preflightDependencies(a.plugins); err != nil {
+		return err
+	}
 	if err := preflightTableCollisions(a.gdb.NamingStrategy, a.plugins); err != nil {
 		return err
 	}
@@ -296,6 +294,8 @@ func (a *App) RunMCP(ctx context.Context) error {
 	apiHandler.SetPlugins(a.plugins)
 	throwaway := apiHandler.Routes()
 	services := plugin.NewRegistry()
+	a.services = services
+	apiHandler.SetServiceLookup(services.Lookup)
 	var emailMu sync.Mutex
 	var deferredOnEmail []func(plugin.EmailEvent)
 	pctx := &plugin.Context{
@@ -329,11 +329,14 @@ func (a *App) RunMCP(ctx context.Context) error {
 		GetGlobalSetting:    apiHandler.GetGlobalSetting,
 		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,
 		Enqueue:             taskQueue.Enqueue,
-		PublishEvent:        eventbus.Publish,
-		CacheGet:            a.auth.Cache().Get,
-		CacheSet:            a.auth.Cache().Set,
-		DeleteCache:         a.auth.Cache().Delete,
-		GeoLookup:           a.geo.Locate,
+		RegisterTask: func(taskType string, h func(ctx context.Context, payload []byte) error) {
+			taskQueue.Register(taskType, h)
+		},
+		PublishEvent: eventbus.Publish,
+		CacheGet:     a.auth.Cache().Get,
+		CacheSet:     a.auth.Cache().Set,
+		DeleteCache:  a.auth.Cache().Delete,
+		GeoLookup:    a.geo.Locate,
 		ParseUA: func(ua string) (string, string, string) {
 			info := geo.ParseUA(ua)
 			return info.Device, info.Browser, info.OS
@@ -394,6 +397,9 @@ func (a *App) Run(ctx context.Context) error {
 	// 1. Migrate AFTER every plugin is registered, so plugin models join the
 	//    core schema in a single AutoMigrate pass. First refuse startup if two
 	//    different plugin model types would fight over the same table.
+	if err := preflightDependencies(a.plugins); err != nil {
+		return err
+	}
 	if err := preflightTableCollisions(a.gdb.NamingStrategy, a.plugins); err != nil {
 		return err
 	}
@@ -423,6 +429,8 @@ func (a *App) Run(ctx context.Context) error {
 	apiHandler.SetPlugins(a.plugins)
 	mux := apiHandler.Routes()
 	services := plugin.NewRegistry()
+	a.services = services
+	apiHandler.SetServiceLookup(services.Lookup)
 	var rootHandler http.Handler
 	var runEmailMu sync.Mutex
 	var runDeferredOnEmail []func(plugin.EmailEvent)
@@ -457,11 +465,14 @@ func (a *App) Run(ctx context.Context) error {
 		GetGlobalSetting:    apiHandler.GetGlobalSetting,
 		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,
 		Enqueue:             taskQueue.Enqueue,
-		PublishEvent:        eventbus.Publish,
-		CacheGet:            a.auth.Cache().Get,
-		CacheSet:            a.auth.Cache().Set,
-		DeleteCache:         a.auth.Cache().Delete,
-		GeoLookup:           a.geo.Locate,
+		RegisterTask: func(taskType string, h func(ctx context.Context, payload []byte) error) {
+			taskQueue.Register(taskType, h)
+		},
+		PublishEvent: eventbus.Publish,
+		CacheGet:     a.auth.Cache().Get,
+		CacheSet:     a.auth.Cache().Set,
+		DeleteCache:  a.auth.Cache().Delete,
+		GeoLookup:    a.geo.Locate,
 		ParseUA: func(ua string) (string, string, string) {
 			info := geo.ParseUA(ua)
 			return info.Device, info.Browser, info.OS
@@ -552,7 +563,15 @@ func (a *App) Run(ctx context.Context) error {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	go cleanup.Start(ctx, a.gdb, apiHandler.DataRetentionDays)
+	var cleanups []func(context.Context, int)
+	for _, p := range a.plugins {
+		if v, ok := services.Lookup(p.Name() + ".cleanup"); ok {
+			if fn, ok := v.(func(context.Context, int)); ok {
+				cleanups = append(cleanups, fn)
+			}
+		}
+	}
+	go cleanup.Start(ctx, apiHandler.DataRetentionDays, cleanups...)
 	go cleanup.StartSessionCleanup(ctx, a.gdb)
 
 	go func() {

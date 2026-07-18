@@ -96,10 +96,37 @@ func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
+
+	dnsP := dns.New()
+	mailP := mail.New()
+	linksP := links.New()
+	h.SetPlugins([]plugin.Plugin{dnsP, mailP, linksP})
+
+	reg := plugin.NewRegistry()
+	h.SetServiceLookup(reg.Lookup)
+
 	srv := h.Routes()
-	mountCoreDNS(h, db, authMgr, cipher)
-	mountCoreMail(h, db, authMgr, cipher)
-	mountCoreLinks(h, db, authMgr, cipher)
+
+	pctx := &plugin.Context{
+		Huma:                h.Huma(),
+		DB:                  db,
+		Guard:               authMgr.Require,
+		UserID:              authMgr.UserID,
+		OrgID:               authMgr.OrgID,
+		Audit:               h.Audit,
+		Encrypt:             cipher.Encrypt,
+		Decrypt:             cipher.Decrypt,
+		GetGlobalSetting:    h.GetGlobalSetting,
+		GetWorkspaceSetting: h.GetWorkspaceSetting,
+		Enqueue:             h.queue.Enqueue,
+		DeleteCache:         authMgr.Cache().Delete,
+		Provide:             reg.Provide,
+		Lookup:              reg.Lookup,
+	}
+	dnsP.Mount(nil, pctx)
+	mailP.Mount(nil, pctx)
+	linksP.Mount(nil, pctx)
+
 	return srv, db
 }
 

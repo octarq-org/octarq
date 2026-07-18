@@ -20,20 +20,20 @@ import (
 	"github.com/octarq-org/octarq/internal/cache"
 	"github.com/octarq-org/octarq/internal/crypto"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
 
 type contextKey string
 
 const (
-	orgIDKey     contextKey = "org_id"
 	userIDKey    contextKey = "user_id"
 	sessionIDKey contextKey = "session_id"
 )
 
 // WithOrgID returns a new context containing the organization ID.
 func WithOrgID(ctx context.Context, orgID uint) context.Context {
-	return context.WithValue(ctx, orgIDKey, orgID)
+	return plugin.WithOrgID(ctx, orgID)
 }
 
 // WithUserID returns a new context containing the authenticated user ID, using
@@ -242,7 +242,7 @@ func (m *Manager) UserID(r *http.Request) uint {
 
 // OrgID extracts the org ID from the session.
 func (m *Manager) OrgID(r *http.Request) uint {
-	if id, ok := r.Context().Value(orgIDKey).(uint); ok {
+	if id := plugin.OrgIDFromContext(r.Context()); id != 0 {
 		return id
 	}
 	s := m.sessionByToken(cookieToken(r))
@@ -383,7 +383,7 @@ func (m *Manager) Require(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), userIDKey, uid)
-		ctx = context.WithValue(ctx, orgIDKey, orgID)
+		ctx = plugin.WithOrgID(ctx, orgID)
 		ctx = context.WithValue(ctx, sessionIDKey, sessID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -422,7 +422,7 @@ func (m *Manager) AuthenticateRequest(r *http.Request) (*http.Request, bool) {
 	}
 
 	ctx := context.WithValue(r.Context(), userIDKey, uid)
-	ctx = context.WithValue(ctx, orgIDKey, orgID)
+	ctx = plugin.WithOrgID(ctx, orgID)
 	ctx = context.WithValue(ctx, sessionIDKey, sessID)
 	return r.WithContext(ctx), true
 }

@@ -95,3 +95,35 @@ func TestPreflightDerivedTableNames(t *testing.T) {
 		t.Fatalf("single derived table must pass, got: %v", err)
 	}
 }
+
+type fakeDescribedPlugin struct {
+	fakePlugin
+	requires []string
+}
+
+func (f fakeDescribedPlugin) Describe() plugin.Info {
+	return plugin.Info{Requires: f.requires}
+}
+
+var _ plugin.Describer = fakeDescribedPlugin{}
+
+func TestPreflightDependenciesSatisfied(t *testing.T) {
+	dns := fakePlugin{name: "dns"}
+	links := fakeDescribedPlugin{fakePlugin: fakePlugin{name: "links"}, requires: []string{"dns"}}
+	mail := fakeDescribedPlugin{fakePlugin: fakePlugin{name: "mail"}, requires: []string{"dns", "links"}}
+	if err := preflightDependencies([]plugin.Plugin{dns, links, mail}); err != nil {
+		t.Fatalf("satisfied dependencies must pass, got: %v", err)
+	}
+}
+
+func TestPreflightDependenciesMissing(t *testing.T) {
+	links := fakeDescribedPlugin{fakePlugin: fakePlugin{name: "links"}, requires: []string{"dns"}}
+	mail := fakeDescribedPlugin{fakePlugin: fakePlugin{name: "mail"}, requires: []string{"dns", "links"}}
+	err := preflightDependencies([]plugin.Plugin{links, mail})
+	if err == nil {
+		t.Fatal("missing dns dependency must fail")
+	}
+	if !strings.Contains(err.Error(), `"links" requires plugin "dns"`) && !strings.Contains(err.Error(), `"mail" requires plugin "dns"`) {
+		t.Errorf("error should explain missing requirement; got: %v", err)
+	}
+}
