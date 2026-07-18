@@ -19,20 +19,13 @@ export const settings = {
     badgeOn: "On",
     badgeOff: "Off",
     pluginAdds: "Adds: {{items}}",
+    // Localized descriptions for the in-tree Core feature plugins only. Any
+    // other plugin (community or commercial) supplies its description through
+    // the backend Describe() seam and renders it untranslated.
     pluginDesc: {
-      ai: "LLM-powered email summaries, sorting, and OTP extraction.",
-      infra: "VPS server monitoring and the SSH credentials vault.",
-      finance: "Subscription tracking and expense bookkeeping.",
-      commerce: "Sell software end-to-end — storefront, license issuance, and checkout billing.",
       dns: "Domain lifecycle and DNS management across Cloudflare and DNSPod.",
       links: "Short link creation, custom domain routing, and click analytics.",
       mail: "Transactional email sending, mailbox receiving, and SMTP configurations.",
-      billing: "Customer subscriptions, invoices, payment handling, and revenue reporting.",
-      customer: "Customer identity, CRM records, and user management.",
-      issuer: "License key generation, activation verification, and security tokens.",
-      licensing: "Software license policies, seat limits, and renewal management.",
-      portal: "Customer self-service portal for subscriptions and key management.",
-      product: "Product catalog, tier configurations, and release distribution.",
     },
 
     // GeneralSettings
@@ -306,20 +299,12 @@ export const settings = {
     badgeOn: "已开启",
     badgeOff: "已关闭",
     pluginAdds: "新增：{{items}}",
+    // 仅内置 Core 功能插件的本地化描述；其余插件（社区/商业）经由后端
+    // Describe() 提供描述，前端原样展示。
     pluginDesc: {
-      ai: "由 LLM 驱动的邮件摘要、分类和 OTP 提取。",
-      infra: "VPS 服务器监控与 SSH 凭据保险库。",
-      finance: "订阅追踪与费用记账。",
-      commerce: "端到端销售软件 —— 店面、许可证签发与结账计费。",
       dns: "跨 Cloudflare 和 DNSPod 管理域名生命周期与 DNS 记录。",
       links: "短链接生成、自定义域名路由与点击数据分析。",
       mail: "事务邮件发送、邮箱接收与 SMTP 发送服务配置。",
-      billing: "客户订阅、发票、支付处理与收入分析。",
-      customer: "客户身份识别、CRM 记录与用户管理。",
-      issuer: "许可证密钥签发、激活校验与安全令牌管理。",
-      licensing: "软件许可证策略、席位限制与续订管理。",
-      portal: "客户自助服务门户，用于管理订阅与许可证密钥。",
-      product: "产品目录、套餐层级配置与版本发布分发。",
     },
 
     // GeneralSettings

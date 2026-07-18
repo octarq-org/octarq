@@ -63,9 +63,6 @@ export function usePluginGate(): PluginRouteGateContextValue {
   return useContext(PluginRouteGateContext) ?? { degrade: () => {} };
 }
 
-// Backward-compat alias for plugins or code calling useProGate.
-export const useProGate = usePluginGate;
-
 // The standard degraded rendering, shared by the declarative (`degrade`) and
 // exceptional (error boundary) paths.
 function GateFallback({ status, plugin }: { status: number; plugin: UIPlugin }) {
@@ -140,6 +137,3 @@ export function PluginGate({
     </PluginRouteGateContext.Provider>
   );
 }
-
-// Backward-compat alias for ProGate.
-export const ProGate = PluginGate;

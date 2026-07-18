@@ -6,17 +6,11 @@ import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, Shi
 import { useTranslation } from "../../i18n";
 import { useSettingsData, SavedBadge } from "./shared";
 
-// PluginsSettings lets an owner/admin turn Pro plugins on or off for this
-// workspace. Plugins are opt-in: everything is disabled until enabled here, and
-// a disabled plugin's sidebar items and API routes are both hidden.
-// Descriptions keyed by feature key (backend supplies the title). Unknown keys
-// fall back to just the title + its menu list.
-const PLUGIN_DESC: Record<string, string> = {
-  ai: "LLM-powered email summaries, sorting, and OTP extraction.",
-  infra: "VPS server monitoring and the SSH credentials vault.",
-  finance: "Subscription tracking and expense bookkeeping.",
-  commerce: "Sell software end-to-end — storefront, license issuance, and checkout billing.",
-};
+// PluginsSettings lets an owner/admin turn plugins on or off for this
+// workspace. A disabled plugin's sidebar items and API routes are both hidden.
+// Descriptions come from the backend Describe() seam; only the in-tree Core
+// feature plugins have localized overrides (settings.pluginDesc.*).
+const LOCALIZED_DESC = new Set(["dns", "links", "mail"]);
 
 export function PluginsSettings() {
   const { t } = useTranslation();
@@ -60,7 +54,7 @@ export function PluginsSettings() {
       ) : (
         <div className="space-y-3">
           {plugins.map((p) => {
-            const description = (PLUGIN_DESC[p.key] ? t("settings.pluginDesc." + p.key) : "") || p.description || "";
+            const description = (LOCALIZED_DESC.has(p.key) ? t("settings.pluginDesc." + p.key) : "") || p.description || "";
             return (
               <GlassCard key={p.key} className="p-5 flex items-center justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0">
