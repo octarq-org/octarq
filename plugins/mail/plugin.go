@@ -32,6 +32,7 @@ type Plugin struct {
 	emailMu             sync.RWMutex
 	emailHandlers       []func(plugin.EmailEvent)
 	notify              func(ctx context.Context, kind string, config map[string]any, message string) error
+	publishEvent        func(orgID uint, event string, data any)
 }
 
 // Compile-time capability checks.
@@ -94,6 +95,14 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 			}
 			return ctx.Notify(c, kind, cfgJSON, message)
 		}
+	}
+
+	if ctx.PublishEvent != nil {
+		p.publishEvent = ctx.PublishEvent
+	}
+	if ctx.RegisterWebhookEvent != nil {
+		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "email.receive", Group: "Email", Title: "Email Received", Description: "An inbound email was delivered to a mailbox"})
+		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "email.send_failed", Group: "Email", Title: "Email Send Failed", Description: "An outbound email failed to send through the configured SMTP sender"})
 	}
 
 	api := ctx.Huma
@@ -172,7 +181,13 @@ func (p *Plugin) sendMail(orgID uint, to, subject, htmlBody, textBody string) er
 		return err
 	}
 	sender := mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
-	return sender.Send(mail.Message{From: s.FromEmail, To: []string{to}, Subject: subject, HTML: htmlBody, Text: textBody})
+	if err := sender.Send(mail.Message{From: s.FromEmail, To: []string{to}, Subject: subject, HTML: htmlBody, Text: textBody}); err != nil {
+		if p.publishEvent != nil {
+			p.publishEvent(orgID, "email.send_failed", map[string]any{"to": []string{to}, "subject": subject, "error": err.Error()})
+		}
+		return err
+	}
+	return nil
 }
 
 var htmlTagRe = regexp.MustCompile(`(?s)<style.*?</style>|<script.*?</script>|<[^>]*>`)

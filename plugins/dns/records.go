@@ -374,6 +374,28 @@ func (p *Plugin) verifyDomainDNS(ctx context.Context, input *VerifyDomainDNSInpu
 		links = append(links, p.checkLinkHost(host, dom.Name))
 	}
 
+	// A domain serving mail needs healthy SPF/DMARC on every checked host, and a
+	// domain serving links needs every link host CNAMEd into the zone; anything
+	// less fires domain.verify_failed so operators can alert on DNS drift.
+	if p.publishEvent != nil {
+		var failed []string
+		if dom.ForMail {
+			for _, res := range results {
+				if !res.SPF.Healthy || !res.DMARC.Healthy {
+					failed = append(failed, res.Host)
+				}
+			}
+		}
+		for _, l := range links {
+			if !l.Healthy {
+				failed = append(failed, l.Host)
+			}
+		}
+		if len(failed) > 0 {
+			p.publishEvent(dom.OrgID, "domain.verify_failed", map[string]any{"id": dom.ID, "name": dom.Name, "hosts": failed})
+		}
+	}
+
 	return &VerifyDomainDNSOutput{
 		Body: map[string]any{
 			"spf":   primary.SPF,

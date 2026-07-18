@@ -180,6 +180,9 @@ export const settings = {
     signingSecretPlaceholder: "Custom signing secret",
     eventSubscriptions: "Event Subscriptions",
     allEventsStar: "All Events (*)",
+    customEvents: "Custom Selection",
+    noEventsSelectedHint: "No events selected — the webhook will receive all events (*).",
+    loadingEvents: "Loading events…",
     adding: "Adding…",
     add: "Add",
 
@@ -464,6 +467,9 @@ export const settings = {
     signingSecretPlaceholder: "自定义签名密钥",
     eventSubscriptions: "事件订阅",
     allEventsStar: "所有事件 (*)",
+    customEvents: "自定义选择",
+    noEventsSelectedHint: "未选择任何事件 — 该 webhook 将接收所有事件 (*)。",
+    loadingEvents: "事件加载中…",
     adding: "添加中…",
     add: "添加",
 

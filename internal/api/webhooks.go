@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/models"
 )
 
@@ -245,4 +246,31 @@ func (h *Handler) deleteWebhook(ctx context.Context, input *DeleteWebhookInput) 
 
 	h.audit(r, "webhook.delete", "webhook", input.ID, nil)
 	return &DeleteWebhookOutput{Body: map[string]bool{"ok": true}}, nil
+}
+
+type ListWebhookEventsInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *ListWebhookEventsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListWebhookEventsOutput struct {
+	Body []eventbus.EventGroup
+}
+
+// listWebhookEvents returns the registered webhook event definitions, grouped
+// in registration order, so the dashboard's webhook editor only offers events
+// this build can actually fire.
+func (h *Handler) listWebhookEvents(ctx context.Context, input *ListWebhookEventsInput) (*ListWebhookEventsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	if _, ok := h.auth.AuthenticateRequest(r); !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	return &ListWebhookEventsOutput{Body: eventbus.EventGroups()}, nil
 }

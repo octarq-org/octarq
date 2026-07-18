@@ -280,6 +280,9 @@ func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*C
 	// Best-effort credential check.
 	if prov, err := p.providerFor(dom); err == nil && dom.ZoneID != "" {
 		if name, err := prov.VerifyZone(r.Context(), dom.ZoneID); err != nil {
+			if p.publishEvent != nil {
+				p.publishEvent(dom.OrgID, "domain.verify_failed", map[string]any{"name": dom.Name, "zoneId": dom.ZoneID, "error": err.Error()})
+			}
 			return nil, huma.Error400BadRequest("provider verification failed: " + err.Error())
 		} else if dom.Name == "" {
 			dom.Name = name
@@ -289,6 +292,9 @@ func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*C
 		return nil, huma.NewError(http.StatusConflict, "domain already exists")
 	}
 	p.audit(r, "domain.create", "domain", dom.ID, map[string]any{"name": dom.Name})
+	if p.publishEvent != nil {
+		p.publishEvent(dom.OrgID, "domain.create", map[string]any{"id": dom.ID, "name": dom.Name})
+	}
 	return &CreateDomainOutput{Body: dom}, nil
 }
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
@@ -406,6 +407,7 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 	}
 
 	h.audit(r, "member.add", "user", user.ID, map[string]any{"email": user.Email, "role": role})
+	eventbus.Publish(orgID, "member.invite", map[string]any{"userId": user.ID, "email": user.Email, "role": role, "pending": user.InviteToken != ""})
 
 	if isNew {
 		// Best-effort: email the invite link via the org's SMTP sender. A missing
@@ -509,6 +511,7 @@ func (h *Handler) removeOrgMember(ctx context.Context, input *RemoveOrgMemberInp
 		return nil, huma.Error500InternalServerError("failed to remove member")
 	}
 	h.audit(r, "member.remove", "user", input.UserID, map[string]any{"role": target.Role})
+	eventbus.Publish(orgID, "member.remove", map[string]any{"userId": input.UserID, "role": target.Role})
 	out := &RemoveOrgMemberOutput{}
 	out.Body.OK = true
 	return out, nil

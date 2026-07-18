@@ -22,6 +22,7 @@ type Plugin struct {
 	getWorkspaceSetting func(orgID uint, key string) string
 	enqueue             func(ctx context.Context, taskType string, payload []byte) error
 	deleteCache         func(ctx context.Context, key string) error
+	publishEvent        func(orgID uint, event string, data any)
 }
 
 var (
@@ -73,6 +74,14 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	}
 	if ctx.DeleteCache != nil {
 		p.deleteCache = ctx.DeleteCache
+	}
+	if ctx.PublishEvent != nil {
+		p.publishEvent = ctx.PublishEvent
+	}
+	if ctx.RegisterWebhookEvent != nil {
+		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "link.create", Group: "Links", Title: "Link Created", Description: "A short link was created"})
+		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "link.click", Group: "Links", Title: "Link Clicked", Description: "A tracked short link was visited"})
+		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "link.delete", Group: "Links", Title: "Link Deleted", Description: "A short link was deleted"})
 	}
 	api := ctx.Huma
 	if api != nil {

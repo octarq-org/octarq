@@ -331,10 +331,13 @@ func (a *App) RunMCP(ctx context.Context) error {
 			taskQueue.Register(taskType, h)
 		},
 		PublishEvent: eventbus.Publish,
-		CacheGet:     a.auth.Cache().Get,
-		CacheSet:     a.auth.Cache().Set,
-		DeleteCache:  a.auth.Cache().Delete,
-		GeoLookup:    a.geo.Locate,
+		RegisterWebhookEvent: func(d plugin.WebhookEventDef) {
+			eventbus.RegisterEventDef(eventbus.EventDef{Key: d.Key, Group: d.Group, Title: d.Title, Description: d.Description})
+		},
+		CacheGet:    a.auth.Cache().Get,
+		CacheSet:    a.auth.Cache().Set,
+		DeleteCache: a.auth.Cache().Delete,
+		GeoLookup:   a.geo.Locate,
 		ParseUA: func(ua string) (string, string, string) {
 			info := geo.ParseUA(ua)
 			return info.Device, info.Browser, info.OS
@@ -467,10 +470,13 @@ func (a *App) Run(ctx context.Context) error {
 			taskQueue.Register(taskType, h)
 		},
 		PublishEvent: eventbus.Publish,
-		CacheGet:     a.auth.Cache().Get,
-		CacheSet:     a.auth.Cache().Set,
-		DeleteCache:  a.auth.Cache().Delete,
-		GeoLookup:    a.geo.Locate,
+		RegisterWebhookEvent: func(d plugin.WebhookEventDef) {
+			eventbus.RegisterEventDef(eventbus.EventDef{Key: d.Key, Group: d.Group, Title: d.Title, Description: d.Description})
+		},
+		CacheGet:    a.auth.Cache().Get,
+		CacheSet:    a.auth.Cache().Set,
+		DeleteCache: a.auth.Cache().Delete,
+		GeoLookup:   a.geo.Locate,
 		ParseUA: func(ua string) (string, string, string) {
 			info := geo.ParseUA(ua)
 			return info.Device, info.Browser, info.OS

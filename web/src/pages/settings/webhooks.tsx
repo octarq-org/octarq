@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../api";
+import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo, WebhookEventGroup } from "../../api";
 import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, toast } from "../../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../i18n";
@@ -14,12 +14,23 @@ export function WebhooksSettings() {
   const [url, setUrl] = useState("");
   const [secret, setSecret] = useState("");
   const [all, setAll] = useState(true);
-  const [evClick, setEvClick] = useState(false);
-  const [evEmail, setEvEmail] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [eventGroups, setEventGroups] = useState<WebhookEventGroup[] | null>(null);
   const [busy, setBusy] = useState(false);
 
   function load() { api.webhooks().then(setWebhooks).catch(() => {}); }
   useEffect(load, []);
+  useEffect(() => { api.webhookEvents().then(setEventGroups).catch(() => setEventGroups([])); }, []);
+
+  // key → definition, for rendering a stored subscription string as titled badges.
+  const defByKey = new Map((eventGroups ?? []).flatMap((g) => g.events.map((e) => [e.key, e] as const)));
+
+  function toggleEvent(key: string, on: boolean) {
+    setSelected((prev) => { const next = new Set(prev); if (on) next.add(key); else next.delete(key); return next; });
+  }
+  function toggleGroup(g: WebhookEventGroup, on: boolean) {
+    setSelected((prev) => { const next = new Set(prev); for (const e of g.events) { if (on) next.add(e.key); else next.delete(e.key); } return next; });
+  }
 
   async function del(id: number) { if (!confirm(t("settings.confirmDeleteWebhook"))) return; await api.deleteWebhook(id); setWebhooks((w) => w.filter((h) => h.id !== id)); }
   async function toggle(h: any) { const u = await api.updateWebhook(h.id, { enabled: !h.enabled }); setWebhooks((w) => w.map((x) => x.id === h.id ? u : x)); }
@@ -28,8 +39,7 @@ export function WebhooksSettings() {
     if (!name.trim() || !url.trim()) return;
     setBusy(true);
     try {
-      let events = "*";
-      if (!all) { const l: string[] = []; if (evClick) l.push("link.click"); if (evEmail) l.push("email.receive"); events = l.join(",") || "*"; }
+      const events = all || selected.size === 0 ? "*" : Array.from(selected).join(",");
       const created = await api.createWebhook({ name: name.trim(), url: url.trim(), secret: secret.trim() || undefined, events, enabled: true } as any);
       setWebhooks((w) => [created, ...w]); setShow(false); setName(""); setUrl(""); setSecret("");
     } catch (err: any) { toast.error(err.message || t("settings.createFailed")); } finally { setBusy(false); }
@@ -41,7 +51,7 @@ export function WebhooksSettings() {
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-white">{t("settings.outboundEventWebhooks")}</h2>
-          <Button variant="ghost" onClick={() => { setName(""); setUrl(""); setSecret(""); setAll(true); setEvClick(false); setEvEmail(false); setShow(true); }} className="flex items-center gap-1.5 px-3 py-1 text-xs">
+          <Button variant="ghost" onClick={() => { setName(""); setUrl(""); setSecret(""); setAll(true); setSelected(new Set()); setShow(true); }} className="flex items-center gap-1.5 px-3 py-1 text-xs">
             <Plus className="h-3 w-3" /> {t("settings.addWebhook")}
           </Button>
         </div>
@@ -52,9 +62,20 @@ export function WebhooksSettings() {
             {webhooks.map((w) => (
               <div key={w.id} className="flex flex-col justify-between gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-sm md:flex-row md:items-center">
                 <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-white/80">{w.name}</span>
-                    <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[9px] uppercase text-white/45">{w.events === "*" ? t("settings.allEvents") : w.events}</span>
+                    {w.events === "*" ? (
+                      <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[9px] uppercase text-white/45">{t("settings.allEvents")}</span>
+                    ) : (
+                      String(w.events).split(",").filter(Boolean).map((key: string) => {
+                        const def = defByKey.get(key.trim());
+                        return (
+                          <span key={key} title={def ? `${def.group} — ${def.title}: ${def.description}` : undefined} className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[9px] text-white/45">
+                            {key.trim()}
+                          </span>
+                        );
+                      })
+                    )}
                   </div>
                   <div className="select-all truncate font-mono text-xs text-white/45">{w.url}</div>
                   <div className="select-all font-mono text-[10px] text-zinc-500">{t("settings.secretLabel")} {w.secret}</div>
@@ -80,13 +101,45 @@ export function WebhooksSettings() {
             <Field label={t("settings.eventSubscriptions")}>
               <div className="mt-1 space-y-2">
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
-                  <input type="checkbox" checked={all} onChange={(e) => { setAll(e.target.checked); if (e.target.checked) { setEvClick(false); setEvEmail(false); } }} />
+                  <input type="radio" name="webhook-events-mode" checked={all} onChange={() => setAll(true)} />
                   <span>{t("settings.allEventsStar")}</span>
                 </label>
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
+                  <input type="radio" name="webhook-events-mode" checked={!all} onChange={() => setAll(false)} />
+                  <span>{t("settings.customEvents")}</span>
+                </label>
                 {!all && (
-                  <div className="space-y-2 pl-6">
-                    <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300"><input type="checkbox" checked={evClick} onChange={(e) => setEvClick(e.target.checked)} /> <span>link.click</span></label>
-                    <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300"><input type="checkbox" checked={evEmail} onChange={(e) => setEvEmail(e.target.checked)} /> <span>email.receive</span></label>
+                  <div className="max-h-64 space-y-3 overflow-y-auto rounded-lg border border-white/[0.06] bg-black/20 p-3">
+                    {eventGroups === null ? (
+                      <div className="py-2 text-center text-xs text-white/40">{t("settings.loadingEvents")}</div>
+                    ) : (
+                      eventGroups.map((g) => {
+                        const allChecked = g.events.every((ev) => selected.has(ev.key));
+                        return (
+                          <div key={g.group} className="space-y-1.5">
+                            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-white/70">
+                              <input type="checkbox" checked={allChecked} onChange={(e) => toggleGroup(g, e.target.checked)} />
+                              <span>{g.group}</span>
+                            </label>
+                            <div className="space-y-1.5 pl-6">
+                              {g.events.map((ev) => (
+                                <label key={ev.key} className="flex cursor-pointer items-start gap-2 text-xs text-zinc-300">
+                                  <input type="checkbox" className="mt-0.5" checked={selected.has(ev.key)} onChange={(e) => toggleEvent(ev.key, e.target.checked)} />
+                                  <span className="min-w-0">
+                                    <span className="flex flex-wrap items-center gap-1.5">
+                                      <span>{ev.title}</span>
+                                      <span className="rounded border border-white/10 bg-white/5 px-1 py-px font-mono text-[9px] text-white/45">{ev.key}</span>
+                                    </span>
+                                    <span className="block text-[10px] text-white/40">{ev.description}</span>
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                    {selected.size === 0 && <div className="text-[10px] text-amber-400/80">{t("settings.noEventsSelectedHint")}</div>}
                   </div>
                 )}
               </div>
