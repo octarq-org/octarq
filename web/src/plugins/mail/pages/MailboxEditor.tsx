@@ -4,7 +4,8 @@ import { api, Domain, effectiveMailHosts } from "../../../api";
 import { mailApi, Attachment, Email, Mailbox } from "../api";
 import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../../ui";
 import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle } from "lucide-react";
-import { MailSettings, SMTPSenders } from "../../../pages/Settings";
+import { MailSettings } from "./MailSettings";
+import { SMTPSenders } from "./SMTPSenders";
 import { useTranslation } from "../../../i18n";
 
 export function MailboxEditor({

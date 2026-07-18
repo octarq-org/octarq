@@ -19,14 +19,6 @@ export const settings = {
     badgeOn: "On",
     badgeOff: "Off",
     pluginAdds: "Adds: {{items}}",
-    // Localized descriptions for the in-tree Core feature plugins only. Any
-    // other plugin (community or commercial) supplies its description through
-    // the backend Describe() seam and renders it untranslated.
-    pluginDesc: {
-      dns: "Domain lifecycle and DNS management across Cloudflare and DNSPod.",
-      links: "Short link creation, custom domain routing, and click analytics.",
-      mail: "Transactional email sending, mailbox receiving, and SMTP configurations.",
-    },
 
     // GeneralSettings
     renameFailed: "rename failed",
@@ -299,13 +291,6 @@ export const settings = {
     badgeOn: "已开启",
     badgeOff: "已关闭",
     pluginAdds: "新增：{{items}}",
-    // 仅内置 Core 功能插件的本地化描述；其余插件（社区/商业）经由后端
-    // Describe() 提供描述，前端原样展示。
-    pluginDesc: {
-      dns: "跨 Cloudflare 和 DNSPod 管理域名生命周期与 DNS 记录。",
-      links: "短链接生成、自定义域名路由与点击数据分析。",
-      mail: "事务邮件发送、邮箱接收与 SMTP 发送服务配置。",
-    },
 
     // GeneralSettings
     renameFailed: "重命名失败",

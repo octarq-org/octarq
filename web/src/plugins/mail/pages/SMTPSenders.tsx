@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../api";
-import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
+import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../../api";
+import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../../../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
-import { useTranslation } from "../../i18n";
-import { useSettingsData, SavedBadge } from "./shared";
+import { useTranslation } from "../../../i18n";
+import { useSettingsData, SavedBadge } from "../../../pages/settings/shared";
 
 export function SMTPSenders() {
   const { t } = useTranslation();

@@ -8,7 +8,7 @@
 // which is what lets a plugin ship as an independent package without importing
 // anything app-internal.
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
-import { uiPluginI18n } from "../contract";
+import { uiPluginI18n, uiPluginSharedI18n } from "../contract";
 
 export type Lang = "en" | "zh";
 
@@ -29,6 +29,24 @@ function detectLang(): Lang {
   }
   const nav = (navigator.languages?.[0] || navigator.language || "en").toLowerCase();
   return nav.startsWith("zh") ? "zh" : "en";
+}
+
+// Deep-merge `top` over `base` (returns a new object): objects merge
+// recursively, `top` wins on leaf conflicts. Used to layer core resources over
+// plugin `_shared` contributions.
+function overlay(
+  base: Record<string, unknown>,
+  top: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...base };
+  for (const [k, v] of Object.entries(top)) {
+    const cur = out[k];
+    out[k] =
+      cur != null && typeof cur === "object" && v != null && typeof v === "object"
+        ? overlay(cur as Record<string, unknown>, v as Record<string, unknown>)
+        : v;
+  }
+  return out;
 }
 
 // Walk a nested resource object by a dotted key path (e.g. "nav.areas.commerce").
@@ -77,9 +95,13 @@ export function I18nProvider({ resources, children }: { resources: Resources; ch
 
   const value = useMemo<I18nCtx>(() => {
     const pluginNs = uiPluginI18n();
+    // Layering, lowest first: plugin `_shared` contributions, then the host
+    // app's resources (core copy wins on conflicts), then each plugin's own
+    // `<name>.*` namespace (distinct keys — never collides with the above).
+    const shared = uiPluginSharedI18n();
     const dict: Resources = {
-      en: { ...resources.en, ...pluginNs.en },
-      zh: { ...resources.zh, ...pluginNs.zh },
+      en: overlay(shared.en, { ...resources.en, ...pluginNs.en }),
+      zh: overlay(shared.zh, { ...resources.zh, ...pluginNs.zh }),
     };
     // t(key), t(key, fallback), t(key, vars), or t(key, fallback, vars).
     const t: TFunc = (key, fallbackOrVars, vars) => {

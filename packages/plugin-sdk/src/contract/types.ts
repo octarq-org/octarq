@@ -79,6 +79,12 @@ export interface PluginMenuItem {
 // `"<name>.*"` translation namespace (e.g. licenses page keys live under
 // `licenses.*`). Missing in a build that doesn't compose the plugin — which is
 // fine, because that build never renders the plugin's page.
+//
+// The reserved `_shared` top-level key is different: its contents deep-merge
+// into the SHARED namespaces that core-rendered chrome looks up — e.g.
+// `_shared: { nav: { storefront: "…" }, settings: { pluginDesc: { ai: "…" } } }`
+// localizes the plugin's sidebar label and its plugin-manager description.
+// Core resources win on conflicts, so a plugin can never override core copy.
 export interface PluginI18n {
   en: Record<string, unknown>;
   zh: Record<string, unknown>;

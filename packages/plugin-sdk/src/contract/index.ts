@@ -19,6 +19,7 @@ export {
   uiWidgets,
   uiAreas,
   uiPluginI18n,
+  uiPluginSharedI18n,
   resetRegistry,
 } from "./registry";
 

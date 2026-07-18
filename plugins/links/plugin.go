@@ -26,8 +26,9 @@ type Plugin struct {
 }
 
 var (
-	_ plugin.Plugin    = (*Plugin)(nil)
-	_ plugin.Describer = (*Plugin)(nil)
+	_ plugin.Plugin       = (*Plugin)(nil)
+	_ plugin.Describer    = (*Plugin)(nil)
+	_ plugin.MenuProvider = (*Plugin)(nil)
 )
 
 func New() *Plugin {
@@ -40,6 +41,14 @@ func (p *Plugin) Describe() plugin.Info {
 }
 func (p *Plugin) Models() []any {
 	return []any{&Link{}, &LinkEvent{}}
+}
+
+// Menus announces this plugin's sidebar entry so /api/menus only offers it
+// when the plugin is mounted and enabled for the workspace.
+func (p *Plugin) Menus() []plugin.MenuItem {
+	return []plugin.MenuItem{
+		{ID: "links", Label: "Links", Path: "/links", Icon: "🔗", Category: "Operations", Order: 10},
+	}
 }
 
 func (p *Plugin) orgDB(r *http.Request) *gorm.DB {

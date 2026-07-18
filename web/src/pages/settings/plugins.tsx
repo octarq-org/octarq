@@ -8,9 +8,9 @@ import { useSettingsData, SavedBadge } from "./shared";
 
 // PluginsSettings lets an owner/admin turn plugins on or off for this
 // workspace. A disabled plugin's sidebar items and API routes are both hidden.
-// Descriptions come from the backend Describe() seam; only the in-tree Core
-// feature plugins have localized overrides (settings.pluginDesc.*).
-const LOCALIZED_DESC = new Set(["dns", "links", "mail"]);
+// A plugin localizes its description by contributing settings.pluginDesc.<key>
+// through its i18n `_shared` namespace; otherwise the backend Describe() text
+// renders as-is.
 
 export function PluginsSettings() {
   const { t } = useTranslation();
@@ -54,7 +54,7 @@ export function PluginsSettings() {
       ) : (
         <div className="space-y-3">
           {plugins.map((p) => {
-            const description = (LOCALIZED_DESC.has(p.key) ? t("settings.pluginDesc." + p.key) : "") || p.description || "";
+            const description = t("settings.pluginDesc." + p.key, p.description || "");
             return (
               <GlassCard key={p.key} className="p-5 flex items-center justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0">
