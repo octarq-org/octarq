@@ -43,7 +43,6 @@ import (
 	"github.com/octarq-org/octarq/internal/safehttp"
 	"github.com/octarq-org/octarq/internal/server"
 	"github.com/octarq-org/octarq/plugin"
-	"github.com/octarq-org/octarq/plugins/builtin"
 	"github.com/octarq-org/octarq/webembed"
 	"gorm.io/gorm"
 )
@@ -179,12 +178,11 @@ func New() (*App, error) {
 		auth:   authMgr,
 		geo:    geoResolver,
 	}
-	// Built-in Core features, extracted from the monolithic API handler into
-	// default-on plugins (docs/CORE-PLUGIN-EXTRACTION.md). They mount ungated like
-	// any Core plugin, so every binary — open-core and Pro — gets them.
-	for _, p := range builtin.All() {
-		a.Use(p)
-	}
+	// Composition is the caller's job: New() mounts no feature plugins. Each
+	// entry point (octarq/main.go, octarq-pro's main, a trimmed edition) Uses the
+	// plugins it wants — Core plugins the same way Pro plugins are added, via
+	// a.Use. The OSS default set is plugins/builtin.Default(); see
+	// docs/PLUGIN-COMPOSITION-UNIFICATION.md.
 	return a, nil
 }
 

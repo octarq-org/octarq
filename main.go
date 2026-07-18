@@ -23,6 +23,7 @@ import (
 	"github.com/octarq-org/octarq/app"
 	"github.com/octarq-org/octarq/internal/mcp"
 	"github.com/octarq-org/octarq/openapi"
+	"github.com/octarq-org/octarq/plugins/builtin"
 )
 
 func main() {
@@ -33,7 +34,9 @@ func main() {
 	// Dispatch subcommands before standing up the full server. `octarq mcp` runs a
 	// stdio MCP server instead of the HTTP service.
 	if len(os.Args) > 1 && os.Args[1] == "mcp" {
-		if err := mcp.Run(context.Background()); err != nil {
+		// Compose the Core plugins so their MCP tools (list_links, list_domains,
+		// list_mailboxes/emails, export_data) are registered on the stdio server.
+		if err := mcp.RunWithPlugins(context.Background(), builtin.Default()); err != nil {
 			slog.Error("mcp failed", "err", err)
 			os.Exit(1)
 		}
@@ -52,6 +55,12 @@ func main() {
 	if err != nil {
 		slog.Error("init failed", "err", err)
 		os.Exit(1)
+	}
+	// Compose the OSS Core feature set. This is the composition root — Core
+	// plugins are mounted the same way Pro plugins are (a.Use), and a trimmed
+	// edition would build its own main that Uses a subset.
+	for _, p := range builtin.Default() {
+		a.Use(p)
 	}
 	if err := a.Run(context.Background()); err != nil {
 		slog.Error("run failed", "err", err)
