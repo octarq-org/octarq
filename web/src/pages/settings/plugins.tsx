@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, Settings as SettingsData, OrgMember, LicenseStatus, Overview, PluginInfo } from "../../api";
+import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../api";
 import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button } from "../../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../i18n";
@@ -54,7 +54,7 @@ export function PluginsSettings() {
         <GlassCard className="p-6 text-sm text-white/50">{t("settings.loadingPlugins")}</GlassCard>
       ) : plugins.length === 0 ? (
         <GlassCard className="p-6 text-sm text-white/55">
-          {t("settings.noPluginsPre")}<span className="text-white/80">Octarq</span>.
+          {t("settings.noPlugins")}
         </GlassCard>
       ) : (
         <div className="space-y-3">
@@ -88,7 +88,3 @@ export function PluginsSettings() {
     </div>
   );
 }
-
-// LicenseSettings is where a customer pastes the octarq-pro key they bought. The
-// backing API is the octarq-pro `licensing` plugin; in the OSS build it 404s and we
-// show a neutral note instead.

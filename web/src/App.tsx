@@ -119,12 +119,33 @@ function mergeAreas(
   plugins: PluginInfo[],
   role: string | undefined,
   isInstanceAdmin: boolean,
+  backendLoaded: boolean,
 ): Area[] {
-  // On duplicate paths the frontend plugin entry wins: the OSS backend also
+  // Backend-driven gating: the set of paths the backend vouches for — every
+  // menu it announces in api.menus() (active core + active plugin menus) PLUS
+  // every path owned by a toggleable feature in api.plugins() (so a plugin
+  // that's merely DISABLED, not absent, still counts as backed and is hidden by
+  // disabledPaths below rather than dropped outright).
+  const backendPaths = new Set<string>();
+  for (const m of backendMenus) backendPaths.add(m.path);
+  for (const p of plugins) for (const m of p.menus) backendPaths.add(m.path);
+
+  // A frontend-composed (uiMenus) entry whose path has NO backend half is an
+  // orphan — e.g. a UI-only plugin the manifest ships without a matching Go
+  // plugin. Drop it so it can't show a nav link that leads nowhere. Guarded on
+  // backendLoaded: the first synchronous render passes empty backend data (so
+  // core items appear instantly without a fetch round-trip), and we must NOT
+  // drop them then — only once api.menus()/api.plugins() have answered.
+  // A real build always announces its core menus, so an empty backendPaths means
+  // the fetch failed/returned nothing; don't drop everything in that case.
+  const gate = backendLoaded && backendPaths.size > 0;
+  const composed = uiMenus().filter((m) => !gate || backendPaths.has(m.path));
+
+  // On duplicate paths the frontend plugin entry wins: the backend also
   // announces core paths (/links, /mail, …) in api.menus() for API consumers,
   // but the composed core plugin carries the richer icon/category placement.
   const seenPaths = new Set<string>();
-  const menus = [...uiMenus(), ...backendMenus].filter((m) => {
+  const menus = [...composed, ...backendMenus].filter((m) => {
     if (seenPaths.has(m.path)) return false;
     seenPaths.add(m.path);
     return true;
@@ -244,6 +265,10 @@ function Shell({
   const [backendNav, setBackendNav] = useState<{ menus: MenuItem[]; plugins: PluginInfo[] }>(
     { menus: [], plugins: [] },
   );
+  // False until api.menus()/api.plugins() have answered at least once. Gates the
+  // backend-driven orphan-drop in mergeAreas so the initial empty render doesn't
+  // strip the always-composed core menus before the backend confirms them.
+  const [backendLoaded, setBackendLoaded] = useState(false);
   const [orgs, setOrgs]   = useState<Org[]>([]);
   const [creatingOrg, setCreatingOrg] = useState(false);
   const [newOrgName, setNewOrgName]   = useState("");
@@ -282,8 +307,8 @@ function Shell({
   }, []);
 
   const areas = useMemo(
-    () => mergeAreas(backendNav.menus, backendNav.plugins, role, isInstanceAdmin),
-    [backendNav, role, isInstanceAdmin],
+    () => mergeAreas(backendNav.menus, backendNav.plugins, role, isInstanceAdmin, backendLoaded),
+    [backendNav, role, isInstanceAdmin, backendLoaded],
   );
   // The same role inputs, for ProGate's per-route requiredRole pre-check.
   const roleCtx = useMemo(() => ({ role, isInstanceAdmin }), [role, isInstanceAdmin]);
@@ -305,6 +330,7 @@ function Shell({
       .then(([backendMenus, plugins]) => {
         setIsProBuild(plugins.length > 0);
         setBackendNav({ menus: backendMenus, plugins });
+        setBackendLoaded(true);
       })
       .catch(() => {});
   }, [activeOrgId]);

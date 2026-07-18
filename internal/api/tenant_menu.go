@@ -520,7 +520,12 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	// Core default navigation items
+	// Core default navigation items. These are the always-on core pages: the
+	// backend is the source of truth for which paths are "real", so the frontend
+	// can drop any composed menu whose path no backend half announces (see the
+	// sidebar merge in web/src/App.tsx). The always-composed core UI plugins
+	// (links, mail, dns, abuse, audit, and the Infrastructure asset placeholders)
+	// are announced here; a frontend-only plugin with no backend is an orphan.
 	menus := []MenuItem{
 		{ID: "overview", Label: "Overview", Path: "/overview", Icon: "📊", Category: "Operations"},
 		{ID: "links", Label: "Links", Path: "/links", Icon: "🔗", Category: "Operations"},
@@ -529,6 +534,10 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 
 		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "📝", Category: "Compliance"},
 		{ID: "abuse", Label: "Abuse", Path: "/abuse", Icon: "🛡️", Category: "Compliance"},
+
+		{ID: "certs", Label: "Certificates", Path: "/assets/certificates", Icon: "🔒", Category: "Network"},
+		{ID: "databases", Label: "Databases", Path: "/assets/databases", Icon: "🗄️", Category: "Storage & Databases"},
+		{ID: "storage", Label: "Object Storage", Path: "/assets/storage", Icon: "💾", Category: "Storage & Databases"},
 	}
 
 	// Query from plugin providers if they satisfy MenuProvider — but only for

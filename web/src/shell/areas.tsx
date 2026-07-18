@@ -84,16 +84,13 @@ export const STATIC_AREAS: Area[] = [
     title: "Commerce",
     subtitle: "Revenue, store & cost analysis",
     Icon: Wallet,
-    // Every commerce feature is a Pro plugin. These group shells stay so the
-    // dynamic plugin menus land in the right group/order (matched by label) in a
-    // composed build; in the OSS build all groups are empty and the whole
-    // Commerce area is dropped by the empty-area filter in App.tsx.
+    // Empty group shells matched by label so plugin menus land in the right
+    // group/order when a build composes plugins that target this area. In the
+    // community core all groups are empty and the whole Commerce area is
+    // dropped by the empty-area filter in App.tsx.
     groups: [
-      // Storefront + Licenses → @octarq-org/plugin-storefront, @octarq-org/plugin-issuer (category "Sales").
       { label: "Sales", items: [] },
-      // Billing → @octarq-org/plugin-billing (category "Billing").
       { label: "Billing", items: [] },
-      // Bookkeeping → @octarq-org/plugin-finance (category "Finance").
       { label: "Finance", items: [] },
     ],
   },
@@ -150,13 +147,6 @@ export const SETTINGS_AREA: Area = {
         { id: "profile",  label: "My Profile", Icon: User,      path: "/personal/profile" },
         { id: "security", label: "Security",   Icon: Shield,    path: "/settings/security" },
         { id: "tokens",   label: "API Tokens", Icon: KeyRound,  path: "/personal/tokens" },
-      ],
-    },
-    {
-      label: "Subscriptions",
-      items: [
-        { id: "billing", label: "Billing & Plan", Icon: CreditCard, path: "/settings/billing" },
-        { id: "license", label: "License",        Icon: KeyRound,   path: "/settings/license" },
       ],
     },
     {

@@ -52,7 +52,6 @@ export const en = {
     switchWorkspace: "Switch workspace",
     account: "Account menu",
     personalSettings: "Personal settings",
-    billingPlan: "Billing & plan",
     settings: "Settings",
   },
   command: {
