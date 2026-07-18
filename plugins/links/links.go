@@ -1,66 +1,21 @@
-package api
+package links
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"html"
-	"io"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/safehttp"
 	qrcode "github.com/skip2/go-qrcode"
 )
-
-var (
-	reTitle    = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
-	reDesc     = regexp.MustCompile(`(?is)<meta[^>]+name=["']description["'][^>]+content=["'](.*?)["']`)
-	reOgTitle  = regexp.MustCompile(`(?is)<meta[^>]+property=["']og:title["'][^>]+content=["'](.*?)["']`)
-	reOgTitle2 = regexp.MustCompile(`(?is)<meta[^>]+content=["'](.*?)["'][^>]+property=["']og:title["']`)
-)
-
-// fetchPageMeta does a best-effort GET and extracts <title> and meta description.
-func fetchPageMeta(ctx context.Context, rawURL string) (title, desc string) {
-	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
-	defer cancel()
-	// Guarded fetch: blocks internal/cloud-metadata IPs and redirect-based SSRF.
-	resp, err := safeGet(ctx, rawURL)
-	if err != nil {
-		return "", ""
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 256<<10)) // 256 KiB is plenty for <head>
-	if m := reOgTitle.FindSubmatch(body); m != nil {
-		title = strings.TrimSpace(html.UnescapeString(string(m[1])))
-	} else if m := reOgTitle2.FindSubmatch(body); m != nil {
-		title = strings.TrimSpace(html.UnescapeString(string(m[1])))
-	} else if m := reTitle.FindSubmatch(body); m != nil {
-		title = strings.TrimSpace(html.UnescapeString(string(m[1])))
-	}
-	if m := reDesc.FindSubmatch(body); m != nil {
-		desc = strings.TrimSpace(html.UnescapeString(string(m[1])))
-	}
-	return title, desc
-}
-
-const slugAlphabet = "abcdefghijkmnpqrstuvwxyz23456789"
-
-func randomSlug(n int) string {
-	b := make([]byte, n)
-	rand.Read(b)
-	for i := range b {
-		b[i] = slugAlphabet[int(b[i])%len(slugAlphabet)]
-	}
-	return string(b)
-}
 
 // linkDTO is the create/update payload.
 type linkDTO struct {
@@ -106,17 +61,17 @@ type ListLinksOutput struct {
 	Body []linkView
 }
 
-func (h *Handler) listLinks(ctx context.Context, input *ListLinksInput) (*ListLinksOutput, error) {
+func (p *Plugin) listLinks(ctx context.Context, input *ListLinksInput) (*ListLinksOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	r, ok := h.auth.AuthenticateRequest(r)
-	if !ok {
+	r = r.WithContext(ctx)
+	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var links []models.Link
-	q := h.orgDB(r).Order("created_at DESC")
+	q := p.orgDB(r).Order("created_at DESC")
 	// Archived links are hidden unless explicitly requested (?archived=1).
 	if input.Archived == "1" {
 		q = q.Where("archived = ?", true)
@@ -166,13 +121,13 @@ type LinkMetadataOutput struct {
 
 // linkMetadata fetches the target page's <title>, description, and favicon so
 // the dashboard can prefill a link's title (dub-style). Best-effort.
-func (h *Handler) linkMetadata(ctx context.Context, input *LinkMetadataInput) (*LinkMetadataOutput, error) {
+func (p *Plugin) linkMetadata(ctx context.Context, input *LinkMetadataInput) (*LinkMetadataOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	r, ok := h.auth.AuthenticateRequest(r)
-	if !ok {
+	r = r.WithContext(ctx)
+	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	raw := strings.TrimSpace(input.URL)
@@ -186,7 +141,7 @@ func (h *Handler) linkMetadata(ctx context.Context, input *LinkMetadataInput) (*
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
 		return nil, huma.Error400BadRequest("invalid url")
 	}
-	title, desc := fetchPageMeta(r.Context(), raw)
+	title, desc := safehttp.FetchPageMeta(r.Context(), raw)
 	favicon := u.Scheme + "://" + u.Host + "/favicon.ico"
 	return &LinkMetadataOutput{
 		Body: map[string]any{
@@ -209,17 +164,17 @@ type GetLinkOutput struct {
 	Body linkView
 }
 
-func (h *Handler) getLink(ctx context.Context, input *GetLinkInput) (*GetLinkOutput, error) {
+func (p *Plugin) getLink(ctx context.Context, input *GetLinkInput) (*GetLinkOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	r, ok := h.auth.AuthenticateRequest(r)
-	if !ok {
+	r = r.WithContext(ctx)
+	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var l models.Link
-	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&l).Error != nil {
+	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	return &GetLinkOutput{Body: view(l)}, nil
@@ -280,13 +235,13 @@ type CreateLinkOutput struct {
 	Body linkView
 }
 
-func (h *Handler) createLink(ctx context.Context, input *CreateLinkInput) (*CreateLinkOutput, error) {
+func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*CreateLinkOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	r, ok := h.auth.AuthenticateRequest(r)
-	if !ok {
+	r = r.WithContext(ctx)
+	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	target := strings.TrimSpace(input.Body.Target)
@@ -299,9 +254,9 @@ func (h *Handler) createLink(ctx context.Context, input *CreateLinkInput) (*Crea
 	}
 	slug := strings.TrimSpace(input.Body.Slug)
 	if slug == "" {
-		slug = randomSlug(6)
+		slug = models.RandomSlug(6)
 	}
-	if h.isReservedSlug(slug) {
+	if p.isReservedSlug(slug) {
 		return nil, huma.NewError(http.StatusConflict, "slug is reserved")
 	}
 	enabled := true
@@ -309,7 +264,7 @@ func (h *Handler) createLink(ctx context.Context, input *CreateLinkInput) (*Crea
 		enabled = *input.Body.Enabled
 	}
 	l := models.Link{
-		OrgID: h.orgID(r),
+		OrgID: p.orgID(r),
 		Host:  strings.TrimSpace(input.Body.Host), Slug: slug, Target: normalized,
 		Password: input.Body.Password, Note: input.Body.Note, Title: input.Body.Title, Tags: input.Body.Tags,
 		ExpiresAt: input.Body.ExpiresAt, ExpiredURL: input.Body.ExpiredURL, ClickLimit: input.Body.ClickLimit,
@@ -318,20 +273,20 @@ func (h *Handler) createLink(ctx context.Context, input *CreateLinkInput) (*Crea
 	if err := validateRedirectTargets(&l); err != nil {
 		return nil, err
 	}
-	if err := h.db.Create(&l).Error; err != nil {
+	if err := p.db.Create(&l).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
 	}
-	h.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
+	p.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
 
 	if l.Title == "" {
 		payload, _ := json.Marshal(map[string]any{
 			"id":     l.ID,
 			"target": l.Target,
 		})
-		_ = h.queue.Enqueue(r.Context(), "link.crawl", payload)
+		_ = p.enqueue(r.Context(), "link.crawl", payload)
 	}
 
-	_ = h.auth.Cache().Delete(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+	_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
 	return &CreateLinkOutput{Body: view(l)}, nil
 }
 
@@ -344,17 +299,16 @@ func (i *ExportLinksCSVInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
-func (h *Handler) exportLinksCSV(ctx context.Context, input *ExportLinksCSVInput) (*struct{}, error) {
+func (p *Plugin) exportLinksCSV(ctx context.Context, input *ExportLinksCSVInput) (*struct{}, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, w := humago.Unwrap(input.Ctx)
-	r, ok := h.auth.AuthenticateRequest(r)
-	if !ok {
+	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var links []models.Link
-	h.orgDB(r).Order("created_at DESC").Find(&links)
+	p.orgDB(r).Order("created_at DESC").Find(&links)
 
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", "attachment; filename=\"links.csv\"")
@@ -391,22 +345,22 @@ type UpdateLinkOutput struct {
 	Body linkView
 }
 
-func (h *Handler) updateLink(ctx context.Context, input *UpdateLinkInput) (*UpdateLinkOutput, error) {
+func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*UpdateLinkOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	r, ok := h.auth.AuthenticateRequest(r)
-	if !ok {
+	r = r.WithContext(ctx)
+	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var l models.Link
-	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&l).Error != nil {
+	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	if input.Body.Slug != "" {
 		slug := strings.TrimSpace(input.Body.Slug)
-		if slug != l.Slug && h.isReservedSlug(slug) {
+		if slug != l.Slug && p.isReservedSlug(slug) {
 			return nil, huma.NewError(http.StatusConflict, "slug is reserved")
 		}
 		l.Slug = slug
@@ -438,16 +392,16 @@ func (h *Handler) updateLink(ctx context.Context, input *UpdateLinkInput) (*Upda
 	if err := validateRedirectTargets(&l); err != nil {
 		return nil, err
 	}
-	if err := h.db.Save(&l).Error; err != nil {
+	if err := p.db.Save(&l).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
 	}
 
-	_ = h.auth.Cache().Delete(r.Context(), "link:redirect:"+oldHost+":"+oldSlug)
+	_ = p.deleteCache(r.Context(), "link:redirect:"+oldHost+":"+oldSlug)
 	if oldHost != l.Host || oldSlug != l.Slug {
-		_ = h.auth.Cache().Delete(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+		_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
 	}
 
-	h.audit(r, "link.update", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
+	p.audit(r, "link.update", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
 	return &UpdateLinkOutput{Body: view(l)}, nil
 }
 
@@ -465,24 +419,24 @@ type DeleteLinkOutput struct {
 	Body map[string]bool
 }
 
-func (h *Handler) deleteLink(ctx context.Context, input *DeleteLinkInput) (*DeleteLinkOutput, error) {
+func (p *Plugin) deleteLink(ctx context.Context, input *DeleteLinkInput) (*DeleteLinkOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	r, ok := h.auth.AuthenticateRequest(r)
-	if !ok {
+	r = r.WithContext(ctx)
+	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var l models.Link
-	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&l).Error != nil {
+	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
-	h.db.Delete(&l)
-	_ = h.auth.Cache().Delete(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+	p.db.Delete(&l)
+	_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
 
-	h.db.Where("link_id = ?", input.ID).Delete(&models.LinkEvent{})
-	h.audit(r, "link.delete", "link", input.ID, nil)
+	p.db.Where("link_id = ?", input.ID).Delete(&models.LinkEvent{})
+	p.audit(r, "link.delete", "link", input.ID, nil)
 	return &DeleteLinkOutput{Body: map[string]bool{"ok": true}}, nil
 }
 
@@ -503,18 +457,18 @@ type LinkStatsOutput struct {
 
 // linkStats returns basic analytics: totals, a daily time series, and the
 // top referers / countries / devices / browsers over the requested window.
-func (h *Handler) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkStatsOutput, error) {
+func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkStatsOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	r, ok := h.auth.AuthenticateRequest(r)
-	if !ok {
+	r = r.WithContext(ctx)
+	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	// Ensure the link belongs to the caller's org before exposing its analytics.
 	var l models.Link
-	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&l).Error != nil {
+	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	days := 30
@@ -523,9 +477,9 @@ func (h *Handler) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSt
 	}
 	since := time.Now().AddDate(0, 0, -days)
 
-	top := func(col string) []statKV {
-		rows := make([]statKV, 0)
-		q := h.db.Model(&models.LinkEvent{}).
+	top := func(col string) []models.StatKV {
+		rows := make([]models.StatKV, 0)
+		q := p.db.Model(&models.LinkEvent{}).
 			Where("link_id = ? AND created_at >= ? AND "+col+" <> ''", input.ID, since)
 		if col == "device" {
 			q = q.Select(col + " as key, count(distinct(ip || ' ' || ua)) as count")
@@ -537,16 +491,16 @@ func (h *Handler) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSt
 	}
 
 	var total int64
-	h.db.Model(&models.LinkEvent{}).Where("link_id = ?", input.ID).Count(&total)
+	p.db.Model(&models.LinkEvent{}).Where("link_id = ?", input.ID).Count(&total)
 
-	series := make([]statKV, 0)
-	h.db.Model(&models.LinkEvent{}).
+	series := make([]models.StatKV, 0)
+	p.db.Model(&models.LinkEvent{}).
 		Select("strftime('%Y-%m-%d', created_at) as key, count(*) as count").
 		Where("link_id = ? AND created_at >= ?", input.ID, since).
 		Group("key").Order("key ASC").Scan(&series)
 	// Postgres uses to_char; fall back when sqlite strftime yields nothing.
-	if len(series) == 0 && h.cfg.DBDriver == "postgres" {
-		h.db.Model(&models.LinkEvent{}).
+	if len(series) == 0 && p.db.Dialector.Name() == "postgres" {
+		p.db.Model(&models.LinkEvent{}).
 			Select("to_char(created_at, 'YYYY-MM-DD') as key, count(*) as count").
 			Where("link_id = ? AND created_at >= ?", input.ID, since).
 			Group("key").Order("key ASC").Scan(&series)
@@ -555,7 +509,7 @@ func (h *Handler) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSt
 	return &LinkStatsOutput{
 		Body: map[string]any{
 			"total":     total,
-			"windowed":  sum(series),
+			"windowed":  models.SumStatKV(series),
 			"days":      days,
 			"series":    series,
 			"referers":  top("referer"),
@@ -567,19 +521,7 @@ func (h *Handler) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSt
 	}, nil
 }
 
-// statKV is a key/count pair used across link analytics responses.
-type statKV struct {
-	Key   string `json:"key"`
-	Count int64  `json:"count"`
-}
-
-func sum(kvs []statKV) int64 {
-	var t int64
-	for _, k := range kvs {
-		t += k.Count
-	}
-	return t
-}
+// models.StatKV is a key/count pair used across link analytics responses.
 
 type LinkQRInput struct {
 	Ctx huma.Context `hidden:"true"`
@@ -591,17 +533,16 @@ func (i *LinkQRInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
-func (h *Handler) linkQR(ctx context.Context, input *LinkQRInput) (*struct{}, error) {
+func (p *Plugin) linkQR(ctx context.Context, input *LinkQRInput) (*struct{}, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, w := humago.Unwrap(input.Ctx)
-	r, ok := h.auth.AuthenticateRequest(r)
-	if !ok {
+	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var l models.Link
-	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&l).Error != nil {
+	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	target := shortURL(r, l)

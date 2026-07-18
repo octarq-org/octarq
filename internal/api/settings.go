@@ -552,3 +552,7 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	}
 	return out, nil
 }
+
+func (h *Handler) GetGlobalSetting(key string) string {
+	return h.getSetting(key)
+}

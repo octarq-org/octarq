@@ -1,4 +1,4 @@
-package api
+package mail
 
 import (
 	"net/http"
@@ -7,41 +7,33 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/auth"
-	"github.com/octarq-org/octarq/internal/crypto"
-	"github.com/octarq-org/octarq/internal/geo"
 	"github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/queue"
 	"gorm.io/gorm"
 )
 
 func TestWrapLinksInEmail(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(models.AllModels()...); err != nil {
+	if err := db.AutoMigrate(append(models.AllModels(), &models.Link{}, &models.LinkEvent{})...); err != nil {
 		t.Fatal(err)
 	}
-	db.Where("1 = 1").Delete(&models.Domain{})
-	db.Where("1 = 1").Delete(&models.Link{})
 
-	cfg := &config.Config{SecretKey: "secret"}
-	cipher := crypto.New(cfg.SecretKey)
-	authMgr := auth.New(cfg, cipher).WithDB(db)
-	g, _ := geo.Open("")
-	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
+	p := New()
+	p.db = db
+	p.orgID = func(r *http.Request) uint { return 1 }
+	p.getWorkspaceSetting = func(orgID uint, key string) string { return "" }
 
 	// Set up custom link domain
 	db.Create(&models.Domain{
-		OrgID: 1,
-		Name:  "short.mycorp.com",
-		LinkHosts: []models.Host{
+		OrgID:   1,
+		Name:    "short.mycorp.com",
+		ForLink: true,
+		LinkHosts: models.HostList{
 			{Host: "short.mycorp.com", Enabled: true},
 		},
-		ForLink: true,
 	})
 
 	msg := mail.Message{
@@ -50,16 +42,9 @@ func TestWrapLinksInEmail(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/emails/send", nil)
-
-	// Create and attach session cookies
-	cookieRec := httptest.NewRecorder()
-	authMgr.SetSession(cookieRec, 1, 1)
-	for _, c := range cookieRec.Result().Cookies() {
-		req.AddCookie(c)
-	}
 	req.Host = "dashboard.mycorp.com"
 
-	h.wrapLinksInEmail(req, &msg)
+	p.wrapLinksInEmail(req, &msg)
 
 	// Assertions on text
 	if !strings.Contains(msg.Text, "http://short.mycorp.com/") {
@@ -100,26 +85,24 @@ func TestWrapLinksInEmail(t *testing.T) {
 }
 
 func TestWrapLinksAvoidDoubleWrapAndInternal(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	db.AutoMigrate(models.AllModels()...)
-	db.Where("1 = 1").Delete(&models.Domain{})
-	db.Where("1 = 1").Delete(&models.Link{})
+	db.AutoMigrate(append(models.AllModels(), &models.Link{}, &models.LinkEvent{})...)
 
-	cfg := &config.Config{SecretKey: "secret"}
-	cipher := crypto.New(cfg.SecretKey)
-	authMgr := auth.New(cfg, cipher).WithDB(db)
-	h := New(cfg, db, cipher, authMgr, nil, queue.New(""))
+	p := New()
+	p.db = db
+	p.orgID = func(r *http.Request) uint { return 1 }
+	p.getWorkspaceSetting = func(orgID uint, key string) string { return "" }
 
 	db.Create(&models.Domain{
-		OrgID: 1,
-		Name:  "avoid.mycorp.com",
-		LinkHosts: []models.Host{
+		OrgID:   1,
+		Name:    "avoid.mycorp.com",
+		ForLink: true,
+		LinkHosts: models.HostList{
 			{Host: "avoid.mycorp.com", Enabled: true},
 		},
-		ForLink: true,
 	})
 
 	msg := mail.Message{
@@ -127,14 +110,9 @@ func TestWrapLinksAvoidDoubleWrapAndInternal(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/emails/send", nil)
-	cookieRec := httptest.NewRecorder()
-	authMgr.SetSession(cookieRec, 1, 1)
-	for _, c := range cookieRec.Result().Cookies() {
-		req.AddCookie(c)
-	}
 	req.Host = "avoid.mycorp.com"
 
-	h.wrapLinksInEmail(req, &msg)
+	p.wrapLinksInEmail(req, &msg)
 
 	if !strings.Contains(msg.Text, "http://localhost:8680/info") {
 		t.Error("localhost link should not be wrapped")

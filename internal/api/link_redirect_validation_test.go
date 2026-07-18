@@ -3,8 +3,6 @@ package api
 import (
 	"net/http"
 	"testing"
-
-	"github.com/octarq-org/octarq/internal/models"
 )
 
 // TestCreateLinkRejectsDangerousExpiredURL asserts a javascript: ExpiredURL is
@@ -41,38 +39,5 @@ func TestUpdateLinkRejectsDangerousExpiredURL(t *testing.T) {
 	rec = do(srv, "PUT", "/api/links/1", cookies, `{"target":"https://ok.example","expiredUrl":"data:text/html,<script>x</script>"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("update with data: expiredUrl: want 400, got %d (%s)", rec.Code, rec.Body.String())
-	}
-}
-
-// TestValidateRedirectTargetsRoutingRules covers the routing-rule branch of the
-// shared validator directly (RoutingRules aren't settable via the create DTO,
-// but any write path that populates them must be validated).
-func TestValidateRedirectTargetsRoutingRules(t *testing.T) {
-	// Dangerous routing-rule target is rejected.
-	bad := &models.Link{
-		Target: "https://ok.example",
-		RoutingRules: models.RoutingRules{
-			{Type: "geo", Match: "us", Target: "javascript:alert(1)"},
-		},
-	}
-	if err := validateRedirectTargets(bad); err == nil {
-		t.Fatal("expected javascript: routing-rule target to be rejected")
-	}
-
-	// Valid targets pass and a bare host is normalized to https.
-	good := &models.Link{
-		ExpiredURL: "exp.example",
-		RoutingRules: models.RoutingRules{
-			{Type: "geo", Match: "us", Target: "target.example/path"},
-		},
-	}
-	if err := validateRedirectTargets(good); err != nil {
-		t.Fatalf("expected valid targets to pass, got %v", err)
-	}
-	if good.ExpiredURL != "https://exp.example" {
-		t.Fatalf("expiredUrl not normalized: %q", good.ExpiredURL)
-	}
-	if good.RoutingRules[0].Target != "https://target.example/path" {
-		t.Fatalf("routing target not normalized: %q", good.RoutingRules[0].Target)
 	}
 }

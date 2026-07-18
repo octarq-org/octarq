@@ -105,6 +105,6 @@ func (h *Handler) uniqueOrgSlug(email string) string {
 		if n == 0 && !h.isReservedSlug(slug) {
 			return slug
 		}
-		slug = base + "-" + randomSlug(4)
+		slug = base + "-" + models.RandomSlug(4)
 	}
 }

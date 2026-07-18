@@ -1,6 +1,38 @@
-package api
+package links
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/octarq-org/octarq/internal/models"
+)
+
+func TestValidateRedirectTargetsRoutingRules(t *testing.T) {
+	bad := &models.Link{
+		Target: "https://ok.example",
+		RoutingRules: models.RoutingRules{
+			{Type: "geo", Match: "us", Target: "javascript:alert(1)"},
+		},
+	}
+	if err := validateRedirectTargets(bad); err == nil {
+		t.Fatal("expected javascript: routing-rule target to be rejected")
+	}
+
+	good := &models.Link{
+		ExpiredURL: "exp.example",
+		RoutingRules: models.RoutingRules{
+			{Type: "geo", Match: "us", Target: "target.example/path"},
+		},
+	}
+	if err := validateRedirectTargets(good); err != nil {
+		t.Fatalf("expected valid targets to pass, got %v", err)
+	}
+	if good.ExpiredURL != "https://exp.example" {
+		t.Fatalf("expiredUrl not normalized: %q", good.ExpiredURL)
+	}
+	if good.RoutingRules[0].Target != "https://target.example/path" {
+		t.Fatalf("routing target not normalized: %q", good.RoutingRules[0].Target)
+	}
+}
 
 func TestNormalizeTarget(t *testing.T) {
 	cases := []struct {

@@ -1,4 +1,4 @@
-package api
+package mail
 
 import (
 	"context"
@@ -22,17 +22,16 @@ type ListSMTPSendersOutput struct {
 	Body []models.SMTPSender
 }
 
-func (h *Handler) listSMTPSenders(ctx context.Context, input *ListSMTPSendersInput) (*ListSMTPSendersOutput, error) {
+func (p *Plugin) listSMTPSenders(ctx context.Context, input *ListSMTPSendersInput) (*ListSMTPSendersOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	r, ok := h.auth.AuthenticateRequest(r)
-	if !ok {
+	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	var senders []models.SMTPSender
-	h.orgDB(r).Order("name ASC").Find(&senders)
+	p.orgDB(r).Order("name ASC").Find(&senders)
 	for i := range senders {
 		senders[i].PassSet = senders[i].Pass != ""
 	}
@@ -60,13 +59,12 @@ type CreateSMTPSenderOutput struct {
 	Body models.SMTPSender
 }
 
-func (h *Handler) createSMTPSender(ctx context.Context, input *CreateSMTPSenderInput) (*CreateSMTPSenderOutput, error) {
+func (p *Plugin) createSMTPSender(ctx context.Context, input *CreateSMTPSenderInput) (*CreateSMTPSenderOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	r, ok := h.auth.AuthenticateRequest(r)
-	if !ok {
+	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	name := strings.TrimSpace(input.Body.Name)
@@ -77,13 +75,13 @@ func (h *Handler) createSMTPSender(ctx context.Context, input *CreateSMTPSenderI
 		return nil, huma.Error400BadRequest("name, host, port, user and pass are required")
 	}
 
-	encPass, err := h.cipher.Encrypt([]byte(pass))
+	encPass, err := p.encrypt([]byte(pass))
 	if err != nil {
 		return nil, huma.Error500InternalServerError("encrypt failed")
 	}
 
 	sender := models.SMTPSender{
-		OrgID:     h.orgID(r),
+		OrgID:     p.orgID(r),
 		Name:      name,
 		Host:      host,
 		Port:      input.Body.Port,
@@ -92,10 +90,10 @@ func (h *Handler) createSMTPSender(ctx context.Context, input *CreateSMTPSenderI
 		FromEmail: strings.TrimSpace(input.Body.FromEmail),
 	}
 
-	if err := h.db.Create(&sender).Error; err != nil {
+	if err := p.db.Create(&sender).Error; err != nil {
 		return nil, huma.Error500InternalServerError("failed to save")
 	}
-	h.audit(r, "smtp.create", "smtp_sender", sender.ID, map[string]any{"name": sender.Name, "host": sender.Host})
+	p.audit(r, "smtp.create", "smtp_sender", sender.ID, map[string]any{"name": sender.Name, "host": sender.Host})
 	sender.PassSet = sender.Pass != ""
 	return &CreateSMTPSenderOutput{Body: sender}, nil
 }
@@ -122,18 +120,17 @@ type UpdateSMTPSenderOutput struct {
 	Body models.SMTPSender
 }
 
-func (h *Handler) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderInput) (*UpdateSMTPSenderOutput, error) {
+func (p *Plugin) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderInput) (*UpdateSMTPSenderOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	r, ok := h.auth.AuthenticateRequest(r)
-	if !ok {
+	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
 	var sender models.SMTPSender
-	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&sender).Error != nil {
+	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&sender).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 
@@ -154,14 +151,14 @@ func (h *Handler) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderI
 	}
 
 	if input.Body.Pass != nil && *input.Body.Pass != "" {
-		enc, err := h.cipher.Encrypt([]byte(*input.Body.Pass))
+		enc, err := p.encrypt([]byte(*input.Body.Pass))
 		if err != nil {
 			return nil, huma.Error500InternalServerError("encrypt failed")
 		}
 		sender.Pass = enc
 	}
 
-	h.db.Save(&sender)
+	p.db.Save(&sender)
 	meta := map[string]any{
 		"name":      sender.Name,
 		"host":      sender.Host,
@@ -172,7 +169,7 @@ func (h *Handler) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderI
 	if input.Body.Pass != nil && *input.Body.Pass != "" {
 		meta["pass"] = "[REDACTED]"
 	}
-	h.audit(r, "smtp.update", "smtp_sender", sender.ID, meta)
+	p.audit(r, "smtp.update", "smtp_sender", sender.ID, meta)
 	sender.PassSet = sender.Pass != ""
 	return &UpdateSMTPSenderOutput{Body: sender}, nil
 }
@@ -191,19 +188,18 @@ type DeleteSMTPSenderOutput struct {
 	Body map[string]bool
 }
 
-func (h *Handler) deleteSMTPSender(ctx context.Context, input *DeleteSMTPSenderInput) (*DeleteSMTPSenderOutput, error) {
+func (p *Plugin) deleteSMTPSender(ctx context.Context, input *DeleteSMTPSenderInput) (*DeleteSMTPSenderOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	r, ok := h.auth.AuthenticateRequest(r)
-	if !ok {
+	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).Delete(&models.SMTPSender{}); res.RowsAffected == 0 {
+	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&models.SMTPSender{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}
-	h.audit(r, "smtp.delete", "smtp_sender", input.ID, nil)
+	p.audit(r, "smtp.delete", "smtp_sender", input.ID, nil)
 	return &DeleteSMTPSenderOutput{Body: map[string]bool{"ok": true}}, nil
 }

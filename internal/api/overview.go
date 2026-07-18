@@ -70,7 +70,7 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 	orgLinks := h.db.Model(&models.Link{}).Select("id").Where("owner_id = ?", org)
 
 	// Daily click series for the last 30 days.
-	var series []statKV
+	var series []models.StatKV
 	botFilter(h.db.Model(&models.LinkEvent{}).
 		Where("link_id IN (?) AND created_at >= ?", orgLinks, since30)).
 		Select("strftime('%Y-%m-%d', created_at) as key, count(*) as count").
@@ -82,8 +82,8 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 			Group("key").Order("key ASC").Scan(&series)
 	}
 
-	top := func(col string) []statKV {
-		var rows []statKV
+	top := func(col string) []models.StatKV {
+		var rows []models.StatKV
 		q := botFilter(h.db.Model(&models.LinkEvent{}).
 			Where("link_id IN (?) AND created_at >= ? AND "+col+" <> ''", orgLinks, since30))
 		if col == "device" {

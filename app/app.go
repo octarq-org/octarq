@@ -45,6 +45,9 @@ import (
 	"github.com/octarq-org/octarq/internal/server"
 	"github.com/octarq-org/octarq/internal/shortlink"
 	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/plugins/dns"
+	linksplugin "github.com/octarq-org/octarq/plugins/links"
+	mailplugin "github.com/octarq-org/octarq/plugins/mail"
 	"github.com/octarq-org/octarq/webembed"
 	"gorm.io/gorm"
 )
@@ -172,13 +175,20 @@ func New() (*App, error) {
 		geoResolver, _ = geo.Open("")
 	}
 
-	return &App{
+	a := &App{
 		cfg:    cfg,
 		gdb:    gdb,
 		cipher: cipher,
 		auth:   authMgr,
 		geo:    geoResolver,
-	}, nil
+	}
+	// Built-in Core features, extracted from the monolithic API handler into
+	// default-on plugins (docs/CORE-PLUGIN-EXTRACTION.md). They mount ungated like
+	// any Core plugin, so every binary — open-core and Pro — gets them.
+	a.Use(dns.New())
+	a.Use(mailplugin.New())
+	a.Use(linksplugin.New())
+	return a, nil
 }
 
 // DB exposes the shared database handle (useful for plugin construction).
@@ -209,6 +219,51 @@ func (a *App) sendMail(orgID uint, to, subject, htmlBody, textBody string) error
 // Use registers a plugin. All plugins must be registered before Run so their
 // models are migrated and their routes mounted.
 func (a *App) Use(p plugin.Plugin) { a.plugins = append(a.plugins, p) }
+
+// lazyDNSManager resolves the plugin.DNSManager that the dns Core plugin
+// provides under dns.ServiceDNSManager, on each call. ctx.DNS used to be the API
+// Handler's own manager; with domain/DNS extracted into the dns plugin
+// (docs/CORE-PLUGIN-EXTRACTION.md) the plugin provides the seam during Mount and
+// consumers (Pro infra / ai MCP tools) resolve it here at request time — after
+// all plugins have mounted, so the lookup always succeeds in practice.
+type lazyDNSManager struct {
+	lookup func(name string) (any, bool)
+}
+
+var _ plugin.DNSManager = (*lazyDNSManager)(nil)
+
+func (l *lazyDNSManager) resolve() (plugin.DNSManager, error) {
+	if v, ok := l.lookup(dns.ServiceDNSManager); ok {
+		if m, ok := v.(plugin.DNSManager); ok {
+			return m, nil
+		}
+	}
+	return nil, errors.New("dns manager unavailable: the dns plugin is not mounted")
+}
+
+func (l *lazyDNSManager) List(ctx context.Context, domainID uint) ([]plugin.DNSRecord, error) {
+	m, err := l.resolve()
+	if err != nil {
+		return nil, err
+	}
+	return m.List(ctx, domainID)
+}
+
+func (l *lazyDNSManager) Set(ctx context.Context, domainID uint, r plugin.DNSRecord) (plugin.DNSRecord, error) {
+	m, err := l.resolve()
+	if err != nil {
+		return plugin.DNSRecord{}, err
+	}
+	return m.Set(ctx, domainID, r)
+}
+
+func (l *lazyDNSManager) Delete(ctx context.Context, domainID uint, recordID string) error {
+	m, err := l.resolve()
+	if err != nil {
+		return err
+	}
+	return m.Delete(ctx, domainID, recordID)
+}
 
 // Plugins returns the registered plugins.
 func (a *App) Plugins() []plugin.Plugin {
@@ -252,10 +307,11 @@ func (a *App) RunMCP(ctx context.Context) error {
 		Encrypt:             a.cipher.Encrypt,
 		Decrypt:             a.cipher.Decrypt,
 		OnEmail:             apiHandler.OnEmail,
-		DNS:                 apiHandler.DNSManager(),
+		DNS:                 &lazyDNSManager{lookup: services.Lookup},
 		SendMail:            a.sendMail,
 		SetLLMResolver:      apiHandler.SetLLMResolver,
 		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
+		GetGlobalSetting:    apiHandler.GetGlobalSetting,
 		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,
 		Provide:             services.Provide,
 		Lookup:              services.Lookup,
@@ -341,7 +397,7 @@ func (a *App) Run(ctx context.Context) error {
 		Encrypt:        a.cipher.Encrypt,
 		Decrypt:        a.cipher.Decrypt,
 		OnEmail:        apiHandler.OnEmail,
-		DNS:            apiHandler.DNSManager(),
+		DNS:            &lazyDNSManager{lookup: services.Lookup},
 		SendMail:       a.sendMail,
 		SetLLMResolver: apiHandler.SetLLMResolver,
 		Provide:        services.Provide,

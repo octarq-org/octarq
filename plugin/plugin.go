@@ -181,8 +181,13 @@ type Context struct {
 	Lookup func(name string) (any, bool)
 	// GetWorkspaceSetting reads a per-org setting value.
 	GetWorkspaceSetting func(orgID uint, key string) string
+	GetGlobalSetting    func(key string) string
 	// SetWorkspaceSetting writes a per-org setting value.
 	SetWorkspaceSetting func(orgID uint, key, value string) error
+	// Enqueue adds a task to the background job queue.
+	Enqueue func(ctx context.Context, taskType string, payload []byte) error
+	// DeleteCache removes a key from the global cache.
+	DeleteCache func(ctx context.Context, key string) error
 }
 
 // DNSRecord is a provider-agnostic DNS record, mirroring the fields of octarq's
