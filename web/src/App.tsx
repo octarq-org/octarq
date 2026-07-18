@@ -42,7 +42,7 @@ export default function App() {
   const [user, setUser] = useState("");
   const [activeOrgId, setActiveOrgId] = useState<number>(0);
   // Org role from /api/auth/me ("owner" | "admin" | "member") — advisory input
-  // for requiredRole gating (sidebar filter + ProGate pre-check). UX only.
+  // for requiredRole gating (sidebar filter + PluginGate pre-check). UX only.
   const [role, setRole] = useState<string | undefined>(undefined);
   const appName = useAppName();
 
@@ -114,7 +114,7 @@ export default function App() {
 // advisory requiredRole the current user doesn't meet are dropped here — the
 // single place — so the sidebar AND the command palette (both fed by the
 // resulting areas) agree. Ranking lives in roleSatisfies (shell/role.tsx),
-// shared with ProGate's route pre-check.
+// shared with PluginGate's route pre-check.
 function mergeAreas(
   backendMenus: MenuItem[],
   plugins: PluginInfo[],
@@ -316,7 +316,7 @@ function Shell({
     () => mergeAreas(backendNav.menus, backendNav.plugins, role, isInstanceAdmin, backendLoaded),
     [backendNav, role, isInstanceAdmin, backendLoaded],
   );
-  // Role inputs for ProGate requiredRole pre-check.
+  // Role inputs for PluginGate requiredRole pre-check.
   const roleCtx = useMemo(() => ({ role, isInstanceAdmin }), [role, isInstanceAdmin]);
 
   const pluginGateCtxValue = useMemo(() => {
@@ -332,7 +332,7 @@ function Shell({
 
   // Load orgs + dynamic menus + user settings layout. Also refreshes the org
   // role here (not just on mount) so switching to a workspace where the user
-  // has a different role re-runs the sidebar/ProGate role gating.
+  // has a different role re-runs the sidebar/PluginGate role gating.
   useEffect(() => {
     api.me().then((m) => setRole(m.role)).catch(() => {});
     api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
