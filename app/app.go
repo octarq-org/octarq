@@ -25,8 +25,6 @@ import (
 	"syscall"
 	"time"
 
-	mailmodels "github.com/octarq-org/octarq/plugins/mail"
-
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/config"
@@ -48,7 +46,7 @@ import (
 	"github.com/octarq-org/octarq/plugin"
 	"github.com/octarq-org/octarq/plugins/dns"
 	linksplugin "github.com/octarq-org/octarq/plugins/links"
-	mailplugin "github.com/octarq-org/octarq/plugins/mail"
+	mail "github.com/octarq-org/octarq/plugins/mail"
 	"github.com/octarq-org/octarq/webembed"
 	"gorm.io/gorm"
 )
@@ -187,7 +185,7 @@ func New() (*App, error) {
 	// default-on plugins (docs/CORE-PLUGIN-EXTRACTION.md). They mount ungated like
 	// any Core plugin, so every binary — open-core and Pro — gets them.
 	a.Use(dns.New())
-	a.Use(mailplugin.New())
+	a.Use(mail.New())
 	a.Use(linksplugin.New())
 	return a, nil
 }
@@ -205,7 +203,7 @@ func (a *App) Notify(ctx context.Context, typ, cfgJSON, text string) error {
 // message — mirroring internal/api.Handler.sendEmail so plugins can send
 // transactional mail without importing octarq's internal packages.
 func (a *App) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
-	var s mailmodels.SMTPSender
+	var s mail.SMTPSender
 	if err := a.gdb.Where("owner_id = ? ", orgID).Order("id").First(&s).Error; err != nil {
 		return fmt.Errorf("no SMTP sender configured for org %d", orgID)
 	}

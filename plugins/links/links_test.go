@@ -2,14 +2,12 @@ package links
 
 import (
 	"testing"
-
-	"github.com/octarq-org/octarq/internal/models"
 )
 
 func TestValidateRedirectTargetsRoutingRules(t *testing.T) {
-	bad := &models.Link{
+	bad := &Link{
 		Target: "https://ok.example",
-		RoutingRules: models.RoutingRules{
+		RoutingRules: RoutingRules{
 			{Type: "geo", Match: "us", Target: "javascript:alert(1)"},
 		},
 	}
@@ -17,9 +15,9 @@ func TestValidateRedirectTargetsRoutingRules(t *testing.T) {
 		t.Fatal("expected javascript: routing-rule target to be rejected")
 	}
 
-	good := &models.Link{
+	good := &Link{
 		ExpiredURL: "exp.example",
-		RoutingRules: models.RoutingRules{
+		RoutingRules: RoutingRules{
 			{Type: "geo", Match: "us", Target: "target.example/path"},
 		},
 	}

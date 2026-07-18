@@ -81,12 +81,12 @@ func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(models.AllModels()...); err != nil {
+	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mail.Mailbox{}, &mail.Email{}, &mail.SMTPSender{})...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	// Isolate from other tests sharing the cache.
 	db.Where("1 = 1").Delete(&models.Token{})
-	db.Where("1 = 1").Delete(&models.Link{})
+	db.Where("1 = 1").Delete(&links.Link{})
 
 	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
 	cipher := crypto.New(cfg.SecretKey)
@@ -209,7 +209,7 @@ func TestEmailBounceWebhook(t *testing.T) {
 	if err := db.Create(&org).Error; err != nil {
 		t.Fatalf("failed to create org: %v", err)
 	}
-	mb := models.Mailbox{
+	mb := mail.Mailbox{
 		OrgID:   org.ID,
 		Address: "bounced@example.com",
 		Enabled: true,

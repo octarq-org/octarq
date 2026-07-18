@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	links "github.com/octarq-org/octarq/plugins/links"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/glebarez/sqlite"
@@ -21,7 +23,7 @@ func openMemDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("failed to open sqlite: %v", err)
 	}
-	db.AutoMigrate(append(models.AllModels(), &models.Link{}, &models.LinkEvent{})...)
+	db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &Domain{})...)
 	return db
 }
 
@@ -53,7 +55,7 @@ func TestVerifyDNS(t *testing.T) {
 	p, srv, db := newVerifyHarness(t)
 	const orgID = uint(1)
 
-	dom := models.Domain{
+	dom := Domain{
 		OrgID: orgID,
 		Name:  "mytestdomain.com",
 	}
@@ -166,7 +168,7 @@ func TestVerifyDNSMailHosts(t *testing.T) {
 	p, srv, db := newVerifyHarness(t)
 	const orgID = uint(1)
 
-	dom := models.Domain{
+	dom := Domain{
 		OrgID:   orgID,
 		Name:    "mytestdomain.com",
 		ForMail: true,
@@ -240,7 +242,7 @@ func TestVerifyDNSLinkHosts(t *testing.T) {
 	p, srv, db := newVerifyHarness(t)
 	const orgID = uint(1)
 
-	dom := models.Domain{
+	dom := Domain{
 		OrgID:   orgID,
 		Name:    "mytestdomain.com",
 		ForLink: true,

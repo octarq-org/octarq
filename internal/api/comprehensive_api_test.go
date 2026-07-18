@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/octarq-org/octarq/internal/dnsprovider"
 	"github.com/octarq-org/octarq/internal/models"
 )
@@ -550,7 +552,7 @@ func TestComprehensiveAPI(t *testing.T) {
 		// The tenant org owns the inbound token (in its slug'd path) and the mailbox.
 		org := models.Org{Name: "Acme", Slug: "acme", InboundToken: "my-inbound-token"}
 		db.Create(&org)
-		db.Create(&models.Mailbox{
+		db.Create(&mailmodels.Mailbox{
 			OrgID:   org.ID,
 			Address: "support@example.com",
 			Enabled: true,

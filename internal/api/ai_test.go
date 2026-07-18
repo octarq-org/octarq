@@ -10,6 +10,10 @@ import (
 	"testing"
 	"time"
 
+	dns "github.com/octarq-org/octarq/plugins/dns"
+	links "github.com/octarq-org/octarq/plugins/links"
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/auth"
@@ -40,7 +44,7 @@ func newAITestHandler(t *testing.T, reply string) (http.Handler, *gorm.DB) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(models.AllModels()...); err != nil {
+	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mailmodels.Mailbox{}, &mailmodels.Email{}, &mailmodels.SMTPSender{})...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
@@ -97,14 +101,14 @@ func TestAIStatusUnconfigured(t *testing.T) {
 func TestAISummarizeEmailOrgIsolation(t *testing.T) {
 	srv, db := newAITestHandler(t, "A billing notice; pay by Friday.")
 
-	db.Create(&models.Mailbox{Address: "a@one.test", OrgID: 1})
-	db.Create(&models.Mailbox{Address: "b@two.test", OrgID: 2})
-	var mb1, mb2 models.Mailbox
+	db.Create(&mailmodels.Mailbox{Address: "a@one.test", OrgID: 1})
+	db.Create(&mailmodels.Mailbox{Address: "b@two.test", OrgID: 2})
+	var mb1, mb2 mailmodels.Mailbox
 	db.First(&mb1, "address = ?", "a@one.test")
 	db.First(&mb2, "address = ?", "b@two.test")
-	db.Create(&models.Email{MailboxID: mb1.ID, Subject: "Invoice", Text: "Pay us", ReceivedAt: time.Now()})
-	db.Create(&models.Email{MailboxID: mb2.ID, Subject: "Other org", Text: "Secret", ReceivedAt: time.Now()})
-	var e1, e2 models.Email
+	db.Create(&mailmodels.Email{MailboxID: mb1.ID, Subject: "Invoice", Text: "Pay us", ReceivedAt: time.Now()})
+	db.Create(&mailmodels.Email{MailboxID: mb2.ID, Subject: "Other org", Text: "Secret", ReceivedAt: time.Now()})
+	var e1, e2 mailmodels.Email
 	db.First(&e1, "subject = ?", "Invoice")
 	db.First(&e2, "subject = ?", "Other org")
 

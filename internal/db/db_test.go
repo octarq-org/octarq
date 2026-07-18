@@ -3,8 +3,9 @@ package db
 import (
 	"testing"
 
+	dns "github.com/octarq-org/octarq/plugins/dns"
+
 	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/models"
 )
 
 func TestDB(t *testing.T) {
@@ -70,25 +71,25 @@ func TestDBMigrationLegacy(t *testing.T) {
 	}
 
 	// 3. Run Migrate - it should detect the columns, migrate them, and create provider accounts
-	err = Migrate(gdb)
+	err = Migrate(gdb, &dns.Domain{}, &dns.ProviderAccount{})
 	if err != nil {
 		t.Fatalf("Migrate failed: %v", err)
 	}
 
 	// 4. Verify that ProviderAccounts were created and domains were updated
 	var count int64
-	gdb.Model(&models.ProviderAccount{}).Count(&count)
+	gdb.Model(&dns.ProviderAccount{}).Count(&count)
 	if count != 1 {
 		t.Errorf("expected 1 migrated provider account, got %d", count)
 	}
 
-	var d1 models.Domain
+	var d1 dns.Domain
 	gdb.Where("name = ?", "legacy1.com").First(&d1)
 	if d1.ProviderAccountID == 0 {
 		t.Errorf("legacy1.com provider_account_id was not updated")
 	}
 
-	var d2 models.Domain
+	var d2 dns.Domain
 	gdb.Where("name = ?", "legacy2.com").First(&d2)
 	if d2.ProviderAccountID != d1.ProviderAccountID {
 		t.Errorf("legacy2.com should share the same provider account, got different ID")

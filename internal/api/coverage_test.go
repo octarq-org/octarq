@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/pquerna/otp/totp"
 )
@@ -160,7 +162,7 @@ func TestInboundWebhookAuth(t *testing.T) {
 
 	org := models.Org{Name: "Acme", Slug: "acme", InboundToken: "itok"}
 	db.Create(&org)
-	db.Create(&models.Mailbox{OrgID: org.ID, Address: "hi@acme.test", Enabled: true})
+	db.Create(&mailmodels.Mailbox{OrgID: org.ID, Address: "hi@acme.test", Enabled: true})
 
 	msg := "From: a@x.com\r\nTo: hi@acme.test\r\nSubject: Hi\r\n\r\nbody"
 	post := func(path string) int {
@@ -180,7 +182,7 @@ func TestInboundWebhookAuth(t *testing.T) {
 		t.Errorf("valid: got %d, want 200", code)
 	}
 	var count int64
-	db.Model(&models.Email{}).Count(&count)
+	db.Model(&mailmodels.Email{}).Count(&count)
 	if count != 1 {
 		t.Errorf("expected 1 stored email, got %d", count)
 	}

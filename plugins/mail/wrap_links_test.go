@@ -6,6 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	dns "github.com/octarq-org/octarq/plugins/dns"
+	links "github.com/octarq-org/octarq/plugins/links"
+
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/internal/models"
@@ -17,7 +20,7 @@ func TestWrapLinksInEmail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(append(models.AllModels(), &models.Link{}, &models.LinkEvent{})...); err != nil {
+	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{})...); err != nil {
 		t.Fatal(err)
 	}
 
@@ -27,7 +30,7 @@ func TestWrapLinksInEmail(t *testing.T) {
 	p.getWorkspaceSetting = func(orgID uint, key string) string { return "" }
 
 	// Set up custom link domain
-	db.Create(&models.Domain{
+	db.Create(&dns.Domain{
 		OrgID:   1,
 		Name:    "short.mycorp.com",
 		ForLink: true,
@@ -63,7 +66,7 @@ func TestWrapLinksInEmail(t *testing.T) {
 	}
 
 	// Check that links are stored in DB
-	var links []models.Link
+	var links []links.Link
 	db.Find(&links)
 	if len(links) != 2 {
 		t.Errorf("expected 2 links generated in DB, got %d", len(links))
@@ -89,14 +92,14 @@ func TestWrapLinksAvoidDoubleWrapAndInternal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	db.AutoMigrate(append(models.AllModels(), &models.Link{}, &models.LinkEvent{})...)
+	db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{})...)
 
 	p := New()
 	p.db = db
 	p.orgID = func(r *http.Request) uint { return 1 }
 	p.getWorkspaceSetting = func(orgID uint, key string) string { return "" }
 
-	db.Create(&models.Domain{
+	db.Create(&dns.Domain{
 		OrgID:   1,
 		Name:    "avoid.mycorp.com",
 		ForLink: true,

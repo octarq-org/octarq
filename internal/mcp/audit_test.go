@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	links "github.com/octarq-org/octarq/plugins/links"
+
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
@@ -16,7 +18,7 @@ func TestQueryAudited(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := gdb.AutoMigrate(&models.Link{}, &models.AuditLog{}); err != nil {
+	if err := gdb.AutoMigrate(&links.Link{}, &models.AuditLog{}); err != nil {
 		t.Fatal(err)
 	}
 	s := &server{gdb: gdb, orgID: 1}

@@ -324,6 +324,7 @@ type Webhook struct {
 func AllModels() []any {
 	return []any{
 		&Org{}, &User{}, &OrgMember{}, &UserSetting{}, &PluginSetting{},
+		&Token{}, &Setting{}, &WorkspaceSetting{}, &NotificationChannel{},
 		&AbuseReport{}, &AuditLog{}, &Webhook{}, &Session{},
 	}
 }
