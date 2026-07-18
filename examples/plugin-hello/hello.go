@@ -53,6 +53,14 @@ func (greeter) Greet(who string) string { return "hello, " + who + "!" }
 // two halves of the feature are traceable to each other.
 func (Plugin) Name() string { return "hello" }
 
+// Describe makes the example on by default: a fresh workspace sees the Hello
+// feature without having to enable it first, yet it stays user-toggleable (not
+// Core) so the plugin manager still lists it and can turn it off. EnabledByDefault
+// flips the pre-toggle default from opt-in to opt-out.
+func (Plugin) Describe() plugin.Info {
+	return plugin.Info{Title: "Hello", EnabledByDefault: true}
+}
+
 // Models returns the GORM models this plugin owns. This example is stateless.
 func (Plugin) Models() []any { return nil }
 
@@ -94,4 +102,5 @@ func (Plugin) Menus() []plugin.MenuItem {
 var (
 	_ plugin.Plugin       = Plugin{}
 	_ plugin.MenuProvider = Plugin{}
+	_ plugin.Describer    = Plugin{}
 )

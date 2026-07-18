@@ -320,6 +320,11 @@ type Info struct {
 	// Core marks always-on plumbing (e.g. license activation, buyer identity):
 	// never gated, not shown in the plugin manager, cannot be disabled.
 	Core bool
+	// EnabledByDefault makes a (non-Core) feature active for a workspace that has
+	// never toggled it — i.e. when no PluginSetting row exists. The feature stays
+	// user-toggleable in the plugin manager; this only changes the pre-toggle
+	// default from off (opt-in) to on (opt-out). Ignored when Core is set.
+	EnabledByDefault bool
 	// Requires lists names of plugins that must be mounted for this plugin to
 	// function. Validated at boot time.
 	Requires []string
