@@ -283,16 +283,15 @@ func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput
 	orgID := h.orgID(r)
 	items := []MemberItem{}
 	type queryResult struct {
-		UserID       uint
-		Email        string
-		Role         string
-		PasswordHash string
-		InviteToken  string
-		CreatedAt    time.Time
+		UserID      uint
+		Email       string
+		Role        string
+		InviteToken string
+		CreatedAt   time.Time
 	}
 	var rows []queryResult
 	err := h.db.Table("org_members").
-		Select("users.id as user_id, users.email, org_members.role, users.password_hash, users.invite_token, users.created_at").
+		Select("users.id as user_id, users.email, org_members.role, users.invite_token, users.created_at").
 		Joins("JOIN users ON users.id = org_members.user_id").
 		Where("org_members.org_id = ?", orgID).
 		Scan(&rows).Error
@@ -300,7 +299,10 @@ func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput
 		return nil, huma.Error500InternalServerError("failed to query members")
 	}
 	for _, row := range rows {
-		isPending := row.PasswordHash == "" || row.InviteToken != ""
+		// Pending means an unredeemed invite. An empty password hash alone is
+		// NOT pending: the bootstrap instance admin authenticates against the
+		// configured env password and never stores a hash.
+		isPending := row.InviteToken != ""
 		t := row.CreatedAt
 		items = append(items, MemberItem{
 			UserID:   row.UserID,
