@@ -20,6 +20,7 @@ import { AreaPanel } from "./shell/AreaPanel";
 import { Login } from "./shell/Login";
 import { uiAreas, uiMenus } from "./plugin-sdk";
 import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
+import { PluginGateContext } from "./plugins/PluginGate";
 
 
 // Fallback while a route's lazily-loaded chunk is fetched — a subtle centered
@@ -199,6 +200,7 @@ function mergeAreas(
         Icon: KeyIcon ?? Globe,
         iconStr: KeyIcon ? undefined : m.icon,
         path: m.path,
+        order: m.order ?? 0,
       };
 
       // Check if there is an existing group matching the category name (case-insensitive)
@@ -220,6 +222,10 @@ function mergeAreas(
           });
         }
       }
+    });
+
+    groups.forEach((g) => {
+      g.items.sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
     });
 
     return {
@@ -310,8 +316,14 @@ function Shell({
     () => mergeAreas(backendNav.menus, backendNav.plugins, role, isInstanceAdmin, backendLoaded),
     [backendNav, role, isInstanceAdmin, backendLoaded],
   );
-  // The same role inputs, for ProGate's per-route requiredRole pre-check.
+  // Role inputs for ProGate requiredRole pre-check.
   const roleCtx = useMemo(() => ({ role, isInstanceAdmin }), [role, isInstanceAdmin]);
+
+  const pluginGateCtxValue = useMemo(() => {
+    const disabledPlugins = new Set(backendNav.plugins.filter((p) => !p.enabled).map((p) => p.key));
+    const disabledPaths = new Set(backendNav.plugins.filter((p) => !p.enabled).flatMap((p) => p.menus.map((m) => m.path)));
+    return { disabledPlugins, disabledPaths, loaded: backendLoaded };
+  }, [backendNav.plugins, backendLoaded]);
 
   const settingsActive = location.pathname.startsWith("/settings") || location.pathname.startsWith("/personal");
   // Resolve against the merged runtime areas (static + plugin areas + dynamic
@@ -338,9 +350,21 @@ function Shell({
   // Settings pages that mutate the workspace list (rename) fire this instead of
   // reloading the page; refetch the orgs so the switcher/name update in place.
   useEffect(() => {
-    const refresh = () => api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
-    window.addEventListener("octarq:orgs-changed", refresh);
-    return () => window.removeEventListener("octarq:orgs-changed", refresh);
+    const refreshOrgs = () => api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
+    const refreshPlugins = () => {
+      Promise.all([api.menus().catch(() => []), api.plugins().catch(() => [])])
+        .then(([backendMenus, plugins]) => {
+          setIsProBuild(plugins.length > 0);
+          setBackendNav({ menus: backendMenus, plugins });
+        })
+        .catch(() => {});
+    };
+    window.addEventListener("octarq:orgs-changed", refreshOrgs);
+    window.addEventListener("octarq:plugins-changed", refreshPlugins);
+    return () => {
+      window.removeEventListener("octarq:orgs-changed", refreshOrgs);
+      window.removeEventListener("octarq:plugins-changed", refreshPlugins);
+    };
   }, []);
 
   const currentSettingsArea = useMemo(() => {
@@ -463,6 +487,7 @@ function Shell({
         <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
           <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-8 py-8">
             <Suspense fallback={<RouteFallback />}>
+            <PluginGateContext.Provider value={pluginGateCtxValue}>
             <Routes>
               <Route path="/"           element={<Navigate to="/overview" replace />} />
               <Route path="/overview"   element={<OverviewPage />} />
@@ -477,6 +502,7 @@ function Shell({
                   here, matching octarq's "not in this build" convention. */}
               <Route path="*"           element={<PluginUnavailable />} />
             </Routes>
+            </PluginGateContext.Provider>
             </Suspense>
           </div>
         </div>

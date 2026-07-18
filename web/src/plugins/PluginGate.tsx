@@ -1,4 +1,4 @@
-// ProGate — the centralized degrade boundary wrapped around EVERY plugin route
+// PluginGate — the centralized degrade boundary wrapped around EVERY plugin route
 // element (see PluginRoutes.tsx). It standardizes octarq's gated-state
 // convention in one place so plugin pages degrade uniformly:
 //
@@ -18,7 +18,7 @@
 // safety net, not a replacement. It catches two things a page can't: a lazy
 // chunk that fails to load, and an uncaught throw during render (including a
 // thrown ApiError, whose `status` is honored). It also provides a context
-// helper (`useProGate`) so a page can degrade declaratively —
+// helper (`usePluginGate`) so a page can degrade declaratively —
 // `gate.degrade(err.status)` from a data-fetch catch — instead of each page
 // re-implementing the locked-state branch.
 import {
@@ -34,7 +34,19 @@ import type { UIPlugin, UIRoute } from "@octarq-org/plugin-sdk";
 import { AccessDenied, PluginUnavailable } from "./PluginRoutes";
 import { roleSatisfies, useCurrentRole } from "../shell/role";
 
-export interface ProGateContextValue {
+export interface PluginGateContextValue {
+  disabledPlugins: Set<string>;
+  disabledPaths: Set<string>;
+  loaded: boolean;
+}
+
+export const PluginGateContext = createContext<PluginGateContextValue>({
+  disabledPlugins: new Set(),
+  disabledPaths: new Set(),
+  loaded: false,
+});
+
+export interface PluginRouteGateContextValue {
   // Degrade the current route to the standard gated state for `status`
   // (402 ⇒ upsell, anything else ⇒ neutral note).
   degrade: (status: number) => void;
@@ -43,13 +55,16 @@ export interface ProGateContextValue {
   requiredTier?: string;
 }
 
-const ProGateContext = createContext<ProGateContextValue | null>(null);
+const PluginRouteGateContext = createContext<PluginRouteGateContextValue | null>(null);
 
 // Safe anywhere: outside a gate (e.g. a core page) `degrade` is a no-op, so a
 // shared component may call it unconditionally.
-export function useProGate(): ProGateContextValue {
-  return useContext(ProGateContext) ?? { degrade: () => {} };
+export function usePluginGate(): PluginRouteGateContextValue {
+  return useContext(PluginRouteGateContext) ?? { degrade: () => {} };
 }
+
+// Backward-compat alias for plugins or code calling useProGate.
+export const useProGate = usePluginGate;
 
 // The standard degraded rendering, shared by the declarative (`degrade`) and
 // exceptional (error boundary) paths.
@@ -84,7 +99,7 @@ class GateBoundary extends Component<
   }
 }
 
-export function ProGate({
+export function PluginGate({
   plugin,
   route,
   children,
@@ -95,11 +110,23 @@ export function ProGate({
 }) {
   const [status, setStatus] = useState<number | null>(null);
   const { role, isInstanceAdmin } = useCurrentRole();
-  const ctx = useMemo<ProGateContextValue>(
+  const { disabledPlugins, disabledPaths, loaded } = useContext(PluginGateContext);
+
+  const ctx = useMemo<PluginRouteGateContextValue>(
     () => ({ degrade: setStatus, requiredTier: route.requiredTier }),
     [route.requiredTier],
   );
   if (status !== null) return <GateFallback status={status} plugin={plugin} />;
+
+  if (loaded) {
+    const isPluginDisabled =
+      disabledPlugins.has(plugin.name) ||
+      (plugin.name === "domains" && disabledPlugins.has("dns")) ||
+      disabledPaths.has(route.path);
+    if (isPluginDisabled) {
+      return <PluginUnavailable />;
+    }
+  }
   // Declarative pre-check: a route announcing a requiredRole the current user
   // doesn't meet renders access-denied WITHOUT mounting the page. Same ranking
   // as the sidebar filter (roleSatisfies) — and still just UX; the backend's
@@ -108,8 +135,11 @@ export function ProGate({
     return <GateFallback status={403} plugin={plugin} />;
   }
   return (
-    <ProGateContext.Provider value={ctx}>
+    <PluginRouteGateContext.Provider value={ctx}>
       <GateBoundary plugin={plugin}>{children}</GateBoundary>
-    </ProGateContext.Provider>
+    </PluginRouteGateContext.Provider>
   );
 }
+
+// Backward-compat alias for ProGate.
+export const ProGate = PluginGate;

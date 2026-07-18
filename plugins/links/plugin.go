@@ -35,7 +35,7 @@ func New() *Plugin {
 
 func (p *Plugin) Name() string { return "links" }
 func (p *Plugin) Describe() plugin.Info {
-	return plugin.Info{Title: "Short Links", Core: true, Requires: []string{"dns"}}
+	return plugin.Info{Title: "Short Links", Description: "Short link creation, custom domain routing, and click analytics.", EnabledByDefault: true, Requires: []string{"dns"}}
 }
 func (p *Plugin) Models() []any {
 	return []any{&Link{}, &LinkEvent{}}

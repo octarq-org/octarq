@@ -284,6 +284,7 @@ type MenuItem struct {
 	Path     string `json:"path"`
 	Icon     string `json:"icon"`     // emoji or icon key
 	Category string `json:"category"` // default category
+	Order    int    `json:"order,omitempty"`
 }
 
 // MenuProvider is an optional interface a Plugin may implement if it registers
@@ -313,6 +314,8 @@ type Info struct {
 	// Empty falls back to Name(), or, for a group, to the first member that
 	// sets one.
 	Title string
+	// Description is the summary of what this feature/plugin provides.
+	Description string
 	// Group joins sibling plugins under a single toggle. Plugins sharing a Group
 	// are enabled/disabled together as one feature; empty means the plugin is its
 	// own feature. The enablement key is Group when set, otherwise Name().

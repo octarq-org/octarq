@@ -70,6 +70,7 @@ export interface PluginMenuItem {
   path: string;
   icon: string;
   category: string;
+  order?: number;
   requiredRole?: string;
 }
 

@@ -247,9 +247,11 @@ func (h *Handler) updateOrg(ctx context.Context, input *UpdateOrgInput) (*Update
 }
 
 type MemberItem struct {
-	UserID uint   `json:"userId"`
-	Email  string `json:"email"`
-	Role   string `json:"role"`
+	UserID   uint       `json:"userId"`
+	Email    string     `json:"email"`
+	Role     string     `json:"role"`
+	JoinedAt *time.Time `json:"joinedAt,omitempty"`
+	Pending  bool       `json:"pending"`
 }
 
 type ListOrgMembersInput struct {
@@ -279,13 +281,33 @@ func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput
 
 	orgID := h.orgID(r)
 	items := []MemberItem{}
-	err := h.db.Model(&models.OrgMember{}).
-		Select("users.id as user_id, users.email, org_members.role").
+	type queryResult struct {
+		UserID       uint
+		Email        string
+		Role         string
+		PasswordHash string
+		InviteToken  string
+		CreatedAt    time.Time
+	}
+	var rows []queryResult
+	err := h.db.Table("org_members").
+		Select("users.id as user_id, users.email, org_members.role, users.password_hash, users.invite_token, users.created_at").
 		Joins("JOIN users ON users.id = org_members.user_id").
 		Where("org_members.org_id = ?", orgID).
-		Scan(&items).Error
+		Scan(&rows).Error
 	if err != nil {
 		return nil, huma.Error500InternalServerError("failed to query members")
+	}
+	for _, row := range rows {
+		isPending := row.PasswordHash == "" || row.InviteToken != ""
+		t := row.CreatedAt
+		items = append(items, MemberItem{
+			UserID:   row.UserID,
+			Email:    row.Email,
+			Role:     row.Role,
+			JoinedAt: &t,
+			Pending:  isPending,
+		})
 	}
 	return &ListOrgMembersOutput{Body: items}, nil
 }
@@ -458,6 +480,11 @@ func (h *Handler) removeOrgMember(ctx context.Context, input *RemoveOrgMemberInp
 	callerRole := h.callerOrgRole(r)
 	if callerRole != "owner" && callerRole != "admin" {
 		return nil, huma.Error403Forbidden("forbidden: only owner/admin can manage members")
+	}
+
+	callerUID := h.auth.UserID(r)
+	if input.UserID == callerUID {
+		return nil, huma.Error400BadRequest("cannot remove yourself from the workspace")
 	}
 
 	var target models.OrgMember

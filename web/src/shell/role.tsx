@@ -2,7 +2,7 @@
 // interprets the advisory `requiredRole` metadata on UIRoute / PluginMenuItem.
 // The role itself comes from /api/auth/me (api.me().role); the instance-admin
 // flag from api.settings(). Both are UX inputs only: the backend keeps
-// enforcing via callerOrgRole and answers 403, which ProGate degrades to the
+// enforcing via callerOrgRole and answers 403, which PluginGate degrades to the
 // access-denied state.
 import { createContext, useContext } from "react";
 
@@ -13,7 +13,7 @@ const ROLE_RANK: Record<string, number> = { member: 1, admin: 2, owner: 3 };
 
 // Whether a user holding `role` (with an optional instance-admin bypass) meets
 // an advisory `required` role. Used by both the sidebar merge (App.tsx) and
-// the route pre-check (ProGate) so the two can never disagree.
+// the route pre-check (PluginGate) so the two can never disagree.
 export function roleSatisfies(
   required: string | undefined,
   role: string | undefined,

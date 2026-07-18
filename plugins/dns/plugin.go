@@ -59,9 +59,9 @@ func New() *Plugin {
 
 func (p *Plugin) Name() string { return "dns" }
 
-// Describe marks the plugin Core: always-on plumbing, never gated, not shown in
-// the plugin manager — the same status the feature had as built-in core code.
-func (p *Plugin) Describe() plugin.Info { return plugin.Info{Title: "Domains & DNS", Core: true} }
+func (p *Plugin) Describe() plugin.Info {
+	return plugin.Info{Title: "Domains & DNS", Description: "Domain lifecycle and DNS management across Cloudflare and DNSPod.", EnabledByDefault: true}
+}
 
 // Models are the domain/DNS tables. In phase 1 they still live in
 // internal/models and are migrated by the core; returning them here is harmless

@@ -603,6 +603,8 @@ export interface OrgMember {
   userId: number;
   email: string;
   role: string;
+  joinedAt?: string;
+  pending?: boolean;
 }
 
 export interface MenuItem {
@@ -611,6 +613,7 @@ export interface MenuItem {
   path: string;
   icon: string;
   category: string;
+  order?: number;
   // Advisory minimum org role (member < admin < owner) — items the current
   // user doesn't meet are hidden from the sidebar/command palette. Mirrors
   // PluginMenuItem.requiredRole; enforcement stays server-side.
@@ -620,6 +623,7 @@ export interface MenuItem {
 export interface PluginInfo {
   key: string;
   title: string;
+  description?: string;
   enabled: boolean;
   menus: MenuItem[];
 }

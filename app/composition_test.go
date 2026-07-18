@@ -26,10 +26,10 @@ func TestBuiltinDefaultSet(t *testing.T) {
 			t.Fatalf("Default() order = %v, want %v", names, want)
 		}
 	}
-	// Every entry must be Core (always-on, ungated).
+	// Every entry must be EnabledByDefault (on out of the box, toggleable per workspace).
 	for _, p := range got {
-		if !plugin.Describe(p).Core {
-			t.Errorf("%s should be a Core plugin", p.Name())
+		if !plugin.Describe(p).EnabledByDefault {
+			t.Errorf("%s should be EnabledByDefault", p.Name())
 		}
 	}
 }

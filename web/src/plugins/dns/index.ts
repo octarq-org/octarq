@@ -5,7 +5,7 @@ import { domainsI18n } from "./i18n";
 const domains: UIPlugin = {
   name: "domains",
   routes: [{ path: "/domains", Component: lazy(() => import("./pages")) }],
-  menu: [{ id: "domains", label: "DNS", path: "/domains", icon: "globe", category: "Network" }],
+  menu: [{ id: "domains", label: "DNS", path: "/domains", icon: "globe", category: "Network", order: 10 }],
   i18n: domainsI18n,
 };
 

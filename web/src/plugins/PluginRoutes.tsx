@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { Route } from "react-router-dom";
 import { GlassCard, PageHeader, ScreenWrap, useTranslation } from "@octarq-org/plugin-sdk";
 import { uiPlugins } from "@octarq-org/plugin-sdk";
-import { ProGate } from "./ProGate";
+import { PluginGate } from "./PluginGate";
 
 // Neutral "this feature isn't part of this build" note — the frontend mirror of
 // the backend answering 404 for a plugin that isn't mounted. Shown for any
@@ -28,7 +28,7 @@ export function PluginUnavailable() {
 }
 
 // Neutral "you don't have permission" note — the 403 sibling of
-// PluginUnavailable. Rendered by ProGate when the backend answers 403 or when
+// PluginUnavailable. Rendered by PluginGate when the backend answers 403 or when
 // a route's advisory requiredRole isn't met by the current user.
 export function AccessDenied() {
   const { t } = useTranslation();
@@ -46,7 +46,7 @@ export function AccessDenied() {
 
 // The composed plugin routes, as an array of <Route> for <Routes>. Empty when
 // the registry is empty (OSS build) — then every such path falls to App's
-// catch-all neutral fallback. Every element is wrapped in ProGate — the
+// catch-all neutral fallback. Every element is wrapped in PluginGate — the
 // centralized degrade boundary (402 ⇒ upsell, 404/chunk failure ⇒ neutral
 // note) — so pages degrade uniformly even without per-page handling.
 export function pluginRouteElements() {
@@ -58,11 +58,11 @@ export function pluginRouteElements() {
           key={route.path}
           path={route.path}
           element={
-            <ProGate plugin={plugin} route={route}>
+            <PluginGate plugin={plugin} route={route}>
               <Suspense fallback={null}>
                 <Page />
               </Suspense>
-            </ProGate>
+            </PluginGate>
           }
         />
       );
