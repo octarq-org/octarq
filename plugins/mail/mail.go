@@ -13,6 +13,8 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugins/dns"
+	"github.com/octarq-org/octarq/plugins/links"
 )
 
 type ListMailboxesInput struct {
@@ -25,7 +27,7 @@ func (i *ListMailboxesInput) Resolve(ctx huma.Context) []error {
 }
 
 type ListMailboxesOutput struct {
-	Body []models.Mailbox
+	Body []Mailbox
 }
 
 func (p *Plugin) listMailboxes(ctx context.Context, input *ListMailboxesInput) (*ListMailboxesOutput, error) {
@@ -36,11 +38,11 @@ func (p *Plugin) listMailboxes(ctx context.Context, input *ListMailboxesInput) (
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var boxes []models.Mailbox
+	var boxes []Mailbox
 	p.orgDB(r).Order("created_at DESC").Find(&boxes)
 	// Attach unread counts.
 	for i := range boxes {
-		p.db.Model(&models.Email{}).
+		p.db.Model(&Email{}).
 			Where("mailbox_id = ? AND read = ?", boxes[i].ID, false).
 			Count(&boxes[i].Unread)
 	}
@@ -64,7 +66,7 @@ func (i *CreateMailboxInput) Resolve(ctx huma.Context) []error {
 }
 
 type CreateMailboxOutput struct {
-	Body models.Mailbox
+	Body Mailbox
 }
 
 func (p *Plugin) createMailbox(ctx context.Context, input *CreateMailboxInput) (*CreateMailboxOutput, error) {
@@ -83,7 +85,7 @@ func (p *Plugin) createMailbox(ctx context.Context, input *CreateMailboxInput) (
 	if input.Body.Enabled != nil {
 		enabled = *input.Body.Enabled
 	}
-	mb := models.Mailbox{
+	mb := Mailbox{
 		OrgID:   p.orgID(r),
 		Address: addr, Note: input.Body.Note, Enabled: enabled,
 	}
@@ -106,7 +108,7 @@ func (i *UpdateMailboxInput) Resolve(ctx huma.Context) []error {
 }
 
 type UpdateMailboxOutput struct {
-	Body models.Mailbox
+	Body Mailbox
 }
 
 func (p *Plugin) updateMailbox(ctx context.Context, input *UpdateMailboxInput) (*UpdateMailboxOutput, error) {
@@ -117,7 +119,7 @@ func (p *Plugin) updateMailbox(ctx context.Context, input *UpdateMailboxInput) (
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var mb models.Mailbox
+	var mb Mailbox
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&mb).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
@@ -156,11 +158,11 @@ func (p *Plugin) deleteMailbox(ctx context.Context, input *DeleteMailboxInput) (
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&models.Mailbox{})
+	res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&Mailbox{})
 	if res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}
-	p.db.Where("mailbox_id = ?", input.ID).Delete(&models.Email{})
+	p.db.Where("mailbox_id = ?", input.ID).Delete(&Email{})
 	p.audit(r, "mailbox.delete", "mailbox", input.ID, nil)
 	return &DeleteMailboxOutput{Body: map[string]bool{"ok": true}}, nil
 }
@@ -179,7 +181,7 @@ func (i *ListEmailsInput) Resolve(ctx huma.Context) []error {
 }
 
 type ListEmailsOutput struct {
-	Body []models.Email
+	Body []Email
 }
 
 func (p *Plugin) listEmails(ctx context.Context, input *ListEmailsInput) (*ListEmailsOutput, error) {
@@ -190,7 +192,7 @@ func (p *Plugin) listEmails(ctx context.Context, input *ListEmailsInput) (*ListE
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	orgMailboxes := p.db.Model(&models.Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
+	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
 	q := p.db.Where("mailbox_id IN (?)", orgMailboxes).Order("received_at DESC").Omit("Raw", "HTML")
 	if input.Mailbox != "" {
 		q = q.Where("mailbox_id = ?", input.Mailbox)
@@ -208,7 +210,7 @@ func (p *Plugin) listEmails(ctx context.Context, input *ListEmailsInput) (*ListE
 		offset = input.Offset
 	}
 	q = q.Limit(limit).Offset(offset)
-	var emails []models.Email
+	var emails []Email
 	q.Find(&emails)
 	return &ListEmailsOutput{Body: emails}, nil
 }
@@ -224,7 +226,7 @@ func (i *GetEmailInput) Resolve(ctx huma.Context) []error {
 }
 
 type GetEmailOutput struct {
-	Body models.Email
+	Body Email
 }
 
 func (p *Plugin) getEmail(ctx context.Context, input *GetEmailInput) (*GetEmailOutput, error) {
@@ -238,7 +240,7 @@ func (p *Plugin) getEmail(ctx context.Context, input *GetEmailInput) (*GetEmailO
 	if !p.emailBelongsToOrg(input.ID, p.orgID(r)) {
 		return nil, huma.Error404NotFound("not found")
 	}
-	var e models.Email
+	var e Email
 	if p.db.First(&e, input.ID).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
@@ -264,7 +266,7 @@ func (i *UpdateEmailInput) Resolve(ctx huma.Context) []error {
 }
 
 type UpdateEmailOutput struct {
-	Body models.Email
+	Body Email
 }
 
 func (p *Plugin) updateEmail(ctx context.Context, input *UpdateEmailInput) (*UpdateEmailOutput, error) {
@@ -278,7 +280,7 @@ func (p *Plugin) updateEmail(ctx context.Context, input *UpdateEmailInput) (*Upd
 	if !p.emailBelongsToOrg(input.ID, p.orgID(r)) {
 		return nil, huma.Error404NotFound("not found")
 	}
-	var e models.Email
+	var e Email
 	if p.db.First(&e, input.ID).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
@@ -315,8 +317,8 @@ func (p *Plugin) readAllEmails(ctx context.Context, input *ReadAllEmailsInput) (
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	orgMailboxes := p.db.Model(&models.Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
-	q := p.db.Model(&models.Email{}).Where("read = ? AND mailbox_id IN (?)", false, orgMailboxes)
+	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
+	q := p.db.Model(&Email{}).Where("read = ? AND mailbox_id IN (?)", false, orgMailboxes)
 	if input.Mailbox != "" {
 		q = q.Where("mailbox_id = ?", input.Mailbox)
 	}
@@ -348,7 +350,7 @@ func (p *Plugin) rawEmail(ctx context.Context, input *RawEmailInput) (*struct{},
 	if !p.emailBelongsToOrg(input.ID, p.orgID(r)) {
 		return nil, huma.Error404NotFound("not found")
 	}
-	var e models.Email
+	var e Email
 	if p.db.First(&e, input.ID).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
@@ -383,7 +385,7 @@ func (p *Plugin) deleteEmail(ctx context.Context, input *DeleteEmailInput) (*Del
 	if !p.emailBelongsToOrg(input.ID, p.orgID(r)) {
 		return nil, huma.Error404NotFound("not found")
 	}
-	p.db.Delete(&models.Email{}, input.ID)
+	p.db.Delete(&Email{}, input.ID)
 	return &DeleteEmailOutput{Body: map[string]bool{"ok": true}}, nil
 }
 
@@ -427,7 +429,7 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 	if input.Body.SMTPSenderID == 0 {
 		return nil, huma.Error400BadRequest("no SMTP sender selected")
 	}
-	var s models.SMTPSender
+	var s SMTPSender
 	if err := p.db.Where("id = ? AND owner_id = ?", input.Body.SMTPSenderID, p.orgID(r)).First(&s).Error; err != nil {
 		return nil, huma.Error400BadRequest("invalid smtp sender id")
 	}
@@ -457,7 +459,7 @@ func (p *Plugin) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 	orgID := p.orgID(r)
 
 	// Determine the short link domain host
-	var doms []models.Domain
+	var doms []dns.Domain
 	p.db.Where("owner_id = ? AND for_link = ?", orgID, true).Find(&doms)
 	shortHost := r.Host
 	if len(doms) > 0 {
@@ -520,7 +522,7 @@ func (p *Plugin) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 				slug = models.RandomSlug(6)
 				if !p.isReservedSlug(slug) {
 					var count int64
-					p.db.Model(&models.Link{}).Where("slug = ?", slug).Count(&count)
+					p.db.Model(&links.Link{}).Where("slug = ?", slug).Count(&count)
 					if count == 0 {
 						break
 					}
@@ -528,7 +530,7 @@ func (p *Plugin) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 			}
 
 			// Create the link record
-			link := models.Link{
+			link := links.Link{
 				OrgID:   orgID,
 				Host:    "", // host-agnostic
 				Slug:    slug,
@@ -709,11 +711,11 @@ func extractBounceEvents(body []byte) []bounceEvent {
 }
 
 func (p *Plugin) emailBelongsToOrg(emailID, orgID uint) bool {
-	var e models.Email
+	var e Email
 	if p.db.Select("mailbox_id").First(&e, emailID).Error != nil {
 		return false
 	}
-	var mb models.Mailbox
+	var mb Mailbox
 	if p.db.Select("owner_id").First(&mb, e.MailboxID).Error != nil {
 		return false
 	}

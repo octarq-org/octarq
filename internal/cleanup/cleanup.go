@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugins/links"
 	"gorm.io/gorm"
 )
 
@@ -26,7 +27,7 @@ func Start(ctx context.Context, db *gorm.DB, retentionDays func() int) {
 		totalPurged := int64(0)
 		for {
 			var ids []uint
-			if err := db.Model(&models.LinkEvent{}).Where("created_at < ?", cutoff).Limit(2000).Pluck("id", &ids).Error; err != nil {
+			if err := db.Model(&links.LinkEvent{}).Where("created_at < ?", cutoff).Limit(2000).Pluck("id", &ids).Error; err != nil {
 				log.Printf("cleanup: query link_events: %v", err)
 				return
 			}
@@ -34,7 +35,7 @@ func Start(ctx context.Context, db *gorm.DB, retentionDays func() int) {
 				break
 			}
 
-			res := db.Delete(&models.LinkEvent{}, ids)
+			res := db.Delete(&links.LinkEvent{}, ids)
 			if res.Error != nil {
 				log.Printf("cleanup: purge link_events batch: %v", res.Error)
 				return

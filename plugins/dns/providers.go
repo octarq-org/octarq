@@ -8,7 +8,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/internal/models"
 )
 
 // encryptConfig JSON-encodes a provider credentials map and seals it with the
@@ -40,7 +39,7 @@ func (i *ListProviderAccountsInput) Resolve(ctx huma.Context) []error {
 }
 
 type ListProviderAccountsOutput struct {
-	Body []models.ProviderAccount
+	Body []ProviderAccount
 }
 
 func (p *Plugin) listProviderAccounts(ctx context.Context, input *ListProviderAccountsInput) (*ListProviderAccountsOutput, error) {
@@ -51,7 +50,7 @@ func (p *Plugin) listProviderAccounts(ctx context.Context, input *ListProviderAc
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var accounts []models.ProviderAccount
+	var accounts []ProviderAccount
 	p.orgDB(r).Order("created_at DESC").Find(&accounts)
 	for i := range accounts {
 		accounts[i].HasCredentials = accounts[i].Config != ""
@@ -70,7 +69,7 @@ func (i *CreateProviderAccountInput) Resolve(ctx huma.Context) []error {
 }
 
 type CreateProviderAccountOutput struct {
-	Body models.ProviderAccount
+	Body ProviderAccount
 }
 
 func (p *Plugin) createProviderAccount(ctx context.Context, input *CreateProviderAccountInput) (*CreateProviderAccountOutput, error) {
@@ -90,7 +89,7 @@ func (p *Plugin) createProviderAccount(ctx context.Context, input *CreateProvide
 	if err != nil {
 		return nil, huma.Error500InternalServerError("encrypt config")
 	}
-	acc := models.ProviderAccount{
+	acc := ProviderAccount{
 		OrgID:  p.orgID(r),
 		Name:   name,
 		Type:   typ,
@@ -116,7 +115,7 @@ func (i *UpdateProviderAccountInput) Resolve(ctx huma.Context) []error {
 }
 
 type UpdateProviderAccountOutput struct {
-	Body models.ProviderAccount
+	Body ProviderAccount
 }
 
 func (p *Plugin) updateProviderAccount(ctx context.Context, input *UpdateProviderAccountInput) (*UpdateProviderAccountOutput, error) {
@@ -127,7 +126,7 @@ func (p *Plugin) updateProviderAccount(ctx context.Context, input *UpdateProvide
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var acc models.ProviderAccount
+	var acc ProviderAccount
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&acc).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
@@ -183,12 +182,12 @@ func (p *Plugin) deleteProviderAccount(ctx context.Context, input *DeleteProvide
 
 	// Check if any domain is using this account
 	var count int64
-	p.db.Model(&models.Domain{}).Where("provider_account_id = ?", input.ID).Count(&count)
+	p.db.Model(&Domain{}).Where("provider_account_id = ?", input.ID).Count(&count)
 	if count > 0 {
 		return nil, huma.NewError(http.StatusConflict, "cannot delete provider account because it is used by one or more domains")
 	}
 
-	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&models.ProviderAccount{}); res.RowsAffected == 0 {
+	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&ProviderAccount{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}
 	p.audit(r, "provider.delete", "provider", input.ID, nil)

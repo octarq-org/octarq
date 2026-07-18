@@ -5,9 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugins/dns"
+	"github.com/octarq-org/octarq/plugins/links"
 )
 
 // Data portability (GDPR/CCPA): an operator can export everything their org
@@ -48,19 +52,19 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 	org := h.orgID(r)
 
 	var (
-		links     []models.Link
-		domains   []models.Domain
-		mailboxes []models.Mailbox
-		emails    []models.Email
+		links     []links.Link
+		domains   []dns.Domain
+		mailboxes []mailmodels.Mailbox
+		emails    []mailmodels.Email
 		tokens    []models.Token
-		smtp      []models.SMTPSender
+		smtp      []mailmodels.SMTPSender
 		channels  []models.NotificationChannel
-		providers []models.ProviderAccount
+		providers []dns.ProviderAccount
 	)
 	h.db.Where("owner_id = ?", org).Find(&links)
 	h.db.Where("owner_id = ?", org).Find(&domains)
 	h.db.Where("owner_id = ?", org).Find(&mailboxes)
-	mailboxIDs := h.db.Model(&models.Mailbox{}).Select("id").Where("owner_id = ?", org)
+	mailboxIDs := h.db.Model(&mailmodels.Mailbox{}).Select("id").Where("owner_id = ?", org)
 	h.db.Where("mailbox_id IN (?)", mailboxIDs).Find(&emails)
 	h.db.Where("owner_id = ?", org).Find(&tokens)
 	h.db.Where("owner_id = ?", org).Find(&smtp)
@@ -136,16 +140,16 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 	org := h.orgID(r)
 
 	// Emails are scoped via their mailbox, so delete them before the mailboxes.
-	mailboxIDs := h.db.Model(&models.Mailbox{}).Select("id").Where("owner_id = ?", org)
-	h.db.Where("mailbox_id IN (?)", mailboxIDs).Delete(&models.Email{})
+	mailboxIDs := h.db.Model(&mailmodels.Mailbox{}).Select("id").Where("owner_id = ?", org)
+	h.db.Where("mailbox_id IN (?)", mailboxIDs).Delete(&mailmodels.Email{})
 
 	// Links carry their click events by link_id.
-	linkIDs := h.db.Model(&models.Link{}).Select("id").Where("owner_id = ?", org)
-	h.db.Where("link_id IN (?)", linkIDs).Delete(&models.LinkEvent{})
+	linkIDs := h.db.Model(&links.Link{}).Select("id").Where("owner_id = ?", org)
+	h.db.Where("link_id IN (?)", linkIDs).Delete(&links.LinkEvent{})
 
 	for _, m := range []any{
-		&models.Link{}, &models.Mailbox{}, &models.Domain{}, &models.Token{},
-		&models.SMTPSender{}, &models.NotificationChannel{}, &models.ProviderAccount{},
+		&links.Link{}, &mailmodels.Mailbox{}, &dns.Domain{}, &models.Token{},
+		&mailmodels.SMTPSender{}, &models.NotificationChannel{}, &dns.ProviderAccount{},
 	} {
 		h.db.Where("owner_id = ?", org).Delete(m)
 	}

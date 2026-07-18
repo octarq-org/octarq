@@ -10,9 +10,10 @@ import (
 	"sync"
 	"time"
 
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/llmprovider"
 )
 
@@ -227,7 +228,7 @@ func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailI
 	if !h.emailBelongsToOrg(input.ID, h.orgID(r)) {
 		return nil, huma.Error404NotFound("not found")
 	}
-	var e models.Email
+	var e mailmodels.Email
 	if h.db.First(&e, input.ID).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}

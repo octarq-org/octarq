@@ -25,6 +25,8 @@ import (
 	"syscall"
 	"time"
 
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/config"
@@ -38,7 +40,6 @@ import (
 	"github.com/octarq-org/octarq/internal/geo"
 	"github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/internal/mcp"
-	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/notify"
 	"github.com/octarq-org/octarq/internal/queue"
 	"github.com/octarq-org/octarq/internal/safehttp"
@@ -204,7 +205,7 @@ func (a *App) Notify(ctx context.Context, typ, cfgJSON, text string) error {
 // message — mirroring internal/api.Handler.sendEmail so plugins can send
 // transactional mail without importing octarq's internal packages.
 func (a *App) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
-	var s models.SMTPSender
+	var s mailmodels.SMTPSender
 	if err := a.gdb.Where("owner_id = ? ", orgID).Order("id").First(&s).Error; err != nil {
 		return fmt.Errorf("no SMTP sender configured for org %d", orgID)
 	}

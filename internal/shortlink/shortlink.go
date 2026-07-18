@@ -16,7 +16,8 @@ import (
 	"github.com/octarq-org/octarq/internal/cache"
 	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/geo"
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugins/dns"
+	"github.com/octarq-org/octarq/plugins/links"
 	"gorm.io/gorm"
 )
 
@@ -39,11 +40,11 @@ func (s *Service) WithCache(c cache.Cache) *Service {
 // Lookup finds an enabled, non-archived link for (host, slug), preferring an
 // exact host match and falling back to a host-agnostic link. Expiry and click
 // limits are evaluated in Handle so an expired link can still honor ExpiredURL.
-func (s *Service) Lookup(host, slug string) (*models.Link, bool) {
+func (s *Service) Lookup(host, slug string) (*links.Link, bool) {
 	host = stripPort(host)
 	ctx := context.Background()
 
-	var link models.Link
+	var link links.Link
 	cacheKey := "link:redirect:" + host + ":" + slug
 
 	// Try reading from cache first
@@ -60,12 +61,12 @@ func (s *Service) Lookup(host, slug string) (*models.Link, bool) {
 		First(&link).Error
 	if err != nil {
 		// Cache negative result (1 minute TTL) to prevent DB hammering for invalid links
-		var empty models.Link
+		var empty links.Link
 		_ = s.cache.Set(ctx, cacheKey, &empty, time.Minute)
 		return nil, false
 	}
 	if !link.Enabled || link.Archived {
-		var empty models.Link
+		var empty links.Link
 		_ = s.cache.Set(ctx, cacheKey, &empty, time.Minute)
 		return nil, false
 	}
@@ -83,7 +84,7 @@ func (s *Service) Lookup(host, slug string) (*models.Link, bool) {
 // linkHostDisabled reports whether host is listed as a link host on some domain
 // but every such listing is disabled.
 func (s *Service) linkHostDisabled(host string) bool {
-	var doms []models.Domain
+	var doms []dns.Domain
 	s.db.Where("for_link = ?", true).Find(&doms)
 	listed := false
 	for _, d := range doms {
@@ -100,7 +101,7 @@ func (s *Service) linkHostDisabled(host string) bool {
 }
 
 // expired reports whether a link is past its expiry or over its click limit.
-func expired(link *models.Link) bool {
+func expired(link *links.Link) bool {
 	if link.ExpiresAt != nil && time.Now().After(*link.ExpiresAt) {
 		return true
 	}
@@ -112,7 +113,7 @@ func expired(link *models.Link) bool {
 
 // Handle serves a redirect (or the password gate) and records the click. An
 // expired/over-limit link redirects to its ExpiredURL when set, else 404s.
-func (s *Service) Handle(w http.ResponseWriter, r *http.Request, link *models.Link) {
+func (s *Service) Handle(w http.ResponseWriter, r *http.Request, link *links.Link) {
 	if expired(link) {
 		if link.ExpiredURL != "" {
 			http.Redirect(w, r, link.ExpiredURL, http.StatusFound)
@@ -167,7 +168,7 @@ func isBot(ua string) bool {
 	return false
 }
 
-func matchRule(rule models.RoutingRule, country, device, os, lang string) bool {
+func matchRule(rule links.RoutingRule, country, device, os, lang string) bool {
 	matchLower := strings.ToLower(rule.Match)
 	switch rule.Type {
 	case "geo":
@@ -216,7 +217,7 @@ func (s *Service) record(r *http.Request, orgID uint, slug string, linkID uint, 
 	anonIP := anonymizeIP(ip)
 	fingerprint := deviceFingerprint(anonIP, ua, r.Header.Get("Accept-Language"))
 	go func() {
-		ev := models.LinkEvent{
+		ev := links.LinkEvent{
 			LinkID: linkID, CreatedAt: time.Now(),
 			IP: anonIP, Country: country, Region: region, City: city,
 			Device: info.Device, Browser: info.Browser, OS: info.OS,
@@ -224,7 +225,7 @@ func (s *Service) record(r *http.Request, orgID uint, slug string, linkID uint, 
 		}
 		s.db.Create(&ev)
 		if !bot {
-			s.db.Model(&models.Link{}).Where("id = ?", linkID).
+			s.db.Model(&links.Link{}).Where("id = ?", linkID).
 				UpdateColumn("clicks", gorm.Expr("clicks + 1"))
 		}
 		// Trigger Webhook Event Bus

@@ -19,7 +19,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/internal/dnsprovider"
-	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -69,7 +68,7 @@ func (p *Plugin) Describe() plugin.Info { return plugin.Info{Title: "Domains & D
 // (idempotent AutoMigrate) and readies phase 2, where the types move into this
 // package and this becomes their sole migration owner.
 func (p *Plugin) Models() []any {
-	return []any{&models.Domain{}, &models.ProviderAccount{}}
+	return []any{&Domain{}, &ProviderAccount{}}
 }
 
 // Mount wires the plugin's dependencies from the shared context and registers
@@ -110,11 +109,11 @@ func (p *Plugin) orgDB(r *http.Request) *gorm.DB {
 
 // providerFor decrypts a domain's stored credentials and builds its DNS
 // provider. Scoped to the domain's owning org as defense-in-depth.
-func (p *Plugin) providerFor(dom models.Domain) (dnsprovider.Provider, error) {
+func (p *Plugin) providerFor(dom Domain) (dnsprovider.Provider, error) {
 	if dom.ProviderAccountID == 0 {
 		return nil, errors.New("domain has no provider account configured")
 	}
-	var acc models.ProviderAccount
+	var acc ProviderAccount
 	if err := p.db.Where("id = ? AND owner_id = ?", dom.ProviderAccountID, dom.OrgID).
 		First(&acc).Error; err != nil {
 		return nil, errors.New("provider account not found")

@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/octarq-org/octarq/plugins/dns"
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/eventbus"
@@ -95,7 +98,7 @@ func (h *Handler) inbound(ctx context.Context, input *InboundInput) (*InboundOut
 			att = string(b)
 		}
 	}
-	e := models.Email{
+	e := mailmodels.Email{
 		MailboxID: mb.ID, MessageID: parsed.MessageID,
 		FromAddr: parsed.From, ToAddr: to, Subject: parsed.Subject,
 		Text: parsed.Text, HTML: parsed.HTML, Raw: parsed.Raw,
@@ -149,7 +152,7 @@ func (h *Handler) inbound(ctx context.Context, input *InboundInput) (*InboundOut
 // mailHostDisabled reports whether host is listed as a mail host on some domain
 // but every such listing is disabled (so mail to it should be dropped).
 func (h *Handler) mailHostDisabled(host string) bool {
-	var doms []models.Domain
+	var doms []dns.Domain
 	h.db.Where("for_mail = ?", true).Find(&doms)
 	listed := false
 	for _, d := range doms {
@@ -169,7 +172,7 @@ func (h *Handler) mailHostDisabled(host string) bool {
 // optionally creating one when catch-all is on and the recipient's domain (also
 // owned by that org) is managed for mail. Scoping by org keeps one tenant's
 // inbound webhook from delivering into another tenant's mailboxes.
-func (h *Handler) resolveMailbox(orgID uint, addr string) (*models.Mailbox, bool) {
+func (h *Handler) resolveMailbox(orgID uint, addr string) (*mailmodels.Mailbox, bool) {
 	if addr == "" {
 		return nil, false
 	}
@@ -177,7 +180,7 @@ func (h *Handler) resolveMailbox(orgID uint, addr string) (*models.Mailbox, bool
 	if at := strings.LastIndex(addr, "@"); at >= 0 && h.mailHostDisabled(addr[at+1:]) {
 		return nil, false
 	}
-	var mb models.Mailbox
+	var mb mailmodels.Mailbox
 	if err := h.db.Where("address = ? AND enabled = ? AND owner_id = ?", addr, true, orgID).First(&mb).Error; err == nil {
 		return &mb, true
 	}
@@ -195,7 +198,7 @@ func (h *Handler) resolveMailbox(orgID uint, addr string) (*models.Mailbox, bool
 	recipientHost := addr[at+1:]
 	// The recipient host must be one of THIS org's mail-enabled domain's mail
 	// hosts (apex or a configured subdomain like mail.example.com).
-	var doms []models.Domain
+	var doms []dns.Domain
 	h.db.Where("for_mail = ? AND owner_id = ?", true, orgID).Find(&doms)
 	var matched bool
 	for _, dom := range doms {
@@ -212,7 +215,7 @@ func (h *Handler) resolveMailbox(orgID uint, addr string) (*models.Mailbox, bool
 	if !matched {
 		return nil, false
 	}
-	mb = models.Mailbox{OrgID: orgID, Address: addr, Enabled: true, Note: "auto (catch-all)"}
+	mb = mailmodels.Mailbox{OrgID: orgID, Address: addr, Enabled: true, Note: "auto (catch-all)"}
 	if err := h.db.Create(&mb).Error; err != nil {
 		return nil, false
 	}
@@ -304,7 +307,7 @@ func (h *Handler) emailBounceWebhook(ctx context.Context, input *EmailBounceWebh
 	processedCount := 0
 
 	for _, ev := range events {
-		var mb models.Mailbox
+		var mb mailmodels.Mailbox
 		if err := h.db.Where("address = ? AND owner_id = ?", strings.ToLower(ev.Email), org.ID).First(&mb).Error; err != nil {
 			continue
 		}

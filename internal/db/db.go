@@ -9,6 +9,7 @@ import (
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugins/dns"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -55,7 +56,7 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 	}
 
 	// Data migration: move legacy domain.provider / config to ProviderAccount
-	if gdb.Migrator().HasColumn(&models.Domain{}, "provider") && gdb.Migrator().HasColumn(&models.Domain{}, "config") {
+	if gdb.Migrator().HasColumn(&dns.Domain{}, "provider") && gdb.Migrator().HasColumn(&dns.Domain{}, "config") {
 		var legacyDomains []struct {
 			ID       uint
 			Provider string
@@ -67,10 +68,10 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 			if ld.Provider == "" {
 				continue
 			}
-			var acc models.ProviderAccount
+			var acc dns.ProviderAccount
 			// Group by identical config to avoid duplicating the same account
 			if err := gdb.Where("config = ?", ld.Config).First(&acc).Error; err != nil {
-				acc = models.ProviderAccount{
+				acc = dns.ProviderAccount{
 					OrgID:  models.SingleUserID,
 					Name:   ld.Provider + " (Migrated)",
 					Type:   ld.Provider,

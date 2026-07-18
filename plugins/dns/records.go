@@ -8,7 +8,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/dnsprovider"
-	"github.com/octarq-org/octarq/internal/models"
 )
 
 // validateRecord catches the most common reasons Cloudflare rejects a record
@@ -31,8 +30,8 @@ func validateRecord(rec dnsprovider.Record) string {
 
 // --- DNS records (live via provider) ---
 
-func (p *Plugin) recordsProvider(r *http.Request, id uint) (dnsprovider.Provider, *models.Domain, error) {
-	var dom models.Domain
+func (p *Plugin) recordsProvider(r *http.Request, id uint) (dnsprovider.Provider, *Domain, error) {
+	var dom Domain
 	if p.db.Where("id = ? AND owner_id = ?", id, p.orgID(r)).First(&dom).Error != nil {
 		return nil, nil, errNotFound
 	}
@@ -341,7 +340,7 @@ func (p *Plugin) verifyDomainDNS(ctx context.Context, input *VerifyDomainDNSInpu
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var dom models.Domain
+	var dom Domain
 	if err := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&dom).Error; err != nil {
 		return nil, huma.Error404NotFound("not found")
 	}

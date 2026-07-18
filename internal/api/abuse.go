@@ -11,6 +11,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/notify"
+	"github.com/octarq-org/octarq/plugins/links"
 )
 
 var validAbuseReasons = map[string]bool{
@@ -65,7 +66,7 @@ func (h *Handler) submitAbuse(ctx context.Context, input *SubmitAbuseInput) (*Su
 	// Resolve the slug to get the current target and owning org for context.
 	var target string
 	var orgID uint
-	var link models.Link
+	var link links.Link
 	if h.db.Where("slug = ?", slug).First(&link).Error == nil {
 		target = link.Target
 		orgID = link.OrgID

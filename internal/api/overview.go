@@ -4,9 +4,13 @@ import (
 	"context"
 	"time"
 
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugins/dns"
+	"github.com/octarq-org/octarq/plugins/links"
 	"gorm.io/gorm"
 )
 
@@ -63,20 +67,20 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 	}
 
 	var totalClicks int64
-	botFilter(h.db.Model(&models.LinkEvent{}).
+	botFilter(h.db.Model(&links.LinkEvent{}).
 		Joins("JOIN links ON links.id = link_events.link_id AND links.owner_id = ?", org)).
 		Select("COUNT(*)").Scan(&totalClicks)
 
-	orgLinks := h.db.Model(&models.Link{}).Select("id").Where("owner_id = ?", org)
+	orgLinks := h.db.Model(&links.Link{}).Select("id").Where("owner_id = ?", org)
 
 	// Daily click series for the last 30 days.
 	var series []models.StatKV
-	botFilter(h.db.Model(&models.LinkEvent{}).
+	botFilter(h.db.Model(&links.LinkEvent{}).
 		Where("link_id IN (?) AND created_at >= ?", orgLinks, since30)).
 		Select("strftime('%Y-%m-%d', created_at) as key, count(*) as count").
 		Group("key").Order("key ASC").Scan(&series)
 	if len(series) == 0 && h.cfg.DBDriver == "postgres" {
-		botFilter(h.db.Model(&models.LinkEvent{}).
+		botFilter(h.db.Model(&links.LinkEvent{}).
 			Where("link_id IN (?) AND created_at >= ?", orgLinks, since30)).
 			Select("to_char(created_at, 'YYYY-MM-DD') as key, count(*) as count").
 			Group("key").Order("key ASC").Scan(&series)
@@ -84,7 +88,7 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 
 	top := func(col string) []models.StatKV {
 		var rows []models.StatKV
-		q := botFilter(h.db.Model(&models.LinkEvent{}).
+		q := botFilter(h.db.Model(&links.LinkEvent{}).
 			Where("link_id IN (?) AND created_at >= ? AND "+col+" <> ''", orgLinks, since30))
 		if col == "device" {
 			// Dedup by device fingerprint; fall back to ip+ua for rows recorded
@@ -104,7 +108,7 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 		Clicks int64  `json:"clicks"`
 	}
 	var topLinks []topLink
-	h.db.Model(&models.Link{}).
+	h.db.Model(&links.Link{}).
 		Select("id, slug, host, clicks").
 		Where("owner_id = ? AND archived = ?", org, false).
 		Order("clicks DESC").Limit(5).Scan(&topLinks)
@@ -116,16 +120,16 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 		Read       bool      `json:"read"`
 		ReceivedAt time.Time `json:"receivedAt"`
 	}
-	orgMailboxes := h.db.Model(&models.Mailbox{}).Select("id").Where("owner_id = ?", org)
+	orgMailboxes := h.db.Model(&mailmodels.Mailbox{}).Select("id").Where("owner_id = ?", org)
 	var recent []recentEmail
-	h.db.Model(&models.Email{}).
+	h.db.Model(&mailmodels.Email{}).
 		Select("id, from_addr, subject, read, received_at").
 		Where("mailbox_id IN (?)", orgMailboxes).
 		Order("received_at DESC").Limit(6).Scan(&recent)
 
 	emailCount := func(conds ...any) int64 {
 		var n int64
-		q := h.db.Model(&models.Email{}).Where("mailbox_id IN (?)", orgMailboxes)
+		q := h.db.Model(&mailmodels.Email{}).Where("mailbox_id IN (?)", orgMailboxes)
 		if len(conds) > 0 {
 			q = q.Where(conds[0], conds[1:]...)
 		}
@@ -134,7 +138,7 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 	}
 	clickCount := func(conds ...any) int64 {
 		var n int64
-		q := botFilter(h.db.Model(&models.LinkEvent{}).Where("link_id IN (?)", orgLinks))
+		q := botFilter(h.db.Model(&links.LinkEvent{}).Where("link_id IN (?)", orgLinks))
 		if len(conds) > 0 {
 			q = q.Where(conds[0], conds[1:]...)
 		}
@@ -145,7 +149,7 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 	// Bot-only counts always returned so the frontend can show the split.
 	botCount := func(conds ...any) int64 {
 		var n int64
-		q := h.db.Model(&models.LinkEvent{}).Where("link_id IN (?) AND is_bot = ?", orgLinks, true)
+		q := h.db.Model(&links.LinkEvent{}).Where("link_id IN (?) AND is_bot = ?", orgLinks, true)
 		if len(conds) > 0 {
 			q = q.Where(conds[0], conds[1:]...)
 		}
@@ -155,12 +159,12 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 
 	out := &OverviewOutput{
 		Body: map[string]any{
-			"links":        count(&models.Link{}),
-			"activeLinks":  count(&models.Link{}, "archived = ? AND enabled = ?", false, true),
-			"domains":      count(&models.Domain{}),
-			"linkDomains":  count(&models.Domain{}, "for_link = ?", true),
-			"mailDomains":  count(&models.Domain{}, "for_mail = ?", true),
-			"mailboxes":    count(&models.Mailbox{}),
+			"links":        count(&links.Link{}),
+			"activeLinks":  count(&links.Link{}, "archived = ? AND enabled = ?", false, true),
+			"domains":      count(&dns.Domain{}),
+			"linkDomains":  count(&dns.Domain{}, "for_link = ?", true),
+			"mailDomains":  count(&dns.Domain{}, "for_mail = ?", true),
+			"mailboxes":    count(&mailmodels.Mailbox{}),
 			"emails":       emailCount(),
 			"unread":       emailCount("read = ?", false),
 			"tokens":       count(&models.Token{}),

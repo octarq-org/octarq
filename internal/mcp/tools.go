@@ -9,8 +9,11 @@ import (
 	"fmt"
 	"time"
 
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugins/dns"
+	"github.com/octarq-org/octarq/plugins/links"
 )
 
 // --- list_links ---
@@ -35,14 +38,14 @@ type linkOut struct {
 }
 
 func (s *server) listLinks(ctx context.Context, _ *mcp.CallToolRequest, in listLinksInput) (*mcp.CallToolResult, any, error) {
-	q := s.gdb.WithContext(ctx).Model(&models.Link{}).
+	q := s.gdb.WithContext(ctx).Model(&links.Link{}).
 		Where("owner_id = ?", s.ownerScope()).
 		Order("clicks DESC").
 		Limit(clampLimit(in.Limit, 50))
 	if in.Host != "" {
 		q = q.Where("host = ?", in.Host)
 	}
-	var links []models.Link
+	var links []links.Link
 	if err := q.Find(&links).Error; err != nil {
 		return nil, nil, err
 	}
@@ -73,7 +76,7 @@ type mailboxOut struct {
 }
 
 func (s *server) listMailboxes(ctx context.Context, _ *mcp.CallToolRequest, _ listMailboxesInput) (*mcp.CallToolResult, any, error) {
-	var mbs []models.Mailbox
+	var mbs []mailmodels.Mailbox
 	if err := s.gdb.WithContext(ctx).
 		Where("owner_id = ?", s.ownerScope()).
 		Order("address ASC").Find(&mbs).Error; err != nil {
@@ -82,7 +85,7 @@ func (s *server) listMailboxes(ctx context.Context, _ *mcp.CallToolRequest, _ li
 	out := make([]mailboxOut, 0, len(mbs))
 	for _, mb := range mbs {
 		var unread int64
-		s.gdb.WithContext(ctx).Model(&models.Email{}).
+		s.gdb.WithContext(ctx).Model(&mailmodels.Email{}).
 			Where("mailbox_id = ? AND read = ?", mb.ID, false).Count(&unread)
 		out = append(out, mailboxOut{ID: mb.ID, Address: mb.Address, Enabled: mb.Enabled, Unread: unread})
 	}
@@ -111,13 +114,13 @@ func (s *server) listEmails(ctx context.Context, _ *mcp.CallToolRequest, in list
 	// Scope emails to mailboxes the operator owns (emails have no owner_id of
 	// their own — ownership is via the mailbox).
 	var mailboxIDs []uint
-	s.gdb.WithContext(ctx).Model(&models.Mailbox{}).
+	s.gdb.WithContext(ctx).Model(&mailmodels.Mailbox{}).
 		Where("owner_id = ?", s.ownerScope()).Pluck("id", &mailboxIDs)
 	if len(mailboxIDs) == 0 {
 		return jsonResult([]emailOut{})
 	}
 
-	q := s.gdb.WithContext(ctx).Model(&models.Email{}).
+	q := s.gdb.WithContext(ctx).Model(&mailmodels.Email{}).
 		Where("mailbox_id IN ?", mailboxIDs).
 		Order("received_at DESC").
 		Limit(clampLimit(in.Limit, 30))
@@ -127,7 +130,7 @@ func (s *server) listEmails(ctx context.Context, _ *mcp.CallToolRequest, in list
 	if in.UnreadOnly {
 		q = q.Where("read = ?", false)
 	}
-	var emails []models.Email
+	var emails []mailmodels.Email
 	if err := q.Find(&emails).Error; err != nil {
 		return nil, nil, err
 	}
@@ -154,7 +157,7 @@ type domainOut struct {
 }
 
 func (s *server) listDomains(ctx context.Context, _ *mcp.CallToolRequest, _ listDomainsInput) (*mcp.CallToolResult, any, error) {
-	var doms []models.Domain
+	var doms []dns.Domain
 	if err := s.gdb.WithContext(ctx).
 		Where("owner_id = ?", s.ownerScope()).
 		Order("name ASC").Find(&doms).Error; err != nil {
@@ -209,25 +212,25 @@ type exportInput struct {
 func (s *server) exportData(ctx context.Context, _ *mcp.CallToolRequest, in exportInput) (*mcp.CallToolResult, any, error) {
 	switch in.Resource {
 	case "links":
-		var v []models.Link
+		var v []links.Link
 		s.gdb.WithContext(ctx).Where("owner_id = ?", s.ownerScope()).Find(&v)
 		return jsonResultAny(v)
 	case "domains":
-		var v []models.Domain
+		var v []dns.Domain
 		s.gdb.WithContext(ctx).Where("owner_id = ?", s.ownerScope()).Find(&v)
 		return jsonResultAny(v)
 	case "mailboxes":
-		var v []models.Mailbox
+		var v []mailmodels.Mailbox
 		s.gdb.WithContext(ctx).Where("owner_id = ?", s.ownerScope()).Find(&v)
 		return jsonResultAny(v)
 	case "emails":
 		// Project away secret/bulky columns (raw, html) for a portable export.
 		var mailboxIDs []uint
-		s.gdb.WithContext(ctx).Model(&models.Mailbox{}).
+		s.gdb.WithContext(ctx).Model(&mailmodels.Mailbox{}).
 			Where("owner_id = ?", s.ownerScope()).Pluck("id", &mailboxIDs)
 		var v []emailOut
 		if len(mailboxIDs) > 0 {
-			var emails []models.Email
+			var emails []mailmodels.Email
 			s.gdb.WithContext(ctx).Where("mailbox_id IN ?", mailboxIDs).Find(&emails)
 			for _, e := range emails {
 				v = append(v, emailOut{ID: e.ID, MailboxID: e.MailboxID, From: e.FromAddr,

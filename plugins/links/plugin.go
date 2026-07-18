@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -36,7 +35,7 @@ func New() *Plugin {
 func (p *Plugin) Name() string          { return "links" }
 func (p *Plugin) Describe() plugin.Info { return plugin.Info{Title: "Short Links", Core: true} }
 func (p *Plugin) Models() []any {
-	return []any{&models.Link{}, &models.LinkEvent{}}
+	return []any{&Link{}, &LinkEvent{}}
 }
 
 func (p *Plugin) orgDB(r *http.Request) *gorm.DB {

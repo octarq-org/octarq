@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/mail"
@@ -413,7 +415,7 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 // error: a missing sender or a send failure is logged and swallowed so the
 // invite itself still succeeds.
 func (h *Handler) sendInviteEmail(orgID uint, to, acceptURL string) {
-	var s models.SMTPSender
+	var s mailmodels.SMTPSender
 	if err := h.db.Where("owner_id = ?", orgID).Order("id").First(&s).Error; err != nil {
 		log.Printf("invite email skipped for %s: no SMTP sender for org %d", to, orgID)
 		return

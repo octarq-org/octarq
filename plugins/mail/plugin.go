@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -45,7 +44,7 @@ func (p *Plugin) Name() string { return "mail" }
 func (p *Plugin) Describe() plugin.Info { return plugin.Info{Title: "Mail", Core: true} }
 
 func (p *Plugin) Models() []any {
-	return []any{&models.Mailbox{}, &models.Email{}, &models.SMTPSender{}}
+	return []any{&Mailbox{}, &Email{}, &SMTPSender{}}
 }
 
 // orgDB scopes a query to the caller's org.

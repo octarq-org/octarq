@@ -22,6 +22,7 @@ import (
 	"github.com/octarq-org/octarq/internal/queue"
 	"github.com/octarq-org/octarq/llmprovider"
 	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/plugins/links"
 	"gorm.io/gorm"
 )
 
@@ -121,7 +122,7 @@ func (h *Handler) registerQueueHandlers(q queue.Queue) {
 		}
 		title, _ := fetchPageMeta(ctx, d.Target)
 		if title != "" {
-			return h.db.Model(&models.Link{}).Where("id = ?", d.ID).Update("title", title).Error
+			return h.db.Model(&links.Link{}).Where("id = ?", d.ID).Update("title", title).Error
 		}
 		return nil
 	})

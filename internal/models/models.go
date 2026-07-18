@@ -90,43 +90,6 @@ type OrgMember struct {
 	Role   string `gorm:"size:32;not null;default:'member'" json:"role"` // "owner" | "admin" | "member"
 }
 
-type RoutingRule struct {
-	Type   string `json:"type"`   // "geo", "device", "os", "language"
-	Match  string `json:"match"`  // e.g. "US", "Mobile", "iOS", "zh-CN"
-	Target string `json:"target"` // redirect URL if matched
-}
-
-type RoutingRules []RoutingRule
-
-func (r RoutingRules) Value() (driver.Value, error) {
-	if len(r) == 0 {
-		return "[]", nil
-	}
-	b, err := json.Marshal([]RoutingRule(r))
-	return string(b), err
-}
-
-func (r *RoutingRules) Scan(v any) error {
-	if v == nil {
-		*r = nil
-		return nil
-	}
-	var b []byte
-	switch t := v.(type) {
-	case []byte:
-		b = t
-	case string:
-		b = []byte(t)
-	default:
-		return fmt.Errorf("RoutingRules: unsupported scan type %T", v)
-	}
-	if len(b) == 0 {
-		*r = nil
-		return nil
-	}
-	return json.Unmarshal(b, (*[]RoutingRule)(r))
-}
-
 // StringList is a []string persisted as a JSON text column, portable across
 // SQLite and Postgres.
 type StringList []string
@@ -271,124 +234,6 @@ func HashToken(raw string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// ProviderAccount represents a DNS provider configuration (e.g. Cloudflare)
-// containing the credentials needed to manage zones.
-type ProviderAccount struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	OrgID     uint      `gorm:"column:owner_id;index;default:1" json:"-"`
-	Name      string    `gorm:"size:255" json:"name"` // e.g. "Personal Cloudflare"
-	Type      string    `gorm:"size:32" json:"type"`  // e.g. "cloudflare", "dnspod"
-	Config    string    `gorm:"type:text" json:"-"`   // AES-GCM encrypted credentials JSON
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	// HasCredentials is computed (not persisted): the encrypted Config never
-	// leaves the server, so the dashboard uses this flag to show "credentials are
-	// set — leave blank to keep" instead of an empty field that looks unconfigured.
-	HasCredentials bool `gorm:"-" json:"hasCredentials"`
-}
-
-// Domain is a domain managed by octarq, tied to a DNS provider account.
-type Domain struct {
-	ID                uint   `gorm:"primaryKey" json:"id"`
-	OrgID             uint   `gorm:"column:owner_id;index;default:1" json:"-"`
-	Name              string `gorm:"uniqueIndex;size:255" json:"name"`
-	ProviderAccountID uint   `gorm:"index" json:"providerAccountId"`
-	ZoneID            string `gorm:"size:64" json:"zoneId"`
-	Note              string `gorm:"type:text" json:"note"`
-	ForMail           bool   `json:"forMail"` // accept inbound email for this domain
-	ForLink           bool   `json:"forLink"` // serve short links on this domain
-	// LinkHosts are the hostnames short links are served on for this zone — one
-	// or more, typically subdomains like "go.example.com", "s.example.com".
-	// MailHosts are the hostnames mailboxes live under (e.g. "example.com",
-	// "mail.example.com"). An empty list with the matching toggle on falls back
-	// to the apex Name.
-	LinkHosts HostList  `gorm:"type:text" json:"linkHosts"`
-	MailHosts HostList  `gorm:"type:text" json:"mailHosts"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-}
-
-// EffectiveLinkHosts returns the enabled hostnames short links are served on.
-func (d Domain) EffectiveLinkHosts() []string { return d.LinkHosts.Enabled() }
-
-// EffectiveMailHosts returns the enabled hostnames mailboxes live under.
-func (d Domain) EffectiveMailHosts() []string { return d.MailHosts.Enabled() }
-
-// Link is a short link. (Host, Slug) is unique.
-type Link struct {
-	ID           uint         `gorm:"primaryKey" json:"id"`
-	OrgID        uint         `gorm:"column:owner_id;index;default:1" json:"-"`
-	Host         string       `gorm:"size:255;index:idx_host_slug,unique" json:"host"` // empty = default/any host
-	Slug         string       `gorm:"size:255;index:idx_host_slug,unique" json:"slug"`
-	Target       string       `gorm:"type:text" json:"target"`
-	Password     string       `gorm:"size:255" json:"-"` // optional; presence exposed via HasPassword
-	Note         string       `gorm:"type:text" json:"note"`
-	Title        string       `gorm:"size:255" json:"title"`
-	Tags         string       `gorm:"size:512" json:"tags"` // comma-separated tags
-	ExpiresAt    *time.Time   `json:"expiresAt"`
-	ExpiredURL   string       `gorm:"type:text" json:"expiredUrl"` // redirect here once expired / over limit (dub-style)
-	ClickLimit   int64        `gorm:"default:0" json:"clickLimit"` // 0 = unlimited
-	Archived     bool         `gorm:"default:false;index" json:"archived"`
-	Enabled      bool         `gorm:"default:true" json:"enabled"`
-	RoutingRules RoutingRules `gorm:"type:text" json:"routingRules"`
-	Clicks       int64        `gorm:"default:0" json:"clicks"`
-	CreatedAt    time.Time    `json:"createdAt"`
-	UpdatedAt    time.Time    `json:"updatedAt"`
-}
-
-// LinkEvent is a single click, recorded asynchronously for basic analytics.
-type LinkEvent struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	LinkID    uint      `gorm:"index" json:"linkId"`
-	CreatedAt time.Time `gorm:"index" json:"createdAt"`
-	IP        string    `gorm:"size:64" json:"ip"`
-	Country   string    `gorm:"size:64" json:"country"`
-	Region    string    `gorm:"size:128" json:"region"`
-	City      string    `gorm:"size:128" json:"city"`
-	Device    string    `gorm:"size:32" json:"device"`
-	Browser   string    `gorm:"size:64" json:"browser"`
-	OS        string    `gorm:"size:64" json:"os"`
-	Referer   string    `gorm:"type:text" json:"referer"`
-	UA        string    `gorm:"type:text" json:"ua"`
-	// Fingerprint is a stable, privacy-preserving per-device hash (anonymized IP
-	// + user-agent + accept-language). Used to dedup unique devices in analytics.
-	Fingerprint string `gorm:"size:64;index" json:"-"`
-	IsBot       bool   `gorm:"default:false;index" json:"isBot"`
-}
-
-// Mailbox is an address that can receive mail (prefix@domain).
-type Mailbox struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	OrgID     uint      `gorm:"column:owner_id;index;default:1" json:"-"`
-	Address   string    `gorm:"uniqueIndex;size:320" json:"address"`
-	Note      string    `gorm:"type:text" json:"note"`
-	Enabled   bool      `gorm:"default:true" json:"enabled"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	Unread    int64     `gorm:"-" json:"unread"` // computed, not persisted
-}
-
-// Email is a received message stored for a mailbox.
-type Email struct {
-	ID          uint   `gorm:"primaryKey" json:"id"`
-	MailboxID   uint   `gorm:"index" json:"mailboxId"`
-	MessageID   string `gorm:"size:512;index" json:"messageId"`
-	FromAddr    string `gorm:"size:320" json:"from"`
-	ToAddr      string `gorm:"size:320" json:"to"`
-	Subject     string `gorm:"type:text" json:"subject"`
-	Text        string `gorm:"type:text" json:"text"`
-	HTML        string `gorm:"type:text" json:"html"`
-	Raw         []byte `json:"-"` // GORM maps []byte to blob (sqlite) / bytea (postgres)
-	Read        bool   `gorm:"default:false" json:"read"`
-	Note        string `gorm:"type:text" json:"note"`
-	Attachments string `gorm:"type:text" json:"attachments"` // JSON array of {filename,contentType,size}
-	// Email authentication results from the receiving MTA (RFC 8601).
-	AuthSPF    string    `gorm:"size:16" json:"authSpf"`   // pass|fail|softfail|neutral|none
-	AuthDKIM   string    `gorm:"size:16" json:"authDkim"`  // pass|fail|none
-	AuthDMARC  string    `gorm:"size:16" json:"authDmarc"` // pass|fail|none
-	ReceivedAt time.Time `gorm:"index" json:"receivedAt"`
-}
-
 // Setting is a single key/value runtime configuration entry (reserved slugs,
 // reserved mailbox prefixes, a global Cloudflare token, …).
 type Setting struct {
@@ -401,23 +246,6 @@ type WorkspaceSetting struct {
 	OrgID uint   `gorm:"primaryKey" json:"orgId"`
 	Key   string `gorm:"primaryKey;size:64" json:"key"`
 	Value string `gorm:"type:text" json:"value"`
-}
-
-type SMTPSender struct {
-	ID        uint      `json:"id" gorm:"primaryKey"`
-	OrgID     uint      `gorm:"column:owner_id;index" json:"-"`
-	Name      string    `json:"name"`
-	Host      string    `json:"host"`
-	Port      int       `json:"port"`
-	User      string    `json:"user"`
-	Pass      string    `json:"-"`
-	FromEmail string    `json:"fromEmail"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	// PassSet is computed (not persisted): the encrypted password never leaves the
-	// server, so the dashboard shows "password is set — leave blank to keep it"
-	// rather than an empty field that looks like nothing was ever entered.
-	PassSet bool `gorm:"-" json:"passSet"`
 }
 
 type NotificationChannel struct {
@@ -496,9 +324,6 @@ type Webhook struct {
 func AllModels() []any {
 	return []any{
 		&Org{}, &User{}, &OrgMember{}, &UserSetting{}, &PluginSetting{},
-		&ProviderAccount{}, &Domain{}, &Mailbox{}, &Email{},
-		&Token{}, &Setting{}, &WorkspaceSetting{}, &SMTPSender{}, &NotificationChannel{},
 		&AbuseReport{}, &AuditLog{}, &Webhook{}, &Session{},
-		&Link{}, &LinkEvent{},
 	}
 }
