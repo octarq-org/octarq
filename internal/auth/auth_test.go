@@ -8,6 +8,10 @@ import (
 	"testing"
 	"time"
 
+	dns "github.com/octarq-org/octarq/plugins/dns"
+	links "github.com/octarq-org/octarq/plugins/links"
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/crypto"
@@ -42,7 +46,7 @@ func testDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(models.AllModels()...); err != nil {
+	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mailmodels.Mailbox{}, &mailmodels.Email{}, &mailmodels.SMTPSender{})...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	return db

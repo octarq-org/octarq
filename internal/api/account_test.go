@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"testing"
 
+	links "github.com/octarq-org/octarq/plugins/links"
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/octarq-org/octarq/internal/models"
 )
 
@@ -15,9 +18,9 @@ func TestAccountExportAndPurge(t *testing.T) {
 	sess := sessionCookies(t, ownerUID, org)
 
 	// Seed a couple of org-owned records + a secret-bearing one.
-	db.Create(&models.Link{OrgID: org, Slug: "exp1", Target: "https://e.com"})
+	db.Create(&links.Link{OrgID: org, Slug: "exp1", Target: "https://e.com"})
 	db.Create(&models.Token{OrgID: org, Name: "t", Hash: models.HashToken("oct_acct_export_token_000000000000"), Prefix: "oct_acct"})
-	db.Create(&models.SMTPSender{OrgID: org, Name: "relay", Host: "smtp.x", FromEmail: "a@x.com", Pass: "supersecret"})
+	db.Create(&mailmodels.SMTPSender{OrgID: org, Name: "relay", Host: "smtp.x", FromEmail: "a@x.com", Pass: "supersecret"})
 
 	// Export must include data but never leak the secrets.
 	rec := do(srv, "GET", "/api/account/export", sess, "")
@@ -42,7 +45,7 @@ func TestAccountExportAndPurge(t *testing.T) {
 		t.Fatalf("purge: got %d, want 200 (%s)", rec.Code, rec.Body.String())
 	}
 	var n int64
-	db.Model(&models.Link{}).Where("owner_id = ?", org).Count(&n)
+	db.Model(&links.Link{}).Where("owner_id = ?", org).Count(&n)
 	if n != 0 {
 		t.Errorf("links remain after purge: %d", n)
 	}

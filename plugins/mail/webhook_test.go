@@ -1,4 +1,4 @@
-package api
+package mail
 
 import (
 	"sync"
@@ -11,20 +11,20 @@ import (
 // TestEmitEmailFansOut verifies OnEmail handlers all receive the event and that
 // dispatch is asynchronous (a slow handler doesn't block the others).
 func TestEmitEmailFansOut(t *testing.T) {
-	h := &Handler{}
+	p := &Plugin{}
 
 	var mu sync.Mutex
 	got := map[string]plugin.EmailEvent{}
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	h.OnEmail(func(e plugin.EmailEvent) {
+	p.OnEmail(func(e plugin.EmailEvent) {
 		mu.Lock()
 		got["a"] = e
 		mu.Unlock()
 		wg.Done()
 	})
-	h.OnEmail(func(e plugin.EmailEvent) {
+	p.OnEmail(func(e plugin.EmailEvent) {
 		mu.Lock()
 		got["b"] = e
 		mu.Unlock()
@@ -32,7 +32,7 @@ func TestEmitEmailFansOut(t *testing.T) {
 	})
 
 	want := plugin.EmailEvent{ID: 7, OrgID: 3, From: "x@y.z", Subject: "hi"}
-	h.emitEmail(want)
+	p.emitEmail(want)
 
 	done := make(chan struct{})
 	go func() { wg.Wait(); close(done) }()
@@ -52,7 +52,21 @@ func TestEmitEmailFansOut(t *testing.T) {
 // TestOnEmailNilIgnored ensures a nil handler is silently dropped (no panic on
 // dispatch).
 func TestOnEmailNilIgnored(t *testing.T) {
-	h := &Handler{}
-	h.OnEmail(nil)
-	h.emitEmail(plugin.EmailEvent{ID: 1}) // must not panic
+	p := &Plugin{}
+	p.OnEmail(nil)
+	p.emitEmail(plugin.EmailEvent{ID: 1}) // must not panic
+}
+
+func TestMailDispatcherProvided(t *testing.T) {
+	p := New()
+	reg := plugin.NewRegistry()
+	p.Mount(nil, &plugin.Context{
+		Provide: reg.Provide,
+		Lookup:  reg.Lookup,
+	})
+
+	svc, ok := reg.Lookup("mail.dispatcher")
+	if !ok || svc == nil {
+		t.Fatal("mail.dispatcher service was not provided during Mount")
+	}
 }

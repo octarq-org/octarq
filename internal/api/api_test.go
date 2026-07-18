@@ -81,12 +81,12 @@ func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(models.AllModels()...); err != nil {
+	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mail.Mailbox{}, &mail.Email{}, &mail.SMTPSender{})...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	// Isolate from other tests sharing the cache.
 	db.Where("1 = 1").Delete(&models.Token{})
-	db.Where("1 = 1").Delete(&models.Link{})
+	db.Where("1 = 1").Delete(&links.Link{})
 
 	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
 	cipher := crypto.New(cfg.SecretKey)
@@ -197,101 +197,5 @@ func TestAPIVersioningRewrite(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("URL rewrite failed: got code %d, body %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestEmailBounceWebhook(t *testing.T) {
-	srv, db := newTestHandler(t)
-
-	// The webhook is tenant-scoped + token-authed: create the org, then a mailbox
-	// under it, and post to /api/webhook/{slug}/email/bounce/{token}.
-	org := models.Org{Name: "Acme", Slug: "acme", InboundToken: "btok"}
-	if err := db.Create(&org).Error; err != nil {
-		t.Fatalf("failed to create org: %v", err)
-	}
-	mb := models.Mailbox{
-		OrgID:   org.ID,
-		Address: "bounced@example.com",
-		Enabled: true,
-	}
-	if err := db.Create(&mb).Error; err != nil {
-		t.Fatalf("failed to create test mailbox: %v", err)
-	}
-	bounceURL := "/api/webhook/acme/email/bounce/btok"
-
-	// 0. Unauthenticated (bad token) → 401; unknown org → 404.
-	for _, tc := range []struct {
-		url  string
-		want int
-	}{
-		{"/api/webhook/acme/email/bounce/wrong", http.StatusUnauthorized},
-		{"/api/webhook/nope/email/bounce/btok", http.StatusNotFound},
-	} {
-		rec := httptest.NewRecorder()
-		srv.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, tc.url, strings.NewReader("[]")))
-		if rec.Code != tc.want {
-			t.Errorf("%s: got %d, want %d", tc.url, rec.Code, tc.want)
-		}
-	}
-
-	// SSRF guard: an SNS SubscriptionConfirmation with a non-AWS SubscribeURL is rejected.
-	rec0 := httptest.NewRecorder()
-	srv.ServeHTTP(rec0, httptest.NewRequest(http.MethodPost, bounceURL,
-		strings.NewReader(`{"Type":"SubscriptionConfirmation","SubscribeURL":"http://169.254.169.254/latest/meta-data/"}`)))
-	if rec0.Code != http.StatusBadRequest {
-		t.Errorf("SSRF SubscribeURL: got %d, want 400", rec0.Code)
-	}
-
-	// 1. Test SendGrid style bounce payload
-	payload := `[{"email":"bounced@example.com","event":"bounce","reason":"550 Invalid recipient","status":"5.1.1"}]`
-	req := httptest.NewRequest(http.MethodPost, bounceURL, strings.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("bounce webhook failed: got code %d, body %s", rec.Code, rec.Body.String())
-	}
-
-	// Verify audit log entry
-	var logs []models.AuditLog
-	if err := db.Where("action = ? AND target_id = ?", "email.bounce", mb.ID).Find(&logs).Error; err != nil {
-		t.Fatalf("failed to query audit logs: %v", err)
-	}
-	if len(logs) != 1 {
-		t.Fatalf("expected 1 audit log, got %d", len(logs))
-	}
-	if !strings.Contains(logs[0].Meta, "550 Invalid recipient") {
-		t.Errorf("meta does not contain reason: %s", logs[0].Meta)
-	}
-
-	// 2. Test AWS SES style bounce payload
-	sesPayload := `{
-		"notificationType": "Bounce",
-		"bounce": {
-			"bounceType": "Permanent",
-			"bounceSubType": "General",
-			"bouncedRecipients": [
-				{
-					"emailAddress": "bounced@example.com"
-				}
-			]
-		}
-	}`
-	req = httptest.NewRequest(http.MethodPost, bounceURL, strings.NewReader(sesPayload))
-	req.Header.Set("Content-Type", "application/json")
-	rec = httptest.NewRecorder()
-	srv.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("SES bounce webhook failed: got code %d, body %s", rec.Code, rec.Body.String())
-	}
-
-	// Verify audit log entry
-	if err := db.Where("action = ? AND target_id = ?", "email.bounce", mb.ID).Find(&logs).Error; err != nil {
-		t.Fatalf("failed to query audit logs: %v", err)
-	}
-	if len(logs) != 2 {
-		t.Fatalf("expected 2 audit logs, got %d", len(logs))
 	}
 }

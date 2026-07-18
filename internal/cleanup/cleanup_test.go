@@ -5,6 +5,10 @@ import (
 	"testing"
 	"time"
 
+	dns "github.com/octarq-org/octarq/plugins/dns"
+	links "github.com/octarq-org/octarq/plugins/links"
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
@@ -16,7 +20,7 @@ func testDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(models.AllModels()...); err != nil {
+	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mailmodels.Mailbox{}, &mailmodels.Email{}, &mailmodels.SMTPSender{})...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	return db
@@ -26,7 +30,7 @@ func TestCleanup(t *testing.T) {
 	db := testDB(t)
 
 	now := time.Now()
-	events := []models.LinkEvent{
+	events := []links.LinkEvent{
 		{
 			CreatedAt: now.AddDate(0, 0, -10),
 			LinkID:    1,
@@ -58,7 +62,7 @@ func TestCleanup(t *testing.T) {
 	Start(ctx, db, retentionDays)
 
 	var count int64
-	db.Model(&models.LinkEvent{}).Count(&count)
+	db.Model(&links.LinkEvent{}).Count(&count)
 	if count != 3 {
 		t.Errorf("expected 3 events, got %d", count)
 	}
@@ -67,12 +71,12 @@ func TestCleanup(t *testing.T) {
 	retentionDays = func() int { return 3 }
 	Start(ctx, db, retentionDays)
 
-	db.Model(&models.LinkEvent{}).Count(&count)
+	db.Model(&links.LinkEvent{}).Count(&count)
 	if count != 1 {
 		t.Errorf("expected 1 event, got %d", count)
 	}
 
-	var remaining []models.LinkEvent
+	var remaining []links.LinkEvent
 	db.Find(&remaining)
 	if len(remaining) != 1 || remaining[0].IP != "3.3.3.3" {
 		t.Errorf("unexpected remaining event(s): %+v", remaining)

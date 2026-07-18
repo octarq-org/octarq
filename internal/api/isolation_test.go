@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/auth"
@@ -253,11 +255,11 @@ func TestOrgIsolation_Emails(t *testing.T) {
 	org2 := sessionCookies(t, 2, 2)
 
 	// Org 1 owns a mailbox; drop an email straight into it.
-	mb := models.Mailbox{OrgID: 1, Address: "sec@org1.test", Enabled: true}
+	mb := mailmodels.Mailbox{OrgID: 1, Address: "sec@org1.test", Enabled: true}
 	if err := db.Create(&mb).Error; err != nil {
 		t.Fatalf("create mailbox: %v", err)
 	}
-	em := models.Email{MailboxID: mb.ID, Subject: "top-secret-subject", Text: "confidential", Raw: []byte("raw-bytes")}
+	em := mailmodels.Email{MailboxID: mb.ID, Subject: "top-secret-subject", Text: "confidential", Raw: []byte("raw-bytes")}
 	if err := db.Create(&em).Error; err != nil {
 		t.Fatalf("create email: %v", err)
 	}

@@ -5,6 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	dns "github.com/octarq-org/octarq/plugins/dns"
+	links "github.com/octarq-org/octarq/plugins/links"
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/auth"
@@ -24,7 +28,7 @@ func newHandlerForAdminTest(t *testing.T) (*Handler, *gorm.DB) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(models.AllModels()...); err != nil {
+	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mailmodels.Mailbox{}, &mailmodels.Email{}, &mailmodels.SMTPSender{})...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	cfg := &config.Config{AdminUser: "operator@example.com", AdminPassword: "pw", SecretKey: "secret"}
@@ -100,7 +104,7 @@ func TestInstanceAdminBackfillMigration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(models.AllModels()...); err != nil {
+	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mailmodels.Mailbox{}, &mailmodels.Email{}, &mailmodels.SMTPSender{})...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	// Simulate a pre-existing install: org 1 with an owner, nobody flagged.

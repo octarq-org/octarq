@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -38,12 +39,10 @@ import (
 	"github.com/octarq-org/octarq/internal/geo"
 	"github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/internal/mcp"
-	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/notify"
 	"github.com/octarq-org/octarq/internal/queue"
 	"github.com/octarq-org/octarq/internal/safehttp"
 	"github.com/octarq-org/octarq/internal/server"
-	"github.com/octarq-org/octarq/internal/shortlink"
 	"github.com/octarq-org/octarq/plugin"
 	"github.com/octarq-org/octarq/plugins/dns"
 	linksplugin "github.com/octarq-org/octarq/plugins/links"
@@ -154,6 +153,7 @@ func New() (*App, error) {
 	// Opt webhook/notification delivery into private targets only when the operator
 	// has explicitly allowed it (trusted internal receivers); default stays strict.
 	safehttp.SetAllowPrivateWebhooks(cfg.AllowPrivateWebhooks)
+	linksplugin.SetTrustProxy(cfg.TrustProxy)
 
 	cipher := crypto.New(cfg.SecretKey)
 	// Webhook signing secrets are AES-GCM encrypted at rest; teach the eventbus how
@@ -204,7 +204,7 @@ func (a *App) Notify(ctx context.Context, typ, cfgJSON, text string) error {
 // message — mirroring internal/api.Handler.sendEmail so plugins can send
 // transactional mail without importing octarq's internal packages.
 func (a *App) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
-	var s models.SMTPSender
+	var s mailplugin.SMTPSender
 	if err := a.gdb.Where("owner_id = ? ", orgID).Order("id").First(&s).Error; err != nil {
 		return fmt.Errorf("no SMTP sender configured for org %d", orgID)
 	}
@@ -296,25 +296,51 @@ func (a *App) RunMCP(ctx context.Context) error {
 	apiHandler.SetPlugins(a.plugins)
 	throwaway := apiHandler.Routes()
 	services := plugin.NewRegistry()
+	var emailMu sync.Mutex
+	var deferredOnEmail []func(plugin.EmailEvent)
 	pctx := &plugin.Context{
-		Huma:                apiHandler.Huma(),
-		DB:                  a.gdb,
-		Guard:               a.auth.Require,
-		Notify:              notify.Send,
-		UserID:              a.auth.UserID,
-		OrgID:               a.auth.OrgID,
-		Audit:               apiHandler.Audit,
-		Encrypt:             a.cipher.Encrypt,
-		Decrypt:             a.cipher.Decrypt,
-		OnEmail:             apiHandler.OnEmail,
+		Huma:    apiHandler.Huma(),
+		DB:      a.gdb,
+		Guard:   a.auth.Require,
+		Notify:  notify.Send,
+		UserID:  a.auth.UserID,
+		OrgID:   a.auth.OrgID,
+		Audit:   apiHandler.Audit,
+		Encrypt: a.cipher.Encrypt,
+		Decrypt: a.cipher.Decrypt,
+		OnEmail: func(handler func(plugin.EmailEvent)) {
+			if handler == nil {
+				return
+			}
+			if disp, ok := services.Lookup("mail.dispatcher"); ok {
+				if onEmailService, ok := disp.(func(func(plugin.EmailEvent))); ok {
+					onEmailService(handler)
+					return
+				}
+			}
+			emailMu.Lock()
+			deferredOnEmail = append(deferredOnEmail, handler)
+			emailMu.Unlock()
+		},
 		DNS:                 &lazyDNSManager{lookup: services.Lookup},
 		SendMail:            a.sendMail,
 		SetLLMResolver:      apiHandler.SetLLMResolver,
 		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
 		GetGlobalSetting:    apiHandler.GetGlobalSetting,
 		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,
-		Provide:             services.Provide,
-		Lookup:              services.Lookup,
+		Enqueue:             taskQueue.Enqueue,
+		PublishEvent:        eventbus.Publish,
+		CacheGet:            a.auth.Cache().Get,
+		CacheSet:            a.auth.Cache().Set,
+		DeleteCache:         a.auth.Cache().Delete,
+		GeoLookup:           a.geo.Locate,
+		ParseUA: func(ua string) (string, string, string) {
+			info := geo.ParseUA(ua)
+			return info.Device, info.Browser, info.OS
+		},
+		HandleRoot: func(h http.Handler) { /* unused in MCP */ },
+		Provide:    services.Provide,
+		Lookup:     services.Lookup,
 	}
 	enabled := func(r *http.Request, featureKey string) (allowed, scoped bool) {
 		oid := a.auth.OrgID(r)
@@ -344,6 +370,17 @@ func (a *App) RunMCP(ctx context.Context) error {
 	// serve, same as a table collision.
 	if err := services.Err(); err != nil {
 		return err
+	}
+	if disp, ok := services.Lookup("mail.dispatcher"); ok {
+		if onEmailService, ok := disp.(func(func(plugin.EmailEvent))); ok {
+			emailMu.Lock()
+			handlers := deferredOnEmail
+			deferredOnEmail = nil
+			emailMu.Unlock()
+			for _, handler := range handlers {
+				onEmailService(handler)
+			}
+		}
 	}
 
 	return mcp.RunWithPlugins(ctx, a.plugins)
@@ -386,22 +423,54 @@ func (a *App) Run(ctx context.Context) error {
 	apiHandler.SetPlugins(a.plugins)
 	mux := apiHandler.Routes()
 	services := plugin.NewRegistry()
+	var rootHandler http.Handler
+	var runEmailMu sync.Mutex
+	var runDeferredOnEmail []func(plugin.EmailEvent)
 	pctx := &plugin.Context{
-		Huma:           apiHandler.Huma(),
-		DB:             a.gdb,
-		Guard:          a.auth.Require,
-		Notify:         notify.Send,
-		UserID:         a.auth.UserID,
-		OrgID:          a.auth.OrgID,
-		Audit:          apiHandler.Audit,
-		Encrypt:        a.cipher.Encrypt,
-		Decrypt:        a.cipher.Decrypt,
-		OnEmail:        apiHandler.OnEmail,
-		DNS:            &lazyDNSManager{lookup: services.Lookup},
-		SendMail:       a.sendMail,
-		SetLLMResolver: apiHandler.SetLLMResolver,
-		Provide:        services.Provide,
-		Lookup:         services.Lookup,
+		Huma:    apiHandler.Huma(),
+		DB:      a.gdb,
+		Guard:   a.auth.Require,
+		Notify:  notify.Send,
+		UserID:  a.auth.UserID,
+		OrgID:   a.auth.OrgID,
+		Audit:   apiHandler.Audit,
+		Encrypt: a.cipher.Encrypt,
+		Decrypt: a.cipher.Decrypt,
+		OnEmail: func(handler func(plugin.EmailEvent)) {
+			if handler == nil {
+				return
+			}
+			if disp, ok := services.Lookup("mail.dispatcher"); ok {
+				if onEmailService, ok := disp.(func(func(plugin.EmailEvent))); ok {
+					onEmailService(handler)
+					return
+				}
+			}
+			runEmailMu.Lock()
+			runDeferredOnEmail = append(runDeferredOnEmail, handler)
+			runEmailMu.Unlock()
+		},
+		DNS:                 &lazyDNSManager{lookup: services.Lookup},
+		SendMail:            a.sendMail,
+		SetLLMResolver:      apiHandler.SetLLMResolver,
+		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
+		GetGlobalSetting:    apiHandler.GetGlobalSetting,
+		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,
+		Enqueue:             taskQueue.Enqueue,
+		PublishEvent:        eventbus.Publish,
+		CacheGet:            a.auth.Cache().Get,
+		CacheSet:            a.auth.Cache().Set,
+		DeleteCache:         a.auth.Cache().Delete,
+		GeoLookup:           a.geo.Locate,
+		ParseUA: func(ua string) (string, string, string) {
+			info := geo.ParseUA(ua)
+			return info.Device, info.Browser, info.OS
+		},
+		HandleRoot: func(h http.Handler) {
+			rootHandler = h
+		},
+		Provide: services.Provide,
+		Lookup:  services.Lookup,
 	}
 	// Non-core plugin routes are gated by a per-workspace feature toggle: when the
 	// caller's workspace has the feature disabled, the app answers 404 before the
@@ -440,14 +509,24 @@ func (a *App) Run(ctx context.Context) error {
 	// Launch Starters only after EVERY plugin has mounted (and Provided): this
 	// is the ordering guarantee that makes Start-time Lookup of another
 	// plugin's services safe regardless of registration order.
+	if disp, ok := services.Lookup("mail.dispatcher"); ok {
+		if onEmailService, ok := disp.(func(func(plugin.EmailEvent))); ok {
+			runEmailMu.Lock()
+			handlers := runDeferredOnEmail
+			runDeferredOnEmail = nil
+			runEmailMu.Unlock()
+			for _, handler := range handlers {
+				onEmailService(handler)
+			}
+		}
+	}
+
 	for _, p := range a.plugins {
 		if s, ok := p.(plugin.Starter); ok {
 			go s.Start(ctx)
 		}
 	}
 
-	shortlink.SetTrustProxy(a.cfg.TrustProxy)
-	short := shortlink.New(a.gdb, a.geo).WithCache(a.auth.Cache())
 	webFS := a.webFS
 	if webFS == nil {
 		embedded, err := webembed.FS()
@@ -459,7 +538,7 @@ func (a *App) Run(ctx context.Context) error {
 	// CSRFGuard wraps the fully-assembled mux (core + plugin routes) to block
 	// cross-site state-changing requests riding the session cookie; bearer/webhook
 	// clients (no session cookie) pass through untouched.
-	srv, err := server.New(a.cfg, api.CSRFGuard(mux), short, webFS, server.RuntimeSettings{
+	srv, err := server.New(a.cfg, api.CSRFGuard(mux), rootHandler, webFS, server.RuntimeSettings{
 		MetricsToken: apiHandler.MetricsToken,
 		RateLimits:   apiHandler.RateLimits,
 	})

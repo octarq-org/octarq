@@ -34,11 +34,11 @@ type linkDTO struct {
 }
 
 type linkView struct {
-	models.Link
+	Link
 	HasPassword bool `json:"hasPassword"`
 }
 
-func view(l models.Link) linkView {
+func view(l Link) linkView {
 	return linkView{Link: l, HasPassword: l.Password != ""}
 }
 
@@ -70,7 +70,7 @@ func (p *Plugin) listLinks(ctx context.Context, input *ListLinksInput) (*ListLin
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var links []models.Link
+	var links []Link
 	q := p.orgDB(r).Order("created_at DESC")
 	// Archived links are hidden unless explicitly requested (?archived=1).
 	if input.Archived == "1" {
@@ -173,7 +173,7 @@ func (p *Plugin) getLink(ctx context.Context, input *GetLinkInput) (*GetLinkOutp
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var l models.Link
+	var l Link
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
@@ -203,7 +203,7 @@ func normalizeTarget(raw string) (string, bool) {
 // stored raw), so this rejects javascript:, data:, etc. at write time. An empty
 // ExpiredURL is allowed (it just means "404 when expired"). It normalizes the
 // accepted values in place so a bare host defaults to https like Target does.
-func validateRedirectTargets(l *models.Link) error {
+func validateRedirectTargets(l *Link) error {
 	if l.ExpiredURL != "" {
 		n, ok := normalizeTarget(strings.TrimSpace(l.ExpiredURL))
 		if !ok {
@@ -263,7 +263,7 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 	if input.Body.Enabled != nil {
 		enabled = *input.Body.Enabled
 	}
-	l := models.Link{
+	l := Link{
 		OrgID: p.orgID(r),
 		Host:  strings.TrimSpace(input.Body.Host), Slug: slug, Target: normalized,
 		Password: input.Body.Password, Note: input.Body.Note, Title: input.Body.Title, Tags: input.Body.Tags,
@@ -276,9 +276,11 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 	if err := p.db.Create(&l).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
 	}
-	p.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
+	if p.audit != nil {
+		p.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
+	}
 
-	if l.Title == "" {
+	if l.Title == "" && p.enqueue != nil {
 		payload, _ := json.Marshal(map[string]any{
 			"id":     l.ID,
 			"target": l.Target,
@@ -286,7 +288,9 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 		_ = p.enqueue(r.Context(), "link.crawl", payload)
 	}
 
-	_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+	if p.deleteCache != nil {
+		_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+	}
 	return &CreateLinkOutput{Body: view(l)}, nil
 }
 
@@ -307,7 +311,7 @@ func (p *Plugin) exportLinksCSV(ctx context.Context, input *ExportLinksCSVInput)
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var links []models.Link
+	var links []Link
 	p.orgDB(r).Order("created_at DESC").Find(&links)
 
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
@@ -354,10 +358,14 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var l models.Link
+	var l Link
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
+	// Capture BEFORE mutation so cache invalidation targets the original key.
+	oldHost := l.Host
+	oldSlug := l.Slug
+
 	if input.Body.Slug != "" {
 		slug := strings.TrimSpace(input.Body.Slug)
 		if slug != l.Slug && p.isReservedSlug(slug) {
@@ -372,8 +380,6 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 		}
 		l.Target = normalized
 	}
-	oldHost := l.Host
-	oldSlug := l.Slug
 
 	l.Host = strings.TrimSpace(input.Body.Host)
 	l.Note = input.Body.Note
@@ -396,12 +402,16 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
 	}
 
-	_ = p.deleteCache(r.Context(), "link:redirect:"+oldHost+":"+oldSlug)
-	if oldHost != l.Host || oldSlug != l.Slug {
-		_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+	if p.deleteCache != nil {
+		_ = p.deleteCache(r.Context(), "link:redirect:"+oldHost+":"+oldSlug)
+		if oldHost != l.Host || oldSlug != l.Slug {
+			_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+		}
 	}
 
-	p.audit(r, "link.update", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
+	if p.audit != nil {
+		p.audit(r, "link.update", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
+	}
 	return &UpdateLinkOutput{Body: view(l)}, nil
 }
 
@@ -428,15 +438,19 @@ func (p *Plugin) deleteLink(ctx context.Context, input *DeleteLinkInput) (*Delet
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var l models.Link
+	var l Link
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	p.db.Delete(&l)
-	_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+	if p.deleteCache != nil {
+		_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+	}
 
-	p.db.Where("link_id = ?", input.ID).Delete(&models.LinkEvent{})
-	p.audit(r, "link.delete", "link", input.ID, nil)
+	p.db.Where("link_id = ?", input.ID).Delete(&LinkEvent{})
+	if p.audit != nil {
+		p.audit(r, "link.delete", "link", input.ID, nil)
+	}
 	return &DeleteLinkOutput{Body: map[string]bool{"ok": true}}, nil
 }
 
@@ -467,7 +481,7 @@ func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSta
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	// Ensure the link belongs to the caller's org before exposing its analytics.
-	var l models.Link
+	var l Link
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
@@ -479,7 +493,7 @@ func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSta
 
 	top := func(col string) []models.StatKV {
 		rows := make([]models.StatKV, 0)
-		q := p.db.Model(&models.LinkEvent{}).
+		q := p.db.Model(&LinkEvent{}).
 			Where("link_id = ? AND created_at >= ? AND "+col+" <> ''", input.ID, since)
 		if col == "device" {
 			q = q.Select(col + " as key, count(distinct(ip || ' ' || ua)) as count")
@@ -491,16 +505,16 @@ func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSta
 	}
 
 	var total int64
-	p.db.Model(&models.LinkEvent{}).Where("link_id = ?", input.ID).Count(&total)
+	p.db.Model(&LinkEvent{}).Where("link_id = ?", input.ID).Count(&total)
 
 	series := make([]models.StatKV, 0)
-	p.db.Model(&models.LinkEvent{}).
+	p.db.Model(&LinkEvent{}).
 		Select("strftime('%Y-%m-%d', created_at) as key, count(*) as count").
 		Where("link_id = ? AND created_at >= ?", input.ID, since).
 		Group("key").Order("key ASC").Scan(&series)
 	// Postgres uses to_char; fall back when sqlite strftime yields nothing.
 	if len(series) == 0 && p.db.Dialector.Name() == "postgres" {
-		p.db.Model(&models.LinkEvent{}).
+		p.db.Model(&LinkEvent{}).
 			Select("to_char(created_at, 'YYYY-MM-DD') as key, count(*) as count").
 			Where("link_id = ? AND created_at >= ?", input.ID, since).
 			Group("key").Order("key ASC").Scan(&series)
@@ -541,7 +555,7 @@ func (p *Plugin) linkQR(ctx context.Context, input *LinkQRInput) (*struct{}, err
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var l models.Link
+	var l Link
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
@@ -558,7 +572,7 @@ func (p *Plugin) linkQR(ctx context.Context, input *LinkQRInput) (*struct{}, err
 // shortURL builds the public URL for a link. When the link has its own host it
 // is used; otherwise the URL is derived from the incoming request so no extra
 // configuration is needed.
-func shortURL(r *http.Request, l models.Link) string {
+func shortURL(r *http.Request, l Link) string {
 	host := l.Host
 	scheme := "https"
 	if host == "" {

@@ -108,7 +108,7 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 	if input.Body.ProviderAccountID == 0 {
 		return nil, huma.Error400BadRequest("providerAccountId is required")
 	}
-	var acc models.ProviderAccount
+	var acc ProviderAccount
 	if err := p.db.Where("id = ? AND owner_id = ?", input.Body.ProviderAccountID, p.orgID(r)).First(&acc).Error; err != nil {
 		return nil, huma.Error404NotFound("provider account not found")
 	}
@@ -129,14 +129,14 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 	var created, updated int
 	for _, z := range zones {
 		name := strings.ToLower(z.Name)
-		var dom models.Domain
+		var dom Domain
 		if p.db.Where("name = ? AND owner_id = ?", name, p.orgID(r)).First(&dom).Error == nil {
 			dom.ZoneID = z.ID
 			dom.ProviderAccountID = acc.ID
 			p.db.Save(&dom)
 			updated++
 		} else {
-			p.db.Create(&models.Domain{
+			p.db.Create(&Domain{
 				OrgID: p.orgID(r),
 				Name:  name, ProviderAccountID: acc.ID, ZoneID: z.ID,
 			})
@@ -180,7 +180,7 @@ func (i *ListDomainsInput) Resolve(ctx huma.Context) []error {
 }
 
 type ListDomainsOutput struct {
-	Body []models.Domain
+	Body []Domain
 }
 
 func (p *Plugin) listDomains(ctx context.Context, input *ListDomainsInput) (*ListDomainsOutput, error) {
@@ -191,7 +191,7 @@ func (p *Plugin) listDomains(ctx context.Context, input *ListDomainsInput) (*Lis
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var ds []models.Domain
+	var ds []Domain
 	q := p.orgDB(r).Order("created_at DESC")
 	if input.Q != "" {
 		like := "%" + input.Q + "%"
@@ -216,7 +216,7 @@ func (p *Plugin) ownsProviderAccount(r *http.Request, id uint) bool {
 	if id == 0 {
 		return false
 	}
-	var acc models.ProviderAccount
+	var acc ProviderAccount
 	return p.db.Where("id = ? AND owner_id = ?", id, p.orgID(r)).First(&acc).Error == nil
 }
 
@@ -231,7 +231,7 @@ func (i *CreateDomainInput) Resolve(ctx huma.Context) []error {
 }
 
 type CreateDomainOutput struct {
-	Body models.Domain
+	Body Domain
 }
 
 func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*CreateDomainOutput, error) {
@@ -257,7 +257,7 @@ func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*C
 	if input.Body.MailHosts != nil {
 		mailHosts = *input.Body.MailHosts
 	}
-	dom := models.Domain{
+	dom := Domain{
 		OrgID:             p.orgID(r),
 		Name:              name,
 		ProviderAccountID: input.Body.ProviderAccountID,
@@ -304,7 +304,7 @@ func (i *UpdateDomainInput) Resolve(ctx huma.Context) []error {
 }
 
 type UpdateDomainOutput struct {
-	Body models.Domain
+	Body Domain
 }
 
 func (p *Plugin) updateDomain(ctx context.Context, input *UpdateDomainInput) (*UpdateDomainOutput, error) {
@@ -315,7 +315,7 @@ func (p *Plugin) updateDomain(ctx context.Context, input *UpdateDomainInput) (*U
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var dom models.Domain
+	var dom Domain
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&dom).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
@@ -368,7 +368,7 @@ func (p *Plugin) deleteDomain(ctx context.Context, input *DeleteDomainInput) (*D
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&models.Domain{}); res.RowsAffected == 0 {
+	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&Domain{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}
 	p.audit(r, "domain.delete", "domain", input.ID, nil)

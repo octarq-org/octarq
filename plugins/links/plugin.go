@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -36,7 +35,7 @@ func New() *Plugin {
 func (p *Plugin) Name() string          { return "links" }
 func (p *Plugin) Describe() plugin.Info { return plugin.Info{Title: "Short Links", Core: true} }
 func (p *Plugin) Models() []any {
-	return []any{&models.Link{}, &models.LinkEvent{}}
+	return []any{&Link{}, &LinkEvent{}}
 }
 
 func (p *Plugin) orgDB(r *http.Request) *gorm.DB {
@@ -62,17 +61,34 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	p.enqueue = ctx.Enqueue
 	p.deleteCache = ctx.DeleteCache
 	api := ctx.Huma
+	if api != nil {
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links", Summary: "List Links", Tags: []string{"Links"}}, p.listLinks)
+		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/links", Summary: "Create Link", Tags: []string{"Links"}, DefaultStatus: 201}, p.createLink)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/metadata", Summary: "Link Metadata", Tags: []string{"Links"}}, p.linkMetadata)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}", Summary: "Get Link", Tags: []string{"Links"}}, p.getLink)
+		huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/links/{id}", Summary: "Update Link", Tags: []string{"Links"}}, p.updateLink)
+		huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/links/{id}", Summary: "Delete Link", Tags: []string{"Links"}}, p.deleteLink)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}/stats", Summary: "Link Stats", Tags: []string{"Links"}}, p.linkStats)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}/qr", Summary: "Link QR", Tags: []string{"Links"}}, p.linkQR)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/export.csv", Summary: "Export Links", Tags: []string{"Links"}}, p.exportLinksCSV)
+	}
 
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links", Summary: "List Links", Tags: []string{"Links"}}, p.listLinks)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/links", Summary: "Create Link", Tags: []string{"Links"}, DefaultStatus: 201}, p.createLink)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/metadata", Summary: "Link Metadata", Tags: []string{"Links"}}, p.linkMetadata)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}", Summary: "Get Link", Tags: []string{"Links"}}, p.getLink)
-	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/links/{id}", Summary: "Update Link", Tags: []string{"Links"}}, p.updateLink)
-	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/links/{id}", Summary: "Delete Link", Tags: []string{"Links"}}, p.deleteLink)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}/stats", Summary: "Link Stats", Tags: []string{"Links"}}, p.linkStats)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}/qr", Summary: "Link QR", Tags: []string{"Links"}}, p.linkQR)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/export.csv", Summary: "Export Links", Tags: []string{"Links"}}, p.exportLinksCSV)
-
+	engine := NewEngine(ctx.DB, ctx)
+	if ctx.HandleRoot != nil {
+		ctx.HandleRoot(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			slug := strings.TrimPrefix(r.URL.Path, "/")
+			if slug == "" {
+				http.NotFound(w, r)
+				return
+			}
+			link, ok := engine.Lookup(r.Host, slug)
+			if !ok {
+				http.NotFound(w, r)
+				return
+			}
+			engine.Handle(w, r, link)
+		}))
+	}
 }
 
 var builtinReservedSlugs = map[string]bool{

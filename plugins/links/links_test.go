@@ -1,15 +1,16 @@
 package links
 
 import (
+	"net/http"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugin"
 )
 
 func TestValidateRedirectTargetsRoutingRules(t *testing.T) {
-	bad := &models.Link{
+	bad := &Link{
 		Target: "https://ok.example",
-		RoutingRules: models.RoutingRules{
+		RoutingRules: RoutingRules{
 			{Type: "geo", Match: "us", Target: "javascript:alert(1)"},
 		},
 	}
@@ -17,9 +18,9 @@ func TestValidateRedirectTargetsRoutingRules(t *testing.T) {
 		t.Fatal("expected javascript: routing-rule target to be rejected")
 	}
 
-	good := &models.Link{
+	good := &Link{
 		ExpiredURL: "exp.example",
-		RoutingRules: models.RoutingRules{
+		RoutingRules: RoutingRules{
 			{Type: "geo", Match: "us", Target: "target.example/path"},
 		},
 	}
@@ -61,5 +62,20 @@ func TestNormalizeTarget(t *testing.T) {
 		if ok != c.wantOK || got != c.want {
 			t.Errorf("normalizeTarget(%q) = (%q, %v), want (%q, %v)", c.in, got, ok, c.want, c.wantOK)
 		}
+	}
+}
+
+func TestHandleRootRegistered(t *testing.T) {
+	p := New()
+	var rootRegistered bool
+	p.Mount(nil, &plugin.Context{
+		HandleRoot: func(h http.Handler) {
+			if h != nil {
+				rootRegistered = true
+			}
+		},
+	})
+	if !rootRegistered {
+		t.Fatal("HandleRoot was not registered during links plugin Mount")
 	}
 }

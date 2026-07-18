@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/octarq-org/octarq/internal/dnsprovider"
-	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
 )
 
@@ -19,8 +18,8 @@ type dnsManager struct{ p *Plugin }
 func (p *Plugin) DNSManager() plugin.DNSManager { return dnsManager{p} }
 
 // resolve loads a domain and builds its DNS provider.
-func (m dnsManager) resolve(domainID uint) (models.Domain, dnsprovider.Provider, error) {
-	var dom models.Domain
+func (m dnsManager) resolve(domainID uint) (Domain, dnsprovider.Provider, error) {
+	var dom Domain
 	if err := m.p.db.First(&dom, domainID).Error; err != nil {
 		return dom, nil, err
 	}

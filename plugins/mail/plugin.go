@@ -1,13 +1,15 @@
 package mail
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -24,6 +26,9 @@ type Plugin struct {
 	getWorkspaceSetting func(orgID uint, key string) string
 	getGlobalSetting    func(key string) string
 	sendLimiter         *rateLimiter
+	emailMu             sync.RWMutex
+	emailHandlers       []func(plugin.EmailEvent)
+	notify              func(ctx context.Context, kind string, config map[string]any, message string) error
 }
 
 // Compile-time capability checks.
@@ -45,7 +50,7 @@ func (p *Plugin) Name() string { return "mail" }
 func (p *Plugin) Describe() plugin.Info { return plugin.Info{Title: "Mail", Core: true} }
 
 func (p *Plugin) Models() []any {
-	return []any{&models.Mailbox{}, &models.Email{}, &models.SMTPSender{}}
+	return []any{&Mailbox{}, &Email{}, &SMTPSender{}}
 }
 
 // orgDB scopes a query to the caller's org.
@@ -61,25 +66,52 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	p.decrypt = ctx.Decrypt
 	p.getWorkspaceSetting = ctx.GetWorkspaceSetting
 	p.getGlobalSetting = ctx.GetGlobalSetting
+	if ctx.Notify != nil {
+		p.notify = func(c context.Context, kind string, config map[string]any, message string) error {
+			var cfgJSON string
+			if config != nil {
+				if b, err := json.Marshal(config); err == nil {
+					cfgJSON = string(b)
+				}
+			}
+			return ctx.Notify(c, kind, cfgJSON, message)
+		}
+	}
 
 	api := ctx.Huma
+	if api != nil {
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/smtp-senders", Summary: "List SMTP Senders", Tags: []string{"SMTP"}}, p.listSMTPSenders)
+		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/smtp-senders", Summary: "Create SMTP Sender", Tags: []string{"SMTP"}, DefaultStatus: 201}, p.createSMTPSender)
+		huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/smtp-senders/{id}", Summary: "Update SMTP Sender", Tags: []string{"SMTP"}}, p.updateSMTPSender)
+		huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/smtp-senders/{id}", Summary: "Delete SMTP Sender", Tags: []string{"SMTP"}}, p.deleteSMTPSender)
 
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/smtp-senders", Summary: "List SMTP Senders", Tags: []string{"SMTP"}}, p.listSMTPSenders)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/smtp-senders", Summary: "Create SMTP Sender", Tags: []string{"SMTP"}, DefaultStatus: 201}, p.createSMTPSender)
-	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/smtp-senders/{id}", Summary: "Update SMTP Sender", Tags: []string{"SMTP"}}, p.updateSMTPSender)
-	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/smtp-senders/{id}", Summary: "Delete SMTP Sender", Tags: []string{"SMTP"}}, p.deleteSMTPSender)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/mailboxes", Summary: "List Mailboxes", Tags: []string{"Mailboxes"}}, p.listMailboxes)
+		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/mailboxes", Summary: "Create Mailbox", Tags: []string{"Mailboxes"}, DefaultStatus: 201}, p.createMailbox)
+		huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/mailboxes/{id}", Summary: "Update Mailbox", Tags: []string{"Mailboxes"}}, p.updateMailbox)
+		huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/mailboxes/{id}", Summary: "Delete Mailbox", Tags: []string{"Mailboxes"}}, p.deleteMailbox)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails", Summary: "List Emails", Tags: []string{"Emails"}}, p.listEmails)
+		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/emails/read-all", Summary: "Mark All Emails Read", Tags: []string{"Emails"}}, p.readAllEmails)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails/{id}", Summary: "Get Email", Tags: []string{"Emails"}}, p.getEmail)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails/{id}/raw", Summary: "Get Raw Email EML", Tags: []string{"Emails"}}, p.rawEmail)
+		huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/emails/{id}", Summary: "Update Email State", Tags: []string{"Emails"}}, p.updateEmail)
+		huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/emails/{id}", Summary: "Delete Email", Tags: []string{"Emails"}}, p.deleteEmail)
+		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/emails/send", Summary: "Send Email", Tags: []string{"Emails"}}, p.sendEmail)
 
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/mailboxes", Summary: "List Mailboxes", Tags: []string{"Mailboxes"}}, p.listMailboxes)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/mailboxes", Summary: "Create Mailbox", Tags: []string{"Mailboxes"}, DefaultStatus: 201}, p.createMailbox)
-	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/mailboxes/{id}", Summary: "Update Mailbox", Tags: []string{"Mailboxes"}}, p.updateMailbox)
-	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/mailboxes/{id}", Summary: "Delete Mailbox", Tags: []string{"Mailboxes"}}, p.deleteMailbox)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails", Summary: "List Emails", Tags: []string{"Emails"}}, p.listEmails)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/emails/read-all", Summary: "Mark All Emails Read", Tags: []string{"Emails"}}, p.readAllEmails)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails/{id}", Summary: "Get Email", Tags: []string{"Emails"}}, p.getEmail)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails/{id}/raw", Summary: "Get Raw Email EML", Tags: []string{"Emails"}}, p.rawEmail)
-	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/emails/{id}", Summary: "Update Email State", Tags: []string{"Emails"}}, p.updateEmail)
-	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/emails/{id}", Summary: "Delete Email", Tags: []string{"Emails"}}, p.deleteEmail)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/emails/send", Summary: "Send Email", Tags: []string{"Emails"}}, p.sendEmail)
+		huma.Register(api, huma.Operation{
+			Method: "POST", Path: "/api/webhook/{orgSlug}/email/inbound/{token}",
+			Summary: "Inbound Email Webhook", Tags: []string{"Mailboxes"},
+			Metadata: map[string]any{"public": true},
+		}, p.inbound)
+		huma.Register(api, huma.Operation{
+			Method: "POST", Path: "/api/webhook/{orgSlug}/email/bounce/{token}",
+			Summary: "Email Bounce Webhook", Tags: []string{"Mailboxes"},
+			Metadata: map[string]any{"public": true},
+		}, p.emailBounceWebhook)
+	}
+
+	if ctx.Provide != nil {
+		ctx.Provide("mail.dispatcher", p.OnEmail)
+	}
 }
 
 var builtinReservedSlugs = map[string]bool{

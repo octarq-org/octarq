@@ -157,7 +157,7 @@ type Context struct {
 	// an actual operation rather than a flag flip.
 	DNS DNSManager
 	// SendMail sends a transactional email through the org's configured SMTP
-	// sender (the first models.SMTPSender for that org). Returns an error if the
+	// sender (the first mailmodels.SMTPSender for that org). Returns an error if the
 	// org has no sender configured. Plugins use it for verification / password
 	// reset without importing octarq's internal packages.
 	SendMail func(orgID uint, to, subject, htmlBody, textBody string) error
@@ -186,8 +186,20 @@ type Context struct {
 	SetWorkspaceSetting func(orgID uint, key, value string) error
 	// Enqueue adds a task to the background job queue.
 	Enqueue func(ctx context.Context, taskType string, payload []byte) error
+	// CacheGet retrieves a key from the global cache.
+	CacheGet func(ctx context.Context, key string, val any) bool
+	// CacheSet sets a key in the global cache.
+	CacheSet func(ctx context.Context, key string, val any, ttl time.Duration) error
 	// DeleteCache removes a key from the global cache.
 	DeleteCache func(ctx context.Context, key string) error
+	// GeoLookup resolves an IP address to country, region, city.
+	GeoLookup func(ip string) (country, region, city string)
+	// ParseUA parses a User-Agent string to device, browser, os.
+	ParseUA func(ua string) (device, browser, os string)
+	// PublishEvent publishes an event to the org's webhooks.
+	PublishEvent func(orgID uint, event string, data any)
+	// HandleRoot registers a handler on the core HTTP mux for the root path "/{slug}".
+	HandleRoot func(handler http.Handler)
 }
 
 // DNSRecord is a provider-agnostic DNS record, mirroring the fields of octarq's

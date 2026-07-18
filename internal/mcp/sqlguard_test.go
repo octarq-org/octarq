@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	links "github.com/octarq-org/octarq/plugins/links"
+
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
@@ -95,7 +97,7 @@ func TestRunReadOnlyQueryRejectsSecretTable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := gdb.AutoMigrate(&models.User{}, &models.Link{}); err != nil {
+	if err := gdb.AutoMigrate(&models.User{}, &links.Link{}); err != nil {
 		t.Fatal(err)
 	}
 	gdb.Create(&models.User{Email: "boss@co", PasswordHash: "TOPSECRET"})
@@ -115,7 +117,7 @@ func TestRunReadOnlyQueryRejectsSecretTable(t *testing.T) {
 // reaches the DB.
 func TestRunReadOnlyQueryRejectsWrite(t *testing.T) {
 	gdb, _ := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
-	gdb.AutoMigrate(&models.Link{})
+	gdb.AutoMigrate(&links.Link{})
 	s := &server{gdb: gdb, orgID: 1}
 	if _, _, err := s.runReadOnlyQuery(context.Background(), "DELETE FROM links"); err == nil {
 		t.Error("expected write to be rejected")

@@ -6,7 +6,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/internal/models"
 )
 
 type ListSMTPSendersInput struct {
@@ -19,7 +18,7 @@ func (i *ListSMTPSendersInput) Resolve(ctx huma.Context) []error {
 }
 
 type ListSMTPSendersOutput struct {
-	Body []models.SMTPSender
+	Body []SMTPSender
 }
 
 func (p *Plugin) listSMTPSenders(ctx context.Context, input *ListSMTPSendersInput) (*ListSMTPSendersOutput, error) {
@@ -30,7 +29,7 @@ func (p *Plugin) listSMTPSenders(ctx context.Context, input *ListSMTPSendersInpu
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	var senders []models.SMTPSender
+	var senders []SMTPSender
 	p.orgDB(r).Order("name ASC").Find(&senders)
 	for i := range senders {
 		senders[i].PassSet = senders[i].Pass != ""
@@ -56,7 +55,7 @@ func (i *CreateSMTPSenderInput) Resolve(ctx huma.Context) []error {
 }
 
 type CreateSMTPSenderOutput struct {
-	Body models.SMTPSender
+	Body SMTPSender
 }
 
 func (p *Plugin) createSMTPSender(ctx context.Context, input *CreateSMTPSenderInput) (*CreateSMTPSenderOutput, error) {
@@ -75,12 +74,15 @@ func (p *Plugin) createSMTPSender(ctx context.Context, input *CreateSMTPSenderIn
 		return nil, huma.Error400BadRequest("name, host, port, user and pass are required")
 	}
 
+	if p.encrypt == nil {
+		return nil, huma.Error500InternalServerError("encrypt unavailable")
+	}
 	encPass, err := p.encrypt([]byte(pass))
 	if err != nil {
 		return nil, huma.Error500InternalServerError("encrypt failed")
 	}
 
-	sender := models.SMTPSender{
+	sender := SMTPSender{
 		OrgID:     p.orgID(r),
 		Name:      name,
 		Host:      host,
@@ -93,7 +95,9 @@ func (p *Plugin) createSMTPSender(ctx context.Context, input *CreateSMTPSenderIn
 	if err := p.db.Create(&sender).Error; err != nil {
 		return nil, huma.Error500InternalServerError("failed to save")
 	}
-	p.audit(r, "smtp.create", "smtp_sender", sender.ID, map[string]any{"name": sender.Name, "host": sender.Host})
+	if p.audit != nil {
+		p.audit(r, "smtp.create", "smtp_sender", sender.ID, map[string]any{"name": sender.Name, "host": sender.Host})
+	}
 	sender.PassSet = sender.Pass != ""
 	return &CreateSMTPSenderOutput{Body: sender}, nil
 }
@@ -117,7 +121,7 @@ func (i *UpdateSMTPSenderInput) Resolve(ctx huma.Context) []error {
 }
 
 type UpdateSMTPSenderOutput struct {
-	Body models.SMTPSender
+	Body SMTPSender
 }
 
 func (p *Plugin) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderInput) (*UpdateSMTPSenderOutput, error) {
@@ -129,7 +133,7 @@ func (p *Plugin) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderIn
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	var sender models.SMTPSender
+	var sender SMTPSender
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&sender).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
@@ -151,6 +155,9 @@ func (p *Plugin) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderIn
 	}
 
 	if input.Body.Pass != nil && *input.Body.Pass != "" {
+		if p.encrypt == nil {
+			return nil, huma.Error500InternalServerError("encrypt unavailable")
+		}
 		enc, err := p.encrypt([]byte(*input.Body.Pass))
 		if err != nil {
 			return nil, huma.Error500InternalServerError("encrypt failed")
@@ -169,7 +176,9 @@ func (p *Plugin) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderIn
 	if input.Body.Pass != nil && *input.Body.Pass != "" {
 		meta["pass"] = "[REDACTED]"
 	}
-	p.audit(r, "smtp.update", "smtp_sender", sender.ID, meta)
+	if p.audit != nil {
+		p.audit(r, "smtp.update", "smtp_sender", sender.ID, meta)
+	}
 	sender.PassSet = sender.Pass != ""
 	return &UpdateSMTPSenderOutput{Body: sender}, nil
 }
@@ -197,9 +206,11 @@ func (p *Plugin) deleteSMTPSender(ctx context.Context, input *DeleteSMTPSenderIn
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&models.SMTPSender{}); res.RowsAffected == 0 {
+	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&SMTPSender{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}
-	p.audit(r, "smtp.delete", "smtp_sender", input.ID, nil)
+	if p.audit != nil {
+		p.audit(r, "smtp.delete", "smtp_sender", input.ID, nil)
+	}
 	return &DeleteSMTPSenderOutput{Body: map[string]bool{"ok": true}}, nil
 }
