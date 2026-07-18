@@ -34,6 +34,7 @@ export function PluginsSettings() {
     setPlugins((prev) => prev?.map((p) => (p.key === key ? { ...p, enabled } : p)) ?? prev);
     try {
       await api.updatePlugin(key, enabled);
+      window.dispatchEvent(new CustomEvent("octarq:plugins-changed"));
     } catch (e) {
       setPlugins((prev) => prev?.map((p) => (p.key === key ? { ...p, enabled: !enabled } : p)) ?? prev);
       setErr(e instanceof ApiError ? e.message : t("settings.failedUpdatePlugin"));
@@ -59,7 +60,7 @@ export function PluginsSettings() {
       ) : (
         <div className="space-y-3">
           {plugins.map((p) => {
-            const description = PLUGIN_DESC[p.key] ? t("settings.pluginDesc." + p.key) : "";
+            const description = (PLUGIN_DESC[p.key] ? t("settings.pluginDesc." + p.key) : "") || p.description || "";
             return (
               <GlassCard key={p.key} className="p-5 flex items-center justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0">

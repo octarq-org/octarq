@@ -199,6 +199,7 @@ function mergeAreas(
         Icon: KeyIcon ?? Globe,
         iconStr: KeyIcon ? undefined : m.icon,
         path: m.path,
+        order: m.order ?? 0,
       };
 
       // Check if there is an existing group matching the category name (case-insensitive)
@@ -220,6 +221,10 @@ function mergeAreas(
           });
         }
       }
+    });
+
+    groups.forEach((g) => {
+      g.items.sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
     });
 
     return {
@@ -338,9 +343,21 @@ function Shell({
   // Settings pages that mutate the workspace list (rename) fire this instead of
   // reloading the page; refetch the orgs so the switcher/name update in place.
   useEffect(() => {
-    const refresh = () => api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
-    window.addEventListener("octarq:orgs-changed", refresh);
-    return () => window.removeEventListener("octarq:orgs-changed", refresh);
+    const refreshOrgs = () => api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
+    const refreshPlugins = () => {
+      Promise.all([api.menus().catch(() => []), api.plugins().catch(() => [])])
+        .then(([backendMenus, plugins]) => {
+          setIsProBuild(plugins.length > 0);
+          setBackendNav({ menus: backendMenus, plugins });
+        })
+        .catch(() => {});
+    };
+    window.addEventListener("octarq:orgs-changed", refreshOrgs);
+    window.addEventListener("octarq:plugins-changed", refreshPlugins);
+    return () => {
+      window.removeEventListener("octarq:orgs-changed", refreshOrgs);
+      window.removeEventListener("octarq:plugins-changed", refreshPlugins);
+    };
   }, []);
 
   const currentSettingsArea = useMemo(() => {

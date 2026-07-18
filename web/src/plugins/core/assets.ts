@@ -17,7 +17,7 @@ const assets: UIPlugin = {
     { path: "/assets/storage", Component: page("StorageComingSoon") },
   ],
   menu: [
-    { id: "certs", label: "Certificates", path: "/assets/certificates", icon: "shield", category: "Network" },
+    { id: "certs", label: "Certificates", path: "/assets/certificates", icon: "shield", category: "Network", order: 20 },
     { id: "databases", label: "Databases", path: "/assets/databases", icon: "database", category: "Storage & Databases" },
     { id: "storage", label: "Object Storage", path: "/assets/storage", icon: "hard-drive", category: "Storage & Databases" },
   ],

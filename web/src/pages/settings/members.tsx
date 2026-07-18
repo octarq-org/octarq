@@ -9,6 +9,7 @@ import { useSettingsData, SavedBadge } from "./shared";
 export function OrgMembersManager() {
   const { t } = useTranslation();
   const [members, setMembers] = useState<OrgMember[]>([]);
+  const [me, setMe] = useState<{ username?: string; orgId?: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
@@ -18,7 +19,12 @@ export function OrgMembersManager() {
   async function load() {
     setLoading(true);
     try {
-      setMembers(await api.orgMembers());
+      const [mList, meUser] = await Promise.all([
+        api.orgMembers(),
+        api.me().catch(() => null),
+      ]);
+      setMembers(mList);
+      setMe(meUser);
     } catch (e: any) {
       console.error(e);
     } finally {
@@ -105,23 +111,33 @@ export function OrgMembersManager() {
         <div className="text-white/40 text-sm py-4 text-center">{t("settings.loadingMembers")}</div>
       ) : (
         <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
-          {(members || []).map((m) => (
-            <div key={m.userId} className="flex justify-between items-center p-4">
-              <div className="flex items-center gap-2.5">
-                <span className="font-semibold text-sm text-white">{m.email}</span>
-                <Badge tone={getRoleTone(m.role)} className="capitalize text-[10px] tracking-wide font-semibold px-2">
-                  {m.role === "owner" ? t("settings.roleOwner") : m.role === "admin" ? t("settings.roleAdmin") : t("settings.roleMember")}
-                </Badge>
+          {(members || []).map((m) => {
+            const isSelf = me?.username ? m.email.toLowerCase() === me.username.toLowerCase() : false;
+            return (
+              <div key={m.userId} className="flex justify-between items-center p-4">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <span className="font-semibold text-sm text-white">{m.email}</span>
+                  <Badge tone={getRoleTone(m.role)} className="capitalize text-[10px] tracking-wide font-semibold px-2">
+                    {m.role === "owner" ? t("settings.roleOwner") : m.role === "admin" ? t("settings.roleAdmin") : t("settings.roleMember")}
+                  </Badge>
+                  {m.pending ? (
+                    <Badge tone="amber" className="text-[10px] px-2">{t("settings.statusPending")}</Badge>
+                  ) : (
+                    <span className="text-xs text-white/40">{t("settings.statusJoined", { time: m.joinedAt ? timeAgo(m.joinedAt) : "" })}</span>
+                  )}
+                </div>
+                {!isSelf && (
+                  <Button
+                    variant="danger"
+                    onClick={() => handleRemove(m.userId)}
+                    className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                  >
+                    {t("settings.remove")}
+                  </Button>
+                )}
               </div>
-              <Button
-                variant="danger"
-                onClick={() => handleRemove(m.userId)}
-                className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
-              >
-                {t("settings.remove")}
-              </Button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </GlassCard>

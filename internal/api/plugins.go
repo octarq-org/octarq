@@ -61,15 +61,17 @@ type pluginMenuOut struct {
 	Path     string `json:"path"`
 	Icon     string `json:"icon"`
 	Category string `json:"category"`
+	Order    int    `json:"order,omitempty"`
 }
 
 // featureOut is one toggleable feature in the plugin manager. Plugins sharing a
 // group collapse into a single feature whose menus are the union of members'.
 type featureOut struct {
-	Key     string          `json:"key"`
-	Title   string          `json:"title"`
-	Enabled bool            `json:"enabled"`
-	Menus   []pluginMenuOut `json:"menus"`
+	Key         string          `json:"key"`
+	Title       string          `json:"title"`
+	Description string          `json:"description"`
+	Enabled     bool            `json:"enabled"`
+	Menus       []pluginMenuOut `json:"menus"`
 }
 
 // listPlugins returns the toggleable features for the caller's workspace: every
@@ -123,15 +125,20 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 			if !toggled {
 				isOn = info.EnabledByDefault
 			}
-			f = &featureOut{Key: key, Title: info.Title, Enabled: isOn, Menus: []pluginMenuOut{}}
+			f = &featureOut{Key: key, Title: info.Title, Description: info.Description, Enabled: isOn, Menus: []pluginMenuOut{}}
 			byKey[key] = f
 			order = append(order, key)
-		} else if f.Title == "" {
-			f.Title = info.Title
+		} else {
+			if f.Title == "" {
+				f.Title = info.Title
+			}
+			if f.Description == "" {
+				f.Description = info.Description
+			}
 		}
 		if mp, ok := p.(plugin.MenuProvider); ok {
 			for _, m := range mp.Menus() {
-				f.Menus = append(f.Menus, pluginMenuOut{ID: m.ID, Label: m.Label, Path: m.Path, Icon: m.Icon, Category: m.Category})
+				f.Menus = append(f.Menus, pluginMenuOut{ID: m.ID, Label: m.Label, Path: m.Path, Icon: m.Icon, Category: m.Category, Order: m.Order})
 			}
 		}
 	}
