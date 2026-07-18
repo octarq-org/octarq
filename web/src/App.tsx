@@ -20,7 +20,7 @@ import { AreaPanel } from "./shell/AreaPanel";
 import { Login } from "./shell/Login";
 import { uiAreas, uiMenus } from "./plugin-sdk";
 import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
-import { PluginGateContext } from "./plugins/ProGate";
+import { PluginGateContext } from "./plugins/PluginGate";
 
 
 // Fallback while a route's lazily-loaded chunk is fetched — a subtle centered

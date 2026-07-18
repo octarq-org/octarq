@@ -1,4 +1,4 @@
-// ProGate — the centralized degrade boundary wrapped around EVERY plugin route
+// PluginGate — the centralized degrade boundary wrapped around EVERY plugin route
 // element (see PluginRoutes.tsx). It standardizes octarq's gated-state
 // convention in one place so plugin pages degrade uniformly:
 //
@@ -18,7 +18,7 @@
 // safety net, not a replacement. It catches two things a page can't: a lazy
 // chunk that fails to load, and an uncaught throw during render (including a
 // thrown ApiError, whose `status` is honored). It also provides a context
-// helper (`useProGate`) so a page can degrade declaratively —
+// helper (`usePluginGate`) so a page can degrade declaratively —
 // `gate.degrade(err.status)` from a data-fetch catch — instead of each page
 // re-implementing the locked-state branch.
 import {
@@ -46,7 +46,7 @@ export const PluginGateContext = createContext<PluginGateContextValue>({
   loaded: false,
 });
 
-export interface ProGateContextValue {
+export interface PluginRouteGateContextValue {
   // Degrade the current route to the standard gated state for `status`
   // (402 ⇒ upsell, anything else ⇒ neutral note).
   degrade: (status: number) => void;
@@ -55,13 +55,16 @@ export interface ProGateContextValue {
   requiredTier?: string;
 }
 
-const ProGateContext = createContext<ProGateContextValue | null>(null);
+const PluginRouteGateContext = createContext<PluginRouteGateContextValue | null>(null);
 
 // Safe anywhere: outside a gate (e.g. a core page) `degrade` is a no-op, so a
 // shared component may call it unconditionally.
-export function useProGate(): ProGateContextValue {
-  return useContext(ProGateContext) ?? { degrade: () => {} };
+export function usePluginGate(): PluginRouteGateContextValue {
+  return useContext(PluginRouteGateContext) ?? { degrade: () => {} };
 }
+
+// Backward-compat alias for plugins or code calling useProGate.
+export const useProGate = usePluginGate;
 
 // The standard degraded rendering, shared by the declarative (`degrade`) and
 // exceptional (error boundary) paths.
@@ -96,7 +99,7 @@ class GateBoundary extends Component<
   }
 }
 
-export function ProGate({
+export function PluginGate({
   plugin,
   route,
   children,
@@ -109,7 +112,7 @@ export function ProGate({
   const { role, isInstanceAdmin } = useCurrentRole();
   const { disabledPlugins, disabledPaths, loaded } = useContext(PluginGateContext);
 
-  const ctx = useMemo<ProGateContextValue>(
+  const ctx = useMemo<PluginRouteGateContextValue>(
     () => ({ degrade: setStatus, requiredTier: route.requiredTier }),
     [route.requiredTier],
   );
@@ -132,8 +135,11 @@ export function ProGate({
     return <GateFallback status={403} plugin={plugin} />;
   }
   return (
-    <ProGateContext.Provider value={ctx}>
+    <PluginRouteGateContext.Provider value={ctx}>
       <GateBoundary plugin={plugin}>{children}</GateBoundary>
-    </ProGateContext.Provider>
+    </PluginRouteGateContext.Provider>
   );
 }
+
+// Backward-compat alias for ProGate.
+export const ProGate = PluginGate;

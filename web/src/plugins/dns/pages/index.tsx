@@ -10,7 +10,7 @@ import { DomainEditorForm } from "./DomainEditorForm";
 import { DomainHostManager } from "./DomainHostManager";
 import { SyncModal } from "./SyncModal";
 import { RecordsView } from "./RecordsView";
-import { useProGate } from "../../ProGate";
+import { usePluginGate } from "../../PluginGate";
 
 export default function DomainsPage() {
   const { t } = useTranslation();
@@ -45,7 +45,7 @@ export default function DomainsPage() {
     }
   }
 
-  const proGate = useProGate();
+  const pluginGate = usePluginGate();
 
   async function loadMore(reset = false) {
     if (loading || (!hasMore && !reset)) return;
@@ -61,7 +61,7 @@ export default function DomainsPage() {
       setPage(reset ? 1 : page + 1);
     } catch (e: any) {
       if (e.status === 404 || e.status === 402) {
-        proGate.degrade(e.status);
+        pluginGate.degrade(e.status);
       }
     } finally {
       setLoading(false);
