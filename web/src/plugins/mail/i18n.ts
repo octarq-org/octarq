@@ -1,5 +1,8 @@
 export const mailI18n = {
   en: {
+    // Shared-namespace contribution: this plugin's description in the
+    // plugin manager (core chrome looks up settings.pluginDesc.mail).
+    _shared: { settings: { pluginDesc: { mail: "Transactional email sending, mailbox receiving, and SMTP configurations." } } },
     pageTitle: "Mail",
     pageDesc: "Custom domain email reading, replying & SMTP relays",
     markRead: "Mark Read",
@@ -84,6 +87,7 @@ export const mailI18n = {
     aiSummaryFailed: "AI summary failed",
   },
   zh: {
+    _shared: { settings: { pluginDesc: { mail: "事务邮件发送、邮箱接收与 SMTP 发送服务配置。" } } },
     pageTitle: "邮件",
     pageDesc: "自定义域名邮件的收取、回复与 SMTP 中继",
     markRead: "全部已读",

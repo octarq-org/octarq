@@ -3,7 +3,7 @@ import { api, Domain, HostEntry, ProviderAccount } from "../../../api";
 import { dnsApi, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus } from "../api";
 import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
-import { ProviderAccounts } from "../../../pages/Settings";
+import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
 
 function DnsStatusBadge({ status, label }: { status: DNSRecordStatus; label: string }) {

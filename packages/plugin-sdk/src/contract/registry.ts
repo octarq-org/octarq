@@ -58,14 +58,47 @@ export function uiAreas(): UIArea[] {
 
 // Merged plugin i18n namespaces, keyed by plugin name, per language. The
 // I18nProvider spreads these over the core resources at render time (order-
-// independent of module eval).
+// independent of module eval). The reserved `_shared` key is NOT a plugin
+// namespace — it is collected separately by uiPluginSharedI18n.
 export function uiPluginI18n(): PluginI18n {
   const en: Record<string, unknown> = {};
   const zh: Record<string, unknown> = {};
   for (const p of REGISTRY) {
     if (!p.i18n) continue;
-    en[p.name] = p.i18n.en;
-    zh[p.name] = p.i18n.zh;
+    const { _shared: _enShared, ...enNs } = p.i18n.en as Record<string, unknown>;
+    const { _shared: _zhShared, ...zhNs } = p.i18n.zh as Record<string, unknown>;
+    en[p.name] = enNs;
+    zh[p.name] = zhNs;
+  }
+  return { en, zh };
+}
+
+// Recursively fold `extra` into `base` (both plain objects); `base` wins on
+// leaf conflicts so an earlier registration — and ultimately the core
+// resources layered on top — can never be overridden by a plugin.
+function mergeUnder(base: Record<string, unknown>, extra: unknown): void {
+  if (extra == null || typeof extra !== "object") return;
+  for (const [k, v] of Object.entries(extra as Record<string, unknown>)) {
+    const cur = base[k];
+    if (cur != null && typeof cur === "object" && v != null && typeof v === "object") {
+      mergeUnder(cur as Record<string, unknown>, v);
+    } else if (!(k in base)) {
+      base[k] = v;
+    }
+  }
+}
+
+// The deep-merged `_shared` contributions of every composed plugin: shared-
+// namespace translations (e.g. `nav.<menu id>`, `settings.pluginDesc.<key>`)
+// that core-rendered chrome looks up. The I18nProvider layers core resources
+// OVER this dict, so core copy always wins.
+export function uiPluginSharedI18n(): PluginI18n {
+  const en: Record<string, unknown> = {};
+  const zh: Record<string, unknown> = {};
+  for (const p of REGISTRY) {
+    if (!p.i18n) continue;
+    mergeUnder(en, (p.i18n.en as Record<string, unknown>)._shared);
+    mergeUnder(zh, (p.i18n.zh as Record<string, unknown>)._shared);
   }
   return { en, zh };
 }

@@ -1,5 +1,8 @@
 export const domainsI18n = {
   en: {
+    // Shared-namespace contribution: this plugin's description in the
+    // plugin manager (core chrome looks up settings.pluginDesc.dns).
+    _shared: { settings: { pluginDesc: { dns: "Domain lifecycle and DNS management across Cloudflare and DNSPod." } } },
     // Page header
     pageTitle: "DNS",
     pageDescription: "Sync & manage DNS records across Cloudflare and DNSPod",
@@ -166,6 +169,7 @@ export const domainsI18n = {
     hintNs: "nameserver hostname",
   },
   zh: {
+    _shared: { settings: { pluginDesc: { dns: "跨 Cloudflare 和 DNSPod 管理域名生命周期与 DNS 记录。" } } },
     // Page header
     pageTitle: "DNS",
     pageDescription: "跨 Cloudflare 与 DNSPod 同步并管理 DNS 记录",

@@ -1,5 +1,8 @@
 export const linksI18n = {
   en: {
+    // Shared-namespace contribution: this plugin's description in the
+    // plugin manager (core chrome looks up settings.pluginDesc.links).
+    _shared: { settings: { pluginDesc: { links: "Short link creation, custom domain routing, and click analytics." } } },
     pageTitle: "Links",
     pageDescription: "Short links with click analytics, redirection & routing",
     newLink: "+ New Link",
@@ -70,6 +73,7 @@ export const linksI18n = {
     aiSuggestFailed: "AI suggestion failed",
   },
   zh: {
+    _shared: { settings: { pluginDesc: { links: "短链接生成、自定义域名路由与点击数据分析。" } } },
     pageTitle: "短链接",
     pageDescription: "带点击分析、跳转与路由的短链接",
     newLink: "+ 新建短链",

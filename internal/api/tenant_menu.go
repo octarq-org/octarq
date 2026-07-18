@@ -525,6 +525,7 @@ type MenuItem struct {
 	Path     string `json:"path"`
 	Icon     string `json:"icon"`
 	Category string `json:"category"`
+	Order    int    `json:"order,omitempty"`
 }
 
 type ListMenusInput struct {
@@ -552,22 +553,20 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	// Core default navigation items. These are the always-on core pages: the
-	// backend is the source of truth for which paths are "real", so the frontend
-	// can drop any composed menu whose path no backend half announces (see the
-	// sidebar merge in web/src/App.tsx). The always-composed core UI plugins
-	// (links, mail, dns, abuse, audit, and the Infrastructure asset placeholders)
-	// are announced here; a frontend-only plugin with no backend is an orphan.
+	// Core default navigation items — ONLY the pages the core itself serves
+	// (plus the Infrastructure asset placeholders it owns). The backend is the
+	// source of truth for which paths are "real", so the frontend drops any
+	// composed menu whose path no backend half announces (see the sidebar merge
+	// in web/src/App.tsx). Feature plugins (links, mail, dns, …) announce their
+	// own entries via MenuProvider below, so a disabled plugin's path is never
+	// offered.
 	menus := []MenuItem{
 		{ID: "overview", Label: "Overview", Path: "/overview", Icon: "📊", Category: "Operations"},
-		{ID: "links", Label: "Links", Path: "/links", Icon: "🔗", Category: "Operations"},
-		{ID: "domains", Label: "Domains", Path: "/domains", Icon: "🌐", Category: "Assets"},
-		{ID: "mail", Label: "Mail", Path: "/mail", Icon: "✉️", Category: "Operations"},
 
 		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "📝", Category: "Compliance"},
 		{ID: "abuse", Label: "Abuse", Path: "/abuse", Icon: "🛡️", Category: "Compliance"},
 
-		{ID: "certs", Label: "Certificates", Path: "/assets/certificates", Icon: "🔒", Category: "Network"},
+		{ID: "certs", Label: "Certificates", Path: "/assets/certificates", Icon: "🔒", Category: "Network", Order: 20},
 		{ID: "databases", Label: "Databases", Path: "/assets/databases", Icon: "🗄️", Category: "Storage & Databases"},
 		{ID: "storage", Label: "Object Storage", Path: "/assets/storage", Icon: "💾", Category: "Storage & Databases"},
 	}
@@ -588,6 +587,7 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 					Path:     m.Path,
 					Icon:     m.Icon,
 					Category: m.Category,
+					Order:    m.Order,
 				})
 			}
 		}

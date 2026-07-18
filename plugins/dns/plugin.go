@@ -47,8 +47,9 @@ type Plugin struct {
 
 // Compile-time capability checks.
 var (
-	_ plugin.Plugin    = (*Plugin)(nil)
-	_ plugin.Describer = (*Plugin)(nil)
+	_ plugin.Plugin       = (*Plugin)(nil)
+	_ plugin.Describer    = (*Plugin)(nil)
+	_ plugin.MenuProvider = (*Plugin)(nil)
 )
 
 // New constructs the dns plugin.
@@ -71,6 +72,14 @@ func (p *Plugin) Describe() plugin.Info {
 // package and this becomes their sole migration owner.
 func (p *Plugin) Models() []any {
 	return []any{&Domain{}, &ProviderAccount{}}
+}
+
+// Menus announces this plugin's sidebar entry so /api/menus only offers it
+// when the plugin is mounted and enabled for the workspace.
+func (p *Plugin) Menus() []plugin.MenuItem {
+	return []plugin.MenuItem{
+		{ID: "domains", Label: "Domains", Path: "/domains", Icon: "🌐", Category: "Assets", Order: 10},
+	}
 }
 
 // Mount wires the plugin's dependencies from the shared context and registers

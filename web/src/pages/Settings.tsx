@@ -15,11 +15,6 @@ const NotificationChannels = lazy(() => import("./settings/webhooks").then((m) =
 const OrgMembersManager = lazy(() => import("./settings/members").then((m) => ({ default: m.OrgMembersManager })));
 const InstanceSettings = lazy(() => import("./settings/instance").then((m) => ({ default: m.InstanceSettings })));
 
-// Re-exported for other pages that embed a settings section.
-export { ProviderAccounts } from "./settings/providers";
-export { LinkSettings, MailSettings } from "./settings/linkMail";
-export { SMTPSenders } from "./settings/smtp";
-
 export default function SettingsPage() {
   return (
     <ScreenWrap>

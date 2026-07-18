@@ -6,6 +6,7 @@ import {
   uiAreas,
   uiMenus,
   uiPluginI18n,
+  uiPluginSharedI18n,
   uiPlugins,
   uiRoutes,
   uiWidgets,
@@ -169,6 +170,30 @@ describe("uiPluginI18n", () => {
     expect(uiPluginI18n()).toEqual({
       en: { licenses: { title: "Licenses" }, billing: { title: "Billing" } },
       zh: { licenses: { title: "许可证" }, billing: { title: "账单" } },
+    });
+  });
+
+  it("excludes _shared from the plugin namespace and deep-merges it via uiPluginSharedI18n, first registration winning", () => {
+    registerUIPlugin(
+      plugin("ai", {
+        i18n: {
+          en: { title: "AI", _shared: { settings: { pluginDesc: { ai: "AI things" } } } },
+          zh: { title: "AI", _shared: { settings: { pluginDesc: { ai: "AI 功能" } } } },
+        },
+      }),
+    );
+    registerUIPlugin(
+      plugin("infra", {
+        i18n: {
+          en: { _shared: { settings: { pluginDesc: { ai: "OVERRIDE", infra: "Servers" } }, nav: { vps: "Servers" } } },
+          zh: { _shared: { settings: { pluginDesc: { infra: "服务器" } }, nav: { vps: "服务器" } } },
+        },
+      }),
+    );
+    expect(uiPluginI18n().en.ai).toEqual({ title: "AI" });
+    expect(uiPluginSharedI18n()).toEqual({
+      en: { settings: { pluginDesc: { ai: "AI things", infra: "Servers" } }, nav: { vps: "Servers" } },
+      zh: { settings: { pluginDesc: { ai: "AI 功能", infra: "服务器" } }, nav: { vps: "服务器" } },
     });
   });
 });
