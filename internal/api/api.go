@@ -216,6 +216,7 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/instance-settings", Summary: "Update Instance Settings", Tags: []string{"Settings"}}, h.updateInstanceSettings)
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/webhooks", Summary: "List Webhooks", Tags: []string{"Webhooks"}}, h.listWebhooks)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/webhooks/events", Summary: "List Webhook Event Types", Tags: []string{"Webhooks"}}, h.listWebhookEvents)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/webhooks", Summary: "Create Webhook", Tags: []string{"Webhooks"}, DefaultStatus: 201}, h.createWebhook)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/webhooks/{id}", Summary: "Update Webhook", Tags: []string{"Webhooks"}}, h.updateWebhook)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/webhooks/{id}", Summary: "Delete Webhook", Tags: []string{"Webhooks"}}, h.deleteWebhook)

@@ -546,6 +546,7 @@ export const api = {
 
   // webhooks
   webhooks: () => req<Webhook[]>("GET", "/api/webhooks"),
+  webhookEvents: () => req<WebhookEventGroup[]>("GET", "/api/webhooks/events"),
   createWebhook: (d: Partial<Webhook>) => req<Webhook>("POST", "/api/webhooks", d),
   updateWebhook: (id: number, d: Partial<Webhook>) => req<Webhook>("PUT", `/api/webhooks/${id}`, d),
   deleteWebhook: (id: number) => req<void>("DELETE", `/api/webhooks/${id}`),
@@ -651,6 +652,18 @@ export interface Webhook {
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface WebhookEventDef {
+  key: string;
+  group: string;
+  title: string;
+  description: string;
+}
+
+export interface WebhookEventGroup {
+  group: string;
+  events: WebhookEventDef[];
 }
 
 export interface Customer {

@@ -279,6 +279,9 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 	if p.audit != nil {
 		p.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
 	}
+	if p.publishEvent != nil {
+		p.publishEvent(l.OrgID, "link.create", map[string]any{"id": l.ID, "slug": l.Slug, "host": l.Host, "target": l.Target})
+	}
 
 	if l.Title == "" && p.enqueue != nil {
 		payload, _ := json.Marshal(map[string]any{
@@ -450,6 +453,9 @@ func (p *Plugin) deleteLink(ctx context.Context, input *DeleteLinkInput) (*Delet
 	p.db.Where("link_id = ?", input.ID).Delete(&LinkEvent{})
 	if p.audit != nil {
 		p.audit(r, "link.delete", "link", input.ID, nil)
+	}
+	if p.publishEvent != nil {
+		p.publishEvent(l.OrgID, "link.delete", map[string]any{"id": l.ID, "slug": l.Slug, "host": l.Host, "target": l.Target})
 	}
 	return &DeleteLinkOutput{Body: map[string]bool{"ok": true}}, nil
 }

@@ -110,6 +110,17 @@ type EmailEvent struct {
 	ReceivedAt time.Time // when the MTA received it
 }
 
+// WebhookEventDef describes a webhook event a plugin can fire via
+// Context.PublishEvent, so the dashboard's webhook editor can offer it for
+// subscription. It mirrors the core registry's definition using only stable
+// types so plugins in a separate module never import octarq's internal packages.
+type WebhookEventDef struct {
+	Key         string // e.g. "link.click"
+	Group       string // display group, e.g. "Links"
+	Title       string // e.g. "Link Clicked"
+	Description string // when the event fires
+}
+
 // Context carries the shared dependencies a plugin needs to wire its routes.
 // It exposes only stable, external types so plugins in a separate module never
 // reach into octarq's internal packages.
@@ -213,6 +224,10 @@ type Context struct {
 	ParseUA func(ua string) (device, browser, os string)
 	// PublishEvent publishes an event to the org's webhooks.
 	PublishEvent func(orgID uint, event string, data any)
+	// RegisterWebhookEvent declares an event this plugin publishes via
+	// PublishEvent so the dashboard's webhook editor can offer it for
+	// subscription. Call it during Mount; duplicate keys are ignored.
+	RegisterWebhookEvent func(def WebhookEventDef)
 	// HandleRoot registers a handler on the core HTTP mux for the root path "/{slug}".
 	HandleRoot func(handler http.Handler)
 }

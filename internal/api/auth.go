@@ -2,12 +2,14 @@ package api
 
 import (
 	"context"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/google/uuid"
+	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/models"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -48,6 +50,7 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 	uid, orgID, ok := h.authenticate(input.Body.Username, input.Body.Password)
 	if !ok {
 		h.loginLimiter.recordFailure(ip)
+		h.publishLoginFailed(r, input.Body.Username, "invalid credentials")
 		return nil, huma.Error401Unauthorized("invalid credentials")
 	}
 
@@ -105,6 +108,7 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 	uid, orgID, ok := h.authenticate(input.Body.Username, input.Body.Password)
 	if !ok {
 		h.loginLimiter.recordFailure(ip)
+		h.publishLoginFailed(r, input.Body.Username, "invalid credentials")
 		return nil, huma.Error401Unauthorized("invalid credentials")
 	}
 
@@ -115,6 +119,7 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 	if user.TOTPEnabled {
 		if !h.verifyTOTPOrRecovery(&user, strings.TrimSpace(input.Body.Code)) {
 			h.loginLimiter.recordFailure(ip)
+			h.publishLoginFailed(r, input.Body.Username, "invalid 2FA code")
 			return nil, huma.Error401Unauthorized("invalid 2FA code")
 		}
 	}
@@ -478,10 +483,38 @@ func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*
 	}
 
 	h.audit(r, "user.activate", "user", user.ID, map[string]any{"email": user.Email})
+	// The invite is now redeemed: the account both joined its workspace(s) and
+	// set its password in this one step.
+	for _, oid := range h.memberOrgIDs(user.ID) {
+		eventbus.Publish(oid, "member.join", map[string]any{"userId": user.ID, "email": user.Email})
+		eventbus.Publish(oid, "auth.password_changed", map[string]any{"userId": user.ID, "email": user.Email})
+	}
 
 	out := &AcceptInviteOutput{}
 	out.Body.OK = true
 	return out, nil
+}
+
+// memberOrgIDs returns the IDs of every workspace the user belongs to, for
+// fan-out of account-level events (join, password change, failed login) that
+// have no single-org request context.
+func (h *Handler) memberOrgIDs(userID uint) []uint {
+	var orgIDs []uint
+	h.db.Model(&models.OrgMember{}).Where("user_id = ?", userID).Pluck("org_id", &orgIDs)
+	return orgIDs
+}
+
+// publishLoginFailed emits auth.login_failed to every workspace the target
+// account belongs to. Unknown usernames publish nowhere — there is no org to
+// notify, and firing on arbitrary strings would let probes spam webhooks.
+func (h *Handler) publishLoginFailed(r *http.Request, username, reason string) {
+	var user models.User
+	if h.db.Where("email = ?", strings.TrimSpace(username)).First(&user).Error != nil {
+		return
+	}
+	for _, oid := range h.memberOrgIDs(user.ID) {
+		eventbus.Publish(oid, "auth.login_failed", map[string]any{"email": user.Email, "reason": reason, "ip": reporterIP(r)})
+	}
 }
 
 type AuthConfigInput struct {

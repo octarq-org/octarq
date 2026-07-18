@@ -38,6 +38,8 @@ type Plugin struct {
 	encrypt func(plaintext []byte) (string, error)
 	decrypt func(encoded string) ([]byte, error)
 
+	publishEvent func(orgID uint, event string, data any)
+
 	// DNS resolvers, injectable so tests can stub them; default to net.
 	lookupTXT   func(string) ([]string, error)
 	lookupCNAME func(string) (string, error)
@@ -88,6 +90,13 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	}
 	if ctx.Decrypt != nil {
 		p.decrypt = ctx.Decrypt
+	}
+	if ctx.PublishEvent != nil {
+		p.publishEvent = ctx.PublishEvent
+	}
+	if ctx.RegisterWebhookEvent != nil {
+		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "domain.create", Group: "Domain", Title: "Domain Created", Description: "A domain was added to the workspace"})
+		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "domain.verify_failed", Group: "Domain", Title: "Domain Verification Failed", Description: "A domain's provider or DNS verification check failed"})
 	}
 
 	p.migrateLegacy()
