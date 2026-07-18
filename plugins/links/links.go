@@ -276,9 +276,11 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 	if err := p.db.Create(&l).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
 	}
-	p.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
+	if p.audit != nil {
+		p.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
+	}
 
-	if l.Title == "" {
+	if l.Title == "" && p.enqueue != nil {
 		payload, _ := json.Marshal(map[string]any{
 			"id":     l.ID,
 			"target": l.Target,
@@ -286,7 +288,9 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 		_ = p.enqueue(r.Context(), "link.crawl", payload)
 	}
 
-	_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+	if p.deleteCache != nil {
+		_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+	}
 	return &CreateLinkOutput{Body: view(l)}, nil
 }
 
@@ -358,6 +362,10 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
+	// Capture BEFORE mutation so cache invalidation targets the original key.
+	oldHost := l.Host
+	oldSlug := l.Slug
+
 	if input.Body.Slug != "" {
 		slug := strings.TrimSpace(input.Body.Slug)
 		if slug != l.Slug && p.isReservedSlug(slug) {
@@ -372,8 +380,6 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 		}
 		l.Target = normalized
 	}
-	oldHost := l.Host
-	oldSlug := l.Slug
 
 	l.Host = strings.TrimSpace(input.Body.Host)
 	l.Note = input.Body.Note
@@ -396,12 +402,16 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
 	}
 
-	_ = p.deleteCache(r.Context(), "link:redirect:"+oldHost+":"+oldSlug)
-	if oldHost != l.Host || oldSlug != l.Slug {
-		_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+	if p.deleteCache != nil {
+		_ = p.deleteCache(r.Context(), "link:redirect:"+oldHost+":"+oldSlug)
+		if oldHost != l.Host || oldSlug != l.Slug {
+			_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+		}
 	}
 
-	p.audit(r, "link.update", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
+	if p.audit != nil {
+		p.audit(r, "link.update", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
+	}
 	return &UpdateLinkOutput{Body: view(l)}, nil
 }
 
@@ -433,10 +443,14 @@ func (p *Plugin) deleteLink(ctx context.Context, input *DeleteLinkInput) (*Delet
 		return nil, huma.Error404NotFound("not found")
 	}
 	p.db.Delete(&l)
-	_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+	if p.deleteCache != nil {
+		_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+	}
 
 	p.db.Where("link_id = ?", input.ID).Delete(&LinkEvent{})
-	p.audit(r, "link.delete", "link", input.ID, nil)
+	if p.audit != nil {
+		p.audit(r, "link.delete", "link", input.ID, nil)
+	}
 	return &DeleteLinkOutput{Body: map[string]bool{"ok": true}}, nil
 }
 

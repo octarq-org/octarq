@@ -74,6 +74,9 @@ func (p *Plugin) createSMTPSender(ctx context.Context, input *CreateSMTPSenderIn
 		return nil, huma.Error400BadRequest("name, host, port, user and pass are required")
 	}
 
+	if p.encrypt == nil {
+		return nil, huma.Error500InternalServerError("encrypt unavailable")
+	}
 	encPass, err := p.encrypt([]byte(pass))
 	if err != nil {
 		return nil, huma.Error500InternalServerError("encrypt failed")
@@ -92,7 +95,9 @@ func (p *Plugin) createSMTPSender(ctx context.Context, input *CreateSMTPSenderIn
 	if err := p.db.Create(&sender).Error; err != nil {
 		return nil, huma.Error500InternalServerError("failed to save")
 	}
-	p.audit(r, "smtp.create", "smtp_sender", sender.ID, map[string]any{"name": sender.Name, "host": sender.Host})
+	if p.audit != nil {
+		p.audit(r, "smtp.create", "smtp_sender", sender.ID, map[string]any{"name": sender.Name, "host": sender.Host})
+	}
 	sender.PassSet = sender.Pass != ""
 	return &CreateSMTPSenderOutput{Body: sender}, nil
 }
@@ -150,6 +155,9 @@ func (p *Plugin) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderIn
 	}
 
 	if input.Body.Pass != nil && *input.Body.Pass != "" {
+		if p.encrypt == nil {
+			return nil, huma.Error500InternalServerError("encrypt unavailable")
+		}
 		enc, err := p.encrypt([]byte(*input.Body.Pass))
 		if err != nil {
 			return nil, huma.Error500InternalServerError("encrypt failed")
@@ -168,7 +176,9 @@ func (p *Plugin) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderIn
 	if input.Body.Pass != nil && *input.Body.Pass != "" {
 		meta["pass"] = "[REDACTED]"
 	}
-	p.audit(r, "smtp.update", "smtp_sender", sender.ID, meta)
+	if p.audit != nil {
+		p.audit(r, "smtp.update", "smtp_sender", sender.ID, meta)
+	}
 	sender.PassSet = sender.Pass != ""
 	return &UpdateSMTPSenderOutput{Body: sender}, nil
 }
@@ -199,6 +209,8 @@ func (p *Plugin) deleteSMTPSender(ctx context.Context, input *DeleteSMTPSenderIn
 	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&SMTPSender{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}
-	p.audit(r, "smtp.delete", "smtp_sender", input.ID, nil)
+	if p.audit != nil {
+		p.audit(r, "smtp.delete", "smtp_sender", input.ID, nil)
+	}
 	return &DeleteSMTPSenderOutput{Body: map[string]bool{"ok": true}}, nil
 }

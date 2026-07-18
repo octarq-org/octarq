@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -152,6 +153,7 @@ func New() (*App, error) {
 	// Opt webhook/notification delivery into private targets only when the operator
 	// has explicitly allowed it (trusted internal receivers); default stays strict.
 	safehttp.SetAllowPrivateWebhooks(cfg.AllowPrivateWebhooks)
+	linksplugin.SetTrustProxy(cfg.TrustProxy)
 
 	cipher := crypto.New(cfg.SecretKey)
 	// Webhook signing secrets are AES-GCM encrypted at rest; teach the eventbus how
@@ -294,6 +296,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 	apiHandler.SetPlugins(a.plugins)
 	throwaway := apiHandler.Routes()
 	services := plugin.NewRegistry()
+	var emailMu sync.Mutex
 	var deferredOnEmail []func(plugin.EmailEvent)
 	pctx := &plugin.Context{
 		Huma:    apiHandler.Huma(),
@@ -306,8 +309,18 @@ func (a *App) RunMCP(ctx context.Context) error {
 		Encrypt: a.cipher.Encrypt,
 		Decrypt: a.cipher.Decrypt,
 		OnEmail: func(handler func(plugin.EmailEvent)) {
-			// Store them until Start
+			if handler == nil {
+				return
+			}
+			if disp, ok := services.Lookup("mail.dispatcher"); ok {
+				if onEmailService, ok := disp.(func(func(plugin.EmailEvent))); ok {
+					onEmailService(handler)
+					return
+				}
+			}
+			emailMu.Lock()
 			deferredOnEmail = append(deferredOnEmail, handler)
+			emailMu.Unlock()
 		},
 		DNS:                 &lazyDNSManager{lookup: services.Lookup},
 		SendMail:            a.sendMail,
@@ -358,6 +371,17 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if err := services.Err(); err != nil {
 		return err
 	}
+	if disp, ok := services.Lookup("mail.dispatcher"); ok {
+		if onEmailService, ok := disp.(func(func(plugin.EmailEvent))); ok {
+			emailMu.Lock()
+			handlers := deferredOnEmail
+			deferredOnEmail = nil
+			emailMu.Unlock()
+			for _, handler := range handlers {
+				onEmailService(handler)
+			}
+		}
+	}
 
 	return mcp.RunWithPlugins(ctx, a.plugins)
 }
@@ -400,7 +424,8 @@ func (a *App) Run(ctx context.Context) error {
 	mux := apiHandler.Routes()
 	services := plugin.NewRegistry()
 	var rootHandler http.Handler
-	var deferredOnEmail []func(plugin.EmailEvent)
+	var runEmailMu sync.Mutex
+	var runDeferredOnEmail []func(plugin.EmailEvent)
 	pctx := &plugin.Context{
 		Huma:    apiHandler.Huma(),
 		DB:      a.gdb,
@@ -412,8 +437,18 @@ func (a *App) Run(ctx context.Context) error {
 		Encrypt: a.cipher.Encrypt,
 		Decrypt: a.cipher.Decrypt,
 		OnEmail: func(handler func(plugin.EmailEvent)) {
-			// Store them until Start
-			deferredOnEmail = append(deferredOnEmail, handler)
+			if handler == nil {
+				return
+			}
+			if disp, ok := services.Lookup("mail.dispatcher"); ok {
+				if onEmailService, ok := disp.(func(func(plugin.EmailEvent))); ok {
+					onEmailService(handler)
+					return
+				}
+			}
+			runEmailMu.Lock()
+			runDeferredOnEmail = append(runDeferredOnEmail, handler)
+			runEmailMu.Unlock()
 		},
 		DNS:                 &lazyDNSManager{lookup: services.Lookup},
 		SendMail:            a.sendMail,
@@ -475,9 +510,14 @@ func (a *App) Run(ctx context.Context) error {
 	// is the ordering guarantee that makes Start-time Lookup of another
 	// plugin's services safe regardless of registration order.
 	if disp, ok := services.Lookup("mail.dispatcher"); ok {
-		onEmailService := disp.(func(func(plugin.EmailEvent)))
-		for _, handler := range deferredOnEmail {
-			onEmailService(handler)
+		if onEmailService, ok := disp.(func(func(plugin.EmailEvent))); ok {
+			runEmailMu.Lock()
+			handlers := runDeferredOnEmail
+			runDeferredOnEmail = nil
+			runEmailMu.Unlock()
+			for _, handler := range handlers {
+				onEmailService(handler)
+			}
 		}
 	}
 

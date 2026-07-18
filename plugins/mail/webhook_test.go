@@ -56,3 +56,17 @@ func TestOnEmailNilIgnored(t *testing.T) {
 	p.OnEmail(nil)
 	p.emitEmail(plugin.EmailEvent{ID: 1}) // must not panic
 }
+
+func TestMailDispatcherProvided(t *testing.T) {
+	p := New()
+	reg := plugin.NewRegistry()
+	p.Mount(nil, &plugin.Context{
+		Provide: reg.Provide,
+		Lookup:  reg.Lookup,
+	})
+
+	svc, ok := reg.Lookup("mail.dispatcher")
+	if !ok || svc == nil {
+		t.Fatal("mail.dispatcher service was not provided during Mount")
+	}
+}

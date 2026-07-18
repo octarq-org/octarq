@@ -39,7 +39,7 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 	cacheKey := "link:redirect:" + host + ":" + slug
 
 	// Try reading from cache first
-	if e.ctx.CacheGet(ctx, cacheKey, &link) {
+	if e.ctx != nil && e.ctx.CacheGet != nil && e.ctx.CacheGet(ctx, cacheKey, &link) {
 		if link.ID == 0 {
 			// Cached negative result
 			return nil, false
@@ -53,12 +53,16 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 	if err != nil {
 		// Cache negative result (1 minute TTL) to prevent DB hammering for invalid links
 		var empty Link
-		_ = e.ctx.CacheSet(ctx, cacheKey, &empty, time.Minute)
+		if e.ctx != nil && e.ctx.CacheSet != nil {
+			_ = e.ctx.CacheSet(ctx, cacheKey, &empty, time.Minute)
+		}
 		return nil, false
 	}
 	if !link.Enabled || link.Archived {
 		var empty Link
-		_ = e.ctx.CacheSet(ctx, cacheKey, &empty, time.Minute)
+		if e.ctx != nil && e.ctx.CacheSet != nil {
+			_ = e.ctx.CacheSet(ctx, cacheKey, &empty, time.Minute)
+		}
 		return nil, false
 	}
 	// A host-scoped link does not resolve if its host is a temporarily disabled
@@ -68,7 +72,9 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 	}
 
 	// Cache successful result (1 hour TTL)
-	_ = e.ctx.CacheSet(ctx, cacheKey, &link, time.Hour)
+	if e.ctx != nil && e.ctx.CacheSet != nil {
+		_ = e.ctx.CacheSet(ctx, cacheKey, &link, time.Hour)
+	}
 	return &link, true
 }
 
@@ -122,8 +128,14 @@ func (e *Engine) Handle(w http.ResponseWriter, r *http.Request, link *Link) {
 
 	ip := clientIP(r)
 	ua := r.UserAgent()
-	country, region, city := e.ctx.GeoLookup(ip)
-	device, browser, osStr := e.ctx.ParseUA(ua)
+	var country, region, city string
+	if e.ctx != nil && e.ctx.GeoLookup != nil {
+		country, region, city = e.ctx.GeoLookup(ip)
+	}
+	var device, browser, osStr string
+	if e.ctx != nil && e.ctx.ParseUA != nil {
+		device, browser, osStr = e.ctx.ParseUA(ua)
+	}
 	bot := isBot(ua)
 
 	target := link.Target
@@ -220,20 +232,22 @@ func (e *Engine) record(r *http.Request, orgID uint, slug string, linkID uint, i
 				UpdateColumn("clicks", gorm.Expr("clicks + 1"))
 		}
 		// Trigger Webhook Event Bus
-		e.ctx.PublishEvent(orgID, "link.click", map[string]any{
-			"linkId":    linkID,
-			"slug":      slug,
-			"ip":        anonIP,
-			"country":   country,
-			"region":    region,
-			"city":      city,
-			"device":    device,
-			"browser":   browser,
-			"os":        osStr,
-			"referer":   referer,
-			"isBot":     bot,
-			"timestamp": ev.CreatedAt,
-		})
+		if e.ctx != nil && e.ctx.PublishEvent != nil {
+			e.ctx.PublishEvent(orgID, "link.click", map[string]any{
+				"linkId":    linkID,
+				"slug":      slug,
+				"ip":        anonIP,
+				"country":   country,
+				"region":    region,
+				"city":      city,
+				"device":    device,
+				"browser":   browser,
+				"os":        osStr,
+				"referer":   referer,
+				"isBot":     bot,
+				"timestamp": ev.CreatedAt,
+			})
+		}
 	}()
 }
 

@@ -92,7 +92,9 @@ func (p *Plugin) createMailbox(ctx context.Context, input *CreateMailboxInput) (
 	if err := p.db.Create(&mb).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "mailbox already exists")
 	}
-	p.audit(r, "mailbox.create", "mailbox", mb.ID, map[string]any{"address": mb.Address})
+	if p.audit != nil {
+		p.audit(r, "mailbox.create", "mailbox", mb.ID, map[string]any{"address": mb.Address})
+	}
 	return &CreateMailboxOutput{Body: mb}, nil
 }
 
@@ -132,7 +134,9 @@ func (p *Plugin) updateMailbox(ctx context.Context, input *UpdateMailboxInput) (
 		"note":    mb.Note,
 		"enabled": mb.Enabled,
 	}
-	p.audit(r, "mailbox.update", "mailbox", mb.ID, meta)
+	if p.audit != nil {
+		p.audit(r, "mailbox.update", "mailbox", mb.ID, meta)
+	}
 	return &UpdateMailboxOutput{Body: mb}, nil
 }
 
@@ -163,7 +167,9 @@ func (p *Plugin) deleteMailbox(ctx context.Context, input *DeleteMailboxInput) (
 		return nil, huma.Error404NotFound("not found")
 	}
 	p.db.Where("mailbox_id = ?", input.ID).Delete(&Email{})
-	p.audit(r, "mailbox.delete", "mailbox", input.ID, nil)
+	if p.audit != nil {
+		p.audit(r, "mailbox.delete", "mailbox", input.ID, nil)
+	}
 	return &DeleteMailboxOutput{Body: map[string]bool{"ok": true}}, nil
 }
 
@@ -432,6 +438,9 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 	var s SMTPSender
 	if err := p.db.Where("id = ? AND owner_id = ?", input.Body.SMTPSenderID, p.orgID(r)).First(&s).Error; err != nil {
 		return nil, huma.Error400BadRequest("invalid smtp sender id")
+	}
+	if p.decrypt == nil {
+		return nil, huma.Error500InternalServerError("decrypt unavailable")
 	}
 	pass, err := p.decrypt(s.Pass)
 	if err != nil {

@@ -25,14 +25,6 @@ import (
 	"github.com/octarq-org/octarq/plugin"
 )
 
-// --- mailboxes ---
-
-// --- emails ---
-
-// readAllEmails marks every email read, optionally scoped to one mailbox.
-
-// rawEmail streams the original RFC822 message as a downloadable .eml file.
-
 // --- inbound webhook (Cloudflare Email Routing -> Worker -> here) ---
 //
 // The Worker POSTs the raw RFC822 message body with header X-Octarq-Token.
@@ -73,12 +65,15 @@ func (p *Plugin) inbound(ctx context.Context, input *InboundInput) (*InboundOutp
 	if err != nil {
 		return nil, huma.Error400BadRequest("read body")
 	}
-	parsed, _ := mail.Parse(raw)
+	parsed, parseErr := mail.Parse(raw)
+	if parseErr != nil {
+		log.Printf("inbound: mail parse failed: %v", parseErr)
+	}
 
 	// The Worker may pass the intended recipient explicitly (more reliable than
 	// the To header after routing).
 	to := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Octarq-To")))
-	if to == "" {
+	if to == "" && parsed != nil {
 		to = strings.ToLower(parsed.To)
 	}
 
@@ -102,7 +97,10 @@ func (p *Plugin) inbound(ctx context.Context, input *InboundInput) (*InboundOutp
 		Attachments: att, ReceivedAt: parsed.ReceivedAt,
 		AuthSPF: parsed.Auth.SPF, AuthDKIM: parsed.Auth.DKIM, AuthDMARC: parsed.Auth.DMARC,
 	}
-	p.db.Create(&e)
+	if err := p.db.Create(&e).Error; err != nil {
+		log.Printf("inbound: failed to store email: %v", err)
+		return nil, huma.Error500InternalServerError("failed to store email")
+	}
 
 	// Trigger Webhook Event Bus
 	eventbus.Publish(mb.OrgID, "email.receive", map[string]any{
@@ -140,7 +138,9 @@ func (p *Plugin) inbound(ctx context.Context, input *InboundInput) (*InboundOutp
 			for _, ch := range channels {
 				var cfg map[string]any
 				json.Unmarshal([]byte(ch.Config), &cfg)
-				_ = p.notify(ctxCtx, ch.Type, cfg, text)
+				if p.notify != nil {
+					_ = p.notify(ctxCtx, ch.Type, cfg, text)
+				}
 			}
 		}()
 	}
@@ -345,7 +345,9 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 				for _, ch := range chans {
 					var cfg map[string]any
 					json.Unmarshal([]byte(ch.Config), &cfg)
-					_ = p.notify(ctxCtx, ch.Type, cfg, txt)
+					if p.notify != nil {
+						_ = p.notify(ctxCtx, ch.Type, cfg, txt)
+					}
 				}
 			}(channels, alertText)
 		}
@@ -355,10 +357,6 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 		Body: map[string]any{"ok": true, "processed": processedCount},
 	}, nil
 }
-
-// isAWSSNSURL reports whether u is a legitimate AWS SNS confirmation URL: https
-// to an sns.<region>.amazonaws.com host. This blocks the SubscribeURL (which is
-// attacker-influenced) from pointing the server at arbitrary/internal hosts.
 
 func reporterIP(r *http.Request) string {
 	if ip := r.Header.Get("X-Forwarded-For"); ip != "" {
