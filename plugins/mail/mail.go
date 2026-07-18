@@ -15,8 +15,6 @@ import (
 	"github.com/octarq-org/octarq/internal/models"
 )
 
-// --- mailboxes ---
-
 type ListMailboxesInput struct {
 	Ctx huma.Context `hidden:"true"`
 }
@@ -166,8 +164,6 @@ func (p *Plugin) deleteMailbox(ctx context.Context, input *DeleteMailboxInput) (
 	p.audit(r, "mailbox.delete", "mailbox", input.ID, nil)
 	return &DeleteMailboxOutput{Body: map[string]bool{"ok": true}}, nil
 }
-
-// --- emails ---
 
 type ListEmailsInput struct {
 	Ctx     huma.Context `hidden:"true"`
@@ -521,7 +517,7 @@ func (p *Plugin) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 			// Generate a unique slug
 			var slug string
 			for i := 0; i < 5; i++ {
-				slug = randomSlug(6)
+				slug = models.RandomSlug(6)
 				if !p.isReservedSlug(slug) {
 					var count int64
 					p.db.Model(&models.Link{}).Where("slug = ?", slug).Count(&count)

@@ -250,16 +250,6 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/webhooks/{id}", Summary: "Update Webhook", Tags: []string{"Webhooks"}}, h.updateWebhook)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/webhooks/{id}", Summary: "Delete Webhook", Tags: []string{"Webhooks"}}, h.deleteWebhook)
 
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links", Summary: "List Links", Tags: []string{"Links"}}, h.listLinks)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/export.csv", Summary: "Export Links CSV", Tags: []string{"Links"}}, h.exportLinksCSV)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/metadata", Summary: "Link Metadata", Tags: []string{"Links"}}, h.linkMetadata)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/links", Summary: "Create Link", Tags: []string{"Links"}, DefaultStatus: 201}, h.createLink)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}", Summary: "Get Link", Tags: []string{"Links"}}, h.getLink)
-	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/links/{id}", Summary: "Update Link", Tags: []string{"Links"}}, h.updateLink)
-	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/links/{id}", Summary: "Delete Link", Tags: []string{"Links"}}, h.deleteLink)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}/stats", Summary: "Link Stats", Tags: []string{"Links"}}, h.linkStats)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}/qr", Summary: "Link QR Code", Tags: []string{"Links"}}, h.linkQR)
-
 	// DNS providers, provider-accounts, domains, and DNS records are served by the
 	// built-in dns Core plugin (plugins/dns), mounted by the app. See
 	// docs/CORE-PLUGIN-EXTRACTION.md.

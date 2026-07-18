@@ -17,7 +17,7 @@ func TestWrapLinksInEmail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(models.AllModels()...); err != nil {
+	if err := db.AutoMigrate(append(models.AllModels(), &models.Link{}, &models.LinkEvent{})...); err != nil {
 		t.Fatal(err)
 	}
 
@@ -89,7 +89,7 @@ func TestWrapLinksAvoidDoubleWrapAndInternal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	db.AutoMigrate(models.AllModels()...)
+	db.AutoMigrate(append(models.AllModels(), &models.Link{}, &models.LinkEvent{})...)
 
 	p := New()
 	p.db = db

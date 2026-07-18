@@ -1,7 +1,6 @@
 package mail
 
 import (
-	"crypto/rand"
 	"errors"
 	"net/http"
 	"strings"
@@ -24,7 +23,7 @@ type Plugin struct {
 	decrypt             func(encoded string) ([]byte, error)
 	getWorkspaceSetting func(orgID uint, key string) string
 	getGlobalSetting    func(key string) string
-	sendLimiter *rateLimiter
+	sendLimiter         *rateLimiter
 }
 
 // Compile-time capability checks.
@@ -36,7 +35,6 @@ var (
 // New constructs the mail plugin.
 func New() *Plugin {
 	return &Plugin{
-		// Note: RedisURL omitted in extraction. Outbound rate-limiting is per-instance instead of global. (Phase 2 context concern)
 		sendLimiter: newRateLimiter("", "send", 100, time.Hour),
 	}
 }
@@ -114,15 +112,4 @@ func (p *Plugin) isReservedSlug(slug string) bool {
 		}
 	}
 	return false
-}
-
-var slugAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-func randomSlug(n int) string {
-	b := make([]byte, n)
-	rand.Read(b)
-	for i := range b {
-		b[i] = slugAlphabet[int(b[i])%len(slugAlphabet)]
-	}
-	return string(b)
 }

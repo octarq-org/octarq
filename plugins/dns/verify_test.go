@@ -21,7 +21,7 @@ func openMemDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("failed to open sqlite: %v", err)
 	}
-	db.AutoMigrate(models.AllModels()...)
+	db.AutoMigrate(append(models.AllModels(), &models.Link{}, &models.LinkEvent{})...)
 	return db
 }
 

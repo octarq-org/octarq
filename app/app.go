@@ -46,6 +46,7 @@ import (
 	"github.com/octarq-org/octarq/internal/shortlink"
 	"github.com/octarq-org/octarq/plugin"
 	"github.com/octarq-org/octarq/plugins/dns"
+	linksplugin "github.com/octarq-org/octarq/plugins/links"
 	mailplugin "github.com/octarq-org/octarq/plugins/mail"
 	"github.com/octarq-org/octarq/webembed"
 	"gorm.io/gorm"
@@ -186,6 +187,7 @@ func New() (*App, error) {
 	// any Core plugin, so every binary — open-core and Pro — gets them.
 	a.Use(dns.New())
 	a.Use(mailplugin.New())
+	a.Use(linksplugin.New())
 	return a, nil
 }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/octarq-org/octarq/internal/queue"
 	"github.com/octarq-org/octarq/plugin"
 	"github.com/octarq-org/octarq/plugins/dns"
+	"github.com/octarq-org/octarq/plugins/links"
 	"github.com/octarq-org/octarq/plugins/mail"
 	"gorm.io/gorm"
 )
@@ -37,6 +38,24 @@ func mountCoreDNS(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypto
 		Provide: reg.Provide,
 		Lookup:  reg.Lookup,
 	})
+}
+
+func mountCoreLinks(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypto.Cipher) {
+	pctx := &plugin.Context{
+		Huma:                h.Huma(),
+		DB:                  db,
+		Guard:               authMgr.Require,
+		UserID:              authMgr.UserID,
+		OrgID:               authMgr.OrgID,
+		Audit:               h.Audit,
+		Encrypt:             cipher.Encrypt,
+		Decrypt:             cipher.Decrypt,
+		GetGlobalSetting:    h.GetGlobalSetting,
+		GetWorkspaceSetting: h.GetWorkspaceSetting,
+		Enqueue:             h.queue.Enqueue,
+		DeleteCache:         authMgr.Cache().Delete,
+	}
+	links.New().Mount(nil, pctx)
 }
 
 func mountCoreMail(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypto.Cipher) {
@@ -80,6 +99,7 @@ func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	srv := h.Routes()
 	mountCoreDNS(h, db, authMgr, cipher)
 	mountCoreMail(h, db, authMgr, cipher)
+	mountCoreLinks(h, db, authMgr, cipher)
 	return srv, db
 }
 
