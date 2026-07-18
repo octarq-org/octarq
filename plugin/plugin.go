@@ -196,6 +196,8 @@ type Context struct {
 	GeoLookup func(ip string) (country, region, city string)
 	// ParseUA parses a User-Agent string to device, browser, os.
 	ParseUA func(ua string) (device, browser, os string)
+	// PublishEvent publishes an event to the org's webhooks.
+	PublishEvent func(orgID uint, event string, data any)
 	// HandleRoot registers a handler on the core HTTP mux for the root path "/{slug}".
 	HandleRoot func(handler http.Handler)
 }

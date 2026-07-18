@@ -1,19 +1,19 @@
-package shortlink
+package links
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugin"
+
 	dns "github.com/octarq-org/octarq/plugins/dns"
-	links "github.com/octarq-org/octarq/plugins/links"
-	mailmodels "github.com/octarq-org/octarq/plugins/mail"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/internal/geo"
-	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
 
@@ -90,26 +90,37 @@ func TestClientIPIgnoresProxyHeadersWhenUntrusted(t *testing.T) {
 	}
 }
 
-func newTestService(t *testing.T) *Service {
+func mockCtx() *plugin.Context {
+	return &plugin.Context{
+		CacheGet:     func(ctx context.Context, key string, val any) bool { return false },
+		CacheSet:     func(ctx context.Context, key string, val any, ttl time.Duration) error { return nil },
+		DeleteCache:  func(ctx context.Context, key string) error { return nil },
+		GeoLookup:    func(ip string) (string, string, string) { return "", "", "" },
+		ParseUA:      func(ua string) (string, string, string) { return "", "", "" },
+		PublishEvent: func(orgID uint, event string, data any) {},
+	}
+}
+
+func newTestEngine(t *testing.T) *Engine {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mailmodels.Mailbox{}, &mailmodels.Email{}, &mailmodels.SMTPSender{})...); err != nil {
+	if err := db.AutoMigrate(append(models.AllModels(), &Link{}, &LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{})...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	// Clear any rows left by a prior test sharing the in-memory cache.
-	db.Where("1 = 1").Delete(&links.Link{})
-	g, _ := geo.Open("")
-	return New(db, g)
+	db.Where("1 = 1").Delete(&Link{})
+
+	return NewEngine(db, mockCtx())
 }
 
 func TestLookupHostPreference(t *testing.T) {
-	s := newTestService(t)
+	s := newTestEngine(t)
 	// A host-agnostic link and a host-specific link share the same slug.
-	s.db.Create(&links.Link{Slug: "x", Host: "", Target: "https://any", Enabled: true})
-	s.db.Create(&links.Link{Slug: "x", Host: "go.example.com", Target: "https://exact", Enabled: true})
+	s.db.Create(&Link{Slug: "x", Host: "", Target: "https://any", Enabled: true})
+	s.db.Create(&Link{Slug: "x", Host: "go.example.com", Target: "https://exact", Enabled: true})
 
 	link, ok := s.Lookup("go.example.com:8080", "x")
 	if !ok {
@@ -127,10 +138,10 @@ func TestLookupHostPreference(t *testing.T) {
 }
 
 func TestLookupDisabledAndExpired(t *testing.T) {
-	s := newTestService(t)
+	s := newTestEngine(t)
 	// Create then update: GORM substitutes the column default:true for a
 	// zero-value bool at insert time, so force Enabled=false explicitly.
-	off := links.Link{Slug: "off", Target: "https://x", Enabled: true}
+	off := Link{Slug: "off", Target: "https://x", Enabled: true}
 	s.db.Create(&off)
 	s.db.Model(&off).Update("enabled", false)
 
@@ -145,11 +156,11 @@ func TestLookupDisabledAndExpired(t *testing.T) {
 // Expiry/click-limit are enforced in Handle (so ExpiredURL can be honored),
 // not in Lookup.
 func TestHandleExpiryAndClickLimit(t *testing.T) {
-	s := newTestService(t)
+	s := newTestEngine(t)
 	past := time.Now().Add(-time.Hour)
 
 	// Expired with no ExpiredURL -> 404.
-	old := &links.Link{Slug: "old", Target: "https://x", Enabled: true, ExpiresAt: &past}
+	old := &Link{Slug: "old", Target: "https://x", Enabled: true, ExpiresAt: &past}
 	s.db.Create(old)
 	l, ok := s.Lookup("h", "old")
 	if !ok {
@@ -162,7 +173,7 @@ func TestHandleExpiryAndClickLimit(t *testing.T) {
 	}
 
 	// Expired with ExpiredURL -> 302 to that URL.
-	s.db.Create(&links.Link{Slug: "exp", Target: "https://x", Enabled: true, ExpiresAt: &past, ExpiredURL: "https://fallback.example"})
+	s.db.Create(&Link{Slug: "exp", Target: "https://x", Enabled: true, ExpiresAt: &past, ExpiredURL: "https://fallback.example"})
 	l2, _ := s.Lookup("h", "exp")
 	rec2 := httptest.NewRecorder()
 	s.Handle(rec2, httptest.NewRequest("GET", "/exp", nil), l2)
@@ -171,7 +182,7 @@ func TestHandleExpiryAndClickLimit(t *testing.T) {
 	}
 
 	// Over click limit -> 404.
-	s.db.Create(&links.Link{Slug: "cap", Target: "https://x", Enabled: true, ClickLimit: 5, Clicks: 5})
+	s.db.Create(&Link{Slug: "cap", Target: "https://x", Enabled: true, ClickLimit: 5, Clicks: 5})
 	l3, _ := s.Lookup("h", "cap")
 	rec3 := httptest.NewRecorder()
 	s.Handle(rec3, httptest.NewRequest("GET", "/cap", nil), l3)
@@ -181,7 +192,7 @@ func TestHandleExpiryAndClickLimit(t *testing.T) {
 }
 
 func TestLookupLinkHostDisabled(t *testing.T) {
-	s := newTestService(t)
+	s := newTestEngine(t)
 
 	d := dns.Domain{
 		Name:    "example.com",
@@ -207,9 +218,9 @@ func TestLookupLinkHostDisabled(t *testing.T) {
 }
 
 func TestHandlePasswordGate(t *testing.T) {
-	s := newTestService(t)
+	s := newTestEngine(t)
 
-	link := &links.Link{
+	link := &Link{
 		Slug:     "pwlink",
 		Target:   "https://target",
 		Enabled:  true,
@@ -243,13 +254,13 @@ func TestHandlePasswordGate(t *testing.T) {
 }
 
 func TestHandleRoutingRules(t *testing.T) {
-	s := newTestService(t)
+	s := newTestEngine(t)
 
-	link := &links.Link{
+	link := &Link{
 		Slug:    "route",
 		Target:  "https://default",
 		Enabled: true,
-		RoutingRules: []links.RoutingRule{
+		RoutingRules: []RoutingRule{
 			{
 				Type:   "geo",
 				Match:  "CN",

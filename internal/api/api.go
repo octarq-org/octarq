@@ -52,9 +52,7 @@ type Handler struct {
 	// registered by plugins via OnEmail and fired by emitEmail. Guarded by
 	// emailMu because registration happens during plugin Mount (startup) while
 	// dispatch happens on the inbound webhook path.
-	emailMu       sync.RWMutex
-	emailHandlers []func(plugin.EmailEvent)
-	humaAPI       huma.API
+	humaAPI huma.API
 }
 
 func (h *Handler) SetPlugins(plugins []plugin.Plugin) {
@@ -63,29 +61,6 @@ func (h *Handler) SetPlugins(plugins []plugin.Plugin) {
 
 func (h *Handler) Huma() huma.API {
 	return h.humaAPI
-}
-
-// OnEmail registers a handler invoked asynchronously after each inbound email is
-// stored. It backs plugin.Context.OnEmail. Safe to call concurrently.
-func (h *Handler) OnEmail(handler func(plugin.EmailEvent)) {
-	if handler == nil {
-		return
-	}
-	h.emailMu.Lock()
-	h.emailHandlers = append(h.emailHandlers, handler)
-	h.emailMu.Unlock()
-}
-
-// emitEmail dispatches an inbound-email event to every registered handler, each
-// in its own goroutine so a slow handler (e.g. an LLM call) never blocks the
-// webhook response or the other handlers.
-func (h *Handler) emitEmail(e plugin.EmailEvent) {
-	h.emailMu.RLock()
-	handlers := h.emailHandlers
-	h.emailMu.RUnlock()
-	for _, fn := range handlers {
-		go fn(e)
-	}
 }
 
 func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *geo.Resolver, q queue.Queue) *Handler {
@@ -231,8 +206,6 @@ func (h *Handler) Routes() *http.ServeMux {
 		mux.HandleFunc("GET /auth/callback/{provider}", h.oauth.Callback)
 	}
 
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/webhook/{orgSlug}/email/inbound/{token}", Summary: "Inbound Email", Tags: []string{"Webhook"}}, h.inbound)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/webhook/{orgSlug}/email/bounce/{token}", Summary: "Email Bounce Webhook", Tags: []string{"Webhook"}}, h.emailBounceWebhook)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/abuse", Summary: "Submit Abuse", Tags: []string{"Public"}, DefaultStatus: 201}, h.submitAbuse)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/health", Summary: "Health Check", Tags: []string{"Public"}}, h.health)
 

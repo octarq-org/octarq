@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	links "github.com/octarq-org/octarq/plugins/links"
-
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/glebarez/sqlite"
@@ -23,7 +21,7 @@ func openMemDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("failed to open sqlite: %v", err)
 	}
-	db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &Domain{})...)
+	db.AutoMigrate(append(models.AllModels(), &Domain{})...)
 	return db
 }
 

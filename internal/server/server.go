@@ -15,14 +15,13 @@ import (
 	"strings"
 
 	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/shortlink"
 )
 
 // Server is the top-level HTTP handler.
 type Server struct {
 	cfg          *config.Config
 	api          http.Handler
-	short        *shortlink.Service
+	rootFallback http.Handler
 	static       http.Handler
 	spaIdx       []byte
 	assets       fs.FS
@@ -35,20 +34,20 @@ type Server struct {
 // New builds the combined handler. webFS is the embedded dist directory.
 // rs supplies the DB-backed runtime settings for the edge middleware (rate
 // limits, metrics token); zero value = built-in defaults.
-func New(cfg *config.Config, apiHandler http.Handler, short *shortlink.Service, webFS fs.FS, rs RuntimeSettings) (*Server, error) {
+func New(cfg *config.Config, apiHandler http.Handler, rootFallback http.Handler, webFS fs.FS, rs RuntimeSettings) (*Server, error) {
 	idx, err := fs.ReadFile(webFS, "index.html")
 	if err != nil {
 		return nil, err
 	}
 	trustProxy = cfg.TrustProxy
 	s := &Server{
-		cfg:    cfg,
-		api:    apiHandler,
-		short:  short,
-		static: http.StripPrefix("/admin/", http.FileServer(http.FS(webFS))),
-		spaIdx: idx,
-		assets: webFS,
-		mw:     newMiddleware(rs),
+		cfg:          cfg,
+		api:          apiHandler,
+		rootFallback: rootFallback,
+		static:       http.StripPrefix("/admin/", http.FileServer(http.FS(webFS))),
+		spaIdx:       idx,
+		assets:       webFS,
+		mw:           newMiddleware(rs),
 	}
 
 	pSub, err := fs.Sub(webFS, "portal")
@@ -119,15 +118,10 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 4. Everything else in the root namespace is a short link.
-	if r.Method == http.MethodGet {
-		slug := strings.TrimPrefix(path, "/")
-		if slug != "" && !strings.Contains(slug, "/") {
-			if link, ok := s.short.Lookup(r.Host, slug); ok {
-				s.short.Handle(w, r, link)
-				return
-			}
-		}
+	// 4. Everything else in the root namespace is handled by the rootFallback handler (if any).
+	if s.rootFallback != nil {
+		s.rootFallback.ServeHTTP(w, r)
+		return
 	}
 	http.NotFound(w, r)
 }

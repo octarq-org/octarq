@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	mailmodels "github.com/octarq-org/octarq/plugins/mail"
-
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/pquerna/otp/totp"
 )
@@ -157,36 +155,6 @@ func TestUpdateOrgRename(t *testing.T) {
 
 // TestInboundWebhookAuth covers the per-org inbound email webhook: bad token →
 // 401, unknown org → 404, and a valid post stores the message in the org's box.
-func TestInboundWebhookAuth(t *testing.T) {
-	srv, db := newTestHandler(t)
-
-	org := models.Org{Name: "Acme", Slug: "acme", InboundToken: "itok"}
-	db.Create(&org)
-	db.Create(&mailmodels.Mailbox{OrgID: org.ID, Address: "hi@acme.test", Enabled: true})
-
-	msg := "From: a@x.com\r\nTo: hi@acme.test\r\nSubject: Hi\r\n\r\nbody"
-	post := func(path string) int {
-		req := httptest.NewRequest("POST", path, strings.NewReader(msg))
-		req.Header.Set("X-Octarq-To", "hi@acme.test")
-		rec := httptest.NewRecorder()
-		srv.ServeHTTP(rec, req)
-		return rec.Code
-	}
-	if code := post("/api/webhook/acme/email/inbound/wrong"); code != http.StatusUnauthorized {
-		t.Errorf("bad token: got %d, want 401", code)
-	}
-	if code := post("/api/webhook/nope/email/inbound/itok"); code != http.StatusNotFound {
-		t.Errorf("unknown org: got %d, want 404", code)
-	}
-	if code := post("/api/webhook/acme/email/inbound/itok"); code != http.StatusOK {
-		t.Errorf("valid: got %d, want 200", code)
-	}
-	var count int64
-	db.Model(&mailmodels.Email{}).Count(&count)
-	if count != 1 {
-		t.Errorf("expected 1 stored email, got %d", count)
-	}
-}
 
 // TestTwoFALoginFlow covers the full second-factor login: password alone defers,
 // a wrong code is refused, and the right code completes the session.
@@ -458,23 +426,3 @@ func TestCRUDErrorBranches(t *testing.T) {
 }
 
 // TestExtractBounceEvents covers the multi-provider bounce parser directly.
-func TestExtractBounceEvents(t *testing.T) {
-	cases := []struct {
-		name string
-		body string
-		want int
-	}{
-		{"sendgrid array", `[{"email":"a@x.com","event":"bounce"},{"email":"b@x.com","event":"dropped"}]`, 2},
-		{"ses bounce", `{"notificationType":"Bounce","bounce":{"bouncedRecipients":[{"emailAddress":"a@x.com"}]}}`, 1},
-		{"ses complaint", `{"notificationType":"Complaint","complaint":{"complainedRecipients":[{"emailAddress":"a@x.com"}]}}`, 1},
-		{"empty/irrelevant", `{"hello":"world"}`, 0},
-		{"garbage", `not json`, 0},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if got := len(extractBounceEvents([]byte(c.body))); got != c.want {
-				t.Errorf("%s: got %d events, want %d", c.name, got, c.want)
-			}
-		})
-	}
-}

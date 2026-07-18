@@ -1,9 +1,11 @@
 package mail
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -23,6 +25,9 @@ type Plugin struct {
 	getWorkspaceSetting func(orgID uint, key string) string
 	getGlobalSetting    func(key string) string
 	sendLimiter         *rateLimiter
+	emailMu             sync.RWMutex
+	emailHandlers       []func(plugin.EmailEvent)
+	notify              func(ctx context.Context, kind string, config map[string]any, message string) error
 }
 
 // Compile-time capability checks.
