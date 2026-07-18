@@ -2,12 +2,14 @@ package api
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -20,10 +22,26 @@ func (h *Handler) PluginEnabled(orgID uint, featureKey string) bool {
 		return false
 	}
 	var ps models.PluginSetting
-	if err := h.db.Where("org_id = ? AND plugin = ?", orgID, featureKey).First(&ps).Error; err != nil {
+	err := h.db.Where("org_id = ? AND plugin = ?", orgID, featureKey).First(&ps).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		// Never toggled: fall back to the feature's declared default.
+		return h.featureDefaultEnabled(featureKey)
+	}
+	if err != nil {
 		return false
 	}
 	return ps.Enabled
+}
+
+// featureDefaultEnabled returns the pre-toggle default (Info.EnabledByDefault)
+// for the feature identified by key, or false if no such plugin is registered.
+func (h *Handler) featureDefaultEnabled(featureKey string) bool {
+	for _, p := range h.plugins {
+		if plugin.FeatureKey(p) == featureKey {
+			return plugin.Describe(p).EnabledByDefault
+		}
+	}
+	return false
 }
 
 // pluginActive reports whether a plugin's routes/menus should be live for the
@@ -100,7 +118,12 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 		key := plugin.FeatureKey(p)
 		f := byKey[key]
 		if f == nil {
-			f = &featureOut{Key: key, Title: info.Title, Enabled: enabled[key], Menus: []pluginMenuOut{}}
+			// Effective state: an explicit row wins; otherwise the declared default.
+			isOn, toggled := enabled[key]
+			if !toggled {
+				isOn = info.EnabledByDefault
+			}
+			f = &featureOut{Key: key, Title: info.Title, Enabled: isOn, Menus: []pluginMenuOut{}}
 			byKey[key] = f
 			order = append(order, key)
 		} else if f.Title == "" {

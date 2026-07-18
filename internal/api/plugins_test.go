@@ -108,6 +108,47 @@ func TestPluginRegistryToggleAndMenuFilter(t *testing.T) {
 	}
 }
 
+// defaultOnPlugin is a user-toggleable feature that starts enabled (opt-out),
+// like the hello example — Info.EnabledByDefault, not Core.
+type defaultOnPlugin struct{}
+
+func (defaultOnPlugin) Name() string                          { return "demo" }
+func (defaultOnPlugin) Models() []any                         { return nil }
+func (defaultOnPlugin) Mount(_ plugin.Mux, _ *plugin.Context) {}
+func (defaultOnPlugin) Describe() plugin.Info {
+	return plugin.Info{Title: "Demo", EnabledByDefault: true}
+}
+func (defaultOnPlugin) Menus() []plugin.MenuItem {
+	return []plugin.MenuItem{{ID: "demo", Label: "Demo", Path: "/demo", Category: "Operations"}}
+}
+
+// TestPluginEnabledByDefault verifies EnabledByDefault flips the pre-toggle
+// default to on while keeping the feature listed and toggleable off.
+func TestPluginEnabledByDefault(t *testing.T) {
+	h, srv, _ := newTestHandlerWithInstance(t)
+	h.SetPlugins([]plugin.Plugin{defaultOnPlugin{}})
+	cookies := loginCookies(t, srv)
+
+	// No toggle yet: on by default, listed in the manager, menu present.
+	if !pluginEnabled(t, srv, cookies, "demo") {
+		t.Fatal("EnabledByDefault plugin should be on before any toggle")
+	}
+	if !menuHasPath(t, srv, cookies, "/demo") {
+		t.Fatal("default-on plugin menu should appear")
+	}
+
+	// Still toggleable off — the default only sets the pre-toggle state.
+	if rec := do(srv, "PUT", "/api/plugins/demo", cookies, `{"enabled":false}`); rec.Code != http.StatusOK {
+		t.Fatalf("disable demo: got %d", rec.Code)
+	}
+	if pluginEnabled(t, srv, cookies, "demo") {
+		t.Fatal("plugin should be off after explicit disable")
+	}
+	if menuHasPath(t, srv, cookies, "/demo") {
+		t.Fatal("disabled plugin menu should disappear")
+	}
+}
+
 func pluginEnabled(t *testing.T, srv http.Handler, cookies []*http.Cookie, name string) bool {
 	t.Helper()
 	rec := do(srv, "GET", "/api/plugins", cookies, "")
