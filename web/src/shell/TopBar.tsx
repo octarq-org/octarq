@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Menu } from "@base-ui/react/menu";
-import { ChevronsUpDown, CheckIcon, Search, Settings, User, CreditCard, LogOut, PanelLeft } from "lucide-react";
+import { ChevronsUpDown, CheckIcon, Search, Settings, User, LogOut, PanelLeft } from "lucide-react";
 import { Org } from "../api";
 import { cn } from "../ui";
 import { useAppName, brandInitial } from "../brand";
@@ -196,10 +196,6 @@ export function TopBar({
               <Menu.Item render={<NavLink to="/personal" />} className={cn(MENU_ITEM, "text-white/75")}>
                 <User className="h-4 w-4" />
                 {t("topbar.personalSettings")}
-              </Menu.Item>
-              <Menu.Item render={<NavLink to="/settings/billing" />} className={cn(MENU_ITEM, "text-white/75")}>
-                <CreditCard className="h-4 w-4" />
-                {t("topbar.billingPlan")}
               </Menu.Item>
               <Menu.Separator className="my-1 h-px bg-white/[0.08]" />
               {/* Language: a proper radio group so arrow keys move between the

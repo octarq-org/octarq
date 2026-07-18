@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"github.com/octarq-org/octarq/app"
+	hello "github.com/octarq-org/octarq/examples/plugin-hello"
 	"github.com/octarq-org/octarq/internal/mcp"
 	"github.com/octarq-org/octarq/openapi"
 	"github.com/octarq-org/octarq/plugins/builtin"
@@ -62,6 +63,12 @@ func main() {
 	for _, p := range builtin.Default() {
 		a.Use(p)
 	}
+	// Compose the full-stack example plugin so the OSS demo binary ships a
+	// complete, toggleable feature end-to-end: its Go half (hello.Plugin) pairs
+	// with the @acme/octarq-plugin-hello UI half from the frontend manifest. It
+	// has no Describer, so it is a user-toggleable feature — off by default,
+	// opt-in from Settings → Plugins, and its /hello menu is backend-gated.
+	a.Use(hello.Plugin{})
 	if err := a.Run(context.Background()); err != nil {
 		slog.Error("run failed", "err", err)
 		os.Exit(1)

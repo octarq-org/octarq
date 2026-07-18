@@ -48,15 +48,6 @@ export interface NotificationChannel {
   createdAt: string;
 }
 
-export interface LicenseStatus {
-  licensed: boolean;
-  email?: string;
-  tier?: string;
-  expiresAt?: string;
-  source: "env" | "file" | "none";
-  envOverride: boolean;
-}
-
 export interface SessionRecord {
   id: number;
   userId: number;
@@ -65,14 +56,6 @@ export interface SessionRecord {
   lastSeenAt: string;
   createdAt: string;
   isCurrent?: boolean;
-}
-
-export interface LicenseActivateResult {
-  ok: boolean;
-  tier: string;
-  email: string;
-  requiresRestart: boolean;
-  envOverride: boolean;
 }
 
 export interface Product {
@@ -430,12 +413,6 @@ export const api = {
     ratelimitApiRpm?: number;
     ratelimitRedirectRpm?: number;
   }) => req<InstanceSettings>("PUT", "/api/instance-settings", s),
-
-  // license (octarq-pro licensing plugin; absent in the OSS build → 404)
-  license: () => req<LicenseStatus>("GET", "/api/license"),
-  activateLicense: (token: string) =>
-    req<LicenseActivateResult>("POST", "/api/license", { token }),
-  deactivateLicense: () => req<{ ok: boolean; requiresRestart: boolean }>("DELETE", "/api/license"),
 
   // storefront (octarq-pro product plugin; absent in OSS build → 404)
   products: () => req<Product[]>("GET", "/api/products"),

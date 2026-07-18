@@ -53,7 +53,6 @@ export const zh: Resources = {
     switchWorkspace: "切换工作区",
     account: "账户菜单",
     personalSettings: "个人设置",
-    billingPlan: "账单与套餐",
     settings: "设置",
   },
   command: {
