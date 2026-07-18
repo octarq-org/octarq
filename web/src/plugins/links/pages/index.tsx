@@ -8,6 +8,7 @@ import { useTranslation } from "../../../i18n";
 
 import { LinkEditorForm } from "./LinkEditorForm";
 import { StatsView } from "./StatsView";
+import { useProGate } from "../../ProGate";
 
 export default function LinksPage() {
   const [links, setLinks] = useState<Link[]>([]);
@@ -22,6 +23,7 @@ export default function LinksPage() {
   const [copied, setCopied] = useState<number | null>(null);
   const [tab, setTab] = useState<'links' | 'settings'>('links');
   const { t } = useTranslation();
+  const proGate = useProGate();
 
   const linkHostOptions = Array.from(new Set(domains.flatMap(effectiveLinkHosts)));
 
@@ -37,6 +39,10 @@ export default function LinksPage() {
 
       setLinks(prev => reset ? res : [...prev, ...res]);
       setPage(reset ? 1 : page + 1);
+    } catch (e: any) {
+      if (e.status === 404 || e.status === 402) {
+        proGate.degrade(e.status);
+      }
     } finally {
       setLoading(false);
     }

@@ -34,6 +34,18 @@ import type { UIPlugin, UIRoute } from "@octarq-org/plugin-sdk";
 import { AccessDenied, PluginUnavailable } from "./PluginRoutes";
 import { roleSatisfies, useCurrentRole } from "../shell/role";
 
+export interface PluginGateContextValue {
+  disabledPlugins: Set<string>;
+  disabledPaths: Set<string>;
+  loaded: boolean;
+}
+
+export const PluginGateContext = createContext<PluginGateContextValue>({
+  disabledPlugins: new Set(),
+  disabledPaths: new Set(),
+  loaded: false,
+});
+
 export interface ProGateContextValue {
   // Degrade the current route to the standard gated state for `status`
   // (402 ⇒ upsell, anything else ⇒ neutral note).
@@ -95,11 +107,23 @@ export function ProGate({
 }) {
   const [status, setStatus] = useState<number | null>(null);
   const { role, isInstanceAdmin } = useCurrentRole();
+  const { disabledPlugins, disabledPaths, loaded } = useContext(PluginGateContext);
+
   const ctx = useMemo<ProGateContextValue>(
     () => ({ degrade: setStatus, requiredTier: route.requiredTier }),
     [route.requiredTier],
   );
   if (status !== null) return <GateFallback status={status} plugin={plugin} />;
+
+  if (loaded) {
+    const isPluginDisabled =
+      disabledPlugins.has(plugin.name) ||
+      (plugin.name === "domains" && disabledPlugins.has("dns")) ||
+      disabledPaths.has(route.path);
+    if (isPluginDisabled) {
+      return <PluginUnavailable />;
+    }
+  }
   // Declarative pre-check: a route announcing a requiredRole the current user
   // doesn't meet renders access-denied WITHOUT mounting the page. Same ranking
   // as the sidebar filter (roleSatisfies) — and still just UX; the backend's

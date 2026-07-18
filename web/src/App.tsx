@@ -20,6 +20,7 @@ import { AreaPanel } from "./shell/AreaPanel";
 import { Login } from "./shell/Login";
 import { uiAreas, uiMenus } from "./plugin-sdk";
 import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
+import { PluginGateContext } from "./plugins/ProGate";
 
 
 // Fallback while a route's lazily-loaded chunk is fetched — a subtle centered
@@ -315,8 +316,14 @@ function Shell({
     () => mergeAreas(backendNav.menus, backendNav.plugins, role, isInstanceAdmin, backendLoaded),
     [backendNav, role, isInstanceAdmin, backendLoaded],
   );
-  // The same role inputs, for ProGate's per-route requiredRole pre-check.
+  // Role inputs for ProGate requiredRole pre-check.
   const roleCtx = useMemo(() => ({ role, isInstanceAdmin }), [role, isInstanceAdmin]);
+
+  const pluginGateCtxValue = useMemo(() => {
+    const disabledPlugins = new Set(backendNav.plugins.filter((p) => !p.enabled).map((p) => p.key));
+    const disabledPaths = new Set(backendNav.plugins.filter((p) => !p.enabled).flatMap((p) => p.menus.map((m) => m.path)));
+    return { disabledPlugins, disabledPaths, loaded: backendLoaded };
+  }, [backendNav.plugins, backendLoaded]);
 
   const settingsActive = location.pathname.startsWith("/settings") || location.pathname.startsWith("/personal");
   // Resolve against the merged runtime areas (static + plugin areas + dynamic
@@ -480,6 +487,7 @@ function Shell({
         <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
           <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-8 py-8">
             <Suspense fallback={<RouteFallback />}>
+            <PluginGateContext.Provider value={pluginGateCtxValue}>
             <Routes>
               <Route path="/"           element={<Navigate to="/overview" replace />} />
               <Route path="/overview"   element={<OverviewPage />} />
@@ -494,6 +502,7 @@ function Shell({
                   here, matching octarq's "not in this build" convention. */}
               <Route path="*"           element={<PluginUnavailable />} />
             </Routes>
+            </PluginGateContext.Provider>
             </Suspense>
           </div>
         </div>
