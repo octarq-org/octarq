@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -46,8 +49,9 @@ func New() *Plugin {
 
 func (p *Plugin) Name() string { return "mail" }
 
-// Describe marks the plugin Core: always-on plumbing.
-func (p *Plugin) Describe() plugin.Info { return plugin.Info{Title: "Mail", Core: true} }
+func (p *Plugin) Describe() plugin.Info {
+	return plugin.Info{Title: "Mail", Core: true, Requires: []string{"dns", "links"}}
+}
 
 func (p *Plugin) Models() []any {
 	return []any{&Mailbox{}, &Email{}, &SMTPSender{}}
@@ -59,13 +63,27 @@ func (p *Plugin) orgDB(r *http.Request) *gorm.DB {
 }
 
 func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
-	p.db = ctx.DB
-	p.orgID = ctx.OrgID
-	p.audit = ctx.Audit
-	p.encrypt = ctx.Encrypt
-	p.decrypt = ctx.Decrypt
-	p.getWorkspaceSetting = ctx.GetWorkspaceSetting
-	p.getGlobalSetting = ctx.GetGlobalSetting
+	if ctx.DB != nil {
+		p.db = ctx.DB
+	}
+	if ctx.OrgID != nil {
+		p.orgID = ctx.OrgID
+	}
+	if ctx.Audit != nil {
+		p.audit = ctx.Audit
+	}
+	if ctx.Encrypt != nil {
+		p.encrypt = ctx.Encrypt
+	}
+	if ctx.Decrypt != nil {
+		p.decrypt = ctx.Decrypt
+	}
+	if ctx.GetWorkspaceSetting != nil {
+		p.getWorkspaceSetting = ctx.GetWorkspaceSetting
+	}
+	if ctx.GetGlobalSetting != nil {
+		p.getGlobalSetting = ctx.GetGlobalSetting
+	}
 	if ctx.Notify != nil {
 		p.notify = func(c context.Context, kind string, config map[string]any, message string) error {
 			var cfgJSON string
@@ -111,6 +129,111 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 
 	if ctx.Provide != nil {
 		ctx.Provide("mail.dispatcher", p.OnEmail)
+		ctx.Provide("mail.overview", p.overview)
+		ctx.Provide("mail.purge", p.purge)
+		ctx.Provide("mail.export", p.exportData)
+		ctx.Provide("mail.send", p.sendMail)
+		ctx.Provide("mail.email.get", p.getEmailForSummarize)
+		ctx.Provide("mailboxes.mcp_export", p.mcpExportMailboxes)
+		ctx.Provide("emails.mcp_export", p.mcpExportEmails)
+	}
+}
+
+func (p *Plugin) purge(orgID uint) error {
+	mailboxIDs := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
+	p.db.Where("mailbox_id IN (?)", mailboxIDs).Delete(&Email{})
+	p.db.Where("owner_id = ?", orgID).Delete(&Mailbox{})
+	p.db.Where("owner_id = ?", orgID).Delete(&SMTPSender{})
+	return nil
+}
+
+func (p *Plugin) exportData(orgID uint) map[string]any {
+	var mailboxes []Mailbox
+	var emails []Email
+	var smtp []SMTPSender
+	p.db.Where("owner_id = ?", orgID).Find(&mailboxes)
+	mailboxIDs := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
+	p.db.Where("mailbox_id IN (?)", mailboxIDs).Find(&emails)
+	p.db.Where("owner_id = ?", orgID).Find(&smtp)
+	return map[string]any{
+		"mailboxes":   mailboxes,
+		"emails":      emails,
+		"smtpSenders": smtp,
+	}
+}
+
+func (p *Plugin) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
+	var s SMTPSender
+	if err := p.db.Where("owner_id = ?", orgID).Order("id").First(&s).Error; err != nil {
+		return fmt.Errorf("no SMTP sender configured for org %d", orgID)
+	}
+	pass, err := p.decrypt(s.Pass)
+	if err != nil {
+		return err
+	}
+	sender := mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
+	return sender.Send(mail.Message{From: s.FromEmail, To: []string{to}, Subject: subject, HTML: htmlBody, Text: textBody})
+}
+
+var htmlTagRe = regexp.MustCompile(`(?s)<style.*?</style>|<script.*?</script>|<[^>]*>`)
+
+func (p *Plugin) getEmailForSummarize(orgID uint, id uint) (from, subject, body string, ok bool) {
+	var count int64
+	p.db.Model(&Email{}).
+		Joins("JOIN mailboxes ON mailboxes.id = emails.mailbox_id AND mailboxes.owner_id = ?", orgID).
+		Where("emails.id = ?", id).Count(&count)
+	if count == 0 {
+		return "", "", "", false
+	}
+	var e Email
+	if p.db.First(&e, id).Error != nil {
+		return "", "", "", false
+	}
+	b := e.Text
+	if strings.TrimSpace(b) == "" {
+		b = htmlTagRe.ReplaceAllString(e.HTML, " ")
+	}
+	return e.FromAddr, e.Subject, b, true
+}
+
+func (p *Plugin) overview(orgID uint, includeBot bool) map[string]any {
+	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
+	count := func(model any, conds ...any) int64 {
+		var n int64
+		q := p.db.Model(model).Where("owner_id = ?", orgID)
+		if len(conds) > 0 {
+			q = q.Where(conds[0], conds[1:]...)
+		}
+		q.Count(&n)
+		return n
+	}
+	emailCount := func(conds ...any) int64 {
+		var n int64
+		q := p.db.Model(&Email{}).Where("mailbox_id IN (?)", orgMailboxes)
+		if len(conds) > 0 {
+			q = q.Where(conds[0], conds[1:]...)
+		}
+		q.Count(&n)
+		return n
+	}
+	type recentEmail struct {
+		ID         uint      `json:"id"`
+		FromAddr   string    `json:"from"`
+		Subject    string    `json:"subject"`
+		Read       bool      `json:"read"`
+		ReceivedAt time.Time `json:"receivedAt"`
+	}
+	var recent []recentEmail
+	p.db.Model(&Email{}).
+		Select("id, from_addr, subject, read, received_at").
+		Where("mailbox_id IN (?)", orgMailboxes).
+		Order("received_at DESC").Limit(6).Scan(&recent)
+
+	return map[string]any{
+		"mailboxes":    count(&Mailbox{}),
+		"emails":       emailCount(),
+		"unread":       emailCount("read = ?", false),
+		"recentEmails": recent,
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -40,6 +41,7 @@ type server struct {
 	// was actually registered on this instance. It exists so the networked-
 	// transport invariant (raw SQL is never exposed over HTTP/SSE) is testable.
 	rawSQLEnabled bool
+	lookup        func(name string) (any, bool)
 }
 
 // Run loads configuration, opens the database read-only-style, builds the MCP
@@ -77,7 +79,18 @@ func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, allowR
 // returns the internal *server so the raw-SQL invariant can be asserted in
 // tests. rawSQLEnabled on the returned *server reflects what was actually wired.
 func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, allowRawSQL bool) (*mcp.Server, *server) {
-	s := &server{gdb: gdb, orgID: orgID}
+	reg := plugin.NewRegistry()
+	pctx := &plugin.Context{
+		DB:      gdb,
+		OrgID:   func(_ *http.Request) uint { return orgID },
+		Provide: reg.Provide,
+		Lookup:  reg.Lookup,
+	}
+	for _, p := range plugins {
+		p.Mount(nil, pctx)
+	}
+
+	s := &server{gdb: gdb, orgID: orgID, lookup: reg.Lookup}
 
 	impl := &mcp.Implementation{Name: "octarq", Version: version}
 	opts := &mcp.ServerOptions{
@@ -117,26 +130,6 @@ func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
 // tool is registered only when allowRawSQL is set (stdio transport); see
 // NewServerInstance for why it is withheld from the multi-tenant HTTP transports.
 func (s *server) registerTools(srv *mcp.Server, allowRawSQL bool) {
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "list_links",
-		Description: "List short links with their click counts. Optionally filter by host or tag, and limit the count.",
-	}, s.listLinks)
-
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "list_mailboxes",
-		Description: "List email mailboxes with their unread counts.",
-	}, s.listMailboxes)
-
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "list_emails",
-		Description: "List recently received emails (subject, from, to, date) — optionally for one mailbox. Bodies are not returned; use query_db_readonly for more, or get the full message via the dashboard.",
-	}, s.listEmails)
-
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "list_domains",
-		Description: "List managed domains and what each is used for (mail / links).",
-	}, s.listDomains)
-
 	// The general-purpose raw-SQL tool is registered ONLY on the single-operator
 	// stdio transport (allowRawSQL). Over a networked transport the caller is one
 	// tenant among many and raw SQL cannot be scoped to a single owner_id, so it

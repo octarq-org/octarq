@@ -9,7 +9,6 @@ import (
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/plugins/dns"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -53,34 +52,6 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 	all := append(models.AllModels(), extraModels...)
 	if err := gdb.AutoMigrate(all...); err != nil {
 		return fmt.Errorf("migrate: %w", err)
-	}
-
-	// Data migration: move legacy domain.provider / config to ProviderAccount
-	if gdb.Migrator().HasColumn(&dns.Domain{}, "provider") && gdb.Migrator().HasColumn(&dns.Domain{}, "config") {
-		var legacyDomains []struct {
-			ID       uint
-			Provider string
-			Config   string
-		}
-		// Read domains that haven't been migrated yet
-		gdb.Raw("SELECT id, provider, config FROM domains WHERE provider_account_id = 0 OR provider_account_id IS NULL").Scan(&legacyDomains)
-		for _, ld := range legacyDomains {
-			if ld.Provider == "" {
-				continue
-			}
-			var acc dns.ProviderAccount
-			// Group by identical config to avoid duplicating the same account
-			if err := gdb.Where("config = ?", ld.Config).First(&acc).Error; err != nil {
-				acc = dns.ProviderAccount{
-					OrgID:  models.SingleUserID,
-					Name:   ld.Provider + " (Migrated)",
-					Type:   ld.Provider,
-					Config: ld.Config,
-				}
-				gdb.Create(&acc)
-			}
-			gdb.Exec("UPDATE domains SET provider_account_id = ? WHERE id = ?", acc.ID, ld.ID)
-		}
 	}
 
 	// Data migration: move org-level settings from global settings to workspace_settings (for org 1)

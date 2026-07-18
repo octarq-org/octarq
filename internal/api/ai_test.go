@@ -12,7 +12,7 @@ import (
 
 	dns "github.com/octarq-org/octarq/plugins/dns"
 	links "github.com/octarq-org/octarq/plugins/links"
-	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+	mail "github.com/octarq-org/octarq/plugins/mail"
 
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/config"
@@ -22,6 +22,7 @@ import (
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/queue"
 	"github.com/octarq-org/octarq/llmprovider"
+	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
 
@@ -44,7 +45,7 @@ func newAITestHandler(t *testing.T, reply string) (http.Handler, *gorm.DB) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mailmodels.Mailbox{}, &mailmodels.Email{}, &mailmodels.SMTPSender{})...); err != nil {
+	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mail.Mailbox{}, &mail.Email{}, &mail.SMTPSender{})...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
@@ -58,7 +59,38 @@ func newAITestHandler(t *testing.T, reply string) (http.Handler, *gorm.DB) {
 	if reply != "" {
 		h.SetLLMResolver(func() (llmprovider.Provider, error) { return fakeLLM{reply: reply}, nil })
 	}
-	return h.Routes(), db
+
+	dnsP := dns.New()
+	mailP := mail.New()
+	linksP := links.New()
+	h.SetPlugins([]plugin.Plugin{dnsP, mailP, linksP})
+
+	reg := plugin.NewRegistry()
+	h.SetServiceLookup(reg.Lookup)
+
+	srv := h.Routes()
+
+	pctx := &plugin.Context{
+		Huma:                h.Huma(),
+		DB:                  db,
+		Guard:               authMgr.Require,
+		UserID:              authMgr.UserID,
+		OrgID:               authMgr.OrgID,
+		Audit:               h.Audit,
+		Encrypt:             cipher.Encrypt,
+		Decrypt:             cipher.Decrypt,
+		GetGlobalSetting:    h.GetGlobalSetting,
+		GetWorkspaceSetting: h.GetWorkspaceSetting,
+		Enqueue:             h.queue.Enqueue,
+		DeleteCache:         authMgr.Cache().Delete,
+		Provide:             reg.Provide,
+		Lookup:              reg.Lookup,
+	}
+	dnsP.Mount(nil, pctx)
+	mailP.Mount(nil, pctx)
+	linksP.Mount(nil, pctx)
+
+	return srv, db
 }
 
 func TestAIStatusUnconfigured(t *testing.T) {
@@ -101,14 +133,14 @@ func TestAIStatusUnconfigured(t *testing.T) {
 func TestAISummarizeEmailOrgIsolation(t *testing.T) {
 	srv, db := newAITestHandler(t, "A billing notice; pay by Friday.")
 
-	db.Create(&mailmodels.Mailbox{Address: "a@one.test", OrgID: 1})
-	db.Create(&mailmodels.Mailbox{Address: "b@two.test", OrgID: 2})
-	var mb1, mb2 mailmodels.Mailbox
+	db.Create(&mail.Mailbox{Address: "a@one.test", OrgID: 1})
+	db.Create(&mail.Mailbox{Address: "b@two.test", OrgID: 2})
+	var mb1, mb2 mail.Mailbox
 	db.First(&mb1, "address = ?", "a@one.test")
 	db.First(&mb2, "address = ?", "b@two.test")
-	db.Create(&mailmodels.Email{MailboxID: mb1.ID, Subject: "Invoice", Text: "Pay us", ReceivedAt: time.Now()})
-	db.Create(&mailmodels.Email{MailboxID: mb2.ID, Subject: "Other org", Text: "Secret", ReceivedAt: time.Now()})
-	var e1, e2 mailmodels.Email
+	db.Create(&mail.Email{MailboxID: mb1.ID, Subject: "Invoice", Text: "Pay us", ReceivedAt: time.Now()})
+	db.Create(&mail.Email{MailboxID: mb2.ID, Subject: "Other org", Text: "Secret", ReceivedAt: time.Now()})
+	var e1, e2 mail.Email
 	db.First(&e1, "subject = ?", "Invoice")
 	db.First(&e2, "subject = ?", "Other org")
 

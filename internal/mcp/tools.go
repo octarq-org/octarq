@@ -7,168 +7,10 @@ package mcp
 import (
 	"context"
 	"fmt"
-	"time"
-
-	mailmodels "github.com/octarq-org/octarq/plugins/mail"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/octarq-org/octarq/plugins/dns"
-	"github.com/octarq-org/octarq/plugins/links"
+	"github.com/octarq-org/octarq/plugin"
 )
-
-// --- list_links ---
-
-type listLinksInput struct {
-	Host  string `json:"host,omitempty"`  // filter to one serving host (e.g. "go.example.com")
-	Tag   string `json:"tag,omitempty"`   // filter to links carrying this tag
-	Limit int    `json:"limit,omitempty"` // max links to return (default 50, max 200)
-}
-
-type linkOut struct {
-	ID        uint      `json:"id"`
-	Host      string    `json:"host"`
-	Slug      string    `json:"slug"`
-	Target    string    `json:"target"`
-	Title     string    `json:"title"`
-	Tags      string    `json:"tags"`
-	Clicks    int64     `json:"clicks"`
-	Enabled   bool      `json:"enabled"`
-	Archived  bool      `json:"archived"`
-	CreatedAt time.Time `json:"createdAt"`
-}
-
-func (s *server) listLinks(ctx context.Context, _ *mcp.CallToolRequest, in listLinksInput) (*mcp.CallToolResult, any, error) {
-	q := s.gdb.WithContext(ctx).Model(&links.Link{}).
-		Where("owner_id = ?", s.ownerScope()).
-		Order("clicks DESC").
-		Limit(clampLimit(in.Limit, 50))
-	if in.Host != "" {
-		q = q.Where("host = ?", in.Host)
-	}
-	var links []links.Link
-	if err := q.Find(&links).Error; err != nil {
-		return nil, nil, err
-	}
-
-	out := make([]linkOut, 0, len(links))
-	for _, l := range links {
-		if !tagsContain(l.Tags, in.Tag) {
-			continue
-		}
-		out = append(out, linkOut{
-			ID: l.ID, Host: l.Host, Slug: l.Slug, Target: l.Target,
-			Title: l.Title, Tags: l.Tags, Clicks: l.Clicks,
-			Enabled: l.Enabled, Archived: l.Archived, CreatedAt: l.CreatedAt,
-		})
-	}
-	return jsonResult(out)
-}
-
-// --- list_mailboxes ---
-
-type listMailboxesInput struct{}
-
-type mailboxOut struct {
-	ID      uint   `json:"id"`
-	Address string `json:"address"`
-	Enabled bool   `json:"enabled"`
-	Unread  int64  `json:"unread"`
-}
-
-func (s *server) listMailboxes(ctx context.Context, _ *mcp.CallToolRequest, _ listMailboxesInput) (*mcp.CallToolResult, any, error) {
-	var mbs []mailmodels.Mailbox
-	if err := s.gdb.WithContext(ctx).
-		Where("owner_id = ?", s.ownerScope()).
-		Order("address ASC").Find(&mbs).Error; err != nil {
-		return nil, nil, err
-	}
-	out := make([]mailboxOut, 0, len(mbs))
-	for _, mb := range mbs {
-		var unread int64
-		s.gdb.WithContext(ctx).Model(&mailmodels.Email{}).
-			Where("mailbox_id = ? AND read = ?", mb.ID, false).Count(&unread)
-		out = append(out, mailboxOut{ID: mb.ID, Address: mb.Address, Enabled: mb.Enabled, Unread: unread})
-	}
-	return jsonResult(out)
-}
-
-// --- list_emails ---
-
-type listEmailsInput struct {
-	MailboxID  uint `json:"mailboxId,omitempty"` // restrict to one mailbox
-	Limit      int  `json:"limit,omitempty"`     // default 30, max 200
-	UnreadOnly bool `json:"unreadOnly,omitempty"`
-}
-
-type emailOut struct {
-	ID         uint      `json:"id"`
-	MailboxID  uint      `json:"mailboxId"`
-	From       string    `json:"from"`
-	To         string    `json:"to"`
-	Subject    string    `json:"subject"`
-	Read       bool      `json:"read"`
-	ReceivedAt time.Time `json:"receivedAt"`
-}
-
-func (s *server) listEmails(ctx context.Context, _ *mcp.CallToolRequest, in listEmailsInput) (*mcp.CallToolResult, any, error) {
-	// Scope emails to mailboxes the operator owns (emails have no owner_id of
-	// their own — ownership is via the mailbox).
-	var mailboxIDs []uint
-	s.gdb.WithContext(ctx).Model(&mailmodels.Mailbox{}).
-		Where("owner_id = ?", s.ownerScope()).Pluck("id", &mailboxIDs)
-	if len(mailboxIDs) == 0 {
-		return jsonResult([]emailOut{})
-	}
-
-	q := s.gdb.WithContext(ctx).Model(&mailmodels.Email{}).
-		Where("mailbox_id IN ?", mailboxIDs).
-		Order("received_at DESC").
-		Limit(clampLimit(in.Limit, 30))
-	if in.MailboxID != 0 {
-		q = q.Where("mailbox_id = ?", in.MailboxID)
-	}
-	if in.UnreadOnly {
-		q = q.Where("read = ?", false)
-	}
-	var emails []mailmodels.Email
-	if err := q.Find(&emails).Error; err != nil {
-		return nil, nil, err
-	}
-	out := make([]emailOut, 0, len(emails))
-	for _, e := range emails {
-		out = append(out, emailOut{
-			ID: e.ID, MailboxID: e.MailboxID, From: e.FromAddr, To: e.ToAddr,
-			Subject: e.Subject, Read: e.Read, ReceivedAt: e.ReceivedAt,
-		})
-	}
-	return jsonResult(out)
-}
-
-// --- list_domains ---
-
-type listDomainsInput struct{}
-
-type domainOut struct {
-	ID      uint   `json:"id"`
-	Name    string `json:"name"`
-	ForMail bool   `json:"forMail"`
-	ForLink bool   `json:"forLink"`
-	ZoneID  string `json:"zoneId"`
-}
-
-func (s *server) listDomains(ctx context.Context, _ *mcp.CallToolRequest, _ listDomainsInput) (*mcp.CallToolResult, any, error) {
-	var doms []dns.Domain
-	if err := s.gdb.WithContext(ctx).
-		Where("owner_id = ?", s.ownerScope()).
-		Order("name ASC").Find(&doms).Error; err != nil {
-		return nil, nil, err
-	}
-	out := make([]domainOut, 0, len(doms))
-	for _, d := range doms {
-		out = append(out, domainOut{ID: d.ID, Name: d.Name, ForMail: d.ForMail, ForLink: d.ForLink, ZoneID: d.ZoneID})
-	}
-	return jsonResult(out)
-}
 
 // --- query_db_readonly ---
 
@@ -210,40 +52,25 @@ type exportInput struct {
 }
 
 func (s *server) exportData(ctx context.Context, _ *mcp.CallToolRequest, in exportInput) (*mcp.CallToolResult, any, error) {
-	switch in.Resource {
-	case "links":
-		var v []links.Link
-		s.gdb.WithContext(ctx).Where("owner_id = ?", s.ownerScope()).Find(&v)
-		return jsonResultAny(v)
-	case "domains":
-		var v []dns.Domain
-		s.gdb.WithContext(ctx).Where("owner_id = ?", s.ownerScope()).Find(&v)
-		return jsonResultAny(v)
-	case "mailboxes":
-		var v []mailmodels.Mailbox
-		s.gdb.WithContext(ctx).Where("owner_id = ?", s.ownerScope()).Find(&v)
-		return jsonResultAny(v)
-	case "emails":
-		// Project away secret/bulky columns (raw, html) for a portable export.
-		var mailboxIDs []uint
-		s.gdb.WithContext(ctx).Model(&mailmodels.Mailbox{}).
-			Where("owner_id = ?", s.ownerScope()).Pluck("id", &mailboxIDs)
-		var v []emailOut
-		if len(mailboxIDs) > 0 {
-			var emails []mailmodels.Email
-			s.gdb.WithContext(ctx).Where("mailbox_id IN ?", mailboxIDs).Find(&emails)
-			for _, e := range emails {
-				v = append(v, emailOut{ID: e.ID, MailboxID: e.MailboxID, From: e.FromAddr,
-					To: e.ToAddr, Subject: e.Subject, Read: e.Read, ReceivedAt: e.ReceivedAt})
+	orgID := plugin.OrgIDFromContext(ctx)
+	if orgID == 0 {
+		orgID = s.ownerScope()
+	}
+	if s.lookup != nil {
+		if v, ok := s.lookup(in.Resource + ".mcp_export"); ok {
+			if fn, ok := v.(func(ctx context.Context, orgID uint) (any, error)); ok {
+				res, err := fn(ctx, orgID)
+				if err != nil {
+					return nil, nil, err
+				}
+				return jsonResultAny(res)
 			}
 		}
-		return jsonResultAny(v)
-	default:
-		return &mcp.CallToolResult{
-			IsError: true,
-			Content: []mcp.Content{&mcp.TextContent{Text: "unknown resource; use one of: links, emails, domains, mailboxes"}},
-		}, nil, nil
 	}
+	return &mcp.CallToolResult{
+		IsError: true,
+		Content: []mcp.Content{&mcp.TextContent{Text: "unknown resource; use one of: links, emails, domains, mailboxes"}},
+	}, nil, nil
 }
 
 // jsonResultAny is jsonResult for the `any`-typed export handler.

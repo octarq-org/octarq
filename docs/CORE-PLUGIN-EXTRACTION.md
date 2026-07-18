@@ -1,6 +1,9 @@
 # Extracting links / mail / dns into self-contained Core plugins
 
-Status: design settled, implementation in progress on `refactor/core-feature-plugins`.
+Status: DONE — phase 1 (PR #7) and phase 2 (PR #8) merged to main 2026-07-18.
+Follow-up work (frontend self-containment, build-time exclusion, dependency
+contract) is planned in `PLUGIN-COMPOSABILITY.md`. The HANDOFF section below is
+historical.
 Goal: lift the three built-in features out of the monolithic `internal/api.Handler`
 god-object into three **`Core: true` plugins** that mount by default — the same plugin
 contract Pro features already use — with **no behavioural change** and the full test

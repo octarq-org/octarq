@@ -74,32 +74,84 @@ func (p *Plugin) Models() []any {
 // Mount wires the plugin's dependencies from the shared context and registers
 // its routes on the core API, then provides the DNS manager seam.
 func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
-	p.db = ctx.DB
-	p.orgID = ctx.OrgID
-	p.audit = ctx.Audit
-	p.encrypt = ctx.Encrypt
-	p.decrypt = ctx.Decrypt
+	if ctx.DB != nil {
+		p.db = ctx.DB
+	}
+	if ctx.OrgID != nil {
+		p.orgID = ctx.OrgID
+	}
+	if ctx.Audit != nil {
+		p.audit = ctx.Audit
+	}
+	if ctx.Encrypt != nil {
+		p.encrypt = ctx.Encrypt
+	}
+	if ctx.Decrypt != nil {
+		p.decrypt = ctx.Decrypt
+	}
+
+	p.migrateLegacy()
 
 	api := ctx.Huma
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/dns/providers", Summary: "DNS Providers", Tags: []string{"DNS"}}, p.dnsProviders)
+	if api != nil {
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/dns/providers", Summary: "DNS Providers", Tags: []string{"DNS"}}, p.dnsProviders)
 
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/provider-accounts", Summary: "List Provider Accounts", Tags: []string{"Providers"}}, p.listProviderAccounts)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/provider-accounts", Summary: "Create Provider Account", Tags: []string{"Providers"}, DefaultStatus: 201}, p.createProviderAccount)
-	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/provider-accounts/{id}", Summary: "Update Provider Account", Tags: []string{"Providers"}}, p.updateProviderAccount)
-	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/provider-accounts/{id}", Summary: "Delete Provider Account", Tags: []string{"Providers"}}, p.deleteProviderAccount)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/provider-accounts", Summary: "List Provider Accounts", Tags: []string{"Providers"}}, p.listProviderAccounts)
+		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/provider-accounts", Summary: "Create Provider Account", Tags: []string{"Providers"}, DefaultStatus: 201}, p.createProviderAccount)
+		huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/provider-accounts/{id}", Summary: "Update Provider Account", Tags: []string{"Providers"}}, p.updateProviderAccount)
+		huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/provider-accounts/{id}", Summary: "Delete Provider Account", Tags: []string{"Providers"}}, p.deleteProviderAccount)
 
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/domains/sync", Summary: "Sync Domains", Tags: []string{"Domains"}}, p.syncDomains)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/domains", Summary: "List Domains", Tags: []string{"Domains"}}, p.listDomains)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/domains", Summary: "Create Domain", Tags: []string{"Domains"}, DefaultStatus: 201}, p.createDomain)
-	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/domains/{id}", Summary: "Update Domain", Tags: []string{"Domains"}}, p.updateDomain)
-	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/domains/{id}", Summary: "Delete Domain", Tags: []string{"Domains"}}, p.deleteDomain)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/domains/{id}/verify-dns", Summary: "Verify Domain DNS", Tags: []string{"Domains"}}, p.verifyDomainDNS)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/domains/{id}/records", Summary: "List DNS Records", Tags: []string{"Domains"}}, p.listRecords)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/domains/{id}/records", Summary: "Create DNS Record", Tags: []string{"Domains"}, DefaultStatus: 201}, p.createRecord)
-	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/domains/{id}/records/{rid}", Summary: "Update DNS Record", Tags: []string{"Domains"}}, p.updateRecord)
-	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/domains/{id}/records/{rid}", Summary: "Delete DNS Record", Tags: []string{"Domains"}}, p.deleteRecord)
+		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/domains/sync", Summary: "Sync Domains", Tags: []string{"Domains"}}, p.syncDomains)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/domains", Summary: "List Domains", Tags: []string{"Domains"}}, p.listDomains)
+		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/domains", Summary: "Create Domain", Tags: []string{"Domains"}, DefaultStatus: 201}, p.createDomain)
+		huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/domains/{id}", Summary: "Update Domain", Tags: []string{"Domains"}}, p.updateDomain)
+		huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/domains/{id}", Summary: "Delete Domain", Tags: []string{"Domains"}}, p.deleteDomain)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/domains/{id}/verify-dns", Summary: "Verify Domain DNS", Tags: []string{"Domains"}}, p.verifyDomainDNS)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/domains/{id}/records", Summary: "List DNS Records", Tags: []string{"Domains"}}, p.listRecords)
+		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/domains/{id}/records", Summary: "Create DNS Record", Tags: []string{"Domains"}, DefaultStatus: 201}, p.createRecord)
+		huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/domains/{id}/records/{rid}", Summary: "Update DNS Record", Tags: []string{"Domains"}}, p.updateRecord)
+		huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/domains/{id}/records/{rid}", Summary: "Delete DNS Record", Tags: []string{"Domains"}}, p.deleteRecord)
+	}
 
-	ctx.Provide(ServiceDNSManager, p.DNSManager())
+	ctx.Provide(plugin.ServiceDNSManager, p.DNSManager())
+	ctx.Provide("dns.overview", p.overview)
+	ctx.Provide("dns.purge", p.purge)
+	ctx.Provide("dns.export", p.exportData)
+	ctx.Provide("domains.mcp_export", p.mcpExportDomains)
+}
+
+func (p *Plugin) purge(orgID uint) error {
+	p.db.Where("owner_id = ?", orgID).Delete(&Domain{})
+	p.db.Where("owner_id = ?", orgID).Delete(&ProviderAccount{})
+	return nil
+}
+
+func (p *Plugin) exportData(orgID uint) map[string]any {
+	var doms []Domain
+	var provs []ProviderAccount
+	p.db.Where("owner_id = ?", orgID).Find(&doms)
+	p.db.Where("owner_id = ?", orgID).Find(&provs)
+	return map[string]any{
+		"domains":          doms,
+		"providerAccounts": provs,
+	}
+}
+
+func (p *Plugin) overview(orgID uint, includeBot bool) map[string]any {
+	count := func(model any, conds ...any) int64 {
+		var n int64
+		q := p.db.Model(model).Where("owner_id = ?", orgID)
+		if len(conds) > 0 {
+			q = q.Where(conds[0], conds[1:]...)
+		}
+		q.Count(&n)
+		return n
+	}
+	return map[string]any{
+		"domains":     count(&Domain{}),
+		"linkDomains": count(&Domain{}, "for_link = ?", true),
+		"mailDomains": count(&Domain{}, "for_mail = ?", true),
+	}
 }
 
 // orgDB scopes a query to the caller's org.
@@ -126,4 +178,34 @@ func (p *Plugin) providerFor(dom Domain) (dnsprovider.Provider, error) {
 		return nil, errors.New("stored API token could not be decrypted — re-save this provider's API token under Settings → DNS Providers (the encryption key or database changed since it was saved)")
 	}
 	return dnsprovider.New(acc.Type, creds)
+}
+
+func (p *Plugin) migrateLegacy() {
+	if p.db == nil {
+		return
+	}
+	if p.db.Migrator().HasColumn(&Domain{}, "provider") && p.db.Migrator().HasColumn(&Domain{}, "config") {
+		var legacyDomains []struct {
+			ID       uint
+			Provider string
+			Config   string
+		}
+		p.db.Raw("SELECT id, provider, config FROM domains WHERE provider_account_id = 0 OR provider_account_id IS NULL").Scan(&legacyDomains)
+		for _, ld := range legacyDomains {
+			if ld.Provider == "" {
+				continue
+			}
+			var acc ProviderAccount
+			if err := p.db.Where("config = ?", ld.Config).First(&acc).Error; err != nil {
+				acc = ProviderAccount{
+					OrgID:  1,
+					Name:   ld.Provider + " (Migrated)",
+					Type:   ld.Provider,
+					Config: ld.Config,
+				}
+				p.db.Create(&acc)
+			}
+			p.db.Exec("UPDATE domains SET provider_account_id = ? WHERE id = ?", acc.ID, ld.ID)
+		}
+	}
 }

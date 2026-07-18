@@ -190,49 +190,57 @@ export default function OverviewPage() {
       )}
 
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard
-          label={t("overview.totalClicks")}
-          value={o.totalClicks.toLocaleString()}
-          delta={t("overview.clicks7d", { count: o.clicks7d })}
-          positive={true}
-          icon={<MousePointerClick className="h-4 w-4" />}
-          onClick={() => nav("/links")}
-          index={0}
-        />
-        <StatCard
-          label={t("overview.shortLinks")}
-          value={o.links.toLocaleString()}
-          delta={t("overview.activeLinks", { count: o.activeLinks })}
-          positive={true}
-          icon={<Link2 className="h-4 w-4" />}
-          onClick={() => nav("/links")}
-          index={1}
-        />
-        <StatCard
-          label={t("overview.mailboxes")}
-          value={o.mailboxes.toLocaleString()}
-          delta={t("overview.unread", { count: o.unread })}
-          positive={false}
-          icon={<Mail className="h-4 w-4" />}
-          onClick={() => nav("/mail")}
-          index={2}
-        />
-        <StatCard
-          label={t("overview.domains")}
-          value={o.domains.toLocaleString()}
-          delta={t("overview.domainsDelta", { link: o.linkDomains, mail: o.mailDomains })}
-          positive={true}
-          icon={<Globe className="h-4 w-4" />}
-          onClick={() => nav("/domains")}
-          index={3}
-        />
+        {o.totalClicks !== undefined && (
+          <StatCard
+            label={t("overview.totalClicks")}
+            value={(o.totalClicks ?? 0).toLocaleString()}
+            delta={t("overview.clicks7d", { count: o.clicks7d ?? 0 })}
+            positive={true}
+            icon={<MousePointerClick className="h-4 w-4" />}
+            onClick={() => nav("/links")}
+            index={0}
+          />
+        )}
+        {o.links !== undefined && (
+          <StatCard
+            label={t("overview.shortLinks")}
+            value={(o.links ?? 0).toLocaleString()}
+            delta={t("overview.activeLinks", { count: o.activeLinks ?? 0 })}
+            positive={true}
+            icon={<Link2 className="h-4 w-4" />}
+            onClick={() => nav("/links")}
+            index={1}
+          />
+        )}
+        {o.mailboxes !== undefined && (
+          <StatCard
+            label={t("overview.mailboxes")}
+            value={(o.mailboxes ?? 0).toLocaleString()}
+            delta={t("overview.unread", { count: o.unread ?? 0 })}
+            positive={false}
+            icon={<Mail className="h-4 w-4" />}
+            onClick={() => nav("/mail")}
+            index={2}
+          />
+        )}
+        {o.domains !== undefined && (
+          <StatCard
+            label={t("overview.domains")}
+            value={(o.domains ?? 0).toLocaleString()}
+            delta={t("overview.domainsDelta", { link: o.linkDomains ?? 0, mail: o.mailDomains ?? 0 })}
+            positive={true}
+            icon={<Globe className="h-4 w-4" />}
+            onClick={() => nav("/domains")}
+            index={3}
+          />
+        )}
       </div>
 
       <GlassCard className="mb-6 p-5">
         <div className="mb-4 flex items-center justify-between gap-2">
           <h3 className="font-display font-semibold text-white">{t("overview.clicksLast30")}</h3>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-white/40">{t("overview.clicksTotal", { count: o.clicks30d })} · {botLabel}</span>
+            <span className="text-sm text-white/40">{t("overview.clicksTotal", { count: o.clicks30d ?? 0 })} · {botLabel}</span>
             <BotToggle value={includeBot} onChange={setIncludeBot} />
           </div>
         </div>
@@ -240,61 +248,65 @@ export default function OverviewPage() {
       </GlassCard>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Panel title={t("overview.topLinks")}>
-          {!o.topLinks || o.topLinks.length === 0 ? (
-            <p className="text-sm text-white/50">{t("overview.noLinks")}</p>
-          ) : (
-            <div className="space-y-1">
-              {o.topLinks.map((l) => (
-                <button
-                  key={l.id}
-                  onClick={() => nav("/links")}
-                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-white/[0.06] transition-colors"
-                >
-                  <span className="truncate text-indigo-300">
-                    /{l.slug}
-                    {l.host && <span className="text-white/40"> @{l.host}</span>}
-                  </span>
-                  <span className="shrink-0 font-semibold">{l.clicks}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </Panel>
+        {o.topLinks !== undefined && (
+          <Panel title={t("overview.topLinks")}>
+            {!o.topLinks || o.topLinks.length === 0 ? (
+              <p className="text-sm text-white/50">{t("overview.noLinks")}</p>
+            ) : (
+              <div className="space-y-1">
+                {o.topLinks.map((l) => (
+                  <button
+                    key={l.id}
+                    onClick={() => nav("/links")}
+                    className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-white/[0.06] transition-colors"
+                  >
+                    <span className="truncate text-indigo-300">
+                      /{l.slug}
+                      {l.host && <span className="text-white/40"> @{l.host}</span>}
+                    </span>
+                    <span className="shrink-0 font-semibold">{l.clicks}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </Panel>
+        )}
 
         <Panel title={`${t("overview.topCities")}${includeBot ? " " + t("overview.inclBots") : ""}`}>
-          <BarList rows={o.cities} empty={t("overview.noGeoData")} />
+          <BarList rows={o.cities ?? []} empty={t("overview.noGeoData")} />
         </Panel>
 
         <Panel title={`${t("overview.devices")}${includeBot ? " " + t("overview.inclBots") : ""}`}>
-          <BarList rows={o.devices} />
+          <BarList rows={o.devices ?? []} />
         </Panel>
       </div>
 
-      <div className="mt-6">
-        <Panel title={t("overview.recentMail")}>
-          {!o.recentEmails || o.recentEmails.length === 0 ? (
-            <p className="text-sm text-white/50">{t("overview.noMail")}</p>
-          ) : (
-            <div className="divide-y divide-white/[0.04]">
-              {o.recentEmails.map((e) => (
-                <button
-                  key={e.id}
-                  onClick={() => nav("/mail")}
-                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-white/[0.06] transition-colors"
-                >
-                  {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />}
-                  <span className={`w-40 shrink-0 truncate text-sm ${e.read ? "text-white/55" : "font-semibold"}`}>
-                    {e.from || t("overview.unknownSender")}
-                  </span>
-                  <span className="flex-1 truncate text-sm text-white/55">{e.subject || t("overview.noSubject")}</span>
-                  <span className="shrink-0 text-xs text-white/40">{timeAgo(e.receivedAt)}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </Panel>
-      </div>
+      {o.recentEmails !== undefined && (
+        <div className="mt-6">
+          <Panel title={t("overview.recentMail")}>
+            {!o.recentEmails || o.recentEmails.length === 0 ? (
+              <p className="text-sm text-white/50">{t("overview.noMail")}</p>
+            ) : (
+              <div className="divide-y divide-white/[0.04]">
+                {o.recentEmails.map((e) => (
+                  <button
+                    key={e.id}
+                    onClick={() => nav("/mail")}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-white/[0.06] transition-colors"
+                  >
+                    {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />}
+                    <span className={`w-40 shrink-0 truncate text-sm ${e.read ? "text-white/55" : "font-semibold"}`}>
+                      {e.from || t("overview.unknownSender")}
+                    </span>
+                    <span className="flex-1 truncate text-sm text-white/55">{e.subject || t("overview.noSubject")}</span>
+                    <span className="shrink-0 text-xs text-white/40">{timeAgo(e.receivedAt)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </Panel>
+        </div>
+      )}
 
       {/* Extension point for plugin dashboard widgets (UIPlugin.widgets, slot
           "home-overview"). Renders nothing in the OSS build (empty registry). */}
