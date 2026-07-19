@@ -36,14 +36,18 @@ body,
   --popover: rgba(13, 13, 20, 0.96);              /* .glass-strong / modal fill */
   --popover-foreground: #ffffff;
   --muted: rgba(255, 255, 255, 0.05);
-  --muted-foreground: rgba(255, 255, 255, 0.50);  /* .label — AA-passing floor */
+  --muted-foreground: rgba(255, 255, 255, 0.55);  /* .label — AA-passing floor */
+  --surface-hover: rgba(255, 255, 255, 0.06);
 
-  /* Accents */
+  /* Accents. The primary action surface is the brand gradient (indigo→violet,
+     same axis as the TopBar mark) so actions and chrome read as one system;
+     --primary stays the flat fallback for borders/rings/charts. */
   --primary: #6366f1;                             /* indigo-500 */
   --primary-hover: #818cf8;                       /* indigo-400 */
   --primary-foreground: #ffffff;
   --accent-indigo: #6366f1;
   --accent-violet: #8b5cf6;                        /* violet-500 */
+  --gradient-primary: linear-gradient(135deg, #6366f1 0%, #7c5cf6 55%, #8b5cf6 100%);
 
   /* Lines & focus */
   --border: rgba(255, 255, 255, 0.07);
@@ -100,12 +104,16 @@ body {
     #07070b;
 }
 
-/* Glass surface */
+/* Glass surface — the inset top highlight is what sells the frosted pane:
+   a 1px lit edge where ambient light would catch the glass. */
 .glass {
   background: var(--card);
   border: 1px solid var(--border);
   backdrop-filter: blur(var(--blur-glass)) saturate(140%);
   -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 32px -16px rgba(0, 0, 0, 0.5);
 }
 
 .glass-strong {
@@ -113,6 +121,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.09);
   backdrop-filter: blur(var(--blur-glass-strong)) saturate(150%);
   -webkit-backdrop-filter: blur(var(--blur-glass-strong)) saturate(150%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 /* Glow shadow */
@@ -133,6 +142,9 @@ body {
   background-color: rgba(255, 255, 255, 0.12);
   border-radius: 999px;
 }
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.22);
+}
 *::-webkit-scrollbar-track {
   background: transparent;
 }
@@ -147,6 +159,17 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   text-wrap: balance;
+}
+
+::selection {
+  background: rgba(99, 102, 241, 0.35);
+  color: #ffffff;
+}
+
+/* Tabular figures for metric values and data columns so digits align as
+   they tick. */
+.tnum {
+  font-variant-numeric: tabular-nums;
 }
 
 /* ─── Shared component classes ───────────────────────────────────────────── */
@@ -171,18 +194,31 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-primary,
 .btn {
-  background-color: var(--primary);
+  background: var(--gradient-primary);
   color: var(--primary-foreground);
-  box-shadow: 0 8px 30px -8px rgba(99, 102, 241, 0.6);
+  /* Inner top highlight makes the gradient read as a lit surface. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 8px 30px -8px rgba(99, 102, 241, 0.55);
 }
 .btn-primary:hover,
 .btn:hover {
-  background-color: var(--primary-hover);
+  filter: brightness(1.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 10px 34px -8px rgba(124, 92, 246, 0.65);
+}
+.btn-primary:active,
+.btn:active {
+  filter: brightness(0.98);
+  transform: translateY(1px);
 }
 .btn-primary:disabled,
 .btn:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+  filter: none;
+  transform: none;
 }
 
 .btn-ghost {
@@ -190,8 +226,11 @@ h1, h2, h3, h4, h5, h6 {
   color: rgba(255, 255, 255, 0.65);
 }
 .btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-hover);
   color: white;
+}
+.btn-ghost:active {
+  transform: translateY(1px);
 }
 
 .btn-danger {
@@ -217,11 +256,14 @@ h1, h2, h3, h4, h5, h6 {
   field-sizing: content;
 }
 .input::placeholder {
-  color: rgba(255, 255, 255, 0.30);
+  color: rgba(255, 255, 255, 0.35);
+}
+.input:hover {
+  border-color: rgba(255, 255, 255, 0.16);
 }
 .input:focus {
-  border-color: rgba(99, 102, 241, 0.40);
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.30);
+  border-color: rgba(99, 102, 241, 0.45);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -231,6 +273,9 @@ h1, h2, h3, h4, h5, h6 {
   backdrop-filter: blur(var(--blur-glass)) saturate(140%);
   -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(140%);
   border-radius: 1rem;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 32px -16px rgba(0, 0, 0, 0.5);
 }
 
 .badge {
