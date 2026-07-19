@@ -26,7 +26,7 @@ export function AreaPanel({
         <h2 className="truncate font-display text-[17px] font-bold tracking-tight text-white">
           {t(`areas.${area.id}.title`, area.title)}
         </h2>
-        <p className="truncate text-[12px] text-white/45">
+        <p className="truncate text-[12px] text-white/50">
           {t(`areas.${area.id}.subtitle`, area.subtitle)}
         </p>
       </div>
@@ -55,7 +55,11 @@ export function AreaPanel({
                         layoutId="panel-active"
                         transition={{ type: "spring", stiffness: 500, damping: 40 }}
                         className="absolute inset-0 rounded-xl bg-white/[0.08] ring-1 ring-inset ring-white/10"
-                      />
+                      >
+                        {/* Brand-gradient accent bar — the active item carries the
+                            same indigo→violet axis as the mark and primary actions. */}
+                        <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-indigo-400 to-violet-400" />
+                      </motion.span>
                     )}
                     {item.iconStr ? (
                       <span className={`relative text-sm ${active ? "text-indigo-300" : ""}`}>

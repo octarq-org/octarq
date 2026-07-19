@@ -18,7 +18,7 @@ export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElem
 }
 
 export function THead({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={cn("text-white/45", className)} {...props} />;
+  return <thead className={cn("text-white/50", className)} {...props} />;
 }
 
 export function TBody({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {

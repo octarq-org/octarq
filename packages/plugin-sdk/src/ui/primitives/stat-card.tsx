@@ -44,16 +44,16 @@ export function StatCard({
       className={cn(
         "glass rounded-2xl p-4 text-left transition-all duration-150",
         onClick
-          ? "cursor-pointer hover:bg-white/[0.06] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
+          ? "cursor-pointer hover:bg-white/[0.06] hover:ring-1 hover:ring-inset hover:ring-white/10 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
           : "",
       )}
     >
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-[12px] font-medium text-white/45">{label}</span>
+        <span className="text-[12px] font-medium text-white/55">{label}</span>
         {icon && <span className="text-white/40">{icon}</span>}
       </div>
       <div className="flex items-end gap-2">
-        <span className="font-display text-2xl font-bold tracking-tight text-white">
+        <span className="tnum font-display text-2xl font-bold tracking-tight text-white">
           {value}
         </span>
         {delta && (
