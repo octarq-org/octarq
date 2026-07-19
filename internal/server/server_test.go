@@ -27,7 +27,7 @@ func TestServer(t *testing.T) {
 		AdminHost: "admin.example.com",
 	}
 
-	srv, err := New(cfg, mockAPI{}, nil, webFS, RuntimeSettings{})
+	srv, err := New(cfg, mockAPI{}, nil, webFS, nil, RuntimeSettings{})
 	if err != nil {
 		t.Fatalf("expected no error building server, got %v", err)
 	}
@@ -83,5 +83,43 @@ func TestServer(t *testing.T) {
 	srv.ServeHTTP(recRoot404, reqRoot404)
 	if recRoot404.Code != http.StatusNotFound {
 		t.Errorf("expected 404 for root when not allowed, got %d", recRoot404.Code)
+	}
+}
+
+// TestStaticMounts exercises the plugin.Context.HandleStatic seam: a mounted SPA
+// serves a real asset, falls back to its own index.html for unknown sub-paths
+// (client-side routing), and an unmounted prefix 404s.
+func TestStaticMounts(t *testing.T) {
+	webFS := fstest.MapFS{
+		"index.html": &fstest.MapFile{Data: []byte("dash index")},
+	}
+	portalFS := fstest.MapFS{
+		"index.html":    &fstest.MapFile{Data: []byte("portal index")},
+		"assets/app.js": &fstest.MapFile{Data: []byte("portal js")},
+	}
+	srv, err := New(&config.Config{}, mockAPI{}, nil, webFS,
+		[]StaticMount{{Prefix: "/portal", FS: portalFS}}, RuntimeSettings{})
+	if err != nil {
+		t.Fatalf("build server: %v", err)
+	}
+
+	cases := []struct {
+		path, wantBody string
+		wantCode       int
+	}{
+		{"/portal", "portal index", http.StatusOK},               // prefix root → index
+		{"/portal/subscriptions", "portal index", http.StatusOK}, // SPA route → index fallback
+		{"/portal/assets/app.js", "portal js", http.StatusOK},    // real asset
+		{"/nope", "", http.StatusNotFound},                       // unmounted prefix
+	}
+	for _, c := range cases {
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, httptest.NewRequest("GET", c.path, nil))
+		if rec.Code != c.wantCode {
+			t.Errorf("%s: got code %d, want %d", c.path, rec.Code, c.wantCode)
+		}
+		if c.wantBody != "" && !strings.Contains(rec.Body.String(), c.wantBody) {
+			t.Errorf("%s: body %q does not contain %q", c.path, rec.Body.String(), c.wantBody)
+		}
 	}
 }

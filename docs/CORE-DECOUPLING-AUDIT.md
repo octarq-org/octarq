@@ -1,6 +1,8 @@
 # Core ↔ Feature-Plugin Decoupling Audit
 
-> Status: requirements/design — none of §2 is implemented yet.
+> Status: §2.1–§2.2 landed (PR #17). §2.3, §2.4, §2.5 (core half), §2.6 (nav
+> half) landed on branch `refactor/core-decouple-remaining` — see §4 for what
+> each did and the octarq-pro follow-up each still needs.
 > Date: 2026-07-19
 > Scope: everything still hard-coded in the open-source core that belongs to a
 > feature plugin (links / mail / dns) or to a commercial (Pro) plugin.
@@ -142,3 +144,86 @@ unlocks deleting the Pro entries in 2.6 without losing zh menu labels.
 3. **2.7 → 2.6** (one PR): i18n merge seam, then delete Pro naming from core.
 4. **2.4 + 2.5** (coordinated with octarq-pro): move client surface + portal;
    add the `HandleStatic` seam in core first so pro can pick it up.
+
+## 4. Landed on `refactor/core-decouple-remaining` + pro follow-up
+
+### 4.1 §2.3 Overview quick-start gating — [done, core]
+
+`web/src/pages/Overview.tsx`: each feature quick-start step now carries an
+`available` predicate gated on the same `o.<field> !== undefined` signal the
+stat cards use (`o.domains` / `o.links` / `o.mailboxes`), and the list is
+`.filter((s) => s.available)`. A disabled plugin's step — and its nav to a
+now-404 path — drops out of the checklist. The `home-overview` `ExtensionSlot`
+(the widget seam proper) already existed; no further work. No pro follow-up.
+
+### 4.2 §2.6/§2.7 nav Pro entries — [done, core half]
+
+`_shared` i18n deep-merge (§2.7) already exists in the SDK registry
+(`uiPluginSharedI18n` / `mergeUnder`). Removed the eight Pro-only `nav.*` keys
+(`inbox-ai`, `storefront`, `licenses`, `billing`, `finance`, `vps`, `sshkeys`,
+`license`) from core `web/src/i18n/en.ts` + `zh.ts`. Lookups are
+`t(`nav.${id}`, item.label)`, so OSS falls back to the menu's own label.
+
+**pro follow-up — [done]** on octarq-pro branch `refactor/shared-nav-i18n`:
+each Pro plugin package now supplies its label via `_shared.nav.<id>` (en + zh)
+in its `i18n` object, mapped by the backend menu id → module → `frontend`
+package binding: `plugin-infra` → `vps`/`sshkeys`; `plugin-ai` → `inbox-ai`;
+`plugin-finance` → `finance`; `plugin-billing` → `billing`; `plugin-licensing`
+→ `license`; `plugin-storefront` → `storefront`; `plugin-issuer` → `licenses`.
+All package DTS builds pass. (Runtime label visibility is confirmable only once
+pro consumes this core branch.)
+
+**Deliberately deferred** (needs a contract change, not a delete): the
+`Commerce` area shell in `web/src/shell/areas.tsx` + the commerce keyword branch
+in `areaForCategory` + the `areas.commerce` / `groups.{Sales,Billing,Finance,
+Subscriptions}` i18n. `UIArea` carries no group shells and a menu's `category`
+does double duty (it picks the area AND the group by label), so the Pro commerce
+menus rely on the `sale|billing|finance` keyword routing to reach the area. To
+delete the shell safely, `UIArea` needs a `groups?: string[]` field (ordered
+group shells) and `areaForCategory` needs the plugin-area's declared groups to
+match a menu category — otherwise Pro storefront/billing/finance menus fall to
+"operations". Left for a dedicated seam PR.
+
+### 4.3 §2.5 buyer portal — [done, core half]
+
+Added the `plugin.Context.HandleStatic(prefix string, fsys fs.FS)` seam
+(`plugin/plugin.go`), collected mounts in `app/app.go`, and served them
+generically in `internal/server/server.go` (`StaticMount` → asset-or-index SPA
+fallback per prefix; `TestStaticMounts` covers it). Deleted the core-embedded
+portal: `web/src/portal/`, `web/portal.html`, `web/vite.portal.config.ts`, the
+second `vite build` + `mv` in `web/package.json`, and `web/src/i18n/pages/
+portal.ts` (+ its registration). An OSS build now 404s `/portal` cleanly; the
+committed `webembed/dist/portal/` is dropped by the next CI dashboard rebuild
+(the main build's `emptyOutDir` clears it and nothing recreates it).
+
+**pro follow-up** (gated on bumping the pinned octarq module so `HandleStatic`
+and the portal removal are visible): move the portal frontend into octarq-pro
+(the deleted `PortalApp.tsx` + `main.tsx` + `portal.html` + a portal vite
+config; retrievable from this branch's parent commit), build it to a dist,
+`go:embed` that dist in `modules/portal`, and in `portal.go`'s Mount call
+`ctx.HandleStatic("/portal", portalDistFS)`. Its API client (the removed
+`customer*` / `portal*` helpers) ships with that pro frontend.
+
+### 4.4 §2.4 commercial api.ts client surface — [done, core]
+
+Deleted from `web/src/api.ts`: types `Subscription`, `FinanceSummary`,
+`Transaction`, `Customer`, `LicenseDevice`; helpers `subscriptions` /
+`createSubscription` / `updateSubscription` / `deleteSubscription` /
+`financeSummary`, `transactions` / `createTransaction` / `updateTransaction` /
+`confirmTransaction` / `deleteTransaction` / `deleteTransactionSeries`, and the
+`customer*` / `portal*` block. All had zero OSS consumers once the portal was
+removed. `IssuedLicense` + the `issued` helper were kept (a non-portal consumer
+still references them).
+
+**pro follow-up — none needed.** The Pro packages never imported core's
+`api.ts`; they already use their own generated `@octarq-org/api-client`
+(`packages/api-client`, which independently defines `Transaction`,
+`LicenseDevice`, `getApiTransactions`, the portal/customer endpoints, etc.). The
+deleted core symbols were pure dead weight — removing them requires no pro
+change.
+
+**Newly catalogued, not in the original §2.4 list** (left in core for now to
+keep scope bounded — additional commercial leakage for a follow-up sweep):
+the `VPS` type + `vpsList`/`createVPS`/`updateVPS`/`deleteVPS` helpers
+(`plugin-infra`), and `IssuedLicense` + `issued` (`plugin-issuer`/
+`plugin-licensing`). None have OSS UI consumers.

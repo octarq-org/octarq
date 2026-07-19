@@ -201,27 +201,6 @@ export function effectiveMailHosts(d: Domain): string[] {
 }
 
 
-export interface Subscription {
-  id: number;
-  name: string;
-  vendor: string;
-  cost: number;
-  currency: string;
-  cycle: "monthly" | "yearly";
-  nextRenewal: string | null;
-  note: string;
-  enabled: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface FinanceSummary {
-  count: number;
-  monthlyByCurrency: Record<string, number>;
-  yearlyByCurrency: Record<string, number>;
-  renewingSoon: Subscription[];
-}
-
 export interface Token {
   id: number;
   name: string;
@@ -529,21 +508,6 @@ export const api = {
   updateVPS: (id: number, d: Partial<VPS>) => req<VPS>("PUT", `/api/vps/${id}`, d),
   deleteVPS: (id: number) => req<void>("DELETE", `/api/vps/${id}`),
 
-  // finance
-  subscriptions: () => req<Subscription[]>("GET", "/api/subscriptions"),
-  createSubscription: (d: Partial<Subscription>) => req<Subscription>("POST", "/api/subscriptions", d),
-  updateSubscription: (id: number, d: Partial<Subscription>) => req<Subscription>("PUT", `/api/subscriptions/${id}`, d),
-  deleteSubscription: (id: number) => req<void>("DELETE", `/api/subscriptions/${id}`),
-  financeSummary: () => req<FinanceSummary>("GET", "/api/finance/summary"),
-
-  // transactions
-  transactions: () => req<Transaction[]>("GET", "/api/transactions"),
-  createTransaction: (d: Partial<Transaction>) => req<Transaction>("POST", "/api/transactions", d),
-  updateTransaction: (id: number, d: Partial<Transaction>) => req<Transaction>("PUT", `/api/transactions/${id}`, d),
-  confirmTransaction: (id: number) => req<Transaction>("POST", `/api/transactions/${id}/confirm`),
-  deleteTransaction: (id: number) => req<void>("DELETE", `/api/transactions/${id}`),
-  deleteTransactionSeries: (parentId: string) => req<void>("DELETE", `/api/transactions/series/${parentId}`),
-
   // webhooks
   webhooks: () => req<Webhook[]>("GET", "/api/webhooks"),
   webhookEvents: () => req<WebhookEventGroup[]>("GET", "/api/webhooks/events"),
@@ -574,19 +538,6 @@ export const api = {
     req<{ ok: boolean }>("PUT", `/api/plugins/${key}`, { enabled }),
   getUserSettings: () => req<Record<string, string>>("GET", "/api/user/settings"),
   updateUserSettings: (key: string, value: string) => req<{ ok: boolean }>("PUT", "/api/user/settings", { key, value }),
-
-  // Customer & Portal APIs (octarq-pro customer / portal plugins)
-  customerRegister: (email: string, password: string) => req<{ ok: boolean; email: string; emailVerified: boolean }>("POST", "/api/customer/register", { email, password }),
-  customerLogin: (email: string, password: string) => req<{ ok: boolean; email: string }>("POST", "/api/customer/login", { email, password }),
-  customerLogout: () => req<{ ok: boolean }>("POST", "/api/customer/logout"),
-  customerMe: () => req<{ email: string; createdAt: string }>("GET", "/api/customer/me"),
-  claimAccount: (sessionId: string, password: string) => req<{ ok: boolean; email: string; emailVerified: boolean }>("POST", "/api/customer/claim-account", { sessionId, password }),
-  customerForgotPassword: (email: string) => req<{ ok: boolean; message: string }>("POST", "/api/customer/forgot-password", { email }),
-  customerResetPassword: (token: string, password: string) => req<{ ok: boolean }>("POST", "/api/customer/reset-password", { token, password }),
-  portalLicenses: () => req<{ licenses: IssuedLicense[] }>("GET", "/api/portal/licenses"),
-  portalDevices: (id: number) => req<LicenseDevice[]>("GET", `/api/portal/licenses/${id}/devices`),
-  portalUnbindDevice: (id: number, deviceId: number) => req<{ ok: boolean }>("DELETE", `/api/portal/licenses/${id}/devices/${deviceId}`),
-  portalBillingPortal: () => req<{ url: string }>("POST", "/api/portal/billing-portal"),
 
   // GDPR
   exportAccountData: () => req<any>("GET", "/api/account/export"),
@@ -629,20 +580,6 @@ export interface PluginInfo {
   menus: MenuItem[];
 }
 
-export interface Transaction {
-  id: number;
-  parentId?: string;
-  date: string;
-  type: "income" | "expense";
-  title: string;
-  category: string;
-  amount: number;
-  currency: string;
-  cycle: "one-off" | "monthly" | "yearly";
-  status?: "confirmed" | "pending";
-  invoiceEmailId?: number;
-}
-
 export interface Webhook {
   id: number;
   name: string;
@@ -664,23 +601,6 @@ export interface WebhookEventDef {
 export interface WebhookEventGroup {
   group: string;
   events: WebhookEventDef[];
-}
-
-export interface Customer {
-  id: number;
-  email: string;
-  emailVerified: boolean;
-  createdAt: string;
-}
-
-export interface LicenseDevice {
-  id: number;
-  issuedLicenseId: number;
-  deviceId: string;
-  name: string;
-  ip: string;
-  lastSeenAt: string;
-  createdAt: string;
 }
 
 export { ApiError };
