@@ -58,89 +58,9 @@ export interface SessionRecord {
   isCurrent?: boolean;
 }
 
-export interface Product {
-  id: number;
-  slug: string;
-  name: string;
-  tagline: string;
-  description: string;
-  homepageUrl: string;
-  status: "active" | "draft";
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Plan {
-  id: number;
-  productId: number;
-  name: string;
-  tier: string;
-  interval: "month" | "year" | "once";
-  priceCents: number;
-  currency: string;
-  features: string[] | null;
-  checkoutUrl: string;
-  highlighted: boolean;
-  sort: number;
-}
-
-export interface ReleaseAsset {
-  label: string;
-  url: string;
-  os: string;
-  arch: string;
-  kind: "binary" | "image" | "checksum" | string;
-}
-
-export interface Release {
-  id: number;
-  productId: number;
-  version: string;
-  channel: "stable" | "beta";
-  notes: string;
-  assets: ReleaseAsset[] | null;
-  createdAt: string;
-}
-
-export interface ProductKeyInfo {
-  productId: number;
-  hasKey: boolean;
-  publicKey?: string;
-  createdAt?: string;
-}
-
-export interface BillingConfig {
-  webhookSecretSet: boolean;
-  providers: string[];
-  claimPageUrl?: string; // success_url to set on Payment Links (org-scoped)
-}
-
-export interface PriceMap {
-  id: number;
-  stripeRef: string; // plink_… (or price_…)
-  productSlug: string;
-  tier: string;
-  term: string; // monthly | yearly | lifetime | ""
-  createdAt: string;
-}
-
-export type PriceMapInput = Pick<PriceMap, "stripeRef" | "productSlug" | "tier" | "term">;
-
-export type ProductInput = Omit<Product, "id" | "createdAt" | "updatedAt">;
-export type PlanInput = Omit<Plan, "id" | "productId">;
-export type ReleaseInput = Pick<Release, "version" | "channel" | "notes"> & { assets: ReleaseAsset[] };
-
 export interface HostEntry {
   host: string;
   enabled: boolean;
-}
-
-export interface SSHKey {
-  id: number;
-  name: string;
-  type: string;
-  pubKey: string;
-  createdAt: string;
 }
 
 export interface AuditLog {
@@ -264,84 +184,10 @@ export interface InstanceSettings {
   ratelimitRedirectRpm: number;
 }
 
-// EmailAIAnnotation is the Inbox AI plugin's per-email analysis (Pro/elite).
-export interface EmailAIAnnotation {
-  emailId: number;
-  from: string;
-  subject: string;
-  summary: string;
-  category: string; // bill | otp | marketing | important | personal | other
-  importance: number; // 1..5
-  otp: string;
-  model: string;
-  createdAt: string;
-}
-
-// AIStatus reports whether Inbox AI is licensed and active.
-export interface AIStatus {
-  licensed: boolean;
-  enabled: boolean;
-  provider?: string;
-  model?: string;
-}
-
-// AISettings is the DB-backed LLM configuration for Inbox AI (the API key is
-// never returned — only whether one is set).
-export interface AISettings {
-  providerId: string; // selected LLMProvider id ("" = none)
-  briefingHour: number;
-  configured: boolean; // a usable LLM backend is resolvable
-}
-
-export interface LLMProvider {
-  id: number;
-  name: string;
-  provider: string;
-  baseUrl: string;
-  model: string;
-  cheapModel: string;
-  apiKeySet: boolean;
-}
-
-export interface LLMProviderInput {
-  name: string;
-  provider: string;
-  apiKey?: string; // omit = keep, "" = clear
-  baseUrl?: string;
-  model?: string;
-  cheapModel?: string;
-}
-
-// AISettingsPatch updates AISettings; omitted fields are left unchanged, an
-// empty apiKey clears the stored key.
-export interface AISettingsPatch {
-  providerId?: string;
-  briefingHour?: number;
-}
-
 export const api = {
   // overview
   overview: (includeBot = false) =>
     req<Overview>("GET", `/api/overview${includeBot ? "?includeBot=true" : ""}`),
-
-  // Inbox AI (Pro/elite) — email summaries, classification, OTP extraction.
-  aiStatus: () => req<AIStatus>("GET", "/api/ai/status"),
-  aiEmails: (category = "", limit = 50) => {
-    const q = new URLSearchParams();
-    if (category) q.set("category", category);
-    q.set("limit", String(limit));
-    return req<EmailAIAnnotation[]>("GET", `/api/ai/emails?${q.toString()}`);
-  },
-  aiReprocess: (emailId: number) =>
-    req<EmailAIAnnotation>("POST", `/api/ai/emails/${emailId}/reprocess`),
-  aiSettings: () => req<AISettings>("GET", "/api/ai/settings"),
-  updateAiSettings: (s: AISettingsPatch) => req<AISettings>("PUT", "/api/ai/settings", s),
-
-  // LLM provider registry (octarq-pro ai plugin; absent in OSS build → 404)
-  llmProviders: () => req<LLMProvider[]>("GET", "/api/llm-providers"),
-  createLlmProvider: (p: LLMProviderInput) => req<LLMProvider>("POST", "/api/llm-providers", p),
-  updateLlmProvider: (id: number, p: LLMProviderInput) => req<LLMProvider>("PUT", `/api/llm-providers/${id}`, p),
-  deleteLlmProvider: (id: number) => req<void>("DELETE", `/api/llm-providers/${id}`),
 
   // settings
   settings: () => req<Settings>("GET", "/api/settings"),
@@ -367,39 +213,6 @@ export const api = {
     ratelimitApiRpm?: number;
     ratelimitRedirectRpm?: number;
   }) => req<InstanceSettings>("PUT", "/api/instance-settings", s),
-
-  // storefront (octarq-pro product plugin; absent in OSS build → 404)
-  products: () => req<Product[]>("GET", "/api/products"),
-  createProduct: (p: ProductInput) => req<Product>("POST", "/api/products", p),
-  updateProduct: (id: number, p: ProductInput) => req<Product>("PUT", `/api/products/${id}`, p),
-  deleteProduct: (id: number) => req<void>("DELETE", `/api/products/${id}`),
-  plans: (productId: number) => req<Plan[]>("GET", `/api/products/${productId}/plans`),
-  createPlan: (productId: number, p: PlanInput) => req<Plan>("POST", `/api/products/${productId}/plans`, p),
-  updatePlan: (id: number, p: PlanInput) => req<Plan>("PUT", `/api/plans/${id}`, p),
-  deletePlan: (id: number) => req<void>("DELETE", `/api/plans/${id}`),
-  releases: (productId: number) => req<Release[]>("GET", `/api/products/${productId}/releases`),
-  createRelease: (productId: number, rel: ReleaseInput) =>
-    req<Release>("POST", `/api/products/${productId}/releases`, rel),
-  deleteRelease: (id: number) => req<void>("DELETE", `/api/releases/${id}`),
-
-  // issuer: per-product signing keys + issuance records (octarq-pro issuer plugin)
-  productKey: (productId: number) => req<ProductKeyInfo>("GET", `/api/products/${productId}/key`),
-  createProductKey: (productId: number, privateKey?: string) =>
-    req<{ productId: number; publicKey: string; note: string }>(
-      "POST",
-      `/api/products/${productId}/key`,
-      privateKey ? { privateKey } : {},
-    ),
-  deleteProductKey: (productId: number) => req<void>("DELETE", `/api/products/${productId}/key`),
-
-  // billing config + price map (octarq-pro billing plugin)
-  billingConfig: () => req<BillingConfig>("GET", "/api/billing/config"),
-  updateBillingConfig: (p: { webhookSecret?: string }) =>
-    req<BillingConfig>("PUT", "/api/billing/config", p),
-  billingPrices: () => req<PriceMap[]>("GET", "/api/billing/prices"),
-  createBillingPrice: (p: PriceMapInput) => req<PriceMap>("POST", "/api/billing/prices", p),
-  updateBillingPrice: (id: number, p: PriceMapInput) => req<PriceMap>("PUT", `/api/billing/prices/${id}`, p),
-  deleteBillingPrice: (id: number) => req<void>("DELETE", `/api/billing/prices/${id}`),
 
   // auth
   authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean; appName: string }>("GET", "/api/auth/config"),
@@ -469,11 +282,6 @@ export const api = {
   updateNotificationChannel: (id: number, d: any) => req<NotificationChannel>("PUT", `/api/notification-channels/${id}`, d),
   deleteNotificationChannel: (id: number) => req<void>("DELETE", `/api/notification-channels/${id}`),
   testNotificationChannel: (id: number) => req<void>("POST", `/api/notification-channels/${id}/test`),
-
-  // ssh keys
-  sshKeys: () => req<SSHKey[]>("GET", "/api/ssh-keys"),
-  createSSHKey: (d: { name: string; type: string; key?: string }) => req<SSHKey & { rawPrivateKey?: string }>("POST", "/api/ssh-keys", d),
-  deleteSSHKey: (id: number) => req<void>("DELETE", `/api/ssh-keys/${id}`),
 
   // webhooks
   webhooks: () => req<Webhook[]>("GET", "/api/webhooks"),
