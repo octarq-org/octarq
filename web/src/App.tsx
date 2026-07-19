@@ -160,11 +160,12 @@ function mergeAreas(
   );
 
   // Top-level areas: the static ones plus any NEW areas declared by composed
-  // frontend plugins (UIPlugin.areas → uiAreas()). Plugin areas start as empty
-  // shells — like Commerce's group shells — and are filled by the same
-  // category-merge below; still-empty ones are dropped by the empty-area
-  // filter at the end. "settings" and ids colliding with a static area can't
-  // be redeclared.
+  // frontend plugins (UIPlugin.areas → uiAreas()). A plugin area may carry
+  // ordered group shells (UIArea.groups → pluginAreaToArea) — e.g. the Pro
+  // Commerce area's Sales/Billing/Finance — or none, in which case its groups
+  // are synthesized from menus by the category-merge below. Still-empty groups
+  // and areas are dropped by the empty-area filter at the end. "settings" and
+  // ids colliding with a static area can't be redeclared.
   const pluginAreas = uiAreas().filter(
     (pa) => pa.id !== "settings" && !STATIC_AREAS.some((sa) => sa.id === pa.id),
   );

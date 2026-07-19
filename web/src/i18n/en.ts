@@ -60,7 +60,6 @@ export const en = {
   },
   areas: {
     operations: { title: "Workspace", subtitle: "Daily traffic & communication" },
-    commerce: { title: "Commerce", subtitle: "Revenue, store & cost analysis" },
     assets: { title: "Infrastructure", subtitle: "Servers, network & databases" },
     insights: { title: "Security & Admin", subtitle: "Abuse defense & activity logs" },
     settings: { title: "Settings", subtitle: "Workspace & profile configurations" },
@@ -69,9 +68,6 @@ export const en = {
     Workspace: "Workspace",
     Marketing: "Marketing",
     Messaging: "Messaging",
-    Sales: "Sales",
-    Billing: "Billing",
-    Finance: "Finance",
     Network: "Network",
     Hosting: "Hosting",
     "Storage & Databases": "Storage & Databases",

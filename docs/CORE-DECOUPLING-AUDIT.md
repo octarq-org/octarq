@@ -173,16 +173,24 @@ package binding: `plugin-infra` → `vps`/`sshkeys`; `plugin-ai` → `inbox-ai`;
 All package DTS builds pass. (Runtime label visibility is confirmable only once
 pro consumes this core branch.)
 
-**Deliberately deferred** (needs a contract change, not a delete): the
-`Commerce` area shell in `web/src/shell/areas.tsx` + the commerce keyword branch
-in `areaForCategory` + the `areas.commerce` / `groups.{Sales,Billing,Finance,
-Subscriptions}` i18n. `UIArea` carries no group shells and a menu's `category`
-does double duty (it picks the area AND the group by label), so the Pro commerce
-menus rely on the `sale|billing|finance` keyword routing to reach the area. To
-delete the shell safely, `UIArea` needs a `groups?: string[]` field (ordered
-group shells) and `areaForCategory` needs the plugin-area's declared groups to
-match a menu category — otherwise Pro storefront/billing/finance menus fall to
-"operations". Left for a dedicated seam PR.
+**Commerce area shell — [done, core]** (the seam that was deferred above). Added
+`UIArea.groups?: string[]` to the contract (changeset → `@octarq-org/plugin-sdk`
+minor); `pluginAreaToArea` seeds ordered group shells from it, and
+`areaForCategory` now routes a menu to a plugin area when its `category` matches
+the area id, title, OR a declared group label. That let us delete the `Commerce`
+STATIC_AREAS shell, the commerce keyword branch in `areaForCategory`, and the
+`areas.commerce` / `groups.{Sales,Billing,Finance}` i18n from core. `Subscriptions`
+group label left in place (separate/ambiguous owner — see §2.6 original).
+
+**pro follow-up — done on branch `refactor/commerce-area-decl`, gated on
+publishing `@octarq-org/plugin-sdk` 0.4.0**: the commerce plugins that can appear
+without the others — `plugin-storefront`, `plugin-issuer`, `plugin-finance`
+(covering the crm / license / store products respectively) — each declare the
+identical `commerce` area (`uiAreas()` dedupes by id) with
+`groups: ["Sales","Billing","Finance"]`, plus `_shared.areas.commerce` /
+`_shared.groups.*` zh labels. Verified: with the 0.4.0 sdk types overlaid, all
+three package DTS builds pass with zero errors. Blocked only on the sdk publish +
+bumping their `@octarq-org/plugin-sdk` dep `^0.3.0 → ^0.4.0`.
 
 ### 4.3 §2.5 buyer portal — [done, core half]
 

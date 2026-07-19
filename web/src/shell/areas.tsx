@@ -79,21 +79,10 @@ export const STATIC_AREAS: Area[] = [
       { label: "Messaging", items: [] },
     ],
   },
-  {
-    id: "commerce",
-    title: "Commerce",
-    subtitle: "Revenue, store & cost analysis",
-    Icon: Wallet,
-    // Empty group shells matched by label so plugin menus land in the right
-    // group/order when a build composes plugins that target this area. In the
-    // community core all groups are empty and the whole Commerce area is
-    // dropped by the empty-area filter in App.tsx.
-    groups: [
-      { label: "Sales", items: [] },
-      { label: "Billing", items: [] },
-      { label: "Finance", items: [] },
-    ],
-  },
+  // Commerce is a Pro area: the commerce plugins (storefront / billing /
+  // finance / issuer / licensing) declare it via UIPlugin.areas with its
+  // Sales/Billing/Finance group shells. The OSS core ships no shell for it —
+  // an empty one only ever got dropped by App.tsx's empty-area filter anyway.
   {
     id: "assets",
     title: "Infrastructure",
@@ -179,13 +168,19 @@ export function areaForPath(path: string, areas: Area[] = STATIC_AREAS): AreaId 
 // their Menus() — see docs/PLUGINS.md.
 export function areaForCategory(cat?: string, pluginAreas: UIArea[] = []): AreaId {
   const c = (cat ?? "").toLowerCase();
+  // A menu lands in a plugin-declared area when its category matches the area's
+  // id, its title, or one of its declared group labels — so a Pro edition can
+  // own a whole multi-group area (e.g. Commerce with Sales/Billing/Finance)
+  // that the OSS core no longer ships a shell or keyword branch for.
   const pluginHit = pluginAreas.find(
-    (a) => a.id.toLowerCase() === c || a.title.toLowerCase() === c,
+    (a) =>
+      a.id.toLowerCase() === c ||
+      a.title.toLowerCase() === c ||
+      (a.groups ?? []).some((g) => g.toLowerCase() === c),
   );
   if (pluginHit) return pluginHit.id;
   if (c.includes("asset") || c.includes("infra") || c.includes("network") || c.includes("compute") || c.includes("hosting") || c.includes("storage") || c.includes("database")) return "assets";
   if (c.includes("insight") || c.includes("analytic") || c.includes("compliance") || c.includes("governance") || c.includes("audit") || c.includes("abuse") || c.includes("security") || c.includes("system")) return "insights";
-  if (c.includes("commerce") || c.includes("sell") || c.includes("sale") || c.includes("billing") || c.includes("storefront") || c.includes("license") || c.includes("finance")) return "commerce";
   return "operations";
 }
 
@@ -239,6 +234,9 @@ export function pluginAreaToArea(a: UIArea): Area {
     title: a.title,
     subtitle: a.subtitle ?? "",
     Icon: menuIcon(a.icon) ?? Puzzle,
-    groups: [],
+    // Seed ordered group shells from the declaration so the sidebar groups keep
+    // the plugin's intended order; menus fill them via the category-match in
+    // App.tsx. Empty (no declared groups) → groups synthesized from menus.
+    groups: (a.groups ?? []).map((label) => ({ label, items: [] })),
   };
 }
