@@ -109,18 +109,6 @@ export interface ProductKeyInfo {
   createdAt?: string;
 }
 
-export interface IssuedLicense {
-  id: number;
-  productId: number;
-  email: string;
-  tier: string;
-  token: string;
-  expiresAt: string | null;
-  status: "active" | "revoked";
-  provider: string;
-  createdAt: string;
-}
-
 export interface BillingConfig {
   webhookSecretSet: boolean;
   providers: string[];
@@ -152,19 +140,6 @@ export interface SSHKey {
   name: string;
   type: string;
   pubKey: string;
-  createdAt: string;
-}
-
-export interface VPS {
-  id: number;
-  name: string;
-  ip: string;
-  port: number;
-  user: string;
-  sshKeyId: number;
-  status: string;
-  failCount: number;
-  lastChecked: string | null;
   createdAt: string;
 }
 
@@ -416,8 +391,6 @@ export const api = {
       privateKey ? { privateKey } : {},
     ),
   deleteProductKey: (productId: number) => req<void>("DELETE", `/api/products/${productId}/key`),
-  issued: (productId?: number) =>
-    req<IssuedLicense[]>("GET", `/api/issued${productId ? `?productId=${productId}` : ""}`),
 
   // billing config + price map (octarq-pro billing plugin)
   billingConfig: () => req<BillingConfig>("GET", "/api/billing/config"),
@@ -501,12 +474,6 @@ export const api = {
   sshKeys: () => req<SSHKey[]>("GET", "/api/ssh-keys"),
   createSSHKey: (d: { name: string; type: string; key?: string }) => req<SSHKey & { rawPrivateKey?: string }>("POST", "/api/ssh-keys", d),
   deleteSSHKey: (id: number) => req<void>("DELETE", `/api/ssh-keys/${id}`),
-
-  // vps
-  vpsList: () => req<VPS[]>("GET", "/api/vps"),
-  createVPS: (d: Partial<VPS>) => req<VPS>("POST", "/api/vps", d),
-  updateVPS: (id: number, d: Partial<VPS>) => req<VPS>("PUT", `/api/vps/${id}`, d),
-  deleteVPS: (id: number) => req<void>("DELETE", `/api/vps/${id}`),
 
   // webhooks
   webhooks: () => req<Webhook[]>("GET", "/api/webhooks"),

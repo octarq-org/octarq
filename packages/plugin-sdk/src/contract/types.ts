@@ -48,13 +48,23 @@ export interface UIWidget {
 // A NEW top-level sidebar area contributed by a plugin. `icon` is a string key
 // the host app maps to its icon set (lucide) — kept as a string so the contract
 // stays icon-library-free, mirroring PluginMenuItem.icon. A plugin's menu items
-// whose `category` matches the area's id or title land in this area through the
-// same `areaForCategory` pipeline as every other menu.
+// land in this area when their `category` matches the area's id, its title, or
+// one of its declared `groups` — all through the same `areaForCategory`
+// pipeline as every other menu.
+//
+// `groups` are ordered group-shell labels within the area (e.g. ["Sales",
+// "Billing", "Finance"]). They serve two jobs: a menu whose `category` equals a
+// group label is routed to THIS area (so plugins don't have to set
+// `category === area.id`), and the group shells fix sidebar group ORDER —
+// without them, groups are synthesized from menus in registration order. This
+// is what lets a Pro edition declare its own multi-group area (e.g. Commerce)
+// after the core stopped shipping an empty shell for it.
 export interface UIArea {
   id: string;
   title: string;
   subtitle?: string;
   icon?: string;
+  groups?: string[];
 }
 
 // A sidebar entry contributed by a plugin. Shape matches the backend

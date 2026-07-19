@@ -61,7 +61,6 @@ export const zh: Resources = {
   },
   areas: {
     operations: { title: "工作区", subtitle: "日常流量与通信" },
-    commerce: { title: "商务", subtitle: "营收、店铺与成本分析" },
     assets: { title: "基础设施", subtitle: "服务器、网络与数据库" },
     insights: { title: "安全与管理", subtitle: "滥用防护与操作日志" },
     settings: { title: "设置", subtitle: "工作区与个人配置" },
@@ -70,9 +69,6 @@ export const zh: Resources = {
     Workspace: "工作区",
     Marketing: "营销",
     Messaging: "消息",
-    Sales: "销售",
-    Billing: "账单",
-    Finance: "财务",
     Network: "网络",
     Hosting: "托管",
     "Storage & Databases": "存储与数据库",
