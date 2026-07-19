@@ -1,8 +1,11 @@
 # Core ↔ Feature-Plugin Decoupling Audit
 
-> Status: §2.1–§2.2 landed (PR #17). §2.3, §2.4, §2.5 (core half), §2.6 (nav
-> half) landed on branch `refactor/core-decouple-remaining` — see §4 for what
-> each did and the octarq-pro follow-up each still needs.
+> Status: **§2.1–§2.7 all done**, both repos merged. Core: #17 (§2.1–§2.2),
+> #19 (§2.3/§2.4/§2.5-seam/§2.6-nav), #20 (§2.6 Commerce seam + §2.4 VPS/issued),
+> #21 published `@octarq-org/plugin-sdk` 0.4.0. octarq-pro: #15 (nav labels),
+> #16 (Commerce area), #17 (buyer portal). A final pass then swept the rest of
+> the commercial `api.ts` surface (storefront / billing / infra / inbox-ai — see
+> §4.4), so `web/src/api.ts` now carries only core client surface. Nothing left.
 > Date: 2026-07-19
 > Scope: everything still hard-coded in the open-source core that belongs to a
 > feature plugin (links / mail / dns) or to a commercial (Pro) plugin.
@@ -182,17 +185,15 @@ STATIC_AREAS shell, the commerce keyword branch in `areaForCategory`, and the
 `areas.commerce` / `groups.{Sales,Billing,Finance}` i18n from core. `Subscriptions`
 group label left in place (separate/ambiguous owner — see §2.6 original).
 
-**pro follow-up — done on branch `refactor/commerce-area-decl`, gated on
-publishing `@octarq-org/plugin-sdk` 0.4.0**: the commerce plugins that can appear
-without the others — `plugin-storefront`, `plugin-issuer`, `plugin-finance`
-(covering the crm / license / store products respectively) — each declare the
-identical `commerce` area (`uiAreas()` dedupes by id) with
-`groups: ["Sales","Billing","Finance"]`, plus `_shared.areas.commerce` /
-`_shared.groups.*` zh labels. Verified: with the 0.4.0 sdk types overlaid, all
-three package DTS builds pass with zero errors. Blocked only on the sdk publish +
-bumping their `@octarq-org/plugin-sdk` dep `^0.3.0 → ^0.4.0`.
+**pro follow-up — [done]** in octarq-pro#16 (after `@octarq-org/plugin-sdk` 0.4.0
+published): the commerce plugins that can appear without the others —
+`plugin-storefront`, `plugin-issuer`, `plugin-finance` (covering the crm /
+license / store products respectively) — each declare the identical `commerce`
+area (`uiAreas()` dedupes by id) with `groups: ["Sales","Billing","Finance"]`,
+plus `_shared.areas.commerce` / `_shared.groups.*` zh labels, and bump their
+`@octarq-org/plugin-sdk` dep `^0.3.0 → ^0.4.0`.
 
-### 4.3 §2.5 buyer portal — [done, core half]
+### 4.3 §2.5 buyer portal — [done]
 
 Added the `plugin.Context.HandleStatic(prefix string, fsys fs.FS)` seam
 (`plugin/plugin.go`), collected mounts in `app/app.go`, and served them
@@ -204,13 +205,16 @@ portal.ts` (+ its registration). An OSS build now 404s `/portal` cleanly; the
 committed `webembed/dist/portal/` is dropped by the next CI dashboard rebuild
 (the main build's `emptyOutDir` clears it and nothing recreates it).
 
-**pro follow-up** (gated on bumping the pinned octarq module so `HandleStatic`
-and the portal removal are visible): move the portal frontend into octarq-pro
-(the deleted `PortalApp.tsx` + `main.tsx` + `portal.html` + a portal vite
-config; retrievable from this branch's parent commit), build it to a dist,
-`go:embed` that dist in `modules/portal`, and in `portal.go`'s Mount call
-`ctx.HandleStatic("/portal", portalDistFS)`. Its API client (the removed
-`customer*` / `portal*` helpers) ships with that pro frontend.
+**pro follow-up — [done]** in octarq-pro#17 (after bumping the pinned octarq
+module to the `HandleStatic` version). The portal frontend moved into
+octarq-pro as `portal/` — a standalone Vite SPA: the ported `PortalApp` with its
+imports rewritten to `@octarq-org/plugin-sdk` (shared glass UI / i18n / brand)
+plus a self-contained `api.ts` carrying the `customer*` / `portal*` helpers +
+`IssuedLicense` / `LicenseDevice` types the core removed. It builds into
+`modules/portal/frontend/dist` (committed, `go:embed`ed by `frontend.go`), and
+`portal.go`'s Mount calls `ctx.HandleStatic("/portal", portalDist())` only when
+the plugin is active. Verified live: `GET /portal` → 200 SPA, assets → 200,
+`/portal/login` → 200 (index fallback), `/api/portal/licenses` → 401 (mounted).
 
 ### 4.4 §2.4 commercial api.ts client surface — [done, core]
 
@@ -230,8 +234,21 @@ still references them).
 deleted core symbols were pure dead weight — removing them requires no pro
 change.
 
-**Newly catalogued, not in the original §2.4 list** (left in core for now to
-keep scope bounded — additional commercial leakage for a follow-up sweep):
-the `VPS` type + `vpsList`/`createVPS`/`updateVPS`/`deleteVPS` helpers
-(`plugin-infra`), and `IssuedLicense` + `issued` (`plugin-issuer`/
-`plugin-licensing`). None have OSS UI consumers.
+**Full commercial sweep — [done, core]** (beyond the original §2.4 list; #20 did
+`VPS`/`vps*` + `issued`/`IssuedLicense`, and this pass finishes the rest — all
+zero-OSS-consumer Pro surface):
+
+- **storefront/product** — `Product`, `Plan`, `Release`, `ReleaseAsset`,
+  `ProductKeyInfo`, `ProductInput`/`PlanInput`/`ReleaseInput` + the
+  `products`/`plans`/`releases`/`*ProductKey` helpers.
+- **billing** — `BillingConfig`, `PriceMap`, `PriceMapInput` + the
+  `billingConfig` / `billing*Price` helpers.
+- **infra** — `SSHKey` + `sshKeys`/`createSSHKey`/`deleteSSHKey`.
+- **inbox-ai** — `AIStatus`, `AISettings`, `AISettingsPatch`, `EmailAIAnnotation`,
+  `LLMProvider`, `LLMProviderInput` + the `aiStatus`/`aiEmails`/`aiReprocess`/
+  `aiSettings`/`updateAiSettings` + `*LlmProvider` helpers.
+
+Kept in core: the `/api/ai/assist/*` client (`aiAssistStatus` / `aiSuggestSlug`
+/ `aiSummarizeEmail`) — an OSS, BYO-key feature the mail + links plugins consume
+— and `HostEntry` (core mail/dns hosts). Pro packages use `@octarq-org/api-client`,
+so no pro change is needed. `web/src/api.ts` now carries only core client surface.
