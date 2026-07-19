@@ -100,7 +100,7 @@ ships is *data*, not code:
   composes `@octarq-org/plugin-issuer`).
 
 `web/src/App.tsx` renders `pluginRouteElements()` (every element wrapped in
-**`ProGate`** — 402 → upsell, 403 → access denied, 404/chunk failure → neutral
+**`PluginGate`** — 402 → upsell, 403 → access denied, 404/chunk failure → neutral
 note) and folds `uiMenus()` into the sidebar through the single `mergeAreas`
 pipeline (`areaForCategory` placement + advisory `requiredRole` filtering,
 member < admin < owner with instance-admin bypass, role from `/api/auth/me`);
@@ -131,9 +131,11 @@ commercial build overrides it:
 
 1. **`app.WithWebFS(fs.FS)`** (core `app/app.go`) — injection point; defaults to
    the embedded OSS FS when unset.
-2. **`OCTARQ_WEBEMBED_OUT`** (core `web/vite.config.ts` + `vite.portal.config.ts`
-   + build script) — makes the admin+portal build outDir overridable so the
-   commercial build reuses the exact same build; default unchanged.
+2. **`OCTARQ_WEBEMBED_OUT`** (core `web/vite.config.ts` + build script) — makes
+   the dashboard build outDir overridable so the commercial build reuses the
+   exact same build; default unchanged. (The buyer portal is no longer a core
+   Vite entry — it moved to octarq-pro behind `plugin.Context.HandleStatic`; see
+   CORE-DECOUPLING-AUDIT §2.5.)
 3. **octarq-pro `webembed/`** — its own package embedding a dashboard built
    against octarq-pro's plugin manifest into `octarq-pro/webembed/dist` (via
    `make web`, which runs `OCTARQ_WEBEMBED_OUT=$(CURDIR)/webembed/dist
@@ -154,7 +156,7 @@ embedded dashboard renders the real licenses page.
 1. Backend plugin (`plugin.Plugin`) mounts routes, 402-gates on tier — lives in
    octarq-pro (or core for a community plugin).
 2. Frontend page (`UIPlugin`) built from `@octarq-org/plugin-sdk`, handles 402/404
-   (with `ProGate` as the safety net). It ships as a standalone package
+   (with `PluginGate` as the safety net). It ships as a standalone package
    (`octarq-pro/packages/plugin-<feat>/`, consuming the SDK +
    `@octarq-org/api-client`) named in the Pro manifest.
 3. OSS build: manifest omits it → page 404-degrades (or shows upsell on 402).
@@ -180,9 +182,9 @@ Core (octarq):
 - `web/src/plugin-sdk/` — app-side facade re-exporting the package.
 - `web/octarq.plugins.json` — the plugin manifest (OSS default edition).
 - `web/plugins-manifest.ts` — Vite plugin generating the `#octarq-plugins` virtual module from the manifest.
-- `web/src/plugins/PluginRoutes.tsx` / `ProGate.tsx` — route renderer + the centralized 402/403/404 degrade boundary.
+- `web/src/plugins/PluginRoutes.tsx` / `PluginGate.tsx` — route renderer + the centralized 402/403/404 degrade boundary.
 - `web/src/plugins/core/` — octarq's own core-feature UIPlugins (always composed from `main.tsx`).
-- `web/vite.config.ts` / `vite.portal.config.ts` — `octarqPlugins()`, `OCTARQ_WEBEMBED_OUT`.
+- `web/vite.config.ts` — `octarqPlugins()`, `OCTARQ_WEBEMBED_OUT`.
 - `examples/plugin-hello/web/` — the example plugin, packaged as `@acme/octarq-plugin-hello` (OSS default).
 - `docs/{PLUGINS.md,PUBLISHING.md,ACCESSIBILITY.md}`.
 
@@ -209,7 +211,7 @@ octarq-pro:
 
 **Landed since this handoff was written:**
 - ✅ Core pages demoted to UIPlugins (`web/src/plugins/core/`); shell owns no business routes; string `AreaId` + plugin-declared areas + `PLUGIN_ICONS`.
-- ✅ `ProGate` centralized degrade boundary (402/403/404/chunk-fail) + advisory `requiredRole`/`requiredTier`; role from `/api/auth/me`.
+- ✅ `PluginGate` centralized degrade boundary (402/403/404/chunk-fail) + advisory `requiredRole`/`requiredTier`; role from `/api/auth/me`.
 - ✅ `ExtensionSlot` widgets (`UIPlugin.widgets`, Overview renders `"home-overview"`).
 - ✅ Inter-plugin service registry (`Context.Provide`/`Lookup`, `plugin.LookupAs`); Starters run after all Mounts; AutoMigrate table-collision preflight.
 - ✅ plugin-sdk vitest suite wired into the web CI job.

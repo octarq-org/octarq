@@ -163,11 +163,11 @@ Key rules:
   shadcn / Base UI primitives (accessible, keyboard-operable) while carrying
   octarq's glass theme, so your page matches the app and gets a11y for free. Import
   by name from `@octarq-org/plugin-sdk`, never reach into app-internal paths.
-- **Gated states are centralized in `ProGate`.** Every plugin route element is
+- **Gated states are centralized in `PluginGate`.** Every plugin route element is
   wrapped in it: **402** → the upsell (`lockedFallback`, or the SDK's
   `LockedFeature` by default), **403** → a neutral access-denied note, **404**
   and chunk-load/render failures → the neutral "not part of this build" note.
-  A page can degrade declaratively via `useProGate().degrade(err.status)` from
+  A page can degrade declaratively via `usePluginGate().degrade(err.status)` from
   a data-fetch catch, or keep handling 402/404 itself — the gate is the safety
   net, never a raw error.
 - **`category` must equal the sidebar group label** it joins (e.g. `"Workspace"`,
