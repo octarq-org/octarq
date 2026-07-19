@@ -81,19 +81,17 @@ export const en = {
     Subscriptions: "Subscriptions",
     Instance: "Instance",
   },
+  // Core nav labels only. Pro menu labels (storefront, licenses, billing,
+  // finance, inbox-ai, vps, sshkeys, license) are contributed by their plugin
+  // packages via the reserved `_shared.nav.*` i18n key (see PluginI18n) — core
+  // no longer carries them. Lookups are `t(`nav.${id}`, item.label)`, so an
+  // OSS build with no plugin for an id simply renders the menu's own label.
   nav: {
     overview: "Overview",
     links: "Links",
     mail: "Mail",
-    "inbox-ai": "AI Inbox",
-    storefront: "Storefront",
-    licenses: "Licenses",
-    billing: "Billing",
-    finance: "Bookkeeping",
     domains: "DNS",
     certs: "Certificates",
-    vps: "Servers",
-    sshkeys: "SSH Vault",
     databases: "Databases",
     storage: "Object Storage",
     abuse: "Abuse Reports",
@@ -106,7 +104,6 @@ export const en = {
     profile: "My Profile",
     security: "Security",
     tokens: "API Tokens",
-    license: "License",
     instance: "Instance Settings",
   },
 };

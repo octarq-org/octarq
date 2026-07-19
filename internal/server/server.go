@@ -17,6 +17,25 @@ import (
 	"github.com/octarq-org/octarq/config"
 )
 
+// StaticMount is an embedded single-page app served under Prefix (e.g.
+// "/portal") on behalf of a plugin — the backing for plugin.Context.HandleStatic.
+// FS is the built dist directory and must contain index.html. The core no
+// longer knows anything about the buyer portal specifically; a plugin (in a
+// composed edition) registers its own frontend here, and an OSS build that
+// composes no such plugin serves nothing under the prefix.
+type StaticMount struct {
+	Prefix string // absolute path prefix, no trailing slash (e.g. "/portal")
+	FS     fs.FS  // built dist dir; must contain index.html
+}
+
+// preparedMount is a StaticMount resolved into the handlers Server serves.
+type preparedMount struct {
+	prefix  string
+	handler http.Handler
+	idx     []byte
+	assets  fs.FS
+}
+
 // Server is the top-level HTTP handler.
 type Server struct {
 	cfg          *config.Config
@@ -25,16 +44,16 @@ type Server struct {
 	static       http.Handler
 	spaIdx       []byte
 	assets       fs.FS
-	portalStatic http.Handler
-	portalIdx    []byte
-	portalAssets fs.FS
+	mounts       []preparedMount
 	mw           *middleware
 }
 
 // New builds the combined handler. webFS is the embedded dist directory.
-// rs supplies the DB-backed runtime settings for the edge middleware (rate
-// limits, metrics token); zero value = built-in defaults.
-func New(cfg *config.Config, apiHandler http.Handler, rootFallback http.Handler, webFS fs.FS, rs RuntimeSettings) (*Server, error) {
+// mounts are plugin-contributed static SPAs (plugin.Context.HandleStatic),
+// each served under its own path prefix. rs supplies the DB-backed runtime
+// settings for the edge middleware (rate limits, metrics token); zero value =
+// built-in defaults.
+func New(cfg *config.Config, apiHandler http.Handler, rootFallback http.Handler, webFS fs.FS, mounts []StaticMount, rs RuntimeSettings) (*Server, error) {
 	idx, err := fs.ReadFile(webFS, "index.html")
 	if err != nil {
 		return nil, err
@@ -50,13 +69,17 @@ func New(cfg *config.Config, apiHandler http.Handler, rootFallback http.Handler,
 		mw:           newMiddleware(rs),
 	}
 
-	pSub, err := fs.Sub(webFS, "portal")
-	if err == nil {
-		if pIdx, perr := fs.ReadFile(pSub, "index.html"); perr == nil {
-			s.portalStatic = http.StripPrefix("/portal/", http.FileServer(http.FS(pSub)))
-			s.portalIdx = pIdx
-			s.portalAssets = pSub
+	for _, m := range mounts {
+		mIdx, err := fs.ReadFile(m.FS, "index.html")
+		if err != nil {
+			return nil, err
 		}
+		s.mounts = append(s.mounts, preparedMount{
+			prefix:  m.Prefix,
+			handler: http.StripPrefix(m.Prefix+"/", http.FileServer(http.FS(m.FS))),
+			idx:     mIdx,
+			assets:  m.FS,
+		})
 	}
 
 	return s, nil
@@ -93,19 +116,22 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2.5 Customer Portal SPA under /portal
-	if path == "/portal" || strings.HasPrefix(path, "/portal/") {
-		if s.portalStatic == nil {
-			http.Error(w, "Portal frontend is not built or available", http.StatusNotFound)
+	// 2.5 Plugin-contributed static SPAs (e.g. the buyer portal under /portal),
+	// registered via plugin.Context.HandleStatic. Each serves an asset when it
+	// exists and otherwise its own index.html for client-side routing. An OSS
+	// build composes no such plugin, so this loop is empty and the prefix falls
+	// through to the root namespace (404).
+	for i := range s.mounts {
+		m := &s.mounts[i]
+		if path == m.prefix || strings.HasPrefix(path, m.prefix+"/") {
+			rest := strings.TrimPrefix(strings.TrimPrefix(path, m.prefix), "/")
+			if rest != "" && mountAssetExists(m.assets, rest) {
+				m.handler.ServeHTTP(w, r)
+				return
+			}
+			serveHTMLIndex(w, m.idx)
 			return
 		}
-		rest := strings.TrimPrefix(strings.TrimPrefix(path, "/portal"), "/")
-		if rest != "" && s.portalAssetExists(rest) {
-			s.portalStatic.ServeHTTP(w, r)
-			return
-		}
-		s.servePortalIndex(w)
-		return
 	}
 
 	// 3. Root → dashboard.
@@ -148,11 +174,13 @@ func (s *Server) assetExists(name string) bool {
 	return true
 }
 
-func (s *Server) portalAssetExists(name string) bool {
-	if s.portalAssets == nil {
+// mountAssetExists reports whether name resolves to a (non-directory) file in a
+// plugin static mount's FS.
+func mountAssetExists(assets fs.FS, name string) bool {
+	if assets == nil {
 		return false
 	}
-	f, err := s.portalAssets.Open(name)
+	f, err := assets.Open(name)
 	if err != nil {
 		return false
 	}
@@ -164,15 +192,13 @@ func (s *Server) portalAssetExists(name string) bool {
 }
 
 func (s *Server) serveIndex(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	io.Copy(w, strings.NewReader(string(s.spaIdx)))
+	serveHTMLIndex(w, s.spaIdx)
 }
 
-func (s *Server) servePortalIndex(w http.ResponseWriter) {
+func serveHTMLIndex(w http.ResponseWriter, idx []byte) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	io.Copy(w, strings.NewReader(string(s.portalIdx)))
+	io.Copy(w, strings.NewReader(string(idx)))
 }
 
 func stripPort(host string) string {

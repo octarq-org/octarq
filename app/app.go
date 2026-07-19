@@ -342,9 +342,10 @@ func (a *App) RunMCP(ctx context.Context) error {
 			info := geo.ParseUA(ua)
 			return info.Device, info.Browser, info.OS
 		},
-		HandleRoot: func(h http.Handler) { /* unused in MCP */ },
-		Provide:    services.Provide,
-		Lookup:     services.Lookup,
+		HandleRoot:   func(h http.Handler) { /* unused in MCP */ },
+		HandleStatic: func(prefix string, fsys fs.FS) { /* unused in MCP */ },
+		Provide:      services.Provide,
+		Lookup:       services.Lookup,
 	}
 	enabled := func(r *http.Request, featureKey string) (allowed, scoped bool) {
 		oid := a.auth.OrgID(r)
@@ -433,6 +434,7 @@ func (a *App) Run(ctx context.Context) error {
 	a.services = services
 	apiHandler.SetServiceLookup(services.Lookup)
 	var rootHandler http.Handler
+	var staticMounts []server.StaticMount
 	var runEmailMu sync.Mutex
 	var runDeferredOnEmail []func(plugin.EmailEvent)
 	pctx := &plugin.Context{
@@ -483,6 +485,9 @@ func (a *App) Run(ctx context.Context) error {
 		},
 		HandleRoot: func(h http.Handler) {
 			rootHandler = h
+		},
+		HandleStatic: func(prefix string, fsys fs.FS) {
+			staticMounts = append(staticMounts, server.StaticMount{Prefix: prefix, FS: fsys})
 		},
 		Provide: services.Provide,
 		Lookup:  services.Lookup,
@@ -553,7 +558,7 @@ func (a *App) Run(ctx context.Context) error {
 	// CSRFGuard wraps the fully-assembled mux (core + plugin routes) to block
 	// cross-site state-changing requests riding the session cookie; bearer/webhook
 	// clients (no session cookie) pass through untouched.
-	srv, err := server.New(a.cfg, api.CSRFGuard(mux), rootHandler, webFS, server.RuntimeSettings{
+	srv, err := server.New(a.cfg, api.CSRFGuard(mux), rootHandler, webFS, staticMounts, server.RuntimeSettings{
 		MetricsToken: apiHandler.MetricsToken,
 		RateLimits:   apiHandler.RateLimits,
 	})

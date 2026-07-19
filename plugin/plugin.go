@@ -60,6 +60,7 @@ package plugin
 
 import (
 	"context"
+	"io/fs"
 	"net/http"
 	"time"
 
@@ -230,6 +231,15 @@ type Context struct {
 	RegisterWebhookEvent func(def WebhookEventDef)
 	// HandleRoot registers a handler on the core HTTP mux for the root path "/{slug}".
 	HandleRoot func(handler http.Handler)
+	// HandleStatic mounts an embedded single-page app under prefix (e.g.
+	// "/portal"). fsys is the built dist directory and MUST contain an
+	// index.html; requests under prefix serve a matching asset if one exists
+	// and otherwise fall back to index.html so client-side routing works. This
+	// is the seam a plugin uses to ship a self-contained buyer-facing frontend
+	// (the buyer portal) without the core embedding it — the OSS build, which
+	// composes no such plugin, simply 404s the prefix. Call it during Mount;
+	// prefix should have no trailing slash. Mirrors HandleRoot for static SPAs.
+	HandleStatic func(prefix string, fsys fs.FS)
 }
 
 // DNSRecord is a provider-agnostic DNS record, mirroring the fields of octarq's

@@ -49,20 +49,29 @@ export default function OverviewPage() {
     </div>
   );
 
+  // Feature quick-start steps are gated on the same "is this plugin composed"
+  // signal the stat cards use: the backend aggregates `/api/overview` via
+  // service lookups, so a disabled plugin yields no field (`o.domains`,
+  // `o.links`, `o.mailboxes` stay undefined). Gating here keeps a disabled
+  // plugin's step — and its nav to a now-404 path — out of the checklist,
+  // instead of sending the user somewhere that doesn't exist. The colleague
+  // step is core (members), always shown.
   const steps = [
     {
       id: "domain",
       title: t("overview.stepDomainTitle"),
       description: t("overview.stepDomainDesc"),
-      completed: o.domains > 0,
+      completed: (o.domains ?? 0) > 0,
       path: "/domains",
+      available: o.domains !== undefined,
     },
     {
       id: "link",
       title: t("overview.stepLinkTitle"),
       description: t("overview.stepLinkDesc"),
-      completed: o.links > 0,
+      completed: (o.links ?? 0) > 0,
       path: "/links",
+      available: o.links !== undefined,
     },
     {
       id: "smtp",
@@ -70,6 +79,7 @@ export default function OverviewPage() {
       description: t("overview.stepSmtpDesc"),
       completed: smtpCount !== null && smtpCount > 0,
       path: "/mail?tab=settings",
+      available: o.mailboxes !== undefined,
     },
     {
       id: "colleague",
@@ -77,8 +87,9 @@ export default function OverviewPage() {
       description: t("overview.stepColleagueDesc"),
       completed: memberCount !== null && memberCount > 1,
       path: "/settings/members",
+      available: true,
     },
-  ];
+  ].filter((s) => s.available);
 
   const completedCount = steps.filter(s => s.completed).length;
   const progressPercent = Math.round((completedCount / steps.length) * 100);

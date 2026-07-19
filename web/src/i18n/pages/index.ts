@@ -9,7 +9,6 @@ import { abuse } from "./abuse";
 import { audit } from "./audit";
 import { invite } from "./invite";
 import { uiCommon } from "./uiCommon";
-import { portal } from "./portal";
 
 const NS = {
   overview,
@@ -19,7 +18,6 @@ const NS = {
   audit,
   invite,
   uiCommon,
-  portal,
 };
 
 export const pagesEn = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v.en]));
