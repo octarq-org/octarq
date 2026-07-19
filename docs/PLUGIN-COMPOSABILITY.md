@@ -111,7 +111,7 @@ Three goals, in dependency order:
   i18n-only plugin" pattern in `plugins-manifest.ts` comments is precedent).
 - **Frontend composition**: core feature plugins move from the hardcoded
   `import "./plugins/core"` into the **default manifest** as local-path entries,
-  same pipeline as Pro. Truly-core UI (abuse, audit, assets/ProGate) stays in-tree
+  same pipeline as Pro. Truly-core UI (abuse, audit, assets/PluginGate) stays in-tree
   and always composed. An edition that compiles out mail ships a manifest without
   the mail entry; if the frontend is present but the backend is absent, pages
   already 404-degrade (keep that behavior as the safety net).
