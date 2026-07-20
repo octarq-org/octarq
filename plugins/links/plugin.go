@@ -109,6 +109,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		ctx.Provide("links.purge", p.purge)
 		ctx.Provide("links.export", p.exportData)
 		ctx.Provide("links.resolve", p.resolveSlug)
+		ctx.Provide("links.create", plugin.LinkCreator(p))
 		ctx.Provide("links.cleanup", p.cleanupEvents)
 		ctx.Provide("links.mcp_export", p.mcpExportLinks)
 		ctx.Provide("links.trust_proxy", SetTrustProxy)
