@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented here.
 
+## [0.3.0] - 2026-07-20
+
+### 🚀 Features
+
+- **links**: Expose a links.create service for plugins (#30)
+- **build**: Xcaddy-style plugin composition (make plugin-build) (#26)
+
+### 🐛 Bug Fixes
+
+- **build**: Compose plugins as &Plugin{} so stateful/MCP plugins work (#29)
+
+### 📚 Documentation
+
+- Sync README_ZH with the reframed English README (#28)
+- Reframe README as a plugin framework for one-person companies (#27)
+- Reframe plugin system as community-first (Pro is just one plugin set) (#25)
+
 ## [0.2.0] - 2026-07-20
 
 ### 🔒 Security
