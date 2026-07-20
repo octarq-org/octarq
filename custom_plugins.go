@@ -8,7 +8,7 @@ import "github.com/octarq-org/octarq/plugin"
 //
 // It is the backend half of the build-time composition seam: `make plugin-build`
 // (see cmd/octarq-build) REGENERATES this file from the OCTARQ_PLUGINS manifest,
-// adding an aliased import + `Plugin{}` entry per plugin. Do not edit by hand
+// adding an aliased import + `&Plugin{}` entry per plugin. Do not edit by hand
 // when using that tooling — it overwrites the whole file.
 //
 // Convention: every Octarq plugin's Go package exports a `Plugin` type that
