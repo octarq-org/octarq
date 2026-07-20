@@ -7,13 +7,13 @@ with two halves that mirror each other:
 - a **JS package** implementing the frontend contract `UIPlugin` (from
   `@octarq-org/plugin-sdk`).
 
-The commercial build (octarq-pro) is nothing more than the open-source core plus a
-set of these plugins. Anything it can do, a community plugin can do the same way —
-in fact **octarq's own core pages (links, mail, DNS, abuse, audit) are UIPlugins
-too** (`web/src/plugins/core/`, always composed); the shell owns only auth,
-settings, org handling, Overview and the plugin pipeline. The working
-reference for everything below is [`examples/plugin-hello`](../examples/plugin-hello),
-a minimal full-stack plugin you can copy.
+Anyone can extend Octarq using this exact same plugin mechanism. Octarq's own core
+pages (links, mail, DNS, abuse, audit) and commercial Pro modules are built as
+plugins on top of this public contract — a community plugin can do everything an
+official or commercial plugin can do. The shell owns only auth, settings, org
+handling, Overview, and the plugin pipeline. The working reference for everything
+below is [`examples/plugin-hello`](../examples/plugin-hello), a minimal full-stack
+plugin you can copy.
 
 ```
 your-plugin/
@@ -37,8 +37,8 @@ There is **no runtime plugin loading**. Both halves are composed at build time:
   that imports it and calls `registerUIPlugin(fooPlugin)`. A build whose manifest
   doesn't name your package never ships a byte of your UI (the page lands in its
   own lazy chunk, only referenced when composed in). The OSS default manifest
-  lists the example plugin; a commercial build points at its own manifest via
-  `OCTARQ_PLUGINS_MANIFEST` / `OCTARQ_PLUGINS` (see `web/plugins-manifest.ts`).
+  lists the example plugin; custom builds or commercial editions point at their own
+  manifest via `OCTARQ_PLUGINS_MANIFEST` / `OCTARQ_PLUGINS` (see `web/plugins-manifest.ts`).
 
 Because a compiled-in plugin runs **in-process with full access** (DB, secrets,
 network), this model fits a **curated / operator-opt-in** ecosystem: the operator
@@ -92,9 +92,10 @@ Key rules:
   feature is disabled for the caller's workspace, the app answers **404** before
   your handler runs. That 404 is exactly the state the frontend renders its
   neutral "not in this build" fallback for. You don't write that check.
-- **License-gate Pro routes with 402.** If a route needs a paid tier, return
-  **402 Payment Required** when the license lacks it; the frontend shows the
-  upsell. (octarq-pro's plugins use `lic.HasTier(...)`.)
+- **License-gate paid routes with 402 (optional).** If a plugin feature requires a
+  paid tier or commercial license, return **402 Payment Required** when the license
+  lacks it; the frontend `PluginGate` automatically catches 402 responses and renders
+  an upsell or custom locked view.
 - **Never import octarq's `internal/*`.** Everything a plugin needs is on
   `plugin.Context`: `DB`, `Guard`, `Encrypt`/`Decrypt` (AES-256-GCM, for secrets
   at rest — never store plaintext), `Audit`, `Notify`, `SendMail`, `OnEmail`
@@ -208,8 +209,8 @@ Frontend — add your package to the host's plugin manifest
 Each entry is a package specifier (its default export is the UIPlugin) or
 `{ "from": "<spec>", "import": "<namedExport>" }`. To compose a different set
 without editing the file, pass `OCTARQ_PLUGINS='["@acme/octarq-plugin-hello"]'`
-or point `OCTARQ_PLUGINS_MANIFEST` at another manifest (octarq-pro does the
-latter for its Pro edition).
+or point `OCTARQ_PLUGINS_MANIFEST` at another manifest (custom or commercial builds
+use this to compose their editions).
 
 Build the frontend (`pnpm build` bakes it into `webembed/dist`), then
 `go build` the binary. One binary, both halves, no fork, no runtime fetch.
@@ -234,8 +235,9 @@ resolves them as normal peers and needs no such mapping.
       the plugin implements (Plugin + each optional one).
 - [ ] Backend routes registered on the passed `Mux`; secrets via `ctx.Encrypt`;
       cross-plugin services via `ctx.Provide` / lazy `plugin.LookupAs`.
-- [ ] Pro-only routes return **402** without the tier; you rely on the host's
+- [ ] Paid/tiered routes return **402** when unlicensed; you rely on the host's
       auto-**404** for the disabled-feature case.
 - [ ] Pages are `React.lazy`; UI built from `@octarq-org/plugin-sdk`; 402/404 handled.
 - [ ] i18n keys live under your `name` namespace.
 - [ ] `go build ./...` and `pnpm build` are green; `go:embed` produces one binary.
+

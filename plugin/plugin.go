@@ -1,7 +1,11 @@
-// Package plugin defines the contract a commercial (Pro) module implements to
-// extend octarq without forking it. It is the public, importable seam of the
-// Core-as-Library split: the open-core binary depends only on this package and
-// app; the private octarq-pro consumer registers plugins through it.
+// Package plugin defines the public, importable contract that anyone implements to
+// extend octarq without forking it.
+//
+// Octarq's own core features (links, mail, domains) and the commercial Pro
+// edition are built on this exact same seam — a community plugin can do
+// everything an official plugin can do. The open-core binary depends only on
+// this package and app; custom binaries and commercial builds register plugins
+// through it.
 //
 // AutoMigrate timing: a plugin contributes its GORM models via Models(). The
 // app intentionally does NOT migrate at db-open time — it waits until every
