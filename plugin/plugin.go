@@ -272,6 +272,19 @@ type DNSManager interface {
 	Delete(ctx context.Context, domainID uint, recordID string) error
 }
 
+// LinkCreator is the short-link creation seam the links plugin publishes under
+// the service name "links.create" (resolve it lazily with
+// plugin.LookupAs[plugin.LinkCreator]). It lets any plugin turn a URL into a
+// short link — the programmatic equivalent of POST /api/links — without
+// importing the links plugin. It degrades gracefully: a consumer must tolerate
+// the service being absent (links not composed into this build).
+type LinkCreator interface {
+	// CreateLink creates an enabled short link for targetURL in orgID's
+	// workspace on the default host with a random slug, and returns the slug.
+	// targetURL must be an http(s) URL.
+	CreateLink(ctx context.Context, orgID uint, targetURL string) (slug string, err error)
+}
+
 // Mux is the subset of *http.ServeMux a plugin uses to register routes. The app
 // passes a wrapper (not the raw mux) so it can gate every plugin route behind a
 // per-workspace "plugin enabled" check without the plugin having to opt in.
