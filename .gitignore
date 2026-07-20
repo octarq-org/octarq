@@ -28,5 +28,8 @@ examples/*/web/node_modules
 # air (hot-reload tmp)
 .air/
 
-# os
+# os & IDE
 .DS_Store
+.claude/
+.agents/
+
