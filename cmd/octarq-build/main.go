@@ -17,7 +17,7 @@
 // and then:
 //
 //  1. runs `go get` for each backend module (so go.mod resolves it),
-//  2. regenerates ./custom_plugins.go with an aliased import + `Plugin{}` entry
+//  2. regenerates ./custom_plugins.go with an aliased import + `&Plugin{}` entry
 //     per backend plugin (relies on the convention that every Octarq plugin
 //     package exports a `Plugin` type), and
 //  3. writes ./.octarq-frontend-plugins.json — the JSON array of npm specifiers
@@ -129,7 +129,7 @@ func writeBackend(backend []entry) error {
 	} else {
 		b.WriteString("\treturn []plugin.Plugin{\n")
 		for i := range backend {
-			fmt.Fprintf(&b, "\t\tp%d.Plugin{},\n", i)
+			fmt.Fprintf(&b, "\t\t&p%d.Plugin{},\n", i)
 		}
 		b.WriteString("\t}\n}\n")
 	}
