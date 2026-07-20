@@ -1,4 +1,4 @@
-.PHONY: all web build run dev docker clean tidy
+.PHONY: all web build run dev docker clean tidy plugin-build
 
 BINARY := octarq
 AIR    := $(shell go env GOPATH)/bin/air
@@ -35,6 +35,19 @@ dev:
 
 docker:
 	docker build -t octarq:latest .
+
+# Build a custom binary with third-party plugins composed in (xcaddy-style).
+# Set OCTARQ_PLUGINS to a JSON array of {go, gomod, npm} entries, e.g.
+#   OCTARQ_PLUGINS='[{"go":"github.com/you/octarq-plugin-foo","gomod":"github.com/you/octarq-plugin-foo@v1.0.0","npm":"@you/octarq-plugin-foo"}]' make plugin-build
+# cmd/octarq-build regenerates custom_plugins.go (backend) + .octarq-frontend-plugins.json (frontend);
+# the frontend build then composes the UI halves via its own OCTARQ_PLUGINS manifest.
+# Reset afterwards: git checkout custom_plugins.go go.mod go.sum && rm -f .octarq-frontend-plugins.json
+plugin-build:
+	@test -n "$(OCTARQ_PLUGINS)" || { echo "set OCTARQ_PLUGINS to a JSON array of plugin entries"; exit 1; }
+	go run ./cmd/octarq-build
+	cd web && OCTARQ_PLUGINS="$$(cat ../.octarq-frontend-plugins.json)" pnpm install && pnpm build
+	$(MAKE) build
+	@echo "Built ./$(BINARY) with custom plugins. Reset: git checkout custom_plugins.go go.mod go.sum && rm -f .octarq-frontend-plugins.json"
 
 tidy:
 	go mod tidy

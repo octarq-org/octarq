@@ -69,6 +69,12 @@ func main() {
 	// has no Describer, so it is a user-toggleable feature — off by default,
 	// opt-in from Settings → Plugins, and its /hello menu is backend-gated.
 	a.Use(hello.Plugin{})
+	// Compose any third-party plugins wired in at build time via the
+	// OCTARQ_PLUGINS manifest (see custom_plugins.go + cmd/octarq-build). The
+	// committed default is empty, so a plain build is unaffected.
+	for _, p := range customPlugins() {
+		a.Use(p)
+	}
 	if err := a.Run(context.Background()); err != nil {
 		slog.Error("run failed", "err", err)
 		os.Exit(1)

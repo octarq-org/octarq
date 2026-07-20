@@ -33,3 +33,6 @@ examples/*/web/node_modules
 .claude/
 .agents/
 
+
+# octarq-build generated frontend manifest (transient)
+.octarq-frontend-plugins.json
