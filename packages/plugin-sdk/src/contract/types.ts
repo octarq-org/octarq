@@ -8,7 +8,7 @@
 // without forking octarq.
 //
 // This module deliberately imports nothing app-internal — it is the published
-// public contract of `@octarq-org/plugin-sdk`.
+// public contract of `@octarq/plugin-sdk`.
 import type { ComponentType, LazyExoticComponent } from "react";
 
 // A lazily-loaded page component. Plugins wrap their page in `React.lazy` so the

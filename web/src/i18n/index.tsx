@@ -1,4 +1,4 @@
-// Host adapter over the SDK's i18n (@octarq-org/plugin-sdk). The SDK owns the
+// Host adapter over the SDK's i18n (@octarq/plugin-sdk). The SDK owns the
 // mechanism (context, useTranslation, plugin-namespace merge); this module owns
 // the app's *content* — it builds the shell + per-page resource dictionaries
 // and mounts the SDK provider with them. Re-exporting the SDK hooks keeps every
@@ -6,7 +6,7 @@
 // pages on the same context as plugin packages (so a plugin's useTranslation and
 // a core page's resolve identically).
 //
-// Imported by source path (not the `@octarq-org/plugin-sdk` alias, which resolves
+// Imported by source path (not the `@octarq/plugin-sdk` alias, which resolves
 // to the app-side facade) so the dependency points app → package, never back.
 import { ReactNode } from "react";
 import {

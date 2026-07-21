@@ -4,7 +4,7 @@
 // as every other feature; when a real implementation lands it replaces the
 // ComingSoon route here without touching App.tsx.
 import { lazy } from "react";
-import type { UIPlugin } from "@octarq-org/plugin-sdk";
+import type { UIPlugin } from "@octarq/plugin-sdk";
 
 const page = (name: "CertificatesComingSoon" | "DatabasesComingSoon" | "StorageComingSoon") =>
   lazy(() => import("../../pages/ComingSoon").then((m) => ({ default: m[name] })));

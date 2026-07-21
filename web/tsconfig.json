@@ -17,7 +17,7 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@octarq-org/plugin-sdk": ["./src/plugin-sdk"]
+      "@octarq/plugin-sdk": ["./src/plugin-sdk"]
     }
   },
   "include": ["src"]

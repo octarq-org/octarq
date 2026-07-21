@@ -2,7 +2,7 @@
 
 > Status: **§2.1–§2.7 all done**, both repos merged. Core: #17 (§2.1–§2.2),
 > #19 (§2.3/§2.4/§2.5-seam/§2.6-nav), #20 (§2.6 Commerce seam + §2.4 VPS/issued),
-> #21 published `@octarq-org/plugin-sdk` 0.4.0. octarq-pro: #15 (nav labels),
+> #21 published `@octarq/plugin-sdk` 0.4.0. octarq-pro: #15 (nav labels),
 > #16 (Commerce area), #17 (buyer portal). A final pass then swept the rest of
 > the commercial `api.ts` surface (storefront / billing / infra / inbox-ai — see
 > §4.4), so `web/src/api.ts` now carries only core client surface. Nothing left.
@@ -177,7 +177,7 @@ All package DTS builds pass. (Runtime label visibility is confirmable only once
 pro consumes this core branch.)
 
 **Commerce area shell — [done, core]** (the seam that was deferred above). Added
-`UIArea.groups?: string[]` to the contract (changeset → `@octarq-org/plugin-sdk`
+`UIArea.groups?: string[]` to the contract (changeset → `@octarq/plugin-sdk`
 minor); `pluginAreaToArea` seeds ordered group shells from it, and
 `areaForCategory` now routes a menu to a plugin area when its `category` matches
 the area id, title, OR a declared group label. That let us delete the `Commerce`
@@ -185,13 +185,13 @@ STATIC_AREAS shell, the commerce keyword branch in `areaForCategory`, and the
 `areas.commerce` / `groups.{Sales,Billing,Finance}` i18n from core. `Subscriptions`
 group label left in place (separate/ambiguous owner — see §2.6 original).
 
-**pro follow-up — [done]** in octarq-pro#16 (after `@octarq-org/plugin-sdk` 0.4.0
+**pro follow-up — [done]** in octarq-pro#16 (after `@octarq/plugin-sdk` 0.4.0
 published): the commerce plugins that can appear without the others —
 `plugin-storefront`, `plugin-issuer`, `plugin-finance` (covering the crm /
 license / store products respectively) — each declare the identical `commerce`
 area (`uiAreas()` dedupes by id) with `groups: ["Sales","Billing","Finance"]`,
 plus `_shared.areas.commerce` / `_shared.groups.*` zh labels, and bump their
-`@octarq-org/plugin-sdk` dep `^0.3.0 → ^0.4.0`.
+`@octarq/plugin-sdk` dep `^0.3.0 → ^0.4.0`.
 
 ### 4.3 §2.5 buyer portal — [done]
 
@@ -208,7 +208,7 @@ committed `webembed/dist/portal/` is dropped by the next CI dashboard rebuild
 **pro follow-up — [done]** in octarq-pro#17 (after bumping the pinned octarq
 module to the `HandleStatic` version). The portal frontend moved into
 octarq-pro as `portal/` — a standalone Vite SPA: the ported `PortalApp` with its
-imports rewritten to `@octarq-org/plugin-sdk` (shared glass UI / i18n / brand)
+imports rewritten to `@octarq/plugin-sdk` (shared glass UI / i18n / brand)
 plus a self-contained `api.ts` carrying the `customer*` / `portal*` helpers +
 `IssuedLicense` / `LicenseDevice` types the core removed. It builds into
 `modules/portal/frontend/dist` (committed, `go:embed`ed by `frontend.go`), and

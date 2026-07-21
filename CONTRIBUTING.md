@@ -25,7 +25,7 @@ Run these and make sure they pass — don't claim a change works on inspection a
 - `go test ./... -race`
 - `gofmt -w` (keep gofmt-clean; match surrounding style)
 - in `web/`: `npx tsc --noEmit`
-- if you touched `packages/plugin-sdk/`: `pnpm --filter @octarq-org/plugin-sdk test`
+- if you touched `packages/plugin-sdk/`: `pnpm --filter @octarq/plugin-sdk test`
 
 CI runs the same, plus builds the dashboard. Prefer pushing and relying on CI
 over spinning up Docker locally.
@@ -45,7 +45,7 @@ over spinning up Docker locally.
   a neutral "not in this build" note — never a raw error. Pages may still handle
   these themselves; the gate is the safety net.
 - **Shared UI** lives in `web/src/ui` (shadcn / Base UI backed) and is re-exported
-  to plugins via `@octarq-org/plugin-sdk`. Build UI from those primitives.
+  to plugins via `@octarq/plugin-sdk`. Build UI from those primitives.
 - **Security-sensitive changes** (auth, crypto, tenant isolation, SSRF) must come
   with tests; see `internal/api/isolation_test.go` and `internal/api/csrf_test.go`
   for the patterns.

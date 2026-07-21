@@ -24,7 +24,7 @@ import {
   Webhook,
   Workflow,
 } from "lucide-react";
-import type { UIArea } from "@octarq-org/plugin-sdk";
+import type { UIArea } from "@octarq/plugin-sdk";
 
 // ─── Area definitions ──────────────────────────────────────────────────────
 

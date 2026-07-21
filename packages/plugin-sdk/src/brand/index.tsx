@@ -1,4 +1,4 @@
-// @octarq-org/plugin-sdk/brand — the brand-name context.
+// @octarq/plugin-sdk/brand — the brand-name context.
 //
 // The product name is a host-app runtime setting (fetched from the server). The
 // SDK only needs to *read* it (e.g. LockedFeature's upsell copy), so it exposes

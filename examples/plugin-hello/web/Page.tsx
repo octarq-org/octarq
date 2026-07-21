@@ -1,5 +1,5 @@
 // The example plugin's page — the JS half of the feature. It calls the Go half
-// (GET /api/hello/ping) and renders with the shared UI from @octarq-org/plugin-sdk.
+// (GET /api/hello/ping) and renders with the shared UI from @octarq/plugin-sdk.
 //
 // A third-party plugin can't import octarq's internal `api` client, so it uses a
 // plain fetch and handles the two gated states octarq standardises on:
@@ -13,7 +13,7 @@ import {
   GlassCard,
   LockedFallback,
   useTranslation,
-} from "@octarq-org/plugin-sdk";
+} from "@octarq/plugin-sdk";
 
 interface Ping {
   message: string;

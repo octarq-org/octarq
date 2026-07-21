@@ -1,4 +1,4 @@
-# Publishing `@octarq-org/plugin-sdk`
+# Publishing `@octarq/plugin-sdk`
 
 The frontend plugin SDK is published from `packages/plugin-sdk/` using
 [Changesets](https://github.com/changesets/changesets). The default registry is
@@ -19,7 +19,7 @@ After changing the SDK, from the repo root run:
 pnpm changeset
 ```
 
-Pick the affected package (`@octarq-org/plugin-sdk`), the bump type
+Pick the affected package (`@octarq/plugin-sdk`), the bump type
 (`patch` / `minor` / `major` — follow semver), and write a one-line summary.
 This writes a markdown file under `.changeset/`. Commit it with your PR.
 
@@ -39,9 +39,9 @@ On push to `main`, `.github/workflows/publish-sdk.yml` runs
 
 Merging that PR pushes to `main` again. This time there are no changesets to
 consume, so the action runs `pnpm changeset publish`, which builds nothing
-itself (CI runs `pnpm --filter @octarq-org/plugin-sdk build` first) and publishes the
+itself (CI runs `pnpm --filter @octarq/plugin-sdk build` first) and publishes the
 newly-versioned package to the registry, then pushes the git tag
-`@octarq-org/plugin-sdk@x.y.z`.
+`@octarq/plugin-sdk@x.y.z`.
 
 This is loop-safe: publishing removes the changesets, so the next `main` push
 has nothing to release.
@@ -49,7 +49,7 @@ has nothing to release.
 ### Escape hatch — tag publish
 
 Pushing a tag matching `sdk-v*` (e.g. `sdk-v1.2.3`) triggers a direct
-`pnpm publish --filter @octarq-org/plugin-sdk`. Use this only for manual/out-of-band
+`pnpm publish --filter @octarq/plugin-sdk`. Use this only for manual/out-of-band
 releases; the changesets flow above is the normal path.
 
 ### What actually publishes it
@@ -78,7 +78,7 @@ the publish-relevant subset):
 
 ```json
 {
-  "name": "@octarq-org/plugin-sdk",
+  "name": "@octarq/plugin-sdk",
   "version": "0.0.0",
   "license": "MIT",
   "repository": {
@@ -112,7 +112,7 @@ Notes:
 
 ---
 
-## 3. Consuming `@octarq-org/plugin-sdk` from GitHub Packages
+## 3. Consuming `@octarq/plugin-sdk` from GitHub Packages
 
 Consumers (octarq-pro, community plugin authors) must route the `@octarq-org` scope to
 GitHub Packages and authenticate.
@@ -145,7 +145,7 @@ without being granted access. Two options:
 
 1. Grant them read access to the package/org (fine-grained PAT with
    `Packages: read`), or
-2. Publish publicly to npm instead (below) so `pnpm add @octarq-org/plugin-sdk` works
+2. Publish publicly to npm instead (below) so `pnpm add @octarq/plugin-sdk` works
    with no `.npmrc` at all.
 
 ---

@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import type { UIPlugin } from "@octarq-org/plugin-sdk";
+import type { UIPlugin } from "@octarq/plugin-sdk";
 import { domainsI18n } from "./i18n";
 
 const domains: UIPlugin = {

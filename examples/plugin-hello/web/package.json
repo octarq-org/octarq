@@ -1,5 +1,5 @@
 {
-  "//": "The example plugin's frontend, packaged as a real plugin package so a host can compose it by name via the plugin manifest (see octarq's web/octarq.plugins.json — the OSS default edition ships this). Consumed as source: the host's Vite build bundles ./index.ts directly, resolving react + @octarq-org/plugin-sdk from the host (peer deps, single instance). Differently-scoped (@acme) on purpose: it demonstrates a third-party plugin.",
+  "//": "The example plugin's frontend, packaged as a real plugin package so a host can compose it by name via the plugin manifest (see octarq's web/octarq.plugins.json — the OSS default edition ships this). Consumed as source: the host's Vite build bundles ./index.ts directly, resolving react + @octarq/plugin-sdk from the host (peer deps, single instance). Differently-scoped (@acme) on purpose: it demonstrates a third-party plugin.",
   "name": "@acme/octarq-plugin-hello",
   "version": "0.0.0",
   "private": true,
@@ -10,11 +10,11 @@
     ".": "./index.ts"
   },
   "peerDependencies": {
-    "@octarq-org/plugin-sdk": "*",
+    "@octarq/plugin-sdk": "*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@octarq-org/plugin-sdk": "workspace:*"
+    "@octarq/plugin-sdk": "workspace:*"
   }
 }

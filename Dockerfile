@@ -1,6 +1,6 @@
 # ---- Stage 1: build the React dashboard ----
 # The dashboard's pnpm workspace (web/pnpm-workspace.yaml) includes the sibling
-# @octarq-org/plugin-sdk at ../packages/* and the example plugin
+# @octarq/plugin-sdk at ../packages/* and the example plugin
 # @acme/octarq-plugin-hello at ../examples/plugin-hello/web (the OSS default
 # manifest composes it), so all three trees must be present for the workspace
 # dependencies to resolve. Manifests first for layer caching.

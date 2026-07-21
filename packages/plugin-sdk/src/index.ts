@@ -1,4 +1,4 @@
-// @octarq-org/plugin-sdk — package root (the `.` export).
+// @octarq/plugin-sdk — package root (the `.` export).
 //
 // Carries the full plugin surface so a plugin package has ONE import specifier:
 //   - contract + registry (the UIPlugin type, registerUIPlugin, uiPluginI18n…)

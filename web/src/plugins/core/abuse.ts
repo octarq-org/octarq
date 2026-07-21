@@ -1,6 +1,6 @@
 // Abuse reports — core feature as a UIPlugin (see ./index.ts for the convention).
 import { lazy } from "react";
-import type { UIPlugin } from "@octarq-org/plugin-sdk";
+import type { UIPlugin } from "@octarq/plugin-sdk";
 
 const abuse: UIPlugin = {
   name: "abuse",

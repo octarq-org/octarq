@@ -7,10 +7,10 @@
 // "home-overview") and NEW top-level sidebar `areas` — see the UIPlugin type.
 //
 // In a real distribution this file is the `main`/`exports` of a published npm
-// package (e.g. `@acme/octarq-plugin-hello`) that depends on `@octarq-org/plugin-sdk` as a
+// package (e.g. `@acme/octarq-plugin-hello`) that depends on `@octarq/plugin-sdk` as a
 // peer; the host imports it by name instead of by relative path.
 import { lazy } from "react";
-import type { UIPlugin } from "@octarq-org/plugin-sdk";
+import type { UIPlugin } from "@octarq/plugin-sdk";
 
 export const helloPlugin: UIPlugin = {
   name: "hello",

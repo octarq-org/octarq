@@ -5,7 +5,7 @@ with two halves that mirror each other:
 
 - a **Go module** implementing the backend contract `plugin.Plugin`, and
 - a **JS package** implementing the frontend contract `UIPlugin` (from
-  `@octarq-org/plugin-sdk`).
+  `@octarq/plugin-sdk`).
 
 Anyone can extend Octarq using this exact same plugin mechanism. Octarq's own core
 pages (links, mail, DNS, abuse, audit) and commercial Pro modules are built as
@@ -20,7 +20,7 @@ your-plugin/
 ├── go.mod                 # a Go module: github.com/you/octarq-plugin-foo
 ├── foo.go                 # implements plugin.Plugin (+ optional MenuProvider)
 └── web/
-    ├── index.ts           # implements UIPlugin  (@octarq-org/plugin-sdk)
+    ├── index.ts           # implements UIPlugin  (@octarq/plugin-sdk)
     └── Page.tsx           # your lazy-loaded page(s)
 ```
 
@@ -144,7 +144,7 @@ From `examples/plugin-hello/web/index.ts`:
 
 ```ts
 import { lazy } from "react";
-import type { UIPlugin } from "@octarq-org/plugin-sdk";
+import type { UIPlugin } from "@octarq/plugin-sdk";
 
 export const helloPlugin: UIPlugin = {
   name: "hello",
@@ -158,12 +158,12 @@ Key rules:
 
 - **Wrap each page in `React.lazy`.** This is what makes an uncomposed build ship
   none of your bytes, and gives each page its own async chunk.
-- **Build your UI from `@octarq-org/plugin-sdk`.** It re-exports the shared component
+- **Build your UI from `@octarq/plugin-sdk`.** It re-exports the shared component
   library — `GlassCard`, `Button`, `Badge`, `Field`, `Modal`, `Toggle`, `Empty`,
   `PageHeader`, `LockedFeature`, `useTranslation`, … These are now backed by
   shadcn / Base UI primitives (accessible, keyboard-operable) while carrying
   octarq's glass theme, so your page matches the app and gets a11y for free. Import
-  by name from `@octarq-org/plugin-sdk`, never reach into app-internal paths.
+  by name from `@octarq/plugin-sdk`, never reach into app-internal paths.
 - **Gated states are centralized in `PluginGate`.** Every plugin route element is
   wrapped in it: **402** → the upsell (`lockedFallback`, or the SDK's
   `LockedFeature` by default), **403** → a neutral access-denied note, **404**
@@ -221,7 +221,7 @@ A plugin is **one repo** with the two halves. In a real distribution:
 
 - The Go module is `go get`-able; a host adds it to its build.
 - The `web/` package is published to npm (e.g. `@acme/octarq-plugin-hello`) with
-  `@octarq-org/plugin-sdk` and `react` as **peer** dependencies; the host imports it by
+  `@octarq/plugin-sdk` and `react` as **peer** dependencies; the host imports it by
   name and registers it in its injection module.
 
 The example's `web/tsconfig.json` maps the SDK/React locally only because it
@@ -237,7 +237,7 @@ resolves them as normal peers and needs no such mapping.
       cross-plugin services via `ctx.Provide` / lazy `plugin.LookupAs`.
 - [ ] Paid/tiered routes return **402** when unlicensed; you rely on the host's
       auto-**404** for the disabled-feature case.
-- [ ] Pages are `React.lazy`; UI built from `@octarq-org/plugin-sdk`; 402/404 handled.
+- [ ] Pages are `React.lazy`; UI built from `@octarq/plugin-sdk`; 402/404 handled.
 - [ ] i18n keys live under your `name` namespace.
 - [ ] `go build ./...` and `pnpm build` are green; `go:embed` produces one binary.
 

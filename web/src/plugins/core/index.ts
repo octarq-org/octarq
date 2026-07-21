@@ -3,7 +3,7 @@
 // Truly-core UI (abuse, audit, assets) stays in-tree and always composed here.
 // Feature plugins (dns, mail, links) are composed via the plugin manifest
 // (octarq.plugins.json).
-import { registerUIPlugin } from "@octarq-org/plugin-sdk";
+import { registerUIPlugin } from "@octarq/plugin-sdk";
 import assets from "./assets";
 import abuse from "./abuse";
 import audit from "./audit";
