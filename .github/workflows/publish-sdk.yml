@@ -17,8 +17,8 @@ name: Publish SDK
 # "Version Packages" PR when unconsumed changesets exist, and publishes once that
 # PR is merged. Also runnable via manual dispatch and sdk-v* tags.
 #
-# Prerequisite: the `@octarq-org` GitHub Packages registry must exist / be
-# writable by GITHUB_TOKEN, or the publish half fails (the version PR still opens).
+# Prerequisite: an `NPM_TOKEN` repo secret with publish rights to the public
+# `@octarq-org` npm scope, or the publish half fails (the version PR still opens).
 on:
   workflow_dispatch:
   push:
@@ -28,7 +28,6 @@ on:
 # Top-level: least privilege. The changesets job widens this locally.
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: publish-sdk-${{ github.ref }}
@@ -42,7 +41,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write        # commit version bumps / push tags
-      packages: write        # publish to GitHub Packages
       pull-requests: write   # open the "Version Packages" PR
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +55,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://npm.pkg.github.com
+          registry-url: https://registry.npmjs.org
           scope: "@octarq-org"
 
       - run: pnpm install --frozen-lockfile
@@ -73,8 +71,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # setup-node wrote ~/.npmrc; changeset publish -> pnpm publish reads
-          # NODE_AUTH_TOKEN for //npm.pkg.github.com/:_authToken.
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # NODE_AUTH_TOKEN for //registry.npmjs.org/:_authToken.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ── One-shot publish on an sdk-v* tag ────────────────────────────────────
   tag-publish:
@@ -92,7 +90,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://npm.pkg.github.com
+          registry-url: https://registry.npmjs.org
           scope: "@octarq-org"
 
       - run: pnpm install --frozen-lockfile
@@ -103,4 +101,4 @@ jobs:
       - name: Publish
         run: pnpm publish --filter @octarq-org/plugin-sdk --no-git-checks
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
