@@ -97,7 +97,7 @@ export const helloPlugin: UIPlugin = {
   OCTARQ_PLUGINS='[{"go":"github.com/you/octarq-plugin-foo","npm":"@you/octarq-plugin-foo"}]' make plugin-build
   ```
 
-**Start from the template** → [octarq-plugin-template](https://github.com/octarq-org/octarq-plugin-template) · **Guide** → [docs/PLUGINS.md](docs/PLUGINS.md)
+**Official plugins & starter template** → [octarq-plugins](https://github.com/octarq-org/octarq-plugins) (Telegram, Webhook, the agent-native Mail Links demo, and a `_template` to copy) · **Guide** → [docs/PLUGINS.md](docs/PLUGINS.md)
 
 *Octarq's own Pro edition is just another set of plugins built against this same public interface — nothing the community can't do.*
 
