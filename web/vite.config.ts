@@ -60,9 +60,9 @@ export default defineConfig({
     alias: {
       // The frontend plugin SDK. The app (and plugins) import by this name; the
       // alias points at the app-side facade that re-exports the published
-      // `@octarq-org/plugin-sdk`, giving the whole build one SDK instance (one
+      // `@octarq/plugin-sdk`, giving the whole build one SDK instance (one
       // registry, one i18n/brand context). Keep in sync with tsconfig.json paths.
-      "@octarq-org/plugin-sdk": fileURLToPath(new URL("./src/plugin-sdk", import.meta.url)),
+      "@octarq/plugin-sdk": fileURLToPath(new URL("./src/plugin-sdk", import.meta.url)),
       ...devSharedAliases,
       ...devEditionAliases,
     },

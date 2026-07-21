@@ -89,7 +89,7 @@ jobs:
       # plugin-sdk is a member of the web workspace (../packages/*), so its
       # deps are already installed by the pnpm install above.
       - name: Test plugin SDK
-        run: pnpm --filter @octarq-org/plugin-sdk test
+        run: pnpm --filter @octarq/plugin-sdk test
 
       - name: Build dashboard
         run: pnpm build

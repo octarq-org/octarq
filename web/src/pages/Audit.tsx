@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, AuditLog } from "../api";
-import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge } from "@octarq-org/plugin-sdk";
-import { useTranslation } from "@octarq-org/plugin-sdk";
+import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge } from "@octarq/plugin-sdk";
+import { useTranslation } from "@octarq/plugin-sdk";
 
 export default function AuditLogPage() {
   const { t } = useTranslation();

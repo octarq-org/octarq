@@ -29,8 +29,8 @@ import {
   useMemo,
   useState,
 } from "react";
-import { LockedFeature } from "@octarq-org/plugin-sdk";
-import type { UIPlugin, UIRoute } from "@octarq-org/plugin-sdk";
+import { LockedFeature } from "@octarq/plugin-sdk";
+import type { UIPlugin, UIRoute } from "@octarq/plugin-sdk";
 import { AccessDenied, PluginUnavailable } from "./PluginRoutes";
 import { roleSatisfies, useCurrentRole } from "../shell/role";
 

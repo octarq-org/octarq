@@ -1,4 +1,4 @@
-// @octarq-org/plugin-sdk/i18n — the self-contained i18n surface.
+// @octarq/plugin-sdk/i18n — the self-contained i18n surface.
 //
 // The SDK owns the i18n *mechanism* (context, provider, lookup, interpolation);
 // the host app owns the *content*. The app mounts <I18nProvider resources={…}>

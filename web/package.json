@@ -13,7 +13,7 @@
   "dependencies": {
     "@acme/octarq-plugin-hello": "workspace:*",
     "@base-ui/react": "^1.6.0",
-    "@octarq-org/plugin-sdk": "workspace:*",
+    "@octarq/plugin-sdk": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.42.0",

@@ -14,7 +14,7 @@ importers:
       '@base-ui/react':
         specifier: ^1.6.0
         version: 1.6.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@octarq-org/plugin-sdk':
+      '@octarq/plugin-sdk':
         specifier: workspace:*
         version: link:../packages/plugin-sdk
       class-variance-authority:
@@ -85,7 +85,7 @@ importers:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
     devDependencies:
-      '@octarq-org/plugin-sdk':
+      '@octarq/plugin-sdk':
         specifier: workspace:*
         version: link:../../../packages/plugin-sdk
 

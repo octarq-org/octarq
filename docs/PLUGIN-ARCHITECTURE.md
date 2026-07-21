@@ -54,7 +54,7 @@ type Starter interface { Start(ctx context.Context) }   // runs after ALL Mounts
 
 ## 3. Frontend contract & build-time composition
 
-`packages/plugin-sdk/` (published as **`@octarq-org/plugin-sdk`**) owns:
+`packages/plugin-sdk/` (published as **`@octarq/plugin-sdk`**) owns:
 
 ```ts
 interface UIPlugin {
@@ -108,7 +108,7 @@ a route with no registered plugin 404-degrades (neutral note). Licenses is the
 reference plugin, now published as the standalone package
 `@octarq-org/plugin-issuer` (octarq-pro `packages/`).
 
-## 4. Shared UI (`@octarq-org/plugin-sdk`)
+## 4. Shared UI (`@octarq/plugin-sdk`)
 
 The SDK re-exports the shared component library plugins build against, so a
 plugin page matches the app and gets accessibility for free:
@@ -155,7 +155,7 @@ embedded dashboard renders the real licenses page.
 
 1. Backend plugin (`plugin.Plugin`) mounts routes, 402-gates on tier — lives in
    octarq-pro (or core for a community plugin).
-2. Frontend page (`UIPlugin`) built from `@octarq-org/plugin-sdk`, handles 402/404
+2. Frontend page (`UIPlugin`) built from `@octarq/plugin-sdk`, handles 402/404
    (with `PluginGate` as the safety net). It ships as a standalone package
    (`octarq-pro/packages/plugin-<feat>/`, consuming the SDK +
    `@octarq-org/api-client`) named in the Pro manifest.
@@ -165,12 +165,12 @@ embedded dashboard renders the real licenses page.
 
 ## 7. Publishing the SDK
 
-`@octarq-org/plugin-sdk` → **GitHub Packages** via changesets:
+`@octarq/plugin-sdk` → **GitHub Packages** via changesets:
 - Root `pnpm-workspace.yaml` (`packages/*`), `.changeset/`, `.github/workflows/publish-sdk.yml`.
 - Package `publishConfig` → `npm.pkg.github.com`, scope `@octarq-org` (= GitHub org).
 - Consumer `.npmrc`: `@octarq-org:registry=https://npm.pkg.github.com`. See
   [PUBLISHING.md](PUBLISHING.md).
-- Published (octarq-pro's plugin packages consume `@octarq-org/plugin-sdk` from
+- Published (octarq-pro's plugin packages consume `@octarq/plugin-sdk` from
   GitHub Packages).
 
 ## 8. File map
@@ -196,7 +196,7 @@ octarq-pro:
 
 **Done (all local, verified green — go build/test-race, tsc, OSS+Pro builds, example, SDK tsup):**
 - ✅ Backend plugin system (pre-existing) + `gatedMux` + `Context`.
-- ✅ `@octarq-org/plugin-sdk` extracted (contract + registry + shadcn/Base-UI shared UI incl. new components); app dependency-inverted via facade.
+- ✅ `@octarq/plugin-sdk` extracted (contract + registry + shadcn/Base-UI shared UI incl. new components); app dependency-inverted via facade.
 - ✅ Build-time injection seam (`#octarq-plugins` / `VITE_OCTARQ_PLUGINS`); byte-level OSS exclusion verified; licenses is the reference plugin.
 - ✅ Commercial embedding: `app.WithWebFS` + `OCTARQ_WEBEMBED_OUT` + octarq-pro `webembed`; octarq-pro serves real Pro pages end-to-end.
 - ✅ Publish pipeline scaffolded (changesets + GitHub Packages + PUBLISHING.md).
@@ -207,7 +207,7 @@ octarq-pro:
 **Done since (was pending on external setup):**
 - ✅ `octarq-org` GitHub repos exist and both repos are pushed; CI auto-commits `webembed/dist` on push to main.
 - ✅ octarq-pro consumes a current `github.com/octarq-org/octarq` pseudo-version.
-- ✅ `@octarq-org/plugin-sdk` 0.2.0 published to GitHub Packages (consumed by octarq-pro's plugin packages).
+- ✅ `@octarq/plugin-sdk` 0.2.0 published to GitHub Packages (consumed by octarq-pro's plugin packages).
 
 **Landed since this handoff was written:**
 - ✅ Core pages demoted to UIPlugins (`web/src/plugins/core/`); shell owns no business routes; string `AreaId` + plugin-declared areas + `PLUGIN_ICONS`.
@@ -223,4 +223,4 @@ octarq-pro:
 - Adopt **assistant-ui** for Inbox AI / LLM chat surfaces.
 - Port the `security-hardening` branch's **i18n improvements** (portal 中文化, plain-language copy) to main — UX only, non-security.
 - Address the remaining ACCESSIBILITY.md component-edit recommendations (keyboard-enable clickable `<code>`/StatCard, dropdown menu semantics — `<MotionConfig reducedMotion="user">` is done in `main.tsx`), and WCAG-AA contrast on the faint `text-white/3x` tones.
-- Migrate the app to depend on the *published* `@octarq-org/plugin-sdk` (currently a workspace source-path facade).
+- Migrate the app to depend on the *published* `@octarq/plugin-sdk` (currently a workspace source-path facade).

@@ -37,7 +37,7 @@ function installed(name: string): boolean {
 function generate(entries: ReturnType<typeof resolveEntries>): string {
   const lines = [
     "// AUTO-GENERATED from the plugin manifest — do not edit.",
-    'import { registerUIPlugin } from "@octarq-org/plugin-sdk";',
+    'import { registerUIPlugin } from "@octarq/plugin-sdk";',
   ];
   const locals: string[] = [];
   entries.forEach((entry, i) => {

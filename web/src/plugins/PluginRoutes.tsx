@@ -5,8 +5,8 @@
 // Kept out of App.tsx so the routing shell doesn't grow a plugin-plumbing bulge.
 import { Suspense } from "react";
 import { Route } from "react-router-dom";
-import { GlassCard, PageHeader, ScreenWrap, useTranslation } from "@octarq-org/plugin-sdk";
-import { uiPlugins } from "@octarq-org/plugin-sdk";
+import { GlassCard, PageHeader, ScreenWrap, useTranslation } from "@octarq/plugin-sdk";
+import { uiPlugins } from "@octarq/plugin-sdk";
 import { PluginGate } from "./PluginGate";
 
 // Neutral "this feature isn't part of this build" note — the frontend mirror of

@@ -12,7 +12,7 @@ project in
 
 ## TL;DR for this repo
 
-- Run `pnpm changeset` after a change to `@octarq-org/plugin-sdk` to record the intended
+- Run `pnpm changeset` after a change to `@octarq/plugin-sdk` to record the intended
   version bump (patch/minor/major) and a summary line.
 - Commit the generated `.changeset/*.md` file with your PR.
 - On merge to `main`, `.github/workflows/publish-sdk.yml` opens (or updates) a

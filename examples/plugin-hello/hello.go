@@ -3,7 +3,7 @@
 // optional plugin.MenuProvider, and exposes one trivial read-only endpoint.
 //
 // The JS half lives in ./web and implements the frontend `UIPlugin` contract
-// against @octarq-org/plugin-sdk. Together they show the symmetry octarq is built on:
+// against @octarq/plugin-sdk. Together they show the symmetry octarq is built on:
 // a Go module + a JS package, each conforming to its side's plugin contract,
 // composed into the app WITHOUT forking it — the Go plugin mounted via
 // app.App.Use(...), the UI plugin composed at build time via registerUIPlugin.
