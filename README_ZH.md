@@ -97,7 +97,7 @@ export const helloPlugin: UIPlugin = {
   OCTARQ_PLUGINS='[{"go":"github.com/you/octarq-plugin-foo","npm":"@you/octarq-plugin-foo"}]' make plugin-build
   ```
 
-**从模板快速开始** → [octarq-plugin-template](https://github.com/octarq-org/octarq-plugin-template) · **详细开发指南** → [docs/PLUGINS.md](docs/PLUGINS.md)
+**官方插件与起步模板** → [octarq-plugins](https://github.com/octarq-org/octarq-plugins)(Telegram、Webhook、agent-native 的 Mail Links demo,以及可复制的 `_template`) · **详细开发指南** → [docs/PLUGINS.md](docs/PLUGINS.md)
 
 *Octarq 自己的商业 Pro 版也只是基于这同一套公开接口构建的另一组插件 —— 没有任何社区做不到的事情。*
 
