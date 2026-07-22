@@ -12,6 +12,10 @@ Own a domain? Octarq already gives you the things you'd otherwise wire together 
 
 > One binary. No CGO. SQLite by default. `go:embed`'d dashboard. Extend without forking.
 
+<p align="center">
+  <img src="docs/assets/octarq-demo.gif" alt="Octarq agent-native demo — drive every plugin over MCP from your terminal" width="720">
+</p>
+
 ---
 
 ## Why Octarq

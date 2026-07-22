@@ -12,6 +12,10 @@
 
 > 单二进制。无 CGO。默认 SQLite 存储。嵌入式 React 控制面板 (`go:embed`)。无需 Fork 自由扩展。
 
+<p align="center">
+  <img src="docs/assets/octarq-demo.gif" alt="Octarq agent-native 演示 —— 在终端里通过 MCP 驱动每一个插件" width="720">
+</p>
+
 ---
 
 ## 为什么选择 Octarq
