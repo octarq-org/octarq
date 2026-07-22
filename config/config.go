@@ -164,6 +164,12 @@ func Load() (*Config, error) {
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" {
 		return nil, fmt.Errorf("OCTARQ_DB_DRIVER must be sqlite or postgres, got %q", c.DBDriver)
 	}
+	// Zero-config boot: when the secret key and/or admin password are absent,
+	// generate and persist them next to the database so `docker run` needs no
+	// .env. Env-supplied values still win and are never written to disk.
+	if err := c.ensureAutoSecrets(); err != nil {
+		return nil, err
+	}
 	if c.SecretKey == "" {
 		return nil, fmt.Errorf("OCTARQ_SECRET_KEY is required (used for sessions and credential encryption)")
 	}
