@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
@@ -153,7 +152,7 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	// OAuth must not be a side door: existing users may still sign in, but an
 	// unknown email is refused instead of silently provisioning a new account.
 	user, org, err := h.upsertUser(email, gothUser.AvatarURL, provider)
-	if errors.Is(err, errRegistrationDisabled) {
+	if errors.Is(err, ErrRegistrationDisabled) {
 		http.Error(w, "This instance is invite-only; ask an admin to add your account first.", http.StatusForbidden)
 		return
 	}
@@ -167,59 +166,29 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/", http.StatusFound)
 }
 
-// errRegistrationDisabled is returned by upsertUser when an unknown email tries
-// to sign in via OAuth on an instance that has public registration turned off.
-var errRegistrationDisabled = errors.New("registration disabled")
-
 // registrationEnabled reports whether new accounts may be provisioned. Mirrors
 // api.Handler.registrationEnabled (default on unless the setting is "false") but
 // reads the DB directly so the auth package stays decoupled from api.
 func (h *OAuthHandler) registrationEnabled() bool {
-	var s models.Setting
-	if err := h.db.Where("key = ?", "allow_registration").First(&s).Error; err != nil {
-		return true // no row → default on
-	}
-	return s.Value != "false"
+	return registrationAllowed(h.db)
 }
 
-// upsertUser finds or creates the User + default Org + OrgMember. Creating a
-// brand-new user is gated on registrationEnabled so OAuth can't bypass an
-// invite-only instance; a known user always resolves regardless of the setting.
+// upsertUser finds or creates the User + default Org + OrgMember for an
+// OAuth-verified email. It delegates to the shared UpsertUserByEmail so built-in
+// OAuth and the Pro SSO plugin provision users identically, then loads the rows
+// the caller needs. Creating a brand-new user is gated on registrationEnabled so
+// OAuth can't bypass an invite-only instance.
 func (h *OAuthHandler) upsertUser(email, avatarURL, provider string) (*models.User, *models.Org, error) {
-	var user models.User
-	err := h.db.Where("email = ?", email).First(&user).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		if !h.registrationEnabled() {
-			return nil, nil, errRegistrationDisabled
-		}
-		user = models.User{Email: email, PasswordHash: ""}
-		if err := h.db.Create(&user).Error; err != nil {
-			return nil, nil, err
-		}
-	} else if err != nil {
+	uid, orgID, err := UpsertUserByEmail(h.db, email, h.registrationEnabled())
+	if err != nil {
 		return nil, nil, err
 	}
-
-	// Find the org this user belongs to (first one wins).
-	var member models.OrgMember
-	if err := h.db.Where("user_id = ?", user.ID).First(&member).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil, err
-		}
-		// No org yet — create a personal org for this user.
-		slug := slugify(email)
-		org := models.Org{Name: email, Slug: slug, InboundToken: uuid.NewString()}
-		if err := h.db.Create(&org).Error; err != nil {
-			return nil, nil, err
-		}
-		member = models.OrgMember{OrgID: org.ID, UserID: user.ID, Role: "owner"}
-		if err := h.db.Create(&member).Error; err != nil {
-			return nil, nil, err
-		}
+	var user models.User
+	if err := h.db.First(&user, uid).Error; err != nil {
+		return nil, nil, err
 	}
-
 	var org models.Org
-	if err := h.db.First(&org, member.OrgID).Error; err != nil {
+	if err := h.db.First(&org, orgID).Error; err != nil {
 		return nil, nil, err
 	}
 	return &user, &org, nil

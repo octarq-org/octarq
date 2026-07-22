@@ -297,15 +297,16 @@ func (a *App) RunMCP(ctx context.Context) error {
 	var emailMu sync.Mutex
 	var deferredOnEmail []func(plugin.EmailEvent)
 	pctx := &plugin.Context{
-		Huma:    apiHandler.Huma(),
-		DB:      a.gdb,
-		Guard:   a.auth.Require,
-		Notify:  notify.Send,
-		UserID:  a.auth.UserID,
-		OrgID:   a.auth.OrgID,
-		Audit:   apiHandler.Audit,
-		Encrypt: a.cipher.Encrypt,
-		Decrypt: a.cipher.Decrypt,
+		Huma:         apiHandler.Huma(),
+		DB:           a.gdb,
+		Guard:        a.auth.Require,
+		Notify:       notify.Send,
+		UserID:       a.auth.UserID,
+		OrgID:        a.auth.OrgID,
+		LoginByEmail: a.auth.LoginByEmail,
+		Audit:        apiHandler.Audit,
+		Encrypt:      a.cipher.Encrypt,
+		Decrypt:      a.cipher.Decrypt,
 		OnEmail: func(handler func(plugin.EmailEvent)) {
 			if handler == nil {
 				return
@@ -438,15 +439,16 @@ func (a *App) Run(ctx context.Context) error {
 	var runEmailMu sync.Mutex
 	var runDeferredOnEmail []func(plugin.EmailEvent)
 	pctx := &plugin.Context{
-		Huma:    apiHandler.Huma(),
-		DB:      a.gdb,
-		Guard:   a.auth.Require,
-		Notify:  notify.Send,
-		UserID:  a.auth.UserID,
-		OrgID:   a.auth.OrgID,
-		Audit:   apiHandler.Audit,
-		Encrypt: a.cipher.Encrypt,
-		Decrypt: a.cipher.Decrypt,
+		Huma:         apiHandler.Huma(),
+		DB:           a.gdb,
+		Guard:        a.auth.Require,
+		Notify:       notify.Send,
+		UserID:       a.auth.UserID,
+		OrgID:        a.auth.OrgID,
+		LoginByEmail: a.auth.LoginByEmail,
+		Audit:        apiHandler.Audit,
+		Encrypt:      a.cipher.Encrypt,
+		Decrypt:      a.cipher.Decrypt,
 		OnEmail: func(handler func(plugin.EmailEvent)) {
 			if handler == nil {
 				return

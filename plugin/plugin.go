@@ -165,6 +165,16 @@ type Context struct {
 	UserID func(*http.Request) uint
 	// OrgID extracts the authenticated org ID from the request session (0 if unauthed).
 	OrgID func(*http.Request) uint
+	// LoginByEmail completes a login for an already-verified email address: it
+	// provisions (or finds) the user + a personal org and issues the session
+	// cookie, the same way built-in OAuth login does, returning the user ID. It
+	// is the hook an SSO / identity plugin calls AFTER it has independently
+	// verified the external identity (OIDC ID token, SAML assertion, …) — this
+	// performs no authentication itself, so callers MUST verify first. It honours
+	// the instance registration policy (an unknown email on an invite-only
+	// instance is refused). A privileged capability: only compile-time-composed
+	// plugins can reach it. nil on hosts that predate it.
+	LoginByEmail func(w http.ResponseWriter, r *http.Request, email string) (userID uint, err error)
 	// Audit writes an audit log entry asynchronously. action follows the
 	// "resource.verb" convention (e.g. "subscription.create"). targetType is
 	// the resource name, targetID is its primary key, meta is optional JSON

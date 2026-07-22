@@ -356,8 +356,8 @@ func TestOAuthUpsertRespectsRegistrationGate(t *testing.T) {
 	}
 
 	// Unknown email → refused with the sentinel error, no account created.
-	if _, _, err := handler.upsertUser("stranger@example.com", "", "google"); !errors.Is(err, errRegistrationDisabled) {
-		t.Fatalf("expected errRegistrationDisabled for unknown email, got %v", err)
+	if _, _, err := handler.upsertUser("stranger@example.com", "", "google"); !errors.Is(err, ErrRegistrationDisabled) {
+		t.Fatalf("expected ErrRegistrationDisabled for unknown email, got %v", err)
 	}
 	var count int64
 	db.Model(&models.User{}).Where("email = ?", "stranger@example.com").Count(&count)
