@@ -1,0 +1,28 @@
+// The {{.Name}} plugin's frontend entry — the JS half's UIPlugin, mirroring the
+// Go half's plugin.Plugin in {{.Name}}.go. A host composes it at build time via
+// the plugin manifest (`registerUIPlugin`). In a published distribution this
+// file is the `main`/`exports` of the {{.NpmName}} npm package, which depends on
+// @octarq/plugin-sdk as a peer.
+import { lazy } from "react";
+import type { UIPlugin } from "@octarq/plugin-sdk";
+
+export const {{.GoPackage}}Plugin: UIPlugin = {
+  name: "{{.Name}}",
+  routes: [
+    { path: "/{{.Name}}", Component: lazy(() => import("./Page")) },
+  ],
+  menu: [
+    // `category` must equal the sidebar GROUP's label; keep it in sync with
+    // {{.Name}}.go Menus().
+    { id: "{{.Name}}", label: "{{.Title}}", path: "/{{.Name}}", icon: "🧩", category: "Workspace" },
+  ],
+  i18n: {
+    en: {
+      pageTitle: "{{.Title}} Plugin",
+      pageDesc: "A scaffolded full-stack octarq plugin.",
+      loading: "Loading…",
+    },
+  },
+};
+
+export default {{.GoPackage}}Plugin;
