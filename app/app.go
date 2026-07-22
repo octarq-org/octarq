@@ -189,6 +189,18 @@ func New() (*App, error) {
 // DB exposes the shared database handle (useful for plugin construction).
 func (a *App) DB() *gorm.DB { return a.gdb }
 
+// loginByEmail backs plugin.Context.LoginByEmail. It delegates to the auth
+// manager and translates the internal registration-disabled sentinel into the
+// plugin-package one so identity plugins can errors.Is against it without
+// importing internal/auth.
+func (a *App) loginByEmail(w http.ResponseWriter, r *http.Request, email string) (uint, error) {
+	uid, err := a.auth.LoginByEmail(w, r, email)
+	if errors.Is(err, auth.ErrRegistrationDisabled) {
+		return uid, plugin.ErrLoginRegistrationDisabled
+	}
+	return uid, err
+}
+
 // Notify delivers a notification via a configured channel type ("telegram", "webhook").
 func (a *App) Notify(ctx context.Context, typ, cfgJSON, text string) error {
 	return notify.Send(ctx, typ, cfgJSON, text)
@@ -303,7 +315,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 		Notify:       notify.Send,
 		UserID:       a.auth.UserID,
 		OrgID:        a.auth.OrgID,
-		LoginByEmail: a.auth.LoginByEmail,
+		LoginByEmail: a.loginByEmail,
 		Audit:        apiHandler.Audit,
 		Encrypt:      a.cipher.Encrypt,
 		Decrypt:      a.cipher.Decrypt,
@@ -445,7 +457,7 @@ func (a *App) Run(ctx context.Context) error {
 		Notify:       notify.Send,
 		UserID:       a.auth.UserID,
 		OrgID:        a.auth.OrgID,
-		LoginByEmail: a.auth.LoginByEmail,
+		LoginByEmail: a.loginByEmail,
 		Audit:        apiHandler.Audit,
 		Encrypt:      a.cipher.Encrypt,
 		Decrypt:      a.cipher.Decrypt,

@@ -64,6 +64,7 @@ package plugin
 
 import (
 	"context"
+	"errors"
 	"io/fs"
 	"net/http"
 	"time"
@@ -73,6 +74,14 @@ import (
 	"github.com/octarq-org/octarq/llmprovider"
 	"gorm.io/gorm"
 )
+
+// ErrLoginRegistrationDisabled is returned by Context.LoginByEmail when the
+// email is unknown and the instance has public registration turned off
+// (invite-only). An SSO/identity plugin should surface this as "ask an admin to
+// add your account" rather than a generic error. It mirrors the core auth
+// sentinel across the plugin boundary so plugins can errors.Is against it
+// without importing internal packages.
+var ErrLoginRegistrationDisabled = errors.New("registration disabled")
 
 // ServiceDNSManager is the well-known service name under which the DNS manager is provided.
 const ServiceDNSManager = "dns.manager"
