@@ -1,0 +1,29 @@
+# {{.Title}} — a octarq plugin
+
+Scaffolded with `octarq plugin new {{.Name}}`. A octarq plugin is one repo with
+two mirror halves, composed into a host binary **at build time** (the xcaddy
+model — no fork, no `internal/*` imports).
+
+```
+{{.Name}}.go     Go half — implements plugin.Plugin (Name / Models / Mount)
+web/             JS half — a UIPlugin against @octarq/plugin-sdk
+```
+
+## Build
+
+```bash
+go mod tidy                       # fetch github.com/octarq-org/octarq
+go build ./...                    # compile the Go half
+```
+
+## Compose it into a octarq binary
+
+Point the host's plugin manifest at this module and build:
+
+```bash
+OCTARQ_PLUGINS='[{"go":"{{.Module}}","npm":"{{.NpmName}}"}]' make plugin-build
+```
+
+The Go half mounts at `{{.RoutePrefix}}/…`; the web half adds a `/{{.Name}}`
+page and a sidebar entry. Replace the `ping` endpoint and the page with your own
+feature.

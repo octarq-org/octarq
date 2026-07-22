@@ -52,6 +52,12 @@ func main() {
 		return
 	}
 
+	// `octarq plugin new <name>` scaffolds a plugin skeleton (Go + web halves)
+	// and exits, without standing up the server.
+	if len(os.Args) > 1 && os.Args[1] == "plugin" {
+		os.Exit(runPluginCommand(os.Args[2:]))
+	}
+
 	a, err := app.New()
 	if err != nil {
 		slog.Error("init failed", "err", err)

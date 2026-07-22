@@ -1,0 +1,43 @@
+// The {{.Title}} plugin's page — the JS half of the feature. It calls the Go
+// half (GET {{.RoutePrefix}}/ping) and handles the two gated states octarq
+// standardises on: 402 (feature unlicensed) and 404 (plugin not in this build).
+import { useEffect, useState } from "react";
+
+interface Ping {
+  message: string;
+  time: string;
+}
+
+export default function {{.Title}}Page() {
+  const [ping, setPing] = useState<Ping | null>(null);
+  const [status, setStatus] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("{{.RoutePrefix}}/ping")
+      .then((r) => {
+        if (!r.ok) {
+          setStatus(r.status);
+          return null;
+        }
+        return r.json();
+      })
+      .then((data) => data && setPing(data as Ping))
+      .catch(() => setStatus(0));
+  }, []);
+
+  if (status === 402) return <p>This feature is not licensed in this installation.</p>;
+  if (status === 404) return <p>The {{.Name}} plugin is not built into this installation.</p>;
+
+  return (
+    <section>
+      <h1>{{.Title}}</h1>
+      {ping ? (
+        <p>
+          {ping.message} <small>({ping.time})</small>
+        </p>
+      ) : (
+        <p>Loading…</p>
+      )}
+    </section>
+  );
+}

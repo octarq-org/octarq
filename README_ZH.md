@@ -103,6 +103,8 @@ export const helloPlugin: UIPlugin = {
   OCTARQ_PLUGINS='[{"go":"github.com/you/octarq-plugin-foo","npm":"@you/octarq-plugin-foo"}]' make plugin-build
   ```
 
+**几秒生成骨架** —— `octarq plugin new <name>` 直接生成可构建的 Go + web 插件骨架作为起点。
+
 **官方插件与起步模板** → [octarq-plugins](https://github.com/octarq-org/octarq-plugins)(Telegram、Webhook、agent-native 的 Mail Links demo,以及可复制的 `_template`) · **详细开发指南** → [docs/PLUGINS.md](docs/PLUGINS.md)
 
 *Octarq 自己的商业 Pro 版也只是基于这同一套公开接口构建的另一组插件 —— 没有任何社区做不到的事情。*

@@ -1,0 +1,63 @@
+// Package {{.GoPackage}} is the Go half of the {{.Name}} octarq plugin. It
+// implements plugin.Plugin (Name/Models/Mount) plus the optional
+// plugin.MenuProvider, and exposes one trivial read-only endpoint you can
+// replace with your own.
+//
+// The JS half lives in ./web and implements the frontend `UIPlugin` contract
+// against @octarq/plugin-sdk. A host composes the two halves without forking
+// octarq: the Go plugin via app.App.Use({{.GoPackage}}.Plugin{}), the UI plugin
+// at build time via the plugin manifest.
+package {{.GoPackage}}
+
+import (
+	"encoding/json"
+	"net/http"
+	"time"
+
+	"github.com/octarq-org/octarq/plugin"
+)
+
+// Plugin is the exported unit a host wires up with app.App.Use({{.GoPackage}}.Plugin{}).
+type Plugin struct{}
+
+// Name is the stable identifier — it matches the frontend UIPlugin's `name` so
+// the two halves of the feature are traceable to each other.
+func (Plugin) Name() string { return "{{.Name}}" }
+
+// Describe makes the plugin on by default in a fresh workspace while keeping it
+// user-toggleable (not Core). Drop this method to make it strictly opt-in.
+func (Plugin) Describe() plugin.Info {
+	return plugin.Info{Title: "{{.Title}}", EnabledByDefault: true}
+}
+
+// Models returns the GORM models this plugin owns. Return your models here to
+// have them auto-migrated; this skeleton is stateless.
+func (Plugin) Models() []any { return nil }
+
+// Mount registers the plugin's HTTP routes on the shared API mux. Every route
+// is auto-gated: if the "{{.Name}}" feature is disabled for the caller's
+// workspace, the app answers 404 before the handler runs.
+func (Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
+	mux.Handle("GET {{.RoutePrefix}}/ping", ctx.Guard(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"message": "hello from the {{.Name}} plugin",
+			"time":    time.Now().UTC().Format(time.RFC3339),
+		})
+	})))
+}
+
+// Menus contributes a sidebar link for the frontend. Category names the sidebar
+// GROUP the entry joins; keep it in sync with the web half's menu.
+func (Plugin) Menus() []plugin.MenuItem {
+	return []plugin.MenuItem{
+		{ID: "{{.Name}}", Label: "{{.Title}}", Path: "/{{.Name}}", Icon: "🧩", Category: "Workspace"},
+	}
+}
+
+// Compile-time assertions that Plugin satisfies the contracts it claims.
+var (
+	_ plugin.Plugin       = Plugin{}
+	_ plugin.MenuProvider = Plugin{}
+	_ plugin.Describer    = Plugin{}
+)
