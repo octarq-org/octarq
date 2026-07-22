@@ -56,13 +56,15 @@ Octarq 内置了 **MCP 服务器**（`octarq mcp`，支持 stdio 及 SSE/stream 
 
 ## 快速开始
 
+零配置 —— 一条命令,无需 `.env`:
+
 ```bash
-git clone https://github.com/octarq-org/octarq.git && cd octarq
-cp .env.example .env          # set OCTARQ_SECRET_KEY and OCTARQ_ADMIN_PASSWORD
-docker compose up -d
+docker run -p 8080:8080 -v octarq-data:/data octarq/octarq
 ```
 
-打开 `http://localhost:8080` 并登录。这就是完整栈 —— 控制面板、API、重定向器、MCP —— 统一运行在由 SQLite 驱动的单个容器中。
+首次启动时 Octarq 会自动生成密钥与初始 `admin` 密码(两者都持久化在 `/data`,并在日志里打印一次),默认用 SQLite 起来。打开 `http://localhost:8080`,从容器日志里拿到密码即可登录。邮件、DNS、GeoIP 全部 opt-in —— 之后在 **设置** 里配置,启动时什么都不需要。
+
+这就是完整栈 —— 控制面板、API、重定向器、MCP —— 统一运行在单个容器中。想自己管理密钥/密码时,再显式设置 `OCTARQ_SECRET_KEY` / `OCTARQ_ADMIN_PASSWORD`(见 `.env.example` 与 `docker compose`)。
 
 偏好约 19MB 的 `scratch` 极轻量镜像或源码构建？参阅 `make release` 与 [`deploy/`](deploy/)。
 

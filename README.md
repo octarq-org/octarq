@@ -56,13 +56,15 @@ The point isn't "we added AI." The point is the **framework** wiring: a plugin t
 
 ## Quick start
 
+Zero config — one command, no `.env`:
+
 ```bash
-git clone https://github.com/octarq-org/octarq.git && cd octarq
-cp .env.example .env          # set OCTARQ_SECRET_KEY and OCTARQ_ADMIN_PASSWORD
-docker compose up -d
+docker run -p 8080:8080 -v octarq-data:/data octarq/octarq
 ```
 
-Open `http://localhost:8080` and log in. That's the full stack — dashboard, API, redirector, MCP — in one container backed by SQLite.
+On first boot Octarq generates a secret key and an initial `admin` password (both persisted under `/data`, printed once in the logs) and comes up on SQLite. Open `http://localhost:8080`, grab the password from the container logs, and log in. Mail, DNS and GeoIP are all opt-in — configure them later from **Settings**, nothing is required to start.
+
+That's the full stack — dashboard, API, redirector, MCP — in one container. Set `OCTARQ_SECRET_KEY` / `OCTARQ_ADMIN_PASSWORD` explicitly (see `.env.example` + `docker compose`) whenever you want to manage them yourself.
 
 Prefer a ~19MB `scratch` image or from-source build? See `make release` and [`deploy/`](deploy/).
 
