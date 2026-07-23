@@ -20,8 +20,16 @@ export default defineConfig({
               link: '/',
             },
             {
+              label: 'What is Octarq',
+              link: '/what-is-octarq/',
+            },
+            {
               label: 'Quickstart',
               link: '/quickstart/',
+            },
+            {
+              label: 'Configuration',
+              link: '/configuration/',
             },
             {
               label: 'Deploy',
