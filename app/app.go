@@ -309,10 +309,13 @@ func (a *App) RunMCP(ctx context.Context) error {
 	var emailMu sync.Mutex
 	var deferredOnEmail []func(plugin.EmailEvent)
 	pctx := &plugin.Context{
-		Huma:         apiHandler.Huma(),
-		DB:           a.gdb,
-		Guard:        a.auth.Require,
-		Notify:       notify.Send,
+		Huma:   apiHandler.Huma(),
+		DB:     a.gdb,
+		Guard:  a.auth.Require,
+		Notify: notify.Send,
+		RegisterNotifier: func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
+			notify.Register(typ, send)
+		},
 		UserID:       a.auth.UserID,
 		OrgID:        a.auth.OrgID,
 		LoginByEmail: a.loginByEmail,
@@ -451,10 +454,13 @@ func (a *App) Run(ctx context.Context) error {
 	var runEmailMu sync.Mutex
 	var runDeferredOnEmail []func(plugin.EmailEvent)
 	pctx := &plugin.Context{
-		Huma:         apiHandler.Huma(),
-		DB:           a.gdb,
-		Guard:        a.auth.Require,
-		Notify:       notify.Send,
+		Huma:   apiHandler.Huma(),
+		DB:     a.gdb,
+		Guard:  a.auth.Require,
+		Notify: notify.Send,
+		RegisterNotifier: func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
+			notify.Register(typ, send)
+		},
 		UserID:       a.auth.UserID,
 		OrgID:        a.auth.OrgID,
 		LoginByEmail: a.loginByEmail,

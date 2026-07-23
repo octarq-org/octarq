@@ -15,6 +15,25 @@ func TestSendUnknownType(t *testing.T) {
 	}
 }
 
+func TestRegisterProvider(t *testing.T) {
+	var gotCfg, gotText string
+	Register("Pigeon", func(_ context.Context, cfgJSON, text string) error {
+		gotCfg, gotText = cfgJSON, text
+		return nil
+	})
+	// Registration is case-insensitive and reachable through Send.
+	if err := Send(context.Background(), "pigeon", `{"coop":1}`, "fly"); err != nil {
+		t.Fatalf("Send to registered provider: %v", err)
+	}
+	if gotCfg != `{"coop":1}` || gotText != "fly" {
+		t.Fatalf("provider got cfg=%q text=%q", gotCfg, gotText)
+	}
+	// A built-in type still resolves to its handler, not the registry.
+	if err := Send(context.Background(), "webhook", `{}`, "x"); err == nil {
+		t.Fatal("expected error: webhook with empty url")
+	}
+}
+
 func TestSendTelegramMissingCreds(t *testing.T) {
 	if err := Send(context.Background(), "telegram", `{}`, "x"); err == nil {
 		t.Fatal("expected error when telegram credentials are missing")
