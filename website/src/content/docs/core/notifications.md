@@ -16,8 +16,7 @@ dashboard; no redeploy needed.
 
 ## What triggers a notification
 
-- **New mail** in any mailbox (core).
-- **Server up / down** events from VPS monitoring (Pro).
-- **Subscription renewals** coming due from Finance (Pro).
-- The **daily briefing** and **OTP extraction** from Inbox AI
-  (Elite).
+- **New mail** in any mailbox.
+- **Server monitoring** events (up / down alerts).
+- **Transaction & financial** updates.
+- **AI briefings** and OTP extraction events from AI notifier plugins.
