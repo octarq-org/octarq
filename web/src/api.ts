@@ -215,7 +215,7 @@ export const api = {
   }) => req<InstanceSettings>("PUT", "/api/instance-settings", s),
 
   // auth
-  authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean; appName: string }>("GET", "/api/auth/config"),
+  authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean; appName: string; logoUrl: string; brandColor: string; brandColor2: string }>("GET", "/api/auth/config"),
   me: () => req<{ username: string; orgId: number; role?: string }>("GET", "/api/auth/me"),
   register: (email: string, password: string) =>
     req<{ ok: boolean; username: string }>("POST", "/api/auth/register", { email, password }),

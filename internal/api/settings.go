@@ -39,6 +39,9 @@ const (
 	keyAutoWrapLinks      = "auto_wrap_links"
 	keyAllowRegistration  = "allow_registration" // "false" disables public sign-up; default on
 	keyAppName            = "app_name"           // UI product name; empty = config.DefaultAppName
+	keyBrandLogo          = "brand_logo"         // white-label logo (URL or data URI); empty = gradient initial
+	keyBrandColor         = "brand_color"        // white-label primary accent hex; empty = default indigo
+	keyBrandColor2        = "brand_color_2"      // white-label secondary accent hex; empty = default violet
 	keyMetricsToken       = "metrics_token"      // /metrics bearer; stored AES-GCM encrypted; empty = loopback-only
 	keyRatelimitAuthRPM   = "ratelimit_auth_rpm"
 	keyRatelimitAPIRPM    = "ratelimit_api_rpm"
@@ -59,6 +62,17 @@ func (h *Handler) AppName() string {
 		return v
 	}
 	return config.DefaultAppName
+}
+
+// Brand returns the runtime white-label branding (logo + accent colors) from
+// Settings. These keys have no core write path — they are set only by the Pro
+// white-label plugin, so an OSS build always returns the zero values (default
+// look). The values are surfaced publicly via GET /api/auth/config so the login
+// screen and shell can theme before authentication.
+func (h *Handler) Brand() (logo, color, color2 string) {
+	return strings.TrimSpace(h.getSetting(keyBrandLogo)),
+		strings.TrimSpace(h.getSetting(keyBrandColor)),
+		strings.TrimSpace(h.getSetting(keyBrandColor2))
 }
 
 // MetricsToken returns the decrypted /metrics bearer token; empty means the
