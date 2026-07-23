@@ -2,7 +2,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
 export default defineConfig({
-  site: 'https://docs.octarq.com',
+  site: 'https://docs.octarq.org',
   base: '/',
   integrations: [
     starlight({
@@ -13,24 +13,68 @@ export default defineConfig({
       },
       sidebar: [
         {
-          label: 'Overview',
-          link: '/',
+          label: 'Start',
+          items: [
+            {
+              label: 'Overview',
+              link: '/',
+            },
+            {
+              label: 'Quickstart',
+              link: '/quickstart/',
+            },
+            {
+              label: 'Deploy',
+              link: '/deploy/',
+            },
+          ],
         },
         {
-          label: 'Quickstart',
-          link: '/quickstart/',
+          label: 'Build a Plugin',
+          items: [
+            {
+              label: 'Writing a Plugin',
+              link: '/writing-a-plugin/',
+            },
+            {
+              label: 'Plugin Directory',
+              link: '/plugin-directory/',
+            },
+          ],
         },
         {
-          label: 'Writing a Plugin',
-          link: '/writing-a-plugin/',
+          label: 'Architecture',
+          items: [
+            {
+              label: 'Overview',
+              link: '/architecture/overview/',
+            },
+            {
+              label: 'plugin.Context',
+              link: '/architecture/plugin-context/',
+            },
+            {
+              label: 'Composition',
+              link: '/architecture/composition/',
+            },
+            {
+              label: 'Core Plugins',
+              link: '/architecture/core-plugins/',
+            },
+          ],
         },
         {
-          label: 'Deploy',
-          link: '/deploy/',
-        },
-        {
-          label: 'Plugin Directory',
-          link: '/plugin-directory/',
+          label: 'Guides',
+          items: [
+            {
+              label: 'Publishing',
+              link: '/guides/publishing/',
+            },
+            {
+              label: 'Accessibility',
+              link: '/guides/accessibility/',
+            },
+          ],
         },
       ],
     }),
