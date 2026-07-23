@@ -43,6 +43,17 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Core Features',
+          items: [
+            { label: 'Short links', link: '/core/short-links/' },
+            { label: 'Mailboxes', link: '/core/mailboxes/' },
+            { label: 'DNS', link: '/core/dns/' },
+            { label: 'MCP server', link: '/core/mcp/' },
+            { label: 'Notifications', link: '/core/notifications/' },
+            { label: 'API tokens', link: '/core/api-tokens/' },
+          ],
+        },
+        {
           label: 'Architecture',
           items: [
             {

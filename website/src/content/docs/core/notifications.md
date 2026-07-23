@@ -1,0 +1,23 @@
+---
+title: Notifications
+description: Telegram and webhook alerts, managed from the dashboard.
+---
+
+octarq can push alerts to **Telegram** or a **webhook** when something happens — most
+commonly when new mail arrives. Channels are configured entirely from the
+dashboard; no redeploy needed.
+
+## Channels
+
+| Channel | Setup |
+| --- | --- |
+| **Telegram** | Add a bot token and chat ID. |
+| **Webhook** | Add a URL; octarq POSTs a JSON payload on each event. |
+
+## What triggers a notification
+
+- **New mail** in any mailbox (core).
+- **Server up / down** events from VPS monitoring (Pro).
+- **Subscription renewals** coming due from Finance (Pro).
+- The **daily briefing** and **OTP extraction** from Inbox AI
+  (Elite).
