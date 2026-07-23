@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/nikoksr/notify"
@@ -19,17 +21,51 @@ import (
 // so a channel pointed at an internal/metadata address must be refused.
 var webhookClient = safehttp.NewWebhookClient(10 * time.Second)
 
-// Send dispatches a notification via the specified channel type.
-// If the type is unknown, it returns an error.
+// Provider delivers a notification for one channel type. cfgJSON is the
+// channel's stored JSON config; text is the message body.
+type Provider func(ctx context.Context, cfgJSON, text string) error
+
+// providers holds channel types contributed at runtime (e.g. by Pro plugins
+// via plugin.Context.RegisterNotifier). Registration happens at startup (Mount)
+// and Send runs per-event, so the map is guarded for the concurrent read.
+var (
+	providersMu sync.RWMutex
+	providers   = map[string]Provider{}
+)
+
+// Register adds (or replaces) a notification channel provider for typ. Plugins
+// call this during Mount to add a new channel type — e.g. "slack", "sms" — that
+// Send, core event dispatch, and the plugin Notify hook can then deliver to.
+func Register(typ string, p Provider) {
+	if typ == "" || p == nil {
+		return
+	}
+	providersMu.Lock()
+	providers[strings.ToLower(typ)] = p
+	providersMu.Unlock()
+}
+
+func lookup(typ string) Provider {
+	providersMu.RLock()
+	defer providersMu.RUnlock()
+	return providers[typ]
+}
+
+// Send dispatches a notification via the specified channel type. Built-in types
+// (telegram, webhook) are handled directly; any other type is resolved from the
+// plugin-contributed provider registry. An unregistered type is an error.
 func Send(ctx context.Context, typ, cfgJSON, text string) error {
+	typ = strings.ToLower(strings.TrimSpace(typ))
 	switch typ {
 	case "telegram":
 		return sendTelegram(ctx, cfgJSON, text)
 	case "webhook":
 		return sendWebhook(ctx, cfgJSON, text)
-	default:
-		return fmt.Errorf("unknown notification channel type: %s", typ)
 	}
+	if p := lookup(typ); p != nil {
+		return p(ctx, cfgJSON, text)
+	}
+	return fmt.Errorf("unknown notification channel type: %s", typ)
 }
 
 func sendTelegram(ctx context.Context, cfgJSON, text string) error {

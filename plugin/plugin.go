@@ -170,6 +170,12 @@ type Context struct {
 	// config blob, and text is the message body. It mirrors notify.Send so
 	// plugins never import octarq's internal/notify package directly.
 	Notify func(ctx context.Context, typ, cfgJSON, text string) error
+	// RegisterNotifier adds a notification channel provider under a type name,
+	// letting a plugin contribute a new channel type (e.g. "slack", "sms") that
+	// core event dispatch, the Notify hook, and the dashboard's channel test all
+	// deliver to. cfgJSON is the channel's stored JSON config; text is the body.
+	// Call it during Mount. nil on hosts that predate it.
+	RegisterNotifier func(typ string, send func(ctx context.Context, cfgJSON, text string) error)
 	// UserID extracts the authenticated user ID from the request session (0 if unauthed).
 	UserID func(*http.Request) uint
 	// OrgID extracts the authenticated org ID from the request session (0 if unauthed).
