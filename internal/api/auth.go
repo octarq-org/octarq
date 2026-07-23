@@ -532,6 +532,9 @@ type AuthConfigOutput struct {
 		GithubEnabled       bool   `json:"githubEnabled"`
 		RegistrationEnabled bool   `json:"registrationEnabled"`
 		AppName             string `json:"appName"`
+		LogoURL             string `json:"logoUrl"`
+		BrandColor          string `json:"brandColor"`
+		BrandColor2         string `json:"brandColor2"`
 	}
 }
 
@@ -545,6 +548,7 @@ func (h *Handler) authConfig(ctx context.Context, input *AuthConfigInput) (*Auth
 	out.Body.GithubEnabled = githubEnabled
 	out.Body.RegistrationEnabled = h.registrationEnabled()
 	out.Body.AppName = h.AppName()
+	out.Body.LogoURL, out.Body.BrandColor, out.Body.BrandColor2 = h.Brand()
 	return out, nil
 }
 

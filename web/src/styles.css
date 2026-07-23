@@ -129,6 +129,13 @@ body {
   box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.4), 0 8px 40px -8px rgba(99, 102, 241, 0.45);
 }
 
+/* Brand gradient — the mark surface (BrandMark). Reads the accent design token
+   so the Pro white-label plugin recolors every brand glyph by overriding
+   --gradient-primary at runtime. */
+.brand-gradient {
+  background-image: var(--gradient-primary);
+}
+
 /* Scrollbars */
 * {
   scrollbar-width: thin;

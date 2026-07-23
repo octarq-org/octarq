@@ -3,7 +3,7 @@ import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "reac
 import { motion } from "framer-motion";
 import { Globe } from "lucide-react";
 import { api, MenuItem, Org, PluginInfo } from "./api";
-import { useAppName, brandInitial } from "./brand";
+import { BrandMark } from "./shell/BrandMark";
 // Route-level code splitting: each top-level page ships as its own chunk,
 // loaded on first navigation behind the Suspense boundary below.
 const OverviewPage = lazy(() => import("./pages/Overview"));
@@ -44,7 +44,6 @@ export default function App() {
   // Org role from /api/auth/me ("owner" | "admin" | "member") — advisory input
   // for requiredRole gating (sidebar filter + PluginGate pre-check). UX only.
   const [role, setRole] = useState<string | undefined>(undefined);
-  const appName = useAppName();
 
   useEffect(() => {
     api.me()
@@ -59,9 +58,7 @@ export default function App() {
     content = (
       <div className="octarq-aurora grid h-full place-items-center text-white/40">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow flex items-center justify-center">
-            <span className="font-display text-base font-extrabold text-white">{brandInitial(appName)}</span>
-          </div>
+          <BrandMark size="md" />
           <span className="text-sm">loading…</span>
         </div>
       </div>

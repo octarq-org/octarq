@@ -4,7 +4,8 @@ import { Menu } from "@base-ui/react/menu";
 import { ChevronsUpDown, CheckIcon, Search, Settings, User, LogOut, PanelLeft } from "lucide-react";
 import { Org } from "../api";
 import { cn } from "../ui";
-import { useAppName, brandInitial } from "../brand";
+import { useAppName } from "../brand";
+import { BrandMark } from "./BrandMark";
 import { useTranslation, LANGS } from "../i18n";
 import { Area, AreaId } from "./areas";
 
@@ -83,9 +84,7 @@ export function TopBar({
 
       {/* Brand */}
       <div className="flex items-center gap-2.5 pr-1">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
-          <span className="font-display text-sm font-extrabold text-white">{brandInitial(appName)}</span>
-        </div>
+        <BrandMark size="sm" />
         <span className="hidden font-display text-[15px] font-bold tracking-wide text-white sm:block">{appName}</span>
       </div>
 

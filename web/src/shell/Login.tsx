@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { ShieldAlert } from "lucide-react";
 import { api, ApiError } from "../api";
-import { useAppName, brandInitial } from "../brand";
+import { useAppName } from "../brand";
+import { BrandMark } from "./BrandMark";
 import { useTranslation } from "../i18n";
 
 export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
@@ -81,9 +82,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
         <div className="absolute -bottom-10 -left-10 h-32 w-32 bg-violet-500/5 blur-3xl rounded-full pointer-events-none" />
         
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
-            <span className="font-display text-xl font-extrabold text-white">{brandInitial(appName)}</span>
-          </div>
+          <BrandMark size="lg" className="mx-auto mb-4" />
           <h1 className="font-display text-2xl font-bold text-white">{mode === "register" ? t("app.createAccount") : t("app.signInTo", { app: appName })}</h1>
           <p className="text-xs text-white/40 mt-1.5 leading-relaxed">{mode === "register" ? t("app.registerSubtitle") : t("app.loginSubtitle")}</p>
         </div>
