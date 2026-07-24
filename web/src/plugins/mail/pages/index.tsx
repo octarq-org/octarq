@@ -118,13 +118,13 @@ export default function MailPage() {
         }
       />
 
-      <div className="flex gap-0 border-b border-white/[0.06] mb-6">
+      <div className="flex gap-0 border-b border-foreground/[0.06] mb-6">
         <button
           onClick={() => setTab('mail')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             tab === 'mail'
-              ? 'border-indigo-500 text-white'
-              : 'border-transparent text-white/45 hover:text-white/70'
+              ? 'border-indigo-500 text-foreground'
+              : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >
           {t("mail.tabMail")}
@@ -133,8 +133,8 @@ export default function MailPage() {
           onClick={() => setTab('settings')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
             tab === 'settings'
-              ? 'border-indigo-500 text-white'
-              : 'border-transparent text-white/45 hover:text-white/70'
+              ? 'border-indigo-500 text-foreground'
+              : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >
           {t("mail.tabSettings")}
@@ -145,7 +145,7 @@ export default function MailPage() {
 
       {boxes.length === 0 && (
         <Guide title={t("mail.guideTitle")} open>
-          <ol className="ml-4 list-decimal space-y-1.5 text-sm leading-relaxed text-white/70">
+          <ol className="ml-4 list-decimal space-y-1.5 text-sm leading-relaxed text-foreground/70">
             <li>{t("mail.guideStep1Pre")}<b>{t("mail.guideStep1Domains")}</b>{t("mail.guideStep1Mid")}<b>{t("mail.guideStep1AcceptEmail")}</b>{t("mail.guideStep1Post")}</li>
             <li>{t("mail.guideStep2Pre")}<b>{t("mail.guideStep2Routing")}</b>{t("mail.guideStep2Post")}</li>
             <li>{t("mail.guideStep3Pre")}<Code>deploy/cloudflare-email-worker.js</Code>{t("mail.guideStep3Mid1")}<Code>OCTARQ_ENDPOINT</Code>{t("mail.guideStep3Mid2")}<b>{t("mail.guideStep3WebhookUrl")}</b>{t("mail.guideStep3Mid3")}<b>{t("mail.guideStep3SettingsMailboxes")}</b>{t("mail.guideStep3Post")}</li>
@@ -193,33 +193,33 @@ export default function MailPage() {
           </div>
           
           <GlassCard className="overflow-hidden">
-            <div className="overflow-y-auto max-h-[600px] divide-y divide-white/[0.04]" onScroll={handleScroll}>
+            <div className="overflow-y-auto max-h-[600px] divide-y divide-foreground/[0.04]" onScroll={handleScroll}>
               {emails.length === 0 && !loading ? (
-                <div className="p-8 text-center text-white/40 text-sm">{t("mail.noMessages")}</div>
+                <div className="p-8 text-center text-foreground/40 text-sm">{t("mail.noMessages")}</div>
               ) : (
                 <>
                   {emails.map((e) => (
                     <button
                       key={e.id}
-                      className={`flex w-full flex-col p-4 text-left hover:bg-white/[0.03] transition-colors ${open?.id === e.id ? "bg-white/[0.05]" : ""}`}
+                      className={`flex w-full flex-col p-4 text-left hover:bg-foreground/[0.03] transition-colors ${open?.id === e.id ? "bg-foreground/[0.05]" : ""}`}
                       onClick={() => openEmail(e)}
                     >
                       <div className="flex items-center justify-between w-full mb-1 gap-2">
                         <div className="flex items-center gap-2 overflow-hidden">
                           {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />}
-                          <span className={`truncate text-sm ${e.read ? "text-white/55" : "font-semibold text-white"}`}>{e.from || t("mail.unknownSender")}</span>
+                          <span className={`truncate text-sm ${e.read ? "text-foreground/55" : "font-semibold text-foreground"}`}>{e.from || t("mail.unknownSender")}</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0 ml-2">
                           <AuthBadges spf={e.authSpf} dkim={e.authDkim} dmarc={e.authDmarc} compact />
-                          <span className="text-[11px] text-white/40">{timeAgo(e.receivedAt)}</span>
+                          <span className="text-[11px] text-foreground/40">{timeAgo(e.receivedAt)}</span>
                         </div>
                       </div>
-                      <div className={`truncate text-xs ${e.read ? "text-white/40" : "text-white/70"}`}>
+                      <div className={`truncate text-xs ${e.read ? "text-foreground/40" : "text-foreground/70"}`}>
                         {e.subject || t("mail.noSubject")}
                       </div>
                     </button>
                   ))}
-                  {loading && <div className="p-3 text-center text-xs text-white/40">{t("mail.loading")}</div>}
+                  {loading && <div className="p-3 text-center text-xs text-foreground/40">{t("mail.loading")}</div>}
                 </>
               )}
             </div>
@@ -242,8 +242,8 @@ export default function MailPage() {
               }}
             />
           ) : (
-            <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-white/40 border border-white/[0.04]/40">
-              <Inbox className="h-10 w-10 mb-2 opacity-50 text-indigo-400" />
+            <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-foreground/40 border border-foreground/[0.04]/40">
+              <Inbox className="h-10 w-10 mb-2 opacity-50 text-accent-fg" />
               <p className="text-sm">{t("mail.selectEmail")}</p>
             </GlassCard>
           )}
@@ -255,11 +255,11 @@ export default function MailPage() {
       {tab === 'settings' && (
         <div className="space-y-8">
           <div>
-            <h3 className="text-sm font-semibold text-white/70 mb-3">{t("mail.inboundConfig")}</h3>
+            <h3 className="text-sm font-semibold text-foreground/70 mb-3">{t("mail.inboundConfig")}</h3>
             <GlassCard className="p-6"><MailSettings /></GlassCard>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white/70 mb-3">{t("mail.smtpGateways")}</h3>
+            <h3 className="text-sm font-semibold text-foreground/70 mb-3">{t("mail.smtpGateways")}</h3>
             <GlassCard className="p-6"><SMTPSenders /></GlassCard>
           </div>
         </div>

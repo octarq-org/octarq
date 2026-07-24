@@ -21,12 +21,12 @@ export function MailSettings() {
     try { await api.updateSettings({ reservedMailboxes, inboundToken, catchAll, autoWrapLinks: autoWrap }); setSaved(true); setTimeout(() => setSaved(false), 2000); }
     finally { setBusy(false); }
   }
-  if (!s) return <div className="text-sm text-white/40">{t("settings.loadingLower")}</div>;
+  if (!s) return <div className="text-sm text-foreground/40">{t("settings.loadingLower")}</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white/90">{t("settings.inboundMailboxesSettings")}</h2>
+        <h2 className="text-sm font-semibold text-foreground/90">{t("settings.inboundMailboxesSettings")}</h2>
         <SavedBadge on={saved} />
       </div>
       <Field label={t("settings.reservedMailboxesLabel")} hint={t("settings.reservedMailboxesHint")}>
@@ -43,21 +43,21 @@ export function MailSettings() {
       <Field label={t("settings.inboundTokenLabel")} hint={t("settings.inboundTokenHint")}>
         <input className="input w-full font-mono text-xs" value={inboundToken} onChange={(e) => setInboundToken(e.target.value)} placeholder={t("settings.inboundTokenPlaceholder")} />
       </Field>
-      <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
+      <div className="flex items-center gap-3 border-t border-foreground/[0.04] pt-4">
         <Toggle on={catchAll} onChange={setCatchAll} />
         <div>
-          <span className="block select-none text-xs font-semibold text-white/70">{t("settings.enableCatchAll")}</span>
-          <span className="select-none text-[10px] text-white/40">{t("settings.enableCatchAllDesc")}</span>
+          <span className="block select-none text-xs font-semibold text-foreground/70">{t("settings.enableCatchAll")}</span>
+          <span className="select-none text-[10px] text-foreground/40">{t("settings.enableCatchAllDesc")}</span>
         </div>
       </div>
-      <div className="flex items-center gap-3 border-t border-white/[0.04] pt-4">
+      <div className="flex items-center gap-3 border-t border-foreground/[0.04] pt-4">
         <Toggle on={autoWrap} onChange={setAutoWrap} />
         <div>
-          <span className="block select-none text-xs font-semibold text-white/70">{t("settings.autoWrapLinks")}</span>
-          <span className="select-none text-[10px] text-white/40">{t("settings.autoWrapLinksDesc")}</span>
+          <span className="block select-none text-xs font-semibold text-foreground/70">{t("settings.autoWrapLinks")}</span>
+          <span className="select-none text-[10px] text-foreground/40">{t("settings.autoWrapLinksDesc")}</span>
         </div>
       </div>
-      <div className="border-t border-white/[0.06] pt-4 flex justify-end">
+      <div className="border-t border-foreground/[0.06] pt-4 flex justify-end">
         <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("settings.saveSettings")}</Button>
       </div>
     </div>

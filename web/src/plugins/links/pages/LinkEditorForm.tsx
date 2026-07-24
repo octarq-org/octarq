@@ -129,7 +129,7 @@ export function LinkEditorForm({
                   key={s}
                   type="button"
                   onClick={() => setSlug(s)}
-                  className="rounded-lg bg-indigo-500/10 border border-indigo-400/20 px-2.5 py-1 text-xs font-mono text-indigo-300 hover:bg-indigo-500/20"
+                  className="rounded-lg bg-indigo-500/10 border border-indigo-400/20 px-2.5 py-1 text-xs font-mono text-accent-fg hover:bg-indigo-500/20"
                 >
                   {s}
                 </button>
@@ -193,12 +193,12 @@ export function LinkEditorForm({
 
       <div className="flex items-center gap-3 pt-2">
         <Toggle on={enabled} onChange={setEnabled} />
-        <span className="text-sm text-white/60 select-none">{t("links.linkRoutingActive")}</span>
+        <span className="text-sm text-foreground/60 select-none">{t("links.linkRoutingActive")}</span>
       </div>
 
-      {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
+      {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
 
-      <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+      <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
         <Button variant="ghost" onClick={onCancel}>
           {t("links.cancel")}
         </Button>
@@ -244,7 +244,7 @@ function UtmBuilder({ target, onApply }: { target: string; onApply: (url: string
     ["content", "content"],
   ];
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 p-4 bg-black/30 border border-white/[0.05] rounded-xl">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 p-4 bg-well border border-foreground/[0.05] rounded-xl">
       {fields.map(([k, label]) => (
         <input
           key={k}

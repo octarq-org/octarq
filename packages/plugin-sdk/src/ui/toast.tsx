@@ -119,13 +119,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 )}
               >
                 <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", tone.dot)} />
-                <span className="min-w-0 flex-1 break-words text-[13px] leading-snug text-white/90">
+                <span className="min-w-0 flex-1 break-words text-[13px] leading-snug text-foreground/90">
                   {t.message}
                 </span>
                 <button
                   onClick={() => dismiss(t.id)}
                   aria-label="Dismiss"
-                  className="-mr-1 -mt-0.5 shrink-0 rounded-lg px-1.5 py-0.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+                  className="-mr-1 -mt-0.5 shrink-0 rounded-lg px-1.5 py-0.5 text-foreground/40 transition-colors hover:bg-foreground/10 hover:text-foreground"
                 >
                   ×
                 </button>

@@ -36,12 +36,12 @@ export function Dialog({
           )}
         >
           <div className="mb-4 flex items-center justify-between">
-            <BaseDialog.Title className="font-display text-lg font-semibold text-white">
+            <BaseDialog.Title className="font-display text-lg font-semibold text-foreground">
               {title}
             </BaseDialog.Title>
             <BaseDialog.Close
               aria-label="Close"
-              className="btn-ghost rounded-xl px-2 py-1 text-white/50 hover:text-white"
+              className="btn-ghost rounded-xl px-2 py-1 text-foreground/50 hover:text-foreground"
             >
               ✕
             </BaseDialog.Close>

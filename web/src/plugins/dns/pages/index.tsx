@@ -112,13 +112,13 @@ export default function DomainsPage() {
         }
       />
 
-      <div className="flex gap-0 border-b border-white/[0.06] mb-6">
+      <div className="flex gap-0 border-b border-foreground/[0.06] mb-6">
         <button
           onClick={() => setTab('domains')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             tab === 'domains'
-              ? 'border-indigo-500 text-white'
-              : 'border-transparent text-white/45 hover:text-white/70'
+              ? 'border-indigo-500 text-foreground'
+              : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >
           {t("domains.tabDns")}
@@ -127,8 +127,8 @@ export default function DomainsPage() {
           onClick={() => setTab('settings')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
             tab === 'settings'
-              ? 'border-indigo-500 text-white'
-              : 'border-transparent text-white/45 hover:text-white/70'
+              ? 'border-indigo-500 text-foreground'
+              : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >
           {t("domains.tabSettings")}
@@ -149,42 +149,42 @@ export default function DomainsPage() {
             />
           </div>
           <GlassCard className="overflow-hidden">
-            <div className="overflow-y-auto max-h-[600px] divide-y divide-white/[0.04]" onScroll={handleScroll}>
+            <div className="overflow-y-auto max-h-[600px] divide-y divide-foreground/[0.04]" onScroll={handleScroll}>
               {domains.length === 0 && !loading ? (
-                <div className="p-8 text-center text-white/40 text-sm">{t("domains.noDomainsFound")}</div>
+                <div className="p-8 text-center text-foreground/40 text-sm">{t("domains.noDomainsFound")}</div>
               ) : (
                 <>
                   {domains.map((d) => (
                     <div
                       key={d.id}
-                      className={`flex w-full flex-col p-4 text-left hover:bg-white/[0.03] transition-colors cursor-pointer ${
-                        active !== "new" && active?.id === d.id ? "bg-white/[0.05]" : ""
+                      className={`flex w-full flex-col p-4 text-left hover:bg-foreground/[0.03] transition-colors cursor-pointer ${
+                        active !== "new" && active?.id === d.id ? "bg-foreground/[0.05]" : ""
                       }`}
                       onClick={() => setActive(d)}
                     >
                       <div className="flex items-center justify-between w-full gap-2">
-                        <span className="font-semibold text-sm truncate flex-1 text-white">{d.name}</span>
+                        <span className="font-semibold text-sm truncate flex-1 text-foreground">{d.name}</span>
                         <div className="flex gap-2 shrink-0">
                           <button
-                            className="p-1 hover:bg-white/10 rounded transition-colors"
+                            className="p-1 hover:bg-foreground/10 rounded transition-colors"
                             title={t("domains.toggleLinkRouting")}
                             onClick={(e) => { e.stopPropagation(); toggleService(d, "forLink"); }}
                           >
-                            <LinkIcon className={`h-3.5 w-3.5 ${d.forLink ? "text-indigo-400" : "text-white/20"}`} />
+                            <LinkIcon className={`h-3.5 w-3.5 ${d.forLink ? "text-accent-fg" : "text-foreground/20"}`} />
                           </button>
                           <button
-                            className="p-1 hover:bg-white/10 rounded transition-colors"
+                            className="p-1 hover:bg-foreground/10 rounded transition-colors"
                             title={t("domains.toggleMailRouting")}
                             onClick={(e) => { e.stopPropagation(); toggleService(d, "forMail"); }}
                           >
-                            <Mail className={`h-3.5 w-3.5 ${d.forMail ? "text-emerald-400" : "text-white/20"}`} />
+                            <Mail className={`h-3.5 w-3.5 ${d.forMail ? "text-success-fg" : "text-foreground/20"}`} />
                           </button>
                         </div>
                       </div>
-                      {d.note && <div className="truncate text-[11px] text-amber-300/70 mt-1.5 font-medium">📝 {d.note}</div>}
+                      {d.note && <div className="truncate text-[11px] text-warning-fg/70 mt-1.5 font-medium">📝 {d.note}</div>}
                     </div>
                   ))}
-                  {loading && <div className="p-3 text-center text-xs text-white/40">{t("domains.loading")}</div>}
+                  {loading && <div className="p-3 text-center text-xs text-foreground/40">{t("domains.loading")}</div>}
                 </>
               )}
             </div>
@@ -195,8 +195,8 @@ export default function DomainsPage() {
         <div className="w-full space-y-5">
           {active === "new" ? (
             <GlassCard className="p-5">
-              <h2 className="mb-4 text-lg font-bold text-white flex items-center gap-2">
-                <Globe className="h-5 w-5 text-indigo-400" />
+              <h2 className="mb-4 text-lg font-bold text-foreground flex items-center gap-2">
+                <Globe className="h-5 w-5 text-accent-fg" />
                 {t("domains.addDomainZone")}
               </h2>
               <DomainEditorForm
@@ -212,9 +212,9 @@ export default function DomainsPage() {
           ) : active ? (
             <div className="space-y-6">
               <GlassCard className="p-5">
-                <div className="flex justify-between items-center mb-5 border-b border-white/[0.06] pb-4">
-                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Globe className="h-5 w-5 text-indigo-400" />
+                <div className="flex justify-between items-center mb-5 border-b border-foreground/[0.06] pb-4">
+                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-accent-fg" />
                     {active.name}
                   </h2>
                   <Button
@@ -226,7 +226,7 @@ export default function DomainsPage() {
                         loadMore(true);
                       }
                     }}
-                    className="py-1 px-2.5 text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-0"
+                    className="py-1 px-2.5 text-xs bg-rose-500/10 hover:bg-rose-500/20 text-danger-fg border-0"
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-1" />
                     {t("domains.delete")}
@@ -246,7 +246,7 @@ export default function DomainsPage() {
               </GlassCard>
               
               <GlassCard className="p-5">
-                <h3 className="mb-4 text-sm font-semibold text-white/80 uppercase tracking-wider">{t("domains.managedHosts")}</h3>
+                <h3 className="mb-4 text-sm font-semibold text-foreground/80 uppercase tracking-wider">{t("domains.managedHosts")}</h3>
                 <DomainHostManager
                   domain={active}
                   onReload={async () => {
@@ -260,7 +260,7 @@ export default function DomainsPage() {
 
               <GlassCard className="p-5 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider">{t("domains.dnsSetupVerification")}</h3>
+                  <h3 className="text-sm font-semibold text-foreground/80 uppercase tracking-wider">{t("domains.dnsSetupVerification")}</h3>
                   <Button 
                     variant="subtle" 
                     onClick={verifyDns}
@@ -270,14 +270,14 @@ export default function DomainsPage() {
                     {verifying ? t("domains.verifying") : t("domains.verifyDnsSetup")}
                   </Button>
                 </div>
-                <p className="text-xs text-white/50 leading-relaxed">
+                <p className="text-xs text-foreground/50 leading-relaxed">
                   {t("domains.verificationHint")}
                 </p>
                 {dnsStatus === null ? (
                   <div className="grid grid-cols-3 gap-3 pt-2">
                     {(["SPF", "DKIM", "DMARC"] as const).map((label) => (
-                      <div key={label} className="flex flex-col items-center p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                        <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">{t("domains.statusLabel", { label })}</span>
+                      <div key={label} className="flex flex-col items-center p-3.5 rounded-xl bg-foreground/[0.02] border border-foreground/[0.04]">
+                        <span className="text-[10px] uppercase font-bold text-foreground/40 tracking-wider">{t("domains.statusLabel", { label })}</span>
                         <div className="mt-2"><Badge tone="neutral">{t("domains.unknown")}</Badge></div>
                       </div>
                     ))}
@@ -285,7 +285,7 @@ export default function DomainsPage() {
                 ) : (
                   <div className="space-y-4 pt-2">
                     <div className="space-y-3">
-                      <span className="text-[10px] uppercase font-bold text-white/50 tracking-wider">{t("domains.mailHosts")}</span>
+                      <span className="text-[10px] uppercase font-bold text-foreground/50 tracking-wider">{t("domains.mailHosts")}</span>
                       {(dnsStatus.hosts?.length
                         ? dnsStatus.hosts
                         : [{ host: active.name, spf: dnsStatus.spf, dmarc: dnsStatus.dmarc, dkim: dnsStatus.dkim }]
@@ -295,7 +295,7 @@ export default function DomainsPage() {
                     </div>
                     {!!dnsStatus.links?.length && (
                       <div className="space-y-2">
-                        <span className="text-[10px] uppercase font-bold text-white/50 tracking-wider">{t("domains.shortLinkHosts")}</span>
+                        <span className="text-[10px] uppercase font-bold text-foreground/50 tracking-wider">{t("domains.shortLinkHosts")}</span>
                         {dnsStatus.links.map((lh) => (
                           <LinkHostRow key={lh.host} link={lh} />
                         ))}
@@ -307,17 +307,17 @@ export default function DomainsPage() {
               </GlassCard>
 
               <GlassCard className="p-5">
-                <h3 className="mb-4 text-sm font-semibold text-white/80 uppercase tracking-wider">{t("domains.dnsRecords")}</h3>
+                <h3 className="mb-4 text-sm font-semibold text-foreground/80 uppercase tracking-wider">{t("domains.dnsRecords")}</h3>
                 <RecordsView domain={active} />
               </GlassCard>
             </div>
           ) : domains.length === 0 && !loading ? (
-            <GlassCard className="flex flex-col items-center justify-center py-16 px-6 text-center border border-white/[0.04]/40">
-              <div className="h-14 w-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-4">
+            <GlassCard className="flex flex-col items-center justify-center py-16 px-6 text-center border border-foreground/[0.04]/40">
+              <div className="h-14 w-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-accent-fg mb-4">
                 <Globe className="h-7 w-7" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-1.5">{t("domains.addFirstDomain")}</h3>
-              <p className="text-sm text-white/50 max-w-sm leading-relaxed mb-6">
+              <h3 className="text-lg font-bold text-foreground mb-1.5">{t("domains.addFirstDomain")}</h3>
+              <p className="text-sm text-foreground/50 max-w-sm leading-relaxed mb-6">
                 {t("domains.addFirstDomainHint")}
               </p>
               {accounts.length > 0 ? (
@@ -333,14 +333,14 @@ export default function DomainsPage() {
               )}
               <button
                 onClick={() => setActive("new")}
-                className="mt-3 text-xs text-white/45 hover:text-white/70 underline underline-offset-2 transition-colors"
+                className="mt-3 text-xs text-foreground/45 hover:text-foreground/70 underline underline-offset-2 transition-colors"
               >
                 {t("domains.orAddManually")}
               </button>
             </GlassCard>
           ) : (
-            <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-white/40 border border-white/[0.04]/40">
-              <Globe className="h-10 w-10 mb-2 opacity-50 text-indigo-400" />
+            <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-foreground/40 border border-foreground/[0.04]/40">
+              <Globe className="h-10 w-10 mb-2 opacity-50 text-accent-fg" />
               <p className="text-sm">{t("domains.selectDomainHint")}</p>
             </GlassCard>
           )}

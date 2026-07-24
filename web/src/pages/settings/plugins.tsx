@@ -40,15 +40,15 @@ export function PluginsSettings() {
       <PageHeader title={t("settings.pluginsTitle")} description={t("settings.pluginsDescription")} />
 
       {err && (
-        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex gap-2 items-center">
+        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-danger-fg text-xs flex gap-2 items-center">
           <ShieldAlert className="h-4 w-4 shrink-0" /><span>{err}</span>
         </div>
       )}
 
       {plugins === null ? (
-        <GlassCard className="p-6 text-sm text-white/50">{t("settings.loadingPlugins")}</GlassCard>
+        <GlassCard className="p-6 text-sm text-foreground/50">{t("settings.loadingPlugins")}</GlassCard>
       ) : plugins.length === 0 ? (
-        <GlassCard className="p-6 text-sm text-white/55">
+        <GlassCard className="p-6 text-sm text-foreground/55">
           {t("settings.noPlugins")}
         </GlassCard>
       ) : (
@@ -58,17 +58,17 @@ export function PluginsSettings() {
             return (
               <GlassCard key={p.key} className="p-5 flex items-center justify-between gap-4">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.04] text-indigo-300">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-foreground/[0.04] text-accent-fg">
                     <Puzzle className="h-4.5 w-4.5" />
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-white">{p.title}</h3>
+                      <h3 className="text-sm font-bold text-foreground">{p.title}</h3>
                       {p.enabled ? <Badge tone="green">{t("settings.badgeOn")}</Badge> : <Badge tone="neutral">{t("settings.badgeOff")}</Badge>}
                     </div>
-                    {description && <p className="text-xs text-white/45 mt-0.5">{description}</p>}
+                    {description && <p className="text-xs text-foreground/45 mt-0.5">{description}</p>}
                     {p.menus.length > 0 && (
-                      <p className="text-[10px] text-white/50 mt-1">
+                      <p className="text-[10px] text-foreground/50 mt-1">
                         {t("settings.pluginAdds", { items: p.menus.map((m) => m.label).join(" · ") })}
                       </p>
                     )}

@@ -44,7 +44,7 @@ export function GeneralSettings() {
   async function handleExport() {
     setExporting(true);
     try {
-      const data = await api.exportAccountData();
+      const data = await api.exportWorkspaceData();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -68,7 +68,7 @@ export function GeneralSettings() {
     }
     setPurging(true);
     try {
-      await api.purgeAccountData();
+      await api.purgeWorkspaceData();
       toast.success(t("settings.workspaceDeleted"));
       setShowDeleteModal(false);
       setDeleteConfirmationText("");
@@ -90,7 +90,7 @@ export function GeneralSettings() {
 
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white">{t("settings.workspaceProfile")}</h2>
+          <h2 className="text-base font-bold text-foreground">{t("settings.workspaceProfile")}</h2>
           {workspaceSaved && <Badge tone="green">{t("settings.updated")}</Badge>}
         </div>
         <form onSubmit={renameWorkspace} className="max-w-md">
@@ -110,8 +110,8 @@ export function GeneralSettings() {
       {isAdminOrOwner && (
         <GlassCard className="p-6 space-y-4">
           <div>
-            <h2 className="text-base font-bold text-white">{t("settings.exportWorkspaceData")}</h2>
-            <p className="text-xs text-white/50 mt-1">
+            <h2 className="text-base font-bold text-foreground">{t("settings.exportWorkspaceData")}</h2>
+            <p className="text-xs text-foreground/50 mt-1">
               {t("settings.exportWorkspaceDesc")}
             </p>
           </div>
@@ -126,11 +126,11 @@ export function GeneralSettings() {
       {isAdminOrOwner && (
         <>
           <GlassCard className="p-6 border-red-500/20 bg-red-950/5 space-y-6">
-            <div className="flex items-center gap-2 text-rose-400">
+            <div className="flex items-center gap-2 text-danger-fg">
               <ShieldAlert size={20} />
               <h2 className="text-base font-bold">{t("settings.dangerZone")}</h2>
             </div>
-            <p className="text-xs text-white/60">
+            <p className="text-xs text-foreground/60">
               {t("settings.dangerZoneDesc")}
             </p>
             <div className="pt-2">
@@ -145,11 +145,11 @@ export function GeneralSettings() {
       {showDeleteModal && (
         <Modal title={t("settings.deleteWorkspaceModalTitle")} onClose={() => { setShowDeleteModal(false); setDeleteConfirmationText(""); }}>
           <div className="space-y-4">
-            <p className="text-sm text-white/70">
+            <p className="text-sm text-foreground/70">
               {t("settings.deleteWorkspaceModalDesc")}
             </p>
-            <p className="text-sm text-white/70">
-              {t("settings.confirmTypePre")}<span className="font-mono font-bold text-red-400 select-all">DELETE MY DATA</span>{t("settings.confirmTypePost")}
+            <p className="text-sm text-foreground/70">
+              {t("settings.confirmTypePre")}<span className="font-mono font-bold text-danger-fg select-all">DELETE MY DATA</span>{t("settings.confirmTypePost")}
             </p>
             <input
               type="text"

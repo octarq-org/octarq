@@ -59,7 +59,7 @@ export const en = {
     empty: "No matches for “{{q}}”.",
   },
   areas: {
-    operations: { title: "Workspace", subtitle: "Daily traffic & communication" },
+    operations: { title: "Operations", subtitle: "Daily traffic & communication" },
     assets: { title: "Infrastructure", subtitle: "Servers, network & databases" },
     insights: { title: "Security & Admin", subtitle: "Abuse defense & activity logs" },
     settings: { title: "Settings", subtitle: "Workspace & profile configurations" },

@@ -95,13 +95,13 @@ export default function LinksPage() {
         }
       />
 
-      <div className="flex gap-0 border-b border-white/[0.06] mb-6">
+      <div className="flex gap-0 border-b border-foreground/[0.06] mb-6">
         <button
           onClick={() => setTab('links')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             tab === 'links'
-              ? 'border-indigo-500 text-white'
-              : 'border-transparent text-white/45 hover:text-white/70'
+              ? 'border-indigo-500 text-foreground'
+              : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >
           {t("links.tabLinks")}
@@ -110,8 +110,8 @@ export default function LinksPage() {
           onClick={() => setTab('settings')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
             tab === 'settings'
-              ? 'border-indigo-500 text-white'
-              : 'border-transparent text-white/45 hover:text-white/70'
+              ? 'border-indigo-500 text-foreground'
+              : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >
           {t("links.tabSettings")}
@@ -130,7 +130,7 @@ export default function LinksPage() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-white/50" />
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-foreground/50" />
             </div>
             <Button
               variant={archived ? "primary" : "subtle"}
@@ -143,31 +143,31 @@ export default function LinksPage() {
           </div>
           
           <GlassCard className="overflow-hidden">
-            <div className="overflow-y-auto max-h-[600px] divide-y divide-white/[0.04]" onScroll={handleScroll}>
+            <div className="overflow-y-auto max-h-[600px] divide-y divide-foreground/[0.04]" onScroll={handleScroll}>
               {links.length === 0 && !loading ? (
-                <div className="p-8 text-center text-white/40 text-sm">{t("links.noLinksFound")}</div>
+                <div className="p-8 text-center text-foreground/40 text-sm">{t("links.noLinksFound")}</div>
               ) : (
                 <>
                   {links.map((l) => (
                     <button
                       key={l.id}
-                      className={`flex w-full flex-col p-4 text-left hover:bg-white/[0.03] transition-colors ${
-                        active !== "new" && active?.id === l.id ? "bg-white/[0.05]" : ""
+                      className={`flex w-full flex-col p-4 text-left hover:bg-foreground/[0.03] transition-colors ${
+                        active !== "new" && active?.id === l.id ? "bg-foreground/[0.05]" : ""
                       }`}
                       onClick={() => setActive(l)}
                     >
                       <div className="flex items-center gap-2 w-full justify-between">
-                        <span className="font-semibold text-sm text-indigo-300 truncate flex-1">
+                        <span className="font-semibold text-sm text-accent-fg truncate flex-1">
                           /{l.slug}
                         </span>
                         <Badge tone="neutral" className="text-[10px]">
                           {t("links.clicksCount", { count: l.clicks })}
                         </Badge>
                       </div>
-                      <div className="truncate text-xs text-white/50 mt-1.5 font-mono">{l.target}</div>
+                      <div className="truncate text-xs text-foreground/50 mt-1.5 font-mono">{l.target}</div>
                     </button>
                   ))}
-                  {loading && <div className="p-3 text-center text-xs text-white/40">{t("links.loading")}</div>}
+                  {loading && <div className="p-3 text-center text-xs text-foreground/40">{t("links.loading")}</div>}
                 </>
               )}
             </div>
@@ -178,8 +178,8 @@ export default function LinksPage() {
         <div className="w-full space-y-6">
           {active === "new" ? (
             <GlassCard className="p-5">
-              <h2 className="mb-4 text-lg font-bold text-white flex items-center gap-2">
-                <Link2 className="h-5 w-5 text-indigo-400" />
+              <h2 className="mb-4 text-lg font-bold text-foreground flex items-center gap-2">
+                <Link2 className="h-5 w-5 text-accent-fg" />
                 {t("links.createNewLink")}
               </h2>
               <LinkEditorForm
@@ -195,9 +195,9 @@ export default function LinksPage() {
           ) : active ? (
             <div className="space-y-6">
               <GlassCard className="p-5">
-                <div className="flex flex-wrap justify-between items-center mb-5 border-b border-white/[0.06] pb-4 gap-4">
-                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Link2 className="h-5 w-5 text-indigo-400" />
+                <div className="flex flex-wrap justify-between items-center mb-5 border-b border-foreground/[0.06] pb-4 gap-4">
+                  <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <Link2 className="h-5 w-5 text-accent-fg" />
                     /{active.slug}
                   </h2>
                   <div className="flex flex-wrap gap-2">
@@ -218,7 +218,7 @@ export default function LinksPage() {
                           loadMore(true);
                         }
                       }}
-                      className="text-xs py-1.5 px-3 gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-0"
+                      className="text-xs py-1.5 px-3 gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-danger-fg border-0"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       {t("links.delete")}
@@ -241,8 +241,8 @@ export default function LinksPage() {
               <StatsView link={active} />
               
               <GlassCard className="p-5 flex flex-col items-center gap-4">
-                <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider self-start flex items-center gap-1.5">
-                  <QrCode className="h-4 w-4 text-indigo-400" />
+                <h3 className="text-sm font-semibold text-foreground/80 uppercase tracking-wider self-start flex items-center gap-1.5">
+                  <QrCode className="h-4 w-4 text-accent-fg" />
                   {t("links.linkQrCode")}
                 </h3>
                 <div className="bg-white p-3 rounded-2xl shadow-glow">
@@ -261,8 +261,8 @@ export default function LinksPage() {
               </GlassCard>
             </div>
           ) : (
-            <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-white/40 border border-white/[0.04]/40">
-              <Link2 className="h-10 w-10 mb-2 opacity-50 text-indigo-400" />
+            <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-foreground/40 border border-foreground/[0.04]/40">
+              <Link2 className="h-10 w-10 mb-2 opacity-50 text-accent-fg" />
               <p className="text-sm">{t("links.emptyDetail")}</p>
             </GlassCard>
           )}

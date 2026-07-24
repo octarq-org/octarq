@@ -52,7 +52,7 @@ export function MailboxEditor({
             <input className="input w-full font-mono text-sm" value={box.address} disabled />
           </Field>
         ) : hosts.length === 0 ? (
-          <p className="rounded bg-amber-500/10 p-3 text-xs text-amber-300 flex items-center gap-1.5">
+          <p className="rounded bg-amber-500/10 p-3 text-xs text-warning-fg flex items-center gap-1.5">
             <AlertTriangle className="h-4 w-4" />
             {t("mail.noHosts")}
           </p>
@@ -66,7 +66,7 @@ export function MailboxEditor({
                 placeholder={t("mail.prefixPlaceholder")}
                 autoFocus
               />
-              <span className="text-white/40">@</span>
+              <span className="text-foreground/40">@</span>
               <div className="min-w-0 flex-1">
                 <Select
                   className="text-sm"
@@ -83,7 +83,7 @@ export function MailboxEditor({
         </Field>
         <div className="flex items-center gap-3 py-1">
           <Toggle on={enabled} onChange={setEnabled} />
-          <span className="text-sm text-white/60 select-none">{t("mail.mailReceivingEnabled")}</span>
+          <span className="text-sm text-foreground/60 select-none">{t("mail.mailReceivingEnabled")}</span>
         </div>
         {box && (
           <Button
@@ -99,8 +99,8 @@ export function MailboxEditor({
             {t("mail.deleteMailboxCompletely")}
           </Button>
         )}
-        {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
-        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+        {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
           <Button variant="ghost" onClick={onClose}>
             {t("mail.cancel")}
           </Button>

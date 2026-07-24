@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import { Globe } from "lucide-react";
 import { api, MenuItem, Org, PluginInfo } from "./api";
 import { BrandMark } from "./shell/BrandMark";
@@ -8,11 +7,10 @@ import { BrandMark } from "./shell/BrandMark";
 // loaded on first navigation behind the Suspense boundary below.
 const OverviewPage = lazy(() => import("./pages/Overview"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
-const PersonalSettingsPage = lazy(() => import("./pages/PersonalSettings"));
 const InviteAcceptPage = lazy(() => import("./pages/InviteAccept"));
-import { Modal, Button, toast } from "./ui";
+import { Modal, Button, toast, cn } from "./ui";
 import { useTranslation } from "./i18n";
-import { Area, AreaId, STATIC_AREAS, SETTINGS_AREA, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
+import { Area, AreaId, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
 import { RoleProvider, roleSatisfies } from "./shell/role";
 import { TopBar } from "./shell/TopBar";
 import { CommandPalette } from "./shell/CommandPalette";
@@ -29,7 +27,7 @@ import { PluginGateContext } from "./plugins/PluginGate";
 export function RouteFallback() {
   return (
     <div className="grid h-64 place-items-center" role="status" aria-live="polite">
-      <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/15 border-t-white/60" />
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-foreground/15 border-t-foreground/60" />
     </div>
   );
 }
@@ -56,7 +54,7 @@ export default function App() {
     content = <InviteAcceptPage />;
   } else if (authed === null) {
     content = (
-      <div className="octarq-aurora grid h-full place-items-center text-white/40">
+      <div className="octarq-aurora grid h-full place-items-center text-muted-foreground">
         <div className="flex flex-col items-center gap-3">
           <BrandMark size="md" />
           <span className="text-sm">loading…</span>
@@ -118,7 +116,7 @@ function mergeAreas(
   role: string | undefined,
   isInstanceAdmin: boolean,
   backendLoaded: boolean,
-): Area[] {
+): { areas: Area[]; footer: NavItem[] } {
   // Backend-driven gating: the set of paths the backend vouches for — every
   // menu it announces in api.menus() (active core + active plugin menus) PLUS
   // every path owned by a toggleable feature in api.plugins() (so a plugin
@@ -166,7 +164,13 @@ function mergeAreas(
   const pluginAreas = uiAreas().filter(
     (pa) => pa.id !== "settings" && !STATIC_AREAS.some((sa) => sa.id === pa.id),
   );
-  const baseAreas = [...STATIC_AREAS, ...pluginAreas.map(pluginAreaToArea)];
+  // SETTINGS_AREA joins the merge so plugin/backend menus categorized for
+  // settings ("Instance"/"Account"/"Settings" → areaForCategory) land in its
+  // groups — e.g. the Pro licensing plugin's octarq License in the Instance
+  // group. The shell pulls the "settings" area back out of the result (it's the
+  // gear, never a top-level tab) and applies the admin gate on the Instance
+  // group; see `mergedSettingsArea` in Shell.
+  const baseAreas = [...STATIC_AREAS, SETTINGS_AREA, ...pluginAreas.map(pluginAreaToArea)];
 
   const staticPaths = new Set(baseAreas.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.path))));
   const extras = menus.filter(
@@ -175,6 +179,26 @@ function mergeAreas(
       !disabledPaths.has(m.path) &&
       roleSatisfies(m.requiredRole, role, isInstanceAdmin),
   );
+
+  const toNavItem = (m: MenuItem): NavItem & { order: number } => {
+    const KeyIcon = menuIcon(m.icon);
+    return {
+      id: m.id,
+      label: m.label,
+      Icon: KeyIcon ?? Globe,
+      iconStr: KeyIcon ? undefined : m.icon,
+      path: m.path,
+      order: m.order ?? 0,
+    };
+  };
+
+  // Footer-placed items (category "footer"/"resources" → FOOTER_PLACEMENT) are
+  // pulled out of the area merge and returned separately for the rail footer.
+  // They never match a real area id below, so they're naturally excluded there.
+  const footer = extras
+    .filter((m) => areaForCategory(m.category, pluginAreas) === FOOTER_PLACEMENT)
+    .map(toNavItem)
+    .sort((a, b) => a.order - b.order);
 
   const nextAreas = baseAreas.map((staticArea) => {
     // Deep copy groups to avoid mutating global STATIC_AREAS; drop items
@@ -201,15 +225,23 @@ function mergeAreas(
         order: m.order ?? 0,
       };
 
+      // In the Settings area a generic "settings" category means org workspace
+      // configuration (SSO, white-label, Slack, …) → the Workspace group. ("Workspace"
+      // itself can't be used as the category: it names the top-level operations area.)
+      const effectiveCategory =
+        staticArea.id === "settings" && (m.category || "").toLowerCase() === "settings"
+          ? "Workspace"
+          : (m.category || "");
+
       // Check if there is an existing group matching the category name (case-insensitive)
       const matchedGroup = groups.find(
-        (g) => g.label.toLowerCase() === (m.category || "").toLowerCase()
+        (g) => g.label.toLowerCase() === effectiveCategory.toLowerCase()
       );
 
       if (matchedGroup) {
         matchedGroup.items.push(item);
       } else {
-        const groupName = m.category || "More";
+        const groupName = effectiveCategory || "More";
         const dynamicGroup = groups.find((g) => g.label === groupName);
         if (dynamicGroup) {
           dynamicGroup.items.push(item);
@@ -234,7 +266,7 @@ function mergeAreas(
 
   // Drop whole areas (e.g. "Commerce") that have no visible items left —
   // otherwise a disabled feature still shows an empty top-level section.
-  return nextAreas.filter((a) => a.groups.length > 0);
+  return { areas: nextAreas.filter((a) => a.groups.length > 0), footer };
 }
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
@@ -297,6 +329,18 @@ function Shell({
     return next;
   });
 
+  // Track the mobile breakpoint so the collapsed rail is `inert` only when it's
+  // the off-screen drawer (mobile), not the usable icon rail (desktop).
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const onChange = () => setIsMobile(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
   // ⌘K / Ctrl-K command palette for primary navigation.
   const [cmdOpen, setCmdOpen] = useState(false);
   useEffect(() => {
@@ -310,10 +354,21 @@ function Shell({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const areas = useMemo(
+  const merged = useMemo(
     () => mergeAreas(backendNav.menus, backendNav.plugins, role, isInstanceAdmin, backendLoaded),
     [backendNav, role, isInstanceAdmin, backendLoaded],
   );
+  // The Settings area is reached via the gear, never a top-level tab, so it's
+  // held out of `areas` (tabs / areaForPath / command palette business areas)
+  // and surfaced separately as the second-level rail for /settings.
+  const areas = useMemo(() => merged.areas.filter((a) => a.id !== "settings"), [merged]);
+  const mergedSettingsArea = useMemo(
+    () => merged.areas.find((a) => a.id === "settings") ?? SETTINGS_AREA,
+    [merged],
+  );
+  // Plugin-contributed footer items (e.g. the Pro Help plugin) shown among the
+  // octarq resources in the rail footer.
+  const footerItems = merged.footer;
   // Role inputs for PluginGate requiredRole pre-check.
   const roleCtx = useMemo(() => ({ role, isInstanceAdmin }), [role, isInstanceAdmin]);
 
@@ -323,7 +378,18 @@ function Shell({
     return { disabledPlugins, disabledPaths, loaded: backendLoaded };
   }, [backendNav.plugins, backendLoaded]);
 
-  const settingsActive = location.pathname.startsWith("/settings") || location.pathname.startsWith("/personal");
+  // Every core settings page lives under /settings (one URL space — no /personal
+  // tree). Plugin settings pages keep top-level paths (e.g. /sso, /whitelabel,
+  // /license — a menu Category routed them into the Settings area), so the shell
+  // stays in the settings context for those too; otherwise navigating to one
+  // would drop the settings rail and orphan the highlight.
+  const settingsPaths = useMemo(
+    () => new Set(mergedSettingsArea.groups.flatMap((g) => g.items.map((i) => i.path))),
+    [mergedSettingsArea],
+  );
+  const settingsActive =
+    location.pathname.startsWith("/settings") ||
+    [...settingsPaths].some((p) => location.pathname === p || location.pathname.startsWith(p + "/"));
   // Resolve against the merged runtime areas (static + plugin areas + dynamic
   // menu items) so paths owned by plugin-contributed areas highlight correctly.
   const activeArea: AreaId = settingsActive ? "settings" : areaForPath(location.pathname, areas);
@@ -365,13 +431,15 @@ function Shell({
     };
   }, []);
 
+  // The Instance group is octarq-provided instance administration (Instance
+  // Settings, octarq License, …) — visible only to instance admins.
   const currentSettingsArea = useMemo(() => {
-    if (isInstanceAdmin) return SETTINGS_AREA;
+    if (isInstanceAdmin) return mergedSettingsArea;
     return {
-      ...SETTINGS_AREA,
-      groups: SETTINGS_AREA.groups.filter((g) => g.label !== "Instance"),
+      ...mergedSettingsArea,
+      groups: mergedSettingsArea.groups.filter((g) => g.label !== "Instance"),
     };
-  }, [isInstanceAdmin]);
+  }, [mergedSettingsArea, isInstanceAdmin]);
 
   const currentArea = settingsActive ? currentSettingsArea : (areas.find((a) => a.id === activeArea) ?? areas[0]);
   const activeOrgName = orgs.find((o) => o.id === activeOrgId)?.name ?? t("app.personalWorkspace");
@@ -417,7 +485,7 @@ function Shell({
 
   return (
     <RoleProvider value={roleCtx}>
-    <div className="octarq-aurora flex h-screen w-full flex-col overflow-hidden text-white">
+    <div className="octarq-aurora flex h-screen w-full flex-col overflow-hidden text-foreground">
       {/* Keyboard skip link — first focusable element, visually hidden until
           focused, jumps past the nav chrome straight to page content. */}
       <a
@@ -430,28 +498,18 @@ function Shell({
         areas={areas}
         activeArea={activeArea}
         settingsActive={settingsActive}
-        orgs={orgs}
-        activeOrgId={activeOrgId}
-        activeOrgName={activeOrgName}
         user={user}
-        showWorkspaceSwitcher={isProBuild}
         panelCollapsed={panelCollapsed}
         onTogglePanel={togglePanel}
         onSelectArea={selectArea}
-        onSwitchOrg={(id) =>
-          api.switchOrg(id)
-            .then(() => switchToOrg(id))
-            .catch((e) => toast.error(e.message || t("app.switchWorkspaceFailed", "Couldn't switch workspace")))
-        }
-        onCreateOrg={() => setCreatingOrg(true)}
         onOpenSettings={() => navigate("/settings")}
         onOpenCommand={() => setCmdOpen(true)}
         onLogout={onLogout}
       />
 
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
-      {/* Mobile scrim — the rail overlays content below md, so a tap-away layer
-          closes it. Hidden on md+ where the rail is inline. */}
+      {/* Mobile scrim — below md the rail overlays content, so a tap-away layer
+          closes it. Only rendered when the drawer is open on a small screen. */}
       {!panelCollapsed && (
         <button
           aria-label={t("app.collapseMenu")}
@@ -459,27 +517,40 @@ function Shell({
           className="absolute inset-0 z-20 bg-black/50 backdrop-blur-sm md:hidden"
         />
       )}
-      {/* Second-level nav rail. Width-animated so collapsing widens the content
-          area smoothly instead of unmounting the panel and snapping the layout.
-          The inner AreaPanel stays a fixed w-60 so its contents don't reflow
-          while the parent clips from 240 → 0. Below md it's an absolute overlay
-          (doesn't push content); at md+ it's an inline column. */}
-      <motion.aside
-        initial={false}
-        animate={{ width: panelCollapsed ? 0 : 240 }}
-        transition={{ type: "spring", stiffness: 420, damping: 42 }}
-        className="absolute inset-y-0 left-0 z-30 shrink-0 overflow-hidden md:relative md:inset-auto"
-        // `inert` (not aria-hidden) so the clipped links drop out of the tab
-        // order and the AT tree together when collapsed — no focusable elements
-        // left inside a hidden region.
-        {...(panelCollapsed ? { inert: "" } : {})}
+      {/* Second-level nav rail. On md+ it's an inline column whose width
+          animates between a 64px icon rail (collapsed) and 240px (expanded) —
+          it never disappears, so navigation stays reachable. Below md it's an
+          absolute overlay drawer that slides off-screen when collapsed. */}
+      <aside
+        className={cn(
+          "z-30 shrink-0 overflow-hidden transition-[width,transform] duration-300 ease-out",
+          "absolute inset-y-0 left-0 w-60 md:relative md:inset-auto md:translate-x-0",
+          panelCollapsed ? "max-md:-translate-x-full md:w-16" : "md:w-60",
+        )}
+        // On mobile the collapsed drawer is off-screen — `inert` drops its links
+        // out of the tab order and the AT tree. On desktop the collapsed rail is
+        // a usable icon strip, so it stays interactive.
+        {...(panelCollapsed && isMobile ? { inert: "" } : {})}
       >
         <AreaPanel
           area={currentArea}
           currentPath={location.pathname}
+          collapsed={panelCollapsed}
+          onToggle={togglePanel}
           onNavigate={() => { if (window.innerWidth < 768) setPanelCollapsed(true); }}
+          footerItems={footerItems}
+          showWorkspaceSwitcher={isProBuild}
+          orgs={orgs}
+          activeOrgId={activeOrgId}
+          activeOrgName={activeOrgName}
+          onSwitchOrg={(id) =>
+            api.switchOrg(id)
+              .then(() => switchToOrg(id))
+              .catch((e) => toast.error(e.message || t("app.switchWorkspaceFailed", "Couldn't switch workspace")))
+          }
+          onCreateOrg={() => setCreatingOrg(true)}
         />
-      </motion.aside>
+      </aside>
 
       <main ref={mainRef} id="main-content" tabIndex={-1} className="relative flex-1 overflow-hidden outline-none">
         <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
@@ -490,7 +561,6 @@ function Shell({
               <Route path="/"           element={<Navigate to="/overview" replace />} />
               <Route path="/overview"   element={<OverviewPage />} />
               <Route path="/settings/*" element={<SettingsPage />} />
-              <Route path="/personal/*" element={<PersonalSettingsPage />} />
               <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
               {/* Every business page — core (plugins/core) and edition-composed
                   (manifest) — flows through the same registry. */}
@@ -511,6 +581,7 @@ function Shell({
         open={cmdOpen}
         onClose={() => setCmdOpen(false)}
         areas={areas}
+        settingsArea={currentSettingsArea}
         onNavigate={(path) => { navigate(path); setCmdOpen(false); }}
       />
 
@@ -527,7 +598,7 @@ function Shell({
                 autoFocus
               />
             </div>
-            <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+            <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
               <Button type="button" variant="ghost" onClick={() => setCreatingOrg(false)}>
                 {t("common.cancel")}
               </Button>

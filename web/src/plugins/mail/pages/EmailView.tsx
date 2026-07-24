@@ -55,13 +55,13 @@ export function EmailViewForm({
   }
   return (
     <GlassCard className="flex flex-col h-full max-h-full min-h-0">
-      <div className="p-5 border-b border-white/[0.06] flex justify-between items-start shrink-0 gap-4">
+      <div className="p-5 border-b border-foreground/[0.06] flex justify-between items-start shrink-0 gap-4">
          <div>
-           <h2 className="text-lg font-bold text-white mb-2 leading-snug">{email.subject || t("mail.noSubject")}</h2>
-           <div className="text-xs text-white/55 space-y-1.5">
-             <div><span className="text-white/45">{t("mail.fromLabel")}</span> <span className="font-semibold text-white/80">{email.from}</span></div>
-             <div><span className="text-white/45">{t("mail.toLabel")}</span> <span className="text-white/70">{email.to}</span></div>
-             <div className="text-[11px] text-white/50 pt-0.5">{new Date(email.receivedAt).toLocaleString()}</div>
+           <h2 className="text-lg font-bold text-foreground mb-2 leading-snug">{email.subject || t("mail.noSubject")}</h2>
+           <div className="text-xs text-foreground/55 space-y-1.5">
+             <div><span className="text-foreground/45">{t("mail.fromLabel")}</span> <span className="font-semibold text-foreground/80">{email.from}</span></div>
+             <div><span className="text-foreground/45">{t("mail.toLabel")}</span> <span className="text-foreground/70">{email.to}</span></div>
+             <div className="text-[11px] text-foreground/50 pt-0.5">{new Date(email.receivedAt).toLocaleString()}</div>
              <div className="mt-2.5 flex flex-wrap gap-1.5 pt-1">
                <AuthBadges spf={email.authSpf} dkim={email.authDkim} dmarc={email.authDmarc} />
              </div>
@@ -74,27 +74,27 @@ export function EmailViewForm({
       
       {summary && (
         <div className="mx-5 mt-4 rounded-xl bg-indigo-500/10 border border-indigo-400/20 p-3.5 shrink-0">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-indigo-300 mb-1.5">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-accent-fg mb-1.5">
             <Sparkles className="h-3 w-3" />
             {t("mail.aiSummaryTitle")}
           </div>
-          <p className="text-sm text-white/85 leading-relaxed whitespace-pre-wrap">{summary}</p>
+          <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{summary}</p>
         </div>
       )}
-      <div className="flex-1 overflow-y-auto p-5 min-h-[400px] bg-black/10">
+      <div className="flex-1 overflow-y-auto p-5 min-h-[400px] bg-well">
         {email.html ? (
           <iframe srcDoc={email.html} className="h-full min-h-[400px] w-full bg-white rounded-xl shadow-inner border-0" sandbox="" title={t("mail.iframeTitle")} />
         ) : (
-          <pre className="whitespace-pre-wrap break-words font-sans text-sm text-white/85 leading-relaxed">{email.text}</pre>
+          <pre className="whitespace-pre-wrap break-words font-sans text-sm text-foreground/85 leading-relaxed">{email.text}</pre>
         )}
       </div>
       
-      <div className="p-5 border-t border-white/[0.06] shrink-0 bg-white/[0.01]">
+      <div className="p-5 border-t border-foreground/[0.06] shrink-0 bg-foreground/[0.01]">
         {attachments.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-2">
             {attachments.map((a, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.05] border border-white/[0.06] px-2.5 py-1 text-xs text-white/85" title={t("mail.attachmentTitle", { type: a.contentType, size: a.size })}>
-                <Paperclip className="h-3 w-3 text-indigo-400" />
+              <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-foreground/[0.05] border border-foreground/[0.06] px-2.5 py-1 text-xs text-foreground/85" title={t("mail.attachmentTitle", { type: a.contentType, size: a.size })}>
+                <Paperclip className="h-3 w-3 text-accent-fg" />
                 {a.filename || t("mail.attachmentFallback")} ({Math.max(1, Math.round(a.size / 1024))} KB)
               </span>
             ))}

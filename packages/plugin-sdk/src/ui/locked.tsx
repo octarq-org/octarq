@@ -43,8 +43,8 @@ export function LockedFeature({
         className={twMerge(
           "flex h-14 w-14 items-center justify-center rounded-2xl",
           locked
-            ? "bg-gradient-to-br from-indigo-500/20 to-violet-500/20 text-violet-300 ring-1 ring-inset ring-violet-400/25"
-            : "bg-rose-500/10 text-rose-400",
+            ? "bg-gradient-to-br from-indigo-500/20 to-violet-500/20 text-accent-fg ring-1 ring-inset ring-violet-400/25"
+            : "bg-rose-500/10 text-danger-fg",
         )}
       >
         {icon ?? <DefaultLockIcon />}
@@ -52,14 +52,14 @@ export function LockedFeature({
 
       <div className="space-y-2">
         <div className="flex items-center justify-center gap-2">
-          <h2 className="text-xl font-bold text-white">{feature}</h2>
+          <h2 className="text-xl font-bold text-foreground">{feature}</h2>
           {locked && <ProPill>{label}</ProPill>}
         </div>
-        <p className="text-sm leading-relaxed text-white/50">
+        <p className="text-sm leading-relaxed text-foreground/50">
           {locked ? (
             <>
               {t("uiCommon.lockedIntroPre")}
-              <span className="font-medium text-violet-200">
+              <span className="font-medium text-accent-fg">
                 {appName} {label}
               </span>
               {t("uiCommon.lockedIntroPost")}
@@ -74,7 +74,7 @@ export function LockedFeature({
       {locked && perks && perks.length > 0 && (
         <ul className="w-full space-y-1.5 text-left">
           {perks.map((p) => (
-            <li key={p} className="flex items-start gap-2 text-sm text-white/65">
+            <li key={p} className="flex items-start gap-2 text-sm text-foreground/65">
               <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-violet-400/70" />
               {p}
             </li>
@@ -95,7 +95,7 @@ export function LockedFeature({
               href={pricingHref}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm font-medium text-white/65 transition-colors hover:bg-white/5 hover:text-white"
+              className="inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm font-medium text-foreground/65 transition-colors hover:bg-foreground/5 hover:text-foreground"
             >
               {t("uiCommon.comparePlans")}
             </a>

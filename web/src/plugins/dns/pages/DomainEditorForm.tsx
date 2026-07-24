@@ -66,8 +66,8 @@ export function DomainEditorForm({ domain, accounts, onCancel, onSaved }: { doma
           </Field>
         </>
       )}
-      {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
-      <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+      {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
+      <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
         {onCancel && (
           <Button type="button" variant="ghost" onClick={onCancel}>{t("domains.cancel")}</Button>
         )}

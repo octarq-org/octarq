@@ -4,6 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Console</title>
+    <!-- Theme: default is LIGHT (Wise/Cloudflare idiom). Apply the persisted
+         choice synchronously, before first paint, so there is no flash of the
+         wrong theme. The toggle in the TopBar writes `octarq-theme`. -->
+    <script>
+      (function () {
+        try {
+          if (localStorage.getItem("octarq-theme") === "dark") {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (e) {}
+      })();
+    </script>
     <!-- Fonts via <link> + preconnect rather than a CSS @import so they don't
          block the stylesheet from parsing; display=swap avoids FOIT. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

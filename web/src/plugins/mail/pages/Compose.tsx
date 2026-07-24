@@ -56,10 +56,10 @@ export function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () =>
     <Modal title={t("mail.composeMail")} onClose={onClose}>
       {ok ? (
         <div className="py-6 text-center space-y-4">
-          <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 mx-auto">
+          <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-success-fg mx-auto">
             <CheckCircle className="h-6 w-6" />
           </div>
-          <p className="text-white font-semibold">{t("mail.messageSent")}</p>
+          <p className="text-foreground font-semibold">{t("mail.messageSent")}</p>
           <Button variant="primary" onClick={onClose} className="w-full">
             {t("mail.done")}
           </Button>
@@ -100,8 +100,8 @@ export function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () =>
               <span>{t("mail.trackLinks")}</span>
             </label>
           )}
-          {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
-          <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+          {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
             <Button variant="ghost" onClick={onClose}>
               {t("mail.cancel")}
             </Button>

@@ -6,7 +6,7 @@ export function ProPill({ className, children }: { className?: string; children?
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-500/25 to-violet-500/25 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200 ring-1 ring-inset ring-violet-400/30",
+        "inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-500/25 to-violet-500/25 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-fg ring-1 ring-inset ring-violet-400/30",
         className,
       )}
     >

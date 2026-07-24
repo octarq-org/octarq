@@ -77,7 +77,7 @@ export function OrgMembersManager() {
       />
       <GlassCard className="p-6 space-y-6">
 
-      <form onSubmit={handleAdd} className="bg-black/25 p-4 rounded-xl border border-white/[0.05] flex flex-wrap sm:flex-nowrap gap-4 items-end">
+      <form onSubmit={handleAdd} className="bg-well p-4 rounded-xl border border-foreground/[0.05] flex flex-wrap sm:flex-nowrap gap-4 items-end">
         <div className="flex-1 min-w-[200px]">
           <label className="label text-xs">{t("settings.inviteByEmail")}</label>
           <input
@@ -105,25 +105,25 @@ export function OrgMembersManager() {
           {busy ? t("settings.inviting") : t("settings.inviteMember")}
         </Button>
       </form>
-      {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
+      {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
 
       {loading ? (
-        <div className="text-white/40 text-sm py-4 text-center">{t("settings.loadingMembers")}</div>
+        <div className="text-foreground/40 text-sm py-4 text-center">{t("settings.loadingMembers")}</div>
       ) : (
-        <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
+        <div className="divide-y divide-foreground/[0.04] border border-foreground/[0.05] rounded-xl bg-well overflow-hidden">
           {(members || []).map((m) => {
             const isSelf = me?.username ? m.email.toLowerCase() === me.username.toLowerCase() : false;
             return (
               <div key={m.userId} className="flex justify-between items-center p-4">
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="font-semibold text-sm text-white">{m.email}</span>
+                  <span className="font-semibold text-sm text-foreground">{m.email}</span>
                   <Badge tone={getRoleTone(m.role)} className="capitalize text-[10px] tracking-wide font-semibold px-2">
                     {m.role === "owner" ? t("settings.roleOwner") : m.role === "admin" ? t("settings.roleAdmin") : t("settings.roleMember")}
                   </Badge>
                   {m.pending ? (
                     <Badge tone="amber" className="text-[10px] px-2">{t("settings.statusPending")}</Badge>
                   ) : (
-                    <span className="text-xs text-white/40">{t("settings.statusJoined", { time: m.joinedAt ? timeAgo(m.joinedAt) : "" })}</span>
+                    <span className="text-xs text-foreground/40">{t("settings.statusJoined", { time: m.joinedAt ? timeAgo(m.joinedAt) : "" })}</span>
                   )}
                 </div>
                 {!isSelf && (

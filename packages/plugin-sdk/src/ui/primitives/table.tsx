@@ -18,15 +18,15 @@ export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElem
 }
 
 export function THead({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={cn("text-white/50", className)} {...props} />;
+  return <thead className={cn("text-foreground/50", className)} {...props} />;
 }
 
 export function TBody({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
-  return <tbody className={cn("divide-y divide-white/[0.06]", className)} {...props} />;
+  return <tbody className={cn("divide-y divide-foreground/[0.06]", className)} {...props} />;
 }
 
 export function TR({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn("transition-colors hover:bg-white/[0.03]", className)} {...props} />;
+  return <tr className={cn("transition-colors hover:bg-foreground/[0.03]", className)} {...props} />;
 }
 
 export function TH({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
@@ -39,5 +39,5 @@ export function TH({ className, ...props }: ThHTMLAttributes<HTMLTableCellElemen
 }
 
 export function TD({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn("px-3 py-2.5 text-white/80", className)} {...props} />;
+  return <td className={cn("px-3 py-2.5 text-foreground/80", className)} {...props} />;
 }

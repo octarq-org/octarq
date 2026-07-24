@@ -62,24 +62,24 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
   }
 
   return (
-    <div className="bg-black/25 rounded-2xl p-4 border border-white/[0.05] space-y-4">
+    <div className="bg-well rounded-2xl p-4 border border-foreground/[0.05] space-y-4">
       {hosts.length === 0 ? (
-        <p className="text-sm text-white/50">{t("domains.noActiveHosts")}</p>
+        <p className="text-sm text-foreground/50">{t("domains.noActiveHosts")}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-white/40 border-b border-white/[0.06] font-semibold uppercase tracking-wider">
+              <tr className="text-left text-xs text-foreground/40 border-b border-foreground/[0.06] font-semibold uppercase tracking-wider">
                 <th className="py-2.5 pr-4">{t("domains.thHost")}</th>
-                <th className="py-2.5 pr-4 text-indigo-400">{t("domains.thLink")}</th>
-                <th className="py-2.5 pr-4 text-emerald-400">{t("domains.thMail")}</th>
+                <th className="py-2.5 pr-4 text-accent-fg">{t("domains.thLink")}</th>
+                <th className="py-2.5 pr-4 text-success-fg">{t("domains.thMail")}</th>
                 <th className="py-2.5 text-right" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.04]">
+            <tbody className="divide-y divide-foreground/[0.04]">
               {hosts.map((h) => (
                 <tr key={h.host} className="group">
-                  <td className="py-3 pr-4 font-mono text-xs text-white/70">{h.host}</td>
+                  <td className="py-3 pr-4 font-mono text-xs text-foreground/70">{h.host}</td>
                   <td className="py-3 pr-4">
                     {h.linkEnabled !== null ? (
                       <button
@@ -87,18 +87,18 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
                         onClick={() => toggleHost(h.host, "linkHosts", h.linkEnabled!)}
                         className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 ${
                           h.linkEnabled
-                            ? "bg-indigo-500/25 text-indigo-300 hover:bg-indigo-500/40"
-                            : "bg-white/[0.06] text-white/40 hover:bg-white/10 line-through"
+                            ? "bg-indigo-500/25 text-accent-fg hover:bg-indigo-500/40"
+                            : "bg-foreground/[0.06] text-foreground/40 hover:bg-foreground/10 line-through"
                         }`}
                       >
-                        <span className={`h-1.5 w-1.5 rounded-full ${h.linkEnabled ? "bg-indigo-400" : "bg-white/[0.06]"}`} />
+                        <span className={`h-1.5 w-1.5 rounded-full ${h.linkEnabled ? "bg-indigo-400" : "bg-foreground/[0.06]"}`} />
                         {h.linkEnabled ? t("domains.on") : t("domains.off")}
                       </button>
                     ) : (
                       <button
                         disabled={!!busy}
                         onClick={() => addHost(h.host, true, false)}
-                        className="text-xs text-white/50 hover:text-indigo-400 transition-colors px-2 py-0.5 disabled:opacity-50"
+                        className="text-xs text-foreground/50 hover:text-accent-fg transition-colors px-2 py-0.5 disabled:opacity-50"
                       >
                         {t("domains.addShort")}
                       </button>
@@ -111,18 +111,18 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
                         onClick={() => toggleHost(h.host, "mailHosts", h.mailEnabled!)}
                         className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 ${
                           h.mailEnabled
-                            ? "bg-emerald-500/25 text-emerald-300 hover:bg-emerald-500/40"
-                            : "bg-white/[0.06] text-white/40 hover:bg-white/10 line-through"
+                            ? "bg-emerald-500/25 text-success-fg hover:bg-emerald-500/40"
+                            : "bg-foreground/[0.06] text-foreground/40 hover:bg-foreground/10 line-through"
                         }`}
                       >
-                        <span className={`h-1.5 w-1.5 rounded-full ${h.mailEnabled ? "bg-emerald-400" : "bg-white/[0.06]"}`} />
+                        <span className={`h-1.5 w-1.5 rounded-full ${h.mailEnabled ? "bg-emerald-400" : "bg-foreground/[0.06]"}`} />
                         {h.mailEnabled ? t("domains.on") : t("domains.off")}
                       </button>
                     ) : (
                       <button
                         disabled={!!busy}
                         onClick={() => addHost(h.host, false, true)}
-                        className="text-xs text-white/50 hover:text-emerald-400 transition-colors px-2 py-0.5 disabled:opacity-50"
+                        className="text-xs text-foreground/50 hover:text-success-fg transition-colors px-2 py-0.5 disabled:opacity-50"
                       >
                         {t("domains.addShort")}
                       </button>
@@ -133,7 +133,7 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
                       disabled={!!busy}
                       onClick={() => removeHost(h.host)}
                       title={t("domains.removeHost")}
-                      className="text-xs text-rose-400/70 hover:text-rose-300 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-30 px-2.5 py-0.5"
+                      className="text-xs text-danger-fg/70 hover:text-danger-fg opacity-0 group-hover:opacity-100 transition-all disabled:opacity-30 px-2.5 py-0.5"
                     >
                       {t("domains.remove")}
                     </button>
@@ -183,7 +183,7 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
   }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap bg-white/[0.02] p-2.5 rounded-xl border border-white/[0.04]">
+    <div className="flex items-center gap-2 flex-wrap bg-foreground/[0.02] p-2.5 rounded-xl border border-foreground/[0.04]">
       <div className="relative flex-1 min-w-[150px]">
         <input
           className="input h-9 text-xs py-1.5 w-full"
@@ -193,16 +193,16 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
           onKeyDown={(e) => e.key === "Enter" && submit()}
         />
         {draft && !draft.includes(".") && (
-          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] text-white/50">
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] text-foreground/50">
             → {draft.trim().toLowerCase()}.{domain.name}
           </span>
         )}
       </div>
-      <label className="flex items-center gap-1.5 text-xs text-white/60 cursor-pointer select-none">
+      <label className="flex items-center gap-1.5 text-xs text-foreground/60 cursor-pointer select-none">
         <input type="checkbox" checked={forLink} onChange={(e) => setForLink(e.target.checked)} className="accent-indigo-500" />
         {t("domains.thLink")}
       </label>
-      <label className="flex items-center gap-1.5 text-xs text-white/60 cursor-pointer select-none">
+      <label className="flex items-center gap-1.5 text-xs text-foreground/60 cursor-pointer select-none">
         <input type="checkbox" checked={forMail} onChange={(e) => setForMail(e.target.checked)} className="accent-emerald-500" />
         {t("domains.thMail")}
       </label>
@@ -217,7 +217,7 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
               type="button"
               disabled={busy}
               onClick={() => { setDraft(s); }}
-              className="text-[10px] text-white/40 hover:text-white/70 border border-white/[0.05] hover:border-white/15 bg-white/[0.01] hover:bg-white/[0.03] rounded-lg px-2 py-0.5 transition-colors cursor-pointer"
+              className="text-[10px] text-foreground/40 hover:text-foreground/70 border border-foreground/[0.05] hover:border-foreground/15 bg-foreground/[0.01] hover:bg-foreground/[0.03] rounded-lg px-2 py-0.5 transition-colors cursor-pointer"
             >
               {s}
             </button>

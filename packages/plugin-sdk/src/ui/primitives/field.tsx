@@ -20,7 +20,7 @@ export function Field({
       <BaseField.Label className="label">{label}</BaseField.Label>
       {children}
       {hint && (
-        <BaseField.Description className="mt-1 text-xs text-white/40">
+        <BaseField.Description className="mt-1 text-xs text-foreground/40">
           {hint}
         </BaseField.Description>
       )}

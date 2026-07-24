@@ -58,27 +58,27 @@ export default function InviteAcceptPage() {
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-glow">
             <span className="font-display text-xl font-extrabold text-white">{brandInitial(appName)}</span>
           </div>
-          <h1 className="font-display text-xl font-bold text-white flex items-center justify-center gap-2">
-            <Sparkles className="h-5 w-5 text-indigo-400 animate-pulse" />
+          <h1 className="font-display text-xl font-bold text-foreground flex items-center justify-center gap-2">
+            <Sparkles className="h-5 w-5 text-accent-fg animate-pulse" />
             {t("invite.heading")}
           </h1>
-          <p className="text-xs text-white/50 mt-1.5 leading-relaxed">
+          <p className="text-xs text-foreground/50 mt-1.5 leading-relaxed">
             {t("invite.intro")}
           </p>
         </div>
 
         {success ? (
           <div className="text-center py-6 space-y-3">
-            <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-xl">
+            <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/10 text-success-fg flex items-center justify-center font-bold text-xl">
               ✓
             </div>
-            <h2 className="text-base font-semibold text-white">{t("invite.successHeading")}</h2>
-            <p className="text-xs text-white/40">{t("invite.successBody")}</p>
+            <h2 className="text-base font-semibold text-foreground">{t("invite.successHeading")}</h2>
+            <p className="text-xs text-foreground/40">{t("invite.successBody")}</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {!token && (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs rounded-xl">
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-danger-fg text-xs rounded-xl">
                 {t("invite.noTokenWarning")}
               </div>
             )}
@@ -94,7 +94,7 @@ export default function InviteAcceptPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
-                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-white/50" />
+                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-foreground/50" />
               </div>
             </div>
 
@@ -109,11 +109,11 @@ export default function InviteAcceptPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
-                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-white/50" />
+                <KeyRound className="absolute left-3 top-2.5 h-4 w-4 text-foreground/50" />
               </div>
             </div>
 
-            {err && <p className="text-xs text-rose-400 leading-normal">{err}</p>}
+            {err && <p className="text-xs text-danger-fg leading-normal">{err}</p>}
 
             <Button type="submit" variant="primary" className="w-full mt-2" disabled={busy || !token}>
               {busy ? t("invite.activating") : t("invite.activate")}

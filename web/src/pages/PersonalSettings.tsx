@@ -1,23 +1,13 @@
 import { useEffect, useState } from "react";
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Token } from "../api";
-import { Empty, Field, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../ui";
+import { Empty, Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toast } from "../ui";
 import { User, Key, Settings, CheckCircle, Trash2, Eye, ClipboardCopy } from "lucide-react";
 import { useTranslation } from "../i18n";
 
-export default function PersonalSettingsPage() {
-  return (
-    <ScreenWrap>
-      <Routes>
-        <Route path="/" element={<Navigate to="/personal/profile" replace />} />
-        <Route path="/profile" element={<ProfileSettings />} />
-        <Route path="/tokens" element={<ApiTokens />} />
-      </Routes>
-    </ScreenWrap>
-  );
-}
-
-function ProfileSettings() {
+// The per-user Account panels of the unified Settings area. Routing + the
+// ScreenWrap live in SettingsPage — every settings page is served under
+// /settings, so there's no separate /personal route tree.
+export function ProfileSettings() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -64,7 +54,7 @@ function ProfileSettings() {
           <Field label={t("personal.emailLabel")}>
             <input
               type="text"
-              className="input w-full opacity-65 cursor-not-allowed text-white/50"
+              className="input w-full opacity-65 cursor-not-allowed text-foreground/50"
               value={email}
               readOnly
               disabled
@@ -93,10 +83,10 @@ function ProfileSettings() {
             />
           </Field>
 
-          {error && <p className="text-xs text-rose-400 font-semibold">{error}</p>}
-          {saved && <p className="text-xs text-emerald-400 font-semibold flex items-center gap-1">{t("personal.passwordUpdated")}</p>}
+          {error && <p className="text-xs text-danger-fg font-semibold">{error}</p>}
+          {saved && <p className="text-xs text-success-fg font-semibold flex items-center gap-1">{t("personal.passwordUpdated")}</p>}
 
-          <div className="pt-2 border-t border-white/[0.04] flex justify-end">
+          <div className="pt-2 border-t border-foreground/[0.04] flex justify-end">
             <Button type="submit" variant="primary" disabled={busy || !password}>
               {busy ? t("personal.updating") : t("personal.updatePassword")}
             </Button>
@@ -107,7 +97,7 @@ function ProfileSettings() {
   );
 }
 
-function ApiTokens() {
+export function ApiTokens() {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -149,25 +139,25 @@ function ApiTokens() {
 
       <GlassCard className="p-6">
         {loading ? (
-          <div className="text-white/40 text-sm py-6 text-center">{t("personal.loading")}</div>
+          <div className="text-foreground/40 text-sm py-6 text-center">{t("personal.loading")}</div>
         ) : tokens.length === 0 ? (
           <Empty>
-            <Key className="h-8 w-8 text-white/50 mb-1" />
-            <div className="text-xs text-white/50">{t("personal.noTokens")}</div>
+            <Key className="h-8 w-8 text-foreground/50 mb-1" />
+            <div className="text-xs text-foreground/50">{t("personal.noTokens")}</div>
           </Empty>
         ) : (
-          <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
+          <div className="divide-y divide-foreground/[0.04] border border-foreground/[0.05] rounded-xl bg-well overflow-hidden">
             {tokens.map((timer) => (
               <div key={timer.id} className="flex items-center justify-between p-4 group">
                 <div>
-                  <div className="font-semibold text-sm text-white">{timer.name}</div>
-                  <div className="text-xs text-white/50 mt-1 flex items-center gap-2">
-                    <code className="rounded bg-white/5 px-1.5 py-0.5 border border-white/[0.04]">{timer.prefix}…</code>
-                    {timer.note && <span className="text-white/40">{timer.note}</span>}
+                  <div className="font-semibold text-sm text-foreground">{timer.name}</div>
+                  <div className="text-xs text-foreground/50 mt-1 flex items-center gap-2">
+                    <code className="rounded bg-foreground/5 px-1.5 py-0.5 border border-foreground/[0.04]">{timer.prefix}…</code>
+                    {timer.note && <span className="text-foreground/40">{timer.note}</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-[11px] text-white/50">
+                  <span className="text-[11px] text-foreground/50">
                     {timer.lastUsedAt ? t("personal.usedAgo", { time: timeAgo(timer.lastUsedAt) }) : t("personal.neverUsed")}
                   </span>
                   <Button
@@ -187,10 +177,10 @@ function ApiTokens() {
       {created && (
         <Modal title={t("personal.tokenGeneratedTitle")} onClose={() => setCreated(null)}>
           <div className="space-y-4">
-            <p className="text-xs text-white/60 leading-relaxed">
-              {t("personal.tokenGeneratedIntro")} <span className="font-bold text-rose-400">{t("personal.tokenGeneratedWarn")}</span>
+            <p className="text-xs text-foreground/60 leading-relaxed">
+              {t("personal.tokenGeneratedIntro")} <span className="font-bold text-danger-fg">{t("personal.tokenGeneratedWarn")}</span>
             </p>
-            <div className="break-all rounded-xl bg-black/45 border border-white/[0.06] p-4 font-mono text-xs select-all leading-normal text-white">
+            <div className="break-all rounded-xl bg-foreground/[0.05] border border-border p-4 font-mono text-xs select-all leading-normal text-foreground">
               {created.token}
             </div>
             <Button
@@ -265,8 +255,8 @@ function CreateTokenModal({
         <Field label={t("personal.tokenRemarksLabel")} hint={t("personal.tokenRemarksHint")}>
           <input className="input w-full text-sm" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("personal.tokenRemarksPlaceholder")} />
         </Field>
-        {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
-        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+        {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
           <Button type="button" variant="ghost" onClick={onClose}>{t("personal.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={busy || !name.trim()}>
             {busy ? t("personal.generating") : t("personal.generateToken")}
