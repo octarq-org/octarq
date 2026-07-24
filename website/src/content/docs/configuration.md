@@ -48,9 +48,7 @@ later starts.
 
 ## LLM (AI features)
 
-The MCP server's own tools need no LLM, but Pro Inbox AI does. In the Pro build
-this is configured from the dashboard (Inbox AI → *Configure*); the `OCTARQ_LLM_*`
-env vars are the fallback.
+The MCP server's own tools need no LLM, but AI features (such as AI email summaries and AI assistance) can be configured via environment variables using your own provider key (BYOK):
 
 | Variable | Purpose |
 | --- | --- |
