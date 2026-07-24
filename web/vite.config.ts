@@ -63,6 +63,7 @@ export default defineConfig({
       // `@octarq/plugin-sdk`, giving the whole build one SDK instance (one
       // registry, one i18n/brand context). Keep in sync with tsconfig.json paths.
       "@octarq/plugin-sdk": fileURLToPath(new URL("./src/plugin-sdk", import.meta.url)),
+      "@octarq-org/plugin-sdk": fileURLToPath(new URL("./src/plugin-sdk", import.meta.url)),
       ...devSharedAliases,
       ...devEditionAliases,
     },
