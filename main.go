@@ -52,6 +52,14 @@ func main() {
 		return
 	}
 
+	if len(os.Args) > 1 && os.Args[1] == "backup" {
+		os.Exit(runBackupCommand(os.Args[2:]))
+	}
+
+	if len(os.Args) > 1 && os.Args[1] == "restore" {
+		os.Exit(runRestoreCommand(os.Args[2:]))
+	}
+
 	// `octarq plugin new <name>` scaffolds a plugin skeleton (Go + web halves)
 	// and exits, without standing up the server.
 	if len(os.Args) > 1 && os.Args[1] == "plugin" {
