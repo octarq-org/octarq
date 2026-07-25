@@ -28,24 +28,25 @@ func (h *Handler) currentOrg(r *http.Request) models.Org {
 
 // Setting keys.
 const (
-	keyReservedSlugs      = "reserved_slugs"
-	keyReservedMailboxes  = "reserved_mailboxes"
-	keyCatchAll           = "catch_all"
-	keyGoogleClientID     = "oauth.google.client_id"
-	keyGoogleClientSecret = "oauth.google.client_secret" // stored AES-GCM encrypted
-	keyGitHubClientID     = "oauth.github.client_id"
-	keyGitHubClientSecret = "oauth.github.client_secret" // stored AES-GCM encrypted
-	keyDataRetentionDays  = "data_retention_days"        // 0 = disabled
-	keyAutoWrapLinks      = "auto_wrap_links"
-	keyAllowRegistration  = "allow_registration" // "false" disables public sign-up; default on
-	keyAppName            = "app_name"           // UI product name; empty = config.DefaultAppName
-	keyBrandLogo          = "brand_logo"         // white-label logo (URL or data URI); empty = gradient initial
-	keyBrandColor         = "brand_color"        // white-label primary accent hex; empty = default indigo
-	keyBrandColor2        = "brand_color_2"      // white-label secondary accent hex; empty = default violet
-	keyMetricsToken       = "metrics_token"      // /metrics bearer; stored AES-GCM encrypted; empty = loopback-only
-	keyRatelimitAuthRPM   = "ratelimit_auth_rpm"
-	keyRatelimitAPIRPM    = "ratelimit_api_rpm"
-	keyRatelimitRedirRPM  = "ratelimit_redirect_rpm"
+	keyReservedSlugs            = "reserved_slugs"
+	keyReservedMailboxes        = "reserved_mailboxes"
+	keyCatchAll                 = "catch_all"
+	keyGoogleClientID           = "oauth.google.client_id"
+	keyGoogleClientSecret       = "oauth.google.client_secret" // stored AES-GCM encrypted
+	keyGitHubClientID           = "oauth.github.client_id"
+	keyGitHubClientSecret       = "oauth.github.client_secret" // stored AES-GCM encrypted
+	keyDataRetentionDays        = "data_retention_days"        // 0 = disabled
+	keyAutoWrapLinks            = "auto_wrap_links"
+	keyAllowRegistration        = "allow_registration" // "false" disables public sign-up; default on
+	keyAppName                  = "app_name"           // UI product name; empty = config.DefaultAppName
+	keyBrandLogo                = "brand_logo"         // white-label logo (URL or data URI); empty = gradient initial
+	keyBrandColor               = "brand_color"        // white-label primary accent hex; empty = default indigo
+	keyBrandColor2              = "brand_color_2"      // white-label secondary accent hex; empty = default violet
+	keyMetricsToken             = "metrics_token"      // /metrics bearer; stored AES-GCM encrypted; empty = loopback-only
+	keyRatelimitAuthRPM         = "ratelimit_auth_rpm"
+	keyRatelimitAPIRPM          = "ratelimit_api_rpm"
+	keyRatelimitRedirRPM        = "ratelimit_redirect_rpm"
+	keyRequireEmailVerification = "require_email_verification" // "true" requires email verification; default "false"
 )
 
 // Rate-limit defaults (requests per minute per IP) when the setting is unset.
@@ -114,6 +115,10 @@ func (h *Handler) settingInt(key string, def int) int {
 // Absent setting → enabled (default on); only an explicit "false" disables it.
 func (h *Handler) registrationEnabled() bool {
 	return h.getSetting(keyAllowRegistration) != "false"
+}
+
+func (h *Handler) requireEmailVerification() bool {
+	return h.getSetting(keyRequireEmailVerification) == "true"
 }
 
 // DefaultRetentionDays is used when no retention setting is configured.
@@ -271,19 +276,20 @@ func (h *Handler) getInstanceSettings(ctx context.Context, input *GetInstanceSet
 	}
 	out := &GetInstanceSettingsOutput{
 		Body: map[string]any{
-			"reservedSlugs":         h.getSetting(keyReservedSlugs),
-			"builtinReserved":       []string{"admin", "api", "assets", "portal"},
-			"googleClientId":        h.getSetting(keyGoogleClientID),
-			"googleClientSecretSet": h.getSetting(keyGoogleClientSecret) != "",
-			"githubClientId":        h.getSetting(keyGitHubClientID),
-			"githubClientSecretSet": h.getSetting(keyGitHubClientSecret) != "",
-			"dataRetentionDays":     retDays,
-			"allowRegistration":     h.registrationEnabled(),
-			"appName":               h.getSetting(keyAppName), // raw value; empty = default
-			"metricsTokenSet":       h.getSetting(keyMetricsToken) != "",
-			"ratelimitAuthRpm":      h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
-			"ratelimitApiRpm":       h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
-			"ratelimitRedirectRpm":  h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM),
+			"reservedSlugs":            h.getSetting(keyReservedSlugs),
+			"builtinReserved":          []string{"admin", "api", "assets", "portal"},
+			"googleClientId":           h.getSetting(keyGoogleClientID),
+			"googleClientSecretSet":    h.getSetting(keyGoogleClientSecret) != "",
+			"githubClientId":           h.getSetting(keyGitHubClientID),
+			"githubClientSecretSet":    h.getSetting(keyGitHubClientSecret) != "",
+			"dataRetentionDays":        retDays,
+			"allowRegistration":        h.registrationEnabled(),
+			"requireEmailVerification": h.requireEmailVerification(),
+			"appName":                  h.getSetting(keyAppName), // raw value; empty = default
+			"metricsTokenSet":          h.getSetting(keyMetricsToken) != "",
+			"ratelimitAuthRpm":         h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
+			"ratelimitApiRpm":          h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
+			"ratelimitRedirectRpm":     h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM),
 		},
 	}
 	return out, nil
@@ -404,18 +410,19 @@ func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput
 type UpdateInstanceSettingsInput struct {
 	Ctx  huma.Context `hidden:"true"`
 	Body struct {
-		ReservedSlugs        *string `json:"reservedSlugs,omitempty"`
-		GoogleClientID       *string `json:"googleClientId,omitempty"`
-		GoogleClientSecret   *string `json:"googleClientSecret,omitempty"`
-		GitHubClientID       *string `json:"githubClientId,omitempty"`
-		GitHubClientSecret   *string `json:"githubClientSecret,omitempty"`
-		DataRetentionDays    *int    `json:"dataRetentionDays,omitempty"`
-		AllowRegistration    *bool   `json:"allowRegistration,omitempty"`
-		AppName              *string `json:"appName,omitempty"`
-		MetricsToken         *string `json:"metricsToken,omitempty"`
-		RatelimitAuthRpm     *int    `json:"ratelimitAuthRpm,omitempty"`
-		RatelimitApiRpm      *int    `json:"ratelimitApiRpm,omitempty"`
-		RatelimitRedirectRpm *int    `json:"ratelimitRedirectRpm,omitempty"`
+		ReservedSlugs            *string `json:"reservedSlugs,omitempty"`
+		GoogleClientID           *string `json:"googleClientId,omitempty"`
+		GoogleClientSecret       *string `json:"googleClientSecret,omitempty"`
+		GitHubClientID           *string `json:"githubClientId,omitempty"`
+		GitHubClientSecret       *string `json:"githubClientSecret,omitempty"`
+		DataRetentionDays        *int    `json:"dataRetentionDays,omitempty"`
+		AllowRegistration        *bool   `json:"allowRegistration,omitempty"`
+		RequireEmailVerification *bool   `json:"requireEmailVerification,omitempty"`
+		AppName                  *string `json:"appName,omitempty"`
+		MetricsToken             *string `json:"metricsToken,omitempty"`
+		RatelimitAuthRpm         *int    `json:"ratelimitAuthRpm,omitempty"`
+		RatelimitApiRpm          *int    `json:"ratelimitApiRpm,omitempty"`
+		RatelimitRedirectRpm     *int    `json:"ratelimitRedirectRpm,omitempty"`
 	}
 }
 
@@ -481,6 +488,13 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 			val = "true"
 		}
 		h.setSetting(keyAllowRegistration, val)
+	}
+	if input.Body.RequireEmailVerification != nil {
+		val := "false"
+		if *input.Body.RequireEmailVerification {
+			val = "true"
+		}
+		h.setSetting(keyRequireEmailVerification, val)
 	}
 	if input.Body.AppName != nil {
 		h.setSetting(keyAppName, strings.TrimSpace(*input.Body.AppName))

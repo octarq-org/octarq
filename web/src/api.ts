@@ -177,6 +177,7 @@ export interface InstanceSettings {
   githubClientSecretSet: boolean;
   dataRetentionDays: number;
   allowRegistration: boolean;
+  requireEmailVerification?: boolean;
   appName: string;
   metricsTokenSet: boolean;
   ratelimitAuthRpm: number;
@@ -207,6 +208,7 @@ export const api = {
     githubClientSecret?: string;
     dataRetentionDays?: number;
     allowRegistration?: boolean;
+    requireEmailVerification?: boolean;
     appName?: string;
     metricsToken?: string;
     ratelimitAuthRpm?: number;
@@ -216,7 +218,7 @@ export const api = {
 
   // auth
   authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean; appName: string; logoUrl: string; brandColor: string; brandColor2: string }>("GET", "/api/auth/config"),
-  me: () => req<{ username: string; orgId: number; role?: string }>("GET", "/api/auth/me"),
+  me: () => req<{ username: string; orgId: number; role?: string; emailVerified?: boolean }>("GET", "/api/auth/me"),
   register: (email: string, password: string) =>
     req<{ ok: boolean; username: string }>("POST", "/api/auth/register", { email, password }),
   login: (username: string, password: string) =>
@@ -227,6 +229,9 @@ export const api = {
     ),
   verify2FA: (username: string, password: string, code: string) =>
     req<{ ok: boolean }>("POST", "/api/auth/2fa/verify", { username, password, code }),
+  forgotPassword: (email: string) => req<{ ok: boolean }>("POST", "/api/auth/forgot", { email }),
+  resetPassword: (token: string, password: string) => req<{ ok: boolean }>("POST", "/api/auth/reset", { token, password }),
+  resendVerification: (email: string) => req<{ ok: boolean }>("POST", "/api/auth/resend-verification", { email }),
   logout: () => req<{ ok: boolean }>("POST", "/api/auth/logout"),
   logoutAll: () => req<{ ok: boolean }>("POST", "/api/auth/logout-all"),
   sessions: () => req<SessionRecord[]>("GET", "/api/auth/sessions"),

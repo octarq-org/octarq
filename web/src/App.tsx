@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { Globe } from "lucide-react";
+import { Globe, Mail } from "lucide-react";
 import { api, MenuItem, Org, PluginInfo } from "./api";
 import { BrandMark } from "./shell/BrandMark";
 // Route-level code splitting: each top-level page ships as its own chunk,
@@ -8,6 +8,7 @@ import { BrandMark } from "./shell/BrandMark";
 const OverviewPage = lazy(() => import("./pages/Overview"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const InviteAcceptPage = lazy(() => import("./pages/InviteAccept"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"));
 import { Modal, Button, toast, cn } from "./ui";
 import { useTranslation } from "./i18n";
 import { Area, AreaId, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
@@ -52,6 +53,8 @@ export default function App() {
   let content;
   if (window.location.pathname === "/admin/invite/accept") {
     content = <InviteAcceptPage />;
+  } else if (window.location.pathname === "/admin/reset") {
+    content = <ResetPasswordPage />;
   } else if (authed === null) {
     content = (
       <div className="octarq-aurora grid h-full place-items-center text-muted-foreground">
@@ -312,6 +315,9 @@ function Shell({
   // so a non-empty plugin list means this is a Pro build where it's available.
   const [isProBuild, setIsProBuild] = useState(false);
   const [isInstanceAdmin, setIsInstanceAdmin] = useState(false);
+  const [emailVerified, setEmailVerified] = useState<boolean | undefined>(undefined);
+  const [dismissedVerifyBanner, setDismissedVerifyBanner] = useState(false);
+  const [resendingVerify, setResendingVerify] = useState(false);
 
   // Collapse the second-level area panel to widen the content area. Persisted,
   // and kept in the layout (not AreaPanel) so it survives area switches. On
@@ -398,7 +404,7 @@ function Shell({
   // role here (not just on mount) so switching to a workspace where the user
   // has a different role re-runs the sidebar/PluginGate role gating.
   useEffect(() => {
-    api.me().then((m) => setRole(m.role)).catch(() => {});
+    api.me().then((m) => { setRole(m.role); setEmailVerified(m.emailVerified); }).catch(() => {});
     api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
     api.settings().then((s) => setIsInstanceAdmin(!!s.isInstanceAdmin)).catch(() => {});
 
@@ -507,6 +513,40 @@ function Shell({
         onLogout={onLogout}
       />
 
+      {emailVerified === false && !dismissedVerifyBanner && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-300 flex items-center justify-between gap-2 z-40">
+          <div className="flex items-center gap-2">
+            <Mail className="h-4 w-4 shrink-0 text-amber-400" />
+            <span>{t("app.verifyEmailBanner") || "Your email address is not verified."}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                setResendingVerify(true);
+                try {
+                  await api.resendVerification(user);
+                  toast.success(t("app.verificationSent") || "Verification email sent.");
+                } catch (e: any) {
+                  toast.error(e.message || "Failed to send verification email.");
+                } finally {
+                  setResendingVerify(false);
+                }
+              }}
+              disabled={resendingVerify}
+              className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-medium transition-colors disabled:opacity-50"
+            >
+              {resendingVerify ? t("app.sending") || "Sending..." : t("app.resendVerificationBtn") || "Resend Verification Email"}
+            </button>
+            <button
+              onClick={() => setDismissedVerifyBanner(true)}
+              className="text-amber-400/60 hover:text-amber-300 text-sm px-1 font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
       {/* Mobile scrim — below md the rail overlays content, so a tap-away layer
           closes it. Only rendered when the drawer is open on a small screen. */}
@@ -562,6 +602,7 @@ function Shell({
               <Route path="/overview"   element={<OverviewPage />} />
               <Route path="/settings/*" element={<SettingsPage />} />
               <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
+              <Route path="/admin/reset" element={<ResetPasswordPage />} />
               {/* Every business page — core (plugins/core) and edition-composed
                   (manifest) — flows through the same registry. */}
               {pluginRouteElements()}
