@@ -11,7 +11,29 @@ export const domainsI18n = {
 
     // Tabs
     tabDns: "DNS",
+    tabDdns: "Dynamic DNS",
     tabSettings: "Settings",
+
+    // DDNS
+    ddnsTitle: "Dynamic DNS (DDNS) Tokens",
+    ddnsDescription: "Keep A/AAAA records updated with your home router or dynamic IP server using standard Dyndns2 protocol.",
+    createDdnsToken: "New DDNS Token",
+    noDdnsTokens: "No DDNS tokens created yet.",
+    recordName: "Record Name (FQDN)",
+    label: "Label",
+    selectDomain: "Select Domain",
+    lastIp: "Last IP",
+    lastSeen: "Last Seen",
+    never: "Never",
+    revokeToken: "Revoke Token",
+    revokeConfirm: "Are you sure you want to revoke this DDNS token? Devices using it will fail to update DNS.",
+    ddnsCreatedTitle: "DDNS Token Created",
+    ddnsCreatedWarning: "Copy your secret token now. It will never be displayed again!",
+    secretLabel: "Token Secret",
+    updateUrlLabel: "Update URL (Dyndns2 Compatible)",
+    copySecret: "Copy Secret",
+    copyUrl: "Copy Update URL",
+    copied: "Copied!",
 
     // Domain list
     searchDomains: "Search domains…",
@@ -178,7 +200,29 @@ export const domainsI18n = {
 
     // Tabs
     tabDns: "DNS",
+    tabDdns: "动态 DNS (DDNS)",
     tabSettings: "设置",
+
+    // DDNS
+    ddnsTitle: "动态域名解析 (DDNS) Token",
+    ddnsDescription: "使用标准的 Dyndns2 协议，让路由器或家宽脚本自动将 A/AAAA 记录更新为当前公网 IP。",
+    createDdnsToken: "新建 DDNS Token",
+    noDdnsTokens: "暂无 DDNS Token。",
+    recordName: "解析记录 (FQDN)",
+    label: "标签说明",
+    selectDomain: "选择域名",
+    lastIp: "最近更新 IP",
+    lastSeen: "最近更新时间",
+    never: "从未来访",
+    revokeToken: "撤销 Token",
+    revokeConfirm: "确定要撤销此 DDNS Token 吗？使用它的设备将无法再更新解析记录。",
+    ddnsCreatedTitle: "DDNS Token 已生成",
+    ddnsCreatedWarning: "请务必妥善保存明文 Secret Token，离开此弹窗后将无法再次查看！",
+    secretLabel: "Token 密钥 (Secret)",
+    updateUrlLabel: "更新接口 URL (兼容 Dyndns2)",
+    copySecret: "复制密钥",
+    copyUrl: "复制更新 URL",
+    copied: "已复制！",
 
     // Domain list
     searchDomains: "搜索域名…",

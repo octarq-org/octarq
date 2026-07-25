@@ -10,6 +10,7 @@ import { DomainEditorForm } from "./DomainEditorForm";
 import { DomainHostManager } from "./DomainHostManager";
 import { SyncModal } from "./SyncModal";
 import { RecordsView } from "./RecordsView";
+import { DDNSView } from "./DDNSView";
 import { usePluginGate } from "../../PluginGate";
 
 export default function DomainsPage() {
@@ -19,7 +20,7 @@ export default function DomainsPage() {
   const [active, setActive] = useState<Domain | "new" | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [q, setQ] = useState("");
-  const [tab, setTab] = useState<'domains' | 'settings'>('domains');
+  const [tab, setTab] = useState<'domains' | 'ddns' | 'settings'>('domains');
 
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -122,6 +123,16 @@ export default function DomainsPage() {
           }`}
         >
           {t("domains.tabDns")}
+        </button>
+        <button
+          onClick={() => setTab('ddns')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
+            tab === 'ddns'
+              ? 'border-indigo-500 text-foreground'
+              : 'border-transparent text-foreground/45 hover:text-foreground/70'
+          }`}
+        >
+          {t("domains.tabDdns") || "Dynamic DNS"}
         </button>
         <button
           onClick={() => setTab('settings')}
@@ -349,6 +360,8 @@ export default function DomainsPage() {
       
       )
       }
+      {tab === 'ddns' && <DDNSView domains={domains} />}
+
       {tab === 'settings' && (
         <GlassCard className="p-6">
           <ProviderAccounts />
