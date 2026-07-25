@@ -352,6 +352,8 @@ export interface PluginInfo {
   title: string;
   description?: string;
   icon?: string;
+  category?: string;
+  tags?: string[];
   enabled: boolean;
   menus: MenuItem[];
 }

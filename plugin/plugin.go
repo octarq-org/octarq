@@ -373,6 +373,28 @@ type OpenAPIContributor interface {
 	OpenAPISchemas() map[string]any
 }
 
+// Category constants for plugin classification.
+const (
+	CategoryMarketing      = "marketing"
+	CategoryMessaging      = "messaging"
+	CategorySecurity       = "security"
+	CategoryInfrastructure = "infrastructure"
+	CategoryCommerce       = "commerce"
+	CategoryAI             = "ai"
+	CategoryUtilities      = "utilities"
+)
+
+// ValidCategories is the set of allowed category constants for plugins.
+var ValidCategories = map[string]bool{
+	CategoryMarketing:      true,
+	CategoryMessaging:      true,
+	CategorySecurity:       true,
+	CategoryInfrastructure: true,
+	CategoryCommerce:       true,
+	CategoryAI:             true,
+	CategoryUtilities:      true,
+}
+
 // Info is optional presentation/enablement metadata for a plugin. A plugin that
 // does not implement Describer is treated as a standalone, user-toggleable
 // feature keyed and titled by its Name().
@@ -385,6 +407,10 @@ type Info struct {
 	Description string
 	// Icon is a Lucide icon key (e.g. "sparkles", "mail"), emoji ("🔑"), or logo image URL.
 	Icon string
+	// Category is the primary classification constant (CategoryMarketing, CategorySecurity, etc.).
+	Category string
+	// Tags are optional tags for extra sub-filtering (e.g. []string{"smtp", "webhook"}).
+	Tags []string
 	// Group joins sibling plugins under a single toggle. Plugins sharing a Group
 	// are enabled/disabled together as one feature; empty means the plugin is its
 	// own feature. The enablement key is Group when set, otherwise Name().
