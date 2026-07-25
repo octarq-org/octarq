@@ -15,16 +15,18 @@ import {
 } from "../../../packages/plugin-sdk/src";
 import { en } from "./en";
 import { zh } from "./zh";
-import { pagesEn, pagesZh } from "./pages";
+import { es } from "./es";
+import { pagesEn, pagesZh, pagesEs } from "./pages";
 
 export type { Lang, TFunc } from "../../../packages/plugin-sdk/src";
 export { useI18n, useTranslation, LANGS } from "../../../packages/plugin-sdk/src";
 
-// Shell resources (en/zh) plus per-page namespaces from ./pages. Plugin
+// Shell resources (en/zh/es) plus per-page namespaces from ./pages. Plugin
 // namespaces (UIPlugin.i18n) are folded in by the SDK provider at render time.
 const RESOURCES: Resources = {
   en: { ...en, ...pagesEn },
   zh: { ...zh, ...pagesZh },
+  es: { ...es, ...pagesEs },
 };
 
 export function I18nProvider({ children }: { children: ReactNode }) {

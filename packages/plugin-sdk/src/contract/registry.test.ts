@@ -158,7 +158,7 @@ describe("uiAreas", () => {
 
 describe("uiPluginI18n", () => {
   it("returns empty language maps for an empty registry", () => {
-    expect(uiPluginI18n()).toEqual({ en: {}, zh: {} });
+    expect(uiPluginI18n()).toEqual({});
   });
 
   it("merges per-plugin namespaces keyed by plugin name and skips plugins without i18n", () => {

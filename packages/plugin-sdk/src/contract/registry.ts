@@ -61,16 +61,17 @@ export function uiAreas(): UIArea[] {
 // independent of module eval). The reserved `_shared` key is NOT a plugin
 // namespace — it is collected separately by uiPluginSharedI18n.
 export function uiPluginI18n(): PluginI18n {
-  const en: Record<string, unknown> = {};
-  const zh: Record<string, unknown> = {};
+  const out: Record<string, Record<string, unknown>> = {};
   for (const p of REGISTRY) {
     if (!p.i18n) continue;
-    const { _shared: _enShared, ...enNs } = p.i18n.en as Record<string, unknown>;
-    const { _shared: _zhShared, ...zhNs } = p.i18n.zh as Record<string, unknown>;
-    en[p.name] = enNs;
-    zh[p.name] = zhNs;
+    for (const [lang, dict] of Object.entries(p.i18n)) {
+      if (!dict) continue;
+      const { _shared: _sharedNs, ...ns } = dict as Record<string, unknown>;
+      if (!out[lang]) out[lang] = {};
+      out[lang][p.name] = ns;
+    }
   }
-  return { en, zh };
+  return out;
 }
 
 // Recursively fold `extra` into `base` (both plain objects); `base` wins on
@@ -93,14 +94,16 @@ function mergeUnder(base: Record<string, unknown>, extra: unknown): void {
 // that core-rendered chrome looks up. The I18nProvider layers core resources
 // OVER this dict, so core copy always wins.
 export function uiPluginSharedI18n(): PluginI18n {
-  const en: Record<string, unknown> = {};
-  const zh: Record<string, unknown> = {};
+  const out: Record<string, Record<string, unknown>> = {};
   for (const p of REGISTRY) {
     if (!p.i18n) continue;
-    mergeUnder(en, (p.i18n.en as Record<string, unknown>)._shared);
-    mergeUnder(zh, (p.i18n.zh as Record<string, unknown>)._shared);
+    for (const [lang, dict] of Object.entries(p.i18n)) {
+      if (!dict) continue;
+      if (!out[lang]) out[lang] = {};
+      mergeUnder(out[lang], (dict as Record<string, unknown>)._shared);
+    }
   }
-  return { en, zh };
+  return out;
 }
 
 // Test-only: clear the registry between cases. Not used by the app.
