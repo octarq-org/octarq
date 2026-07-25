@@ -70,6 +70,7 @@ type featureOut struct {
 	Key         string          `json:"key"`
 	Title       string          `json:"title"`
 	Description string          `json:"description"`
+	Icon        string          `json:"icon,omitempty"`
 	Enabled     bool            `json:"enabled"`
 	Menus       []pluginMenuOut `json:"menus"`
 }
@@ -125,7 +126,7 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 			if !toggled {
 				isOn = info.EnabledByDefault
 			}
-			f = &featureOut{Key: key, Title: info.Title, Description: info.Description, Enabled: isOn, Menus: []pluginMenuOut{}}
+			f = &featureOut{Key: key, Title: info.Title, Description: info.Description, Icon: info.Icon, Enabled: isOn, Menus: []pluginMenuOut{}}
 			byKey[key] = f
 			order = append(order, key)
 		} else {
@@ -134,6 +135,9 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 			}
 			if f.Description == "" {
 				f.Description = info.Description
+			}
+			if f.Icon == "" {
+				f.Icon = info.Icon
 			}
 		}
 		if mp, ok := p.(plugin.MenuProvider); ok {

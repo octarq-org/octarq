@@ -383,6 +383,8 @@ type Info struct {
 	Title string
 	// Description is the summary of what this feature/plugin provides.
 	Description string
+	// Icon is a Lucide icon key (e.g. "sparkles", "mail"), emoji ("🔑"), or logo image URL.
+	Icon string
 	// Group joins sibling plugins under a single toggle. Plugins sharing a Group
 	// are enabled/disabled together as one feature; empty means the plugin is its
 	// own feature. The enablement key is Group when set, otherwise Name().

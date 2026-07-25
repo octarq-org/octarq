@@ -63,7 +63,7 @@ func New() *Plugin {
 func (p *Plugin) Name() string { return "dns" }
 
 func (p *Plugin) Describe() plugin.Info {
-	return plugin.Info{Title: "Domains & DNS", Description: "Domain lifecycle and DNS management across Cloudflare and DNSPod.", EnabledByDefault: true}
+	return plugin.Info{Title: "Domains & DNS", Description: "Domain lifecycle and DNS management across Cloudflare and DNSPod.", Icon: "globe", EnabledByDefault: true}
 }
 
 // Models are the domain/DNS tables. In phase 1 they still live in
