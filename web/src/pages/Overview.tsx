@@ -11,6 +11,7 @@ export default function OverviewPage() {
   const [includeBot, setIncludeBot] = useState(false);
   const [smtpCount, setSmtpCount] = useState<number | null>(null);
   const [memberCount, setMemberCount] = useState<number | null>(null);
+  const [twoFAEnabled, setTwoFAEnabled] = useState<boolean | null>(null);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem("dismiss_onboarding") === "true");
   const nav = useNavigate();
   const { t } = useTranslation();
@@ -19,10 +20,17 @@ export default function OverviewPage() {
     api.overview(includeBot).then(setO).catch(() => {});
     api.smtpSenders().then(s => setSmtpCount(s.length)).catch(() => {});
     api.orgMembers().then(m => setMemberCount(m.length)).catch(() => {});
+    api.twoFAStatus().then(r => setTwoFAEnabled(r.enabled)).catch(() => {});
+    api.getUserSettings().then(s => {
+      if (s?.onboarding_dismissed === "true") {
+        setDismissed(true);
+      }
+    }).catch(() => {});
   }, [includeBot]);
 
   const dismiss = () => {
     localStorage.setItem("dismiss_onboarding", "true");
+    api.updateUserSettings("onboarding_dismissed", "true").catch(() => {});
     setDismissed(true);
   };
 
@@ -54,9 +62,17 @@ export default function OverviewPage() {
   // service lookups, so a disabled plugin yields no field (`o.domains`,
   // `o.links`, `o.mailboxes` stay undefined). Gating here keeps a disabled
   // plugin's step — and its nav to a now-404 path — out of the checklist,
-  // instead of sending the user somewhere that doesn't exist. The colleague
-  // step is core (members), always shown.
+  // instead of sending the user somewhere that doesn't exist. The 2FA and
+  // colleague steps are core, always shown.
   const steps = [
+    {
+      id: "2fa",
+      title: t("overview.step2FATitle"),
+      description: t("overview.step2FADesc"),
+      completed: twoFAEnabled === true,
+      path: "/settings/security",
+      available: true,
+    },
     {
       id: "domain",
       title: t("overview.stepDomainTitle"),
@@ -93,6 +109,7 @@ export default function OverviewPage() {
 
   const completedCount = steps.filter(s => s.completed).length;
   const progressPercent = Math.round((completedCount / steps.length) * 100);
+  const allCompleted = completedCount > 0 && completedCount === steps.length;
 
   const botLabel = includeBot
     ? t("overview.botInclLabel", { count: o.botClicks30d })
@@ -119,29 +136,37 @@ export default function OverviewPage() {
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div>
-              <div className="flex items-center gap-2 text-accent-fg">
-                <Sparkles size={18} className="animate-pulse" />
+              <div className={`flex items-center gap-2 ${allCompleted ? "text-emerald-400" : "text-accent-fg"}`}>
+                <Sparkles size={18} className={allCompleted ? "" : "animate-pulse"} />
                 <span className="text-xs font-semibold uppercase tracking-wider">{t("overview.gettingStarted")}</span>
               </div>
-              <h2 className="text-xl font-bold text-foreground mt-1">{t("overview.maximizePerformance")}</h2>
-              <p className="text-xs text-foreground/50 mt-1">{t("overview.gettingStartedDesc")}</p>
+              <h2 className="text-xl font-bold text-foreground mt-1">
+                {allCompleted ? t("overview.allSetTitle") : t("overview.maximizePerformance")}
+              </h2>
+              <p className="text-xs text-foreground/50 mt-1">
+                {allCompleted ? t("overview.allSetDesc") : t("overview.gettingStartedDesc")}
+              </p>
             </div>
             
             <div className="flex items-center gap-3 shrink-0">
               <div className="text-right">
                 <span className="text-xs text-foreground/40">{t("overview.setupProgress")}</span>
-                <span className="block text-lg font-bold text-accent-fg">{progressPercent}%</span>
+                <span className={`block text-lg font-bold ${allCompleted ? "text-emerald-400" : "text-accent-fg"}`}>{progressPercent}%</span>
               </div>
               <div className="w-32 bg-foreground/10 h-2 rounded-full overflow-hidden">
                 <div 
-                  className="bg-gradient-to-r from-indigo-500 to-violet-500 h-full rounded-full transition-all duration-500" 
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    allCompleted
+                      ? "bg-gradient-to-r from-emerald-500 to-teal-400"
+                      : "bg-gradient-to-r from-indigo-500 to-violet-500"
+                  }`} 
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
             {steps.map((step) => (
               <button
                 key={step.id}
