@@ -27,4 +27,18 @@ export const audit = {
     systemActor: "系统/令牌",
     user: "用户 #{{id}}",
   },
+  es: {
+    pageTitle: "Registro de Auditoría",
+    pageDesc: "Historial de acciones administrativas en su espacio de trabajo",
+    loading: "cargando…",
+    emptyState: "No se encontraron registros de auditoría.",
+    colTime: "Hora",
+    colActor: "Actor",
+    colAction: "Acción",
+    colTarget: "Objetivo",
+    colIp: "Dirección IP",
+    colMeta: "Contexto de Metadatos",
+    systemActor: "sistema/token",
+    user: "Usuario #{{id}}",
+  },
 };

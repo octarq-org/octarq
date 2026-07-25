@@ -10,25 +10,29 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { uiPluginI18n, uiPluginSharedI18n } from "../contract";
 
-export type Lang = "en" | "zh";
+export type Lang = "en" | "zh" | "es";
 
 export const LANGS: { code: Lang; label: string }[] = [
   { code: "en", label: "English" },
   { code: "zh", label: "中文" },
+  { code: "es", label: "Español" },
 ];
 
 // A per-language resource dictionary (nested namespaces of strings).
-export type Resources = Record<Lang, Record<string, unknown>>;
+// Partial allows plugins/hosts to supply translations for a subset of supported languages.
+export type Resources = Partial<Record<Lang, Record<string, unknown>>>;
 
 function detectLang(): Lang {
   try {
     const saved = localStorage.getItem("lang");
-    if (saved === "en" || saved === "zh") return saved;
+    if (saved === "en" || saved === "zh" || saved === "es") return saved as Lang;
   } catch {
     /* ignore */
   }
   const nav = (navigator.languages?.[0] || navigator.language || "en").toLowerCase();
-  return nav.startsWith("zh") ? "zh" : "en";
+  if (nav.startsWith("zh")) return "zh";
+  if (nav.startsWith("es")) return "es";
+  return "en";
 }
 
 // Deep-merge `top` over `base` (returns a new object): objects merge
@@ -99,17 +103,29 @@ export function I18nProvider({ resources, children }: { resources: Resources; ch
     // app's resources (core copy wins on conflicts), then each plugin's own
     // `<name>.*` namespace (distinct keys — never collides with the above).
     const shared = uiPluginSharedI18n();
-    const dict: Resources = {
-      en: overlay(shared.en, { ...resources.en, ...pluginNs.en }),
-      zh: overlay(shared.zh, { ...resources.zh, ...pluginNs.zh }),
+
+    const buildLangDict = (l: Lang): Record<string, unknown> => {
+      const s = shared[l] || {};
+      const r = resources[l] || {};
+      const p = pluginNs[l] || {};
+      return overlay(s, { ...r, ...p });
     };
+
+    const dict: Record<Lang, Record<string, unknown>> = {
+      en: buildLangDict("en"),
+      zh: buildLangDict("zh"),
+      es: buildLangDict("es"),
+    };
+
     // t(key), t(key, fallback), t(key, vars), or t(key, fallback, vars).
     const t: TFunc = (key, fallbackOrVars, vars) => {
       let fallback: string | undefined;
       let interp = vars;
       if (typeof fallbackOrVars === "string") fallback = fallbackOrVars;
       else if (fallbackOrVars) interp = fallbackOrVars;
-      const hit = lookup(dict[lang], key) ?? lookup(dict.en, key) ?? fallback ?? key;
+      const currentDict = dict[lang] || {};
+      const enDict = dict.en || {};
+      const hit = lookup(currentDict, key) ?? lookup(enDict, key) ?? fallback ?? key;
       return interpolate(hit, interp);
     };
     return { lang, setLang: setLangState, t };

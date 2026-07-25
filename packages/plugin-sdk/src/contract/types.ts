@@ -94,11 +94,9 @@ export interface PluginMenuItem {
 // into the SHARED namespaces that core-rendered chrome looks up — e.g.
 // `_shared: { nav: { storefront: "…" }, settings: { pluginDesc: { ai: "…" } } }`
 // localizes the plugin's sidebar label and its plugin-manager description.
-// Core resources win on conflicts, so a plugin can never override core copy.
-export interface PluginI18n {
-  en: Record<string, unknown>;
-  zh: Record<string, unknown>;
-}
+import type { Lang } from "../i18n";
+
+export type PluginI18n = Partial<Record<Lang, Record<string, unknown>>>;
 
 // The component a plugin renders for the gated 402 (unlicensed) / 404 (plugin
 // not in this build) states — the app ships `LockedFallback` for this. Kept in
