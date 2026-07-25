@@ -77,6 +77,10 @@ export const STATIC_AREAS: Area[] = [
       // AI Inbox is a Pro plugin — its menu entry is injected dynamically
       // (@octarq-org/plugin-ai, category "Messaging") only in a composed build.
       { label: "Messaging", items: [] },
+      // Abuse Reports → core plugin (plugins/core/abuse.ts, category "Security").
+      { label: "Security", items: [] },
+      // Audit Log → core plugin (plugins/core/audit.ts, category "System").
+      { label: "System", items: [] },
     ],
   },
   // Commerce is a Pro area: the commerce plugins (storefront / billing /
@@ -98,18 +102,6 @@ export const STATIC_AREAS: Area[] = [
       // Databases + Object Storage → core plugin (plugins/core/assets.ts,
       // category "Storage & Databases").
       { label: "Storage & Databases", items: [] },
-    ],
-  },
-  {
-    id: "insights",
-    title: "Security & Admin",
-    subtitle: "Abuse defense & activity logs",
-    Icon: ShieldAlert,
-    groups: [
-      // Abuse Reports → core plugin (plugins/core/abuse.ts, category "Security").
-      { label: "Security", items: [] },
-      // Audit Log → core plugin (plugins/core/audit.ts, category "System").
-      { label: "System", items: [] },
     ],
   },
 ];
@@ -213,7 +205,7 @@ export function areaForCategory(cat?: string, pluginAreas: UIArea[] = []): AreaI
   );
   if (pluginHit) return pluginHit.id;
   if (c.includes("asset") || c.includes("infra") || c.includes("network") || c.includes("compute") || c.includes("hosting") || c.includes("storage") || c.includes("database")) return "assets";
-  if (c.includes("insight") || c.includes("analytic") || c.includes("compliance") || c.includes("governance") || c.includes("audit") || c.includes("abuse") || c.includes("security") || c.includes("system")) return "insights";
+  if (c.includes("insight") || c.includes("analytic") || c.includes("compliance") || c.includes("governance") || c.includes("audit") || c.includes("abuse") || c.includes("security") || c.includes("system")) return "operations";
   return "operations";
 }
 
