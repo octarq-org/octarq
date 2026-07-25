@@ -7,7 +7,7 @@ export function Skeleton({ className, ...props }: HTMLAttributes<HTMLDivElement>
   return (
     <div
       aria-hidden
-      className={cn("h-4 w-full animate-pulse rounded-md bg-white/[0.08]", className)}
+      className={cn("h-4 w-full animate-pulse rounded-md bg-foreground/[0.08]", className)}
       {...props}
     />
   );

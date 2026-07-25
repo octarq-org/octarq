@@ -11,11 +11,11 @@ function ComingSoonPage({ title, description }: { title: string; description: st
     <ScreenWrap>
       <PageHeader title={title} description={description} />
       <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center">
-        <div className="h-16 w-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-4 animate-pulse">
+        <div className="h-16 w-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-accent-fg mb-4 animate-pulse">
           <Boxes className="h-8 w-8" />
         </div>
-        <h3 className="text-lg font-bold text-white mb-2">{t("app.comingSoonTitle")}</h3>
-        <p className="text-sm text-white/50 max-w-sm leading-relaxed">
+        <h3 className="text-lg font-bold text-foreground mb-2">{t("app.comingSoonTitle")}</h3>
+        <p className="text-sm text-foreground/50 max-w-sm leading-relaxed">
           {t("app.comingSoonBody")}
         </p>
       </GlassCard>

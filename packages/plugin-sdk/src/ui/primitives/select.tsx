@@ -42,14 +42,14 @@ export function Select({
     >
       <BaseSelect.Trigger
         className={cn(
-          "flex w-full items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition-all",
-          "hover:bg-white/[0.06] focus-visible:border-indigo-400/40 focus-visible:shadow-[0_0_0_1px_rgba(99,102,241,0.30)]",
+          "flex w-full items-center justify-between gap-2 rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition-all",
+          "hover:border-border-strong focus-visible:border-indigo-400/50 focus-visible:shadow-[0_0_0_3px_rgba(99,102,241,0.18)]",
           "data-[popup-open]:border-indigo-400/40 disabled:cursor-not-allowed disabled:opacity-50",
           className,
         )}
       >
         <BaseSelect.Value placeholder={placeholder} />
-        <BaseSelect.Icon className="text-white/40">▾</BaseSelect.Icon>
+        <BaseSelect.Icon className="text-foreground/40">▾</BaseSelect.Icon>
       </BaseSelect.Trigger>
       <BaseSelect.Portal>
         <BaseSelect.Positioner sideOffset={6} className="z-50 outline-none" alignItemWithTrigger={false}>
@@ -65,12 +65,12 @@ export function Select({
                 value={opt.value}
                 disabled={opt.disabled}
                 className={cn(
-                  "flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-sm text-white/80 outline-none",
-                  "data-[highlighted]:bg-white/10 data-[highlighted]:text-white data-[disabled]:cursor-not-allowed data-[disabled]:opacity-40",
+                  "flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 text-sm text-foreground/80 outline-none",
+                  "data-[highlighted]:bg-foreground/10 data-[highlighted]:text-foreground data-[disabled]:cursor-not-allowed data-[disabled]:opacity-40",
                 )}
               >
                 <BaseSelect.ItemText>{opt.label}</BaseSelect.ItemText>
-                <BaseSelect.ItemIndicator className="text-indigo-300">✓</BaseSelect.ItemIndicator>
+                <BaseSelect.ItemIndicator className="text-accent-fg">✓</BaseSelect.ItemIndicator>
               </BaseSelect.Item>
             ))}
           </BaseSelect.Popup>

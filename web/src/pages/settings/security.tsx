@@ -57,25 +57,25 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
     }
   }
 
-  if (loading) return <div className="text-xs text-white/40 py-4 text-center">{t("settings.loadingSessions")}</div>;
-  if (sessions.length === 0) return <div className="text-xs text-white/40 py-4 text-center">{t("settings.noSessions")}</div>;
+  if (loading) return <div className="text-xs text-foreground/40 py-4 text-center">{t("settings.loadingSessions")}</div>;
+  if (sessions.length === 0) return <div className="text-xs text-foreground/40 py-4 text-center">{t("settings.noSessions")}</div>;
 
   return (
-    <div className="divide-y divide-white/[0.04] rounded-xl border border-white/[0.05] overflow-hidden">
+    <div className="divide-y divide-foreground/[0.04] rounded-xl border border-foreground/[0.05] overflow-hidden">
       {sessions.map((s) => {
         const ua = parseUA(s.userAgent);
         return (
           <div key={s.id} className="flex items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium text-white/85">{ua.browser}</span>
+                <span className="text-sm font-medium text-foreground/85">{ua.browser}</span>
                 {s.isCurrent && <Badge tone="green">{t("settings.current")}</Badge>}
-                <span className="text-xs text-white/50">{ua.os}</span>
+                <span className="text-xs text-foreground/50">{ua.os}</span>
               </div>
               <div className="flex items-center gap-3 mt-1">
-                <span className="text-xs text-white/40">{s.location || s.ip}</span>
-                <span className="text-xs text-white/50">{t("settings.lastSeen", { time: timeAgo(s.lastSeenAt) })}</span>
-                <span className="text-xs text-white/25">{t("settings.signedIn", { time: timeAgo(s.createdAt) })}</span>
+                <span className="text-xs text-foreground/40">{s.location || s.ip}</span>
+                <span className="text-xs text-foreground/50">{t("settings.lastSeen", { time: timeAgo(s.lastSeenAt) })}</span>
+                <span className="text-xs text-foreground/25">{t("settings.signedIn", { time: timeAgo(s.createdAt) })}</span>
               </div>
             </div>
             <Button
@@ -172,19 +172,19 @@ export function SecuritySettings() {
 
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white flex items-center gap-2"><Shield className="h-4 w-4" /> {t("settings.twoFATitle")}</h2>
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2"><Shield className="h-4 w-4" /> {t("settings.twoFATitle")}</h2>
           <Badge tone={enabled ? "green" : "neutral"}>{enabled == null ? "…" : enabled ? t("settings.enabled") : t("settings.disabled")}</Badge>
         </div>
-        <p className="text-xs text-white/50">{t("settings.twoFADesc")}</p>
+        <p className="text-xs text-foreground/50">{t("settings.twoFADesc")}</p>
 
-        {err && <p className="text-sm text-rose-400">{err}</p>}
-        {msg && <p className="text-sm text-emerald-400">{msg}</p>}
+        {err && <p className="text-sm text-danger-fg">{err}</p>}
+        {msg && <p className="text-sm text-success-fg">{msg}</p>}
 
         {recoveryCodes && (
           <div className="rounded-xl border border-amber-400/30 bg-amber-400/[0.06] p-4">
-            <p className="text-xs font-bold text-amber-300 mb-2">{t("settings.saveRecoveryCodes")}</p>
-            <p className="text-[11px] text-white/50 mb-3">{t("settings.recoveryCodesDesc")}</p>
-            <div className="grid grid-cols-2 gap-1 font-mono text-xs text-white/80">
+            <p className="text-xs font-bold text-warning-fg mb-2">{t("settings.saveRecoveryCodes")}</p>
+            <p className="text-[11px] text-foreground/50 mb-3">{t("settings.recoveryCodesDesc")}</p>
+            <div className="grid grid-cols-2 gap-1 font-mono text-xs text-foreground/80">
               {recoveryCodes.map((c) => <span key={c}>{c}</span>)}
             </div>
           </div>
@@ -195,8 +195,8 @@ export function SecuritySettings() {
         )}
 
         {!enabled && setup && (
-          <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
-            <p className="text-xs text-white/60">{t("settings.scanInstructions")}</p>
+          <div className="space-y-3 rounded-xl border border-foreground/[0.05] bg-well p-4">
+            <p className="text-xs text-foreground/60">{t("settings.scanInstructions")}</p>
             <img
               alt={t("settings.qrAlt")}
               className="rounded-lg bg-white p-2"
@@ -207,7 +207,7 @@ export function SecuritySettings() {
             <Field label={t("settings.setupKeyLabel")}>
               <input className="input w-full font-mono text-xs" readOnly value={setup.secret} />
             </Field>
-            <a className="block break-all text-[10px] text-indigo-300/70 hover:underline" href={setup.otpauthUrl}>{setup.otpauthUrl}</a>
+            <a className="block break-all text-[10px] text-accent-fg/70 hover:underline" href={setup.otpauthUrl}>{setup.otpauthUrl}</a>
             <Field label={t("settings.verificationCode")}>
               <input className="input w-full text-sm" value={enrollCode} onChange={(e) => setEnrollCode(e.target.value)} placeholder="123456" autoComplete="one-time-code" />
             </Field>
@@ -219,8 +219,8 @@ export function SecuritySettings() {
         )}
 
         {enabled && (
-          <div className="space-y-3 rounded-xl border border-white/[0.05] bg-black/20 p-4">
-            <p className="text-xs text-white/60">{t("settings.disableInstructions")}</p>
+          <div className="space-y-3 rounded-xl border border-foreground/[0.05] bg-well p-4">
+            <p className="text-xs text-foreground/60">{t("settings.disableInstructions")}</p>
             <Field label={t("settings.verificationCode")}>
               <input className="input w-full text-sm" value={disableCode} onChange={(e) => setDisableCode(e.target.value)} placeholder={t("settings.disableCodePlaceholder")} autoComplete="one-time-code" />
             </Field>
@@ -231,12 +231,12 @@ export function SecuritySettings() {
 
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white">{t("settings.activeSessions")}</h2>
+          <h2 className="text-base font-bold text-foreground">{t("settings.activeSessions")}</h2>
           <Button variant="danger" onClick={logoutAll} disabled={busy} className="text-xs py-1 px-3">
             {t("settings.signOutOfAll")}
           </Button>
         </div>
-        <p className="text-xs text-white/50">{t("settings.activeSessionsDesc")}</p>
+        <p className="text-xs text-foreground/50">{t("settings.activeSessionsDesc")}</p>
         <SessionsList onRevokeAll={logoutAll} />
       </GlassCard>
 

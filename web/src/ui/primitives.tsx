@@ -28,7 +28,7 @@ export function Guide({
   return (
     <div className="glass mb-3 overflow-hidden rounded-2xl text-sm">
       <button
-        className="flex w-full items-center justify-between px-3 py-2 text-left text-white/70 hover:bg-white/5"
+        className="flex w-full items-center justify-between px-3 py-2 text-left text-foreground/70 hover:bg-surface-hover"
         onClick={() => setShow((s) => !s)}
         aria-expanded={show}
       >
@@ -36,10 +36,10 @@ export function Guide({
           <span>💡</span>
           {title}
         </span>
-        <span className="text-white/50" aria-hidden="true">{show ? "▾" : "▸"}</span>
+        <span className="text-muted-foreground" aria-hidden="true">{show ? "▾" : "▸"}</span>
       </button>
       {show && (
-        <div className="space-y-2 border-t border-white/[0.06] px-3 py-3 text-white/55 animate-expand">
+        <div className="space-y-2 border-t border-border px-3 py-3 text-muted-foreground animate-expand">
           {children}
         </div>
       )}
@@ -62,7 +62,7 @@ export function Code({ children }: { children: string }) {
       role="button"
       tabIndex={0}
       aria-label={t("uiCommon.clickToCopy")}
-      className="cursor-pointer break-all rounded-lg bg-white/[0.06] px-1.5 py-0.5 font-mono text-[12px] text-indigo-200 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
+      className="cursor-pointer break-all rounded-lg bg-muted px-1.5 py-0.5 font-mono text-[12px] text-accent-fg hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
       title={t("uiCommon.clickToCopy")}
       onClick={copy}
       onKeyDown={(e) => {

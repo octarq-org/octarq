@@ -32,7 +32,7 @@ export function Tabs({
       onValueChange={(v) => onValueChange?.(String(v))}
       className={className}
     >
-      <BaseTabs.List className="relative flex items-center gap-1 rounded-xl bg-white/[0.04] p-1">
+      <BaseTabs.List className="relative flex items-center gap-1 rounded-xl bg-foreground/[0.04] p-1">
         {items.map((it) => (
           <BaseTabs.Tab
             key={it.value}
@@ -40,8 +40,8 @@ export function Tabs({
             disabled={it.disabled}
             className={cn(
               "relative z-10 flex-1 rounded-lg px-3 py-1.5 text-sm font-medium outline-none transition-colors",
-              "text-white/55 hover:text-white/80 focus-visible:ring-2 focus-visible:ring-indigo-400/60",
-              "data-selected:text-white disabled:cursor-not-allowed disabled:opacity-40",
+              "text-foreground/55 hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-indigo-400/60",
+              "data-selected:text-foreground disabled:cursor-not-allowed disabled:opacity-40",
             )}
           >
             {it.label}
@@ -49,7 +49,7 @@ export function Tabs({
         ))}
         <BaseTabs.Indicator
           className={cn(
-            "absolute left-0 top-1 z-0 h-[calc(100%-0.5rem)] rounded-lg bg-white/10 transition-all duration-200",
+            "absolute left-0 top-1 z-0 h-[calc(100%-0.5rem)] rounded-lg bg-foreground/10 transition-all duration-200",
             "w-[var(--active-tab-width)] translate-x-[var(--active-tab-left)]",
           )}
         />

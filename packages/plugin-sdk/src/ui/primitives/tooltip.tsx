@@ -29,7 +29,7 @@ export function Tooltip({
           <BaseTooltip.Positioner side={side} sideOffset={6} className="z-50 outline-none">
             <BaseTooltip.Popup
               className={cn(
-                "glass-strong max-w-xs rounded-lg px-2.5 py-1.5 text-xs text-white/85 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.6)]",
+                "glass-strong max-w-xs rounded-lg px-2.5 py-1.5 text-xs text-foreground/85 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.6)]",
                 "origin-[var(--transform-origin)]",
                 className,
               )}

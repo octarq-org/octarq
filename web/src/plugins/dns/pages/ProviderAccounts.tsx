@@ -37,9 +37,9 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div className="text-xs font-semibold text-white/70">
+        <div className="text-xs font-semibold text-foreground/70">
           {t("settings.dnsApiAccounts")}
-          <div className="text-[10px] text-white/50 font-normal mt-0.5">{t("settings.dnsApiAccountsDesc")}</div>
+          <div className="text-[10px] text-foreground/50 font-normal mt-0.5">{t("settings.dnsApiAccountsDesc")}</div>
         </div>
         <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
           {t("settings.addProvider")}
@@ -47,19 +47,19 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
       </div>
 
       {loading ? (
-        <div className="text-white/40 text-sm py-4 text-center">{t("settings.loadingLower")}</div>
+        <div className="text-foreground/40 text-sm py-4 text-center">{t("settings.loadingLower")}</div>
       ) : accounts.length === 0 ? (
         <Empty>
-          <Cloud className="h-8 w-8 text-white/50 mb-1" />
-          <div className="text-xs text-white/50">{t("settings.noDnsProviders")}</div>
+          <Cloud className="h-8 w-8 text-foreground/50 mb-1" />
+          <div className="text-xs text-foreground/50">{t("settings.noDnsProviders")}</div>
         </Empty>
       ) : (
-        <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
+        <div className="divide-y divide-foreground/[0.04] border border-foreground/[0.05] rounded-xl bg-well overflow-hidden">
           {accounts.map(a => (
             <div key={a.id} className="flex items-center justify-between p-4">
               <div>
-                <div className="font-semibold text-sm text-white">{a.name}</div>
-                <div className="text-xs text-white/40 mt-1 flex items-center gap-1.5">
+                <div className="font-semibold text-sm text-foreground">{a.name}</div>
+                <div className="text-xs text-foreground/40 mt-1 flex items-center gap-1.5">
                   <Badge tone={a.type === "cloudflare" ? "indigo" : "cyan"} className="uppercase tracking-wider text-[9px]">
                     {a.type}
                   </Badge>
@@ -149,8 +149,8 @@ function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onC
         <Field label={t("settings.apiKeysCredentials")} hint={account ? t("settings.apiKeysHintExisting") : t("settings.apiKeysHintNew")}>
           <input className="input w-full font-mono text-xs" type="password" value={config} onChange={e => setConfig(e.target.value)} placeholder={account ? "••••••••" : t("settings.apiKeysPlaceholderNew")} required={!account} />
         </Field>
-        {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
-        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+        {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
           <Button type="button" variant="ghost" onClick={onClose}>{t("settings.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={busy || !name.trim()}>
             {busy ? t("settings.savingDots") : t("settings.saveConnection")}

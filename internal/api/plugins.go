@@ -70,6 +70,9 @@ type featureOut struct {
 	Key         string          `json:"key"`
 	Title       string          `json:"title"`
 	Description string          `json:"description"`
+	Icon        string          `json:"icon,omitempty"`
+	Category    string          `json:"category,omitempty"`
+	Tags        []string        `json:"tags,omitempty"`
 	Enabled     bool            `json:"enabled"`
 	Menus       []pluginMenuOut `json:"menus"`
 }
@@ -119,13 +122,30 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 		}
 		key := plugin.FeatureKey(p)
 		f := byKey[key]
+		cat := info.Category
+		if cat != "" && !plugin.ValidCategories[cat] {
+			cat = plugin.CategoryUtilities
+		}
+		if cat == "" {
+			cat = plugin.CategoryUtilities
+		}
+
 		if f == nil {
 			// Effective state: an explicit row wins; otherwise the declared default.
 			isOn, toggled := enabled[key]
 			if !toggled {
 				isOn = info.EnabledByDefault
 			}
-			f = &featureOut{Key: key, Title: info.Title, Description: info.Description, Enabled: isOn, Menus: []pluginMenuOut{}}
+			f = &featureOut{
+				Key:         key,
+				Title:       info.Title,
+				Description: info.Description,
+				Icon:        info.Icon,
+				Category:    cat,
+				Tags:        info.Tags,
+				Enabled:     isOn,
+				Menus:       []pluginMenuOut{},
+			}
 			byKey[key] = f
 			order = append(order, key)
 		} else {
@@ -134,6 +154,15 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 			}
 			if f.Description == "" {
 				f.Description = info.Description
+			}
+			if f.Icon == "" {
+				f.Icon = info.Icon
+			}
+			if f.Category == "" {
+				f.Category = cat
+			}
+			if len(f.Tags) == 0 && len(info.Tags) > 0 {
+				f.Tags = info.Tags
 			}
 		}
 		if mp, ok := p.(plugin.MenuProvider); ok {

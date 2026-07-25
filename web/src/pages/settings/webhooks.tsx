@@ -50,34 +50,34 @@ export function WebhooksSettings() {
       <PageHeader title={t("settings.webhooksTitle")} description={t("settings.webhooksDescription")} />
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-white">{t("settings.outboundEventWebhooks")}</h2>
+          <h2 className="text-base font-bold text-foreground">{t("settings.outboundEventWebhooks")}</h2>
           <Button variant="ghost" onClick={() => { setName(""); setUrl(""); setSecret(""); setAll(true); setSelected(new Set()); setShow(true); }} className="flex items-center gap-1.5 px-3 py-1 text-xs">
             <Plus className="h-3 w-3" /> {t("settings.addWebhook")}
           </Button>
         </div>
         {webhooks.length === 0 ? (
-          <div className="select-none rounded border border-dashed border-white/[0.06] py-4 text-center text-xs text-white/40">{t("settings.noWebhooks")}</div>
+          <div className="select-none rounded border border-dashed border-foreground/[0.06] py-4 text-center text-xs text-foreground/40">{t("settings.noWebhooks")}</div>
         ) : (
           <div className="space-y-3.5">
             {webhooks.map((w) => (
-              <div key={w.id} className="flex flex-col justify-between gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 text-sm md:flex-row md:items-center">
+              <div key={w.id} className="flex flex-col justify-between gap-3 rounded-lg border border-foreground/[0.06] bg-foreground/[0.02] p-3 text-sm md:flex-row md:items-center">
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-white/80">{w.name}</span>
+                    <span className="font-semibold text-foreground/80">{w.name}</span>
                     {w.events === "*" ? (
-                      <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[9px] uppercase text-white/45">{t("settings.allEvents")}</span>
+                      <span className="rounded border border-foreground/10 bg-foreground/5 px-1.5 py-0.5 font-mono text-[9px] uppercase text-foreground/45">{t("settings.allEvents")}</span>
                     ) : (
                       String(w.events).split(",").filter(Boolean).map((key: string) => {
                         const def = defByKey.get(key.trim());
                         return (
-                          <span key={key} title={def ? `${def.group} — ${def.title}: ${def.description}` : undefined} className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[9px] text-white/45">
+                          <span key={key} title={def ? `${def.group} — ${def.title}: ${def.description}` : undefined} className="rounded border border-foreground/10 bg-foreground/5 px-1.5 py-0.5 font-mono text-[9px] text-foreground/45">
                             {key.trim()}
                           </span>
                         );
                       })
                     )}
                   </div>
-                  <div className="select-all truncate font-mono text-xs text-white/45">{w.url}</div>
+                  <div className="select-all truncate font-mono text-xs text-foreground/45">{w.url}</div>
                   <div className="select-all font-mono text-[10px] text-zinc-500">{t("settings.secretLabel")} {w.secret}</div>
                 </div>
                 <div className="flex shrink-0 items-center gap-3 self-end md:self-auto">
@@ -109,15 +109,15 @@ export function WebhooksSettings() {
                   <span>{t("settings.customEvents")}</span>
                 </label>
                 {!all && (
-                  <div className="max-h-64 space-y-3 overflow-y-auto rounded-lg border border-white/[0.06] bg-black/20 p-3">
+                  <div className="max-h-64 space-y-3 overflow-y-auto rounded-lg border border-foreground/[0.06] bg-well p-3">
                     {eventGroups === null ? (
-                      <div className="py-2 text-center text-xs text-white/40">{t("settings.loadingEvents")}</div>
+                      <div className="py-2 text-center text-xs text-foreground/40">{t("settings.loadingEvents")}</div>
                     ) : (
                       eventGroups.map((g) => {
                         const allChecked = g.events.every((ev) => selected.has(ev.key));
                         return (
                           <div key={g.group} className="space-y-1.5">
-                            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-white/70">
+                            <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-foreground/70">
                               <input type="checkbox" checked={allChecked} onChange={(e) => toggleGroup(g, e.target.checked)} />
                               <span>{g.group}</span>
                             </label>
@@ -128,9 +128,9 @@ export function WebhooksSettings() {
                                   <span className="min-w-0">
                                     <span className="flex flex-wrap items-center gap-1.5">
                                       <span>{ev.title}</span>
-                                      <span className="rounded border border-white/10 bg-white/5 px-1 py-px font-mono text-[9px] text-white/45">{ev.key}</span>
+                                      <span className="rounded border border-foreground/10 bg-foreground/5 px-1 py-px font-mono text-[9px] text-foreground/45">{ev.key}</span>
                                     </span>
-                                    <span className="block text-[10px] text-white/40">{ev.description}</span>
+                                    <span className="block text-[10px] text-foreground/40">{ev.description}</span>
                                   </span>
                                 </label>
                               ))}
@@ -139,7 +139,7 @@ export function WebhooksSettings() {
                         );
                       })
                     )}
-                    {selected.size === 0 && <div className="text-[10px] text-amber-400/80">{t("settings.noEventsSelectedHint")}</div>}
+                    {selected.size === 0 && <div className="text-[10px] text-warning-fg/80">{t("settings.noEventsSelectedHint")}</div>}
                   </div>
                 )}
               </div>
@@ -207,14 +207,14 @@ export function NotificationChannels() {
       <GlassCard className="p-6">
 
       {loading ? (
-        <div className="text-white/40 text-sm py-6 text-center">{t("settings.loadingLower")}</div>
+        <div className="text-foreground/40 text-sm py-6 text-center">{t("settings.loadingLower")}</div>
       ) : channels.length === 0 ? (
         <Empty>
-          <Bell className="h-8 w-8 text-white/50 mb-1" />
-          <div className="text-xs text-white/50">{t("settings.noChannels")}</div>
+          <Bell className="h-8 w-8 text-foreground/50 mb-1" />
+          <div className="text-xs text-foreground/50">{t("settings.noChannels")}</div>
         </Empty>
       ) : (
-        <div className="divide-y divide-white/[0.04] border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
+        <div className="divide-y divide-foreground/[0.04] border border-foreground/[0.05] rounded-xl bg-well overflow-hidden">
           {channels.map((c) => {
             const channelTypeTone = c.type === "telegram" ? "cyan" : "violet";
 
@@ -222,13 +222,13 @@ export function NotificationChannels() {
               <div key={c.id} className="flex items-center gap-3 p-4 group">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm text-white">{c.name}</span>
+                    <span className="font-semibold text-sm text-foreground">{c.name}</span>
                     <Badge tone={channelTypeTone} className="uppercase tracking-wider text-[9px]">
                       {c.type}
                     </Badge>
                     {!c.enabled && <Badge tone="neutral">{t("settings.badgeDisabled")}</Badge>}
                   </div>
-                  <div className="text-[11px] text-white/50 mt-1">{t("settings.added", { time: timeAgo(c.createdAt) })}</div>
+                  <div className="text-[11px] text-foreground/50 mt-1">{t("settings.added", { time: timeAgo(c.createdAt) })}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Button
@@ -363,14 +363,14 @@ function EditNotificationChannel({ channel, onClose, onSaved }: { channel: any; 
           </Field>
         )}
 
-        {error && <div className="text-rose-400 text-xs font-semibold">{error}</div>}
+        {error && <div className="text-danger-fg text-xs font-semibold">{error}</div>}
 
         <div className="flex items-center gap-3 pt-2">
           <Toggle on={enabled} onChange={setEnabled} />
-          <span className="text-sm text-white/60 select-none">{t("settings.channelEnabled")}</span>
+          <span className="text-sm text-foreground/60 select-none">{t("settings.channelEnabled")}</span>
         </div>
 
-        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/6">
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/6">
           <Button type="button" variant="ghost" onClick={onClose}>{t("settings.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={busy || !name}>
             {busy ? t("settings.savingDots") : t("settings.saveChannel")}

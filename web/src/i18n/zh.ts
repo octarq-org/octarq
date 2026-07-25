@@ -60,7 +60,7 @@ export const zh: Resources = {
     empty: "没有匹配「{{q}}」的结果。",
   },
   areas: {
-    operations: { title: "工作区", subtitle: "日常流量与通信" },
+    operations: { title: "Operations", subtitle: "Daily traffic & communication" },
     assets: { title: "基础设施", subtitle: "服务器、网络与数据库" },
     insights: { title: "安全与管理", subtitle: "滥用防护与操作日志" },
     settings: { title: "设置", subtitle: "工作区与个人配置" },

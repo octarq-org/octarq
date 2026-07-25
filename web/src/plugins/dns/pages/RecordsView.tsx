@@ -52,19 +52,19 @@ export function RecordsView({ domain }: { domain: Domain }) {
         <Button variant="primary" onClick={() => setEditing("new")} className="py-1 px-3 text-xs">{t("domains.customButton")}</Button>
       </div>
 
-      <p className="text-[11px] text-white/50">{t("domains.recordsNote", { shown: filtered.length, total: records?.length ?? 0 })}</p>
+      <p className="text-[11px] text-foreground/50">{t("domains.recordsNote", { shown: filtered.length, total: records?.length ?? 0 })}</p>
       
-      {err && <p className="rounded bg-rose-500/10 p-3 text-xs text-rose-400 font-medium">{err}</p>}
+      {err && <p className="rounded bg-rose-500/10 p-3 text-xs text-danger-fg font-medium">{err}</p>}
       
       {records === null ? (
-        <p className="text-white/40 p-6 text-center text-xs">{t("domains.loadingRecords")}</p>
+        <p className="text-foreground/40 p-6 text-center text-xs">{t("domains.loadingRecords")}</p>
       ) : filtered.length === 0 ? (
-        <p className="text-white/40 p-6 text-center text-xs">{t("domains.noRecordsMatching")}</p>
+        <p className="text-foreground/40 p-6 text-center text-xs">{t("domains.noRecordsMatching")}</p>
       ) : (
-        <div className="bg-black/20 rounded-2xl border border-white/[0.05] overflow-hidden">
+        <div className="bg-well rounded-2xl border border-foreground/[0.05] overflow-hidden">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-left text-white/40 border-b border-white/[0.06] bg-white/[0.01]">
+              <tr className="text-left text-foreground/40 border-b border-foreground/[0.06] bg-foreground/[0.01]">
                 <th className="py-2.5 pl-4 font-semibold uppercase tracking-wider">{t("domains.thType")}</th>
                 <th className="py-2.5 font-semibold uppercase tracking-wider">{t("domains.thName")}</th>
                 <th className="py-2.5 font-semibold uppercase tracking-wider">{t("domains.thContent")}</th>
@@ -72,12 +72,12 @@ export function RecordsView({ domain }: { domain: Domain }) {
                 <th className="py-2.5 pr-4 text-right" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.04]">
+            <tbody className="divide-y divide-foreground/[0.04]">
               {filtered.map((r) => (
-                <tr key={r.id} className="hover:bg-white/[0.01] transition-colors">
-                  <td className="py-3 pl-4 font-semibold text-white/80">
+                <tr key={r.id} className="hover:bg-foreground/[0.01] transition-colors">
+                  <td className="py-3 pl-4 font-semibold text-foreground/80">
                     <span className="inline-flex items-center gap-1.5">
-                      <span className="font-mono text-white/85 bg-white/5 px-2 py-0.5 rounded-lg border border-white/[0.04]">{r.type}</span>
+                      <span className="font-mono text-foreground/85 bg-foreground/5 px-2 py-0.5 rounded-lg border border-foreground/[0.04]">{r.type}</span>
                       {r.proxied && (
                         <span title={t("domains.cloudflareProxied")}>
                           <Cloud className="h-3 w-3 text-amber-500 fill-amber-500/10" />
@@ -85,13 +85,13 @@ export function RecordsView({ domain }: { domain: Domain }) {
                       )}
                     </span>
                   </td>
-                  <td className="max-w-[120px] truncate font-mono text-white/80">{r.name}</td>
-                  <td className="max-w-[180px] truncate text-white/55 font-mono">{r.content}</td>
-                  <td className="max-w-[120px] truncate text-indigo-300/80">{r.comment}</td>
+                  <td className="max-w-[120px] truncate font-mono text-foreground/80">{r.name}</td>
+                  <td className="max-w-[180px] truncate text-foreground/55 font-mono">{r.content}</td>
+                  <td className="max-w-[120px] truncate text-accent-fg/80">{r.comment}</td>
                   <td className="py-3 pr-4 text-right">
                     <div className="flex gap-1.5 justify-end">
                       <Button variant="ghost" className="px-2 py-0.5 text-[10px]" onClick={() => setEditing(r)}>{t("domains.edit")}</Button>
-                      <Button variant="danger" className="px-2 py-0.5 text-[10px] text-rose-400 bg-rose-500/0 hover:bg-rose-500/10 border-0" onClick={async () => { if (confirm(t("domains.deleteRecordConfirm", { type: r.type, name: r.name }))) { await dnsApi.deleteRecord(domain.id, r.id); load(); } }}>{t("domains.del")}</Button>
+                      <Button variant="danger" className="px-2 py-0.5 text-[10px] text-danger-fg bg-rose-500/0 hover:bg-rose-500/10 border-0" onClick={async () => { if (confirm(t("domains.deleteRecordConfirm", { type: r.type, name: r.name }))) { await dnsApi.deleteRecord(domain.id, r.id); load(); } }}>{t("domains.del")}</Button>
                     </div>
                   </td>
                 </tr>
@@ -151,11 +151,11 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
       {subdomain && (
         <div className="mb-4 flex gap-2.5">
           <Button variant="subtle" className="flex-1 py-1.5 text-xs gap-1.5" onClick={() => preset("link")}>
-            <LinkIcon className="h-3.5 w-3.5 text-indigo-400" />
+            <LinkIcon className="h-3.5 w-3.5 text-accent-fg" />
             {t("domains.setLinkCname")}
           </Button>
           <Button variant="subtle" className="flex-1 py-1.5 text-xs gap-1.5" onClick={() => preset("mail")}>
-            <Mail className="h-3.5 w-3.5 text-emerald-400" />
+            <Mail className="h-3.5 w-3.5 text-success-fg" />
             {t("domains.setMxRecords")}
           </Button>
         </div>
@@ -192,13 +192,13 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
         {canProxy && (
           <div className="flex items-center gap-2 pt-1">
             <Toggle on={proxied} onChange={setProxied} />
-            <span className="text-xs text-white/60 select-none">{t("domains.proxiedLabel")}</span>
+            <span className="text-xs text-foreground/60 select-none">{t("domains.proxiedLabel")}</span>
           </div>
         )}
 
-        {err && <p className="text-sm text-rose-400 font-medium">{err}</p>}
+        {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
         
-        <div className="flex justify-end gap-2.5 pt-4 border-t border-white/[0.06]">
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
           <Button variant="ghost" onClick={onClose}>{t("domains.cancel")}</Button>
           <Button variant="primary" onClick={save}>{t("domains.saveRecord")}</Button>
         </div>

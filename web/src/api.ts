@@ -315,8 +315,8 @@ export const api = {
   updateUserSettings: (key: string, value: string) => req<{ ok: boolean }>("PUT", "/api/user/settings", { key, value }),
 
   // GDPR
-  exportAccountData: () => req<any>("GET", "/api/account/export"),
-  purgeAccountData: () => req<void>("DELETE", "/api/account/data"),
+  exportWorkspaceData: () => req<any>("GET", "/api/account/export"),
+  purgeWorkspaceData: () => req<void>("DELETE", "/api/account/data"),
 };
 
 export interface Org {
@@ -351,6 +351,9 @@ export interface PluginInfo {
   key: string;
   title: string;
   description?: string;
+  icon?: string;
+  category?: string;
+  tags?: string[];
   enabled: boolean;
   menus: MenuItem[];
 }

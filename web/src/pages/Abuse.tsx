@@ -62,9 +62,9 @@ export default function AbusePage() {
       </div>
 
       {loading ? (
-        <div className="text-white/40 py-12 text-center">{t("abuse.loading")}</div>
+        <div className="text-foreground/40 py-12 text-center">{t("abuse.loading")}</div>
       ) : reports.length === 0 ? (
-        <GlassCard className="p-10 text-center text-white/40">
+        <GlassCard className="p-10 text-center text-foreground/40">
           {t("abuse.emptyState")}
         </GlassCard>
       ) : (
@@ -74,7 +74,7 @@ export default function AbusePage() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-semibold text-lg text-rose-400">/{r.slug}</h3>
+                    <h3 className="font-semibold text-lg text-danger-fg">/{r.slug}</h3>
                     <Badge tone={getReasonTone(r.reason)} className="uppercase tracking-wider">
                       {t("abuse.reason" + r.reason.charAt(0).toUpperCase() + r.reason.slice(1)) || r.reason}
                     </Badge>
@@ -82,30 +82,30 @@ export default function AbusePage() {
                       {t("abuse.filter" + r.status.charAt(0).toUpperCase() + r.status.slice(1)) || r.status}
                     </Badge>
                   </div>
-                  <div className="mt-2 text-sm text-white/55 break-all">
+                  <div className="mt-2 text-sm text-foreground/55 break-all">
                     {t("abuse.target")}{" "}
                     <a
                       href={r.target}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-indigo-400 hover:underline transition-colors"
+                      className="text-accent-fg hover:underline transition-colors"
                     >
                       {r.target}
                     </a>
                   </div>
                 </div>
-                <div className="text-left sm:text-right text-xs text-white/40">
+                <div className="text-left sm:text-right text-xs text-foreground/40">
                   <div title={r.createdAt}>{timeAgo(r.createdAt)}</div>
                   <div className="mt-1">{t("abuse.ip", { ip: r.reporterIp })}</div>
                 </div>
               </div>
 
-              <div className="mt-4 text-sm text-white/75 bg-white/[0.03] p-4 rounded-xl border border-white/[0.06] font-normal leading-relaxed">
-                {r.description || <span className="text-white/50 italic">{t("abuse.noDescription")}</span>}
+              <div className="mt-4 text-sm text-foreground/75 bg-foreground/[0.03] p-4 rounded-xl border border-foreground/[0.06] font-normal leading-relaxed">
+                {r.description || <span className="text-foreground/50 italic">{t("abuse.noDescription")}</span>}
               </div>
 
               {r.status === "open" && (
-                <div className="mt-4 flex gap-2 justify-end border-t border-white/[0.06] pt-4">
+                <div className="mt-4 flex gap-2 justify-end border-t border-foreground/[0.06] pt-4">
                   <Button
                     variant="ghost"
                     onClick={() => updateStatus(r.id, "dismissed")}

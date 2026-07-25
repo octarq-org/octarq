@@ -24,7 +24,7 @@ export function Switch({
       className={cn(
         "relative h-5 w-9 shrink-0 rounded-full outline-none transition-colors duration-300",
         "focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-50",
-        "bg-white/15 data-[checked]:bg-indigo-500",
+        "bg-foreground/15 data-[checked]:bg-indigo-500",
         className,
       )}
     >

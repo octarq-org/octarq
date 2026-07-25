@@ -15,7 +15,7 @@ export function AreaChart({
 }) {
   const { t } = useTranslation();
   if (!series || !series.length)
-    return <div className="grid h-28 place-items-center text-sm text-white/50">{t("uiCommon.noDataYet")}</div>;
+    return <div className="grid h-28 place-items-center text-sm text-foreground/50">{t("uiCommon.noDataYet")}</div>;
 
   const w = 600;
   const h = height;
@@ -57,20 +57,20 @@ export function BarList({
   empty?: string;
 }) {
   const { t } = useTranslation();
-  if (!rows || rows.length === 0) return <p className="text-sm text-white/50">{empty}</p>;
+  if (!rows || rows.length === 0) return <p className="text-sm text-foreground/50">{empty}</p>;
   const max = Math.max(...rows.map((r) => r.count), 1);
   return (
     <div className="space-y-1.5">
       {rows.map((r) => (
         <div key={r.key} className="flex items-center gap-2 text-sm">
-          <span className="w-24 truncate text-white/70">{r.key || t("uiCommon.direct")}</span>
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/8">
+          <span className="w-24 truncate text-foreground/70">{r.key || t("uiCommon.direct")}</span>
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-foreground/8">
             <div
               className="h-full rounded-full bg-indigo-500/60"
               style={{ width: `${(r.count / max) * 100}%` }}
             />
           </div>
-          <span className="w-8 text-right text-white/40">{r.count}</span>
+          <span className="w-8 text-right text-foreground/40">{r.count}</span>
         </div>
       ))}
     </div>

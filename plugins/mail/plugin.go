@@ -52,7 +52,15 @@ func New() *Plugin {
 func (p *Plugin) Name() string { return "mail" }
 
 func (p *Plugin) Describe() plugin.Info {
-	return plugin.Info{Title: "Mail", Description: "Transactional email sending, mailbox receiving, and SMTP configurations.", EnabledByDefault: true, Requires: []string{"dns", "links"}}
+	return plugin.Info{
+		Title:            "Mail",
+		Description:      "Transactional email sending, mailbox receiving, and SMTP configurations.",
+		Icon:             "mail",
+		Category:         plugin.CategoryMessaging,
+		Tags:             []string{"smtp", "inbox", "webhooks"},
+		EnabledByDefault: true,
+		Requires:         []string{"dns", "links"},
+	}
 }
 
 func (p *Plugin) Models() []any {
