@@ -59,9 +59,16 @@ type User struct {
 	// deterministically at first admin login. It must NEVER be derived from
 	// org_id ordering: on a fresh instance with registration/OAuth enabled an
 	// attacker could otherwise register before the operator and inherit org 1.
-	IsInstanceAdmin bool      `gorm:"not null;default:0" json:"-"`
-	CreatedAt       time.Time `json:"createdAt"`
-	UpdatedAt       time.Time `json:"updatedAt"`
+	IsInstanceAdmin bool `gorm:"not null;default:0" json:"-"`
+	// Password reset token hash and expiry
+	ResetTokenHash   string     `gorm:"index;size:64" json:"-"`
+	ResetTokenExpiry *time.Time `json:"-"`
+	// Email verification status and token hash/expiry
+	EmailVerified     bool       `gorm:"not null;default:0" json:"emailVerified"`
+	VerifyTokenHash   string     `gorm:"index;size:64" json:"-"`
+	VerifyTokenExpiry *time.Time `json:"-"`
+	CreatedAt         time.Time  `json:"createdAt"`
+	UpdatedAt         time.Time  `json:"updatedAt"`
 }
 
 // Session is a stateful login record. The random Token is stored in the

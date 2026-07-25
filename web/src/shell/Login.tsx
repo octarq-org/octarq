@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, CheckCircle2, Mail } from "lucide-react";
 import { api, ApiError } from "../api";
 import { useAppName } from "../brand";
 import { BrandMark } from "./BrandMark";
@@ -10,9 +10,13 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
   const [p, setP] = useState("");
   const [code, setCode] = useState("");
   const [needs2FA, setNeeds2FA] = useState(false);
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [resendingVerify, setResendingVerify] = useState(false);
+  const [verifySent, setVerifySent] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [isVerifiedNotice, setIsVerifiedNotice] = useState(false);
   const [oauthConfig, setOauthConfig] = useState<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean } | null>(null);
   const appName = useAppName();
   const { t } = useTranslation();
@@ -21,6 +25,11 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
     api.authConfig()
       .then(setOauthConfig)
       .catch(() => setOauthConfig({ googleEnabled: false, githubEnabled: false, registrationEnabled: false }));
+
+    const search = new URLSearchParams(window.location.search);
+    if (search.get("verified") === "1") {
+      setIsVerifiedNotice(true);
+    }
   }, []);
 
   async function finishLogin(username: string) {
@@ -32,17 +41,27 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
     if (busy) return;
     setBusy(true);
     setErr("");
+    setVerifySent(false);
+
     try {
+      if (mode === "forgot") {
+        await api.forgotPassword(u.trim());
+        setForgotSent(true);
+        return;
+      }
+
       if (mode === "register") {
         await api.register(u.trim(), p);
         await finishLogin(u.trim());
         return;
       }
+
       if (needs2FA) {
         await api.verify2FA(u, p, code.trim());
         await finishLogin(u);
         return;
       }
+
       const res = await api.login(u, p);
       if (res.twoFactorRequired) {
         setNeeds2FA(true);
@@ -56,12 +75,29 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
     }
   }
 
-  function switchMode(next: "login" | "register") {
+  async function handleResendVerification() {
+    if (!u.trim()) return;
+    setResendingVerify(true);
+    try {
+      await api.resendVerification(u.trim());
+      setVerifySent(true);
+    } catch (e: any) {
+      setErr(e.message || "Failed to resend verification email");
+    } finally {
+      setResendingVerify(false);
+    }
+  }
+
+  function switchMode(next: "login" | "register" | "forgot") {
     setMode(next);
     setErr("");
+    setForgotSent(false);
+    setVerifySent(false);
     setNeeds2FA(false);
     setCode("");
-    setU(next === "register" ? "" : "admin");
+    if (next === "register" || next === "forgot") {
+      if (u === "admin") setU("");
+    }
   }
 
   function submit(e: React.FormEvent) {
@@ -74,6 +110,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
   }
 
   const hasOauth = oauthConfig && (oauthConfig.googleEnabled || oauthConfig.githubEnabled);
+  const isUnverifiedErr = err.toLowerCase().includes("email verification required");
 
   return (
     <div className="octarq-aurora grid h-full place-items-center p-4">
@@ -83,72 +120,167 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
         
         <div className="mb-6 text-center">
           <BrandMark size="lg" className="mx-auto mb-4" />
-          <h1 className="font-display text-2xl font-bold text-foreground">{mode === "register" ? t("app.createAccount") : t("app.signInTo", { app: appName })}</h1>
-          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{mode === "register" ? t("app.registerSubtitle") : t("app.loginSubtitle")}</p>
+          <h1 className="font-display text-2xl font-bold text-foreground">
+            {mode === "register"
+              ? t("app.createAccount") || "Create Account"
+              : mode === "forgot"
+              ? t("app.forgotPasswordTitle") || "Reset Password"
+              : t("app.signInTo", { app: appName })}
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+            {mode === "register"
+              ? t("app.registerSubtitle") || "Enter your details to create a new workspace"
+              : mode === "forgot"
+              ? t("app.forgotPasswordDesc") || "Enter your account email to receive a reset link"
+              : t("app.loginSubtitle") || "Sign in to manage your domains and services"}
+          </p>
         </div>
 
-        {err && (
-          <div className="mb-4 p-3 rounded-xl bg-danger-fg/10 border border-danger-fg/20 text-danger-fg text-xs flex gap-2 items-center">
-            <ShieldAlert className="h-4 w-4 shrink-0" />
-            <span>{err}</span>
+        {isVerifiedNotice && (
+          <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-success-fg text-xs flex gap-2 items-center">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span>{t("app.emailVerifiedSuccess") || "Email verified successfully! You can now sign in."}</span>
           </div>
         )}
 
-        <form onSubmit={submit} className="space-y-4">
-          <div>
-            <label className="label" htmlFor="login-username">{mode === "register" ? t("app.email") : t("app.username")}</label>
-            <input
-              id="login-username"
-              type={mode === "register" ? "email" : "text"}
-              name={mode === "register" ? "email" : "username"}
-              className="input animate-none"
-              value={u}
-              onChange={(e) => setU(e.target.value)}
-              onKeyDown={onEnter}
-              autoComplete={mode === "register" ? "email" : "username"}
-              placeholder={mode === "register" ? t("app.emailPlaceholder") : t("app.usernamePlaceholder")}
-            />
+        {err && (
+          <div className="mb-4 p-3 rounded-xl bg-danger-fg/10 border border-danger-fg/20 text-danger-fg text-xs space-y-2">
+            <div className="flex gap-2 items-center">
+              <ShieldAlert className="h-4 w-4 shrink-0" />
+              <span>{err}</span>
+            </div>
+            {isUnverifiedErr && (
+              <div className="pt-1">
+                {verifySent ? (
+                  <p className="text-emerald-400 font-medium">
+                    ✓ {t("app.verificationSent") || "Verification email sent. Please check your inbox."}
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={resendingVerify}
+                    className="flex items-center gap-1.5 text-xs text-indigo-300 hover:text-indigo-200 font-medium underline"
+                  >
+                    <Mail className="h-3.5 w-3.5" />
+                    {resendingVerify
+                      ? t("app.sending") || "Sending..."
+                      : t("app.resendVerificationBtn") || "Resend Verification Email"}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
+        )}
 
-          <div>
-            <label className="label" htmlFor="login-password">{t("app.password")}</label>
-            <input
-              id="login-password"
-              type="password"
-              name="password"
-              className="input animate-none"
-              value={p}
-              onChange={(e) => setP(e.target.value)}
-              onKeyDown={onEnter}
-              autoComplete={mode === "register" ? "new-password" : "current-password"}
-              autoFocus={!needs2FA}
-              placeholder={mode === "register" ? t("app.passwordRegisterPlaceholder") : "••••••••"}
-            />
+        {mode === "forgot" && forgotSent ? (
+          <div className="text-center py-4 space-y-4">
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-success-fg text-xs flex gap-2 items-center justify-center">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <span>{t("app.forgotSentNotice") || "If an account exists with that email, a reset link has been sent."}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => switchMode("login")}
+              className="text-xs text-accent-fg hover:underline font-medium"
+            >
+              {t("app.backToSignIn") || "Back to Sign In"}
+            </button>
           </div>
-
-          {needs2FA && (
+        ) : (
+          <form onSubmit={submit} className="space-y-4">
             <div>
-              <label className="label" htmlFor="login-otp">{t("app.authCode")}</label>
+              <label className="label" htmlFor="login-username">
+                {mode === "register" || mode === "forgot" ? t("app.email") || "Email Address" : t("app.username")}
+              </label>
               <input
-                id="login-otp"
-                name="otp"
+                id="login-username"
+                type={mode === "register" || mode === "forgot" ? "email" : "text"}
+                name={mode === "register" || mode === "forgot" ? "email" : "username"}
                 className="input animate-none"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
+                value={u}
+                onChange={(e) => setU(e.target.value)}
                 onKeyDown={onEnter}
-                placeholder={t("app.authCodePlaceholder")}
-                autoComplete="one-time-code"
-                autoFocus
+                autoComplete={mode === "register" || mode === "forgot" ? "email" : "username"}
+                placeholder={mode === "register" || mode === "forgot" ? t("app.emailPlaceholder") : t("app.usernamePlaceholder")}
+                required
               />
             </div>
-          )}
 
-          <button type="submit" className="btn-primary w-full py-2.5 mt-2" disabled={busy}>
-            {busy ? (mode === "register" ? t("app.creating") : t("app.signingIn")) : mode === "register" ? t("app.createAccountBtn") : needs2FA ? t("app.verifyOtp") : t("app.signIn")}
-          </button>
-        </form>
+            {mode !== "forgot" && (
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="label" htmlFor="login-password">{t("app.password")}</label>
+                  {mode === "login" && (
+                    <button
+                      type="button"
+                      onClick={() => switchMode("forgot")}
+                      className="text-xs text-accent-fg hover:underline"
+                    >
+                      {t("app.forgotPasswordLink") || "Forgot password?"}
+                    </button>
+                  )}
+                </div>
+                <input
+                  id="login-password"
+                  type="password"
+                  name="password"
+                  className="input animate-none mt-1"
+                  value={p}
+                  onChange={(e) => setP(e.target.value)}
+                  onKeyDown={onEnter}
+                  autoComplete={mode === "register" ? "new-password" : "current-password"}
+                  autoFocus={!needs2FA}
+                  placeholder={mode === "register" ? t("app.passwordRegisterPlaceholder") : "••••••••"}
+                  required
+                />
+              </div>
+            )}
 
-        {oauthConfig?.registrationEnabled && !needs2FA && (
+            {needs2FA && mode === "login" && (
+              <div>
+                <label className="label" htmlFor="login-otp">{t("app.authCode")}</label>
+                <input
+                  id="login-otp"
+                  name="otp"
+                  className="input animate-none"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  onKeyDown={onEnter}
+                  placeholder={t("app.authCodePlaceholder")}
+                  autoComplete="one-time-code"
+                  autoFocus
+                />
+              </div>
+            )}
+
+            <button type="submit" className="btn-primary w-full py-2.5 mt-2" disabled={busy}>
+              {busy
+                ? mode === "register"
+                  ? t("app.creating")
+                  : mode === "forgot"
+                  ? t("app.sending") || "Sending..."
+                  : t("app.signingIn")
+                : mode === "register"
+                ? t("app.createAccountBtn")
+                : mode === "forgot"
+                ? t("app.sendResetLink") || "Send Reset Link"
+                : needs2FA
+                ? t("app.verifyOtp")
+                : t("app.signIn")}
+            </button>
+          </form>
+        )}
+
+        {mode === "forgot" && !forgotSent && (
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            <button type="button" onClick={() => switchMode("login")} className="text-accent-fg hover:underline font-medium">
+              {t("app.backToSignIn") || "Back to Sign In"}
+            </button>
+          </p>
+        )}
+
+        {mode !== "forgot" && oauthConfig?.registrationEnabled && !needs2FA && (
           <p className="mt-5 text-center text-xs text-muted-foreground">
             {mode === "register" ? (
               <>{t("app.haveAccount")}{" "}
@@ -162,7 +294,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
           </p>
         )}
 
-        {hasOauth && (
+        {mode !== "forgot" && hasOauth && (
           <div className="mt-6 space-y-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="h-px flex-1 bg-border" />
@@ -202,4 +334,3 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
     </div>
   );
 }
-

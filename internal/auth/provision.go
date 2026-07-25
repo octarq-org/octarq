@@ -38,12 +38,14 @@ func UpsertUserByEmail(db *gorm.DB, email string, allowRegistration bool) (userI
 		if !allowRegistration {
 			return 0, 0, ErrRegistrationDisabled
 		}
-		user = models.User{Email: email, PasswordHash: ""}
+		user = models.User{Email: email, PasswordHash: "", EmailVerified: true}
 		if err := db.Create(&user).Error; err != nil {
 			return 0, 0, err
 		}
 	} else if e != nil {
 		return 0, 0, e
+	} else if !user.EmailVerified {
+		db.Model(&user).Update("email_verified", true)
 	}
 
 	// Resolve the org this user belongs to (first one wins); create a personal

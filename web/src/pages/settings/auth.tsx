@@ -83,6 +83,7 @@ export function AuthenticationSettings() {
   const { s: settings, reload } = useInstanceSettingsData();
 
   const [allowReg, setAllowReg] = useState(true);
+  const [requireVerify, setRequireVerify] = useState(false);
   const [googleId, setGoogleId] = useState("");
   const [googleSecret, setGoogleSecret] = useState("");
   const [githubId, setGithubId] = useState("");
@@ -93,6 +94,7 @@ export function AuthenticationSettings() {
   useEffect(() => {
     if (settings) {
       setAllowReg(settings.allowRegistration);
+      setRequireVerify(!!settings.requireEmailVerification);
       setGoogleId(settings.googleClientId || "");
       setGithubId(settings.githubClientId || "");
     }
@@ -105,6 +107,16 @@ export function AuthenticationSettings() {
       reload();
     } catch {
       setAllowReg(!next);
+    }
+  }
+
+  async function toggleRequireVerification(next: boolean) {
+    setRequireVerify(next);
+    try {
+      await api.updateInstanceSettings({ requireEmailVerification: next });
+      reload();
+    } catch {
+      setRequireVerify(!next);
     }
   }
 
@@ -163,6 +175,15 @@ export function AuthenticationSettings() {
           <p className="mt-0.5 text-xs text-muted-foreground">{t("settings.allowPublicSignupDesc")}</p>
         </div>
         <Toggle on={allowReg} onChange={toggleRegistration} />
+      </GlassCard>
+
+      {/* Email verification gate */}
+      <GlassCard className="flex items-center justify-between gap-4 p-5">
+        <div>
+          <p className="text-sm font-medium text-foreground">{t("settings.requireEmailVerification", "Require Email Verification")}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t("settings.requireEmailVerificationDesc", "Block sign-in for users until their email address has been verified.")}</p>
+        </div>
+        <Toggle on={requireVerify} onChange={toggleRequireVerification} />
       </GlassCard>
 
       {/* Provider list (Supabase-style accordion) */}

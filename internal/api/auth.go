@@ -55,11 +55,16 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 	}
 
 	var user models.User
-	if h.db.First(&user, uid).Error == nil && user.TOTPEnabled {
-		out := &LoginOutput{}
-		out.Body.TwoFactorRequired = true
-		out.Body.Username = input.Body.Username
-		return out, nil
+	if h.db.First(&user, uid).Error == nil {
+		if h.requireEmailVerification() && !user.EmailVerified && !user.IsInstanceAdmin {
+			return nil, huma.NewError(http.StatusForbidden, "email verification required")
+		}
+		if user.TOTPEnabled {
+			out := &LoginOutput{}
+			out.Body.TwoFactorRequired = true
+			out.Body.Username = input.Body.Username
+			return out, nil
+		}
 	}
 
 	h.loginLimiter.reset(ip)
@@ -115,6 +120,9 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 	var user models.User
 	if h.db.First(&user, uid).Error != nil {
 		return nil, huma.Error401Unauthorized("invalid credentials")
+	}
+	if h.requireEmailVerification() && !user.EmailVerified && !user.IsInstanceAdmin {
+		return nil, huma.NewError(http.StatusForbidden, "email verification required")
 	}
 	if user.TOTPEnabled {
 		if !h.verifyTOTPOrRecovery(&user, strings.TrimSpace(input.Body.Code)) {
@@ -396,12 +404,10 @@ func (i *MeInput) Resolve(ctx huma.Context) []error {
 
 type MeOutput struct {
 	Body struct {
-		Username string `json:"username"`
-		OrgID    uint   `json:"orgId"`
-		// Role the user holds in the active org: "owner" | "admin" | "member",
-		// or "" when no membership row exists. Advisory for the frontend
-		// (menu/route gating UX); handlers keep enforcing via callerOrgRole.
-		Role string `json:"role"`
+		Username      string `json:"username"`
+		OrgID         uint   `json:"orgId"`
+		Role          string `json:"role"`
+		EmailVerified bool   `json:"emailVerified"`
 	}
 }
 
@@ -423,6 +429,7 @@ func (h *Handler) me(ctx context.Context, input *MeInput) (*MeOutput, error) {
 	out.Body.Username = user.Email
 	out.Body.OrgID = h.orgID(r)
 	out.Body.Role = h.callerOrgRole(r)
+	out.Body.EmailVerified = user.EmailVerified
 	return out, nil
 }
 

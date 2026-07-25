@@ -2,9 +2,11 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/mail"
 	"strings"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -68,10 +70,25 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 		return nil, huma.Error500InternalServerError("failed to hash password")
 	}
 
-	user := models.User{Email: email, PasswordHash: string(hash)}
+	rawToken, tokenHash, err := generateSecureToken()
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to generate verification token")
+	}
+	expiry := time.Now().Add(24 * time.Hour)
+
+	user := models.User{
+		Email:             email,
+		PasswordHash:      string(hash),
+		EmailVerified:     false,
+		VerifyTokenHash:   tokenHash,
+		VerifyTokenExpiry: &expiry,
+	}
 	if err := h.db.Create(&user).Error; err != nil {
 		return nil, huma.Error500InternalServerError("failed to create account")
 	}
+
+	verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.cfg.BaseURL, rawToken)
+	h.sendVerificationEmail(user.ID, email, verifyURL)
 
 	org := models.Org{Name: email, Slug: h.uniqueOrgSlug(email), InboundToken: uuid.NewString()}
 	if err := h.db.Create(&org).Error; err != nil {
