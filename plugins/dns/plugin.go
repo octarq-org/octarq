@@ -78,7 +78,7 @@ func (p *Plugin) Describe() plugin.Info {
 // (idempotent AutoMigrate) and readies phase 2, where the types move into this
 // package and this becomes their sole migration owner.
 func (p *Plugin) Models() []any {
-	return []any{&Domain{}, &ProviderAccount{}}
+	return []any{&Domain{}, &ProviderAccount{}, &DDNSToken{}}
 }
 
 // Menus announces this plugin's sidebar entry so /api/menus only offers it
@@ -136,6 +136,25 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/domains/{id}/records", Summary: "Create DNS Record", Tags: []string{"Domains"}, DefaultStatus: 201}, p.createRecord)
 		huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/domains/{id}/records/{rid}", Summary: "Update DNS Record", Tags: []string{"Domains"}}, p.updateRecord)
 		huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/domains/{id}/records/{rid}", Summary: "Delete DNS Record", Tags: []string{"Domains"}}, p.deleteRecord)
+
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/dns/ddns", Summary: "List DDNS Tokens", Tags: []string{"DDNS"}}, p.listDDNSTokens)
+		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/dns/ddns", Summary: "Create DDNS Token", Tags: []string{"DDNS"}, DefaultStatus: 201}, p.createDDNSToken)
+		huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/dns/ddns/{id}", Summary: "Delete DDNS Token", Tags: []string{"DDNS"}}, p.deleteDDNSToken)
+
+		huma.Register(api, huma.Operation{
+			Method:   "GET",
+			Path:     "/api/dns/ddns/update",
+			Summary:  "DDNS Update (GET)",
+			Tags:     []string{"DDNS"},
+			Metadata: map[string]any{"public": true},
+		}, p.updateDDNS)
+		huma.Register(api, huma.Operation{
+			Method:   "POST",
+			Path:     "/api/dns/ddns/update",
+			Summary:  "DDNS Update (POST)",
+			Tags:     []string{"DDNS"},
+			Metadata: map[string]any{"public": true},
+		}, p.updateDDNS)
 	}
 
 	ctx.Provide(plugin.ServiceDNSManager, p.DNSManager())
@@ -148,6 +167,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 func (p *Plugin) purge(orgID uint) error {
 	p.db.Where("owner_id = ?", orgID).Delete(&Domain{})
 	p.db.Where("owner_id = ?", orgID).Delete(&ProviderAccount{})
+	p.db.Where("owner_id = ?", orgID).Delete(&DDNSToken{})
 	return nil
 }
 

@@ -54,6 +54,28 @@ export interface DNSVerifyResult {
   links: LinkHostStatus[];
 }
 
+export interface DDNSToken {
+  id: number;
+  domainId: number;
+  recordName: string;
+  recordType: string;
+  label: string;
+  lastIp: string;
+  lastSeenAt?: string;
+  createdAt: string;
+}
+
+export interface CreateDDNSTokenResult {
+  id: number;
+  domainId: number;
+  recordName: string;
+  recordType: string;
+  label: string;
+  secret: string;
+  updateUrl: string;
+  createdAt: string;
+}
+
 export const dnsApi = {
   syncDomains: (providerAccountId: number) =>
     req<{ ok: boolean; total: number; created: number; updated: number }>(
@@ -71,4 +93,8 @@ export const dnsApi = {
   updateRecord: (id: number, rid: string, r: Partial<DNSRecord>) =>
     req<DNSRecord>("PUT", `/api/domains/${id}/records/${rid}`, r),
   deleteRecord: (id: number, rid: string) => req("DELETE", `/api/domains/${id}/records/${rid}`),
+  ddnsTokens: () => req<DDNSToken[]>("GET", "/api/dns/ddns"),
+  createDDNSToken: (data: { domainId: number; recordName: string; recordType: string; label: string }) =>
+    req<CreateDDNSTokenResult>("POST", "/api/dns/ddns", data),
+  deleteDDNSToken: (id: number) => req("DELETE", `/api/dns/ddns/${id}`),
 };

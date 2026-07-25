@@ -1,0 +1,337 @@
+import { useEffect, useState } from "react";
+import { Domain } from "../../../api";
+import { dnsApi, DDNSToken, CreateDDNSTokenResult } from "../api";
+import { GlassCard, Button, Modal, Field, Badge, Empty, timeAgo, toast } from "../../../ui";
+import { KeyRound, Plus, Trash2, Copy, Check, AlertTriangle } from "lucide-react";
+import { useTranslation } from "../../../i18n";
+
+export function DDNSView({ domains }: { domains: Domain[] }) {
+  const { t } = useTranslation();
+  const [tokens, setTokens] = useState<DDNSToken[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // New Token Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [domainId, setDomainId] = useState<number>(domains[0]?.id || 0);
+  const [recordName, setRecordName] = useState("");
+  const [recordType, setRecordType] = useState<"A" | "AAAA">("A");
+  const [label, setLabel] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  // Secret Modal State
+  const [createdResult, setCreatedResult] = useState<CreateDDNSTokenResult | null>(null);
+  const [copiedSecret, setCopiedSecret] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
+
+  function loadTokens() {
+    setLoading(true);
+    dnsApi
+      .ddnsTokens()
+      .then(setTokens)
+      .catch((e: any) => toast.error(e.message || "Failed to load DDNS tokens"))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadTokens();
+  }, []);
+
+  useEffect(() => {
+    if (domains.length > 0 && !domainId) {
+      setDomainId(domains[0].id);
+    }
+  }, [domains]);
+
+  // Auto-complete FQDN prefix when domain selection changes
+  function handleDomainChange(newDomainId: number) {
+    setDomainId(newDomainId);
+    const dom = domains.find((d) => d.id === newDomainId);
+    if (dom && (!recordName || recordName.endsWith(dom.name))) {
+      setRecordName(`home.${dom.name}`);
+    }
+  }
+
+  async function handleCreateToken(e: React.FormEvent) {
+    e.preventDefault();
+    if (!domainId || !recordName) return;
+
+    setCreating(true);
+    try {
+      const res = await dnsApi.createDDNSToken({
+        domainId,
+        recordName: recordName.trim(),
+        recordType,
+        label: label.trim(),
+      });
+      setShowCreateModal(false);
+      setCreatedResult(res);
+      setRecordName("");
+      setLabel("");
+      loadTokens();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create DDNS token");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleDeleteToken(id: number) {
+    if (!window.confirm(t("domains.revokeConfirm") || "Are you sure you want to revoke this token?")) {
+      return;
+    }
+    try {
+      await dnsApi.deleteDDNSToken(id);
+      toast.success("DDNS token revoked");
+      loadTokens();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to revoke token");
+    }
+  }
+
+  function copyText(text: string, setCopiedState: (v: boolean) => void) {
+    navigator.clipboard.writeText(text);
+    setCopiedState(true);
+    setTimeout(() => setCopiedState(false), 2000);
+  }
+
+  const fullUpdateUrl = createdResult
+    ? `${window.location.origin}${createdResult.updateUrl}`
+    : "";
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <KeyRound className="h-5 w-5 text-accent-fg" />
+            {t("domains.ddnsTitle") || "Dynamic DNS (DDNS) Tokens"}
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            {t("domains.ddnsDescription") ||
+              "Keep A/AAAA records updated with your home router or dynamic IP server using standard Dyndns2 protocol."}
+          </p>
+        </div>
+
+        <Button
+          variant="primary"
+          onClick={() => {
+            if (domains.length > 0) {
+              const dom = domains[0];
+              setDomainId(dom.id);
+              if (!recordName) setRecordName(`home.${dom.name}`);
+            }
+            setShowCreateModal(true);
+          }}
+          className="gap-1.5 py-1.5 text-xs shrink-0"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {t("domains.createDdnsToken") || "New DDNS Token"}
+        </Button>
+      </div>
+
+      {loading ? (
+        <GlassCard className="p-8 text-center text-sm text-muted-foreground">
+          {t("domains.loading") || "Loading..."}
+        </GlassCard>
+      ) : tokens.length === 0 ? (
+        <GlassCard className="p-8 text-center space-y-4">
+          <Empty>
+            <KeyRound className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm font-medium text-foreground">
+              {t("domains.noDdnsTokens") || "No DDNS tokens created yet."}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Create a DDNS token to let ddclient or router firmware update DNS records automatically.
+            </p>
+          </Empty>
+          <Button
+            variant="subtle"
+            onClick={() => setShowCreateModal(true)}
+            className="gap-1.5 py-1.5 text-xs"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t("domains.createDdnsToken") || "New DDNS Token"}
+          </Button>
+        </GlassCard>
+      ) : (
+        <div className="grid grid-cols-1 gap-3">
+          {tokens.map((tok) => {
+            const dom = domains.find((d) => d.id === tok.domainId);
+            return (
+              <GlassCard key={tok.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-foreground truncate">{tok.recordName}</span>
+                    <Badge tone={tok.recordType === "AAAA" ? "violet" : "indigo"}>
+                      {tok.recordType}
+                    </Badge>
+                    {tok.label && (
+                      <span className="text-xs text-muted-foreground bg-foreground/[0.05] px-2 py-0.5 rounded-md">
+                        {tok.label}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span>
+                      {t("domains.lastIp") || "Last IP"}:{" "}
+                      <span className="font-mono text-foreground font-medium">
+                        {tok.lastIp || "—"}
+                      </span>
+                    </span>
+                    <span>
+                      {t("domains.lastSeen") || "Last Seen"}:{" "}
+                      <span className="text-foreground">
+                        {tok.lastSeenAt ? timeAgo(tok.lastSeenAt) : t("domains.never") || "Never"}
+                      </span>
+                    </span>
+                    {dom && <span className="text-muted-foreground/70">Zone: {dom.name}</span>}
+                  </div>
+                </div>
+
+                <Button
+                  variant="danger"
+                  onClick={() => handleDeleteToken(tok.id)}
+                  className="gap-1.5 py-1 text-xs shrink-0 self-start sm:self-center"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {t("domains.revokeToken") || "Revoke"}
+                </Button>
+              </GlassCard>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create Token Modal */}
+      {showCreateModal && (
+        <Modal
+          title={t("domains.createDdnsToken") || "New DDNS Token"}
+          onClose={() => setShowCreateModal(false)}
+        >
+          <form onSubmit={handleCreateToken} className="space-y-4 pt-2">
+            <Field label={t("domains.selectDomain") || "Domain"}>
+              <select
+                value={domainId}
+                onChange={(e) => handleDomainChange(Number(e.target.value))}
+                className="input w-full"
+                required
+              >
+                {domains.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label={t("domains.recordName") || "Record Name (FQDN)"}>
+              <input
+                type="text"
+                value={recordName}
+                onChange={(e) => setRecordName(e.target.value)}
+                placeholder="e.g. home.example.com"
+                className="input w-full font-mono text-xs"
+                required
+              />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("domains.recordType") || "Record Type"}>
+                <select
+                  value={recordType}
+                  onChange={(e) => setRecordType(e.target.value as "A" | "AAAA")}
+                  className="input w-full"
+                >
+                  <option value="A">A (IPv4)</option>
+                  <option value="AAAA">AAAA (IPv6)</option>
+                </select>
+              </Field>
+
+              <Field label={t("domains.label") || "Label (Optional)"}>
+                <input
+                  type="text"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder="e.g. Home Router"
+                  className="input w-full text-xs"
+                />
+              </Field>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setShowCreateModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" disabled={creating}>
+                {creating ? t("domains.loading") || "Creating..." : "Generate Token"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Secret Display Modal (Shown ONCE) */}
+      {createdResult && (
+        <Modal
+          title={t("domains.ddnsCreatedTitle") || "DDNS Token Created"}
+          onClose={() => setCreatedResult(null)}
+        >
+          <div className="space-y-4 pt-2">
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex gap-2.5 items-start">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>
+                {t("domains.ddnsCreatedWarning") ||
+                  "Copy your secret token now. It will never be displayed again!"}
+              </span>
+            </div>
+
+            <Field label={t("domains.secretLabel") || "Token Secret"}>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={createdResult.secret}
+                  className="input font-mono text-xs flex-1 bg-surface font-semibold text-accent-fg select-all"
+                />
+                <Button
+                  variant="subtle"
+                  onClick={() => copyText(createdResult.secret, setCopiedSecret)}
+                  className="gap-1 py-1.5 text-xs shrink-0"
+                >
+                  {copiedSecret ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedSecret ? t("domains.copied") || "Copied!" : t("domains.copySecret") || "Copy"}
+                </Button>
+              </div>
+            </Field>
+
+            <Field label={t("domains.updateUrlLabel") || "Update URL (Dyndns2 Compatible)"}>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={fullUpdateUrl}
+                  className="input font-mono text-xs flex-1 bg-surface select-all text-muted-foreground"
+                />
+                <Button
+                  variant="subtle"
+                  onClick={() => copyText(fullUpdateUrl, setCopiedUrl)}
+                  className="gap-1 py-1.5 text-xs shrink-0"
+                >
+                  {copiedUrl ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedUrl ? t("domains.copied") || "Copied!" : t("domains.copyUrl") || "Copy URL"}
+                </Button>
+              </div>
+            </Field>
+
+            <div className="flex justify-end pt-2">
+              <Button variant="primary" onClick={() => setCreatedResult(null)}>
+                Done
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}

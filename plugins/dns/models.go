@@ -48,3 +48,19 @@ func (d Domain) EffectiveLinkHosts() []string { return d.LinkHosts.Enabled() }
 
 // EffectiveMailHosts returns the enabled hostnames mailboxes live under.
 func (d Domain) EffectiveMailHosts() []string { return d.MailHosts.Enabled() }
+
+// DDNSToken stores a hash-authenticated token for dynamic DNS updates.
+type DDNSToken struct {
+	ID         uint       `gorm:"primaryKey" json:"id"`
+	OrgID      uint       `gorm:"column:owner_id;index;default:1" json:"-"`
+	DomainID   uint       `gorm:"index" json:"domainId"`
+	RecordName string     `gorm:"size:255" json:"recordName"`   // FQDN, e.g. home.example.com
+	RecordType string     `gorm:"size:8" json:"recordType"`     // A | AAAA
+	TokenHash  string     `gorm:"uniqueIndex;size:64" json:"-"` // SHA-256 of secret
+	Label      string     `gorm:"size:255" json:"label"`
+	LastIP     string     `gorm:"size:64" json:"lastIp"`
+	LastSeenAt *time.Time `json:"lastSeenAt"`
+	CreatedAt  time.Time  `json:"createdAt"`
+}
+
+func (DDNSToken) TableName() string { return "dns_ddns_tokens" }
