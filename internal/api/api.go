@@ -165,6 +165,7 @@ func (h *Handler) Routes() *http.ServeMux {
 			!strings.HasPrefix(path, "/api/auth/2fa/verify") &&
 			!strings.HasPrefix(path, "/api/auth/logout") &&
 			!strings.HasPrefix(path, "/api/auth/config") &&
+			!strings.HasPrefix(path, "/api/auth/methods") &&
 			!strings.HasPrefix(path, "/api/auth/invite/accept") &&
 			!strings.HasPrefix(path, "/api/auth/forgot") &&
 			!strings.HasPrefix(path, "/api/auth/reset") &&
@@ -202,6 +203,7 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/me", Summary: "Me", Tags: []string{"Auth"}}, h.me)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/invite/accept", Summary: "Accept Invite", Tags: []string{"Auth"}}, h.acceptInvite)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/config", Summary: "Auth Config", Tags: []string{"Auth"}}, h.authConfig)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/methods", Summary: "Auth Methods", Tags: []string{"Auth"}, Metadata: map[string]any{"public": true}}, h.getAuthMethods)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/forgot", Summary: "Forgot Password", Tags: []string{"Auth"}, Metadata: map[string]any{"public": true}}, h.forgotPassword)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/reset", Summary: "Reset Password", Tags: []string{"Auth"}, Metadata: map[string]any{"public": true}}, h.resetPassword)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/verify-email", Summary: "Verify Email", Tags: []string{"Auth"}, Metadata: map[string]any{"public": true}}, h.verifyEmail)

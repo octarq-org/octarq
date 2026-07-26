@@ -190,6 +190,10 @@ type Context struct {
 	// instance is refused). A privileged capability: only compile-time-composed
 	// plugins can reach it. nil on hosts that predate it.
 	LoginByEmail func(w http.ResponseWriter, r *http.Request, email string) (userID uint, err error)
+	// RegisterAuthMethod registers an available external auth method (e.g. SSO)
+	// so the login page can discover and display it. SSO / identity plugins call
+	// this during Mount. nil on hosts that predate it.
+	RegisterAuthMethod func(m AuthMethod)
 	// Audit writes an audit log entry asynchronously. action follows the
 	// "resource.verb" convention (e.g. "subscription.create"). targetType is
 	// the resource name, targetID is its primary key, meta is optional JSON
@@ -269,6 +273,16 @@ type Context struct {
 	// composes no such plugin, simply 404s the prefix. Call it during Mount;
 	// prefix should have no trailing slash. Mirrors HandleRoot for static SPAs.
 	HandleStatic func(prefix string, fsys fs.FS)
+}
+
+// AuthMethod is a provider-agnostic auth method definition, mirroring the fields
+// of internal/auth.AuthMethod using only stable types so plugins in a separate
+// module never import internal packages.
+type AuthMethod struct {
+	ID       string `json:"id"`       // stable identifier, e.g. "sso" / "oidc-acme"
+	Label    string `json:"label"`    // button label, e.g. "Sign in with SSO"
+	LoginURL string `json:"loginUrl"` // launch/redirect URL (plugin's /api/... endpoint)
+	IconKey  string `json:"iconKey"`  // frontend icon key, optional
 }
 
 // DNSRecord is a provider-agnostic DNS record, mirroring the fields of octarq's

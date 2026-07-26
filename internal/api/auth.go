@@ -9,6 +9,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/google/uuid"
+	"github.com/octarq-org/octarq/internal/auth"
 	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/models"
 	"golang.org/x/crypto/bcrypt"
@@ -557,6 +558,14 @@ func (h *Handler) authConfig(ctx context.Context, input *AuthConfigInput) (*Auth
 	out.Body.AppName = h.AppName()
 	out.Body.LogoURL, out.Body.BrandColor, out.Body.BrandColor2 = h.Brand()
 	return out, nil
+}
+
+type AuthMethodsOutput struct {
+	Body []auth.AuthMethod
+}
+
+func (h *Handler) getAuthMethods(ctx context.Context, input *struct{}) (*AuthMethodsOutput, error) {
+	return &AuthMethodsOutput{Body: auth.List()}, nil
 }
 
 // authenticate resolves username+password to a (userID, orgID) pair. It accepts
