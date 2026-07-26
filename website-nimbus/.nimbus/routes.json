@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "base": "/",
+  "knownRoutes": [
+    "/",
+    "/404",
+    "/architecture/composition",
+    "/architecture/core-plugins",
+    "/architecture/overview",
+    "/architecture/plugin-context",
+    "/configuration",
+    "/core/api-tokens",
+    "/core/dns",
+    "/core/mailboxes",
+    "/core/mcp",
+    "/core/notifications",
+    "/core/short-links",
+    "/deploy",
+    "/guides/accessibility",
+    "/guides/publishing",
+    "/index",
+    "/plugin-directory",
+    "/quickstart",
+    "/what-is-octarq",
+    "/writing-a-plugin"
+  ],
+  "opaqueNamespaces": []
+}
