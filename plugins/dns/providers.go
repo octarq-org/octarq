@@ -180,6 +180,14 @@ func (p *Plugin) deleteProviderAccount(ctx context.Context, input *DeleteProvide
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
+	// Verify ownership before anything else: without this, the domain-usage
+	// count below runs on a raw ID and its 409-vs-404 response becomes a
+	// cross-tenant oracle (it reveals whether another org's provider account
+	// exists and is referenced). Fail closed with 404 if the caller doesn't own it.
+	if err := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&ProviderAccount{}).Error; err != nil {
+		return nil, huma.Error404NotFound("not found")
+	}
+
 	// Check if any domain is using this account
 	var count int64
 	p.db.Model(&Domain{}).Where("provider_account_id = ?", input.ID).Count(&count)
