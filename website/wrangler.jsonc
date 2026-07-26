@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "website-nimbus",
+  "name": "octarq-docs",
   "compatibility_date": "2026-07-26",
   "assets": {
     "directory": "./dist",

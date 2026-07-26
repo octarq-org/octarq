@@ -1,7 +1,12 @@
 ---
 title: Writing a Plugin
 description: Step-by-step guide to writing a custom Octarq plugin in 30 minutes.
+sidebar:
+  order: 1
+  group:
+    label: "Build a Plugin"
 ---
+
 
 Octarq is extended by **plugins**, not forks. A plugin is a self-contained feature composed at build time, consisting of:
 

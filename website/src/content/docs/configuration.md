@@ -1,7 +1,12 @@
 ---
 title: Configuration
 description: All configuration is via environment variables.
+sidebar:
+  order: 4
+  group:
+    label: "Start"
 ---
+
 
 octarq is configured entirely through environment variables — the canonical list
 lives in [`.env.example`](https://github.com/octarq-org/octarq/blob/main/.env.example).

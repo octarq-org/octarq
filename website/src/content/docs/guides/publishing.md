@@ -1,7 +1,12 @@
 ---
 title: Publishing the SDK
 description: How to version, build, and publish the frontend plugin SDK (@octarq/plugin-sdk) using Changesets.
+sidebar:
+  order: 1
+  group:
+    label: "Guides"
 ---
+
 
 The frontend plugin SDK is published from `packages/plugin-sdk/` using [Changesets](https://github.com/changesets/changesets). The default registry is **GitHub Packages** (private, org-scoped `@octarq-org`).
 

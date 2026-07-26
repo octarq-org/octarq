@@ -1,7 +1,12 @@
 ---
 title: Notifications
 description: Telegram and webhook alerts, managed from the dashboard.
+sidebar:
+  order: 5
+  group:
+    label: "Core Features"
 ---
+
 
 octarq can push alerts to **Telegram** or a **webhook** when something happens — most
 commonly when new mail arrives. Channels are configured entirely from the

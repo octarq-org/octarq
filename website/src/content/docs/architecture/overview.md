@@ -1,7 +1,12 @@
 ---
 title: Plugin Architecture
 description: The architecture and design principles of Octarq's symmetric, no-fork plugin system.
+sidebar:
+  order: 1
+  group:
+    label: "Architecture"
 ---
+
 
 Reference for how Octarq's plugin system is built and how the commercial build (octarq-pro) composes on top of the open-source core **without forking**. For a plugin *author's* how-to, see [Writing a Plugin](/writing-a-plugin/); this document details the architecture and design.
 

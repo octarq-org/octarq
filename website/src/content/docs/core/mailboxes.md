@@ -1,7 +1,12 @@
 ---
 title: Mailboxes
 description: Receive mail on your own domains via Cloudflare Email Routing — no port 25, no MX ops.
+sidebar:
+  order: 2
+  group:
+    label: "Core Features"
 ---
+
 
 Mailboxes give you addresses on your own domains without running an SMTP server.
 octarq receives mail through **Cloudflare Email Routing**, so there's no port 25, MX,

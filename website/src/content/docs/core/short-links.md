@@ -1,7 +1,12 @@
 ---
 title: Short links
 description: Custom slugs, routing rules, expiry, click limits, UTM, QR, and analytics.
+sidebar:
+  order: 1
+  group:
+    label: "Core Features"
 ---
+
 
 Short links are octarq's root namespace: every path that isn't `/admin` or `/api` is
 a potential slug, so `https://go.example.com/abc` redirects without ever colliding

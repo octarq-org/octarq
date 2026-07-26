@@ -1,7 +1,12 @@
 ---
 title: Core Plugins & Decoupling
 description: Deep dive into how core features were extracted into plugins and how coupling was resolved.
+sidebar:
+  order: 4
+  group:
+    label: "Architecture"
 ---
+
 
 To maintain a clean architectural boundary between the open-source core and commercial extensions, Octarq isolates features into self-contained plugins. This page documents the core plugin extraction and the decoupling seams used.
 

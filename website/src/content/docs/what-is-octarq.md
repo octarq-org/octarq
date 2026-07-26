@@ -1,7 +1,12 @@
 ---
 title: Introduction to Octarq
 description: A self-hosted control plane for link management, custom email infrastructure, and DNS orchestration in a single Go binary.
+sidebar:
+  order: 2
+  group:
+    label: "Start"
 ---
+
 
 Octarq is a self-hosted operations control plane that combines **link management, custom domain email routing, and DNS orchestration** into a single compiled Go binary with an embedded SPA administration dashboard. Rebuilt from the ground up to run as a single Docker image, it has no external dependencies, database configuration, or message queues to manage.
 

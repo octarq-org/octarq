@@ -1,7 +1,12 @@
 ---
 title: API tokens
 description: Bearer tokens for the JSON API, stored as SHA-256 hashes.
+sidebar:
+  order: 6
+  group:
+    label: "Core Features"
 ---
+
 
 Every data endpoint in octarq accepts either a session cookie or a bearer token, so
 you can script against the same API the dashboard uses.
