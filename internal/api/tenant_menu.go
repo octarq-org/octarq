@@ -565,10 +565,6 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 
 		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "📝", Category: "Compliance"},
 		{ID: "abuse", Label: "Abuse", Path: "/abuse", Icon: "🛡️", Category: "Compliance"},
-
-		{ID: "certs", Label: "Certificates", Path: "/assets/certificates", Icon: "🔒", Category: "Network", Order: 20},
-		{ID: "databases", Label: "Databases", Path: "/assets/databases", Icon: "🗄️", Category: "Storage & Databases"},
-		{ID: "storage", Label: "Object Storage", Path: "/assets/storage", Icon: "💾", Category: "Storage & Databases"},
 	}
 
 	// Query from plugin providers if they satisfy MenuProvider — but only for
