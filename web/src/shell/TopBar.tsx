@@ -156,13 +156,13 @@ export function TopBar({
                   segments and the selection is announced; staying open on pick. */}
               <Menu.RadioGroup value={lang} onValueChange={(v) => setLang(v as typeof lang)}>
                 <div className="px-2 pb-1 pt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("common.language")}</div>
-                <div className="flex gap-1 px-1 pb-1">
+                <div className="grid grid-cols-2 gap-1 px-1 pb-1">
                   {LANGS.map((l) => (
                     <Menu.RadioItem
                       key={l.code}
                       value={l.code}
                       closeOnClick={false}
-                      className="flex-1 cursor-pointer rounded-lg px-2 py-1 text-center text-xs font-medium text-muted-foreground outline-none transition-colors data-[highlighted]:text-foreground data-[checked]:bg-foreground/[0.08] data-[checked]:text-foreground"
+                      className="cursor-pointer rounded-lg px-2 py-1 text-center text-xs font-medium text-muted-foreground outline-none transition-colors data-[highlighted]:text-foreground data-[checked]:bg-foreground/[0.08] data-[checked]:text-foreground"
                     >
                       {l.label}
                     </Menu.RadioItem>

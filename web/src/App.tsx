@@ -470,7 +470,7 @@ function Shell({
         setCreatingOrg(false);
         setNewOrgName("");
         switchToOrg(org.id);
-        toast.success(t("app.workspaceCreated", "Workspace created"));
+        toast.success(t("app.workspaceCreated"));
       }))
       .catch((e) => toast.error(e.message || t("app.createWorkspaceFailed")));
   }
@@ -501,7 +501,7 @@ function Shell({
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-[60] focus:rounded-xl focus:bg-indigo-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:shadow-glow"
       >
-        {t("app.skipToContent", "Skip to content")}
+        {t("app.skipToContent")}
       </a>
       <TopBar
         areas={areas}
@@ -519,6 +519,7 @@ function Shell({
       {emailVerified === false && !dismissedVerifyBanner && (
         <Alert
           variant="warning"
+          align="center"
           icon={<Mail className="h-4 w-4" />}
           onDismiss={() => setDismissedVerifyBanner(true)}
           className="rounded-none border-x-0 border-t-0 text-xs py-2 px-4 z-40"
@@ -528,7 +529,7 @@ function Shell({
                 setResendingVerify(true);
                 try {
                   await api.resendVerification(user);
-                  toast.success(t("app.verificationSent") || "Verification email sent.");
+                  toast.success(t("app.verificationSent"));
                 } catch (e: any) {
                   toast.error(e.message || "Failed to send verification email.");
                 } finally {
@@ -538,11 +539,11 @@ function Shell({
               disabled={resendingVerify}
               className="px-2.5 py-1 rounded-lg bg-warning-bg hover:brightness-95 border border-warning-border text-warning-fg font-medium transition-colors disabled:opacity-50 text-xs"
             >
-              {resendingVerify ? t("app.sending") || "Sending..." : t("app.resendVerificationBtn") || "Resend Verification Email"}
+              {resendingVerify ? t("app.sending") : t("app.resendVerificationBtn")}
             </button>
           }
         >
-          {t("app.verifyEmailBanner") || "Your email address is not verified."}
+          {t("app.verifyEmailBanner")}
         </Alert>
       )}
 
@@ -585,7 +586,7 @@ function Shell({
           onSwitchOrg={(id) =>
             api.switchOrg(id)
               .then(() => switchToOrg(id))
-              .catch((e) => toast.error(e.message || t("app.switchWorkspaceFailed", "Couldn't switch workspace")))
+              .catch((e) => toast.error(e.message || t("app.switchWorkspaceFailed")))
           }
           onCreateOrg={() => setCreatingOrg(true)}
         />
