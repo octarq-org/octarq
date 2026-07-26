@@ -23,3 +23,5 @@ const NS = {
 export const pagesEn = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v.en]));
 export const pagesZh = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v.zh]));
 export const pagesEs = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, (v as Record<string, unknown>).es]));
+export const pagesPt = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, (v as Record<string, unknown>).pt]));
+export const pagesJa = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, (v as Record<string, unknown>).ja]));
