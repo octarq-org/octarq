@@ -1,5 +1,5 @@
 ---
-"@octarq-org/plugin-sdk": minor
+"@octarq/plugin-sdk": minor
 ---
 
 Add `NotificationChannelFormContext` and `useNotificationChannelForm`.
