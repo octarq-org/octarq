@@ -8,6 +8,7 @@ export default {
   i18n: {
     en: {
       _shared: {
+        nav: { help: "Help" },
         groups: {
           "Help & Resources": "Help & Resources",
         },
@@ -15,6 +16,7 @@ export default {
     },
     zh: {
       _shared: {
+        nav: { help: "帮助" },
         groups: {
           "Help & Resources": "帮助与资源",
         },
@@ -22,6 +24,7 @@ export default {
     },
     es: {
       _shared: {
+        nav: { help: "Ayuda" },
         groups: {
           "Help & Resources": "Ayuda y Recursos",
         },
@@ -29,6 +32,7 @@ export default {
     },
     pt: {
       _shared: {
+        nav: { help: "Ajuda" },
         groups: {
           "Help & Resources": "Ajuda e Recursos",
         },
@@ -36,6 +40,7 @@ export default {
     },
     ja: {
       _shared: {
+        nav: { help: "ヘルプ" },
         groups: {
           "Help & Resources": "ヘルプとリソース",
         },
