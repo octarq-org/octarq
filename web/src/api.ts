@@ -1,6 +1,18 @@
 // Thin fetch wrapper around the octarq JSON API.
 import { useEffect, useState } from "react";
 
+export interface NotificationChannelType {
+  type: string;
+  title: string;
+  description: string;
+  icon: string;
+  pluginName: string;
+}
+
+export async function notificationChannelTypes(): Promise<NotificationChannelType[]> {
+  return req<NotificationChannelType[]>('GET', '/api/notification-channel-types');
+}
+
 export interface StatKV {
   key: string;
   count: number;

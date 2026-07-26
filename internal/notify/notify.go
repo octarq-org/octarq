@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,24 +26,82 @@ var webhookClient = safehttp.NewWebhookClient(10 * time.Second)
 // channel's stored JSON config; text is the message body.
 type Provider func(ctx context.Context, cfgJSON, text string) error
 
+// Descriptor describes a notification channel type (built-in or plugin-contributed).
+type Descriptor struct {
+	Type        string `json:"type"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Icon        string `json:"icon"`
+	PluginName  string `json:"pluginName,omitempty"`
+}
+
 // providers holds channel types contributed at runtime (e.g. by Pro plugins
 // via plugin.Context.RegisterNotifier). Registration happens at startup (Mount)
 // and Send runs per-event, so the map is guarded for the concurrent read.
 var (
-	providersMu sync.RWMutex
-	providers   = map[string]Provider{}
+	providersMu   sync.RWMutex
+	providers     = map[string]Provider{}
+	descriptorsMu sync.RWMutex
+	descriptors   = map[string]Descriptor{
+		"telegram": {
+			Type:        "telegram",
+			Title:       "Telegram",
+			Description: "Deliver notifications via Telegram bot",
+			Icon:        "send",
+		},
+		"webhook": {
+			Type:        "webhook",
+			Title:       "Webhook",
+			Description: "Custom HTTP POST payload to any URL",
+			Icon:        "webhook",
+		},
+	}
 )
 
 // Register adds (or replaces) a notification channel provider for typ. Plugins
 // call this during Mount to add a new channel type — e.g. "slack", "sms" — that
 // Send, core event dispatch, and the plugin Notify hook can then deliver to.
 func Register(typ string, p Provider) {
-	if typ == "" || p == nil {
+	title := typ
+	if len(typ) > 0 {
+		title = strings.ToUpper(typ[:1]) + typ[1:]
+	}
+	RegisterWithDescriptor(Descriptor{
+		Type:        typ,
+		Title:       title,
+		Description: fmt.Sprintf("Deliver notifications via %s", title),
+		Icon:        "bell",
+	}, p)
+}
+
+// RegisterWithDescriptor registers a provider along with its full metadata descriptor.
+func RegisterWithDescriptor(desc Descriptor, p Provider) {
+	if desc.Type == "" || p == nil {
 		return
 	}
+	typ := strings.ToLower(strings.TrimSpace(desc.Type))
+	desc.Type = typ
 	providersMu.Lock()
-	providers[strings.ToLower(typ)] = p
+	providers[typ] = p
 	providersMu.Unlock()
+
+	descriptorsMu.Lock()
+	descriptors[typ] = desc
+	descriptorsMu.Unlock()
+}
+
+// Descriptors returns all registered notification channel type descriptors sorted by type.
+func Descriptors() []Descriptor {
+	descriptorsMu.RLock()
+	defer descriptorsMu.RUnlock()
+	list := make([]Descriptor, 0, len(descriptors))
+	for _, d := range descriptors {
+		list = append(list, d)
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].Type < list[j].Type
+	})
+	return list
 }
 
 func lookup(typ string) Provider {

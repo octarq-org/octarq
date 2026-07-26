@@ -249,6 +249,7 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/tokens", Summary: "Create API Token", Tags: []string{"Tokens"}, DefaultStatus: 201}, h.createToken)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/tokens/{id}", Summary: "Delete API Token", Tags: []string{"Tokens"}}, h.deleteToken)
 
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notification-channel-types", Summary: "List Notification Channel Types", Tags: []string{"Notification Channels"}}, h.listNotificationChannelTypes)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notification-channels", Summary: "List Notification Channels", Tags: []string{"Notification Channels"}}, h.listNotificationChannels)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/notification-channels", Summary: "Create Notification Channel", Tags: []string{"Notification Channels"}, DefaultStatus: 201}, h.createNotificationChannel)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/notification-channels/{id}", Summary: "Update Notification Channel", Tags: []string{"Notification Channels"}}, h.updateNotificationChannel)
