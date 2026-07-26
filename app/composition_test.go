@@ -17,7 +17,7 @@ func TestBuiltinDefaultSet(t *testing.T) {
 	for i, p := range got {
 		names[i] = p.Name()
 	}
-	want := []string{"dns", "links", "mail"}
+	want := []string{"dns", "links", "mail", "help"}
 	if len(names) != len(want) {
 		t.Fatalf("Default() = %v, want %v", names, want)
 	}
@@ -28,8 +28,9 @@ func TestBuiltinDefaultSet(t *testing.T) {
 	}
 	// Every entry must be EnabledByDefault (on out of the box, toggleable per workspace).
 	for _, p := range got {
-		if !plugin.Describe(p).EnabledByDefault {
-			t.Errorf("%s should be EnabledByDefault", p.Name())
+		info := plugin.Describe(p)
+		if !info.EnabledByDefault && !info.Core {
+			t.Errorf("%s should be EnabledByDefault or Core", p.Name())
 		}
 	}
 }
