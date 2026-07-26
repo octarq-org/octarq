@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Console</title>
+    <!-- SVG only: every browser this dashboard targets supports it, and there is
+         no .ico in web/public to fall back to — linking one would just 404. An
+         operator running white-label replaces this at runtime from brand.tsx,
+         so it's the Octarq default rather than a hardcode. -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <!-- Theme: default is LIGHT (Wise/Cloudflare idiom). Apply the persisted
          choice synchronously, before first paint, so there is no flash of the
          wrong theme. The toggle in the TopBar writes `octarq-theme`. -->

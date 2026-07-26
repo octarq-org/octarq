@@ -35,6 +35,20 @@ function applyAccents(color: string, color2: string) {
   root.setProperty("--gradient-primary", `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`);
 }
 
+// applyFavicon points the tab icon at the operator's white-label logo. Without
+// one the markup default in index.html (the Octarq mark) stands — so an OSS
+// instance never pays for this, and a branded one doesn't show Octarq's glyph
+// in the tab while showing the operator's logo in the app.
+function applyFavicon(logoUrl: string) {
+  if (!logoUrl) return;
+  const link =
+    document.querySelector<HTMLLinkElement>('link[rel="icon"]') ??
+    document.head.appendChild(Object.assign(document.createElement("link"), { rel: "icon" }));
+  link.href = logoUrl;
+  link.removeAttribute("type"); // the operator's logo may be png/jpeg, not svg
+  document.querySelector('link[rel="alternate icon"]')?.remove();
+}
+
 function load(): Promise<void> {
   if (!inflight) {
     inflight = api
@@ -48,6 +62,7 @@ function load(): Promise<void> {
       })
       .then(() => {
         document.title = cached!.name;
+        applyFavicon(cached!.logoUrl);
         listeners.forEach((l) => l());
       });
   }
