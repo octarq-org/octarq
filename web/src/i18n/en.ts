@@ -102,6 +102,25 @@ export const en = {
     tokens: "API Tokens",
     instance: "Instance Settings",
   },
+  status: {
+    title: "System Status",
+    desc: "Real-time health status of Octarq services and subsystems",
+    allSystemsOperational: "All Systems Operational",
+    someSystemsDegraded: "Some Systems Degraded",
+    majorOutage: "Major Service Outage",
+    subsystems: "Subsystem Health",
+    database: "Database",
+    mail: "Email Service",
+    queue: "Task Queue",
+    overall: "Overall Status",
+    lastChecked: "Last checked: {{time}}",
+    statusOk: "Operational",
+    statusDegraded: "Degraded",
+    statusDown: "Outage",
+    statusNa: "N/A",
+    refresh: "Refresh",
+    refreshing: "Refreshing…",
+  },
 };
 
 export type Resources = typeof en;

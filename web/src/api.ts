@@ -105,6 +105,18 @@ export interface Token {
   createdAt: string;
 }
 
+export interface SubsystemHealth {
+  name: string;
+  status: "ok" | "degraded" | "down" | "na";
+  detail?: string;
+}
+
+export interface SubsystemStatusResponse {
+  overall: "ok" | "degraded" | "down";
+  subsystems: SubsystemHealth[];
+  time: string;
+}
+
 export interface Overview {
   links: number;
   activeLinks: number;
@@ -186,6 +198,9 @@ export interface InstanceSettings {
 }
 
 export const api = {
+  // subsystem status (public)
+  subsystemStatus: () => req<SubsystemStatusResponse>("GET", "/api/status"),
+
   // overview
   overview: (includeBot = false) =>
     req<Overview>("GET", `/api/overview${includeBot ? "?includeBot=true" : ""}`),
