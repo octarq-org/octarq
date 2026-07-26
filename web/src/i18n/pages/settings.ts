@@ -1,5 +1,20 @@
 export const settings = {
   en: {
+    instancePluginHasUI: "Has UI",
+    instancePluginOptOut: "On by default",
+    instancePluginOptIn: "Opt-in",
+    instancePluginCore: "Core",
+    instancePluginKind: "Kind",
+    instancePluginRequires: "Requires",
+    instancePluginCategory: "Category",
+    instancePluginFeatureKey: "Feature key",
+    instancePluginName: "Plugin",
+    instancePluginsLoadFailed: "Could not load the instance plugin list.",
+    instancePluginsFootnote: "This list is fixed by the build and the plugin manifest — changing it means redeploying. To turn a feature on or off for a workspace, use Settings → Features.",
+    instancePluginsDescription: "Every plugin loaded by this instance, including always-on plumbing hidden from the workspace view.",
+    instancePluginsTitle: "Plugins",
+    pluginsInstanceLink: "See what this instance has loaded",
+    pluginsScopeNote: "These switches apply to this workspace only. They don't install or remove anything — every plugin listed here is already part of this instance.",
     // Shared
     cancel: "Cancel",
     remove: "Remove",
@@ -10,8 +25,8 @@ export const settings = {
     loadingLower: "loading…",
 
     // PluginsSettings
-    pluginsTitle: "Plugins",
-    pluginsDescription: "Enable the optional plugins this workspace uses. Everything is off by default.",
+    pluginsTitle: "Features",
+    pluginsDescription: "Turn optional features on or off for this workspace.",
     failedLoadPlugins: "Failed to load plugins",
     failedUpdatePlugin: "Failed to update plugin",
     loadingPlugins: "Loading plugins…",
@@ -19,6 +34,21 @@ export const settings = {
     badgeOn: "On",
     badgeOff: "Off",
     pluginAdds: "Adds: {{items}}",
+    pluginCategory: {
+      marketing: "Marketing",
+      messaging: "Messaging",
+      infrastructure: "Infrastructure",
+      security: "Security",
+      commerce: "Commerce",
+      ai: "AI",
+      utilities: "Utilities",
+    },
+    allCategoriesCount: "All Categories ({{count}})",
+    filterAllCount: "All ({{count}})",
+    filterActiveCount: "Active ({{count}})",
+    filterDisabledCount: "Disabled ({{count}})",
+    noMatchingPlugins: "No plugins match your current category tag, search, or status filter.",
+    backgroundService: "Background Service",
 
     // GeneralSettings
     renameFailed: "rename failed",
@@ -287,6 +317,21 @@ export const settings = {
     infrastructure: "Infrastructure",
   },
   zh: {
+    instancePluginHasUI: "含界面",
+    instancePluginOptOut: "默认开启",
+    instancePluginOptIn: "默认关闭",
+    instancePluginCore: "核心",
+    instancePluginKind: "类型",
+    instancePluginRequires: "依赖",
+    instancePluginCategory: "分类",
+    instancePluginFeatureKey: "功能键",
+    instancePluginName: "插件",
+    instancePluginsLoadFailed: "无法加载实例插件列表。",
+    instancePluginsFootnote: "这个列表由构建和插件清单决定，要改动需重新部署。若只是想为某个工作区开关功能，请到「设置 → 功能」。",
+    instancePluginsDescription: "本实例装载的全部插件，包含工作区视图中隐藏的常驻底层插件。",
+    instancePluginsTitle: "插件",
+    pluginsInstanceLink: "查看本实例装载了哪些插件",
+    pluginsScopeNote: "这些开关只作用于当前工作区，不会安装或卸载任何东西 —— 这里列出的插件都已经是本实例的一部分。",
     // Shared
     cancel: "取消",
     remove: "移除",
@@ -297,8 +342,8 @@ export const settings = {
     loadingLower: "加载中…",
 
     // PluginsSettings
-    pluginsTitle: "插件",
-    pluginsDescription: "启用此工作区使用的可选插件。所有功能默认关闭。",
+    pluginsTitle: "功能",
+    pluginsDescription: "为当前工作区开启或关闭可选功能。",
     failedLoadPlugins: "加载插件失败",
     failedUpdatePlugin: "更新插件失败",
     loadingPlugins: "正在加载插件…",
@@ -306,6 +351,21 @@ export const settings = {
     badgeOn: "已开启",
     badgeOff: "已关闭",
     pluginAdds: "新增：{{items}}",
+    pluginCategory: {
+      marketing: "营销",
+      messaging: "消息",
+      infrastructure: "基础设施",
+      security: "安全",
+      commerce: "电商",
+      ai: "AI",
+      utilities: "工具",
+    },
+    allCategoriesCount: "全部分类 ({{count}})",
+    filterAllCount: "全部 ({{count}})",
+    filterActiveCount: "已启用 ({{count}})",
+    filterDisabledCount: "已禁用 ({{count}})",
+    noMatchingPlugins: "没有插件匹配当前的分类标签、搜索关键词或状态筛选。",
+    backgroundService: "后台服务",
 
     // GeneralSettings
     renameFailed: "重命名失败",
@@ -574,6 +634,21 @@ export const settings = {
     infrastructure: "基础设施配置",
   },
   es: {
+    instancePluginHasUI: "Con interfaz",
+    instancePluginOptOut: "Activado por defecto",
+    instancePluginOptIn: "Desactivado por defecto",
+    instancePluginCore: "Núcleo",
+    instancePluginKind: "Tipo",
+    instancePluginRequires: "Requiere",
+    instancePluginCategory: "Categoría",
+    instancePluginFeatureKey: "Clave de función",
+    instancePluginName: "Plugin",
+    instancePluginsLoadFailed: "No se pudo cargar la lista de plugins de la instancia.",
+    instancePluginsFootnote: "Esta lista la fijan la compilación y el manifiesto de plugins; cambiarla requiere volver a desplegar. Para activar o desactivar una función en un espacio de trabajo, usa Ajustes → Funciones.",
+    instancePluginsDescription: "Todos los plugins cargados por esta instancia, incluida la infraestructura siempre activa que se oculta en la vista del espacio de trabajo.",
+    instancePluginsTitle: "Plugins",
+    pluginsInstanceLink: "Ver qué ha cargado esta instancia",
+    pluginsScopeNote: "Estos interruptores solo afectan a este espacio de trabajo. No instalan ni eliminan nada: todos los plugins listados ya forman parte de esta instancia.",
     // Shared
     cancel: "Cancelar",
     remove: "Eliminar",
@@ -584,8 +659,8 @@ export const settings = {
     loadingLower: "cargando…",
 
     // PluginsSettings
-    pluginsTitle: "Complementos",
-    pluginsDescription: "Habilite los complementos opcionales que usa este espacio de trabajo. Todo está desactivado por defecto.",
+    pluginsTitle: "Funciones",
+    pluginsDescription: "Activa o desactiva funciones opcionales para este espacio de trabajo.",
     failedLoadPlugins: "Error al cargar los complementos",
     failedUpdatePlugin: "Error al actualizar el complemento",
     loadingPlugins: "Cargando complementos…",
@@ -593,6 +668,21 @@ export const settings = {
     badgeOn: "Activo",
     badgeOff: "Inactivo",
     pluginAdds: "Añade: {{items}}",
+    pluginCategory: {
+      marketing: "Marketing",
+      messaging: "Mensajería",
+      infrastructure: "Infraestructura",
+      security: "Seguridad",
+      commerce: "Comercio",
+      ai: "IA",
+      utilities: "Utilidades",
+    },
+    allCategoriesCount: "Todas las categorías ({{count}})",
+    filterAllCount: "Todos ({{count}})",
+    filterActiveCount: "Activos ({{count}})",
+    filterDisabledCount: "Desactivados ({{count}})",
+    noMatchingPlugins: "Ningún plugin coincide con la etiqueta de categoría, búsqueda o filtro de estado actual.",
+    backgroundService: "Servicio en segundo plano",
 
     // GeneralSettings
     renameFailed: "error al renombrar",
@@ -857,8 +947,25 @@ export const settings = {
 
     // Shared status
     active: "Activo",
+    pluginChannels: "Canales de plugins",
+    infrastructure: "Infraestructura",
   },
   pt: {
+    instancePluginHasUI: "Com interface",
+    instancePluginOptOut: "Ligado por padrão",
+    instancePluginOptIn: "Desligado por padrão",
+    instancePluginCore: "Núcleo",
+    instancePluginKind: "Tipo",
+    instancePluginRequires: "Requer",
+    instancePluginCategory: "Categoria",
+    instancePluginFeatureKey: "Chave do recurso",
+    instancePluginName: "Plugin",
+    instancePluginsLoadFailed: "Não foi possível carregar a lista de plugins da instância.",
+    instancePluginsFootnote: "Esta lista é definida pela build e pelo manifesto de plugins — alterá-la exige reimplantar. Para ligar ou desligar um recurso num espaço de trabalho, use Configurações → Recursos.",
+    instancePluginsDescription: "Todos os plugins carregados por esta instância, incluindo a infraestrutura sempre ativa oculta na visão do espaço de trabalho.",
+    instancePluginsTitle: "Plugins",
+    pluginsInstanceLink: "Ver o que esta instância carregou",
+    pluginsScopeNote: "Estes interruptores valem apenas para este espaço de trabalho. Não instalam nem removem nada — todos os plugins listados já fazem parte desta instância.",
     // Shared
     cancel: "Cancelar",
     remove: "Remover",
@@ -869,8 +976,8 @@ export const settings = {
     loadingLower: "carregando…",
 
     // PluginsSettings
-    pluginsTitle: "Plugins",
-    pluginsDescription: "Ative os plugins opcionais que este workspace usa. Tudo está desativado por padrão.",
+    pluginsTitle: "Recursos",
+    pluginsDescription: "Ative ou desative recursos opcionais para este espaço de trabalho.",
     failedLoadPlugins: "Falha ao carregar plugins",
     failedUpdatePlugin: "Falha ao atualizar plugin",
     loadingPlugins: "Carregando plugins…",
@@ -878,6 +985,21 @@ export const settings = {
     badgeOn: "Ativo",
     badgeOff: "Inativo",
     pluginAdds: "Adiciona: {{items}}",
+    pluginCategory: {
+      marketing: "Marketing",
+      messaging: "Mensagens",
+      infrastructure: "Infraestrutura",
+      security: "Segurança",
+      commerce: "Comércio",
+      ai: "IA",
+      utilities: "Utilitários",
+    },
+    allCategoriesCount: "Todas as categorias ({{count}})",
+    filterAllCount: "Todos ({{count}})",
+    filterActiveCount: "Ativos ({{count}})",
+    filterDisabledCount: "Desativados ({{count}})",
+    noMatchingPlugins: "Nenhum plugin corresponde à etiqueta de categoria, pesquisa ou filtro de status atual.",
+    backgroundService: "Serviço em segundo plano",
 
     // GeneralSettings
     renameFailed: "falha ao renomear",
@@ -1142,8 +1264,25 @@ export const settings = {
 
     // Shared status
     active: "Ativo",
+    pluginChannels: "Canais de plugins",
+    infrastructure: "Infraestrutura",
   },
   ja: {
+    instancePluginHasUI: "UI あり",
+    instancePluginOptOut: "既定でオン",
+    instancePluginOptIn: "既定でオフ",
+    instancePluginCore: "コア",
+    instancePluginKind: "種別",
+    instancePluginRequires: "依存",
+    instancePluginCategory: "カテゴリ",
+    instancePluginFeatureKey: "機能キー",
+    instancePluginName: "プラグイン",
+    instancePluginsLoadFailed: "インスタンスのプラグイン一覧を読み込めませんでした。",
+    instancePluginsFootnote: "この一覧はビルドとプラグインマニフェストで決まり、変更には再デプロイが必要です。ワークスペース単位で機能をオン・オフするには「設定 → 機能」を使ってください。",
+    instancePluginsDescription: "このインスタンスが読み込んだ全プラグイン。ワークスペース画面では隠れている常時稼働の基盤プラグインも含みます。",
+    instancePluginsTitle: "プラグイン",
+    pluginsInstanceLink: "このインスタンスが読み込んでいるものを見る",
+    pluginsScopeNote: "これらのスイッチはこのワークスペースにのみ適用されます。何かをインストールしたり削除したりはしません —— ここに並ぶプラグインはすでにこのインスタンスの一部です。",
     // Shared
     cancel: "キャンセル",
     remove: "削除",
@@ -1154,8 +1293,8 @@ export const settings = {
     loadingLower: "読み込み中…",
 
     // PluginsSettings
-    pluginsTitle: "プラグイン",
-    pluginsDescription: "このワークスペースで使用するオプションのプラグインを有効にします。デフォルトではすべてオフです。",
+    pluginsTitle: "機能",
+    pluginsDescription: "このワークスペースで使うオプション機能のオン・オフを切り替えます。",
     failedLoadPlugins: "プラグインの読み込みに失敗しました",
     failedUpdatePlugin: "プラグインの更新に失敗しました",
     loadingPlugins: "プラグインを読み込み中…",
@@ -1163,6 +1302,21 @@ export const settings = {
     badgeOn: "オン",
     badgeOff: "オフ",
     pluginAdds: "追加: {{items}}",
+    pluginCategory: {
+      marketing: "マーケティング",
+      messaging: "メッセージング",
+      infrastructure: "インフラストラクチャ",
+      security: "セキュリティ",
+      commerce: "コマース",
+      ai: "AI",
+      utilities: "ユーティリティ",
+    },
+    allCategoriesCount: "すべてのカテゴリ ({{count}})",
+    filterAllCount: "すべて ({{count}})",
+    filterActiveCount: "有効 ({{count}})",
+    filterDisabledCount: "無効 ({{count}})",
+    noMatchingPlugins: "現在のカテゴリタグ、検索、またはステータスフィルタに一致するプラグインはありません。",
+    backgroundService: "バックグラウンドサービス",
 
     // GeneralSettings
     renameFailed: "名前の変更に失敗しました",
@@ -1427,5 +1581,7 @@ export const settings = {
 
     // Shared status
     active: "アクティブ",
+    pluginChannels: "プラグインからのチャネル",
+    infrastructure: "インフラストラクチャ",
   },
 };

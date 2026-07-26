@@ -131,14 +131,14 @@ export default function StatusPage() {
             <button
               onClick={() => setLang(lang === "zh" ? "en" : "zh")}
               className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-foreground/10 hover:bg-foreground/5 transition-colors"
-              title="Switch Language"
+              title={t("common.language") || "Switch Language"}
             >
               {lang === "zh" ? "EN" : "中文"}
             </button>
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg border border-foreground/10 hover:bg-foreground/5 transition-colors text-foreground/70"
-              title="Toggle Theme"
+              title={t("uiCommon.toggleTheme") || "Toggle Theme"}
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
@@ -178,7 +178,7 @@ export default function StatusPage() {
           {loading ? (
             <div className="py-12 text-center text-foreground/40 text-sm">
               <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 opacity-50" />
-              Loading system status...
+              {t("status.loadingSystemStatus") || "Loading system status..."}
             </div>
           ) : (
             <div className="divide-y divide-foreground/5">

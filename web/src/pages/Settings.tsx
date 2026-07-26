@@ -13,6 +13,7 @@ const WebhooksSettings = lazy(() => import("./settings/webhooks").then((m) => ({
 const NotificationChannels = lazy(() => import("./settings/webhooks").then((m) => ({ default: m.NotificationChannels })));
 const OrgMembersManager = lazy(() => import("./settings/members").then((m) => ({ default: m.OrgMembersManager })));
 const AuthenticationSettings = lazy(() => import("./settings/auth").then((m) => ({ default: m.AuthenticationSettings })));
+const InstancePluginsSettings = lazy(() => import("./settings/instance-plugins").then((m) => ({ default: m.InstancePluginsSettings })));
 const InstanceSettings = lazy(() => import("./settings/instance").then((m) => ({ default: m.InstanceSettings })));
 // Account panels — every settings page is served under /settings (one URL space).
 const SecuritySettings = lazy(() => import("./settings/security").then((m) => ({ default: m.SecuritySettings })));
@@ -32,6 +33,7 @@ export default function SettingsPage() {
         <Route path="/members" element={<OrgMembersManager />} />
         <Route path="/auth" element={<AuthenticationSettings />} />
         <Route path="/instance" element={<InstanceSettings />} />
+        <Route path="/instance/plugins" element={<InstancePluginsSettings />} />
         {/* Account panels (per-user) — same /settings space, no separate /personal tree. */}
         <Route path="/profile" element={<ProfileSettings />} />
         <Route path="/security" element={<SecuritySettings />} />

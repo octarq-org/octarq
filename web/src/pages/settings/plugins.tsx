@@ -1,19 +1,21 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, PluginInfo } from "../../api";
 import { Toggle, PageHeader, GlassCard, Badge, Alert } from "../../ui";
-import { ShieldAlert, Puzzle, Search, Tag } from "lucide-react";
+import { ShieldAlert, Puzzle, Search, Tag, Info } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { menuIcon } from "../../shell/areas";
+import { Link } from "react-router-dom";
+import { useSettingsData } from "./shared";
 
 // Category display metadata & tones
-const CATEGORIES: Record<string, { label: string; tone: "indigo" | "amber" | "green" | "violet" | "cyan" | "red" | "neutral" }> = {
-  marketing: { label: "Marketing", tone: "indigo" },
-  messaging: { label: "Messaging", tone: "cyan" },
-  infrastructure: { label: "Infrastructure", tone: "violet" },
-  security: { label: "Security", tone: "amber" },
-  commerce: { label: "Commerce", tone: "green" },
-  ai: { label: "AI", tone: "indigo" },
-  utilities: { label: "Utilities", tone: "neutral" },
+const CATEGORIES: Record<string, { labelKey: string; tone: "indigo" | "amber" | "green" | "violet" | "cyan" | "red" | "neutral" }> = {
+  marketing: { labelKey: "settings.pluginCategory.marketing", tone: "indigo" },
+  messaging: { labelKey: "settings.pluginCategory.messaging", tone: "cyan" },
+  infrastructure: { labelKey: "settings.pluginCategory.infrastructure", tone: "violet" },
+  security: { labelKey: "settings.pluginCategory.security", tone: "amber" },
+  commerce: { labelKey: "settings.pluginCategory.commerce", tone: "green" },
+  ai: { labelKey: "settings.pluginCategory.ai", tone: "indigo" },
+  utilities: { labelKey: "settings.pluginCategory.utilities", tone: "neutral" },
 };
 
 // Helper component to render a plugin's icon or custom logo.
@@ -38,7 +40,16 @@ function PluginIcon({ iconStr, firstMenuIcon }: { iconStr?: string; firstMenuIco
   return <span className="text-lg leading-none select-none">{target}</span>;
 }
 
+// lockedBy returns the enabled features that depend on this one, i.e. the
+// reason its toggle can't be turned off. Empty when the feature is free to
+// disable — including when it is already off, since nothing can depend on a
+// feature that isn't running.
+function lockedBy(p: PluginInfo): string[] {
+  return p.enabled ? (p.requiredBy ?? []) : [];
+}
+
 export function PluginsSettings() {
+  const { s: settings } = useSettingsData();
   const { t } = useTranslation();
   const [plugins, setPlugins] = useState<PluginInfo[] | null>(null);
   const [err, setErr] = useState("");
@@ -53,14 +64,37 @@ export function PluginsSettings() {
 
   async function toggle(key: string, enabled: boolean) {
     setErr("");
+    const target = plugins?.find(p => p.key === key);
+    if (enabled && target && target.requires && target.requires.length > 0) {
+      const disabledDeps = target.requires.filter(d => {
+        const dep = plugins?.find(p => p.key === d);
+        return dep && !dep.enabled;
+      });
+      if (disabledDeps.length > 0) {
+        if (!confirm(t("settings.enableDepsConfirm", { deps: disabledDeps.join(", ") }))) {
+          return;
+        }
+      }
+    }
+    
     // optimistic update; revert on failure
     setPlugins((prev) => prev?.map((p) => (p.key === key ? { ...p, enabled } : p)) ?? prev);
     try {
       await api.updatePlugin(key, enabled);
+      // Reload plugins completely to get new status of dependencies
+      load();
       window.dispatchEvent(new CustomEvent("octarq:plugins-changed"));
     } catch (e) {
       setPlugins((prev) => prev?.map((p) => (p.key === key ? { ...p, enabled: !enabled } : p)) ?? prev);
-      setErr(e instanceof ApiError ? e.message : t("settings.failedUpdatePlugin"));
+      if (e instanceof ApiError && e.status === 409) {
+        let msg = e.message;
+        if (e.body && e.body.dependents) {
+           msg = t("settings.pluginInUse", { plugin: key, dependents: e.body.dependents.join(", ") });
+        }
+        setErr(msg);
+      } else {
+        setErr(e instanceof ApiError ? e.message : t("settings.failedUpdatePlugin"));
+      }
     }
   }
 
@@ -93,6 +127,21 @@ export function PluginsSettings() {
     <div className="space-y-6">
       <PageHeader title={t("settings.pluginsTitle")} description={t("settings.pluginsDescription")} />
 
+      {/* The card grid reads like an app store, so say plainly what a toggle
+          does: it scopes to this workspace and installs nothing. Instance
+          admins get the pointer to what the binary actually loaded. */}
+      <Alert variant="info" icon={<Info className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
+        <span>{t("settings.pluginsScopeNote")}</span>
+        {settings?.isInstanceAdmin && (
+          <>
+            {" "}
+            <Link to="/settings/instance/plugins" className="underline underline-offset-2 hover:text-accent-fg">
+              {t("settings.pluginsInstanceLink")}
+            </Link>
+          </>
+        )}
+      </Alert>
+
       {err && (
         <Alert variant="danger" icon={<ShieldAlert className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
           {err}
@@ -111,10 +160,10 @@ export function PluginsSettings() {
                   : "bg-foreground/[0.04] text-foreground/70 hover:bg-surface-hover hover:text-foreground"
               }`}
             >
-              All Categories ({plugins.length})
+              {t("settings.allCategoriesCount", { count: plugins.length })}
             </button>
             {availableCategories.map((c) => {
-              const meta = CATEGORIES[c] || { label: c, tone: "neutral" };
+              const meta = CATEGORIES[c] || { labelKey: "settings.pluginCategory." + c, tone: "neutral" };
               const count = (plugins ?? []).filter((p) => (p.category || "utilities") === c).length;
               const isSelected = categoryFilter === c;
               return (
@@ -127,7 +176,7 @@ export function PluginsSettings() {
                       : "bg-foreground/[0.04] text-foreground/70 hover:bg-surface-hover hover:text-foreground"
                   }`}
                 >
-                  {meta.label} ({count})
+                  {t(meta.labelKey)} ({count})
                 </button>
               );
             })}
@@ -155,7 +204,7 @@ export function PluginsSettings() {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                All ({plugins.length})
+                {t("settings.filterAllCount", { count: plugins.length })}
               </button>
               <button
                 onClick={() => setStatusFilter("enabled")}
@@ -165,7 +214,7 @@ export function PluginsSettings() {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Active ({enabledCount})
+                {t("settings.filterActiveCount", { count: enabledCount })}
               </button>
               <button
                 onClick={() => setStatusFilter("disabled")}
@@ -175,7 +224,7 @@ export function PluginsSettings() {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Disabled ({plugins.length - enabledCount})
+                {t("settings.filterDisabledCount", { count: plugins.length - enabledCount })}
               </button>
             </div>
           </div>
@@ -188,7 +237,7 @@ export function PluginsSettings() {
         <GlassCard className="p-8 text-sm text-center text-foreground/55">{t("settings.noPlugins")}</GlassCard>
       ) : filteredPlugins.length === 0 ? (
         <GlassCard className="p-8 text-sm text-center text-foreground/50">
-          No plugins match your current category tag, search, or status filter.
+          {t("settings.noMatchingPlugins")}
         </GlassCard>
       ) : (
         /* Card Grid Layout */
@@ -196,7 +245,7 @@ export function PluginsSettings() {
           {filteredPlugins.map((p) => {
             const description = t("settings.pluginDesc." + p.key, p.description || "");
             const firstMenuIcon = p.menus?.[0]?.icon;
-            const categoryMeta = CATEGORIES[p.category || "utilities"] || { label: p.category || "utilities", tone: "neutral" };
+            const categoryMeta = CATEGORIES[p.category || "utilities"] || { labelKey: "settings.pluginCategory." + (p.category || "utilities"), tone: "neutral" };
 
             return (
               <GlassCard
@@ -220,13 +269,22 @@ export function PluginsSettings() {
                       </div>
                     </div>
 
-                    <Toggle on={p.enabled} onChange={(v) => toggle(p.key, v)} />
+                    {/* Locked while something else depends on it. The server
+                        enforces this with a 409 regardless — this only saves
+                        the user a round trip to be told no. */}
+                    <div className="flex flex-col items-end gap-1">
+                      <Toggle
+                        on={p.enabled}
+                        onChange={(v) => toggle(p.key, v)}
+                        disabled={lockedBy(p).length > 0}
+                      />
+                    </div>
                   </div>
 
                   {/* Category Badge & Tags */}
                   <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                     <Badge tone={categoryMeta.tone} className="text-[10px] uppercase tracking-wider font-semibold">
-                      {categoryMeta.label}
+                      {t(categoryMeta.labelKey)}
                     </Badge>
                     {p.tags && p.tags.map((tag) => (
                       <span
@@ -240,6 +298,11 @@ export function PluginsSettings() {
                     ))}
                   </div>
 
+                  {lockedBy(p).length > 0 && (
+                    <div className="mt-2 text-[10px] text-warning-fg font-medium">
+                      {t("settings.pluginInUse", { plugin: p.title, dependents: lockedBy(p).join(", ") })}
+                    </div>
+                  )}
                   {/* Card Description */}
                   {description && (
                     <p className="text-xs text-foreground/60 leading-relaxed mt-2.5 line-clamp-3">
@@ -268,7 +331,7 @@ export function PluginsSettings() {
                         )}
                       </div>
                     ) : (
-                      <span className="text-[10px] text-muted-foreground italic">Background Service</span>
+                      <span className="text-[10px] text-muted-foreground italic">{t("settings.backgroundService")}</span>
                     )}
                   </div>
 

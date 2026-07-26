@@ -28,9 +28,6 @@ Run these and make sure they pass — don't claim a change works on inspection a
 - `gofmt -w` (keep gofmt-clean; match surrounding style)
 - in `web/`: `npx tsc --noEmit`
 
-**Prefer pushing and relying on CI over spinning up Docker locally** to verify — for
-this repo that's the faster loop. Only commit/push when asked.
-
 **Never build or commit `webembed/dist` manually.** CI auto-commits a fresh build
 on every push to main. It must stay tracked in git — octarq-pro consumes octarq as
 a Go module and gets the embedded dashboard from the module zip.
