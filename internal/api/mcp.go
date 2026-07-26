@@ -24,7 +24,13 @@ func (h *Handler) mcpAuth(next http.Handler) http.Handler {
 		if strings.HasPrefix(token, "oct_") {
 			hash := models.HashToken(token)
 			var tok models.Token
-			if h.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() {
+			// tok.OrgID != 0 is a deliberate fail-closed guard: the networked MCP
+			// tools default an unresolved org to 1 (the stdio-CLI single-tenant
+			// default), so a token that somehow carries owner_id 0 must never be
+			// admitted here — it would read tenant 1's data. Legitimate tokens can't
+			// have owner_id 0 (the column defaults to 1), so this only rejects
+			// corrupt/legacy rows.
+			if h.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() && tok.OrgID != 0 {
 				ctx := auth.WithOrgID(r.Context(), tok.OrgID)
 				id := tok.ID
 				db := h.db
