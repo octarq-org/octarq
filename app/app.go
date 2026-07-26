@@ -319,9 +319,17 @@ func (a *App) RunMCP(ctx context.Context) error {
 		UserID:       a.auth.UserID,
 		OrgID:        a.auth.OrgID,
 		LoginByEmail: a.loginByEmail,
-		Audit:        apiHandler.Audit,
-		Encrypt:      a.cipher.Encrypt,
-		Decrypt:      a.cipher.Decrypt,
+		RegisterAuthMethod: func(m plugin.AuthMethod) {
+			auth.Register(auth.AuthMethod{
+				ID:       m.ID,
+				Label:    m.Label,
+				LoginURL: m.LoginURL,
+				IconKey:  m.IconKey,
+			})
+		},
+		Audit:   apiHandler.Audit,
+		Encrypt: a.cipher.Encrypt,
+		Decrypt: a.cipher.Decrypt,
 		OnEmail: func(handler func(plugin.EmailEvent)) {
 			if handler == nil {
 				return
@@ -464,9 +472,17 @@ func (a *App) Run(ctx context.Context) error {
 		UserID:       a.auth.UserID,
 		OrgID:        a.auth.OrgID,
 		LoginByEmail: a.loginByEmail,
-		Audit:        apiHandler.Audit,
-		Encrypt:      a.cipher.Encrypt,
-		Decrypt:      a.cipher.Decrypt,
+		RegisterAuthMethod: func(m plugin.AuthMethod) {
+			auth.Register(auth.AuthMethod{
+				ID:       m.ID,
+				Label:    m.Label,
+				LoginURL: m.LoginURL,
+				IconKey:  m.IconKey,
+			})
+		},
+		Audit:   apiHandler.Audit,
+		Encrypt: a.cipher.Encrypt,
+		Decrypt: a.cipher.Decrypt,
 		OnEmail: func(handler func(plugin.EmailEvent)) {
 			if handler == nil {
 				return

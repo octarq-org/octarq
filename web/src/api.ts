@@ -233,6 +233,7 @@ export const api = {
 
   // auth
   authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean; appName: string; logoUrl: string; brandColor: string; brandColor2: string }>("GET", "/api/auth/config"),
+  authMethods: () => req<AuthMethod[]>("GET", "/api/auth/methods"),
   me: () => req<{ username: string; orgId: number; role?: string; emailVerified?: boolean }>("GET", "/api/auth/me"),
   register: (email: string, password: string) =>
     req<{ ok: boolean; username: string }>("POST", "/api/auth/register", { email, password }),
@@ -399,6 +400,13 @@ export interface WebhookEventDef {
 export interface WebhookEventGroup {
   group: string;
   events: WebhookEventDef[];
+}
+
+export interface AuthMethod {
+  id: string;
+  label: string;
+  loginUrl: string;
+  iconKey?: string;
 }
 
 export { ApiError };

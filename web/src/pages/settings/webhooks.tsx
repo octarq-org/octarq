@@ -5,6 +5,7 @@ import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useSettingsData, SavedBadge } from "./shared";
+import { ExtensionSlot } from "../../plugin-sdk";
 
 export function WebhooksSettings() {
   const { t } = useTranslation();
@@ -269,6 +270,13 @@ export function NotificationChannels() {
         />
       )}
     </GlassCard>
+
+      <div className="space-y-3 pt-2">
+        <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t("settings.pluginChannels", "Channels from plugins")}
+        </h3>
+        <ExtensionSlot name="settings-notifications" />
+      </div>
     </div>
   );
 }

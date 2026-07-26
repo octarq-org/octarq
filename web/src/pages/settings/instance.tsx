@@ -4,6 +4,7 @@ import { Field, PageHeader, GlassCard, Button } from "../../ui";
 import { Server, Sliders } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useInstanceSettingsData, SavedBadge } from "./shared";
+import { ExtensionSlot } from "../../plugin-sdk";
 
 export function InstanceSettings() {
   const { t } = useTranslation();
@@ -175,6 +176,14 @@ export function InstanceSettings() {
           </Button>
         </div>
       </GlassCard>
+
+      {/* Infrastructure Extension Slot */}
+      <div className="space-y-3 pt-2">
+        <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t("settings.infrastructure", "Infrastructure")}
+        </h3>
+        <ExtensionSlot name="settings-infra" />
+      </div>
     </div>
   );
 }
