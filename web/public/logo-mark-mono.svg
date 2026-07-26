@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Octarq">
+  <!-- currentColor variant: inherits the surrounding text color. Use this one
+       inside the app, in READMEs rendered on either theme, and anywhere the
+       gradient would fight the surface. -->
+  <path d="M50.48 39.65 39.65 50.48H24.35L13.52 39.65V24.35L24.35 13.52h15.3L50.48 24.35Z"
+        stroke="currentColor" stroke-width="7.5" stroke-linejoin="round"/>
+  <path d="M45.06 45.06 54 54" stroke="currentColor" stroke-width="7.5" stroke-linecap="round"/>
+</svg>
