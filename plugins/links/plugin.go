@@ -2,6 +2,7 @@ package links
 
 import (
 	"context"
+	_ "embed"
 	"net/http"
 	"strings"
 	"time"
@@ -29,6 +30,7 @@ var (
 	_ plugin.Plugin       = (*Plugin)(nil)
 	_ plugin.Describer    = (*Plugin)(nil)
 	_ plugin.MenuProvider = (*Plugin)(nil)
+	_ plugin.HelpProvider = (*Plugin)(nil)
 )
 
 func New() *Plugin {
@@ -56,6 +58,21 @@ func (p *Plugin) Models() []any {
 func (p *Plugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{
 		{ID: "links", Label: "Links", Path: "/links", Icon: "🔗", Category: "Operations", Order: 10},
+	}
+}
+
+//go:embed docs.md
+var helpDocs string
+
+func (p *Plugin) HelpDocs() []plugin.HelpDoc {
+	return []plugin.HelpDoc{
+		{
+			Slug:     "short-links",
+			Title:    "Short Links",
+			Group:    "Marketing",
+			Order:    10,
+			Markdown: helpDocs,
+		},
 	}
 }
 

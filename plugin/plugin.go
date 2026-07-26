@@ -273,6 +273,11 @@ type Context struct {
 	// composes no such plugin, simply 404s the prefix. Call it during Mount;
 	// prefix should have no trailing slash. Mirrors HandleRoot for static SPAs.
 	HandleStatic func(prefix string, fsys fs.FS)
+	// PluginActive reports whether a plugin's feature is enabled for the
+	// given workspace. Core plugins are always active.
+	PluginActive func(orgID uint, p Plugin) bool
+	// ActivePlugins returns a snapshot of all registered plugins.
+	ActivePlugins func() []Plugin
 }
 
 // AuthMethod is a provider-agnostic auth method definition, mirroring the fields
@@ -378,6 +383,20 @@ type MenuProvider interface {
 // dynamic MCP tools.
 type MCPProvider interface {
 	RegisterMCP(srv *mcp.Server)
+}
+
+// HelpDoc is one page of in-app documentation contributed by a plugin.
+type HelpDoc struct {
+	Slug     string // URL segment, unique across the instance
+	Title    string
+	Group    string // section heading in the help index
+	Order    int
+	Markdown string // raw source; core renders it
+}
+
+// HelpProvider is implemented by plugins that ship in-app documentation.
+type HelpProvider interface {
+	HelpDocs() []HelpDoc
 }
 
 // OpenAPIContributor is an optional interface a Plugin may implement if it

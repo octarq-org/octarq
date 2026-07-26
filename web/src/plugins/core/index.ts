@@ -6,6 +6,7 @@
 import { registerUIPlugin } from "@octarq/plugin-sdk";
 import abuse from "./abuse";
 import audit from "./audit";
+import help from "./help";
 
-for (const p of [abuse, audit]) registerUIPlugin(p);
+for (const p of [abuse, audit, help]) registerUIPlugin(p);
 

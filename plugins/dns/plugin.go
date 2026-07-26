@@ -13,6 +13,7 @@
 package dns
 
 import (
+	_ "embed"
 	"errors"
 	"net"
 	"net/http"
@@ -50,6 +51,7 @@ var (
 	_ plugin.Plugin       = (*Plugin)(nil)
 	_ plugin.Describer    = (*Plugin)(nil)
 	_ plugin.MenuProvider = (*Plugin)(nil)
+	_ plugin.HelpProvider = (*Plugin)(nil)
 )
 
 // New constructs the dns plugin.
@@ -85,7 +87,22 @@ func (p *Plugin) Models() []any {
 // when the plugin is mounted and enabled for the workspace.
 func (p *Plugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{
-		{ID: "domains", Label: "Domains", Path: "/domains", Icon: "🌐", Category: "Assets", Order: 10},
+		{ID: "domains", Label: "Domains", Path: "/domains", Icon: "globe", Category: "Network", Order: 10},
+	}
+}
+
+//go:embed docs.md
+var helpDocs string
+
+func (p *Plugin) HelpDocs() []plugin.HelpDoc {
+	return []plugin.HelpDoc{
+		{
+			Slug:     "dns",
+			Title:    "DNS & Network",
+			Group:    "Infrastructure",
+			Order:    10,
+			Markdown: helpDocs,
+		},
 	}
 }
 

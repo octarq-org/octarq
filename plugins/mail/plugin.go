@@ -2,6 +2,7 @@ package mail
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -40,6 +41,7 @@ var (
 	_ plugin.Plugin       = (*Plugin)(nil)
 	_ plugin.Describer    = (*Plugin)(nil)
 	_ plugin.MenuProvider = (*Plugin)(nil)
+	_ plugin.HelpProvider = (*Plugin)(nil)
 )
 
 // New constructs the mail plugin.
@@ -71,7 +73,22 @@ func (p *Plugin) Models() []any {
 // when the plugin is mounted and enabled for the workspace.
 func (p *Plugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{
-		{ID: "mail", Label: "Mail", Path: "/mail", Icon: "✉️", Category: "Operations", Order: 20},
+		{ID: "mail", Label: "Mail", Path: "/mail", Icon: "mail", Category: "Operations", Order: 20},
+	}
+}
+
+//go:embed docs.md
+var helpDocs string
+
+func (p *Plugin) HelpDocs() []plugin.HelpDoc {
+	return []plugin.HelpDoc{
+		{
+			Slug:     "mail",
+			Title:    "Email Services",
+			Group:    "Messaging",
+			Order:    20,
+			Markdown: helpDocs,
+		},
 	}
 }
 

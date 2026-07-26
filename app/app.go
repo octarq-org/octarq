@@ -519,6 +519,15 @@ func (a *App) Run(ctx context.Context) error {
 			info := geo.ParseUA(ua)
 			return info.Device, info.Browser, info.OS
 		},
+		PluginActive: func(orgID uint, p plugin.Plugin) bool {
+			if plugin.Describe(p).Core {
+				return true
+			}
+			return apiHandler.PluginEnabled(orgID, plugin.FeatureKey(p))
+		},
+		ActivePlugins: func() []plugin.Plugin {
+			return a.plugins
+		},
 		HandleRoot: func(h http.Handler) {
 			rootHandler = h
 		},
