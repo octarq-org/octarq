@@ -6,7 +6,12 @@ const links: UIPlugin = {
   name: "links",
   routes: [{ path: "/links", Component: lazy(() => import("./pages")) }],
   menu: [{ id: "links", label: "Links", path: "/links", icon: "link-2", category: "Marketing" }],
+  widgets: [
+    { slot: "home-overview", order: 10, Component: lazy(() => import("./widgets/LinksStatCardWidget")) },
+    { slot: "home-setup-steps", order: 20, Component: lazy(() => import("./widgets/LinksSetupStepWidget")) },
+  ],
   i18n: linksI18n,
 };
 
 export default links;
+

@@ -3,13 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { api, Overview } from "../api";
 import { useTranslation } from "../i18n";
 import { ExtensionSlot } from "../plugin-sdk";
-import { AreaChart, BarList, timeAgo, ScreenWrap, PageHeader, StatCard, GlassCard, Skeleton } from "../ui";
-import { Link2, Mail, Globe, MousePointerClick, CheckCircle2, Circle, ArrowRight, Sparkles, X } from "lucide-react";
+import { AreaChart, BarList, timeAgo, ScreenWrap, PageHeader, GlassCard, Skeleton } from "../ui";
+import { SetupStep } from "../components/SetupStep";
+import { Sparkles, X } from "lucide-react";
 
 export default function OverviewPage() {
   const [o, setO] = useState<Overview | null>(null);
   const [includeBot, setIncludeBot] = useState(false);
-  const [smtpCount, setSmtpCount] = useState<number | null>(null);
   const [memberCount, setMemberCount] = useState<number | null>(null);
   const [twoFAEnabled, setTwoFAEnabled] = useState<boolean | null>(null);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem("dismiss_onboarding") === "true");
@@ -18,7 +18,6 @@ export default function OverviewPage() {
 
   useEffect(() => {
     api.overview(includeBot).then(setO).catch(() => {});
-    api.smtpSenders().then(s => setSmtpCount(s.length)).catch(() => {});
     api.orgMembers().then(m => setMemberCount(m.length)).catch(() => {});
     api.twoFAStatus().then(r => setTwoFAEnabled(r.enabled)).catch(() => {});
     api.getUserSettings().then(s => {
@@ -57,13 +56,6 @@ export default function OverviewPage() {
     </div>
   );
 
-  // Feature quick-start steps are gated on the same "is this plugin composed"
-  // signal the stat cards use: the backend aggregates `/api/overview` via
-  // service lookups, so a disabled plugin yields no field (`o.domains`,
-  // `o.links`, `o.mailboxes` stay undefined). Gating here keeps a disabled
-  // plugin's step — and its nav to a now-404 path — out of the checklist,
-  // instead of sending the user somewhere that doesn't exist. The 2FA and
-  // colleague steps are core, always shown.
   const steps = [
     {
       id: "2fa",
@@ -71,31 +63,6 @@ export default function OverviewPage() {
       description: t("overview.step2FADesc"),
       completed: twoFAEnabled === true,
       path: "/settings/security",
-      available: true,
-    },
-    {
-      id: "domain",
-      title: t("overview.stepDomainTitle"),
-      description: t("overview.stepDomainDesc"),
-      completed: (o.domains ?? 0) > 0,
-      path: "/domains",
-      available: o.domains !== undefined,
-    },
-    {
-      id: "link",
-      title: t("overview.stepLinkTitle"),
-      description: t("overview.stepLinkDesc"),
-      completed: (o.links ?? 0) > 0,
-      path: "/links",
-      available: o.links !== undefined,
-    },
-    {
-      id: "smtp",
-      title: t("overview.stepSmtpTitle"),
-      description: t("overview.stepSmtpDesc"),
-      completed: smtpCount !== null && smtpCount > 0,
-      path: "/mail?tab=settings",
-      available: o.mailboxes !== undefined,
     },
     {
       id: "colleague",
@@ -103,9 +70,8 @@ export default function OverviewPage() {
       description: t("overview.stepColleagueDesc"),
       completed: memberCount !== null && memberCount > 1,
       path: "/settings/members",
-      available: true,
     },
-  ].filter((s) => s.available);
+  ];
 
   const completedCount = steps.filter(s => s.completed).length;
   const progressPercent = Math.round((completedCount / steps.length) * 100);
@@ -168,80 +134,21 @@ export default function OverviewPage() {
 
           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
             {steps.map((step) => (
-              <button
+              <SetupStep
                 key={step.id}
+                title={step.title}
+                description={step.description}
+                completed={step.completed}
                 onClick={() => nav(step.path)}
-                className={`group flex flex-col text-left p-4 rounded-xl border transition-all duration-200 ${
-                  step.completed 
-                    ? "bg-foreground/[0.02] border-success-border/50 hover:border-success-border" 
-                    : "bg-foreground/5 border-foreground/[0.06] hover:border-indigo-500/30 hover:bg-foreground/[0.08]"
-                }`}
-              >
-                <div className="flex items-center justify-between w-full">
-                  <div className={`p-1.5 rounded-lg ${step.completed ? "text-success-fg bg-success-bg" : "text-accent-fg bg-indigo-500/10"}`}>
-                    {step.completed ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                  </div>
-                  {!step.completed && (
-                    <ArrowRight size={14} className="text-foreground/0 group-hover:text-accent-fg translate-x-[-4px] group-hover:translate-x-0 transition-all duration-200" />
-                  )}
-                </div>
-                <h3 className={`font-semibold text-sm mt-3 ${step.completed ? "text-foreground/60 line-through" : "text-foreground"}`}>
-                  {step.title}
-                </h3>
-                <p className="text-[11px] text-foreground/40 mt-1 leading-normal flex-1">
-                  {step.description}
-                </p>
-              </button>
+              />
             ))}
+            <ExtensionSlot name="home-setup-steps" />
           </div>
         </GlassCard>
       )}
 
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {o.totalClicks !== undefined && (
-          <StatCard
-            label={t("overview.totalClicks")}
-            value={(o.totalClicks ?? 0).toLocaleString()}
-            delta={t("overview.clicks7d", { count: o.clicks7d ?? 0 })}
-            positive={true}
-            icon={<MousePointerClick className="h-4 w-4" />}
-            onClick={() => nav("/links")}
-            index={0}
-          />
-        )}
-        {o.links !== undefined && (
-          <StatCard
-            label={t("overview.shortLinks")}
-            value={(o.links ?? 0).toLocaleString()}
-            delta={t("overview.activeLinks", { count: o.activeLinks ?? 0 })}
-            positive={true}
-            icon={<Link2 className="h-4 w-4" />}
-            onClick={() => nav("/links")}
-            index={1}
-          />
-        )}
-        {o.mailboxes !== undefined && (
-          <StatCard
-            label={t("overview.mailboxes")}
-            value={(o.mailboxes ?? 0).toLocaleString()}
-            delta={t("overview.unread", { count: o.unread ?? 0 })}
-            positive={false}
-            icon={<Mail className="h-4 w-4" />}
-            onClick={() => nav("/mail")}
-            index={2}
-          />
-        )}
-        {o.domains !== undefined && (
-          <StatCard
-            label={t("overview.domains")}
-            value={(o.domains ?? 0).toLocaleString()}
-            delta={t("overview.domainsDelta", { link: o.linkDomains ?? 0, mail: o.mailDomains ?? 0 })}
-            positive={true}
-            icon={<Globe className="h-4 w-4" />}
-            onClick={() => nav("/domains")}
-            index={3}
-          />
-        )}
+        <ExtensionSlot name="home-overview" />
       </div>
 
       <GlassCard className="mb-6 p-5">
@@ -316,9 +223,6 @@ export default function OverviewPage() {
         </div>
       )}
 
-      {/* Extension point for plugin dashboard widgets (UIPlugin.widgets, slot
-          "home-overview"). Renders nothing in the OSS build (empty registry). */}
-      <ExtensionSlot name="home-overview" />
     </ScreenWrap>
   );
 }
