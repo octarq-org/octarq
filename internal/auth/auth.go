@@ -123,15 +123,28 @@ func (m *Manager) SetSessionFromRequest(r *http.Request, w http.ResponseWriter, 
 			// holds this session's cookie (switch-org, refresh), reuse that raw
 			// token to preserve continuity; otherwise (fresh login from the same
 			// fingerprint) rotate to the freshly generated token.
+			//
+			// org_id must be written on BOTH refresh paths, not just on the
+			// create path below. switch-org is exactly the case that lands here
+			// (same browser, same cookie), so omitting it made every switch
+			// after the first a silent no-op: the endpoint answered 200, the
+			// dashboard remounted showing the new workspace's name, and every
+			// subsequent request still resolved to the old org.
 			if raw := cookieToken(r); raw != "" && models.HashToken(raw) == existing.Token {
 				m.db.Model(&existing).Updates(map[string]any{
+					"org_id":       orgID,
 					"last_seen_at": now,
 					"expires_at":   expires,
 				})
+				// The cache is keyed by token hash, and this path keeps the
+				// token — so without an explicit invalidation a cached row would
+				// keep serving the pre-switch org even now that the DB is right.
+				_ = m.cache.Delete(context.Background(), "session:"+existing.Token)
 				m.setCookie(w, raw)
 				return
 			}
 			m.db.Model(&existing).Updates(map[string]any{
+				"org_id":       orgID,
 				"token":        models.HashToken(token),
 				"last_seen_at": now,
 				"expires_at":   expires,
