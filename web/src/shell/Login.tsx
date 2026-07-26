@@ -5,6 +5,7 @@ import { useAppName } from "../brand";
 import { BrandMark } from "./BrandMark";
 import { useTranslation } from "../i18n";
 import { Alert } from "../ui";
+import { ExtensionSlot } from "../plugin-sdk";
 
 export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
   const [u, setU] = useState("admin");
@@ -271,6 +272,8 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
             </button>
           </form>
         )}
+
+        {mode !== "forgot" && <ExtensionSlot name="login-methods" />}
 
         {mode === "forgot" && !forgotSent && (
           <p className="mt-4 text-center text-xs text-muted-foreground">

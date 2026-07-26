@@ -283,6 +283,8 @@ export const settings = {
 
     // Shared status
     active: "Active",
+    pluginChannels: "Channels from plugins",
+    infrastructure: "Infrastructure",
   },
   zh: {
     // Shared
@@ -568,6 +570,8 @@ export const settings = {
 
     // Shared status
     active: "有效",
+    pluginChannels: "插件贡献的渠道",
+    infrastructure: "基础设施配置",
   },
   es: {
     // Shared
