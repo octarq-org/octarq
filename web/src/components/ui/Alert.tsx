@@ -25,18 +25,23 @@ export interface AlertProps
   icon?: React.ReactNode;
   actions?: React.ReactNode;
   onDismiss?: () => void;
+  align?: "start" | "center";
 }
 
 export const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
-  ({ className, variant, icon, children, actions, onDismiss, ...props }, ref) => {
+  ({ className, variant, align = "start", icon, children, actions, onDismiss, ...props }, ref) => {
     return (
       <div
         ref={ref}
         role="alert"
-        className={cn(alertVariants({ variant }), className)}
+        className={cn(
+          alertVariants({ variant }),
+          align === "center" && "items-center",
+          className
+        )}
         {...props}
       >
-        {icon && <div className="shrink-0 mt-0.5">{icon}</div>}
+        {icon && <div className={cn("shrink-0", align === "start" && "mt-0.5")}>{icon}</div>}
         <div className="flex-1 min-w-0">{children}</div>
         {(actions || onDismiss) && (
           <div className="shrink-0 flex items-center gap-2">
