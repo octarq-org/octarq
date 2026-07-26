@@ -11,6 +11,39 @@ const nimbusConfig = defineNimbusConfig({
   locale: "en",
   github: "https://github.com/octarq-org/octarq",
   socialImageAlt: "Octarq documentation preview",
+  sidebar: {
+    items: [
+      {
+        label: "Start",
+        items: [
+          "index",
+          "quickstart",
+          "what-is-octarq",
+          "configuration",
+          "deploy",
+        ],
+      },
+      {
+        label: "Core Features",
+        autogenerate: { directory: "core" },
+      },
+      {
+        label: "Build a Plugin",
+        items: [
+          "writing-a-plugin",
+          "plugin-directory",
+        ],
+      },
+      {
+        label: "Architecture",
+        autogenerate: { directory: "architecture" },
+      },
+      {
+        label: "Guides",
+        autogenerate: { directory: "guides" },
+      },
+    ],
+  },
 });
 
 export default defineConfig({
