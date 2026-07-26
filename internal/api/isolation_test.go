@@ -285,6 +285,95 @@ func TestOrgIsolation_Emails(t *testing.T) {
 	}
 }
 
+// --- notification channel isolation ---
+
+func TestOrgIsolation_NotificationChannels(t *testing.T) {
+	srv, _ := newTestHandler(t)
+	org1 := sessionCookies(t, 1, 1)
+	org2 := sessionCookies(t, 2, 2)
+
+	rec := do(srv, http.MethodPost, "/api/notification-channels", org1,
+		`{"name":"chan-org1","type":"telegram","config":"{}"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create channel: got %d — %s", rec.Code, rec.Body)
+	}
+	var ch struct {
+		ID uint `json:"id"`
+	}
+	json.Unmarshal(rec.Body.Bytes(), &ch)
+	path := fmt.Sprintf("/api/notification-channels/%d", ch.ID)
+
+	// Org 2 must not update or delete org 1's channel.
+	if rec := do(srv, http.MethodPut, path, org2, `{"name":"hacked","type":"telegram","config":"{}"}`); rec.Code != http.StatusNotFound {
+		t.Errorf("cross-org PUT channel: got %d, want 404", rec.Code)
+	}
+	if rec := do(srv, http.MethodDelete, path, org2, ""); rec.Code != http.StatusNotFound {
+		t.Errorf("cross-org DELETE channel: got %d, want 404", rec.Code)
+	}
+	// Org 2's list must not leak org 1's channel.
+	if rec := do(srv, http.MethodGet, "/api/notification-channels", org2, ""); strings.Contains(rec.Body.String(), "chan-org1") {
+		t.Error("org2 list leaked org1's notification channel")
+	}
+}
+
+// --- webhook isolation ---
+
+func TestOrgIsolation_Webhooks(t *testing.T) {
+	srv, _ := newTestHandler(t)
+	org1 := sessionCookies(t, 1, 1)
+	org2 := sessionCookies(t, 2, 2)
+
+	rec := do(srv, http.MethodPost, "/api/webhooks", org1,
+		`{"name":"hook-org1","url":"https://example.com/org1"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create webhook: got %d — %s", rec.Code, rec.Body)
+	}
+	var wh struct {
+		ID uint `json:"id"`
+	}
+	json.Unmarshal(rec.Body.Bytes(), &wh)
+	path := fmt.Sprintf("/api/webhooks/%d", wh.ID)
+
+	// Org 2 must not update or delete org 1's webhook.
+	if rec := do(srv, http.MethodPut, path, org2, `{"name":"hacked"}`); rec.Code != http.StatusNotFound {
+		t.Errorf("cross-org PUT webhook: got %d, want 404", rec.Code)
+	}
+	if rec := do(srv, http.MethodDelete, path, org2, ""); rec.Code != http.StatusNotFound {
+		t.Errorf("cross-org DELETE webhook: got %d, want 404", rec.Code)
+	}
+	// Org 2's list must not leak org 1's webhook.
+	if rec := do(srv, http.MethodGet, "/api/webhooks", org2, ""); strings.Contains(rec.Body.String(), "hook-org1") {
+		t.Error("org2 list leaked org1's webhook")
+	}
+}
+
+// --- MCP token org-0 fail-closed ---
+//
+// The networked MCP tools default an unresolved org to tenant 1. A token
+// carrying owner_id 0 must therefore be refused at the auth boundary rather
+// than silently scoped to tenant 1's data.
+
+func TestMCPTokenZeroOrgRejected(t *testing.T) {
+	srv, db := newTestHandler(t)
+
+	rawTok := "oct_zeroorgtoken000000000000000000000"
+	// Force owner_id 0 past the column default via an explicit update.
+	tok := models.Token{OrgID: 1, Name: "zero-org", Hash: models.HashToken(rawTok), Prefix: rawTok[:8]}
+	if err := db.Create(&tok).Error; err != nil {
+		t.Fatalf("create token: %v", err)
+	}
+	if err := db.Model(&models.Token{}).Where("id = ?", tok.ID).Update("owner_id", 0).Error; err != nil {
+		t.Fatalf("force owner_id 0: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/mcp/sse?token="+rawTok, nil)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("zero-org MCP token: got %d, want 401", rec.Code)
+	}
+}
+
 // --- session revocation ---
 //
 // A user can list and revoke their own sessions; one tenant cannot revoke
