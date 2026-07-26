@@ -10,7 +10,7 @@ import { RouteFallback } from "../App";
 const PluginsSettings = lazy(() => import("./settings/plugins").then((m) => ({ default: m.PluginsSettings })));
 const GeneralSettings = lazy(() => import("./settings/general").then((m) => ({ default: m.GeneralSettings })));
 const WebhooksSettings = lazy(() => import("./settings/webhooks").then((m) => ({ default: m.WebhooksSettings })));
-const NotificationChannels = lazy(() => import("./settings/webhooks").then((m) => ({ default: m.NotificationChannels })));
+const NotificationChannels = lazy(() => import("./settings/notifications").then((m) => ({ default: m.NotificationChannels })));
 const OrgMembersManager = lazy(() => import("./settings/members").then((m) => ({ default: m.OrgMembersManager })));
 const AuthenticationSettings = lazy(() => import("./settings/auth").then((m) => ({ default: m.AuthenticationSettings })));
 const InstancePluginsSettings = lazy(() => import("./settings/instance-plugins").then((m) => ({ default: m.InstancePluginsSettings })));

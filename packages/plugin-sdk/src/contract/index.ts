@@ -24,3 +24,9 @@ export {
 } from "./registry";
 
 export { ExtensionSlot, useExtensionCount } from "./ExtensionSlot";
+export {
+  NotificationChannelFormContext,
+  useNotificationChannelForm,
+  type NotificationChannelFormContextValue,
+} from "./NotificationChannelFormContext";
+

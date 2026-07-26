@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -9,7 +10,68 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/notify"
+	"github.com/octarq-org/octarq/plugin"
 )
+
+type NotificationChannelType struct {
+	Type        string `json:"type"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Icon        string `json:"icon"`
+}
+
+type ListNotificationChannelTypesInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *ListNotificationChannelTypesInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListNotificationChannelTypesOutput struct {
+	Body []NotificationChannelType
+}
+
+func (h *Handler) listNotificationChannelTypes(ctx context.Context, input *ListNotificationChannelTypesInput) (*ListNotificationChannelTypesOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	orgID := h.orgID(r)
+	allDescs := notify.Descriptors()
+	var result []NotificationChannelType
+
+	for _, d := range allDescs {
+		if d.PluginName != "" {
+			p := h.findPlugin(d.PluginName)
+			if p == nil || !h.pluginActive(orgID, p) {
+				continue
+			}
+		}
+		result = append(result, NotificationChannelType{
+			Type:        d.Type,
+			Title:       d.Title,
+			Description: d.Description,
+			Icon:        d.Icon,
+		})
+	}
+	return &ListNotificationChannelTypesOutput{Body: result}, nil
+}
+
+func (h *Handler) findPlugin(name string) plugin.Plugin {
+	for _, p := range h.plugins {
+		if p.Name() == name {
+			return p
+		}
+	}
+	return nil
+}
 
 type ListNotificationChannelsInput struct {
 	Ctx huma.Context `hidden:"true"`
@@ -35,6 +97,9 @@ func (h *Handler) listNotificationChannels(ctx context.Context, input *ListNotif
 	}
 	var channels []models.NotificationChannel
 	h.orgDB(r).Order("created_at DESC").Find(&channels)
+	for i := range channels {
+		channels[i].Config = redactConfigSecrets(channels[i].Config)
+	}
 	return &ListNotificationChannelsOutput{Body: channels}, nil
 }
 
@@ -130,7 +195,12 @@ func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNo
 		ch.Type = strings.ToLower(strings.TrimSpace(*d.Type))
 	}
 	if d.Config != nil {
-		ch.Config = *d.Config
+		newCfgStr := *d.Config
+		if ch.Config != "" && strings.Contains(newCfgStr, "[REDACTED]") {
+			ch.Config = mergeConfigPreservingSecrets(ch.Config, newCfgStr)
+		} else {
+			ch.Config = newCfgStr
+		}
 	}
 	if d.Enabled != nil {
 		ch.Enabled = *d.Enabled
@@ -150,7 +220,9 @@ func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNo
 		meta["enabled"] = *d.Enabled
 	}
 	h.audit(r, "notification.update", "notification_channel", ch.ID, meta)
-	return &UpdateNotificationChannelOutput{Body: ch}, nil
+	out := ch
+	out.Config = redactConfigSecrets(out.Config)
+	return &UpdateNotificationChannelOutput{Body: out}, nil
 }
 
 type DeleteNotificationChannelInput struct {
@@ -224,4 +296,65 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 	out := &TestNotificationChannelOutput{}
 	out.Body.OK = true
 	return out, nil
+}
+
+func redactConfigSecrets(cfgJSON string) string {
+	if strings.TrimSpace(cfgJSON) == "" {
+		return "{}"
+	}
+	var m map[string]any
+	if err := json.Unmarshal([]byte(cfgJSON), &m); err != nil {
+		return cfgJSON
+	}
+	redactMap(m)
+	b, err := json.Marshal(m)
+	if err != nil {
+		return cfgJSON
+	}
+	return string(b)
+}
+
+func redactMap(m map[string]any) {
+	for k, v := range m {
+		lk := strings.ToLower(k)
+		if strings.Contains(lk, "token") || strings.Contains(lk, "secret") || strings.Contains(lk, "password") {
+			if s, ok := v.(string); ok && s != "" {
+				m[k] = "[REDACTED]"
+			}
+		} else if child, ok := v.(map[string]any); ok {
+			redactMap(child)
+		}
+	}
+}
+
+func mergeConfigPreservingSecrets(oldJSON, newJSON string) string {
+	var oldMap, newMap map[string]any
+	if json.Unmarshal([]byte(oldJSON), &oldMap) != nil {
+		return newJSON
+	}
+	if json.Unmarshal([]byte(newJSON), &newMap) != nil {
+		return newJSON
+	}
+	mergeMapsPreservingSecrets(oldMap, newMap)
+	b, err := json.Marshal(newMap)
+	if err != nil {
+		return newJSON
+	}
+	return string(b)
+}
+
+func mergeMapsPreservingSecrets(oldMap, newMap map[string]any) {
+	for k, v := range newMap {
+		if s, ok := v.(string); ok && s == "[REDACTED]" {
+			if oldVal, exists := oldMap[k]; exists {
+				if oldStr, isStr := oldVal.(string); isStr && oldStr != "" {
+					newMap[k] = oldStr
+				}
+			}
+		} else if newChild, ok := v.(map[string]any); ok {
+			if oldChild, exists := oldMap[k].(map[string]any); exists {
+				mergeMapsPreservingSecrets(oldChild, newChild)
+			}
+		}
+	}
 }

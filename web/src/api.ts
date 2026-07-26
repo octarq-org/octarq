@@ -49,6 +49,16 @@ export interface NotificationChannel {
   createdAt: string;
 }
 
+// One selectable channel type in the Alerts provider list. Built-ins and
+// plugin-contributed types are the same shape — the point of the registry is
+// that the UI cannot tell them apart. Mirrors api.NotificationChannelType.
+export interface NotificationChannelType {
+  type: string;
+  title: string;
+  description: string;
+  icon: string;
+}
+
 export interface SessionRecord {
   id: number;
   userId: number;
@@ -331,6 +341,9 @@ export const api = {
   deleteToken: (id: number) => req<void>("DELETE", `/api/tokens/${id}`),
 
   // notification channels
+  // The available channel types, org-scoped: a type contributed by a plugin the
+  // workspace has disabled is not listed. Drives the provider list in Alerts.
+  notificationChannelTypes: () => req<NotificationChannelType[]>("GET", "/api/notification-channel-types"),
   notificationChannels: () => req<NotificationChannel[]>("GET", "/api/notification-channels"),
   createNotificationChannel: (d: any) => req<NotificationChannel>("POST", "/api/notification-channels", d),
   updateNotificationChannel: (id: number, d: any) => req<NotificationChannel>("PUT", `/api/notification-channels/${id}`, d),

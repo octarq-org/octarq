@@ -380,6 +380,17 @@ func (a *App) RunMCP(ctx context.Context) error {
 	}
 	for _, p := range a.plugins {
 		pctxCopy := *pctx
+		pInfo := plugin.Describe(p)
+		pName := p.Name()
+		pctxCopy.RegisterNotifier = func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
+			notify.RegisterWithDescriptor(notify.Descriptor{
+				Type:        typ,
+				Title:       pInfo.Title,
+				Description: pInfo.Description,
+				Icon:        pInfo.Icon,
+				PluginName:  pName,
+			}, send)
+		}
 		if plugin.Describe(p).Core {
 			pctxCopy.Huma = apiHandler.Huma()
 			p.Mount(throwaway, &pctxCopy)
@@ -550,6 +561,17 @@ func (a *App) Run(ctx context.Context) error {
 	}
 	for _, p := range a.plugins {
 		pctxCopy := *pctx
+		pInfo := plugin.Describe(p)
+		pName := p.Name()
+		pctxCopy.RegisterNotifier = func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
+			notify.RegisterWithDescriptor(notify.Descriptor{
+				Type:        typ,
+				Title:       pInfo.Title,
+				Description: pInfo.Description,
+				Icon:        pInfo.Icon,
+				PluginName:  pName,
+			}, send)
+		}
 		if plugin.Describe(p).Core {
 			pctxCopy.Huma = apiHandler.Huma()
 			p.Mount(mux, &pctxCopy)

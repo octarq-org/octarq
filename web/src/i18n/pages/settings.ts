@@ -311,6 +311,10 @@ export const settings = {
     defaultFromHint: "Used when no sender address is specified.",
     saveRelay: "Save",
 
+    // NotificationChannels provider list
+    notifyProvidersHeading: "Notification providers",
+    notifyAddChannelOfType: "Add channel",
+
     // Shared status
     active: "Active",
     pluginChannels: "Channels from plugins",
@@ -627,6 +631,10 @@ export const settings = {
     defaultFromAddress: "默认发件地址",
     defaultFromHint: "未指定发件地址时使用。",
     saveRelay: "保存",
+
+    // NotificationChannels provider list
+    notifyProvidersHeading: "通知提供商",
+    notifyAddChannelOfType: "添加渠道",
 
     // Shared status
     active: "有效",
@@ -945,6 +953,10 @@ export const settings = {
     defaultFromHint: "Se utiliza cuando no se especifica una dirección de remitente.",
     saveRelay: "Guardar",
 
+    // NotificationChannels provider list
+    notifyProvidersHeading: "Proveedores de notificación",
+    notifyAddChannelOfType: "Añadir canal",
+
     // Shared status
     active: "Activo",
     pluginChannels: "Canales de plugins",
@@ -1262,6 +1274,10 @@ export const settings = {
     defaultFromHint: "Usado quando nenhum endereço de remetente é especificado.",
     saveRelay: "Salvar",
 
+    // NotificationChannels provider list
+    notifyProvidersHeading: "Provedores de notificação",
+    notifyAddChannelOfType: "Adicionar canal",
+
     // Shared status
     active: "Ativo",
     pluginChannels: "Canais de plugins",
@@ -1578,6 +1594,10 @@ export const settings = {
     defaultFromAddress: "デフォルトの送信元アドレス",
     defaultFromHint: "送信元アドレスが指定されていない場合に使用されます。",
     saveRelay: "保存",
+
+    // NotificationChannels provider list
+    notifyProvidersHeading: "通知プロバイダー",
+    notifyAddChannelOfType: "チャンネルを追加",
 
     // Shared status
     active: "アクティブ",
