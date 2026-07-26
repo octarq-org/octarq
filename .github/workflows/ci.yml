@@ -90,6 +90,9 @@ jobs:
       - name: Type-check
         run: pnpm typecheck
 
+      - name: Color lint
+        run: pnpm lint:colors
+
       # plugin-sdk is a member of the web workspace (../packages/*), so its
       # deps are already installed by the pnpm install above.
       - name: Test plugin SDK

@@ -60,9 +60,21 @@ body,
   --gradient-primary: linear-gradient(135deg, #6366f1 0%, #7c5cf6 55%, #8b5cf6 100%);
 
   /* Status accents — readable on the current surface (600-weight on light). */
-  --danger-fg: #dc2626;
-  --success-fg: #16a34a;
-  --warning-fg: #d97706;
+  --info-bg: #eef2ff;
+  --info-border: #c7d2fe;
+  --info-fg: #4338ca;
+
+  --success-bg: #ecfdf5;
+  --success-border: #a7f3d0;
+  --success-fg: #047857;
+
+  --warning-bg: #fffbeb;
+  --warning-border: #fde68a;
+  --warning-fg: #b45309;
+
+  --danger-bg: #fef2f2;
+  --danger-border: #fecaca;
+  --danger-fg: #b91c1c;
 
   /* Lines & focus */
   --border: #e7e7e3;
@@ -94,9 +106,21 @@ body,
   --primary-foreground: #ffffff;
   --accent-fg: #a5b4fc;                            /* indigo-300 — accent text on dark */
 
-  --danger-fg: #fda4af;                            /* rose-300 */
-  --success-fg: #6ee7b7;                           /* emerald-300 */
-  --warning-fg: #fbbf24;                           /* amber-400 */
+  --info-bg: rgba(99, 102, 241, 0.15);
+  --info-border: rgba(99, 102, 241, 0.35);
+  --info-fg: #a5b4fc;
+
+  --success-bg: rgba(16, 185, 129, 0.15);
+  --success-border: rgba(16, 185, 129, 0.35);
+  --success-fg: #6ee7b7;
+
+  --warning-bg: rgba(245, 158, 11, 0.15);
+  --warning-border: rgba(245, 158, 11, 0.38);
+  --warning-fg: #fcd34d;
+
+  --danger-bg: rgba(244, 63, 94, 0.15);
+  --danger-border: rgba(244, 63, 94, 0.38);
+  --danger-fg: #fda4af;
 
   --border: rgba(255, 255, 255, 0.07);
   --border-strong: rgba(255, 255, 255, 0.10);
@@ -120,9 +144,23 @@ body,
   --color-accent-indigo: var(--accent-indigo);
   --color-accent-violet: var(--accent-violet);
   --color-accent-fg: var(--accent-fg);
-  --color-danger-fg: var(--danger-fg);
+
+  --color-info-bg: var(--info-bg);
+  --color-info-border: var(--info-border);
+  --color-info-fg: var(--info-fg);
+
+  --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
   --color-success-fg: var(--success-fg);
+
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
   --color-warning-fg: var(--warning-fg);
+
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-border: var(--danger-border);
+  --color-danger-fg: var(--danger-fg);
+
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-input: var(--input);
