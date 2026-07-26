@@ -163,7 +163,7 @@ export function ApiTokens() {
                   <Button
                     variant="danger"
                     onClick={() => remove(timer.id)}
-                    className="text-xs py-1 px-2.5 bg-rose-500/0 hover:bg-rose-500/10 border-0"
+                    className="text-xs py-1 px-2.5 border-0"
                   >
                     {t("personal.revoke")}
                   </Button>

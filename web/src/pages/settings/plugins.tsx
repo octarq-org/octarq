@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, PluginInfo } from "../../api";
-import { Toggle, PageHeader, GlassCard, Badge } from "../../ui";
+import { Toggle, PageHeader, GlassCard, Badge, Alert } from "../../ui";
 import { ShieldAlert, Puzzle, Search, Tag } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { menuIcon } from "../../shell/areas";
@@ -94,10 +94,9 @@ export function PluginsSettings() {
       <PageHeader title={t("settings.pluginsTitle")} description={t("settings.pluginsDescription")} />
 
       {err && (
-        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-danger-fg text-xs flex gap-2 items-center">
-          <ShieldAlert className="h-4 w-4 shrink-0" />
-          <span>{err}</span>
-        </div>
+        <Alert variant="danger" icon={<ShieldAlert className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
+          {err}
+        </Alert>
       )}
 
       {plugins !== null && plugins.length > 0 && (

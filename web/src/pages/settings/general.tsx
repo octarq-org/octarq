@@ -125,7 +125,7 @@ export function GeneralSettings() {
 
       {isAdminOrOwner && (
         <>
-          <GlassCard className="p-6 border-red-500/20 bg-red-950/5 space-y-6">
+          <GlassCard className="p-6 border-danger-border bg-danger-bg/50 space-y-6">
             <div className="flex items-center gap-2 text-danger-fg">
               <ShieldAlert size={20} />
               <h2 className="text-base font-bold">{t("settings.dangerZone")}</h2>
@@ -153,7 +153,7 @@ export function GeneralSettings() {
             </p>
             <input
               type="text"
-              className="input w-full text-sm font-mono text-center border-red-500/30 focus:border-red-500/60"
+              className="input w-full text-sm font-mono text-center border-danger-border focus:border-danger-fg"
               value={deleteConfirmationText}
               onChange={(e) => setDeleteConfirmationText(e.target.value)}
               placeholder="DELETE MY DATA"

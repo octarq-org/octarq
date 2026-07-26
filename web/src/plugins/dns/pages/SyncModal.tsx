@@ -25,7 +25,7 @@ export function SyncModal({ accounts, onClose, onSynced }: { accounts: ProviderA
     <Modal title={t("domains.syncDnsZones")} onClose={onClose}>
       {result ? (
         <div className="py-4 text-center space-y-4">
-          <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-success-fg mx-auto">
+          <div className="h-12 w-12 rounded-full bg-success-bg border border-success-border flex items-center justify-center text-success-fg mx-auto">
             <ShieldCheck className="h-6 w-6" />
           </div>
           <div>

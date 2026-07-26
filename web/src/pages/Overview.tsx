@@ -136,7 +136,7 @@ export default function OverviewPage() {
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div>
-              <div className={`flex items-center gap-2 ${allCompleted ? "text-emerald-400" : "text-accent-fg"}`}>
+              <div className={`flex items-center gap-2 ${allCompleted ? "text-success-fg" : "text-accent-fg"}`}>
                 <Sparkles size={18} className={allCompleted ? "" : "animate-pulse"} />
                 <span className="text-xs font-semibold uppercase tracking-wider">{t("overview.gettingStarted")}</span>
               </div>
@@ -151,13 +151,13 @@ export default function OverviewPage() {
             <div className="flex items-center gap-3 shrink-0">
               <div className="text-right">
                 <span className="text-xs text-foreground/40">{t("overview.setupProgress")}</span>
-                <span className={`block text-lg font-bold ${allCompleted ? "text-emerald-400" : "text-accent-fg"}`}>{progressPercent}%</span>
+                <span className={`block text-lg font-bold ${allCompleted ? "text-success-fg" : "text-accent-fg"}`}>{progressPercent}%</span>
               </div>
               <div className="w-32 bg-foreground/10 h-2 rounded-full overflow-hidden">
                 <div 
                   className={`h-full rounded-full transition-all duration-500 ${
                     allCompleted
-                      ? "bg-gradient-to-r from-emerald-500 to-teal-400"
+                      ? "bg-gradient-to-r from-emerald-500 to-teal-400" /* ui-color-ok */
                       : "bg-gradient-to-r from-indigo-500 to-violet-500"
                   }`} 
                   style={{ width: `${progressPercent}%` }}
@@ -173,12 +173,12 @@ export default function OverviewPage() {
                 onClick={() => nav(step.path)}
                 className={`group flex flex-col text-left p-4 rounded-xl border transition-all duration-200 ${
                   step.completed 
-                    ? "bg-foreground/[0.02] border-emerald-500/20 hover:border-emerald-500/30" 
+                    ? "bg-foreground/[0.02] border-success-border/50 hover:border-success-border" 
                     : "bg-foreground/5 border-foreground/[0.06] hover:border-indigo-500/30 hover:bg-foreground/[0.08]"
                 }`}
               >
                 <div className="flex items-center justify-between w-full">
-                  <div className={`p-1.5 rounded-lg ${step.completed ? "text-success-fg bg-emerald-500/10" : "text-accent-fg bg-indigo-500/10"}`}>
+                  <div className={`p-1.5 rounded-lg ${step.completed ? "text-success-fg bg-success-bg" : "text-accent-fg bg-indigo-500/10"}`}>
                     {step.completed ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                   </div>
                   {!step.completed && (
@@ -331,7 +331,7 @@ function BotToggle({ value, onChange }: { value: boolean; onChange: (v: boolean)
       title={value ? t("overview.hideBotTraffic") : t("overview.showBotTraffic")}
       className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition ${
         value
-          ? "bg-amber-500/20 text-warning-fg hover:bg-amber-500/30"
+          ? "bg-warning-bg text-warning-fg border border-warning-border hover:brightness-95"
           : "bg-foreground/[0.06] text-foreground/55 hover:bg-foreground/[0.06]"
       }`}
     >

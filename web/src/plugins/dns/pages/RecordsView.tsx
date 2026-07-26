@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, Domain, HostEntry, ProviderAccount } from "../../../api";
 import { dnsApi, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus } from "../api";
-import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../../ui";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert } from "../../../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
@@ -54,7 +54,7 @@ export function RecordsView({ domain }: { domain: Domain }) {
 
       <p className="text-[11px] text-foreground/50">{t("domains.recordsNote", { shown: filtered.length, total: records?.length ?? 0 })}</p>
       
-      {err && <p className="rounded bg-rose-500/10 p-3 text-xs text-danger-fg font-medium">{err}</p>}
+      {err && <Alert variant="danger" className="p-3 text-xs font-medium">{err}</Alert>}
       
       {records === null ? (
         <p className="text-foreground/40 p-6 text-center text-xs">{t("domains.loadingRecords")}</p>
@@ -80,7 +80,7 @@ export function RecordsView({ domain }: { domain: Domain }) {
                       <span className="font-mono text-foreground/85 bg-foreground/5 px-2 py-0.5 rounded-lg border border-foreground/[0.04]">{r.type}</span>
                       {r.proxied && (
                         <span title={t("domains.cloudflareProxied")}>
-                          <Cloud className="h-3 w-3 text-amber-500 fill-amber-500/10" />
+                          <Cloud className="h-3 w-3 text-warning-fg fill-warning-bg" />
                         </span>
                       )}
                     </span>
@@ -91,7 +91,7 @@ export function RecordsView({ domain }: { domain: Domain }) {
                   <td className="py-3 pr-4 text-right">
                     <div className="flex gap-1.5 justify-end">
                       <Button variant="ghost" className="px-2 py-0.5 text-[10px]" onClick={() => setEditing(r)}>{t("domains.edit")}</Button>
-                      <Button variant="danger" className="px-2 py-0.5 text-[10px] text-danger-fg bg-rose-500/0 hover:bg-rose-500/10 border-0" onClick={async () => { if (confirm(t("domains.deleteRecordConfirm", { type: r.type, name: r.name }))) { await dnsApi.deleteRecord(domain.id, r.id); load(); } }}>{t("domains.del")}</Button>
+                      <Button variant="danger" className="px-2 py-0.5 text-[10px] text-danger-fg border-0" onClick={async () => { if (confirm(t("domains.deleteRecordConfirm", { type: r.type, name: r.name }))) { await dnsApi.deleteRecord(domain.id, r.id); load(); } }}>{t("domains.del")}</Button>
                     </div>
                   </td>
                 </tr>

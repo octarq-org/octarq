@@ -10,7 +10,7 @@ const SettingsPage = lazy(() => import("./pages/Settings"));
 const InviteAcceptPage = lazy(() => import("./pages/InviteAccept"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"));
 const StatusPage = lazy(() => import("./pages/Status"));
-import { Modal, Button, toast, cn } from "./ui";
+import { Modal, Button, toast, cn, Alert } from "./ui";
 import { useTranslation } from "./i18n";
 import { Area, AreaId, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
 import { RoleProvider, roleSatisfies } from "./shell/role";
@@ -517,12 +517,12 @@ function Shell({
       />
 
       {emailVerified === false && !dismissedVerifyBanner && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-300 flex items-center justify-between gap-2 z-40">
-          <div className="flex items-center gap-2">
-            <Mail className="h-4 w-4 shrink-0 text-amber-400" />
-            <span>{t("app.verifyEmailBanner") || "Your email address is not verified."}</span>
-          </div>
-          <div className="flex items-center gap-2">
+        <Alert
+          variant="warning"
+          icon={<Mail className="h-4 w-4" />}
+          onDismiss={() => setDismissedVerifyBanner(true)}
+          className="rounded-none border-x-0 border-t-0 text-xs py-2 px-4 z-40"
+          actions={
             <button
               onClick={async () => {
                 setResendingVerify(true);
@@ -536,18 +536,14 @@ function Shell({
                 }
               }}
               disabled={resendingVerify}
-              className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-medium transition-colors disabled:opacity-50"
+              className="px-2.5 py-1 rounded-lg bg-warning-bg hover:brightness-95 border border-warning-border text-warning-fg font-medium transition-colors disabled:opacity-50 text-xs"
             >
               {resendingVerify ? t("app.sending") || "Sending..." : t("app.resendVerificationBtn") || "Resend Verification Email"}
             </button>
-            <button
-              onClick={() => setDismissedVerifyBanner(true)}
-              className="text-amber-400/60 hover:text-amber-300 text-sm px-1 font-bold"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
+          }
+        >
+          {t("app.verifyEmailBanner") || "Your email address is not verified."}
+        </Alert>
       )}
 
       <div className="relative flex min-h-0 flex-1 overflow-hidden">

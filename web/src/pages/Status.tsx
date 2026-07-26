@@ -5,6 +5,8 @@ import { BrandMark } from "../shell/BrandMark";
 import { useI18n } from "../i18n";
 import { useTheme, toggleTheme } from "../theme";
 
+import { Badge } from "../ui";
+
 export default function StatusPage() {
   const { lang, setLang, t } = useI18n();
   const theme = useTheme();
@@ -20,7 +22,7 @@ export default function StatusPage() {
       setData(res);
       setError(null);
     } catch (e: any) {
-      setError(e.message || "Failed to fetch status");
+      setError(e.message || "Failed to load subsystem status");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -38,21 +40,21 @@ export default function StatusPage() {
   const getOverallBanner = () => {
     if (overall === "ok") {
       return {
-        bg: "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400",
-        icon: <CheckCircle2 className="h-8 w-8 text-emerald-500 animate-pulse" />,
+        bg: "bg-success-bg border-success-border text-success-fg",
+        icon: <CheckCircle2 className="h-8 w-8 text-success-fg animate-pulse" />,
         title: t("status.allSystemsOperational"),
       };
     }
     if (overall === "degraded") {
       return {
-        bg: "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400",
-        icon: <AlertTriangle className="h-8 w-8 text-amber-500 animate-bounce" />,
+        bg: "bg-warning-bg border-warning-border text-warning-fg",
+        icon: <AlertTriangle className="h-8 w-8 text-warning-fg animate-bounce" />,
         title: t("status.someSystemsDegraded"),
       };
     }
     return {
-      bg: "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400",
-      icon: <XCircle className="h-8 w-8 text-rose-500" />,
+      bg: "bg-danger-bg border-danger-border text-danger-fg",
+      icon: <XCircle className="h-8 w-8 text-danger-fg" />,
       title: t("status.majorOutage"),
     };
   };
@@ -65,44 +67,36 @@ export default function StatusPage() {
         return (
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success-fg opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-success-fg"></span>
             </span>
-            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-              {t("status.statusOk")}
-            </span>
+            <Badge variant="success">{t("status.statusOk")}</Badge>
           </div>
         );
       case "degraded":
         return (
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-warning-fg opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-warning-fg"></span>
             </span>
-            <span className="text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
-              {t("status.statusDegraded")}
-            </span>
+            <Badge variant="warning">{t("status.statusDegraded")}</Badge>
           </div>
         );
       case "down":
         return (
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-danger-fg"></span>
             </span>
-            <span className="text-xs font-medium text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-full border border-rose-500/20">
-              {t("status.statusDown")}
-            </span>
+            <Badge variant="danger">{t("status.statusDown")}</Badge>
           </div>
         );
       default:
         return (
           <div className="flex items-center gap-2">
             <MinusCircle className="h-4 w-4 text-foreground/40" />
-            <span className="text-xs font-medium text-foreground/50 bg-foreground/5 px-2.5 py-1 rounded-full border border-foreground/10">
-              {t("status.statusNa")}
-            </span>
+            <Badge variant="default">{t("status.statusNa")}</Badge>
           </div>
         );
     }
