@@ -9,6 +9,12 @@ import { Org } from "../api";
 import { cn } from "../ui";
 import { useTranslation } from "../i18n";
 import { Area, NavItem } from "./areas";
+import {
+  translateAreaTitle,
+  translateAreaSubtitle,
+  translateGroupLabel,
+  translateNavItemLabel,
+} from "./navI18n";
 
 // octarq-provided resources — the same product links a standard SaaS keeps
 // within reach. These are octarq's, not the org's, so they live in the sidebar
@@ -141,10 +147,10 @@ export function AreaPanel({
         ) : (
           <div className="px-1">
             <h2 className="truncate font-display text-[17px] font-bold tracking-tight text-foreground">
-              {t(`areas.${area.id}.title`, area.title)}
+              {translateAreaTitle(t, area.id, area.title)}
             </h2>
             <p className="truncate text-[12px] text-muted-foreground">
-              {t(`areas.${area.id}.subtitle`, area.subtitle)}
+              {translateAreaSubtitle(t, area.id, area.subtitle)}
             </p>
           </div>
         )}
@@ -158,7 +164,7 @@ export function AreaPanel({
               ? gi > 0 && <div className="mx-auto my-1.5 h-px w-6 bg-border" />
               : (
                 <p className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t(`groups.${group.label}`, group.label)}
+                  {translateGroupLabel(t, group.label)}
                 </p>
               )}
             <div className="space-y-0.5">
@@ -170,8 +176,8 @@ export function AreaPanel({
                       key={item.id}
                       to={item.path}
                       onClick={onNavigate}
-                      title={t(`nav.${item.id}`, item.label)}
-                      aria-label={t(`nav.${item.id}`, item.label)}
+                      title={translateNavItemLabel(t, item.id, item.label)}
+                      aria-label={translateNavItemLabel(t, item.id, item.label)}
                       className={cn(
                         "relative mx-auto flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
                         active
@@ -220,7 +226,7 @@ export function AreaPanel({
                         strokeWidth={1.75}
                       />
                     )}
-                    <span className="relative flex-1 truncate">{t(`nav.${item.id}`, item.label)}</span>
+                    <span className="relative flex-1 truncate">{translateNavItemLabel(t, item.id, item.label)}</span>
                     {item.badge !== undefined && (
                       <span className="relative text-[11px] font-medium text-muted-foreground">
                         {item.badge}

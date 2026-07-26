@@ -77,18 +77,13 @@ export const ja = {
     Messaging: "メッセージング",
     Network: "ネットワーク",
     Hosting: "ホスティング",
-    "Storage & Databases": "Storage とデータベース",
+    "Storage & Databases": "ストレージ＆データベース",
     Security: "セキュリティ",
     System: "システム",
     Account: "アカウント",
     Subscriptions: "サブスクリプション",
     Instance: "インスタンス",
   },
-  // Core nav labels only. Pro menu labels (storefront, licenses, billing,
-  // finance, inbox-ai, vps, sshkeys, license) are contributed by their plugin
-  // packages via the reserved `_shared.nav.*` i18n key (see PluginI18n) — core
-  // no longer carries them. Lookups are `t(`nav.${id}`, item.label)`, so an
-  // OSS build with no plugin for an id simply renders the menu's own label.
   nav: {
     overview: "概要",
     links: "リンク",
@@ -98,16 +93,18 @@ export const ja = {
     databases: "データベース",
     storage: "Object Storage",
     abuse: "不正使用レポート",
-    audit: "監査",
+    audit: "監査ログ",
     general: "一般",
-    plugins: "Plugins",
+    plugins: "機能",
     members: "メンバー",
     webhooks: "Webhooks",
     notifications: "アラート",
     profile: "マイプロファイル",
     security: "セキュリティ",
     tokens: "API Tokens",
+    auth: "認証",
     instance: "インスタンス設定",
+    "instance-plugins": "プラグイン",
   },
   status: {
     title: "システムステータス",

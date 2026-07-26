@@ -1,8 +1,10 @@
 export const mailI18n = {
   en: {
-    // Shared-namespace contribution: this plugin's description in the
-    // plugin manager (core chrome looks up settings.pluginDesc.mail).
-    _shared: { settings: { pluginDesc: { mail: "Transactional email sending, mailbox receiving, and SMTP configurations." } } },
+    _shared: {
+      nav: { mail: "Mail" },
+      groups: { Communication: "Communication" },
+      settings: { pluginDesc: { mail: "Transactional email sending, mailbox receiving, and SMTP configurations." } },
+    },
     pageTitle: "Mail",
     pageDesc: "Custom domain email reading, replying & SMTP relays",
     markRead: "Mark Read",
@@ -89,7 +91,11 @@ export const mailI18n = {
     noMail: "No mail yet",
   },
   zh: {
-    _shared: { settings: { pluginDesc: { mail: "事务邮件发送、邮箱接收与 SMTP 发送服务配置。" } } },
+    _shared: {
+      nav: { mail: "邮件" },
+      groups: { Communication: "通信" },
+      settings: { pluginDesc: { mail: "事务邮件发送、邮箱接收与 SMTP 发送服务配置。" } },
+    },
     pageTitle: "邮件",
     pageDesc: "自定义域名邮件的收取、回复与 SMTP 中继",
     markRead: "全部已读",
@@ -176,18 +182,33 @@ export const mailI18n = {
     noMail: "暂无邮件",
   },
   es: {
+    _shared: {
+      nav: { mail: "Correo" },
+      groups: { Communication: "Comunicación" },
+      settings: { pluginDesc: { mail: "Envío de correos transaccionales, recepción de buzones y configuraciones SMTP." } },
+    },
     recentMail: "Correo reciente",
     noMail: "Aún no hay correo",
     unknownSender: "(desconocido)",
     noSubject: "(sin asunto)",
   },
   pt: {
+    _shared: {
+      nav: { mail: "E-mail" },
+      groups: { Communication: "Comunicação" },
+      settings: { pluginDesc: { mail: "Envio de e-mails transacionais, recepção de caixas postais e configurações SMTP." } },
+    },
     recentMail: "Correio recente",
     noMail: "Nenhum correio ainda",
     unknownSender: "(desconhecido)",
     noSubject: "(sem assunto)",
   },
   ja: {
+    _shared: {
+      nav: { mail: "メール" },
+      groups: { Communication: "コミュニケーション" },
+      settings: { pluginDesc: { mail: "トランザクションメールの送信、メールボックスの受信、SMTP構成。" } },
+    },
     recentMail: "最近のメール",
     noMail: "まだメールはありません",
     unknownSender: "（不明）",

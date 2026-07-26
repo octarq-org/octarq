@@ -77,18 +77,13 @@ export const pt = {
     Messaging: "Mensageria",
     Network: "Rede",
     Hosting: "Hospedagem",
-    "Storage & Databases": "Storage e Bancos de Dados",
+    "Storage & Databases": "Armazenamento e bancos de dados",
     Security: "Segurança",
     System: "Sistema",
     Account: "Conta",
     Subscriptions: "Assinaturas",
     Instance: "Instância",
   },
-  // Core nav labels only. Pro menu labels (storefront, licenses, billing,
-  // finance, inbox-ai, vps, sshkeys, license) are contributed by their plugin
-  // packages via the reserved `_shared.nav.*` i18n key (see PluginI18n) — core
-  // no longer carries them. Lookups are `t(`nav.${id}`, item.label)`, so an
-  // OSS build with no plugin for an id simply renders the menu's own label.
   nav: {
     overview: "Visão Geral",
     links: "Links",
@@ -98,16 +93,18 @@ export const pt = {
     databases: "Bancos de Dados",
     storage: "Object Storage",
     abuse: "Relatórios de Abuso",
-    audit: "Auditoria",
+    audit: "Log de Auditoria",
     general: "Geral",
-    plugins: "Plugins",
+    plugins: "Recursos",
     members: "Membros",
     webhooks: "Webhooks",
     notifications: "Alertas",
     profile: "Meu Perfil",
     security: "Segurança",
     tokens: "API Tokens",
+    auth: "Autenticação",
     instance: "Configurações da Instância",
+    "instance-plugins": "Plugins",
   },
   status: {
     title: "Status do sistema",

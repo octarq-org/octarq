@@ -8,6 +8,7 @@ import { BrandMark } from "./BrandMark";
 import { useTranslation, LANGS } from "../i18n";
 import { useTheme, toggleTheme } from "../theme";
 import { Area, AreaId } from "./areas";
+import { translateAreaTitle } from "./navI18n";
 
 // Shared styling for the Base UI Menu popups/items used below. Base UI gives us
 // Esc-to-close, roving arrow-key focus, focus-return to the trigger,
@@ -89,7 +90,7 @@ export function TopBar({
                 />
               )}
               <a.Icon className="relative h-4 w-4" strokeWidth={1.75} />
-              <span className="relative whitespace-nowrap">{t(`areas.${a.id}.title`, a.title)}</span>
+              <span className="relative whitespace-nowrap">{translateAreaTitle(t, a.id, a.title)}</span>
             </button>
           );
         })}
