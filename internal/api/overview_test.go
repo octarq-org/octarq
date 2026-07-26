@@ -83,3 +83,72 @@ func TestOverviewPluginAbsent(t *testing.T) {
 		t.Errorf("expected core key 'tokens' to be present")
 	}
 }
+
+type linksPlugin struct{ dummyPlugin }
+
+func (l linksPlugin) Name() string { return "links" }
+
+func TestOverviewPluginDisabled(t *testing.T) {
+	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
+
+	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
+	gdb, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("db.Open failed: %v", err)
+	}
+	if err := gdb.AutoMigrate(models.AllModels()...); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	cipher := crypto.New(cfg.SecretKey)
+	if err := cipher.EnableEnvelope(apiEnvStore{gdb}); err != nil {
+		t.Fatalf("EnableEnvelope: %v", err)
+	}
+	authMgr := auth.New(cfg, cipher).WithDB(gdb)
+	geoResolver, _ := geo.Open("")
+	taskQueue := queue.New("")
+
+	handler := New(cfg, gdb, cipher, authMgr, geoResolver, taskQueue)
+	lp := linksPlugin{}
+	handler.SetPlugins([]plugin.Plugin{lp})
+	reg := plugin.NewRegistry()
+	reg.Provide("links.overview", func(orgID uint, includeBot bool) map[string]any {
+		return map[string]any{
+			"links":       10,
+			"topLinks":    []any{},
+			"series":      []any{},
+			"totalClicks": 100,
+		}
+	})
+	handler.SetServiceLookup(reg.Lookup)
+
+	srv := handler.Routes()
+	cookies := loginCookies(t, srv)
+
+	// Disable links plugin for org 1
+	if err := gdb.Create(&models.PluginSetting{OrgID: 1, Plugin: "links", Enabled: false}).Error; err != nil {
+		t.Fatalf("create PluginSetting: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/overview", nil)
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var res map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatalf("invalid json output: %v", err)
+	}
+
+	for _, disabledKey := range []string{"links", "topLinks", "series", "totalClicks"} {
+		if _, exists := res[disabledKey]; exists {
+			t.Errorf("expected key %q to be absent when links plugin is disabled", disabledKey)
+		}
+	}
+}

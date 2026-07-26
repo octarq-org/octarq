@@ -85,6 +85,8 @@ export const mailI18n = {
     aiSummarizing: "Summarizing…",
     aiSummaryTitle: "AI Summary",
     aiSummaryFailed: "AI summary failed",
+    recentMail: "Recent mail",
+    noMail: "No mail yet",
   },
   zh: {
     _shared: { settings: { pluginDesc: { mail: "事务邮件发送、邮箱接收与 SMTP 发送服务配置。" } } },
@@ -170,5 +172,25 @@ export const mailI18n = {
     aiSummarizing: "摘要生成中…",
     aiSummaryTitle: "AI 摘要",
     aiSummaryFailed: "AI 摘要失败",
+    recentMail: "最近邮件",
+    noMail: "暂无邮件",
+  },
+  es: {
+    recentMail: "Correo reciente",
+    noMail: "Aún no hay correo",
+    unknownSender: "(desconocido)",
+    noSubject: "(sin asunto)",
+  },
+  pt: {
+    recentMail: "Correio recente",
+    noMail: "Nenhum correio ainda",
+    unknownSender: "(desconhecido)",
+    noSubject: "(sem assunto)",
+  },
+  ja: {
+    recentMail: "最近のメール",
+    noMail: "まだメールはありません",
+    unknownSender: "（不明）",
+    noSubject: "（件名なし）",
   },
 };

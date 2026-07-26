@@ -23,4 +23,4 @@ export {
   resetRegistry,
 } from "./registry";
 
-export { ExtensionSlot } from "./ExtensionSlot";
+export { ExtensionSlot, useExtensionCount } from "./ExtensionSlot";

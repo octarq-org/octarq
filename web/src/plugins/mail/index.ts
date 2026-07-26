@@ -9,6 +9,7 @@ const mail: UIPlugin = {
   widgets: [
     { slot: "home-overview", order: 20, Component: lazy(() => import("./widgets/MailStatCardWidget")) },
     { slot: "home-setup-steps", order: 30, Component: lazy(() => import("./widgets/MailSetupStepWidget")) },
+    { slot: "home-rows", order: 10, Component: lazy(() => import("./widgets/RecentMailPanelWidget")) },
   ],
   i18n: mailI18n,
 };

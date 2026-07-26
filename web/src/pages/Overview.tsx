@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, Overview } from "../api";
+import { api, fetchOverview, Overview } from "../api";
 import { useTranslation } from "../i18n";
 import { ExtensionSlot } from "../plugin-sdk";
-import { AreaChart, BarList, timeAgo, ScreenWrap, PageHeader, GlassCard, Skeleton } from "../ui";
+import { ScreenWrap, PageHeader, GlassCard, Skeleton } from "../ui";
 import { SetupStep } from "../components/SetupStep";
 import { Sparkles, X } from "lucide-react";
 
 export default function OverviewPage() {
   const [o, setO] = useState<Overview | null>(null);
-  const [includeBot, setIncludeBot] = useState(false);
   const [memberCount, setMemberCount] = useState<number | null>(null);
   const [twoFAEnabled, setTwoFAEnabled] = useState<boolean | null>(null);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem("dismiss_onboarding") === "true");
@@ -17,7 +16,7 @@ export default function OverviewPage() {
   const { t } = useTranslation();
 
   useEffect(() => {
-    api.overview(includeBot).then(setO).catch(() => {});
+    fetchOverview().then(setO).catch(() => {});
     api.orgMembers().then(m => setMemberCount(m.length)).catch(() => {});
     api.twoFAStatus().then(r => setTwoFAEnabled(r.enabled)).catch(() => {});
     api.getUserSettings().then(s => {
@@ -25,7 +24,7 @@ export default function OverviewPage() {
         setDismissed(true);
       }
     }).catch(() => {});
-  }, [includeBot]);
+  }, []);
 
   const dismiss = () => {
     localStorage.setItem("dismiss_onboarding", "true");
@@ -76,10 +75,6 @@ export default function OverviewPage() {
   const completedCount = steps.filter(s => s.completed).length;
   const progressPercent = Math.round((completedCount / steps.length) * 100);
   const allCompleted = completedCount > 0 && completedCount === steps.length;
-
-  const botLabel = includeBot
-    ? t("overview.botInclLabel", { count: o.botClicks30d })
-    : t("overview.botHiddenLabel", { count: o.botClicks30d });
 
   return (
     <ScreenWrap>
@@ -147,108 +142,22 @@ export default function OverviewPage() {
         </GlassCard>
       )}
 
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <ExtensionSlot name="home-overview" />
-      </div>
+      <ExtensionSlot
+        name="home-overview"
+        wrapper={(children) => <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">{children}</div>}
+      />
 
-      <GlassCard className="mb-6 p-5">
-        <div className="mb-4 flex items-center justify-between gap-2">
-          <h3 className="font-display font-semibold text-foreground">{t("overview.clicksLast30")}</h3>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-foreground/40">{t("overview.clicksTotal", { count: o.clicks30d ?? 0 })} · {botLabel}</span>
-            <BotToggle value={includeBot} onChange={setIncludeBot} />
-          </div>
-        </div>
-        <AreaChart series={o.series ?? []} />
-      </GlassCard>
+      <ExtensionSlot name="home-chart" />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {o.topLinks !== undefined && (
-          <Panel title={t("overview.topLinks")}>
-            {!o.topLinks || o.topLinks.length === 0 ? (
-              <p className="text-sm text-foreground/50">{t("overview.noLinks")}</p>
-            ) : (
-              <div className="space-y-1">
-                {o.topLinks.map((l) => (
-                  <button
-                    key={l.id}
-                    onClick={() => nav("/links")}
-                    className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-foreground/[0.06] transition-colors"
-                  >
-                    <span className="truncate text-accent-fg">
-                      /{l.slug}
-                      {l.host && <span className="text-foreground/40"> @{l.host}</span>}
-                    </span>
-                    <span className="shrink-0 font-semibold">{l.clicks}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </Panel>
-        )}
+      <ExtensionSlot
+        name="home-panels"
+        wrapper={(children) => <div className="grid gap-6 lg:grid-cols-3">{children}</div>}
+      />
 
-        <Panel title={`${t("overview.topCities")}${includeBot ? " " + t("overview.inclBots") : ""}`}>
-          <BarList rows={o.cities ?? []} empty={t("overview.noGeoData")} />
-        </Panel>
-
-        <Panel title={`${t("overview.devices")}${includeBot ? " " + t("overview.inclBots") : ""}`}>
-          <BarList rows={o.devices ?? []} />
-        </Panel>
-      </div>
-
-      {o.recentEmails !== undefined && (
-        <div className="mt-6">
-          <Panel title={t("overview.recentMail")}>
-            {!o.recentEmails || o.recentEmails.length === 0 ? (
-              <p className="text-sm text-foreground/50">{t("overview.noMail")}</p>
-            ) : (
-              <div className="divide-y divide-foreground/[0.04]">
-                {o.recentEmails.map((e) => (
-                  <button
-                    key={e.id}
-                    onClick={() => nav("/mail")}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-foreground/[0.06] transition-colors"
-                  >
-                    {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />}
-                    <span className={`w-40 shrink-0 truncate text-sm ${e.read ? "text-foreground/55" : "font-semibold"}`}>
-                      {e.from || t("overview.unknownSender")}
-                    </span>
-                    <span className="flex-1 truncate text-sm text-foreground/55">{e.subject || t("overview.noSubject")}</span>
-                    <span className="shrink-0 text-xs text-foreground/40">{timeAgo(e.receivedAt)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </Panel>
-        </div>
-      )}
-
+      <ExtensionSlot
+        name="home-rows"
+        wrapper={(children) => <div className="mt-6 space-y-6">{children}</div>}
+      />
     </ScreenWrap>
-  );
-}
-
-function BotToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
-  const { t } = useTranslation();
-  return (
-    <button
-      onClick={() => onChange(!value)}
-      title={value ? t("overview.hideBotTraffic") : t("overview.showBotTraffic")}
-      className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition ${
-        value
-          ? "bg-warning-bg text-warning-fg border border-warning-border hover:brightness-95"
-          : "bg-foreground/[0.06] text-foreground/55 hover:bg-foreground/[0.06]"
-      }`}
-    >
-      <span>{value ? t("overview.botsOn") : t("overview.botsOff")}</span>
-    </button>
-  );
-}
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <GlassCard className="p-5">
-      <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-foreground/50">{title}</h3>
-      {children}
-    </GlassCard>
   );
 }
