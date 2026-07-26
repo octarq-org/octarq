@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useAppName, brandInitial } from "../brand";
-import { Button } from "../ui";
+import { Button, Alert } from "../ui";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { useTranslation } from "../i18n";
 
@@ -69,7 +69,7 @@ export default function ResetPasswordPage() {
 
         {success ? (
           <div className="text-center py-6 space-y-3">
-            <div className="mx-auto w-12 h-12 rounded-full bg-emerald-500/10 text-success-fg flex items-center justify-center font-bold text-xl">
+            <div className="mx-auto w-12 h-12 rounded-full bg-success-bg text-success-fg border border-success-border flex items-center justify-center font-bold text-xl">
               ✓
             </div>
             <h2 className="text-base font-semibold text-foreground">
@@ -82,9 +82,9 @@ export default function ResetPasswordPage() {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {!token && (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-danger-fg text-xs rounded-xl">
+              <Alert variant="danger" className="text-xs p-3 rounded-xl">
                 {t("reset.noTokenWarning") || "Invalid or missing password reset link."}
-              </div>
+              </Alert>
             )}
 
             <div>

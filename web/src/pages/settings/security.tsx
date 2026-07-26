@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../api";
-import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
+import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast, Alert } from "../../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useSettingsData, useInstanceSettingsData, SavedBadge } from "./shared";
@@ -181,13 +181,13 @@ export function SecuritySettings() {
         {msg && <p className="text-sm text-success-fg">{msg}</p>}
 
         {recoveryCodes && (
-          <div className="rounded-xl border border-amber-400/30 bg-amber-400/[0.06] p-4">
+          <Alert variant="warning" className="p-4">
             <p className="text-xs font-bold text-warning-fg mb-2">{t("settings.saveRecoveryCodes")}</p>
             <p className="text-[11px] text-foreground/50 mb-3">{t("settings.recoveryCodesDesc")}</p>
             <div className="grid grid-cols-2 gap-1 font-mono text-xs text-foreground/80">
               {recoveryCodes.map((c) => <span key={c}>{c}</span>)}
             </div>
-          </div>
+          </Alert>
         )}
 
         {!enabled && !setup && (

@@ -155,7 +155,7 @@ export function EmailViewForm({
                   onClose();
                 }
               }}
-              className="text-xs py-1.5 px-3 bg-rose-500/10 hover:bg-rose-500/20 border-0"
+              className="text-xs py-1.5 px-3 border-0"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>

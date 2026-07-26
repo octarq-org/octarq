@@ -218,7 +218,7 @@ export default function LinksPage() {
                           loadMore(true);
                         }
                       }}
-                      className="text-xs py-1.5 px-3 gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-danger-fg border-0"
+                      className="text-xs py-1.5 px-3 gap-1.5 border-0"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       {t("links.delete")}

@@ -56,7 +56,7 @@ export function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () =>
     <Modal title={t("mail.composeMail")} onClose={onClose}>
       {ok ? (
         <div className="py-6 text-center space-y-4">
-          <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-success-fg mx-auto">
+          <div className="h-12 w-12 rounded-full bg-success-bg border border-success-border flex items-center justify-center text-success-fg mx-auto">
             <CheckCircle className="h-6 w-6" />
           </div>
           <p className="text-foreground font-semibold">{t("mail.messageSent")}</p>

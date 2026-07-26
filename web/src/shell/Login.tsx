@@ -4,6 +4,7 @@ import { api, ApiError } from "../api";
 import { useAppName } from "../brand";
 import { BrandMark } from "./BrandMark";
 import { useTranslation } from "../i18n";
+import { Alert } from "../ui";
 
 export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
   const [u, setU] = useState("admin");
@@ -24,23 +25,24 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
   useEffect(() => {
     api.authConfig()
       .then(setOauthConfig)
-      .catch(() => setOauthConfig({ googleEnabled: false, githubEnabled: false, registrationEnabled: false }));
+      .catch(() => setOauthConfig(null));
 
-    const search = new URLSearchParams(window.location.search);
-    if (search.get("verified") === "1") {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("verified") === "true") {
       setIsVerifiedNotice(true);
+      window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
 
   async function finishLogin(username: string) {
-    const m = await api.me();
-    onLogin(username, m.orgId);
+    const me = await api.me();
+    onLogin(username, me.orgId);
   }
 
   async function doSubmit() {
     if (busy) return;
-    setBusy(true);
     setErr("");
+    setBusy(true);
     setVerifySent(false);
 
     try {
@@ -137,10 +139,9 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
         </div>
 
         {isVerifiedNotice && (
-          <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-success-fg text-xs flex gap-2 items-center">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <Alert variant="success" icon={<CheckCircle2 className="h-4 w-4 shrink-0" />} className="mb-4 text-xs p-3 rounded-xl">
             <span>{t("app.emailVerifiedSuccess") || "Email verified successfully! You can now sign in."}</span>
-          </div>
+          </Alert>
         )}
 
         {err && (
@@ -152,7 +153,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
             {isUnverifiedErr && (
               <div className="pt-1">
                 {verifySent ? (
-                  <p className="text-emerald-400 font-medium">
+                  <p className="text-success-fg font-medium">
                     ✓ {t("app.verificationSent") || "Verification email sent. Please check your inbox."}
                   </p>
                 ) : (
@@ -175,10 +176,9 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
 
         {mode === "forgot" && forgotSent ? (
           <div className="text-center py-4 space-y-4">
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-success-fg text-xs flex gap-2 items-center justify-center">
-              <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <Alert variant="success" icon={<CheckCircle2 className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
               <span>{t("app.forgotSentNotice") || "If an account exists with that email, a reset link has been sent."}</span>
-            </div>
+            </Alert>
             <button
               type="button"
               onClick={() => switchMode("login")}

@@ -237,7 +237,7 @@ export default function DomainsPage() {
                         loadMore(true);
                       }
                     }}
-                    className="py-1 px-2.5 text-xs bg-rose-500/10 hover:bg-rose-500/20 text-danger-fg border-0"
+                    className="py-1 px-2.5 text-xs border-0"
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-1" />
                     {t("domains.delete")}

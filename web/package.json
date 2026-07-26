@@ -8,6 +8,7 @@
     "dev": "vite --host",
     "build": "node scripts/install-manifest-plugins.mjs && vite build",
     "typecheck": "tsc --noEmit",
+    "lint:colors": "node scripts/lint-colors.mjs",
     "preview": "vite preview --host"
   },
   "dependencies": {

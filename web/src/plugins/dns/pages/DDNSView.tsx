@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Domain } from "../../../api";
 import { dnsApi, DDNSToken, CreateDDNSTokenResult } from "../api";
-import { GlassCard, Button, Modal, Field, Badge, Empty, timeAgo, toast } from "../../../ui";
+import { GlassCard, Button, Modal, Field, Badge, Empty, timeAgo, toast, Alert } from "../../../ui";
 import { KeyRound, Plus, Trash2, Copy, Check, AlertTriangle } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 
@@ -278,13 +278,12 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
           onClose={() => setCreatedResult(null)}
         >
           <div className="space-y-4 pt-2">
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex gap-2.5 items-start">
-              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <Alert variant="warning" className="text-xs p-3 rounded-xl">
               <span>
                 {t("domains.ddnsCreatedWarning") ||
                   "Copy your secret token now. It will never be displayed again!"}
               </span>
-            </div>
+            </Alert>
 
             <Field label={t("domains.secretLabel") || "Token Secret"}>
               <div className="flex items-center gap-2">
@@ -299,7 +298,7 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
                   onClick={() => copyText(createdResult.secret, setCopiedSecret)}
                   className="gap-1 py-1.5 text-xs shrink-0"
                 >
-                  {copiedSecret ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedSecret ? <Check className="h-3.5 w-3.5 text-success-fg" /> : <Copy className="h-3.5 w-3.5" />}
                   {copiedSecret ? t("domains.copied") || "Copied!" : t("domains.copySecret") || "Copy"}
                 </Button>
               </div>
@@ -318,7 +317,7 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
                   onClick={() => copyText(fullUpdateUrl, setCopiedUrl)}
                   className="gap-1 py-1.5 text-xs shrink-0"
                 >
-                  {copiedUrl ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedUrl ? <Check className="h-3.5 w-3.5 text-success-fg" /> : <Copy className="h-3.5 w-3.5" />}
                   {copiedUrl ? t("domains.copied") || "Copied!" : t("domains.copyUrl") || "Copy URL"}
                 </Button>
               </div>

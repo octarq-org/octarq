@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Domain, effectiveMailHosts } from "../../../api";
 import { mailApi, Attachment, Email, Mailbox } from "../api";
-import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../../ui";
+import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert } from "../../../ui";
 import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle } from "lucide-react";
 import { MailSettings } from "./MailSettings";
 import { SMTPSenders } from "./SMTPSenders";
@@ -19,12 +19,16 @@ export function MailboxEditor({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [prefix, setPrefix] = useState("");
   const [domain, setDomain] = useState(hosts[0] ?? "");
   const [note, setNote] = useState(box?.note ?? "");
   const [enabled, setEnabled] = useState(box?.enabled ?? true);
   const [err, setErr] = useState("");
-  const { t } = useTranslation();
+
+  useEffect(() => {
+    if (hosts.length > 0 && !domain) setDomain(hosts[0]);
+  }, [hosts]);
 
   async function save() {
     setErr("");
@@ -32,10 +36,7 @@ export function MailboxEditor({
       if (box) {
         await mailApi.updateMailbox(box.id, { note, enabled });
       } else {
-        if (!prefix.trim() || !domain) {
-          setErr(t("mail.prefixDomainRequired"));
-          return;
-        }
+        if (!prefix.trim() || !domain) return setErr(t("mail.prefixRequired"));
         await mailApi.createMailbox({ address: `${prefix.trim()}@${domain}`, note, enabled });
       }
       onSaved();
@@ -52,10 +53,10 @@ export function MailboxEditor({
             <input className="input w-full font-mono text-sm" value={box.address} disabled />
           </Field>
         ) : hosts.length === 0 ? (
-          <p className="rounded bg-amber-500/10 p-3 text-xs text-warning-fg flex items-center gap-1.5">
+          <Alert variant="warning" className="p-3 text-xs flex items-center gap-1.5 font-normal">
             <AlertTriangle className="h-4 w-4" />
             {t("mail.noHosts")}
-          </p>
+          </Alert>
         ) : (
           <Field label={t("mail.mailboxPrefix")} hint={t("mail.prefixHint")}>
             <div className="flex items-center gap-2">
@@ -94,7 +95,7 @@ export function MailboxEditor({
                 onSaved();
               }
             }}
-            className="w-full text-xs py-1.5 bg-rose-500/10 hover:bg-rose-500/25 border-0 mt-2"
+            className="w-full text-xs py-1.5 border-0 mt-2"
           >
             {t("mail.deleteMailboxCompletely")}
           </Button>
