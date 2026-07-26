@@ -1,0 +1,23 @@
+name: Govulncheck
+
+# Runs on a weekly schedule (and on demand) rather than on every PR: govulncheck
+# surfaces newly-published advisories against unchanged code, so a scheduled sweep
+# catches them without gating day-to-day pull requests on an external DB lookup.
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vulncheck:
+    name: Govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-file: go.mod
