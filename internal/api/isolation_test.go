@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	dnsmodels "github.com/octarq-org/octarq/plugins/dns"
 	mailmodels "github.com/octarq-org/octarq/plugins/mail"
 
 	"github.com/glebarez/sqlite"
@@ -344,6 +345,39 @@ func TestOrgIsolation_Webhooks(t *testing.T) {
 	// Org 2's list must not leak org 1's webhook.
 	if rec := do(srv, http.MethodGet, "/api/webhooks", org2, ""); strings.Contains(rec.Body.String(), "hook-org1") {
 		t.Error("org2 list leaked org1's webhook")
+	}
+}
+
+// --- DNS provider-account cross-org probe ---
+//
+// Deleting a provider account first checks whether any domain references it.
+// That usage check must run only AFTER ownership is confirmed — otherwise the
+// 409 ("in use") vs 404 response is an oracle revealing another org's account.
+
+func TestOrgIsolation_ProviderAccountDeleteProbe(t *testing.T) {
+	srv, db := newTestHandler(t)
+	org2 := sessionCookies(t, 2, 2)
+
+	// Org 1 owns a provider account that a domain references (the 409 path).
+	acc := dnsmodels.ProviderAccount{OrgID: 1, Type: "cloudflare", Name: "org1-acct"}
+	if err := db.Create(&acc).Error; err != nil {
+		t.Fatalf("create provider account: %v", err)
+	}
+	dom := dnsmodels.Domain{OrgID: 1, Name: "probe-org1.test", ProviderAccountID: acc.ID}
+	if err := db.Create(&dom).Error; err != nil {
+		t.Fatalf("create domain: %v", err)
+	}
+	path := fmt.Sprintf("/api/provider-accounts/%d", acc.ID)
+
+	// Org 2 must get 404 (not 409 — which would confirm existence + in-use).
+	if rec := do(srv, http.MethodDelete, path, org2, ""); rec.Code != http.StatusNotFound {
+		t.Errorf("cross-org DELETE provider probe: got %d, want 404", rec.Code)
+	}
+	// Org 1's account must be untouched.
+	var n int64
+	db.Model(&dnsmodels.ProviderAccount{}).Where("id = ?", acc.ID).Count(&n)
+	if n != 1 {
+		t.Errorf("org1 provider account affected by cross-org delete: count=%d", n)
 	}
 }
 
