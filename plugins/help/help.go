@@ -40,9 +40,14 @@ func (p *Plugin) Describe() plugin.Info {
 
 func (p *Plugin) Models() []any { return nil }
 
+// Menus places Help in the sidebar footer rail rather than a nav group.
+// areaForCategory (web/src/shell/areas.tsx) reserves category "footer" for
+// low-frequency, always-available product links and names Help as the example;
+// inventing a "Help & Resources" group instead would put it in the main nav and
+// oblige every locale to translate a heading that the IA does not want.
 func (p *Plugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{
-		{ID: "help", Label: "Help", Path: "/help", Icon: "book", Category: "Help & Resources"},
+		{ID: "help", Label: "Help", Path: "/help", Icon: "book", Category: "footer"},
 	}
 }
 
