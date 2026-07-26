@@ -1,1 +1,0 @@
-import{j as e}from"./vendor-motion-D_b_tdvR.js";import{F as l,y as t,z as i}from"./vendor-ui-CP6Xev18.js";function x({label:r,children:a,hint:s}){return e.jsxs(l,{className:"mb-3",children:[e.jsx(t,{className:"label",children:r}),a,s&&e.jsx(i,{className:"mt-1 text-xs text-foreground/40",children:s})]})}export{x as F};

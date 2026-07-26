@@ -10,12 +10,14 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { uiPluginI18n, uiPluginSharedI18n } from "../contract";
 
-export type Lang = "en" | "zh" | "es";
+export type Lang = "en" | "zh" | "es" | "pt" | "ja";
 
 export const LANGS: { code: Lang; label: string }[] = [
   { code: "en", label: "English" },
   { code: "zh", label: "中文" },
   { code: "es", label: "Español" },
+  { code: "pt", label: "Português" },
+  { code: "ja", label: "日本語" },
 ];
 
 // A per-language resource dictionary (nested namespaces of strings).
@@ -25,13 +27,15 @@ export type Resources = Partial<Record<Lang, Record<string, unknown>>>;
 function detectLang(): Lang {
   try {
     const saved = localStorage.getItem("lang");
-    if (saved === "en" || saved === "zh" || saved === "es") return saved as Lang;
+    if (saved === "en" || saved === "zh" || saved === "es" || saved === "pt" || saved === "ja") return saved as Lang;
   } catch {
     /* ignore */
   }
   const nav = (navigator.languages?.[0] || navigator.language || "en").toLowerCase();
   if (nav.startsWith("zh")) return "zh";
   if (nav.startsWith("es")) return "es";
+  if (nav.startsWith("pt")) return "pt";
+  if (nav.startsWith("ja")) return "ja";
   return "en";
 }
 
@@ -115,6 +119,8 @@ export function I18nProvider({ resources, children }: { resources: Resources; ch
       en: buildLangDict("en"),
       zh: buildLangDict("zh"),
       es: buildLangDict("es"),
+      pt: buildLangDict("pt"),
+      ja: buildLangDict("ja"),
     };
 
     // t(key), t(key, fallback), t(key, vars), or t(key, fallback, vars).
