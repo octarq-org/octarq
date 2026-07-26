@@ -33,10 +33,23 @@ afterEach(() => {
 });
 
 describe("ExtensionSlot", () => {
-  it("renders null for an empty slot", () => {
+  it("renders null and omits wrapper for an empty slot", () => {
     compose("other", [{ slot: "elsewhere", Component: lazyWidget("nope") }]);
-    const { container } = render(<ExtensionSlot name="home" />);
+    const { container } = render(
+      <ExtensionSlot name="home" wrapper={(c) => <div data-testid="wrapper">{c}</div>} />,
+    );
     expect(container.innerHTML).toBe("");
+    expect(screen.queryByTestId("wrapper")).toBeNull();
+  });
+
+  it("applies wrapper when slot has registered widgets", async () => {
+    compose("a", [{ slot: "home", Component: lazyWidget("content"), order: 1 }]);
+    render(
+      <ExtensionSlot name="home" wrapper={(c) => <div data-testid="wrapper">{c}</div>} />,
+    );
+    const wrapper = await screen.findByTestId("wrapper");
+    expect(wrapper).toBeDefined();
+    expect(wrapper.textContent).toBe("content");
   });
 
   it("renders registered widgets in ascending order across plugins", async () => {

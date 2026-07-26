@@ -24,10 +24,20 @@ class WidgetBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
 }
 
-export function ExtensionSlot({ name }: { name: string }) {
+export function useExtensionCount(name: string): number {
+  return uiWidgets(name).length;
+}
+
+export function ExtensionSlot({
+  name,
+  wrapper,
+}: {
+  name: string;
+  wrapper?: (children: ReactNode) => ReactNode;
+}) {
   const widgets = uiWidgets(name);
   if (widgets.length === 0) return null;
-  return (
+  const content = (
     <>
       {widgets.map((w, i) => {
         const Widget = w.Component;
@@ -41,4 +51,5 @@ export function ExtensionSlot({ name }: { name: string }) {
       })}
     </>
   );
+  return wrapper ? <>{wrapper(content)}</> : content;
 }

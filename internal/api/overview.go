@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"log"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -54,11 +55,20 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 		"includeBot": includeBot,
 	}
 
+	// Plugins flat-merge their statistics into outMap.
+	// NOTE: If two plugins define duplicate keys, the later registration will overwrite the earlier key.
+	// We keep this protocol flat for compatibility, but log a warning when collisions happen.
 	for _, p := range h.plugins {
+		if !h.pluginActive(org, p) {
+			continue
+		}
 		svcName := p.Name() + ".overview"
 		if v, ok := h.LookupService(svcName); ok {
 			if fn, ok := v.(func(orgID uint, includeBot bool) map[string]any); ok {
 				for k, val := range fn(org, includeBot) {
+					if _, exists := outMap[k]; exists {
+						log.Printf("[overview] warning: plugin %s overwrites existing overview key %q", p.Name(), k)
+					}
 					outMap[k] = val
 				}
 			}

@@ -1,4 +1,5 @@
 // Thin fetch wrapper around the octarq JSON API.
+import { useEffect, useState } from "react";
 
 export interface StatKV {
   key: string;
@@ -117,35 +118,37 @@ export interface SubsystemStatusResponse {
   time: string;
 }
 
-export interface Overview {
-  links: number;
-  activeLinks: number;
-  domains: number;
-  linkDomains: number;
-  mailDomains: number;
-  mailboxes: number;
-  emails: number;
-  unread: number;
-  tokens: number;
-  totalClicks: number;
-  clicks7d: number;
-  clicks30d: number;
-  botClicks7d: number;
-  botClicks30d: number;
-  includeBot: boolean;
-  series: StatKV[] | null;
-  topLinks: { id: number; slug: string; host: string; clicks: number }[] | null;
-  devices: StatKV[] | null;
-  countries: StatKV[] | null;
-  cities: StatKV[] | null;
-  recentEmails: { id: number; from: string; subject: string; read: boolean; receivedAt: string }[] | null;
+export interface Overview extends Record<string, unknown> {
+  tokens?: number;
+  includeBot?: boolean;
+  links?: number;
+  activeLinks?: number;
+  domains?: number;
+  linkDomains?: number;
+  mailDomains?: number;
+  mailboxes?: number;
+  emails?: number;
+  unread?: number;
+  totalClicks?: number;
+  clicks7d?: number;
+  clicks30d?: number;
+  botClicks7d?: number;
+  botClicks30d?: number;
+  series?: StatKV[] | null;
+  topLinks?: { id: number; slug: string; host: string; clicks: number }[] | null;
+  devices?: StatKV[] | null;
+  countries?: StatKV[] | null;
+  cities?: StatKV[] | null;
+  recentEmails?: { id: number; from: string; subject: string; read: boolean; receivedAt: string }[] | null;
 }
 
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  body?: any;
+  constructor(status: number, message: string, body?: any) {
     super(message);
     this.status = status;
+    this.body = body;
   }
 }
 
@@ -340,6 +343,37 @@ export const api = {
   purgeWorkspaceData: () => req<void>("DELETE", "/api/account/data"),
 };
 
+const overviewInflight = new Map<boolean, { promise: Promise<Overview>; time: number }>();
+
+export function fetchOverview(includeBot = false): Promise<Overview> {
+  const key = !!includeBot;
+  const now = Date.now();
+  const cached = overviewInflight.get(key);
+  if (cached && now - cached.time < 2000) {
+    return cached.promise;
+  }
+  const promise = api.overview(key).catch((err) => {
+    overviewInflight.delete(key);
+    throw err;
+  });
+  overviewInflight.set(key, { promise, time: now });
+  return promise;
+}
+
+export function useOverviewData(includeBot = false): Overview | null {
+  const [data, setData] = useState<Overview | null>(null);
+  useEffect(() => {
+    let active = true;
+    fetchOverview(includeBot).then((res) => {
+      if (active) setData(res);
+    }).catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [includeBot]);
+  return data;
+}
+
 export interface Org {
   id: number;
   name: string;
@@ -409,5 +443,5 @@ export interface AuthMethod {
   iconKey?: string;
 }
 
-export { ApiError };
+
 
