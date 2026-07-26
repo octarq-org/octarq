@@ -18,6 +18,7 @@ import linksPlugin from "../plugins/links";
 import dnsPlugin from "../plugins/dns";
 import auditPlugin from "../plugins/core/audit";
 import abusePlugin from "../plugins/core/abuse";
+import helpPlugin from "../plugins/core/help";
 
 const LOCALES: Lang[] = ["en", "zh", "es", "pt", "ja"];
 
@@ -50,6 +51,7 @@ describe("Navigation & Category Group i18n Guard Test", () => {
     registerUIPlugin(dnsPlugin);
     registerUIPlugin(auditPlugin);
     registerUIPlugin(abusePlugin);
+    registerUIPlugin(helpPlugin);
   });
 
   it("ensures every category group heading resolves to an explicit key in en, zh, es, pt, ja", () => {

@@ -97,6 +97,26 @@ export function effectiveMailHosts(d: Domain): string[] {
 }
 
 
+export interface ApiToken {
+  id: number;
+  name: string;
+  token?: string;
+  lastUsedAt?: string;
+  createdAt: string;
+}
+
+export interface HelpDocMeta {
+  slug: string;
+  title: string;
+  group: string;
+  order: number;
+}
+
+export interface HelpDocContent {
+  title: string;
+  html: string;
+}
+
 export interface Token {
   id: number;
   name: string;
@@ -351,6 +371,10 @@ export const api = {
   // GDPR
   exportWorkspaceData: () => req<any>("GET", "/api/account/export"),
   purgeWorkspaceData: () => req<void>("DELETE", "/api/account/data"),
+
+  // Help
+  helpIndex: () => req<{ body: HelpDocMeta[] }>("GET", "/api/help/docs"),
+  helpPage: (slug: string) => req<{ body: HelpDocContent }>("GET", `/api/help/docs/${slug}`),
 };
 
 const overviewInflight = new Map<boolean, { promise: Promise<Overview>; time: number }>();

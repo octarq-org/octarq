@@ -13,6 +13,7 @@ package builtin
 import (
 	"github.com/octarq-org/octarq/plugin"
 	"github.com/octarq-org/octarq/plugins/dns"
+	"github.com/octarq-org/octarq/plugins/help"
 	"github.com/octarq-org/octarq/plugins/links"
 	"github.com/octarq-org/octarq/plugins/mail"
 )
@@ -20,5 +21,5 @@ import (
 // Default returns the OSS Core feature plugins in dependency order (dns before
 // links before mail, matching their Requires). Callers mount them via a.Use.
 func Default() []plugin.Plugin {
-	return []plugin.Plugin{dns.New(), links.New(), mail.New()}
+	return []plugin.Plugin{dns.New(), links.New(), mail.New(), help.New()}
 }
