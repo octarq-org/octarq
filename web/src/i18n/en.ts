@@ -75,7 +75,6 @@ export const en = {
     Workspace: "Workspace",
     Marketing: "Marketing",
     Messaging: "Messaging",
-    Communication: "Communication",
     Network: "Network",
     Hosting: "Hosting",
     "Storage & Databases": "Storage & Databases",
@@ -84,19 +83,23 @@ export const en = {
     Account: "Account",
     Subscriptions: "Subscriptions",
     Instance: "Instance",
-    "Help & Resources": "Help & Resources",
-    Sales: "Sales",
-    Billing: "Billing",
-    Finance: "Finance",
-    Settings: "Settings",
   },
+  // Core carries only what THIS build declares: the static area/group shells in
+  // shell/areas.tsx and the core plugins under web/src/plugins/. Everything an
+  // out-of-repo plugin invents — a Pro menu id (storefront, licenses, billing,
+  // finance, inbox-ai, vps, sshkeys, certificates) or a group heading it coins
+  // (Sales, Billing, "Help & Resources") — is contributed by that plugin package
+  // through the reserved `_shared.nav.*` / `_shared.groups.*` keys (see
+  // PluginI18n). Core must not accumulate a list of every plugin's labels;
+  // duplicating one here would silently win over the plugin's own translation.
+  // Lookups are `t(\`nav.${id}\`, item.label)`, so a build with no plugin for an
+  // id simply renders the menu's own label.
   nav: {
     overview: "Overview",
     links: "Links",
     mail: "Mail",
     domains: "DNS",
     certs: "Certificates",
-    certificates: "Certificates",
     databases: "Databases",
     storage: "Object Storage",
     abuse: "Abuse Reports",
