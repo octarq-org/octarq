@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo, WebhookEventGroup } from "../../api";
+import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo, WebhookEventGroup, NotificationChannelType } from "../../api";
 import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, toast } from "../../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useSettingsData, SavedBadge } from "./shared";
-import { ExtensionSlot } from "../../plugin-sdk";
+import { ExtensionSlot, NotificationChannelFormContext } from "../../plugin-sdk";
 
 export function WebhooksSettings() {
   const { t } = useTranslation();
@@ -159,13 +159,19 @@ export function WebhooksSettings() {
 export function NotificationChannels() {
   const { t } = useTranslation();
   const [channels, setChannels] = useState<any[]>([]);
+  const [types, setTypes] = useState<NotificationChannelType[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<any | null>(null);
 
   async function load() {
     setLoading(true);
     try {
-      setChannels(await api.notificationChannels());
+      const [chs, typs] = await Promise.all([
+        api.notificationChannels(),
+        api.notificationChannelTypes(),
+      ]);
+      setChannels(chs);
+      setTypes(typs);
     } finally {
       setLoading(false);
     }
@@ -200,97 +206,113 @@ export function NotificationChannels() {
         title={t("settings.alertsTitle")}
         description={t("settings.alertsDescription")}
         action={
-          <Button variant="primary" onClick={() => setEditing({ type: "telegram", config: "{}" })}>
+          <Button variant="primary" onClick={() => setEditing({ type: types[0]?.type || "telegram", config: "{}" })}>
             {t("settings.addChannel")}
           </Button>
         }
       />
       <GlassCard className="p-6">
+        {loading ? (
+          <div className="text-foreground/40 text-sm py-6 text-center">{t("settings.loadingLower")}</div>
+        ) : channels.length === 0 ? (
+          <Empty>
+            <Bell className="h-8 w-8 text-foreground/50 mb-1" />
+            <div className="text-xs text-foreground/50">{t("settings.noChannels")}</div>
+          </Empty>
+        ) : (
+          <div className="divide-y divide-foreground/[0.04] border border-foreground/[0.05] rounded-xl bg-well overflow-hidden">
+            {channels.map((c) => {
+              const channelTypeTone = c.type === "telegram" ? "cyan" : c.type === "webhook" ? "violet" : "indigo";
 
-      {loading ? (
-        <div className="text-foreground/40 text-sm py-6 text-center">{t("settings.loadingLower")}</div>
-      ) : channels.length === 0 ? (
-        <Empty>
-          <Bell className="h-8 w-8 text-foreground/50 mb-1" />
-          <div className="text-xs text-foreground/50">{t("settings.noChannels")}</div>
-        </Empty>
-      ) : (
-        <div className="divide-y divide-foreground/[0.04] border border-foreground/[0.05] rounded-xl bg-well overflow-hidden">
-          {channels.map((c) => {
-            const channelTypeTone = c.type === "telegram" ? "cyan" : "violet";
-
-            return (
-              <div key={c.id} className="flex items-center gap-3 p-4 group">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm text-foreground">{c.name}</span>
-                    <Badge tone={channelTypeTone} className="uppercase tracking-wider text-[9px]">
-                      {c.type}
-                    </Badge>
-                    {!c.enabled && <Badge tone="neutral">{t("settings.badgeDisabled")}</Badge>}
+              return (
+                <div key={c.id} className="flex items-center gap-3 p-4 group">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm text-foreground">{c.name}</span>
+                      <Badge tone={channelTypeTone} className="uppercase tracking-wider text-[9px]">
+                        {c.type}
+                      </Badge>
+                      {!c.enabled && <Badge tone="neutral">{t("settings.badgeDisabled")}</Badge>}
+                    </div>
+                    <div className="text-[11px] text-foreground/50 mt-1">{t("settings.added", { time: timeAgo(c.createdAt) })}</div>
                   </div>
-                  <div className="text-[11px] text-foreground/50 mt-1">{t("settings.added", { time: timeAgo(c.createdAt) })}</div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      variant="subtle"
+                      onClick={() => toggleEnabled(c)}
+                      className="text-xs py-1 px-2.5"
+                    >
+                      {c.enabled ? t("settings.disable") : t("settings.enable")}
+                    </Button>
+                    <Button variant="outline" onClick={() => test(c.id)} className="text-xs py-1 px-2.5">
+                      {t("settings.test")}
+                    </Button>
+                    <Button variant="ghost" onClick={() => setEditing(c)} className="text-xs py-1 px-2.5">
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="danger"
+                      onClick={() => remove(c.id)}
+                      className="text-xs py-1 px-2.5 border-0"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    variant="subtle"
-                    onClick={() => toggleEnabled(c)}
-                    className="text-xs py-1 px-2.5"
-                  >
-                    {c.enabled ? t("settings.disable") : t("settings.enable")}
-                  </Button>
-                  <Button variant="outline" onClick={() => test(c.id)} className="text-xs py-1 px-2.5">
-                    {t("settings.test")}
-                  </Button>
-                  <Button variant="ghost" onClick={() => setEditing(c)} className="text-xs py-1 px-2.5">
-                    <Pencil className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="danger"
-                    onClick={() => remove(c.id)}
-                    className="text-xs py-1 px-2.5 border-0"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
 
-      {editing && (
-        <EditNotificationChannel
-          channel={editing.id ? editing : null}
-          onClose={() => setEditing(null)}
-          onSaved={() => {
-            setEditing(null);
-            load();
-          }}
-        />
-      )}
-    </GlassCard>
-
-      <div className="space-y-3 pt-2">
-        <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t("settings.pluginChannels", "Channels from plugins")}
-        </h3>
-        <ExtensionSlot name="settings-notifications" />
-      </div>
+        {editing && (
+          <EditNotificationChannel
+            channel={editing.id ? editing : null}
+            initialType={editing.type}
+            types={types}
+            onClose={() => setEditing(null)}
+            onSaved={() => {
+              setEditing(null);
+              load();
+            }}
+          />
+        )}
+      </GlassCard>
     </div>
   );
 }
 
-function EditNotificationChannel({ channel, onClose, onSaved }: { channel: any; onClose: () => void; onSaved: () => void }) {
+function EditNotificationChannel({
+  channel,
+  initialType,
+  types,
+  onClose,
+  onSaved,
+}: {
+  channel: any;
+  initialType?: string;
+  types: NotificationChannelType[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const { t } = useTranslation();
   const [name, setName] = useState(channel?.name || "");
-  const [type, setType] = useState(channel?.type || "telegram");
+  const [type, setType] = useState(channel?.type || initialType || types[0]?.type || "telegram");
   const [enabled, setEnabled] = useState(channel?.id ? channel.enabled : true);
 
   const initialCfg = channel?.id ? JSON.parse(channel.config) : {};
-  const [botToken, setBotToken] = useState(initialCfg.botToken || "");
-  const [chatId, setChatId] = useState(initialCfg.chatId || "");
-  const [webhookUrl, setWebhookUrl] = useState(initialCfg.url || "");
+  const [config, setConfig] = useState<Record<string, any>>(initialCfg);
+
+  useEffect(() => {
+    if (channel?.type === type) {
+      setConfig(channel?.id ? JSON.parse(channel.config) : {});
+    } else {
+      setConfig({});
+    }
+  }, [type]);
+
+  const updateConfig = (key: string, value: any) => {
+    setConfig((prev) => ({ ...prev, [key]: value }));
+  };
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -298,12 +320,7 @@ function EditNotificationChannel({ channel, onClose, onSaved }: { channel: any; 
   async function save() {
     setBusy(true);
     setError("");
-    let configStr = "{}";
-    if (type === "telegram") {
-      configStr = JSON.stringify({ botToken, chatId });
-    } else if (type === "webhook") {
-      configStr = JSON.stringify({ url: webhookUrl });
-    }
+    const configStr = JSON.stringify(config);
 
     try {
       if (channel?.id) {
@@ -329,6 +346,13 @@ function EditNotificationChannel({ channel, onClose, onSaved }: { channel: any; 
     }
   }
 
+  const selectOptions = types.length > 0
+    ? types.map((t) => ({ value: t.type, label: t.title }))
+    : [
+        { value: "telegram", label: t("settings.optTelegram") },
+        { value: "webhook", label: t("settings.optWebhook") },
+      ];
+
   return (
     <Modal title={channel ? t("settings.editAlertChannel") : t("settings.createAlertChannel")} onClose={onClose}>
       <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-4">
@@ -342,34 +366,18 @@ function EditNotificationChannel({ channel, onClose, onSaved }: { channel: any; 
             autoFocus
           />
         </Field>
-        
+
         <Field label={t("settings.channelIntegrationType")}>
           <Select
             value={type}
             onValueChange={setType}
-            options={[
-              { value: "telegram", label: t("settings.optTelegram") },
-              { value: "webhook", label: t("settings.optWebhook") },
-            ]}
+            options={selectOptions}
           />
         </Field>
 
-        {type === "telegram" && (
-          <>
-            <Field label={t("settings.botAuthToken")} hint={t("settings.botAuthTokenHint")}>
-              <input className="input w-full font-mono text-xs" value={botToken} onChange={(e) => setBotToken(e.target.value)} required />
-            </Field>
-            <Field label={t("settings.telegramChatId")} hint={t("settings.telegramChatIdHint")}>
-              <input className="input w-full font-mono text-xs" value={chatId} onChange={(e) => setChatId(e.target.value)} required />
-            </Field>
-          </>
-        )}
-
-        {type === "webhook" && (
-          <Field label={t("settings.customHttpTargetUrl")} hint={t("settings.customHttpTargetHint")}>
-            <input className="input w-full font-mono text-xs" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://my-webhook.com/alerts" required />
-          </Field>
-        )}
+        <NotificationChannelFormContext.Provider value={{ config, setConfig, updateConfig }}>
+          <ExtensionSlot name={`settings-notification-channel:${type}`} />
+        </NotificationChannelFormContext.Provider>
 
         {error && <div className="text-danger-fg text-xs font-semibold">{error}</div>}
 
