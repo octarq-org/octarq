@@ -56,7 +56,7 @@ export function BrandMark({ size = "sm", className = "" }: { size?: Size; classN
       className={`${box} brand-gradient flex items-center justify-center rounded-xl shadow-glow ${className}`}
     >
       {isOctarq ? (
-        <OctarqMark className={`${GLYPH[size]} text-white`} strokeWidth={8} />
+        <OctarqMark className={`${GLYPH[size]} text-white`} />
       ) : (
         <span className={`font-display ${TEXT[size]} font-extrabold text-white`}>{brandInitial(appName)}</span>
       )}

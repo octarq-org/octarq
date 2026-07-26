@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Octarq">
   <defs>
     <linearGradient id="g" x1="10" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#6366f1"/><stop offset="1" stop-color="#a78bfa"/>
+      <stop stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#06b6d4"/>
     </linearGradient>
   </defs>
-  <path d="M50.48 39.65 39.65 50.48H24.35L13.52 39.65V24.35L24.35 13.52h15.3L50.48 24.35Z"
-        stroke="url(#g)" stroke-width="7.5" stroke-linejoin="round"/>
-  <path d="M45.06 45.06 54 54" stroke="url(#g)" stroke-width="7.5" stroke-linecap="round"/>
+  <path fill="url(#g)" fill-rule="evenodd" clip-rule="evenodd"
+        d="M10,26 C10,13.8 19.8,4 32,4 C44.2,4 54,13.8 54,26 V56 H40 V28 C40,23.6 36.4,20 32,20 C27.6,20 24,23.6 24,28 V56 H10 V26 Z M26,34 H38 V46 H26 V34 Z"/>
 </svg>
