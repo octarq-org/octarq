@@ -2,7 +2,7 @@
 title: Quickstart
 description: Get up and running with Octarq in minutes.
 sidebar:
-  order: 3
+  order: 2
   group:
     label: "Start"
 ---
