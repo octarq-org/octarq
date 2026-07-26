@@ -2,6 +2,14 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
 import { config } from "virtual:nimbus/config";
+
+// Real entry points into the docs (replaces the scaffold Welcome/Getting-Started/
+// Components cards). Each targets a migrated page in the docs collection.
+const entries = [
+  { href: "/what-is-octarq/", title: "What is Octarq", blurb: "The one-binary pitch" },
+  { href: "/quickstart/", title: "Quickstart", blurb: "Run it in minutes" },
+  { href: "/writing-a-plugin/", title: "Writing a Plugin", blurb: "Extend in an afternoon" },
+];
 ---
 
 <BaseLayout title={config.title} description={config.description}>
@@ -17,30 +25,31 @@ import { config } from "virtual:nimbus/config";
       <p class="mt-2 text-[1.0625rem] text-muted-foreground leading-relaxed">
         {config.description}
       </p>
+      <p class="mt-4 text-[0.95rem] text-foreground leading-relaxed">
+        A single Go binary you extend with plugins — short links, custom-domain
+        email, and DNS as first-class plugins, each drivable by your AI agent
+        over <strong>MCP</strong>. Own the stack instead of paying three SaaS bills.
+      </p>
 
       <div class="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <a
-          href="/welcome"
-          class="block rounded-lg border border-border p-4 transition-colors hover:border-border-strong no-underline"
-        >
-          <div class="font-medium text-foreground">Welcome</div>
-          <div class="mt-0.5 text-sm text-muted-foreground">Start here</div>
-        </a>
-        <a
-          href="/getting-started"
-          class="block rounded-lg border border-border p-4 transition-colors hover:border-border-strong no-underline"
-        >
-          <div class="font-medium text-foreground">Getting Started</div>
-          <div class="mt-0.5 text-sm text-muted-foreground">Install + configure</div>
-        </a>
-        <a
-          href="/components"
-          class="block rounded-lg border border-border p-4 transition-colors hover:border-border-strong no-underline"
-        >
-          <div class="font-medium text-foreground">Components</div>
-          <div class="mt-0.5 text-sm text-muted-foreground">See them in action</div>
-        </a>
+        {
+          entries.map((e) => (
+            <a
+              href={e.href}
+              class="block rounded-lg border border-border p-4 transition-colors hover:border-border-strong no-underline"
+            >
+              <div class="font-medium text-foreground">{e.title}</div>
+              <div class="mt-0.5 text-sm text-muted-foreground">{e.blurb}</div>
+            </a>
+          ))
+        }
       </div>
+
+      <p class="mt-8 text-sm text-muted-foreground">
+        Or browse the docs — <a href="/what-is-octarq/" class="text-foreground underline">Start</a>,
+        <a href="/core/short-links/" class="text-foreground underline">Core Features</a>, and
+        <a href="/architecture/overview/" class="text-foreground underline">Architecture</a>.
+      </p>
     </main>
   </div>
 </BaseLayout>
