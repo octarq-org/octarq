@@ -2,8 +2,12 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -53,6 +57,38 @@ func (h *Handler) pluginActive(orgID uint, p plugin.Plugin) bool {
 		return true
 	}
 	return h.PluginEnabled(orgID, plugin.FeatureKey(p))
+}
+
+// dependencyConflictError is the 409 returned when a workspace tries to disable
+// a feature that another enabled feature declares in its Requires set.
+//
+// It implements huma.StatusError so the dependent names ship as a real JSON
+// field. The UI lists them ("Mail is using DNS — turn Mail off first"), and
+// huma's generic `errors` array is a list of validation messages, not a place
+// to hide structured data a client has to parse back out.
+type dependencyConflictError struct {
+	Status     int      `json:"status"`
+	Title      string   `json:"title"`
+	Detail     string   `json:"detail"`
+	Feature    string   `json:"feature"`
+	Dependents []string `json:"dependents"`
+}
+
+func (e *dependencyConflictError) GetStatus() int { return http.StatusConflict }
+
+func (e *dependencyConflictError) Error() string {
+	return fmt.Sprintf("%s is required by %s", e.Feature, strings.Join(e.Dependents, ", "))
+}
+
+// MarshalJSON fills the envelope fields lazily so callers only have to set
+// Feature and Dependents.
+func (e *dependencyConflictError) MarshalJSON() ([]byte, error) {
+	type alias dependencyConflictError
+	out := alias(*e)
+	out.Status = http.StatusConflict
+	out.Title = "Conflict"
+	out.Detail = e.Error()
+	return json.Marshal(out)
 }
 
 // pluginMenuOut mirrors a plugin menu link for the management UI.
@@ -155,6 +191,9 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 		}
 	}
 
+	// requiredBy counts only *enabled* dependents — a disabled feature must not
+	// lock one the workspace is free to turn off. Sorted because map iteration
+	// order would otherwise reshuffle the list on every request.
 	requiredBy := make(map[string][]string)
 	for fKey, reqs := range requires {
 		if effectiveEnabled[fKey] {
@@ -162,6 +201,9 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 				requiredBy[r] = append(requiredBy[r], fKey)
 			}
 		}
+	}
+	for k := range requiredBy {
+		sort.Strings(requiredBy[k])
 	}
 
 	order := []string{}
@@ -312,11 +354,12 @@ func (h *Handler) updatePlugin(ctx context.Context, input *UpdatePluginInput) (*
 			}
 		}
 		if len(dependents) > 0 {
-			errs := make([]error, len(dependents))
-			for i, d := range dependents {
-				errs[i] = errors.New(d)
-			}
-			return nil, huma.NewError(http.StatusConflict, "feature is in use", errs...)
+			// Sorted so the message is stable across requests (map iteration
+			// order is not), and carried as a typed `dependents` field rather
+			// than smuggled through huma's validation-error list — the UI
+			// renders the names, so they need to survive as data.
+			sort.Strings(dependents)
+			return nil, &dependencyConflictError{Feature: key, Dependents: dependents}
 		}
 
 		ps := models.PluginSetting{OrgID: orgID, Plugin: key, Enabled: false, UpdatedAt: time.Now()}

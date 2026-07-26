@@ -160,13 +160,20 @@ export async function req<T>(method: string, path: string, body?: unknown): Prom
   });
   if (!res.ok) {
     let msg = res.statusText;
+    let parsed: any;
     try {
-      const j = await res.json();
-      if (j.error) msg = j.error;
+      parsed = await res.json();
+      // `error` is our own shape; `detail` is huma's RFC7807 field. Prefer
+      // whichever the endpoint used rather than falling back to statusText.
+      if (parsed?.error) msg = parsed.error;
+      else if (parsed?.detail) msg = parsed.detail;
     } catch {
-      /* ignore */
+      /* not JSON — keep statusText */
     }
-    throw new ApiError(res.status, msg);
+    // Carry the decoded body: some errors are structured (e.g. a 409 from the
+    // plugin toggle names the dependents that block the change) and the caller
+    // needs the fields, not just the message.
+    throw new ApiError(res.status, msg, parsed);
   }
   if (res.status === 204) return undefined as T;
   const ct = res.headers.get("content-type") || "";
@@ -203,6 +210,9 @@ export interface InstanceSettings {
 export const api = {
   // subsystem status (public)
   subsystemStatus: () => req<SubsystemStatusResponse>("GET", "/api/status"),
+
+  // plugins: instance-level registry (read-only, instance admins only)
+  instancePlugins: () => req<InstancePluginInfo[]>("GET", "/api/instance/plugins"),
 
   // overview
   overview: (includeBot = false) =>
@@ -400,6 +410,17 @@ export interface MenuItem {
   // user doesn't meet are hidden from the sidebar/command palette. Mirrors
   // PluginMenuItem.requiredRole; enforcement stays server-side.
   requiredRole?: string;
+}
+
+export interface InstancePluginInfo {
+  name: string;
+  featureKey: string;
+  title: string;
+  category: string;
+  core: boolean;
+  enabledByDefault: boolean;
+  requires: string[];
+  hasUI: boolean;
 }
 
 export interface PluginInfo {

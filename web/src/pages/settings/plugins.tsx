@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, PluginInfo } from "../../api";
 import { Toggle, PageHeader, GlassCard, Badge, Alert } from "../../ui";
-import { ShieldAlert, Puzzle, Search, Tag } from "lucide-react";
+import { ShieldAlert, Puzzle, Search, Tag, Info } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { menuIcon } from "../../shell/areas";
+import { Link } from "react-router-dom";
+import { useSettingsData } from "./shared";
 
 // Category display metadata & tones
 const CATEGORIES: Record<string, { labelKey: string; tone: "indigo" | "amber" | "green" | "violet" | "cyan" | "red" | "neutral" }> = {
@@ -38,7 +40,16 @@ function PluginIcon({ iconStr, firstMenuIcon }: { iconStr?: string; firstMenuIco
   return <span className="text-lg leading-none select-none">{target}</span>;
 }
 
+// lockedBy returns the enabled features that depend on this one, i.e. the
+// reason its toggle can't be turned off. Empty when the feature is free to
+// disable — including when it is already off, since nothing can depend on a
+// feature that isn't running.
+function lockedBy(p: PluginInfo): string[] {
+  return p.enabled ? (p.requiredBy ?? []) : [];
+}
+
 export function PluginsSettings() {
+  const { s: settings } = useSettingsData();
   const { t } = useTranslation();
   const [plugins, setPlugins] = useState<PluginInfo[] | null>(null);
   const [err, setErr] = useState("");
@@ -115,6 +126,21 @@ export function PluginsSettings() {
   return (
     <div className="space-y-6">
       <PageHeader title={t("settings.pluginsTitle")} description={t("settings.pluginsDescription")} />
+
+      {/* The card grid reads like an app store, so say plainly what a toggle
+          does: it scopes to this workspace and installs nothing. Instance
+          admins get the pointer to what the binary actually loaded. */}
+      <Alert variant="info" icon={<Info className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
+        <span>{t("settings.pluginsScopeNote")}</span>
+        {settings?.isInstanceAdmin && (
+          <>
+            {" "}
+            <Link to="/settings/instance/plugins" className="underline underline-offset-2 hover:text-accent-fg">
+              {t("settings.pluginsInstanceLink")}
+            </Link>
+          </>
+        )}
+      </Alert>
 
       {err && (
         <Alert variant="danger" icon={<ShieldAlert className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
@@ -243,11 +269,14 @@ export function PluginsSettings() {
                       </div>
                     </div>
 
+                    {/* Locked while something else depends on it. The server
+                        enforces this with a 409 regardless — this only saves
+                        the user a round trip to be told no. */}
                     <div className="flex flex-col items-end gap-1">
-                      <Toggle 
-                        on={p.enabled} 
-                        onChange={(v) => toggle(p.key, v)} 
-                        disabled={!p.enabled && false /* will fix */ || (p.enabled && p.requiredBy && p.requiredBy.length > 0)} 
+                      <Toggle
+                        on={p.enabled}
+                        onChange={(v) => toggle(p.key, v)}
+                        disabled={lockedBy(p).length > 0}
                       />
                     </div>
                   </div>
@@ -269,9 +298,9 @@ export function PluginsSettings() {
                     ))}
                   </div>
 
-                  {p.enabled && p.requiredBy && p.requiredBy.length > 0 && (
-                    <div className="mt-2 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-                      {t("settings.pluginInUse", { plugin: p.title, dependents: p.requiredBy.join(", ") })}
+                  {lockedBy(p).length > 0 && (
+                    <div className="mt-2 text-[10px] text-warning-fg font-medium">
+                      {t("settings.pluginInUse", { plugin: p.title, dependents: lockedBy(p).join(", ") })}
                     </div>
                   )}
                   {/* Card Description */}

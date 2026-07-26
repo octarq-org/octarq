@@ -116,7 +116,7 @@ export const SETTINGS_AREA: Area = {
       label: "Workspace",
       items: [
         { id: "general",       label: "General",     Icon: Settings,    path: "/settings/general" },
-        { id: "plugins",       label: "Plugins",     Icon: Puzzle,      path: "/settings/plugins" },
+        { id: "plugins",       label: "Features",    Icon: Puzzle,      path: "/settings/plugins" },
         { id: "members",       label: "Members",     Icon: Users,       path: "/settings/members" },
         { id: "webhooks",      label: "Webhooks",    Icon: Webhook,     path: "/settings/webhooks" },
         { id: "notifications", label: "Alerts",      Icon: Bell,        path: "/settings/notifications" },
@@ -142,6 +142,7 @@ export const SETTINGS_AREA: Area = {
       items: [
         { id: "auth",     label: "Authentication",    Icon: KeyRound, path: "/settings/auth" },
         { id: "instance", label: "Instance Settings", Icon: Server,   path: "/settings/instance" },
+        { id: "instance-plugins", label: "Plugins",  Icon: Puzzle,   path: "/settings/instance/plugins" },
       ],
     },
   ],
