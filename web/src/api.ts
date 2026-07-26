@@ -411,6 +411,8 @@ export interface PluginInfo {
   tags?: string[];
   enabled: boolean;
   menus: MenuItem[];
+  requires?: string[];
+  requiredBy?: string[];
 }
 
 export interface Webhook {

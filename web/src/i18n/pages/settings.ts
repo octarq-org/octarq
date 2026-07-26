@@ -19,6 +19,21 @@ export const settings = {
     badgeOn: "On",
     badgeOff: "Off",
     pluginAdds: "Adds: {{items}}",
+    pluginCategory: {
+      marketing: "Marketing",
+      messaging: "Messaging",
+      infrastructure: "Infrastructure",
+      security: "Security",
+      commerce: "Commerce",
+      ai: "AI",
+      utilities: "Utilities",
+    },
+    allCategoriesCount: "All Categories ({{count}})",
+    filterAllCount: "All ({{count}})",
+    filterActiveCount: "Active ({{count}})",
+    filterDisabledCount: "Disabled ({{count}})",
+    noMatchingPlugins: "No plugins match your current category tag, search, or status filter.",
+    backgroundService: "Background Service",
 
     // GeneralSettings
     renameFailed: "rename failed",
@@ -306,6 +321,21 @@ export const settings = {
     badgeOn: "已开启",
     badgeOff: "已关闭",
     pluginAdds: "新增：{{items}}",
+    pluginCategory: {
+      marketing: "营销",
+      messaging: "消息",
+      infrastructure: "基础设施",
+      security: "安全",
+      commerce: "电商",
+      ai: "AI",
+      utilities: "工具",
+    },
+    allCategoriesCount: "全部分类 ({{count}})",
+    filterAllCount: "全部 ({{count}})",
+    filterActiveCount: "已启用 ({{count}})",
+    filterDisabledCount: "已禁用 ({{count}})",
+    noMatchingPlugins: "没有插件匹配当前的分类标签、搜索关键词或状态筛选。",
+    backgroundService: "后台服务",
 
     // GeneralSettings
     renameFailed: "重命名失败",
@@ -593,6 +623,21 @@ export const settings = {
     badgeOn: "Activo",
     badgeOff: "Inactivo",
     pluginAdds: "Añade: {{items}}",
+    pluginCategory: {
+      marketing: "Marketing",
+      messaging: "Mensajería",
+      infrastructure: "Infraestructura",
+      security: "Seguridad",
+      commerce: "Comercio",
+      ai: "IA",
+      utilities: "Utilidades",
+    },
+    allCategoriesCount: "Todas las categorías ({{count}})",
+    filterAllCount: "Todos ({{count}})",
+    filterActiveCount: "Activos ({{count}})",
+    filterDisabledCount: "Desactivados ({{count}})",
+    noMatchingPlugins: "Ningún plugin coincide con la etiqueta de categoría, búsqueda o filtro de estado actual.",
+    backgroundService: "Servicio en segundo plano",
 
     // GeneralSettings
     renameFailed: "error al renombrar",
@@ -857,6 +902,8 @@ export const settings = {
 
     // Shared status
     active: "Activo",
+    pluginChannels: "Canales de plugins",
+    infrastructure: "Infraestructura",
   },
   pt: {
     // Shared
@@ -878,6 +925,21 @@ export const settings = {
     badgeOn: "Ativo",
     badgeOff: "Inativo",
     pluginAdds: "Adiciona: {{items}}",
+    pluginCategory: {
+      marketing: "Marketing",
+      messaging: "Mensagens",
+      infrastructure: "Infraestrutura",
+      security: "Segurança",
+      commerce: "Comércio",
+      ai: "IA",
+      utilities: "Utilitários",
+    },
+    allCategoriesCount: "Todas as categorias ({{count}})",
+    filterAllCount: "Todos ({{count}})",
+    filterActiveCount: "Ativos ({{count}})",
+    filterDisabledCount: "Desativados ({{count}})",
+    noMatchingPlugins: "Nenhum plugin corresponde à etiqueta de categoria, pesquisa ou filtro de status atual.",
+    backgroundService: "Serviço em segundo plano",
 
     // GeneralSettings
     renameFailed: "falha ao renomear",
@@ -1142,6 +1204,8 @@ export const settings = {
 
     // Shared status
     active: "Ativo",
+    pluginChannels: "Canais de plugins",
+    infrastructure: "Infraestrutura",
   },
   ja: {
     // Shared
@@ -1163,6 +1227,21 @@ export const settings = {
     badgeOn: "オン",
     badgeOff: "オフ",
     pluginAdds: "追加: {{items}}",
+    pluginCategory: {
+      marketing: "マーケティング",
+      messaging: "メッセージング",
+      infrastructure: "インフラストラクチャ",
+      security: "セキュリティ",
+      commerce: "コマース",
+      ai: "AI",
+      utilities: "ユーティリティ",
+    },
+    allCategoriesCount: "すべてのカテゴリ ({{count}})",
+    filterAllCount: "すべて ({{count}})",
+    filterActiveCount: "有効 ({{count}})",
+    filterDisabledCount: "無効 ({{count}})",
+    noMatchingPlugins: "現在のカテゴリタグ、検索、またはステータスフィルタに一致するプラグインはありません。",
+    backgroundService: "バックグラウンドサービス",
 
     // GeneralSettings
     renameFailed: "名前の変更に失敗しました",
@@ -1427,5 +1506,7 @@ export const settings = {
 
     // Shared status
     active: "アクティブ",
+    pluginChannels: "プラグインからのチャネル",
+    infrastructure: "インフラストラクチャ",
   },
 };

@@ -6,14 +6,14 @@ import { useTranslation } from "../../i18n";
 import { menuIcon } from "../../shell/areas";
 
 // Category display metadata & tones
-const CATEGORIES: Record<string, { label: string; tone: "indigo" | "amber" | "green" | "violet" | "cyan" | "red" | "neutral" }> = {
-  marketing: { label: "Marketing", tone: "indigo" },
-  messaging: { label: "Messaging", tone: "cyan" },
-  infrastructure: { label: "Infrastructure", tone: "violet" },
-  security: { label: "Security", tone: "amber" },
-  commerce: { label: "Commerce", tone: "green" },
-  ai: { label: "AI", tone: "indigo" },
-  utilities: { label: "Utilities", tone: "neutral" },
+const CATEGORIES: Record<string, { labelKey: string; tone: "indigo" | "amber" | "green" | "violet" | "cyan" | "red" | "neutral" }> = {
+  marketing: { labelKey: "settings.pluginCategory.marketing", tone: "indigo" },
+  messaging: { labelKey: "settings.pluginCategory.messaging", tone: "cyan" },
+  infrastructure: { labelKey: "settings.pluginCategory.infrastructure", tone: "violet" },
+  security: { labelKey: "settings.pluginCategory.security", tone: "amber" },
+  commerce: { labelKey: "settings.pluginCategory.commerce", tone: "green" },
+  ai: { labelKey: "settings.pluginCategory.ai", tone: "indigo" },
+  utilities: { labelKey: "settings.pluginCategory.utilities", tone: "neutral" },
 };
 
 // Helper component to render a plugin's icon or custom logo.
@@ -53,14 +53,37 @@ export function PluginsSettings() {
 
   async function toggle(key: string, enabled: boolean) {
     setErr("");
+    const target = plugins?.find(p => p.key === key);
+    if (enabled && target && target.requires && target.requires.length > 0) {
+      const disabledDeps = target.requires.filter(d => {
+        const dep = plugins?.find(p => p.key === d);
+        return dep && !dep.enabled;
+      });
+      if (disabledDeps.length > 0) {
+        if (!confirm(t("settings.enableDepsConfirm", { deps: disabledDeps.join(", ") }))) {
+          return;
+        }
+      }
+    }
+    
     // optimistic update; revert on failure
     setPlugins((prev) => prev?.map((p) => (p.key === key ? { ...p, enabled } : p)) ?? prev);
     try {
       await api.updatePlugin(key, enabled);
+      // Reload plugins completely to get new status of dependencies
+      load();
       window.dispatchEvent(new CustomEvent("octarq:plugins-changed"));
     } catch (e) {
       setPlugins((prev) => prev?.map((p) => (p.key === key ? { ...p, enabled: !enabled } : p)) ?? prev);
-      setErr(e instanceof ApiError ? e.message : t("settings.failedUpdatePlugin"));
+      if (e instanceof ApiError && e.status === 409) {
+        let msg = e.message;
+        if (e.body && e.body.dependents) {
+           msg = t("settings.pluginInUse", { plugin: key, dependents: e.body.dependents.join(", ") });
+        }
+        setErr(msg);
+      } else {
+        setErr(e instanceof ApiError ? e.message : t("settings.failedUpdatePlugin"));
+      }
     }
   }
 
@@ -111,10 +134,10 @@ export function PluginsSettings() {
                   : "bg-foreground/[0.04] text-foreground/70 hover:bg-surface-hover hover:text-foreground"
               }`}
             >
-              All Categories ({plugins.length})
+              {t("settings.allCategoriesCount", { count: plugins.length })}
             </button>
             {availableCategories.map((c) => {
-              const meta = CATEGORIES[c] || { label: c, tone: "neutral" };
+              const meta = CATEGORIES[c] || { labelKey: "settings.pluginCategory." + c, tone: "neutral" };
               const count = (plugins ?? []).filter((p) => (p.category || "utilities") === c).length;
               const isSelected = categoryFilter === c;
               return (
@@ -127,7 +150,7 @@ export function PluginsSettings() {
                       : "bg-foreground/[0.04] text-foreground/70 hover:bg-surface-hover hover:text-foreground"
                   }`}
                 >
-                  {meta.label} ({count})
+                  {t(meta.labelKey)} ({count})
                 </button>
               );
             })}
@@ -155,7 +178,7 @@ export function PluginsSettings() {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                All ({plugins.length})
+                {t("settings.filterAllCount", { count: plugins.length })}
               </button>
               <button
                 onClick={() => setStatusFilter("enabled")}
@@ -165,7 +188,7 @@ export function PluginsSettings() {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Active ({enabledCount})
+                {t("settings.filterActiveCount", { count: enabledCount })}
               </button>
               <button
                 onClick={() => setStatusFilter("disabled")}
@@ -175,7 +198,7 @@ export function PluginsSettings() {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Disabled ({plugins.length - enabledCount})
+                {t("settings.filterDisabledCount", { count: plugins.length - enabledCount })}
               </button>
             </div>
           </div>
@@ -188,7 +211,7 @@ export function PluginsSettings() {
         <GlassCard className="p-8 text-sm text-center text-foreground/55">{t("settings.noPlugins")}</GlassCard>
       ) : filteredPlugins.length === 0 ? (
         <GlassCard className="p-8 text-sm text-center text-foreground/50">
-          No plugins match your current category tag, search, or status filter.
+          {t("settings.noMatchingPlugins")}
         </GlassCard>
       ) : (
         /* Card Grid Layout */
@@ -196,7 +219,7 @@ export function PluginsSettings() {
           {filteredPlugins.map((p) => {
             const description = t("settings.pluginDesc." + p.key, p.description || "");
             const firstMenuIcon = p.menus?.[0]?.icon;
-            const categoryMeta = CATEGORIES[p.category || "utilities"] || { label: p.category || "utilities", tone: "neutral" };
+            const categoryMeta = CATEGORIES[p.category || "utilities"] || { labelKey: "settings.pluginCategory." + (p.category || "utilities"), tone: "neutral" };
 
             return (
               <GlassCard
@@ -220,13 +243,19 @@ export function PluginsSettings() {
                       </div>
                     </div>
 
-                    <Toggle on={p.enabled} onChange={(v) => toggle(p.key, v)} />
+                    <div className="flex flex-col items-end gap-1">
+                      <Toggle 
+                        on={p.enabled} 
+                        onChange={(v) => toggle(p.key, v)} 
+                        disabled={!p.enabled && false /* will fix */ || (p.enabled && p.requiredBy && p.requiredBy.length > 0)} 
+                      />
+                    </div>
                   </div>
 
                   {/* Category Badge & Tags */}
                   <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                     <Badge tone={categoryMeta.tone} className="text-[10px] uppercase tracking-wider font-semibold">
-                      {categoryMeta.label}
+                      {t(categoryMeta.labelKey)}
                     </Badge>
                     {p.tags && p.tags.map((tag) => (
                       <span
@@ -240,6 +269,11 @@ export function PluginsSettings() {
                     ))}
                   </div>
 
+                  {p.enabled && p.requiredBy && p.requiredBy.length > 0 && (
+                    <div className="mt-2 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                      {t("settings.pluginInUse", { plugin: p.title, dependents: p.requiredBy.join(", ") })}
+                    </div>
+                  )}
                   {/* Card Description */}
                   {description && (
                     <p className="text-xs text-foreground/60 leading-relaxed mt-2.5 line-clamp-3">
@@ -268,7 +302,7 @@ export function PluginsSettings() {
                         )}
                       </div>
                     ) : (
-                      <span className="text-[10px] text-muted-foreground italic">Background Service</span>
+                      <span className="text-[10px] text-muted-foreground italic">{t("settings.backgroundService")}</span>
                     )}
                   </div>
 

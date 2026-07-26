@@ -141,7 +141,7 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
               {t("domains.noDdnsTokens") || "No DDNS tokens created yet."}
             </p>
             <p className="text-xs text-muted-foreground">
-              Create a DDNS token to let ddclient or router firmware update DNS records automatically.
+              {t("domains.ddnsIntro") || "Create a DDNS token to let ddclient or router firmware update DNS records automatically."}
             </p>
           </Empty>
           <Button
@@ -185,7 +185,7 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
                         {tok.lastSeenAt ? timeAgo(tok.lastSeenAt) : t("domains.never") || "Never"}
                       </span>
                     </span>
-                    {dom && <span className="text-muted-foreground/70">Zone: {dom.name}</span>}
+                    {dom && <span className="text-muted-foreground/70">{t("domains.zonePrefix") || "Zone:"} {dom.name}</span>}
                   </div>
                 </div>
 
@@ -261,7 +261,7 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="ghost" onClick={() => setShowCreateModal(false)}>
-                Cancel
+                {t("common.cancel") || "Cancel"}
               </Button>
               <Button type="submit" variant="primary" disabled={creating}>
                 {creating ? t("domains.loading") || "Creating..." : "Generate Token"}
@@ -325,7 +325,7 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
 
             <div className="flex justify-end pt-2">
               <Button variant="primary" onClick={() => setCreatedResult(null)}>
-                Done
+                {t("common.done") || "Done"}
               </Button>
             </div>
           </div>
