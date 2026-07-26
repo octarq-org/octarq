@@ -1,7 +1,12 @@
 ---
 title: Quickstart
 description: Get up and running with Octarq in minutes.
+sidebar:
+  order: 3
+  group:
+    label: "Start"
 ---
+
 
 Get Octarq up and running on your server or local environment in minutes using Docker Compose or single binary builds.
 

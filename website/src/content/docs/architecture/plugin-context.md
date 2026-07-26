@@ -1,7 +1,12 @@
 ---
 title: Composable Plugins & Context
 description: Details of the plugin dependency contract, build-time exclusion, and frontend self-containment.
+sidebar:
+  order: 2
+  group:
+    label: "Architecture"
 ---
+
 
 This document outlines the design for composability, dependency contracts, and building custom editions of Octarq.
 

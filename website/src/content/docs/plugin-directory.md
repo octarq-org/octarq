@@ -1,7 +1,12 @@
 ---
 title: Plugin Directory
 description: Official and community plugins available for Octarq.
+sidebar:
+  order: 2
+  group:
+    label: "Build a Plugin"
 ---
+
 
 Explore official and reference plugins available for Octarq from the [octarq-plugins](https://github.com/octarq-org/octarq-plugins) repository.
 

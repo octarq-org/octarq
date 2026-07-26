@@ -1,7 +1,12 @@
 ---
 title: MCP server
 description: A built-in Model Context Protocol server so an AI client can read your self-hosted backend.
+sidebar:
+  order: 4
+  group:
+    label: "Core Features"
 ---
+
 
 octarq ships a built-in [Model Context Protocol](https://modelcontextprotocol.io)
 server, so an AI client — Claude Code, Claude Desktop, Cursor — can read your

@@ -1,18 +1,12 @@
 ---
 title: Octarq
 description: The self-hosted operations backend for indie hackers, one-person companies, and small AI-native teams.
-template: splash
-hero:
-  tagline: Octarq is a single Go binary you extend with plugins — the self-hosted operations backend for indie hackers, one-person companies, and small AI-native teams.
-  actions:
-    - text: Quickstart
-      link: /quickstart/
-      icon: right-arrow
-      variant: primary
-    - text: Write a Plugin
-      link: /writing-a-plugin/
-      icon: document
+sidebar:
+  order: 1
+  group:
+    label: "Start"
 ---
+
 
 ![Octarq Demo](/assets/octarq-demo.gif)
 

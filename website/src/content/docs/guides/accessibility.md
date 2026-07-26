@@ -1,7 +1,12 @@
 ---
 title: Accessibility Guide
 description: Accessibility standards, guidelines, and compliance details for the Octarq dashboard.
+sidebar:
+  order: 2
+  group:
+    label: "Guides"
 ---
+
 
 This guide outlines the accessibility (a11y) standards, color contrast parameters, and keyboard operability requirements for the Octarq dashboard and plugins.
 

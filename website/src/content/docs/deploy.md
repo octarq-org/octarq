@@ -1,7 +1,12 @@
 ---
 title: Deploying Octarq
 description: Production deployment guide for Octarq using Docker, binary releases, or cloud providers.
+sidebar:
+  order: 5
+  group:
+    label: "Start"
 ---
+
 
 Octarq is designed as a single zero-dependency Go binary with an embedded SQLite database and frontend dashboard, making it lightweight and straightforward to deploy.
 

@@ -1,7 +1,12 @@
 ---
 title: Unified Composition Model
 description: How backend and frontend plugins are composed into different Octarq editions without build tags.
+sidebar:
+  order: 3
+  group:
+    label: "Architecture"
 ---
+
 
 Octarq uses a unified, opt-in composition model across both open-source (OSS) and commercial (Pro) editions. Both backend and frontend follow the same design pattern.
 
