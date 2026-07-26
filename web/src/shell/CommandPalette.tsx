@@ -3,6 +3,11 @@ import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { Search } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { Area } from "./areas";
+import {
+  translateAreaTitle,
+  translateGroupLabel,
+  translateNavItemLabel,
+} from "./navI18n";
 
 export function CommandPalette({
   open,
@@ -32,16 +37,16 @@ export function CommandPalette({
         a.groups.flatMap((g) =>
           g.items.map((i) => ({
             id: i.path,
-            label: t(`nav.${i.id}`, i.label),
-            area: t(`areas.${a.id}.title`, a.title),
-            group: t(`groups.${g.label}`, g.label),
+            label: translateNavItemLabel(t, i.id, i.label),
+            area: translateAreaTitle(t, a.id, a.title),
+            group: translateGroupLabel(t, g.label),
             path: i.path,
             Icon: i.Icon,
             iconStr: i.iconStr,
           })),
         ),
       ),
-    [areas, t],
+    [areas, settingsArea, t],
   );
 
   const filtered = useMemo(() => {

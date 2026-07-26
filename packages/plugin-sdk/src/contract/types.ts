@@ -92,8 +92,8 @@ export interface PluginMenuItem {
 //
 // The reserved `_shared` top-level key is different: its contents deep-merge
 // into the SHARED namespaces that core-rendered chrome looks up — e.g.
-// `_shared: { nav: { storefront: "…" }, settings: { pluginDesc: { ai: "…" } } }`
-// localizes the plugin's sidebar label and its plugin-manager description.
+// `_shared: { nav: { storefront: "…" }, groups: { Communication: "…" }, settings: { pluginDesc: { ai: "…" } } }`
+// localizes the plugin's sidebar label, any custom navigation group heading it invents, and its plugin-manager description.
 import type { Lang } from "../i18n";
 
 export type PluginI18n = Partial<Record<Lang, Record<string, unknown>>>;

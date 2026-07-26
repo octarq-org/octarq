@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint:colors": "node scripts/lint-colors.mjs",
     "i18n:audit": "node scripts/i18n-audit.mjs",
+    "test": "vitest run",
     "preview": "vite preview --host"
   },
   "dependencies": {
@@ -36,6 +37,7 @@
     "@xterm/xterm": "^6.0.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.5.4",
-    "vite": "^5.4.6"
+    "vite": "^5.4.6",
+    "vitest": "^3.2.4"
   }
 }
