@@ -346,9 +346,10 @@ func (a *App) RunMCP(ctx context.Context) error {
 			deferredOnEmail = append(deferredOnEmail, handler)
 			emailMu.Unlock()
 		},
-		DNS:            &lazyDNSManager{lookup: services.Lookup},
-		SendMail:       a.sendMail,
-		SetLLMResolver: apiHandler.SetLLMResolver,
+		DNS:                  &lazyDNSManager{lookup: services.Lookup},
+		SendMail:             a.sendMail,
+		SetLLMResolver:       apiHandler.SetLLMResolver,
+		SetLLMResolverForOrg: apiHandler.SetLLMResolverForOrg,
 		RecordUsage: func(orgID uint, metric string, n int64) {
 			// Lazily resolved on every call: the provider (Pro's cloud module) may
 			// mount after the plugin that meters, so a Mount-time Lookup would
@@ -522,9 +523,10 @@ func (a *App) Run(ctx context.Context) error {
 			runDeferredOnEmail = append(runDeferredOnEmail, handler)
 			runEmailMu.Unlock()
 		},
-		DNS:            &lazyDNSManager{lookup: services.Lookup},
-		SendMail:       a.sendMail,
-		SetLLMResolver: apiHandler.SetLLMResolver,
+		DNS:                  &lazyDNSManager{lookup: services.Lookup},
+		SendMail:             a.sendMail,
+		SetLLMResolver:       apiHandler.SetLLMResolver,
+		SetLLMResolverForOrg: apiHandler.SetLLMResolverForOrg,
 		RecordUsage: func(orgID uint, metric string, n int64) {
 			// Lazily resolved on every call: the provider (Pro's cloud module) may
 			// mount after the plugin that meters, so a Mount-time Lookup would

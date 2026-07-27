@@ -245,7 +245,15 @@ type Context struct {
 	// AI. The resolver runs on every assist request and must therefore be cheap —
 	// cache internally and return an error describing how to configure when no
 	// backend is usable.
+	// Deprecated: SetLLMResolver cannot express tenancy because its callback has no
+	// orgID parameter. Plugins built against newer cores should prefer SetLLMResolverForOrg.
 	SetLLMResolver func(resolver func() (llmprovider.Provider, error))
+	// SetLLMResolverForOrg replaces the LLM backend behind the core's AI assists
+	// with an org-aware resolver. A hosted instance serves many tenants from one
+	// process, so the backend (and its API key) must be selected per request
+	// rather than once per process. Prefer this over SetLLMResolver, which cannot
+	// express tenancy and remains only for plugins built against older cores.
+	SetLLMResolverForOrg func(resolver func(orgID uint) (llmprovider.Provider, error))
 	// Provide registers a service for other plugins to Lookup, under a stable
 	// name following the "<pluginName>.<service>" convention. Call it only
 	// during Mount. Providing a name twice is a startup error (the app refuses
