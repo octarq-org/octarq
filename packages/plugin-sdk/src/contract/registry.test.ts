@@ -190,7 +190,7 @@ describe("uiPluginI18n", () => {
         },
       }),
     );
-    expect(uiPluginI18n().en.ai).toEqual({ title: "AI" });
+    expect(uiPluginI18n().en!.ai).toEqual({ title: "AI" });
     expect(uiPluginSharedI18n()).toEqual({
       en: { settings: { pluginDesc: { ai: "AI things", infra: "Servers" } }, nav: { vps: "Servers" } },
       zh: { settings: { pluginDesc: { ai: "AI 功能", infra: "服务器" } }, nav: { vps: "服务器" } },

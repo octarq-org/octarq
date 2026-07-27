@@ -1,0 +1,10 @@
+import { describe, expect, it } from "vitest";
+import { ARCH_PATH } from "./OctarqMark";
+
+describe("web shell brand glyph integration", () => {
+  it("re-exports ARCH_PATH from @octarq/plugin-sdk accurately", () => {
+    expect(ARCH_PATH).toBe(
+      "M10,26 C10,13.8 19.8,4 32,4 C44.2,4 54,13.8 54,26 V56 H42 V28 C42,23.6 37.6,20 32,20 C26.4,20 22,23.6 22,28 V56 H10 V26 Z M26,33 H38 V46 H26 V33 Z"
+    );
+  });
+});

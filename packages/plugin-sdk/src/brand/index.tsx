@@ -5,7 +5,7 @@
 // a tiny context the app populates via <BrandProvider name={…}>. Plugins call
 // useAppName() and get the operator's brand without importing anything
 // app-internal. Defaults to "octarq" when no provider is mounted.
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useContext, ReactNode, CSSProperties } from "react";
 
 const FALLBACK = "octarq";
 const Ctx = createContext<string>(FALLBACK);
@@ -23,3 +23,86 @@ export function useAppName(): string {
 export function brandInitial(name: string): string {
   return (name.trim()[0] || "O").toUpperCase();
 }
+
+// ARCH_PATH is the SVG path string for the Keystone Arch glyph.
+export const ARCH_PATH =
+  "M10,26 C10,13.8 19.8,4 32,4 C44.2,4 54,13.8 54,26 V56 H42 V28 C42,23.6 37.6,20 32,20 C26.4,20 22,23.6 22,28 V56 H10 V26 Z M26,33 H38 V46 H26 V33 Z";
+
+export function OctarqMark({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" fill="currentColor" aria-hidden="true" className={className}>
+      <path fillRule="evenodd" clipRule="evenodd" d={ARCH_PATH} />
+    </svg>
+  );
+}
+
+export type BrandGlyphSize = "sm" | "md" | "lg";
+
+const BOX: Record<BrandGlyphSize, string> = {
+  sm: "h-9 w-9",
+  md: "h-10 w-10",
+  lg: "h-12 w-12",
+};
+
+const TEXT: Record<BrandGlyphSize, string> = {
+  sm: "text-sm",
+  md: "text-base",
+  lg: "text-xl",
+};
+
+const GLYPH: Record<BrandGlyphSize, string> = {
+  sm: "h-[22px] w-[22px]",
+  md: "h-6 w-6",
+  lg: "h-[30px] w-[30px]",
+};
+
+export interface BrandGlyphProps {
+  appName: string;
+  logoUrl?: string | null;
+  size?: BrandGlyphSize;
+  className?: string;
+  style?: CSSProperties;
+}
+
+// BrandGlyph renders the brand mark following three-tier logic:
+//   1. White-label logo URL if provided
+//   2. Keystone Arch glyph if name is default "octarq"
+//   3. First-letter gradient box if name has been renamed
+export function BrandGlyph({
+  appName,
+  logoUrl,
+  size = "sm",
+  className = "",
+  style,
+}: BrandGlyphProps) {
+  const box = BOX[size];
+
+  if (logoUrl) {
+    return (
+      <img
+        src={logoUrl}
+        alt={appName || FALLBACK}
+        className={`${box} rounded-xl object-contain shadow-glow ${className}`}
+        style={style}
+      />
+    );
+  }
+
+  const isOctarq = (appName || "").trim().toLowerCase() === FALLBACK;
+
+  return (
+    <div
+      className={`${box} brand-gradient flex items-center justify-center rounded-xl shadow-glow ${className}`}
+      style={style}
+    >
+      {isOctarq ? (
+        <OctarqMark className={`${GLYPH[size]} text-white`} />
+      ) : (
+        <span className={`font-display ${TEXT[size]} font-extrabold text-white`}>
+          {brandInitial(appName)}
+        </span>
+      )}
+    </div>
+  );
+}
+
