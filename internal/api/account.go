@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -218,7 +219,19 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 		return nil, huma.Error500InternalServerError("failed to purge account data: " + err.Error())
 	}
 
-	h.audit(r, "account.purge", "org", org, nil)
+	// Deliberately NOT h.audit: that writes an org-scoped AuditLog row, and writing
+	// one here would recreate a row — carrying the actor's ID and IP — for the org
+	// we were just asked to erase. It is also fire-and-forget, so the write races
+	// the delete and the residue appears only sometimes.
+	//
+	// The operator still gets a durable record, in the log stream, which is not
+	// tenant data and survives the erasure it describes.
+	slog.Info("account purged",
+		"org", org,
+		"actor_user_id", h.auth.UserID(r),
+		"request_id", r.Header.Get("X-Request-Id"),
+	)
+
 	out := &PurgeAccountOutput{}
 	out.Body.OK = true
 	return out, nil
