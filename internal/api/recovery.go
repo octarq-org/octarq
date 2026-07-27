@@ -103,10 +103,13 @@ func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
-	if !h.loginLimiter.allow(ip) {
+	// Own budget, not the login one: every request counts here (there is no
+	// "failed" reset), so spending login's 5-per-15min would let anyone behind a
+	// shared IP be locked out of logging in by a few reset requests.
+	if !h.recoveryLimiter.allow(ip) {
 		return nil, huma.Error429TooManyRequests("too many attempts")
 	}
-	h.loginLimiter.recordFailure(ip)
+	h.recoveryLimiter.recordFailure(ip)
 
 	email := strings.ToLower(strings.TrimSpace(input.Body.Email))
 	out := &ForgotPasswordOutput{}
@@ -283,10 +286,13 @@ func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificat
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
-	if !h.loginLimiter.allow(ip) {
+	// Own budget, not the login one: every request counts here (there is no
+	// "failed" reset), so spending login's 5-per-15min would let anyone behind a
+	// shared IP be locked out of logging in by a few reset requests.
+	if !h.recoveryLimiter.allow(ip) {
 		return nil, huma.Error429TooManyRequests("too many attempts")
 	}
-	h.loginLimiter.recordFailure(ip)
+	h.recoveryLimiter.recordFailure(ip)
 
 	email := strings.ToLower(strings.TrimSpace(input.Body.Email))
 	out := &ResendVerificationOutput{}

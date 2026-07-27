@@ -261,3 +261,28 @@ func TestPrimaryOrgForUserDeterministic(t *testing.T) {
 		}
 	}
 }
+
+// Password-reset spam must not lock anyone out of logging in.
+//
+// The recovery endpoints originally shared loginLimiter, whose budget is 5 per
+// 15 minutes per IP. Counting every reset request against it meant five
+// unauthenticated /api/auth/forgot calls would block login and registration for
+// everyone behind that IP — a corporate NAT, a shared office — for 15 minutes.
+// They now have their own budget.
+func TestForgotPasswordDoesNotExhaustTheLoginBudget(t *testing.T) {
+	srv, db := newTestHandler(t)
+	if err := db.Create(&models.User{Email: t.Name() + "@x.com", PasswordHash: "x"}).Error; err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	// Burn well past the recovery budget.
+	for i := 0; i < 12; i++ {
+		do(srv, "POST", "/api/auth/forgot", nil, `{"email":"`+t.Name()+`@x.com"}`)
+	}
+
+	// Login must still be reachable — 401 for bad credentials is fine, 429 is not.
+	rec := do(srv, "POST", "/api/auth/login", nil, `{"username":"nobody@x.com","password":"wrong"}`)
+	if rec.Code == http.StatusTooManyRequests {
+		t.Errorf("login got 429 after forgot-password spam — the recovery endpoints are still spending the login budget")
+	}
+}
