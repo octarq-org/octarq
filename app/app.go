@@ -346,9 +346,19 @@ func (a *App) RunMCP(ctx context.Context) error {
 			deferredOnEmail = append(deferredOnEmail, handler)
 			emailMu.Unlock()
 		},
-		DNS:                 &lazyDNSManager{lookup: services.Lookup},
-		SendMail:            a.sendMail,
-		SetLLMResolver:      apiHandler.SetLLMResolver,
+		DNS:            &lazyDNSManager{lookup: services.Lookup},
+		SendMail:       a.sendMail,
+		SetLLMResolver: apiHandler.SetLLMResolver,
+		RecordUsage: func(orgID uint, metric string, n int64) {
+			// Lazily resolved on every call: the provider (Pro's cloud module) may
+			// mount after the plugin that meters, so a Mount-time Lookup would
+			// silently never find it.
+			if v, ok := services.Lookup("cloud.usage"); ok {
+				if fn, ok := v.(func(orgID uint, metric string, n int64)); ok {
+					fn(orgID, metric, n)
+				}
+			}
+		},
 		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
 		GetGlobalSetting:    apiHandler.GetGlobalSetting,
 		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,
@@ -512,9 +522,19 @@ func (a *App) Run(ctx context.Context) error {
 			runDeferredOnEmail = append(runDeferredOnEmail, handler)
 			runEmailMu.Unlock()
 		},
-		DNS:                 &lazyDNSManager{lookup: services.Lookup},
-		SendMail:            a.sendMail,
-		SetLLMResolver:      apiHandler.SetLLMResolver,
+		DNS:            &lazyDNSManager{lookup: services.Lookup},
+		SendMail:       a.sendMail,
+		SetLLMResolver: apiHandler.SetLLMResolver,
+		RecordUsage: func(orgID uint, metric string, n int64) {
+			// Lazily resolved on every call: the provider (Pro's cloud module) may
+			// mount after the plugin that meters, so a Mount-time Lookup would
+			// silently never find it.
+			if v, ok := services.Lookup("cloud.usage"); ok {
+				if fn, ok := v.(func(orgID uint, metric string, n int64)); ok {
+					fn(orgID, metric, n)
+				}
+			}
+		},
 		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
 		GetGlobalSetting:    apiHandler.GetGlobalSetting,
 		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,

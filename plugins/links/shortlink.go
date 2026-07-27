@@ -230,6 +230,9 @@ func (e *Engine) record(r *http.Request, orgID uint, slug string, linkID uint, i
 		if !bot {
 			e.db.Model(&Link{}).Where("id = ?", linkID).
 				UpdateColumn("clicks", gorm.Expr("clicks + 1"))
+			if e.ctx != nil && e.ctx.RecordUsage != nil {
+				e.ctx.RecordUsage(orgID, "links", 1)
+			}
 		}
 		// Trigger Webhook Event Bus
 		if e.ctx != nil && e.ctx.PublishEvent != nil {

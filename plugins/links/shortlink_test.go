@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -320,5 +321,60 @@ func TestIsBot(t *testing.T) {
 		if isBot(ua) {
 			t.Errorf("expected %q to NOT be recognized as bot", ua)
 		}
+	}
+}
+
+func TestRecordUsage(t *testing.T) {
+	var mu sync.Mutex
+	var calls []struct {
+		orgID  uint
+		metric string
+		n      int64
+	}
+	ctx := mockCtx()
+	ctx.RecordUsage = func(orgID uint, metric string, n int64) {
+		mu.Lock()
+		defer mu.Unlock()
+		calls = append(calls, struct {
+			orgID  uint
+			metric string
+			n      int64
+		}{orgID, metric, n})
+	}
+
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.AutoMigrate(append(models.AllModels(), &Link{}, &LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{})...); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	db.Where("1 = 1").Delete(&Link{})
+
+	eng := NewEngine(db, ctx)
+	link := &Link{Slug: "testusage", Target: "https://example.com", Enabled: true, OrgID: 42}
+	db.Create(link)
+
+	// Non-bot click
+	r1 := httptest.NewRequest(http.MethodGet, "/testusage", nil)
+	r1.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)")
+	w1 := httptest.NewRecorder()
+	eng.Handle(w1, r1, link)
+
+	// Bot click
+	r2 := httptest.NewRequest(http.MethodGet, "/testusage", nil)
+	r2.Header.Set("User-Agent", "Googlebot/2.1")
+	w2 := httptest.NewRecorder()
+	eng.Handle(w2, r2, link)
+
+	time.Sleep(50 * time.Millisecond)
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(calls) != 1 {
+		t.Fatalf("expected 1 RecordUsage call, got %d", len(calls))
+	}
+	if calls[0].orgID != 42 || calls[0].metric != "links" || calls[0].n != 1 {
+		t.Errorf("unexpected call: %+v", calls[0])
 	}
 }
