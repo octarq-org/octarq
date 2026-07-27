@@ -36,13 +36,18 @@ func hashToken(token string) string {
 	return hex.EncodeToString(hash[:])
 }
 
+// primaryOrgForUser returns the lowest orgID the user belongs to as a deterministic default for notifications/system emails.
+func (h *Handler) primaryOrgForUser(userID uint) uint {
+	var orgMember models.OrgMember
+	if h.db.Where("user_id = ?", userID).Order("org_id ASC").First(&orgMember).Error == nil {
+		return orgMember.OrgID
+	}
+	return 0
+}
+
 // sendPasswordResetEmail best-effort delivers a password reset link to the user.
 func (h *Handler) sendPasswordResetEmail(userID uint, to, resetURL string) {
-	var orgMember models.OrgMember
-	var orgID uint
-	if h.db.Where("user_id = ?", userID).First(&orgMember).Error == nil {
-		orgID = orgMember.OrgID
-	}
+	orgID := h.primaryOrgForUser(userID)
 	if sendMail, ok := h.LookupService("mail.send"); ok {
 		if fn, ok := sendMail.(func(orgID uint, to, subject, htmlBody, textBody string) error); ok {
 			text := fmt.Sprintf("Reset your password for octarq:\n\n%s\n\nThis link expires in 1 hour.", resetURL)
@@ -57,11 +62,7 @@ func (h *Handler) sendPasswordResetEmail(userID uint, to, resetURL string) {
 
 // sendVerificationEmail best-effort delivers an email verification link to the user.
 func (h *Handler) sendVerificationEmail(userID uint, to, verifyURL string) {
-	var orgMember models.OrgMember
-	var orgID uint
-	if h.db.Where("user_id = ?", userID).First(&orgMember).Error == nil {
-		orgID = orgMember.OrgID
-	}
+	orgID := h.primaryOrgForUser(userID)
 	if sendMail, ok := h.LookupService("mail.send"); ok {
 		if fn, ok := sendMail.(func(orgID uint, to, subject, htmlBody, textBody string) error); ok {
 			text := fmt.Sprintf("Verify your email address for octarq:\n\n%s\n\nThis link expires in 24 hours.", verifyURL)
@@ -100,6 +101,13 @@ func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
+	r, _ := humago.Unwrap(input.Ctx)
+	ip := reporterIP(r)
+	if !h.loginLimiter.allow(ip) {
+		return nil, huma.Error429TooManyRequests("too many attempts")
+	}
+	h.loginLimiter.recordFailure(ip)
+
 	email := strings.ToLower(strings.TrimSpace(input.Body.Email))
 	out := &ForgotPasswordOutput{}
 	out.Body.OK = true
@@ -278,6 +286,7 @@ func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificat
 	if !h.loginLimiter.allow(ip) {
 		return nil, huma.Error429TooManyRequests("too many attempts")
 	}
+	h.loginLimiter.recordFailure(ip)
 
 	email := strings.ToLower(strings.TrimSpace(input.Body.Email))
 	out := &ResendVerificationOutput{}
