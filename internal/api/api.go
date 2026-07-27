@@ -54,6 +54,10 @@ type Handler struct {
 	// dispatch happens on the inbound webhook path.
 	lookupService func(name string) (any, bool)
 	humaAPI       huma.API
+
+	// hostOrgs caches Host→org resolution for per-workspace branding on the
+	// public, pre-auth config endpoint. See host_org.go.
+	hostOrgs hostOrgCache
 }
 
 func (h *Handler) SetPlugins(plugins []plugin.Plugin) {

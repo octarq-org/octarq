@@ -180,6 +180,25 @@ type Context struct {
 	UserID func(*http.Request) uint
 	// OrgID extracts the authenticated org ID from the request session (0 if unauthed).
 	OrgID func(*http.Request) uint
+	// OrgRole returns the role the caller holds in their ACTIVE org — "owner",
+	// "admin", "member", or "" when unauthenticated, not a member, or
+	// authenticated by API bearer token (which carries no user identity). Use it
+	// to gate workspace-level administration: a plugin writing org-scoped config
+	// should require owner/admin rather than merely "logged in".
+	//
+	// Authorization for a WORKSPACE-scoped resource. For instance-wide state use
+	// IsInstanceAdmin instead — org role says nothing about instance privilege,
+	// and every self-serve signup is "owner" of their own org.
+	OrgRole func(*http.Request) string
+	// IsInstanceAdmin reports whether the caller is the bootstrap operator
+	// account (User.IsInstanceAdmin, set deterministically for the configured
+	// OCTARQ_ADMIN_* identity at first login — never derived from org ordering).
+	//
+	// This is the ONLY correct gate for instance-wide state: SSO/OIDC config, the
+	// Pro license, instance branding defaults, anything one tenant must not be
+	// able to change for every other tenant. "Is logged in" is NOT a substitute —
+	// on a multi-tenant host every tenant is logged in.
+	IsInstanceAdmin func(*http.Request) bool
 	// LoginByEmail completes a login for an already-verified email address: it
 	// provisions (or finds) the user + a personal org and issues the session
 	// cookie, the same way built-in OAuth login does, returning the user ID. It

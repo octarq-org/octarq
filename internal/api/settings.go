@@ -62,24 +62,57 @@ const (
 	defaultRedirectRPM = 6000
 )
 
-// AppName returns the runtime product name (Settings → General), falling back
-// to config.DefaultAppName.
-func (h *Handler) AppName() string {
-	if v := strings.TrimSpace(h.getSetting(keyAppName)); v != "" {
+// Branding resolution
+//
+// Branding is per-workspace, with an instance-wide default underneath it, so one
+// deployment can host many tenants that each look like their own product:
+//
+//	workspace setting (org) → instance setting → built-in default
+//
+// orgID 0 means "no workspace resolved" and skips straight to the instance
+// layer. That is the honest answer on a shared host like app.octarq.org, where
+// the login screen belongs to no tenant in particular.
+
+// brandSetting resolves one branding key through the org → instance chain.
+// A workspace that has never set the key inherits; a workspace that set it to
+// empty also inherits (there is no "explicitly blank" branding).
+func (h *Handler) brandSetting(orgID uint, key string) string {
+	if orgID != 0 {
+		if v := strings.TrimSpace(h.GetWorkspaceSetting(orgID, key)); v != "" {
+			return v
+		}
+	}
+	return strings.TrimSpace(h.getSetting(key))
+}
+
+// AppName returns the instance-default product name. Equivalent to
+// AppNameFor(0); kept as the zero-argument form for callers with no workspace in
+// hand.
+func (h *Handler) AppName() string { return h.AppNameFor(0) }
+
+// AppNameFor returns the product name shown to the given workspace, falling back
+// to the instance name and then config.DefaultAppName.
+func (h *Handler) AppNameFor(orgID uint) string {
+	if v := h.brandSetting(orgID, keyAppName); v != "" {
 		return v
 	}
 	return config.DefaultAppName
 }
 
-// Brand returns the runtime white-label branding (logo + accent colors) from
-// Settings. These keys have no core write path — they are set only by the Pro
-// white-label plugin, so an OSS build always returns the zero values (default
-// look). The values are surfaced publicly via GET /api/auth/config so the login
-// screen and shell can theme before authentication.
-func (h *Handler) Brand() (logo, color, color2 string) {
-	return strings.TrimSpace(h.getSetting(keyBrandLogo)),
-		strings.TrimSpace(h.getSetting(keyBrandColor)),
-		strings.TrimSpace(h.getSetting(keyBrandColor2))
+// Brand returns the instance-default white-label branding. Equivalent to
+// BrandFor(0).
+func (h *Handler) Brand() (logo, color, color2 string) { return h.BrandFor(0) }
+
+// BrandFor returns the white-label branding (logo + accent colors) for the given
+// workspace, falling back to the instance defaults. These keys have no core
+// write path — they are set only by the Pro white-label plugin, so an OSS build
+// always returns the zero values (default look). The values are surfaced
+// publicly via GET /api/auth/config so the login screen and shell can theme
+// before authentication.
+func (h *Handler) BrandFor(orgID uint) (logo, color, color2 string) {
+	return h.brandSetting(orgID, keyBrandLogo),
+		h.brandSetting(orgID, keyBrandColor),
+		h.brandSetting(orgID, keyBrandColor2)
 }
 
 // MetricsToken returns the decrypted /metrics bearer token; empty means the
@@ -323,6 +356,14 @@ func (h *Handler) isInstanceAdmin(r *http.Request) bool {
 		return false
 	}
 	return isAdmin
+}
+
+// IsInstanceAdmin is the public wrapper around isInstanceAdmin, exposed to
+// plugins via plugin.Context.IsInstanceAdmin. Instance-wide plugin config (SSO,
+// the Pro license, instance branding defaults) must gate on this — on a
+// multi-tenant host "is logged in" grants every tenant the operator's reach.
+func (h *Handler) IsInstanceAdmin(r *http.Request) bool {
+	return h.isInstanceAdmin(r)
 }
 
 type UpdateSettingsInput struct {

@@ -292,6 +292,37 @@ func (m *Manager) Clear(r *http.Request, w http.ResponseWriter) {
 	})
 }
 
+// RevokeUserOrgSessions deletes every session that binds the given user to the
+// given org, evicting each from the cache first so a cached row can't keep
+// serving after the DB row is gone. Returns the number of sessions revoked.
+//
+// Membership is checked ONCE, when the session is minted: a session row carries
+// its org and every later request trusts it. So dropping the org_members row is
+// not by itself a revocation — without this, a removed member keeps full access
+// to the workspace's data until their session expires (up to sessionTTL). Any
+// code path that ends a membership must call this.
+func (m *Manager) RevokeUserOrgSessions(userID, orgID uint) int {
+	if m.db == nil || userID == 0 || orgID == 0 {
+		return 0
+	}
+	var sessions []models.Session
+	if err := m.db.Where("user_id = ? AND org_id = ?", userID, orgID).Find(&sessions).Error; err != nil {
+		return 0
+	}
+	if len(sessions) == 0 {
+		return 0
+	}
+	ctx := context.Background()
+	ids := make([]uint, 0, len(sessions))
+	for _, s := range sessions {
+		// Session.Token holds the SHA-256 hash, which is exactly the cache key.
+		_ = m.cache.Delete(ctx, "session:"+s.Token)
+		ids = append(ids, s.ID)
+	}
+	m.db.Where("id IN ?", ids).Delete(&models.Session{})
+	return len(ids)
+}
+
 // TouchSession updates LastSeenAt for the session associated with r, but
 // only if it has not been touched within touchInterval to limit write
 // amplification. Safe to call asynchronously.

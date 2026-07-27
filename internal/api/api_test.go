@@ -76,6 +76,14 @@ func mountCoreMail(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypt
 
 func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	t.Helper()
+	_, srv, db := newTestHandlerRaw(t)
+	return srv, db
+}
+
+// newTestHandlerRaw is newTestHandler plus the *Handler itself, for tests that
+// exercise handler methods directly rather than over HTTP.
+func newTestHandlerRaw(t *testing.T) (*Handler, http.Handler, *gorm.DB) {
+	t.Helper()
 	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
 	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
 	if err != nil {
@@ -127,7 +135,7 @@ func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	mailP.Mount(nil, pctx)
 	linksP.Mount(nil, pctx)
 
-	return srv, db
+	return h, srv, db
 }
 
 // apiEnvStore backs crypto.EnableEnvelope with the test DB's settings table.
