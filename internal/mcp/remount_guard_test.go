@@ -62,7 +62,7 @@ func TestNetworkedInstanceDoesNotRemountSharedPlugins(t *testing.T) {
 	before := f.resolve(req)
 
 	// Tenant 42 opens an MCP SSE/stream connection.
-	NewNetworkedServerInstance(nil, 42, []plugin.Plugin{f})
+	NewNetworkedServerInstance(nil, 42, []plugin.Plugin{f}, nil)
 
 	if f.mounts != mountsAfterBoot {
 		t.Errorf("networked MCP connection re-Mounted the shared plugin (%d -> %d mounts)", mountsAfterBoot, f.mounts)
@@ -81,13 +81,13 @@ func TestNetworkedInstanceConcurrentRace(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterations; i++ {
-			NewNetworkedServerInstance(nil, 7, []plugin.Plugin{f})
+			NewNetworkedServerInstance(nil, 7, []plugin.Plugin{f}, nil)
 		}
 	}()
 	go func() {
 		defer wg.Done()
 		for i := 0; i < iterations; i++ {
-			NewNetworkedServerInstance(nil, 42, []plugin.Plugin{f})
+			NewNetworkedServerInstance(nil, 42, []plugin.Plugin{f}, nil)
 		}
 	}()
 	wg.Wait()

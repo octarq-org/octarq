@@ -66,14 +66,16 @@ func Run(ctx context.Context) error {
 // wires allowRawSQL=false so the raw-SQL tool can NEVER be exposed over the
 // network: the invariant is enforced in code, not by convention at the call
 // site. All networked callers MUST use this constructor.
-// Networked transport does not call Mount on plugins; shared plugin instances are
-// already mounted at app boot time with per-request resolvers. Re-mounting per
-// connection would overwrite shared plugin fields and cause cross-tenant leaks.
-func NewNetworkedServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookups ...func(string) (any, bool)) *mcp.Server {
-	var lookup func(string) (any, bool)
-	if len(lookups) > 0 {
-		lookup = lookups[0]
-	}
+//
+// It also never Mounts the plugins. They are shared instances, already mounted
+// at app boot with per-request resolvers; re-Mounting them here — once per
+// connection, with this connection's org — would overwrite those resolvers
+// process-wide and silently repoint every other tenant's requests at this org.
+// Tools get the caller's org from the request context instead, via
+// plugin.OrgIDFromContext. lookup is the app's own service registry, which
+// Mounting used to (re)build; it is required, not optional, so a caller cannot
+// quietly drop it and lose the export tools.
+func NewNetworkedServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookup func(string) (any, bool)) *mcp.Server {
 	srv, _ := buildServerInstance(gdb, orgID, plugins, false, lookup, false)
 	return srv
 }
