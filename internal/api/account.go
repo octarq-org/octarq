@@ -8,6 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
+	"gorm.io/gorm"
 )
 
 // Data portability (GDPR/CCPA): an operator can export everything their org
@@ -48,11 +49,23 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 	org := h.orgID(r)
 
 	var (
-		tokens   []models.Token
-		channels []models.NotificationChannel
+		orgRow            models.Org
+		tokens            []models.Token
+		channels          []models.NotificationChannel
+		workspaceSettings []models.WorkspaceSetting
+		pluginSettings    []models.PluginSetting
+		auditLogs         []models.AuditLog
+		webhooks          []models.Webhook
+		abuseReports      []models.AbuseReport
 	)
+	h.db.Where("id = ?", org).First(&orgRow)
 	h.db.Where("owner_id = ?", org).Find(&tokens)
 	h.db.Where("owner_id = ?", org).Find(&channels)
+	h.db.Where("org_id = ?", org).Find(&workspaceSettings)
+	h.db.Where("org_id = ?", org).Find(&pluginSettings)
+	h.db.Where("org_id = ?", org).Find(&auditLogs)
+	h.db.Where("owner_id = ?", org).Find(&webhooks)
+	h.db.Where("owner_id = ?", org).Find(&abuseReports)
 
 	// Redact channel configs (they may hold a bot token / webhook secret).
 	type channelOut struct {
@@ -65,12 +78,29 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 		chOut[i] = channelOut{NotificationChannel: c, Config: "[redacted]"}
 	}
 
+	// Redact webhook secrets.
+	type webhookOut struct {
+		models.Webhook
+		Secret string `json:"secret"`
+	}
+	whOut := make([]webhookOut, len(webhooks))
+	for i, w := range webhooks {
+		w.Secret = ""
+		whOut[i] = webhookOut{Webhook: w, Secret: "[redacted]"}
+	}
+
 	bodyMap := map[string]any{
 		"exportedAt":           time.Now().UTC().Format(time.RFC3339),
 		"orgId":                org,
-		"apiTokens":            tokens, // hashes excluded (json:"-")
+		"organization":         orgRow, // InboundToken excluded via json:"-"
+		"apiTokens":            tokens, // hashes excluded via json:"-"
 		"notificationChannels": chOut,  // configs redacted
-		"note":                 "Secret material (token hashes, encrypted credentials, SMTP passwords, channel configs) is intentionally excluded.",
+		"workspaceSettings":    workspaceSettings,
+		"pluginSettings":       pluginSettings,
+		"auditLogs":            auditLogs,
+		"webhooks":             whOut, // secret redacted
+		"abuseReports":         abuseReports,
+		"note":                 "Secret material (token hashes, encrypted credentials, SMTP passwords, channel configs, webhook secrets) is intentionally excluded.",
 	}
 
 	for _, p := range h.plugins {
@@ -129,6 +159,7 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 	}
 	org := h.orgID(r)
 
+	// 1. Call plugin purge services first
 	for _, p := range h.plugins {
 		svcName := p.Name() + ".purge"
 		if v, ok := h.LookupService(svcName); ok {
@@ -138,10 +169,53 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 		}
 	}
 
-	for _, m := range []any{
-		&models.Token{}, &models.NotificationChannel{},
-	} {
-		h.db.Where("owner_id = ?", org).Delete(m)
+	// 2. Revoke sessions for all members of this org before purging org_members
+	var members []models.OrgMember
+	h.db.Where("org_id = ?", org).Find(&members)
+	if h.auth != nil {
+		for _, m := range members {
+			h.auth.RevokeUserOrgSessions(m.UserID, org)
+		}
+	}
+
+	// 3. Delete core tables inside a single transaction
+	err := h.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("owner_id = ?", org).Delete(&models.Token{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("owner_id = ?", org).Delete(&models.NotificationChannel{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("org_id = ?", org).Delete(&models.WorkspaceSetting{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("org_id = ?", org).Delete(&models.PluginSetting{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("org_id = ?", org).Delete(&models.AuditLog{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("owner_id = ?", org).Delete(&models.Webhook{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("owner_id = ?", org).Delete(&models.AbuseReport{}).Error; err != nil {
+			return err
+		}
+
+		// Session, OrgMember, and Org are deleted last
+		if err := tx.Where("org_id = ?", org).Delete(&models.Session{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("org_id = ?", org).Delete(&models.OrgMember{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("id = ?", org).Delete(&models.Org{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to purge account data: " + err.Error())
 	}
 
 	h.audit(r, "account.purge", "org", org, nil)
