@@ -53,7 +53,7 @@ func (h *Handler) mcpSSEHandler() http.Handler {
 		orgID := h.orgID(r)
 		// allowRawSQL=false: over HTTP the caller is one tenant among many, and raw
 		// SQL can't be scoped to a single owner_id. Only the tenant-scoped tools run.
-		return mcp_internal.NewNetworkedServerInstance(h.db, orgID, h.plugins)
+		return mcp_internal.NewNetworkedServerInstance(h.db, orgID, h.plugins, h.LookupService)
 	}, &mcp.SSEOptions{
 		DisableLocalhostProtection: true,
 	})
@@ -66,7 +66,7 @@ func (h *Handler) mcpStreamHandler() http.Handler {
 		orgID := h.orgID(r)
 		// allowRawSQL=false: over HTTP the caller is one tenant among many, and raw
 		// SQL can't be scoped to a single owner_id. Only the tenant-scoped tools run.
-		return mcp_internal.NewNetworkedServerInstance(h.db, orgID, h.plugins)
+		return mcp_internal.NewNetworkedServerInstance(h.db, orgID, h.plugins, h.LookupService)
 	}, &mcp.StreamableHTTPOptions{
 		DisableLocalhostProtection: true,
 	})

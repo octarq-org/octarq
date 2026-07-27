@@ -19,13 +19,13 @@ func TestNetworkedConstructorNeverEnablesRawSQL(t *testing.T) {
 	}
 
 	// Networked constructor path: allowRawSQL is hard-wired false.
-	_, netSrv := buildServerInstance(gdb, 1, nil, false)
+	_, netSrv := buildServerInstance(gdb, 1, nil, false, nil, false)
 	if netSrv.rawSQLEnabled {
 		t.Fatal("networked MCP server must never register the raw-SQL tool")
 	}
 
 	// Stdio path still enables it.
-	_, stdioSrv := buildServerInstance(gdb, 1, nil, true)
+	_, stdioSrv := buildServerInstance(gdb, 1, nil, true, nil, true)
 	if !stdioSrv.rawSQLEnabled {
 		t.Fatal("stdio MCP server should register the raw-SQL tool")
 	}
