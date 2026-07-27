@@ -399,7 +399,9 @@ type MenuProvider interface {
 }
 
 // MCPProvider is an optional interface a Plugin may implement if it registers
-// dynamic MCP tools.
+// dynamic MCP tools. MCP tools MUST use plugin.OrgIDFromContext(ctx) to retrieve
+// the caller's org ID, and MUST NOT read org fields cached on the plugin during Mount
+// (under networked transport that field belongs to another caller).
 type MCPProvider interface {
 	RegisterMCP(srv *mcp.Server)
 }

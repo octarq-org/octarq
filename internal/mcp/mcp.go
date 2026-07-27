@@ -66,31 +66,45 @@ func Run(ctx context.Context) error {
 // wires allowRawSQL=false so the raw-SQL tool can NEVER be exposed over the
 // network: the invariant is enforced in code, not by convention at the call
 // site. All networked callers MUST use this constructor.
-func NewNetworkedServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin) *mcp.Server {
-	return NewServerInstance(gdb, orgID, plugins, false)
+// Networked transport does not call Mount on plugins; shared plugin instances are
+// already mounted at app boot time with per-request resolvers. Re-mounting per
+// connection would overwrite shared plugin fields and cause cross-tenant leaks.
+func NewNetworkedServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookups ...func(string) (any, bool)) *mcp.Server {
+	var lookup func(string) (any, bool)
+	if len(lookups) > 0 {
+		lookup = lookups[0]
+	}
+	srv, _ := buildServerInstance(gdb, orgID, plugins, false, lookup, false)
+	return srv
 }
 
 func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, allowRawSQL bool) *mcp.Server {
-	srv, _ := buildServerInstance(gdb, orgID, plugins, allowRawSQL)
+	srv, _ := buildServerInstance(gdb, orgID, plugins, allowRawSQL, nil, true)
 	return srv
 }
 
 // buildServerInstance is the single chokepoint that constructs an MCP server. It
 // returns the internal *server so the raw-SQL invariant can be asserted in
 // tests. rawSQLEnabled on the returned *server reflects what was actually wired.
-func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, allowRawSQL bool) (*mcp.Server, *server) {
-	reg := plugin.NewRegistry()
-	pctx := &plugin.Context{
-		DB:      gdb,
-		OrgID:   func(_ *http.Request) uint { return orgID },
-		Provide: reg.Provide,
-		Lookup:  reg.Lookup,
-	}
-	for _, p := range plugins {
-		p.Mount(nil, pctx)
+func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, allowRawSQL bool, lookup func(string) (any, bool), mountPlugins bool) (*mcp.Server, *server) {
+	lookupFn := lookup
+	if mountPlugins {
+		reg := plugin.NewRegistry()
+		pctx := &plugin.Context{
+			DB:      gdb,
+			OrgID:   func(_ *http.Request) uint { return orgID },
+			Provide: reg.Provide,
+			Lookup:  reg.Lookup,
+		}
+		for _, p := range plugins {
+			p.Mount(nil, pctx)
+		}
+		if lookupFn == nil {
+			lookupFn = reg.Lookup
+		}
 	}
 
-	s := &server{gdb: gdb, orgID: orgID, lookup: reg.Lookup}
+	s := &server{gdb: gdb, orgID: orgID, lookup: lookupFn}
 
 	impl := &mcp.Implementation{Name: "octarq", Version: version}
 	opts := &mcp.ServerOptions{

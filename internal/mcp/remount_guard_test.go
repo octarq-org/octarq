@@ -71,3 +71,33 @@ func TestNetworkedInstanceDoesNotRemountSharedPlugins(t *testing.T) {
 		t.Fatalf("CROSS-TENANT LEAK: MCP connect as org 42 changed HTTP org resolution %d -> %d", before, after)
 	}
 }
+
+func TestNetworkedInstanceConcurrentRace(t *testing.T) {
+	f := &fakePlugin{}
+	var wg sync.WaitGroup
+	const iterations = 50
+
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterations; i++ {
+			NewNetworkedServerInstance(nil, 7, []plugin.Plugin{f})
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < iterations; i++ {
+			NewNetworkedServerInstance(nil, 42, []plugin.Plugin{f})
+		}
+	}()
+	wg.Wait()
+}
+
+func TestStdioInstanceMountsPlugins(t *testing.T) {
+	f := &fakePlugin{}
+	before := f.mounts
+	NewServerInstance(nil, 1, []plugin.Plugin{f}, true)
+	if f.mounts != before+1 {
+		t.Fatalf("stdio MCP connection must Mount plugins (%d -> %d mounts)", before, f.mounts)
+	}
+}
