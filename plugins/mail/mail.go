@@ -463,6 +463,9 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 		}
 		return nil, huma.Error400BadRequest("send failed: " + err.Error())
 	}
+	if p.recordUsage != nil {
+		p.recordUsage(p.orgID(r), "mail", int64(len(msg.To)))
+	}
 	p.sendLimiter.recordFailure(orgKey) // count this send against the per-org cap
 	return &SendEmailOutput{Body: map[string]bool{"ok": true}}, nil
 }

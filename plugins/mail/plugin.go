@@ -34,6 +34,7 @@ type Plugin struct {
 	emailHandlers       []func(plugin.EmailEvent)
 	notify              func(ctx context.Context, kind string, config map[string]any, message string) error
 	publishEvent        func(orgID uint, event string, data any)
+	recordUsage         func(orgID uint, metric string, n int64)
 }
 
 // Compile-time capability checks.
@@ -134,6 +135,9 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	if ctx.PublishEvent != nil {
 		p.publishEvent = ctx.PublishEvent
 	}
+	if ctx.RecordUsage != nil {
+		p.recordUsage = ctx.RecordUsage
+	}
 	if ctx.RegisterWebhookEvent != nil {
 		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "email.receive", Group: "Email", Title: "Email Received", Description: "An inbound email was delivered to a mailbox"})
 		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "email.send_failed", Group: "Email", Title: "Email Send Failed", Description: "An outbound email failed to send through the configured SMTP sender"})
@@ -220,6 +224,9 @@ func (p *Plugin) sendMail(orgID uint, to, subject, htmlBody, textBody string) er
 			p.publishEvent(orgID, "email.send_failed", map[string]any{"to": []string{to}, "subject": subject, "error": err.Error()})
 		}
 		return err
+	}
+	if p.recordUsage != nil {
+		p.recordUsage(orgID, "mail", 1)
 	}
 	return nil
 }

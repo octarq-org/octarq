@@ -277,6 +277,12 @@ type Context struct {
 	ParseUA func(ua string) (device, browser, os string)
 	// PublishEvent publishes an event to the org's webhooks.
 	PublishEvent func(orgID uint, event string, data any)
+	// RecordUsage reports metered tenant consumption (a link redirect, an email
+	// send) to whatever billing backend is installed. It is a no-op on
+	// self-hosted builds where nothing provides "cloud.usage" — metering is a
+	// hosted-only concern, so call sites must not branch on build or config.
+	// Never expose this to tenant-controlled input: n is server-side truth.
+	RecordUsage func(orgID uint, metric string, n int64)
 	// RegisterWebhookEvent declares an event this plugin publishes via
 	// PublishEvent so the dashboard's webhook editor can offer it for
 	// subscription. Call it during Mount; duplicate keys are ignored.
