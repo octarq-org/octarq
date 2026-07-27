@@ -27,20 +27,26 @@ import (
 
 // Handler bundles dependencies shared by all API endpoints.
 type Handler struct {
-	cfg           *config.Config
-	db            *gorm.DB
-	cipher        *crypto.Cipher
-	auth          *auth.Manager
-	geo           *geo.Resolver
-	oauth         *auth.OAuthHandler // nil if BaseURL not configured
-	loginLimiter  *rateLimiter
-	abuseLimiter  *rateLimiter
-	sendLimiter   *rateLimiter // outbound-email rate cap, keyed by org
-	statusLimiter *rateLimiter
-	plugins       []plugin.Plugin
-	lookupTXT     func(name string) ([]string, error)
-	lookupCNAME   func(name string) (string, error)
-	queue         queue.Queue
+	cfg          *config.Config
+	db           *gorm.DB
+	cipher       *crypto.Cipher
+	auth         *auth.Manager
+	geo          *geo.Resolver
+	oauth        *auth.OAuthHandler // nil if BaseURL not configured
+	loginLimiter *rateLimiter
+	// recoveryLimiter bounds the unauthenticated password-reset / verification-resend
+	// endpoints. It is deliberately SEPARATE from loginLimiter: those endpoints must
+	// count every request (there is no "failed" reset to count), and sharing the
+	// login budget would let anyone lock a whole NAT out of logging in by firing a
+	// handful of reset requests.
+	recoveryLimiter *rateLimiter
+	abuseLimiter    *rateLimiter
+	sendLimiter     *rateLimiter // outbound-email rate cap, keyed by org
+	statusLimiter   *rateLimiter
+	plugins         []plugin.Plugin
+	lookupTXT       func(name string) ([]string, error)
+	lookupCNAME     func(name string) (string, error)
+	queue           queue.Queue
 
 	// llmResolver supplies the LLM backend for the single-step AI assists
 	// (ai.go). Defaults to the env-backed envLLMResolver; the Pro ai plugin
@@ -82,19 +88,20 @@ func (h *Handler) Huma() huma.API {
 func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *geo.Resolver, q queue.Queue) *Handler {
 	trustProxy = cfg.TrustProxy
 	h := &Handler{
-		cfg:           cfg,
-		db:            db,
-		cipher:        c,
-		auth:          a,
-		geo:           g,
-		queue:         q,
-		loginLimiter:  newRateLimiter(cfg.RedisURL, "login", 5, 15*time.Minute), // 5 fails / 15 mins
-		abuseLimiter:  newRateLimiter(cfg.RedisURL, "abuse", 5, time.Hour),      // 5 reports / 1 hour
-		sendLimiter:   newRateLimiter(cfg.RedisURL, "send", 100, time.Hour),     // 100 outbound emails / org / hour
-		statusLimiter: newRateLimiter(cfg.RedisURL, "status", 60, time.Minute),  // 60 requests / minute
-		lookupTXT:     net.LookupTXT,
-		lookupCNAME:   net.LookupCNAME,
-		llmResolver:   envLLMResolver(),
+		cfg:             cfg,
+		db:              db,
+		cipher:          c,
+		auth:            a,
+		geo:             g,
+		queue:           q,
+		loginLimiter:    newRateLimiter(cfg.RedisURL, "login", 5, 15*time.Minute),    // 5 fails / 15 mins
+		recoveryLimiter: newRateLimiter(cfg.RedisURL, "recovery", 5, 15*time.Minute), // 5 reset/verify requests / 15 mins
+		abuseLimiter:    newRateLimiter(cfg.RedisURL, "abuse", 5, time.Hour),         // 5 reports / 1 hour
+		sendLimiter:     newRateLimiter(cfg.RedisURL, "send", 100, time.Hour),        // 100 outbound emails / org / hour
+		statusLimiter:   newRateLimiter(cfg.RedisURL, "status", 60, time.Minute),     // 60 requests / minute
+		lookupTXT:       net.LookupTXT,
+		lookupCNAME:     net.LookupCNAME,
+		llmResolver:     envLLMResolver(),
 	}
 	if cfg.BaseURL != "" {
 		h.oauth = auth.NewOAuthHandler(db, cfg.BaseURL, a, c)

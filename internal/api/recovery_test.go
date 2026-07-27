@@ -197,3 +197,92 @@ func TestEmailVerificationGatingToggle(t *testing.T) {
 		t.Fatalf("login when verified and gating ON: got %d, want 200", recVerified.Code)
 	}
 }
+
+// TestForgotPasswordRateLimit verifies that hitting POST /api/auth/forgot
+// repeatedly from the same IP eventually triggers 429 Too Many Requests.
+func TestForgotPasswordRateLimit(t *testing.T) {
+	srv, _ := newTestHandler(t)
+
+	// Threshold is 5 attempts per 15 minutes.
+	for i := 0; i < 5; i++ {
+		rec := do(srv, "POST", "/api/auth/forgot", nil, `{"email":"anyone@domain.com"}`)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("attempt %d: got %d, want 200", i+1, rec.Code)
+		}
+	}
+
+	// 6th attempt -> 429 Too Many Requests
+	rec6 := do(srv, "POST", "/api/auth/forgot", nil, `{"email":"anyone@domain.com"}`)
+	if rec6.Code != http.StatusTooManyRequests {
+		t.Fatalf("attempt 6: got %d, want 429", rec6.Code)
+	}
+}
+
+// TestForgotPasswordNoLeakExistence verifies that POST /api/auth/forgot
+// returns identical status code and response body for existent vs non-existent emails.
+func TestForgotPasswordNoLeakExistence(t *testing.T) {
+	srv, _ := newTestHandler(t)
+
+	do(srv, "POST", "/api/auth/register", nil, `{"email":"realuser@domain.com","password":"password123"}`)
+
+	recNonExistent := do(srv, "POST", "/api/auth/forgot", nil, `{"email":"fakeuser@domain.com"}`)
+	recExistent := do(srv, "POST", "/api/auth/forgot", nil, `{"email":"realuser@domain.com"}`)
+
+	if recNonExistent.Code != http.StatusOK || recExistent.Code != http.StatusOK {
+		t.Fatalf("status code mismatch: non-existent=%d, existent=%d, both want 200",
+			recNonExistent.Code, recExistent.Code)
+	}
+
+	if recNonExistent.Body.String() != recExistent.Body.String() {
+		t.Fatalf("response body mismatch:\nnon-existent: %s\nexistent: %s",
+			recNonExistent.Body.String(), recExistent.Body.String())
+	}
+}
+
+// TestPrimaryOrgForUserDeterministic verifies that primaryOrgForUser returns
+// the lowest orgID deterministically for multi-org users.
+func TestPrimaryOrgForUserDeterministic(t *testing.T) {
+	_, db := newTestHandler(t)
+	h := &Handler{db: db}
+
+	user := models.User{Email: "multiorg@domain.com", PasswordHash: "xxx"}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	// Add user to org 10 first, then org 5
+	db.Create(&models.OrgMember{OrgID: 10, UserID: user.ID, Role: "member"})
+	db.Create(&models.OrgMember{OrgID: 5, UserID: user.ID, Role: "admin"})
+
+	for i := 0; i < 5; i++ {
+		got := h.primaryOrgForUser(user.ID)
+		if got != 5 {
+			t.Fatalf("iteration %d: got orgID %d, want 5 (lowest orgID)", i+1, got)
+		}
+	}
+}
+
+// Password-reset spam must not lock anyone out of logging in.
+//
+// The recovery endpoints originally shared loginLimiter, whose budget is 5 per
+// 15 minutes per IP. Counting every reset request against it meant five
+// unauthenticated /api/auth/forgot calls would block login and registration for
+// everyone behind that IP — a corporate NAT, a shared office — for 15 minutes.
+// They now have their own budget.
+func TestForgotPasswordDoesNotExhaustTheLoginBudget(t *testing.T) {
+	srv, db := newTestHandler(t)
+	if err := db.Create(&models.User{Email: t.Name() + "@x.com", PasswordHash: "x"}).Error; err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+
+	// Burn well past the recovery budget.
+	for i := 0; i < 12; i++ {
+		do(srv, "POST", "/api/auth/forgot", nil, `{"email":"`+t.Name()+`@x.com"}`)
+	}
+
+	// Login must still be reachable — 401 for bad credentials is fine, 429 is not.
+	rec := do(srv, "POST", "/api/auth/login", nil, `{"username":"nobody@x.com","password":"wrong"}`)
+	if rec.Code == http.StatusTooManyRequests {
+		t.Errorf("login got 429 after forgot-password spam — the recovery endpoints are still spending the login budget")
+	}
+}
