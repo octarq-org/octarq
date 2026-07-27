@@ -36,6 +36,13 @@ func (h *Handler) callerOrgRole(r *http.Request) string {
 	return role
 }
 
+// OrgRole is the public wrapper around callerOrgRole, exposed to plugins via
+// plugin.Context.OrgRole so a plugin can gate workspace administration on
+// owner/admin without importing internal/models.
+func (h *Handler) OrgRole(r *http.Request) string {
+	return h.callerOrgRole(r)
+}
+
 type SwitchOrgInput struct {
 	Ctx  huma.Context `hidden:"true"`
 	Body struct {
@@ -512,7 +519,15 @@ func (h *Handler) removeOrgMember(ctx context.Context, input *RemoveOrgMemberInp
 		Delete(&models.OrgMember{}).Error; err != nil {
 		return nil, huma.Error500InternalServerError("failed to remove member")
 	}
-	h.audit(r, "member.remove", "user", input.UserID, map[string]any{"role": target.Role})
+	// Deleting the membership row is not a revocation on its own: a session
+	// carries the org it was minted under, and the request path never re-checks
+	// membership. Without this the removed member keeps full read/write on this
+	// workspace's data until their session expires.
+	revoked := h.auth.RevokeUserOrgSessions(input.UserID, orgID)
+	h.audit(r, "member.remove", "user", input.UserID, map[string]any{
+		"role":            target.Role,
+		"sessionsRevoked": revoked,
+	})
 	eventbus.Publish(orgID, "member.remove", map[string]any{"userId": input.UserID, "role": target.Role})
 	out := &RemoveOrgMemberOutput{}
 	out.Body.OK = true

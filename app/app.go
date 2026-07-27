@@ -316,9 +316,11 @@ func (a *App) RunMCP(ctx context.Context) error {
 		RegisterNotifier: func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
 			notify.Register(typ, send)
 		},
-		UserID:       a.auth.UserID,
-		OrgID:        a.auth.OrgID,
-		LoginByEmail: a.loginByEmail,
+		UserID:          a.auth.UserID,
+		OrgID:           a.auth.OrgID,
+		OrgRole:         apiHandler.OrgRole,
+		IsInstanceAdmin: apiHandler.IsInstanceAdmin,
+		LoginByEmail:    a.loginByEmail,
 		RegisterAuthMethod: func(m plugin.AuthMethod) {
 			auth.Register(auth.AuthMethod{
 				ID:       m.ID,
@@ -480,9 +482,11 @@ func (a *App) Run(ctx context.Context) error {
 		RegisterNotifier: func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
 			notify.Register(typ, send)
 		},
-		UserID:       a.auth.UserID,
-		OrgID:        a.auth.OrgID,
-		LoginByEmail: a.loginByEmail,
+		UserID:          a.auth.UserID,
+		OrgID:           a.auth.OrgID,
+		OrgRole:         apiHandler.OrgRole,
+		IsInstanceAdmin: apiHandler.IsInstanceAdmin,
+		LoginByEmail:    a.loginByEmail,
 		RegisterAuthMethod: func(m plugin.AuthMethod) {
 			auth.Register(auth.AuthMethod{
 				ID:       m.ID,

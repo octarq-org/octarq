@@ -546,17 +546,31 @@ type AuthConfigOutput struct {
 	}
 }
 
-// GET /api/auth/config (public) returns whether Google and GitHub logins are enabled.
+// GET /api/auth/config (public) returns whether Google and GitHub logins are
+// enabled, plus the branding the login screen should wear.
+//
+// Branding is resolved per workspace: the session's org when the caller already
+// has one, otherwise the workspace that owns the request hostname (a tenant on
+// their own domain sees their own brand; the shared host falls back to the
+// instance default). Host is client-controlled, so it selects PRESENTATION only
+// — no data and no privilege hangs off it here.
 func (h *Handler) authConfig(ctx context.Context, input *AuthConfigInput) (*AuthConfigOutput, error) {
 	googleEnabled := h.oauth != nil && h.getSetting(keyGoogleClientID) != "" && h.getSetting(keyGoogleClientSecret) != ""
 	githubEnabled := h.oauth != nil && h.getSetting(keyGitHubClientID) != "" && h.getSetting(keyGitHubClientSecret) != ""
+
+	orgID := uint(0)
+	if input.Ctx != nil {
+		if r, _ := humago.Unwrap(input.Ctx); r != nil {
+			orgID = h.brandingOrg(r)
+		}
+	}
 
 	out := &AuthConfigOutput{}
 	out.Body.GoogleEnabled = googleEnabled
 	out.Body.GithubEnabled = githubEnabled
 	out.Body.RegistrationEnabled = h.registrationEnabled()
-	out.Body.AppName = h.AppName()
-	out.Body.LogoURL, out.Body.BrandColor, out.Body.BrandColor2 = h.Brand()
+	out.Body.AppName = h.AppNameFor(orgID)
+	out.Body.LogoURL, out.Body.BrandColor, out.Body.BrandColor2 = h.BrandFor(orgID)
 	return out, nil
 }
 
