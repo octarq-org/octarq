@@ -29,16 +29,17 @@ const aiTimeout = 60 * time.Second
 var errLLMNotConfigured = errors.New("AI is not configured: set OCTARQ_LLM_API_KEY (or ANTHROPIC_API_KEY), or point OCTARQ_LLM_PROVIDER/OCTARQ_LLM_BASE_URL at a local model")
 
 // envLLMResolver is the core's default LLM resolver: OCTARQ_LLM_* environment,
-// built at most once (env doesn't change at runtime). The Pro ai plugin
-// replaces it via SetLLMResolver with its DB-backed provider so the assists
-// follow the dashboard configuration.
-func envLLMResolver() func() (llmprovider.Provider, error) {
+// built at most once (env doesn't change at runtime). It ignores orgID because
+// OCTARQ_LLM_* environment variables are instance-wide configuration. The Pro ai
+// plugin replaces it via SetLLMResolverForOrg with its DB-backed provider so the
+// assists follow the dashboard configuration.
+func envLLMResolver() func(uint) (llmprovider.Provider, error) {
 	var (
 		once sync.Once
 		p    llmprovider.Provider
 		err  error
 	)
-	return func() (llmprovider.Provider, error) {
+	return func(_ uint) (llmprovider.Provider, error) {
 		o := llmprovider.OptionsFromEnv()
 		// Usable = a cloud key, a local Ollama, or a keyless OpenAI-compatible gateway.
 		if o.APIKey == "" && o.Provider != "ollama" && o.BaseURL == "" {
@@ -49,10 +50,21 @@ func envLLMResolver() func() (llmprovider.Provider, error) {
 	}
 }
 
-// SetLLMResolver swaps the resolver behind the AI assists. It backs
-// plugin.Context.SetLLMResolver; registration happens during plugin Mount
-// (startup) while reads happen per request, hence the lock.
+// SetLLMResolver swaps the resolver behind the AI assists using a legacy non-org
+// resolver. It backs plugin.Context.SetLLMResolver by wrapping the non-org callback.
 func (h *Handler) SetLLMResolver(f func() (llmprovider.Provider, error)) {
+	if f == nil {
+		return
+	}
+	h.SetLLMResolverForOrg(func(_ uint) (llmprovider.Provider, error) {
+		return f()
+	})
+}
+
+// SetLLMResolverForOrg swaps the resolver behind the AI assists using an org-aware
+// resolver. It backs plugin.Context.SetLLMResolverForOrg; registration happens during
+// plugin Mount (startup) while reads happen per request, hence the lock.
+func (h *Handler) SetLLMResolverForOrg(f func(orgID uint) (llmprovider.Provider, error)) {
 	if f == nil {
 		return
 	}
@@ -61,11 +73,14 @@ func (h *Handler) SetLLMResolver(f func() (llmprovider.Provider, error)) {
 	h.llmMu.Unlock()
 }
 
-func (h *Handler) llm() (llmprovider.Provider, error) {
+func (h *Handler) llmFor(orgID uint) (llmprovider.Provider, error) {
 	h.llmMu.RLock()
 	f := h.llmResolver
 	h.llmMu.RUnlock()
-	p, err := f()
+	if f == nil {
+		return nil, errLLMNotConfigured
+	}
+	p, err := f(orgID)
 	if err == nil && p == nil {
 		err = errLLMNotConfigured
 	}
@@ -89,7 +104,13 @@ type AIStatusOutput struct {
 }
 
 func (h *Handler) aiStatus(ctx context.Context, input *AIStatusInput) (*AIStatusOutput, error) {
-	p, err := h.llm()
+	var orgID uint
+	if input != nil && input.Ctx != nil {
+		if r, _ := humago.Unwrap(input.Ctx); r != nil {
+			orgID = h.orgID(r)
+		}
+	}
+	p, err := h.llmFor(orgID)
 	out := &AIStatusOutput{}
 	if err != nil {
 		out.Body.Configured = false
@@ -133,7 +154,7 @@ func (h *Handler) aiSuggestSlug(ctx context.Context, input *AISuggestSlugInput) 
 	if target == "" {
 		return nil, huma.Error400BadRequest("target is required")
 	}
-	p, err := h.llm()
+	p, err := h.llmFor(h.orgID(r))
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
@@ -233,7 +254,7 @@ func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailI
 	if !found {
 		return nil, huma.Error404NotFound("not found")
 	}
-	p, err := h.llm()
+	p, err := h.llmFor(h.orgID(r))
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}

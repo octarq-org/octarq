@@ -194,3 +194,56 @@ func TestParseSlugList(t *testing.T) {
 		}
 	}
 }
+
+func TestLegacySetLLMResolverCompatibility(t *testing.T) {
+	h := &Handler{}
+	h.SetLLMResolver(func() (llmprovider.Provider, error) {
+		return fakeLLM{reply: "legacy"}, nil
+	})
+
+	p7, err7 := h.llmFor(7)
+	if err7 != nil || p7 == nil || p7.Name() != "fake" {
+		t.Fatalf("llmFor(7) with legacy resolver failed: p=%v, err=%v", p7, err7)
+	}
+
+	p42, err42 := h.llmFor(42)
+	if err42 != nil || p42 == nil || p42.Name() != "fake" {
+		t.Fatalf("llmFor(42) with legacy resolver failed: p=%v, err=%v", p42, err42)
+	}
+}
+
+type namedLLM struct{ name string }
+
+func (n namedLLM) Name() string         { return n.name }
+func (n namedLLM) DefaultModel() string { return "m" }
+func (n namedLLM) CheapModel() string   { return "m" }
+func (n namedLLM) Complete(_ context.Context, _ llmprovider.Request) (llmprovider.Response, error) {
+	return llmprovider.Response{}, nil
+}
+
+func TestSetLLMResolverForOrgPerTenant(t *testing.T) {
+	h := &Handler{}
+	h.SetLLMResolverForOrg(func(orgID uint) (llmprovider.Provider, error) {
+		if orgID == 7 {
+			return namedLLM{name: "provider-org-7"}, nil
+		}
+		if orgID == 42 {
+			return namedLLM{name: "provider-org-42"}, nil
+		}
+		return nil, errLLMNotConfigured
+	})
+
+	p7, err7 := h.llmFor(7)
+	if err7 != nil || p7 == nil || p7.Name() != "provider-org-7" {
+		t.Fatalf("llmFor(7) got p=%v err=%v, want provider-org-7", p7, err7)
+	}
+
+	p42, err42 := h.llmFor(42)
+	if err42 != nil || p42 == nil || p42.Name() != "provider-org-42" {
+		t.Fatalf("llmFor(42) got p=%v err=%v, want provider-org-42", p42, err42)
+	}
+
+	if p7.Name() == p42.Name() {
+		t.Fatalf("llmFor(7) and llmFor(42) returned the same backend: %s", p7.Name())
+	}
+}

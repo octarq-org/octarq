@@ -50,9 +50,9 @@ type Handler struct {
 
 	// llmResolver supplies the LLM backend for the single-step AI assists
 	// (ai.go). Defaults to the env-backed envLLMResolver; the Pro ai plugin
-	// swaps in its DB-backed provider via SetLLMResolver during Mount.
+	// swaps in its DB-backed provider via SetLLMResolverForOrg during Mount.
 	llmMu       sync.RWMutex
-	llmResolver func() (llmprovider.Provider, error)
+	llmResolver func(orgID uint) (llmprovider.Provider, error)
 
 	// emailHandlers are notified after each inbound email is stored. They are
 	// registered by plugins via OnEmail and fired by emitEmail. Guarded by
