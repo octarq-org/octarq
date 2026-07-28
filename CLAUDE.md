@@ -29,8 +29,15 @@ Run these and make sure they pass — don't claim a change works on inspection a
 - in `web/`: `npx tsc --noEmit`
 
 **Never build or commit `webembed/dist` manually.** CI auto-commits a fresh build
-on every push to main. It must stay tracked in git — octarq-pro consumes octarq as
-a Go module and gets the embedded dashboard from the module zip.
+**onto the PR branch** (not onto main — a bare push to main can't satisfy branch
+protection's required checks, and every such push was rejected). It must stay
+tracked in git — octarq-pro consumes octarq as a Go module and gets the embedded
+dashboard from the module zip.
+
+One wrinkle to expect: when a PR touches `web/`, that auto-commit becomes the new
+head and carries no checks (GITHUB_TOKEN pushes don't trigger workflows), so the
+PR reads as "waiting for status". Close and reopen it — or push any commit of
+your own — to re-run them.
 
 ## Code conventions
 
