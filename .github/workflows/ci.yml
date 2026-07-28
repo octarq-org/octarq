@@ -52,7 +52,13 @@ jobs:
       run:
         working-directory: web
     steps:
+      # On a pull_request the default checkout is a detached merge commit, which
+      # the dist auto-commit below has no branch to push back to. Check out the
+      # PR's own branch instead; on push events head_ref is empty and this falls
+      # back to the pushed ref.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -92,11 +98,22 @@ jobs:
         run: pnpm build
 
       # webembed/dist must stay committed: octarq-pro consumes octarq as a Go module
-      # and gets the embedded dashboard from the module zip. CI keeps it fresh
-      # so nobody has to build and commit dist locally. Commits made with
-      # GITHUB_TOKEN don't retrigger workflows, so this can't loop.
-      - name: Commit refreshed webembed/dist (main only)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      # and gets the embedded dashboard from the module zip. CI keeps it fresh so
+      # nobody has to build and commit dist locally.
+      #
+      # This refreshes it on the PR branch, not on main. Committing to main after
+      # the merge means pushing directly to a protected branch, and branch
+      # protection requires status checks that a bare push cannot have — so every
+      # such push was rejected with GH006 and main's CI went red on every merge
+      # from 2026-07-28 on. Worse than the red X: dist silently stopped being
+      # refreshed, so octarq-pro shipped a dashboard two days older than main.
+      # Refreshing on the branch means the merge carries a current dist through
+      # the normal PR path, with nothing to bypass.
+      #
+      # Commits made with GITHUB_TOKEN don't retrigger workflows, so this can't
+      # loop, and the check that already passed stays passed.
+      - name: Commit refreshed webembed/dist (PR branches)
+        if: github.event_name == 'pull_request'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore(web): refresh embedded dashboard build [auto]"
