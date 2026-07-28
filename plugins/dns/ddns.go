@@ -198,6 +198,12 @@ func (p *Plugin) deleteDDNSToken(ctx context.Context, input *deleteDDNSTokenInpu
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	orgID := p.orgID(r)
+	if orgID == 0 {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to delete DDNS token")
+	}
 
 	res := p.db.Where("id = ? AND owner_id = ?", input.ID, orgID).Delete(&DDNSToken{})
 	if res.Error != nil {

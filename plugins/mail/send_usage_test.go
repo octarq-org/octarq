@@ -114,6 +114,7 @@ func TestMailRecordUsageSuccessAndFailure(t *testing.T) {
 				n      int64
 			}{orgID, metric, n})
 		},
+		RequireRole: func(*http.Request, string) bool { return true },
 	})
 
 	s := SMTPSender{

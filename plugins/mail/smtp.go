@@ -66,6 +66,9 @@ func (p *Plugin) createSMTPSender(ctx context.Context, input *CreateSMTPSenderIn
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to create SMTP sender")
+	}
 	name := strings.TrimSpace(input.Body.Name)
 	host := strings.TrimSpace(input.Body.Host)
 	user := strings.TrimSpace(input.Body.User)
@@ -131,6 +134,9 @@ func (p *Plugin) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderIn
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to update SMTP sender")
 	}
 
 	var sender SMTPSender
@@ -204,6 +210,9 @@ func (p *Plugin) deleteSMTPSender(ctx context.Context, input *DeleteSMTPSenderIn
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to delete SMTP sender")
 	}
 
 	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&SMTPSender{}); res.RowsAffected == 0 {

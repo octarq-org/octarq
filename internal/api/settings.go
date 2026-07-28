@@ -15,6 +15,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/google/uuid"
 	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/db"
 	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm/clause"
@@ -280,7 +281,7 @@ func (h *Handler) getSettings(ctx context.Context, input *GetSettingsInput) (*Ge
 		"autoWrapLinks":     h.GetWorkspaceSetting(orgID, keyAutoWrapLinks) == "true",
 		"isInstanceAdmin":   h.isInstanceAdmin(r),
 	}
-	if role := h.callerOrgRole(r); role == "owner" || role == "admin" {
+	if authz.AtLeast(authz.Role(h.callerOrgRole(r)), authz.RoleAdmin) {
 		body["inboundToken"] = org.InboundToken
 	}
 	out := &GetSettingsOutput{
@@ -401,7 +402,7 @@ func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if role := h.callerOrgRole(r); role != "owner" && role != "admin" {
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, huma.Error403Forbidden("owner or admin role required")
 	}
 	orgID, err := h.requireOrg(r)

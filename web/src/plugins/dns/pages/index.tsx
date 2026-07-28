@@ -12,8 +12,11 @@ import { SyncModal } from "./SyncModal";
 import { RecordsView } from "./RecordsView";
 import { DDNSView } from "./DDNSView";
 import { usePluginGate } from "../../PluginGate";
+import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 
 export default function DomainsPage() {
+  const { role, isInstanceAdmin } = useCurrentRole();
+  const canDeleteDomain = roleSatisfies("admin", role, isInstanceAdmin);
   const { t } = useTranslation();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [accounts, setAccounts] = useState<ProviderAccount[]>([]);
@@ -228,20 +231,22 @@ export default function DomainsPage() {
                     <Globe className="h-5 w-5 text-accent-fg" />
                     {active.name}
                   </h2>
-                  <Button
-                    variant="danger"
-                    onClick={async () => {
-                      if (confirm(t("domains.removeConfirm", { name: active.name }))) {
-                        await dnsApi.deleteDomain(active.id);
-                        setActive(null);
-                        loadMore(true);
-                      }
-                    }}
-                    className="py-1 px-2.5 text-xs border-0"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-1" />
-                    {t("domains.delete")}
-                  </Button>
+                  {canDeleteDomain && (
+                    <Button
+                      variant="danger"
+                      onClick={async () => {
+                        if (confirm(t("domains.removeConfirm", { name: active.name }))) {
+                          await dnsApi.deleteDomain(active.id);
+                          setActive(null);
+                          loadMore(true);
+                        }
+                      }}
+                      className="py-1 px-2.5 text-xs border-0"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      {t("domains.delete")}
+                    </Button>
+                  )}
                 </div>
                 
                 <DomainEditorForm

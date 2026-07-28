@@ -190,6 +190,10 @@ type Context struct {
 	// IsInstanceAdmin instead — org role says nothing about instance privilege,
 	// and every self-serve signup is "owner" of their own org.
 	OrgRole func(*http.Request) string
+	// RequireRole reports whether the caller holds at least the given workspace
+	// role, for plugins gating destructive or credential-bearing operations.
+	// A caller with no membership holds no role and is always refused.
+	RequireRole func(r *http.Request, min string) bool
 	// IsInstanceAdmin reports whether the caller is the bootstrap operator
 	// account (User.IsInstanceAdmin, set deterministically for the configured
 	// OCTARQ_ADMIN_* identity at first login — never derived from org ordering).

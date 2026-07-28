@@ -8,6 +8,7 @@ import { MailSettings } from "./MailSettings";
 import { SMTPSenders } from "./SMTPSenders";
 import { useTranslation } from "../../../i18n";
 import { ReplyDraft } from "./types";
+import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 
 function parseAttachments(json: string): Attachment[] {
   try {
@@ -32,6 +33,8 @@ export function EmailViewForm({
 }) {
   const [note, setNote] = useState(email.note ?? "");
   const { t } = useTranslation();
+  const { role, isInstanceAdmin } = useCurrentRole();
+  const canDeleteEmail = roleSatisfies("admin", role, isInstanceAdmin);
   const attachments = parseAttachments(email.attachments);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
@@ -146,19 +149,21 @@ export function EmailViewForm({
               <Download className="h-3.5 w-3.5 mr-1" />
               .eml
             </Button>
-            <Button
-              variant="danger"
-              onClick={async () => {
-                if (confirm(t("mail.deleteEmailConfirm"))) {
-                  await mailApi.deleteEmail(email.id);
-                  onChanged();
-                  onClose();
-                }
-              }}
-              className="text-xs py-1.5 px-3 border-0"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            {canDeleteEmail && (
+              <Button
+                variant="danger"
+                onClick={async () => {
+                  if (confirm(t("mail.deleteEmailConfirm"))) {
+                    await mailApi.deleteEmail(email.id);
+                    onChanged();
+                    onClose();
+                  }
+                }}
+                className="text-xs py-1.5 px-3 border-0"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
         </div>
       </div>

@@ -9,6 +9,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
 )
 
@@ -49,6 +50,9 @@ func (h *Handler) listTokens(ctx context.Context, input *ListTokensInput) (*List
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
+		return nil, err
 	}
 	var toks []models.Token
 	h.orgDB(r).Order("created_at DESC").Find(&toks)
@@ -96,6 +100,9 @@ func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*Cr
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {
+		return nil, err
+	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, err
 	}
 	raw := newRawToken()
@@ -152,6 +159,9 @@ func (h *Handler) deleteToken(ctx context.Context, input *DeleteTokenInput) (*De
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {
+		return nil, err
+	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, err
 	}
 	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).Delete(&models.Token{}); res.RowsAffected == 0 {

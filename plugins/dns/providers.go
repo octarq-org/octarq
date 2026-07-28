@@ -80,6 +80,9 @@ func (p *Plugin) createProviderAccount(ctx context.Context, input *CreateProvide
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to create provider account")
+	}
 	name := strings.TrimSpace(input.Body.Name)
 	typ := strings.TrimSpace(input.Body.Type)
 	if name == "" || typ == "" {
@@ -125,6 +128,9 @@ func (p *Plugin) updateProviderAccount(ctx context.Context, input *UpdateProvide
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to update provider account")
 	}
 	var acc ProviderAccount
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&acc).Error != nil {
@@ -178,6 +184,9 @@ func (p *Plugin) deleteProviderAccount(ctx context.Context, input *DeleteProvide
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to delete provider account")
 	}
 
 	// Verify ownership before anything else: without this, the domain-usage

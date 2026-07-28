@@ -374,6 +374,9 @@ func (p *Plugin) deleteDomain(ctx context.Context, input *DeleteDomainInput) (*D
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to delete domain")
+	}
 	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&Domain{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}

@@ -7,6 +7,7 @@ import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, 
 import { MailSettings } from "./MailSettings";
 import { SMTPSenders } from "./SMTPSenders";
 import { useTranslation } from "../../../i18n";
+import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 
 export function MailboxEditor({
   box,
@@ -20,6 +21,8 @@ export function MailboxEditor({
   onSaved: () => void;
 }) {
   const { t } = useTranslation();
+  const { role, isInstanceAdmin } = useCurrentRole();
+  const canDeleteBox = roleSatisfies("admin", role, isInstanceAdmin);
   const [prefix, setPrefix] = useState("");
   const [domain, setDomain] = useState(hosts[0] ?? "");
   const [note, setNote] = useState(box?.note ?? "");
@@ -86,7 +89,7 @@ export function MailboxEditor({
           <Toggle on={enabled} onChange={setEnabled} />
           <span className="text-sm text-foreground/60 select-none">{t("mail.mailReceivingEnabled")}</span>
         </div>
-        {box && (
+        {canDeleteBox && box && (
           <Button
             variant="danger"
             onClick={async () => {

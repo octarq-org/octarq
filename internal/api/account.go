@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
@@ -44,8 +45,8 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if role := h.callerOrgRole(r); role != "owner" && role != "admin" {
-		return nil, huma.Error403Forbidden("forbidden: only owner/admin can export org data")
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
+		return nil, err
 	}
 	org, err := h.requireOrg(r)
 	if err != nil {
@@ -155,8 +156,8 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if role := h.callerOrgRole(r); role != "owner" {
-		return nil, huma.Error403Forbidden("forbidden: only an owner can destroy org data")
+	if err := h.requireRole(r, authz.RoleOwner); err != nil {
+		return nil, err
 	}
 	if input.Body.Confirm != "DELETE MY DATA" {
 		return nil, huma.Error400BadRequest(`confirmation required: send {"confirm":"DELETE MY DATA"}`)

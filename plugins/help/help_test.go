@@ -72,6 +72,7 @@ func TestHelpDocs(t *testing.T) {
 			}
 			return 1
 		},
+		RequireRole: func(*http.Request, string) bool { return true },
 	}
 
 	h := New()

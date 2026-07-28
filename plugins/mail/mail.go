@@ -162,6 +162,9 @@ func (p *Plugin) deleteMailbox(ctx context.Context, input *DeleteMailboxInput) (
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to delete mailbox")
+	}
 	res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&Mailbox{})
 	if res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
@@ -387,6 +390,9 @@ func (p *Plugin) deleteEmail(ctx context.Context, input *DeleteEmailInput) (*Del
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to delete email")
 	}
 	if !p.emailBelongsToOrg(input.ID, p.orgID(r)) {
 		return nil, huma.Error404NotFound("not found")

@@ -29,14 +29,15 @@ import (
 func mountCoreDNS(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypto.Cipher) {
 	reg := plugin.NewRegistry()
 	dns.New().Mount(nil, &plugin.Context{
-		Huma:    h.Huma(),
-		DB:      db,
-		OrgID:   authMgr.OrgID,
-		Audit:   h.Audit,
-		Encrypt: cipher.Encrypt,
-		Decrypt: cipher.Decrypt,
-		Provide: reg.Provide,
-		Lookup:  reg.Lookup,
+		Huma:        h.Huma(),
+		DB:          db,
+		OrgID:       authMgr.OrgID,
+		Audit:       h.Audit,
+		Encrypt:     cipher.Encrypt,
+		Decrypt:     cipher.Decrypt,
+		Provide:     reg.Provide,
+		Lookup:      reg.Lookup,
+		RequireRole: func(*http.Request, string) bool { return true },
 	})
 }
 
@@ -54,6 +55,7 @@ func mountCoreLinks(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *cryp
 		GetWorkspaceSetting: h.GetWorkspaceSetting,
 		Enqueue:             h.queue.Enqueue,
 		DeleteCache:         authMgr.Cache().Delete,
+		RequireRole:         func(*http.Request, string) bool { return true },
 	}
 	links.New().Mount(nil, pctx)
 }
@@ -71,6 +73,7 @@ func mountCoreMail(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypt
 		GetGlobalSetting:    h.GetGlobalSetting,
 		Provide:             reg.Provide,
 		Lookup:              reg.Lookup,
+		RequireRole:         func(*http.Request, string) bool { return true },
 	})
 }
 
@@ -130,6 +133,7 @@ func newTestHandlerRaw(t *testing.T) (*Handler, http.Handler, *gorm.DB) {
 		DeleteCache:         authMgr.Cache().Delete,
 		Provide:             reg.Provide,
 		Lookup:              reg.Lookup,
+		RequireRole:         func(*http.Request, string) bool { return true },
 	}
 	dnsP.Mount(nil, pctx)
 	mailP.Mount(nil, pctx)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/models"
 )
@@ -59,6 +60,9 @@ func (h *Handler) listWebhooks(ctx context.Context, input *ListWebhooksInput) (*
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
+		return nil, err
 	}
 	var hooks []models.Webhook
 	h.orgDB(r).Order("created_at DESC").Find(&hooks)
@@ -130,6 +134,9 @@ func (h *Handler) createWebhook(ctx context.Context, input *CreateWebhookInput) 
 	if err != nil {
 		return nil, err
 	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
+		return nil, err
+	}
 
 	hook := models.Webhook{
 		OrgID:   orgID,
@@ -182,6 +189,9 @@ func (h *Handler) updateWebhook(ctx context.Context, input *UpdateWebhookInput) 
 
 	orgID, err := h.requireOrg(r)
 	if err != nil {
+		return nil, err
+	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, err
 	}
 
@@ -252,6 +262,9 @@ func (h *Handler) deleteWebhook(ctx context.Context, input *DeleteWebhookInput) 
 
 	orgID, err := h.requireOrg(r)
 	if err != nil {
+		return nil, err
+	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, err
 	}
 
