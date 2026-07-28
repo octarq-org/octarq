@@ -281,7 +281,14 @@ func (h *Handler) getSettings(ctx context.Context, input *GetSettingsInput) (*Ge
 		"autoWrapLinks":     h.GetWorkspaceSetting(orgID, keyAutoWrapLinks) == "true",
 		"isInstanceAdmin":   h.isInstanceAdmin(r),
 	}
-	if authz.AtLeast(authz.Role(h.callerOrgRole(r)), authz.RoleAdmin) {
+	// inboundToken is this org's per-tenant secret for the inbound-email webhook:
+	// whoever holds it can forge inbound mail for the workspace, so a plain member
+	// must not see it. Gate through callerHoldsRole rather than comparing
+	// callerOrgRole directly — that is the one function that also understands API
+	// tokens, and this endpoint is exactly what an automation reads the webhook
+	// secret from. Comparing the membership role alone hid the token from every
+	// bearer-authenticated caller, since a token has no membership row.
+	if h.callerHoldsRole(r, authz.RoleAdmin) {
 		body["inboundToken"] = org.InboundToken
 	}
 	out := &GetSettingsOutput{
