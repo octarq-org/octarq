@@ -19,6 +19,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -30,8 +31,19 @@ import (
 	"gorm.io/gorm"
 )
 
+// errNoOrgInContext refuses a tool call that arrives without a tenant scope.
+// Every transport supplies one — the networked ones from the caller's API token,
+// the stdio CLI from its entry point — so an absent org means something is wrong,
+// and defaulting it to a tenant would hand that tenant's data to whoever asked.
+var errNoOrgInContext = errors.New("no workspace in this request")
+
 // version is reported to MCP clients in the server handshake.
 const version = "0.1.0"
+
+// stdioOrgID is the tenant the stdio CLI operates as. `octarq mcp` is launched by
+// the operator on their own machine against their own database, so there is one
+// tenant and it is the bootstrap org.
+const stdioOrgID uint = 1
 
 // server bundles the dependencies the tool handlers share.
 type server struct {
@@ -138,7 +150,15 @@ func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
 
 	// Stdio CLI: single local operator, org 1, and raw SQL is allowed (the caller
 	// already has full local DB access).
-	srv := NewServerInstance(gdb, 1, plugins, true)
+	//
+	// The org goes on the context, exactly as the networked transports put the
+	// caller's org there. That is what lets every tool read its scope from one
+	// place and refuse when it is absent: without this, stdio would be the sole
+	// caller arriving with no org, and each tool would need a "default to 1"
+	// fallback — a fallback that is harmless here and a cross-tenant read over
+	// the network. One line at the entry point removes the need for all of them.
+	ctx = plugin.WithOrgID(ctx, stdioOrgID)
+	srv := NewServerInstance(gdb, stdioOrgID, plugins, true)
 	return srv.Run(ctx, &mcp.StdioTransport{})
 }
 
@@ -248,15 +268,6 @@ func normalizeSQLValue(v any) any {
 		return string(b)
 	}
 	return v
-}
-
-// ownerScope returns a WHERE-ready owner_id value; convenience tools use it to
-// stay within the operator's tenant.
-func (s *server) ownerScope() uint {
-	if s.orgID == 0 {
-		return 1
-	}
-	return s.orgID
 }
 
 // trimToTag reports whether a comma-separated tags field contains tag.

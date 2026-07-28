@@ -54,7 +54,7 @@ type exportInput struct {
 func (s *server) exportData(ctx context.Context, _ *mcp.CallToolRequest, in exportInput) (*mcp.CallToolResult, any, error) {
 	orgID := plugin.OrgIDFromContext(ctx)
 	if orgID == 0 {
-		orgID = s.ownerScope()
+		return nil, nil, errNoOrgInContext
 	}
 	if s.lookup != nil {
 		if v, ok := s.lookup(in.Resource + ".mcp_export"); ok {

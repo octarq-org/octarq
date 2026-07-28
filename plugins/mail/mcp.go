@@ -3,11 +3,18 @@ package mail
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/octarq-org/octarq/plugin"
 )
+
+// errNoOrgInContext refuses a tool call that arrives without a tenant scope.
+// Every transport supplies one — the networked ones from the caller's API token,
+// the stdio CLI from its entry point — so an absent org means something is wrong,
+// and defaulting it to a tenant would hand that tenant's data to whoever asked.
+var errNoOrgInContext = errors.New("no workspace in this request")
 
 type listMailboxesInput struct{}
 
@@ -49,7 +56,7 @@ func (p *Plugin) RegisterMCP(srv *mcp.Server) {
 func (p *Plugin) mcpListMailboxes(ctx context.Context, _ *mcp.CallToolRequest, _ listMailboxesInput) (*mcp.CallToolResult, any, error) {
 	orgID := plugin.OrgIDFromContext(ctx)
 	if orgID == 0 {
-		orgID = 1
+		return nil, nil, errNoOrgInContext
 	}
 	var mbs []Mailbox
 	if err := p.db.WithContext(ctx).
@@ -70,7 +77,7 @@ func (p *Plugin) mcpListMailboxes(ctx context.Context, _ *mcp.CallToolRequest, _
 func (p *Plugin) mcpListEmails(ctx context.Context, _ *mcp.CallToolRequest, in listEmailsInput) (*mcp.CallToolResult, any, error) {
 	orgID := plugin.OrgIDFromContext(ctx)
 	if orgID == 0 {
-		orgID = 1
+		return nil, nil, errNoOrgInContext
 	}
 	limit := in.Limit
 	if limit <= 0 {
