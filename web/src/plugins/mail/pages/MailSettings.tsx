@@ -32,17 +32,21 @@ export function MailSettings() {
       <Field label={t("settings.reservedMailboxesLabel")} hint={t("settings.reservedMailboxesHint")}>
         <textarea className="input w-full font-mono text-xs" rows={2} value={reservedMailboxes} onChange={(e) => setReservedMailboxes(e.target.value)} placeholder="admin&#10;postmaster" />
       </Field>
-      <Field label={t("settings.inboundWebhookUrlLabel")} hint={t("settings.inboundWebhookUrlHint")}>
-        <input
-          readOnly
-          className="input w-full font-mono text-xs"
-          value={`${location.origin}/api/v1/webhook/${s?.orgSlug || ""}/email/inbound/${inboundToken}`}
-          onFocus={(e) => e.currentTarget.select()}
-        />
-      </Field>
-      <Field label={t("settings.inboundTokenLabel")} hint={t("settings.inboundTokenHint")}>
-        <input className="input w-full font-mono text-xs" value={inboundToken} onChange={(e) => setInboundToken(e.target.value)} placeholder={t("settings.inboundTokenPlaceholder")} />
-      </Field>
+      {s.inboundToken !== undefined && (
+        <>
+          <Field label={t("settings.inboundWebhookUrlLabel")} hint={t("settings.inboundWebhookUrlHint")}>
+            <input
+              readOnly
+              className="input w-full font-mono text-xs"
+              value={`${location.origin}/api/v1/webhook/${s?.orgSlug || ""}/email/inbound/${inboundToken}`}
+              onFocus={(e) => e.currentTarget.select()}
+            />
+          </Field>
+          <Field label={t("settings.inboundTokenLabel")} hint={t("settings.inboundTokenHint")}>
+            <input className="input w-full font-mono text-xs" value={inboundToken} onChange={(e) => setInboundToken(e.target.value)} placeholder={t("settings.inboundTokenPlaceholder")} />
+          </Field>
+        </>
+      )}
       <div className="flex items-center gap-3 border-t border-foreground/[0.04] pt-4">
         <Toggle on={catchAll} onChange={setCatchAll} />
         <div>

@@ -37,7 +37,10 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 	}
 
 	go h.auth.TouchSession(r)
-	org := h.orgID(r)
+	org, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	includeBot := input.IncludeBot
 
 	count := func(model any, conds ...any) int64 {

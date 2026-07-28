@@ -47,7 +47,10 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 	if role := h.callerOrgRole(r); role != "owner" && role != "admin" {
 		return nil, huma.Error403Forbidden("forbidden: only owner/admin can export org data")
 	}
-	org := h.orgID(r)
+	org, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		orgRow            models.Org
@@ -158,7 +161,10 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 	if input.Body.Confirm != "DELETE MY DATA" {
 		return nil, huma.Error400BadRequest(`confirmation required: send {"confirm":"DELETE MY DATA"}`)
 	}
-	org := h.orgID(r)
+	org, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 
 	// 1. Call plugin purge services first
 	for _, p := range h.plugins {
@@ -180,7 +186,7 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 	}
 
 	// 3. Delete core tables inside a single transaction
-	err := h.db.Transaction(func(tx *gorm.DB) error {
+	err = h.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("owner_id = ?", org).Delete(&models.Token{}).Error; err != nil {
 			return err
 		}

@@ -287,7 +287,10 @@ func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	orgID := h.orgID(r)
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	items := []MemberItem{}
 	type queryResult struct {
 		UserID      uint
@@ -297,7 +300,7 @@ func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput
 		CreatedAt   time.Time
 	}
 	var rows []queryResult
-	err := h.db.Table("org_members").
+	err = h.db.Table("org_members").
 		Select("users.id as user_id, users.email, org_members.role, users.invite_token, users.created_at").
 		Joins("JOIN users ON users.id = org_members.user_id").
 		Where("org_members.org_id = ?", orgID).
@@ -351,7 +354,10 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	orgID := h.orgID(r)
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	callerRole := h.callerOrgRole(r)
 	if callerRole != "owner" && callerRole != "admin" {
 		return nil, huma.Error403Forbidden("forbidden: only owner/admin can manage members")
@@ -487,7 +493,10 @@ func (h *Handler) removeOrgMember(ctx context.Context, input *RemoveOrgMemberInp
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	orgID := h.orgID(r)
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	callerRole := h.callerOrgRole(r)
 	if callerRole != "owner" && callerRole != "admin" {
 		return nil, huma.Error403Forbidden("forbidden: only owner/admin can manage members")
@@ -585,7 +594,10 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 	// Query from plugin providers if they satisfy MenuProvider — but only for
 	// features the caller's workspace has active (core plumbing is always on;
 	// everything else follows its per-workspace toggle).
-	orgID := h.orgID(r)
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	for _, p := range h.plugins {
 		if !h.pluginActive(orgID, p) {
 			continue

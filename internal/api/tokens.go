@@ -94,9 +94,13 @@ func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*Cr
 		t := time.Now().AddDate(0, 0, input.Body.ExpiresInDays)
 		expiresAt = &t
 	}
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	raw := newRawToken()
 	tok := models.Token{
-		OrgID:     h.orgID(r),
+		OrgID:     orgID,
 		Name:      name,
 		Hash:      models.HashToken(raw),
 		Prefix:    tokenPrefix(raw),
@@ -146,7 +150,11 @@ func (h *Handler) deleteToken(ctx context.Context, input *DeleteTokenInput) (*De
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).Delete(&models.Token{}); res.RowsAffected == 0 {
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).Delete(&models.Token{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}
 	h.audit(r, "token.delete", "token", input.ID, nil)

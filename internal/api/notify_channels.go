@@ -43,7 +43,10 @@ func (h *Handler) listNotificationChannelTypes(ctx context.Context, input *ListN
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	orgID := h.orgID(r)
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	allDescs := notify.Descriptors()
 	var result []NotificationChannelType
 
@@ -140,8 +143,12 @@ func (h *Handler) createNotificationChannel(ctx context.Context, input *CreateNo
 	if input.Body.Enabled != nil {
 		enabled = *input.Body.Enabled
 	}
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	d := models.NotificationChannel{
-		OrgID:   h.orgID(r),
+		OrgID:   orgID,
 		Name:    name,
 		Type:    typ,
 		Config:  input.Body.Config,
@@ -183,8 +190,12 @@ func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNo
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	var ch models.NotificationChannel
-	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&ch).Error != nil {
+	if h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).First(&ch).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	d := input.Body
@@ -250,7 +261,11 @@ func (h *Handler) deleteNotificationChannel(ctx context.Context, input *DeleteNo
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).Delete(&models.NotificationChannel{}); res.RowsAffected == 0 {
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).Delete(&models.NotificationChannel{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}
 	h.audit(r, "notification.delete", "notification_channel", input.ID, nil)
@@ -284,8 +299,12 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	var ch models.NotificationChannel
-	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&ch).Error != nil {
+	if h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).First(&ch).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	ctxTimeout, cancel := context.WithTimeout(r.Context(), 5*time.Second)

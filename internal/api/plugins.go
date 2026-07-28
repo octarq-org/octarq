@@ -171,7 +171,10 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	orgID := h.orgID(r)
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 
 	enabled := map[string]bool{}
 	var rows []models.PluginSetting
@@ -328,7 +331,10 @@ func (h *Handler) updatePlugin(ctx context.Context, input *UpdatePluginInput) (*
 		return nil, huma.Error404NotFound("unknown feature")
 	}
 
-	orgID := h.orgID(r)
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 
 	_, requires := h.getFeatureDeps()
 	var rows []models.PluginSetting

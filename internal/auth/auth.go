@@ -29,6 +29,7 @@ type contextKey string
 const (
 	userIDKey    contextKey = "user_id"
 	sessionIDKey contextKey = "session_id"
+	tokenIDKey   contextKey = "token_id"
 )
 
 // WithOrgID returns a new context containing the organization ID.
@@ -40,6 +41,24 @@ func WithOrgID(ctx context.Context, orgID uint) context.Context {
 // the same key UserID reads. Mirrors WithOrgID.
 func WithUserID(ctx context.Context, uid uint) context.Context {
 	return context.WithValue(ctx, userIDKey, uid)
+}
+
+// WithTokenID returns a new context containing the API bearer token ID.
+func WithTokenID(ctx context.Context, id uint) context.Context {
+	return context.WithValue(ctx, tokenIDKey, id)
+}
+
+// TokenIDFromContext extracts the API bearer token ID from ctx, returning 0 if absent.
+func TokenIDFromContext(ctx context.Context) uint {
+	if v, ok := ctx.Value(tokenIDKey).(uint); ok {
+		return v
+	}
+	return 0
+}
+
+// TokenID extracts the API bearer token ID from the request context.
+func (m *Manager) TokenID(r *http.Request) uint {
+	return TokenIDFromContext(r.Context())
 }
 
 const (
@@ -394,7 +413,7 @@ func (m *Manager) APIAuthed(r *http.Request) bool {
 // UserID, OrgID, and SessionID into the request context.
 func (m *Manager) Require(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var uid, orgID, sessID uint
+		var uid, orgID, sessID, tokenID uint
 		var authed bool
 
 		// 1. Stateful session cookie.
@@ -411,6 +430,7 @@ func (m *Manager) Require(next http.Handler) http.Handler {
 				var tok models.Token
 				if m.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() {
 					uid, orgID, authed = 0, tok.OrgID, true
+					tokenID = tok.ID
 					id := tok.ID
 					db := m.db
 					go func() {
@@ -429,6 +449,9 @@ func (m *Manager) Require(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), userIDKey, uid)
 		ctx = plugin.WithOrgID(ctx, orgID)
 		ctx = context.WithValue(ctx, sessionIDKey, sessID)
+		if tokenID != 0 {
+			ctx = WithTokenID(ctx, tokenID)
+		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -436,7 +459,7 @@ func (m *Manager) Require(next http.Handler) http.Handler {
 // AuthenticateRequest validates the session cookie or bearer token and returns
 // a new request with credentials in the context. On failure, returns false.
 func (m *Manager) AuthenticateRequest(r *http.Request) (*http.Request, bool) {
-	var uid, orgID, sessID uint
+	var uid, orgID, sessID, tokenID uint
 	var authed bool
 
 	if token := cookieToken(r); token != "" {
@@ -451,6 +474,7 @@ func (m *Manager) AuthenticateRequest(r *http.Request) (*http.Request, bool) {
 			var tok models.Token
 			if m.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() {
 				uid, orgID, authed = 0, tok.OrgID, true
+				tokenID = tok.ID
 				id := tok.ID
 				db := m.db
 				go func() {
@@ -468,6 +492,9 @@ func (m *Manager) AuthenticateRequest(r *http.Request) (*http.Request, bool) {
 	ctx := context.WithValue(r.Context(), userIDKey, uid)
 	ctx = plugin.WithOrgID(ctx, orgID)
 	ctx = context.WithValue(ctx, sessionIDKey, sessID)
+	if tokenID != 0 {
+		ctx = WithTokenID(ctx, tokenID)
+	}
 	return r.WithContext(ctx), true
 }
 
