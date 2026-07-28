@@ -10,13 +10,7 @@
 // The 16px favicon is a separate file (web/public/favicon.svg) with optically
 // adjusted negative space for 16px rasterisation.
 
-const ARCH_PATH =
-  "M10,26 C10,13.8 19.8,4 32,4 C44.2,4 54,13.8 54,26 V56 H42 V28 C42,23.6 37.6,20 32,20 C26.4,20 22,23.6 22,28 V56 H10 V26 Z M26,33 H38 V46 H26 V33 Z";
+import { ARCH_PATH, OctarqMark } from "@octarq/plugin-sdk";
 
-export function OctarqMark({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" fill="currentColor" aria-hidden="true" className={className}>
-      <path fillRule="evenodd" clipRule="evenodd" d={ARCH_PATH} />
-    </svg>
-  );
-}
+export { ARCH_PATH, OctarqMark };
+
