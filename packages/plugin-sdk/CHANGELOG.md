@@ -1,5 +1,11 @@
 # @octarq-org/plugin-sdk
 
+## 0.7.0
+
+### Minor Changes
+
+- 57caeef: Export OctarqMark and BrandGlyph components and ARCH_PATH from brand module.
+
 ## 0.6.0
 
 ### Minor Changes
