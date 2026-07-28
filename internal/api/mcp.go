@@ -3,7 +3,6 @@ package api
 import (
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/octarq-org/octarq/internal/auth"
@@ -31,13 +30,11 @@ func (h *Handler) mcpAuth(next http.Handler) http.Handler {
 			// have owner_id 0 (the column defaults to 1), so this only rejects
 			// corrupt/legacy rows.
 			if h.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() && tok.OrgID != 0 {
+				// Stamp the token identity, not just the org: without it an
+				// MCP-driven mutation lands in the audit log with actor 0 and no
+				// tokenId, i.e. attributable to nobody at all.
 				ctx := auth.WithOrgID(r.Context(), tok.OrgID)
-				id := tok.ID
-				db := h.db
-				go func() {
-					now := time.Now()
-					db.Model(&models.Token{}).Where("id = ?", id).Update("last_used_at", &now)
-				}()
+				ctx = h.auth.WithTokenIdentity(ctx, tok)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}

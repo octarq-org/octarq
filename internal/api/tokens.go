@@ -65,6 +65,12 @@ type CreateTokenInput struct {
 		Name          string `json:"name"`
 		Note          string `json:"note,omitempty"`
 		ExpiresInDays int    `json:"expiresInDays,omitempty"`
+		// Role caps the token's privilege. Omitted means "member" — the least
+		// privilege that still works — so a caller who does not think about it
+		// gets a narrow token rather than a workspace-wide one. Legacy tokens
+		// (role "" in the DB) stay unrestricted; there is deliberately no way to
+		// mint a new one of those.
+		Role string `json:"role,omitempty"`
 	}
 }
 
@@ -105,6 +111,18 @@ func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*Cr
 	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, err
 	}
+	role := authz.Role(strings.TrimSpace(input.Body.Role))
+	if role == "" {
+		role = authz.RoleMember
+	}
+	if !validTokenRole(role) {
+		return nil, huma.Error400BadRequest("role must be one of member, admin, owner")
+	}
+	// A token must not out-rank the caller minting it, or an admin could mint an
+	// owner token and use it to walk straight past the gate that just checked them.
+	if !h.callerHoldsRole(r, role) {
+		return nil, huma.Error403Forbidden("forbidden: cannot mint a token above your own role")
+	}
 	raw := newRawToken()
 	tok := models.Token{
 		OrgID:     orgID,
@@ -112,12 +130,13 @@ func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*Cr
 		Hash:      models.HashToken(raw),
 		Prefix:    tokenPrefix(raw),
 		Note:      input.Body.Note,
+		Role:      string(role),
 		ExpiresAt: expiresAt,
 	}
 	if err := h.db.Create(&tok).Error; err != nil {
 		return nil, huma.Error500InternalServerError("create token")
 	}
-	h.audit(r, "token.create", "token", tok.ID, map[string]any{"name": tok.Name, "prefix": tok.Prefix})
+	h.audit(r, "token.create", "token", tok.ID, map[string]any{"name": tok.Name, "prefix": tok.Prefix, "role": tok.Role})
 	// The raw token is returned ONLY here; it is never stored or shown again.
 	return &CreateTokenOutput{
 		Body: map[string]any{
@@ -125,6 +144,7 @@ func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*Cr
 			"name":      tok.Name,
 			"note":      tok.Note,
 			"prefix":    tok.Prefix,
+			"role":      tok.Role,
 			"expiresAt": tok.ExpiresAt,
 			"createdAt": tok.CreatedAt,
 			"token":     raw,
@@ -171,4 +191,15 @@ func (h *Handler) deleteToken(ctx context.Context, input *DeleteTokenInput) (*De
 	out := &DeleteTokenOutput{}
 	out.Body.OK = true
 	return out, nil
+}
+
+// validTokenRole reports whether role is one a token may be minted with.
+// It deliberately rejects "" — that value means "legacy unrestricted" and is
+// reachable only by rows that predate scoping, never by minting a new token.
+func validTokenRole(role authz.Role) bool {
+	switch role {
+	case authz.RoleMember, authz.RoleAdmin, authz.RoleOwner:
+		return true
+	}
+	return false
 }

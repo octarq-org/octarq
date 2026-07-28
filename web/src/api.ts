@@ -132,6 +132,9 @@ export interface Token {
   name: string;
   prefix: string;
   note: string;
+  /** Privilege ceiling. "" means a token minted before scopes existed — it is
+   *  unrestricted within its workspace and shown as such. */
+  role: "" | "member" | "admin" | "owner";
   lastUsedAt: string | null;
   createdAt: string;
 }
@@ -337,7 +340,8 @@ export const api = {
 
   // tokens
   tokens: () => req<Token[]>("GET", "/api/tokens"),
-  createToken: (d: { name: string; note: string }) => req<{ token: string }>("POST", "/api/tokens", d),
+  createToken: (d: { name: string; note: string; role: "member" | "admin" | "owner" }) =>
+    req<{ token: string }>("POST", "/api/tokens", d),
   deleteToken: (id: number) => req<void>("DELETE", `/api/tokens/${id}`),
 
   // notification channels

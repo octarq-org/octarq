@@ -96,23 +96,27 @@ func (h *Handler) requireRole(r *http.Request, min authz.Role) error {
 	return huma.Error403Forbidden("forbidden: insufficient workspace role privilege")
 }
 
-// callerHoldsRole is the single place both role gates agree on.
+// callerHoldsRole is the single place both role gates agree on — core's
+// requireRole and, through plugin.Context.RequireRole, every Pro gate.
 //
 // An API bearer token authenticates as the workspace, not as a person: the auth
-// layer deliberately leaves the user id at 0 (see auth.tokenAuthed and P2-18),
-// so callerOrgRole finds no membership row and would return "" for every token
-// request. Gating on that would refuse every token — CI jobs, scripts,
-// integrations — which is not what this change is for.
+// layer deliberately leaves the user id at 0, so callerOrgRole finds no
+// membership row and would return "" for every token request. Comparing against
+// that would refuse every token — CI jobs, scripts, integrations.
 //
-// So a token keeps the access it has today, which is full read/write for its
-// org. Narrowing that is real work with its own design (token scopes, P2-18) and
-// its own migration for tokens already in the wild; doing it here by accident,
-// as a side effect of adding human roles, would break every deployment silently.
-// TODO(P2-18): once tokens carry scopes, gate them on the scope instead of
-// waving them through.
+// So a token is judged on the role it was minted with (P2-18) rather than on a
+// membership it does not have. A token with no role is one minted before scoping
+// existed: it keeps the unrestricted access it has always had, because
+// retroactively narrowing tokens already deployed in someone's CI would break
+// them silently, at a time nobody is watching. Those tokens are flagged as
+// unrestricted in the dashboard so an operator can rotate them deliberately.
 func (h *Handler) callerHoldsRole(r *http.Request, min authz.Role) bool {
 	if auth.TokenIDFromContext(r.Context()) != 0 {
-		return true
+		role := auth.TokenRoleFromContext(r.Context())
+		if role == "" {
+			return true // legacy token, minted before P2-18
+		}
+		return authz.AtLeast(authz.Role(role), min)
 	}
 	return authz.AtLeast(authz.Role(h.callerOrgRole(r)), min)
 }

@@ -30,6 +30,7 @@ const (
 	userIDKey    contextKey = "user_id"
 	sessionIDKey contextKey = "session_id"
 	tokenIDKey   contextKey = "token_id"
+	tokenRoleKey contextKey = "token_role"
 )
 
 // WithOrgID returns a new context containing the organization ID.
@@ -59,6 +60,67 @@ func TokenIDFromContext(ctx context.Context) uint {
 // TokenID extracts the API bearer token ID from the request context.
 func (m *Manager) TokenID(r *http.Request) uint {
 	return TokenIDFromContext(r.Context())
+}
+
+// WithTokenRole returns a new context carrying the bearer token's role ceiling.
+// An empty role means an unrestricted (pre-scoping) token — see models.Token.Role.
+func WithTokenRole(ctx context.Context, role string) context.Context {
+	return context.WithValue(ctx, tokenRoleKey, role)
+}
+
+// TokenRoleFromContext returns the bearer token's role ceiling, or "" when the
+// request is not token-authenticated OR the token predates scoping. Callers must
+// therefore check TokenIDFromContext first to tell those two cases apart — "" on
+// its own does not mean "no token".
+func TokenRoleFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(tokenRoleKey).(string); ok {
+		return v
+	}
+	return ""
+}
+
+// WithTokenIdentity stamps a validated bearer token onto ctx and kicks off the
+// best-effort LastUsedAt touch. Every bearer path funnels through here so a new
+// token field cannot be wired into one path and forgotten in the others — which
+// is exactly how mcpAuth ended up recording no token id at all.
+func (m *Manager) WithTokenIdentity(ctx context.Context, tok models.Token) context.Context {
+	ctx = WithTokenID(ctx, tok.ID)
+	ctx = WithTokenRole(ctx, tok.Role)
+	m.touchToken(tok.ID)
+	return ctx
+}
+
+// touchToken records LastUsedAt asynchronously; never blocks a request.
+func (m *Manager) touchToken(id uint) {
+	db := m.db
+	if db == nil {
+		return
+	}
+	go func() {
+		now := time.Now()
+		db.Model(&models.Token{}).Where("id = ?", id).Update("last_used_at", &now)
+	}()
+}
+
+// TokenByRequest resolves and validates the request's "oct_" bearer token.
+// It does NOT touch LastUsedAt — callers that admit the token use
+// withTokenIdentity, which does.
+func (m *Manager) TokenByRequest(r *http.Request) (models.Token, bool) {
+	var tok models.Token
+	if m.db == nil {
+		return tok, false
+	}
+	raw := bearerToken(r)
+	if !strings.HasPrefix(raw, "oct_") {
+		return tok, false
+	}
+	if m.db.Where("hash = ?", models.HashToken(raw)).First(&tok).Error != nil {
+		return tok, false
+	}
+	if tok.Expired() {
+		return models.Token{}, false
+	}
+	return tok, true
 }
 
 const (
@@ -379,27 +441,11 @@ func bearerToken(r *http.Request) string {
 // tokenAuthed reports whether the request carries a valid API bearer token.
 // On success it best-effort records LastUsedAt asynchronously.
 func (m *Manager) tokenAuthed(r *http.Request) bool {
-	if m.db == nil {
+	tok, ok := m.TokenByRequest(r)
+	if !ok {
 		return false
 	}
-	raw := bearerToken(r)
-	if !strings.HasPrefix(raw, "oct_") {
-		return false
-	}
-	hash := models.HashToken(raw)
-	var tok models.Token
-	if m.db.Where("hash = ?", hash).First(&tok).Error != nil {
-		return false
-	}
-	if tok.Expired() {
-		return false
-	}
-	id := tok.ID
-	db := m.db
-	go func() {
-		now := time.Now()
-		db.Model(&models.Token{}).Where("id = ?", id).Update("last_used_at", &now)
-	}()
+	m.touchToken(tok.ID)
 	return true
 }
 
@@ -409,48 +455,40 @@ func (m *Manager) APIAuthed(r *http.Request) bool {
 	return m.Authed(r) || m.tokenAuthed(r)
 }
 
+// identify resolves the request's credentials — session cookie first, then API
+// bearer token — and returns a context carrying them. Require and
+// AuthenticateRequest share it so the two paths cannot drift apart.
+func (m *Manager) identify(r *http.Request) (context.Context, bool) {
+	// 1. Stateful session cookie.
+	if token := cookieToken(r); token != "" {
+		if s := m.sessionByToken(token); s != nil {
+			ctx := context.WithValue(r.Context(), userIDKey, s.UserID)
+			ctx = plugin.WithOrgID(ctx, s.OrgID)
+			return context.WithValue(ctx, sessionIDKey, s.ID), true
+		}
+	}
+
+	// 2. Bearer token (API access, no session row). The user id stays 0 — a token
+	// authenticates the workspace, not a person — so role gates read the token's
+	// role ceiling instead (see callerHoldsRole).
+	if tok, ok := m.TokenByRequest(r); ok {
+		ctx := context.WithValue(r.Context(), userIDKey, uint(0))
+		ctx = plugin.WithOrgID(ctx, tok.OrgID)
+		ctx = context.WithValue(ctx, sessionIDKey, uint(0))
+		return m.WithTokenIdentity(ctx, tok), true
+	}
+
+	return r.Context(), false
+}
+
 // Require is middleware that rejects unauthenticated requests and injects
 // UserID, OrgID, and SessionID into the request context.
 func (m *Manager) Require(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var uid, orgID, sessID, tokenID uint
-		var authed bool
-
-		// 1. Stateful session cookie.
-		if token := cookieToken(r); token != "" {
-			if s := m.sessionByToken(token); s != nil {
-				uid, orgID, sessID, authed = s.UserID, s.OrgID, s.ID, true
-			}
-		}
-
-		// 2. Bearer token (API access, no session row).
-		if !authed && m.db != nil {
-			if raw := bearerToken(r); strings.HasPrefix(raw, "oct_") {
-				hash := models.HashToken(raw)
-				var tok models.Token
-				if m.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() {
-					uid, orgID, authed = 0, tok.OrgID, true
-					tokenID = tok.ID
-					id := tok.ID
-					db := m.db
-					go func() {
-						now := time.Now()
-						db.Model(&models.Token{}).Where("id = ?", id).Update("last_used_at", &now)
-					}()
-				}
-			}
-		}
-
-		if !authed {
+		ctx, ok := m.identify(r)
+		if !ok {
 			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 			return
-		}
-
-		ctx := context.WithValue(r.Context(), userIDKey, uid)
-		ctx = plugin.WithOrgID(ctx, orgID)
-		ctx = context.WithValue(ctx, sessionIDKey, sessID)
-		if tokenID != 0 {
-			ctx = WithTokenID(ctx, tokenID)
 		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -459,41 +497,9 @@ func (m *Manager) Require(next http.Handler) http.Handler {
 // AuthenticateRequest validates the session cookie or bearer token and returns
 // a new request with credentials in the context. On failure, returns false.
 func (m *Manager) AuthenticateRequest(r *http.Request) (*http.Request, bool) {
-	var uid, orgID, sessID, tokenID uint
-	var authed bool
-
-	if token := cookieToken(r); token != "" {
-		if s := m.sessionByToken(token); s != nil {
-			uid, orgID, sessID, authed = s.UserID, s.OrgID, s.ID, true
-		}
-	}
-
-	if !authed && m.db != nil {
-		if raw := bearerToken(r); strings.HasPrefix(raw, "oct_") {
-			hash := models.HashToken(raw)
-			var tok models.Token
-			if m.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() {
-				uid, orgID, authed = 0, tok.OrgID, true
-				tokenID = tok.ID
-				id := tok.ID
-				db := m.db
-				go func() {
-					now := time.Now()
-					db.Model(&models.Token{}).Where("id = ?", id).Update("last_used_at", &now)
-				}()
-			}
-		}
-	}
-
-	if !authed {
+	ctx, ok := m.identify(r)
+	if !ok {
 		return r, false
-	}
-
-	ctx := context.WithValue(r.Context(), userIDKey, uid)
-	ctx = plugin.WithOrgID(ctx, orgID)
-	ctx = context.WithValue(ctx, sessionIDKey, sessID)
-	if tokenID != 0 {
-		ctx = WithTokenID(ctx, tokenID)
 	}
 	return r.WithContext(ctx), true
 }
