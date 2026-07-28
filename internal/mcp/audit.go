@@ -52,7 +52,7 @@ func (s *server) auditQuery(query string, rows int, qErr error) {
 		metaJSON = string(b)
 	}
 	_ = s.gdb.Create(&auditRow{
-		OrgID:      s.ownerScope(),
+		OrgID:      s.orgID,
 		ActorID:    0, // system / AI
 		Action:     "ai.mcp.query",
 		TargetType: "database",
