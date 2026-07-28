@@ -110,11 +110,33 @@ func lookup(typ string) Provider {
 	return providers[typ]
 }
 
+var (
+	decryptConfig func(string) (string, bool)
+)
+
+// SetConfigDecryptor registers how a stored (encrypted) notification channel config
+// is unwrapped before it is used for notification delivery.
+func SetConfigDecryptor(fn func(string) (string, bool)) {
+	decryptConfig = fn
+}
+
+// configPlaintext resolves the plaintext config for a stored value, falling back
+// to the raw value for legacy plaintext rows or when no decryptor is set.
+func configPlaintext(stored string) string {
+	if decryptConfig != nil {
+		if pt, ok := decryptConfig(stored); ok {
+			return pt
+		}
+	}
+	return stored // legacy plaintext row or failed decrypt
+}
+
 // Send dispatches a notification via the specified channel type. Built-in types
 // (telegram, webhook) are handled directly; any other type is resolved from the
 // plugin-contributed provider registry. An unregistered type is an error.
 func Send(ctx context.Context, typ, cfgJSON, text string) error {
 	typ = strings.ToLower(strings.TrimSpace(typ))
+	cfgJSON = configPlaintext(cfgJSON)
 	switch typ {
 	case "telegram":
 		return sendTelegram(ctx, cfgJSON, text)

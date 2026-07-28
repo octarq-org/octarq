@@ -20,6 +20,24 @@ type NotificationChannelType struct {
 	Icon        string `json:"icon"`
 }
 
+// channelConfigPlaintext returns the usable config JSON for a notification channel.
+// Configs are AES-GCM encrypted at rest; older rows may still hold plaintext, so
+// a failed decrypt falls back to the raw value for backward compatibility.
+func (h *Handler) channelConfigPlaintext(stored string) string {
+	if stored == "" {
+		return ""
+	}
+	if b, err := h.cipher.Decrypt(stored); err == nil {
+		return string(b)
+	}
+	return stored // legacy plaintext row
+}
+
+// encryptChannelConfig seals a plaintext config JSON for storage.
+func (h *Handler) encryptChannelConfig(plaintext string) (string, error) {
+	return h.cipher.Encrypt([]byte(plaintext))
+}
+
 type ListNotificationChannelTypesInput struct {
 	Ctx huma.Context `hidden:"true"`
 }
@@ -101,7 +119,8 @@ func (h *Handler) listNotificationChannels(ctx context.Context, input *ListNotif
 	var channels []models.NotificationChannel
 	h.orgDB(r).Order("created_at DESC").Find(&channels)
 	for i := range channels {
-		channels[i].Config = redactConfigSecrets(channels[i].Config)
+		plain := h.channelConfigPlaintext(channels[i].Config)
+		channels[i].Config = redactConfigSecrets(plain)
 	}
 	return &ListNotificationChannelsOutput{Body: channels}, nil
 }
@@ -147,18 +166,24 @@ func (h *Handler) createNotificationChannel(ctx context.Context, input *CreateNo
 	if err != nil {
 		return nil, err
 	}
+	encConfig, err := h.encryptChannelConfig(input.Body.Config)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to secure channel config")
+	}
 	d := models.NotificationChannel{
 		OrgID:   orgID,
 		Name:    name,
 		Type:    typ,
-		Config:  input.Body.Config,
+		Config:  encConfig,
 		Enabled: enabled,
 	}
 	if err := h.db.Create(&d).Error; err != nil {
 		return nil, huma.Error500InternalServerError("failed to create")
 	}
 	h.audit(r, "notification.create", "notification_channel", d.ID, map[string]any{"name": d.Name, "type": d.Type})
-	return &CreateNotificationChannelOutput{Body: d}, nil
+	out := d
+	out.Config = redactConfigSecrets(input.Body.Config)
+	return &CreateNotificationChannelOutput{Body: out}, nil
 }
 
 type UpdateNotificationChannelInput struct {
@@ -207,11 +232,18 @@ func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNo
 	}
 	if d.Config != nil {
 		newCfgStr := *d.Config
-		if ch.Config != "" && strings.Contains(newCfgStr, "[REDACTED]") {
-			ch.Config = mergeConfigPreservingSecrets(ch.Config, newCfgStr)
+		oldPlaintext := h.channelConfigPlaintext(ch.Config)
+		var targetPlaintext string
+		if oldPlaintext != "" && strings.Contains(newCfgStr, "[REDACTED]") {
+			targetPlaintext = mergeConfigPreservingSecrets(oldPlaintext, newCfgStr)
 		} else {
-			ch.Config = newCfgStr
+			targetPlaintext = newCfgStr
 		}
+		enc, err := h.encryptChannelConfig(targetPlaintext)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("failed to secure channel config")
+		}
+		ch.Config = enc
 	}
 	if d.Enabled != nil {
 		ch.Enabled = *d.Enabled
@@ -232,7 +264,8 @@ func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNo
 	}
 	h.audit(r, "notification.update", "notification_channel", ch.ID, meta)
 	out := ch
-	out.Config = redactConfigSecrets(out.Config)
+	plain := h.channelConfigPlaintext(ch.Config)
+	out.Config = redactConfigSecrets(plain)
 	return &UpdateNotificationChannelOutput{Body: out}, nil
 }
 
@@ -309,7 +342,8 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 	}
 	ctxTimeout, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	if err := notify.Send(ctxTimeout, ch.Type, ch.Config, "🔔 Test notification from octarq!"); err != nil {
+	plainConfig := h.channelConfigPlaintext(ch.Config)
+	if err := notify.Send(ctxTimeout, ch.Type, plainConfig, "🔔 Test notification from octarq!"); err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 	out := &TestNotificationChannelOutput{}

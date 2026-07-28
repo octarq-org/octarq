@@ -162,6 +162,13 @@ func New() (*App, error) {
 		}
 		return string(b), true
 	})
+	notify.SetConfigDecryptor(func(stored string) (string, bool) {
+		b, err := cipher.Decrypt(stored)
+		if err != nil {
+			return "", false
+		}
+		return string(b), true
+	})
 	cacheLayer := cache.New(cfg.RedisURL)
 	authMgr := auth.New(cfg, cipher).WithDB(gdb).WithCache(cacheLayer)
 
