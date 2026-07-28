@@ -47,6 +47,31 @@ import (
 	"gorm.io/gorm"
 )
 
+// pluginGate builds the per-workspace feature check the gated mux and adapter
+// share. Non-core plugin routes answer 404 when the caller's workspace has the
+// feature disabled.
+//
+// The org-0 case returns scoped=false, i.e. "not a workspace-scoped request, do
+// not gate it" — the route is then served. That is deliberate and load-bearing:
+// public plugin routes (payment webhooks, the buyer portal, license activation)
+// carry no session, so there is no workspace whose toggle could be consulted.
+// Returning scoped=true here to look "fail-closed" would 404 every incoming
+// Stripe webhook and every buyer — payments would stop, quietly, and the failure
+// would surface as missing revenue rather than as an error.
+//
+// What makes it safe is that those routes authenticate themselves (webhook
+// signature, customer session cookie). That is an implicit contract with every
+// public plugin route, so it is pinned by TestPluginGateDoesNotGateAnonymous.
+func (a *App) pluginGate(apiHandler interface{ PluginEnabled(uint, string) bool }) func(*http.Request, string) (allowed, scoped bool) {
+	return func(r *http.Request, featureKey string) (allowed, scoped bool) {
+		oid := a.auth.OrgID(r)
+		if oid == 0 {
+			return false, false // no workspace in session (webhooks, portal) → not gated
+		}
+		return apiHandler.PluginEnabled(oid, featureKey), true
+	}
+}
+
 // gatedMux wraps the shared API mux so every route a plugin registers is guarded
 // by a per-workspace "plugin enabled" check. It satisfies plugin.Mux; when the
 // caller's workspace has the plugin disabled, the wrapped handler answers 404
@@ -392,13 +417,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 		Provide:      services.Provide,
 		Lookup:       services.Lookup,
 	}
-	enabled := func(r *http.Request, featureKey string) (allowed, scoped bool) {
-		oid := a.auth.OrgID(r)
-		if oid == 0 {
-			return false, false
-		}
-		return apiHandler.PluginEnabled(oid, featureKey), true
-	}
+	enabled := a.pluginGate(apiHandler)
 	for _, p := range a.plugins {
 		pctxCopy := *pctx
 		pInfo := plugin.Describe(p)
@@ -586,14 +605,8 @@ func (a *App) Run(ctx context.Context) error {
 	// Non-core plugin routes are gated by a per-workspace feature toggle: when the
 	// caller's workspace has the feature disabled, the app answers 404 before the
 	// handler runs. Core plumbing (license activation, buyer identity) mounts
-	// ungated — it must always work.
-	enabled := func(r *http.Request, featureKey string) (allowed, scoped bool) {
-		oid := a.auth.OrgID(r)
-		if oid == 0 {
-			return false, false // no workspace in session (webhooks, portal) → not gated
-		}
-		return apiHandler.PluginEnabled(oid, featureKey), true
-	}
+	// ungated — it must always work. See pluginGate for the org-0 contract.
+	enabled := a.pluginGate(apiHandler)
 	for _, p := range a.plugins {
 		pctxCopy := *pctx
 		pInfo := plugin.Describe(p)
