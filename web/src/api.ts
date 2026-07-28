@@ -214,7 +214,7 @@ export async function req<T>(method: string, path: string, body?: unknown): Prom
 export interface Settings {
   reservedMailboxes: string;
   orgSlug: string;
-  inboundToken: string;
+  inboundToken?: string;
   catchAll: boolean;
   autoWrapLinks: boolean;
   isInstanceAdmin: boolean;

@@ -36,7 +36,11 @@ func (h *Handler) listAuditLogs(ctx context.Context, input *ListAuditLogsInput) 
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	q := h.db.Where("org_id = ?", h.orgID(r)).Order("created_at DESC")
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+	q := h.db.Where("org_id = ?", orgID).Order("created_at DESC")
 	if input.Action != "" {
 		q = q.Where("action = ?", input.Action)
 	}

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/octarq-org/octarq/internal/auth"
 	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
@@ -56,19 +58,33 @@ func splitHostPort(addr string) (host, port string, err error) {
 	return import_net_SplitHostPort(addr)
 }
 
-// orgID extracts the authenticated org ID from the request session.
-// Falls back to 1 (the bootstrap org) if the session predates multi-tenant.
+// orgID returns the authenticated org, or 0 when the request carries none.
+// Zero is NOT substituted with a default tenant: on a multi-tenant host that
+// would serve the bootstrap org's data to an unidentified caller.
 func (h *Handler) orgID(r *http.Request) uint {
-	if id := h.auth.OrgID(r); id != 0 {
-		return id
-	}
-	return 1
+	return h.auth.OrgID(r)
 }
 
 // orgDB returns a *gorm.DB pre-scoped to the authenticated org.
 // Use instead of h.db for any query that should be tenant-isolated.
+// Returns a guaranteed empty query (1 = 0) if org is 0 as defense-in-depth.
 func (h *Handler) orgDB(r *http.Request) *gorm.DB {
-	return h.db.Where("owner_id = ?", h.orgID(r))
+	id := h.orgID(r)
+	if id == 0 {
+		return h.db.Where("1 = 0")
+	}
+	return h.db.Where("owner_id = ?", id)
+}
+
+// requireOrg resolves the caller's org or reports that the request cannot be
+// served. Handlers that read or write tenant data must use this rather than
+// orgID, so an unidentified caller gets 401 instead of someone else's data.
+func (h *Handler) requireOrg(r *http.Request) (uint, error) {
+	id := h.auth.OrgID(r)
+	if id == 0 {
+		return 0, huma.Error401Unauthorized("unauthorized: missing workspace context")
+	}
+	return id, nil
 }
 
 // audit writes an AuditLog entry asynchronously; never blocks a request.
@@ -77,6 +93,12 @@ func (h *Handler) audit(r *http.Request, action, targetType string, targetID uin
 	orgID := h.orgID(r)
 	actorID := h.auth.UserID(r)
 	ip := reporterIP(r)
+	if tokID := auth.TokenIDFromContext(r.Context()); tokID != 0 {
+		if meta == nil {
+			meta = make(map[string]any)
+		}
+		meta["tokenId"] = tokID
+	}
 	var metaJSON string
 	if meta != nil {
 		if b, err := json.Marshal(meta); err == nil {

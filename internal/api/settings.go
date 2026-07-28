@@ -268,16 +268,23 @@ func (h *Handler) getSettings(ctx context.Context, input *GetSettingsInput) (*Ge
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	org := h.currentOrg(r)
+	body := map[string]any{
+		"reservedMailboxes": h.GetWorkspaceSetting(orgID, keyReservedMailboxes),
+		"orgSlug":           org.Slug,
+		"catchAll":          h.GetWorkspaceSetting(orgID, keyCatchAll) == "true",
+		"autoWrapLinks":     h.GetWorkspaceSetting(orgID, keyAutoWrapLinks) == "true",
+		"isInstanceAdmin":   h.isInstanceAdmin(r),
+	}
+	if role := h.callerOrgRole(r); role == "owner" || role == "admin" {
+		body["inboundToken"] = org.InboundToken
+	}
 	out := &GetSettingsOutput{
-		Body: map[string]any{
-			"reservedMailboxes": h.GetWorkspaceSetting(org.ID, keyReservedMailboxes),
-			"orgSlug":           org.Slug,
-			"inboundToken":      org.InboundToken,
-			"catchAll":          h.GetWorkspaceSetting(org.ID, keyCatchAll) == "true",
-			"autoWrapLinks":     h.GetWorkspaceSetting(org.ID, keyAutoWrapLinks) == "true",
-			"isInstanceAdmin":   h.isInstanceAdmin(r),
-		},
+		Body: body,
 	}
 	return out, nil
 }
@@ -397,9 +404,13 @@ func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput
 	if role := h.callerOrgRole(r); role != "owner" && role != "admin" {
 		return nil, huma.Error403Forbidden("owner or admin role required")
 	}
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 
 	if input.Body.ReservedMailboxes != nil {
-		h.SetWorkspaceSetting(h.orgID(r), keyReservedMailboxes, strings.Join(splitList(*input.Body.ReservedMailboxes), "\n"))
+		h.SetWorkspaceSetting(orgID, keyReservedMailboxes, strings.Join(splitList(*input.Body.ReservedMailboxes), "\n"))
 	}
 	if input.Body.InboundToken != nil {
 		// Per-org: empty string rotates to a fresh UUID; a value sets it explicitly.
@@ -407,14 +418,14 @@ func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput
 		if tok == "" {
 			tok = uuid.NewString()
 		}
-		h.db.Model(&models.Org{}).Where("id = ?", h.orgID(r)).Update("inbound_token", tok)
+		h.db.Model(&models.Org{}).Where("id = ?", orgID).Update("inbound_token", tok)
 	}
 	if input.Body.CatchAll != nil {
 		val := "false"
 		if *input.Body.CatchAll {
 			val = "true"
 		}
-		h.SetWorkspaceSetting(h.orgID(r), keyCatchAll, val)
+		h.SetWorkspaceSetting(orgID, keyCatchAll, val)
 	}
 
 	if input.Body.AutoWrapLinks != nil {
@@ -422,7 +433,7 @@ func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput
 		if *input.Body.AutoWrapLinks {
 			val = "true"
 		}
-		h.SetWorkspaceSetting(h.orgID(r), keyAutoWrapLinks, val)
+		h.SetWorkspaceSetting(orgID, keyAutoWrapLinks, val)
 	}
 
 	meta := make(map[string]any)

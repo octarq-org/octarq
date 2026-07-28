@@ -215,6 +215,7 @@ func (l HostList) Blocks(host string) bool {
 // Token is an API token for the open API. Only the SHA-256 hash of the raw
 // token is stored; the raw token is shown once at creation time. Prefix keeps
 // a short, non-secret identifier for the dashboard list.
+// TODO(P2-18): tokens carry no scope; any token is full read/write for its org.
 type Token struct {
 	ID         uint       `gorm:"primaryKey" json:"id"`
 	OrgID      uint       `gorm:"column:owner_id;index;default:1" json:"-"`

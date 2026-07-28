@@ -154,7 +154,11 @@ func (h *Handler) aiSuggestSlug(ctx context.Context, input *AISuggestSlugInput) 
 	if target == "" {
 		return nil, huma.Error400BadRequest("target is required")
 	}
-	p, err := h.llmFor(h.orgID(r))
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+	p, err := h.llmFor(orgID)
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
@@ -244,17 +248,21 @@ func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailI
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	var fromAddr, subject, body string
 	var found bool
 	if getEmail, ok := h.LookupService("mail.email.get"); ok {
 		if fn, ok := getEmail.(func(orgID uint, id uint) (string, string, string, bool)); ok {
-			fromAddr, subject, body, found = fn(h.orgID(r), input.ID)
+			fromAddr, subject, body, found = fn(orgID, input.ID)
 		}
 	}
 	if !found {
 		return nil, huma.Error404NotFound("not found")
 	}
-	p, err := h.llmFor(h.orgID(r))
+	p, err := h.llmFor(orgID)
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}

@@ -126,8 +126,13 @@ func (h *Handler) createWebhook(ctx context.Context, input *CreateWebhookInput) 
 		return nil, huma.Error500InternalServerError("failed to secure secret")
 	}
 
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+
 	hook := models.Webhook{
-		OrgID:   h.orgID(r),
+		OrgID:   orgID,
 		Name:    name,
 		URL:     url,
 		Secret:  encSecret,
@@ -175,8 +180,13 @@ func (h *Handler) updateWebhook(ctx context.Context, input *UpdateWebhookInput) 
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+
 	var hook models.Webhook
-	if h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).First(&hook).Error != nil {
+	if h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).First(&hook).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 
@@ -240,7 +250,12 @@ func (h *Handler) deleteWebhook(ctx context.Context, input *DeleteWebhookInput) 
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, h.orgID(r)).Delete(&models.Webhook{}); res.RowsAffected == 0 {
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+
+	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).Delete(&models.Webhook{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}
 
