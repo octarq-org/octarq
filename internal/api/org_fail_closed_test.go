@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/octarq-org/octarq/internal/db"
 	"github.com/octarq-org/octarq/internal/models"
 )
 
@@ -157,5 +158,35 @@ func TestAuditLogIncludesTokenIDForBearerToken(t *testing.T) {
 	tokIDVal, ok := meta["tokenId"].(float64)
 	if !ok || uint(tokIDVal) != tok.ID {
 		t.Errorf("audit meta tokenId = %v, want %d", meta["tokenId"], tok.ID)
+	}
+}
+
+// A session predating multi-tenancy carries org_id 0. Handler.orgID used to
+// substitute org 1 for it, which is exactly the fallback P2-9 removes — so
+// after the removal such a session would authenticate but resolve to no
+// workspace, and every tenant-scoped request under it would 401 on a screen
+// that looks logged in. Migrate deletes those rows instead, sending the user
+// through a normal re-login. Pin it, or an upgrade silently produces accounts
+// that appear signed in and can do nothing.
+func TestMigrateDropsOrglessSessions(t *testing.T) {
+	_, _, gdb := newTestHandlerRaw(t)
+
+	keep := models.Session{UserID: 1, OrgID: 1, Token: "keep", ExpiresAt: time.Now().Add(time.Hour)}
+	drop := models.Session{UserID: 2, OrgID: 0, Token: "drop", ExpiresAt: time.Now().Add(time.Hour)}
+	if err := gdb.Create(&keep).Error; err != nil {
+		t.Fatalf("seed org-scoped session: %v", err)
+	}
+	if err := gdb.Create(&drop).Error; err != nil {
+		t.Fatalf("seed orgless session: %v", err)
+	}
+
+	if err := db.Migrate(gdb); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	var tokens []string
+	gdb.Model(&models.Session{}).Pluck("token", &tokens)
+	if len(tokens) != 1 || tokens[0] != "keep" {
+		t.Fatalf("Migrate should drop only the orgless session, sessions left = %v", tokens)
 	}
 }

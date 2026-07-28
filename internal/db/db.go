@@ -89,5 +89,20 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 		}
 	}
 
+	// Data migration: drop sessions that carry no org.
+	//
+	// Handler.orgID used to substitute org 1 when a session had no org_id, which
+	// is how sessions predating multi-tenancy kept working — and also how an
+	// unidentified caller got served the bootstrap tenant's data. Now that the
+	// substitution is gone, such a session resolves to org 0 and every
+	// tenant-scoped request under it fails closed.
+	//
+	// Deleting the rows is kinder than leaving them to 401: an invalid cookie
+	// sends the user through the normal login flow, whereas a session that
+	// authenticates but resolves to no workspace produces unauthorized errors on
+	// a screen that looks logged in. Affected users re-login once; nobody loses
+	// data. On any install created after multi-tenancy this deletes nothing.
+	gdb.Where("org_id = 0").Delete(&models.Session{})
+
 	return nil
 }
