@@ -215,14 +215,19 @@ func (l HostList) Blocks(host string) bool {
 // Token is an API token for the open API. Only the SHA-256 hash of the raw
 // token is stored; the raw token is shown once at creation time. Prefix keeps
 // a short, non-secret identifier for the dashboard list.
-// TODO(P2-18): tokens carry no scope; any token is full read/write for its org.
 type Token struct {
-	ID         uint       `gorm:"primaryKey" json:"id"`
-	OrgID      uint       `gorm:"column:owner_id;index;default:1" json:"-"`
-	Name       string     `gorm:"size:255" json:"name"`
-	Hash       string     `gorm:"uniqueIndex;size:64" json:"-"` // SHA-256 hex of the raw token
-	Prefix     string     `gorm:"size:32" json:"prefix"`        // e.g. "oct_abcd" for identification
-	Note       string     `gorm:"type:text" json:"note"`
+	ID     uint   `gorm:"primaryKey" json:"id"`
+	OrgID  uint   `gorm:"column:owner_id;index;default:1" json:"-"`
+	Name   string `gorm:"size:255" json:"name"`
+	Hash   string `gorm:"uniqueIndex;size:64" json:"-"` // SHA-256 hex of the raw token
+	Prefix string `gorm:"size:32" json:"prefix"`        // e.g. "oct_abcd" for identification
+	Note   string `gorm:"type:text" json:"note"`
+	// Role caps what the token may do: every role gate compares against it
+	// instead of the (absent) user's membership. NULL/empty means unrestricted,
+	// which is what every token minted before scoping existed carries — narrowing
+	// those retroactively would silently break CI jobs, scripts and integrations
+	// already in the wild. New tokens are minted with an explicit role.
+	Role       string     `gorm:"size:32" json:"role"`
 	LastUsedAt *time.Time `json:"lastUsedAt"`
 	// ExpiresAt bounds the token's validity. NULL = never expires (back-compat for
 	// tokens minted before expiry support). Auth paths reject an expired token.
