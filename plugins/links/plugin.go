@@ -24,6 +24,7 @@ type Plugin struct {
 	enqueue             func(ctx context.Context, taskType string, payload []byte) error
 	deleteCache         func(ctx context.Context, key string) error
 	publishEvent        func(orgID uint, event string, data any)
+	requireRole         func(r *http.Request, min string) bool
 }
 
 var (
@@ -111,6 +112,9 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	}
 	if ctx.PublishEvent != nil {
 		p.publishEvent = ctx.PublishEvent
+	}
+	if ctx.RequireRole != nil {
+		p.requireRole = ctx.RequireRole
 	}
 	if ctx.RegisterWebhookEvent != nil {
 		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "link.create", Group: "Links", Title: "Link Created", Description: "A short link was created"})
@@ -341,4 +345,17 @@ func splitList(s string) []string {
 		}
 	}
 	return out
+}
+
+// hasRole reports whether the caller holds at least the given workspace role.
+//
+// A host that never wired RequireRole is refused rather than waved through. The
+// gate protects destructive and credential-bearing operations, so "the host did
+// not tell us who this is" has to mean no, not yes — an unwired seam would
+// otherwise silently disable every role check in this plugin.
+func (p *Plugin) hasRole(r *http.Request, min string) bool {
+	if p.requireRole == nil {
+		return false
+	}
+	return p.requireRole(r, min)
 }

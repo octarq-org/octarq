@@ -12,6 +12,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
@@ -316,7 +317,7 @@ func (h *Handler) updatePlugin(ctx context.Context, input *UpdatePluginInput) (*
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if role := h.callerOrgRole(r); role != "owner" && role != "admin" {
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, huma.Error403Forbidden("owner or admin role required")
 	}
 	key := input.Name

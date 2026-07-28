@@ -33,11 +33,12 @@ var errNotFound = errors.New("not found")
 
 // Plugin implements the octarq plugin contract for domain/DNS management.
 type Plugin struct {
-	db      *gorm.DB
-	orgID   func(*http.Request) uint
-	audit   func(r *http.Request, action, targetType string, targetID uint, meta map[string]any)
-	encrypt func(plaintext []byte) (string, error)
-	decrypt func(encoded string) ([]byte, error)
+	db          *gorm.DB
+	orgID       func(*http.Request) uint
+	audit       func(r *http.Request, action, targetType string, targetID uint, meta map[string]any)
+	encrypt     func(plaintext []byte) (string, error)
+	decrypt     func(encoded string) ([]byte, error)
+	requireRole func(r *http.Request, min string) bool
 
 	publishEvent func(orgID uint, event string, data any)
 
@@ -126,6 +127,9 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	}
 	if ctx.PublishEvent != nil {
 		p.publishEvent = ctx.PublishEvent
+	}
+	if ctx.RequireRole != nil {
+		p.requireRole = ctx.RequireRole
 	}
 	if ctx.RegisterWebhookEvent != nil {
 		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "domain.create", Group: "Domain", Title: "Domain Created", Description: "A domain was added to the workspace"})
@@ -270,4 +274,17 @@ func (p *Plugin) migrateLegacy() {
 			p.db.Exec("UPDATE domains SET provider_account_id = ? WHERE id = ?", acc.ID, ld.ID)
 		}
 	}
+}
+
+// hasRole reports whether the caller holds at least the given workspace role.
+//
+// A host that never wired RequireRole is refused rather than waved through. The
+// gate protects destructive and credential-bearing operations, so "the host did
+// not tell us who this is" has to mean no, not yes — an unwired seam would
+// otherwise silently disable every role check in this plugin.
+func (p *Plugin) hasRole(r *http.Request, min string) bool {
+	if p.requireRole == nil {
+		return false
+	}
+	return p.requireRole(r, min)
 }

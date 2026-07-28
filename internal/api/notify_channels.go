@@ -8,6 +8,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/notify"
 	"github.com/octarq-org/octarq/plugin"
@@ -128,10 +129,10 @@ func (h *Handler) listNotificationChannels(ctx context.Context, input *ListNotif
 type CreateNotificationChannelInput struct {
 	Ctx  huma.Context `hidden:"true"`
 	Body struct {
-		Name    string `json:"name"`
-		Type    string `json:"type"`
-		Config  string `json:"config"`
-		Enabled *bool  `json:"enabled,omitempty"`
+		Name    string  `json:"name"`
+		Type    string  `json:"type"`
+		Config  *string `json:"config,omitempty"`
+		Enabled *bool   `json:"enabled,omitempty"`
 	}
 }
 
@@ -153,6 +154,9 @@ func (h *Handler) createNotificationChannel(ctx context.Context, input *CreateNo
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
+		return nil, err
+	}
 	name := strings.TrimSpace(input.Body.Name)
 	typ := strings.ToLower(strings.TrimSpace(input.Body.Type))
 	if name == "" || typ == "" {
@@ -166,7 +170,11 @@ func (h *Handler) createNotificationChannel(ctx context.Context, input *CreateNo
 	if err != nil {
 		return nil, err
 	}
-	encConfig, err := h.encryptChannelConfig(input.Body.Config)
+	config := ""
+	if input.Body.Config != nil {
+		config = *input.Body.Config
+	}
+	encConfig, err := h.encryptChannelConfig(config)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("failed to secure channel config")
 	}
@@ -182,7 +190,7 @@ func (h *Handler) createNotificationChannel(ctx context.Context, input *CreateNo
 	}
 	h.audit(r, "notification.create", "notification_channel", d.ID, map[string]any{"name": d.Name, "type": d.Type})
 	out := d
-	out.Config = redactConfigSecrets(input.Body.Config)
+	out.Config = redactConfigSecrets(config)
 	return &CreateNotificationChannelOutput{Body: out}, nil
 }
 
@@ -217,6 +225,9 @@ func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNo
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {
+		return nil, err
+	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, err
 	}
 	var ch models.NotificationChannel
@@ -298,6 +309,9 @@ func (h *Handler) deleteNotificationChannel(ctx context.Context, input *DeleteNo
 	if err != nil {
 		return nil, err
 	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
+		return nil, err
+	}
 	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).Delete(&models.NotificationChannel{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}
@@ -334,6 +348,9 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {
+		return nil, err
+	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, err
 	}
 	var ch models.NotificationChannel

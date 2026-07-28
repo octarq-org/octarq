@@ -5,9 +5,12 @@ import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { useSettingsData, SavedBadge } from "../../../pages/settings/shared";
+import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 
 export function ProviderAccounts({ embed }: { embed?: boolean }) {
   const { t } = useTranslation();
+  const { role, isInstanceAdmin } = useCurrentRole();
+  const canManageProviders = roleSatisfies("admin", role, isInstanceAdmin);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -41,9 +44,11 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
           {t("settings.dnsApiAccounts")}
           <div className="text-[10px] text-foreground/50 font-normal mt-0.5">{t("settings.dnsApiAccountsDesc")}</div>
         </div>
-        <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
-          {t("settings.addProvider")}
-        </Button>
+        {canManageProviders && (
+          <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
+            {t("settings.addProvider")}
+          </Button>
+        )}
       </div>
 
       {loading ? (
@@ -68,18 +73,20 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
                     : <Badge tone="amber" className="text-[9px]">{t("settings.noCredentials")}</Badge>}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="subtle" onClick={() => setEditing(a)} className="text-xs py-1 px-2.5">
-                  {t("settings.edit")}
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={() => remove(a.id)}
-                  className="text-xs py-1 px-2.5 border-0"
-                >
-                  {t("settings.remove")}
-                </Button>
-              </div>
+              {canManageProviders && (
+                <div className="flex items-center gap-2">
+                  <Button variant="subtle" onClick={() => setEditing(a)} className="text-xs py-1 px-2.5">
+                    {t("settings.edit")}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => remove(a.id)}
+                    className="text-xs py-1 px-2.5 border-0"
+                  >
+                    {t("settings.remove")}
+                  </Button>
+                </div>
+              )}
             </div>
           ))}
         </div>

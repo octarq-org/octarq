@@ -54,7 +54,9 @@ func TestNetworkedInstanceDoesNotRemountSharedPlugins(t *testing.T) {
 		}
 		return 9
 	}
-	f.Mount(nil, &plugin.Context{OrgID: httpOrg})
+	f.Mount(nil, &plugin.Context{OrgID: httpOrg,
+		RequireRole: func(*http.Request, string) bool { return true },
+	})
 	mountsAfterBoot := f.mounts
 
 	req, _ := http.NewRequest("GET", "/", nil)

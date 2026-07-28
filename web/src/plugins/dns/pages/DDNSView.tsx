@@ -4,9 +4,12 @@ import { dnsApi, DDNSToken, CreateDDNSTokenResult } from "../api";
 import { GlassCard, Button, Modal, Field, Badge, Empty, timeAgo, toast, Alert } from "../../../ui";
 import { KeyRound, Plus, Trash2, Copy, Check, AlertTriangle } from "lucide-react";
 import { useTranslation } from "../../../i18n";
+import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 
 export function DDNSView({ domains }: { domains: Domain[] }) {
   const { t } = useTranslation();
+  const { role, isInstanceAdmin } = useCurrentRole();
+  const canManageDDNS = roleSatisfies("admin", role, isInstanceAdmin);
   const [tokens, setTokens] = useState<DDNSToken[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -112,67 +115,60 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
           </p>
         </div>
 
-        <Button
-          variant="primary"
-          onClick={() => {
-            if (domains.length > 0) {
-              const dom = domains[0];
-              setDomainId(dom.id);
-              if (!recordName) setRecordName(`home.${dom.name}`);
-            }
-            setShowCreateModal(true);
-          }}
-          className="gap-1.5 py-1.5 text-xs shrink-0"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          {t("domains.createDdnsToken") || "New DDNS Token"}
-        </Button>
+        {canManageDDNS && (
+          <Button
+            variant="primary"
+            onClick={() => {
+              if (domains.length > 0) {
+                const dom = domains[0];
+                setDomainId(dom.id);
+                if (!recordName) setRecordName(`home.${dom.name}`);
+              }
+              setCreatedResult(null);
+              setShowCreateModal(true);
+            }}
+            className="gap-1.5 py-1.5 text-xs shrink-0 self-start sm:self-auto"
+          >
+            <Plus className="h-4 w-4" />
+            {t("domains.newDdnsToken") || "New DDNS Token"}
+          </Button>
+        )}
       </div>
 
       {loading ? (
-        <GlassCard className="p-8 text-center text-sm text-muted-foreground">
-          {t("domains.loading") || "Loading..."}
-        </GlassCard>
+        <div className="py-8 text-center text-xs text-muted-foreground">
+          {t("domains.loadingTokens") || "Loading DDNS tokens..."}
+        </div>
       ) : tokens.length === 0 ? (
-        <GlassCard className="p-8 text-center space-y-4">
-          <Empty>
-            <KeyRound className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm font-medium text-foreground">
-              {t("domains.noDdnsTokens") || "No DDNS tokens created yet."}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {t("domains.ddnsIntro") || "Create a DDNS token to let ddclient or router firmware update DNS records automatically."}
-            </p>
-          </Empty>
-          <Button
-            variant="subtle"
-            onClick={() => setShowCreateModal(true)}
-            className="gap-1.5 py-1.5 text-xs"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {t("domains.createDdnsToken") || "New DDNS Token"}
-          </Button>
-        </GlassCard>
+        <Empty>
+          <KeyRound className="h-8 w-8 text-muted-foreground/60 mb-2" />
+          <p className="text-sm text-muted-foreground">
+            {t("domains.noDdnsTokens") || "No DDNS tokens created yet."}
+          </p>
+        </Empty>
       ) : (
-        <div className="grid grid-cols-1 gap-3">
+        <div className="space-y-3">
           {tokens.map((tok) => {
             const dom = domains.find((d) => d.id === tok.domainId);
             return (
-              <GlassCard key={tok.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <GlassCard
+                key={tok.id}
+                className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              >
                 <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-foreground truncate">{tok.recordName}</span>
-                    <Badge tone={tok.recordType === "AAAA" ? "violet" : "indigo"}>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm text-foreground">
+                      {tok.label || tok.recordName}
+                    </span>
+                    <Badge tone="cyan" className="font-mono text-[10px]">
                       {tok.recordType}
                     </Badge>
-                    {tok.label && (
-                      <span className="text-xs text-muted-foreground bg-foreground/[0.05] px-2 py-0.5 rounded-md">
-                        {tok.label}
-                      </span>
-                    )}
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {tok.recordName}
+                    </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                     <span>
                       {t("domains.lastIp") || "Last IP"}:{" "}
                       <span className="font-mono text-foreground font-medium">
@@ -189,14 +185,16 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
                   </div>
                 </div>
 
-                <Button
-                  variant="danger"
-                  onClick={() => handleDeleteToken(tok.id)}
-                  className="gap-1.5 py-1 text-xs shrink-0 self-start sm:self-center"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  {t("domains.revokeToken") || "Revoke"}
-                </Button>
+                {canManageDDNS && (
+                  <Button
+                    variant="danger"
+                    onClick={() => handleDeleteToken(tok.id)}
+                    className="gap-1.5 py-1 text-xs shrink-0 self-start sm:self-center"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {t("domains.revokeToken") || "Revoke"}
+                  </Button>
+                )}
               </GlassCard>
             );
           })}

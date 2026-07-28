@@ -4,6 +4,7 @@ import { PageHeader, GlassCard, Button, Field, Toggle, Modal, toast } from "../.
 import { Bell, ChevronDown, Plus, Trash2, Send, Pencil } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { ExtensionSlot, NotificationChannelFormContext } from "../../plugin-sdk";
+import { roleSatisfies, useCurrentRole } from "../../shell/role";
 
 // ---------------------------------------------------------------------------
 // ProviderRow — accordion per channel type; channels for that type listed
@@ -41,6 +42,8 @@ function ProviderRow({
   onToggle: (channel: NotificationChannel) => void;
 }) {
   const { t } = useTranslation();
+  const { role, isInstanceAdmin } = useCurrentRole();
+  const canManage = roleSatisfies("admin", role, isInstanceAdmin);
   const [open, setOpen] = useState(false);
   const hasChannels = channels.length > 0;
   const anyEnabled = channels.some((c) => c.enabled);
@@ -105,50 +108,54 @@ function ProviderRow({
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button
-                      variant="subtle"
-                      onClick={() => onToggle(c)}
-                      className="text-xs py-1 px-2.5"
-                    >
-                      {c.enabled ? t("settings.disable") : t("settings.enable")}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => onTest(c.id)}
-                      className="text-xs py-1 px-2.5 flex items-center gap-1"
-                    >
-                      <Send className="h-3 w-3" /> {t("settings.test")}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => onEdit(c)}
-                      className="text-xs py-1 px-2.5"
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="danger"
-                      onClick={() => onDelete(c.id)}
-                      className="text-xs py-1 px-2.5 border-0"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                  {canManage && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        variant="subtle"
+                        onClick={() => onToggle(c)}
+                        className="text-xs py-1 px-2.5"
+                      >
+                        {c.enabled ? t("settings.disable") : t("settings.enable")}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => onTest(c.id)}
+                        className="text-xs py-1 px-2.5 flex items-center gap-1"
+                      >
+                        <Send className="h-3 w-3" /> {t("settings.test")}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => onEdit(c)}
+                        className="text-xs py-1 px-2.5"
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="danger"
+                        onClick={() => onDelete(c.id)}
+                        className="text-xs py-1 px-2.5 border-0"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
 
           {/* add another channel of this type */}
-          <Button
-            variant="ghost"
-            onClick={() => onAdd(type)}
-            className="flex items-center gap-1.5 px-3 py-1 text-xs"
-          >
-            <Plus className="h-3 w-3" />
-            {t("settings.notifyAddChannelOfType", "Add channel")}
-          </Button>
+          {canManage && (
+            <Button
+              variant="outline"
+              onClick={() => onAdd(type)}
+              className="mt-3 flex items-center gap-1.5 text-xs text-accent-fg hover:bg-surface-hover"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {t("settings.notifyAddChannelOfType", "Add channel")}
+            </Button>
+          )}
         </div>
       )}
     </div>

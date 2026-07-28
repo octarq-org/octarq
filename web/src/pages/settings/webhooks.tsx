@@ -3,9 +3,12 @@ import { api, WebhookEventGroup } from "../../api";
 import { Field, Modal, Toggle, PageHeader, GlassCard, Button, toast } from "../../ui";
 import { Trash2, Plus } from "lucide-react";
 import { useTranslation } from "../../i18n";
+import { roleSatisfies, useCurrentRole } from "../../shell/role";
 
 export function WebhooksSettings() {
   const { t } = useTranslation();
+  const { role, isInstanceAdmin } = useCurrentRole();
+  const canManage = roleSatisfies("admin", role, isInstanceAdmin);
   const [webhooks, setWebhooks] = useState<any[]>([]);
   const [show, setShow] = useState(false);
   const [name, setName] = useState("");
@@ -49,9 +52,11 @@ export function WebhooksSettings() {
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-foreground">{t("settings.outboundEventWebhooks")}</h2>
-          <Button variant="ghost" onClick={() => { setName(""); setUrl(""); setSecret(""); setAll(true); setSelected(new Set()); setShow(true); }} className="flex items-center gap-1.5 px-3 py-1 text-xs">
-            <Plus className="h-3 w-3" /> {t("settings.addWebhook")}
-          </Button>
+          {canManage && (
+            <Button variant="ghost" onClick={() => { setName(""); setUrl(""); setSecret(""); setAll(true); setSelected(new Set()); setShow(true); }} className="flex items-center gap-1.5 px-3 py-1 text-xs">
+              <Plus className="h-3 w-3" /> {t("settings.addWebhook")}
+            </Button>
+          )}
         </div>
         {webhooks.length === 0 ? (
           <div className="select-none rounded border border-dashed border-foreground/[0.06] py-4 text-center text-xs text-foreground/40">{t("settings.noWebhooks")}</div>
@@ -78,10 +83,12 @@ export function WebhooksSettings() {
                   <div className="select-all truncate font-mono text-xs text-foreground/45">{w.url}</div>
                   <div className="select-all font-mono text-[10px] text-zinc-500">{t("settings.secretLabel")} {w.secret}</div>
                 </div>
-                <div className="flex shrink-0 items-center gap-3 self-end md:self-auto">
-                  <Toggle on={w.enabled} onChange={() => toggle(w)} />
-                  <Button variant="danger" onClick={() => del(w.id)} className="flex items-center gap-1 px-2.5 py-1 text-xs"><Trash2 className="h-3 w-3" /> {t("settings.delete")}</Button>
-                </div>
+                {canManage && (
+                  <div className="flex shrink-0 items-center gap-3 self-end md:self-auto">
+                    <Toggle on={w.enabled} onChange={() => toggle(w)} />
+                    <Button variant="danger" onClick={() => del(w.id)} className="flex items-center gap-1 px-2.5 py-1 text-xs"><Trash2 className="h-3 w-3" /> {t("settings.delete")}</Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

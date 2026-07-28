@@ -5,12 +5,15 @@ import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge
 import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe, Settings } from "lucide-react";
 import { LinkSettings } from "./LinkSettings";
 import { useTranslation } from "../../../i18n";
+import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 
 import { LinkEditorForm } from "./LinkEditorForm";
 import { StatsView } from "./StatsView";
 import { usePluginGate } from "../../PluginGate";
 
 export default function LinksPage() {
+  const { role, isInstanceAdmin } = useCurrentRole();
+  const canDeleteLink = roleSatisfies("admin", role, isInstanceAdmin);
   const [links, setLinks] = useState<Link[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [q, setQ] = useState("");
@@ -209,20 +212,22 @@ export default function LinksPage() {
                       <Archive className="h-3.5 w-3.5" />
                       {active.archived ? t("links.unarchive") : t("links.archive")}
                     </Button>
-                    <Button
-                      variant="danger"
-                      onClick={async () => {
-                        if (confirm(t("links.confirmDelete", { slug: active.slug }))) {
-                          await linksApi.deleteLink(active.id);
-                          setActive(null);
-                          loadMore(true);
-                        }
-                      }}
-                      className="text-xs py-1.5 px-3 gap-1.5 border-0"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      {t("links.delete")}
-                    </Button>
+                    {canDeleteLink && (
+                      <Button
+                        variant="danger"
+                        onClick={async () => {
+                          if (confirm(t("links.confirmDelete", { slug: active.slug }))) {
+                            await linksApi.deleteLink(active.id);
+                            setActive(null);
+                            loadMore(true);
+                          }
+                        }}
+                        className="text-xs py-1.5 px-3 gap-1.5 border-0"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {t("links.delete")}
+                      </Button>
+                    )}
                   </div>
                 </div>
                 

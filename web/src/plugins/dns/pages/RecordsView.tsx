@@ -5,11 +5,14 @@ import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
+import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 
 const RECORD_TYPES = ["A", "AAAA", "CNAME", "TXT", "MX", "NS", "CAA"];
 
 export function RecordsView({ domain }: { domain: Domain }) {
   const { t } = useTranslation();
+  const { role, isInstanceAdmin } = useCurrentRole();
+  const canManageRecords = roleSatisfies("admin", role, isInstanceAdmin);
   const [records, setRecords] = useState<DNSRecord[] | null>(null);
   const [err, setErr] = useState("");
   const [editing, setEditing] = useState<DNSRecord | "new" | "subdomain" | null>(null);
@@ -90,8 +93,8 @@ export function RecordsView({ domain }: { domain: Domain }) {
                   <td className="max-w-[120px] truncate text-accent-fg/80">{r.comment}</td>
                   <td className="py-3 pr-4 text-right">
                     <div className="flex gap-1.5 justify-end">
-                      <Button variant="ghost" className="px-2 py-0.5 text-[10px]" onClick={() => setEditing(r)}>{t("domains.edit")}</Button>
-                      <Button variant="danger" className="px-2 py-0.5 text-[10px] text-danger-fg border-0" onClick={async () => { if (confirm(t("domains.deleteRecordConfirm", { type: r.type, name: r.name }))) { await dnsApi.deleteRecord(domain.id, r.id); load(); } }}>{t("domains.del")}</Button>
+                      {canManageRecords && <Button variant="ghost" className="px-2 py-0.5 text-[10px]" onClick={() => setEditing(r)}>{t("domains.edit")}</Button>}
+                      {canManageRecords && <Button variant="danger" className="px-2 py-0.5 text-[10px] text-danger-fg border-0" onClick={async () => { if (confirm(t("domains.deleteRecordConfirm", { type: r.type, name: r.name }))) { await dnsApi.deleteRecord(domain.id, r.id); load(); } }}>{t("domains.del")}</Button>}
                     </div>
                   </td>
                 </tr>

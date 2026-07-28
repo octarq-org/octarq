@@ -33,6 +33,17 @@ func sessionCookies(t *testing.T, uid, orgID uint) []*http.Cookie {
 	if err != nil {
 		t.Fatalf("sessionCookies open db: %v", err)
 	}
+	// A user who can log in and act on a workspace is a member of it, so give the
+	// session a matching membership row — without one, callerOrgRole resolves to
+	// "" and every role gate refuses, which is correct behaviour but not what
+	// these tests are about. FirstOrCreate so a test that seeded a specific role
+	// (see role_baseline_test.go) keeps it rather than being promoted to owner.
+	if uid != 0 && orgID != 0 {
+		var mem models.OrgMember
+		db.Where("org_id = ? AND user_id = ?", orgID, uid).
+			FirstOrCreate(&mem, models.OrgMember{OrgID: orgID, UserID: uid, Role: "owner"})
+	}
+
 	cfg := &config.Config{SecretKey: "secret"}
 	m := auth.New(cfg, crypto.New("secret")).WithDB(db)
 	rec := httptest.NewRecorder()

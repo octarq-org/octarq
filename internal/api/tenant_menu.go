@@ -12,6 +12,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
@@ -224,15 +225,10 @@ func (h *Handler) updateOrg(ctx context.Context, input *UpdateOrgInput) (*Update
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	uid := h.auth.UserID(r)
 	oid := h.auth.OrgID(r)
 
 	// Verify permissions: only owner/admin can rename organization/workspace
-	var role string
-	err := h.db.Model(&models.OrgMember{}).
-		Where("org_id = ? AND user_id = ?", oid, uid).
-		Pluck("role", &role).Error
-	if err != nil || (role != "owner" && role != "admin") {
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, huma.Error403Forbidden("forbidden: only owner/admin can rename workspace")
 	}
 
@@ -373,7 +369,7 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 	}
 	// Only an owner may grant or revoke the owner role — an admin can't mint
 	// owners (or promote itself) and thereby take over the workspace.
-	if role == "owner" && callerRole != "owner" {
+	if authz.Role(role) == authz.RoleOwner && !authz.AtLeast(authz.Role(callerRole), authz.RoleOwner) {
 		return nil, huma.Error403Forbidden("forbidden: only an owner can grant the owner role")
 	}
 
@@ -406,7 +402,7 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 	if memErr == nil {
 		// Re-grading an existing owner (demote, or re-affirm) is an owner-only act,
 		// so an admin can't strip the owner's role out from under them.
-		if existing.Role == "owner" && callerRole != "owner" {
+		if authz.Role(existing.Role) == authz.RoleOwner && !authz.AtLeast(authz.Role(callerRole), authz.RoleOwner) {
 			return nil, huma.Error403Forbidden("forbidden: only an owner can change an owner's role")
 		}
 		if err := h.db.Model(&models.OrgMember{}).

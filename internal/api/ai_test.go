@@ -85,6 +85,7 @@ func newAITestHandler(t *testing.T, reply string) (http.Handler, *gorm.DB) {
 		DeleteCache:         authMgr.Cache().Delete,
 		Provide:             reg.Provide,
 		Lookup:              reg.Lookup,
+		RequireRole:         func(*http.Request, string) bool { return true },
 	}
 	dnsP.Mount(nil, pctx)
 	mailP.Mount(nil, pctx)

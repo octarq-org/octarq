@@ -3,6 +3,7 @@ import { api, ApiError, Token } from "../api";
 import { Empty, Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toast } from "../ui";
 import { User, Key, Settings, CheckCircle, Trash2, Eye, ClipboardCopy } from "lucide-react";
 import { useTranslation } from "../i18n";
+import { roleSatisfies, useCurrentRole } from "../shell/role";
 
 // The per-user Account panels of the unified Settings area. Routing + the
 // ScreenWrap live in SettingsPage — every settings page is served under
@@ -103,6 +104,8 @@ export function ApiTokens() {
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<{ token: string } | null>(null);
   const { t } = useTranslation();
+  const { role, isInstanceAdmin } = useCurrentRole();
+  const canManageTokens = roleSatisfies("admin", role, isInstanceAdmin);
 
   async function load() {
     setLoading(true);
@@ -131,9 +134,11 @@ export function ApiTokens() {
         title={t("personal.tokensTitle")}
         description={t("personal.tokensDesc")}
         action={
-          <Button variant="primary" onClick={() => setCreating(true)} className="text-xs">
-            {t("personal.newToken")}
-          </Button>
+          canManageTokens ? (
+            <Button variant="primary" onClick={() => setCreating(true)} className="text-xs">
+              {t("personal.newToken")}
+            </Button>
+          ) : undefined
         }
       />
 
@@ -160,13 +165,15 @@ export function ApiTokens() {
                   <span className="text-[11px] text-foreground/50">
                     {timer.lastUsedAt ? t("personal.usedAgo", { time: timeAgo(timer.lastUsedAt) }) : t("personal.neverUsed")}
                   </span>
-                  <Button
-                    variant="danger"
-                    onClick={() => remove(timer.id)}
-                    className="text-xs py-1 px-2.5 border-0"
-                  >
-                    {t("personal.revoke")}
-                  </Button>
+                  {canManageTokens && (
+                    <Button
+                      variant="danger"
+                      onClick={() => remove(timer.id)}
+                      className="text-xs py-1 px-2.5 border-0"
+                    >
+                      {t("personal.revoke")}
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}

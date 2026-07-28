@@ -326,6 +326,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 		UserID:          a.auth.UserID,
 		OrgID:           a.auth.OrgID,
 		OrgRole:         apiHandler.OrgRole,
+		RequireRole:     apiHandler.RequireRole,
 		IsInstanceAdmin: apiHandler.IsInstanceAdmin,
 		LoginByEmail:    a.loginByEmail,
 		RegisterAuthMethod: func(m plugin.AuthMethod) {
@@ -503,6 +504,7 @@ func (a *App) Run(ctx context.Context) error {
 		UserID:          a.auth.UserID,
 		OrgID:           a.auth.OrgID,
 		OrgRole:         apiHandler.OrgRole,
+		RequireRole:     apiHandler.RequireRole,
 		IsInstanceAdmin: apiHandler.IsInstanceAdmin,
 		LoginByEmail:    a.loginByEmail,
 		RegisterAuthMethod: func(m plugin.AuthMethod) {

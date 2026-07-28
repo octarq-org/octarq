@@ -41,11 +41,14 @@ func TestDNSPluginMigrationLegacy(t *testing.T) {
 	api := humago.New(mux, huma.DefaultConfig("t", "1.0"))
 	reg := plugin.NewRegistry()
 	p.Mount(nil, &plugin.Context{
-		Huma:    api,
-		DB:      gdb,
-		OrgID:   func(*http.Request) uint { return 1 },
-		Provide: reg.Provide,
-		Lookup:  reg.Lookup,
+		Huma:  api,
+		DB:    gdb,
+		OrgID: func(*http.Request) uint { return 1 },
+		// These tests exercise the operator, who is an owner. Without this the
+		// role gates fail closed and every destructive route returns 403.
+		RequireRole: func(*http.Request, string) bool { return true },
+		Provide:     reg.Provide,
+		Lookup:      reg.Lookup,
 	})
 
 	// 4. Verify that ProviderAccounts were created and domains were updated

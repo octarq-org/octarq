@@ -34,11 +34,14 @@ func newVerifyHarness(t *testing.T) (*Plugin, http.Handler, *gorm.DB) {
 	reg := plugin.NewRegistry()
 	p.Mount(nil, &plugin.Context{
 		Huma: api, DB: db,
-		OrgID:   func(*http.Request) uint { return 1 }, // fixed org, no session needed
-		Audit:   func(*http.Request, string, string, uint, map[string]any) {},
-		Encrypt: func(b []byte) (string, error) { return string(b), nil },
-		Decrypt: func(s string) ([]byte, error) { return []byte(s), nil },
-		Provide: reg.Provide, Lookup: reg.Lookup,
+		OrgID: func(*http.Request) uint { return 1 }, // fixed org, no session needed
+		// The harness acts as the workspace owner; without this the role gates
+		// fail closed and destructive routes return 403.
+		RequireRole: func(*http.Request, string) bool { return true },
+		Audit:       func(*http.Request, string, string, uint, map[string]any) {},
+		Encrypt:     func(b []byte) (string, error) { return string(b), nil },
+		Decrypt:     func(s string) ([]byte, error) { return []byte(s), nil },
+		Provide:     reg.Provide, Lookup: reg.Lookup,
 	})
 	return p, mux, db
 }

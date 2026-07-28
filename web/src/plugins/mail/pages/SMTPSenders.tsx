@@ -5,9 +5,12 @@ import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { useSettingsData, SavedBadge } from "../../../pages/settings/shared";
+import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 
 export function SMTPSenders() {
   const { t } = useTranslation();
+  const { role, isInstanceAdmin } = useCurrentRole();
+  const canManageSMTP = roleSatisfies("admin", role, isInstanceAdmin);
   const [senders, setSenders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -41,9 +44,11 @@ export function SMTPSenders() {
           {t("settings.smtpOutgoingGateways")}
           <div className="text-[10px] text-foreground/50 font-normal mt-0.5">{t("settings.smtpOutgoingGatewaysDesc")}</div>
         </div>
-        <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
-          {t("settings.addSmtp")}
-        </Button>
+        {canManageSMTP && (
+          <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
+            {t("settings.addSmtp")}
+          </Button>
+        )}
       </div>
       {loading ? (
         <div className="text-foreground/40 text-sm py-6 text-center">{t("settings.loadingLower")}</div>
@@ -67,18 +72,20 @@ export function SMTPSenders() {
                   {s.fromEmail} via {s.host}:{s.port}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="subtle" onClick={() => setEditing(s)} className="text-xs py-1 px-2.5">
-                  {t("settings.editSmtp")}
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={() => remove(s.id)}
-                  className="text-xs py-1 px-2.5 border-0"
-                >
-                  {t("settings.remove")}
-                </Button>
-              </div>
+              {canManageSMTP && (
+                <div className="flex items-center gap-2">
+                  <Button variant="subtle" onClick={() => setEditing(s)} className="text-xs py-1 px-2.5">
+                    {t("settings.editSmtp")}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => remove(s.id)}
+                    className="text-xs py-1 px-2.5 border-0"
+                  >
+                    {t("settings.remove")}
+                  </Button>
+                </div>
+              )}
             </div>
           ))}
         </div>

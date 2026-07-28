@@ -175,6 +175,9 @@ func (p *Plugin) deleteRecord(ctx context.Context, input *DeleteRecordInput) (*D
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to delete DNS record")
+	}
 	prov, dom, err := p.recordsProvider(r, input.ID)
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())

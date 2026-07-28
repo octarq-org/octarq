@@ -9,6 +9,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/internal/auth"
+	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
@@ -85,6 +86,41 @@ func (h *Handler) requireOrg(r *http.Request) (uint, error) {
 		return 0, huma.Error401Unauthorized("unauthorized: missing workspace context")
 	}
 	return id, nil
+}
+
+// requireRole rejects a caller whose workspace role is below min.
+func (h *Handler) requireRole(r *http.Request, min authz.Role) error {
+	if h.callerHoldsRole(r, min) {
+		return nil
+	}
+	return huma.Error403Forbidden("forbidden: insufficient workspace role privilege")
+}
+
+// callerHoldsRole is the single place both role gates agree on.
+//
+// An API bearer token authenticates as the workspace, not as a person: the auth
+// layer deliberately leaves the user id at 0 (see auth.tokenAuthed and P2-18),
+// so callerOrgRole finds no membership row and would return "" for every token
+// request. Gating on that would refuse every token — CI jobs, scripts,
+// integrations — which is not what this change is for.
+//
+// So a token keeps the access it has today, which is full read/write for its
+// org. Narrowing that is real work with its own design (token scopes, P2-18) and
+// its own migration for tokens already in the wild; doing it here by accident,
+// as a side effect of adding human roles, would break every deployment silently.
+// TODO(P2-18): once tokens carry scopes, gate them on the scope instead of
+// waving them through.
+func (h *Handler) callerHoldsRole(r *http.Request, min authz.Role) bool {
+	if auth.TokenIDFromContext(r.Context()) != 0 {
+		return true
+	}
+	return authz.AtLeast(authz.Role(h.callerOrgRole(r)), min)
+}
+
+// RequireRole reports whether the caller holds at least min role in their active org.
+// Exposed to plugins via plugin.Context.RequireRole.
+func (h *Handler) RequireRole(r *http.Request, min string) bool {
+	return h.callerHoldsRole(r, authz.Role(min))
 }
 
 // audit writes an AuditLog entry asynchronously; never blocks a request.
