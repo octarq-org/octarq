@@ -325,6 +325,16 @@ type AuthMethod struct {
 	Label    string `json:"label"`    // button label, e.g. "Sign in with SSO"
 	LoginURL string `json:"loginUrl"` // launch/redirect URL (plugin's /api/... endpoint)
 	IconKey  string `json:"iconKey"`  // frontend icon key, optional
+	// Available reports whether the method can actually be used right now.
+	// Registration happens at Mount, before any configuration exists, and there
+	// is no way to unregister — so without this a method is offered from the
+	// moment its plugin is compiled in. That is how the login page came to show
+	// "Sign in with SSO" on instances where SSO was never configured: clicking
+	// it reached a handler that refused with a bare 404 page.
+	//
+	// Consulted per request, so it tracks configuration changes. nil means
+	// always available, which keeps existing plugins working unchanged.
+	Available func() bool `json:"-"`
 }
 
 // DNSRecord is a provider-agnostic DNS record, mirroring the fields of octarq's

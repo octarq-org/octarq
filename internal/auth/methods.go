@@ -8,6 +8,9 @@ type AuthMethod struct {
 	Label    string `json:"label"`    // button label, e.g. "Sign in with SSO"
 	LoginURL string `json:"loginUrl"` // launch/redirect URL (plugin's /api/... endpoint)
 	IconKey  string `json:"iconKey"`  // frontend icon key, optional
+	// Available gates whether List returns this method; see
+	// plugin.AuthMethod.Available. nil means always.
+	Available func() bool `json:"-"`
 }
 
 var (
@@ -26,13 +29,23 @@ func Register(m AuthMethod) {
 	methods[m.ID] = m
 }
 
-// List returns all registered AuthMethods. Returns an empty non-nil slice if none registered.
+// List returns the AuthMethods that are usable right now. Returns an empty
+// non-nil slice if none are.
+//
+// Registration is permanent — it happens at Mount and there is no Unregister —
+// so filtering here, per call, is what lets a method appear and disappear with
+// its configuration. Offering an unusable method is not a cosmetic problem: the
+// login page renders whatever this returns, and a method that cannot serve a
+// login sends the user to an error page.
 func List() []AuthMethod {
 	methodsMu.RLock()
 	defer methodsMu.RUnlock()
 
 	result := make([]AuthMethod, 0, len(methods))
 	for _, m := range methods {
+		if m.Available != nil && !m.Available() {
+			continue
+		}
 		result = append(result, m)
 	}
 	return result

@@ -356,10 +356,11 @@ func (a *App) RunMCP(ctx context.Context) error {
 		LoginByEmail:    a.loginByEmail,
 		RegisterAuthMethod: func(m plugin.AuthMethod) {
 			auth.Register(auth.AuthMethod{
-				ID:       m.ID,
-				Label:    m.Label,
-				LoginURL: m.LoginURL,
-				IconKey:  m.IconKey,
+				ID:        m.ID,
+				Label:     m.Label,
+				LoginURL:  m.LoginURL,
+				IconKey:   m.IconKey,
+				Available: m.Available,
 			})
 		},
 		Audit:   apiHandler.Audit,
@@ -528,10 +529,11 @@ func (a *App) Run(ctx context.Context) error {
 		LoginByEmail:    a.loginByEmail,
 		RegisterAuthMethod: func(m plugin.AuthMethod) {
 			auth.Register(auth.AuthMethod{
-				ID:       m.ID,
-				Label:    m.Label,
-				LoginURL: m.LoginURL,
-				IconKey:  m.IconKey,
+				ID:        m.ID,
+				Label:     m.Label,
+				LoginURL:  m.LoginURL,
+				IconKey:   m.IconKey,
+				Available: m.Available,
 			})
 		},
 		Audit:   apiHandler.Audit,
