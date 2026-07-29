@@ -198,3 +198,52 @@ func TestChangePasswordRefusesAccountWithNoStoredPassword(t *testing.T) {
 		t.Fatal("refused request still stored a hash")
 	}
 }
+
+// Deliberately changing your password has to end any reset link that is already
+// out there. The sequence this protects against is ordinary: someone triggers
+// "forgot password" against your address, you see the mail, you do the thing a
+// careful person does — sign in and change your password. If the token survives,
+// whoever asked for it still holds a link that overwrites the password you just
+// chose and deletes every one of your sessions, for the rest of its hour.
+func TestChangePasswordInvalidatesAnOutstandingResetToken(t *testing.T) {
+	srv, db := newTestHandler(t)
+	cookies := registerUser(t, srv, "target@example.com", "originalpw1")
+
+	// An attacker requests a reset for the account.
+	if rec := do(srv, "POST", "/api/auth/forgot", nil,
+		`{"email":"target@example.com"}`); rec.Code != http.StatusOK {
+		t.Fatalf("forgot: got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	var issued models.User
+	if err := db.Where("email = ?", "target@example.com").First(&issued).Error; err != nil {
+		t.Fatalf("user missing: %v", err)
+	}
+	if issued.ResetTokenHash == "" {
+		t.Fatal("no reset token was issued — this test would pass without proving anything")
+	}
+
+	// The account owner reacts by changing their password from inside the app.
+	if rec := do(srv, "POST", "/api/auth/password", cookies,
+		`{"currentPassword":"originalpw1","newPassword":"chosenbyowner2"}`); rec.Code != http.StatusOK {
+		t.Fatalf("change password: got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	var after models.User
+	db.First(&after, issued.ID)
+	if after.ResetTokenHash != "" {
+		t.Error("reset token hash survived the password change")
+	}
+	if after.ResetTokenExpiry != nil {
+		t.Error("reset token expiry survived the password change")
+	}
+
+	// The password the owner chose is still the password.
+	if bcrypt.CompareHashAndPassword([]byte(after.PasswordHash), []byte("chosenbyowner2")) != nil {
+		t.Fatal("the owner's new password is not the stored one")
+	}
+	if rec := do(srv, "POST", "/api/auth/login", nil,
+		`{"username":"target@example.com","password":"chosenbyowner2"}`); rec.Code != http.StatusOK {
+		t.Fatalf("owner cannot log in with the password they chose: %d", rec.Code)
+	}
+}
