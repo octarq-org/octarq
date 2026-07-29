@@ -628,8 +628,12 @@ type GetUserSettingsOutput struct {
 	Body map[string]string
 }
 
-// getUserSettings returns all settings (such as custom menu groupings) for the current user.
+// getUserSettings returns the current user's preference key/value pairs.
 // GET /api/user/settings
+//
+// The only key in use today is onboarding_dismissed, read by the Overview page.
+// The "custom menu groupings" this once advertised were never built — menu
+// layout comes from the backend's MenuProvider, not from here.
 func (h *Handler) getUserSettings(ctx context.Context, input *GetUserSettingsInput) (*GetUserSettingsOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
@@ -672,8 +676,8 @@ type UpdateUserSettingsOutput struct {
 	}
 }
 
-// updateUserSettings sets or updates a specific user preference key-value pair.
-// PUT /api/user/settings  {"key": "menu_layout", "value": "{...}"}
+// updateUserSettings sets or updates a single user preference.
+// PUT /api/user/settings  {"key": "onboarding_dismissed", "value": "true"}
 func (h *Handler) updateUserSettings(ctx context.Context, input *UpdateUserSettingsInput) (*UpdateUserSettingsOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")

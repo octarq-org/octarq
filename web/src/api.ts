@@ -279,7 +279,6 @@ export const api = {
 
   // auth
   authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean; appName: string; logoUrl: string; brandColor: string; brandColor2: string }>("GET", "/api/auth/config"),
-  authMethods: () => req<AuthMethod[]>("GET", "/api/auth/methods"),
   me: () => req<{ username: string; orgId: number; role?: string; emailVerified?: boolean }>("GET", "/api/auth/me"),
   register: (email: string, password: string) =>
     req<{ ok: boolean; username: string }>("POST", "/api/auth/register", { email, password }),
@@ -533,12 +532,12 @@ export interface WebhookEventGroup {
   events: WebhookEventDef[];
 }
 
-export interface AuthMethod {
-  id: string;
-  label: string;
-  loginUrl: string;
-  iconKey?: string;
-}
+// No AuthMethod type or api.authMethods() here. /api/auth/methods has exactly
+// one consumer — plugin-sso's login button — and a Pro package cannot import
+// the host's api module, so it calls fetch() directly. The typed wrapper had no
+// reachable caller and drifting it from the live untyped call was the only
+// thing it could ever do. Expose it through @octarq/plugin-sdk if a plugin
+// needs it typed.
 
 
 

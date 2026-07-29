@@ -321,7 +321,7 @@ func TestOAuthHandlerUpsertUser(t *testing.T) {
 		t.Errorf("expected 503 for unconfigured provider, got %d", recCallback.Code)
 	}
 
-	u, o, err := handler.upsertUser("alice@example.com", "http://avatar", "google")
+	u, o, err := handler.upsertUser("alice@example.com")
 	if err != nil {
 		t.Fatalf("upsertUser failed: %v", err)
 	}
@@ -332,7 +332,7 @@ func TestOAuthHandlerUpsertUser(t *testing.T) {
 		t.Errorf("org mismatch: %+v", o)
 	}
 
-	u2, o2, err := handler.upsertUser("alice@example.com", "http://avatar", "google")
+	u2, o2, err := handler.upsertUser("alice@example.com")
 	if err != nil {
 		t.Fatalf("upsertUser existing failed: %v", err)
 	}
@@ -356,7 +356,7 @@ func TestOAuthUpsertRespectsRegistrationGate(t *testing.T) {
 	}
 
 	// Unknown email → refused with the sentinel error, no account created.
-	if _, _, err := handler.upsertUser("stranger@example.com", "", "google"); !errors.Is(err, ErrRegistrationDisabled) {
+	if _, _, err := handler.upsertUser("stranger@example.com"); !errors.Is(err, ErrRegistrationDisabled) {
 		t.Fatalf("expected ErrRegistrationDisabled for unknown email, got %v", err)
 	}
 	var count int64
@@ -374,7 +374,7 @@ func TestOAuthUpsertRespectsRegistrationGate(t *testing.T) {
 	db.Create(&org)
 	db.Create(&models.OrgMember{OrgID: org.ID, UserID: existing.ID, Role: "owner"})
 
-	u, _, err := handler.upsertUser("member@example.com", "", "google")
+	u, _, err := handler.upsertUser("member@example.com")
 	if err != nil {
 		t.Fatalf("existing user should sign in despite gate: %v", err)
 	}

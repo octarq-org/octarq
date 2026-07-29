@@ -29,7 +29,8 @@ func TestLogoutAllRevokesExistingCookie(t *testing.T) {
 		t.Fatalf("pre-logout overview: got %d, want 200", rec.Code)
 	}
 
-	// Log out everywhere: this bumps the caller's SessionEpoch.
+	// Log out everywhere: this deletes the caller's session rows and their
+	// cache entries, which is what actually revokes the cookie.
 	if rec := do(srv, "POST", "/api/auth/logout-all", cookies, ""); rec.Code != http.StatusOK {
 		t.Fatalf("logout-all: got %d (%s)", rec.Code, rec.Body.String())
 	}
@@ -40,12 +41,12 @@ func TestLogoutAllRevokesExistingCookie(t *testing.T) {
 		t.Fatalf("outstanding sessions: got %d, want 0", count)
 	}
 
-	// The old cookie is now stale (epoch mismatch) → 401.
+	// The old cookie's session row is gone → 401.
 	if rec := do(srv, "GET", "/api/overview", cookies, ""); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("post-logout overview: got %d, want 401", rec.Code)
 	}
 
-	// A fresh login mints a cookie under the new epoch and works again.
+	// A fresh login mints a new session row and works again.
 	if rec := do(srv, "GET", "/api/overview", loginCookies(t, srv), ""); rec.Code != http.StatusOK {
 		t.Fatalf("re-login overview: got %d, want 200", rec.Code)
 	}
