@@ -23,7 +23,7 @@ export default function InviteAcceptPage() {
       setErr(t("invite.errTokenMissing"));
       return;
     }
-    if (password.length < 6) {
+    if (password.length < 8) {
       setErr(t("invite.errPasswordTooShort"));
       return;
     }
