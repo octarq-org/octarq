@@ -47,6 +47,53 @@ function getNestedKeys(obj, prefix = "") {
   return keys;
 }
 
+// getNestedStrings is getNestedKeys but keeping the values, so a translation can
+// be compared against its English source rather than merely counted.
+function getNestedStrings(obj, prefix = "", out = new Map()) {
+  if (!obj || typeof obj !== "object") return out;
+  for (const [k, v] of Object.entries(obj)) {
+    const keyPath = prefix ? `${prefix}.${k}` : k;
+    if (v && typeof v === "object" && !Array.isArray(v)) getNestedStrings(v, keyPath, out);
+    else if (typeof v === "string") out.set(keyPath, v);
+  }
+  return out;
+}
+
+const PLACEHOLDER = /\{\{\s*([\w.]+)\s*\}\}/g;
+
+function placeholdersIn(text) {
+  return new Set([...text.matchAll(PLACEHOLDER)].map((m) => m[1]));
+}
+
+// A translation that drops (or invents) a {{placeholder}} still has the right
+// key in the right locale, so key-parity above passes it. What ships is the
+// literal "{{count}}" rendered on screen in that language only — visible to
+// everyone except whoever added it. Interpolation is exactly what a translator
+// or a bulk edit gets wrong, so it is worth comparing directly.
+function checkPlaceholderParity(label, enObj, langObj, lang) {
+  const en = getNestedStrings(enObj);
+  const other = getNestedStrings(langObj || {});
+  const bad = [];
+  for (const [key, enText] of en) {
+    if (!other.has(key)) continue; // absent is key-parity's job, reported there
+    const want = placeholdersIn(enText);
+    const got = placeholdersIn(other.get(key));
+    const missing = [...want].filter((p) => !got.has(p));
+    const extra = [...got].filter((p) => !want.has(p));
+    if (missing.length || extra.length) bad.push({ key, missing, extra });
+  }
+  if (bad.length) {
+    console.error(`❌ [${label} -> ${lang}] ${bad.length} translation(s) with mismatched placeholders:`);
+    for (const b of bad) {
+      const parts = [];
+      if (b.missing.length) parts.push(`missing {{${b.missing.join("}}, {{")}}}`);
+      if (b.extra.length) parts.push(`unexpected {{${b.extra.join("}}, {{")}}}`);
+      console.error(`   - ${b.key}: ${parts.join("; ")}`);
+    }
+    hasErrors = true;
+  }
+}
+
 function checkDictionaryCompleteness() {
   console.log("=== Checking i18n Dictionary Key Completeness ===");
   const REQUIRED_WEB_LOCALES = ["zh", "es", "pt", "ja"];
@@ -64,6 +111,7 @@ function checkDictionaryCompleteness() {
     const enKeys = new Set(getNestedKeys(rootLocales.en));
     for (const lang of REQUIRED_WEB_LOCALES) {
       const langKeys = new Set(getNestedKeys(rootLocales[lang] || {}));
+      checkPlaceholderParity(`web/src/i18n/${lang}.ts`, rootLocales.en, rootLocales[lang], lang);
       const missing = [...enKeys].filter((k) => !langKeys.has(k));
       if (missing.length > 0) {
         console.error(`❌ [web/src/i18n/${lang}.ts] Missing ${missing.length} key(s) relative to en:`);
@@ -86,6 +134,7 @@ function checkDictionaryCompleteness() {
         const enKeys = new Set(getNestedKeys(nsData.en));
         for (const lang of REQUIRED_WEB_LOCALES) {
           const langKeys = new Set(getNestedKeys(nsData[lang] || {}));
+          checkPlaceholderParity(`${path.relative(repoDir, filePath)} -> ${nsName}`, nsData.en, nsData[lang], lang);
           const missing = [...enKeys].filter((k) => !langKeys.has(k));
           if (missing.length > 0) {
             console.error(`❌ [${path.relative(repoDir, filePath)} -> ${nsName}.${lang}] Missing ${missing.length} key(s) relative to en:`);
@@ -111,6 +160,7 @@ function checkDictionaryCompleteness() {
             const localesToCheck = Object.keys(nsData).filter((k) => k !== "en");
             for (const lang of localesToCheck) {
               const langKeys = new Set(getNestedKeys(nsData[lang] || {}));
+              checkPlaceholderParity(`${path.relative(proDir, i18nFile)} -> ${nsName}`, nsData.en, nsData[lang], lang);
               const missing = [...enKeys].filter((k) => !langKeys.has(k));
               if (missing.length > 0) {
                 console.error(`❌ [${path.relative(proDir, i18nFile)} -> ${nsName}.${lang}] Missing ${missing.length} key(s) relative to en:`);
