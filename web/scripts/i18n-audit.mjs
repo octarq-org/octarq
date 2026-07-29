@@ -606,8 +606,10 @@ function checkKeyResolution() {
 // runtime falls back to en per key, so nothing looks broken, it just isn't
 // translated.
 //
-// Reported, not enforced: whether those locales ship at all is a product call,
-// and failing the build on it would only invite deleting the locale to go green.
+// Enforced. It was reported-only while the five-locale commitment was still an
+// open question; the answer is yes, ship all five, and every dictionary now
+// does. Anything less is a regression, and a silent one — the runtime falls
+// back per key, so an untranslated page looks fine to whoever added it.
 function checkLocaleCoverage(sourceFiles, dictIdents) {
   console.log("\n=== Checking Locale Coverage (plugin dictionaries) ===");
   const REQUIRED = ["zh", "es", "pt", "ja"];
@@ -651,10 +653,11 @@ function checkLocaleCoverage(sourceFiles, dictIdents) {
     console.log("✅ every plugin dictionary ships all five locales in full");
     return;
   }
-  console.warn(`⚠️  ${rows.length} plugin dictionar(ies) are not fully translated:`);
+  console.error(`❌ ${rows.length} plugin dictionar(ies) are not fully translated:`);
   for (const r of rows.sort((a, b) => a.plugin.localeCompare(b.plugin))) {
-    console.warn(`   ${r.plugin.padEnd(16)} ${String(r.total).padStart(4)} en keys   ${r.gaps.join(", ")}`);
+    console.error(`   ${r.plugin.padEnd(16)} ${String(r.total).padStart(4)} en keys   ${r.gaps.join(", ")}`);
   }
+  hasErrors = true;
 }
 
 // Run audits
