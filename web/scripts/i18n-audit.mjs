@@ -589,6 +589,72 @@ function checkKeyResolution() {
   if (unresolved.length === 0) {
     console.log(`✅ all ${staticRefs.length} static t() keys resolve`);
   }
+
+  // Reuse the parse — walking every source file twice to answer a second
+  // question about the same trees is pure waste.
+  checkLocaleCoverage(sourceFiles, dictIdents);
+}
+
+// ---------------------------------------------------------------------------
+// Part 4: Locale Coverage — which dictionaries don't ship all five languages
+// ---------------------------------------------------------------------------
+//
+// Part 1 compares each locale a dictionary DECLARES against its en block, so a
+// dictionary that simply omits es/pt/ja passes: there is nothing to compare.
+// That is exactly how the links/mail/dns plugins came to serve ~90% English to
+// Spanish, Portuguese and Japanese users while the audit stayed green — the
+// runtime falls back to en per key, so nothing looks broken, it just isn't
+// translated.
+//
+// Reported, not enforced: whether those locales ship at all is a product call,
+// and failing the build on it would only invite deleting the locale to go green.
+function checkLocaleCoverage(sourceFiles, dictIdents) {
+  console.log("\n=== Checking Locale Coverage (plugin dictionaries) ===");
+  const REQUIRED = ["zh", "es", "pt", "ja"];
+  const rows = [];
+
+  for (const sf of sourceFiles) {
+    const visit = (node) => {
+      if (ts.isObjectLiteralExpression(node)) {
+        const nameProp = findProp(node, "name");
+        const i18nProp = findProp(node, "i18n");
+        if (nameProp && i18nProp && ts.isStringLiteral(nameProp)) {
+          let dictLit = null;
+          if (ts.isObjectLiteralExpression(i18nProp)) dictLit = i18nProp;
+          else if (ts.isIdentifier(i18nProp)) dictLit = dictIdents.get(i18nProp.text) ?? null;
+          const en = dictLit && findProp(dictLit, "en");
+          if (en && ts.isObjectLiteralExpression(en)) {
+            const enKeys = new Set();
+            collectObjectKeys(en, "", enKeys);
+            const gaps = [];
+            for (const lang of REQUIRED) {
+              const block = findProp(dictLit, lang);
+              if (!block || !ts.isObjectLiteralExpression(block)) {
+                gaps.push(`${lang} (absent)`);
+                continue;
+              }
+              const langKeys = new Set();
+              collectObjectKeys(block, "", langKeys);
+              const missing = [...enKeys].filter((k) => !langKeys.has(k)).length;
+              if (missing > 0) gaps.push(`${lang} −${missing}`);
+            }
+            if (gaps.length) rows.push({ plugin: nameProp.text, total: enKeys.size, gaps });
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+  }
+
+  if (rows.length === 0) {
+    console.log("✅ every plugin dictionary ships all five locales in full");
+    return;
+  }
+  console.warn(`⚠️  ${rows.length} plugin dictionar(ies) are not fully translated:`);
+  for (const r of rows.sort((a, b) => a.plugin.localeCompare(b.plugin))) {
+    console.warn(`   ${r.plugin.padEnd(16)} ${String(r.total).padStart(4)} en keys   ${r.gaps.join(", ")}`);
+  }
 }
 
 // Run audits
