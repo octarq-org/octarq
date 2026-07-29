@@ -3,9 +3,15 @@ import { api, OrgMember } from "../../api";
 import { Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog } from "../../ui";
 import { Users } from "lucide-react";
 import { useTranslation } from "../../i18n";
+import { roleSatisfies, useCurrentRole } from "../../shell/role";
 
 export function OrgMembersManager() {
   const { t } = useTranslation();
+  // Every sibling settings page gates its mutating controls this way
+  // (webhooks, notifications, tokens); this one did not, so a plain member was
+  // shown an invite form and Remove buttons that the API answers with 403.
+  const { role: myRole, isInstanceAdmin } = useCurrentRole();
+  const canManage = roleSatisfies("admin", myRole, isInstanceAdmin);
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [me, setMe] = useState<{ username?: string; orgId?: number } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,6 +89,7 @@ export function OrgMembersManager() {
       />
       <GlassCard className="p-6 space-y-6">
 
+      {canManage && (
       <form onSubmit={handleAdd} className="bg-well p-4 rounded-xl border border-foreground/[0.05] flex flex-wrap sm:flex-nowrap gap-4 items-end">
         <div className="flex-1 min-w-[200px]">
           <label className="label text-xs">{t("settings.inviteByEmail")}</label>
@@ -111,6 +118,7 @@ export function OrgMembersManager() {
           {busy ? t("settings.inviting") : t("settings.inviteMember")}
         </Button>
       </form>
+      )}
       {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
 
       {loading ? (
@@ -132,7 +140,7 @@ export function OrgMembersManager() {
                     <span className="text-xs text-foreground/40">{t("settings.statusJoined", { time: m.joinedAt ? timeAgo(m.joinedAt) : "" })}</span>
                   )}
                 </div>
-                {!isSelf && (
+                {canManage && !isSelf && (
                   <Button
                     variant="danger"
                     onClick={() => handleRemove(m.userId)}
