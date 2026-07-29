@@ -478,9 +478,19 @@ function definedKeysFor(sourceFiles, dictIdents) {
 function collectReferences(sourceFiles) {
   const staticRefs = [];
   const dynamicPrefixes = [];
+  // Every string literal in the tree, t() call or not. A key is routinely
+  // passed around before it is translated — auth.tsx hands
+  // "settings.clearGoogleSecret" to a helper that calls t(confirmKey), and the
+  // plugin manager stores "settings.pluginCategory.ai" in a lookup table. Those
+  // keys are live, but no t("…") mentions them, so without this they'd read as
+  // dead. Only used to suppress the unreferenced report, never to resolve.
+  const literals = new Set();
 
   for (const sf of sourceFiles) {
     const visit = (node) => {
+      if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+        literals.add(node.text);
+      }
       if (ts.isCallExpression(node)) {
         const callee = node.expression;
         const isT =
@@ -508,7 +518,7 @@ function collectReferences(sourceFiles) {
     };
     visit(sf);
   }
-  return { staticRefs, dynamicPrefixes };
+  return { staticRefs, dynamicPrefixes, literals };
 }
 
 function parseAll(files) {
@@ -535,14 +545,16 @@ function getSourceFiles(dir) {
 function checkKeyResolution() {
   console.log("\n=== Checking i18n Key Resolution (references vs definitions) ===");
 
-  const roots = [path.join(webDir, "src")];
+  // packages/ on this side holds the plugin SDK, whose own components call t()
+  // for the shared uiCommon keys — leave it out and those read as dead.
+  const roots = [path.join(webDir, "src"), path.join(repoDir, "packages")];
   if (fs.existsSync(path.join(proDir, "packages"))) roots.push(path.join(proDir, "packages"));
 
   const files = roots.flatMap(getSourceFiles);
   const sourceFiles = parseAll(files);
   const dictIdents = indexDictionaryIdentifiers(sourceFiles);
   const { defined, origin } = definedKeysFor(sourceFiles, dictIdents);
-  const { staticRefs, dynamicPrefixes } = collectReferences(sourceFiles);
+  const { staticRefs, dynamicPrefixes, literals } = collectReferences(sourceFiles);
 
   const display = (f) => (f.startsWith(proDir) ? path.relative(proDir, f) : path.relative(repoDir, f));
 
@@ -565,7 +577,7 @@ function checkKeyResolution() {
   // list can name a key that is genuinely used.
   const referenced = new Set(staticRefs.map((r) => r.key));
   const orphans = [...defined].filter(
-    (k) => !referenced.has(k) && !dynamicPrefixes.some((p) => k.startsWith(p)),
+    (k) => !referenced.has(k) && !literals.has(k) && !dynamicPrefixes.some((p) => k.startsWith(p)),
   );
   if (orphans.length > 0) {
     console.warn(`\n⚠️  ${orphans.length} defined key(s) with no static reference (candidates for deletion):`);
