@@ -252,7 +252,17 @@ func (h *Handler) changePassword(ctx context.Context, input *ChangePasswordInput
 	if err != nil {
 		return nil, huma.Error500InternalServerError("failed to hash password")
 	}
-	if err := h.db.Model(&user).Update("password_hash", string(pwHash)).Error; err != nil {
+	// Clear any outstanding reset token along with the password. Changing your
+	// password from inside the app is the natural response to "I got a reset
+	// email I didn't ask for", and it has to actually end that link: the token
+	// stays valid for its full hour otherwise, and redeeming it overwrites the
+	// password just chosen and deletes every session — so the defensive action
+	// hands the account over instead of protecting it.
+	if err := h.db.Model(&user).Updates(map[string]any{
+		"password_hash":      string(pwHash),
+		"reset_token_hash":   "",
+		"reset_token_expiry": nil,
+	}).Error; err != nil {
 		return nil, huma.Error500InternalServerError("failed to update password")
 	}
 
