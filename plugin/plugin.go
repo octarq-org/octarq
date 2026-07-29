@@ -477,7 +477,18 @@ type Info struct {
 	Title string
 	// Description is the summary of what this feature/plugin provides.
 	Description string
-	// Icon is a Lucide icon key (e.g. "sparkles", "mail"), emoji ("🔑"), or logo image URL.
+	// Icon is the feature's card icon in the plugin manager: a Lucide icon key
+	// (see PLUGIN_ICONS in web/src/shell/areas.tsx) or a logo image URL.
+	//
+	// Leave it empty when the plugin has a menu — the card falls back to that
+	// menu's icon, so repeating it here is duplication that can drift. Set it
+	// for a background service with no menu, or when the card should
+	// deliberately differ from the sidebar.
+	//
+	// A string that isn't a known key is rendered literally, as text. That is
+	// intentional (it lets a plugin ship an emoji) but it means a typo shows up
+	// as copy rather than a broken image — web/src/shell/menuIcons.test.ts
+	// guards the Go-declared menu icons against exactly that.
 	Icon string
 	// Category is the primary classification constant (CategoryMarketing, CategorySecurity, etc.).
 	Category string
