@@ -87,6 +87,10 @@ export default function App() {
         setActiveOrgId={setActiveOrgId}
         onLogout={async () => {
           try { await api.logout(); } catch { /* clear locally even if the request fails */ }
+          // The nav cache is per-session by nature — it holds whatever the last
+          // signed-in user could see. Left behind, it paints their sidebar for
+          // the next person to reach the login screen on this browser.
+          clearCachedNav();
           setAuthed(false);
         }}
       />
@@ -138,6 +142,14 @@ function writeCachedNav(nav: CachedNav) {
     localStorage.setItem(NAV_CACHE_KEY, JSON.stringify(nav));
   } catch {
     /* quota or private mode — the cache is optional, the fetch is not */
+  }
+}
+
+function clearCachedNav() {
+  try {
+    localStorage.removeItem(NAV_CACHE_KEY);
+  } catch {
+    /* nothing to do — a stale cache is replaced on the next successful fetch */
   }
 }
 
