@@ -49,11 +49,20 @@ your own to get a run that completes, or approve the pending one.
 - **Frontend Pro/optional features degrade gracefully**: a page hitting a plugin
   endpoint should handle **402** (show an upsell, e.g. `LockedFeature`) and **404**
   (the plugin isn't in this build — show a neutral note), never a raw error.
-- **Sidebar menus & routes**: **every business page is a UIPlugin** — core
+- **Sidebar menus come from the Go half, routes from the frontend half.** A
+  plugin's `MenuProvider` (`Menus()` → `/api/menus`) is the ONLY source of
+  sidebar placement — id, path, label, category, icon, order. `UIPlugin` has no
+  `menu` field: the host drops any entry whose path the backend doesn't
+  announce (that is what makes a disabled feature disappear), so a
+  frontend-declared menu could never stand alone — it was only ever a copy, and
+  the copies drifted. Icons on the Go side are **lucide keys** (`link-2`,
+  `globe`), not emoji. The first paint comes from a cached `/api/menus`
+  response (`NAV_CACHE_KEY` in `App.tsx`), never a build-time list.
+- **Routes & pages**: **every business page is a UIPlugin** — core
   features live in `web/src/plugins/core/` (always composed, imported from
   `main.tsx` before the `#octarq-plugins` manifest module), Pro/third-party
   ones come from the manifest. All flow through the same registry
-  (`registerUIPlugin` → `uiRoutes()`/`uiMenus()`); the shell (`App.tsx`) owns
+  (`registerUIPlugin` → `uiRoutes()`); the shell (`App.tsx`) owns
   only auth, settings, org handling, Overview and the plugin pipeline — never
   add a hardcoded business route there. `STATIC_AREAS` holds only **area/group
   shells** (label + order, items `[]`); a menu's `category` must equal its

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, Domain, effectiveLinkHosts } from "../../../api";
 import { linksApi, Link, LinkStats } from "../api";
-import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard } from "../../../ui";
+import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard, confirmDialog } from "../../../ui";
 import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe, Settings } from "lucide-react";
 import { LinkSettings } from "./LinkSettings";
 import { useTranslation } from "../../../i18n";
@@ -216,7 +216,7 @@ export default function LinksPage() {
                       <Button
                         variant="danger"
                         onClick={async () => {
-                          if (confirm(t("links.confirmDelete", { slug: active.slug }))) {
+                          if (await confirmDialog(t("links.confirmDelete", { slug: active.slug }))) {
                             await linksApi.deleteLink(active.id);
                             setActive(null);
                             loadMore(true);

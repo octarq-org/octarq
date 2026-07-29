@@ -54,14 +54,14 @@ export default function HelpViewer() {
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <PageHeader title={t("help.title", "Help & Resources")} />
+      <PageHeader title={t("help.title")} />
       <div className="flex flex-1 overflow-hidden min-h-[500px]">
         {/* Left rail */}
         <div className="w-64 border-r border-border overflow-y-auto p-4 pr-6">
           {loadingDocs ? (
-            <div className="p-8 text-sm text-center text-foreground/50">{t("help.loading", "Loading...")}</div>
+            <div className="p-8 text-sm text-center text-foreground/50">{t("help.loading")}</div>
           ) : docs.length === 0 ? (
-            <div className="text-muted-foreground text-sm">No documentation available.</div>
+            <div className="text-muted-foreground text-sm">{t("help.empty")}</div>
           ) : (
             <div className="space-y-6">
               {groups.map((group) => (
@@ -94,7 +94,7 @@ export default function HelpViewer() {
         <div className="flex-1 overflow-y-auto p-8">
           {loadingContent ? (
             <div className="flex items-center justify-center h-full">
-              <div className="p-8 text-sm text-center text-foreground/50">{t("help.loading", "Loading...")}</div>
+              <div className="p-8 text-sm text-center text-foreground/50">{t("help.loading")}</div>
             </div>
           ) : error ? (
             <div className="text-destructive">{error}</div>

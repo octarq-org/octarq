@@ -221,8 +221,6 @@ func parseSlugList(text string) []string {
 	return out
 }
 
-var htmlTagRe = regexp.MustCompile(`(?s)<style.*?</style>|<script.*?</script>|<[^>]*>`)
-
 type AISummarizeEmailInput struct {
 	Ctx huma.Context `hidden:"true"`
 	ID  uint         `path:"id"`

@@ -63,8 +63,3 @@ func (rl *rateLimiter) recordFailure(ip string) {
 	ctx := context.Background()
 	_, _ = rl.store.Increment(ctx, ip, 1, rl.rate)
 }
-
-func (rl *rateLimiter) reset(ip string) {
-	ctx := context.Background()
-	_, _ = rl.store.Reset(ctx, ip, rl.rate)
-}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Domain, effectiveMailHosts } from "../../../api";
 import { mailApi, Attachment, Email, Mailbox } from "../api";
-import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../../../ui";
+import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast, confirmDialog } from "../../../ui";
 import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle, Sparkles } from "lucide-react";
 import { MailSettings } from "./MailSettings";
 import { SMTPSenders } from "./SMTPSenders";
@@ -153,7 +153,7 @@ export function EmailViewForm({
               <Button
                 variant="danger"
                 onClick={async () => {
-                  if (confirm(t("mail.deleteEmailConfirm"))) {
+                  if (await confirmDialog(t("mail.deleteEmailConfirm"))) {
                     await mailApi.deleteEmail(email.id);
                     onChanged();
                     onClose();

@@ -1,0 +1,6 @@
+# Intentionally disabling errcheck: octarq codebase contains many intentionally ignored error returns
+# (e.g., _ = os.Remove(...), h.db.Where(...).Find(&rows)). Enabling errcheck would report hundreds of issues.
+version: "2"
+linters:
+  default: none
+  enable: [govet, staticcheck, unused, ineffassign, misspell]

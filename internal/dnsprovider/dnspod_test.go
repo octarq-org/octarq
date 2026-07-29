@@ -21,10 +21,7 @@ func newDNSPodServer(t *testing.T, handler http.HandlerFunc) *DNSPod {
 
 	credential := common.NewCredential("test-id", "test-key")
 	cpf := profile.NewClientProfile()
-	endpoint := srv.URL
-	if strings.HasPrefix(endpoint, "http://") {
-		endpoint = strings.TrimPrefix(endpoint, "http://")
-	}
+	endpoint := strings.TrimPrefix(srv.URL, "http://")
 	cpf.HttpProfile.Endpoint = endpoint
 	cpf.HttpProfile.Scheme = "HTTP"
 

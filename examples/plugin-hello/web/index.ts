@@ -17,15 +17,20 @@ export const helloPlugin: UIPlugin = {
   routes: [
     { path: "/hello", Component: lazy(() => import("./Page")) },
   ],
-  menu: [
-    // `category` names the sidebar GROUP the entry joins: it must equal the
-    // group's label (here the "Workspace" group next to Overview). A category
-    // with no matching group creates one, and areaForCategory's keyword
-    // routing picks the top-level area. Keep it in sync with hello.go Menus().
-    { id: "hello", label: "Hello", path: "/hello", icon: "👋", category: "Workspace" },
-  ],
+  // No `menu` here, and not by omission: a UIPlugin cannot declare one. Sidebar
+  // placement comes from the Go half's Menus() (hello.go) alone — the host drops
+  // any entry whose path the backend didn't announce, which is what makes a
+  // disabled feature's menu disappear, so a frontend-declared menu could never
+  // stand on its own. It was only ever a hand-kept copy, and copies drift.
+  //
+  // The frontend's job is the label: the shell renders each entry as
+  // t(`nav.${id}`, item.label), so a `nav.<id>` key under `_shared` translates
+  // the sidebar. Skip it and nothing breaks — the Go source's English label is
+  // the fallback — which is exactly why it is easy to forget in a language you
+  // don't read. `pnpm i18n:audit` fails on a Go menu id with no nav key.
   i18n: {
     en: {
+      _shared: { nav: { hello: "Hello" } },
       pageTitle: "Hello Plugin",
       pageDesc: "A minimal full-stack example plugin.",
       feature: "Hello Plugin",
@@ -33,11 +38,36 @@ export const helloPlugin: UIPlugin = {
       loading: "Loading…",
     },
     zh: {
+      _shared: { nav: { hello: "示例" } },
       pageTitle: "示例插件",
       pageDesc: "一个最小的全栈示例插件。",
       feature: "示例插件",
       description: "一个最小的示例插件。",
       loading: "加载中…",
+    },
+    es: {
+      _shared: { nav: { hello: "Hola" } },
+      pageTitle: "Complemento Hola",
+      pageDesc: "Un complemento de ejemplo full-stack mínimo.",
+      feature: "Complemento Hola",
+      description: "Un complemento de ejemplo mínimo.",
+      loading: "Cargando…",
+    },
+    pt: {
+      _shared: { nav: { hello: "Olá" } },
+      pageTitle: "Plugin Olá",
+      pageDesc: "Um plugin de exemplo full-stack mínimo.",
+      feature: "Plugin Olá",
+      description: "Um plugin de exemplo mínimo.",
+      loading: "Carregando…",
+    },
+    ja: {
+      _shared: { nav: { hello: "ハロー" } },
+      pageTitle: "Hello プラグイン",
+      pageDesc: "最小構成のフルスタック・サンプルプラグイン。",
+      feature: "Hello プラグイン",
+      description: "最小構成のサンプルプラグイン。",
+      loading: "読み込み中…",
     },
   },
 };

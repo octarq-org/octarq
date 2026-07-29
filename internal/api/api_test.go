@@ -41,25 +41,6 @@ func mountCoreDNS(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypto
 	})
 }
 
-func mountCoreLinks(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypto.Cipher) {
-	pctx := &plugin.Context{
-		Huma:                h.Huma(),
-		DB:                  db,
-		Guard:               authMgr.Require,
-		UserID:              authMgr.UserID,
-		OrgID:               authMgr.OrgID,
-		Audit:               h.Audit,
-		Encrypt:             cipher.Encrypt,
-		Decrypt:             cipher.Decrypt,
-		GetGlobalSetting:    h.GetGlobalSetting,
-		GetWorkspaceSetting: h.GetWorkspaceSetting,
-		Enqueue:             h.queue.Enqueue,
-		DeleteCache:         authMgr.Cache().Delete,
-		RequireRole:         func(*http.Request, string) bool { return true },
-	}
-	links.New().Mount(nil, pctx)
-}
-
 func mountCoreMail(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypto.Cipher) {
 	reg := plugin.NewRegistry()
 	mail.New().Mount(nil, &plugin.Context{

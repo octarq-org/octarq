@@ -522,7 +522,7 @@ func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSta
 		Where("link_id = ? AND created_at >= ?", input.ID, since).
 		Group("key").Order("key ASC").Scan(&series)
 	// Postgres uses to_char; fall back when sqlite strftime yields nothing.
-	if len(series) == 0 && p.db.Dialector.Name() == "postgres" {
+	if len(series) == 0 && p.db.Name() == "postgres" {
 		p.db.Model(&LinkEvent{}).
 			Select("to_char(created_at, 'YYYY-MM-DD') as key, count(*) as count").
 			Where("link_id = ? AND created_at >= ?", input.ID, since).

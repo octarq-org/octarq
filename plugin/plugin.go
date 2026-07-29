@@ -325,6 +325,16 @@ type AuthMethod struct {
 	Label    string `json:"label"`    // button label, e.g. "Sign in with SSO"
 	LoginURL string `json:"loginUrl"` // launch/redirect URL (plugin's /api/... endpoint)
 	IconKey  string `json:"iconKey"`  // frontend icon key, optional
+	// Available reports whether the method can actually be used right now.
+	// Registration happens at Mount, before any configuration exists, and there
+	// is no way to unregister — so without this a method is offered from the
+	// moment its plugin is compiled in. That is how the login page came to show
+	// "Sign in with SSO" on instances where SSO was never configured: clicking
+	// it reached a handler that refused with a bare 404 page.
+	//
+	// Consulted per request, so it tracks configuration changes. nil means
+	// always available, which keeps existing plugins working unchanged.
+	Available func() bool `json:"-"`
 }
 
 // DNSRecord is a provider-agnostic DNS record, mirroring the fields of octarq's
@@ -408,6 +418,15 @@ type MenuItem struct {
 	Icon     string `json:"icon"`     // emoji or icon key
 	Category string `json:"category"` // default category
 	Order    int    `json:"order,omitempty"`
+	// RequiredRole hides the entry from anyone below this org role
+	// ("member" / "admin" / "owner"); empty shows it to everyone. It is a UX
+	// hint only — the endpoints behind the page do their own enforcement, and
+	// must, since nothing stops a caller from requesting the path directly.
+	//
+	// Set it whenever every route behind the menu entry is role-gated. Omitting
+	// it there produces a nav item that leads only to a permission error, which
+	// is how /roles behaved: visible to every member, 403 on arrival.
+	RequiredRole string `json:"requiredRole,omitempty"`
 }
 
 // MenuProvider is an optional interface a Plugin may implement if it registers
@@ -477,7 +496,18 @@ type Info struct {
 	Title string
 	// Description is the summary of what this feature/plugin provides.
 	Description string
-	// Icon is a Lucide icon key (e.g. "sparkles", "mail"), emoji ("🔑"), or logo image URL.
+	// Icon is the feature's card icon in the plugin manager: a Lucide icon key
+	// (see PLUGIN_ICONS in web/src/shell/areas.tsx) or a logo image URL.
+	//
+	// Leave it empty when the plugin has a menu — the card falls back to that
+	// menu's icon, so repeating it here is duplication that can drift. Set it
+	// for a background service with no menu, or when the card should
+	// deliberately differ from the sidebar.
+	//
+	// A string that isn't a known key is rendered literally, as text. That is
+	// intentional (it lets a plugin ship an emoji) but it means a typo shows up
+	// as copy rather than a broken image — web/src/shell/menuIcons.test.ts
+	// guards the Go-declared menu icons against exactly that.
 	Icon string
 	// Category is the primary classification constant (CategoryMarketing, CategorySecurity, etc.).
 	Category string
@@ -520,4 +550,23 @@ func FeatureKey(p Plugin) string {
 		return g
 	}
 	return p.Name()
+}
+
+// FeatureIsCore reports whether the feature identified by key is always-on
+// plumbing within the given plugin set.
+//
+// Core-ness belongs to the feature, not to a single member. Several plugins can
+// share one feature key — an OSS half that serves the routes and a Pro half that
+// only contributes content, say — and if either declares Core the feature as a
+// whole is never gated. Deciding per plugin instead lets the halves disagree:
+// the manager offers a toggle that the Core half ignores, so turning the feature
+// "off" leaves its menu and routes live. Every enablement decision (route gate,
+// menu filter, manager listing) goes through this.
+func FeatureIsCore(plugins []Plugin, key string) bool {
+	for _, p := range plugins {
+		if FeatureKey(p) == key && Describe(p).Core {
+			return true
+		}
+	}
+	return false
 }

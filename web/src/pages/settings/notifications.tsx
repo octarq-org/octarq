@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { api, NotificationChannelType, NotificationChannel } from "../../api";
-import { PageHeader, GlassCard, Button, Field, Toggle, Modal, toast } from "../../ui";
+import { PageHeader, GlassCard, Button, Field, Toggle, Modal, toast, confirmDialog } from "../../ui";
 import { Bell, ChevronDown, Plus, Trash2, Send, Pencil } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { ExtensionSlot, NotificationChannelFormContext } from "../../plugin-sdk";
@@ -295,7 +295,7 @@ export function NotificationChannels() {
   }, []);
 
   async function handleDelete(id: number) {
-    if (!confirm(t("settings.confirmDeleteChannel"))) return;
+    if (!(await confirmDialog(t("settings.confirmDeleteChannel")))) return;
     await api.deleteNotificationChannel(id);
     load();
   }

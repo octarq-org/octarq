@@ -1,7 +1,6 @@
 package api
 
 import (
-	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -13,14 +12,6 @@ import (
 	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
-
-var errNotFound = errors.New("not found")
-
-// secureEqual reports whether a and b are equal using a constant-time
-// comparison, avoiding timing side channels when checking secret tokens.
-func secureEqual(a, b string) bool {
-	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
-}
 
 // trustProxy gates whether proxy-supplied client-IP headers are honoured. Set
 // once from config in New; when false, a client cannot spoof X-Forwarded-For

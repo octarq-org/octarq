@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { api, InstanceSettings as InstanceSettingsData } from "../../api";
-import { Field, PageHeader, GlassCard, Button } from "../../ui";
-import { Server, Sliders } from "lucide-react";
+import { Field, PageHeader, GlassCard, Button, toast, confirmDialog } from "../../ui";
+import { Server, Sliders, DatabaseBackup } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { useInstanceSettingsData, SavedBadge } from "./shared";
+import { useInstanceSettingsData, InstanceAdminOnly, SavedBadge } from "./shared";
 import { ExtensionSlot } from "../../plugin-sdk";
 
 export function InstanceSettings() {
   const { t } = useTranslation();
-  const { s: settings, reload } = useInstanceSettingsData();
+  const { s: settings, reload, forbidden } = useInstanceSettingsData();
 
   const [appName, setAppName] = useState("");
   const [retention, setRetention] = useState(90);
@@ -20,6 +20,7 @@ export function InstanceSettings() {
 
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -54,6 +55,26 @@ export function InstanceSettings() {
     }
   }
 
+  async function handleBackup() {
+    setBackingUp(true);
+    try {
+      const { blob, filename } = await api.downloadBackup();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast.error(err?.message || t("settings.backupFailed"));
+    } finally {
+      setBackingUp(false);
+    }
+  }
+
+  if (forbidden) return <InstanceAdminOnly />;
   if (!settings) {
     return (
       <div className="flex h-32 items-center justify-center text-sm text-foreground/40">
@@ -115,7 +136,7 @@ export function InstanceSettings() {
                 variant="ghost"
                 className="shrink-0 text-xs text-danger-fg hover:text-danger-fg"
                 onClick={async () => {
-                  if (confirm(t("settings.clearMetricsToken"))) {
+                  if (await confirmDialog(t("settings.clearMetricsToken"))) {
                     await api.updateInstanceSettings({ metricsToken: "" });
                     reload();
                   }
@@ -173,6 +194,24 @@ export function InstanceSettings() {
         <div className="border-t border-foreground/[0.06] pt-6">
           <Button variant="primary" onClick={saveGeneral} disabled={busy}>
             {busy ? t("settings.saving") : t("settings.save")}
+          </Button>
+        </div>
+      </GlassCard>
+
+      {/* Database backup. The endpoint has shipped since the backup work but had
+          no UI — an operator's only way to reach it was the CLI (`octarq backup`)
+          or a hand-written curl. Instance-admin only, and deliberately blunt
+          about what the file is: a full dump of every workspace on this
+          instance, encrypted secrets included. */}
+      <GlassCard className="p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <DatabaseBackup className="h-5 w-5 text-accent-fg" />
+          <h2 className="text-base font-bold text-foreground">{t("settings.backupTitle")}</h2>
+        </div>
+        <p className="text-xs text-foreground/50">{t("settings.backupDesc")}</p>
+        <div className="border-t border-foreground/[0.06] pt-4">
+          <Button variant="outline" onClick={handleBackup} disabled={backingUp}>
+            {backingUp ? t("settings.backupPreparing") : t("settings.backupDownload")}
           </Button>
         </div>
       </GlassCard>

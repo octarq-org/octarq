@@ -81,7 +81,7 @@ func Parse(raw []byte) (*Parsed, error) {
 		p.ReceivedAt = t
 	}
 	// Authentication-Results may appear on multiple lines; merge all values.
-	for _, v := range h.Header.Values("Authentication-Results") {
+	for _, v := range h.Values("Authentication-Results") {
 		parseAuthResults(v, &p.Auth)
 	}
 

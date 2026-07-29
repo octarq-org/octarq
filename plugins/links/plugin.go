@@ -43,7 +43,6 @@ func (p *Plugin) Describe() plugin.Info {
 	return plugin.Info{
 		Title:            "Short Links",
 		Description:      "Short link creation, custom domain routing, and click analytics.",
-		Icon:             "link-2",
 		Category:         plugin.CategoryMarketing,
 		Tags:             []string{"url", "analytics", "routing"},
 		EnabledByDefault: true,
@@ -58,7 +57,7 @@ func (p *Plugin) Models() []any {
 // when the plugin is mounted and enabled for the workspace.
 func (p *Plugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{
-		{ID: "links", Label: "Links", Path: "/links", Icon: "🔗", Category: "Operations", Order: 10},
+		{ID: "links", Label: "Links", Path: "/links", Icon: "link-2", Category: "Marketing", Order: 10},
 	}
 }
 
@@ -247,7 +246,7 @@ func (p *Plugin) overview(orgID uint, includeBot bool) map[string]any {
 		Select("strftime('%Y-%m-%d', created_at) as key, count(*) as count").
 		Group("key").Order("key ASC").Scan(&series)
 	// Postgres uses to_char; fall back when sqlite strftime yields nothing.
-	if len(series) == 0 && p.db.Dialector.Name() == "postgres" {
+	if len(series) == 0 && p.db.Name() == "postgres" {
 		botFilter(p.db.Model(&LinkEvent{}).
 			Where("link_id IN (?) AND created_at >= ?", orgLinks, since30)).
 			Select("to_char(created_at, 'YYYY-MM-DD') as key, count(*) as count").

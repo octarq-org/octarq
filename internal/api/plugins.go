@@ -41,10 +41,12 @@ func (h *Handler) PluginEnabled(orgID uint, featureKey string) bool {
 
 // featureDefaultEnabled returns the pre-toggle default (Info.EnabledByDefault)
 // for the feature identified by key, or false if no such plugin is registered.
+// Any member declaring the default is enough: siblings sharing a feature key
+// toggle as one, so an opt-out half makes the whole feature opt-out.
 func (h *Handler) featureDefaultEnabled(featureKey string) bool {
 	for _, p := range h.plugins {
-		if plugin.FeatureKey(p) == featureKey {
-			return plugin.Describe(p).EnabledByDefault
+		if plugin.FeatureKey(p) == featureKey && plugin.Describe(p).EnabledByDefault {
+			return true
 		}
 	}
 	return false
@@ -54,10 +56,11 @@ func (h *Handler) featureDefaultEnabled(featureKey string) bool {
 // workspace: core plumbing is always on; every other plugin follows its
 // feature's per-workspace toggle.
 func (h *Handler) pluginActive(orgID uint, p plugin.Plugin) bool {
-	if plugin.Describe(p).Core {
+	key := plugin.FeatureKey(p)
+	if plugin.FeatureIsCore(h.plugins, key) {
 		return true
 	}
-	return h.PluginEnabled(orgID, plugin.FeatureKey(p))
+	return h.PluginEnabled(orgID, key)
 }
 
 // dependencyConflictError is the 409 returned when a workspace tries to disable
@@ -214,10 +217,10 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 	byKey := map[string]*featureOut{}
 	for _, p := range h.plugins {
 		info := plugin.Describe(p)
-		if info.Core {
+		key := plugin.FeatureKey(p)
+		if plugin.FeatureIsCore(h.plugins, key) {
 			continue
 		}
-		key := plugin.FeatureKey(p)
 		f := byKey[key]
 		cat := info.Category
 		if cat != "" && !plugin.ValidCategories[cat] {
@@ -322,10 +325,12 @@ func (h *Handler) updatePlugin(ctx context.Context, input *UpdatePluginInput) (*
 	}
 	key := input.Name
 	known := false
-	for _, p := range h.plugins {
-		if !plugin.Describe(p).Core && plugin.FeatureKey(p) == key {
-			known = true
-			break
+	if !plugin.FeatureIsCore(h.plugins, key) {
+		for _, p := range h.plugins {
+			if plugin.FeatureKey(p) == key {
+				known = true
+				break
+			}
 		}
 	}
 	if !known {
@@ -476,13 +481,19 @@ func (h *Handler) listInstancePlugins(ctx context.Context, input *ListInstancePl
 			reqs = []string{}
 		}
 
+		key := plugin.FeatureKey(p)
 		out = append(out, instancePluginOut{
-			Name:             p.Name(),
-			FeatureKey:       plugin.FeatureKey(p),
-			Title:            info.Title,
-			Category:         cat,
-			Core:             info.Core,
-			EnabledByDefault: info.EnabledByDefault,
+			Name:       p.Name(),
+			FeatureKey: key,
+			Title:      info.Title,
+			Category:   cat,
+			// Effective, not declared. This table's Kind column is what an
+			// instance admin reads to answer "can a workspace turn this off",
+			// and the answer belongs to the feature: a plugin that shares its
+			// key with a Core sibling is always on however its own Info reads.
+			// Showing info.Core here would label it "Opt-in" and be wrong.
+			Core:             plugin.FeatureIsCore(h.plugins, key),
+			EnabledByDefault: h.featureDefaultEnabled(key),
 			Requires:         reqs,
 			HasUI:            hasUI,
 		})

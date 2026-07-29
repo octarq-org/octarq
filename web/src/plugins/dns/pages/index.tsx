@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, Domain, HostEntry, ProviderAccount } from "../../../api";
 import { dnsApi, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus } from "../api";
-import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../../../ui";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast, confirmDialog } from "../../../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
@@ -135,7 +135,7 @@ export default function DomainsPage() {
               : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >
-          {t("domains.tabDdns") || "Dynamic DNS"}
+          {t("domains.tabDdns")}
         </button>
         <button
           onClick={() => setTab('settings')}
@@ -235,7 +235,7 @@ export default function DomainsPage() {
                     <Button
                       variant="danger"
                       onClick={async () => {
-                        if (confirm(t("domains.removeConfirm", { name: active.name }))) {
+                        if (await confirmDialog(t("domains.removeConfirm", { name: active.name }))) {
                           await dnsApi.deleteDomain(active.id);
                           setActive(null);
                           loadMore(true);

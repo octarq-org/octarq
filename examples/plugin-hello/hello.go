@@ -94,7 +94,11 @@ func (Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 // nav entry without the frontend hardcoding it.
 func (Plugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{
-		{ID: "hello", Label: "Hello", Path: "/hello", Icon: "👋", Category: "Workspace"},
+		// Icon is a lucide key from the PLUGIN_ICONS table in
+		// web/src/shell/areas.tsx. An unrecognised string still "works" — the
+		// sidebar renders it literally, which is how emoji crept in — so the
+		// example uses a real key to show the intended shape.
+		{ID: "hello", Label: "Hello", Path: "/hello", Icon: "puzzle", Category: "Workspace"},
 	}
 }
 

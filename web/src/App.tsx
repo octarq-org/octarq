@@ -18,7 +18,7 @@ import { TopBar } from "./shell/TopBar";
 import { CommandPalette } from "./shell/CommandPalette";
 import { AreaPanel } from "./shell/AreaPanel";
 import { Login } from "./shell/Login";
-import { uiAreas, uiMenus } from "./plugin-sdk";
+import { uiAreas } from "./plugin-sdk";
 import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
 import { PluginGateContext } from "./plugins/PluginGate";
 
@@ -87,6 +87,10 @@ export default function App() {
         setActiveOrgId={setActiveOrgId}
         onLogout={async () => {
           try { await api.logout(); } catch { /* clear locally even if the request fails */ }
+          // The nav cache is per-session by nature — it holds whatever the last
+          // signed-in user could see. Left behind, it paints their sidebar for
+          // the next person to reach the login screen on this browser.
+          clearCachedNav();
           setAuthed(false);
         }}
       />
@@ -100,17 +104,65 @@ export default function App() {
   );
 }
 
+// ─── Nav cache ────────────────────────────────────────────────────────────────
+
+// The sidebar used to paint instantly from a build-time list of frontend menu
+// entries. That list was a hand-maintained copy of what the Go plugins already
+// declare, and the two drifted. Caching the last api.menus()/api.plugins()
+// answer gives the same instant first paint from one source — and a strictly
+// better one: it reflects the plugins THIS workspace has enabled, where a
+// static list showed entries for features the workspace had turned off until
+// the API contradicted it.
+//
+// Treated as a rendering hint, never as truth: it is replaced the moment the
+// live answer lands, and any parse failure falls back to empty.
+const NAV_CACHE_KEY = "octarq:nav-cache:v1";
+
+interface CachedNav {
+  menus: MenuItem[];
+  plugins: PluginInfo[];
+}
+
+function readCachedNav(): CachedNav {
+  try {
+    const raw = localStorage.getItem(NAV_CACHE_KEY);
+    if (!raw) return { menus: [], plugins: [] };
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed?.menus) || !Array.isArray(parsed?.plugins)) {
+      return { menus: [], plugins: [] };
+    }
+    return { menus: parsed.menus, plugins: parsed.plugins };
+  } catch {
+    return { menus: [], plugins: [] };
+  }
+}
+
+function writeCachedNav(nav: CachedNav) {
+  try {
+    localStorage.setItem(NAV_CACHE_KEY, JSON.stringify(nav));
+  } catch {
+    /* quota or private mode — the cache is optional, the fetch is not */
+  }
+}
+
+function clearCachedNav() {
+  try {
+    localStorage.removeItem(NAV_CACHE_KEY);
+  } catch {
+    /* nothing to do — a stale cache is replaced on the next successful fetch */
+  }
+}
+
 // ─── Sidebar merge ────────────────────────────────────────────────────────────
 
 // Merge every menu source into the final area list — ONE pipeline:
-//   STATIC_AREAS      area/group shells + the few shell-owned items (Overview);
-//   uiMenus()         build-time-composed frontend plugins (core features AND
-//                     Pro alike — see plugins/core/index.ts);
-//   backendMenus      dynamic menus from Go plugins (api.menus());
+//   STATIC_AREAS      area/group shells (labels + order, no items);
+//   backendMenus      every menu, from api.menus() — core and plugin alike;
 // each item is routed to an area by the shared areaForCategory and into the
-// group whose label matches its category. Called with empty backend data for
-// the initial synchronous render (uiMenus() is populated at module eval, so
-// core items never flash in and out), then again once the API answers.
+// group whose label matches its category. The first render is fed from the
+// cached copy of the last api.menus() response (see NAV_CACHE_KEY) so the
+// sidebar paints immediately without a fetch round-trip; the live answer
+// replaces it a moment later.
 // `role`/`isInstanceAdmin` drive the requiredRole filter: menu entries whose
 // advisory requiredRole the current user doesn't meet are dropped here — the
 // single place — so the sidebar AND the command palette (both fed by the
@@ -132,22 +184,13 @@ function mergeAreas(
   for (const m of backendMenus) backendPaths.add(m.path);
   for (const p of plugins) for (const m of p.menus) backendPaths.add(m.path);
 
-  // A frontend-composed (uiMenus) entry whose path has NO backend half is an
-  // orphan — e.g. a UI-only plugin the manifest ships without a matching Go
-  // plugin. Drop it so it can't show a nav link that leads nowhere. Guarded on
-  // backendLoaded: the first synchronous render passes empty backend data (so
-  // core items appear instantly without a fetch round-trip), and we must NOT
-  // drop them then — only once api.menus()/api.plugins() have answered.
-  // A real build always announces its core menus, so an empty backendPaths means
-  // the fetch failed/returned nothing; don't drop everything in that case.
-  const gate = backendLoaded && backendPaths.size > 0;
-  const composed = uiMenus().filter((m) => !gate || backendPaths.has(m.path));
-
-  // On duplicate paths the frontend plugin entry wins: the backend also
-  // announces core paths (/links, /mail, …) in api.menus() for API consumers,
-  // but the composed core plugin carries the richer icon/category placement.
+  // The backend is the only menu source. Frontend plugins contribute routes,
+  // widgets and i18n; placement (label/category/icon/order) belongs to the Go
+  // half's MenuProvider, which has to declare the path anyway for the gating
+  // above. Nothing to merge, only to dedupe — a plugin could announce a path
+  // twice across menus and its feature entry.
   const seenPaths = new Set<string>();
-  const menus = [...composed, ...backendMenus].filter((m) => {
+  const menus = backendMenus.filter((m) => {
     if (seenPaths.has(m.path)) return false;
     seenPaths.add(m.path);
     return true;
@@ -305,7 +348,7 @@ function Shell({
   // role/admin flags) so a late-arriving isInstanceAdmin re-runs the same
   // mergeAreas pipeline instead of a second filtering pass.
   const [backendNav, setBackendNav] = useState<{ menus: MenuItem[]; plugins: PluginInfo[] }>(
-    { menus: [], plugins: [] },
+    readCachedNav,
   );
   // False until api.menus()/api.plugins() have answered at least once. Gates the
   // backend-driven orphan-drop in mergeAreas so the initial empty render doesn't
@@ -416,6 +459,7 @@ function Shell({
         setIsProBuild(plugins.length > 0);
         setBackendNav({ menus: backendMenus, plugins });
         setBackendLoaded(true);
+        writeCachedNav({ menus: backendMenus, plugins });
       })
       .catch(() => {});
   }, [activeOrgId]);
@@ -429,6 +473,7 @@ function Shell({
         .then(([backendMenus, plugins]) => {
           setIsProBuild(plugins.length > 0);
           setBackendNav({ menus: backendMenus, plugins });
+          writeCachedNav({ menus: backendMenus, plugins });
         })
         .catch(() => {});
     };

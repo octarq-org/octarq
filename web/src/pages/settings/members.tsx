@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../api";
-import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, toast } from "../../ui";
-import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
+import { api, OrgMember } from "../../api";
+import { Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog } from "../../ui";
+import { Users } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { useSettingsData, SavedBadge } from "./shared";
+import { roleSatisfies, useCurrentRole } from "../../shell/role";
 
 export function OrgMembersManager() {
   const { t } = useTranslation();
+  // Every sibling settings page gates its mutating controls this way
+  // (webhooks, notifications, tokens); this one did not, so a plain member was
+  // shown an invite form and Remove buttons that the API answers with 403.
+  const { role: myRole, isInstanceAdmin } = useCurrentRole();
+  const canManage = roleSatisfies("admin", myRole, isInstanceAdmin);
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [me, setMe] = useState<{ username?: string; orgId?: number } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -15,6 +19,11 @@ export function OrgMembersManager() {
   const [role, setRole] = useState("member");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Set when the invited address had no account yet and the server minted an
+  // accept link. Shown rather than discarded: the email carrying it is
+  // best-effort server-side, so on an instance with no mail plugin this dialog
+  // is the only copy anyone ever sees.
+  const [inviteLink, setInviteLink] = useState("");
 
   async function load() {
     setLoading(true);
@@ -42,7 +51,10 @@ export function OrgMembersManager() {
     setBusy(true);
     setErr("");
     try {
-      await api.addOrgMember({ email, role });
+      const res = await api.addOrgMember({ email, role });
+      if (res?.inviteUrl) {
+        setInviteLink(`${window.location.origin}${res.inviteUrl}`);
+      }
       setEmail("");
       setRole("member");
       load();
@@ -54,7 +66,7 @@ export function OrgMembersManager() {
   }
 
   async function handleRemove(userId: number) {
-    if (!confirm(t("settings.confirmRemoveMember"))) return;
+    if (!(await confirmDialog(t("settings.confirmRemoveMember")))) return;
     try {
       await api.deleteOrgMember(userId);
       load();
@@ -77,6 +89,7 @@ export function OrgMembersManager() {
       />
       <GlassCard className="p-6 space-y-6">
 
+      {canManage && (
       <form onSubmit={handleAdd} className="bg-well p-4 rounded-xl border border-foreground/[0.05] flex flex-wrap sm:flex-nowrap gap-4 items-end">
         <div className="flex-1 min-w-[200px]">
           <label className="label text-xs">{t("settings.inviteByEmail")}</label>
@@ -105,6 +118,7 @@ export function OrgMembersManager() {
           {busy ? t("settings.inviting") : t("settings.inviteMember")}
         </Button>
       </form>
+      )}
       {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
 
       {loading ? (
@@ -126,7 +140,7 @@ export function OrgMembersManager() {
                     <span className="text-xs text-foreground/40">{t("settings.statusJoined", { time: m.joinedAt ? timeAgo(m.joinedAt) : "" })}</span>
                   )}
                 </div>
-                {!isSelf && (
+                {canManage && !isSelf && (
                   <Button
                     variant="danger"
                     onClick={() => handleRemove(m.userId)}
@@ -141,6 +155,33 @@ export function OrgMembersManager() {
         </div>
       )}
     </GlassCard>
+
+    {inviteLink && (
+      <Modal title={t("settings.inviteCreatedTitle")} onClose={() => setInviteLink("")}>
+        <div className="space-y-4">
+          <p className="text-xs text-foreground/60">{t("settings.inviteCreatedDesc")}</p>
+          <div className="flex items-center gap-2">
+            <input
+              readOnly
+              className="input w-full cursor-text bg-well font-mono text-xs text-foreground/80"
+              value={inviteLink}
+              onFocus={(e) => e.currentTarget.select()}
+            />
+            <Button
+              variant="primary"
+              className="shrink-0 text-xs"
+              onClick={() => {
+                navigator.clipboard.writeText(inviteLink);
+                toast.success(t("settings.inviteCopied"));
+              }}
+            >
+              {t("settings.copy")}
+            </Button>
+          </div>
+          <p className="text-xs text-foreground/50">{t("settings.inviteExpiry")}</p>
+        </div>
+      </Modal>
+    )}
     </div>
   );
 }

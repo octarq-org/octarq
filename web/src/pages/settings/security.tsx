@@ -1,31 +1,32 @@
 import { useEffect, useState } from "react";
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../api";
-import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast, Alert } from "../../ui";
-import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
+import { api, ApiError } from "../../api";
+import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, toast, Alert, confirmDialog } from "../../ui";
+import { Shield } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { useSettingsData, useInstanceSettingsData, SavedBadge } from "./shared";
 
-function parseUA(ua: string): { browser: string; os: string } {
-  if (!ua) return { browser: "Unknown", os: "" };
-  let browser = "Browser";
-  let os = "";
+function parseUA(ua: string): { browser?: string; browserKey?: "uaUnknown" | "uaBrowser"; os: string } {
+  if (!ua) return { browserKey: "uaUnknown", os: "" };
+  let browser = "";
+  let browserKey: "uaBrowser" | undefined = undefined;
   if (ua.includes("Edg/")) browser = "Microsoft Edge";
   else if (ua.includes("OPR/") || ua.includes("Opera")) browser = "Opera";
   else if (ua.includes("Chrome")) browser = "Chrome";
   else if (ua.includes("Firefox")) browser = "Firefox";
   else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Safari";
   else if (ua.includes("curl")) browser = "curl / API";
+  else browserKey = "uaBrowser";
+
+  let os = "";
   if (ua.includes("Windows")) os = "Windows";
   else if (ua.includes("Mac OS X")) os = "macOS";
   else if (ua.includes("Linux")) os = "Linux";
   else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
   else if (ua.includes("Android")) os = "Android";
-  return { browser, os };
+  return { browser: browser || undefined, browserKey, os };
 }
 
 
-function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
+function SessionsList() {
   const { t } = useTranslation();
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +42,7 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
     const msg = isSelf
       ? t("settings.logoutThisDevice")
       : t("settings.revokeSessionConfirm");
-    if (!confirm(msg)) return;
+    if (!(await confirmDialog(msg))) return;
     setRevoking(id);
     try {
       const r = await api.revokeSession(id);
@@ -64,11 +65,22 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
     <div className="divide-y divide-foreground/[0.04] rounded-xl border border-foreground/[0.05] overflow-hidden">
       {sessions.map((s) => {
         const ua = parseUA(s.userAgent);
+        // Spelled out rather than t(`settings.${ua.browserKey}`): an
+        // interpolated key is invisible to the audit's key-resolution check,
+        // and worse, it registers "settings." as a dynamic prefix, which
+        // exempts every settings.* key from the unreferenced-key report. Same
+        // reason SCOPE_LABEL in PersonalSettings.tsx is an explicit map.
+        const browserName =
+          ua.browserKey === "uaUnknown"
+            ? t("settings.uaUnknown")
+            : ua.browserKey === "uaBrowser"
+              ? t("settings.uaBrowser")
+              : ua.browser;
         return (
           <div key={s.id} className="flex items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium text-foreground/85">{ua.browser}</span>
+                <span className="text-sm font-medium text-foreground/85">{browserName}</span>
                 {s.isCurrent && <Badge tone="green">{t("settings.current")}</Badge>}
                 <span className="text-xs text-foreground/50">{ua.os}</span>
               </div>
@@ -107,8 +119,6 @@ export function SecuritySettings() {
 
   // Disable state.
   const [disableCode, setDisableCode] = useState("");
-
-  const { s: wS } = useSettingsData();
 
   async function load() {
     try {
@@ -154,7 +164,7 @@ export function SecuritySettings() {
   }
 
   async function logoutAll() {
-    if (!confirm(t("settings.signOutEveryDevice"))) return;
+    if (!(await confirmDialog(t("settings.signOutEveryDevice")))) return;
     setBusy(true); setErr("");
     try {
       await api.logoutAll();
@@ -237,7 +247,7 @@ export function SecuritySettings() {
           </Button>
         </div>
         <p className="text-xs text-foreground/50">{t("settings.activeSessionsDesc")}</p>
-        <SessionsList onRevokeAll={logoutAll} />
+        <SessionsList />
       </GlassCard>
 
 

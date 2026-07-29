@@ -180,6 +180,97 @@ func (h *Handler) logoutAll(ctx context.Context, input *LogoutAllInput) (*Logout
 	return out, nil
 }
 
+type ChangePasswordInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
+		CurrentPassword string `json:"currentPassword" doc:"The password the account signs in with today"`
+		NewPassword     string `json:"newPassword" doc:"The replacement, at least 8 characters"`
+	}
+}
+
+func (i *ChangePasswordInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ChangePasswordOutput struct {
+	Body struct {
+		OK bool `json:"ok"`
+	}
+}
+
+// changePassword replaces the caller's own password, given the current one.
+// POST /api/auth/password
+//
+// This is the authenticated counterpart to the emailed reset flow: the same
+// 8-character floor, and the same session cleanup, except the caller's own
+// session survives so changing a password doesn't sign you out of the page you
+// changed it on. Every OTHER session dies — that is the point of the endpoint
+// as much as the new hash is, since "someone else is logged in as me" is the
+// reason people change a password in a hurry.
+//
+// Deliberately not bumping SessionEpoch, which resetPassword does: the field is
+// written in exactly one place and read in none, so it invalidates nothing.
+// Deleting the session rows and their cache entries is what actually revokes
+// access, and doing only the thing that works beats doing both and leaving the
+// next reader unsure which one matters.
+func (h *Handler) changePassword(ctx context.Context, input *ChangePasswordInput) (*ChangePasswordOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	newPassword := input.Body.NewPassword
+	if len(newPassword) < 8 {
+		return nil, huma.Error400BadRequest("password must be at least 8 characters")
+	}
+
+	uid := h.auth.UserID(r)
+	var user models.User
+	if err := h.db.First(&user, uid).Error; err != nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	// An empty hash means this account has no password of its own to replace:
+	// it signs in through an OAuth provider, or it is the env-configured
+	// bootstrap admin whose credentials live in OCTARQ_ADMIN_PASSWORD. Writing a
+	// hash for either would be worse than refusing — the bootstrap admin would
+	// still authenticate with the env password (h.auth.Check runs first), so the
+	// change would appear to work and change nothing.
+	if user.PasswordHash == "" {
+		return nil, huma.Error400BadRequest("this account signs in without a stored password; use the password reset flow or your identity provider")
+	}
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Body.CurrentPassword)) != nil {
+		return nil, huma.Error400BadRequest("current password is incorrect")
+	}
+
+	pwHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to hash password")
+	}
+	if err := h.db.Model(&user).Update("password_hash", string(pwHash)).Error; err != nil {
+		return nil, huma.Error500InternalServerError("failed to update password")
+	}
+
+	// Revoke every session except the one making this request.
+	currentID := h.auth.SessionID(r)
+	var sessions []models.Session
+	h.db.Where("user_id = ? AND id <> ?", uid, currentID).Find(&sessions)
+	reqCtx := r.Context()
+	for _, s := range sessions {
+		_ = h.auth.Cache().Delete(reqCtx, "session:"+s.Token)
+	}
+	h.db.Where("user_id = ? AND id <> ?", uid, currentID).Delete(&models.Session{})
+
+	out := &ChangePasswordOutput{}
+	out.Body.OK = true
+	return out, nil
+}
+
 // bootstrapUserID finds or creates the user for the admin login. This account —
 // keyed on the configured OCTARQ_ADMIN_USER email — is the ONLY instance admin;
 // it is marked with IsInstanceAdmin here so the privilege is bound to a stable

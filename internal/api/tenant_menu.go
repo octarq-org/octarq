@@ -546,6 +546,11 @@ type MenuItem struct {
 	Icon     string `json:"icon"`
 	Category string `json:"category"`
 	Order    int    `json:"order,omitempty"`
+	// Mirrors plugin.MenuItem.RequiredRole. The frontend has read this field
+	// since the sidebar was written (App.tsx drops entries the current role
+	// doesn't satisfy) but nothing could ever set it: neither this struct nor
+	// plugin.MenuItem had the field, so the filter was permanently a no-op.
+	RequiredRole string `json:"requiredRole,omitempty"`
 }
 
 type ListMenusInput struct {
@@ -581,10 +586,10 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 	// own entries via MenuProvider below, so a disabled plugin's path is never
 	// offered.
 	menus := []MenuItem{
-		{ID: "overview", Label: "Overview", Path: "/overview", Icon: "📊", Category: "Operations"},
+		{ID: "overview", Label: "Overview", Path: "/overview", Icon: "layout-dashboard", Category: "Workspace"},
 
-		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "📝", Category: "Compliance"},
-		{ID: "abuse", Label: "Abuse", Path: "/abuse", Icon: "🛡️", Category: "Compliance"},
+		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "scroll-text", Category: "System"},
+		{ID: "abuse", Label: "Abuse Reports", Path: "/abuse", Icon: "shield-alert", Category: "Security"},
 	}
 
 	// Query from plugin providers if they satisfy MenuProvider — but only for
@@ -601,12 +606,13 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 		if mp, ok := p.(plugin.MenuProvider); ok {
 			for _, m := range mp.Menus() {
 				menus = append(menus, MenuItem{
-					ID:       m.ID,
-					Label:    m.Label,
-					Path:     m.Path,
-					Icon:     m.Icon,
-					Category: m.Category,
-					Order:    m.Order,
+					ID:           m.ID,
+					Label:        m.Label,
+					Path:         m.Path,
+					Icon:         m.Icon,
+					Category:     m.Category,
+					Order:        m.Order,
+					RequiredRole: m.RequiredRole,
 				})
 			}
 		}
@@ -628,8 +634,12 @@ type GetUserSettingsOutput struct {
 	Body map[string]string
 }
 
-// getUserSettings returns all settings (such as custom menu groupings) for the current user.
+// getUserSettings returns the current user's preference key/value pairs.
 // GET /api/user/settings
+//
+// The only key in use today is onboarding_dismissed, read by the Overview page.
+// The "custom menu groupings" this once advertised were never built — menu
+// layout comes from the backend's MenuProvider, not from here.
 func (h *Handler) getUserSettings(ctx context.Context, input *GetUserSettingsInput) (*GetUserSettingsOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
@@ -672,8 +682,8 @@ type UpdateUserSettingsOutput struct {
 	}
 }
 
-// updateUserSettings sets or updates a specific user preference key-value pair.
-// PUT /api/user/settings  {"key": "menu_layout", "value": "{...}"}
+// updateUserSettings sets or updates a single user preference.
+// PUT /api/user/settings  {"key": "onboarding_dismissed", "value": "true"}
 func (h *Handler) updateUserSettings(ctx context.Context, input *UpdateUserSettingsInput) (*UpdateUserSettingsOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")

@@ -149,6 +149,60 @@ func TestPluginEnabledByDefault(t *testing.T) {
 	}
 }
 
+// A feature split across two plugins that share a key: one half serves the
+// routes and menu and declares Core, the other only contributes content and
+// says nothing. This is octarq's own help feature (OSS plugins/help + the Pro
+// modules/help content provider).
+type coreHalfPlugin struct{}
+
+func (coreHalfPlugin) Name() string                          { return "help" }
+func (coreHalfPlugin) Models() []any                         { return nil }
+func (coreHalfPlugin) Mount(_ plugin.Mux, _ *plugin.Context) {}
+func (coreHalfPlugin) Describe() plugin.Info                 { return plugin.Info{Title: "Help", Core: true} }
+func (coreHalfPlugin) Menus() []plugin.MenuItem {
+	return []plugin.MenuItem{{ID: "help", Label: "Help", Path: "/help", Category: "footer"}}
+}
+
+type contentHalfPlugin struct{}
+
+func (contentHalfPlugin) Name() string                          { return "help" }
+func (contentHalfPlugin) Models() []any                         { return nil }
+func (contentHalfPlugin) Mount(_ plugin.Mux, _ *plugin.Context) {}
+func (contentHalfPlugin) Describe() plugin.Info                 { return plugin.Info{Title: "Help"} }
+
+// TestCoreIsStickyAcrossFeatureHalves pins that Core belongs to the feature, not
+// to the plugin that declared it. With the halves judged individually the
+// manager listed a Help toggle (from the silent half) that the Core half
+// ignored: flipping it off wrote a setting, changed nothing, and left the
+// sidebar entry up.
+func TestCoreIsStickyAcrossFeatureHalves(t *testing.T) {
+	h, srv, _ := newTestHandlerWithInstance(t)
+	// Non-core half first, so a per-plugin check would decide on it.
+	h.SetPlugins([]plugin.Plugin{contentHalfPlugin{}, coreHalfPlugin{}})
+	cookies := loginCookies(t, srv)
+
+	rec := do(srv, "GET", "/api/plugins", cookies, "")
+	var feats []struct {
+		Key string `json:"key"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &feats); err != nil {
+		t.Fatalf("decode plugins: %v", err)
+	}
+	for _, f := range feats {
+		if f.Key == "help" {
+			t.Fatal("a feature with a Core half must not be offered as a toggle")
+		}
+	}
+
+	// And the toggle it never offered is not accepted through the back door.
+	if rec := do(srv, "PUT", "/api/plugins/help", cookies, `{"enabled":false}`); rec.Code != http.StatusNotFound {
+		t.Fatalf("disable core feature: got %d, want 404", rec.Code)
+	}
+	if !menuHasPath(t, srv, cookies, "/help") {
+		t.Fatal("core feature menu must stay visible")
+	}
+}
+
 func pluginEnabled(t *testing.T, srv http.Handler, cookies []*http.Cookie, name string) bool {
 	t.Helper()
 	rec := do(srv, "GET", "/api/plugins", cookies, "")

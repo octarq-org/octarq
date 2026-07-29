@@ -56,7 +56,7 @@ interface UIPlugin {
   i18n?: { en; zh }             // merged under the plugin's `name` namespace
   lockedFallback?: Component<{ status: number }>   // 402/404 degrade
 }
-registerUIPlugin(p); uiRoutes(); uiMenus(); uiWidgets(slot); uiAreas(); uiPluginI18n()
+registerUIPlugin(p); uiRoutes(); uiWidgets(slot); uiAreas(); uiPluginI18n()
 ```
 
 **Core pages are UIPlugins too**: links/mail/domains/abuse/audit/assets live in `web/src/plugins/core/`, always composed (imported from `main.tsx` **before** the `#octarq-plugins` manifest module). The shell (`App.tsx`) owns only auth, settings, org handling, Overview and the plugin pipeline; `STATIC_AREAS` holds only area/group shells, a menu's `category` equals its group label, and icons are string keys resolved by the single `PLUGIN_ICONS` table (`shell/areas.tsx`).
@@ -68,7 +68,7 @@ registerUIPlugin(p); uiRoutes(); uiMenus(); uiWidgets(slot); uiAreas(); uiPlugin
 - **Choosing an edition** = pointing at a different manifest, highest precedence first: `OCTARQ_PLUGINS` env (inline JSON array — **dynamic CI injection**, no file to edit) › `OCTARQ_PLUGINS_MANIFEST` env (path to a manifest file — a commercial build ships its own; octarq-pro points here) › the committed `web/octarq.plugins.json`.
 - Result: a build never references a plugin its manifest doesn't name (verified: the licenses page markers `LicensesPage`/`getApiIssued`/`No licenses issued` are **absent** from the OSS/example build, **present** only when a manifest composes `@octarq-org/plugin-issuer`).
 
-`web/src/App.tsx` renders `pluginRouteElements()` (every element wrapped in **`PluginGate`** — 402 → upsell, 403 → access denied, 404/chunk failure → neutral note) and folds `uiMenus()` into the sidebar through the single `mergeAreas` pipeline (`areaForCategory` placement + advisory `requiredRole` filtering, member < admin < owner with instance-admin bypass, role from `/api/auth/me`); a route with no registered plugin 404-degrades (neutral note). Licenses is the reference plugin, now published as the standalone package `@octarq-org/plugin-issuer` (octarq-pro `packages/`).
+`web/src/App.tsx` renders `pluginRouteElements()` (every element wrapped in **`PluginGate`** — 402 → upsell, 403 → access denied, 404/chunk failure → neutral note) and folds the backend `/api/menus` answer into the sidebar through the single `mergeAreas` pipeline (`areaForCategory` placement + advisory `requiredRole` filtering, member < admin < owner with instance-admin bypass, role from `/api/auth/me`); a route with no registered plugin 404-degrades (neutral note). Licenses is the reference plugin, now published as the standalone package `@octarq-org/plugin-issuer` (octarq-pro `packages/`).
 
 ## 4. Shared UI (`@octarq/plugin-sdk`)
 

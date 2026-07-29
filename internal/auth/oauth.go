@@ -151,7 +151,7 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	// Upsert User. When public registration is disabled (invite-only instance),
 	// OAuth must not be a side door: existing users may still sign in, but an
 	// unknown email is refused instead of silently provisioning a new account.
-	user, org, err := h.upsertUser(email, gothUser.AvatarURL, provider)
+	user, org, err := h.upsertUser(email)
 	if errors.Is(err, ErrRegistrationDisabled) {
 		http.Error(w, "This instance is invite-only; ask an admin to add your account first.", http.StatusForbidden)
 		return
@@ -178,7 +178,7 @@ func (h *OAuthHandler) registrationEnabled() bool {
 // OAuth and the Pro SSO plugin provision users identically, then loads the rows
 // the caller needs. Creating a brand-new user is gated on registrationEnabled so
 // OAuth can't bypass an invite-only instance.
-func (h *OAuthHandler) upsertUser(email, avatarURL, provider string) (*models.User, *models.Org, error) {
+func (h *OAuthHandler) upsertUser(email string) (*models.User, *models.Org, error) {
 	uid, orgID, err := UpsertUserByEmail(h.db, email, h.registrationEnabled())
 	if err != nil {
 		return nil, nil, err

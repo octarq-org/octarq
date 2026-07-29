@@ -356,10 +356,11 @@ func (a *App) RunMCP(ctx context.Context) error {
 		LoginByEmail:    a.loginByEmail,
 		RegisterAuthMethod: func(m plugin.AuthMethod) {
 			auth.Register(auth.AuthMethod{
-				ID:       m.ID,
-				Label:    m.Label,
-				LoginURL: m.LoginURL,
-				IconKey:  m.IconKey,
+				ID:        m.ID,
+				Label:     m.Label,
+				LoginURL:  m.LoginURL,
+				IconKey:   m.IconKey,
+				Available: m.Available,
 			})
 		},
 		Audit:   apiHandler.Audit,
@@ -431,7 +432,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 				PluginName:  pName,
 			}, send)
 		}
-		if plugin.Describe(p).Core {
+		if plugin.FeatureIsCore(a.plugins, plugin.FeatureKey(p)) {
 			pctxCopy.Huma = apiHandler.Huma()
 			p.Mount(throwaway, &pctxCopy)
 		} else {
@@ -528,10 +529,11 @@ func (a *App) Run(ctx context.Context) error {
 		LoginByEmail:    a.loginByEmail,
 		RegisterAuthMethod: func(m plugin.AuthMethod) {
 			auth.Register(auth.AuthMethod{
-				ID:       m.ID,
-				Label:    m.Label,
-				LoginURL: m.LoginURL,
-				IconKey:  m.IconKey,
+				ID:        m.ID,
+				Label:     m.Label,
+				LoginURL:  m.LoginURL,
+				IconKey:   m.IconKey,
+				Available: m.Available,
 			})
 		},
 		Audit:   apiHandler.Audit,
@@ -585,10 +587,11 @@ func (a *App) Run(ctx context.Context) error {
 			return info.Device, info.Browser, info.OS
 		},
 		PluginActive: func(orgID uint, p plugin.Plugin) bool {
-			if plugin.Describe(p).Core {
+			key := plugin.FeatureKey(p)
+			if plugin.FeatureIsCore(a.plugins, key) {
 				return true
 			}
-			return apiHandler.PluginEnabled(orgID, plugin.FeatureKey(p))
+			return apiHandler.PluginEnabled(orgID, key)
 		},
 		ActivePlugins: func() []plugin.Plugin {
 			return a.plugins
@@ -620,7 +623,7 @@ func (a *App) Run(ctx context.Context) error {
 				PluginName:  pName,
 			}, send)
 		}
-		if plugin.Describe(p).Core {
+		if plugin.FeatureIsCore(a.plugins, plugin.FeatureKey(p)) {
 			pctxCopy.Huma = apiHandler.Huma()
 			p.Mount(mux, &pctxCopy)
 		} else {

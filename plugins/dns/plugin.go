@@ -69,7 +69,6 @@ func (p *Plugin) Describe() plugin.Info {
 	return plugin.Info{
 		Title:            "Domains & DNS",
 		Description:      "Domain lifecycle and DNS management across Cloudflare and DNSPod.",
-		Icon:             "globe",
 		Category:         plugin.CategoryInfrastructure,
 		Tags:             []string{"dns", "cloudflare", "dnspod"},
 		EnabledByDefault: true,
@@ -88,7 +87,7 @@ func (p *Plugin) Models() []any {
 // when the plugin is mounted and enabled for the workspace.
 func (p *Plugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{
-		{ID: "domains", Label: "Domains", Path: "/domains", Icon: "globe", Category: "Network", Order: 10},
+		{ID: "domains", Label: "DNS", Path: "/domains", Icon: "globe", Category: "Network", Order: 10},
 	}
 }
 

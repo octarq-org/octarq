@@ -191,12 +191,13 @@ func (h *Handler) resetPassword(ctx context.Context, input *ResetPasswordInput) 
 		return nil, huma.Error500InternalServerError("failed to hash password")
 	}
 
-	// Update user password & clear reset token
+	// Update user password & clear reset token. No session_epoch bump: nothing
+	// read that column, so it never revoked anything — the session deletion
+	// below is what does.
 	h.db.Model(&user).Updates(map[string]any{
 		"password_hash":      string(pwHash),
 		"reset_token_hash":   "",
 		"reset_token_expiry": nil,
-		"session_epoch":      user.SessionEpoch + 1,
 	})
 
 	// Invalidate all active sessions for this user

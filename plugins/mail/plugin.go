@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -17,8 +16,6 @@ import (
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
-
-var errNotFound = errors.New("not found")
 
 // Plugin implements the octarq plugin contract for mail CRUD.
 type Plugin struct {
@@ -59,7 +56,6 @@ func (p *Plugin) Describe() plugin.Info {
 	return plugin.Info{
 		Title:            "Mail",
 		Description:      "Transactional email sending, mailbox receiving, and SMTP configurations.",
-		Icon:             "mail",
 		Category:         plugin.CategoryMessaging,
 		Tags:             []string{"smtp", "inbox", "webhooks"},
 		EnabledByDefault: true,
@@ -75,7 +71,7 @@ func (p *Plugin) Models() []any {
 // when the plugin is mounted and enabled for the workspace.
 func (p *Plugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{
-		{ID: "mail", Label: "Mail", Path: "/mail", Icon: "mail", Category: "Operations", Order: 20},
+		{ID: "mail", Label: "Mail", Path: "/mail", Icon: "mail", Category: "Communication", Order: 20},
 	}
 }
 

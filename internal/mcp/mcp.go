@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/octarq-org/octarq/config"
@@ -203,17 +202,6 @@ func jsonResult[T any](v T) (*mcp.CallToolResult, any, error) {
 	}, v, nil
 }
 
-// clampLimit bounds a user-supplied limit to a sane window.
-func clampLimit(n, def int) int {
-	if n <= 0 {
-		return def
-	}
-	if n > maxRows {
-		return maxRows
-	}
-	return n
-}
-
 // runReadOnlyQuery validates and executes a SELECT, returning the result rows as
 // generic maps with sensitive columns redacted. It runs inside a read-only
 // transaction so the database connection rejects any (defensively impossible)
@@ -268,17 +256,4 @@ func normalizeSQLValue(v any) any {
 		return string(b)
 	}
 	return v
-}
-
-// trimToTag reports whether a comma-separated tags field contains tag.
-func tagsContain(field, tag string) bool {
-	if tag == "" {
-		return true
-	}
-	for _, t := range strings.Split(field, ",") {
-		if strings.EqualFold(strings.TrimSpace(t), tag) {
-			return true
-		}
-	}
-	return false
 }

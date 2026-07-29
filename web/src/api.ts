@@ -279,7 +279,6 @@ export const api = {
 
   // auth
   authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean; appName: string; logoUrl: string; brandColor: string; brandColor2: string }>("GET", "/api/auth/config"),
-  authMethods: () => req<AuthMethod[]>("GET", "/api/auth/methods"),
   me: () => req<{ username: string; orgId: number; role?: string; emailVerified?: boolean }>("GET", "/api/auth/me"),
   register: (email: string, password: string) =>
     req<{ ok: boolean; username: string }>("POST", "/api/auth/register", { email, password }),
@@ -293,6 +292,10 @@ export const api = {
     req<{ ok: boolean }>("POST", "/api/auth/2fa/verify", { username, password, code }),
   forgotPassword: (email: string) => req<{ ok: boolean }>("POST", "/api/auth/forgot", { email }),
   resetPassword: (token: string, password: string) => req<{ ok: boolean }>("POST", "/api/auth/reset", { token, password }),
+  // Authenticated change, as opposed to the emailed reset above. Succeeding
+  // here revokes every other session; this one survives.
+  changePassword: (currentPassword: string, newPassword: string) =>
+    req<{ ok: boolean }>("POST", "/api/auth/password", { currentPassword, newPassword }),
   resendVerification: (email: string) => req<{ ok: boolean }>("POST", "/api/auth/resend-verification", { email }),
   logout: () => req<{ ok: boolean }>("POST", "/api/auth/logout"),
   logoutAll: () => req<{ ok: boolean }>("POST", "/api/auth/logout-all"),
@@ -374,7 +377,13 @@ export const api = {
   updateOrg: (d: { name: string }) => req<Org>("PUT", "/api/org", d),
   switchOrg: (orgId: number) => req<{ ok: boolean }>("POST", "/api/auth/switch-org", { orgId }),
   orgMembers: () => req<OrgMember[]>("GET", "/api/org/members"),
-  addOrgMember: (d: { email: string; role: string }) => req<{ ok: boolean }>("POST", "/api/org/members", d),
+  // inviteUrl/inviteToken come back only when the address had no account yet.
+  // Delivery of that link by email is best-effort on the server (it needs the
+  // mail plugin mounted and an SMTP sender configured, and failures are logged,
+  // not returned), so the caller has to surface the link — otherwise on an
+  // instance without mail the invite exists and nobody can reach it.
+  addOrgMember: (d: { email: string; role: string }) =>
+    req<{ ok: boolean; inviteToken?: string; inviteUrl?: string }>("POST", "/api/org/members", d),
   deleteOrgMember: (userId: number) => req<void>("DELETE", `/api/org/members/${userId}`),
 
   // menus and user settings
@@ -384,6 +393,29 @@ export const api = {
     req<{ ok: boolean }>("PUT", `/api/plugins/${key}`, { enabled }),
   getUserSettings: () => req<Record<string, string>>("GET", "/api/user/settings"),
   updateUserSettings: (key: string, value: string) => req<{ ok: boolean }>("PUT", "/api/user/settings", { key, value }),
+
+  // Instance backup (instance admins only). Not a `req` call: the response is a
+  // binary database dump, and `req` returns undefined for anything that isn't
+  // JSON. The server names the file in Content-Disposition — it knows the
+  // driver, so it knows whether this is a .db or a .sql — and the caller only
+  // falls back to a generic name if the header is missing.
+  downloadBackup: async (): Promise<{ blob: Blob; filename: string }> => {
+    const res = await fetch("/api/admin/backup");
+    if (!res.ok) {
+      let msg = res.statusText;
+      try {
+        const parsed = await res.json();
+        if (parsed?.error) msg = parsed.error;
+        else if (parsed?.detail) msg = parsed.detail;
+      } catch {
+        /* not JSON — keep statusText */
+      }
+      throw new ApiError(res.status, msg);
+    }
+    const cd = res.headers.get("content-disposition") || "";
+    const m = /filename="?([^"]+)"?/.exec(cd);
+    return { blob: await res.blob(), filename: m?.[1] || "octarq-backup" };
+  },
 
   // GDPR
   exportWorkspaceData: () => req<any>("GET", "/api/account/export"),
@@ -500,12 +532,12 @@ export interface WebhookEventGroup {
   events: WebhookEventDef[];
 }
 
-export interface AuthMethod {
-  id: string;
-  label: string;
-  loginUrl: string;
-  iconKey?: string;
-}
+// No AuthMethod type or api.authMethods() here. /api/auth/methods has exactly
+// one consumer — plugin-sso's login button — and a Pro package cannot import
+// the host's api module, so it calls fetch() directly. The typed wrapper had no
+// reachable caller and drifting it from the live untyped call was the only
+// thing it could ever do. Expose it through @octarq/plugin-sdk if a plugin
+// needs it typed.
 
 
 

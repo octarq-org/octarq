@@ -5,7 +5,6 @@ import { mailI18n } from "./i18n";
 const mail: UIPlugin = {
   name: "mail",
   routes: [{ path: "/mail", Component: lazy(() => import("./pages")) }],
-  menu: [{ id: "mail", label: "Mail", path: "/mail", icon: "mail", category: "Communication" }],
   widgets: [
     { slot: "home-overview", order: 20, Component: lazy(() => import("./widgets/MailStatCardWidget")) },
     { slot: "home-setup-steps", order: 30, Component: lazy(() => import("./widgets/MailSetupStepWidget")) },

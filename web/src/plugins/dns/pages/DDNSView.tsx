@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Domain } from "../../../api";
 import { dnsApi, DDNSToken, CreateDDNSTokenResult } from "../api";
-import { GlassCard, Button, Modal, Field, Badge, Empty, timeAgo, toast, Alert } from "../../../ui";
+import { GlassCard, Button, Modal, Field, Badge, Empty, timeAgo, toast, Alert, confirmDialog } from "../../../ui";
 import { KeyRound, Plus, Trash2, Copy, Check, AlertTriangle } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
@@ -79,7 +79,7 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
   }
 
   async function handleDeleteToken(id: number) {
-    if (!window.confirm(t("domains.revokeConfirm") || "Are you sure you want to revoke this token?")) {
+    if (!(await confirmDialog(t("domains.revokeConfirm")))) {
       return;
     }
     try {
@@ -107,11 +107,10 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
         <div>
           <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
             <KeyRound className="h-5 w-5 text-accent-fg" />
-            {t("domains.ddnsTitle") || "Dynamic DNS (DDNS) Tokens"}
+            {t("domains.ddnsTitle")}
           </h2>
           <p className="text-xs text-muted-foreground mt-1">
-            {t("domains.ddnsDescription") ||
-              "Keep A/AAAA records updated with your home router or dynamic IP server using standard Dyndns2 protocol."}
+            {t("domains.ddnsDescription")}
           </p>
         </div>
 
@@ -130,20 +129,20 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
             className="gap-1.5 py-1.5 text-xs shrink-0 self-start sm:self-auto"
           >
             <Plus className="h-4 w-4" />
-            {t("domains.newDdnsToken") || "New DDNS Token"}
+            {t("domains.newDdnsToken")}
           </Button>
         )}
       </div>
 
       {loading ? (
         <div className="py-8 text-center text-xs text-muted-foreground">
-          {t("domains.loadingTokens") || "Loading DDNS tokens..."}
+          {t("domains.loadingTokens")}
         </div>
       ) : tokens.length === 0 ? (
         <Empty>
           <KeyRound className="h-8 w-8 text-muted-foreground/60 mb-2" />
           <p className="text-sm text-muted-foreground">
-            {t("domains.noDdnsTokens") || "No DDNS tokens created yet."}
+            {t("domains.noDdnsTokens")}
           </p>
         </Empty>
       ) : (
@@ -170,18 +169,18 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
 
                   <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
                     <span>
-                      {t("domains.lastIp") || "Last IP"}:{" "}
+                      {t("domains.lastIp")}:{" "}
                       <span className="font-mono text-foreground font-medium">
                         {tok.lastIp || "—"}
                       </span>
                     </span>
                     <span>
-                      {t("domains.lastSeen") || "Last Seen"}:{" "}
+                      {t("domains.lastSeen")}:{" "}
                       <span className="text-foreground">
-                        {tok.lastSeenAt ? timeAgo(tok.lastSeenAt) : t("domains.never") || "Never"}
+                        {tok.lastSeenAt ? timeAgo(tok.lastSeenAt) : t("domains.never")}
                       </span>
                     </span>
-                    {dom && <span className="text-muted-foreground/70">{t("domains.zonePrefix") || "Zone:"} {dom.name}</span>}
+                    {dom && <span className="text-muted-foreground/70">{t("domains.zonePrefix")} {dom.name}</span>}
                   </div>
                 </div>
 
@@ -192,7 +191,7 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
                     className="gap-1.5 py-1 text-xs shrink-0 self-start sm:self-center"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                    {t("domains.revokeToken") || "Revoke"}
+                    {t("domains.revokeToken")}
                   </Button>
                 )}
               </GlassCard>
@@ -204,11 +203,11 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
       {/* Create Token Modal */}
       {showCreateModal && (
         <Modal
-          title={t("domains.createDdnsToken") || "New DDNS Token"}
+          title={t("domains.createDdnsToken")}
           onClose={() => setShowCreateModal(false)}
         >
           <form onSubmit={handleCreateToken} className="space-y-4 pt-2">
-            <Field label={t("domains.selectDomain") || "Domain"}>
+            <Field label={t("domains.selectDomain")}>
               <select
                 value={domainId}
                 onChange={(e) => handleDomainChange(Number(e.target.value))}
@@ -223,7 +222,7 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
               </select>
             </Field>
 
-            <Field label={t("domains.recordName") || "Record Name (FQDN)"}>
+            <Field label={t("domains.recordName")}>
               <input
                 type="text"
                 value={recordName}
@@ -235,7 +234,7 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label={t("domains.recordType") || "Record Type"}>
+              <Field label={t("domains.recordType")}>
                 <select
                   value={recordType}
                   onChange={(e) => setRecordType(e.target.value as "A" | "AAAA")}
@@ -246,7 +245,7 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
                 </select>
               </Field>
 
-              <Field label={t("domains.label") || "Label (Optional)"}>
+              <Field label={t("domains.label")}>
                 <input
                   type="text"
                   value={label}
@@ -259,10 +258,10 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="ghost" onClick={() => setShowCreateModal(false)}>
-                {t("common.cancel") || "Cancel"}
+                {t("common.cancel")}
               </Button>
               <Button type="submit" variant="primary" disabled={creating}>
-                {creating ? t("domains.loading") || "Creating..." : "Generate Token"}
+                {creating ? t("domains.loading") : "Generate Token"}
               </Button>
             </div>
           </form>
@@ -272,18 +271,17 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
       {/* Secret Display Modal (Shown ONCE) */}
       {createdResult && (
         <Modal
-          title={t("domains.ddnsCreatedTitle") || "DDNS Token Created"}
+          title={t("domains.ddnsCreatedTitle")}
           onClose={() => setCreatedResult(null)}
         >
           <div className="space-y-4 pt-2">
             <Alert variant="warning" className="text-xs p-3 rounded-xl">
               <span>
-                {t("domains.ddnsCreatedWarning") ||
-                  "Copy your secret token now. It will never be displayed again!"}
+                {t("domains.ddnsCreatedWarning")}
               </span>
             </Alert>
 
-            <Field label={t("domains.secretLabel") || "Token Secret"}>
+            <Field label={t("domains.secretLabel")}>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -297,12 +295,12 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
                   className="gap-1 py-1.5 text-xs shrink-0"
                 >
                   {copiedSecret ? <Check className="h-3.5 w-3.5 text-success-fg" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copiedSecret ? t("domains.copied") || "Copied!" : t("domains.copySecret") || "Copy"}
+                  {copiedSecret ? t("domains.copied") : t("domains.copySecret")}
                 </Button>
               </div>
             </Field>
 
-            <Field label={t("domains.updateUrlLabel") || "Update URL (Dyndns2 Compatible)"}>
+            <Field label={t("domains.updateUrlLabel")}>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -316,14 +314,14 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
                   className="gap-1 py-1.5 text-xs shrink-0"
                 >
                   {copiedUrl ? <Check className="h-3.5 w-3.5 text-success-fg" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copiedUrl ? t("domains.copied") || "Copied!" : t("domains.copyUrl") || "Copy URL"}
+                  {copiedUrl ? t("domains.copied") : t("domains.copyUrl")}
                 </Button>
               </div>
             </Field>
 
             <div className="flex justify-end pt-2">
               <Button variant="primary" onClick={() => setCreatedResult(null)}>
-                {t("common.done") || "Done"}
+                {t("common.done")}
               </Button>
             </div>
           </div>

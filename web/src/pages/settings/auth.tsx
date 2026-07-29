@@ -1,10 +1,11 @@
 import { ReactNode, useEffect, useState } from "react";
 import { api } from "../../api";
-import { Field, Toggle, PageHeader, GlassCard, Button } from "../../ui";
+import { Field, Toggle, PageHeader, GlassCard, Button, confirmDialog } from "../../ui";
 import { Mail, ChevronDown, Check } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { useInstanceSettingsData } from "./shared";
+import { useInstanceSettingsData, InstanceAdminOnly } from "./shared";
 import { ExtensionSlot } from "../../plugin-sdk";
+import { oauthCallbackPath } from "../../shell/oauthRoutes";
 
 // Provider glyphs — inline so they don't depend on the icon set (matches the
 // SVGs the Login page uses for the OAuth buttons).
@@ -67,7 +68,7 @@ function ProviderRow({
               : "bg-muted text-muted-foreground"
           }`}
         >
-          {enabled ? t("settings.providerEnabled", "Enabled") : t("settings.providerDisabled", "Disabled")}
+          {enabled ? t("settings.providerEnabled") : t("settings.providerDisabled")}
         </span>
         {expandable && (
           <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
@@ -80,7 +81,7 @@ function ProviderRow({
 
 export function AuthenticationSettings() {
   const { t } = useTranslation();
-  const { s: settings, reload } = useInstanceSettingsData();
+  const { s: settings, reload, forbidden } = useInstanceSettingsData();
 
   const [allowReg, setAllowReg] = useState(true);
   const [requireVerify, setRequireVerify] = useState(false);
@@ -136,11 +137,12 @@ export function AuthenticationSettings() {
   }
 
   async function clearSecret(field: "googleClientSecret" | "githubClientSecret", confirmKey: string) {
-    if (!confirm(t(confirmKey))) return;
+    if (!(await confirmDialog(t(confirmKey)))) return;
     await api.updateInstanceSettings({ [field]: "" } as Record<string, string>);
     reload();
   }
 
+  if (forbidden) return <InstanceAdminOnly />;
   if (!settings) {
     return (
       <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
@@ -155,17 +157,26 @@ export function AuthenticationSettings() {
 
   // A read-only callback URL field with copy affordance — providers need the
   // exact redirect URI registered on their side.
-  const CallbackField = ({ path }: { path: string }) => (
-    <Field label={t("settings.callbackUrl", "Callback URL")} hint={t("settings.callbackUrlHint", "Register this exact URL with the provider.")}>
-      <input readOnly className="input w-full cursor-text bg-well font-mono text-xs text-foreground/80" value={`${origin}${path}`} />
+  //
+  // The path is built here rather than passed in per provider: both call sites
+  // used to spell it out, and both spelled it wrong ("/api/auth/google/callback"
+  // against a real route of "/auth/callback/google" — wrong prefix AND wrong
+  // order). An operator who copied it into the Google or GitHub console
+  // registered a redirect URI that 404s, so OAuth sign-in never worked, and
+  // nothing on this screen could reveal that: the field is read-only decoration
+  // that the app itself never fetches. oauthCallbackPath is checked against the
+  // Go route by oauthRoutes.test.ts.
+  const CallbackField = ({ provider }: { provider: string }) => (
+    <Field label={t("settings.callbackUrl")} hint={t("settings.callbackUrlHint")}>
+      <input readOnly className="input w-full cursor-text bg-well font-mono text-xs text-foreground/80" value={`${origin}${oauthCallbackPath(provider)}`} />
     </Field>
   );
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t("settings.authTitle", "Authentication")}
-        description={t("settings.authDesc", "Configure how people sign in to this instance.")}
+        title={t("settings.authTitle")}
+        description={t("settings.authDesc")}
       />
 
       {/* Account creation policy */}
@@ -180,8 +191,8 @@ export function AuthenticationSettings() {
       {/* Email verification gate */}
       <GlassCard className="flex items-center justify-between gap-4 p-5">
         <div>
-          <p className="text-sm font-medium text-foreground">{t("settings.requireEmailVerification", "Require Email Verification")}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{t("settings.requireEmailVerificationDesc", "Block sign-in for users until their email address has been verified.")}</p>
+          <p className="text-sm font-medium text-foreground">{t("settings.requireEmailVerification")}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t("settings.requireEmailVerificationDesc")}</p>
         </div>
         <Toggle on={requireVerify} onChange={toggleRequireVerification} />
       </GlassCard>
@@ -189,13 +200,13 @@ export function AuthenticationSettings() {
       {/* Provider list (Supabase-style accordion) */}
       <div>
         <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t("settings.authProviders", "Auth providers")}
+          {t("settings.authProviders")}
         </h3>
         <GlassCard className="overflow-hidden !p-0">
           <ProviderRow
             icon={<Mail className="h-4 w-4 text-accent-fg" strokeWidth={1.75} />}
-            name={t("settings.providerEmail", "Email")}
-            description={t("settings.providerEmailDesc", "Built-in username & password sign-in")}
+            name={t("settings.providerEmail")}
+            description={t("settings.providerEmailDesc")}
             enabled
             builtin
           />
@@ -203,7 +214,7 @@ export function AuthenticationSettings() {
           <ProviderRow
             icon={<GoogleGlyph className="h-4 w-4" />}
             name="Google"
-            description={t("settings.providerGoogleDesc", "OAuth sign-in with a Google account")}
+            description={t("settings.providerGoogleDesc")}
             enabled={googleEnabled}
           >
             <Field label={t("settings.googleClientId")}>
@@ -225,7 +236,7 @@ export function AuthenticationSettings() {
                 )}
               </div>
             </Field>
-            <CallbackField path="/api/auth/google/callback" />
+            <CallbackField provider="google" />
             <div className="flex items-center gap-3 pt-1">
               <Button
                 variant="primary"
@@ -240,7 +251,7 @@ export function AuthenticationSettings() {
               </Button>
               {saved === "google" && (
                 <span className="flex items-center gap-1 text-xs text-success-fg">
-                  <Check className="h-3.5 w-3.5" /> {t("settings.saved", "Saved")}
+                  <Check className="h-3.5 w-3.5" /> {t("settings.saved")}
                 </span>
               )}
             </div>
@@ -249,7 +260,7 @@ export function AuthenticationSettings() {
           <ProviderRow
             icon={<GithubGlyph className="h-4 w-4 text-foreground" />}
             name="GitHub"
-            description={t("settings.providerGithubDesc", "OAuth sign-in with a GitHub account")}
+            description={t("settings.providerGithubDesc")}
             enabled={githubEnabled}
           >
             <Field label={t("settings.githubClientId")}>
@@ -271,7 +282,7 @@ export function AuthenticationSettings() {
                 )}
               </div>
             </Field>
-            <CallbackField path="/api/auth/github/callback" />
+            <CallbackField provider="github" />
             <div className="flex items-center gap-3 pt-1">
               <Button
                 variant="primary"
@@ -286,7 +297,7 @@ export function AuthenticationSettings() {
               </Button>
               {saved === "github" && (
                 <span className="flex items-center gap-1 text-xs text-success-fg">
-                  <Check className="h-3.5 w-3.5" /> {t("settings.saved", "Saved")}
+                  <Check className="h-3.5 w-3.5" /> {t("settings.saved")}
                 </span>
               )}
             </div>
