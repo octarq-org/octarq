@@ -68,7 +68,7 @@ function ProviderRow({
               : "bg-muted text-muted-foreground"
           }`}
         >
-          {enabled ? t("settings.providerEnabled", "Enabled") : t("settings.providerDisabled", "Disabled")}
+          {enabled ? t("settings.providerEnabled") : t("settings.providerDisabled")}
         </span>
         {expandable && (
           <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
@@ -136,7 +136,7 @@ export function AuthenticationSettings() {
     }
   }
 
-  async function clearSecret(field: "googleClientSecret" | "githubClientSecret", confirmKey: string) {
+  async function clearField(field: "googleClientSecret" | "githubClientSecret", confirmKey: string) {
     if (!(await confirmDialog(t(confirmKey)))) return;
     await api.updateInstanceSettings({ [field]: "" } as Record<string, string>);
     reload();
@@ -166,7 +166,7 @@ export function AuthenticationSettings() {
   // that the app itself never fetches. oauthCallbackPath is checked against the
   // Go route by oauthRoutes.test.ts.
   const CallbackField = ({ provider }: { provider: string }) => (
-    <Field label={t("settings.callbackUrl", "Callback URL")} hint={t("settings.callbackUrlHint", "Register this exact URL with the provider.")}>
+    <Field label={t("settings.callbackUrl")} hint={t("settings.callbackUrlHint")}>
       <input readOnly className="input w-full cursor-text bg-well font-mono text-xs text-foreground/80" value={`${origin}${oauthCallbackPath(provider)}`} />
     </Field>
   );
@@ -174,8 +174,8 @@ export function AuthenticationSettings() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={t("settings.authTitle", "Authentication")}
-        description={t("settings.authDesc", "Configure how people sign in to this instance.")}
+        title={t("settings.authTitle")}
+        description={t("settings.authDesc")}
       />
 
       {/* Account creation policy */}
@@ -190,8 +190,8 @@ export function AuthenticationSettings() {
       {/* Email verification gate */}
       <GlassCard className="flex items-center justify-between gap-4 p-5">
         <div>
-          <p className="text-sm font-medium text-foreground">{t("settings.requireEmailVerification", "Require Email Verification")}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{t("settings.requireEmailVerificationDesc", "Block sign-in for users until their email address has been verified.")}</p>
+          <p className="text-sm font-medium text-foreground">{t("settings.requireEmailVerification")}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{t("settings.requireEmailVerificationDesc")}</p>
         </div>
         <Toggle on={requireVerify} onChange={toggleRequireVerification} />
       </GlassCard>
@@ -199,13 +199,13 @@ export function AuthenticationSettings() {
       {/* Provider list (Supabase-style accordion) */}
       <div>
         <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t("settings.authProviders", "Auth providers")}
+          {t("settings.authProviders")}
         </h3>
         <GlassCard className="overflow-hidden !p-0">
           <ProviderRow
             icon={<Mail className="h-4 w-4 text-accent-fg" strokeWidth={1.75} />}
-            name={t("settings.providerEmail", "Email")}
-            description={t("settings.providerEmailDesc", "Built-in username & password sign-in")}
+            name={t("settings.providerEmail")}
+            description={t("settings.providerEmailDesc")}
             enabled
             builtin
           />
@@ -213,7 +213,7 @@ export function AuthenticationSettings() {
           <ProviderRow
             icon={<GoogleGlyph className="h-4 w-4" />}
             name="Google"
-            description={t("settings.providerGoogleDesc", "OAuth sign-in with a Google account")}
+            description={t("settings.providerGoogleDesc")}
             enabled={googleEnabled}
           >
             <Field label={t("settings.googleClientId")}>
@@ -229,7 +229,7 @@ export function AuthenticationSettings() {
                   placeholder={settings.googleClientSecretSet ? t("settings.secretSet") : t("settings.secretValue")}
                 />
                 {settings.googleClientSecretSet && (
-                  <Button variant="danger" onClick={() => clearSecret("googleClientSecret", "settings.clearGoogleSecret")} className="px-2.5 py-1 text-xs">
+                  <Button variant="danger" onClick={() => clearField("googleClientSecret", "settings.clearGoogleSecret")} className="px-2.5 py-1 text-xs">
                     {t("settings.clear")}
                   </Button>
                 )}
@@ -250,7 +250,7 @@ export function AuthenticationSettings() {
               </Button>
               {saved === "google" && (
                 <span className="flex items-center gap-1 text-xs text-success-fg">
-                  <Check className="h-3.5 w-3.5" /> {t("settings.saved", "Saved")}
+                  <Check className="h-3.5 w-3.5" /> {t("settings.saved")}
                 </span>
               )}
             </div>
@@ -259,7 +259,7 @@ export function AuthenticationSettings() {
           <ProviderRow
             icon={<GithubGlyph className="h-4 w-4 text-foreground" />}
             name="GitHub"
-            description={t("settings.providerGithubDesc", "OAuth sign-in with a GitHub account")}
+            description={t("settings.providerGithubDesc")}
             enabled={githubEnabled}
           >
             <Field label={t("settings.githubClientId")}>
@@ -275,7 +275,7 @@ export function AuthenticationSettings() {
                   placeholder={settings.githubClientSecretSet ? t("settings.secretSet") : t("settings.secretValue")}
                 />
                 {settings.githubClientSecretSet && (
-                  <Button variant="danger" onClick={() => clearSecret("githubClientSecret", "settings.clearGithubSecret")} className="px-2.5 py-1 text-xs">
+                  <Button variant="danger" onClick={() => clearField("githubClientSecret", "settings.clearGithubSecret")} className="px-2.5 py-1 text-xs">
                     {t("settings.clear")}
                   </Button>
                 )}
@@ -296,7 +296,7 @@ export function AuthenticationSettings() {
               </Button>
               {saved === "github" && (
                 <span className="flex items-center gap-1 text-xs text-success-fg">
-                  <Check className="h-3.5 w-3.5" /> {t("settings.saved", "Saved")}
+                  <Check className="h-3.5 w-3.5" /> {t("settings.saved")}
                 </span>
               )}
             </div>

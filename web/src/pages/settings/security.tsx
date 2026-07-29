@@ -4,22 +4,25 @@ import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, toast, Alert, con
 import { Shield } from "lucide-react";
 import { useTranslation } from "../../i18n";
 
-function parseUA(ua: string): { browser: string; os: string } {
-  if (!ua) return { browser: "Unknown", os: "" };
-  let browser = "Browser";
-  let os = "";
+function parseUA(ua: string): { browser?: string; browserKey?: "uaUnknown" | "uaBrowser"; os: string } {
+  if (!ua) return { browserKey: "uaUnknown", os: "" };
+  let browser = "";
+  let browserKey: "uaBrowser" | undefined = undefined;
   if (ua.includes("Edg/")) browser = "Microsoft Edge";
   else if (ua.includes("OPR/") || ua.includes("Opera")) browser = "Opera";
   else if (ua.includes("Chrome")) browser = "Chrome";
   else if (ua.includes("Firefox")) browser = "Firefox";
   else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Safari";
   else if (ua.includes("curl")) browser = "curl / API";
+  else browserKey = "uaBrowser";
+
+  let os = "";
   if (ua.includes("Windows")) os = "Windows";
   else if (ua.includes("Mac OS X")) os = "macOS";
   else if (ua.includes("Linux")) os = "Linux";
   else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
   else if (ua.includes("Android")) os = "Android";
-  return { browser, os };
+  return { browser: browser || undefined, browserKey, os };
 }
 
 
@@ -62,11 +65,12 @@ function SessionsList() {
     <div className="divide-y divide-foreground/[0.04] rounded-xl border border-foreground/[0.05] overflow-hidden">
       {sessions.map((s) => {
         const ua = parseUA(s.userAgent);
+        const browserName = ua.browserKey ? t(`settings.${ua.browserKey}`) : ua.browser;
         return (
           <div key={s.id} className="flex items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium text-foreground/85">{ua.browser}</span>
+                <span className="text-sm font-medium text-foreground/85">{browserName}</span>
                 {s.isCurrent && <Badge tone="green">{t("settings.current")}</Badge>}
                 <span className="text-xs text-foreground/50">{ua.os}</span>
               </div>

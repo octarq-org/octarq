@@ -116,6 +116,8 @@ export const settings = {
     signedIn: "Signed in {{time}}",
     logOut: "Log out",
     revoke: "Revoke",
+    uaUnknown: "Unknown",
+    uaBrowser: "Browser",
 
     // SecuritySettings
     twoFADisabledMsg: "Two-factor authentication disabled.",
@@ -436,6 +438,8 @@ export const settings = {
     signedIn: "登录于 {{time}}",
     logOut: "登出",
     revoke: "撤销",
+    uaUnknown: "未知",
+    uaBrowser: "浏览器",
 
     // SecuritySettings
     twoFADisabledMsg: "双因素认证已禁用。",
@@ -756,6 +760,8 @@ export const settings = {
     signedIn: "Sesión iniciada {{time}}",
     logOut: "Cerrar sesión",
     revoke: "Revocar",
+    uaUnknown: "Desconocido",
+    uaBrowser: "Navegador",
 
     // SecuritySettings
     twoFADisabledMsg: "Autenticación de dos factores desactivada.",
@@ -1076,6 +1082,8 @@ export const settings = {
     signedIn: "Conectado em {{time}}",
     logOut: "Sair",
     revoke: "Revogar",
+    uaUnknown: "Desconhecido",
+    uaBrowser: "Navegador",
 
     // SecuritySettings
     twoFADisabledMsg: "Autenticação de dois fatores desativada.",
@@ -1396,6 +1404,8 @@ export const settings = {
     signedIn: "サインイン日時 {{time}}",
     logOut: "ログアウト",
     revoke: "取り消す",
+    uaUnknown: "不明",
+    uaBrowser: "ブラウザ",
 
     // SecuritySettings
     twoFADisabledMsg: "二要素認証は無効です。",
