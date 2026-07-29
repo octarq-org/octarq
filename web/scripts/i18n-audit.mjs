@@ -179,6 +179,7 @@ const ALLOWLIST_EXACT = new Set([
   "colleague@example.com",
   "n8n automation",
   "My Dev Team Slack",
+  "My Dev Team Telegram",
   "go.example.com",
   "mail.example.com",
   "example.com",
