@@ -49,6 +49,13 @@ export const settings = {
     filterDisabledCount: "Disabled ({{count}})",
     noMatchingPlugins: "No plugins match your current category tag, search, or status filter.",
     backgroundService: "Background Service",
+    backupTitle: "Database backup",
+    backupDesc: "A full dump of this instance — every workspace, every table, encrypted secrets included. Store it somewhere you would store the database itself.",
+    backupDownload: "Download backup",
+    backupPreparing: "Preparing…",
+    backupFailed: "Backup failed",
+    pluginInUse: "{{plugin}} can't be turned off — {{dependents}} depends on it. Turn that off first.",
+    enableDepsConfirm: "This also turns on the features it needs: {{deps}}. Continue?",
 
     // GeneralSettings
     renameFailed: "rename failed",
@@ -370,6 +377,13 @@ export const settings = {
     filterDisabledCount: "已禁用 ({{count}})",
     noMatchingPlugins: "没有插件匹配当前的分类标签、搜索关键词或状态筛选。",
     backgroundService: "后台服务",
+    backupTitle: "数据库备份",
+    backupDesc: "整个实例的完整转储 —— 包含所有工作区、所有数据表以及加密后的密钥。请按存放数据库本身的标准来保管它。",
+    backupDownload: "下载备份",
+    backupPreparing: "正在准备…",
+    backupFailed: "备份失败",
+    pluginInUse: "{{plugin}} 无法关闭 —— {{dependents}} 正在依赖它，请先关闭它们。",
+    enableDepsConfirm: "同时会开启它所依赖的功能：{{deps}}。是否继续？",
 
     // GeneralSettings
     renameFailed: "重命名失败",
@@ -691,6 +705,13 @@ export const settings = {
     filterDisabledCount: "Desactivados ({{count}})",
     noMatchingPlugins: "Ningún plugin coincide con la etiqueta de categoría, búsqueda o filtro de estado actual.",
     backgroundService: "Servicio en segundo plano",
+    backupTitle: "Copia de seguridad de la base de datos",
+    backupDesc: "Un volcado completo de esta instancia: todos los espacios de trabajo, todas las tablas y los secretos cifrados. Guárdala donde guardarías la propia base de datos.",
+    backupDownload: "Descargar copia",
+    backupPreparing: "Preparando…",
+    backupFailed: "Error al crear la copia de seguridad",
+    pluginInUse: "{{plugin}} no se puede desactivar: {{dependents}} depende de ello. Desactívalo primero.",
+    enableDepsConfirm: "Esto también activará las funciones que necesita: {{deps}}. ¿Continuar?",
 
     // GeneralSettings
     renameFailed: "error al renombrar",
@@ -1012,6 +1033,13 @@ export const settings = {
     filterDisabledCount: "Desativados ({{count}})",
     noMatchingPlugins: "Nenhum plugin corresponde à etiqueta de categoria, pesquisa ou filtro de status atual.",
     backgroundService: "Serviço em segundo plano",
+    backupTitle: "Backup do banco de dados",
+    backupDesc: "Um dump completo desta instância: todos os workspaces, todas as tabelas e os segredos criptografados. Guarde-o onde você guardaria o próprio banco de dados.",
+    backupDownload: "Baixar backup",
+    backupPreparing: "Preparando…",
+    backupFailed: "Falha no backup",
+    pluginInUse: "{{plugin}} não pode ser desativado: {{dependents}} depende dele. Desative-o primeiro.",
+    enableDepsConfirm: "Isso também ativará os recursos necessários: {{deps}}. Continuar?",
 
     // GeneralSettings
     renameFailed: "falha ao renomear",
@@ -1333,6 +1361,13 @@ export const settings = {
     filterDisabledCount: "無効 ({{count}})",
     noMatchingPlugins: "現在のカテゴリタグ、検索、またはステータスフィルタに一致するプラグインはありません。",
     backgroundService: "バックグラウンドサービス",
+    backupTitle: "データベースバックアップ",
+    backupDesc: "このインスタンス全体のダンプです。すべてのワークスペース、すべてのテーブル、暗号化されたシークレットを含みます。データベース本体と同じ水準で保管してください。",
+    backupDownload: "バックアップをダウンロード",
+    backupPreparing: "準備中…",
+    backupFailed: "バックアップに失敗しました",
+    pluginInUse: "{{plugin}} は無効にできません。{{dependents}} が依存しています。先にそちらを無効にしてください。",
+    enableDepsConfirm: "必要な機能も同時に有効化されます：{{deps}}。続行しますか？",
 
     // GeneralSettings
     renameFailed: "名前の変更に失敗しました",

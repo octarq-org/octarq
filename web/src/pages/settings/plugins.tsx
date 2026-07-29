@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, PluginInfo } from "../../api";
-import { Toggle, PageHeader, GlassCard, Badge, Alert } from "../../ui";
+import { Toggle, PageHeader, GlassCard, Badge, Alert, Tooltip, confirmDialog } from "../../ui";
 import { ShieldAlert, Puzzle, Search, Tag, Info } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { menuIcon } from "../../shell/areas";
@@ -71,9 +71,13 @@ export function PluginsSettings() {
         return dep && !dep.enabled;
       });
       if (disabledDeps.length > 0) {
-        if (!confirm(t("settings.enableDepsConfirm", { deps: disabledDeps.join(", ") }))) {
-          return;
-        }
+        const ok = await confirmDialog({
+          title: t("settings.pluginsTitle"),
+          message: t("settings.enableDepsConfirm", { deps: disabledDeps.join(", ") }),
+          confirmLabel: t("settings.badgeOn"),
+          danger: false,
+        });
+        if (!ok) return;
       }
     }
     
@@ -271,13 +275,21 @@ export function PluginsSettings() {
 
                     {/* Locked while something else depends on it. The server
                         enforces this with a 409 regardless — this only saves
-                        the user a round trip to be told no. */}
+                        the user a round trip to be told no. A dead switch is
+                        only honest if it says why, so carry the reason as a
+                        tooltip too: the card's warning line sits below the
+                        fold on a narrow card, and hovering the thing that
+                        didn't respond is where people look first. */}
                     <div className="flex flex-col items-end gap-1">
-                      <Toggle
-                        on={p.enabled}
-                        onChange={(v) => toggle(p.key, v)}
-                        disabled={lockedBy(p).length > 0}
-                      />
+                      {lockedBy(p).length > 0 ? (
+                        <Tooltip
+                          content={t("settings.pluginInUse", { plugin: p.title, dependents: lockedBy(p).join(", ") })}
+                        >
+                          <Toggle on={p.enabled} onChange={() => {}} disabled />
+                        </Tooltip>
+                      ) : (
+                        <Toggle on={p.enabled} onChange={(v) => toggle(p.key, v)} />
+                      )}
                     </div>
                   </div>
 

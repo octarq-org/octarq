@@ -385,6 +385,29 @@ export const api = {
   getUserSettings: () => req<Record<string, string>>("GET", "/api/user/settings"),
   updateUserSettings: (key: string, value: string) => req<{ ok: boolean }>("PUT", "/api/user/settings", { key, value }),
 
+  // Instance backup (instance admins only). Not a `req` call: the response is a
+  // binary database dump, and `req` returns undefined for anything that isn't
+  // JSON. The server names the file in Content-Disposition — it knows the
+  // driver, so it knows whether this is a .db or a .sql — and the caller only
+  // falls back to a generic name if the header is missing.
+  downloadBackup: async (): Promise<{ blob: Blob; filename: string }> => {
+    const res = await fetch("/api/admin/backup");
+    if (!res.ok) {
+      let msg = res.statusText;
+      try {
+        const parsed = await res.json();
+        if (parsed?.error) msg = parsed.error;
+        else if (parsed?.detail) msg = parsed.detail;
+      } catch {
+        /* not JSON — keep statusText */
+      }
+      throw new ApiError(res.status, msg);
+    }
+    const cd = res.headers.get("content-disposition") || "";
+    const m = /filename="?([^"]+)"?/.exec(cd);
+    return { blob: await res.blob(), filename: m?.[1] || "octarq-backup" };
+  },
+
   // GDPR
   exportWorkspaceData: () => req<any>("GET", "/api/account/export"),
   purgeWorkspaceData: () => req<void>("DELETE", "/api/account/data"),
