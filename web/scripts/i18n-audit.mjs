@@ -671,6 +671,84 @@ function collectGoMenus() {
 // areas.tsx/App.tsx, and every entry here is a chance for the two to drift.
 const NON_HEADING_CATEGORIES = new Set(["footer", "resources", "settings"]);
 
+// Every icon key a Go source names, from either place one can appear: a
+// MenuItem's Icon (sidebar) or plugin.Info's Icon (feature card). A key that
+// isn't in the PLUGIN_ICONS table doesn't fail — the shell renders the string
+// itself, so "book" appeared as the word "book" next to Help in the sidebar for
+// as long as it took someone to notice.
+const GO_ICON = /\bIcon:\s*"([^"]*)"/g;
+
+function collectGoIcons() {
+  const icons = [];
+  for (const [root, subdirs] of GO_MENU_ROOTS) {
+    for (const file of goSourceFiles(root, subdirs)) {
+      const code = fs.readFileSync(file, "utf8");
+      for (const m of code.matchAll(GO_ICON)) {
+        if (m[1]) icons.push({ key: m[1], file });
+      }
+    }
+  }
+  return icons;
+}
+
+// The keys of the PLUGIN_ICONS map in web/src/shell/areas.tsx, read from the
+// source rather than restated here — a copy in this script would drift from the
+// table and start passing icons the shell can't resolve.
+function registeredIconKeys() {
+  const file = path.join(webDir, "src/shell/areas.tsx");
+  const sf = ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const keys = new Set();
+  const visit = (node) => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === "PLUGIN_ICONS" &&
+      node.initializer
+    ) {
+      // The map may be written as `{...} as const` / with a type assertion.
+      let init = node.initializer;
+      while (ts.isAsExpression(init) || ts.isTypeAssertionExpression?.(init)) init = init.expression;
+      if (ts.isObjectLiteralExpression(init)) {
+        for (const prop of init.properties) {
+          if (!prop.name) continue;
+          if (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)) keys.add(prop.name.text);
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return keys;
+}
+
+function checkGoMenuIcons() {
+  const registered = registeredIconKeys();
+  if (registered.size === 0) {
+    console.error("❌ parsed no PLUGIN_ICONS entries from web/src/shell/areas.tsx — the table's shape probably changed");
+    hasErrors = true;
+    return;
+  }
+
+  const unknown = [];
+  const seen = new Set();
+  for (const { key, file } of collectGoIcons()) {
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (!registered.has(key)) {
+      const where = file.startsWith(proDir) ? `octarq-pro/${path.relative(proDir, file)}` : path.relative(repoDir, file);
+      unknown.push({ key, where });
+    }
+  }
+
+  if (unknown.length === 0) {
+    console.log(`✅ all ${seen.size} Go icon keys resolve against PLUGIN_ICONS`);
+    return;
+  }
+  console.error(`❌ ${unknown.length} Go icon key(s) are not in PLUGIN_ICONS (the shell renders the string as text):`);
+  for (const u of unknown) console.error(`   ${u.key.padEnd(28)} declared in ${u.where}`);
+  hasErrors = true;
+}
+
 function checkGoMenuI18n(defined) {
   console.log("\n=== Checking Go Menu i18n (sidebar ids & group headings) ===");
 
@@ -702,11 +780,13 @@ function checkGoMenuI18n(defined) {
 
   if (missing.length === 0) {
     console.log(`✅ all ${seenIds.size} Go menu ids and ${seenCats.size} group headings have translations`);
-    return;
+  } else {
+    console.error(`❌ ${missing.length} Go menu label(s) have no translation key (the sidebar silently stays English):`);
+    for (const m of missing) console.error(`   ${m.key.padEnd(28)} declared in ${m.where}`);
+    hasErrors = true;
   }
-  console.error(`❌ ${missing.length} Go menu label(s) have no translation key (the sidebar silently stays English):`);
-  for (const m of missing) console.error(`   ${m.key.padEnd(28)} declared in ${m.where}`);
-  hasErrors = true;
+
+  checkGoMenuIcons();
 }
 
 // ---------------------------------------------------------------------------
