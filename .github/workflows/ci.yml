@@ -128,14 +128,18 @@ jobs:
       # and gets the embedded dashboard from the module zip. CI keeps it fresh so
       # nobody has to build and commit dist locally.
       #
-      # This refreshes it on the PR branch, not on main. Committing to main after
-      # the merge means pushing directly to a protected branch, and branch
-      # protection requires status checks that a bare push cannot have — so every
-      # such push was rejected with GH006 and main's CI went red on every merge
-      # from 2026-07-28 on. Worse than the red X: dist silently stopped being
-      # refreshed, so octarq-pro shipped a dashboard two days older than main.
-      # Refreshing on the branch means the merge carries a current dist through
-      # the normal PR path, with nothing to bypass.
+      # This refreshes it on the PR branch, not on main. The original reason was
+      # that main was protected and required status checks a bare push cannot
+      # have, so every such push was rejected with GH006 and main's CI went red
+      # on every merge from 2026-07-28 on — and worse than the red X, dist
+      # silently stopped being refreshed, so octarq-pro shipped a dashboard two
+      # days older than main.
+      #
+      # That protection has since been removed (as of 2026-07-29 main has no
+      # branch protection rule and no ruleset), so the GH006 rejection no longer
+      # applies. Keep doing it on the branch anyway: the merge then carries a
+      # current dist through the normal PR path, with nothing bypassing review,
+      # and it does not depend on main's protection settings either way.
       #
       # Commits made with GITHUB_TOKEN don't retrigger workflows, so this can't
       # loop, and the check that already passed stays passed.
