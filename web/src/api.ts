@@ -293,6 +293,10 @@ export const api = {
     req<{ ok: boolean }>("POST", "/api/auth/2fa/verify", { username, password, code }),
   forgotPassword: (email: string) => req<{ ok: boolean }>("POST", "/api/auth/forgot", { email }),
   resetPassword: (token: string, password: string) => req<{ ok: boolean }>("POST", "/api/auth/reset", { token, password }),
+  // Authenticated change, as opposed to the emailed reset above. Succeeding
+  // here revokes every other session; this one survives.
+  changePassword: (currentPassword: string, newPassword: string) =>
+    req<{ ok: boolean }>("POST", "/api/auth/password", { currentPassword, newPassword }),
   resendVerification: (email: string) => req<{ ok: boolean }>("POST", "/api/auth/resend-verification", { email }),
   logout: () => req<{ ok: boolean }>("POST", "/api/auth/logout"),
   logoutAll: () => req<{ ok: boolean }>("POST", "/api/auth/logout-all"),

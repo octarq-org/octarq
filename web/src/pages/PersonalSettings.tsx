@@ -10,6 +10,7 @@ import { roleSatisfies, useCurrentRole } from "../shell/role";
 // /settings, so there's no separate /personal route tree.
 export function ProfileSettings() {
   const [email, setEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -24,6 +25,10 @@ export function ProfileSettings() {
   async function updatePassword(e: React.FormEvent) {
     e.preventDefault();
     if (!password) return;
+    if (password.length < 8) {
+      setError(t("personal.passwordTooShort"));
+      return;
+    }
     if (password !== confirmPassword) {
       setError(t("personal.passwordsMismatch"));
       return;
@@ -32,8 +37,9 @@ export function ProfileSettings() {
     setError("");
     setSaved(false);
     try {
-      await new Promise((r) => setTimeout(r, 850));
+      await api.changePassword(currentPassword, password);
       setSaved(true);
+      setCurrentPassword("");
       setPassword("");
       setConfirmPassword("");
     } catch (e: any) {
@@ -62,13 +68,26 @@ export function ProfileSettings() {
             />
           </Field>
 
-          <Field label={t("personal.newPasswordLabel")}>
+          <Field label={t("personal.currentPasswordLabel")}>
+            <input
+              type="password"
+              className="input w-full"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+              required
+            />
+          </Field>
+
+          <Field label={t("personal.newPasswordLabel")} hint={t("personal.newPasswordHint")}>
             <input
               type="password"
               className="input w-full"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
+              autoComplete="new-password"
               required
             />
           </Field>
@@ -80,6 +99,7 @@ export function ProfileSettings() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
+              autoComplete="new-password"
               required
             />
           </Field>
@@ -88,7 +108,7 @@ export function ProfileSettings() {
           {saved && <p className="text-xs text-success-fg font-semibold flex items-center gap-1">{t("personal.passwordUpdated")}</p>}
 
           <div className="pt-2 border-t border-foreground/[0.04] flex justify-end">
-            <Button type="submit" variant="primary" disabled={busy || !password}>
+            <Button type="submit" variant="primary" disabled={busy || !password || !currentPassword}>
               {busy ? t("personal.updating") : t("personal.updatePassword")}
             </Button>
           </div>
