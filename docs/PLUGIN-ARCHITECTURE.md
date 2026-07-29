@@ -66,7 +66,7 @@ interface UIPlugin {
   i18n?: { en; zh }             // merged under the plugin's `name` namespace
   lockedFallback?: Component<{ status: number }>   // 402/404 degrade
 }
-registerUIPlugin(p); uiRoutes(); uiMenus(); uiWidgets(slot); uiAreas(); uiPluginI18n()
+registerUIPlugin(p); uiRoutes(); uiWidgets(slot); uiAreas(); uiPluginI18n()
 ```
 
 **Core pages are UIPlugins too**: links/mail/domains/abuse/audit/assets live in
@@ -101,7 +101,7 @@ ships is *data*, not code:
 
 `web/src/App.tsx` renders `pluginRouteElements()` (every element wrapped in
 **`PluginGate`** — 402 → upsell, 403 → access denied, 404/chunk failure → neutral
-note) and folds `uiMenus()` into the sidebar through the single `mergeAreas`
+note) and folds the backend `/api/menus` answer into the sidebar through the single `mergeAreas`
 pipeline (`areaForCategory` placement + advisory `requiredRole` filtering,
 member < admin < owner with instance-admin bypass, role from `/api/auth/me`);
 a route with no registered plugin 404-degrades (neutral note). Licenses is the

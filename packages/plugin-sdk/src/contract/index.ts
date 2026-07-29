@@ -15,7 +15,6 @@ export {
   registerUIPlugin,
   uiPlugins,
   uiRoutes,
-  uiMenus,
   uiWidgets,
   uiAreas,
   uiPluginI18n,

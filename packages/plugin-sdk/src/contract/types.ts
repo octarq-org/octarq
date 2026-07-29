@@ -107,10 +107,17 @@ export type LockedFallback = ComponentType<{ status: number }>;
 // A frontend plugin: the unit the registry composes. `name` is the stable id
 // and should match the Go `plugin.Plugin.Name()` of its backend counterpart so
 // the two halves of a feature are traceable to each other.
+// Deliberately no `menu`. Sidebar placement is the Go half's MenuProvider,
+// full stop — see PluginMenuItem above. A frontend-declared menu could never
+// stand on its own anyway (the host drops any entry whose path the backend
+// doesn't announce, because that's what makes a disabled feature disappear),
+// so it was only ever a hand-maintained copy of the backend's — and the two
+// drifted: the Go side called /domains "Domains" in Network while the frontend
+// called it "DNS", and links was filed under Operations in one and Marketing in
+// the other. Only one of each pair was ever displayed.
 export interface UIPlugin {
   name: string;
   routes: UIRoute[];
-  menu?: PluginMenuItem[];
   widgets?: UIWidget[];
   areas?: UIArea[];
   i18n?: PluginI18n;

@@ -4,7 +4,6 @@ import {
   registerUIPlugin,
   resetRegistry,
   uiAreas,
-  uiMenus,
   uiPluginI18n,
   uiPluginSharedI18n,
   uiPlugins,
@@ -60,23 +59,6 @@ describe("uiRoutes", () => {
     );
     registerUIPlugin(plugin("b", { routes: [{ path: "/b1", Component: page("b1") }] }));
     expect(uiRoutes().map((r) => r.path)).toEqual(["/a1", "/a2", "/b1"]);
-  });
-});
-
-describe("uiMenus", () => {
-  const item = (id: string) => ({ id, label: id, path: `/${id}`, icon: "star", category: "Tools" });
-
-  it("defaults to an empty array (no plugins, or plugins without menus)", () => {
-    expect(uiMenus()).toEqual([]);
-    registerUIPlugin(plugin("no-menu"));
-    expect(uiMenus()).toEqual([]);
-  });
-
-  it("flattens menus across plugins, skipping plugins without one", () => {
-    registerUIPlugin(plugin("a", { menu: [item("a1"), item("a2")] }));
-    registerUIPlugin(plugin("no-menu"));
-    registerUIPlugin(plugin("b", { menu: [item("b1")] }));
-    expect(uiMenus().map((m) => m.id)).toEqual(["a1", "a2", "b1"]);
   });
 });
 

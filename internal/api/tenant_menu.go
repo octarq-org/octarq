@@ -581,10 +581,10 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 	// own entries via MenuProvider below, so a disabled plugin's path is never
 	// offered.
 	menus := []MenuItem{
-		{ID: "overview", Label: "Overview", Path: "/overview", Icon: "📊", Category: "Operations"},
+		{ID: "overview", Label: "Overview", Path: "/overview", Icon: "layout-dashboard", Category: "Workspace"},
 
-		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "📝", Category: "Compliance"},
-		{ID: "abuse", Label: "Abuse", Path: "/abuse", Icon: "🛡️", Category: "Compliance"},
+		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "scroll-text", Category: "System"},
+		{ID: "abuse", Label: "Abuse Reports", Path: "/abuse", Icon: "shield-alert", Category: "Security"},
 	}
 
 	// Query from plugin providers if they satisfy MenuProvider — but only for

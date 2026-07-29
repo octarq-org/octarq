@@ -58,7 +58,7 @@ func (p *Plugin) Models() []any {
 // when the plugin is mounted and enabled for the workspace.
 func (p *Plugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{
-		{ID: "links", Label: "Links", Path: "/links", Icon: "🔗", Category: "Operations", Order: 10},
+		{ID: "links", Label: "Links", Path: "/links", Icon: "link-2", Category: "Marketing", Order: 10},
 	}
 }
 

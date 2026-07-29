@@ -27,12 +27,6 @@ export function uiRoutes(): UIRoute[] {
   return REGISTRY.flatMap((p) => p.routes);
 }
 
-// Every plugin sidebar entry, flattened — folded into the sidebar alongside
-// dynamic backend menus and placed by the shared `areaForCategory`.
-export function uiMenus(): PluginMenuItem[] {
-  return REGISTRY.flatMap((p) => p.menu ?? []);
-}
-
 // Every widget registered for `slot`, across all plugins, in ascending `order`
 // (missing order sorts as 0; ties keep registration order — Array.sort is
 // stable). Rendered by <ExtensionSlot name={slot}/>. Empty registry ⇒ empty

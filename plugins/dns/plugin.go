@@ -88,7 +88,7 @@ func (p *Plugin) Models() []any {
 // when the plugin is mounted and enabled for the workspace.
 func (p *Plugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{
-		{ID: "domains", Label: "Domains", Path: "/domains", Icon: "globe", Category: "Network", Order: 10},
+		{ID: "domains", Label: "DNS", Path: "/domains", Icon: "globe", Category: "Network", Order: 10},
 	}
 }
 
