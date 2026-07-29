@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -71,16 +70,6 @@ type Config struct {
 func env(key, def string) string {
 	if v, ok := os.LookupEnv(key); ok {
 		return v
-	}
-	return def
-}
-
-// envInt reads an integer env var, falling back to def on absence or parse error.
-func envInt(key string, def int) int {
-	if v, ok := os.LookupEnv(key); ok {
-		if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
-			return n
-		}
 	}
 	return def
 }

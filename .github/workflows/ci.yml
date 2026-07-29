@@ -43,6 +43,11 @@ jobs:
       - name: go test
         run: go test -race -count=1 ./...
 
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
   web:
     name: Frontend build
     runs-on: ubuntu-latest

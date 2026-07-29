@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -17,8 +16,6 @@ import (
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
-
-var errNotFound = errors.New("not found")
 
 // Plugin implements the octarq plugin contract for mail CRUD.
 type Plugin struct {

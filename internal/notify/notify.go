@@ -18,10 +18,6 @@ import (
 	"github.com/octarq-org/octarq/internal/safehttp"
 )
 
-// webhookClient is SSRF-hardened: notification webhook URLs are user-supplied,
-// so a channel pointed at an internal/metadata address must be refused.
-var webhookClient = safehttp.NewWebhookClient(10 * time.Second)
-
 // Provider delivers a notification for one channel type. cfgJSON is the
 // channel's stored JSON config; text is the message body.
 type Provider func(ctx context.Context, cfgJSON, text string) error

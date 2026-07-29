@@ -230,21 +230,6 @@ func (h *Handler) isReservedSlug(slug string) bool {
 	return false
 }
 
-// isReservedMailbox reports whether a mailbox local-part is reserved (excluded
-// from catch-all auto-creation).
-func (h *Handler) isReservedMailbox(orgID uint, addr string) bool {
-	local := strings.ToLower(addr)
-	if at := strings.Index(local, "@"); at >= 0 {
-		local = local[:at]
-	}
-	for _, r := range splitList(h.GetWorkspaceSetting(orgID, keyReservedMailboxes)) {
-		if r == local {
-			return true
-		}
-	}
-	return false
-}
-
 // --- handlers ---
 
 type GetSettingsInput struct {

@@ -604,8 +604,9 @@ func extractBounceEvents(body []byte) []bounceEvent {
 		var results []bounceEvent
 
 		// 1. SES Format
-		if nType, ok := m["notificationType"].(string); ok && (nType == "Bounce" || nType == "Complaint") {
-			if nType == "Bounce" {
+		if nType, ok := m["notificationType"].(string); ok {
+			switch nType {
+			case "Bounce":
 				if bMap, ok := m["bounce"].(map[string]any); ok {
 					bType, _ := bMap["bounceType"].(string)
 					bSubType, _ := bMap["bounceSubType"].(string)
@@ -624,7 +625,7 @@ func extractBounceEvents(body []byte) []bounceEvent {
 						}
 					}
 				}
-			} else if nType == "Complaint" {
+			case "Complaint":
 				if cMap, ok := m["complaint"].(map[string]any); ok {
 					feed, _ := cMap["complaintFeedbackType"].(string)
 					details := fmt.Sprintf("Complaint Feedback Type: %s", feed)

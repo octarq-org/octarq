@@ -246,7 +246,7 @@ func (p *Plugin) overview(orgID uint, includeBot bool) map[string]any {
 		Select("strftime('%Y-%m-%d', created_at) as key, count(*) as count").
 		Group("key").Order("key ASC").Scan(&series)
 	// Postgres uses to_char; fall back when sqlite strftime yields nothing.
-	if len(series) == 0 && p.db.Dialector.Name() == "postgres" {
+	if len(series) == 0 && p.db.Name() == "postgres" {
 		botFilter(p.db.Model(&LinkEvent{}).
 			Where("link_id IN (?) AND created_at >= ?", orgLinks, since30)).
 			Select("to_char(created_at, 'YYYY-MM-DD') as key, count(*) as count").
