@@ -136,7 +136,7 @@ export function AuthenticationSettings() {
     }
   }
 
-  async function clearField(field: "googleClientSecret" | "githubClientSecret", confirmKey: string) {
+  async function clearSecret(field: "googleClientSecret" | "githubClientSecret", confirmKey: string) {
     if (!(await confirmDialog(t(confirmKey)))) return;
     await api.updateInstanceSettings({ [field]: "" } as Record<string, string>);
     reload();
@@ -229,7 +229,7 @@ export function AuthenticationSettings() {
                   placeholder={settings.googleClientSecretSet ? t("settings.secretSet") : t("settings.secretValue")}
                 />
                 {settings.googleClientSecretSet && (
-                  <Button variant="danger" onClick={() => clearField("googleClientSecret", "settings.clearGoogleSecret")} className="px-2.5 py-1 text-xs">
+                  <Button variant="danger" onClick={() => clearSecret("googleClientSecret", "settings.clearGoogleSecret")} className="px-2.5 py-1 text-xs">
                     {t("settings.clear")}
                   </Button>
                 )}
@@ -275,7 +275,7 @@ export function AuthenticationSettings() {
                   placeholder={settings.githubClientSecretSet ? t("settings.secretSet") : t("settings.secretValue")}
                 />
                 {settings.githubClientSecretSet && (
-                  <Button variant="danger" onClick={() => clearField("githubClientSecret", "settings.clearGithubSecret")} className="px-2.5 py-1 text-xs">
+                  <Button variant="danger" onClick={() => clearSecret("githubClientSecret", "settings.clearGithubSecret")} className="px-2.5 py-1 text-xs">
                     {t("settings.clear")}
                   </Button>
                 )}

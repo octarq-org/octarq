@@ -65,7 +65,17 @@ function SessionsList() {
     <div className="divide-y divide-foreground/[0.04] rounded-xl border border-foreground/[0.05] overflow-hidden">
       {sessions.map((s) => {
         const ua = parseUA(s.userAgent);
-        const browserName = ua.browserKey ? t(`settings.${ua.browserKey}`) : ua.browser;
+        // Spelled out rather than t(`settings.${ua.browserKey}`): an
+        // interpolated key is invisible to the audit's key-resolution check,
+        // and worse, it registers "settings." as a dynamic prefix, which
+        // exempts every settings.* key from the unreferenced-key report. Same
+        // reason SCOPE_LABEL in PersonalSettings.tsx is an explicit map.
+        const browserName =
+          ua.browserKey === "uaUnknown"
+            ? t("settings.uaUnknown")
+            : ua.browserKey === "uaBrowser"
+              ? t("settings.uaBrowser")
+              : ua.browser;
         return (
           <div key={s.id} className="flex items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
