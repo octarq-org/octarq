@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, WebhookEventGroup } from "../../api";
-import { Field, Modal, Toggle, PageHeader, GlassCard, Button, toast } from "../../ui";
+import { Field, Modal, Toggle, PageHeader, GlassCard, Button, toast, confirmDialog } from "../../ui";
 import { Trash2, Plus } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../shell/role";
@@ -33,7 +33,7 @@ export function WebhooksSettings() {
     setSelected((prev) => { const next = new Set(prev); for (const e of g.events) { if (on) next.add(e.key); else next.delete(e.key); } return next; });
   }
 
-  async function del(id: number) { if (!confirm(t("settings.confirmDeleteWebhook"))) return; await api.deleteWebhook(id); setWebhooks((w) => w.filter((h) => h.id !== id)); }
+  async function del(id: number) { if (!(await confirmDialog(t("settings.confirmDeleteWebhook")))) return; await api.deleteWebhook(id); setWebhooks((w) => w.filter((h) => h.id !== id)); }
   async function toggle(h: any) { const u = await api.updateWebhook(h.id, { enabled: !h.enabled }); setWebhooks((w) => w.map((x) => x.id === h.id ? u : x)); }
   async function create(e: React.FormEvent) {
     e.preventDefault();

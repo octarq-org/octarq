@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../api";
-import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast, Alert } from "../../ui";
+import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast, Alert, confirmDialog } from "../../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useSettingsData, useInstanceSettingsData, SavedBadge } from "./shared";
@@ -41,7 +41,7 @@ function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
     const msg = isSelf
       ? t("settings.logoutThisDevice")
       : t("settings.revokeSessionConfirm");
-    if (!confirm(msg)) return;
+    if (!(await confirmDialog(msg))) return;
     setRevoking(id);
     try {
       const r = await api.revokeSession(id);
@@ -154,7 +154,7 @@ export function SecuritySettings() {
   }
 
   async function logoutAll() {
-    if (!confirm(t("settings.signOutEveryDevice"))) return;
+    if (!(await confirmDialog(t("settings.signOutEveryDevice")))) return;
     setBusy(true); setErr("");
     try {
       await api.logoutAll();

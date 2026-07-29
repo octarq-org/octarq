@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, Domain, HostEntry, ProviderAccount } from "../../../api";
 import { dnsApi, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus } from "../api";
-import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert } from "../../../ui";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert, confirmDialog } from "../../../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
@@ -94,7 +94,7 @@ export function RecordsView({ domain }: { domain: Domain }) {
                   <td className="py-3 pr-4 text-right">
                     <div className="flex gap-1.5 justify-end">
                       {canManageRecords && <Button variant="ghost" className="px-2 py-0.5 text-[10px]" onClick={() => setEditing(r)}>{t("domains.edit")}</Button>}
-                      {canManageRecords && <Button variant="danger" className="px-2 py-0.5 text-[10px] text-danger-fg border-0" onClick={async () => { if (confirm(t("domains.deleteRecordConfirm", { type: r.type, name: r.name }))) { await dnsApi.deleteRecord(domain.id, r.id); load(); } }}>{t("domains.del")}</Button>}
+                      {canManageRecords && <Button variant="danger" className="px-2 py-0.5 text-[10px] text-danger-fg border-0" onClick={async () => { if (await confirmDialog(t("domains.deleteRecordConfirm", { type: r.type, name: r.name }))) { await dnsApi.deleteRecord(domain.id, r.id); load(); } }}>{t("domains.del")}</Button>}
                     </div>
                   </td>
                 </tr>

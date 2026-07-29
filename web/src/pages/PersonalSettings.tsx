@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, Token } from "../api";
-import { Empty, Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toast } from "../ui";
+import { Empty, Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toast, confirmDialog } from "../ui";
 import { User, Key, Settings, CheckCircle, Trash2, Eye, ClipboardCopy } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { roleSatisfies, useCurrentRole } from "../shell/role";
@@ -132,7 +132,7 @@ export function ApiTokens() {
   }, []);
 
   async function remove(id: number) {
-    if (!confirm(t("personal.revokeConfirm"))) return;
+    if (!(await confirmDialog(t("personal.revokeConfirm")))) return;
     await api.deleteToken(id);
     load();
   }

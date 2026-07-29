@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { api } from "../../api";
-import { Field, Toggle, PageHeader, GlassCard, Button } from "../../ui";
+import { Field, Toggle, PageHeader, GlassCard, Button, confirmDialog } from "../../ui";
 import { Mail, ChevronDown, Check } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useInstanceSettingsData } from "./shared";
@@ -136,7 +136,7 @@ export function AuthenticationSettings() {
   }
 
   async function clearSecret(field: "googleClientSecret" | "githubClientSecret", confirmKey: string) {
-    if (!confirm(t(confirmKey))) return;
+    if (!(await confirmDialog(t(confirmKey)))) return;
     await api.updateInstanceSettings({ [field]: "" } as Record<string, string>);
     reload();
   }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Domain } from "../../../api";
 import { dnsApi, DDNSToken, CreateDDNSTokenResult } from "../api";
-import { GlassCard, Button, Modal, Field, Badge, Empty, timeAgo, toast, Alert } from "../../../ui";
+import { GlassCard, Button, Modal, Field, Badge, Empty, timeAgo, toast, Alert, confirmDialog } from "../../../ui";
 import { KeyRound, Plus, Trash2, Copy, Check, AlertTriangle } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
@@ -79,7 +79,7 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
   }
 
   async function handleDeleteToken(id: number) {
-    if (!window.confirm(t("domains.revokeConfirm"))) {
+    if (!(await confirmDialog(t("domains.revokeConfirm")))) {
       return;
     }
     try {
