@@ -194,7 +194,7 @@ export function PluginsSettings() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={t("common.search") || "Search plugins or #tags..."}
+                placeholder={t("common.search")}
                 className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-accent-fg/30 text-foreground placeholder:text-muted-foreground"
               />
             </div>

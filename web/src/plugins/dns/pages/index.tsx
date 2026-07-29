@@ -135,7 +135,7 @@ export default function DomainsPage() {
               : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >
-          {t("domains.tabDdns") || "Dynamic DNS"}
+          {t("domains.tabDdns")}
         </button>
         <button
           onClick={() => setTab('settings')}

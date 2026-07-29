@@ -2,6 +2,7 @@
 // locales fall back to English values.
 export const es = {
   common: {
+    done: "Listo",
     search: "Buscar…",
     cancel: "Cancelar",
     confirm: "Confirmar",
@@ -10,6 +11,13 @@ export const es = {
     language: "Idioma",
   },
   app: {
+    forgotPasswordTitle: "Restablecer contraseña",
+    forgotPasswordDesc: "Introduce el correo de tu cuenta para recibir un enlace de restablecimiento",
+    forgotPasswordLink: "¿Olvidaste tu contraseña?",
+    sendResetLink: "Enviar enlace",
+    forgotSentNotice: "Si existe una cuenta con ese correo, se ha enviado un enlace de restablecimiento.",
+    backToSignIn: "Volver al inicio de sesión",
+    emailVerifiedSuccess: "¡Correo verificado! Ya puedes iniciar sesión.",
     collapseMenu: "Contraer menú",
     personalWorkspace: "Espacio personal",
     createWorkspace: "Crear espacio de trabajo",
@@ -56,6 +64,8 @@ export const es = {
     storageDesc: "Configurar buckets de Cloudflare R2, AWS S3 o Backblaze B2",
   },
   topbar: {
+    lightMode: "Modo claro",
+    darkMode: "Modo oscuro",
     workspaces: "Espacios de trabajo",
     newWorkspace: "+ Nuevo espacio de trabajo",
     switchWorkspace: "Cambiar espacio de trabajo",
@@ -108,7 +118,30 @@ export const es = {
     instance: "Configuración de Instancia",
     "instance-plugins": "Complementos",
   },
+  reset: {
+    heading: "Restablece tu contraseña",
+    intro: "Introduce una nueva contraseña para tu cuenta.",
+    newPasswordLabel: "Nueva contraseña",
+    confirmPasswordLabel: "Confirmar nueva contraseña",
+    submit: "Restablecer contraseña",
+    resetting: "Restableciendo…",
+    successHeading: "Restablecimiento completado",
+    successBody: "Tu contraseña se ha actualizado. Redirigiendo al inicio de sesión…",
+    noTokenWarning: "El enlace de restablecimiento es inválido o falta.",
+    errTokenMissing: "Falta el token de restablecimiento en el enlace.",
+    errPasswordTooShort: "La contraseña debe tener al menos 8 caracteres.",
+    errPasswordMismatch: "Las contraseñas no coinciden.",
+    errResetFailed: "No se pudo restablecer la contraseña.",
+  },
+  footer: {
+    help: "Ayuda y recursos",
+    docs: "Documentación",
+    about: "Acerca de Octarq",
+    github: "GitHub",
+    contact: "Contacto",
+  },
   status: {
+    loadingSystemStatus: "Cargando el estado del sistema…",
     title: "Estado del sistema",
     desc: "Estado de salud en tiempo real de los servicios y subsistemas de Octarq",
     allSystemsOperational: "Todos los sistemas operacionales",

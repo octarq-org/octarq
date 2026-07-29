@@ -3,6 +3,7 @@ import type { Resources } from "./en";
 // 简体中文资源。缺失的键会回退到英文。
 export const zh: Resources = {
   common: {
+    done: "完成",
     search: "搜索…",
     cancel: "取消",
     confirm: "确认",
@@ -11,6 +12,13 @@ export const zh: Resources = {
     language: "语言",
   },
   app: {
+    forgotPasswordTitle: "重置密码",
+    forgotPasswordDesc: "输入账号邮箱以接收重置链接",
+    forgotPasswordLink: "忘记密码？",
+    sendResetLink: "发送重置链接",
+    forgotSentNotice: "如果该邮箱对应的账号存在，重置链接已发送。",
+    backToSignIn: "返回登录",
+    emailVerifiedSuccess: "邮箱验证成功！现在可以登录了。",
     collapseMenu: "收起菜单",
     personalWorkspace: "个人工作区",
     createWorkspace: "创建工作区",
@@ -57,6 +65,8 @@ export const zh: Resources = {
     storageDesc: "配置 Cloudflare R2、AWS S3 或 Backblaze B2 存储桶",
   },
   topbar: {
+    lightMode: "浅色模式",
+    darkMode: "深色模式",
     workspaces: "工作区",
     newWorkspace: "+ 新建工作区",
     switchWorkspace: "切换工作区",
@@ -109,7 +119,30 @@ export const zh: Resources = {
     instance: "实例配置",
     "instance-plugins": "插件",
   },
+  reset: {
+    heading: "重置你的密码",
+    intro: "请在下方输入账号的新密码。",
+    newPasswordLabel: "新密码",
+    confirmPasswordLabel: "确认新密码",
+    submit: "重置密码",
+    resetting: "正在重置…",
+    successHeading: "密码重置完成",
+    successBody: "密码已更新，正在跳转到登录页…",
+    noTokenWarning: "密码重置链接无效或缺失。",
+    errTokenMissing: "链接中缺少重置令牌。",
+    errPasswordTooShort: "密码至少需要 8 个字符。",
+    errPasswordMismatch: "两次输入的密码不一致。",
+    errResetFailed: "重置密码失败。",
+  },
+  footer: {
+    help: "帮助与资源",
+    docs: "文档",
+    about: "关于 Octarq",
+    github: "GitHub",
+    contact: "联系我们",
+  },
   status: {
+    loadingSystemStatus: "正在加载系统状态…",
     title: "系统状态",
     desc: "Octarq 各核心服务与子系统的实时运行健康状态",
     allSystemsOperational: "所有系统运行正常",

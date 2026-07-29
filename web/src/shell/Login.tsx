@@ -125,23 +125,23 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
           <BrandMark size="lg" className="mx-auto mb-4" />
           <h1 className="font-display text-2xl font-bold text-foreground">
             {mode === "register"
-              ? t("app.createAccount") || "Create Account"
+              ? t("app.createAccount")
               : mode === "forgot"
-              ? t("app.forgotPasswordTitle") || "Reset Password"
+              ? t("app.forgotPasswordTitle")
               : t("app.signInTo", { app: appName })}
           </h1>
           <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
             {mode === "register"
-              ? t("app.registerSubtitle") || "Enter your details to create a new workspace"
+              ? t("app.registerSubtitle")
               : mode === "forgot"
-              ? t("app.forgotPasswordDesc") || "Enter your account email to receive a reset link"
-              : t("app.loginSubtitle") || "Sign in to manage your domains and services"}
+              ? t("app.forgotPasswordDesc")
+              : t("app.loginSubtitle")}
           </p>
         </div>
 
         {isVerifiedNotice && (
           <Alert variant="success" icon={<CheckCircle2 className="h-4 w-4 shrink-0" />} className="mb-4 text-xs p-3 rounded-xl">
-            <span>{t("app.emailVerifiedSuccess") || "Email verified successfully! You can now sign in."}</span>
+            <span>{t("app.emailVerifiedSuccess")}</span>
           </Alert>
         )}
 
@@ -155,7 +155,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
               <div className="pt-1">
                 {verifySent ? (
                   <p className="text-success-fg font-medium">
-                    ✓ {t("app.verificationSent") || "Verification email sent. Please check your inbox."}
+                    ✓ {t("app.verificationSent")}
                   </p>
                 ) : (
                   <button
@@ -166,8 +166,8 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
                   >
                     <Mail className="h-3.5 w-3.5" />
                     {resendingVerify
-                      ? t("app.sending") || "Sending..."
-                      : t("app.resendVerificationBtn") || "Resend Verification Email"}
+                      ? t("app.sending")
+                      : t("app.resendVerificationBtn")}
                   </button>
                 )}
               </div>
@@ -178,21 +178,21 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
         {mode === "forgot" && forgotSent ? (
           <div className="text-center py-4 space-y-4">
             <Alert variant="success" icon={<CheckCircle2 className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
-              <span>{t("app.forgotSentNotice") || "If an account exists with that email, a reset link has been sent."}</span>
+              <span>{t("app.forgotSentNotice")}</span>
             </Alert>
             <button
               type="button"
               onClick={() => switchMode("login")}
               className="text-xs text-accent-fg hover:underline font-medium"
             >
-              {t("app.backToSignIn") || "Back to Sign In"}
+              {t("app.backToSignIn")}
             </button>
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-4">
             <div>
               <label className="label" htmlFor="login-username">
-                {mode === "register" || mode === "forgot" ? t("app.email") || "Email Address" : t("app.username")}
+                {mode === "register" || mode === "forgot" ? t("app.email") : t("app.username")}
               </label>
               <input
                 id="login-username"
@@ -218,7 +218,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
                       onClick={() => switchMode("forgot")}
                       className="text-xs text-accent-fg hover:underline"
                     >
-                      {t("app.forgotPasswordLink") || "Forgot password?"}
+                      {t("app.forgotPasswordLink")}
                     </button>
                   )}
                 </div>
@@ -260,12 +260,12 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
                 ? mode === "register"
                   ? t("app.creating")
                   : mode === "forgot"
-                  ? t("app.sending") || "Sending..."
+                  ? t("app.sending")
                   : t("app.signingIn")
                 : mode === "register"
                 ? t("app.createAccountBtn")
                 : mode === "forgot"
-                ? t("app.sendResetLink") || "Send Reset Link"
+                ? t("app.sendResetLink")
                 : needs2FA
                 ? t("app.verifyOtp")
                 : t("app.signIn")}
@@ -278,7 +278,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
         {mode === "forgot" && !forgotSent && (
           <p className="mt-4 text-center text-xs text-muted-foreground">
             <button type="button" onClick={() => switchMode("login")} className="text-accent-fg hover:underline font-medium">
-              {t("app.backToSignIn") || "Back to Sign In"}
+              {t("app.backToSignIn")}
             </button>
           </p>
         )}

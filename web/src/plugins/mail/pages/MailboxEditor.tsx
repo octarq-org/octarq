@@ -39,7 +39,7 @@ export function MailboxEditor({
       if (box) {
         await mailApi.updateMailbox(box.id, { note, enabled });
       } else {
-        if (!prefix.trim() || !domain) return setErr(t("mail.prefixRequired"));
+        if (!prefix.trim() || !domain) return setErr(t("mail.prefixDomainRequired"));
         await mailApi.createMailbox({ address: `${prefix.trim()}@${domain}`, note, enabled });
       }
       onSaved();

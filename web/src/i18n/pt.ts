@@ -2,6 +2,7 @@
 // locales fall back to these values.
 export const pt = {
   common: {
+    done: "Concluído",
     search: "Pesquisar…",
     cancel: "Cancelar",
     confirm: "Confirmar",
@@ -10,6 +11,13 @@ export const pt = {
     language: "Idioma",
   },
   app: {
+    forgotPasswordTitle: "Redefinir senha",
+    forgotPasswordDesc: "Informe o e-mail da sua conta para receber um link de redefinição",
+    forgotPasswordLink: "Esqueceu a senha?",
+    sendResetLink: "Enviar link",
+    forgotSentNotice: "Se existir uma conta com esse e-mail, um link de redefinição foi enviado.",
+    backToSignIn: "Voltar para o login",
+    emailVerifiedSuccess: "E-mail verificado com sucesso! Você já pode entrar.",
     collapseMenu: "Recolher menu",
     personalWorkspace: "Workspace Pessoal",
     createWorkspace: "Criar Workspace",
@@ -56,6 +64,8 @@ export const pt = {
     storageDesc: "Configure buckets Cloudflare R2, AWS S3 ou Backblaze B2",
   },
   topbar: {
+    lightMode: "Modo claro",
+    darkMode: "Modo escuro",
     workspaces: "Workspaces",
     newWorkspace: "+ Novo workspace",
     switchWorkspace: "Alternar workspace",
@@ -108,7 +118,30 @@ export const pt = {
     instance: "Configurações da Instância",
     "instance-plugins": "Plugins",
   },
+  reset: {
+    heading: "Redefina sua senha",
+    intro: "Digite uma nova senha para a sua conta abaixo.",
+    newPasswordLabel: "Nova senha",
+    confirmPasswordLabel: "Confirmar nova senha",
+    submit: "Redefinir senha",
+    resetting: "Redefinindo…",
+    successHeading: "Redefinição concluída",
+    successBody: "Sua senha foi atualizada. Redirecionando para o login…",
+    noTokenWarning: "Link de redefinição inválido ou ausente.",
+    errTokenMissing: "O token de redefinição está ausente no link.",
+    errPasswordTooShort: "A senha deve ter pelo menos 8 caracteres.",
+    errPasswordMismatch: "As senhas não coincidem.",
+    errResetFailed: "Falha ao redefinir a senha.",
+  },
+  footer: {
+    help: "Ajuda e recursos",
+    docs: "Documentação",
+    about: "Sobre o Octarq",
+    github: "GitHub",
+    contact: "Contato",
+  },
   status: {
+    loadingSystemStatus: "Carregando o status do sistema…",
     title: "Status do sistema",
     desc: "Status de saúde em tempo real dos serviços e subsistemas do Octarq",
     allSystemsOperational: "Todos os sistemas operacionais",

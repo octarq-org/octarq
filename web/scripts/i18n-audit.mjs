@@ -306,9 +306,273 @@ function checkHardcodedStrings() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Part 3: Key Resolution Audit — references vs definitions
+// ---------------------------------------------------------------------------
+//
+// Parts 1 and 2 check locale parity and untranslated literals. Neither catches
+// the two failure modes that actually shipped:
+//
+//   - `t("settings.pluginInUse")` with that key defined in NO locale, not even
+//     en. Parity is perfect (all five are equally missing), nothing is
+//     hardcoded, and the UI renders the literal string "settings.pluginInUse".
+//   - `t("pageTitle")` where the key really lives at `storage.pageTitle`,
+//     because a UIPlugin's dictionary is nested under its `name`. Same silent
+//     result: the key itself renders as the label.
+//
+// Both are invisible to a reader (t() falls back to the key, which looks like a
+// plausible identifier, not an error) and invisible to tsc (t takes a string).
+// So resolve every static key against the dictionary the runtime actually
+// builds, and flag the reverse too: keys defined and translated five times over
+// that nothing references.
+
+// Mirrors the runtime merge in packages/plugin-sdk/src/i18n and
+// contract/registry.ts. Namespacing rules, which differ by source:
+//   - web/src/i18n/en.ts        → keys sit at the root
+//   - web/src/i18n/pages/x.ts   → nested under the export name ("settings.save")
+//   - a UIPlugin's `i18n`       → nested under the plugin's `name`, EXCEPT
+//                                 `_shared`, which merges at the root
+function collectObjectKeys(node, prefix, out) {
+  if (!node || !ts.isObjectLiteralExpression(node)) return;
+  for (const prop of node.properties) {
+    if (!ts.isPropertyAssignment(prop)) continue;
+    const name = ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name) ? prop.name.text : null;
+    if (name === null) continue;
+    const keyPath = prefix ? `${prefix}.${name}` : name;
+    if (ts.isObjectLiteralExpression(prop.initializer)) {
+      collectObjectKeys(prop.initializer, keyPath, out);
+    } else {
+      out.add(keyPath);
+    }
+  }
+}
+
+// findProp returns the initializer of a named property on an object literal.
+function findProp(objLit, name) {
+  for (const prop of objLit.properties) {
+    if (!ts.isPropertyAssignment(prop)) continue;
+    const n = ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name) ? prop.name.text : null;
+    if (n === name) return prop.initializer;
+  }
+  return null;
+}
+
+// Dictionary literals reached by name (`i18n: settings`) rather than written
+// inline, so a UIPlugin that imports its dictionary still resolves. Maps the
+// local identifier to its object literal, per file and across the i18n.ts files
+// a plugin package imports from.
+function indexDictionaryIdentifiers(sourceFiles) {
+  const byName = new Map();
+  for (const sf of sourceFiles) {
+    const visit = (node) => {
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+        if (ts.isObjectLiteralExpression(node.initializer)) {
+          byName.set(node.name.text, node.initializer);
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+  }
+  return byName;
+}
+
+function definedKeysFor(sourceFiles, dictIdents) {
+  const defined = new Set();
+  // Where each key was defined, for the "never referenced" report.
+  const origin = new Map();
+
+  const record = (keys, file) => {
+    for (const k of keys) {
+      defined.add(k);
+      if (!origin.has(k)) origin.set(k, file);
+    }
+  };
+
+  for (const sf of sourceFiles) {
+    const rel = sf.fileName;
+    const isShellDict = /web\/src\/i18n\/(en)\.ts$/.test(rel);
+    const isPageDict = /web\/src\/i18n\/pages\/[^/]+\.ts$/.test(rel) && !rel.endsWith("index.ts");
+
+    const visit = (node) => {
+      // Two shapes, and they nest differently:
+      //   web/src/i18n/en.ts       → `export const en = { common: {...}, … }`
+      //     the object IS the root dictionary, no per-locale wrapper.
+      //   web/src/i18n/pages/x.ts  → `export const x = { en: {...}, zh: {...} }`
+      //     the en block hangs off the export name.
+      if (
+        (isShellDict || isPageDict) &&
+        ts.isVariableDeclaration(node) &&
+        ts.isIdentifier(node.name) &&
+        node.initializer &&
+        ts.isObjectLiteralExpression(node.initializer)
+      ) {
+        if (isShellDict) {
+          const keys = new Set();
+          collectObjectKeys(node.initializer, "", keys);
+          record(keys, rel);
+        } else {
+          const en = findProp(node.initializer, "en");
+          if (en && ts.isObjectLiteralExpression(en)) {
+            const keys = new Set();
+            collectObjectKeys(en, node.name.text, keys);
+            record(keys, rel);
+          }
+        }
+      }
+
+      // A UIPlugin object literal: has both `name` (string) and `i18n`.
+      if (ts.isObjectLiteralExpression(node)) {
+        const nameProp = findProp(node, "name");
+        const i18nProp = findProp(node, "i18n");
+        if (nameProp && i18nProp && ts.isStringLiteral(nameProp)) {
+          const pluginName = nameProp.text;
+          let dictLit = null;
+          if (ts.isObjectLiteralExpression(i18nProp)) dictLit = i18nProp;
+          else if (ts.isIdentifier(i18nProp)) dictLit = dictIdents.get(i18nProp.text) ?? null;
+          if (dictLit) {
+            const en = findProp(dictLit, "en");
+            if (en && ts.isObjectLiteralExpression(en)) {
+              const keys = new Set();
+              for (const prop of en.properties) {
+                if (!ts.isPropertyAssignment(prop)) continue;
+                const n = ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name) ? prop.name.text : null;
+                if (n === null) continue;
+                // `_shared` merges at the root; everything else hangs off the
+                // plugin name.
+                const base = n === "_shared" ? "" : pluginName;
+                if (n === "_shared" && ts.isObjectLiteralExpression(prop.initializer)) {
+                  collectObjectKeys(prop.initializer, base, keys);
+                } else if (ts.isObjectLiteralExpression(prop.initializer)) {
+                  collectObjectKeys(prop.initializer, `${pluginName}.${n}`, keys);
+                } else {
+                  keys.add(`${pluginName}.${n}`);
+                }
+              }
+              record(keys, rel);
+            }
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+  }
+  return { defined, origin };
+}
+
+// Every t("…") / t(`…`) call. Static keys resolve exactly; a key built by
+// concatenation or interpolation (t(`help.group.${g}`), t("settings.pluginDesc." + k))
+// can only contribute a PREFIX — the suffix is runtime data, so any defined key
+// under that prefix counts as referenced and none of them can be checked.
+function collectReferences(sourceFiles) {
+  const staticRefs = [];
+  const dynamicPrefixes = [];
+
+  for (const sf of sourceFiles) {
+    const visit = (node) => {
+      if (ts.isCallExpression(node)) {
+        const callee = node.expression;
+        const isT =
+          (ts.isIdentifier(callee) && callee.text === "t") ||
+          (ts.isPropertyAccessExpression(callee) && callee.name.text === "t");
+        const arg = node.arguments[0];
+        if (isT && arg) {
+          const line = sf.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+          if (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg)) {
+            staticRefs.push({ key: arg.text, file: sf.fileName, line });
+          } else if (ts.isTemplateExpression(arg)) {
+            dynamicPrefixes.push(arg.head.text);
+          } else if (ts.isBinaryExpression(arg) && arg.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+            let left = arg.left;
+            while (ts.isBinaryExpression(left)) left = left.left;
+            if (ts.isStringLiteral(left)) dynamicPrefixes.push(left.text);
+          }
+          // t(someVariable) contributes nothing either way: it can't be
+          // resolved, and it can't be used to prove a key is dead. Such keys
+          // surface as false positives in the unreferenced report, which is why
+          // that report is a warning and not a failure.
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+  }
+  return { staticRefs, dynamicPrefixes };
+}
+
+function parseAll(files) {
+  return files.map((f) =>
+    ts.createSourceFile(f, fs.readFileSync(f, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX),
+  );
+}
+
+function getSourceFiles(dir) {
+  let res = [];
+  if (!fs.existsSync(dir)) return res;
+  for (const f of fs.readdirSync(dir)) {
+    const p = path.join(dir, f);
+    const stat = fs.statSync(p);
+    if (stat.isDirectory()) {
+      if (f !== "node_modules" && f !== "dist" && f !== ".git") res = res.concat(getSourceFiles(p));
+    } else if (/\.(ts|tsx)$/.test(f) && !/\.(test|spec)\.tsx?$/.test(f)) {
+      res.push(p);
+    }
+  }
+  return res;
+}
+
+function checkKeyResolution() {
+  console.log("\n=== Checking i18n Key Resolution (references vs definitions) ===");
+
+  const roots = [path.join(webDir, "src")];
+  if (fs.existsSync(path.join(proDir, "packages"))) roots.push(path.join(proDir, "packages"));
+
+  const files = roots.flatMap(getSourceFiles);
+  const sourceFiles = parseAll(files);
+  const dictIdents = indexDictionaryIdentifiers(sourceFiles);
+  const { defined, origin } = definedKeysFor(sourceFiles, dictIdents);
+  const { staticRefs, dynamicPrefixes } = collectReferences(sourceFiles);
+
+  const display = (f) => (f.startsWith(proDir) ? path.relative(proDir, f) : path.relative(repoDir, f));
+
+  // 3a. Referenced but never defined — this is a bug on screen, so it fails.
+  const unresolved = staticRefs.filter((r) => !defined.has(r.key));
+  if (unresolved.length > 0) {
+    console.error(`❌ ${unresolved.length} t() key(s) resolve to nothing (the key itself renders):`);
+    for (const r of unresolved) {
+      // Point at the likely namespace when one exists, since the usual cause is
+      // a missing plugin-name prefix rather than a truly absent key.
+      const suffixMatch = [...defined].filter((d) => d.endsWith(`.${r.key}`));
+      const hint = suffixMatch.length === 1 ? `  → did you mean "${suffixMatch[0]}"?` : "";
+      console.error(`   ${display(r.file)}:${r.line}  t("${r.key}")${hint}`);
+    }
+    hasErrors = true;
+  }
+
+  // 3b. Defined but never referenced — dead weight, translated five times over.
+  // A warning, not a failure: t(variable) call sites are unresolvable, so this
+  // list can name a key that is genuinely used.
+  const referenced = new Set(staticRefs.map((r) => r.key));
+  const orphans = [...defined].filter(
+    (k) => !referenced.has(k) && !dynamicPrefixes.some((p) => k.startsWith(p)),
+  );
+  if (orphans.length > 0) {
+    console.warn(`\n⚠️  ${orphans.length} defined key(s) with no static reference (candidates for deletion):`);
+    for (const k of orphans.sort()) {
+      console.warn(`   ${k}   [${display(origin.get(k))}]`);
+    }
+  }
+
+  if (unresolved.length === 0) {
+    console.log(`✅ all ${staticRefs.length} static t() keys resolve`);
+  }
+}
+
 // Run audits
 checkDictionaryCompleteness();
 checkHardcodedStrings();
+checkKeyResolution();
 
 if (hasErrors) {
   console.error("\n❌ i18n audit failed with errors above.");

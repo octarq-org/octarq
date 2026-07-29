@@ -2,6 +2,7 @@
 // locales fall back to these values.
 export const en = {
   common: {
+    done: "Done",
     search: "Search…",
     cancel: "Cancel",
     confirm: "Confirm",
@@ -10,6 +11,13 @@ export const en = {
     language: "Language",
   },
   app: {
+    forgotPasswordTitle: "Reset Password",
+    forgotPasswordDesc: "Enter your account email to receive a reset link",
+    forgotPasswordLink: "Forgot password?",
+    sendResetLink: "Send Reset Link",
+    forgotSentNotice: "If an account exists with that email, a reset link has been sent.",
+    backToSignIn: "Back to Sign In",
+    emailVerifiedSuccess: "Email verified successfully! You can now sign in.",
     collapseMenu: "Collapse menu",
     personalWorkspace: "Personal Workspace",
     createWorkspace: "Create Workspace",
@@ -56,6 +64,8 @@ export const en = {
     storageDesc: "Configure Cloudflare R2, AWS S3, or Backblaze B2 buckets",
   },
   topbar: {
+    lightMode: "Light mode",
+    darkMode: "Dark mode",
     workspaces: "Workspaces",
     newWorkspace: "+ New workspace",
     switchWorkspace: "Switch workspace",
@@ -118,7 +128,30 @@ export const en = {
     instance: "Instance Settings",
     "instance-plugins": "Plugins",
   },
+  reset: {
+    heading: "Reset Your Password",
+    intro: "Enter a new password for your account below.",
+    newPasswordLabel: "New Password",
+    confirmPasswordLabel: "Confirm New Password",
+    submit: "Reset Password",
+    resetting: "Resetting…",
+    successHeading: "Password Reset Complete",
+    successBody: "Your password has been updated. Redirecting to sign in…",
+    noTokenWarning: "Invalid or missing password reset link.",
+    errTokenMissing: "Reset token is missing from the link.",
+    errPasswordTooShort: "Password must be at least 8 characters.",
+    errPasswordMismatch: "Passwords do not match.",
+    errResetFailed: "Failed to reset password.",
+  },
+  footer: {
+    help: "Help & resources",
+    docs: "Documentation",
+    about: "About Octarq",
+    github: "GitHub",
+    contact: "Contact",
+  },
   status: {
+    loadingSystemStatus: "Loading system status…",
     title: "System Status",
     desc: "Real-time health status of Octarq services and subsystems",
     allSystemsOperational: "All Systems Operational",

@@ -59,6 +59,7 @@ export const settings = {
 
     // GeneralSettings
     renameFailed: "rename failed",
+    renameSaved: "Workspace name updated",
     exportFailed: "Export failed",
     typeToConfirm: "Please type '{{phrase}}' exactly to confirm.",
     workspaceDeleted: "Your workspace and all of its data have been deleted.",
@@ -387,6 +388,7 @@ export const settings = {
 
     // GeneralSettings
     renameFailed: "重命名失败",
+    renameSaved: "工作区名称已更新",
     exportFailed: "导出失败",
     typeToConfirm: "请准确输入 '{{phrase}}' 以确认。",
     workspaceDeleted: "你的工作区及其所有数据已被删除。",
@@ -715,6 +717,7 @@ export const settings = {
 
     // GeneralSettings
     renameFailed: "error al renombrar",
+    renameSaved: "Nombre del espacio de trabajo actualizado",
     exportFailed: "Error al exportar",
     typeToConfirm: "Escriba '{{phrase}}' exactamente para confirmar.",
     workspaceDeleted: "Su espacio de trabajo y todos sus datos han sido eliminados.",
@@ -1043,6 +1046,7 @@ export const settings = {
 
     // GeneralSettings
     renameFailed: "falha ao renomear",
+    renameSaved: "Nome do workspace atualizado",
     exportFailed: "Falha ao exportar",
     typeToConfirm: "Por favor digite '{{phrase}}' exatamente para confirmar.",
     workspaceDeleted: "Seu workspace e todos os seus dados foram excluídos.",
@@ -1371,6 +1375,7 @@ export const settings = {
 
     // GeneralSettings
     renameFailed: "名前の変更に失敗しました",
+    renameSaved: "ワークスペース名を更新しました",
     exportFailed: "エクスポートに失敗しました",
     typeToConfirm: "確認のため「{{phrase}}」と正確に入力してください。",
     workspaceDeleted: "ワークスペースとそのすべてのデータが削除されました。",

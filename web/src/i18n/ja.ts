@@ -2,6 +2,7 @@
 // locales fall back to these values.
 export const ja = {
   common: {
+    done: "完了",
     search: "検索…",
     cancel: "キャンセル",
     confirm: "確認",
@@ -10,6 +11,13 @@ export const ja = {
     language: "言語",
   },
   app: {
+    forgotPasswordTitle: "パスワードをリセット",
+    forgotPasswordDesc: "アカウントのメールアドレスを入力すると、リセットリンクが届きます",
+    forgotPasswordLink: "パスワードをお忘れですか？",
+    sendResetLink: "リセットリンクを送信",
+    forgotSentNotice: "そのメールアドレスのアカウントが存在する場合、リセットリンクを送信しました。",
+    backToSignIn: "サインインに戻る",
+    emailVerifiedSuccess: "メールアドレスを確認しました。サインインできます。",
     collapseMenu: "メニューを折りたたむ",
     personalWorkspace: "パーソナル Workspace",
     createWorkspace: "Workspace を作成",
@@ -56,6 +64,8 @@ export const ja = {
     storageDesc: "Cloudflare R2、AWS S3、または Backblaze B2 バケットを設定します",
   },
   topbar: {
+    lightMode: "ライトモード",
+    darkMode: "ダークモード",
     workspaces: "Workspaces",
     newWorkspace: "+ 新規 Workspace",
     switchWorkspace: "Workspace を切り替える",
@@ -108,7 +118,30 @@ export const ja = {
     instance: "インスタンス設定",
     "instance-plugins": "プラグイン",
   },
+  reset: {
+    heading: "パスワードのリセット",
+    intro: "アカウントの新しいパスワードを入力してください。",
+    newPasswordLabel: "新しいパスワード",
+    confirmPasswordLabel: "新しいパスワード（確認）",
+    submit: "パスワードをリセット",
+    resetting: "リセット中…",
+    successHeading: "パスワードのリセットが完了しました",
+    successBody: "パスワードを更新しました。サインイン画面に移動します…",
+    noTokenWarning: "パスワードリセットのリンクが無効か、見つかりません。",
+    errTokenMissing: "リンクにリセットトークンが含まれていません。",
+    errPasswordTooShort: "パスワードは 8 文字以上にしてください。",
+    errPasswordMismatch: "パスワードが一致しません。",
+    errResetFailed: "パスワードのリセットに失敗しました。",
+  },
+  footer: {
+    help: "ヘルプとリソース",
+    docs: "ドキュメント",
+    about: "Octarq について",
+    github: "GitHub",
+    contact: "お問い合わせ",
+  },
   status: {
+    loadingSystemStatus: "システム状態を読み込み中…",
     title: "システムステータス",
     desc: "Octarq サービスおよびサブシステムのリアルタイムヘルスステータス",
     allSystemsOperational: "すべてのシステムが正常に稼働中",

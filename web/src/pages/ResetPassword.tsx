@@ -9,7 +9,7 @@ import { BrandMark } from "../shell/BrandMark";
 export default function ResetPasswordPage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
-  const token = searchParams.get("token") || "";
+  const token = searchParams.get("token");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -20,15 +20,15 @@ export default function ResetPasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token) {
-      setErr(t("reset.errTokenMissing") || "Reset token is missing from the link.");
+      setErr(t("reset.errTokenMissing"));
       return;
     }
     if (password.length < 8) {
-      setErr(t("reset.errPasswordTooShort") || "Password must be at least 8 characters.");
+      setErr(t("reset.errPasswordTooShort"));
       return;
     }
     if (password !== confirmPassword) {
-      setErr(t("reset.errPasswordMismatch") || "Passwords do not match.");
+      setErr(t("reset.errPasswordMismatch"));
       return;
     }
 
@@ -42,7 +42,7 @@ export default function ResetPasswordPage() {
         window.location.reload();
       }, 2000);
     } catch (e: any) {
-      setErr(e.message || t("reset.errResetFailed") || "Failed to reset password.");
+      setErr(e.message || t("reset.errResetFailed"));
     } finally {
       setBusy(false);
     }
@@ -57,10 +57,10 @@ export default function ResetPasswordPage() {
           <BrandMark size="lg" className="mx-auto mb-3" />
           <h1 className="font-display text-xl font-bold text-foreground flex items-center justify-center gap-2">
             <ShieldCheck className="h-5 w-5 text-accent-fg" />
-            {t("reset.heading") || "Reset Your Password"}
+            {t("reset.heading")}
           </h1>
           <p className="text-xs text-foreground/50 mt-1.5 leading-relaxed">
-            {t("reset.intro") || "Enter a new password for your account below."}
+            {t("reset.intro")}
           </p>
         </div>
 
@@ -70,22 +70,22 @@ export default function ResetPasswordPage() {
               ✓
             </div>
             <h2 className="text-base font-semibold text-foreground">
-              {t("reset.successHeading") || "Password Reset Complete"}
+              {t("reset.successHeading")}
             </h2>
             <p className="text-xs text-foreground/40">
-              {t("reset.successBody") || "Your password has been updated. Redirecting to sign in..."}
+              {t("reset.successBody")}
             </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {!token && (
               <Alert variant="danger" className="text-xs p-3 rounded-xl">
-                {t("reset.noTokenWarning") || "Invalid or missing password reset link."}
+                {t("reset.noTokenWarning")}
               </Alert>
             )}
 
             <div>
-              <label className="label">{t("reset.newPasswordLabel") || "New Password"}</label>
+              <label className="label">{t("reset.newPasswordLabel")}</label>
               <div className="relative mt-1">
                 <input
                   type="password"
@@ -100,7 +100,7 @@ export default function ResetPasswordPage() {
             </div>
 
             <div>
-              <label className="label">{t("reset.confirmPasswordLabel") || "Confirm New Password"}</label>
+              <label className="label">{t("reset.confirmPasswordLabel")}</label>
               <div className="relative mt-1">
                 <input
                   type="password"
@@ -117,7 +117,7 @@ export default function ResetPasswordPage() {
             {err && <p className="text-xs text-danger-fg leading-normal">{err}</p>}
 
             <Button type="submit" variant="primary" className="w-full mt-2" disabled={busy || !token}>
-              {busy ? t("reset.resetting") || "Resetting..." : t("reset.submit") || "Reset Password"}
+              {busy ? t("reset.resetting") : t("reset.submit")}
             </Button>
           </form>
         )}

@@ -20,6 +20,7 @@ export const uiCommon = {
     direct: "(direct)",
     copied: "copied ✓",
     clickToCopy: "click to copy",
+    toggleTheme: "Toggle theme",
   },
   zh: {
     lockedIntroPre: "这是 ",
@@ -42,6 +43,7 @@ export const uiCommon = {
     direct: "(直接访问)",
     copied: "已复制 ✓",
     clickToCopy: "点击复制",
+    toggleTheme: "切换主题",
   },
   es: {
     lockedIntroPre: "Esta es una función ",
@@ -64,6 +66,7 @@ export const uiCommon = {
     direct: "(directo)",
     copied: "copiado ✓",
     clickToCopy: "clic para copiar",
+    toggleTheme: "Cambiar tema",
   },
   pt: {
     lockedIntroPre: "Este é um recurso ",
@@ -86,6 +89,7 @@ export const uiCommon = {
     direct: "(direto)",
     copied: "copiado ✓",
     clickToCopy: "clique para copiar",
+    toggleTheme: "Alternar tema",
   },
   ja: {
     lockedIntroPre: "これは ",
@@ -108,5 +112,6 @@ export const uiCommon = {
     direct: "(直接)",
     copied: "コピー済み ✓",
     clickToCopy: "クリックしてコピー",
+    toggleTheme: "テーマを切り替え",
   },
 };
