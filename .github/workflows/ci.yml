@@ -89,6 +89,18 @@ jobs:
       - name: Color lint
         run: pnpm lint:colors
 
+      # Gates three classes that typecheck can't see, because every one of them
+      # is a valid string: a locale missing keys the others have, user-visible
+      # English hardcoded into JSX, and a t() key that resolves to nothing (which
+      # renders the key itself on screen). octarq-pro isn't checked out here, so
+      # the audit's Pro half is skipped — it runs locally where both repos sit
+      # side by side.
+      - name: i18n audit
+        run: pnpm i18n:audit
+
+      - name: Test dashboard
+        run: pnpm test
+
       # plugin-sdk is a member of the web workspace (../packages/*), so its
       # deps are already installed by the pnpm install above.
       - name: Test plugin SDK

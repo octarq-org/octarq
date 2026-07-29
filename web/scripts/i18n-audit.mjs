@@ -8,7 +8,12 @@ const __dirname = path.dirname(__filename);
 
 const webDir = path.resolve(__dirname, "..");
 const repoDir = path.resolve(webDir, "..");
-const proDir = "/Volumes/PHD/code/octarq-pro";
+// The commercial repo, when it's checked out beside this one: its plugin
+// packages carry UI that this dictionary feeds, so auditing them together
+// catches a key that only one side knows about. Absent (CI, a third-party
+// clone) every Pro check simply doesn't run — the path is probed, never
+// required.
+const proDir = process.env.OCTARQ_PRO_DIR || path.resolve(repoDir, "../octarq-pro");
 
 let hasErrors = false;
 
@@ -192,6 +197,10 @@ const ALLOWLIST_EXACT = new Set([
   "admin&#10;postmaster",
   "smtp.mailgun.org",
   "noreply@domain.com",
+  // ACME account email placeholder (plugin-infra certificates page) and the S3
+  // key-prefix placeholder next to it — both are input examples, not copy.
+  "admin@example.com",
+  "folder/",
   "deploy/cloudflare-email-worker.js",
   "user.login",
   "workspace",
@@ -211,6 +220,7 @@ const ALLOWLIST_EXACT = new Set([
 
 // Pattern-based allowlist for non-translatable text formats:
 const ALLOWLIST_PATTERNS = [
+  /^(?:&[a-z]+;|\s)+$/,                 // Bare HTML entities (&mdash; &bull; &larr;) — typography, not copy
   /^https?:\/\//,                       // URLs
   /^data:/,                             // Data URIs
   /^\//,                                // Absolute paths
