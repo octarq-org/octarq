@@ -6,6 +6,7 @@ import { BrandMark } from "./BrandMark";
 import { useTranslation } from "../i18n";
 import { Alert } from "../ui";
 import { ExtensionSlot } from "../plugin-sdk";
+import { oauthBeginPath } from "./oauthRoutes";
 
 export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
   const [u, setU] = useState("admin");
@@ -307,7 +308,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
             <div className="grid grid-cols-1 gap-2">
               {oauthConfig.googleEnabled && (
                 <a
-                  href="/auth/begin/google"
+                  href={oauthBeginPath("google")}
                   className="flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm text-foreground/70 hover:bg-surface-hover transition-colors font-medium"
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
@@ -321,7 +322,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
               )}
               {oauthConfig.githubEnabled && (
                 <a
-                  href="/auth/begin/github"
+                  href={oauthBeginPath("github")}
                   className="flex items-center justify-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm text-foreground/70 hover:bg-surface-hover transition-colors font-medium"
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">

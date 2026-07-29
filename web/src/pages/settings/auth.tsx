@@ -5,6 +5,7 @@ import { Mail, ChevronDown, Check } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useInstanceSettingsData } from "./shared";
 import { ExtensionSlot } from "../../plugin-sdk";
+import { oauthCallbackPath } from "../../shell/oauthRoutes";
 
 // Provider glyphs — inline so they don't depend on the icon set (matches the
 // SVGs the Login page uses for the OAuth buttons).
@@ -155,9 +156,18 @@ export function AuthenticationSettings() {
 
   // A read-only callback URL field with copy affordance — providers need the
   // exact redirect URI registered on their side.
-  const CallbackField = ({ path }: { path: string }) => (
+  //
+  // The path is built here rather than passed in per provider: both call sites
+  // used to spell it out, and both spelled it wrong ("/api/auth/google/callback"
+  // against a real route of "/auth/callback/google" — wrong prefix AND wrong
+  // order). An operator who copied it into the Google or GitHub console
+  // registered a redirect URI that 404s, so OAuth sign-in never worked, and
+  // nothing on this screen could reveal that: the field is read-only decoration
+  // that the app itself never fetches. oauthCallbackPath is checked against the
+  // Go route by oauthRoutes.test.ts.
+  const CallbackField = ({ provider }: { provider: string }) => (
     <Field label={t("settings.callbackUrl", "Callback URL")} hint={t("settings.callbackUrlHint", "Register this exact URL with the provider.")}>
-      <input readOnly className="input w-full cursor-text bg-well font-mono text-xs text-foreground/80" value={`${origin}${path}`} />
+      <input readOnly className="input w-full cursor-text bg-well font-mono text-xs text-foreground/80" value={`${origin}${oauthCallbackPath(provider)}`} />
     </Field>
   );
 
@@ -225,7 +235,7 @@ export function AuthenticationSettings() {
                 )}
               </div>
             </Field>
-            <CallbackField path="/api/auth/google/callback" />
+            <CallbackField provider="google" />
             <div className="flex items-center gap-3 pt-1">
               <Button
                 variant="primary"
@@ -271,7 +281,7 @@ export function AuthenticationSettings() {
                 )}
               </div>
             </Field>
-            <CallbackField path="/api/auth/github/callback" />
+            <CallbackField provider="github" />
             <div className="flex items-center gap-3 pt-1">
               <Button
                 variant="primary"
