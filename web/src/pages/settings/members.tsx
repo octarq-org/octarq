@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../api";
-import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog } from "../../ui";
-import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
+import { api, OrgMember } from "../../api";
+import { Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog } from "../../ui";
+import { Users } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { useSettingsData, SavedBadge } from "./shared";
 
 export function OrgMembersManager() {
   const { t } = useTranslation();
@@ -15,6 +13,11 @@ export function OrgMembersManager() {
   const [role, setRole] = useState("member");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Set when the invited address had no account yet and the server minted an
+  // accept link. Shown rather than discarded: the email carrying it is
+  // best-effort server-side, so on an instance with no mail plugin this dialog
+  // is the only copy anyone ever sees.
+  const [inviteLink, setInviteLink] = useState("");
 
   async function load() {
     setLoading(true);
@@ -42,7 +45,10 @@ export function OrgMembersManager() {
     setBusy(true);
     setErr("");
     try {
-      await api.addOrgMember({ email, role });
+      const res = await api.addOrgMember({ email, role });
+      if (res?.inviteUrl) {
+        setInviteLink(`${window.location.origin}${res.inviteUrl}`);
+      }
       setEmail("");
       setRole("member");
       load();
@@ -141,6 +147,33 @@ export function OrgMembersManager() {
         </div>
       )}
     </GlassCard>
+
+    {inviteLink && (
+      <Modal title={t("settings.inviteCreatedTitle")} onClose={() => setInviteLink("")}>
+        <div className="space-y-4">
+          <p className="text-xs text-foreground/60">{t("settings.inviteCreatedDesc")}</p>
+          <div className="flex items-center gap-2">
+            <input
+              readOnly
+              className="input w-full cursor-text bg-well font-mono text-xs text-foreground/80"
+              value={inviteLink}
+              onFocus={(e) => e.currentTarget.select()}
+            />
+            <Button
+              variant="primary"
+              className="shrink-0 text-xs"
+              onClick={() => {
+                navigator.clipboard.writeText(inviteLink);
+                toast.success(t("settings.inviteCopied"));
+              }}
+            >
+              {t("settings.copy")}
+            </Button>
+          </div>
+          <p className="text-xs text-foreground/50">{t("settings.inviteExpiry")}</p>
+        </div>
+      </Modal>
+    )}
     </div>
   );
 }

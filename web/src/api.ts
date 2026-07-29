@@ -378,7 +378,13 @@ export const api = {
   updateOrg: (d: { name: string }) => req<Org>("PUT", "/api/org", d),
   switchOrg: (orgId: number) => req<{ ok: boolean }>("POST", "/api/auth/switch-org", { orgId }),
   orgMembers: () => req<OrgMember[]>("GET", "/api/org/members"),
-  addOrgMember: (d: { email: string; role: string }) => req<{ ok: boolean }>("POST", "/api/org/members", d),
+  // inviteUrl/inviteToken come back only when the address had no account yet.
+  // Delivery of that link by email is best-effort on the server (it needs the
+  // mail plugin mounted and an SMTP sender configured, and failures are logged,
+  // not returned), so the caller has to surface the link — otherwise on an
+  // instance without mail the invite exists and nobody can reach it.
+  addOrgMember: (d: { email: string; role: string }) =>
+    req<{ ok: boolean; inviteToken?: string; inviteUrl?: string }>("POST", "/api/org/members", d),
   deleteOrgMember: (userId: number) => req<void>("DELETE", `/api/org/members/${userId}`),
 
   // menus and user settings
