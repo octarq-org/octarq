@@ -408,6 +408,15 @@ type MenuItem struct {
 	Icon     string `json:"icon"`     // emoji or icon key
 	Category string `json:"category"` // default category
 	Order    int    `json:"order,omitempty"`
+	// RequiredRole hides the entry from anyone below this org role
+	// ("member" / "admin" / "owner"); empty shows it to everyone. It is a UX
+	// hint only — the endpoints behind the page do their own enforcement, and
+	// must, since nothing stops a caller from requesting the path directly.
+	//
+	// Set it whenever every route behind the menu entry is role-gated. Omitting
+	// it there produces a nav item that leads only to a permission error, which
+	// is how /roles behaved: visible to every member, 403 on arrival.
+	RequiredRole string `json:"requiredRole,omitempty"`
 }
 
 // MenuProvider is an optional interface a Plugin may implement if it registers

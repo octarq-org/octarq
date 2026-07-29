@@ -546,6 +546,11 @@ type MenuItem struct {
 	Icon     string `json:"icon"`
 	Category string `json:"category"`
 	Order    int    `json:"order,omitempty"`
+	// Mirrors plugin.MenuItem.RequiredRole. The frontend has read this field
+	// since the sidebar was written (App.tsx drops entries the current role
+	// doesn't satisfy) but nothing could ever set it: neither this struct nor
+	// plugin.MenuItem had the field, so the filter was permanently a no-op.
+	RequiredRole string `json:"requiredRole,omitempty"`
 }
 
 type ListMenusInput struct {
@@ -601,12 +606,13 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 		if mp, ok := p.(plugin.MenuProvider); ok {
 			for _, m := range mp.Menus() {
 				menus = append(menus, MenuItem{
-					ID:       m.ID,
-					Label:    m.Label,
-					Path:     m.Path,
-					Icon:     m.Icon,
-					Category: m.Category,
-					Order:    m.Order,
+					ID:           m.ID,
+					Label:        m.Label,
+					Path:         m.Path,
+					Icon:         m.Icon,
+					Category:     m.Category,
+					Order:        m.Order,
+					RequiredRole: m.RequiredRole,
 				})
 			}
 		}
