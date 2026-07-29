@@ -481,13 +481,19 @@ func (h *Handler) listInstancePlugins(ctx context.Context, input *ListInstancePl
 			reqs = []string{}
 		}
 
+		key := plugin.FeatureKey(p)
 		out = append(out, instancePluginOut{
-			Name:             p.Name(),
-			FeatureKey:       plugin.FeatureKey(p),
-			Title:            info.Title,
-			Category:         cat,
-			Core:             info.Core,
-			EnabledByDefault: info.EnabledByDefault,
+			Name:       p.Name(),
+			FeatureKey: key,
+			Title:      info.Title,
+			Category:   cat,
+			// Effective, not declared. This table's Kind column is what an
+			// instance admin reads to answer "can a workspace turn this off",
+			// and the answer belongs to the feature: a plugin that shares its
+			// key with a Core sibling is always on however its own Info reads.
+			// Showing info.Core here would label it "Opt-in" and be wrong.
+			Core:             plugin.FeatureIsCore(h.plugins, key),
+			EnabledByDefault: h.featureDefaultEnabled(key),
 			Requires:         reqs,
 			HasUI:            hasUI,
 		})
