@@ -201,6 +201,9 @@ const ALLOWLIST_EXACT = new Set([
   // key-prefix placeholder next to it — both are input examples, not copy.
   "admin@example.com",
   "folder/",
+  // Object-key example in the S3 upload dialog. A path is a path in every
+  // language; translating "file" here would suggest the key itself is localised.
+  "folder/file.png",
   "deploy/cloudflare-email-worker.js",
   "user.login",
   "workspace",
@@ -547,7 +550,10 @@ function checkKeyResolution() {
 
   // packages/ on this side holds the plugin SDK, whose own components call t()
   // for the shared uiCommon keys — leave it out and those read as dead.
-  const roots = [path.join(webDir, "src"), path.join(repoDir, "packages")];
+  // examples/ is in scope because it is the plugin authors copy: its dictionary
+  // has to satisfy the same rules the audit enforces everywhere else, or the
+  // reference implementation teaches the gap.
+  const roots = [path.join(webDir, "src"), path.join(repoDir, "packages"), path.join(repoDir, "examples")];
   if (fs.existsSync(path.join(proDir, "packages"))) roots.push(path.join(proDir, "packages"));
 
   const files = roots.flatMap(getSourceFiles);
@@ -593,6 +599,114 @@ function checkKeyResolution() {
   // Reuse the parse — walking every source file twice to answer a second
   // question about the same trees is pure waste.
   checkLocaleCoverage(sourceFiles, dictIdents);
+  checkGoMenuI18n(defined);
+}
+
+// ---------------------------------------------------------------------------
+// Part 5: Go menu i18n — every sidebar entry the backend announces
+// ---------------------------------------------------------------------------
+//
+// Sidebar labels come from the Go half's MenuProvider, and the shell renders
+// them as t(`nav.${id}`, item.label) / t(`groups.${category}`, label). The
+// second argument means a missing key does NOT show the key on screen — it
+// shows the English label the Go source declared. That is why this gap is
+// invisible: the sidebar looks fine in every language, it is simply half
+// untranslated, and nothing in the pipeline complains.
+//
+// navI18n.test.ts asserts the same property, but it reads Go sources through
+// import.meta.glob, which cannot escape the Vite root — so it only ever saw
+// THIS repo's menus. Every Pro menu (15 of them) was unchecked, and two were in
+// fact untranslated. This check runs in the same process as the Pro dictionary
+// scan above, so it can see both sides whenever both are checked out.
+
+const GO_MENU_ROOTS = [
+  [repoDir, ["internal/api", "plugins", "examples"]],
+  [proDir, ["modules"]],
+];
+
+function goSourceFiles(root, subdirs) {
+  const out = [];
+  const walk = (dir) => {
+    if (!fs.existsSync(dir)) return;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "node_modules" || entry.name === "testdata") continue;
+        walk(full);
+      } else if (entry.name.endsWith(".go") && !entry.name.endsWith("_test.go")) {
+        out.push(full);
+      }
+    }
+  };
+  for (const sub of subdirs) walk(path.join(root, sub));
+  return out;
+}
+
+// A MenuItem literal, e.g. {ID: "vps", Label: "Servers", Category: "Hosting", …}.
+// Category is optional in the shape but present on every real entry; an entry
+// without one is skipped rather than guessed at.
+const GO_MENU_LITERAL = /\{ID:\s*"([^"]+)"([^}]*)\}/g;
+const GO_MENU_CATEGORY = /Category:\s*"([^"]*)"/;
+
+function collectGoMenus() {
+  const menus = [];
+  for (const [root, subdirs] of GO_MENU_ROOTS) {
+    for (const file of goSourceFiles(root, subdirs)) {
+      const code = fs.readFileSync(file, "utf8");
+      for (const m of code.matchAll(GO_MENU_LITERAL)) {
+        const cat = GO_MENU_CATEGORY.exec(m[2]);
+        menus.push({ id: m[1], category: cat ? cat[1] : "", file });
+      }
+    }
+  }
+  return menus;
+}
+
+// Categories that never render as a group heading, so they need no groups.* key:
+//   footer / resources → the rail footer, which draws no heading at all
+//   settings           → App.tsx remaps a generic "settings" category to the
+//                        Workspace group inside the Settings area, so the word
+//                        "Settings" is never itself a heading
+// Kept deliberately short: this mirrors placement logic that lives in
+// areas.tsx/App.tsx, and every entry here is a chance for the two to drift.
+const NON_HEADING_CATEGORIES = new Set(["footer", "resources", "settings"]);
+
+function checkGoMenuI18n(defined) {
+  console.log("\n=== Checking Go Menu i18n (sidebar ids & group headings) ===");
+
+  const menus = collectGoMenus();
+  // An empty parse would make this pass vacuously — which is worse than failing,
+  // because the check would go quiet exactly when the Go MenuItem shape changed.
+  if (menus.length < 4) {
+    console.error(`❌ parsed only ${menus.length} Go menu entries — the MenuItem literal shape probably changed`);
+    hasErrors = true;
+    return;
+  }
+
+  const missing = [];
+  const seenIds = new Set();
+  const seenCats = new Set();
+
+  for (const { id, category, file } of menus) {
+    const where = file.startsWith(proDir) ? `octarq-pro/${path.relative(proDir, file)}` : path.relative(repoDir, file);
+    if (!seenIds.has(id)) {
+      seenIds.add(id);
+      if (!defined.has(`nav.${id}`)) missing.push({ key: `nav.${id}`, where });
+    }
+    const cat = category.toLowerCase();
+    if (category && !NON_HEADING_CATEGORIES.has(cat) && !seenCats.has(category)) {
+      seenCats.add(category);
+      if (!defined.has(`groups.${category}`)) missing.push({ key: `groups.${category}`, where });
+    }
+  }
+
+  if (missing.length === 0) {
+    console.log(`✅ all ${seenIds.size} Go menu ids and ${seenCats.size} group headings have translations`);
+    return;
+  }
+  console.error(`❌ ${missing.length} Go menu label(s) have no translation key (the sidebar silently stays English):`);
+  for (const m of missing) console.error(`   ${m.key.padEnd(28)} declared in ${m.where}`);
+  hasErrors = true;
 }
 
 // ---------------------------------------------------------------------------
