@@ -521,3 +521,22 @@ func FeatureKey(p Plugin) string {
 	}
 	return p.Name()
 }
+
+// FeatureIsCore reports whether the feature identified by key is always-on
+// plumbing within the given plugin set.
+//
+// Core-ness belongs to the feature, not to a single member. Several plugins can
+// share one feature key — an OSS half that serves the routes and a Pro half that
+// only contributes content, say — and if either declares Core the feature as a
+// whole is never gated. Deciding per plugin instead lets the halves disagree:
+// the manager offers a toggle that the Core half ignores, so turning the feature
+// "off" leaves its menu and routes live. Every enablement decision (route gate,
+// menu filter, manager listing) goes through this.
+func FeatureIsCore(plugins []Plugin, key string) bool {
+	for _, p := range plugins {
+		if FeatureKey(p) == key && Describe(p).Core {
+			return true
+		}
+	}
+	return false
+}
