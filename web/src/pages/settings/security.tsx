@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../api";
-import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast, Alert, confirmDialog } from "../../ui";
-import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
+import { api, ApiError } from "../../api";
+import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, toast, Alert, confirmDialog } from "../../ui";
+import { Shield } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { useSettingsData, useInstanceSettingsData, SavedBadge } from "./shared";
 
 function parseUA(ua: string): { browser: string; os: string } {
   if (!ua) return { browser: "Unknown", os: "" };
@@ -25,7 +23,7 @@ function parseUA(ua: string): { browser: string; os: string } {
 }
 
 
-function SessionsList({ onRevokeAll }: { onRevokeAll: () => void }) {
+function SessionsList() {
   const { t } = useTranslation();
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,8 +105,6 @@ export function SecuritySettings() {
 
   // Disable state.
   const [disableCode, setDisableCode] = useState("");
-
-  const { s: wS } = useSettingsData();
 
   async function load() {
     try {
@@ -237,7 +233,7 @@ export function SecuritySettings() {
           </Button>
         </div>
         <p className="text-xs text-foreground/50">{t("settings.activeSessionsDesc")}</p>
-        <SessionsList onRevokeAll={logoutAll} />
+        <SessionsList />
       </GlassCard>
 
 

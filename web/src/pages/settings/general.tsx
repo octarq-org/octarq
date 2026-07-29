@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../api";
-import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
-import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
+import { api } from "../../api";
+import { Field, Modal, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
+import { ShieldAlert } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { useSettingsData, SavedBadge } from "./shared";
 
 export function GeneralSettings() {
   const { t } = useTranslation();
@@ -176,8 +174,3 @@ export function GeneralSettings() {
     </div>
   );
 }
-
-// SecuritySettings manages operator-account security: TOTP two-factor
-// enrollment, "log out everywhere" session revocation, and SSO configuration.
-
-// Minimal UA parser — no external deps.
