@@ -4,6 +4,8 @@ export const pt = {
   common: {
     search: "Pesquisar…",
     cancel: "Cancelar",
+    confirm: "Confirmar",
+    confirmTitle: "Tem certeza?",
     signOut: "Sair",
     language: "Idioma",
   },

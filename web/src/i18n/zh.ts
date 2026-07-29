@@ -5,6 +5,8 @@ export const zh: Resources = {
   common: {
     search: "搜索…",
     cancel: "取消",
+    confirm: "确认",
+    confirmTitle: "确认操作",
     signOut: "退出登录",
     language: "语言",
   },

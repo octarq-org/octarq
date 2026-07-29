@@ -4,6 +4,8 @@ export const es = {
   common: {
     search: "Buscar…",
     cancel: "Cancelar",
+    confirm: "Confirmar",
+    confirmTitle: "¿Estás seguro?",
     signOut: "Cerrar sesión",
     language: "Idioma",
   },

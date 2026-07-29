@@ -4,6 +4,8 @@ export const ja = {
   common: {
     search: "検索…",
     cancel: "キャンセル",
+    confirm: "確認",
+    confirmTitle: "よろしいですか？",
     signOut: "サインアウト",
     language: "言語",
   },
