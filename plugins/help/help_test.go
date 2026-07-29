@@ -12,7 +12,6 @@ import (
 
 type mockPlugin struct {
 	name     string
-	isCore   bool
 	helpDocs []plugin.HelpDoc
 }
 

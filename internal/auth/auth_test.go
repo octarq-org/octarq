@@ -210,7 +210,7 @@ func TestRequireMiddleware(t *testing.T) {
 		uid := m.UserID(r)
 		orgID := m.OrgID(r)
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(fmt.Sprintf("uid=%d,orgID=%d", uid, orgID)))
+		fmt.Fprintf(w, "uid=%d,orgID=%d", uid, orgID)
 	}))
 
 	// Case 1: Unauthorized (no cookie, no bearer token)

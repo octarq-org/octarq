@@ -4,7 +4,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net"
 	"net/http"
 	"strconv"
@@ -316,17 +315,4 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeErr(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
-}
-
-func readJSON(r *http.Request, v any) error {
-	defer r.Body.Close()
-	return json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(v) // 1MB limit
-}
-
-func idParam(r *http.Request) (uint, bool) {
-	v, err := strconv.ParseUint(r.PathValue("id"), 10, 64)
-	if err != nil {
-		return 0, false
-	}
-	return uint(v), true
 }
