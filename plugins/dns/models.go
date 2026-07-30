@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"strings"
 	"time"
 
 	"github.com/octarq-org/octarq/internal/models"
@@ -48,6 +49,27 @@ func (d Domain) EffectiveLinkHosts() []string { return d.LinkHosts.Enabled() }
 
 // EffectiveMailHosts returns the enabled hostnames mailboxes live under.
 func (d Domain) EffectiveMailHosts() []string { return d.MailHosts.Enabled() }
+
+// NormalizeHost canonicalises a hostname for comparison against a Domain's
+// Name, LinkHosts or MailHosts: lowercased, trimmed, port removed, trailing dot
+// removed. So "Go.Example.COM:8443" and "go.example.com." both match
+// "go.example.com".
+//
+// It lives here because both the links and mail plugins compare request
+// hostnames against rows of this package's Domain, and each had grown its own
+// copy — three implementations of the same four transformations, which is
+// exactly how one of them ends up subtly different from the others.
+func NormalizeHost(host string) string {
+	host = strings.ToLower(strings.TrimSpace(host))
+	// IPv6 literals arrive bracketed ("[::1]:8080"), so cut after the closing
+	// bracket rather than at the first colon.
+	if i := strings.LastIndex(host, "]"); i >= 0 {
+		host = host[:i+1]
+	} else if i := strings.LastIndex(host, ":"); i >= 0 {
+		host = host[:i]
+	}
+	return strings.TrimSuffix(host, ".")
+}
 
 // DDNSToken stores a hash-authenticated token for dynamic DNS updates.
 type DDNSToken struct {

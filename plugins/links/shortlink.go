@@ -72,7 +72,7 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 	}
 	// A host-scoped link does not resolve if its host is a temporarily disabled
 	// link host. Unmanaged hosts (not listed on any domain) are unaffected.
-	if link.Host != "" && e.linkHostDisabled(host) {
+	if link.Host != "" && e.linkHostDisabled(link.OrgID, host) {
 		return nil, false
 	}
 
@@ -83,45 +83,28 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 	return &link, true
 }
 
-func (e *Engine) resolveHostOrg(host string) uint {
-	normHost := strings.TrimSuffix(stripPort(strings.ToLower(strings.TrimSpace(host))), ".")
-	if normHost == "" || e.db == nil || !e.db.Migrator().HasTable("domains") {
-		return 0
-	}
-	var doms []dns.Domain
-	if err := e.db.Where("for_link = ?", true).Find(&doms).Error; err != nil {
-		return 0
-	}
-	for _, d := range doms {
-		if len(d.LinkHosts) == 0 {
-			if strings.TrimSuffix(stripPort(strings.ToLower(strings.TrimSpace(d.Name))), ".") == normHost {
-				return d.OrgID
-			}
-		} else {
-			for _, h := range d.LinkHosts {
-				if strings.TrimSuffix(stripPort(strings.ToLower(strings.TrimSpace(h.Host))), ".") == normHost {
-					return d.OrgID
-				}
-			}
-		}
-	}
-	return 0
-}
-
-// linkHostDisabled reports whether host is listed as a link host on the owner's domain
-// but every such listing is disabled. Unmanaged hosts (not listed on any domain) are unaffected.
-func (e *Engine) linkHostDisabled(host string) bool {
-	orgID := e.resolveHostOrg(host)
+// linkHostDisabled reports whether host is listed as a link host by orgID but
+// every such listing is disabled. Unmanaged hosts (not listed on that org's
+// domains) are unaffected.
+//
+// orgID is passed in rather than inferred from the hostname. This used to scan
+// every tenant's domains and match on the name alone, so one workspace
+// disabling a host killed redirects for any other workspace using the same
+// name. Inferring the owner from the host instead would only move the bug:
+// LinkHosts entries are not unique across tenants (only Domain.Name is), so two
+// orgs can list the same string and the "owner" would be whichever row the
+// database returned first. The caller always knows whose link it is holding.
+func (e *Engine) linkHostDisabled(orgID uint, host string) bool {
 	if orgID == 0 {
 		return false
 	}
-	normHost := strings.TrimSuffix(stripPort(strings.ToLower(strings.TrimSpace(host))), ".")
+	normHost := normalizeHost(host)
 	var doms []dns.Domain
 	e.db.Where("owner_id = ? AND for_link = ?", orgID, true).Find(&doms)
 	listed := false
 	for _, d := range doms {
 		for _, h := range d.LinkHosts {
-			if strings.TrimSuffix(stripPort(strings.ToLower(strings.TrimSpace(h.Host))), ".") == normHost {
+			if normalizeHost(h.Host) == normHost {
 				listed = true
 				if h.Enabled {
 					return false

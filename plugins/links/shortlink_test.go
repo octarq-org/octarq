@@ -205,15 +205,15 @@ func TestLookupLinkHostDisabled(t *testing.T) {
 	}
 	s.db.Create(&d)
 
-	if !s.linkHostDisabled("disabled.example.com") {
+	if !s.linkHostDisabled(1, "disabled.example.com") {
 		t.Error("expected disabled.example.com to be reported as disabled")
 	}
 
-	if s.linkHostDisabled("enabled.example.com") {
+	if s.linkHostDisabled(1, "enabled.example.com") {
 		t.Error("expected enabled.example.com to NOT be reported as disabled")
 	}
 
-	if s.linkHostDisabled("nonexistent.example.com") {
+	if s.linkHostDisabled(1, "nonexistent.example.com") {
 		t.Error("expected nonexistent.example.com to NOT be reported as disabled")
 	}
 }

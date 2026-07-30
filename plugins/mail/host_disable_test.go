@@ -30,11 +30,14 @@ func TestMailHostDisabledTenantIsolation(t *testing.T) {
 		},
 	})
 
-	// Org A (orgID=1) has a domain with forMail=false and mailHost "x.example" disabled
+	// Org A (orgID=1) lists the SAME hostname on its own mail domain, disabled.
+	// Both orgs must be for_mail, or the two assertions below would be answered
+	// by the for_mail filter rather than by org scoping — and the test would pass
+	// without proving anything.
 	db.Create(&dns.Domain{
 		OrgID:   1,
 		Name:    "attacker.com",
-		ForMail: false, // NOT enabled for mail
+		ForMail: true,
 		MailHosts: models.HostList{
 			models.Host{Host: "x.example", Enabled: false},
 		},
@@ -42,8 +45,20 @@ func TestMailHostDisabledTenantIsolation(t *testing.T) {
 
 	p := &Plugin{db: db}
 
-	// Disabling x.example under Org A's non-mail domain should NOT disable mail for Org B
-	if p.mailHostDisabled("x.example") {
-		t.Fatal("expected mailHostDisabled to return false for Org B's enabled mail host, but got true")
+	// Org B's listing is enabled, so B is not disabled — even though A disabled
+	// the same hostname on its own domain.
+	if p.mailHostDisabled(2, "x.example") {
+		t.Fatal("org A disabling x.example must not disable mail for org B")
+	}
+
+	// The converse, which is what makes the assertion above non-vacuous: without
+	// per-org scoping both calls return the same answer and only one can hold.
+	if !p.mailHostDisabled(1, "x.example") {
+		t.Fatal("org A disabled x.example on its own domain; it must read as disabled for A")
+	}
+
+	// A host no tenant lists is unmanaged, never disabled.
+	if p.mailHostDisabled(1, "unlisted.example") {
+		t.Fatal("an unlisted host must not be reported as disabled")
 	}
 }

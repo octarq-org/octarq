@@ -42,8 +42,22 @@ func TestLinkHostDisabledTenantIsolation(t *testing.T) {
 
 	engine := NewEngine(db, mockCtx())
 
-	// Disabling x.example under Org A should NOT disable shortlink resolution for Org B
-	if engine.linkHostDisabled("x.example") {
-		t.Fatal("expected linkHostDisabled to return false for Org B's enabled link host, but got true")
+	// Org B's listing is enabled, so B is not disabled — even though A disabled
+	// the same hostname on its own domain.
+	if engine.linkHostDisabled(2, "x.example") {
+		t.Fatal("org A disabling x.example must not disable it for org B")
+	}
+
+	// And the converse, which is what makes the assertion above non-vacuous:
+	// A's own listing IS disabled, so A must still see it as disabled. Without
+	// per-org scoping both calls return the same answer and only one of these
+	// two can hold.
+	if !engine.linkHostDisabled(1, "x.example") {
+		t.Fatal("org A disabled x.example on its own domain; it must read as disabled for A")
+	}
+
+	// A host no tenant lists is unmanaged, never disabled.
+	if engine.linkHostDisabled(1, "unlisted.example") {
+		t.Fatal("an unlisted host must not be reported as disabled")
 	}
 }
