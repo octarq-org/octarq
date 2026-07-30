@@ -9,6 +9,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/notify"
 )
@@ -144,6 +145,9 @@ func (h *Handler) listAbuseReports(ctx context.Context, input *ListAbuseReportsI
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
+		return nil, err
+	}
 	q := h.orgDB(r).Order("created_at DESC")
 	if input.Status != "" {
 		q = q.Where("status = ?", input.Status)
@@ -180,6 +184,9 @@ func (h *Handler) updateAbuseReport(ctx context.Context, input *UpdateAbuseRepor
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
+		return nil, err
 	}
 	var rep models.AbuseReport
 	if h.orgDB(r).First(&rep, input.ID).Error != nil {
