@@ -2,6 +2,7 @@ package mail
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"mime"
 	"net"
@@ -89,12 +90,17 @@ func (s *SMTPSender) Send(m Message) error {
 		}
 	}
 
+	// Fail closed when credentials are configured but the server does not offer
+	// AUTH, matching net/smtp.SendMail. Skipping auth instead would silently
+	// deliver unauthenticated whenever a relay stops advertising the capability
+	// — including when something on the path strips it.
 	if s.user != "" {
-		if ok, _ := c.Extension("AUTH"); ok {
-			auth := smtp.PlainAuth("", s.user, s.pass, s.host)
-			if err := c.Auth(auth); err != nil {
-				return err
-			}
+		if ok, _ := c.Extension("AUTH"); !ok {
+			return errors.New("smtp: server doesn't support AUTH")
+		}
+		auth := smtp.PlainAuth("", s.user, s.pass, s.host)
+		if err := c.Auth(auth); err != nil {
+			return err
 		}
 	}
 
