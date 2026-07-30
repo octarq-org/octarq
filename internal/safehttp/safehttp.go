@@ -27,10 +27,15 @@ import (
 // multi-tenant instances stay protected) and only relaxes the webhook client —
 // the link-preview client is always strict. Toggled from config (and tests).
 var allowPrivateWebhooks atomic.Bool
+var allowPrivateSMTP atomic.Bool
 
 // SetAllowPrivateWebhooks opts the webhook/notification client into reaching
 // private addresses. Intended for trusted self-hosted deployments.
 func SetAllowPrivateWebhooks(v bool) { allowPrivateWebhooks.Store(v) }
+
+// SetAllowPrivateSMTP opts outbound SMTP mail delivery into reaching private
+// addresses. Intended for trusted self-hosted deployments.
+func SetAllowPrivateSMTP(v bool) { allowPrivateSMTP.Store(v) }
 
 // DisallowedIP reports whether connecting to ip would reach a loopback,
 // private, link-local, CGNAT, or otherwise non-public address.
@@ -69,6 +74,15 @@ func Control(network, address string, _ syscall.RawConn) error {
 // like Control but honours the allowPrivateWebhooks opt-out.
 func webhookControl(network, address string, rc syscall.RawConn) error {
 	if allowPrivateWebhooks.Load() {
+		return nil
+	}
+	return Control(network, address, rc)
+}
+
+// SMTPControl is the dialer hook for outbound SMTP mail delivery. It is
+// like Control but honours the allowPrivateSMTP opt-out.
+func SMTPControl(network, address string, rc syscall.RawConn) error {
+	if allowPrivateSMTP.Load() {
 		return nil
 	}
 	return Control(network, address, rc)
