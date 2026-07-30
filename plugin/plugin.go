@@ -353,14 +353,21 @@ type DNSRecord struct {
 
 // DNSManager is the DNS-management seam exposed to plugins via Context.DNS. All
 // operations take a octarq domain ID and resolve its zone + provider internally.
+//
+// Every operation also takes the org whose behalf it acts on, and resolves the
+// domain scoped to that org: a domain id alone is a bare primary key, and these
+// calls write into a real zone with that domain's stored provider credentials.
+// Passing the caller's own org is what keeps one tenant out of another's DNS
+// even when the calling plugin forgets to check ownership itself. orgID is
+// required — 0 is rejected rather than treated as "any org".
 type DNSManager interface {
 	// List returns all records in the domain's zone.
-	List(ctx context.Context, domainID uint) ([]DNSRecord, error)
+	List(ctx context.Context, orgID, domainID uint) ([]DNSRecord, error)
 	// Set creates the record when r.ID is empty, otherwise updates it. Returns
 	// the stored record.
-	Set(ctx context.Context, domainID uint, r DNSRecord) (DNSRecord, error)
+	Set(ctx context.Context, orgID, domainID uint, r DNSRecord) (DNSRecord, error)
 	// Delete removes a record by provider record ID.
-	Delete(ctx context.Context, domainID uint, recordID string) error
+	Delete(ctx context.Context, orgID, domainID uint, recordID string) error
 }
 
 // LinkCreator is the short-link creation seam the links plugin publishes under
