@@ -2,11 +2,78 @@ package mail
 
 import (
 	"context"
+	"net"
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 )
+
+func isRestrictedSMTPHostIP(ip net.IP) bool {
+	if ip == nil {
+		return true
+	}
+	if ip.IsLoopback() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return true
+	}
+	if ip4 := ip.To4(); ip4 != nil {
+		// 10.0.0.0/8
+		if ip4[0] == 10 {
+			return true
+		}
+		// 172.16.0.0/12
+		if ip4[0] == 172 && ip4[1] >= 16 && ip4[1] <= 31 {
+			return true
+		}
+		// 192.168.0.0/16
+		if ip4[0] == 192 && ip4[1] == 168 {
+			return true
+		}
+		// 169.254.0.0/16
+		if ip4[0] == 169 && ip4[1] == 254 {
+			return true
+		}
+		return false
+	}
+	// IPv6: fc00::/7 (ULA) and fe80::/10 (Link-local)
+	if len(ip) == net.IPv6len {
+		if (ip[0] & 0xfe) == 0xfc {
+			return true
+		}
+		if ip[0] == 0xfe && (ip[1]&0xc0) == 0x80 {
+			return true
+		}
+	}
+	return false
+}
+
+// validateSMTPTarget validates the host and port for an SMTP sender at write time.
+//
+// Note: This validation is performed at write time to catch invalid ports or direct internal/private IP targets
+// before saving. To avoid TOCTOU and DNS dependency at write time, DNS resolution is handled at dial time.
+func validateSMTPTarget(host string, port int) error {
+	allowedPorts := map[int]bool{25: true, 465: true, 587: true, 2525: true}
+	if !allowedPorts[port] {
+		return huma.Error422UnprocessableEntity("port must be 25, 465, 587, or 2525")
+	}
+
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return huma.Error422UnprocessableEntity("host is required")
+	}
+
+	lowerHost := strings.ToLower(host)
+	if lowerHost == "localhost" || strings.HasSuffix(lowerHost, ".localhost") || strings.HasSuffix(lowerHost, ".local") {
+		return huma.Error422UnprocessableEntity("host cannot be a private or restricted host address")
+	}
+
+	if ip := net.ParseIP(host); ip != nil {
+		if isRestrictedSMTPHostIP(ip) {
+			return huma.Error422UnprocessableEntity("host cannot be a private or restricted IP address")
+		}
+	}
+	return nil
+}
 
 type ListSMTPSendersInput struct {
 	Ctx huma.Context `hidden:"true"`
@@ -75,6 +142,9 @@ func (p *Plugin) createSMTPSender(ctx context.Context, input *CreateSMTPSenderIn
 	pass := input.Body.Pass
 	if name == "" || host == "" || input.Body.Port == 0 || user == "" || pass == "" {
 		return nil, huma.Error400BadRequest("name, host, port, user and pass are required")
+	}
+	if err := validateSMTPTarget(host, input.Body.Port); err != nil {
+		return nil, err
 	}
 
 	if p.encrypt == nil {
@@ -158,6 +228,10 @@ func (p *Plugin) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderIn
 	}
 	if input.Body.FromEmail != nil {
 		sender.FromEmail = strings.TrimSpace(*input.Body.FromEmail)
+	}
+
+	if err := validateSMTPTarget(sender.Host, sender.Port); err != nil {
+		return nil, err
 	}
 
 	if input.Body.Pass != nil && *input.Body.Pass != "" {
