@@ -171,6 +171,9 @@ func TestInboundWebhookForwardsStoredConfig(t *testing.T) {
 // Compile-time guard: notify must take the config as an opaque string. Typing it
 // as a parsed map is what made this plugin decode ciphertext in the first place,
 // so a change back to map[string]any should fail the build, not a test run.
-var _ = func(p *Plugin) {
-	var _ func(context.Context, string, string, string) error = p.notify
-}
+//
+// Written as a call rather than `var _ T = p.notify`, which staticcheck's QF1011
+// rejects for a "redundant" type — the type is the entire point here.
+func assertNotifyHookShape(func(ctx context.Context, kind, cfgJSON, message string) error) {}
+
+var _ = func(p *Plugin) { assertNotifyHookShape(p.notify) }
