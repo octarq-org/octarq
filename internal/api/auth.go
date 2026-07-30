@@ -530,7 +530,9 @@ func (h *Handler) me(ctx context.Context, input *MeInput) (*MeOutput, error) {
 	out := &MeOutput{}
 	out.Body.Username = user.Email
 	out.Body.OrgID = h.orgID(r)
-	out.Body.Role = h.callerOrgRole(r)
+	// The role this credential can actually use — a member-capped token should
+	// not report its holder as an owner to whatever is reading /me.
+	out.Body.Role = string(h.effectiveRole(r))
 	out.Body.EmailVerified = user.EmailVerified
 	return out, nil
 }

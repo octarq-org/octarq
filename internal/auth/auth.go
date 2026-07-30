@@ -468,11 +468,13 @@ func (m *Manager) identify(r *http.Request) (context.Context, bool) {
 		}
 	}
 
-	// 2. Bearer token (API access, no session row). The user id stays 0 — a token
-	// authenticates the workspace, not a person — so role gates read the token's
-	// role ceiling instead (see callerHoldsRole).
+	// 2. Bearer token (API access, no session row). The token acts as the person
+	// who minted it: stamping their user id is what lets the ordinary membership
+	// lookup answer role questions, so there is one authorization path rather
+	// than a parallel one that only bearer requests take. The token's own role is
+	// carried alongside as a ceiling, never as a substitute (see callerHoldsRole).
 	if tok, ok := m.TokenByRequest(r); ok {
-		ctx := context.WithValue(r.Context(), userIDKey, uint(0))
+		ctx := context.WithValue(r.Context(), userIDKey, tok.UserID)
 		ctx = plugin.WithOrgID(ctx, tok.OrgID)
 		ctx = context.WithValue(ctx, sessionIDKey, uint(0))
 		return m.WithTokenIdentity(ctx, tok), true

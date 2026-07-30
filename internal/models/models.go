@@ -228,11 +228,16 @@ type Token struct {
 	Hash   string `gorm:"uniqueIndex;size:64" json:"-"` // SHA-256 hex of the raw token
 	Prefix string `gorm:"size:32" json:"prefix"`        // e.g. "oct_abcd" for identification
 	Note   string `gorm:"type:text" json:"note"`
-	// Role caps what the token may do: every role gate compares against it
-	// instead of the (absent) user's membership. NULL/empty means unrestricted,
-	// which is what every token minted before scoping existed carries — narrowing
-	// those retroactively would silently break CI jobs, scripts and integrations
-	// already in the wild. New tokens are minted with an explicit role.
+	// UserID is the person the token acts as. A token borrows its holder's
+	// membership rather than carrying standalone authority, so removing someone
+	// from the workspace takes their tokens with them — the role is read live on
+	// every request, not frozen at mint time. It also means an API call lands in
+	// the audit log attributed to a person instead of to nobody.
+	UserID uint `gorm:"index;not null" json:"userId"`
+	// Role narrows the token *below* its holder — it never widens it. The
+	// effective role is min(the user's role in OrgID, this). That is what lets an
+	// owner hand CI a read-only token instead of a copy of their own account.
+	// Empty is read as "member", matching what minting defaults to.
 	Role       string     `gorm:"size:32" json:"role"`
 	LastUsedAt *time.Time `json:"lastUsedAt"`
 	// ExpiresAt bounds the token's validity. NULL = never expires (back-compat for

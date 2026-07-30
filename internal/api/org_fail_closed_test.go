@@ -118,8 +118,17 @@ func TestAuditLogIncludesTokenIDForBearerToken(t *testing.T) {
 	const orgID = uint(301)
 
 	rawToken := "oct_test_bearer_token_12345"
+	// The token acts as this person, and DELETE /api/tokens/{id} is admin-gated,
+	// so the holder has to actually hold that role — the point of the change
+	// being that a token borrows a membership rather than carrying its own.
+	const holderUID = uint(301)
+	if err := db.Create(&models.OrgMember{OrgID: orgID, UserID: holderUID, Role: "admin"}).Error; err != nil {
+		t.Fatalf("seed member: %v", err)
+	}
 	tok := models.Token{
 		OrgID:  orgID,
+		UserID: holderUID,
+		Role:   "admin",
 		Name:   "Audit Test Token",
 		Hash:   models.HashToken(rawToken),
 		Prefix: "oct_test",
@@ -146,8 +155,12 @@ func TestAuditLogIncludesTokenIDForBearerToken(t *testing.T) {
 		t.Fatalf("audit log row not found: %v", err)
 	}
 
-	if logRow.ActorID != 0 {
-		t.Errorf("logRow.ActorID = %d, want 0 for bearer token", logRow.ActorID)
+	// An API call is now attributable to a person, not just to a credential.
+	// This asserted ActorID == 0 while a token authenticated "as the workspace":
+	// every automated change landed in the log with no actor, and answering
+	// "who deleted this" meant correlating token ids by hand.
+	if logRow.ActorID != holderUID {
+		t.Errorf("logRow.ActorID = %d, want %d — the token's holder", logRow.ActorID, holderUID)
 	}
 
 	var meta map[string]any

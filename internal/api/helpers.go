@@ -87,29 +87,41 @@ func (h *Handler) requireRole(r *http.Request, min authz.Role) error {
 	return huma.Error403Forbidden("forbidden: insufficient workspace role privilege")
 }
 
+// effectiveRole is the authority a request actually carries, and every
+// authorization decision must go through it rather than through callerOrgRole.
+//
+// A bearer token acts as the person who minted it, so the ordinary membership
+// lookup answers for both credentials — one authorization path, not a parallel
+// one only tokens take. The membership is read live, which is what makes
+// removing someone from the workspace revoke their tokens with them.
+//
+// The token's own role then narrows that, and only narrows it: the effective
+// role is min(the holder's membership, the token's cap). Reading callerOrgRole
+// directly skips the cap, which is how a member-capped token briefly became
+// able to grant workspace ownership — the holder was an owner, and the check
+// never asked what the token was allowed to do.
+//
+// An empty cap reads as "member", the same thing minting defaults to, so a row
+// that somehow carries no role is the least privileged rather than the most.
+func (h *Handler) effectiveRole(r *http.Request) authz.Role {
+	role := authz.Role(h.callerOrgRole(r))
+	if auth.TokenIDFromContext(r.Context()) == 0 {
+		return role
+	}
+	cap := authz.Role(auth.TokenRoleFromContext(r.Context()))
+	if cap == "" {
+		cap = authz.RoleMember
+	}
+	if authz.AtLeast(role, cap) {
+		return cap
+	}
+	return role
+}
+
 // callerHoldsRole is the single place both role gates agree on — core's
 // requireRole and, through plugin.Context.RequireRole, every Pro gate.
-//
-// An API bearer token authenticates as the workspace, not as a person: the auth
-// layer deliberately leaves the user id at 0, so callerOrgRole finds no
-// membership row and would return "" for every token request. Comparing against
-// that would refuse every token — CI jobs, scripts, integrations.
-//
-// So a token is judged on the role it was minted with (P2-18) rather than on a
-// membership it does not have. A token with no role is one minted before scoping
-// existed: it keeps the unrestricted access it has always had, because
-// retroactively narrowing tokens already deployed in someone's CI would break
-// them silently, at a time nobody is watching. Those tokens are flagged as
-// unrestricted in the dashboard so an operator can rotate them deliberately.
 func (h *Handler) callerHoldsRole(r *http.Request, min authz.Role) bool {
-	if auth.TokenIDFromContext(r.Context()) != 0 {
-		role := auth.TokenRoleFromContext(r.Context())
-		if role == "" {
-			return true // legacy token, minted before P2-18
-		}
-		return authz.AtLeast(authz.Role(role), min)
-	}
-	return authz.AtLeast(authz.Role(h.callerOrgRole(r)), min)
+	return authz.AtLeast(h.effectiveRole(r), min)
 }
 
 // RequireRole reports whether the caller holds at least min role in their active org.

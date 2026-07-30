@@ -65,8 +65,9 @@ func TestInboundTokenFollowsTokenScope(t *testing.T) {
 
 	const adminRaw = "oct_inboundadmintoken0000000000000001"
 	const memberRaw = "oct_inboundmembertoken000000000000001"
-	seedToken(t, db, adminRaw, "admin")
-	seedToken(t, db, memberRaw, "member")
+	seedMember(t, db, 21, "owner")
+	seedToken(t, db, adminRaw, 21, "admin")
+	seedToken(t, db, memberRaw, 21, "member")
 
 	get := func(raw string) string {
 		req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
@@ -87,30 +88,75 @@ func TestInboundTokenFollowsTokenScope(t *testing.T) {
 	}
 }
 
-// TestTokenCannotGrantOwnerRole pins a deliberate asymmetry rather than an
-// oversight. addOrgMember gates the owner grant on callerOrgRole, which a token
-// never has, so no token can create or re-grade an owner — not even an
-// unrestricted legacy one. Handing ownership of a workspace to a credential with
-// no person behind it is not something an automation should do silently, and the
-// audit entry would name nobody.
-func TestTokenCannotGrantOwnerRole(t *testing.T) {
-	srv, db := newTestHandler(t)
-	const raw = "oct_ownergranttoken00000000000000001"
-	seedToken(t, db, raw, "owner")
-
-	req := httptest.NewRequest(http.MethodPost, "/api/org/members",
-		strings.NewReader(`{"email":"newowner@example.com","role":"owner"}`))
-	req.Header.Set("Authorization", "Bearer "+raw)
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	srv.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusForbidden {
-		t.Errorf("owner-scoped token granting the owner role: got %d, want 403 (body=%s)", rec.Code, rec.Body.String())
+// TestTokenGrantingOwnerFollowsItsCap records a behaviour change, not an
+// oversight. This used to be impossible for any token: the owner grant is gated
+// on callerOrgRole, a token had none, so every token was refused. The stated
+// reason was that handing a workspace to "a credential with no person behind
+// it" should not happen silently and the audit entry would name nobody.
+//
+// A token now has a person behind it and the audit entry names them, so that
+// reason is gone — and singling out this one endpoint would have been theatre
+// anyway: an owner-capped token can already purge the workspace's data, which
+// is worse. The cap is the control. So: owner-capped token held by an owner may
+// grant; anything narrower may not.
+func TestTokenGrantingOwnerFollowsItsCap(t *testing.T) {
+	grant := func(t *testing.T, srv http.Handler, raw, email string) int {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, "/api/org/members",
+			strings.NewReader(`{"email":"`+email+`","role":"owner"}`))
+		req.Header.Set("Authorization", "Bearer "+raw)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+		return rec.Code
 	}
-	var count int64
-	db.Model(&models.User{}).Where("email = ?", "newowner@example.com").Count(&count)
-	if count != 0 {
-		t.Errorf("refused request still created the user (rows=%d)", count)
-	}
+
+	t.Run("admin-capped token cannot", func(t *testing.T) {
+		srv, db := newTestHandler(t)
+		const raw = "oct_ownergrantcapped00000000000000001"
+		seedMember(t, db, 22, "owner") // the holder could; the token may not
+		seedToken(t, db, raw, 22, "admin")
+
+		if code := grant(t, srv, raw, "nope@example.com"); code != http.StatusForbidden {
+			t.Errorf("admin-capped token granting owner: got %d, want 403", code)
+		}
+		var count int64
+		db.Model(&models.User{}).Where("email = ?", "nope@example.com").Count(&count)
+		if count != 0 {
+			t.Errorf("refused request still created the user (rows=%d)", count)
+		}
+	})
+
+	t.Run("member-capped token held by an owner cannot", func(t *testing.T) {
+		srv, db := newTestHandler(t)
+		const raw = "oct_ownergrantmember00000000000000001"
+		seedMember(t, db, 23, "owner")
+		seedToken(t, db, raw, 23, "member")
+
+		if code := grant(t, srv, raw, "alsonope@example.com"); code != http.StatusForbidden {
+			t.Errorf("member-capped token granting owner: got %d, want 403", code)
+		}
+	})
+
+	t.Run("owner-capped token held by an owner may", func(t *testing.T) {
+		srv, db := newTestHandler(t)
+		const raw = "oct_ownergrantowner000000000000000001"
+		seedMember(t, db, 24, "owner")
+		seedToken(t, db, raw, 24, "owner")
+
+		if code := grant(t, srv, raw, "newowner@example.com"); code == http.StatusForbidden {
+			t.Error("owner-capped token held by an owner was refused the owner grant")
+		}
+	})
+
+	t.Run("owner-capped token held by a member cannot", func(t *testing.T) {
+		srv, db := newTestHandler(t)
+		const raw = "oct_ownergrantbymember0000000000001"
+		seedMember(t, db, 25, "member")
+		seedToken(t, db, raw, 25, "owner")
+
+		if code := grant(t, srv, raw, "never@example.com"); code != http.StatusForbidden {
+			t.Errorf("owner-capped token held by a plain member granting owner: got %d, want 403", code)
+		}
+	})
 }

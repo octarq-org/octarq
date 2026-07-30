@@ -187,13 +187,11 @@ export function ApiTokens() {
                   <div className="font-semibold text-sm text-foreground">{timer.name}</div>
                   <div className="text-xs text-foreground/50 mt-1 flex items-center gap-2">
                     <code className="rounded bg-foreground/5 px-1.5 py-0.5 border border-foreground/[0.04]">{timer.prefix}…</code>
-                    {timer.role ? (
-                      <Badge>{t(SCOPE_LABEL[timer.role])}</Badge>
-                    ) : (
-                      <Badge variant="warning" title={t("personal.tokenUnrestrictedHint")}>
-                        {t("personal.tokenUnrestricted")}
-                      </Badge>
-                    )}
+                    {/* An empty role is the least privilege, not the most: the
+                        server reads it as "member", the same thing minting
+                        defaults to. This used to render "unrestricted", which
+                        was true then and is exactly backwards now. */}
+                    <Badge>{t(SCOPE_LABEL[timer.role || "member"])}</Badge>
                     {timer.note && <span className="text-foreground/40">{timer.note}</span>}
                   </div>
                 </div>
