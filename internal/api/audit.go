@@ -5,6 +5,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
 )
 
@@ -35,6 +36,9 @@ func (h *Handler) listAuditLogs(ctx context.Context, input *ListAuditLogsInput) 
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
+		return nil, err
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {

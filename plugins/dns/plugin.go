@@ -252,19 +252,26 @@ func (p *Plugin) migrateLegacy() {
 	if p.db.Migrator().HasColumn(&Domain{}, "provider") && p.db.Migrator().HasColumn(&Domain{}, "config") {
 		var legacyDomains []struct {
 			ID       uint
+			OwnerID  uint
 			Provider string
 			Config   string
 		}
-		p.db.Raw("SELECT id, provider, config FROM domains WHERE provider_account_id = 0 OR provider_account_id IS NULL").Scan(&legacyDomains)
+		p.db.Raw("SELECT id, owner_id, provider, config FROM domains WHERE provider_account_id = 0 OR provider_account_id IS NULL").Scan(&legacyDomains)
 		for _, ld := range legacyDomains {
 			if ld.Provider == "" {
 				continue
 			}
+			orgID := ld.OwnerID
+			if orgID == 0 {
+				// Fall back to org 1 for legacy single-tenant records where owner_id was unpopulated.
+				orgID = 1
+			}
+			accName := ld.Provider + " (Migrated)"
 			var acc ProviderAccount
-			if err := p.db.Where("config = ?", ld.Config).First(&acc).Error; err != nil {
+			if err := p.db.Where("owner_id = ? AND type = ? AND name = ?", orgID, ld.Provider, accName).First(&acc).Error; err != nil {
 				acc = ProviderAccount{
-					OrgID:  1,
-					Name:   ld.Provider + " (Migrated)",
+					OrgID:  orgID,
+					Name:   accName,
 					Type:   ld.Provider,
 					Config: ld.Config,
 				}
