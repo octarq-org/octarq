@@ -47,7 +47,12 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 		return &link, true
 	}
 
-	err := e.db.Where("slug = ? AND (host = ? OR host = '')", slug, host).
+	query := e.db.Where("slug = ? AND (host = ? OR host = '')", slug, host)
+	if ownerOrg := resolveHostOrg(e.db, host); ownerOrg != 0 {
+		query = query.Where("owner_id = ?", ownerOrg)
+	}
+
+	err := query.
 		Order("host DESC"). // non-empty host sorts first, so exact match wins
 		First(&link).Error
 	if err != nil {

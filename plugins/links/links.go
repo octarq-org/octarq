@@ -270,6 +270,9 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 		ExpiresAt: input.Body.ExpiresAt, ExpiredURL: input.Body.ExpiredURL, ClickLimit: input.Body.ClickLimit,
 		Enabled: enabled,
 	}
+	if l.Host != "" && !p.ownsHost(l.OrgID, l.Host) {
+		return nil, huma.Error403Forbidden("host is not a link host of this workspace")
+	}
 	if err := validateRedirectTargets(&l); err != nil {
 		return nil, err
 	}
@@ -385,6 +388,9 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 	}
 
 	l.Host = strings.TrimSpace(input.Body.Host)
+	if l.Host != "" && !p.ownsHost(p.orgID(r), l.Host) {
+		return nil, huma.Error403Forbidden("host is not a link host of this workspace")
+	}
 	l.Note = input.Body.Note
 	l.Title = input.Body.Title
 	l.Tags = input.Body.Tags
