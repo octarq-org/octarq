@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"errors"
 
 	"github.com/octarq-org/octarq/internal/dnsprovider"
 	"github.com/octarq-org/octarq/plugin"
@@ -17,18 +18,28 @@ type dnsManager struct{ p *Plugin }
 // app provides it as the "dns.manager" service and wires ctx.DNS to it.
 func (p *Plugin) DNSManager() plugin.DNSManager { return dnsManager{p} }
 
-// resolve loads a domain and builds its DNS provider.
-func (m dnsManager) resolve(domainID uint) (Domain, dnsprovider.Provider, error) {
+// resolve loads a domain owned by orgID and builds its DNS provider. The org
+// scope is the seam's own tenant boundary: a caller that forgets to check
+// ownership gets "domain not found" here rather than a write into someone
+// else's zone. An unset orgID is a caller bug, not a wildcard.
+func (m dnsManager) resolve(orgID, domainID uint) (Domain, dnsprovider.Provider, error) {
 	var dom Domain
-	if err := m.p.db.First(&dom, domainID).Error; err != nil {
+	if orgID == 0 {
+		return dom, nil, errOrgRequired
+	}
+	if err := m.p.db.Where("id = ? AND owner_id = ?", domainID, orgID).First(&dom).Error; err != nil {
 		return dom, nil, err
 	}
 	prov, err := m.p.providerFor(dom)
 	return dom, prov, err
 }
 
-func (m dnsManager) List(ctx context.Context, domainID uint) ([]plugin.DNSRecord, error) {
-	dom, prov, err := m.resolve(domainID)
+// errOrgRequired is returned when a caller passes no org, which would otherwise
+// silently widen the lookup to every tenant's domains.
+var errOrgRequired = errors.New("dns: an org id is required to resolve a domain")
+
+func (m dnsManager) List(ctx context.Context, orgID, domainID uint) ([]plugin.DNSRecord, error) {
+	dom, prov, err := m.resolve(orgID, domainID)
 	if err != nil {
 		return nil, err
 	}
@@ -43,8 +54,8 @@ func (m dnsManager) List(ctx context.Context, domainID uint) ([]plugin.DNSRecord
 	return out, nil
 }
 
-func (m dnsManager) Set(ctx context.Context, domainID uint, r plugin.DNSRecord) (plugin.DNSRecord, error) {
-	dom, prov, err := m.resolve(domainID)
+func (m dnsManager) Set(ctx context.Context, orgID, domainID uint, r plugin.DNSRecord) (plugin.DNSRecord, error) {
+	dom, prov, err := m.resolve(orgID, domainID)
 	if err != nil {
 		return plugin.DNSRecord{}, err
 	}
@@ -61,8 +72,8 @@ func (m dnsManager) Set(ctx context.Context, domainID uint, r plugin.DNSRecord) 
 	return toPluginRecord(res), nil
 }
 
-func (m dnsManager) Delete(ctx context.Context, domainID uint, recordID string) error {
-	dom, prov, err := m.resolve(domainID)
+func (m dnsManager) Delete(ctx context.Context, orgID, domainID uint, recordID string) error {
+	dom, prov, err := m.resolve(orgID, domainID)
 	if err != nil {
 		return err
 	}

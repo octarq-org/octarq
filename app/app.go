@@ -278,28 +278,28 @@ func (l *lazyDNSManager) resolve() (plugin.DNSManager, error) {
 	return nil, errors.New("dns manager unavailable: the dns plugin is not mounted")
 }
 
-func (l *lazyDNSManager) List(ctx context.Context, domainID uint) ([]plugin.DNSRecord, error) {
+func (l *lazyDNSManager) List(ctx context.Context, orgID, domainID uint) ([]plugin.DNSRecord, error) {
 	m, err := l.resolve()
 	if err != nil {
 		return nil, err
 	}
-	return m.List(ctx, domainID)
+	return m.List(ctx, orgID, domainID)
 }
 
-func (l *lazyDNSManager) Set(ctx context.Context, domainID uint, r plugin.DNSRecord) (plugin.DNSRecord, error) {
+func (l *lazyDNSManager) Set(ctx context.Context, orgID, domainID uint, r plugin.DNSRecord) (plugin.DNSRecord, error) {
 	m, err := l.resolve()
 	if err != nil {
 		return plugin.DNSRecord{}, err
 	}
-	return m.Set(ctx, domainID, r)
+	return m.Set(ctx, orgID, domainID, r)
 }
 
-func (l *lazyDNSManager) Delete(ctx context.Context, domainID uint, recordID string) error {
+func (l *lazyDNSManager) Delete(ctx context.Context, orgID, domainID uint, recordID string) error {
 	m, err := l.resolve()
 	if err != nil {
 		return err
 	}
-	return m.Delete(ctx, domainID, recordID)
+	return m.Delete(ctx, orgID, domainID, recordID)
 }
 
 // Plugins returns the registered plugins.
