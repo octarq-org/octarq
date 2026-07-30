@@ -121,6 +121,12 @@ export function ProfileSettings() {
 // Short scope labels for the token list. Kept as an explicit map rather than
 // building the key from the role string, so a renamed role fails at compile
 // time instead of silently rendering a missing translation key.
+const MINT_ROLE_LABEL = {
+  member: "personal.tokenRoleMember",
+  admin: "personal.tokenRoleAdmin",
+  owner: "personal.tokenRoleOwner",
+} as const;
+
 const SCOPE_LABEL = {
   member: "personal.tokenScopeMember",
   admin: "personal.tokenScopeAdmin",
@@ -187,13 +193,11 @@ export function ApiTokens() {
                   <div className="font-semibold text-sm text-foreground">{timer.name}</div>
                   <div className="text-xs text-foreground/50 mt-1 flex items-center gap-2">
                     <code className="rounded bg-foreground/5 px-1.5 py-0.5 border border-foreground/[0.04]">{timer.prefix}…</code>
-                    {timer.role ? (
-                      <Badge>{t(SCOPE_LABEL[timer.role])}</Badge>
-                    ) : (
-                      <Badge variant="warning" title={t("personal.tokenUnrestrictedHint")}>
-                        {t("personal.tokenUnrestricted")}
-                      </Badge>
-                    )}
+                    {/* An empty role is the least privilege, not the most: the
+                        server reads it as "member", the same thing minting
+                        defaults to. This used to render "unrestricted", which
+                        was true then and is exactly backwards now. */}
+                    <Badge>{t(SCOPE_LABEL[timer.role || "member"])}</Badge>
                     {timer.note && <span className="text-foreground/40">{timer.note}</span>}
                   </div>
                 </div>
@@ -270,6 +274,15 @@ function CreateTokenModal({
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const { t } = useTranslation();
+  const { role: myRole, isInstanceAdmin } = useCurrentRole();
+
+  // A token caps its holder, it cannot outrank them: the server refuses to mint
+  // one above the caller's own role. Offering the option anyway turns that into
+  // a 403 after the user has filled the form in — so offer only what they can
+  // actually create.
+  const mintable = (["member", "admin", "owner"] as const).filter((r) =>
+    roleSatisfies(r, myRole, isInstanceAdmin),
+  );
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -300,9 +313,9 @@ function CreateTokenModal({
         </Field>
         <Field label={t("personal.tokenRoleLabel")} hint={t("personal.tokenRoleHint")}>
           <select className="input w-full text-sm" value={role} onChange={(e) => setRole(e.target.value as typeof role)}>
-            <option value="member">{t("personal.tokenRoleMember")}</option>
-            <option value="admin">{t("personal.tokenRoleAdmin")}</option>
-            <option value="owner">{t("personal.tokenRoleOwner")}</option>
+            {mintable.map((r) => (
+              <option key={r} value={r}>{t(MINT_ROLE_LABEL[r])}</option>
+            ))}
           </select>
         </Field>
         <Field label={t("personal.tokenRemarksLabel")} hint={t("personal.tokenRemarksHint")}>

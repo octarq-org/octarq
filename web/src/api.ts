@@ -132,8 +132,11 @@ export interface Token {
   name: string;
   prefix: string;
   note: string;
-  /** Privilege ceiling. "" means a token minted before scopes existed — it is
-   *  unrestricted within its workspace and shown as such. */
+  /** The user the token acts as. Its authority is theirs, read live, so
+   *  removing them from the workspace revokes the token too. */
+  userId: number;
+  /** Narrows the token below its holder, never above: the effective role is
+   *  min(holder's role, this). "" reads as "member" server-side. */
   role: "" | "member" | "admin" | "owner";
   lastUsedAt: string | null;
   createdAt: string;

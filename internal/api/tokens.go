@@ -65,11 +65,10 @@ type CreateTokenInput struct {
 		Name          string `json:"name"`
 		Note          string `json:"note,omitempty"`
 		ExpiresInDays int    `json:"expiresInDays,omitempty"`
-		// Role caps the token's privilege. Omitted means "member" — the least
-		// privilege that still works — so a caller who does not think about it
-		// gets a narrow token rather than a workspace-wide one. Legacy tokens
-		// (role "" in the DB) stay unrestricted; there is deliberately no way to
-		// mint a new one of those.
+		// Role narrows the token below its holder; it can never widen it. Omitted
+		// means "member" — the least privilege that still works — so a caller who
+		// does not think about it gets a narrow token rather than a copy of their
+		// own account.
 		Role string `json:"role,omitempty"`
 	}
 }
@@ -123,9 +122,17 @@ func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*Cr
 	if !h.callerHoldsRole(r, role) {
 		return nil, huma.Error403Forbidden("forbidden: cannot mint a token above your own role")
 	}
+	// The token acts as this person from here on. Minting it while
+	// unattributable would be the one way to create authority that outlives the
+	// account it came from.
+	uid := h.auth.UserID(r)
+	if uid == 0 {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	raw := newRawToken()
 	tok := models.Token{
 		OrgID:     orgID,
+		UserID:    uid,
 		Name:      name,
 		Hash:      models.HashToken(raw),
 		Prefix:    tokenPrefix(raw),

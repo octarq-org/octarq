@@ -41,7 +41,10 @@ func (h *Handler) callerOrgRole(r *http.Request) string {
 // plugin.Context.OrgRole so a plugin can gate workspace administration on
 // owner/admin without importing internal/models.
 func (h *Handler) OrgRole(r *http.Request) string {
-	return h.callerOrgRole(r)
+	// Effective, not raw: plugins gate workspace administration on this, so
+	// handing back the holder's membership would let every plugin's gate ignore
+	// the token's cap.
+	return string(h.effectiveRole(r))
 }
 
 type SwitchOrgInput struct {
@@ -354,7 +357,7 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 	if err != nil {
 		return nil, err
 	}
-	callerRole := h.callerOrgRole(r)
+	callerRole := string(h.effectiveRole(r))
 	if callerRole != "owner" && callerRole != "admin" {
 		return nil, huma.Error403Forbidden("forbidden: only owner/admin can manage members")
 	}
@@ -493,7 +496,7 @@ func (h *Handler) removeOrgMember(ctx context.Context, input *RemoveOrgMemberInp
 	if err != nil {
 		return nil, err
 	}
-	callerRole := h.callerOrgRole(r)
+	callerRole := string(h.effectiveRole(r))
 	if callerRole != "owner" && callerRole != "admin" {
 		return nil, huma.Error403Forbidden("forbidden: only owner/admin can manage members")
 	}
