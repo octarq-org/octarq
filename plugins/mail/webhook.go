@@ -136,10 +136,8 @@ func (p *Plugin) inbound(ctx context.Context, input *InboundInput) (*InboundOutp
 			ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 			for _, ch := range channels {
-				var cfg map[string]any
-				json.Unmarshal([]byte(ch.Config), &cfg)
 				if p.notify != nil {
-					_ = p.notify(ctxCtx, ch.Type, cfg, text)
+					_ = p.notify(ctxCtx, ch.Type, ch.Config, text)
 				}
 			}
 		}()
@@ -343,10 +341,8 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 				ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 				for _, ch := range chans {
-					var cfg map[string]any
-					json.Unmarshal([]byte(ch.Config), &cfg)
 					if p.notify != nil {
-						_ = p.notify(ctxCtx, ch.Type, cfg, txt)
+						_ = p.notify(ctxCtx, ch.Type, ch.Config, txt)
 					}
 				}
 			}(channels, alertText)

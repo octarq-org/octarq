@@ -3,7 +3,6 @@ package mail
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -29,10 +28,17 @@ type Plugin struct {
 	sendLimiter         *rateLimiter
 	emailMu             sync.RWMutex
 	emailHandlers       []func(plugin.EmailEvent)
-	notify              func(ctx context.Context, kind string, config map[string]any, message string) error
-	publishEvent        func(orgID uint, event string, data any)
-	recordUsage         func(orgID uint, metric string, n int64)
-	requireRole         func(r *http.Request, min string) bool
+	// notify takes the channel's config exactly as it is stored. It must NOT be
+	// pre-parsed: configs are encrypted at rest, and the decrypt lives inside the
+	// core's dispatch (internal/notify.Send → configPlaintext), which also keeps
+	// the legacy-plaintext fallback in one place. This used to unmarshal the
+	// stored value into a map and re-marshal it, which silently broke the moment
+	// configs were encrypted — unmarshalling ciphertext failed, the error was
+	// discarded, and every notification went out with an empty config.
+	notify       func(ctx context.Context, kind, cfgJSON, message string) error
+	publishEvent func(orgID uint, event string, data any)
+	recordUsage  func(orgID uint, metric string, n int64)
+	requireRole  func(r *http.Request, min string) bool
 }
 
 // Compile-time capability checks.
@@ -118,15 +124,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		p.getGlobalSetting = ctx.GetGlobalSetting
 	}
 	if ctx.Notify != nil {
-		p.notify = func(c context.Context, kind string, config map[string]any, message string) error {
-			var cfgJSON string
-			if config != nil {
-				if b, err := json.Marshal(config); err == nil {
-					cfgJSON = string(b)
-				}
-			}
-			return ctx.Notify(c, kind, cfgJSON, message)
-		}
+		p.notify = ctx.Notify
 	}
 
 	if ctx.PublishEvent != nil {

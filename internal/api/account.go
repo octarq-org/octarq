@@ -209,6 +209,21 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 		if err := tx.Where("owner_id = ?", org).Delete(&models.AbuseReport{}).Error; err != nil {
 			return err
 		}
+		// Per-workspace rows that plugins keep in the shared `settings` table,
+		// namespaced "org_<id>." — Pro's billing, ai and finance all store the
+		// workspace's payment and LLM credentials there (the key templates live in
+		// octarq-pro's pkg/pay). Nothing else in this transaction reaches them:
+		// they are neither WorkspaceSetting nor owned by any plugin table, so a
+		// purged workspace left its Stripe secret, webhook secret and LLM keys
+		// behind, and a recycled org id would inherit them.
+		//
+		// LIKE with an escaped prefix, not a wildcard on user input: the id is a
+		// uint, but the pattern is still built explicitly so this cannot widen if
+		// the key shape ever changes.
+		if err := tx.Where("key LIKE ?", fmt.Sprintf("org_%d.%%", org)).
+			Delete(&models.Setting{}).Error; err != nil {
+			return err
+		}
 
 		// Session, OrgMember, and Org are deleted last
 		if err := tx.Where("org_id = ?", org).Delete(&models.Session{}).Error; err != nil {
