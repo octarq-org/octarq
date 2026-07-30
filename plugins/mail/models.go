@@ -7,8 +7,8 @@ import (
 // Mailbox is an address that can receive mail (prefix@domain).
 type Mailbox struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
-	OrgID     uint      `gorm:"column:owner_id;index;default:1" json:"-"`
-	Address   string    `gorm:"uniqueIndex;size:320" json:"address"`
+	OrgID     uint      `gorm:"column:owner_id;index:idx_mailbox_owner_address,unique;default:1" json:"-"`
+	Address   string    `gorm:"size:320;index:idx_mailbox_owner_address,unique" json:"address"`
 	Note      string    `gorm:"type:text" json:"note"`
 	Enabled   bool      `gorm:"default:true" json:"enabled"`
 	CreatedAt time.Time `json:"createdAt"`

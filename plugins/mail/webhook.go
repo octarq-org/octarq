@@ -215,6 +215,31 @@ func (p *Plugin) mailHostDisabled(host string) bool {
 	return listed
 }
 
+// ownsMailAddressDomain reports whether orgID may create or receive mail for addr's domain.
+// It returns true if host is owned by orgID or unmanaged by any tenant (otherOrg == 0).
+// It returns false if host belongs to another tenant (otherOrg != 0 && otherOrg != orgID).
+func (p *Plugin) ownsMailAddressDomain(orgID uint, addr string) bool {
+	if orgID == 0 {
+		return false
+	}
+	host := addr
+	if at := strings.LastIndex(addr, "@"); at >= 0 {
+		host = addr[at+1:]
+	}
+	normHost := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
+	if idx := strings.IndexByte(normHost, ':'); idx >= 0 {
+		normHost = normHost[:idx]
+	}
+	if normHost == "" {
+		return false
+	}
+	ownerOrg := p.resolveMailHostOrg(normHost)
+	if ownerOrg != 0 && ownerOrg != orgID {
+		return false
+	}
+	return true
+}
+
 // resolveMailbox finds an enabled mailbox for the address within the given org,
 // optionally creating one when catch-all is on and the recipient's domain (also
 // owned by that org) is managed for mail. Scoping by org keeps one tenant's
@@ -238,28 +263,9 @@ func (p *Plugin) resolveMailbox(orgID uint, addr string) (*Mailbox, bool) {
 	if p.isReservedMailbox(orgID, addr) {
 		return nil, false
 	}
-	at := strings.LastIndex(addr, "@")
-	if at < 0 {
-		return nil, false
-	}
-	recipientHost := addr[at+1:]
 	// The recipient host must be one of THIS org's mail-enabled domain's mail
 	// hosts (apex or a configured subdomain like mail.example.com).
-	var doms []dns.Domain
-	p.db.Where("owner_id = ?", orgID).Find(&doms)
-	var matched bool
-	for _, dom := range doms {
-		for _, mh := range dom.EffectiveMailHosts() {
-			if mh == recipientHost {
-				matched = true
-				break
-			}
-		}
-		if matched {
-			break
-		}
-	}
-	if !matched {
+	if !p.ownsMailAddressDomain(orgID, addr) {
 		return nil, false
 	}
 	mb = Mailbox{OrgID: orgID, Address: addr, Enabled: true, Note: "auto (catch-all)"}

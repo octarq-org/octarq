@@ -81,6 +81,9 @@ func (p *Plugin) createMailbox(ctx context.Context, input *CreateMailboxInput) (
 	if !strings.Contains(addr, "@") {
 		return nil, huma.Error400BadRequest("address must be a full email")
 	}
+	if !p.ownsMailAddressDomain(p.orgID(r), addr) {
+		return nil, huma.Error403Forbidden("address domain is not a mail host of this workspace")
+	}
 	enabled := true
 	if input.Body.Enabled != nil {
 		enabled = *input.Body.Enabled
