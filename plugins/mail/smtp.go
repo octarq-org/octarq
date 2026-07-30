@@ -7,50 +7,17 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/internal/safehttp"
 )
 
 func isRestrictedSMTPHostIP(ip net.IP) bool {
-	if ip == nil {
-		return true
-	}
-	if ip.IsLoopback() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-		return true
-	}
-	if ip4 := ip.To4(); ip4 != nil {
-		// 10.0.0.0/8
-		if ip4[0] == 10 {
-			return true
-		}
-		// 172.16.0.0/12
-		if ip4[0] == 172 && ip4[1] >= 16 && ip4[1] <= 31 {
-			return true
-		}
-		// 192.168.0.0/16
-		if ip4[0] == 192 && ip4[1] == 168 {
-			return true
-		}
-		// 169.254.0.0/16
-		if ip4[0] == 169 && ip4[1] == 254 {
-			return true
-		}
-		return false
-	}
-	// IPv6: fc00::/7 (ULA) and fe80::/10 (Link-local)
-	if len(ip) == net.IPv6len {
-		if (ip[0] & 0xfe) == 0xfc {
-			return true
-		}
-		if ip[0] == 0xfe && (ip[1]&0xc0) == 0x80 {
-			return true
-		}
-	}
-	return false
+	return safehttp.DisallowedIP(ip)
 }
 
-// validateSMTPTarget validates the host and port for an SMTP sender at write time.
+// validateSMTPTarget provides an early, write-time error check for host and port when configuring an SMTP sender
+// (returning 422 Unprocessable Entity immediately to the admin UI for obvious misconfigurations).
 //
-// Note: This validation is performed at write time to catch invalid ports or direct internal/private IP targets
-// before saving. To avoid TOCTOU and DNS dependency at write time, DNS resolution is handled at dial time.
+// This is NOT the security boundary against SSRF/TOCTOU/DNS rebinding; the actual security boundary is enforced at dial time in internal/mail.
 func validateSMTPTarget(host string, port int) error {
 	allowedPorts := map[int]bool{25: true, 465: true, 587: true, 2525: true}
 	if !allowedPorts[port] {

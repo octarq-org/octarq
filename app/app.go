@@ -175,6 +175,7 @@ func New() (*App, error) {
 	// Opt webhook/notification delivery into private targets only when the operator
 	// has explicitly allowed it (trusted internal receivers); default stays strict.
 	safehttp.SetAllowPrivateWebhooks(cfg.AllowPrivateWebhooks)
+	safehttp.SetAllowPrivateSMTP(cfg.AllowPrivateSMTP)
 
 	cipher := crypto.New(cfg.SecretKey)
 	// Webhook signing secrets are AES-GCM encrypted at rest; teach the eventbus how

@@ -56,6 +56,12 @@ type Config struct {
 	// OCTARQ_ALLOW_PRIVATE_WEBHOOKS=true|1. Never relaxes the link-preview client.
 	AllowPrivateWebhooks bool
 
+	// AllowPrivateSMTP lets outbound SMTP mail delivery reach private, loopback,
+	// or link-local addresses. Off by default so a tenant cannot point SMTP at
+	// internal services; a self-hoster running their own postfix/mailhog on the
+	// same box/LAN opts in via OCTARQ_ALLOW_PRIVATE_SMTP=true|1.
+	AllowPrivateSMTP bool
+
 	GeoIPDB string // optional path to a MaxMind GeoLite2-City.mmdb
 
 	// BaseURL is the public-facing URL used to build OAuth callback URIs,
@@ -145,6 +151,8 @@ func Load() (*Config, error) {
 		TrustProxy: strings.EqualFold(strings.TrimSpace(env("OCTARQ_TRUST_PROXY", "")), "true") || strings.TrimSpace(env("OCTARQ_TRUST_PROXY", "")) == "1",
 
 		AllowPrivateWebhooks: strings.EqualFold(strings.TrimSpace(env("OCTARQ_ALLOW_PRIVATE_WEBHOOKS", "")), "true") || strings.TrimSpace(env("OCTARQ_ALLOW_PRIVATE_WEBHOOKS", "")) == "1",
+
+		AllowPrivateSMTP: strings.EqualFold(strings.TrimSpace(env("OCTARQ_ALLOW_PRIVATE_SMTP", "")), "true") || strings.TrimSpace(env("OCTARQ_ALLOW_PRIVATE_SMTP", "")) == "1",
 
 		GeoIPDB:  env("OCTARQ_GEOIP_DB", ""),
 		BaseURL:  env("OCTARQ_BASE_URL", ""),
