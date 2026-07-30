@@ -200,6 +200,149 @@ func (h *Handler) deleteToken(ctx context.Context, input *DeleteTokenInput) (*De
 	return out, nil
 }
 
+type UpdateTokenInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	ID   uint         `path:"id"`
+	Body struct {
+		Name          *string `json:"name,omitempty"`
+		Note          *string `json:"note,omitempty"`
+		Role          *string `json:"role,omitempty"`
+		ExpiresInDays *int    `json:"expiresInDays,omitempty"`
+	}
+}
+
+func (i *UpdateTokenInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type UpdateTokenOutput struct {
+	Body map[string]any
+}
+
+func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*UpdateTokenOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
+		return nil, err
+	}
+
+	var tok models.Token
+	if err := h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).First(&tok).Error; err != nil {
+		return nil, huma.Error404NotFound("not found")
+	}
+
+	oldName := tok.Name
+	oldNote := tok.Note
+	oldRole := tok.Role
+	oldExpiresAt := tok.ExpiresAt
+
+	meta := map[string]any{
+		"prefix": tok.Prefix,
+	}
+	changed := false
+
+	if input.Body.Name != nil {
+		name := strings.TrimSpace(*input.Body.Name)
+		if name == "" {
+			return nil, huma.Error400BadRequest("name is required")
+		}
+		if name != oldName {
+			tok.Name = name
+			meta["nameFrom"] = oldName
+			meta["nameTo"] = name
+			changed = true
+		}
+	}
+
+	if input.Body.Note != nil {
+		note := *input.Body.Note
+		if note != oldNote {
+			tok.Note = note
+			meta["noteFrom"] = oldNote
+			meta["noteTo"] = note
+			changed = true
+		}
+	}
+
+	if input.Body.Role != nil {
+		role := authz.Role(strings.TrimSpace(*input.Body.Role))
+		if !validTokenRole(role) {
+			return nil, huma.Error400BadRequest("role must be one of member, admin, owner")
+		}
+		if !h.callerHoldsRole(r, role) {
+			return nil, huma.Error403Forbidden("forbidden: cannot mint a token above your own role")
+		}
+		if string(role) != oldRole {
+			tok.Role = string(role)
+			meta["roleFrom"] = oldRole
+			meta["roleTo"] = string(role)
+			changed = true
+		}
+	}
+
+	if input.Body.ExpiresInDays != nil {
+		days := *input.Body.ExpiresInDays
+		if days < 0 {
+			return nil, huma.Error400BadRequest("expiresInDays must be zero (never) or positive")
+		}
+		var newExpiresAt *time.Time
+		if days > 0 {
+			t := time.Now().AddDate(0, 0, days)
+			newExpiresAt = &t
+		}
+		expiresChanged := false
+		if oldExpiresAt == nil && newExpiresAt != nil {
+			expiresChanged = true
+		} else if oldExpiresAt != nil && newExpiresAt == nil {
+			expiresChanged = true
+		} else if oldExpiresAt != nil && newExpiresAt != nil && !oldExpiresAt.Equal(*newExpiresAt) {
+			expiresChanged = true
+		}
+
+		if expiresChanged {
+			tok.ExpiresAt = newExpiresAt
+			meta["expiresAtFrom"] = oldExpiresAt
+			meta["expiresAtTo"] = newExpiresAt
+			changed = true
+		}
+	}
+
+	if changed {
+		if err := h.db.Model(&tok).Updates(map[string]any{
+			"name":       tok.Name,
+			"note":       tok.Note,
+			"role":       tok.Role,
+			"expires_at": tok.ExpiresAt,
+		}).Error; err != nil {
+			return nil, huma.Error500InternalServerError("update token")
+		}
+		h.audit(r, "token.update", "token", tok.ID, meta)
+	}
+
+	return &UpdateTokenOutput{
+		Body: map[string]any{
+			"id":        tok.ID,
+			"name":      tok.Name,
+			"note":      tok.Note,
+			"prefix":    tok.Prefix,
+			"role":      tok.Role,
+			"expiresAt": tok.ExpiresAt,
+			"createdAt": tok.CreatedAt,
+		},
+	}, nil
+}
+
 // validTokenRole reports whether role is one a token may be minted with.
 // It deliberately rejects "" — that value means "legacy unrestricted" and is
 // reachable only by rows that predate scoping, never by minting a new token.

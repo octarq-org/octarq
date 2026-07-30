@@ -137,6 +137,7 @@ export function ApiTokens() {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [editingToken, setEditingToken] = useState<Token | null>(null);
   const [created, setCreated] = useState<{ token: string } | null>(null);
   const { t } = useTranslation();
   const { role, isInstanceAdmin } = useCurrentRole();
@@ -202,17 +203,33 @@ export function ApiTokens() {
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-[11px] text-foreground/50">
-                    {timer.lastUsedAt ? t("personal.usedAgo", { time: timeAgo(timer.lastUsedAt) }) : t("personal.neverUsed")}
-                  </span>
+                  <div className="text-[11px] text-foreground/50 flex flex-col items-end">
+                    <span>{timer.lastUsedAt ? t("personal.usedAgo", { time: timeAgo(timer.lastUsedAt) }) : t("personal.neverUsed")}</span>
+                    {timer.expiresAt && (
+                      <span className={new Date(timer.expiresAt).getTime() < Date.now() ? "text-danger-fg font-medium" : "text-foreground/40"}>
+                        {new Date(timer.expiresAt).getTime() < Date.now()
+                          ? t("personal.expired")
+                          : t("personal.expiresAt", { time: timeAgo(timer.expiresAt) })}
+                      </span>
+                    )}
+                  </div>
                   {canManageTokens && (
-                    <Button
-                      variant="danger"
-                      onClick={() => remove(timer.id)}
-                      className="text-xs py-1 px-2.5 border-0"
-                    >
-                      {t("personal.revoke")}
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="secondary"
+                        onClick={() => setEditingToken(timer)}
+                        className="text-xs py-1 px-2.5 border-0"
+                      >
+                        {t("personal.edit")}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        onClick={() => remove(timer.id)}
+                        className="text-xs py-1 px-2.5 border-0"
+                      >
+                        {t("personal.revoke")}
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -255,6 +272,17 @@ export function ApiTokens() {
           }}
         />
       )}
+
+      {editingToken && (
+        <EditTokenModal
+          token={editingToken}
+          onClose={() => setEditingToken(null)}
+          onUpdated={() => {
+            setEditingToken(null);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -271,6 +299,7 @@ function CreateTokenModal({
   // Defaults to the narrowest scope, matching the server: a token created
   // without thinking about scope should not be a workspace-wide one.
   const [role, setRole] = useState<"member" | "admin" | "owner">("member");
+  const [expiresInDays, setExpiresInDays] = useState<number>(0);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const { t } = useTranslation();
@@ -289,7 +318,7 @@ function CreateTokenModal({
     setBusy(true);
     setErr("");
     try {
-      const res = await api.createToken({ name, note, role });
+      const res = await api.createToken({ name, note, role, expiresInDays });
       onCreated(res.token);
     } catch (e: any) {
       setErr(e instanceof ApiError ? e.message : t("personal.failed"));
@@ -318,6 +347,15 @@ function CreateTokenModal({
             ))}
           </select>
         </Field>
+        <Field label={t("personal.tokenExpiryLabel")} hint={t("personal.tokenExpiryHint")}>
+          <select className="input w-full text-sm" value={expiresInDays} onChange={(e) => setExpiresInDays(Number(e.target.value))}>
+            <option value={0}>{t("personal.expiryNever")}</option>
+            <option value={7}>{t("personal.expiry7Days")}</option>
+            <option value={30}>{t("personal.expiry30Days")}</option>
+            <option value={90}>{t("personal.expiry90Days")}</option>
+            <option value={365}>{t("personal.expiry365Days")}</option>
+          </select>
+        </Field>
         <Field label={t("personal.tokenRemarksLabel")} hint={t("personal.tokenRemarksHint")}>
           <input className="input w-full text-sm" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("personal.tokenRemarksPlaceholder")} />
         </Field>
@@ -326,6 +364,99 @@ function CreateTokenModal({
           <Button type="button" variant="ghost" onClick={onClose}>{t("personal.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={busy || !name.trim()}>
             {busy ? t("personal.generating") : t("personal.generateToken")}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function EditTokenModal({
+  token,
+  onClose,
+  onUpdated,
+}: {
+  token: Token;
+  onClose: () => void;
+  onUpdated: () => void;
+}) {
+  const [name, setName] = useState(token.name);
+  const [note, setNote] = useState(token.note || "");
+  const [role, setRole] = useState<"member" | "admin" | "owner">(
+    (token.role || "member") as "member" | "admin" | "owner",
+  );
+  const [expiryOption, setExpiryOption] = useState<string>("keep");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { t } = useTranslation();
+  const { role: myRole, isInstanceAdmin } = useCurrentRole();
+
+  const mintable = (["member", "admin", "owner"] as const).filter((r) =>
+    roleSatisfies(r, myRole, isInstanceAdmin),
+  );
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr("");
+    try {
+      const d: { name?: string; note?: string; role?: "member" | "admin" | "owner"; expiresInDays?: number } = {};
+      if (name.trim() !== token.name) d.name = name.trim();
+      if (note !== (token.note || "")) d.note = note;
+      if (role !== (token.role || "member")) d.role = role;
+      if (expiryOption !== "keep") {
+        d.expiresInDays = Number(expiryOption);
+      }
+      await api.updateToken(token.id, d);
+      onUpdated();
+    } catch (e: any) {
+      setErr(e instanceof ApiError ? e.message : t("personal.failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title={t("personal.editTokenTitle")} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <div className="text-xs text-foreground/70 rounded-xl bg-foreground/[0.04] p-3.5 border border-foreground/[0.06] leading-relaxed">
+          {t("personal.editTokenHint")}
+        </div>
+        <Field label={t("personal.tokenNameLabel")} hint={t("personal.tokenNameHint")}>
+          <input
+            className="input w-full"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("personal.tokenNamePlaceholder")}
+            required
+            autoFocus
+          />
+        </Field>
+        <Field label={t("personal.tokenRoleLabel")} hint={t("personal.tokenRoleHint")}>
+          <select className="input w-full text-sm" value={role} onChange={(e) => setRole(e.target.value as typeof role)}>
+            {mintable.map((r) => (
+              <option key={r} value={r}>{t(MINT_ROLE_LABEL[r])}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label={t("personal.tokenExpiryLabel")} hint={t("personal.tokenExpiryHint")}>
+          <select className="input w-full text-sm" value={expiryOption} onChange={(e) => setExpiryOption(e.target.value)}>
+            <option value="keep">{t("personal.expiryKeep")}</option>
+            <option value="0">{t("personal.expiryNever")}</option>
+            <option value="7">{t("personal.expiry7Days")}</option>
+            <option value="30">{t("personal.expiry30Days")}</option>
+            <option value="90">{t("personal.expiry90Days")}</option>
+            <option value="365">{t("personal.expiry365Days")}</option>
+          </select>
+        </Field>
+        <Field label={t("personal.tokenRemarksLabel")} hint={t("personal.tokenRemarksHint")}>
+          <input className="input w-full text-sm" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("personal.tokenRemarksPlaceholder")} />
+        </Field>
+        {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
+          <Button type="button" variant="ghost" onClick={onClose}>{t("personal.cancel")}</Button>
+          <Button type="submit" variant="primary" disabled={busy || !name.trim()}>
+            {busy ? t("personal.saving") : t("personal.saveToken")}
           </Button>
         </div>
       </form>

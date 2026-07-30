@@ -139,6 +139,7 @@ export interface Token {
    *  min(holder's role, this). "" reads as "member" server-side. */
   role: "" | "member" | "admin" | "owner";
   lastUsedAt: string | null;
+  expiresAt: string | null;
   createdAt: string;
 }
 
@@ -346,8 +347,10 @@ export const api = {
 
   // tokens
   tokens: () => req<Token[]>("GET", "/api/tokens"),
-  createToken: (d: { name: string; note: string; role: "member" | "admin" | "owner" }) =>
-    req<{ token: string }>("POST", "/api/tokens", d),
+  createToken: (d: { name: string; note?: string; role?: "member" | "admin" | "owner"; expiresInDays?: number }) =>
+    req<{ token: string } & Token>("POST", "/api/tokens", d),
+  updateToken: (id: number, d: { name?: string; note?: string; role?: "member" | "admin" | "owner"; expiresInDays?: number }) =>
+    req<Token>("PUT", `/api/tokens/${id}`, d),
   deleteToken: (id: number) => req<void>("DELETE", `/api/tokens/${id}`),
 
   // notification channels
