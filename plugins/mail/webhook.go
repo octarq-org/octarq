@@ -148,15 +148,63 @@ func (p *Plugin) inbound(ctx context.Context, input *InboundInput) (*InboundOutp
 	return &InboundOutput{Body: map[string]any{"ok": true, "stored": true, "id": e.ID}}, nil
 }
 
-// mailHostDisabled reports whether host is listed as a mail host on some domain
+func (p *Plugin) resolveMailHostOrg(host string) uint {
+	normHost := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
+	if idx := strings.IndexByte(normHost, ':'); idx >= 0 {
+		normHost = normHost[:idx]
+	}
+	if normHost == "" || p.db == nil || !p.db.Migrator().HasTable("domains") {
+		return 0
+	}
+	var doms []dns.Domain
+	if err := p.db.Where("for_mail = ?", true).Find(&doms).Error; err != nil {
+		return 0
+	}
+	for _, d := range doms {
+		if len(d.MailHosts) == 0 {
+			normName := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(d.Name)), ".")
+			if idx := strings.IndexByte(normName, ':'); idx >= 0 {
+				normName = normName[:idx]
+			}
+			if normName == normHost {
+				return d.OrgID
+			}
+		} else {
+			for _, mh := range d.MailHosts {
+				normH := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(mh.Host)), ".")
+				if idx := strings.IndexByte(normH, ':'); idx >= 0 {
+					normH = normH[:idx]
+				}
+				if normH == normHost {
+					return d.OrgID
+				}
+			}
+		}
+	}
+	return 0
+}
+
+// mailHostDisabled reports whether host is listed as a mail host on the owner's domain
 // but every such listing is disabled (so mail to it should be dropped).
 func (p *Plugin) mailHostDisabled(host string) bool {
+	orgID := p.resolveMailHostOrg(host)
+	if orgID == 0 {
+		return false
+	}
+	normHost := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
+	if idx := strings.IndexByte(normHost, ':'); idx >= 0 {
+		normHost = normHost[:idx]
+	}
 	var doms []dns.Domain
-	p.db.Find(&doms)
+	p.db.Where("owner_id = ? AND for_mail = ?", orgID, true).Find(&doms)
 	listed := false
 	for _, d := range doms {
 		for _, mh := range d.MailHosts {
-			if mh.Host == host {
+			normMH := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(mh.Host)), ".")
+			if idx := strings.IndexByte(normMH, ':'); idx >= 0 {
+				normMH = normMH[:idx]
+			}
+			if normMH == normHost {
 				listed = true
 				if mh.Enabled {
 					return false

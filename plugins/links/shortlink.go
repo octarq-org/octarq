@@ -83,15 +83,45 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 	return &link, true
 }
 
-// linkHostDisabled reports whether host is listed as a link host on some domain
-// but every such listing is disabled.
-func (e *Engine) linkHostDisabled(host string) bool {
+func (e *Engine) resolveHostOrg(host string) uint {
+	normHost := strings.TrimSuffix(stripPort(strings.ToLower(strings.TrimSpace(host))), ".")
+	if normHost == "" || e.db == nil || !e.db.Migrator().HasTable("domains") {
+		return 0
+	}
 	var doms []dns.Domain
-	e.db.Where("for_link = ?", true).Find(&doms)
+	if err := e.db.Where("for_link = ?", true).Find(&doms).Error; err != nil {
+		return 0
+	}
+	for _, d := range doms {
+		if len(d.LinkHosts) == 0 {
+			if strings.TrimSuffix(stripPort(strings.ToLower(strings.TrimSpace(d.Name))), ".") == normHost {
+				return d.OrgID
+			}
+		} else {
+			for _, h := range d.LinkHosts {
+				if strings.TrimSuffix(stripPort(strings.ToLower(strings.TrimSpace(h.Host))), ".") == normHost {
+					return d.OrgID
+				}
+			}
+		}
+	}
+	return 0
+}
+
+// linkHostDisabled reports whether host is listed as a link host on the owner's domain
+// but every such listing is disabled. Unmanaged hosts (not listed on any domain) are unaffected.
+func (e *Engine) linkHostDisabled(host string) bool {
+	orgID := e.resolveHostOrg(host)
+	if orgID == 0 {
+		return false
+	}
+	normHost := strings.TrimSuffix(stripPort(strings.ToLower(strings.TrimSpace(host))), ".")
+	var doms []dns.Domain
+	e.db.Where("owner_id = ? AND for_link = ?", orgID, true).Find(&doms)
 	listed := false
 	for _, d := range doms {
 		for _, h := range d.LinkHosts {
-			if h.Host == host {
+			if strings.TrimSuffix(stripPort(strings.ToLower(strings.TrimSpace(h.Host))), ".") == normHost {
 				listed = true
 				if h.Enabled {
 					return false
