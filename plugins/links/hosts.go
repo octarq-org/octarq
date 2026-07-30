@@ -1,18 +1,13 @@
 package links
 
 import (
-	"strings"
-
 	"github.com/octarq-org/octarq/plugins/dns"
 	"gorm.io/gorm"
 )
 
-// normalizeHost lowercases, trims whitespace, strips port and trailing dots from host.
-func normalizeHost(host string) string {
-	host = strings.ToLower(strings.TrimSpace(host))
-	host = stripPort(host)
-	return strings.TrimSuffix(host, ".")
-}
+// normalizeHost delegates to the dns package, which owns the Domain rows every
+// comparison here is made against — see dns.NormalizeHost.
+func normalizeHost(host string) string { return dns.NormalizeHost(host) }
 
 // ownsHost reports whether orgID may serve short links on host.
 func (p *Plugin) ownsHost(orgID uint, host string) bool {
