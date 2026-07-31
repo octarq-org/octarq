@@ -43,6 +43,9 @@ func TestSendBlocksNonPublicRelayAtDial(t *testing.T) {
 	if errIP == nil || !strings.Contains(errIP.Error(), "ssrf guard") {
 		t.Errorf("expected ssrf guard error for 127.0.0.1, got: %v", errIP)
 	}
+	if !strings.Contains(errIP.Error(), "OCTARQ_ALLOW_PRIVATE_SMTP") {
+		t.Errorf("expected ssrf guard error to mention OCTARQ_ALLOW_PRIVATE_SMTP, got: %v", errIP)
+	}
 
 	// 2. Test hostname localhost
 	senderHost := NewCustomSender("localhost", portStr, "", "", "sender@example.com")

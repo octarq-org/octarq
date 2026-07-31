@@ -76,7 +76,10 @@ func webhookControl(network, address string, rc syscall.RawConn) error {
 	if allowPrivateWebhooks.Load() {
 		return nil
 	}
-	return Control(network, address, rc)
+	if err := Control(network, address, rc); err != nil {
+		return fmt.Errorf("%w (set OCTARQ_ALLOW_PRIVATE_WEBHOOKS=true to allow local/LAN targets)", err)
+	}
+	return nil
 }
 
 // SMTPControl is the dialer hook for outbound SMTP mail delivery. It is
@@ -85,7 +88,10 @@ func SMTPControl(network, address string, rc syscall.RawConn) error {
 	if allowPrivateSMTP.Load() {
 		return nil
 	}
-	return Control(network, address, rc)
+	if err := Control(network, address, rc); err != nil {
+		return fmt.Errorf("%w (set OCTARQ_ALLOW_PRIVATE_SMTP=true to allow local/LAN SMTP)", err)
+	}
+	return nil
 }
 
 // NewClient builds an http.Client that blocks non-public destinations (incl.
