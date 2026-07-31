@@ -30,6 +30,10 @@ mailbox.
 - **Reply** to a message, or **mark all read**.
 - Send through one of **multiple configured SMTP relays**.
 
+:::note
+Relaying through a local Postfix instance, Mailhog, or a private-network SMTP server on loopback/LAN requires setting `OCTARQ_ALLOW_PRIVATE_SMTP=true` in your environment. Outbound connections to private IP addresses are blocked by default to prevent SSRF.
+:::
+
 :::tip
 Pair mailboxes with [Notification channels](/core/notifications/) to get a
 Telegram or webhook ping the moment new mail lands — and with

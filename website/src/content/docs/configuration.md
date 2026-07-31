@@ -20,6 +20,8 @@ The most important ones:
 | `OCTARQ_ADMIN_USER` | First admin username (default `admin`). |
 | `OCTARQ_ADMIN_PASSWORD` | First admin password. **Required.** |
 | `OCTARQ_ADMIN_HOST` | Restrict `/admin` to this hostname (e.g. `admin.example.com`). Unset = served anywhere. |
+| `OCTARQ_ALLOW_PRIVATE_WEBHOOKS` | Allow webhook & notification delivery to private/loopback IPs. Default `false`. |
+| `OCTARQ_ALLOW_PRIVATE_SMTP` | Allow outbound SMTP mail delivery to private/loopback IPs (e.g. local Postfix or Mailhog). Default `false`. |
 
 ## Database
 
