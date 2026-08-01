@@ -14,6 +14,8 @@ import {
   Clock,
   Share2,
   Sparkles,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 
 interface DocMeta {
@@ -307,11 +309,11 @@ export default function HelpViewer() {
         <div className="flex items-center gap-3">
           <button
             onClick={handleCopyLink}
-            title="Copy Page Link"
+            title={t("help.copy_page_link", "Copy Page Link")}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/80 bg-background hover:bg-surface-hover text-xs font-medium text-muted-foreground hover:text-foreground transition-all shadow-xs"
           >
             {copiedLink ? (
-              <Check className="w-3.5 h-3.5 text-emerald-500" />
+              <Check className="w-3.5 h-3.5 text-emerald-500" /* ui-color-ok */ />
             ) : (
               <Share2 className="w-3.5 h-3.5" />
             )}
@@ -398,7 +400,7 @@ export default function HelpViewer() {
                         }
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/80 bg-background hover:bg-surface-hover hover:text-foreground transition-all shadow-2xs font-medium"
                       >
-                        <span>👍</span>
+                        <ThumbsUp className="w-3.5 h-3.5 text-muted-foreground" />
                         <span>{t("help.helpful", "有帮助")}</span>
                       </button>
                       <button
@@ -412,7 +414,7 @@ export default function HelpViewer() {
                         }
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/80 bg-background hover:bg-surface-hover hover:text-foreground transition-all shadow-2xs font-medium"
                       >
-                        <span>👎</span>
+                        <ThumbsDown className="w-3.5 h-3.5 text-muted-foreground" />
                         <span>{t("help.unhelpful", "需改进")}</span>
                       </button>
                     </div>
