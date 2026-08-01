@@ -28,4 +28,9 @@ export {
   useNotificationChannelForm,
   type NotificationChannelFormContextValue,
 } from "./NotificationChannelFormContext";
+export {
+  PluginGateContext,
+  usePluginGateContext,
+  type PluginGateContextValue,
+} from "./PluginGateContext";
 

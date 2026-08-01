@@ -32,7 +32,9 @@ export function uiRoutes(): UIRoute[] {
 // stable). Rendered by <ExtensionSlot name={slot}/>. Empty registry ⇒ empty
 // array ⇒ the slot renders nothing (the OSS build).
 export function uiWidgets(slot: string): UIWidget[] {
-  return REGISTRY.flatMap((p) => p.widgets ?? [])
+  return REGISTRY.flatMap((p) =>
+    (p.widgets ?? []).map((w) => ({ ...w, pluginName: w.pluginName ?? p.name }))
+  )
     .filter((w) => w.slot === slot)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }

@@ -8,8 +8,9 @@
 // of breaking the host page. Lives in the contract layer (not ./ui) because it
 // is registry-coupled and app-independent — it imports only React and the
 // registry.
-import { Component, ReactNode, Suspense } from "react";
+import { Component, ReactNode, Suspense, useContext } from "react";
 import { uiWidgets } from "./registry";
+import { PluginGateContext } from "./PluginGateContext";
 
 // Per-widget boundary: a crashing widget renders nothing — never the page's
 // problem. (A neutral note would be noise on a dashboard; absence is the
@@ -24,8 +25,19 @@ class WidgetBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
 }
 
+function filterActiveWidgets(widgets: ReturnType<typeof uiWidgets>, disabledPlugins: Set<string>, loaded: boolean) {
+  if (!loaded) return widgets;
+  return widgets.filter((w) => {
+    if (!w.pluginName) return true;
+    if (disabledPlugins.has(w.pluginName)) return false;
+    if (w.pluginName === "domains" && disabledPlugins.has("dns")) return false;
+    return true;
+  });
+}
+
 export function useExtensionCount(name: string): number {
-  return uiWidgets(name).length;
+  const { disabledPlugins, loaded } = useContext(PluginGateContext);
+  return filterActiveWidgets(uiWidgets(name), disabledPlugins, loaded).length;
 }
 
 export function ExtensionSlot({
@@ -35,7 +47,8 @@ export function ExtensionSlot({
   name: string;
   wrapper?: (children: ReactNode) => ReactNode;
 }) {
-  const widgets = uiWidgets(name);
+  const { disabledPlugins, loaded } = useContext(PluginGateContext);
+  const widgets = filterActiveWidgets(uiWidgets(name), disabledPlugins, loaded);
   if (widgets.length === 0) return null;
   const content = (
     <>

@@ -1,19 +1,19 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, Overview } from "../../../api";
+import { api, useOverviewData } from "../../../api";
 import { useTranslation } from "../../../i18n";
 import { SetupStep } from "../../../components/SetupStep";
 
 export default function MailSetupStepWidget() {
-  const [o, setO] = useState<Overview | null>(null);
+  const o = useOverviewData();
   const [smtpCount, setSmtpCount] = useState<number | null>(null);
   const nav = useNavigate();
   const { t } = useTranslation();
 
   useEffect(() => {
-    api.overview().then(setO).catch(() => {});
+    if (!o || o.mailboxes === undefined) return;
     api.smtpSenders().then(s => setSmtpCount(s.length)).catch(() => {});
-  }, []);
+  }, [o]);
 
   if (!o || o.mailboxes === undefined) return null;
 
