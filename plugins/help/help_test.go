@@ -64,6 +64,15 @@ func TestHelpDocs(t *testing.T) {
 			}
 			return true
 		},
+		FeatureActive: func(orgID uint, featureKey string) bool {
+			if orgID == 1 {
+				return org1Enabled
+			}
+			if orgID == 2 {
+				return org2Enabled
+			}
+			return true
+		},
 		OrgID: func(r *http.Request) uint {
 			// Stub orgID based on Header
 			if r.Header.Get("X-Org") == "2" {
@@ -120,7 +129,7 @@ func TestHelpDocs(t *testing.T) {
 		t.Errorf("slug collision not resolved deterministically: %v", docs1)
 	}
 
-	// 2. Org 2 (disabled) sees no docs
+	// 2. Org 2 (disabled) sees no docs for disabled plugins
 	docs2 := getDocs(2)
 	if len(docs2) != 0 {
 		t.Errorf("expected 0 docs for org 2, got %d", len(docs2))

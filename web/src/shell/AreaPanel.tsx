@@ -169,7 +169,39 @@ export function AreaPanel({
               )}
             <div className="space-y-0.5">
               {group.items.map((item) => {
-                const active = currentPath.startsWith(item.path);
+                if (item.children && item.children.length > 0 && !collapsed) {
+                  return (
+                    <div key={item.id} className="space-y-1 my-1">
+                      <div className="px-2 py-1 text-[11px] font-bold text-foreground/80 uppercase tracking-wider flex items-center gap-1.5 mt-1">
+                        <item.Icon className="w-3.5 h-3.5 text-primary shrink-0" strokeWidth={2} />
+                        <span className="truncate">{translateNavItemLabel(t, item.id, item.label)}</span>
+                      </div>
+                      <div className="space-y-0.5 pl-2 border-l border-border/40 ml-3">
+                        {item.children.map((child) => {
+                          const childActive = currentPath === child.path;
+                          return (
+                            <NavLink
+                              key={child.id}
+                              to={child.path}
+                              onClick={onNavigate}
+                              className={`group relative flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-all ${
+                                childActive
+                                  ? "font-semibold text-primary bg-primary/10 border-l-2 border-primary"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-surface-hover/60"
+                              }`}
+                            >
+                              <span className="truncate">{translateNavItemLabel(t, child.id, child.label)}</span>
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                }
+
+                const active = item.path.includes("?")
+                  ? currentPath === item.path
+                  : (item.path !== "/" && currentPath.startsWith(item.path));
                 if (collapsed) {
                   return (
                     <NavLink
@@ -211,8 +243,6 @@ export function AreaPanel({
                         transition={{ type: "spring", stiffness: 500, damping: 40 }}
                         className="absolute inset-0 rounded-xl bg-foreground/[0.06] ring-1 ring-inset ring-border"
                       >
-                        {/* Brand-gradient accent bar — the active item carries the
-                            same indigo→violet axis as the mark and primary actions. */}
                         <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-indigo-400 to-violet-400" />
                       </motion.span>
                     )}

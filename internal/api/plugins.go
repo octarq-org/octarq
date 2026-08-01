@@ -25,7 +25,7 @@ import (
 // filter. The key is a plugin's group, or its name when ungrouped.
 func (h *Handler) PluginEnabled(orgID uint, featureKey string) bool {
 	if orgID == 0 {
-		return false
+		return h.featureDefaultEnabled(featureKey)
 	}
 	var ps models.PluginSetting
 	err := h.db.Where("org_id = ? AND plugin = ?", orgID, featureKey).First(&ps).Error

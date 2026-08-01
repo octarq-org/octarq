@@ -67,11 +67,21 @@ var helpDocs string
 func (p *Plugin) HelpDocs() []plugin.HelpDoc {
 	return []plugin.HelpDoc{
 		{
-			Slug:     "short-links",
-			Title:    "Short Links",
-			Group:    "Marketing",
-			Order:    10,
-			Markdown: helpDocs,
+			Slug:       "short-links",
+			Title:      "Short Links & Analytics",
+			Scope:      "plugins",
+			Category:   "links",
+			Group:      "Marketing",
+			GroupOrder: 40,
+			Order:      1,
+			Feature:    "links",
+			Markdown:   helpDocs,
+			Translations: map[string]plugin.HelpDocTranslation{
+				"zh": {
+					Title: "短链接服务与数据分析指南",
+					Group: "Marketing",
+				},
+			},
 		},
 	}
 }

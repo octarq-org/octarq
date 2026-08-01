@@ -3,8 +3,10 @@ package help
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"log"
 	"sort"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -14,10 +16,17 @@ import (
 	"github.com/yuin/goldmark/parser"
 )
 
+//go:embed getting-started-en.md
+var gettingStartedEnDocs string
+
+//go:embed getting-started-zh.md
+var gettingStartedZhDocs string
+
 var (
 	_ plugin.Plugin       = (*Plugin)(nil)
 	_ plugin.MenuProvider = (*Plugin)(nil)
 	_ plugin.Describer    = (*Plugin)(nil)
+	_ plugin.HelpProvider = (*Plugin)(nil)
 )
 
 type Plugin struct {
@@ -52,10 +61,13 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 }
 
 type DocMeta struct {
-	Slug  string `json:"slug"`
-	Title string `json:"title"`
-	Group string `json:"group"`
-	Order int    `json:"order"`
+	Slug       string `json:"slug"`
+	Title      string `json:"title"`
+	Scope      string `json:"scope"`
+	Category   string `json:"category"`
+	Group      string `json:"group"`
+	GroupOrder int    `json:"groupOrder"`
+	Order      int    `json:"order"`
 }
 
 type ListDocsInput struct {
@@ -77,15 +89,22 @@ func (p *Plugin) listDocs(ctx context.Context, input *ListDocsInput) (*ListDocsO
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	orgID := p.pctx.OrgID(r)
+	lang := r.URL.Query().Get("lang")
+	if lang == "" {
+		lang = r.Header.Get("Accept-Language")
+	}
 
-	allDocs := p.getDocs(orgID)
+	allDocs := p.getDocs(orgID, lang)
 	out := make([]DocMeta, 0, len(allDocs))
 	for _, d := range allDocs {
 		out = append(out, DocMeta{
-			Slug:  d.Slug,
-			Title: d.Title,
-			Group: d.Group,
-			Order: d.Order,
+			Slug:       d.Slug,
+			Title:      d.Title,
+			Scope:      d.Scope,
+			Category:   d.Category,
+			Group:      d.Group,
+			GroupOrder: d.GroupOrder,
+			Order:      d.Order,
 		})
 	}
 	return &ListDocsOutput{Body: out}, nil
@@ -114,8 +133,12 @@ func (p *Plugin) getDoc(ctx context.Context, input *GetDocInput) (*GetDocOutput,
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	orgID := p.pctx.OrgID(r)
+	lang := r.URL.Query().Get("lang")
+	if lang == "" {
+		lang = r.Header.Get("Accept-Language")
+	}
 
-	allDocs := p.getDocs(orgID)
+	allDocs := p.getDocs(orgID, lang)
 	var found *plugin.HelpDoc
 	for _, d := range allDocs {
 		if d.Slug == input.Slug {
@@ -144,7 +167,7 @@ func (p *Plugin) getDoc(ctx context.Context, input *GetDocInput) (*GetDocOutput,
 	return out, nil
 }
 
-func (p *Plugin) getDocs(orgID uint) []plugin.HelpDoc {
+func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
 	var docs []plugin.HelpDoc
 	slugs := make(map[string]string)
 
@@ -154,27 +177,70 @@ func (p *Plugin) getDocs(orgID uint) []plugin.HelpDoc {
 		}
 		if hp, ok := pl.(plugin.HelpProvider); ok {
 			for _, d := range hp.HelpDocs() {
+				if d.Feature != "" && p.pctx.FeatureActive != nil && !p.pctx.FeatureActive(orgID, d.Feature) {
+					continue
+				}
 				if owner, exists := slugs[d.Slug]; exists {
 					log.Printf("[help] warning: plugin %q shadowing slug %q already claimed by %q", pl.Name(), d.Slug, owner)
 					d.Slug = pl.Name() + "-" + d.Slug
 				}
 				slugs[d.Slug] = pl.Name()
+
+				if lang != "" {
+					for k, tr := range d.Translations {
+						if strings.HasPrefix(lang, k) {
+							if tr.Title != "" {
+								d.Title = tr.Title
+							}
+							if tr.Group != "" {
+								d.Group = tr.Group
+							}
+							if tr.Markdown != "" {
+								d.Markdown = tr.Markdown
+							}
+							break
+						}
+					}
+				}
+
 				docs = append(docs, d)
 			}
 		}
 	}
 
 	sort.Slice(docs, func(i, j int) bool {
-		if docs[i].Group != docs[j].Group {
-			return docs[i].Group < docs[j].Group
-		}
 		if docs[i].Order != docs[j].Order {
 			return docs[i].Order < docs[j].Order
+		}
+		if docs[i].GroupOrder != docs[j].GroupOrder {
+			return docs[i].GroupOrder < docs[j].GroupOrder
 		}
 		return docs[i].Title < docs[j].Title
 	})
 
 	return docs
+}
+
+func (p *Plugin) HelpDocs() []plugin.HelpDoc {
+	return []plugin.HelpDoc{
+		{
+			Slug:       "getting-started",
+			Title:      "Getting Started & Overview",
+			Scope:      "platform",
+			Category:   "general",
+			Group:      "Core",
+			GroupOrder: 1,
+			Order:      1,
+			Markdown:   gettingStartedEnDocs,
+			Translations: map[string]plugin.HelpDocTranslation{
+				"zh": {
+					Title:    "快速入门与平台概览",
+					Group:    "Core",
+					Markdown: gettingStartedZhDocs,
+				},
+			},
+		},
+	}
 }
 
 func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
