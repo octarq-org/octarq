@@ -594,6 +594,12 @@ func (a *App) Run(ctx context.Context) error {
 			}
 			return apiHandler.PluginEnabled(orgID, key)
 		},
+		FeatureActive: func(orgID uint, featureKey string) bool {
+			if plugin.FeatureIsCore(a.plugins, featureKey) {
+				return true
+			}
+			return apiHandler.PluginEnabled(orgID, featureKey)
+		},
 		ActivePlugins: func() []plugin.Plugin {
 			return a.plugins
 		},

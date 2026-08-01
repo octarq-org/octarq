@@ -35,24 +35,46 @@ export function CommandPalette({
     () =>
       [...areas, settingsArea].flatMap((a) =>
         a.groups.flatMap((g) =>
-          g.items.map((i) => ({
-            id: i.path,
-            label: translateNavItemLabel(t, i.id, i.label),
-            area: translateAreaTitle(t, a.id, a.title),
-            group: translateGroupLabel(t, g.label),
-            path: i.path,
-            Icon: i.Icon,
-            iconStr: i.iconStr,
-          })),
+          g.items.flatMap((i) => {
+            const areaTitle = translateAreaTitle(t, a.id, a.title);
+            const groupLabel = translateGroupLabel(t, g.label);
+            const parentItem = {
+              id: i.path,
+              label: translateNavItemLabel(t, i.id, i.label),
+              area: areaTitle,
+              group: groupLabel,
+              path: i.path,
+              Icon: i.Icon,
+              iconStr: i.iconStr,
+            };
+            if (i.children && i.children.length > 0) {
+              const childrenItems = i.children.map((c) => ({
+                id: c.path,
+                label: translateNavItemLabel(t, c.id, c.label),
+                area: areaTitle,
+                group: `${groupLabel} → ${translateNavItemLabel(t, i.id, i.label)}`,
+                path: c.path,
+                Icon: c.Icon || i.Icon,
+                iconStr: c.iconStr,
+              }));
+              return childrenItems;
+            }
+            return [parentItem];
+          }),
         ),
       ),
     [areas, settingsArea, t],
   );
 
   const filtered = useMemo(() => {
+    const nonDocCommands = commands.filter(
+      (c) => !c.path.startsWith("/help") && !c.path.startsWith("/admin/help"),
+    );
     const needle = q.trim().toLowerCase();
-    if (!needle) return commands;
-    return commands.filter(
+    if (!needle) {
+      return nonDocCommands;
+    }
+    return nonDocCommands.filter(
       (c) =>
         c.label.toLowerCase().includes(needle) ||
         c.area.toLowerCase().includes(needle) ||
@@ -85,21 +107,21 @@ export function CommandPalette({
         <BaseDialog.Popup
           initialFocus={inputRef}
           aria-label={t("command.placeholder")}
-          className="glass-strong modal-card fixed left-1/2 top-[12vh] z-[100] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl shadow-2xl outline-none"
+          className="fixed left-1/2 top-[12vh] z-[100] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl border border-foreground/10 dark:border-white/10 bg-popover/95 dark:bg-slate-950/95 backdrop-blur-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] ring-1 ring-black/5 dark:ring-white/10 modal-card outline-none"
         >
-        <div className="flex items-center gap-3 border-b border-border px-4">
-          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <div className="flex items-center gap-3 border-b border-foreground/[0.08] dark:border-white/[0.08] focus-within:border-primary/50 bg-foreground/[0.015] dark:bg-white/[0.015] px-4 py-1 transition-colors">
+          <Search className="h-4 w-4 shrink-0 text-primary" />
           <input
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKey}
             placeholder={t("command.placeholder")}
-            className="w-full bg-transparent py-3.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+            className="w-full bg-transparent py-3 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 outline-none border-none ring-0 focus:outline-none focus:border-none focus:ring-0 focus:shadow-none focus-visible:outline-none focus-visible:ring-0"
           />
-          <kbd className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">esc</kbd>
+          <kbd className="shrink-0 rounded-md border border-foreground/10 dark:border-white/10 bg-muted/60 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground">esc</kbd>
         </div>
-        <div className="max-h-[50vh] overflow-y-auto p-1.5">
+        <div className="max-h-[50vh] overflow-y-auto p-2 scrollbar-thin">
           {filtered.length === 0 ? (
             <div className="px-3 py-8 text-center text-sm text-muted-foreground">{t("command.empty", { q })}</div>
           ) : (
@@ -108,17 +130,19 @@ export function CommandPalette({
                 key={c.id}
                 onMouseEnter={() => setSel(i)}
                 onClick={() => onNavigate(c.path)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                  i === sel ? "bg-foreground/[0.06]" : "hover:bg-surface-hover"
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all ${
+                  i === sel
+                    ? "bg-primary/10 text-primary dark:bg-primary/20 font-medium"
+                    : "hover:bg-surface-hover/80 text-foreground/90"
                 }`}
               >
                 {c.iconStr ? (
                   <span className="w-4 text-center text-sm">{c.iconStr}</span>
                 ) : (
-                  <c.Icon className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.75} />
+                  <c.Icon className={`h-4 w-4 shrink-0 transition-colors ${i === sel ? "text-primary" : "text-muted-foreground"}`} strokeWidth={1.75} />
                 )}
-                <span className="flex-1 truncate text-sm text-foreground">{c.label}</span>
-                <span className="shrink-0 text-[11px] text-muted-foreground">{c.area} · {c.group}</span>
+                <span className="flex-1 truncate text-sm">{c.label}</span>
+                <span className="shrink-0 rounded-md border border-foreground/5 dark:border-white/5 bg-muted/40 dark:bg-white/5 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">{c.area} · {c.group}</span>
               </button>
             ))
           )}

@@ -94,14 +94,44 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 //go:embed docs.md
 var helpDocs string
 
+//go:embed ddns-docs.md
+var ddnsDocs string
+
 func (p *Plugin) HelpDocs() []plugin.HelpDoc {
 	return []plugin.HelpDoc{
 		{
-			Slug:     "dns",
-			Title:    "DNS & Network",
-			Group:    "Infrastructure",
-			Order:    10,
-			Markdown: helpDocs,
+			Slug:       "dns",
+			Title:      "DNS Management & Verification",
+			Scope:      "plugins",
+			Category:   "dns",
+			Group:      "Infrastructure",
+			GroupOrder: 20,
+			Order:      1,
+			Feature:    "dns",
+			Markdown:   helpDocs,
+			Translations: map[string]plugin.HelpDocTranslation{
+				"zh": {
+					Title: "域名与 DNS 记录解析指南",
+					Group: "Infrastructure",
+				},
+			},
+		},
+		{
+			Slug:       "ddns",
+			Title:      "Dynamic DNS (DDNS)",
+			Scope:      "plugins",
+			Category:   "dns",
+			Group:      "Infrastructure",
+			GroupOrder: 20,
+			Order:      2,
+			Feature:    "dns",
+			Markdown:   ddnsDocs,
+			Translations: map[string]plugin.HelpDocTranslation{
+				"zh": {
+					Title: "动态域名解析 (DDNS)",
+					Group: "Infrastructure",
+				},
+			},
 		},
 	}
 }

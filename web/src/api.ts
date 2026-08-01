@@ -118,7 +118,10 @@ export interface ApiToken {
 export interface HelpDocMeta {
   slug: string;
   title: string;
+  scope?: string;
+  category?: string;
   group: string;
+  groupOrder?: number;
   order: number;
 }
 
@@ -189,10 +192,27 @@ export class ApiError extends Error {
   }
 }
 
-export async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
+function getAppLang(): string {
+  try {
+    const saved = localStorage.getItem("lang");
+    if (saved) return saved;
+  } catch {
+    /* ignore */
+  }
+  return navigator.language || "en";
+}
+
+export async function req<T>(method: string, path: string, body?: unknown, lang?: string): Promise<T> {
+  const currentLang = lang || getAppLang();
+  const headers: Record<string, string> = {
+    "Accept-Language": currentLang,
+  };
+  if (body) {
+    headers["Content-Type"] = "application/json";
+  }
   const res = await fetch(path, {
     method,
-    headers: body ? { "Content-Type": "application/json" } : undefined,
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
@@ -428,8 +448,8 @@ export const api = {
   purgeWorkspaceData: () => req<void>("DELETE", "/api/account/data"),
 
   // Help
-  helpIndex: () => req<{ body: HelpDocMeta[] }>("GET", "/api/help/docs"),
-  helpPage: (slug: string) => req<{ body: HelpDocContent }>("GET", `/api/help/docs/${slug}`),
+  helpIndex: (lang?: string) => req<HelpDocMeta[]>("GET", lang ? `/api/help/docs?lang=${encodeURIComponent(lang)}` : "/api/help/docs", undefined, lang),
+  helpPage: (slug: string, lang?: string) => req<HelpDocContent>("GET", lang ? `/api/help/docs/${encodeURIComponent(slug)}?lang=${encodeURIComponent(lang)}` : `/api/help/docs/${encodeURIComponent(slug)}`, undefined, lang),
 };
 
 const overviewInflight = new Map<boolean, { promise: Promise<Overview>; time: number }>();

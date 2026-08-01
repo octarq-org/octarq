@@ -12,7 +12,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"));
 const StatusPage = lazy(() => import("./pages/Status"));
 import { Modal, Button, toast, cn, Alert } from "./ui";
 import { useTranslation } from "./i18n";
-import { Area, AreaId, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
+import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
 import { RoleProvider, roleSatisfies } from "./shell/role";
 import { TopBar } from "./shell/TopBar";
 import { CommandPalette } from "./shell/CommandPalette";
@@ -337,7 +337,7 @@ function Shell({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
 
   // Bumped on every workspace switch to remount the routed content, so each
   // page refetches for the new workspace — an in-app refresh that replaces the
@@ -485,8 +485,118 @@ function Shell({
     };
   }, []);
 
-  // The Instance group is octarq-provided instance administration (Instance
-  // Settings, octarq License, …) — visible only to instance admins.
+  // Help docs navigation integration for Shell sidebar & Command Palette
+  const [helpDocsNav, setHelpDocsNav] = useState<any[]>([]);
+  useEffect(() => {
+    api.helpIndex(lang)
+      .then((res) => setHelpDocsNav(Array.isArray(res) ? res : (res as any)?.body || []))
+      .catch(() => {});
+  }, [activeOrgId, lang]);
+
+  const helpArea: Area = useMemo(() => {
+    // 1. Group docs by Level 1 Scope (platform | portal | plugins) and Level 2 Category
+    const scopesMap = new Map<string, Map<string, any[]>>();
+    const scopeOrder = ["platform", "portal", "plugins"];
+
+    helpDocsNav.forEach((d: any) => {
+      let scope = (d.scope || "").toLowerCase();
+      if (!scope) {
+        if (d.group === "Core" || d.group === "Platform") scope = "platform";
+        else if (d.group === "Portal") scope = "portal";
+        else scope = "plugins";
+      }
+
+      let category = (d.category || d.group || "general").toLowerCase();
+
+      if (!scopesMap.has(scope)) {
+        scopesMap.set(scope, new Map());
+      }
+      const catMap = scopesMap.get(scope)!;
+      if (!catMap.has(category)) {
+        catMap.set(category, []);
+      }
+      catMap.get(category)!.push(d);
+    });
+
+    const groups: NavGroup[] = [];
+
+    const scopeTitleMap: Record<string, string> = {
+      platform: t("help.scope_platform", "⚡ 平台能力 (Platform Core)"),
+      portal: t("help.scope_portal", "🌐 门户能力 (Portal & User)"),
+      plugins: t("help.scope_plugins", "🧩 插件能力 (Plugin Extensions)"),
+    };
+
+    const categoryTitleMap: Record<string, string> = {
+      general: t("help.cat_general", "概览与入门指南"),
+      security: t("help.cat_security", "身份认证与 Token"),
+      portal: t("help.cat_portal", "多组织架构与工作区"),
+      workspace: t("help.cat_workspace", "多组织架构与工作区"),
+      ai: t("help.cat_ai", "AI 与 MCP 协议"),
+      events: t("help.cat_events", "事件中心与 Webhooks"),
+      links: t("help.cat_links", "短链接服务 (Links)"),
+      dns: t("help.cat_dns", "域名与 DNS 服务"),
+      mail: t("help.cat_mail", "邮箱与邮件路由"),
+      marketing: t("help.cat_marketing", "营销工具"),
+      infrastructure: t("help.cat_infra", "网络与基础设施"),
+      messaging: t("help.cat_messaging", "消息与通讯服务"),
+    };
+
+    scopeOrder.forEach((scopeKey) => {
+      const catMap = scopesMap.get(scopeKey);
+      if (!catMap || catMap.size === 0) return;
+
+      const items: NavItem[] = [];
+
+      // Sort categories by the minimum order of their documents
+      const sortedCatEntries = Array.from(catMap.entries()).sort(([_, listA], [__, listB]) => {
+        const minA = Math.min(...listA.map((d: any) => d.order ?? 999));
+        const minB = Math.min(...listB.map((d: any) => d.order ?? 999));
+        return minA - minB;
+      });
+
+      sortedCatEntries.forEach(([catKey, docsList]) => {
+        const catTitle = categoryTitleMap[catKey] || catKey;
+
+        // Sort documents by order and title
+        const sortedDocsList = [...docsList].sort((a, b) => {
+          if ((a.order ?? 0) !== (b.order ?? 0)) return (a.order ?? 0) - (b.order ?? 0);
+          return (a.title || "").localeCompare(b.title || "");
+        });
+
+        // Level 2 Item containing Level 3 Children
+        const childrenItems: NavItem[] = sortedDocsList.map((doc) => ({
+          id: `help-${doc.slug}`,
+          label: doc.title,
+          Icon: Globe,
+          path: `/help/${scopeKey}/${catKey}/${doc.slug}`,
+        }));
+
+        items.push({
+          id: `cat-${scopeKey}-${catKey}`,
+          label: catTitle,
+          Icon: Globe,
+          path: `/help/${scopeKey}/${catKey}`,
+          children: childrenItems,
+        });
+      });
+
+      groups.push({
+        label: scopeTitleMap[scopeKey] || scopeKey,
+        items,
+      });
+    });
+
+    return {
+      id: "help",
+      title: t("help.title", "帮助与文档"),
+      subtitle: t("help.platform_subtitle", "三层嵌套层级结构"),
+      Icon: Globe,
+      groups: groups.length > 0 ? groups : [
+        { label: "Help", items: [{ id: "help-root", label: "Help", Icon: Globe, path: "/help" }] }
+      ],
+    };
+  }, [helpDocsNav, t]);
+
   const currentSettingsArea = useMemo(() => {
     if (isInstanceAdmin) return mergedSettingsArea;
     return {
@@ -495,7 +605,12 @@ function Shell({
     };
   }, [mergedSettingsArea, isInstanceAdmin]);
 
-  const currentArea = settingsActive ? currentSettingsArea : (areas.find((a) => a.id === activeArea) ?? areas[0]);
+  const helpActive = location.pathname.startsWith("/help") || location.pathname.startsWith("/admin/help");
+  const currentArea = helpActive
+    ? helpArea
+    : settingsActive
+    ? currentSettingsArea
+    : (areas.find((a) => a.id === activeArea) ?? areas[0]);
   const activeOrgName = orgs.find((o) => o.id === activeOrgId)?.name ?? t("app.personalWorkspace");
 
   // Apply an active-workspace change in-app: point the shell at the new org
@@ -619,7 +734,7 @@ function Shell({
       >
         <AreaPanel
           area={currentArea}
-          currentPath={location.pathname}
+          currentPath={location.pathname + location.search}
           collapsed={panelCollapsed}
           onToggle={togglePanel}
           onNavigate={() => { if (window.innerWidth < 768) setPanelCollapsed(true); }}
@@ -638,35 +753,48 @@ function Shell({
       </aside>
 
       <main ref={mainRef} id="main-content" tabIndex={-1} className="relative flex-1 overflow-hidden outline-none">
-        <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-          <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-8 py-8">
+        {helpActive ? (
+          <div key={orgEpoch} className="h-full w-full overflow-hidden">
             <Suspense fallback={<RouteFallback />}>
-            <PluginGateContext.Provider value={pluginGateCtxValue}>
-            <Routes>
-              <Route path="/"           element={<Navigate to="/overview" replace />} />
-              <Route path="/overview"   element={<OverviewPage />} />
-              <Route path="/settings/*" element={<SettingsPage />} />
-              <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
-              <Route path="/admin/reset" element={<ResetPasswordPage />} />
-              {/* Every business page — core (plugins/core) and edition-composed
-                  (manifest) — flows through the same registry. */}
-              {pluginRouteElements()}
-              {/* Unknown paths 404-degrade to a neutral note instead of silently
-                  redirecting — a Pro plugin path with no composed plugin lands
-                  here, matching octarq's "not in this build" convention. */}
-              <Route path="*"           element={<PluginUnavailable />} />
-            </Routes>
-            </PluginGateContext.Provider>
+              <PluginGateContext.Provider value={pluginGateCtxValue}>
+                <Routes>
+                  <Route path="/"           element={<Navigate to="/overview" replace />} />
+                  <Route path="/overview"   element={<OverviewPage />} />
+                  <Route path="/settings/*" element={<SettingsPage />} />
+                  <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
+                  <Route path="/admin/reset" element={<ResetPasswordPage />} />
+                  {pluginRouteElements()}
+                  <Route path="*"           element={<PluginUnavailable />} />
+                </Routes>
+              </PluginGateContext.Provider>
             </Suspense>
           </div>
-        </div>
+        ) : (
+          <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
+            <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-8 py-8">
+              <Suspense fallback={<RouteFallback />}>
+                <PluginGateContext.Provider value={pluginGateCtxValue}>
+                  <Routes>
+                    <Route path="/"           element={<Navigate to="/overview" replace />} />
+                    <Route path="/overview"   element={<OverviewPage />} />
+                    <Route path="/settings/*" element={<SettingsPage />} />
+                    <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
+                    <Route path="/admin/reset" element={<ResetPasswordPage />} />
+                    {pluginRouteElements()}
+                    <Route path="*"           element={<PluginUnavailable />} />
+                  </Routes>
+                </PluginGateContext.Provider>
+              </Suspense>
+            </div>
+          </div>
+        )}
       </main>
       </div>
 
       <CommandPalette
         open={cmdOpen}
         onClose={() => setCmdOpen(false)}
-        areas={areas}
+        areas={helpDocsNav.length > 0 ? [...areas, helpArea] : areas}
         settingsArea={currentSettingsArea}
         onNavigate={(path) => { navigate(path); setCmdOpen(false); }}
       />

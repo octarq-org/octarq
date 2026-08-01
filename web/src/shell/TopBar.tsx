@@ -101,11 +101,11 @@ export function TopBar({
       {/* Command palette trigger */}
       <button
         onClick={onOpenCommand}
-        className="flex h-9 items-center gap-2 rounded-xl border border-border bg-card px-2.5 text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+        className="flex h-9 items-center gap-2 rounded-xl border border-foreground/10 dark:border-white/10 bg-surface-hover/50 hover:bg-surface-hover hover:border-foreground/20 px-3 text-muted-foreground transition-all shadow-2xs group"
       >
-        <Search className="h-4 w-4" />
-        <span className="hidden text-xs md:block">{t("common.search")}</span>
-        <kbd className="hidden rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground md:block">⌘K</kbd>
+        <Search className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+        <span className="hidden text-xs font-medium md:block group-hover:text-foreground">{t("common.search")}</span>
+        <kbd className="hidden rounded-md border border-foreground/10 dark:border-white/10 bg-muted/80 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground md:block">⌘K</kbd>
       </button>
 
       {/* Theme toggle — light is the default (Wise/CF); flips to the frosted dark theme. */}

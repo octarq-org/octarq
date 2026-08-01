@@ -133,6 +133,9 @@ func TestPluginEnabledByDefault(t *testing.T) {
 	if !pluginEnabled(t, srv, cookies, "demo") {
 		t.Fatal("EnabledByDefault plugin should be on before any toggle")
 	}
+	if !h.PluginEnabled(0, "demo") {
+		t.Fatal("PluginEnabled(0, key) should fall back to feature default enabled")
+	}
 	if !menuHasPath(t, srv, cookies, "/demo") {
 		t.Fatal("default-on plugin menu should appear")
 	}

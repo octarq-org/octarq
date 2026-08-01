@@ -87,11 +87,21 @@ var helpDocs string
 func (p *Plugin) HelpDocs() []plugin.HelpDoc {
 	return []plugin.HelpDoc{
 		{
-			Slug:     "mail",
-			Title:    "Email Services",
-			Group:    "Messaging",
-			Order:    20,
-			Markdown: helpDocs,
+			Slug:       "mailboxes",
+			Title:      "Mailboxes & Email Routing",
+			Scope:      "plugins",
+			Category:   "mail",
+			Group:      "Messaging",
+			GroupOrder: 30,
+			Order:      1,
+			Feature:    "mail",
+			Markdown:   helpDocs,
+			Translations: map[string]plugin.HelpDocTranslation{
+				"zh": {
+					Title: "邮箱服务与邮件路由指南",
+					Group: "Messaging",
+				},
+			},
 		},
 	}
 }

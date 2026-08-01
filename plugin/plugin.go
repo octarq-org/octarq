@@ -176,6 +176,9 @@ type Context struct {
 	// deliver to. cfgJSON is the channel's stored JSON config; text is the body.
 	// Call it during Mount. nil on hosts that predate it.
 	RegisterNotifier func(typ string, send func(ctx context.Context, cfgJSON, text string) error)
+	// FeatureActive reports whether the given feature key is active for orgID.
+	FeatureActive func(orgID uint, featureKey string) bool
+
 	// UserID extracts the authenticated user ID from the request session (0 if unauthed).
 	UserID func(*http.Request) uint
 	// OrgID extracts the authenticated org ID from the request session (0 if unauthed).
@@ -450,13 +453,27 @@ type MCPProvider interface {
 	RegisterMCP(srv *mcp.Server)
 }
 
+// HelpDocTranslation provides localized strings for a HelpDoc.
+type HelpDocTranslation struct {
+	Title    string
+	Scope    string
+	Category string
+	Group    string
+	Markdown string
+}
+
 // HelpDoc is one page of in-app documentation contributed by a plugin.
 type HelpDoc struct {
-	Slug     string // URL segment, unique across the instance
-	Title    string
-	Group    string // section heading in the help index
-	Order    int
-	Markdown string // raw source; core renders it
+	Slug         string // Level 3 identifier / URL segment, unique across the instance
+	Title        string // Level 3 title
+	Scope        string // Level 1: "platform" | "portal" | "plugins"
+	Category     string // Level 2: e.g. "links", "dns", "mail", "security"
+	Group        string // Backward-compatible section heading
+	GroupOrder   int    // Controls sorting of groups
+	Order        int    // Doc ordering inside category
+	Feature      string // Optional target feature key controlling enablement
+	Markdown     string // Raw source; core renders it
+	Translations map[string]HelpDocTranslation
 }
 
 // HelpProvider is implemented by plugins that ship in-app documentation.

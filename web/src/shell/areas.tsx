@@ -46,6 +46,7 @@ export interface NavItem {
   iconStr?: string;
   path: string;
   badge?: string | number;
+  children?: NavItem[];
 }
 
 export interface NavGroup {
@@ -159,6 +160,7 @@ export const SETTINGS_AREA: Area = {
 export function areaForPath(path: string, areas: Area[] = STATIC_AREAS): AreaId {
   // Settings live in their own area (SETTINGS_AREA), not the areas list.
   if (path.startsWith("/settings")) return "settings";
+  if (path.startsWith("/help") || path.startsWith("/admin/help")) return "help";
   const hit = areas
     .flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => ({ prefix: i.path, area: a.id }))))
     .sort((x, y) => y.prefix.length - x.prefix.length) // longest prefix wins
