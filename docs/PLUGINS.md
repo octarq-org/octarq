@@ -113,6 +113,26 @@ Key rules:
   types claim the same table. Mirroring an *existing core* table with a local
   struct (`TableName()` override) is the allowed convention for reading core
   data without importing `internal/models`.
+- **Ship documentation as a `docs/` directory, not a Go literal.** Embed it and
+  return it; the host walks it and serves the pages under `/help/<slug>`:
+
+  ```go
+  //go:embed docs
+  var docs embed.FS
+
+  func (p *Plugin) HelpDocsFS() fs.FS { return docs }
+  ```
+
+  The naming is the whole contract. `docs/webhooks.mdx` is a page whose slug is
+  `webhooks`; `docs/webhooks.zh.mdx` is its Chinese translation and is never a
+  page of its own. Everything else — title, category, order — is YAML
+  frontmatter in the file, so a page is declared exactly once and adding one
+  means adding a file. `category` must be one of the six keys from
+  `plugin.HelpCategories()`. Subdirectories are walked and don't affect slugs.
+
+  `plugin.HelpProvider` (`HelpDocs() []plugin.HelpDoc`) remains for pages built
+  at runtime; a plugin may implement both, and the two are concatenated.
+
 - **Pair every interface you implement with a compile-time assertion** —
   optional capabilities are detected by runtime type assertion, so a typo'd
   method silently never runs without these:
@@ -239,5 +259,7 @@ resolves them as normal peers and needs no such mapping.
       auto-**404** for the disabled-feature case.
 - [ ] Pages are `React.lazy`; UI built from `@octarq/plugin-sdk`; 402/404 handled.
 - [ ] i18n keys live under your `name` namespace.
+- [ ] Help pages live in `docs/<slug>.mdx` with a `<slug>.zh.mdx` translation;
+      title/category/order are frontmatter, not Go.
 - [ ] `go build ./...` and `pnpm build` are green; `go:embed` produces one binary.
 
