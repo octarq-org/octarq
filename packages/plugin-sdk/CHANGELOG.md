@@ -1,5 +1,15 @@
 # @octarq-org/plugin-sdk
 
+## 0.9.0
+
+### Minor Changes
+
+- 435eeb4: Add `PasswordConfirmProvider` / `usePasswordConfirm` / `confirmPassword` — a
+  shared password re-authentication dialog, mirroring the existing confirm dialog.
+  It resolves the password the user typed (or `null` if dismissed) so a sensitive
+  action can hand it straight to the server call that verifies it, instead of each
+  page growing its own password field.
+
 ## 0.8.0
 
 ### Minor Changes
