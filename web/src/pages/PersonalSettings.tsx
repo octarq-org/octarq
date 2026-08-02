@@ -297,10 +297,10 @@ export function ApiTokens() {
         ) : (
           <div className="divide-y divide-foreground/[0.04] border border-foreground/[0.05] rounded-xl bg-well overflow-hidden">
             {tokens.map((timer) => (
-              <div key={timer.id} className="flex items-center justify-between p-4 group">
+              <div key={timer.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 sm:gap-4 group">
                 <div>
                   <div className="font-semibold text-sm text-foreground">{timer.name}</div>
-                  <div className="text-xs text-foreground/50 mt-1 flex items-center gap-2">
+                  <div className="text-xs text-foreground/50 mt-1 flex flex-wrap items-center gap-2">
                     <code className="rounded bg-foreground/5 px-1.5 py-0.5 border border-foreground/[0.04]">{timer.prefix}…</code>
                     {/* An empty role is the least privilege, not the most: the
                         server reads it as "member", the same thing minting
@@ -310,8 +310,8 @@ export function ApiTokens() {
                     {timer.note && <span className="text-foreground/40">{timer.note}</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-[11px] text-foreground/50 flex flex-col items-end">
+                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">
+                  <div className="text-[11px] text-foreground/50 flex flex-col sm:items-end">
                     <span>{timer.lastUsedAt ? t("personal.usedAgo", { time: timeAgo(timer.lastUsedAt) }) : t("personal.neverUsed")}</span>
                     {timer.expiresAt && (
                       <span className={new Date(timer.expiresAt).getTime() < Date.now() ? "text-danger-fg font-medium" : "text-foreground/40"}>
@@ -325,14 +325,14 @@ export function ApiTokens() {
                     <Button
                       variant="secondary"
                       onClick={() => setEditingToken(timer)}
-                      className="text-xs py-1 px-2.5 border-0"
+                      className="text-xs min-h-[44px] sm:min-h-0 py-2 sm:py-1 px-3 sm:px-2.5 border-0"
                     >
                       {t("personal.edit")}
                     </Button>
                     <Button
                       variant="danger"
                       onClick={() => remove(timer.id)}
-                      className="text-xs py-1 px-2.5 border-0"
+                      className="text-xs min-h-[44px] sm:min-h-0 py-2 sm:py-1 px-3 sm:px-2.5 border-0"
                     >
                       {t("personal.revoke")}
                     </Button>

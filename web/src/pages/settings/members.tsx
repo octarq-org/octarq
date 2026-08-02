@@ -110,8 +110,8 @@ export function OrgMembersManager() {
       <GlassCard className="p-6 space-y-6">
 
       {canManage && (
-      <form onSubmit={handleAdd} className="bg-well p-4 rounded-xl border border-foreground/[0.05] flex flex-wrap sm:flex-nowrap gap-4 items-end">
-        <div className="flex-1 min-w-[200px]">
+      <form onSubmit={handleAdd} className="bg-well p-4 rounded-xl border border-foreground/[0.05] flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
+        <div className="w-full sm:flex-1 sm:min-w-[200px]">
           <label className="label text-xs">{t("settings.inviteByEmail")}</label>
           <input
             className="input w-full text-sm mt-1"
@@ -121,7 +121,7 @@ export function OrgMembersManager() {
             required
           />
         </div>
-        <div className="w-32">
+        <div className="w-full sm:w-32">
           <label className="label text-xs">{t("settings.accessRole")}</label>
           <Select
             className="mt-1 text-xs"
@@ -134,7 +134,7 @@ export function OrgMembersManager() {
             ]}
           />
         </div>
-        <Button variant="primary" className="py-2 text-xs shrink-0" disabled={busy || !email}>
+        <Button variant="primary" className="w-full sm:w-auto py-2 text-xs shrink-0" disabled={busy || !email}>
           {busy ? t("settings.inviting") : t("settings.inviteMember")}
         </Button>
       </form>
@@ -153,9 +153,9 @@ export function OrgMembersManager() {
             // else first, which is a deliberate second step.
             const canEditRole = canManage && !isSelf && (canGrantOwner || m.role !== "owner");
             return (
-              <div key={m.userId} className="flex justify-between items-center p-4">
+              <div key={m.userId} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 sm:gap-4">
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="font-semibold text-sm text-foreground">{m.email}</span>
+                  <span className="font-semibold text-sm text-foreground truncate">{m.email}</span>
                   {canEditRole ? (
                     <Select
                       className="text-xs py-1"
@@ -179,13 +179,15 @@ export function OrgMembersManager() {
                   )}
                 </div>
                 {canManage && !isSelf && (
-                  <Button
-                    variant="danger"
-                    onClick={() => handleRemove(m.userId)}
-                    className="text-xs py-1 px-2.5 border-0"
-                  >
-                    {t("settings.remove")}
-                  </Button>
+                  <div className="flex justify-end w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">
+                    <Button
+                      variant="danger"
+                      onClick={() => handleRemove(m.userId)}
+                      className="text-xs min-h-[44px] sm:min-h-0 py-2 sm:py-1 px-3 sm:px-2.5 border-0"
+                    >
+                      {t("settings.remove")}
+                    </Button>
+                  </div>
                 )}
               </div>
             );

@@ -26,7 +26,7 @@ export function DnsHostRow({ host }: { host: HostDNSStatus }) {
         <Mail className="h-3.5 w-3.5 text-accent-fg/70 shrink-0" />
         <span className="text-xs font-mono text-foreground/70 truncate">{host.host}</span>
       </div>
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <DnsStatusBadge status={host.spf} label="SPF" />
         <DnsStatusBadge status={host.dkim} label={dkimLabel} />
         <DnsStatusBadge status={host.dmarc} label="DMARC" />

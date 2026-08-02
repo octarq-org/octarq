@@ -63,7 +63,7 @@ export function WebhooksSettings() {
         ) : (
           <div className="space-y-3.5">
             {webhooks.map((w) => (
-              <div key={w.id} className="flex flex-col justify-between gap-3 rounded-lg border border-foreground/[0.06] bg-foreground/[0.02] p-3 text-sm md:flex-row md:items-center">
+              <div key={w.id} className="flex flex-col justify-between gap-3 rounded-lg border border-foreground/[0.06] bg-foreground/[0.02] p-3 text-sm sm:flex-row sm:items-center">
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-foreground/80">{w.name}</span>
@@ -84,9 +84,9 @@ export function WebhooksSettings() {
                   <div className="select-all font-mono text-[10px] text-zinc-500">{t("settings.secretLabel")} {w.secret}</div>
                 </div>
                 {canManage && (
-                  <div className="flex shrink-0 items-center gap-3 self-end md:self-auto">
+                  <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">
                     <Toggle on={w.enabled} onChange={() => toggle(w)} />
-                    <Button variant="danger" onClick={() => del(w.id)} className="flex items-center gap-1 px-2.5 py-1 text-xs"><Trash2 className="h-3 w-3" /> {t("settings.delete")}</Button>
+                    <Button variant="danger" onClick={() => del(w.id)} className="flex items-center gap-1 px-3 sm:px-2.5 py-2 sm:py-1 text-xs min-h-[44px] sm:min-h-0"><Trash2 className="h-3 w-3" /> {t("settings.delete")}</Button>
                   </div>
                 )}
               </div>

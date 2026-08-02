@@ -749,7 +749,7 @@ function Shell({
           </div>
         ) : (
           <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-            <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-8 py-8">
+            <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-8 sm:py-8">
               {appRoutes}
             </div>
           </div>

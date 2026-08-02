@@ -116,10 +116,10 @@ export default function DomainsPage() {
         }
       />
 
-      <div className="flex gap-0 border-b border-foreground/[0.06] mb-6">
+      <div className="flex gap-0 border-b border-foreground/[0.06] mb-6 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <button
           onClick={() => setTab('domains')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap ${
             tab === 'domains'
               ? 'border-indigo-500 text-foreground'
               : 'border-transparent text-foreground/45 hover:text-foreground/70'
@@ -129,7 +129,7 @@ export default function DomainsPage() {
         </button>
         <button
           onClick={() => setTab('ddns')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
             tab === 'ddns'
               ? 'border-indigo-500 text-foreground'
               : 'border-transparent text-foreground/45 hover:text-foreground/70'
@@ -139,7 +139,7 @@ export default function DomainsPage() {
         </button>
         <button
           onClick={() => setTab('settings')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
             tab === 'settings'
               ? 'border-indigo-500 text-foreground'
               : 'border-transparent text-foreground/45 hover:text-foreground/70'
@@ -290,7 +290,7 @@ export default function DomainsPage() {
                   {t("domains.verificationHint")}
                 </p>
                 {dnsStatus === null ? (
-                  <div className="grid grid-cols-3 gap-3 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                     {(["SPF", "DKIM", "DMARC"] as const).map((label) => (
                       <div key={label} className="flex flex-col items-center p-3.5 rounded-xl bg-foreground/[0.02] border border-foreground/[0.04]">
                         <span className="text-[10px] uppercase font-bold text-foreground/40 tracking-wider">{t("domains.statusLabel", { label })}</span>

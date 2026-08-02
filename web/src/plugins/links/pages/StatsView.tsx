@@ -22,13 +22,13 @@ export function StatsView({ link }: { link: Link }) {
         <Eye className="h-4 w-4 text-accent-fg" />
         {t("links.clickPerformanceAnalytics")}
       </h3>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard label={t("links.totalClicks")} value={stats.total} index={0} />
         <StatCard label={t("links.lastDays", { days: stats.days })} value={stats.windowed} index={1} />
         <StatCard label={t("links.trackingWindow")} value={`${stats.series?.length || 0}d`} index={2} />
       </div>
       <Spark series={stats.series} />
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-2 border-t border-foreground/[0.04]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 pt-2 border-t border-foreground/[0.04]">
         <TopList title={t("links.countries")} icon={<Globe className="h-3 w-3 text-foreground/40 mr-1 inline" />} rows={stats.countries} />
         <TopList title={t("links.regions")} icon={<ExternalLink className="h-3 w-3 text-foreground/40 mr-1 inline" />} rows={stats.regions} />
         <TopList title={t("links.devices")} icon={<Eye className="h-3 w-3 text-foreground/40 mr-1 inline" />} rows={stats.devices} />

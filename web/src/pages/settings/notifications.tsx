@@ -97,7 +97,7 @@ function ProviderRow({
           {channels.length > 0 && (
             <div className="divide-y divide-foreground/[0.04] rounded-xl border border-foreground/[0.05] bg-well overflow-hidden">
               {channels.map((c) => (
-                <div key={c.id} className="flex items-center gap-3 p-3 group">
+                <div key={c.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 group">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm text-foreground">{c.name}</span>
@@ -109,32 +109,32 @@ function ProviderRow({
                     </div>
                   </div>
                   {canManage && (
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">
                       <Button
                         variant="subtle"
                         onClick={() => onToggle(c)}
-                        className="text-xs py-1 px-2.5"
+                        className="text-xs min-h-[44px] sm:min-h-0 py-2 sm:py-1 px-3 sm:px-2.5"
                       >
                         {c.enabled ? t("settings.disable") : t("settings.enable")}
                       </Button>
                       <Button
                         variant="outline"
                         onClick={() => onTest(c.id)}
-                        className="text-xs py-1 px-2.5 flex items-center gap-1"
+                        className="text-xs min-h-[44px] sm:min-h-0 py-2 sm:py-1 px-3 sm:px-2.5 flex items-center gap-1"
                       >
                         <Send className="h-3 w-3" /> {t("settings.test")}
                       </Button>
                       <Button
                         variant="ghost"
                         onClick={() => onEdit(c)}
-                        className="text-xs py-1 px-2.5"
+                        className="text-xs min-h-[44px] sm:min-h-0 py-2 sm:py-1 px-3 sm:px-2.5"
                       >
                         <Pencil className="h-3 w-3" />
                       </Button>
                       <Button
                         variant="danger"
                         onClick={() => onDelete(c.id)}
-                        className="text-xs py-1 px-2.5 border-0"
+                        className="text-xs min-h-[44px] sm:min-h-0 py-2 sm:py-1 px-3 sm:px-2.5 border-0"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
