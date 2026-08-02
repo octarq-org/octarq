@@ -621,8 +621,15 @@ func (a *App) Run(ctx context.Context) error {
 	}
 	// Non-core plugin routes are gated by a per-workspace feature toggle: when the
 	// caller's workspace has the feature disabled, the app answers 404 before the
-	// handler runs. Core plumbing (license activation, buyer identity) mounts
-	// ungated — it must always work. See pluginGate for the org-0 contract.
+	// handler runs. Core plumbing (license activation) mounts ungated — it must
+	// always work.
+	//
+	// That is not what keeps public routes alive, and the two are easy to
+	// conflate. Payment webhooks and the buyer portal reach the same gate, but
+	// they survive because they carry no session: pluginGate reports org 0 as
+	// "not workspace-scoped" and the route is served whether or not its plugin
+	// is core. So a buyer-facing feature does not need Core to stay reachable —
+	// see pluginGate for the org-0 contract and the test that pins it.
 	enabled := a.pluginGate(apiHandler)
 	for _, p := range a.plugins {
 		pctxCopy := *pctx
