@@ -302,12 +302,12 @@ export function AreaPanel({
                     in the sidebar twice. */}
                 <Menu.Item render={<a href={RESOURCES.docs} target="_blank" rel="noreferrer" />} className={MENU_ITEM}>
                   <BookOpen className="h-4 w-4" strokeWidth={1.75} />
-                  <span className="flex-1">{t("footer.docs", "Documentation")}</span>
+                  <span className="flex-1">{t("footer.docs", "Developer Docs")}</span>
                   <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 </Menu.Item>
                 <Menu.Item render={<a href={RESOURCES.about} target="_blank" rel="noreferrer" />} className={MENU_ITEM}>
                   <Info className="h-4 w-4" strokeWidth={1.75} />
-                  <span className="flex-1">{t("footer.about", "About Octarq")}</span>
+                  <span className="flex-1">{t("footer.about", "Website")}</span>
                   <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 </Menu.Item>
                 <Menu.Item render={<a href={RESOURCES.github} target="_blank" rel="noreferrer" />} className={MENU_ITEM}>

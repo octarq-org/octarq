@@ -138,8 +138,8 @@ export const es = {
   },
   footer: {
     help: "Acerca de octarq",
-    docs: "Documentación",
-    about: "Acerca de Octarq",
+    docs: "Documentación para desarrolladores",
+    about: "Sitio web",
     github: "GitHub",
     contact: "Contacto",
   },

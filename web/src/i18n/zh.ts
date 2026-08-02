@@ -139,8 +139,8 @@ export const zh: Resources = {
   },
   footer: {
     help: "关于 octarq",
-    docs: "官方开发者文档 (docs.octarq.org)",
-    about: "关于 Octarq",
+    docs: "开发者文档",
+    about: "官网",
     github: "GitHub",
     contact: "联系我们",
   },

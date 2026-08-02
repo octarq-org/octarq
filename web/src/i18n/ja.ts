@@ -138,8 +138,8 @@ export const ja = {
   },
   footer: {
     help: "octarq について",
-    docs: "ドキュメント",
-    about: "Octarq について",
+    docs: "開発者ドキュメント",
+    about: "公式サイト",
     github: "GitHub",
     contact: "お問い合わせ",
   },
