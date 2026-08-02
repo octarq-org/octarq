@@ -1,0 +1,47 @@
+---
+title: Quickstart
+description: Set up Octarq in 5 minutes — Docker deployment, organization setup, domain binding, and enabling features.
+category: start
+order: 20
+---
+
+Get your Octarq instance up and running in under five minutes using Docker.
+
+## 1. Run via Docker
+
+Deploy the single-binary container with persistent data storage:
+
+```bash
+docker run -d \
+  --name octarq \
+  -p 8080:8080 \
+  -v octarq_data:/app/data \
+  -e OCTARQ_APP_NAME="My Studio" \
+  ghcr.io/octarq-org/octarq:latest
+```
+
+Open `http://localhost:8080` in your browser to start the setup wizard.
+
+## 2. Create Initial Account & Organization
+
+1. Follow the prompt to register the **Instance Admin** account.
+2. Create your primary business **Organization** (e.g. `Acme Corp`).
+3. Additional team members can be invited under **Settings -> Members** with granular RBAC roles (`owner`, `admin`, `member`).
+
+## 3. Bind Custom Domain
+
+To configure custom short links and digital storefronts:
+
+1. Add a DNS CNAME record pointing `hub.yourdomain.com` to your server IP/hostname.
+2. Navigate to **DNS -> Add Domain** in the Octarq dashboard.
+3. Automated TLS certificate provisioning will secure your domain over HTTPS.
+
+## 4. Enable the Features You Need
+
+1. Navigate to **Settings -> Plugins**. Every feature — short links, mailboxes, DNS — is a plugin you can switch on or off per workspace.
+2. Toggle on what this workspace should use. Sidebar entries appear and disappear with the toggle.
+3. Access your in-app documentation anytime via the **Help** link in the sidebar footer.
+
+:::tip Next Steps
+Set up [Short Links](/help/short-links) for campaign tracking, [Mailboxes](/help/mailboxes) to receive email on your own domain, or generate an [API Token](/help/api-tokens) to drive Octarq from your scripts.
+:::

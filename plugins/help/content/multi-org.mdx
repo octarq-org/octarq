@@ -1,0 +1,52 @@
+---
+title: Organizations & Workspace RBAC
+description: Isolate data into multi-tenant orgs with role-based access for owners, admins, and members.
+category: access
+order: 90
+---
+
+Octarq is built on a multi-tenant architecture that allows users to create, manage, and switch between isolated **Organizations** (Workspaces). Each workspace maintains its own domains, mailboxes, short links, API tokens, and team members with strict Role-Based Access Control (RBAC).
+
+## Key Capabilities
+
+- **Strict Multi-Tenant Isolation**: Data entities (links, mailboxes, DNS zones, webhooks, audit logs) are bound to a specific Organization ID (`OrgID`), ensuring total logical isolation between environments.
+- **Role-Based Access Control (RBAC)**:
+  - **Owner**: Full administrative privileges over the workspace, including billing, workspace deletion, and member management.
+  - **Admin**: Can manage domains, mailboxes, short links, settings, and team members.
+  - **Member**: Access to operational tools and views without administrative workspace settings privileges.
+- **Seamless Workspace Switching**: Switch between personal and team workspaces instantly via the sidebar switcher without logging out.
+- **Email Invitation System**: Invite team members by email. System dispatches a secure 24-hour expiration link for password setup.
+- **Instance Admin Privileges**: The initial operator account holds instance-wide administrative privileges (`IsInstanceAdmin`) to configure system settings across all organizations.
+
+## How to Use
+
+### 1. Switching Workspaces
+1. Click the **Workspace Selector** at the top of the left sidebar rail.
+2. Select any organization from your list to switch your active workspace session.
+
+### 2. Creating a New Workspace
+1. Open the **Workspace Selector** in the sidebar.
+2. Click **+ Create Workspace**.
+3. Enter your new workspace name (e.g., `Acme Corp` or `Client Project B`).
+4. Click **Create & Switch**. A new organization is provisioned with a unique URL slug and inbound webhook token.
+
+### 3. Inviting Team Members
+1. Go to **Settings $\rightarrow$ Workspace $\rightarrow$ Workspace Members**.
+2. Click **Invite Member**.
+3. Enter the invitee's email address and assign their role (**Member**, **Admin**, or **Owner**).
+4. Click **Send Invite**. The invitee receives an email with an activation link valid for 24 hours.
+
+### 4. Revoking Member Access
+Navigate to **Settings $\rightarrow$ Workspace $\rightarrow$ Workspace Members** and click **Remove** next to any member to revoke their access to the workspace immediately.
+
+:::note
+Deleting a workspace or revoking a member's access from one organization does not affect their membership or data in other organizations.
+:::
+
+## Why It Matters
+
+Multi-tenant organization support allows freelancers, agencies, and growing startups to manage multiple client projects, separate staging and production environments, or collaborate with team members from a single Octarq deployment.
+
+## Related Links
+
+- [Authentication & Access Control](/help/authentication) — Configure single sign-on, 2FA, and login policies.

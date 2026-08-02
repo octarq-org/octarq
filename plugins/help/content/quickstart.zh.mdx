@@ -1,0 +1,47 @@
+---
+title: 快速开始
+description: 五分钟跑起 Octarq —— Docker 部署、组织初始化、域名绑定、按需启用功能。
+category: start
+order: 20
+---
+
+用 Docker 在五分钟内跑起你的 Octarq 实例。
+
+## 1. 用 Docker 启动
+
+以持久化数据卷启动单二进制容器：
+
+```bash
+docker run -d \
+  --name octarq \
+  -p 8080:8080 \
+  -v octarq_data:/app/data \
+  -e OCTARQ_APP_NAME="My Studio" \
+  ghcr.io/octarq-org/octarq:latest
+```
+
+浏览器打开 `http://localhost:8080` 进入初始化向导。
+
+## 2. 创建初始账号与组织
+
+1. 按提示注册**实例管理员**账号。
+2. 创建你的主业务**组织**（例如 `Acme Corp`）。
+3. 其他成员可在 **设置 -> 成员** 中邀请，并分配 `owner` / `admin` / `member` 三级 RBAC 角色。
+
+## 3. 绑定自定义域名
+
+用于自定义短链域名和对外站点：
+
+1. 添加一条 DNS CNAME 记录，把 `hub.yourdomain.com` 指向你的服务器 IP 或主机名。
+2. 在 Octarq 后台进入 **DNS -> 添加域名**。
+3. 系统会自动申请 TLS 证书，为该域名启用 HTTPS。
+
+## 4. 按需启用功能
+
+1. 进入 **设置 -> 插件**。短链、邮箱、DNS 等每一项功能都是可以按工作区独立开关的插件。
+2. 打开这个工作区需要用到的功能。侧边栏入口会随开关出现或消失。
+3. 随时可以通过侧边栏底部的 **帮助** 入口查阅内置文档。
+
+:::tip 下一步
+配置[短链接](/help/short-links)做投放追踪、开通[邮箱](/help/mailboxes)在自有域名上收信，或者生成一个 [API 令牌](/help/api-tokens) 用脚本驱动 Octarq。
+:::

@@ -3,7 +3,7 @@ package help
 import (
 	"bytes"
 	"context"
-	_ "embed"
+	"embed"
 	"log"
 	"sort"
 	"strings"
@@ -17,11 +17,24 @@ import (
 	"github.com/yuin/goldmark/parser"
 )
 
-//go:embed getting-started-en.mdx
-var gettingStartedEnDocs string
-
-//go:embed getting-started-zh.mdx
-var gettingStartedZhDocs string
+// content holds this plugin's own documentation: the platform-level pages that
+// document capabilities the core owns but no plugin does — authentication,
+// organizations/RBAC, API tokens, webhooks, notification channels, MCP.
+//
+// Those pages have no other home. "Docs live with the feature" (docs/PLUGINS.md)
+// resolves cleanly for links/mail/dns, which are plugins and carry their own
+// docs.mdx — but auth, orgs, tokens and webhooks live in internal/ and app/,
+// which nothing can hang a HelpProvider on. Until they are plugins, the help
+// plugin is their custodian: it is already Core, already mounted in every build,
+// and already the aggregator every other HelpProvider feeds into.
+//
+// Naming is the whole loader contract: "<slug>.mdx" is the English page and the
+// optional sibling "<slug>.zh.mdx" is its translation. Adding a page means
+// dropping in files — there is no list to update, and helpDocsHaveTranslations
+// in help_test.go fails the build if a page ships without its zh half.
+//
+//go:embed content/*.mdx
+var content embed.FS
 
 var (
 	_ plugin.Plugin       = (*Plugin)(nil)
@@ -241,10 +254,53 @@ func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
 	return docs
 }
 
+// parsedHelpDocs reads content/ once and pairs each "<slug>.mdx" with its
+// optional "<slug>.zh.mdx" sibling. A doc's slug defaults to its filename, so a
+// page only needs frontmatter to override the slug or to set title/category/order.
 var parsedHelpDocs = sync.OnceValue(func() []plugin.HelpDoc {
-	return []plugin.HelpDoc{
-		plugin.ParseHelpDocSafe(gettingStartedEnDocs).WithTranslation("zh", gettingStartedZhDocs),
+	entries, err := content.ReadDir("content")
+	if err != nil {
+		// Unreachable in a normal build: the embed directive above fails to
+		// compile if content/ has no .mdx files at all.
+		log.Printf("[help] warning: cannot read embedded content dir: %v", err)
+		return nil
 	}
+
+	docs := make([]plugin.HelpDoc, 0, len(entries))
+	for _, entry := range entries {
+		name := entry.Name()
+		// Translations are pulled in by their English base, never listed as
+		// pages of their own — otherwise every doc would appear twice.
+		if entry.IsDir() || !strings.HasSuffix(name, ".mdx") || strings.HasSuffix(name, ".zh.mdx") {
+			continue
+		}
+		base := strings.TrimSuffix(name, ".mdx")
+
+		raw, err := content.ReadFile("content/" + name)
+		if err != nil {
+			log.Printf("[help] warning: cannot read %q: %v", name, err)
+			continue
+		}
+		doc := plugin.ParseHelpDocSafe(string(raw))
+		if doc.Slug == "" {
+			doc.Slug = base
+		}
+		if doc.Title == "" {
+			log.Printf("[help] warning: doc %q has no title in frontmatter, falling back to its slug", name)
+			doc.Title = doc.Slug
+		}
+
+		if zh, err := content.ReadFile("content/" + base + ".zh.mdx"); err == nil {
+			doc = doc.WithTranslation("zh", string(zh))
+		}
+
+		docs = append(docs, doc)
+	}
+
+	sort.Slice(docs, func(i, j int) bool {
+		return plugin.CompareHelpDocs(docs[i], docs[j])
+	})
+	return docs
 })
 
 func (p *Plugin) HelpDocs() []plugin.HelpDoc {

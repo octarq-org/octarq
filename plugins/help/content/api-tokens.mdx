@@ -1,0 +1,59 @@
+---
+title: API Tokens & Access
+description: Generate bearer tokens with oct_ prefix to automate Octarq via REST APIs.
+category: automation
+order: 50
+---
+
+Octarq provides a complete REST API surface for programmatically managing short links, mailboxes, DNS records, domain verification, and workspace settings. API Tokens grant secure, non-interactive access to these endpoints for automated scripts, CI/CD pipelines, and third-party integrations.
+
+## Key Capabilities
+
+- **Secure Token Format**: Generated with an `oct_` prefix followed by 24 URL-safe, cryptographically random bytes (e.g., `oct_AbC123...`).
+- **Hashed at Rest**: Tokens are stored as SHA-256 digests. Cleartext token strings are returned only once upon creation and cannot be retrieved later.
+- **Custom Expiration**: Configure tokens to expire automatically after a set number of days or create non-expiring tokens for persistent automated systems.
+- **Usage Tracking**: Track the `lastUsedAt` timestamp for each token to monitor active integrations and audit stale access credentials.
+- **Instant Revocation**: Instantly revoke any token from the dashboard to immediately terminate API access for compromised scripts or legacy services.
+
+## How to Use
+
+### 1. Generating an API Token
+1. Go to **Settings $\rightarrow$ Workspace $\rightarrow$ API Tokens** (or press `⌘K` / `Ctrl+K` and search "API Tokens").
+2. Click **Create API Token**.
+3. Enter a descriptive **Name** (e.g., `GitHub Actions CI` or `Zapier Sync`).
+4. (Optional) Provide a **Note** and set an **Expiration (in days)**.
+5. Click **Create**.
+6. **Copy your secret token immediately.** It will never be shown again.
+
+### 2. Authenticating API Requests
+Pass your token in the standard HTTP `Authorization` header as a Bearer token:
+
+```bash
+curl -X GET "https://your-octarq.com/api/domains" \
+  -H "Authorization: Bearer oct_your_secret_api_token"
+```
+
+Example request to create a short link via API:
+
+```bash
+curl -X POST "https://your-octarq.com/api/domains/1/records" \
+  -H "Authorization: Bearer oct_your_secret_api_token" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"A","name":"sub","content":"1.2.3.4","ttl":300}'
+```
+
+### 3. Revoking Tokens
+To revoke access, find the token in the **API Tokens** table and click **Revoke**. All subsequent API requests using that token will be rejected immediately with HTTP 401 Unauthorized.
+
+:::tip
+Always use dedicated tokens for separate environments (e.g., staging vs. production) so you can audit or revoke access independently.
+:::
+
+## Why It Matters
+
+API tokens let you integrate Octarq seamlessly into your custom deployment scripts, automated DNS management workflows, and server monitoring toolchains without exposing user account passwords or session cookies.
+
+## Related Links
+
+- [Model Context Protocol (MCP)](/help/mcp) — Connect AI assistants to Octarq via MCP server tools.
+- [Outbound Webhooks](/help/webhooks) — Receive real-time HTTP callbacks when events occur.

@@ -1,0 +1,69 @@
+---
+title: Outbound Webhooks
+description: Stream system events in real time to external HTTP endpoints with HMAC signing.
+category: automation
+order: 80
+---
+
+Octarq's Outbound Webhooks engine sends real-time HTTP `POST` notifications to external servers whenever key events occur inside your workspace. Webhooks enable automated workflows, data synchronization, and custom alerting across your external infrastructure.
+
+## Key Capabilities
+
+- **Real-Time Event Delivery**: Receive instant HTTP callbacks for system events such as `email.receive`, `email.send_failed`, and abuse reports.
+- **Granular Event Subscriptions**: Subscribe to specific event topics or use the wildcard `*` to receive all workspace events.
+- **HMAC-SHA256 Payload Signing**: All webhook requests include an `X-Octarq-Signature` HTTP header containing an HMAC-SHA256 signature calculated with your secret key, allowing your endpoint to verify request origin and prevent tampering.
+- **Auto-Generated or Custom Secrets**: Provide your own signing secret or let Octarq generate a secure random secret key automatically.
+- **SSRF Protection & Timeouts**: Delivery requests are handled with strict timeouts to ensure workspace operations remain unaffected by external server slowdowns.
+
+## How to Use
+
+### 1. Registering a Webhook Endpoint
+1. Go to **Settings $\rightarrow$ Webhooks** (or press `⌘K` / `Ctrl+K` and search "Webhooks").
+2. Click **Add Webhook Endpoint**.
+3. Enter a descriptive **Endpoint Name** and the target **Endpoint URL** (e.g., `https://api.yourdomain.com/hooks/octarq`).
+4. (Optional) Provide a custom **Signing Secret** (leave empty to auto-generate).
+5. Select **Event Subscriptions** (choose **All Events (*)** or select specific events).
+6. Click **Add Webhook Endpoint**.
+
+### 2. Verifying Webhook Signatures
+When receiving a webhook, verify the `X-Octarq-Signature` header in your receiving server code:
+
+```crypto
+signature = HMAC-SHA256(raw_request_body, signing_secret)
+```
+
+Example in Node.js / Express:
+
+```javascript
+const crypto = require('crypto');
+
+function verifyOctarqWebhook(req, res, next) {
+  const signature = req.headers['x-octarq-signature'];
+  const expected = crypto
+    .createHmac('sha256', process.env.OCTARQ_WEBHOOK_SECRET)
+    .update(req.rawBody)
+    .digest('hex');
+
+  if (signature === expected) {
+    next();
+  } else {
+    res.status(401).send('Invalid signature');
+  }
+}
+```
+
+### 3. Deleting Endpoints
+Manage registered webhooks under **Settings $\rightarrow$ Webhooks**. You can inspect endpoint secrets or delete obsolete endpoints at any time.
+
+:::tip
+For local development and testing, use webhooks debugging tools like `ngrok` or `hookdeck` to inspect incoming payloads before deploying receiving logic to production.
+:::
+
+## Why It Matters
+
+Outbound Webhooks decouple Octarq from downstream systems. You can trigger automated customer workflows, pipe email notifications into custom databases, or initiate server deployments without polling Octarq APIs.
+
+## Related Links
+
+- [Notification Channels](/help/notifications) — Deliver formatted alerts to Telegram or Webhook channels.
+- [API Tokens](/help/api-tokens) — Authenticate inbound API calls into Octarq.
