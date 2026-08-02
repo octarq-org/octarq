@@ -119,6 +119,7 @@ export const es = {
     auth: "Autenticación",
     instance: "Configuración de Instancia",
     "instance-plugins": "Complementos",
+    help: "Manual de uso",
   },
   reset: {
     heading: "Restablece tu contraseña",
@@ -136,7 +137,7 @@ export const es = {
     errResetFailed: "No se pudo restablecer la contraseña.",
   },
   footer: {
-    help: "Ayuda y recursos",
+    help: "Acerca de octarq",
     docs: "Documentación",
     about: "Acerca de Octarq",
     github: "GitHub",

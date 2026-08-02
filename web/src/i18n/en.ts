@@ -102,7 +102,7 @@ export const en = {
   // shell/areas.tsx and the core plugins under web/src/plugins/. Everything an
   // out-of-repo plugin invents — a Pro menu id (storefront, licenses, billing,
   // finance, inbox-ai, vps, sshkeys, certificates) or a group heading it coins
-  // (Sales, Billing, "Help & Resources") — is contributed by that plugin package
+  // (Sales, Billing) — is contributed by that plugin package
   // through the reserved `_shared.nav.*` / `_shared.groups.*` keys (see
   // PluginI18n). Core must not accumulate a list of every plugin's labels;
   // duplicating one here would silently win over the plugin's own translation.
@@ -129,6 +129,7 @@ export const en = {
     auth: "Authentication",
     instance: "Instance Settings",
     "instance-plugins": "Plugins",
+    help: "User Manual",
   },
   reset: {
     heading: "Reset Your Password",
@@ -146,7 +147,7 @@ export const en = {
     errResetFailed: "Failed to reset password.",
   },
   footer: {
-    help: "Resources",
+    help: "About octarq",
     docs: "Developer Docs (docs.octarq.org)",
     about: "About Octarq",
     github: "GitHub",

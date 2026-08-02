@@ -119,6 +119,7 @@ export const ja = {
     auth: "認証",
     instance: "インスタンス設定",
     "instance-plugins": "プラグイン",
+    help: "利用ガイド",
   },
   reset: {
     heading: "パスワードのリセット",
@@ -136,7 +137,7 @@ export const ja = {
     errResetFailed: "パスワードのリセットに失敗しました。",
   },
   footer: {
-    help: "ヘルプとリソース",
+    help: "octarq について",
     docs: "ドキュメント",
     about: "Octarq について",
     github: "GitHub",

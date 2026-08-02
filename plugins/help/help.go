@@ -55,8 +55,12 @@ func (p *Plugin) Name() string { return "help" }
 
 func (p *Plugin) Describe() plugin.Info {
 	return plugin.Info{
-		Title:       "Help & Resources",
-		Description: "In-app documentation and support resources.",
+		// Title matches the sidebar entry below, not a broader grouping. It
+		// used to read "Help & Resources", which was the name of a nav group
+		// this plugin has never had — the sidebar footer's octarq links are the
+		// shell's, not this plugin's.
+		Title:       "Help",
+		Description: "In-app documentation, versioned with the binary.",
 		Core:        true,
 	}
 }
