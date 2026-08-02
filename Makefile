@@ -20,14 +20,22 @@ run: build
 	./$(BINARY)
 
 # Hot-reload dev mode:
-#   - air     → watches *.go, rebuilds & restarts the API (port from .env / OCTARQ_LISTEN)
+#   - air     → watches *.go, rebuilds & restarts the API
 #   - vite    → serves the frontend on :5173 with HMR, proxies /api → backend
 # Open http://localhost:5173/admin/
 # Override port:  OCTARQ_PORT=9000 make dev
 # Ctrl-C kills both processes.
+#
+# OCTARQ_PORT is the one knob, and it has to reach both halves: vite reads it to
+# aim its /api proxy, the backend reads OCTARQ_LISTEN (config.go). Deriving the
+# second from the first is what makes the documented override work — setting only
+# OCTARQ_PORT moved the proxy target while the backend stayed on .env's port, so
+# vite proxied to a port with nothing behind it. Explicit env beats .env in
+# loadDotEnv, so this wins over a checked-in OCTARQ_LISTEN.
 dev:
 	@echo "Starting backend (air) + frontend (vite) with hot reload..."
 	@export OCTARQ_PORT=$${OCTARQ_PORT:-8680}; \
+	  export OCTARQ_LISTEN=":$$OCTARQ_PORT"; \
 	  trap 'kill 0' INT; \
 	  $(AIR) & \
 	  (cd web && OCTARQ_PORT=$$OCTARQ_PORT pnpm dev) & \
