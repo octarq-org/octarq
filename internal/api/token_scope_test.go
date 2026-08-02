@@ -307,9 +307,12 @@ func TestOrgRoleReportsTheCappedRoleNotTheHolders(t *testing.T) {
 // their own work had to be handed a credential that answered as somebody else,
 // which is strictly worse for both audit and blast radius.
 //
-// The gate it replaces is ownership: a member sees, edits and revokes only the
-// tokens they minted. Everything else is a 404 rather than a 403, so a probe
-// cannot confirm that an id exists.
+// The gate it replaces is ownership, and ownership is the whole of it: everyone
+// sees, edits and revokes only the tokens they minted — an admin included. A
+// workspace admin has no more business reading a colleague's personal
+// credential than anyone else does; what they keep is removing the person,
+// which takes their tokens with them. Everything outside your own rows is a 404
+// rather than a 403, so a probe cannot confirm that an id exists.
 func TestMemberTokensAreTheirOwn(t *testing.T) {
 	srv, db := newTestHandler(t)
 	seedMember(t, db, 21, "member")
@@ -339,7 +342,7 @@ func TestMemberTokensAreTheirOwn(t *testing.T) {
 		t.Fatalf("seed admin token: %v", err)
 	}
 
-	// Listing shows the member their own row and nothing else…
+	// Each list stops at its owner's rows, in both directions.
 	rec := do(srv, http.MethodGet, "/api/tokens", member, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("member listing tokens: got %d, want 200", rec.Code)
@@ -347,10 +350,18 @@ func TestMemberTokensAreTheirOwn(t *testing.T) {
 	if body := rec.Body.String(); !strings.Contains(body, "my-cli") || strings.Contains(body, "admin-cli") {
 		t.Errorf("member's token list leaked or lost rows: %s", body)
 	}
-	// …while an admin still sees the workspace's inventory.
 	rec = do(srv, http.MethodGet, "/api/tokens", admin, "")
-	if body := rec.Body.String(); !strings.Contains(body, "my-cli") || !strings.Contains(body, "admin-cli") {
-		t.Errorf("admin's token list is not workspace-wide: %s", body)
+	if body := rec.Body.String(); !strings.Contains(body, "admin-cli") || strings.Contains(body, "my-cli") {
+		t.Errorf("admin's token list shows someone else's personal credentials: %s", body)
+	}
+
+	// And the admin cannot reach into the member's, either.
+	mineID := testIDStr(mine.ID)
+	if rec := do(srv, http.MethodPut, "/api/tokens/"+mineID, admin, `{"name":"seized"}`); rec.Code != http.StatusNotFound {
+		t.Errorf("admin editing a member's token: got %d, want 404", rec.Code)
+	}
+	if rec := do(srv, http.MethodDelete, "/api/tokens/"+mineID, admin, ""); rec.Code != http.StatusNotFound {
+		t.Errorf("admin revoking a member's token: got %d, want 404", rec.Code)
 	}
 
 	theirID := testIDStr(theirs.ID)

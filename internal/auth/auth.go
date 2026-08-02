@@ -526,3 +526,12 @@ func reporterIP(r *http.Request) string {
 	}
 	return addr
 }
+
+// IsConfigAdmin reports whether email is the instance's bootstrap admin — the
+// account whose password lives in the instance config rather than in a row.
+// Callers that need to know whether octarq holds a checkable password for an
+// account (re-authentication before a sensitive change) cannot tell from an
+// empty PasswordHash alone: this user has one too, and it is not "no password".
+func (m *Manager) IsConfigAdmin(email string) bool {
+	return email != "" && email == m.cfg.AdminUser
+}

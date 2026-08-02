@@ -276,8 +276,9 @@ export function ApiTokens() {
         description={t("personal.tokensDesc")}
         // Minting a token is a personal act, not an administrative one: the
         // token acts as you and can never out-rank you, so anyone with an
-        // account can issue one for their own scripts. What the server scopes
-        // instead is visibility — a non-admin's list holds only their own.
+        // account can issue one for their own scripts. This page is personal
+        // all the way down — the server serves everyone their own rows and
+        // nobody else's, an admin included.
         action={
           <Button variant="primary" onClick={() => setCreating(true)} className="text-xs">
             {t("personal.newToken")}

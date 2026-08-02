@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../../api";
-import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, toast, Alert, confirmDialog } from "../../ui";
+import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, toast, Alert, confirmDialog, confirmPassword } from "../../ui";
 import { Shield } from "lucide-react";
 import { useTranslation } from "../../i18n";
 
@@ -130,10 +130,19 @@ export function SecuritySettings() {
   }
   useEffect(() => { load(); }, []);
 
+  // Both halves of the 2FA switch re-authenticate. A live session is exactly
+  // what an attacker holds when the second factor is the last thing standing,
+  // so it must not be enough on its own to attach one — or strip one.
   async function beginSetup() {
-    setBusy(true); setErr(""); setMsg(""); setRecoveryCodes(null);
+    setErr(""); setMsg(""); setRecoveryCodes(null);
+    const password = await confirmPassword({
+      message: t("settings.twoFAEnableConfirm"),
+      confirmLabel: t("settings.enable2FA"),
+    });
+    if (password === null) return;
+    setBusy(true);
     try {
-      setSetup(await api.twoFASetup());
+      setSetup(await api.twoFASetup(password));
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : t("settings.failedStartSetup"));
     } finally { setBusy(false); }
@@ -152,9 +161,15 @@ export function SecuritySettings() {
   }
 
   async function disable() {
-    setBusy(true); setErr(""); setMsg("");
+    setErr(""); setMsg("");
+    const password = await confirmPassword({
+      message: t("settings.twoFADisableConfirm"),
+      confirmLabel: t("settings.disable2FA"),
+    });
+    if (password === null) return;
+    setBusy(true);
     try {
-      await api.twoFADisable({ code: disableCode.trim() });
+      await api.twoFADisable({ code: disableCode.trim(), password });
       setDisableCode("");
       setMsg(t("settings.twoFADisabledMsg"));
       await load();

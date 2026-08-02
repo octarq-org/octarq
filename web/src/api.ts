@@ -336,11 +336,13 @@ export const api = {
 
   // 2FA (operator TOTP)
   twoFAStatus: () => req<{ enabled: boolean }>("GET", "/api/auth/2fa/status"),
-  twoFASetup: () =>
-    req<{ secret: string; otpauthUrl: string; qrDataUri?: string }>("POST", "/api/auth/2fa/setup"),
+  // Enrolling and disabling both re-authenticate with the account password: a
+  // live session must not be enough to add or strip the second factor.
+  twoFASetup: (password: string) =>
+    req<{ secret: string; otpauthUrl: string; qrDataUri?: string }>("POST", "/api/auth/2fa/setup", { password }),
   twoFAEnable: (code: string) =>
     req<{ ok: boolean; recoveryCodes: string[] }>("POST", "/api/auth/2fa/enable", { code }),
-  twoFADisable: (opts: { code?: string; password?: string }) =>
+  twoFADisable: (opts: { code: string; password: string }) =>
     req<{ ok: boolean }>("POST", "/api/auth/2fa/disable", opts),
 
   // single-step AI assists (OSS, BYO key — buttons hide when unconfigured)

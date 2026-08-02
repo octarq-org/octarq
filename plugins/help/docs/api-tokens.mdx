@@ -20,8 +20,11 @@ Octarq provides a complete REST API surface for programmatically managing short 
 Anyone with an account can mint a token for themselves. A token acts as the
 person who created it and can never out-rank them, so a Member's token is a
 Member's token — narrowing it further with the **Scope** field is encouraged,
-widening it is refused. You see and revoke the tokens you created; admins see
-the whole workspace's.
+widening it is refused.
+
+Tokens are personal all the way down: you see, edit and revoke your own, and
+nobody else's — a workspace admin included. What an admin has instead is member
+removal, which revokes that person's tokens along with their access.
 
 ## How to Use
 

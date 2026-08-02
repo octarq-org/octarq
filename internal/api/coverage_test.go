@@ -97,7 +97,9 @@ func TestTwoFADisableAndStatus(t *testing.T) {
 	}
 
 	// Enroll: setup → enable with a valid TOTP code.
-	rec := do(srv, "POST", "/api/auth/2fa/setup", cookies, "")
+	// Enrolling and un-enrolling both re-authenticate: a live session is not
+	// enough authority to touch the second factor (requirePasswordStepUp).
+	rec := do(srv, "POST", "/api/auth/2fa/setup", cookies, `{"password":"pw"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("setup: got %d", rec.Code)
 	}
@@ -121,12 +123,25 @@ func TestTwoFADisableAndStatus(t *testing.T) {
 	}
 
 	// Disable with a wrong code → rejected; 2FA stays on.
-	if rec := do(srv, "POST", "/api/auth/2fa/disable", cookies, `{"code":"000000"}`); rec.Code == http.StatusOK {
+	if rec := do(srv, "POST", "/api/auth/2fa/disable", cookies, `{"code":"000000","password":"pw"}`); rec.Code == http.StatusOK {
 		t.Error("disable accepted a wrong code")
+	}
+	// A right code with no password → also rejected. Password alone used to be
+	// enough to strip the factor, which is the leaked-password case 2FA exists
+	// for; a code alone is the hijacked-session case.
+	codeNoPw, _ := totp.GenerateCode(setup.Secret, time.Now())
+	if rec := do(srv, "POST", "/api/auth/2fa/disable", cookies, `{"code":"`+codeNoPw+`"}`); rec.Code == http.StatusOK {
+		t.Error("disable accepted a code with no password confirmation")
+	}
+	if rec := do(srv, "POST", "/api/auth/2fa/disable", cookies, `{"password":"pw"}`); rec.Code == http.StatusOK {
+		t.Error("disable accepted a password with no second-factor code")
+	}
+	if rec := do(srv, "GET", "/api/auth/2fa/status", cookies, ""); !strings.Contains(rec.Body.String(), "true") {
+		t.Fatalf("2FA came off despite every rejected attempt: %s", rec.Body.String())
 	}
 	// Disable with a valid code → off.
 	code2, _ := totp.GenerateCode(setup.Secret, time.Now())
-	if rec := do(srv, "POST", "/api/auth/2fa/disable", cookies, `{"code":"`+code2+`"}`); rec.Code != http.StatusOK {
+	if rec := do(srv, "POST", "/api/auth/2fa/disable", cookies, `{"code":"`+code2+`","password":"pw"}`); rec.Code != http.StatusOK {
 		t.Fatalf("disable: got %d (%s)", rec.Code, rec.Body.String())
 	}
 	if rec := do(srv, "GET", "/api/auth/2fa/status", cookies, ""); !strings.Contains(rec.Body.String(), "false") {
@@ -163,7 +178,9 @@ func TestTwoFALoginFlow(t *testing.T) {
 	cookies := loginCookies(t, srv)
 
 	// Enroll 2FA.
-	rec := do(srv, "POST", "/api/auth/2fa/setup", cookies, "")
+	// Enrolling and un-enrolling both re-authenticate: a live session is not
+	// enough authority to touch the second factor (requirePasswordStepUp).
+	rec := do(srv, "POST", "/api/auth/2fa/setup", cookies, `{"password":"pw"}`)
 	var setup struct {
 		Secret string `json:"secret"`
 	}
