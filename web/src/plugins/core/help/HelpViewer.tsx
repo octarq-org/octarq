@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo, useRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useState, useMemo, useRef } from "react";
+import { useHref, useLocation, useNavigate } from "react-router-dom";
 import { api, HelpCategory, HelpDocMeta } from "../../../api";
 import { useTranslation } from "../../../i18n";
 import {
@@ -30,12 +30,17 @@ export default function HelpViewer() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Extract current slug from pathname: e.g. /help/services/ddns or /admin/help/services/ddns -> "ddns"
+  // The dashboard is mounted under a router basename (/admin), so every path in
+  // this file is basename-relative — location.pathname reads /help/…, never
+  // /admin/help/…. The one place the basename has to reappear is the href of a
+  // link inside the rendered markdown: that string is what the browser shows on
+  // hover, copies on "copy link address", and opens on middle-click, so writing
+  // the router path there produced a real 404 at /help/api-tokens.
+  const routerBase = useHref("/").replace(/\/$/, "");
+
+  // Extract current slug from pathname: e.g. /help/services/ddns -> "ddns"
   const currentSlug = useMemo(() => {
-    const normPath = location.pathname.startsWith("/admin/help")
-      ? location.pathname.replace(/^\/admin\/help/, "/help")
-      : location.pathname;
-    const parts = normPath.split("/").filter(Boolean);
+    const parts = location.pathname.split("/").filter(Boolean);
     if (parts.length >= 3) return parts[2]; // /help/category/slug
     if (parts.length > 1) return parts[parts.length - 1];
     return "";
@@ -49,16 +54,18 @@ export default function HelpViewer() {
   const [error, setError] = useState("");
 
   const [copiedLink, setCopiedLink] = useState(false);
+  // Set when the URL names a page this build does not serve — a Pro slug on an
+  // OSS instance, or a page that was renamed. This used to redirect to the first
+  // doc in the index, which reads as "that link worked" and hides the dead
+  // cross-reference from whoever could fix it.
+  const [notFound, setNotFound] = useState(false);
 
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Helper to build doc URL: /help/{category}/{slug}
   const getDocUrl = (d: HelpDocMeta) => {
     const category = (d.category || "services").toLowerCase();
-    const prefix = location.pathname.startsWith("/admin/help")
-      ? "/admin/help"
-      : "/help";
-    return `${prefix}/${category}/${d.slug}`;
+    return `/help/${category}/${d.slug}`;
   };
 
   // Fetch doc index & handle default redirect
@@ -67,6 +74,7 @@ export default function HelpViewer() {
       .helpIndex(lang)
       .then((list) => {
         setDocs(list);
+        setNotFound(false);
         if (!currentSlug && list.length > 0) {
           navigate(getDocUrl(list[0]), { replace: true });
         } else if (currentSlug && list.length > 0) {
@@ -77,8 +85,7 @@ export default function HelpViewer() {
               navigate(canonicalUrl, { replace: true });
             }
           } else {
-            // Slug not found in active doc index -> redirect to default first doc
-            navigate(getDocUrl(list[0]), { replace: true });
+            setNotFound(true);
           }
         }
       })
@@ -100,26 +107,47 @@ export default function HelpViewer() {
       .finally(() => setLoadingContent(false));
   }, [currentSlug, lang]);
 
+  // Docs cross-reference each other as /help/<slug> — two segments, no category.
+  // That is the form an author can write without knowing where the page was
+  // filed, and it stays correct when a page is refiled; the category only exists
+  // in the URL the sidebar builds. Expanding it here is what keeps both true.
+  const resolveInAppPath = useCallback(
+    (href: string) => {
+      if (!href.startsWith("/help/")) return href;
+      const [path, hash] = href.split("#");
+      const parts = path.split("/").filter(Boolean); // ["help", …]
+      const slug = parts[parts.length - 1];
+      const doc = docs.find((d) => d.slug === slug);
+      const resolved = doc ? getDocUrl(doc) : path;
+      return hash ? `${resolved}#${hash}` : resolved;
+    },
+    [docs],
+  );
+
   // Post-process HTML content for interactive code blocks, responsive tables, callouts & SPA routing
   useEffect(() => {
     if (!contentRef.current || !content?.html) return;
 
-    // Intercept internal link clicks for smooth single-page routing
+    // Rewrite in-app links, then intercept their clicks for SPA routing.
     const links = contentRef.current.querySelectorAll("a");
     links.forEach((a) => {
-      if (a.dataset.navEnhanced) return;
+      // Resolution needs the doc index; without it every /help/<slug> would be
+      // frozen at its unexpanded form. The effect re-runs when it arrives.
+      if (a.dataset.navEnhanced || docs.length === 0) return;
       a.dataset.navEnhanced = "true";
       const href = a.getAttribute("href");
       if (
         href &&
-        !href.startsWith("http://") &&
-        !href.startsWith("https://") &&
-        !href.startsWith("mailto:") &&
-        !href.startsWith("tel:")
+        href.startsWith("/") &&
+        !href.startsWith("//")
       ) {
+        const target = resolveInAppPath(href);
+        // The href carries the basename so the URL the browser exposes is real;
+        // navigate() takes the router path, which does not.
+        a.setAttribute("href", routerBase + target);
         a.onclick = (e) => {
           e.preventDefault();
-          navigate(href);
+          navigate(target);
         };
       }
     });
@@ -213,7 +241,7 @@ export default function HelpViewer() {
         bq.innerHTML = `<div class="callout-title">${label}</div><div>${html}</div>`;
       }
     });
-  }, [content?.html, t]);
+  }, [content?.html, t, docs.length, resolveInAppPath, routerBase]);
 
   // Extract Table of Contents from HTML content
   const toc = useMemo(() => {
@@ -323,7 +351,25 @@ export default function HelpViewer() {
         {/* Document Scroll Area */}
         <div className="flex-1 overflow-y-auto bg-surface-hover/20 scrollbar-thin p-4 sm:p-8 lg:p-12">
           <div className="max-w-4xl mx-auto space-y-8">
-            {loadingContent ? (
+            {notFound ? (
+              <div className="bg-card rounded-2xl border border-border/80 p-8 shadow-xs space-y-4">
+                <div className="flex items-center gap-3 text-foreground">
+                  <AlertTriangle className="w-5 h-5 text-warning-fg shrink-0" />
+                  <h1 className="text-lg font-bold">{t("help.not_found_title", "That page isn't in this build")}</h1>
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {t("help.not_found_body", "No documentation is installed under this address. The plugin that owns it may not be part of this edition, or the page may have been renamed.")}
+                </p>
+                {docs.length > 0 && (
+                  <button
+                    onClick={() => navigate(getDocUrl(docs[0]))}
+                    className="text-sm font-semibold text-primary hover:underline"
+                  >
+                    {t("help.not_found_action", "Browse the documentation index")}
+                  </button>
+                )}
+              </div>
+            ) : loadingContent ? (
               <div className="flex flex-col items-center justify-center h-80 gap-3">
                 <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                 <p className="text-xs text-muted-foreground animate-pulse">

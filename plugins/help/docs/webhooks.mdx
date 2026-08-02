@@ -18,7 +18,7 @@ Octarq's Outbound Webhooks engine sends real-time HTTP `POST` notifications to e
 ## How to Use
 
 ### 1. Registering a Webhook Endpoint
-1. Go to **Settings $\rightarrow$ Webhooks** (or press `⌘K` / `Ctrl+K` and search "Webhooks").
+1. Go to **Settings → Workspace → Webhooks** (or press `⌘K` / `Ctrl+K` and search "Webhooks").
 2. Click **Add Webhook Endpoint**.
 3. Enter a descriptive **Endpoint Name** and the target **Endpoint URL** (e.g., `https://api.yourdomain.com/hooks/octarq`).
 4. (Optional) Provide a custom **Signing Secret** (leave empty to auto-generate).
@@ -53,7 +53,7 @@ function verifyOctarqWebhook(req, res, next) {
 ```
 
 ### 3. Deleting Endpoints
-Manage registered webhooks under **Settings $\rightarrow$ Webhooks**. You can inspect endpoint secrets or delete obsolete endpoints at any time.
+Manage registered webhooks under **Settings → Workspace → Webhooks**. You can inspect endpoint secrets or delete obsolete endpoints at any time.
 
 :::tip
 For local development and testing, use webhooks debugging tools like `ngrok` or `hookdeck` to inspect incoming payloads before deploying receiving logic to production.

@@ -336,11 +336,13 @@ export const api = {
 
   // 2FA (operator TOTP)
   twoFAStatus: () => req<{ enabled: boolean }>("GET", "/api/auth/2fa/status"),
-  twoFASetup: () =>
-    req<{ secret: string; otpauthUrl: string; qrDataUri?: string }>("POST", "/api/auth/2fa/setup"),
+  // Enrolling and disabling both re-authenticate with the account password: a
+  // live session must not be enough to add or strip the second factor.
+  twoFASetup: (password: string) =>
+    req<{ secret: string; otpauthUrl: string; qrDataUri?: string }>("POST", "/api/auth/2fa/setup", { password }),
   twoFAEnable: (code: string) =>
     req<{ ok: boolean; recoveryCodes: string[] }>("POST", "/api/auth/2fa/enable", { code }),
-  twoFADisable: (opts: { code?: string; password?: string }) =>
+  twoFADisable: (opts: { code: string; password: string }) =>
     req<{ ok: boolean }>("POST", "/api/auth/2fa/disable", opts),
 
   // single-step AI assists (OSS, BYO key — buttons hide when unconfigured)
@@ -416,6 +418,8 @@ export const api = {
   // instance without mail the invite exists and nobody can reach it.
   addOrgMember: (d: { email: string; role: string }) =>
     req<{ ok: boolean; inviteToken?: string; inviteUrl?: string }>("POST", "/api/org/members", d),
+  updateOrgMemberRole: (userId: number, role: string) =>
+    req<{ ok: boolean }>("PATCH", `/api/org/members/${userId}`, { role }),
   deleteOrgMember: (userId: number) => req<void>("DELETE", `/api/org/members/${userId}`),
 
   // menus and user settings

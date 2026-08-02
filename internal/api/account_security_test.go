@@ -56,8 +56,9 @@ func TestTwoFactorEnrollmentAndLogin(t *testing.T) {
 	srv, _ := newTestHandler(t)
 	cookies := loginCookies(t, srv)
 
-	// Setup → get the pending secret.
-	rec := do(srv, "POST", "/api/auth/2fa/setup", cookies, "")
+	// Setup → get the pending secret. Enrolment re-authenticates: a session
+	// alone must not be able to attach a second factor to the account.
+	rec := do(srv, "POST", "/api/auth/2fa/setup", cookies, `{"password":"pw"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("2fa setup: got %d (%s)", rec.Code, rec.Body.String())
 	}
@@ -156,4 +157,24 @@ func containsJSON(b []byte, key string, want bool) bool {
 	}
 	v, ok := m[key].(bool)
 	return ok && v == want
+}
+
+// TestTwoFAEnrolmentRequiresPassword pins the step-up on the enrolment half.
+// The disable half is covered in TestTwoFADisableAndStatus; both matter for the
+// same reason — a hijacked session is exactly the situation 2FA is there to
+// survive, and it must not be enough to add or remove the factor.
+func TestTwoFAEnrolmentRequiresPassword(t *testing.T) {
+	srv, db := newTestHandler(t)
+	cookies := loginCookies(t, srv)
+
+	for _, body := range []string{`{}`, `{"password":""}`, `{"password":"wrong"}`} {
+		if rec := do(srv, "POST", "/api/auth/2fa/setup", cookies, body); rec.Code != http.StatusUnauthorized {
+			t.Errorf("setup with %s: got %d, want 401", body, rec.Code)
+		}
+	}
+	// No pending secret was minted along the way.
+	var user models.User
+	if err := db.Where("email = ?", "admin").First(&user).Error; err == nil && user.TOTPSecret != "" {
+		t.Error("a rejected setup still stored a pending TOTP secret")
+	}
 }

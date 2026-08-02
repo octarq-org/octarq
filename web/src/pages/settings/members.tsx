@@ -65,6 +65,26 @@ export function OrgMembersManager() {
     }
   }
 
+  // An admin cannot grant or change the owner role — the server refuses it, so
+  // the control must not offer it either. Same rule the invite form's Select
+  // would need; it is stated once here because this one is per-row.
+  const canGrantOwner = roleSatisfies("owner", myRole, isInstanceAdmin);
+
+  async function handleRoleChange(m: OrgMember, role: string) {
+    if (role === m.role) return;
+    setErr("");
+    // Optimistic: the row is a Select, and leaving it showing the old role until
+    // a refetch lands reads as "that didn't work".
+    setMembers((list) => list.map((x) => (x.userId === m.userId ? { ...x, role } : x)));
+    try {
+      await api.updateOrgMemberRole(m.userId, role);
+      toast.success(t("settings.memberRoleUpdated", { email: m.email }));
+    } catch (e: any) {
+      setMembers((list) => list.map((x) => (x.userId === m.userId ? { ...x, role: m.role } : x)));
+      toast.error(e.message || t("settings.failedUpdateMemberRole"));
+    }
+  }
+
   async function handleRemove(userId: number) {
     if (!(await confirmDialog(t("settings.confirmRemoveMember")))) return;
     try {
@@ -128,13 +148,30 @@ export function OrgMembersManager() {
           {(members || []).map((m) => {
             const myEmail = (me?.email || me?.username || "").toLowerCase();
             const isSelf = myEmail ? m.email.toLowerCase() === myEmail : false;
+            // Your own row stays read-only: the one demotion nobody can undo for
+            // you is your own. Handing the role over means promoting someone
+            // else first, which is a deliberate second step.
+            const canEditRole = canManage && !isSelf && (canGrantOwner || m.role !== "owner");
             return (
               <div key={m.userId} className="flex justify-between items-center p-4">
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <span className="font-semibold text-sm text-foreground">{m.email}</span>
-                  <Badge tone={getRoleTone(m.role)} className="capitalize text-[10px] tracking-wide font-semibold px-2">
-                    {m.role === "owner" ? t("settings.roleOwner") : m.role === "admin" ? t("settings.roleAdmin") : t("settings.roleMember")}
-                  </Badge>
+                  {canEditRole ? (
+                    <Select
+                      className="text-xs py-1"
+                      value={m.role}
+                      onValueChange={(role) => handleRoleChange(m, role)}
+                      options={[
+                        { value: "member", label: t("settings.roleMember") },
+                        { value: "admin", label: t("settings.roleAdmin") },
+                        ...(canGrantOwner ? [{ value: "owner", label: t("settings.roleOwner") }] : []),
+                      ]}
+                    />
+                  ) : (
+                    <Badge tone={getRoleTone(m.role)} className="capitalize text-[10px] tracking-wide font-semibold px-2">
+                      {m.role === "owner" ? t("settings.roleOwner") : m.role === "admin" ? t("settings.roleAdmin") : t("settings.roleMember")}
+                    </Badge>
+                  )}
                   {m.pending ? (
                     <Badge tone="amber" className="text-[10px] px-2">{t("settings.statusPending")}</Badge>
                   ) : (

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -56,7 +57,12 @@ func (h *Handler) twoFAStatus(ctx context.Context, input *TwoFAStatusInput) (*Tw
 }
 
 type Setup2FAInput struct {
-	Ctx huma.Context `hidden:"true"`
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
+		// Password re-authenticates the caller before their second factor is
+		// touched. See requirePasswordStepUp.
+		Password string `json:"password,omitempty"`
+	}
 }
 
 func (i *Setup2FAInput) Resolve(ctx huma.Context) []error {
@@ -85,6 +91,9 @@ func (h *Handler) setup2FA(ctx context.Context, input *Setup2FAInput) (*Setup2FA
 	var user models.User
 	if err := h.db.First(&user, uid).Error; err != nil {
 		return nil, huma.Error401Unauthorized("user not found")
+	}
+	if err := h.requirePasswordStepUp(r, &user, input.Body.Password); err != nil {
+		return nil, err
 	}
 
 	issuer := "octarq"
@@ -205,8 +214,15 @@ type Disable2FAOutput struct {
 	}
 }
 
-// disable2FA turns 2FA off after re-verifying the caller with either a current
-// TOTP/recovery code or their password.
+// disable2FA turns 2FA off after re-verifying the caller twice over: their
+// password, and a current TOTP or recovery code.
+//
+// Password alone used to be enough, which made the second factor removable by
+// exactly the thing it exists to survive — a leaked password. A code alone was
+// enough too, which made it removable by a hijacked session plus a glance at an
+// unlocked phone. Recovery codes are what a lost authenticator is for, and they
+// satisfy the second half here, so requiring both closes the hole without
+// stranding anyone.
 // POST /api/auth/2fa/disable  {code, password}
 func (h *Handler) disable2FA(ctx context.Context, input *Disable2FAInput) (*Disable2FAOutput, error) {
 	if input.Ctx == nil {
@@ -229,14 +245,10 @@ func (h *Handler) disable2FA(ctx context.Context, input *Disable2FAInput) (*Disa
 		return out, nil
 	}
 
-	verified := false
-	if code := strings.TrimSpace(input.Body.Code); code != "" {
-		verified = h.verifyTOTPOrRecovery(&user, code)
+	if err := h.requirePasswordStepUp(r, &user, input.Body.Password); err != nil {
+		return nil, err
 	}
-	if !verified && input.Body.Password != "" {
-		verified = h.verifyUserPassword(&user, input.Body.Password)
-	}
-	if !verified {
+	if !h.verifyTOTPOrRecovery(&user, strings.TrimSpace(input.Body.Code)) {
 		return nil, huma.Error401Unauthorized("verification failed")
 	}
 
@@ -250,6 +262,38 @@ func (h *Handler) disable2FA(ctx context.Context, input *Disable2FAInput) (*Disa
 	out := &Disable2FAOutput{}
 	out.Body.OK = true
 	return out, nil
+}
+
+// requirePasswordStepUp re-authenticates the caller before a change to their
+// own second factor. A live session is not enough authority to enrol or remove
+// one: the session is precisely what an attacker has when 2FA is the only thing
+// left standing between them and the account.
+//
+// An account with no local password — one managed by an external identity
+// provider — has nothing to re-verify against, so the step-up is skipped rather
+// than made impossible. Their credential lives at the IdP; octarq cannot check
+// it and must not pretend to.
+func (h *Handler) requirePasswordStepUp(r *http.Request, user *models.User, password string) error {
+	if !h.hasLocalPassword(user) {
+		return nil
+	}
+	if password == "" {
+		return huma.Error401Unauthorized("password confirmation required")
+	}
+	if !h.verifyUserPassword(user, password) {
+		// Same bookkeeping a failed login gets: this endpoint is otherwise a
+		// password oracle that no rate limit is watching.
+		h.loginLimiter.recordFailure(reporterIP(r))
+		return huma.Error401Unauthorized("password confirmation failed")
+	}
+	return nil
+}
+
+// hasLocalPassword reports whether octarq holds a credential it can check for
+// this account: a stored bcrypt hash, or the config-admin bootstrap user, whose
+// password lives in the instance config rather than the row.
+func (h *Handler) hasLocalPassword(user *models.User) bool {
+	return user.PasswordHash != "" || h.auth.IsConfigAdmin(user.Email)
 }
 
 // verifyUserPassword checks a plaintext password against the user's own bcrypt

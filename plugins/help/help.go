@@ -1,7 +1,6 @@
 package help
 
 import (
-	"bytes"
 	"context"
 	"embed"
 	"io/fs"
@@ -13,9 +12,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/plugin"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
 )
 
 // docs holds this plugin's own documentation: the platform-level pages that
@@ -179,20 +175,14 @@ func (p *Plugin) getDoc(ctx context.Context, input *GetDocInput) (*GetDocOutput,
 		return nil, huma.Error404NotFound("doc not found")
 	}
 
-	md := goldmark.New(
-		goldmark.WithExtensions(extension.GFM),
-		goldmark.WithParserOptions(
-			parser.WithAutoHeadingID(),
-		),
-	)
-	var buf bytes.Buffer
-	if err := md.Convert([]byte(found.Markdown), &buf); err != nil {
+	html, err := renderMarkdown(found.Markdown)
+	if err != nil {
 		return nil, huma.Error500InternalServerError("failed to render markdown")
 	}
 
 	out := &GetDocOutput{}
 	out.Body.Title = found.Title
-	out.Body.HTML = buf.String()
+	out.Body.HTML = html
 	return out, nil
 }
 

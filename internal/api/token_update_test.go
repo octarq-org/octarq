@@ -30,12 +30,23 @@ func TestTokenUpdate(t *testing.T) {
 	rawMember := "oct_member0000000000000000000000001"
 	seedToken(t, db, rawMember, 12, "member")
 
-	// Target token in Org 1
+	// Target token in Org 1, held by the owner (user 10).
 	rawTarget := "oct_target0000000000000000000000001"
 	seedToken(t, db, rawTarget, 10, "owner")
 	var tokTarget models.Token
 	if err := db.Where("prefix = ?", tokenPrefix(rawTarget)).First(&tokTarget).Error; err != nil {
 		t.Fatalf("find target token: %v", err)
+	}
+
+	// A second target held by the admin (user 11). Editing a token is scoped by
+	// ownership, not by role — a workspace admin has no reach into a
+	// colleague's personal credential — so the subtests that exercise the
+	// caller's own role cap need a row that belongs to that caller.
+	rawAdminTarget := "oct_admintarget000000000000000001"
+	seedToken(t, db, rawAdminTarget, 11, "admin")
+	var tokAdminTarget models.Token
+	if err := db.Where("prefix = ?", tokenPrefix(rawAdminTarget)).First(&tokAdminTarget).Error; err != nil {
+		t.Fatalf("find admin target token: %v", err)
 	}
 
 	putJSON := func(rawToken, path string, body any) *httptest.ResponseRecorder {
@@ -54,7 +65,7 @@ func TestTokenUpdate(t *testing.T) {
 	t.Run("admin update name and note", func(t *testing.T) {
 		name := "updated-name"
 		note := "updated-note"
-		rec := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokTarget.ID), map[string]any{
+		rec := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokAdminTarget.ID), map[string]any{
 			"name": name,
 			"note": note,
 		})
@@ -62,7 +73,7 @@ func TestTokenUpdate(t *testing.T) {
 			t.Fatalf("got code %d, want 200; body=%s", rec.Code, rec.Body.String())
 		}
 		var updated models.Token
-		db.First(&updated, tokTarget.ID)
+		db.First(&updated, tokAdminTarget.ID)
 		if updated.Name != name || updated.Note != note {
 			t.Errorf("got name=%q note=%q; want name=%q note=%q", updated.Name, updated.Note, name, note)
 		}
@@ -84,13 +95,20 @@ func TestTokenUpdate(t *testing.T) {
 		}
 	})
 
-	// 3. Member calls update -> 403
-	t.Run("member calling update is forbidden", func(t *testing.T) {
+	// 3. Someone else's token is not yours to edit. A member may now manage the
+	// tokens they minted themselves, so this is scoped by ownership rather than
+	// by role — and answers 404, not 403: a 403 would confirm the id exists.
+	t.Run("member cannot edit a token they do not own", func(t *testing.T) {
 		rec := putJSON(rawMember, "/api/tokens/"+testIDStr(tokTarget.ID), map[string]any{
 			"name": "hacked-name",
 		})
-		if rec.Code != http.StatusForbidden {
-			t.Errorf("got code %d, want 403; body=%s", rec.Code, rec.Body.String())
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("got code %d, want 404; body=%s", rec.Code, rec.Body.String())
+		}
+		var after models.Token
+		db.First(&after, tokTarget.ID)
+		if after.Name == "hacked-name" {
+			t.Error("a member renamed a token belonging to someone else")
 		}
 	})
 
@@ -116,7 +134,7 @@ func TestTokenUpdate(t *testing.T) {
 
 	// 5. Admin tries to set role to owner -> 403 (callerHoldsRole blocks)
 	t.Run("admin set role to owner forbidden", func(t *testing.T) {
-		rec := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokTarget.ID), map[string]any{
+		rec := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokAdminTarget.ID), map[string]any{
 			"role": "owner",
 		})
 		if rec.Code != http.StatusForbidden {
@@ -126,7 +144,7 @@ func TestTokenUpdate(t *testing.T) {
 
 	// 6. Role: "" -> 400 (validTokenRole rejects)
 	t.Run("role empty string rejected", func(t *testing.T) {
-		rec := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokTarget.ID), map[string]any{
+		rec := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokAdminTarget.ID), map[string]any{
 			"role": "",
 		})
 		if rec.Code != http.StatusBadRequest {
@@ -137,7 +155,7 @@ func TestTokenUpdate(t *testing.T) {
 	// 7. ExpiresInDays: -1 -> 400; 0 -> ExpiresAt nil; positive -> future
 	t.Run("expiresInDays validation and updates", func(t *testing.T) {
 		// Negative -> 400
-		recNeg := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokTarget.ID), map[string]any{
+		recNeg := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokAdminTarget.ID), map[string]any{
 			"expiresInDays": -1,
 		})
 		if recNeg.Code != http.StatusBadRequest {
@@ -145,27 +163,27 @@ func TestTokenUpdate(t *testing.T) {
 		}
 
 		// Positive -> set future ExpiresAt
-		recPos := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokTarget.ID), map[string]any{
+		recPos := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokAdminTarget.ID), map[string]any{
 			"expiresInDays": 10,
 		})
 		if recPos.Code != http.StatusOK {
 			t.Fatalf("positive expiresInDays: got code %d, want 200; body=%s", recPos.Code, recPos.Body.String())
 		}
 		var updated models.Token
-		db.First(&updated, tokTarget.ID)
+		db.First(&updated, tokAdminTarget.ID)
 		if updated.ExpiresAt == nil || !updated.ExpiresAt.After(time.Now()) {
 			t.Errorf("expected future ExpiresAt, got %v", updated.ExpiresAt)
 		}
 
 		// 0 -> clear ExpiresAt to nil
-		recZero := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokTarget.ID), map[string]any{
+		recZero := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokAdminTarget.ID), map[string]any{
 			"expiresInDays": 0,
 		})
 		if recZero.Code != http.StatusOK {
 			t.Fatalf("zero expiresInDays: got code %d, want 200; body=%s", recZero.Code, recZero.Body.String())
 		}
 		updated = models.Token{}
-		db.First(&updated, tokTarget.ID)
+		db.First(&updated, tokAdminTarget.ID)
 		if updated.ExpiresAt != nil {
 			t.Errorf("expected nil ExpiresAt when 0, got %v", updated.ExpiresAt)
 		}
@@ -173,7 +191,7 @@ func TestTokenUpdate(t *testing.T) {
 
 	// 8. Response body contains no raw token / hash
 	t.Run("response body conceals raw token and hash", func(t *testing.T) {
-		rec := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokTarget.ID), map[string]any{
+		rec := putJSON(rawAdmin, "/api/tokens/"+testIDStr(tokAdminTarget.ID), map[string]any{
 			"name": "check-security",
 		})
 		if rec.Code != http.StatusOK {
@@ -212,7 +230,7 @@ func TestTokenUpdate(t *testing.T) {
 		}
 
 		// Verify role narrowing actually took effect: target token should be denied on admin route
-		reqAdmin := httptest.NewRequest(http.MethodGet, "/api/tokens", nil)
+		reqAdmin := httptest.NewRequest(http.MethodGet, "/api/webhooks", nil)
 		reqAdmin.Header.Set("Authorization", "Bearer "+rawTarget)
 		recAdmin := httptest.NewRecorder()
 		srv.ServeHTTP(recAdmin, reqAdmin)

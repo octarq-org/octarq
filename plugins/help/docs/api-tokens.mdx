@@ -15,11 +15,22 @@ Octarq provides a complete REST API surface for programmatically managing short 
 - **Usage Tracking**: Track the `lastUsedAt` timestamp for each token to monitor active integrations and audit stale access credentials.
 - **Instant Revocation**: Instantly revoke any token from the dashboard to immediately terminate API access for compromised scripts or legacy services.
 
+## Who Can Create One
+
+Anyone with an account can mint a token for themselves. A token acts as the
+person who created it and can never out-rank them, so a Member's token is a
+Member's token — narrowing it further with the **Scope** field is encouraged,
+widening it is refused.
+
+Tokens are personal all the way down: you see, edit and revoke your own, and
+nobody else's — a workspace admin included. What an admin has instead is member
+removal, which revokes that person's tokens along with their access.
+
 ## How to Use
 
 ### 1. Generating an API Token
-1. Go to **Settings $\rightarrow$ Workspace $\rightarrow$ API Tokens** (or press `⌘K` / `Ctrl+K` and search "API Tokens").
-2. Click **Create API Token**.
+1. Go to **Settings → Account → API Tokens** (or press `⌘K` / `Ctrl+K` and search "API Tokens").
+2. Click **+ New Token**.
 3. Enter a descriptive **Name** (e.g., `GitHub Actions CI` or `Zapier Sync`).
 4. (Optional) Provide a **Note** and set an **Expiration (in days)**.
 5. Click **Create**.

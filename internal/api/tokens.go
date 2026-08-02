@@ -42,6 +42,17 @@ type ListTokensOutput struct {
 	Body []models.Token
 }
 
+// listTokens returns the caller's own tokens. Everyone's, including an admin's,
+// stops at their own row.
+//
+// A token is a personal credential: it acts as the person who minted it and
+// carries at most their role (models.Token.UserID). Requiring an admin to issue
+// one meant a member automating their own work had to be handed a credential
+// that answered as somebody else — worse for audit and for blast radius than
+// the thing the gate was guarding. Scoping by owner is what replaces it, and it
+// is not an admin-shaped scope: a workspace admin has no more business reading
+// (or renaming, or re-scoping) a colleague's credential than anyone else. What
+// they keep is member removal, which revokes that person's tokens with them.
 func (h *Handler) listTokens(ctx context.Context, input *ListTokensInput) (*ListTokensOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
@@ -51,11 +62,12 @@ func (h *Handler) listTokens(ctx context.Context, input *ListTokensInput) (*List
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
+	if _, err := h.requireOrg(r); err != nil {
 		return nil, err
 	}
 	var toks []models.Token
-	h.orgDB(r).Order("created_at DESC").Find(&toks)
+	h.orgDB(r).Where("user_id = ?", h.auth.UserID(r)).
+		Order("created_at DESC").Find(&toks)
 	return &ListTokensOutput{Body: toks}, nil
 }
 
@@ -107,9 +119,9 @@ func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*Cr
 	if err != nil {
 		return nil, err
 	}
-	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
-		return nil, err
-	}
+	// No admin gate: any member may mint a token for themselves. The cap below
+	// is what keeps that safe — the token can never out-rank the person minting
+	// it, so a member's token is a member's token.
 	role := authz.Role(strings.TrimSpace(input.Body.Role))
 	if role == "" {
 		role = authz.RoleMember
@@ -188,10 +200,8 @@ func (h *Handler) deleteToken(ctx context.Context, input *DeleteTokenInput) (*De
 	if err != nil {
 		return nil, err
 	}
-	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
-		return nil, err
-	}
-	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).Delete(&models.Token{}); res.RowsAffected == 0 {
+	q := h.db.Where("id = ? AND owner_id = ? AND user_id = ?", input.ID, orgID, h.auth.UserID(r))
+	if res := q.Delete(&models.Token{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}
 	h.audit(r, "token.delete", "token", input.ID, nil)
@@ -233,12 +243,12 @@ func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*Up
 	if err != nil {
 		return nil, err
 	}
-	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
-		return nil, err
-	}
-
+	// Someone else's token is not yours to rename, re-scope or extend — it does
+	// not exist as far as this endpoint is concerned, which is why this is a 404
+	// and not a 403: a 403 would confirm the id.
 	var tok models.Token
-	if err := h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).First(&tok).Error; err != nil {
+	if err := h.db.Where("id = ? AND owner_id = ? AND user_id = ?", input.ID, orgID, h.auth.UserID(r)).
+		First(&tok).Error; err != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 
