@@ -1,8 +1,8 @@
 ---
-title: Introduction to Octarq
+title: Introduction
 description: A self-hosted control plane for link management, custom email infrastructure, and DNS orchestration in a single Go binary.
 sidebar:
-  order: 3
+  order: 1
   group:
     label: "Start"
 ---

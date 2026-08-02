@@ -16,9 +16,12 @@ const nimbusConfig = defineNimbusConfig({
       {
         label: "Start",
         items: [
-          "index",
-          "quickstart",
+          // No "index" entry: Nimbus maps it to "/", which src/pages/index.astro
+          // owns, so the sidebar link led to the landing page instead of a doc —
+          // a "Start → Octarq" item that took you back to the front door. The
+          // page's content now lives in the landing page itself.
           "what-is-octarq",
+          "quickstart",
           "configuration",
           "deploy",
         ],
