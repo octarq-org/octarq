@@ -1,0 +1,49 @@
+---
+slug: mailboxes
+title: Mailboxes & Email Routing Console Guide
+order: 1
+---
+
+The Octarq Mailboxes engine processes inbound transactional emails, provisions on-the-fly Catch-All mailboxes, renders raw EML files with attachment inspection, and dispatches outbound mail via encrypted SMTP senders.
+
+## 1. Step-by-Step Console Workflows
+
+### 1. Connecting Inbound Email via Cloudflare Worker Webhook
+1. Go to **Settings $\rightarrow$ Workspace**, and copy your workspace **Inbound Webhook URL** (`/api/webhook/{orgSlug}/email/inbound/{token}`).
+2. In your Cloudflare Dashboard under **Email Routing $\rightarrow$ Email Workers**, deploy a worker script to POST raw inbound emails to this endpoint.
+3. Once deployed, emails sent to your custom domain appear live in the Octarq Mail console.
+
+### 2. Enabling Catch-All & Reserved Prefixes
+1. Go to **Settings $\rightarrow$ Workspace**.
+2. Toggle ON **Enable Catch-All Routing**.
+3. Under **Reserved Mailbox Prefixes**, enter comma-separated prefixes (e.g. `admin, support, postmaster`) to prevent Catch-All from capturing reserved system addresses.
+
+### 3. Adding Outbound SMTP Senders
+1. Navigate to **Operations $\rightarrow$ Mailboxes**, and switch to the **SMTP Senders** tab.
+2. Click **Add SMTP Sender**.
+3. Enter your SMTP Host (e.g. `smtp.mailgun.org`), Port (`587`), Username, Password, and default From Email (`noreply@example.com`).
+4. Click **Save**. Password credentials are encrypted at rest using AES-GCM and never returned via API endpoints.
+
+---
+
+## 2. Important Operating Cautions
+
+> [!IMPORTANT]
+> **Outbound Transactional Mail**: System-generated emails (member invitations, password resets, verification emails) automatically use the first configured SMTP sender in your workspace.
+
+---
+
+## 3. Frequently Asked Questions (FAQs)
+
+### Q1: Why does an incoming email show "SPF / DMARC Failed"?
+**Answer**: This indicates the sender's domain DNS lacks valid SPF/DMARC TXT records or was forwarded through an unauthenticated relay. Inspect the raw auth headers directly inside the email viewer.
+
+### Q2: How can I receive instant alerts when outbound mail dispatch fails?
+**Answer**: Go to **Settings $\rightarrow$ Notifications** in the console and configure Telegram or HTTP Webhooks to listen for email dispatch failures.
+
+---
+
+## 4. Related Console Guides
+
+- [DNS Management Console Guide](/help/plugins/dns/dns) — Verifying SPF, DKIM, and DMARC DNS records.
+- [Short Links Console Guide](/help/plugins/links/short-links) — Configuring email link wrapping.

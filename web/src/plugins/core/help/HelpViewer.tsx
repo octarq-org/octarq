@@ -104,11 +104,22 @@ export default function HelpViewer() {
         setDocs(sortedList);
         if (!currentSlug && sortedList.length > 0) {
           navigate(getDocUrl(sortedList[0]), { replace: true });
+        } else if (currentSlug && sortedList.length > 0) {
+          const matched = sortedList.find((d) => d.slug === currentSlug);
+          if (matched) {
+            const canonicalUrl = getDocUrl(matched);
+            if (location.pathname !== canonicalUrl) {
+              navigate(canonicalUrl, { replace: true });
+            }
+          } else {
+            // Slug not found in active doc index -> redirect to default first doc
+            navigate(getDocUrl(sortedList[0]), { replace: true });
+          }
         }
       })
       .catch((err) => console.error("failed to load docs", err))
       .finally(() => setLoadingDocs(false));
-  }, [lang]);
+  }, [lang, currentSlug]);
 
   // Fetch doc content
   useEffect(() => {
@@ -124,9 +135,29 @@ export default function HelpViewer() {
       .finally(() => setLoadingContent(false));
   }, [currentSlug, lang]);
 
-  // Post-process HTML content for interactive code blocks, responsive tables & callouts
+  // Post-process HTML content for interactive code blocks, responsive tables, callouts & SPA routing
   useEffect(() => {
     if (!contentRef.current || !content?.html) return;
+
+    // Intercept internal link clicks for smooth single-page routing
+    const links = contentRef.current.querySelectorAll("a");
+    links.forEach((a) => {
+      if (a.dataset.navEnhanced) return;
+      a.dataset.navEnhanced = "true";
+      const href = a.getAttribute("href");
+      if (
+        href &&
+        !href.startsWith("http://") &&
+        !href.startsWith("https://") &&
+        !href.startsWith("mailto:") &&
+        !href.startsWith("tel:")
+      ) {
+        a.onclick = (e) => {
+          e.preventDefault();
+          navigate(href);
+        };
+      }
+    });
 
     // Wrap tables in responsive scroll wrapper
     const tables = contentRef.current.querySelectorAll("table");
@@ -195,7 +226,7 @@ export default function HelpViewer() {
 
       if (text.includes("[!TIP]") || text.includes("TIP") || text.includes("提示")) {
         type = "tip";
-        label = "💡 TIP / 提示";
+        label = `💡 ${t("help.callout_tip", "提示")}`;
       } else if (
         text.includes("[!WARNING]") ||
         text.includes("[!CAUTION]") ||
@@ -204,17 +235,17 @@ export default function HelpViewer() {
         text.includes("CAUTION")
       ) {
         type = "warning";
-        label = "⚠️ WARNING / 警告";
+        label = `⚠️ ${t("help.callout_warning", "警告")}`;
       } else if (
         text.includes("[!IMPORTANT]") ||
         text.includes("IMPORTANT") ||
         text.includes("注意")
       ) {
         type = "important";
-        label = "🚨 IMPORTANT / 注意";
+        label = `🚨 ${t("help.callout_important", "注意")}`;
       } else if (text.includes("[!NOTE]") || text.includes("NOTE") || text.includes("说明")) {
         type = "note";
-        label = "ℹ️ NOTE / 说明";
+        label = `ℹ️ ${t("help.callout_note", "说明")}`;
       }
 
       if (type) {
@@ -266,7 +297,7 @@ export default function HelpViewer() {
     currentDocMeta?.group === "Core" || currentDocMeta?.group === "Platform";
   const groupLabel = currentDocMeta
     ? isPlatformCore
-      ? t("help.platform_title", "平台能力 (Platform)")
+      ? t("help.platform_title", "平台能力")
       : `${t("help.plugin_title", "插件能力")} / ${t(
           `help.group.${currentDocMeta.group}`,
           currentDocMeta.group,

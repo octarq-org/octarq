@@ -1,0 +1,53 @@
+---
+title: 动态域名解析 (DDNS) 操作与脚本说明
+---
+
+Octarq 动态 DNS (DDNS) 模块允许家用路由器、NAS、NAS 容器及内网服务器通过标准的 Dyndns2 协议，自动将公网动态 IPv4 (A) 或 IPv6 (AAAA) 地址同步更新至控制台托管的域名记录中。
+
+## 一、控制台操作步骤
+
+### 1. 新建 DDNS Token
+1. 进入 **基础设施 $\rightarrow$ 域名管理**，切换至 **动态 DNS (DDNS)** 标签页。
+2. 点击 **新建 DDNS Token**。
+3. 在弹窗中选择目标域名（如 `example.com`），输入要更新的记录名称（如 `home`），并指定记录类型 (`A` 或 `AAAA`)。
+4. 点击 **生成 Token**。
+
+> [!CAUTION]
+> **Token 密钥只显示一次**：生成的 Secret 令牌明文仅在创建成功弹窗中展示一次，系统数据库仅保存 SHA-256 哈希。请立即复制保存 Secret Token 与更新 URL！
+
+---
+
+## 二、设备与客户端脚本配置示例
+
+### 1. 简易 `curl` 定时任务 (Crontab)
+适用于 Linux 服务器或软路由环境，自动识别当前外网 IP 并提交更新：
+
+```bash
+# 自动识别出口 IP 提交更新
+curl -s "https://your-octarq-console.com/api/dns/ddns/update?hostname=home.example.com&key=YOUR_SECRET_TOKEN"
+```
+
+### 2. OpenWrt / DD-WRT / Synology NAS 填报参数
+在路由器的 DDNS 客户端插件中，设置如下参数：
+- **服务提供商 (Service)**: `Dyndns2` 或 `Custom`
+- **更新服务器 (Server)**: `your-octarq-console.com`
+- **Path / URL**: `/api/dns/ddns/update?hostname=[DOMAIN]&key=[PASSWORD]`
+- **Username / 账号**: `home.example.com`
+- **Password / 密码**: 填入生成的 Secret Token
+
+---
+
+## 三、注意事项与常见问题
+
+> [!IMPORTANT]
+> **双栈 IPv4 & IPv6 更新**：如果您的家庭宽带具备公网 IPv6，可在命令后加上 `&ip=YOUR_IPV6_ADDRESS` 显式指定地址。
+
+### Q1: 如果凭据泄露或设备遗失如何处理？
+**答**：请立即在控制台 DDNS 页面找到对应记录，点击 **撤销 Token**。撤销后旧 Token 会失效，无法再更新任何解析。
+
+---
+
+## 四、相关操作说明
+
+- [域名与 DNS 解析指南](/help/plugins/dns/dns) — 查看与编辑完整 DNS 记录表格。
+- [控制台快速入门](/help/platform/general/getting-started) — 工作区与账号权限设置。

@@ -91,48 +91,22 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 	}
 }
 
-//go:embed docs.md
+//go:embed docs.mdx
 var helpDocs string
 
-//go:embed ddns-docs.md
+//go:embed docs.zh.mdx
+var helpDocsZh string
+
+//go:embed ddns-docs.mdx
 var ddnsDocs string
+
+//go:embed ddns-docs.zh.mdx
+var ddnsDocsZh string
 
 func (p *Plugin) HelpDocs() []plugin.HelpDoc {
 	return []plugin.HelpDoc{
-		{
-			Slug:       "dns",
-			Title:      "DNS Management & Verification",
-			Scope:      "plugins",
-			Category:   "dns",
-			Group:      "Infrastructure",
-			GroupOrder: 20,
-			Order:      1,
-			Feature:    "dns",
-			Markdown:   helpDocs,
-			Translations: map[string]plugin.HelpDocTranslation{
-				"zh": {
-					Title: "域名与 DNS 记录解析指南",
-					Group: "Infrastructure",
-				},
-			},
-		},
-		{
-			Slug:       "ddns",
-			Title:      "Dynamic DNS (DDNS)",
-			Scope:      "plugins",
-			Category:   "dns",
-			Group:      "Infrastructure",
-			GroupOrder: 20,
-			Order:      2,
-			Feature:    "dns",
-			Markdown:   ddnsDocs,
-			Translations: map[string]plugin.HelpDocTranslation{
-				"zh": {
-					Title: "动态域名解析 (DDNS)",
-					Group: "Infrastructure",
-				},
-			},
-		},
+		plugin.MustParseHelpDoc(helpDocs).WithTranslation("zh", helpDocsZh),
+		plugin.MustParseHelpDoc(ddnsDocs).WithTranslation("zh", ddnsDocsZh),
 	}
 }
 

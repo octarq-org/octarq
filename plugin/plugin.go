@@ -67,11 +67,13 @@ import (
 	"errors"
 	"io/fs"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/octarq-org/octarq/llmprovider"
+	"gopkg.in/yaml.v3"
 	"gorm.io/gorm"
 )
 
@@ -455,25 +457,174 @@ type MCPProvider interface {
 
 // HelpDocTranslation provides localized strings for a HelpDoc.
 type HelpDocTranslation struct {
-	Title    string
-	Scope    string
-	Category string
-	Group    string
-	Markdown string
+	Title    string `yaml:"title" json:"title,omitempty"`
+	Scope    string `yaml:"scope" json:"scope,omitempty"`
+	Category string `yaml:"category" json:"category,omitempty"`
+	Group    string `yaml:"group" json:"group,omitempty"`
+	Markdown string `yaml:"markdown" json:"markdown,omitempty"`
 }
 
 // HelpDoc is one page of in-app documentation contributed by a plugin.
 type HelpDoc struct {
-	Slug         string // Level 3 identifier / URL segment, unique across the instance
-	Title        string // Level 3 title
-	Scope        string // Level 1: "platform" | "portal" | "plugins"
-	Category     string // Level 2: e.g. "links", "dns", "mail", "security"
-	Group        string // Backward-compatible section heading
-	GroupOrder   int    // Controls sorting of groups
-	Order        int    // Doc ordering inside category
-	Feature      string // Optional target feature key controlling enablement
-	Markdown     string // Raw source; core renders it
-	Translations map[string]HelpDocTranslation
+	Slug         string                         `yaml:"slug" json:"slug"`
+	Title        string                         `yaml:"title" json:"title"`
+	Scope        string                         `yaml:"scope" json:"scope"`
+	Category     string                         `yaml:"category" json:"category"`
+	Group        string                         `yaml:"group" json:"group"`
+	GroupOrder   int                            `yaml:"groupOrder" json:"groupOrder"`
+	Order        int                            `yaml:"order" json:"order"`
+	Feature      string                         `yaml:"feature" json:"feature,omitempty"`
+	Markdown     string                         `yaml:"-" json:"markdown"`
+	Translations map[string]HelpDocTranslation `yaml:"translations" json:"translations,omitempty"`
+}
+
+// WithTranslation parses translation content (which can also contain YAML frontmatter or raw markdown)
+// and adds/updates the translation for the specified language key (e.g. "zh").
+func (h HelpDoc) WithTranslation(lang, raw string) HelpDoc {
+	if h.Translations == nil {
+		h.Translations = make(map[string]HelpDocTranslation)
+	}
+	trDoc, err := ParseHelpDoc(raw)
+	tr := h.Translations[lang]
+	if err == nil && (trDoc.Title != "" || trDoc.Group != "" || trDoc.Markdown != "") {
+		if trDoc.Title != "" {
+			tr.Title = trDoc.Title
+		}
+		if trDoc.Scope != "" {
+			tr.Scope = trDoc.Scope
+		}
+		if trDoc.Category != "" {
+			tr.Category = trDoc.Category
+		}
+		if trDoc.Group != "" {
+			tr.Group = trDoc.Group
+		}
+		tr.Markdown = trDoc.Markdown
+	} else {
+		tr.Markdown = strings.TrimSpace(raw)
+	}
+	h.Translations[lang] = tr
+	return h
+}
+
+// ParseHelpDoc parses an MDX/MD string with optional YAML frontmatter.
+func ParseHelpDoc(content string) (HelpDoc, error) {
+	var doc HelpDoc
+	trimmed := strings.TrimSpace(content)
+	if !strings.HasPrefix(trimmed, "---") {
+		doc.Markdown = trimmed
+		return doc, nil
+	}
+
+	rest := trimmed[3:]
+	if idx := strings.Index(rest, "\n"); idx != -1 {
+		rest = rest[idx+1:]
+	}
+
+	endIdx := strings.Index(rest, "---")
+	if endIdx == -1 {
+		doc.Markdown = trimmed
+		return doc, nil
+	}
+
+	frontmatterYAML := rest[:endIdx]
+	markdownBody := strings.TrimSpace(rest[endIdx+3:])
+
+	if err := yaml.Unmarshal([]byte(frontmatterYAML), &doc); err != nil {
+		return doc, err
+	}
+	doc.Markdown = markdownBody
+	return doc, nil
+}
+
+// FillDefaults automatically populates Scope, Category, Group, and GroupOrder based on taxonomy defaults if missing.
+func (h *HelpDoc) FillDefaults(pluginName string, pluginCategory string) {
+	if h.Category == "" {
+		if pluginCategory != "" {
+			h.Category = pluginCategory
+		} else {
+			h.Category = pluginName
+		}
+	}
+	h.Category = strings.ToLower(h.Category)
+
+	if h.Group == "" || h.GroupOrder == 0 || h.Scope == "" {
+		switch h.Category {
+		case "general", "platform", "core":
+			if h.Scope == "" {
+				h.Scope = "platform"
+			}
+			if h.Group == "" {
+				h.Group = "Core"
+			}
+			if h.GroupOrder == 0 {
+				h.GroupOrder = 1
+			}
+		case CategoryInfrastructure, "dns":
+			if h.Scope == "" {
+				h.Scope = "plugins"
+			}
+			if h.Group == "" {
+				h.Group = "Infrastructure"
+			}
+			if h.GroupOrder == 0 {
+				h.GroupOrder = 20
+			}
+		case CategoryMessaging, "mail", "communication":
+			if h.Scope == "" {
+				h.Scope = "plugins"
+			}
+			if h.Group == "" {
+				h.Group = "Messaging"
+			}
+			if h.GroupOrder == 0 {
+				h.GroupOrder = 30
+			}
+		case CategoryMarketing, "links":
+			if h.Scope == "" {
+				h.Scope = "plugins"
+			}
+			if h.Group == "" {
+				h.Group = "Marketing"
+			}
+			if h.GroupOrder == 0 {
+				h.GroupOrder = 40
+			}
+		case CategorySecurity:
+			if h.Scope == "" {
+				h.Scope = "plugins"
+			}
+			if h.Group == "" {
+				h.Group = "Security"
+			}
+			if h.GroupOrder == 0 {
+				h.GroupOrder = 50
+			}
+		default:
+			if h.Scope == "" {
+				h.Scope = "plugins"
+			}
+			if h.Group == "" {
+				if len(h.Category) > 0 {
+					h.Group = strings.ToUpper(h.Category[:1]) + h.Category[1:]
+				} else {
+					h.Group = "General"
+				}
+			}
+			if h.GroupOrder == 0 {
+				h.GroupOrder = 99
+			}
+		}
+	}
+}
+
+// MustParseHelpDoc calls ParseHelpDoc and panics if an error occurs.
+func MustParseHelpDoc(content string) HelpDoc {
+	doc, err := ParseHelpDoc(content)
+	if err != nil {
+		panic(err)
+	}
+	return doc
 }
 
 // HelpProvider is implemented by plugins that ship in-app documentation.

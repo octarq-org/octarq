@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { Globe, Mail } from "lucide-react";
+import { BookOpen, Bot, Boxes, FileText, Globe, Link2, Mail, Send, Server, Shield, Sparkles } from "lucide-react";
 import { api, MenuItem, Org, PluginInfo } from "./api";
 import { BrandMark } from "./shell/BrandMark";
 // Route-level code splitting: each top-level page ships as its own chunk,
@@ -439,12 +439,18 @@ function Shell({
     () => new Set(mergedSettingsArea.groups.flatMap((g) => g.items.map((i) => i.path))),
     [mergedSettingsArea],
   );
+  const helpActive =
+    location.pathname.startsWith("/help") || location.pathname.startsWith("/admin/help");
   const settingsActive =
     location.pathname.startsWith("/settings") ||
     [...settingsPaths].some((p) => location.pathname === p || location.pathname.startsWith(p + "/"));
   // Resolve against the merged runtime areas (static + plugin areas + dynamic
   // menu items) so paths owned by plugin-contributed areas highlight correctly.
-  const activeArea: AreaId = settingsActive ? "settings" : areaForPath(location.pathname, areas);
+  const activeArea: AreaId = helpActive
+    ? "help"
+    : settingsActive
+    ? "settings"
+    : areaForPath(location.pathname, areas);
 
   // Load orgs + dynamic menus + user settings layout. Also refreshes the org
   // role here (not just on mount) so switching to a workspace where the user
@@ -521,24 +527,38 @@ function Shell({
     const groups: NavGroup[] = [];
 
     const scopeTitleMap: Record<string, string> = {
-      platform: t("help.scope_platform", "⚡ 平台能力 (Platform Core)"),
-      portal: t("help.scope_portal", "🌐 门户能力 (Portal & User)"),
-      plugins: t("help.scope_plugins", "🧩 插件能力 (Plugin Extensions)"),
+      platform: t("help.scope_platform", "平台核心"),
+      portal: t("help.scope_portal", "门户与工作区"),
+      plugins: t("help.scope_plugins", "插件扩展"),
     };
 
     const categoryTitleMap: Record<string, string> = {
-      general: t("help.cat_general", "概览与入门指南"),
-      security: t("help.cat_security", "身份认证与 Token"),
+      general: t("help.cat_general", "快速入门与概览"),
+      security: t("help.cat_security", "身份认证与安全"),
       portal: t("help.cat_portal", "多组织架构与工作区"),
-      workspace: t("help.cat_workspace", "多组织架构与工作区"),
+      workspace: t("help.cat_workspace", "工作区配置"),
       ai: t("help.cat_ai", "AI 与 MCP 协议"),
       events: t("help.cat_events", "事件中心与 Webhooks"),
-      links: t("help.cat_links", "短链接服务 (Links)"),
+      links: t("help.cat_links", "短链接服务"),
       dns: t("help.cat_dns", "域名与 DNS 服务"),
-      mail: t("help.cat_mail", "邮箱与邮件路由"),
-      marketing: t("help.cat_marketing", "营销工具"),
+      mail: t("help.cat_mail", "邮箱服务"),
+      marketing: t("help.cat_marketing", "营销服务"),
       infrastructure: t("help.cat_infra", "网络与基础设施"),
-      messaging: t("help.cat_messaging", "消息与通讯服务"),
+      messaging: t("help.cat_messaging", "消息与通讯"),
+    };
+
+    const categoryIconMap: Record<string, React.ElementType> = {
+      general: BookOpen,
+      dns: Globe,
+      links: Link2,
+      mail: Mail,
+      messaging: Send,
+      marketing: Sparkles,
+      infrastructure: Server,
+      security: Shield,
+      platform: Boxes,
+      ai: Bot,
+      events: Send,
     };
 
     scopeOrder.forEach((scopeKey) => {
@@ -556,6 +576,7 @@ function Shell({
 
       sortedCatEntries.forEach(([catKey, docsList]) => {
         const catTitle = categoryTitleMap[catKey] || catKey;
+        const CatIcon = categoryIconMap[catKey] || FileText;
 
         // Sort documents by order and title
         const sortedDocsList = [...docsList].sort((a, b) => {
@@ -563,21 +584,30 @@ function Shell({
           return (a.title || "").localeCompare(b.title || "");
         });
 
-        // Level 2 Item containing Level 3 Children
-        const childrenItems: NavItem[] = sortedDocsList.map((doc) => ({
-          id: `help-${doc.slug}`,
-          label: doc.title,
-          Icon: Globe,
-          path: `/help/${scopeKey}/${catKey}/${doc.slug}`,
-        }));
+        if (sortedDocsList.length === 1) {
+          const doc = sortedDocsList[0];
+          items.push({
+            id: `help-${doc.slug}`,
+            label: doc.title,
+            Icon: CatIcon,
+            path: `/help/${scopeKey}/${catKey}/${doc.slug}`,
+          });
+        } else {
+          const childrenItems: NavItem[] = sortedDocsList.map((doc) => ({
+            id: `help-${doc.slug}`,
+            label: doc.title,
+            Icon: FileText,
+            path: `/help/${scopeKey}/${catKey}/${doc.slug}`,
+          }));
 
-        items.push({
-          id: `cat-${scopeKey}-${catKey}`,
-          label: catTitle,
-          Icon: Globe,
-          path: `/help/${scopeKey}/${catKey}`,
-          children: childrenItems,
-        });
+          items.push({
+            id: `cat-${scopeKey}-${catKey}`,
+            label: catTitle,
+            Icon: CatIcon,
+            path: `/help/${scopeKey}/${catKey}/${sortedDocsList[0].slug}`,
+            children: childrenItems,
+          });
+        }
       });
 
       groups.push({
@@ -589,10 +619,10 @@ function Shell({
     return {
       id: "help",
       title: t("help.title", "帮助与文档"),
-      subtitle: t("help.platform_subtitle", "三层嵌套层级结构"),
-      Icon: Globe,
+      subtitle: t("help.platform_subtitle", "指南、教程与平台文档"),
+      Icon: BookOpen,
       groups: groups.length > 0 ? groups : [
-        { label: "Help", items: [{ id: "help-root", label: "Help", Icon: Globe, path: "/help" }] }
+        { label: "Help", items: [{ id: "help-root", label: "Help", Icon: BookOpen, path: "/help" }] }
       ],
     };
   }, [helpDocsNav, t]);
@@ -605,12 +635,12 @@ function Shell({
     };
   }, [mergedSettingsArea, isInstanceAdmin]);
 
-  const helpActive = location.pathname.startsWith("/help") || location.pathname.startsWith("/admin/help");
   const currentArea = helpActive
     ? helpArea
     : settingsActive
     ? currentSettingsArea
     : (areas.find((a) => a.id === activeArea) ?? areas[0]);
+
   const activeOrgName = orgs.find((o) => o.id === activeOrgId)?.name ?? t("app.personalWorkspace");
 
   // Apply an active-workspace change in-app: point the shell at the new org
@@ -637,6 +667,11 @@ function Shell({
 
   const selectArea = (id: AreaId) => {
     if (id === "settings") { navigate("/settings"); return; }
+    if (id === "help") {
+      const firstHelpPath = helpArea.groups[0]?.items[0]?.path ?? "/help";
+      navigate(firstHelpPath);
+      return;
+    }
     const area = areas.find((a) => a.id === id);
     navigate(area?.groups[0]?.items[0]?.path ?? "/overview");
   };

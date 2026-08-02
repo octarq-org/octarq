@@ -81,28 +81,15 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 	}
 }
 
-//go:embed docs.md
+//go:embed docs.mdx
 var helpDocs string
+
+//go:embed docs.zh.mdx
+var helpDocsZh string
 
 func (p *Plugin) HelpDocs() []plugin.HelpDoc {
 	return []plugin.HelpDoc{
-		{
-			Slug:       "mailboxes",
-			Title:      "Mailboxes & Email Routing",
-			Scope:      "plugins",
-			Category:   "mail",
-			Group:      "Messaging",
-			GroupOrder: 30,
-			Order:      1,
-			Feature:    "mail",
-			Markdown:   helpDocs,
-			Translations: map[string]plugin.HelpDocTranslation{
-				"zh": {
-					Title: "邮箱服务与邮件路由指南",
-					Group: "Messaging",
-				},
-			},
-		},
+		plugin.MustParseHelpDoc(helpDocs).WithTranslation("zh", helpDocsZh),
 	}
 }
 

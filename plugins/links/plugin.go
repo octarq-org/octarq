@@ -61,28 +61,15 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 	}
 }
 
-//go:embed docs.md
+//go:embed docs.mdx
 var helpDocs string
+
+//go:embed docs.zh.mdx
+var helpDocsZh string
 
 func (p *Plugin) HelpDocs() []plugin.HelpDoc {
 	return []plugin.HelpDoc{
-		{
-			Slug:       "short-links",
-			Title:      "Short Links & Analytics",
-			Scope:      "plugins",
-			Category:   "links",
-			Group:      "Marketing",
-			GroupOrder: 40,
-			Order:      1,
-			Feature:    "links",
-			Markdown:   helpDocs,
-			Translations: map[string]plugin.HelpDocTranslation{
-				"zh": {
-					Title: "短链接服务与数据分析指南",
-					Group: "Marketing",
-				},
-			},
-		},
+		plugin.MustParseHelpDoc(helpDocs).WithTranslation("zh", helpDocsZh),
 	}
 }
 

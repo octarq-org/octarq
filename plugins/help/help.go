@@ -16,10 +16,10 @@ import (
 	"github.com/yuin/goldmark/parser"
 )
 
-//go:embed getting-started-en.md
+//go:embed getting-started-en.mdx
 var gettingStartedEnDocs string
 
-//go:embed getting-started-zh.md
+//go:embed getting-started-zh.mdx
 var gettingStartedZhDocs string
 
 var (
@@ -176,7 +176,12 @@ func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
 			continue
 		}
 		if hp, ok := pl.(plugin.HelpProvider); ok {
+			var category string
+			if desc, ok := pl.(plugin.Describer); ok {
+				category = desc.Describe().Category
+			}
 			for _, d := range hp.HelpDocs() {
+				d.FillDefaults(pl.Name(), category)
 				if d.Feature != "" && p.pctx.FeatureActive != nil && !p.pctx.FeatureActive(orgID, d.Feature) {
 					continue
 				}
@@ -223,23 +228,7 @@ func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
 
 func (p *Plugin) HelpDocs() []plugin.HelpDoc {
 	return []plugin.HelpDoc{
-		{
-			Slug:       "getting-started",
-			Title:      "Getting Started & Overview",
-			Scope:      "platform",
-			Category:   "general",
-			Group:      "Core",
-			GroupOrder: 1,
-			Order:      1,
-			Markdown:   gettingStartedEnDocs,
-			Translations: map[string]plugin.HelpDocTranslation{
-				"zh": {
-					Title:    "快速入门与平台概览",
-					Group:    "Core",
-					Markdown: gettingStartedZhDocs,
-				},
-			},
-		},
+		plugin.MustParseHelpDoc(gettingStartedEnDocs).WithTranslation("zh", gettingStartedZhDocs),
 	}
 }
 
