@@ -268,6 +268,15 @@ export function PluginsSettings() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
                           <h3 className="text-sm font-bold text-foreground truncate">{p.title}</h3>
+                          {/* Named on the card, not just implied by a dead
+                              switch: a disabled control with no label reads as
+                              broken, and the tooltip explaining it is invisible
+                              to touch and keyboard. */}
+                          {p.core && (
+                            <Badge tone="violet" className="shrink-0 text-[9px] uppercase tracking-wider font-semibold">
+                              {t("settings.pluginCoreBadge")}
+                            </Badge>
+                          )}
                         </div>
                         <span className="text-[10px] font-mono text-muted-foreground block truncate">@{p.key}</span>
                       </div>
@@ -281,7 +290,14 @@ export function PluginsSettings() {
                         fold on a narrow card, and hovering the thing that
                         didn't respond is where people look first. */}
                     <div className="flex flex-col items-end gap-1">
-                      {lockedBy(p).length > 0 ? (
+                      {p.core ? (
+                        // Core outranks the dependency lock: it can't be turned
+                        // off for any workspace, so say that rather than naming
+                        // a dependent that isn't the real reason.
+                        <Tooltip content={t("settings.pluginCoreHint")}>
+                          <Toggle on onChange={() => {}} disabled />
+                        </Tooltip>
+                      ) : lockedBy(p).length > 0 ? (
                         <Tooltip
                           content={t("settings.pluginInUse", { plugin: p.title, dependents: lockedBy(p).join(", ") })}
                         >
@@ -310,7 +326,7 @@ export function PluginsSettings() {
                     ))}
                   </div>
 
-                  {lockedBy(p).length > 0 && (
+                  {!p.core && lockedBy(p).length > 0 && (
                     <div className="mt-2 text-[10px] text-warning-fg font-medium">
                       {t("settings.pluginInUse", { plugin: p.title, dependents: lockedBy(p).join(", ") })}
                     </div>
@@ -347,7 +363,11 @@ export function PluginsSettings() {
                     )}
                   </div>
 
-                  {p.enabled ? (
+                  {p.core ? (
+                    <Badge tone="violet" className="text-[10px] shrink-0">
+                      {t("settings.badgeAlwaysOn")}
+                    </Badge>
+                  ) : p.enabled ? (
                     <Badge tone="green" className="text-[10px] shrink-0">
                       {t("settings.badgeOn")}
                     </Badge>

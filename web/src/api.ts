@@ -510,6 +510,8 @@ export interface PluginInfo {
   category?: string;
   tags?: string[];
   enabled: boolean;
+  /** Always-on plumbing: listed so it's visible, but its switch is dead. */
+  core?: boolean;
   menus: MenuItem[];
   requires?: string[];
   requiredBy?: string[];

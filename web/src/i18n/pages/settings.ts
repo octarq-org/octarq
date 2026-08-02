@@ -33,6 +33,9 @@ export const settings = {
     noPlugins: "No plugins are composed into this build. Add community or third-party plugins via the plugin manifest to see them here.",
     badgeOn: "On",
     badgeOff: "Off",
+    badgeAlwaysOn: "Always on",
+    pluginCoreBadge: "Built-in",
+    pluginCoreHint: "Built-in capability — it runs for every workspace and can't be turned off.",
     pluginCategory: {
       marketing: "Marketing",
       messaging: "Messaging",
@@ -357,6 +360,9 @@ export const settings = {
     noPlugins: "此构建未组合任何插件。通过插件清单添加社区或第三方插件后即可在此显示。",
     badgeOn: "已开启",
     badgeOff: "已关闭",
+    badgeAlwaysOn: "始终启用",
+    pluginCoreBadge: "内置",
+    pluginCoreHint: "内置能力 —— 对所有工作区始终启用，无法关闭。",
     pluginCategory: {
       marketing: "营销",
       messaging: "消息",
@@ -681,6 +687,9 @@ export const settings = {
     noPlugins: "No hay complementos integrados en esta compilación. Añada complementos comunitarios o de terceros mediante el manifiesto de complementos para verlos aquí.",
     badgeOn: "Activo",
     badgeOff: "Inactivo",
+    badgeAlwaysOn: "Siempre activo",
+    pluginCoreBadge: "Integrado",
+    pluginCoreHint: "Capacidad integrada: se ejecuta en todos los espacios de trabajo y no se puede desactivar.",
     pluginCategory: {
       marketing: "Marketing",
       messaging: "Mensajería",
@@ -1005,6 +1014,9 @@ export const settings = {
     noPlugins: "Nenhum plugin está composto nesta compilação. Adicione plugins da comunidade ou de terceiros através do plugin manifest para vê-los aqui.",
     badgeOn: "Ativo",
     badgeOff: "Inativo",
+    badgeAlwaysOn: "Sempre ativo",
+    pluginCoreBadge: "Integrado",
+    pluginCoreHint: "Recurso integrado: funciona em todos os espaços de trabalho e não pode ser desativado.",
     pluginCategory: {
       marketing: "Marketing",
       messaging: "Mensagens",
@@ -1329,6 +1341,9 @@ export const settings = {
     noPlugins: "このビルドにはプラグインが組み込まれていません。コミュニティまたはサードパーティのプラグインをプラグインマニフェストから追加すると、ここに表示されます。",
     badgeOn: "オン",
     badgeOff: "オフ",
+    badgeAlwaysOn: "常時オン",
+    pluginCoreBadge: "組み込み",
+    pluginCoreHint: "組み込み機能です。すべてのワークスペースで常に有効で、無効にはできません。",
     pluginCategory: {
       marketing: "マーケティング",
       messaging: "メッセージング",

@@ -30,7 +30,7 @@ func (g groupedPlugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{{ID: g.name, Label: g.name, Path: g.path, Category: "Commerce"}}
 }
 
-// corePlugin is always-on plumbing; it must be hidden from the registry.
+// corePlugin is always-on plumbing; the registry lists it locked on.
 type corePlugin struct{}
 
 func (corePlugin) Name() string                          { return "licensing" }
@@ -39,7 +39,9 @@ func (corePlugin) Mount(_ plugin.Mux, _ *plugin.Context) {}
 func (corePlugin) Describe() plugin.Info                 { return plugin.Info{Core: true} }
 
 // TestPluginGroupingAndCore verifies grouped plugins collapse into one feature
-// toggled together, and core plugins are excluded from the registry.
+// toggled together, and that core plumbing is listed as core-and-enabled rather
+// than omitted — absent and off are indistinguishable in the plugin manager, and
+// an always-on capability that shows up nowhere reads as disabled.
 func TestPluginGroupingAndCore(t *testing.T) {
 	h, srv, _ := newTestHandlerWithInstance(t)
 	h.SetPlugins([]plugin.Plugin{
@@ -49,21 +51,45 @@ func TestPluginGroupingAndCore(t *testing.T) {
 	})
 	cookies := loginCookies(t, srv)
 
-	// Registry: one "commerce" feature (not two), no core plugin.
+	// Registry: one "commerce" feature (not two), plus the core one.
 	rec := do(srv, "GET", "/api/plugins", cookies, "")
 	var feats []struct {
-		Key   string `json:"key"`
-		Title string `json:"title"`
-		Menus []struct {
+		Key     string `json:"key"`
+		Title   string `json:"title"`
+		Enabled bool   `json:"enabled"`
+		Core    bool   `json:"core"`
+		Menus   []struct {
 			Path string `json:"path"`
 		} `json:"menus"`
 	}
 	_ = json.Unmarshal(rec.Body.Bytes(), &feats)
-	if len(feats) != 1 || feats[0].Key != "commerce" {
-		t.Fatalf("want a single 'commerce' feature, got %+v", feats)
+	byKey := map[string]int{}
+	for i, f := range feats {
+		byKey[f.Key] = i
 	}
-	if feats[0].Title != "Commerce" || len(feats[0].Menus) != 2 {
-		t.Fatalf("commerce should carry both member menus + title, got %+v", feats[0])
+	if len(feats) != 2 || len(byKey) != 2 {
+		t.Fatalf("want exactly the 'commerce' and 'licensing' features, got %+v", feats)
+	}
+
+	commerce := feats[byKey["commerce"]]
+	if commerce.Title != "Commerce" || len(commerce.Menus) != 2 {
+		t.Fatalf("commerce should carry both member menus + title, got %+v", commerce)
+	}
+	if commerce.Core {
+		t.Fatal("commerce is toggleable and must not be flagged core")
+	}
+
+	core, ok := byKey["licensing"]
+	if !ok {
+		t.Fatalf("core plumbing must be listed, got %+v", feats)
+	}
+	if !feats[core].Core || !feats[core].Enabled {
+		t.Fatalf("core plumbing must report core+enabled, got %+v", feats[core])
+	}
+
+	// Listing it does not make it writable: the switch is dead on the server too.
+	if rec := do(srv, "PUT", "/api/plugins/licensing", cookies, `{"enabled":false}`); rec.Code != http.StatusNotFound {
+		t.Fatalf("disabling core plumbing must 404, got %d", rec.Code)
 	}
 
 	// Enabling the group surfaces both members' menus at once.
@@ -175,6 +201,9 @@ func (contentHalfPlugin) Describe() plugin.Info                 { return plugin.
 // manager listed a Help toggle (from the silent half) that the Core half
 // ignored: flipping it off wrote a setting, changed nothing, and left the
 // sidebar entry up.
+//
+// The feature is listed — that is how an admin sees it is running — but it must
+// come back flagged core, which is what makes the UI render a dead switch.
 func TestCoreIsStickyAcrossFeatureHalves(t *testing.T) {
 	h, srv, _ := newTestHandlerWithInstance(t)
 	// Non-core half first, so a per-plugin check would decide on it.
@@ -183,15 +212,25 @@ func TestCoreIsStickyAcrossFeatureHalves(t *testing.T) {
 
 	rec := do(srv, "GET", "/api/plugins", cookies, "")
 	var feats []struct {
-		Key string `json:"key"`
+		Key     string `json:"key"`
+		Enabled bool   `json:"enabled"`
+		Core    bool   `json:"core"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &feats); err != nil {
 		t.Fatalf("decode plugins: %v", err)
 	}
+	found := false
 	for _, f := range feats {
-		if f.Key == "help" {
-			t.Fatal("a feature with a Core half must not be offered as a toggle")
+		if f.Key != "help" {
+			continue
 		}
+		found = true
+		if !f.Core || !f.Enabled {
+			t.Fatalf("a feature with a Core half must be listed core+enabled, got %+v", f)
+		}
+	}
+	if !found {
+		t.Fatalf("the help feature must be listed, got %+v", feats)
 	}
 
 	// And the toggle it never offered is not accepted through the back door.
