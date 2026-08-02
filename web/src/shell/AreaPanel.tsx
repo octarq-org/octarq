@@ -163,13 +163,16 @@ export function AreaPanel({
             {collapsed
               ? gi > 0 && <div className="mx-auto my-1.5 h-px w-6 bg-border" />
               : (
-                <p className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <p className="px-2.5 pb-1.5 pt-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
+                  <span className="w-1 h-1 rounded-full bg-primary/60 inline-block" />
                   {translateGroupLabel(t, group.label)}
                 </p>
               )}
             <div className="space-y-0.5">
               {group.items.map((item) => {
-                const active = currentPath.startsWith(item.path);
+                const active = item.path.includes("?")
+                  ? currentPath === item.path
+                  : (item.path !== "/" && currentPath.startsWith(item.path));
                 if (collapsed) {
                   return (
                     <NavLink
@@ -211,8 +214,6 @@ export function AreaPanel({
                         transition={{ type: "spring", stiffness: 500, damping: 40 }}
                         className="absolute inset-0 rounded-xl bg-foreground/[0.06] ring-1 ring-inset ring-border"
                       >
-                        {/* Brand-gradient accent bar — the active item carries the
-                            same indigo→violet axis as the mark and primary actions. */}
                         <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-indigo-400 to-violet-400" />
                       </motion.span>
                     )}
@@ -245,6 +246,23 @@ export function AreaPanel({
           always-available footer and strictly apart from the org's business
           nav above. Plugin footer-placement items (footerItems) list first. */}
       <div className={cn("border-t border-border", collapsed ? "space-y-1 p-2" : "space-y-0.5 px-3 py-2")}>
+        <NavLink
+          to="/help"
+          onClick={onNavigate}
+          aria-label={t("areas.help.title", "使用指南")}
+          title={collapsed ? t("areas.help.title", "使用指南") : undefined}
+          className={cn(
+            "flex items-center rounded-xl transition-colors",
+            currentPath.startsWith("/help") || currentPath.startsWith("/admin/help")
+              ? "bg-primary/15 font-bold text-primary shadow-2xs"
+              : "text-muted-foreground hover:bg-surface-hover hover:text-foreground",
+            collapsed ? "mx-auto h-10 w-10 justify-center" : "h-9 w-full gap-2 px-2.5 text-[13px] font-medium",
+          )}
+        >
+          <BookOpen className="h-[18px] w-[18px] shrink-0 text-primary" strokeWidth={1.75} />
+          {!collapsed && <span className="truncate">{t("areas.help.title", "使用指南")}</span>}
+        </NavLink>
+
         <Menu.Root>
           <Menu.Trigger
             aria-label={t("footer.help", "Help & resources")}
@@ -260,7 +278,7 @@ export function AreaPanel({
           <Menu.Portal>
             <Menu.Positioner side={collapsed ? "right" : "top"} align="start" sideOffset={8} className="z-50 outline-none">
               <Menu.Popup className={cn(MENU_POPUP, "w-60")}>
-                {footerItems.length > 0 && (
+                {footerItems && footerItems.length > 0 && (
                   <>
                     {footerItems.map((it) => (
                       <Menu.Item

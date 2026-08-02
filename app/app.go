@@ -594,6 +594,19 @@ func (a *App) Run(ctx context.Context) error {
 			}
 			return apiHandler.PluginEnabled(orgID, key)
 		},
+		FeatureActive: func(orgID uint, featureKey string) bool {
+			if plugin.FeatureIsCore(a.plugins, featureKey) {
+				return true
+			}
+			// Unlike the route gate, this answers for content that is listed
+			// before a workspace is chosen (help docs). PluginEnabled fails
+			// closed at orgID 0 by design, so ask for the declared default
+			// instead of inheriting a "disabled" that only means "no org yet".
+			if orgID == 0 {
+				return apiHandler.FeatureDefaultEnabled(featureKey)
+			}
+			return apiHandler.PluginEnabled(orgID, featureKey)
+		},
 		ActivePlugins: func() []plugin.Plugin {
 			return a.plugins
 		},

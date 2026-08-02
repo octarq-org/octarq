@@ -159,6 +159,16 @@ func TestPluginEnabledByDefault(t *testing.T) {
 	if !pluginEnabled(t, srv, cookies, "demo") {
 		t.Fatal("EnabledByDefault plugin should be on before any toggle")
 	}
+	// orgID 0 means "no workspace in this session", not "a workspace that
+	// happens to have nothing configured" — it must fail closed regardless of
+	// the feature's default. Callers that legitimately have no workspace read
+	// FeatureDefaultEnabled directly.
+	if h.PluginEnabled(0, "demo") {
+		t.Fatal("PluginEnabled(0, key) must fail closed even for a default-on feature")
+	}
+	if !h.FeatureDefaultEnabled("demo") {
+		t.Fatal("FeatureDefaultEnabled should report the declared default")
+	}
 	if !menuHasPath(t, srv, cookies, "/demo") {
 		t.Fatal("default-on plugin menu should appear")
 	}

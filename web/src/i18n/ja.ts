@@ -82,6 +82,7 @@ export const ja = {
     operations: { title: "オペレーション", subtitle: "日常のトラフィックとコミュニケーション" },
     assets: { title: "インフラストラクチャ", subtitle: "サーバー、ネットワーク、データベース" },
     insights: { title: "セキュリティと管理", subtitle: "不正使用防御とアクティビティログ" },
+    help: { title: "利用ガイド", subtitle: "コンソールの操作手順、運用上の注意と FAQ" },
     settings: { title: "設定", subtitle: "Workspace とプロファイル設定" },
   },
   groups: {

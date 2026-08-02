@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { Globe, Mail } from "lucide-react";
-import { api, MenuItem, Org, PluginInfo } from "./api";
+import { BookOpen, Bot, Boxes, FileText, Globe, Link2, Mail, Send, Server, Shield, Sparkles } from "lucide-react";
+import { api, HelpCategory, HelpDocMeta, MenuItem, Org, PluginInfo } from "./api";
 import { BrandMark } from "./shell/BrandMark";
 // Route-level code splitting: each top-level page ships as its own chunk,
 // loaded on first navigation behind the Suspense boundary below.
@@ -12,7 +12,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"));
 const StatusPage = lazy(() => import("./pages/Status"));
 import { Modal, Button, toast, cn, Alert } from "./ui";
 import { useTranslation } from "./i18n";
-import { Area, AreaId, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
+import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
 import { RoleProvider, roleSatisfies } from "./shell/role";
 import { TopBar } from "./shell/TopBar";
 import { CommandPalette } from "./shell/CommandPalette";
@@ -337,7 +337,7 @@ function Shell({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
 
   // Bumped on every workspace switch to remount the routed content, so each
   // page refetches for the new workspace — an in-app refresh that replaces the
@@ -439,12 +439,18 @@ function Shell({
     () => new Set(mergedSettingsArea.groups.flatMap((g) => g.items.map((i) => i.path))),
     [mergedSettingsArea],
   );
+  const helpActive =
+    location.pathname.startsWith("/help") || location.pathname.startsWith("/admin/help");
   const settingsActive =
     location.pathname.startsWith("/settings") ||
     [...settingsPaths].some((p) => location.pathname === p || location.pathname.startsWith(p + "/"));
   // Resolve against the merged runtime areas (static + plugin areas + dynamic
   // menu items) so paths owned by plugin-contributed areas highlight correctly.
-  const activeArea: AreaId = settingsActive ? "settings" : areaForPath(location.pathname, areas);
+  const activeArea: AreaId = helpActive
+    ? "help"
+    : settingsActive
+    ? "settings"
+    : areaForPath(location.pathname, areas);
 
   // Load orgs + dynamic menus + user settings layout. Also refreshes the org
   // role here (not just on mount) so switching to a workspace where the user
@@ -485,8 +491,81 @@ function Shell({
     };
   }, []);
 
-  // The Instance group is octarq-provided instance administration (Instance
-  // Settings, octarq License, …) — visible only to instance admins.
+  // Help docs navigation integration for Shell sidebar & Command Palette
+  const [helpDocsNav, setHelpDocsNav] = useState<HelpDocMeta[]>([]);
+  useEffect(() => {
+    api.helpIndex(lang)
+      .then(setHelpDocsNav)
+      .catch(() => {});
+  }, [activeOrgId, lang]);
+
+  // Help categories fetched from backend (single source of truth for categories & titles & icons)
+  const [helpCategories, setHelpCategories] = useState<HelpCategory[]>([]);
+  useEffect(() => {
+    api.helpCategories().then(setHelpCategories).catch(() => {});
+  }, []);
+
+  const helpArea: Area = useMemo(() => {
+    // Group docs by category (2-tier: Category -> Doc)
+    const catDocsMap = new Map<string, HelpDocMeta[]>();
+
+    helpDocsNav.forEach((d: HelpDocMeta) => {
+      const category = (d.category || "services").toLowerCase();
+      if (!catDocsMap.has(category)) {
+        catDocsMap.set(category, []);
+      }
+      catDocsMap.get(category)!.push(d);
+    });
+
+    const groups: NavGroup[] = [];
+
+    // Order categories by backend order, or fallback to alphabetical
+    const categoriesToRender = helpCategories.length > 0
+      ? helpCategories
+      : Array.from(catDocsMap.keys()).map((k, idx) => ({
+          key: k,
+          order: (idx + 1) * 10,
+          icon: "boxes",
+          labels: { en: k },
+        }));
+
+    categoriesToRender.forEach((cat) => {
+      const docsList = catDocsMap.get(cat.key);
+      if (!docsList || docsList.length === 0) return;
+
+      // Sort docs by order, then title
+      const sortedDocsList = [...docsList].sort((a, b) => {
+        if ((a.order ?? 0) !== (b.order ?? 0)) return (a.order ?? 0) - (b.order ?? 0);
+        return (a.title || "").localeCompare(b.title || "");
+      });
+
+      const catLabel = cat.labels[lang] || cat.labels["en"] || cat.key;
+      const CatIcon = menuIcon(cat.icon) || BookOpen;
+
+      const items: NavItem[] = sortedDocsList.map((doc) => ({
+        id: `help-${doc.slug}`,
+        label: doc.title,
+        Icon: CatIcon,
+        path: `/help/${cat.key}/${doc.slug}`,
+      }));
+
+      groups.push({
+        label: catLabel,
+        items,
+      });
+    });
+
+    return {
+      id: "help",
+      title: t("help.title", "Help & Documentation"),
+      subtitle: t("help.platform_subtitle", "Guides, tutorials and platform reference"),
+      Icon: BookOpen,
+      groups: groups.length > 0 ? groups : [
+        { label: "Help", items: [{ id: "help-root", label: "Help", Icon: BookOpen, path: "/help" }] }
+      ],
+    };
+  }, [helpDocsNav, helpCategories, lang, t]);
+
   const currentSettingsArea = useMemo(() => {
     if (isInstanceAdmin) return mergedSettingsArea;
     return {
@@ -495,7 +574,12 @@ function Shell({
     };
   }, [mergedSettingsArea, isInstanceAdmin]);
 
-  const currentArea = settingsActive ? currentSettingsArea : (areas.find((a) => a.id === activeArea) ?? areas[0]);
+  const currentArea = helpActive
+    ? helpArea
+    : settingsActive
+    ? currentSettingsArea
+    : (areas.find((a) => a.id === activeArea) ?? areas[0]);
+
   const activeOrgName = orgs.find((o) => o.id === activeOrgId)?.name ?? t("app.personalWorkspace");
 
   // Apply an active-workspace change in-app: point the shell at the new org
@@ -522,6 +606,11 @@ function Shell({
 
   const selectArea = (id: AreaId) => {
     if (id === "settings") { navigate("/settings"); return; }
+    if (id === "help") {
+      const firstHelpPath = helpArea.groups[0]?.items[0]?.path ?? "/help";
+      navigate(firstHelpPath);
+      return;
+    }
     const area = areas.find((a) => a.id === id);
     navigate(area?.groups[0]?.items[0]?.path ?? "/overview");
   };
@@ -536,6 +625,22 @@ function Shell({
     if (firstNav.current) { firstNav.current = false; return; }
     mainRef.current?.focus({ preventScroll: true });
   }, [location.pathname]);
+
+  const appRoutes = (
+    <Suspense fallback={<RouteFallback />}>
+      <PluginGateContext.Provider value={pluginGateCtxValue}>
+        <Routes>
+          <Route path="/"           element={<Navigate to="/overview" replace />} />
+          <Route path="/overview"   element={<OverviewPage />} />
+          <Route path="/settings/*" element={<SettingsPage />} />
+          <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
+          <Route path="/admin/reset" element={<ResetPasswordPage />} />
+          {pluginRouteElements()}
+          <Route path="*"           element={<PluginUnavailable />} />
+        </Routes>
+      </PluginGateContext.Provider>
+    </Suspense>
+  );
 
   return (
     <RoleProvider value={roleCtx}>
@@ -619,7 +724,7 @@ function Shell({
       >
         <AreaPanel
           area={currentArea}
-          currentPath={location.pathname}
+          currentPath={location.pathname + location.search}
           collapsed={panelCollapsed}
           onToggle={togglePanel}
           onNavigate={() => { if (window.innerWidth < 768) setPanelCollapsed(true); }}
@@ -638,35 +743,24 @@ function Shell({
       </aside>
 
       <main ref={mainRef} id="main-content" tabIndex={-1} className="relative flex-1 overflow-hidden outline-none">
-        <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-          <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-8 py-8">
-            <Suspense fallback={<RouteFallback />}>
-            <PluginGateContext.Provider value={pluginGateCtxValue}>
-            <Routes>
-              <Route path="/"           element={<Navigate to="/overview" replace />} />
-              <Route path="/overview"   element={<OverviewPage />} />
-              <Route path="/settings/*" element={<SettingsPage />} />
-              <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
-              <Route path="/admin/reset" element={<ResetPasswordPage />} />
-              {/* Every business page — core (plugins/core) and edition-composed
-                  (manifest) — flows through the same registry. */}
-              {pluginRouteElements()}
-              {/* Unknown paths 404-degrade to a neutral note instead of silently
-                  redirecting — a Pro plugin path with no composed plugin lands
-                  here, matching octarq's "not in this build" convention. */}
-              <Route path="*"           element={<PluginUnavailable />} />
-            </Routes>
-            </PluginGateContext.Provider>
-            </Suspense>
+        {helpActive ? (
+          <div key={orgEpoch} className="h-full w-full overflow-hidden">
+            {appRoutes}
           </div>
-        </div>
+        ) : (
+          <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
+            <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-8 py-8">
+              {appRoutes}
+            </div>
+          </div>
+        )}
       </main>
       </div>
 
       <CommandPalette
         open={cmdOpen}
         onClose={() => setCmdOpen(false)}
-        areas={areas}
+        areas={helpDocsNav.length > 0 ? [...areas, helpArea] : areas}
         settingsArea={currentSettingsArea}
         onNavigate={(path) => { navigate(path); setCmdOpen(false); }}
       />

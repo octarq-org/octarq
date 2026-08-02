@@ -80,8 +80,9 @@ export const zh: Resources = {
     empty: "没有匹配「{{q}}」的结果。",
   },
   areas: {
-    operations: { title: "Operations", subtitle: "Daily traffic & communication" },
+    operations: { title: "日常运营", subtitle: "每日流量与通讯服务" },
     assets: { title: "基础设施", subtitle: "服务器、网络与数据库" },
+    help: { title: "使用指南", subtitle: "控制台操作流程、注意事项与故障排查说明" },
     insights: { title: "安全与管理", subtitle: "滥用防护与操作日志" },
     settings: { title: "设置", subtitle: "工作区与个人配置" },
   },
@@ -136,8 +137,8 @@ export const zh: Resources = {
     errResetFailed: "重置密码失败。",
   },
   footer: {
-    help: "帮助与资源",
-    docs: "文档",
+    help: "更多资源",
+    docs: "官方开发者文档 (docs.octarq.org)",
     about: "关于 Octarq",
     github: "GitHub",
     contact: "联系我们",

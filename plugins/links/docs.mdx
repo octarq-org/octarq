@@ -1,0 +1,51 @@
+---
+slug: short-links
+title: Short Links & Targeting Console Guide
+category: services
+order: 1
+---
+
+The Octarq Short Links module lets you manage branded short URLs, configure conditional dynamic targeting rules (Geo/Device/Language), enforce security thresholds, and automatically shorten outgoing email links.
+
+## 1. Step-by-Step Console Workflows
+
+### 1. Creating a Short Link
+1. Go to **Operations $\rightarrow$ Short Links** (or press `⌘K` and search `Create Link`).
+2. Click **New Link**.
+3. Enter your destination **Target URL** (e.g. `https://my-product.com/launch-deal`).
+4. (Optional) Select a custom domain (e.g. `l.mybrand.com`) and custom slug (e.g. `launch`).
+5. Click **Create**.
+
+### 2. Setting Up Dynamic Targeting Rules
+During creation or editing, click **Add Rule** to set conditional redirects:
+- **Geo Matching (GeoIP)**: Route visitors by country code (e.g. `US` visitors -> US landing page).
+- **Device & OS Matching**: Route mobile visitors (iOS / Android) straight to app store downloads.
+- **Browser Language**: Match preferred accept-language headers (e.g. `zh-CN` -> Chinese docs).
+
+### 3. Access Controls & Limits
+- **Password Protection**: Visitors must enter the passcode before being redirected.
+- **Expiration & Click Limits**: Set an `ExpiresAt` date or total `ClickLimit`. When reached, visitors are routed to your **Expired URL** fallback.
+
+---
+
+## 2. Operating Cautions & Reserved Slugs
+
+> [!CAUTION]
+> **Protected Slugs**: Built-in system prefixes (`/admin`, `/api`, `/assets`, `/portal`, `/help`) are reserved by the console and cannot be used as short link custom slugs.
+
+---
+
+## 3. Frequently Asked Questions (FAQs)
+
+### Q1: Why are some clicks reported without geographic location?
+**Answer**: GeoIP resolution relies on public IP header forwarding (`X-Real-IP`, `X-Forwarded-For`). Clicks from localhost or unforwarded proxies are logged without GeoIP country codes.
+
+### Q2: How do I enable auto-shortening for outgoing emails?
+**Answer**: Navigate to **Settings $\rightarrow$ Workspace** and check **Auto-shorten Links in Outgoing Mail**. External URLs in outbound transactional emails will be automatically wrapped.
+
+---
+
+## 4. Related Console Guides
+
+- [DNS Management Console Guide](/help/plugins/dns/dns) — Binding CNAME short link subdomains.
+- [Mailboxes Console Guide](/help/plugins/mail/mailboxes) — Outbound mail & auto-wrapping.

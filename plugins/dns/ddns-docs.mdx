@@ -1,0 +1,56 @@
+---
+slug: ddns
+title: Dynamic DNS (DDNS) Script & Operations Guide
+category: services
+order: 2
+---
+
+The Octarq Dynamic DNS (DDNS) module allows routers, NAS devices, and home servers with dynamic IP addresses to automatically update A (IPv4) and AAAA (IPv6) records via standard Dyndns2 protocol endpoints.
+
+## 1. Step-by-Step Console Workflows
+
+### 1. Creating a DDNS Token
+1. Navigate to **Infrastructure $\rightarrow$ Domains**, and switch to the **Dynamic DNS (DDNS)** tab.
+2. Click **New DDNS Token**.
+3. Select your target domain (e.g. `example.com`), enter your record name (e.g. `home`), and specify the record type (`A` or `AAAA`).
+4. Click **Create Token**.
+
+> [!CAUTION]
+> **Secret Key Shown Only Once**: The generated Secret token plain text is displayed ONCE upon creation. The database stores only a SHA-256 hash. Copy your secret and Update URL immediately!
+
+---
+
+## 2. Client Setup & Script Examples
+
+### 1. Simple `curl` Cron Job
+For Linux servers or open source routers, run a cron job to auto-detect public IP and push updates:
+
+```bash
+# Auto-detect public IP and update record
+curl -s "https://your-octarq-console.com/api/dns/ddns/update?hostname=home.example.com&key=YOUR_SECRET_TOKEN"
+```
+
+### 2. Router / NAS Configuration Settings
+In your router or NAS DDNS client settings (e.g. OpenWrt, Synology, `ddclient`):
+- **Service Provider**: `Dyndns2` or `Custom`
+- **Server**: `your-octarq-console.com`
+- **Update URL Path**: `/api/dns/ddns/update?hostname=[DOMAIN]&key=[PASSWORD]`
+- **Username / Hostname**: `home.example.com`
+- **Password**: Enter your secret token
+
+---
+
+## 3. Important Operating Cautions & FAQs
+
+> [!IMPORTANT]
+> **Revoking Tokens**: If a router or token key is compromised, click **Revoke Token** in the console immediately to block any future update attempts.
+
+### Q1: Can I explicitly pass an IP address instead of auto-detecting?
+**Answer**: Yes! Append `&ip=1.2.3.4` or `&ip=2001:db8::1` to the update URL to explicitly set your target IP.
+
+---
+
+## 4. Related Console Guides
+
+- [DNS Management Console Guide](/help/plugins/dns/dns) — Inspect active records in the console.
+- [Console Quick Start](/help/platform/general/getting-started) — Workspace roles & navigation shortcuts.

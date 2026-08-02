@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -61,19 +62,20 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 	}
 }
 
-//go:embed docs.md
+//go:embed docs.mdx
 var helpDocs string
 
-func (p *Plugin) HelpDocs() []plugin.HelpDoc {
+//go:embed docs.zh.mdx
+var helpDocsZh string
+
+var parsedHelpDocs = sync.OnceValue(func() []plugin.HelpDoc {
 	return []plugin.HelpDoc{
-		{
-			Slug:     "short-links",
-			Title:    "Short Links",
-			Group:    "Marketing",
-			Order:    10,
-			Markdown: helpDocs,
-		},
+		plugin.ParseHelpDocSafe(helpDocs).WithTranslation("zh", helpDocsZh),
 	}
+})
+
+func (p *Plugin) HelpDocs() []plugin.HelpDoc {
+	return parsedHelpDocs()
 }
 
 func (p *Plugin) orgDB(r *http.Request) *gorm.DB {

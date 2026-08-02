@@ -4,6 +4,7 @@
   "knownRoutes": [
     "/",
     "/404",
+    "/api-reference",
     "/architecture/composition",
     "/architecture/core-plugins",
     "/architecture/overview",
@@ -18,6 +19,7 @@
     "/deploy",
     "/guides/accessibility",
     "/guides/publishing",
+    "/guides/why-i-rewrote-a-saas-stack-as-a-go-plugin-framework",
     "/index",
     "/plugin-directory",
     "/quickstart",

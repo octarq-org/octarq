@@ -17,6 +17,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"sync"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/internal/dnsprovider"
@@ -91,19 +92,27 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 	}
 }
 
-//go:embed docs.md
+//go:embed docs.mdx
 var helpDocs string
 
-func (p *Plugin) HelpDocs() []plugin.HelpDoc {
+//go:embed docs.zh.mdx
+var helpDocsZh string
+
+//go:embed ddns-docs.mdx
+var ddnsDocs string
+
+//go:embed ddns-docs.zh.mdx
+var ddnsDocsZh string
+
+var parsedHelpDocs = sync.OnceValue(func() []plugin.HelpDoc {
 	return []plugin.HelpDoc{
-		{
-			Slug:     "dns",
-			Title:    "DNS & Network",
-			Group:    "Infrastructure",
-			Order:    10,
-			Markdown: helpDocs,
-		},
+		plugin.ParseHelpDocSafe(helpDocs).WithTranslation("zh", helpDocsZh),
+		plugin.ParseHelpDocSafe(ddnsDocs).WithTranslation("zh", ddnsDocsZh),
 	}
+})
+
+func (p *Plugin) HelpDocs() []plugin.HelpDoc {
+	return parsedHelpDocs()
 }
 
 // Mount wires the plugin's dependencies from the shared context and registers

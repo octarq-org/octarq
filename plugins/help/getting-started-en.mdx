@@ -1,0 +1,51 @@
+---
+slug: getting-started
+title: Console Operating Guide & FAQs
+category: start
+order: 1
+---
+
+Welcome to the Octarq Console! This guide provides essential step-by-step operating workflows, role permission notes, and troubleshooting tips for console users.
+
+## 1. Step-by-Step Console Workflows
+
+### 1. Workspace Switching & Asset Isolation
+- **Workspace Selector**: Click the dropdown at the top-left of the console sidebar to switch between organizations and team workspaces instantly.
+- **Asset Scope**: All resources (domains, short links, catch-all inboxes, SMTP senders) belong to the active workspace. Switching workspaces filters all data views cleanly.
+
+### 2. Global Navigation Shortcuts (`⌘K` / `Ctrl+K`)
+- Press **`⌘K`** (macOS) or **`Ctrl+K`** (Windows/Linux) anywhere in the console to open the command palette.
+- Search for page routes, domain names, short links, or settings to jump directly without menu clicking.
+
+---
+
+## 2. Critical Operational Cautions
+
+> [!IMPORTANT]
+> **Admin Roles Only**: Only Workspace Owners or Admins can add or delete DNS provider API keys and configure workspace-wide mail routing endpoints.
+
+> [!WARNING]
+> **API Key Protection**: API Tokens generated under Personal Settings grant full API access to your workspace resources. Store them securely in secrets managers and never commit them to public repos.
+
+---
+
+## 3. Frequently Asked Questions (FAQs)
+
+### Q1: Why are some plugin features missing from the sidebar?
+**Answer**: Octarq uses a modular plugin engine. If an administrator disabled a specific plugin (e.g. Links or Mail) at the instance level, its navigation items are hidden automatically.
+
+### Q2: Why can't I see my domain after switching workspaces?
+**Answer**: Domain zones and DNS configurations are isolated per workspace. Verify that you have selected the correct organization in the top-left selector.
+
+### Q3: How do I connect AI Agents via Model Context Protocol (MCP)?
+**Answer**: Generate a bearer token in **Personal Settings $\rightarrow$ API Tokens**. Octarq natively exposes MCP endpoints for AI Agents to inspect and manage infrastructure safely.
+
+---
+
+## 4. Related Console Guides
+
+- [DNS Management Manual](/help/plugins/dns/dns) — Configure provider API tokens & record posture.
+- [Short Links Console Manual](/help/plugins/links/short-links) — Create short URLs & dynamic targeting rules.
+- [Mailboxes & Email Routing Manual](/help/plugins/mail/mailboxes) — Setup inbound webhooks & SMTP relays.
+- [API Tokens Configuration](/settings/tokens) — Generate and manage API bearer tokens.
+- [Account & Security Settings](/settings/security) — Password policies and account protection.
