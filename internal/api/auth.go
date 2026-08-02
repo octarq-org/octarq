@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"net/mail"
 	"strings"
 	"time"
 
@@ -17,7 +19,8 @@ import (
 
 type LoginInput struct {
 	Body struct {
-		Username string `json:"username" doc:"The user's email address" example:"admin@example.com"`
+		Email    string `json:"email,omitempty" doc:"The user's email address" example:"admin@example.com"`
+		Username string `json:"username,omitempty" doc:"Legacy alias for email"`
 		Password string `json:"password" doc:"The user's password" example:"securepassword"`
 	}
 	Ctx huma.Context `hidden:"true"`
@@ -31,7 +34,8 @@ func (i *LoginInput) Resolve(ctx huma.Context) []error {
 type LoginOutput struct {
 	Body struct {
 		OK                bool   `json:"ok,omitempty"`
-		Username          string `json:"username"`
+		Email             string `json:"email"`
+		Username          string `json:"username,omitempty"`
 		TwoFactorRequired bool   `json:"twoFactorRequired,omitempty"`
 	}
 }
@@ -48,43 +52,55 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 		return nil, huma.Error429TooManyRequests("too many failed login attempts")
 	}
 
-	uid, orgID, ok := h.authenticate(input.Body.Username, input.Body.Password)
+	loginUser := strings.TrimSpace(input.Body.Email)
+	if loginUser == "" {
+		loginUser = strings.TrimSpace(input.Body.Username)
+	}
+
+	uid, orgID, ok := h.authenticate(loginUser, input.Body.Password)
 	if !ok {
 		h.loginLimiter.recordFailure(ip)
-		h.publishLoginFailed(r, input.Body.Username, "invalid credentials")
+		h.publishLoginFailed(r, loginUser, "invalid credentials")
 		return nil, huma.Error401Unauthorized("invalid credentials")
 	}
 
 	var user models.User
-	if h.db.First(&user, uid).Error == nil {
-		if h.requireEmailVerification() && !user.EmailVerified && !user.IsInstanceAdmin {
-			return nil, huma.NewError(http.StatusForbidden, "email verification required")
-		}
-		if user.TOTPEnabled {
-			out := &LoginOutput{}
-			out.Body.TwoFactorRequired = true
-			out.Body.Username = input.Body.Username
-			return out, nil
-		}
+	if err := h.db.First(&user, uid).Error; err != nil {
+		return nil, huma.Error401Unauthorized("invalid credentials")
+	}
+
+	if h.requireEmailVerification() && !user.EmailVerified && !user.IsInstanceAdmin {
+		return nil, huma.NewError(http.StatusForbidden, "email verification required")
+	}
+
+	if user.TOTPEnabled {
+		out := &LoginOutput{}
+		out.Body.TwoFactorRequired = true
+		out.Body.Email = loginUser
+		out.Body.Username = loginUser
+		return out, nil
 	}
 
 	h.loginLimiter.reset(ip)
-	h.auth.SetSessionFromRequest(r, w, uid, orgID)
+	h.audit(r, "user.login", "user", user.ID, map[string]any{"email": loginUser})
+	h.auth.SetSessionFromRequest(r, w, user.ID, orgID)
 
 	out := &LoginOutput{}
 	out.Body.OK = true
-	out.Body.Username = input.Body.Username
+	out.Body.Email = loginUser
+	out.Body.Username = loginUser
 	return out, nil
 }
 
 // verify2FA completes a login that requires a second factor. The client re-sends
-// username+password (re-verified here, so the challenge can't be forged) along
+// email+password (re-verified here, so the challenge can't be forged) along
 // with a TOTP code or a one-time recovery code. On success the session is set.
-// POST /api/auth/2fa/verify  {username, password, code}
+// POST /api/auth/2fa/verify  {email, password, code}
 type Verify2FAInput struct {
 	Ctx  huma.Context `hidden:"true"`
 	Body struct {
-		Username string `json:"username"`
+		Email    string `json:"email,omitempty"`
+		Username string `json:"username,omitempty"`
 		Password string `json:"password"`
 		Code     string `json:"code"`
 	}
@@ -98,7 +114,8 @@ func (i *Verify2FAInput) Resolve(ctx huma.Context) []error {
 type Verify2FAOutput struct {
 	Body struct {
 		OK       bool   `json:"ok"`
-		Username string `json:"username"`
+		Email    string `json:"email"`
+		Username string `json:"username,omitempty"`
 	}
 }
 
@@ -111,10 +128,16 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 	if !h.loginLimiter.allow(ip) {
 		return nil, huma.Error429TooManyRequests("too many failed login attempts")
 	}
-	uid, orgID, ok := h.authenticate(input.Body.Username, input.Body.Password)
+
+	loginUser := strings.TrimSpace(input.Body.Email)
+	if loginUser == "" {
+		loginUser = strings.TrimSpace(input.Body.Username)
+	}
+
+	uid, orgID, ok := h.authenticate(loginUser, input.Body.Password)
 	if !ok {
 		h.loginLimiter.recordFailure(ip)
-		h.publishLoginFailed(r, input.Body.Username, "invalid credentials")
+		h.publishLoginFailed(r, loginUser, "invalid credentials")
 		return nil, huma.Error401Unauthorized("invalid credentials")
 	}
 
@@ -128,7 +151,7 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 	if user.TOTPEnabled {
 		if !h.verifyTOTPOrRecovery(&user, strings.TrimSpace(input.Body.Code)) {
 			h.loginLimiter.recordFailure(ip)
-			h.publishLoginFailed(r, input.Body.Username, "invalid 2FA code")
+			h.publishLoginFailed(r, loginUser, "invalid 2FA code")
 			return nil, huma.Error401Unauthorized("invalid 2FA code")
 		}
 	}
@@ -136,7 +159,8 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 	h.auth.SetSessionFromRequest(r, w, uid, orgID)
 	out := &Verify2FAOutput{}
 	out.Body.OK = true
-	out.Body.Username = input.Body.Username
+	out.Body.Email = loginUser
+	out.Body.Username = loginUser
 	return out, nil
 }
 
@@ -506,7 +530,8 @@ func (i *MeInput) Resolve(ctx huma.Context) []error {
 
 type MeOutput struct {
 	Body struct {
-		Username      string `json:"username"`
+		Email         string `json:"email"`
+		Username      string `json:"username,omitempty"`
 		OrgID         uint   `json:"orgId"`
 		Role          string `json:"role"`
 		EmailVerified bool   `json:"emailVerified"`
@@ -528,12 +553,137 @@ func (h *Handler) me(ctx context.Context, input *MeInput) (*MeOutput, error) {
 		return nil, huma.Error401Unauthorized("user not found")
 	}
 	out := &MeOutput{}
+	out.Body.Email = user.Email
 	out.Body.Username = user.Email
 	out.Body.OrgID = h.orgID(r)
 	// The role this credential can actually use — a member-capped token should
 	// not report its holder as an owner to whatever is reading /me.
 	out.Body.Role = string(h.effectiveRole(r))
 	out.Body.EmailVerified = user.EmailVerified
+	return out, nil
+}
+
+type ChangeEmailInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
+		NewEmail        string `json:"newEmail" doc:"The replacement email address"`
+		CurrentPassword string `json:"currentPassword,omitempty" doc:"Current password for verification"`
+	}
+}
+
+func (i *ChangeEmailInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ChangeEmailOutput struct {
+	Body struct {
+		OK               bool   `json:"ok"`
+		Email            string `json:"email"`
+		VerificationSent bool   `json:"verificationSent"`
+	}
+}
+
+// changeEmail updates the authenticated user's email address.
+// PUT /api/auth/email
+func (h *Handler) changeEmail(ctx context.Context, input *ChangeEmailInput) (*ChangeEmailOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	ip := reporterIP(r)
+	if !h.loginLimiter.allow(ip) {
+		return nil, huma.Error429TooManyRequests("too many attempts")
+	}
+
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	newEmail := strings.ToLower(strings.TrimSpace(input.Body.NewEmail))
+	if addr, err := mail.ParseAddress(newEmail); err != nil || addr.Address != newEmail || !strings.Contains(newEmail, "@") {
+		return nil, huma.Error400BadRequest("a valid email address is required")
+	}
+
+	uid := h.auth.UserID(r)
+	var user models.User
+	if err := h.db.First(&user, uid).Error; err != nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	if strings.EqualFold(user.Email, newEmail) {
+		out := &ChangeEmailOutput{}
+		out.Body.OK = true
+		out.Body.Email = user.Email
+		return out, nil
+	}
+
+	if user.PasswordHash == "" {
+		return nil, huma.Error400BadRequest("this account is managed by an external identity provider; please update your email with your provider")
+	}
+
+	if input.Body.CurrentPassword == "" || bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Body.CurrentPassword)) != nil {
+		h.loginLimiter.recordFailure(ip)
+		return nil, huma.Error400BadRequest("current password is incorrect")
+	}
+
+	// Check if another account already uses this email
+	var existing models.User
+	if h.db.Where("LOWER(email) = ? AND id <> ?", newEmail, user.ID).First(&existing).Error == nil {
+		return nil, huma.NewError(http.StatusConflict, "an account with this email already exists")
+	}
+
+	oldEmail := user.Email
+	verificationSent := false
+
+	updates := map[string]any{
+		"email":          newEmail,
+		"email_verified": false,
+	}
+
+	if h.requireEmailVerification() {
+		rawToken, tokenHash, err := generateSecureToken()
+		if err != nil {
+			return nil, huma.Error500InternalServerError("failed to generate verification token")
+		}
+		expiry := time.Now().Add(24 * time.Hour)
+		updates["verify_token_hash"] = tokenHash
+		updates["verify_token_expiry"] = expiry
+
+		verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.cfg.BaseURL, rawToken)
+		h.sendVerificationEmail(user.ID, newEmail, verifyURL)
+		verificationSent = true
+	} else {
+		updates["verify_token_hash"] = ""
+		updates["verify_token_expiry"] = nil
+	}
+
+	if err := h.db.Model(&user).Updates(updates).Error; err != nil {
+		return nil, huma.Error500InternalServerError("failed to update email")
+	}
+
+	h.audit(r, "user.update_email", "user", user.ID, map[string]any{
+		"oldEmail": oldEmail,
+		"newEmail": newEmail,
+	})
+
+	// Revoke every session except the one making this request.
+	currentID := h.auth.SessionID(r)
+	var sessions []models.Session
+	h.db.Where("user_id = ? AND id <> ?", uid, currentID).Find(&sessions)
+	reqCtx := r.Context()
+	for _, s := range sessions {
+		_ = h.auth.Cache().Delete(reqCtx, "session:"+s.Token)
+	}
+	h.db.Where("user_id = ? AND id <> ?", uid, currentID).Delete(&models.Session{})
+
+	h.loginLimiter.reset(ip)
+
+	out := &ChangeEmailOutput{}
+	out.Body.OK = true
+	out.Body.Email = newEmail
+	out.Body.VerificationSent = verificationSent
 	return out, nil
 }
 

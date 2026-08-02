@@ -47,7 +47,7 @@ export default function App() {
 
   useEffect(() => {
     api.me()
-      .then((m) => { setUser(m.username); setActiveOrgId(m.orgId); setRole(m.role); setAuthed(true); })
+      .then((m) => { setUser(m.email || m.username || ""); setActiveOrgId(m.orgId); setRole(m.role); setAuthed(true); })
       .catch(() => setAuthed(false));
   }, []);
 

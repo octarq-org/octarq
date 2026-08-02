@@ -283,23 +283,25 @@ export const api = {
 
   // auth
   authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean; appName: string; logoUrl: string; brandColor: string; brandColor2: string }>("GET", "/api/auth/config"),
-  me: () => req<{ username: string; orgId: number; role?: string; emailVerified?: boolean }>("GET", "/api/auth/me"),
+  me: () => req<{ email: string; username?: string; orgId: number; role?: string; emailVerified?: boolean }>("GET", "/api/auth/me"),
   register: (email: string, password: string) =>
-    req<{ ok: boolean; username: string }>("POST", "/api/auth/register", { email, password }),
-  login: (username: string, password: string) =>
-    req<{ ok?: boolean; twoFactorRequired?: boolean; username: string }>(
+    req<{ ok: boolean; email: string; username?: string }>("POST", "/api/auth/register", { email, password }),
+  login: (email: string, password: string) =>
+    req<{ ok?: boolean; twoFactorRequired?: boolean; email: string; username?: string }>(
       "POST",
       "/api/auth/login",
-      { username, password },
+      { email, password },
     ),
-  verify2FA: (username: string, password: string, code: string) =>
-    req<{ ok: boolean }>("POST", "/api/auth/2fa/verify", { username, password, code }),
+  verify2FA: (email: string, password: string, code: string) =>
+    req<{ ok: boolean }>("POST", "/api/auth/2fa/verify", { email, password, code }),
   forgotPassword: (email: string) => req<{ ok: boolean }>("POST", "/api/auth/forgot", { email }),
   resetPassword: (token: string, password: string) => req<{ ok: boolean }>("POST", "/api/auth/reset", { token, password }),
   // Authenticated change, as opposed to the emailed reset above. Succeeding
   // here revokes every other session; this one survives.
   changePassword: (currentPassword: string, newPassword: string) =>
     req<{ ok: boolean }>("POST", "/api/auth/password", { currentPassword, newPassword }),
+  changeEmail: (newEmail: string, currentPassword?: string) =>
+    req<{ ok: boolean; email: string; verificationSent?: boolean }>("PUT", "/api/auth/email", { newEmail, currentPassword }),
   resendVerification: (email: string) => req<{ ok: boolean }>("POST", "/api/auth/resend-verification", { email }),
   logout: () => req<{ ok: boolean }>("POST", "/api/auth/logout"),
   logoutAll: () => req<{ ok: boolean }>("POST", "/api/auth/logout-all"),

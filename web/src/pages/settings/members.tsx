@@ -13,7 +13,7 @@ export function OrgMembersManager() {
   const { role: myRole, isInstanceAdmin } = useCurrentRole();
   const canManage = roleSatisfies("admin", myRole, isInstanceAdmin);
   const [members, setMembers] = useState<OrgMember[]>([]);
-  const [me, setMe] = useState<{ username?: string; orgId?: number } | null>(null);
+  const [me, setMe] = useState<{ email?: string; username?: string; orgId?: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
@@ -126,7 +126,8 @@ export function OrgMembersManager() {
       ) : (
         <div className="divide-y divide-foreground/[0.04] border border-foreground/[0.05] rounded-xl bg-well overflow-hidden">
           {(members || []).map((m) => {
-            const isSelf = me?.username ? m.email.toLowerCase() === me.username.toLowerCase() : false;
+            const myEmail = (me?.email || me?.username || "").toLowerCase();
+            const isSelf = myEmail ? m.email.toLowerCase() === myEmail : false;
             return (
               <div key={m.userId} className="flex justify-between items-center p-4">
                 <div className="flex items-center gap-2.5 flex-wrap">

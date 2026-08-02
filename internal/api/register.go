@@ -31,7 +31,8 @@ func (i *RegisterInput) Resolve(ctx huma.Context) []error {
 type RegisterOutput struct {
 	Body struct {
 		OK       bool   `json:"ok"`
-		Username string `json:"username"`
+		Email    string `json:"email"`
+		Username string `json:"username,omitempty"`
 	}
 }
 
@@ -103,6 +104,7 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 	h.auth.SetSessionFromRequest(r, w, user.ID, org.ID)
 	out := &RegisterOutput{}
 	out.Body.OK = true
+	out.Body.Email = email
 	out.Body.Username = email
 	return out, nil
 }
