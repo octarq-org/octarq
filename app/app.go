@@ -314,6 +314,9 @@ func (a *App) Plugins() []plugin.Plugin {
 // — without this, plugin MCP tools would run with nil dependencies. The HTTP mux
 // they mount onto is discarded; only the captured context matters here.
 func (a *App) RunMCP(ctx context.Context) error {
+	if err := preflightNameCollisions(a.plugins); err != nil {
+		return err
+	}
 	if err := preflightDependencies(a.plugins); err != nil {
 		return err
 	}
@@ -476,6 +479,9 @@ func (a *App) Run(ctx context.Context) error {
 	// 1. Migrate AFTER every plugin is registered, so plugin models join the
 	//    core schema in a single AutoMigrate pass. First refuse startup if two
 	//    different plugin model types would fight over the same table.
+	if err := preflightNameCollisions(a.plugins); err != nil {
+		return err
+	}
 	if err := preflightDependencies(a.plugins); err != nil {
 		return err
 	}

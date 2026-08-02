@@ -127,3 +127,33 @@ func TestPreflightDependenciesMissing(t *testing.T) {
 		t.Errorf("error should explain missing requirement; got: %v", err)
 	}
 }
+
+func TestPreflightRejectsDuplicatePluginNames(t *testing.T) {
+	err := preflightNameCollisions([]plugin.Plugin{
+		fakePlugin{name: "help"},
+		fakePlugin{name: "links"},
+		fakePlugin{name: "help"},
+	})
+	if err == nil {
+		t.Fatal("expected an error for two plugins named \"help\"")
+	}
+	if !strings.Contains(err.Error(), `"help"`) {
+		t.Errorf("error should name the colliding plugin, got: %v", err)
+	}
+	// The message has to point at the fix, or the next person resolves the
+	// collision by renaming one plugin and silently splitting a shared toggle.
+	if !strings.Contains(err.Error(), "Group") {
+		t.Errorf("error should point at plugin.Info.Group as the way to share a toggle, got: %v", err)
+	}
+}
+
+func TestPreflightAllowsDistinctPluginNames(t *testing.T) {
+	err := preflightNameCollisions([]plugin.Plugin{
+		fakePlugin{name: "help"},
+		fakePlugin{name: "help-pro"},
+		fakePlugin{name: "links"},
+	})
+	if err != nil {
+		t.Errorf("distinct names must pass, got: %v", err)
+	}
+}
