@@ -1,9 +1,8 @@
 # Publishing `@octarq/plugin-sdk`
 
 The frontend plugin SDK is published from `packages/plugin-sdk/` using
-[Changesets](https://github.com/changesets/changesets). The default registry is
-**GitHub Packages** (private, org-scoped `@octarq-org`). Switching to public npm is a
-one-line change (see the end of this doc).
+[Changesets](https://github.com/changesets/changesets) to **npmjs** (public,
+scope `@octarq`).
 
 ---
 
@@ -71,15 +70,12 @@ releases; the changesets flow above is the normal path.
 ## 2. Publish fields the SDK package needs
 
 The pipeline is agnostic to package internals, but publishing will only work if
-`packages/plugin-sdk/package.json` includes the fields below. Whoever finalizes
-the package should paste these in (adjust `main`/`types`/`exports`/`files` to
-match the tsup output — those are the package owner's call, the block below is
-the publish-relevant subset):
+`packages/plugin-sdk/package.json` includes the fields below:
 
 ```json
 {
   "name": "@octarq/plugin-sdk",
-  "version": "0.0.0",
+  "version": "0.8.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -87,102 +83,48 @@ the publish-relevant subset):
     "directory": "packages/plugin-sdk"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
   }
 }
 ```
 
 Notes:
 
-- `publishConfig.registry` must be `https://npm.pkg.github.com` for GitHub
-  Packages. This is what makes `pnpm publish` / `changeset publish` push to the
-  right place regardless of the consumer's global registry.
-- `publishConfig.access: "restricted"` keeps it private to the org. GitHub
-  Packages ignores `public` for scoped packages unless the repo/package is
-  public, so `restricted` is the safe default here. (It mirrors `access` in
-  `.changeset/config.json`.)
-- `repository.url` must point at the `octarq` repo and the package must be scoped
-  `@octarq-org` so GitHub Packages links it to the repository. GitHub Packages requires
-  the scope to match the owner (`@octarq-org` maps to the owning org/user configured
-  for the repo — confirm the org name matches; see "Secrets & org settings").
-- `license` and `repository` are required for a clean public listing; keep
-  `"private"` **out** of this package's `package.json` (a private package cannot
-  be published).
+- `publishConfig.registry` is `https://registry.npmjs.org` for public npmjs publishing.
+- `publishConfig.access: "public"` makes `@octarq/plugin-sdk` publicly accessible without authentication.
+- `license` and `repository` are required for a clean public listing; keep `"private"` **out** of this package's `package.json`.
 
 ---
 
-## 3. Consuming `@octarq/plugin-sdk` from GitHub Packages
+## 3. Consuming `@octarq/plugin-sdk`
 
-Consumers (octarq-pro, community plugin authors) must route the `@octarq-org` scope to
-GitHub Packages and authenticate.
+Plugin authors can install `@octarq/plugin-sdk` directly from npmjs without authentication or `.npmrc`:
 
-### `.npmrc` in the consumer project
+```bash
+pnpm add @octarq/plugin-sdk
+```
+
+---
+
+## 4. Pro Private Packages (GitHub Packages)
+
+Internal commercial packages (such as `@octarq-org/plugin-issuer` and `@octarq-org/api-client`) are published to **GitHub Packages** under the `@octarq-org` scope.
+
+Consumer projects that depend on Pro private packages route `@octarq-org` to GitHub Packages in `.npmrc`:
 
 ```ini
 @octarq-org:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
-- The first line sends every `@octarq-org/*` install to GitHub Packages; all other
-  packages continue to resolve from the public npm registry.
-- The second line supplies auth. Use an env var (as shown) rather than hardcoding
-  the token, and export it before installing:
-
-```bash
-export GITHUB_TOKEN=ghp_xxx   # a PAT (classic) with read:packages, or a fine-grained
-                              # token with "Packages: read" for the org
-pnpm install                  # or npm/yarn in the consumer's toolchain
-```
-
-- In CI, `secrets.GITHUB_TOKEN` already has `read:packages` for the same repo/org;
-  set `NODE_AUTH_TOKEN` / `GITHUB_TOKEN` from it and add the two `.npmrc` lines.
-
-### Community plugin authors
-
-Public (non-org) authors cannot read a `restricted` GitHub Packages package
-without being granted access. Two options:
-
-1. Grant them read access to the package/org (fine-grained PAT with
-   `Packages: read`), or
-2. Publish publicly to npm instead (below) so `pnpm add @octarq/plugin-sdk` works
-   with no `.npmrc` at all.
+- The first line sends every `@octarq-org/*` install to GitHub Packages.
+- The second line supplies authentication via `GITHUB_TOKEN`.
 
 ---
 
-## 4. Switching to public npm
+## 5. Secrets & org settings needed to publish
 
-To distribute the SDK on the public npm registry instead of GitHub Packages:
-
-1. `.changeset/config.json`: set `"access": "public"`.
-2. `packages/plugin-sdk/package.json` `publishConfig`:
-   ```json
-   "publishConfig": { "registry": "https://registry.npmjs.org", "access": "public" }
-   ```
-   (or remove `publishConfig.registry` to use the default public registry).
-3. In `.github/workflows/publish-sdk.yml`, set
-   `setup-node`'s `registry-url: https://registry.npmjs.org` and provide an npm
-   automation token as `NODE_AUTH_TOKEN` from a new secret (e.g. `NPM_TOKEN`)
-   instead of `GITHUB_TOKEN`.
-4. Consumers drop the `.npmrc` scope line entirely.
-
-You can also publish to **both**: keep GitHub Packages for octarq-pro and add a
-public npm mirror — but that means two publish steps/tokens; keep it simple
-unless there's demand.
-
----
-
-## 5. Secrets & org settings needed to actually publish
-
-- **GitHub Packages (default):** no extra secret — the workflow uses the
-  built-in `${{ secrets.GITHUB_TOKEN }}` with `permissions: packages: write`.
-  Confirm the repo's **owner/org** matches the `@octarq-org` scope; if the GitHub
-  org/user is not literally `octarq`, GitHub Packages will reject the scope and the
-  package name/scope (and `repository.url`) must be reconciled with the actual
-  owner, or an org named `octarq` must own the repo.
-- **Version PR:** the `release` job needs `pull-requests: write` and
-  `contents: write` (already set at job level). If the org restricts
-  Actions-created PRs, enable "Allow GitHub Actions to create and approve pull
-  requests" in **Settings → Actions → General**.
-- **Public npm (optional):** add an `NPM_TOKEN` repo secret (npm automation
-  token) and wire it as shown in section 4.
+- **npmjs (`@octarq/plugin-sdk`):** uses `NPM_TOKEN` repo secret wired to `NODE_AUTH_TOKEN` in `.github/workflows/publish-sdk.yml`.
+- **GitHub Packages (`@octarq-org/*` Pro packages):** uses built-in `${{ secrets.GITHUB_TOKEN }}` with `permissions: packages: write`.
+- **Version PR:** the `release` job needs `pull-requests: write` and `contents: write`.

@@ -165,13 +165,11 @@ embedded dashboard renders the real licenses page.
 
 ## 7. Publishing the SDK
 
-`@octarq/plugin-sdk` → **GitHub Packages** via changesets:
+`@octarq/plugin-sdk` → **npmjs** via changesets:
 - Root `pnpm-workspace.yaml` (`packages/*`), `.changeset/`, `.github/workflows/publish-sdk.yml`.
-- Package `publishConfig` → `npm.pkg.github.com`, scope `@octarq-org` (= GitHub org).
-- Consumer `.npmrc`: `@octarq-org:registry=https://npm.pkg.github.com`. See
+- Package `publishConfig` → `registry.npmjs.org`, scope `@octarq` (public).
+- Community plugin authors install directly from npmjs (`pnpm add @octarq/plugin-sdk`). Pro private packages (`@octarq-org/*`) remain on GitHub Packages. See
   [PUBLISHING.md](PUBLISHING.md).
-- Published (octarq-pro's plugin packages consume `@octarq/plugin-sdk` from
-  GitHub Packages).
 
 ## 8. File map
 
@@ -207,7 +205,7 @@ octarq-pro:
 **Done since (was pending on external setup):**
 - ✅ `octarq-org` GitHub repos exist and both repos are pushed; CI auto-commits `webembed/dist` on push to main.
 - ✅ octarq-pro consumes a current `github.com/octarq-org/octarq` pseudo-version.
-- ✅ `@octarq/plugin-sdk` 0.2.0 published to GitHub Packages (consumed by octarq-pro's plugin packages).
+- ✅ `@octarq/plugin-sdk` published to npmjs (consumed by plugin authors and octarq-pro).
 
 **Landed since this handoff was written:**
 - ✅ Core pages demoted to UIPlugins (`web/src/plugins/core/`); shell owns no business routes; string `AreaId` + plugin-declared areas + `PLUGIN_ICONS`.
