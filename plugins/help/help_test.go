@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/plugin"
@@ -365,5 +366,57 @@ func TestFilenameIsTheSlug(t *testing.T) {
 				t.Errorf("%s: slug %q ends in %q — if that is a language tag, add it to helpDocLangs so the file is treated as a translation rather than a page of its own", name, d.Slug, ext)
 			}
 		}
+	}
+}
+
+// docsFSPlugin is a plugin whose docs come from the directory convention.
+type docsFSPlugin struct {
+	name string
+	fsys fs.FS
+}
+
+func (m *docsFSPlugin) Name() string                              { return m.name }
+func (m *docsFSPlugin) Models() []any                             { return nil }
+func (m *docsFSPlugin) Mount(mux plugin.Mux, ctx *plugin.Context) {}
+func (m *docsFSPlugin) HelpDocsFS() fs.FS                         { return m.fsys }
+
+// TestSameNamedPluginsKeepTheirOwnDocs covers the case that broke the Pro build:
+// two mounted plugins answering the same Name(). That is deliberate there — the
+// OSS help plugin and octarq-pro's help module are two halves of one feature and
+// share a feature key so one toggle governs both — so the docs cache must not
+// treat the name as an identity. When it did, the second half read back the
+// first half's pages: every OSS doc was served twice (the duplicate shadow-
+// renamed to help-<slug> by the slug dedup) and the Pro-only page vanished.
+func TestSameNamedPluginsKeepTheirOwnDocs(t *testing.T) {
+	page := func(slug, title string) *fstest.MapFile {
+		return &fstest.MapFile{Data: []byte("---\ntitle: " + title + "\n---\n\nbody\n")}
+	}
+	oss := &docsFSPlugin{name: "help", fsys: fstest.MapFS{
+		"docs/getting-started.md": page("getting-started", "Getting Started"),
+	}}
+	pro := &docsFSPlugin{name: "help", fsys: fstest.MapFS{
+		"docs/overview.md": page("overview", "Pro & Elite Overview"),
+	}}
+
+	slugsOf := func(pl plugin.Plugin) []string {
+		var out []string
+		for _, d := range pluginDocs(pl) {
+			out = append(out, d.Slug)
+		}
+		return out
+	}
+
+	// Order matters: the bug only appeared on the second plugin, after the first
+	// had populated the cache under the shared name.
+	if got := slugsOf(oss); len(got) != 1 || got[0] != "getting-started" {
+		t.Fatalf("first plugin: got %v, want [getting-started]", got)
+	}
+	if got := slugsOf(pro); len(got) != 1 || got[0] != "overview" {
+		t.Errorf("second plugin with the same Name(): got %v, want [overview] — it is reading the other plugin's cached docs", got)
+	}
+	// And the cache must still be a cache: a repeat call is served from it and
+	// must return the same plugin's pages, not the other's.
+	if got := slugsOf(oss); len(got) != 1 || got[0] != "getting-started" {
+		t.Errorf("first plugin on the cached path: got %v, want [getting-started]", got)
 	}
 }
