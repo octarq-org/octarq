@@ -43,6 +43,7 @@ export interface UIWidget {
   slot: string;
   Component: LazyPage;
   order?: number;
+  pluginName?: string;
 }
 
 // A NEW top-level sidebar area contributed by a plugin. `icon` is a string key

@@ -76,4 +76,22 @@ describe("ExtensionSlot", () => {
     const widgets = await screen.findAllByTestId("widget");
     expect(widgets.map((w) => w.textContent)).toEqual(["survivor-1", "survivor-2"]);
   });
+
+  it("omits widgets from disabled plugins when loaded is true", async () => {
+    compose("activePlugin", [{ slot: "home", Component: lazyWidget("active"), order: 1 }]);
+    compose("disabledPlugin", [{ slot: "home", Component: lazyWidget("disabled"), order: 2 }]);
+    
+    const disabledPlugins = new Set(["disabledPlugin"]);
+    const { PluginGateContext } = await import("./PluginGateContext");
+
+    render(
+      <PluginGateContext.Provider value={{ disabledPlugins, disabledPaths: new Set(), loaded: true }}>
+        <ExtensionSlot name="home" />
+      </PluginGateContext.Provider>
+    );
+
+    const widgets = await screen.findAllByTestId("widget");
+    expect(widgets.map((w) => w.textContent)).toEqual(["active"]);
+    expect(screen.queryByText("disabled")).toBeNull();
+  });
 });

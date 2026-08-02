@@ -29,22 +29,13 @@ import {
   useMemo,
   useState,
 } from "react";
-import { LockedFeature } from "@octarq/plugin-sdk";
-import type { UIPlugin, UIRoute } from "@octarq/plugin-sdk";
+import { LockedFeature, PluginGateContext } from "@octarq/plugin-sdk";
+import type { UIPlugin, UIRoute, PluginGateContextValue } from "@octarq/plugin-sdk";
 import { AccessDenied, PluginUnavailable } from "./PluginRoutes";
 import { roleSatisfies, useCurrentRole } from "../shell/role";
 
-export interface PluginGateContextValue {
-  disabledPlugins: Set<string>;
-  disabledPaths: Set<string>;
-  loaded: boolean;
-}
-
-export const PluginGateContext = createContext<PluginGateContextValue>({
-  disabledPlugins: new Set(),
-  disabledPaths: new Set(),
-  loaded: false,
-});
+export { PluginGateContext };
+export type { PluginGateContextValue };
 
 export interface PluginRouteGateContextValue {
   // Degrade the current route to the standard gated state for `status`
