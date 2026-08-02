@@ -10,6 +10,12 @@ import { roleSatisfies, useCurrentRole } from "../shell/role";
 // /settings, so there's no separate /personal route tree.
 export function ProfileSettings() {
   const [email, setEmail] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailSuccessMsg, setEmailSuccessMsg] = useState("");
+  const [emailError, setEmailError] = useState("");
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -18,9 +24,47 @@ export function ProfileSettings() {
   const [error, setError] = useState("");
   const { t } = useTranslation();
 
+  const reloadUser = () => {
+    api.me().then((u) => setEmail(u.email || u.username || ""));
+  };
+
   useEffect(() => {
-    api.me().then((u) => setEmail(u.username));
+    reloadUser();
   }, []);
+
+  async function handleEmailUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newEmail) return;
+    setEmailBusy(true);
+    setEmailError("");
+    setEmailSuccessMsg("");
+    try {
+      const res = await api.changeEmail(newEmail, emailPassword);
+      setEmail(res.email);
+      setNewEmail("");
+      setEmailPassword("");
+      if (res.verificationSent) {
+        setEmailSuccessMsg(t("personal.emailVerificationSent", { email: res.email }));
+      } else {
+        setEmailSuccessMsg(t("personal.emailUpdated"));
+      }
+      await reloadUser();
+    } catch (err: any) {
+      if (err instanceof ApiError) {
+        if (err.status === 409) {
+          setEmailError(t("personal.emailAlreadyExists"));
+        } else if (err.status === 400 && err.message?.includes("external identity provider")) {
+          setEmailError(t("personal.ssoEmailChangeForbidden"));
+        } else {
+          setEmailError(err.message || t("personal.updateFailed"));
+        }
+      } else {
+        setEmailError(err?.message || t("personal.updateFailed"));
+      }
+    } finally {
+      setEmailBusy(false);
+    }
+  }
 
   async function updatePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -57,7 +101,7 @@ export function ProfileSettings() {
       />
 
       <GlassCard className="p-6 max-w-xl">
-        <form onSubmit={updatePassword} className="space-y-5">
+        <form onSubmit={handleEmailUpdate} className="space-y-5">
           <Field label={t("personal.emailLabel")}>
             <input
               type="text"
@@ -68,6 +112,42 @@ export function ProfileSettings() {
             />
           </Field>
 
+          <Field label={t("personal.newEmailLabel")}>
+            <input
+              type="email"
+              className="input w-full"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="you@domain.com"
+              autoComplete="email"
+              required
+            />
+          </Field>
+
+          <Field label={t("personal.currentPasswordLabel")}>
+            <input
+              type="password"
+              className="input w-full"
+              value={emailPassword}
+              onChange={(e) => setEmailPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+            />
+          </Field>
+
+          {emailError && <p className="text-xs text-danger-fg font-semibold">{emailError}</p>}
+          {emailSuccessMsg && <p className="text-xs text-success-fg font-semibold flex items-center gap-1">{emailSuccessMsg}</p>}
+
+          <div className="pt-2 border-t border-foreground/[0.04] flex justify-end">
+            <Button type="submit" variant="primary" disabled={emailBusy || !newEmail}>
+              {emailBusy ? t("personal.updating") : t("personal.updateEmail")}
+            </Button>
+          </div>
+        </form>
+      </GlassCard>
+
+      <GlassCard className="p-6 max-w-xl">
+        <form onSubmit={updatePassword} className="space-y-5">
           <Field label={t("personal.currentPasswordLabel")}>
             <input
               type="password"

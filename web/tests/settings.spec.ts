@@ -6,9 +6,9 @@ test.describe('Settings E2E Tests', () => {
     await page.goto('/admin');
     
     // Check if login form is present
-    const loginVisible = await page.getByPlaceholder('Username').isVisible();
+    const loginVisible = await page.getByPlaceholder('you@domain.com').isVisible();
     if (loginVisible) {
-      await page.getByPlaceholder('Username').fill('admin');
+      await page.getByPlaceholder('you@domain.com').fill('admin');
       await page.getByPlaceholder('Password').fill('pw'); // default dev password or from env
       await page.getByRole('button', { name: /Login/i }).click();
     }

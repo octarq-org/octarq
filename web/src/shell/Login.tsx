@@ -48,9 +48,9 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function finishLogin(username: string) {
+  async function finishLogin(email: string) {
     const me = await api.me();
-    onLogin(username, me.orgId);
+    onLogin(email, me.orgId);
   }
 
   async function doSubmit() {
@@ -204,19 +204,19 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
         ) : (
           <form onSubmit={submit} className="space-y-4">
             <div>
-              <label className="label" htmlFor="login-username">
-                {mode === "register" || mode === "forgot" ? t("app.email") : t("app.username")}
+              <label className="label" htmlFor="login-email">
+                {t("app.email")}
               </label>
               <input
-                id="login-username"
-                type={mode === "register" || mode === "forgot" ? "email" : "text"}
-                name={mode === "register" || mode === "forgot" ? "email" : "username"}
+                id="login-email"
+                type="email"
+                name="email"
                 className="input animate-none"
                 value={u}
                 onChange={(e) => setU(e.target.value)}
                 onKeyDown={onEnter}
-                autoComplete={mode === "register" || mode === "forgot" ? "email" : "username"}
-                placeholder={mode === "register" || mode === "forgot" ? t("app.emailPlaceholder") : t("app.usernamePlaceholder")}
+                autoComplete="email"
+                placeholder={t("app.emailPlaceholder")}
                 required
               />
             </div>

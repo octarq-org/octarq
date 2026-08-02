@@ -213,6 +213,7 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/me", Summary: "Me", Tags: []string{"Auth"}}, h.me)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/invite/accept", Summary: "Accept Invite", Tags: []string{"Auth"}}, h.acceptInvite)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/password", Summary: "Change Password", Tags: []string{"Auth"}}, h.changePassword)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/auth/email", Summary: "Change Email", Tags: []string{"Auth"}}, h.changeEmail)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/config", Summary: "Auth Config", Tags: []string{"Auth"}}, h.authConfig)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/methods", Summary: "Auth Methods", Tags: []string{"Auth"}, Metadata: map[string]any{"public": true}}, h.getAuthMethods)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/forgot", Summary: "Forgot Password", Tags: []string{"Auth"}, Metadata: map[string]any{"public": true}}, h.forgotPassword)
