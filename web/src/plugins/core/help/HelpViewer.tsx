@@ -354,7 +354,7 @@ export default function HelpViewer() {
             {notFound ? (
               <div className="bg-card rounded-2xl border border-border/80 p-8 shadow-xs space-y-4">
                 <div className="flex items-center gap-3 text-foreground">
-                  <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" /* ui-color-warn */ />
+                  <AlertTriangle className="w-5 h-5 text-warning-fg shrink-0" />
                   <h1 className="text-lg font-bold">{t("help.not_found_title", "That page isn't in this build")}</h1>
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed">
