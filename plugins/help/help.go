@@ -196,13 +196,21 @@ func (p *Plugin) getDoc(ctx context.Context, input *GetDocInput) (*GetDocOutput,
 	return out, nil
 }
 
-// docsFSCache memoises the parse of each plugin's embedded docs directory,
-// keyed by plugin name. getDocs runs on every /api/help/docs request and the
-// embedded FS cannot change while the process lives, so re-walking and
-// re-parsing thirty markdown files per request would be pure waste. Plugins
-// that implement HelpProvider do their own caching (sync.OnceValue), which is
-// why only the FS half is cached here.
-var docsFSCache sync.Map // plugin name -> []plugin.HelpDoc
+// docsFSCache memoises the parse of each plugin's embedded docs directory.
+// getDocs runs on every /api/help/docs request and the embedded FS cannot change
+// while the process lives, so re-walking and re-parsing thirty markdown files per
+// request would be pure waste. Plugins that implement HelpProvider do their own
+// caching (sync.OnceValue), which is why only the FS half is cached here.
+//
+// The key is the plugin VALUE, not its name. Names are not unique: a Pro build
+// mounts both the OSS help plugin and octarq-pro's help module, and both answer
+// Name() == "help" on purpose, so that the two halves of the help feature share
+// one feature key and one toggle. Keying this cache by name made the second half
+// read back the first half's docs — every OSS page served twice (once under its
+// own slug, once shadow-renamed to help-<slug>) and the Pro page missing
+// entirely. Plugins are long-lived singletons, so the interface value is a
+// stable identity.
+var docsFSCache sync.Map // plugin.Plugin -> []plugin.HelpDoc
 
 // pluginDocs returns every doc a plugin contributes, from either half of the
 // contract: the docs-directory convention (plugin.HelpDocsFS) and/or a
@@ -212,11 +220,11 @@ var docsFSCache sync.Map // plugin name -> []plugin.HelpDoc
 func pluginDocs(pl plugin.Plugin) []plugin.HelpDoc {
 	var docs []plugin.HelpDoc
 	if fp, ok := pl.(plugin.HelpDocsFS); ok {
-		if cached, hit := docsFSCache.Load(pl.Name()); hit {
+		if cached, hit := docsFSCache.Load(pl); hit {
 			docs = append(docs, cached.([]plugin.HelpDoc)...)
 		} else {
 			loaded := plugin.LoadHelpDocs(fp.HelpDocsFS())
-			docsFSCache.Store(pl.Name(), loaded)
+			docsFSCache.Store(pl, loaded)
 			docs = append(docs, loaded...)
 		}
 	}
