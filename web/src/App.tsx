@@ -492,10 +492,10 @@ function Shell({
   }, []);
 
   // Help docs navigation integration for Shell sidebar & Command Palette
-  const [helpDocsNav, setHelpDocsNav] = useState<any[]>([]);
+  const [helpDocsNav, setHelpDocsNav] = useState<HelpDocMeta[]>([]);
   useEffect(() => {
     api.helpIndex(lang)
-      .then((res) => setHelpDocsNav(Array.isArray(res) ? res : (res as any)?.body || []))
+      .then(setHelpDocsNav)
       .catch(() => {});
   }, [activeOrgId, lang]);
 
@@ -557,8 +557,8 @@ function Shell({
 
     return {
       id: "help",
-      title: t("help.title", "帮助与文档"),
-      subtitle: t("help.platform_subtitle", "指南、教程与平台文档"),
+      title: t("help.title", "Help & Documentation"),
+      subtitle: t("help.platform_subtitle", "Guides, tutorials and platform reference"),
       Icon: BookOpen,
       groups: groups.length > 0 ? groups : [
         { label: "Help", items: [{ id: "help-root", label: "Help", Icon: BookOpen, path: "/help" }] }

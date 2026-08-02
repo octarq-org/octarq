@@ -65,8 +65,7 @@ export default function HelpViewer() {
   useEffect(() => {
     api
       .helpIndex(lang)
-      .then((res) => {
-        const list: HelpDocMeta[] = Array.isArray(res) ? res : (res as any)?.body || [];
+      .then((list) => {
         setDocs(list);
         if (!currentSlug && list.length > 0) {
           navigate(getDocUrl(list[0]), { replace: true });
@@ -94,7 +93,7 @@ export default function HelpViewer() {
     setError("");
     api
       .helpPage(currentSlug, lang)
-      .then((res) => setContent(res?.html ? res : (res as any)?.body || null))
+      .then((res) => setContent(res))
       .catch((err: any) =>
         setError(err.message || "Failed to load documentation"),
       )
@@ -195,16 +194,16 @@ export default function HelpViewer() {
         const tag = match[1].toUpperCase();
         if (tag === "TIP") {
           type = "tip";
-          label = `💡 ${t("help.callout_tip", "提示")}`;
+          label = `💡 ${t("help.callout_tip", "TIP")}`;
         } else if (tag === "WARNING" || tag === "CAUTION") {
           type = "warning";
-          label = `⚠️ ${t("help.callout_warning", "警告")}`;
+          label = `⚠️ ${t("help.callout_warning", "WARNING")}`;
         } else if (tag === "IMPORTANT") {
           type = "important";
-          label = `🚨 ${t("help.callout_important", "注意")}`;
+          label = `🚨 ${t("help.callout_important", "IMPORTANT")}`;
         } else if (tag === "NOTE") {
           type = "note";
-          label = `ℹ️ ${t("help.callout_note", "说明")}`;
+          label = `ℹ️ ${t("help.callout_note", "NOTE")}`;
         }
       }
 
@@ -279,7 +278,7 @@ export default function HelpViewer() {
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <BookOpen className="w-4 h-4 text-primary" />
             <span className="font-semibold text-foreground">
-              {t("help.title", "帮助与文档")}
+              {t("help.title", "Help & Documentation")}
             </span>
           </div>
           {currentDocMeta && (
@@ -313,7 +312,7 @@ export default function HelpViewer() {
               <Share2 className="w-3.5 h-3.5" />
             )}
             <span className="hidden sm:inline">
-              {copiedLink ? t("help.copied", "已复制") : t("help.copy_code", "分享")}
+              {copiedLink ? t("help.copied", "Copied!") : t("help.copy_code", "Share")}
             </span>
           </button>
         </div>
@@ -328,7 +327,7 @@ export default function HelpViewer() {
               <div className="flex flex-col items-center justify-center h-80 gap-3">
                 <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                 <p className="text-xs text-muted-foreground animate-pulse">
-                  {t("help.loading", "加载文档内容...")}
+                  {t("help.loading", "Loading documentation…")}
                 </p>
               </div>
             ) : error ? (
@@ -355,7 +354,7 @@ export default function HelpViewer() {
                       <div className="flex items-center gap-3 text-xs text-muted-foreground/80 font-medium">
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-primary" />
-                          <span>{readTimeMinutes} {t("help.read_time", "分钟阅读")}</span>
+                          <span>{readTimeMinutes} {t("help.read_time", "min read")}</span>
                         </div>
                         <span>•</span>
                         <span>
@@ -387,7 +386,7 @@ export default function HelpViewer() {
                       <ArrowLeft className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:-translate-x-1 transition-all mt-0.5 shrink-0" />
                       <div>
                         <div className="text-[10px] text-muted-foreground uppercase font-semibold">
-                          {t("help.prev_doc", "上一篇")}
+                          {t("help.prev_doc", "Previous")}
                         </div>
                         <div className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
                           {prevDoc.title}
@@ -405,7 +404,7 @@ export default function HelpViewer() {
                     >
                       <div>
                         <div className="text-[10px] text-muted-foreground uppercase font-semibold">
-                          {t("help.next_doc", "下一篇")}
+                          {t("help.next_doc", "Next")}
                         </div>
                         <div className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
                           {nextDoc.title}
@@ -427,7 +426,7 @@ export default function HelpViewer() {
           <div className="w-64 border-l border-border/60 bg-background/40 backdrop-blur-xs p-6 hidden lg:flex flex-col h-full overflow-hidden shrink-0">
             <div className="flex items-center gap-2 text-xs font-bold text-foreground mb-4 shrink-0">
               <ListFilter className="w-4 h-4 text-primary" />
-              <span>{t("help.on_this_page", "本文目录")}</span>
+              <span>{t("help.on_this_page", "On this page")}</span>
             </div>
             <nav className="flex-1 overflow-y-auto scrollbar-thin space-y-1.5 text-xs border-l-2 border-border/40 ml-1 pl-2 pr-1">
               {toc.map((item) => (

@@ -24,14 +24,18 @@ import (
 // route gate (app wraps every plugin handler with this check) and the menu
 // filter. The key is a plugin's group, or its name when ungrouped.
 func (h *Handler) PluginEnabled(orgID uint, featureKey string) bool {
+	// No workspace in the session → fail closed, per the org-scoping invariant
+	// pinned by TestOrgIDNoDefaultAndFailClosed. Callers that legitimately have
+	// no workspace (help docs listed before an org is picked) ask
+	// FeatureDefaultEnabled directly instead of coming through here.
 	if orgID == 0 {
-		return h.featureDefaultEnabled(featureKey)
+		return false
 	}
 	var ps models.PluginSetting
 	err := h.db.Where("org_id = ? AND plugin = ?", orgID, featureKey).First(&ps).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		// Never toggled: fall back to the feature's declared default.
-		return h.featureDefaultEnabled(featureKey)
+		return h.FeatureDefaultEnabled(featureKey)
 	}
 	if err != nil {
 		return false
@@ -39,11 +43,14 @@ func (h *Handler) PluginEnabled(orgID uint, featureKey string) bool {
 	return ps.Enabled
 }
 
-// featureDefaultEnabled returns the pre-toggle default (Info.EnabledByDefault)
+// FeatureDefaultEnabled returns the pre-toggle default (Info.EnabledByDefault)
 // for the feature identified by key, or false if no such plugin is registered.
 // Any member declaring the default is enough: siblings sharing a feature key
 // toggle as one, so an opt-out half makes the whole feature opt-out.
-func (h *Handler) featureDefaultEnabled(featureKey string) bool {
+//
+// Exported because the app-level plugin Context wiring needs it for callers
+// that legitimately have no workspace to scope against.
+func (h *Handler) FeatureDefaultEnabled(featureKey string) bool {
 	for _, p := range h.plugins {
 		if plugin.FeatureKey(p) == featureKey && plugin.Describe(p).EnabledByDefault {
 			return true
@@ -194,7 +201,7 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 		if isOn, toggled := enabled[key]; toggled {
 			effectiveEnabled[key] = isOn
 		} else {
-			effectiveEnabled[key] = h.featureDefaultEnabled(key)
+			effectiveEnabled[key] = h.FeatureDefaultEnabled(key)
 		}
 	}
 
@@ -347,7 +354,7 @@ func (h *Handler) updatePlugin(ctx context.Context, input *UpdatePluginInput) (*
 	h.db.Where("org_id = ?", orgID).Find(&rows)
 	enabledMap := make(map[string]bool)
 	for _, p := range h.plugins {
-		enabledMap[plugin.FeatureKey(p)] = h.featureDefaultEnabled(plugin.FeatureKey(p))
+		enabledMap[plugin.FeatureKey(p)] = h.FeatureDefaultEnabled(plugin.FeatureKey(p))
 	}
 	for _, row := range rows {
 		enabledMap[row.Plugin] = row.Enabled
@@ -493,7 +500,7 @@ func (h *Handler) listInstancePlugins(ctx context.Context, input *ListInstancePl
 			// key with a Core sibling is always on however its own Info reads.
 			// Showing info.Core here would label it "Opt-in" and be wrong.
 			Core:             plugin.FeatureIsCore(h.plugins, key),
-			EnabledByDefault: h.featureDefaultEnabled(key),
+			EnabledByDefault: h.FeatureDefaultEnabled(key),
 			Requires:         reqs,
 			HasUI:            hasUI,
 		})
