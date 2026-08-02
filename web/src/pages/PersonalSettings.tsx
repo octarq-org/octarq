@@ -118,7 +118,7 @@ export function ProfileSettings() {
               className="input w-full"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
-              placeholder="you@domain.com"
+              placeholder={t("personal.newEmailPlaceholder")}
               autoComplete="email"
               required
             />
