@@ -75,6 +75,40 @@ func preflightTableCollisions(namer schema.Namer, plugins []plugin.Plugin) error
 	return nil
 }
 
+// preflightNameCollisions refuses startup when two mounted plugins answer the
+// same Name(). A plugin's name is its identity: Requires resolves against it,
+// PluginEnabled falls back to it, MCP tools and log lines are attributed by it,
+// and callers memoise per-plugin work under it. None of that has a defined
+// meaning when two plugins share one — the second plugin silently inherits
+// whatever the first registered.
+//
+// This is not hypothetical. octarq-pro's help module and this repo's help plugin
+// both answered Name() == "help" so the two halves would share one enablement
+// key; the help aggregator's per-plugin docs cache then served the OSS pages
+// twice and dropped the Pro page entirely (octarq#125). The sharing was the
+// legitimate need — expressing it through the name was the bug, and Info.Group
+// exists to express it properly: plugins in a group share one FeatureKey and one
+// toggle while keeping distinct names.
+//
+// Deliberately a hard failure, not a warning: the symptoms are silent
+// wrong-content bugs that surface days later in a UI, and a name collision is
+// always a composition mistake the operator can fix by not mounting both.
+func preflightNameCollisions(plugins []plugin.Plugin) error {
+	seen := make(map[string]bool, len(plugins))
+	for _, p := range plugins {
+		name := p.Name()
+		if seen[name] {
+			return fmt.Errorf(
+				"preflight: two mounted plugins are both named %q — a plugin name is its identity (Requires, enablement, MCP tools, per-plugin caches all key on it). "+
+					"If they are two halves of one feature that should share a single toggle, give them distinct names and the same plugin.Info.Group instead",
+				name,
+			)
+		}
+		seen[name] = true
+	}
+	return nil
+}
+
 // preflightDependencies validates that every mounted plugin's Requires set is
 // satisfied by the set of mounted plugins. Refuses startup if any required
 // plugin is missing.
