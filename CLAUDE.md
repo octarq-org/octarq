@@ -28,15 +28,24 @@ Run these and make sure they pass — don't claim a change works on inspection a
 - `gofmt -w` (keep gofmt-clean; match surrounding style)
 - in `web/`: `npx tsc --noEmit`
 
-**Never build or commit `webembed/dist` manually.** CI auto-commits a fresh build
-**onto the PR branch**, never onto main. It must stay tracked in git — octarq-pro
-consumes octarq as a Go module and gets the embedded dashboard from the module zip.
+**Never build or commit `webembed/dist` manually.** It must stay tracked in git —
+octarq-pro consumes octarq as a Go module and gets the embedded dashboard from
+the module zip — but keeping it current is CI's job, not yours.
 
-One wrinkle to expect: when a PR touches `web/`, that auto-commit becomes the new
-head, and the run it triggers stops at **`action_required`** (GitHub gates
-workflow runs on bot-authored pushes). The PR then reads as not-yet-checked even
-though the code itself already passed on the previous head. Push any commit of
-your own to get a run that completes, or approve the pending one.
+**The refresh happens after the merge.** On a push to main, CI rebuilds the
+dashboard and, if the output differs, opens a `chore(web): refresh embedded
+dashboard build` PR containing only `webembed/dist`. Merge it as-is. (It has no
+checks of its own: PRs opened with `GITHUB_TOKEN` don't trigger workflows. The
+source it was built from already passed CI on that commit.)
+
+This used to run on the PR branch instead. The bot-authored push became the new
+head and GitHub gated the run at **`action_required`**, so every frontend PR read
+as unchecked until someone approved a commit nobody reviews. Don't move it back.
+
+One consequence while you work: on any branch that touches `web/`, the committed
+`webembed/dist` is stale until that branch merges. **Running the Go binary alone
+will serve the old dashboard.** For local verification run the frontend live —
+`cd web && pnpm dev --host` against the backend — rather than trusting dist.
 
 ## Code conventions
 
