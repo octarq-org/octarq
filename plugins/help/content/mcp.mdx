@@ -1,0 +1,64 @@
+---
+title: Model Context Protocol (MCP)
+description: Connect AI desktop tools like Claude and Cursor directly to your Octarq workspace.
+category: automation
+order: 70
+---
+
+Octarq features native support for the **Model Context Protocol (MCP)**, an open standard designed by Anthropic for connecting AI models securely to local and remote data stores. With MCP enabled, desktop AI assistants (such as Claude Desktop, Claude Code, and Cursor) can query your Octarq workspace directly to inspect emails, analyze short link traffic, monitor DNS health, and execute database queries.
+
+## Key Capabilities
+
+- **Dual Transport Support**:
+  - **Local Stdio Transport**: Run `octarq mcp` as a local subprocess for desktop applications like Claude Desktop or Cursor.
+  - **Networked SSE Transport**: Connect remote AI agents via HTTP/SSE (`/api/mcp/sse`) authenticated using standard [API Tokens](/help/api-tokens).
+- **Built-in Tool Ecosystem**: Exposes structured MCP tools for listing and searching short links, mailboxes, received emails, DNS records, and system health.
+- **Guarded Read-Only SQL Querying**: Includes a `query_db_readonly` tool on local stdio transport to execute custom `SELECT` queries while automatically redacting sensitive columns (such as password hashes, token secrets, and raw body data).
+- **Data Sovereignty Export**: Use the `export_data` tool to export workspace data directly as JSON for backups or local processing.
+- **Tenant Isolation**: Multi-tenant SSE connections automatically scope tool calls to the workspace tied to the caller's API Bearer Token.
+
+## How to Use
+
+### 1. Connecting Claude Desktop via Local Stdio
+Add Octarq to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "octarq": {
+      "command": "/usr/local/bin/octarq",
+      "args": ["mcp"],
+      "env": {
+        "OCTARQ_DB_DSN": "/path/to/octarq.db"
+      }
+    }
+  }
+}
+```
+
+### 2. Connecting Remote AI Tools via SSE
+For web-based AI agents or remote IDEs:
+1. Generate an [API Token](/help/api-tokens) in Octarq (`oct_...`).
+2. Configure your client to connect to:
+   - **SSE Endpoint**: `https://your-octarq.com/api/mcp/sse`
+   - **HTTP Header**: `Authorization: Bearer oct_your_secret_api_token`
+
+### 3. Example AI Prompts
+Once connected, ask your AI assistant questions in natural language:
+- *"Summarize the unread emails received in Octarq today."*
+- *"Which short link received the most clicks this week?"*
+- *"Check if any DNS verification checks are failing across my domains."*
+
+:::note
+Over HTTP/SSE transports, raw SQL query capabilities are withheld for multi-tenant safety. Remote agents interact through tenant-scoped convenience tools.
+:::
+
+## Why It Matters
+
+Instead of building custom AI integrations or manually copying data into LLM prompts, Octarq's built-in MCP server turns your database into an AI-native workspace.
+
+## Related Links
+
+- [API Tokens](/help/api-tokens) — Generate access tokens for SSE MCP connections.
+- [Short Links](/help/short-links) — Inspect short link data via MCP tools.
+- [Mailboxes & Email Routing](/help/mailboxes) — Access received email records.

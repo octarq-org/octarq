@@ -1,0 +1,46 @@
+---
+title: 通知渠道
+description: 把系统告警和事件推送到 Telegram 机器人或自定义 HTTP Webhook。
+category: automation
+order: 60
+---
+
+Octarq 的通知引擎会把关键系统事件——新收到的邮件、SMTP 投递失败、滥用举报、安全告警——实时推送到团队常用的消息渠道。
+
+## 能力概览
+
+- **Telegram 机器人集成**：通过自建 Telegram Bot 把 Markdown 格式的通知发到群聊或私聊。
+- **自定义 HTTP Webhook**：把 JSON 告警载荷（`{"text": "..."}`）POST 到自定义 Webhook 或自动化平台（如 Make、n8n）。
+- **SSRF 加固**：出站通知 Webhook 经 `safehttp` 校验和净化，阻断针对内网或云元数据 IP 段的服务端请求伪造（SSRF）。
+- **可扩展的渠道架构**：插件可在运行时通过核心 notifier 接口注册自定义通知渠道（如 Slack、短信、Discord）。
+- **一键测试**：在后台可直接测试渠道配置，确认无误后再启用实时告警。
+
+## 使用方法
+
+### 1. 配置 Telegram 渠道
+1. 在 Telegram 中用 [@BotFather](https://t.me/BotFather) 创建机器人，复制 **Bot Token**。
+2. 把机器人拉进目标群聊或私聊，取得 **Chat ID**。
+3. 在 Octarq 中进入 **设置 $\rightarrow$ 通知渠道**（或按 `⌘K` / `Ctrl+K` 搜索「通知渠道」）。
+4. 点击**添加渠道**，选择 **Telegram Bot**，填入 Bot Token 与 Chat ID，点击**保存**。
+
+### 2. 配置 Webhook 渠道
+1. 在 Octarq 中进入 **设置 $\rightarrow$ 通知渠道**。
+2. 点击**添加渠道**，选择 **自定义 Webhook（HTTP POST）**。
+3. 填写目标 Endpoint URL（例如 `https://hooks.zapier.com/hooks/catch/...`）。
+4. 点击**保存**。
+
+### 3. 测试投递
+点击任一已配置渠道旁的**测试**按钮，Octarq 会立即发送一条示例载荷并显示返回状态。
+
+:::tip
+通知投递在后台异步执行，即使外部聊天 API 出现临时延迟，收信和系统派发也不会被拖慢。
+:::
+
+## 为什么重要
+
+有了 Telegram 或 Webhook 即时通知，邮件投递失败、客户来信、滥用举报都会第一时间送到你面前，不用盯着后台页面手动刷新。
+
+## 相关文档
+
+- [出站 Webhook](/help/webhooks) —— 订阅原始事件流做程序化处理。
+- [邮箱与邮件路由](/help/mailboxes) —— 配置入站收信。

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -233,5 +234,68 @@ Body Content`
 	doc := plugin.ParseHelpDocSafe(badYAML)
 	if doc.Markdown == "" {
 		t.Errorf("expected fallback doc with markdown body, got empty string")
+	}
+}
+
+// TestBundledDocsHaveTranslations guards the content/ naming contract. Nothing
+// else can: a page that ships without its zh half still compiles, still parses,
+// and still serves — it just silently renders English to a Chinese reader, which
+// is exactly how the Pro help corpus ended up 100% English. The same loop also
+// catches the failure modes that are valid strings and therefore invisible to
+// the compiler: a missing title, a category outside the closed set, a duplicate
+// slug shadowing another page.
+func TestBundledDocsHaveTranslations(t *testing.T) {
+	entries, err := content.ReadDir("content")
+	if err != nil {
+		t.Fatalf("read embedded content dir: %v", err)
+	}
+
+	valid := make(map[string]bool)
+	for _, c := range plugin.HelpCategories() {
+		valid[c.Key] = true
+	}
+
+	pages := 0
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".mdx") || strings.HasSuffix(name, ".zh.mdx") {
+			continue
+		}
+		pages++
+		base := strings.TrimSuffix(name, ".mdx")
+
+		if _, err := content.ReadFile("content/" + base + ".zh.mdx"); err != nil {
+			t.Errorf("%s has no Chinese translation: expected content/%s.zh.mdx", name, base)
+		}
+
+		raw, err := content.ReadFile("content/" + name)
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		doc, err := plugin.ParseHelpDoc(string(raw))
+		if err != nil {
+			t.Errorf("%s has unparseable frontmatter: %v", name, err)
+			continue
+		}
+		if doc.Title == "" {
+			t.Errorf("%s has no title in its frontmatter", name)
+		}
+		if !valid[doc.Category] {
+			t.Errorf("%s declares category %q, which is not one of the closed set in plugin.HelpCategories()", name, doc.Category)
+		}
+	}
+
+	if pages == 0 {
+		t.Fatal("no docs found in content/ — the loader would serve nothing")
+	}
+
+	// The aggregator only de-duplicates slugs ACROSS plugins (by prefixing the
+	// loser). Two pages colliding inside this one plugin would silently drop one.
+	seen := make(map[string]string)
+	for _, d := range parsedHelpDocs() {
+		if prev, dup := seen[d.Slug]; dup {
+			t.Errorf("slug %q is claimed by both %q and %q", d.Slug, prev, d.Title)
+		}
+		seen[d.Slug] = d.Title
 	}
 }

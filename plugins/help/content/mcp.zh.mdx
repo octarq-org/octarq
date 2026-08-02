@@ -1,0 +1,64 @@
+---
+title: 模型上下文协议（MCP）
+description: 把 Claude、Cursor 等 AI 桌面工具直接接到你的 Octarq 工作区。
+category: automation
+order: 70
+---
+
+Octarq 原生支持 **模型上下文协议（MCP）**——由 Anthropic 提出的开放标准，用于把 AI 模型安全地连接到本地和远程数据源。启用 MCP 后，桌面 AI 助手（如 Claude Desktop、Claude Code、Cursor）可以直接查询你的 Octarq 工作区：查看邮件、分析短链流量、检查 DNS 健康状况、执行数据库查询。
+
+## 能力概览
+
+- **双传输通道**：
+  - **本地 stdio**：以 `octarq mcp` 作为本地子进程运行，供 Claude Desktop、Cursor 等桌面应用调用。
+  - **网络 SSE**：远程 AI Agent 通过 HTTP/SSE（`/api/mcp/sse`）接入，使用标准 [API 令牌](/help/api-tokens) 鉴权。
+- **内置工具集**：提供结构化 MCP 工具，可列出和搜索短链、邮箱、收到的邮件、DNS 记录以及系统健康状态。
+- **带护栏的只读 SQL 查询**：本地 stdio 通道提供 `query_db_readonly` 工具执行自定义 `SELECT`，并自动脱敏敏感列（密码哈希、令牌密文、原始邮件正文等）。
+- **数据主权导出**：用 `export_data` 工具把工作区数据导出为 JSON，用于备份或本地处理。
+- **租户隔离**：多租户 SSE 连接会自动把工具调用限制在调用方 API Bearer 令牌所属的工作区内。
+
+## 使用方法
+
+### 1. 用本地 stdio 接入 Claude Desktop
+在 `claude_desktop_config.json` 中加入 Octarq：
+
+```json
+{
+  "mcpServers": {
+    "octarq": {
+      "command": "/usr/local/bin/octarq",
+      "args": ["mcp"],
+      "env": {
+        "OCTARQ_DB_DSN": "/path/to/octarq.db"
+      }
+    }
+  }
+}
+```
+
+### 2. 用 SSE 接入远程 AI 工具
+面向网页版 AI Agent 或远程 IDE：
+1. 在 Octarq 中生成 [API 令牌](/help/api-tokens)（`oct_...`）。
+2. 客户端按如下方式连接：
+   - **SSE 端点**：`https://your-octarq.com/api/mcp/sse`
+   - **HTTP 头**：`Authorization: Bearer oct_your_secret_api_token`
+
+### 3. 提示词示例
+接好之后，可以直接用自然语言提问：
+- *「总结一下今天 Octarq 里收到的未读邮件。」*
+- *「这周点击量最高的短链是哪条？」*
+- *「检查一下我所有域名里有没有 DNS 验证失败的。」*
+
+:::note
+出于多租户安全考虑，HTTP/SSE 通道不开放原始 SQL 查询能力。远程 Agent 只能通过按租户隔离的封装工具交互。
+:::
+
+## 为什么重要
+
+不用再自建 AI 集成、也不用手动把数据粘进提示词——Octarq 内置的 MCP 服务器直接把你的数据库变成 AI 原生的工作区。
+
+## 相关文档
+
+- [API 令牌](/help/api-tokens) —— 为 SSE MCP 连接生成访问令牌。
+- [短链接](/help/short-links) —— 通过 MCP 工具查询短链数据。
+- [邮箱与邮件路由](/help/mailboxes) —— 访问收到的邮件记录。

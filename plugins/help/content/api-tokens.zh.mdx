@@ -1,0 +1,59 @@
+---
+title: API 令牌与访问
+description: 生成 oct_ 前缀的 Bearer 令牌，用 REST API 自动化操作 Octarq。
+category: automation
+order: 50
+---
+
+Octarq 提供完整的 REST API，可用程序化方式管理短链、邮箱、DNS 记录、域名验证和工作区设置。API 令牌为自动化脚本、CI/CD 流水线和第三方集成提供安全的非交互式访问凭据。
+
+## 能力概览
+
+- **安全的令牌格式**：以 `oct_` 前缀开头，后接 24 字节 URL 安全的密码学随机数（形如 `oct_AbC123...`）。
+- **落库即哈希**：令牌以 SHA-256 摘要存储。明文只在创建时返回一次，之后无法找回。
+- **自定义有效期**：可设定若干天后自动过期，也可以创建长期有效的令牌供常驻自动化系统使用。
+- **使用追踪**：每个令牌都记录 `lastUsedAt` 时间戳，便于识别仍在使用的集成、清理长期闲置的凭据。
+- **即时吊销**：在后台一键吊销任意令牌，立即切断被泄露脚本或历史遗留服务的 API 访问。
+
+## 使用方法
+
+### 1. 生成 API 令牌
+1. 进入 **设置 $\rightarrow$ 工作区 $\rightarrow$ API 令牌**（或按 `⌘K` / `Ctrl+K` 搜索「API 令牌」）。
+2. 点击 **创建 API 令牌**。
+3. 填写有辨识度的**名称**（例如 `GitHub Actions CI` 或 `Zapier Sync`）。
+4. （可选）填写**备注**并设置**有效期（天数）**。
+5. 点击**创建**。
+6. **立刻复制密钥。** 它不会再次显示。
+
+### 2. 用令牌调用 API
+按标准 HTTP `Authorization` 头以 Bearer 方式传递令牌：
+
+```bash
+curl -X GET "https://your-octarq.com/api/domains" \
+  -H "Authorization: Bearer oct_your_secret_api_token"
+```
+
+通过 API 创建一条 DNS 记录的例子：
+
+```bash
+curl -X POST "https://your-octarq.com/api/domains/1/records" \
+  -H "Authorization: Bearer oct_your_secret_api_token" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"A","name":"sub","content":"1.2.3.4","ttl":300}'
+```
+
+### 3. 吊销令牌
+在 **API 令牌** 列表中找到目标令牌并点击**吊销**。此后使用该令牌的所有请求会立即收到 HTTP 401。
+
+:::tip
+不同环境（如预发与生产）请使用各自独立的令牌，这样审计和吊销互不影响。
+:::
+
+## 为什么重要
+
+有了 API 令牌，你可以把 Octarq 接进自己的部署脚本、DNS 自动化流程和服务器监控工具链，而不必把账号密码或会话 Cookie 暴露出去。
+
+## 相关文档
+
+- [模型上下文协议（MCP）](/help/mcp) —— 让 AI 助手通过 MCP 工具连接 Octarq。
+- [出站 Webhook](/help/webhooks) —— 在事件发生时接收实时 HTTP 回调。
