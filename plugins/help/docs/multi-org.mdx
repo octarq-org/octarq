@@ -31,13 +31,19 @@ Octarq is built on a multi-tenant architecture that allows users to create, mana
 4. Click **Create & Switch**. A new organization is provisioned with a unique URL slug and inbound webhook token.
 
 ### 3. Inviting Team Members
-1. Go to **Settings $\rightarrow$ Workspace $\rightarrow$ Workspace Members**.
+1. Go to **Settings → Workspace → Members**.
 2. Click **Invite Member**.
 3. Enter the invitee's email address and assign their role (**Member**, **Admin**, or **Owner**).
 4. Click **Send Invite**. The invitee receives an email with an activation link valid for 24 hours.
 
-### 4. Revoking Member Access
-Navigate to **Settings $\rightarrow$ Workspace $\rightarrow$ Workspace Members** and click **Remove** next to any member to revoke their access to the workspace immediately.
+### 4. Changing a Member's Role
+In **Settings → Workspace → Members**, pick a new role from the dropdown next to
+anyone you can manage. Two rules the console enforces on your behalf: only an
+Owner may grant or change the Owner role, and the last Owner cannot be demoted —
+promote a second Owner first, then hand the workspace over.
+
+### 5. Revoking Member Access
+Navigate to **Settings → Workspace → Members** and click **Remove** next to any member to revoke their access to the workspace immediately.
 
 :::note
 Deleting a workspace or revoking a member's access from one organization does not affect their membership or data in other organizations.

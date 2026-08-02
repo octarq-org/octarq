@@ -416,6 +416,8 @@ export const api = {
   // instance without mail the invite exists and nobody can reach it.
   addOrgMember: (d: { email: string; role: string }) =>
     req<{ ok: boolean; inviteToken?: string; inviteUrl?: string }>("POST", "/api/org/members", d),
+  updateOrgMemberRole: (userId: number, role: string) =>
+    req<{ ok: boolean }>("PATCH", `/api/org/members/${userId}`, { role }),
   deleteOrgMember: (userId: number) => req<void>("DELETE", `/api/org/members/${userId}`),
 
   // menus and user settings

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -418,5 +419,43 @@ func TestSameNamedPluginsKeepTheirOwnDocs(t *testing.T) {
 	// must return the same plugin's pages, not the other's.
 	if got := slugsOf(oss); len(got) != 1 || got[0] != "getting-started" {
 		t.Errorf("first plugin on the cached path: got %v, want [getting-started]", got)
+	}
+}
+
+// TestBundledDocLinksResolve walks every in-app link the OSS corpus writes and
+// fails on one that lands nowhere. Cross-references are the whole navigation
+// story of the help area — each page ends in a "Related" list — and a dead one
+// is invisible to every other check here: the markdown is well-formed, the page
+// renders, and the reader only finds out by clicking. Three ways they went dead
+// before this test existed:
+//
+//   - /help/plugins/dns/dns — the docs-site path, which is not the in-app one;
+//   - /help/portal — a slug that was renamed to customer-portal;
+//   - /help/<pro-slug> from an OSS page, dead in every OSS build.
+//
+// The canonical in-app form is /help/<slug>, two segments. The viewer expands it
+// to /help/<category>/<slug>, so a page that changes category keeps its links.
+func TestBundledDocLinksResolve(t *testing.T) {
+	slugs := make(map[string]bool)
+	for _, p := range bundledDocsProviders() {
+		for _, d := range plugin.LoadHelpDocs(p.HelpDocsFS()) {
+			slugs[d.Slug] = true
+		}
+	}
+
+	link := regexp.MustCompile(`\]\((/help/[^)]*)\)`)
+	for name, p := range bundledDocsProviders() {
+		for _, d := range plugin.LoadHelpDocs(p.HelpDocsFS()) {
+			for _, m := range link.FindAllStringSubmatch(d.Markdown, -1) {
+				target := strings.TrimPrefix(m[1], "/help/")
+				if strings.Contains(target, "/") {
+					t.Errorf("%s: %s links to %s — the in-app form is /help/<slug>, with no category or plugin path", name, d.Slug, m[1])
+					continue
+				}
+				if !slugs[strings.SplitN(target, "#", 2)[0]] {
+					t.Errorf("%s: %s links to %s, which no page in this build serves", name, d.Slug, m[1])
+				}
+			}
+		}
 	}
 }

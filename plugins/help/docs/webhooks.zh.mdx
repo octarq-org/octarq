@@ -18,7 +18,7 @@ Octarq 的出站 Webhook 引擎会在工作区内发生关键事件时，实时�
 ## 使用方法
 
 ### 1. 注册 Webhook 端点
-1. 进入 **设置 $\rightarrow$ Webhook**（或按 `⌘K` / `Ctrl+K` 搜索「Webhook」）。
+1. 进入 **设置 → 工作区 → Webhook**（或按 `⌘K` / `Ctrl+K` 搜索「Webhook」）。
 2. 点击**添加 Webhook 端点**。
 3. 填写有辨识度的**端点名称**和目标 **Endpoint URL**（例如 `https://api.yourdomain.com/hooks/octarq`）。
 4. （可选）填写自定义**签名密钥**（留空则自动生成）。
@@ -53,7 +53,7 @@ function verifyOctarqWebhook(req, res, next) {
 ```
 
 ### 3. 删除端点
-在 **设置 $\rightarrow$ Webhook** 中管理已注册的端点，可随时查看端点密钥或删除不再使用的端点。
+在 **设置 → 工作区 → Webhook** 中管理已注册的端点，可随时查看端点密钥或删除不再使用的端点。
 
 :::tip
 本地开发和调试时，可以用 `ngrok`、`hookdeck` 之类的工具先看清载荷长什么样，再把接收逻辑部署到生产。

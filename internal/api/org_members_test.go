@@ -103,3 +103,103 @@ func TestAdminCannotRemoveOwner(t *testing.T) {
 		t.Errorf("admin remove owner: got %d, want 403", rec.Code)
 	}
 }
+
+// The PATCH endpoint carries the same owner rules as POST — it exists so the
+// console can say "promote this member" without re-inviting an address — so the
+// rules are re-asserted against it rather than assumed to travel with them.
+func TestUpdateMemberRole(t *testing.T) {
+	srv, db := newTestHandler(t)
+	const org = uint(140)
+	ownerUID := seedOrgMember(t, db, org, "owner@x.com", "owner")
+	adminUID := seedOrgMember(t, db, org, "admin@x.com", "admin")
+	memberUID := seedOrgMember(t, db, org, "member@x.com", "member")
+	ownerSession := sessionCookies(t, ownerUID, org)
+	adminSession := sessionCookies(t, adminUID, org)
+	memberSession := sessionCookies(t, memberUID, org)
+
+	roleOf := func(uid uint) string {
+		var role string
+		db.Model(&models.OrgMember{}).Where("org_id = ? AND user_id = ?", org, uid).Pluck("role", &role)
+		return role
+	}
+	path := func(uid uint) string { return fmt.Sprintf("/api/org/members/%d", uid) }
+
+	// A member cannot re-grade anyone, themselves least of all.
+	if rec := do(srv, "PATCH", path(memberUID), memberSession, `{"role":"admin"}`); rec.Code != http.StatusForbidden {
+		t.Errorf("member self-promotion: got %d, want 403", rec.Code)
+	}
+	if got := roleOf(memberUID); got != "member" {
+		t.Fatalf("member role escalated to %q", got)
+	}
+
+	// An admin may re-grade a member…
+	if rec := do(srv, "PATCH", path(memberUID), adminSession, `{"role":"admin"}`); rec.Code != http.StatusOK {
+		t.Errorf("admin promoting a member: got %d, want 200", rec.Code)
+	}
+	if got := roleOf(memberUID); got != "admin" {
+		t.Errorf("role after admin promotion: %q, want admin", got)
+	}
+	// …but neither mint an owner…
+	if rec := do(srv, "PATCH", path(memberUID), adminSession, `{"role":"owner"}`); rec.Code != http.StatusForbidden {
+		t.Errorf("admin granting owner: got %d, want 403", rec.Code)
+	}
+	// …nor demote the one there is.
+	if rec := do(srv, "PATCH", path(ownerUID), adminSession, `{"role":"member"}`); rec.Code != http.StatusForbidden {
+		t.Errorf("admin demoting the owner: got %d, want 403", rec.Code)
+	}
+	if got := roleOf(ownerUID); got != "owner" {
+		t.Fatalf("owner was demoted to %q by an admin", got)
+	}
+
+	// An owner may grant the role.
+	if rec := do(srv, "PATCH", path(memberUID), ownerSession, `{"role":"owner"}`); rec.Code != http.StatusOK {
+		t.Errorf("owner granting owner: got %d, want 200", rec.Code)
+	}
+	if got := roleOf(memberUID); got != "owner" {
+		t.Errorf("role after owner grant: %q, want owner", got)
+	}
+
+	// A role outside the closed set is a 400, not a silently-applied value.
+	if rec := do(srv, "PATCH", path(memberUID), ownerSession, `{"role":"superuser"}`); rec.Code != http.StatusBadRequest {
+		t.Errorf("bogus role: got %d, want 400", rec.Code)
+	}
+	// Someone who is not a member of this workspace is a 404, not a new row.
+	if rec := do(srv, "PATCH", path(99999), ownerSession, `{"role":"admin"}`); rec.Code != http.StatusNotFound {
+		t.Errorf("non-member: got %d, want 404", rec.Code)
+	}
+}
+
+// Demoting the last owner strands the workspace exactly as removing them would:
+// nobody is left who can grant the role back, including the person who gave it
+// up. Both endpoints that can do it must refuse.
+func TestLastOwnerCannotBeDemoted(t *testing.T) {
+	srv, db := newTestHandler(t)
+	const org = uint(141)
+	ownerUID := seedOrgMember(t, db, org, "owner@x.com", "owner")
+	ownerSession := sessionCookies(t, ownerUID, org)
+
+	roleOf := func(uid uint) string {
+		var role string
+		db.Model(&models.OrgMember{}).Where("org_id = ? AND user_id = ?", org, uid).Pluck("role", &role)
+		return role
+	}
+
+	if rec := do(srv, "PATCH", fmt.Sprintf("/api/org/members/%d", ownerUID), ownerSession, `{"role":"admin"}`); rec.Code != http.StatusBadRequest {
+		t.Errorf("PATCH demoting the last owner: got %d, want 400", rec.Code)
+	}
+	// The invite path re-grades an existing member too, and used to do it with
+	// no last-owner guard at all.
+	if rec := do(srv, "POST", "/api/org/members", ownerSession,
+		fmt.Sprintf(`{"email":%q,"role":"admin"}`, t.Name()+"+owner@x.com")); rec.Code != http.StatusBadRequest {
+		t.Errorf("POST demoting the last owner: got %d, want 400", rec.Code)
+	}
+	if got := roleOf(ownerUID); got != "owner" {
+		t.Fatalf("last owner was demoted to %q — the workspace has no owner", got)
+	}
+
+	// With a second owner in place the demotion is allowed.
+	otherUID := seedOrgMember(t, db, org, "owner2@x.com", "owner")
+	if rec := do(srv, "PATCH", fmt.Sprintf("/api/org/members/%d", otherUID), ownerSession, `{"role":"member"}`); rec.Code != http.StatusOK {
+		t.Errorf("demoting a non-last owner: got %d, want 200", rec.Code)
+	}
+}

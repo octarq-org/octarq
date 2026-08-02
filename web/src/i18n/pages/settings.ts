@@ -252,6 +252,8 @@ export const settings = {
     // OrgMembersManager
     confirmRemoveMember: "Remove this member from the workspace? They will lose access instantly.",
     failedRemoveMember: "Failed to remove member",
+    memberRoleUpdated: "Role updated for {{email}}",
+    failedUpdateMemberRole: "Failed to update member role",
     failedAddMember: "Failed to add member",
     inviteCreatedTitle: "Invitation created",
     inviteCreatedDesc: "We tried to email this link. Email delivery needs the mail feature configured on this instance, so share the link directly if it doesn't arrive.",
@@ -579,6 +581,8 @@ export const settings = {
     // OrgMembersManager
     confirmRemoveMember: "将此成员从工作区移除？他们将立即失去访问权限。",
     failedRemoveMember: "移除成员失败",
+    memberRoleUpdated: "已更新 {{email}} 的角色",
+    failedUpdateMemberRole: "更新成员角色失败",
     failedAddMember: "添加成员失败",
     inviteCreatedTitle: "邀请已创建",
     inviteCreatedDesc: "我们已尝试通过邮件发送此链接。邮件发送需要本实例配置好邮件功能，如果对方没收到，请直接把链接发给他们。",
@@ -906,6 +910,8 @@ export const settings = {
     // OrgMembersManager
     confirmRemoveMember: "¿Eliminar a este miembro del espacio de trabajo? Perderá acceso de inmediato.",
     failedRemoveMember: "Error al eliminar miembro",
+    memberRoleUpdated: "Rol actualizado para {{email}}",
+    failedUpdateMemberRole: "Error al actualizar el rol del miembro",
     failedAddMember: "Error al añadir miembro",
     inviteCreatedTitle: "Invitación creada",
     inviteCreatedDesc: "Intentamos enviar este enlace por correo. El envío requiere que la función de correo esté configurada en esta instancia, así que comparte el enlace directamente si no llega.",
@@ -1233,6 +1239,8 @@ export const settings = {
     // OrgMembersManager
     confirmRemoveMember: "Remover este membro do workspace? Eles perderão o acesso instantaneamente.",
     failedRemoveMember: "Falha ao remover membro",
+    memberRoleUpdated: "Função atualizada para {{email}}",
+    failedUpdateMemberRole: "Falha ao atualizar a função do membro",
     failedAddMember: "Falha ao adicionar membro",
     inviteCreatedTitle: "Convite criado",
     inviteCreatedDesc: "Tentamos enviar este link por e-mail. O envio exige que o recurso de e-mail esteja configurado nesta instância, então compartilhe o link diretamente se ele não chegar.",
@@ -1560,6 +1568,8 @@ export const settings = {
     // OrgMembersManager
     confirmRemoveMember: "このメンバーをワークスペースから削除しますか？ メンバーはすぐにアクセスできなくなります。",
     failedRemoveMember: "メンバーの削除に失敗しました",
+    memberRoleUpdated: "{{email}} の権限を更新しました",
+    failedUpdateMemberRole: "メンバーの権限の更新に失敗しました",
     failedAddMember: "メンバーの追加に失敗しました",
     inviteCreatedTitle: "招待を作成しました",
     inviteCreatedDesc: "このリンクをメールで送信しようとしました。送信にはこのインスタンスでメール機能が設定されている必要があります。届かない場合はリンクを直接共有してください。",

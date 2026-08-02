@@ -24,6 +24,9 @@ export default {
       callout_warning: "WARNING",
       callout_important: "IMPORTANT",
       callout_note: "NOTE",
+      not_found_title: "That page isn't in this build",
+      not_found_body: "No documentation is installed under this address. The plugin that owns it may not be part of this edition, or the page may have been renamed.",
+      not_found_action: "Browse the documentation index",
     },
     zh: {
       _shared: {
@@ -43,6 +46,9 @@ export default {
       callout_warning: "警告",
       callout_important: "注意",
       callout_note: "说明",
+      not_found_title: "此版本未包含该页面",
+      not_found_body: "该地址下没有已安装的文档。它所属的插件可能不在当前版本中，或者页面已被重命名。",
+      not_found_action: "浏览文档目录",
     },
     es: {
       _shared: {
@@ -62,6 +68,9 @@ export default {
       callout_warning: "ADVERTENCIA",
       callout_important: "IMPORTANTE",
       callout_note: "NOTA",
+      not_found_title: "Esa página no está en esta edición",
+      not_found_body: "No hay documentación instalada en esta dirección. El plugin que la contiene puede no formar parte de esta edición, o la página fue renombrada.",
+      not_found_action: "Ver el índice de documentación",
     },
     pt: {
       _shared: {
@@ -81,6 +90,9 @@ export default {
       callout_warning: "AVISO",
       callout_important: "IMPORTANTE",
       callout_note: "NOTA",
+      not_found_title: "Essa página não está nesta edição",
+      not_found_body: "Não há documentação instalada neste endereço. O plugin que a contém pode não fazer parte desta edição, ou a página foi renomeada.",
+      not_found_action: "Ver o índice da documentação",
     },
     ja: {
       _shared: {
@@ -100,12 +112,13 @@ export default {
       callout_warning: "警告",
       callout_important: "重要",
       callout_note: "注记",
+      not_found_title: "このビルドには該当ページがありません",
+      not_found_body: "このアドレスにドキュメントはインストールされていません。該当プラグインがこのエディションに含まれていないか、ページ名が変更された可能性があります。",
+      not_found_action: "ドキュメント一覧を開く",
     },
   },
   routes: [
     { path: "/help", Component: HelpViewer },
     { path: "/help/*", Component: HelpViewer },
-    { path: "/admin/help", Component: HelpViewer },
-    { path: "/admin/help/*", Component: HelpViewer },
   ],
 } satisfies UIPlugin;

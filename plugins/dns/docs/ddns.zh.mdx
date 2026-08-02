@@ -7,7 +7,7 @@ Octarq 动态 DNS (DDNS) 模块允许家用路由器、NAS、NAS 容器及内网
 ## 一、控制台操作步骤
 
 ### 1. 新建 DDNS Token
-1. 进入 **基础设施 $\rightarrow$ 域名管理**，切换至 **动态 DNS (DDNS)** 标签页。
+1. 进入 **基础设施 → 网络 → DNS**，切换至 **动态 DNS (DDNS)** 标签页。
 2. 点击 **新建 DDNS Token**。
 3. 在弹窗中选择目标域名（如 `example.com`），输入要更新的记录名称（如 `home`），并指定记录类型 (`A` 或 `AAAA`)。
 4. 点击 **生成 Token**。
@@ -49,5 +49,5 @@ curl -s "https://your-octarq-console.com/api/dns/ddns/update?hostname=home.examp
 
 ## 四、相关操作说明
 
-- [域名与 DNS 解析指南](/help/plugins/dns/dns) — 查看与编辑完整 DNS 记录表格。
-- [控制台快速入门](/help/platform/general/getting-started) — 工作区与账号权限设置。
+- [域名与 DNS 解析指南](/help/dns) — 查看与编辑完整 DNS 记录表格。
+- [控制台快速入门](/help/getting-started) — 工作区与账号权限设置。

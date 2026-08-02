@@ -9,7 +9,7 @@ The Octarq Short Links module lets you manage branded short URLs, configure cond
 ## 1. Step-by-Step Console Workflows
 
 ### 1. Creating a Short Link
-1. Go to **Operations $\rightarrow$ Short Links** (or press `⌘K` and search `Create Link`).
+1. Go to **Operations → Marketing → Links** (or press `⌘K` and search `Create Link`).
 2. Click **New Link**.
 3. Enter your destination **Target URL** (e.g. `https://my-product.com/launch-deal`).
 4. (Optional) Select a custom domain (e.g. `l.mybrand.com`) and custom slug (e.g. `launch`).
@@ -40,11 +40,11 @@ During creation or editing, click **Add Rule** to set conditional redirects:
 **Answer**: GeoIP resolution relies on public IP header forwarding (`X-Real-IP`, `X-Forwarded-For`). Clicks from localhost or unforwarded proxies are logged without GeoIP country codes.
 
 ### Q2: How do I enable auto-shortening for outgoing emails?
-**Answer**: Navigate to **Settings $\rightarrow$ Workspace** and check **Auto-shorten Links in Outgoing Mail**. External URLs in outbound transactional emails will be automatically wrapped.
+**Answer**: Navigate to **Operations → Messaging → Mail → Settings → Inbound Configuration** and check **Auto-shorten Links in Outgoing Mail**. External URLs in outbound transactional emails will be automatically wrapped.
 
 ---
 
 ## 4. Related Console Guides
 
-- [DNS Management Console Guide](/help/plugins/dns/dns) — Binding CNAME short link subdomains.
-- [Mailboxes Console Guide](/help/plugins/mail/mailboxes) — Outbound mail & auto-wrapping.
+- [DNS Management Console Guide](/help/dns) — Binding CNAME short link subdomains.
+- [Mailboxes Console Guide](/help/mailboxes) — Outbound mail & auto-wrapping.

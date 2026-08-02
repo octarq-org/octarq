@@ -7,17 +7,17 @@ Octarq 邮箱引擎提供入站事务性邮件接收、 Catch-All 动态邮箱�
 ## 一、控制台操作步骤
 
 ### 1. 接入 Cloudflare Email Worker 入站 Webhook
-1. 前往 **设置 $\rightarrow$ 工作区配置**，获取独有的 **入站 Webhook URL** (`/api/webhook/{orgSlug}/email/inbound/{token}`)。
-2. 打开 Cloudflare 控制台，进入 **Email Routing $\rightarrow$ Email Workers**，部署 Worker 脚本将接收到的原始邮件转发 POST 至此 Webhook 地址。
+1. 前往 **日常运营 → 消息 → 邮件 → 设置 → 入站配置**，获取独有的 **入站 Webhook URL** (`/api/webhook/{orgSlug}/email/inbound/{token}`)。
+2. 打开 Cloudflare 控制台，进入 **Email Routing → Email Workers**，部署 Worker 脚本将接收到的原始邮件转发 POST 至此 Webhook 地址。
 3. 部署完成后，发送至您自定义域名的邮件将实时呈现在控制台 **邮箱服务** 界面中。
 
 ### 2. 启用 Catch-All 路由与保留前缀保护
-1. 前往 **设置 $\rightarrow$ 工作区配置**。
+1. 前往 **日常运营 → 消息 → 邮件 → 设置 → 入站配置**。
 2. 开启 **启用 Catch-All 路由** 开关。
 3. 在 **保留邮箱前缀** 中输入逗号分隔的前缀（如 `admin, support, postmaster`），防止 Catch-All 自动捕捉属于系统管理的敏感地址。
 
 ### 3. 配置出站 SMTP 发件服务商
-1. 前往 **日常运营 $\rightarrow$ 邮箱服务**，切换至 **SMTP 发件配置** 标签页。
+1. 前往 **日常运营 → 消息 → 邮件**，切换至 **SMTP 发件配置** 标签页。
 2. 点击 **添加 SMTP 发件服务**。
 3. 填入 SMTP 服务器主机（如 `smtp.mailgun.org`）、端口（如 `587`）、用户名、密码及默认发件人邮箱（如 `noreply@example.com`）。
 4. 点击 **保存**。密码将在后端通过 AES-GCM 加密，绝不会明文外泄。
@@ -37,11 +37,11 @@ Octarq 邮箱引擎提供入站事务性邮件接收、 Catch-All 动态邮箱�
 **答**：这说明发件方域名的 DNS 未正确配置 SPF 或 DMARC 记录，或者邮件在传输过程中经过了未经授权的中继。在控制台邮件详情中可查看完整的验证 Header 原始信息。
 
 ### Q2: 邮件发送失败时如何收取报错通知？
-**答**：在控制台中前往 **设置 $\rightarrow$ 消息通知**，绑定 Telegram Bot 或自定义 Webhook 接收发件失败告警。
+**答**：在控制台中前往 **设置 → 工作区 → 告警**，绑定 Telegram Bot 或自定义 Webhook 接收发件失败告警。
 
 ---
 
 ## 四、相关操作说明
 
-- [域名与 DNS 解析指南](/help/plugins/dns/dns) — 为邮件域名校验 SPF、DKIM 和 DMARC 记录。
-- [短链接服务控制台说明](/help/plugins/links/short-links) — 自动短链转换与分流。
+- [域名与 DNS 解析指南](/help/dns) — 为邮件域名校验 SPF、DKIM 和 DMARC 记录。
+- [短链接服务控制台说明](/help/short-links) — 自动短链转换与分流。

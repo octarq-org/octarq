@@ -50,16 +50,10 @@ func TestRoleBaselineEnforcement(t *testing.T) {
 
 	// --- 1. MEMBER DENIED (403 Forbidden) ---
 	t.Run("Member denied admin routes", func(t *testing.T) {
-		// Tokens
-		if code := doReq("GET", "/api/tokens", memberCookies, "").Code; code != 403 {
-			t.Fatalf("expected GET /api/tokens for member to be 403, got %d", code)
-		}
-		if code := doReq("POST", "/api/tokens", memberCookies, `{"name":"t"}`).Code; code != 403 {
-			t.Fatalf("expected POST /api/tokens for member to be 403, got %d", code)
-		}
-		if code := doReq("DELETE", "/api/tokens/1", memberCookies, "").Code; code != 403 {
-			t.Fatalf("expected DELETE /api/tokens/1 for member to be 403, got %d", code)
-		}
+		// Tokens are deliberately absent from this list. They are a personal
+		// credential — one that acts as its holder and can never out-rank them —
+		// so a member may mint and manage their own. What replaced the role gate
+		// is an ownership scope, covered by TestMemberTokensAreTheirOwn.
 
 		// Webhooks
 		if code := doReq("GET", "/api/webhooks", memberCookies, "").Code; code != 403 {

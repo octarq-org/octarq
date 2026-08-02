@@ -84,13 +84,20 @@ func TestTokenUpdate(t *testing.T) {
 		}
 	})
 
-	// 3. Member calls update -> 403
-	t.Run("member calling update is forbidden", func(t *testing.T) {
+	// 3. Someone else's token is not yours to edit. A member may now manage the
+	// tokens they minted themselves, so this is scoped by ownership rather than
+	// by role — and answers 404, not 403: a 403 would confirm the id exists.
+	t.Run("member cannot edit a token they do not own", func(t *testing.T) {
 		rec := putJSON(rawMember, "/api/tokens/"+testIDStr(tokTarget.ID), map[string]any{
 			"name": "hacked-name",
 		})
-		if rec.Code != http.StatusForbidden {
-			t.Errorf("got code %d, want 403; body=%s", rec.Code, rec.Body.String())
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("got code %d, want 404; body=%s", rec.Code, rec.Body.String())
+		}
+		var after models.Token
+		db.First(&after, tokTarget.ID)
+		if after.Name == "hacked-name" {
+			t.Error("a member renamed a token belonging to someone else")
 		}
 	})
 
@@ -212,7 +219,7 @@ func TestTokenUpdate(t *testing.T) {
 		}
 
 		// Verify role narrowing actually took effect: target token should be denied on admin route
-		reqAdmin := httptest.NewRequest(http.MethodGet, "/api/tokens", nil)
+		reqAdmin := httptest.NewRequest(http.MethodGet, "/api/webhooks", nil)
 		reqAdmin.Header.Set("Authorization", "Bearer "+rawTarget)
 		recAdmin := httptest.NewRecorder()
 		srv.ServeHTTP(recAdmin, reqAdmin)

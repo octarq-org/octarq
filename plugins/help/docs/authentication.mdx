@@ -21,7 +21,7 @@ Octarq includes a comprehensive security and authentication engine that supports
 ## How to Use
 
 ### 1. Setting Up Two-Factor Authentication (2FA)
-1. Go to **Settings $\rightarrow$ Account $\rightarrow$ Security** (or navigate to `/settings`).
+1. Go to **Settings → Account → Security** (or navigate to `/settings`).
 2. Under **Two-Factor Authentication (TOTP)**, click **Enable 2FA**.
 3. Scan the displayed QR code with your authenticator app (or manually enter the setup key).
 4. Enter the 6-digit confirmation code and click **Confirm & Enable**.
@@ -34,14 +34,14 @@ Octarq includes a comprehensive security and authentication engine that supports
 4. Upon successful reset, all existing active sessions are terminated, and you are prompted to sign in with your new password.
 
 ### 3. Configuring OAuth Providers (Instance Admins)
-1. Navigate to **Settings $\rightarrow$ Instance $\rightarrow$ Authentication**.
+1. Navigate to **Settings → Instance → Authentication**.
 2. Expand the **Google** or **GitHub** provider section.
 3. Enter your **Client ID** and **Client Secret** (retrieved from your provider's developer console).
 4. Register the exact **Callback URL** shown in Octarq (e.g., `https://your-octarq.com/api/auth/google/callback`).
 5. Click **Save**. The OAuth login buttons will automatically appear on the Sign-In page.
 
 ### 4. Enforcement Policies (Instance Admins)
-In **Settings $\rightarrow$ Instance $\rightarrow$ Authentication**:
+In **Settings → Instance → Authentication**:
 - **Allow public sign-up**: Toggle to disable self-serve registration, making Octarq invite-only.
 - **Require Email Verification**: Toggle to block logins for unverified email accounts until they complete the email verification link.
 

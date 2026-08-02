@@ -408,6 +408,14 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 		if authz.Role(existing.Role) == authz.RoleOwner && !authz.AtLeast(authz.Role(callerRole), authz.RoleOwner) {
 			return nil, huma.Error403Forbidden("forbidden: only an owner can change an owner's role")
 		}
+		// Re-inviting the sole owner at a lower role demotes them, and this path
+		// had no last-owner guard — the workspace could be left with nobody able
+		// to grant the role back. Same rule as PATCH and DELETE.
+		if authz.Role(existing.Role) == authz.RoleOwner && authz.Role(role) != authz.RoleOwner {
+			if err := h.requireAnotherOwner(orgID, user.ID); err != nil {
+				return nil, err
+			}
+		}
 		if err := h.db.Model(&models.OrgMember{}).
 			Where("org_id = ? AND user_id = ?", orgID, user.ID).
 			Update("role", role).Error; err != nil {
@@ -462,6 +470,112 @@ func (h *Handler) sendInviteEmail(orgID uint, to, acceptURL string) {
 		}
 	}
 	log.Printf("invite email skipped for %s: mail plugin not mounted", to)
+}
+
+type UpdateOrgMemberInput struct {
+	Ctx    huma.Context `hidden:"true"`
+	UserID uint         `path:"userId"`
+	Body   struct {
+		Role string `json:"role"`
+	}
+}
+
+func (i *UpdateOrgMemberInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type UpdateOrgMemberOutput struct {
+	Body struct {
+		OK bool `json:"ok"`
+	}
+}
+
+// updateOrgMember re-grades an existing member.
+// PATCH /api/org/members/{userId}  {"role": "admin"}
+//
+// Re-inviting the address through POST already re-graded them, but only as a
+// side effect no console could reasonably offer: the member list knows a user
+// ID, not a mailbox, and "invite them again" is not what an admin promoting a
+// colleague is trying to say. This is that operation stated directly, keyed the
+// same way removal is.
+func (h *Handler) updateOrgMember(ctx context.Context, input *UpdateOrgMemberInput) (*UpdateOrgMemberOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+	callerRole := string(h.effectiveRole(r))
+	if callerRole != "owner" && callerRole != "admin" {
+		return nil, huma.Error403Forbidden("forbidden: only owner/admin can manage members")
+	}
+
+	role := authz.Role(strings.TrimSpace(input.Body.Role))
+	if role != authz.RoleOwner && role != authz.RoleAdmin && role != authz.RoleMember {
+		return nil, huma.Error400BadRequest("role must be one of member, admin, owner")
+	}
+
+	var target models.OrgMember
+	if err := h.db.Where("org_id = ? AND user_id = ?", orgID, input.UserID).First(&target).Error; err != nil {
+		return nil, huma.Error404NotFound("not a member of this organization")
+	}
+	if target.Role == string(role) {
+		out := &UpdateOrgMemberOutput{}
+		out.Body.OK = true
+		return out, nil
+	}
+
+	// The same two owner rules addOrgMember enforces: an admin can neither mint
+	// an owner (which would be self-promotion by proxy) nor re-grade the one
+	// already there.
+	if role == authz.RoleOwner && !authz.AtLeast(authz.Role(callerRole), authz.RoleOwner) {
+		return nil, huma.Error403Forbidden("forbidden: only an owner can grant the owner role")
+	}
+	if authz.Role(target.Role) == authz.RoleOwner && !authz.AtLeast(authz.Role(callerRole), authz.RoleOwner) {
+		return nil, huma.Error403Forbidden("forbidden: only an owner can change an owner's role")
+	}
+	// Demoting the last owner strands the workspace: nobody left who can grant
+	// the role back, including the person who just gave it up. removeOrgMember
+	// refuses the same shape of mistake.
+	if authz.Role(target.Role) == authz.RoleOwner {
+		if err := h.requireAnotherOwner(orgID, input.UserID); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := h.db.Model(&models.OrgMember{}).
+		Where("org_id = ? AND user_id = ?", orgID, input.UserID).
+		Update("role", string(role)).Error; err != nil {
+		return nil, huma.Error500InternalServerError("failed to update member role")
+	}
+
+	h.audit(r, "member.role", "user", input.UserID, map[string]any{"from": target.Role, "to": string(role)})
+	eventbus.Publish(orgID, "member.role", map[string]any{"userId": input.UserID, "role": string(role)})
+
+	out := &UpdateOrgMemberOutput{}
+	out.Body.OK = true
+	return out, nil
+}
+
+// requireAnotherOwner reports whether the workspace would still have an owner
+// after userID stops being one.
+func (h *Handler) requireAnotherOwner(orgID, userID uint) error {
+	var owners int64
+	h.db.Model(&models.OrgMember{}).
+		Where("org_id = ? AND role = ? AND user_id <> ?", orgID, "owner", userID).
+		Count(&owners)
+	if owners == 0 {
+		return huma.Error400BadRequest("cannot demote the last owner of the workspace")
+	}
+	return nil
 }
 
 type RemoveOrgMemberInput struct {

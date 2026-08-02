@@ -280,6 +280,7 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/org", Summary: "Update Org Details", Tags: []string{"Org Management"}}, h.updateOrg)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/org/members", Summary: "List Org Members", Tags: []string{"Org Management"}}, h.listOrgMembers)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/org/members", Summary: "Add Org Member", Tags: []string{"Org Management"}}, h.addOrgMember)
+	huma.Register(api, huma.Operation{Method: "PATCH", Path: "/api/org/members/{userId}", Summary: "Update Org Member Role", Tags: []string{"Org Management"}}, h.updateOrgMember)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/org/members/{userId}", Summary: "Remove Org Member", Tags: []string{"Org Management"}}, h.removeOrgMember)
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/account/export", Summary: "Export Org Data", Tags: []string{"Account"}}, h.exportAccount)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, Token } from "../api";
-import { Empty, Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toast, confirmDialog } from "../ui";
+import { Empty, Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toast, confirmDialog, confirmPassword } from "../ui";
 import { User, Key, Settings, CheckCircle, Trash2, Eye, ClipboardCopy } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { roleSatisfies, useCurrentRole } from "../shell/role";
@@ -11,14 +11,14 @@ import { roleSatisfies, useCurrentRole } from "../shell/role";
 export function ProfileSettings() {
   const [email, setEmail] = useState("");
   const [newEmail, setNewEmail] = useState("");
-  const [emailPassword, setEmailPassword] = useState("");
+  const [changingEmail, setChangingEmail] = useState(false);
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailSuccessMsg, setEmailSuccessMsg] = useState("");
   const [emailError, setEmailError] = useState("");
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [repeatPassword, setRepeatPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -32,17 +32,27 @@ export function ProfileSettings() {
     reloadUser();
   }, []);
 
+  // Two steps, deliberately: name the new address, then re-authenticate. The
+  // password box is the shared `confirmPassword` dialog rather than a third
+  // input in this form — every sensitive action asks for it the same way, and a
+  // password field sitting permanently on a settings page invites both password
+  // managers and users to fill it in for a change nobody asked for.
   async function handleEmailUpdate(e: React.FormEvent) {
     e.preventDefault();
     if (!newEmail) return;
-    setEmailBusy(true);
     setEmailError("");
     setEmailSuccessMsg("");
+    const currentPassword = await confirmPassword({
+      message: t("personal.emailChangeConfirmMessage", { email: newEmail }),
+      confirmLabel: t("personal.updateEmail"),
+    });
+    if (currentPassword === null) return;
+    setEmailBusy(true);
     try {
-      const res = await api.changeEmail(newEmail, emailPassword);
+      const res = await api.changeEmail(newEmail, currentPassword);
       setEmail(res.email);
       setNewEmail("");
-      setEmailPassword("");
+      setChangingEmail(false);
       if (res.verificationSent) {
         setEmailSuccessMsg(t("personal.emailVerificationSent", { email: res.email }));
       } else {
@@ -73,7 +83,7 @@ export function ProfileSettings() {
       setError(t("personal.passwordTooShort"));
       return;
     }
-    if (password !== confirmPassword) {
+    if (password !== repeatPassword) {
       setError(t("personal.passwordsMismatch"));
       return;
     }
@@ -85,7 +95,7 @@ export function ProfileSettings() {
       setSaved(true);
       setCurrentPassword("");
       setPassword("");
-      setConfirmPassword("");
+      setRepeatPassword("");
     } catch (e: any) {
       setError(e.message || t("personal.updateFailed"));
     } finally {
@@ -100,50 +110,67 @@ export function ProfileSettings() {
         description={t("personal.profileDesc")}
       />
 
-      <GlassCard className="p-6 max-w-xl">
-        <form onSubmit={handleEmailUpdate} className="space-y-5">
-          <Field label={t("personal.emailLabel")}>
-            <input
-              type="text"
-              className="input w-full opacity-65 cursor-not-allowed text-foreground/50"
-              value={email}
-              readOnly
-              disabled
-            />
-          </Field>
-
-          <Field label={t("personal.newEmailLabel")}>
-            <input
-              type="email"
-              className="input w-full"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              placeholder={t("personal.newEmailPlaceholder")}
-              autoComplete="email"
-              required
-            />
-          </Field>
-
-          <Field label={t("personal.currentPasswordLabel")}>
-            <input
-              type="password"
-              className="input w-full"
-              value={emailPassword}
-              onChange={(e) => setEmailPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
-          </Field>
-
-          {emailError && <p className="text-xs text-danger-fg font-semibold">{emailError}</p>}
-          {emailSuccessMsg && <p className="text-xs text-success-fg font-semibold flex items-center gap-1">{emailSuccessMsg}</p>}
-
-          <div className="pt-2 border-t border-foreground/[0.04] flex justify-end">
-            <Button type="submit" variant="primary" disabled={emailBusy || !newEmail}>
-              {emailBusy ? t("personal.updating") : t("personal.updateEmail")}
-            </Button>
+      <GlassCard className="p-6 max-w-xl space-y-4">
+        {/* Resting state is a read-only row: the account email is something you
+            look up far more often than you change. The form only exists once
+            you have said you want to change it. */}
+        <div className="flex items-end justify-between gap-4">
+          <div className="min-w-0">
+            <div className="label">{t("personal.emailLabel")}</div>
+            <div className="mt-1 truncate text-sm font-medium text-foreground">{email || "—"}</div>
           </div>
-        </form>
+          {!changingEmail && (
+            <Button
+              variant="secondary"
+              className="shrink-0 text-xs"
+              onClick={() => {
+                setEmailError("");
+                setEmailSuccessMsg("");
+                setChangingEmail(true);
+              }}
+            >
+              {t("personal.changeEmail")}
+            </Button>
+          )}
+        </div>
+
+        {changingEmail && (
+          <form onSubmit={handleEmailUpdate} className="space-y-4 border-t border-foreground/[0.04] pt-4">
+            <Field label={t("personal.newEmailLabel")} hint={t("personal.newEmailHint")}>
+              <input
+                type="email"
+                className="input w-full"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder={t("personal.newEmailPlaceholder")}
+                autoComplete="email"
+                autoFocus
+                required
+              />
+            </Field>
+
+            {emailError && <p className="text-xs text-danger-fg font-semibold">{emailError}</p>}
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setChangingEmail(false);
+                  setNewEmail("");
+                  setEmailError("");
+                }}
+              >
+                {t("personal.cancel")}
+              </Button>
+              <Button type="submit" variant="primary" disabled={emailBusy || !newEmail}>
+                {emailBusy ? t("personal.updating") : t("personal.continue")}
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {emailSuccessMsg && <p className="text-xs text-success-fg font-semibold">{emailSuccessMsg}</p>}
       </GlassCard>
 
       <GlassCard className="p-6 max-w-xl">
@@ -176,8 +203,8 @@ export function ProfileSettings() {
             <input
               type="password"
               className="input w-full"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              value={repeatPassword}
+              onChange={(e) => setRepeatPassword(e.target.value)}
               placeholder="••••••••"
               autoComplete="new-password"
               required
@@ -220,8 +247,6 @@ export function ApiTokens() {
   const [editingToken, setEditingToken] = useState<Token | null>(null);
   const [created, setCreated] = useState<{ token: string } | null>(null);
   const { t } = useTranslation();
-  const { role, isInstanceAdmin } = useCurrentRole();
-  const canManageTokens = roleSatisfies("admin", role, isInstanceAdmin);
 
   async function load() {
     setLoading(true);
@@ -249,12 +274,14 @@ export function ApiTokens() {
       <PageHeader
         title={t("personal.tokensTitle")}
         description={t("personal.tokensDesc")}
+        // Minting a token is a personal act, not an administrative one: the
+        // token acts as you and can never out-rank you, so anyone with an
+        // account can issue one for their own scripts. What the server scopes
+        // instead is visibility — a non-admin's list holds only their own.
         action={
-          canManageTokens ? (
-            <Button variant="primary" onClick={() => setCreating(true)} className="text-xs">
-              {t("personal.newToken")}
-            </Button>
-          ) : undefined
+          <Button variant="primary" onClick={() => setCreating(true)} className="text-xs">
+            {t("personal.newToken")}
+          </Button>
         }
       />
 
@@ -293,24 +320,22 @@ export function ApiTokens() {
                       </span>
                     )}
                   </div>
-                  {canManageTokens && (
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        variant="secondary"
-                        onClick={() => setEditingToken(timer)}
-                        className="text-xs py-1 px-2.5 border-0"
-                      >
-                        {t("personal.edit")}
-                      </Button>
-                      <Button
-                        variant="danger"
-                        onClick={() => remove(timer.id)}
-                        className="text-xs py-1 px-2.5 border-0"
-                      >
-                        {t("personal.revoke")}
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="secondary"
+                      onClick={() => setEditingToken(timer)}
+                      className="text-xs py-1 px-2.5 border-0"
+                    >
+                      {t("personal.edit")}
+                    </Button>
+                    <Button
+                      variant="danger"
+                      onClick={() => remove(timer.id)}
+                      className="text-xs py-1 px-2.5 border-0"
+                    >
+                      {t("personal.revoke")}
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
