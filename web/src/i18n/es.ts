@@ -84,6 +84,7 @@ export const es = {
     operations: { title: "Operaciones", subtitle: "Tráfico diario y comunicaciones" },
     assets: { title: "Infraestructura", subtitle: "Servidores, red y bases de datos" },
     insights: { title: "Seguridad y Admin", subtitle: "Defensa contra abusos y registros de actividad" },
+    help: { title: "Manual de uso", subtitle: "Flujos de la consola, notas operativas y preguntas frecuentes" },
     settings: { title: "Configuración", subtitle: "Configuraciones del espacio de trabajo y perfil" },
   },
   groups: {
