@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"embed"
+	"io/fs"
 	"log"
 	"sort"
 	"strings"
@@ -17,30 +18,29 @@ import (
 	"github.com/yuin/goldmark/parser"
 )
 
-// content holds this plugin's own documentation: the platform-level pages that
+// docs holds this plugin's own documentation: the platform-level pages that
 // document capabilities the core owns but no plugin does — authentication,
 // organizations/RBAC, API tokens, webhooks, notification channels, MCP.
 //
 // Those pages have no other home. "Docs live with the feature" (docs/PLUGINS.md)
 // resolves cleanly for links/mail/dns, which are plugins and carry their own
-// docs.mdx — but auth, orgs, tokens and webhooks live in internal/ and app/,
-// which nothing can hang a HelpProvider on. Until they are plugins, the help
-// plugin is their custodian: it is already Core, already mounted in every build,
-// and already the aggregator every other HelpProvider feeds into.
+// docs/ directory — but auth, orgs, tokens and webhooks live in internal/ and
+// app/, which nothing can hang a docs directory on. Until they are plugins, the
+// help plugin is their custodian: it is already Core, already mounted in every
+// build, and already the aggregator every other contributor feeds into.
 //
-// Naming is the whole loader contract: "<slug>.mdx" is the English page and the
-// optional sibling "<slug>.zh.mdx" is its translation. Adding a page means
-// dropping in files — there is no list to update, and helpDocsHaveTranslations
-// in help_test.go fails the build if a page ships without its zh half.
+// The directory name is the convention (plugin.HelpDocsFS) — the same one every
+// other plugin follows — so this plugin loads its own pages through exactly the
+// path it serves everyone else's, with no second loader to drift.
 //
-//go:embed content/*.mdx
-var content embed.FS
+//go:embed docs
+var docs embed.FS
 
 var (
 	_ plugin.Plugin       = (*Plugin)(nil)
 	_ plugin.MenuProvider = (*Plugin)(nil)
 	_ plugin.Describer    = (*Plugin)(nil)
-	_ plugin.HelpProvider = (*Plugin)(nil)
+	_ plugin.HelpDocsFS   = (*Plugin)(nil)
 )
 
 type Plugin struct {
@@ -192,6 +192,36 @@ func (p *Plugin) getDoc(ctx context.Context, input *GetDocInput) (*GetDocOutput,
 	return out, nil
 }
 
+// docsFSCache memoises the parse of each plugin's embedded docs directory,
+// keyed by plugin name. getDocs runs on every /api/help/docs request and the
+// embedded FS cannot change while the process lives, so re-walking and
+// re-parsing thirty markdown files per request would be pure waste. Plugins
+// that implement HelpProvider do their own caching (sync.OnceValue), which is
+// why only the FS half is cached here.
+var docsFSCache sync.Map // plugin name -> []plugin.HelpDoc
+
+// pluginDocs returns every doc a plugin contributes, from either half of the
+// contract: the docs-directory convention (plugin.HelpDocsFS) and/or a
+// hand-built HelpDocs() (plugin.HelpProvider). Implementing both is legal — a
+// plugin can ship static pages from disk next to pages it generates at runtime —
+// so these concatenate rather than one winning.
+func pluginDocs(pl plugin.Plugin) []plugin.HelpDoc {
+	var docs []plugin.HelpDoc
+	if fp, ok := pl.(plugin.HelpDocsFS); ok {
+		if cached, hit := docsFSCache.Load(pl.Name()); hit {
+			docs = append(docs, cached.([]plugin.HelpDoc)...)
+		} else {
+			loaded := plugin.LoadHelpDocs(fp.HelpDocsFS())
+			docsFSCache.Store(pl.Name(), loaded)
+			docs = append(docs, loaded...)
+		}
+	}
+	if hp, ok := pl.(plugin.HelpProvider); ok {
+		docs = append(docs, hp.HelpDocs()...)
+	}
+	return docs
+}
+
 func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
 	var docs []plugin.HelpDoc
 	slugs := make(map[string]string)
@@ -200,12 +230,13 @@ func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
 		if !p.pctx.PluginActive(orgID, pl) {
 			continue
 		}
-		if hp, ok := pl.(plugin.HelpProvider); ok {
+		contributed := pluginDocs(pl)
+		if len(contributed) > 0 {
 			var category string
 			if desc, ok := pl.(plugin.Describer); ok {
 				category = desc.Describe().Category
 			}
-			for _, d := range hp.HelpDocs() {
+			for _, d := range contributed {
 				d.FillDefaults(pl.Name(), category)
 				if d.Feature != "" && p.pctx.FeatureActive != nil && !p.pctx.FeatureActive(orgID, d.Feature) {
 					continue
@@ -254,58 +285,12 @@ func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
 	return docs
 }
 
-// parsedHelpDocs reads content/ once and pairs each "<slug>.mdx" with its
-// optional "<slug>.zh.mdx" sibling. A doc's slug defaults to its filename, so a
-// page only needs frontmatter to override the slug or to set title/category/order.
-var parsedHelpDocs = sync.OnceValue(func() []plugin.HelpDoc {
-	entries, err := content.ReadDir("content")
-	if err != nil {
-		// Unreachable in a normal build: the embed directive above fails to
-		// compile if content/ has no .mdx files at all.
-		log.Printf("[help] warning: cannot read embedded content dir: %v", err)
-		return nil
-	}
-
-	docs := make([]plugin.HelpDoc, 0, len(entries))
-	for _, entry := range entries {
-		name := entry.Name()
-		// Translations are pulled in by their English base, never listed as
-		// pages of their own — otherwise every doc would appear twice.
-		if entry.IsDir() || !strings.HasSuffix(name, ".mdx") || strings.HasSuffix(name, ".zh.mdx") {
-			continue
-		}
-		base := strings.TrimSuffix(name, ".mdx")
-
-		raw, err := content.ReadFile("content/" + name)
-		if err != nil {
-			log.Printf("[help] warning: cannot read %q: %v", name, err)
-			continue
-		}
-		doc := plugin.ParseHelpDocSafe(string(raw))
-		if doc.Slug == "" {
-			doc.Slug = base
-		}
-		if doc.Title == "" {
-			log.Printf("[help] warning: doc %q has no title in frontmatter, falling back to its slug", name)
-			doc.Title = doc.Slug
-		}
-
-		if zh, err := content.ReadFile("content/" + base + ".zh.mdx"); err == nil {
-			doc = doc.WithTranslation("zh", string(zh))
-		}
-
-		docs = append(docs, doc)
-	}
-
-	sort.Slice(docs, func(i, j int) bool {
-		return plugin.CompareHelpDocs(docs[i], docs[j])
-	})
-	return docs
-})
-
-func (p *Plugin) HelpDocs() []plugin.HelpDoc {
-	return parsedHelpDocs()
-}
+// HelpDocsFS hands the embedded docs/ directory to the shared walker. Parsing
+// lives in plugin.LoadHelpDocs, not here: this package used to carry its own
+// directory walk and octarq-pro's help module carried a near-identical copy, and
+// two loaders for one file format is exactly the duplication the repo convention
+// says to collapse.
+func (p *Plugin) HelpDocsFS() fs.FS { return docs }
 
 func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	p.pctx = ctx

@@ -13,11 +13,11 @@
 package dns
 
 import (
-	_ "embed"
+	"embed"
 	"errors"
+	"io/fs"
 	"net"
 	"net/http"
-	"sync"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/internal/dnsprovider"
@@ -53,7 +53,7 @@ var (
 	_ plugin.Plugin       = (*Plugin)(nil)
 	_ plugin.Describer    = (*Plugin)(nil)
 	_ plugin.MenuProvider = (*Plugin)(nil)
-	_ plugin.HelpProvider = (*Plugin)(nil)
+	_ plugin.HelpDocsFS   = (*Plugin)(nil)
 )
 
 // New constructs the dns plugin.
@@ -92,28 +92,17 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 	}
 }
 
-//go:embed docs.mdx
-var helpDocs string
+// docs is this plugin's documentation directory. It holds two pages, dns.mdx
+// and ddns.mdx, and that is now the only place either is declared — under the
+// old scheme each also needed a matching //go:embed pair and a slot in a
+// []HelpDoc literal, which is how a plugin ends up shipping a doc file nothing
+// serves. Adding a page means adding "docs/<slug>.mdx" plus its ".zh.mdx"
+// translation; see plugin.HelpDocsFS.
+//
+//go:embed docs
+var docs embed.FS
 
-//go:embed docs.zh.mdx
-var helpDocsZh string
-
-//go:embed ddns-docs.mdx
-var ddnsDocs string
-
-//go:embed ddns-docs.zh.mdx
-var ddnsDocsZh string
-
-var parsedHelpDocs = sync.OnceValue(func() []plugin.HelpDoc {
-	return []plugin.HelpDoc{
-		plugin.ParseHelpDocSafe(helpDocs).WithTranslation("zh", helpDocsZh),
-		plugin.ParseHelpDocSafe(ddnsDocs).WithTranslation("zh", ddnsDocsZh),
-	}
-})
-
-func (p *Plugin) HelpDocs() []plugin.HelpDoc {
-	return parsedHelpDocs()
-}
+func (p *Plugin) HelpDocsFS() fs.FS { return docs }
 
 // Mount wires the plugin's dependencies from the shared context and registers
 // its routes on the core API, then provides the DNS manager seam.

@@ -2,8 +2,9 @@ package mail
 
 import (
 	"context"
-	_ "embed"
+	"embed"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"regexp"
 	"strings"
@@ -46,7 +47,7 @@ var (
 	_ plugin.Plugin       = (*Plugin)(nil)
 	_ plugin.Describer    = (*Plugin)(nil)
 	_ plugin.MenuProvider = (*Plugin)(nil)
-	_ plugin.HelpProvider = (*Plugin)(nil)
+	_ plugin.HelpDocsFS   = (*Plugin)(nil)
 )
 
 // New constructs the mail plugin.
@@ -81,21 +82,14 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 	}
 }
 
-//go:embed docs.mdx
-var helpDocs string
+// docs is this plugin's documentation directory. Adding a page means adding
+// "docs/<slug>.mdx" (plus its "<slug>.zh.mdx" translation) — the file name is
+// the slug and the frontmatter carries the rest; see plugin.HelpDocsFS.
+//
+//go:embed docs
+var docs embed.FS
 
-//go:embed docs.zh.mdx
-var helpDocsZh string
-
-var parsedHelpDocs = sync.OnceValue(func() []plugin.HelpDoc {
-	return []plugin.HelpDoc{
-		plugin.ParseHelpDocSafe(helpDocs).WithTranslation("zh", helpDocsZh),
-	}
-})
-
-func (p *Plugin) HelpDocs() []plugin.HelpDoc {
-	return parsedHelpDocs()
-}
+func (p *Plugin) HelpDocsFS() fs.FS { return docs }
 
 // orgDB scopes a query to the caller's org.
 func (p *Plugin) orgDB(r *http.Request) *gorm.DB {

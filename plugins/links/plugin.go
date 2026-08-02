@@ -2,10 +2,10 @@ package links
 
 import (
 	"context"
-	_ "embed"
+	"embed"
+	"io/fs"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -32,7 +32,7 @@ var (
 	_ plugin.Plugin       = (*Plugin)(nil)
 	_ plugin.Describer    = (*Plugin)(nil)
 	_ plugin.MenuProvider = (*Plugin)(nil)
-	_ plugin.HelpProvider = (*Plugin)(nil)
+	_ plugin.HelpDocsFS   = (*Plugin)(nil)
 )
 
 func New() *Plugin {
@@ -62,21 +62,14 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 	}
 }
 
-//go:embed docs.mdx
-var helpDocs string
+// docs is this plugin's documentation directory. Adding a page means adding
+// "docs/<slug>.mdx" (plus its "<slug>.zh.mdx" translation) — the file name is
+// the slug and the frontmatter carries the rest; see plugin.HelpDocsFS.
+//
+//go:embed docs
+var docs embed.FS
 
-//go:embed docs.zh.mdx
-var helpDocsZh string
-
-var parsedHelpDocs = sync.OnceValue(func() []plugin.HelpDoc {
-	return []plugin.HelpDoc{
-		plugin.ParseHelpDocSafe(helpDocs).WithTranslation("zh", helpDocsZh),
-	}
-})
-
-func (p *Plugin) HelpDocs() []plugin.HelpDoc {
-	return parsedHelpDocs()
-}
+func (p *Plugin) HelpDocsFS() fs.FS { return docs }
 
 func (p *Plugin) orgDB(r *http.Request) *gorm.DB {
 	return p.db.Where("owner_id = ?", p.auth.OrgID(r))
