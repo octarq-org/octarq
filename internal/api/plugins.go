@@ -108,16 +108,19 @@ type pluginMenuOut struct {
 // featureOut is one toggleable feature in the plugin manager. Plugins sharing a
 // group collapse into a single feature whose menus are the union of members'.
 type featureOut struct {
-	Key         string          `json:"key"`
-	Title       string          `json:"title"`
-	Description string          `json:"description"`
-	Icon        string          `json:"icon,omitempty"`
-	Category    string          `json:"category,omitempty"`
-	Tags        []string        `json:"tags,omitempty"`
-	Enabled     bool            `json:"enabled"`
-	Requires    []string        `json:"requires"`
-	RequiredBy  []string        `json:"requiredBy"`
-	Menus       []pluginMenuOut `json:"menus"`
+	Key         string   `json:"key"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Icon        string   `json:"icon,omitempty"`
+	Category    string   `json:"category,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+	Enabled     bool     `json:"enabled"`
+	// Core marks always-on plumbing. The row is listed but its switch is dead:
+	// updatePlugin answers 404 for a core key, so the UI renders it locked on.
+	Core       bool            `json:"core"`
+	Requires   []string        `json:"requires"`
+	RequiredBy []string        `json:"requiredBy"`
+	Menus      []pluginMenuOut `json:"menus"`
 }
 
 func (h *Handler) getFeatureDeps() (map[string]string, map[string][]string) {
@@ -148,10 +151,17 @@ func (h *Handler) getFeatureDeps() (map[string]string, map[string][]string) {
 	return nameToFeatureKey, requires
 }
 
-// listPlugins returns the toggleable features for the caller's workspace: every
-// non-core plugin, grouped by feature key, with its per-workspace enabled state
-// and the menu links it owns (so the UI can toggle it and the sidebar can hide
-// the right items). Core plumbing plugins are omitted — they're always on.
+// listPlugins returns the features visible to the caller's workspace, grouped by
+// feature key, with its per-workspace enabled state and the menu links it owns
+// (so the UI can toggle it and the sidebar can hide the right items).
+//
+// Core plumbing is listed too, flagged Core and always Enabled. It used to be
+// omitted — "they're always on, so there's nothing to toggle" — but absent and
+// off look identical from the plugin manager, and that is where someone goes to
+// answer "is this running?". A capability that never appears there reads as
+// disabled, which then makes its always-present help docs and menus look like a
+// gating leak. Listing it locked-on says the true thing instead. The write path
+// is unchanged: updatePlugin still 404s on a core key.
 // GET /api/plugins
 type ListPluginsInput struct {
 	Ctx huma.Context `hidden:"true"`
@@ -218,9 +228,7 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 	for _, p := range h.plugins {
 		info := plugin.Describe(p)
 		key := plugin.FeatureKey(p)
-		if plugin.FeatureIsCore(h.plugins, key) {
-			continue
-		}
+		isCore := plugin.FeatureIsCore(h.plugins, key)
 		f := byKey[key]
 		cat := info.Category
 		if cat != "" && !plugin.ValidCategories[cat] {
@@ -247,10 +255,14 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 				Icon:        info.Icon,
 				Category:    cat,
 				Tags:        info.Tags,
-				Enabled:     effectiveEnabled[key],
-				Requires:    fReqs,
-				RequiredBy:  fReqBy,
-				Menus:       []pluginMenuOut{},
+				// Core plumbing ignores the stored toggle entirely (pluginActive
+				// short-circuits before reading it), so report what is actually
+				// running rather than a row that may say otherwise.
+				Enabled:    isCore || effectiveEnabled[key],
+				Core:       isCore,
+				Requires:   fReqs,
+				RequiredBy: fReqBy,
+				Menus:      []pluginMenuOut{},
 			}
 			byKey[key] = f
 			order = append(order, key)
