@@ -1,55 +1,279 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
+import { LinkButton } from "../components/ui/link-button";
 import { config } from "virtual:nimbus/config";
 
-// Real entry points into the docs (replaces the scaffold Welcome/Getting-Started/
-// Components cards). Each targets a migrated page in the docs collection.
-const entries = [
-  { href: "/what-is-octarq/", title: "What is Octarq", blurb: "The one-binary pitch" },
-  { href: "/quickstart/", title: "Quickstart", blurb: "Run it in minutes" },
-  { href: "/writing-a-plugin/", title: "Writing a Plugin", blurb: "Extend in an afternoon" },
+// Most of the copy below came from src/content/docs/index.md, which nobody could
+// read: Nimbus mapped that entry to "/", the same route this file owns, and a
+// file under src/pages wins. So the docs collection carried the project's best
+// pitch — the PocketBase/Dub/n8n framing, the plugin roster, the MCP story — to a
+// URL that rendered this file instead, while this file offered three bare cards.
+// That entry is gone and its content lives here, where the route resolves.
+
+// The four capabilities in the default build. Each is a plugin.Plugin +
+// UIPlugin — the same seam a third-party plugin uses, which is the whole point,
+// so the wording stays concrete rather than promotional. href is optional: only
+// three of them have a dedicated page today, and a card linking to a 404 is
+// worse than a card that doesn't link.
+const bundled = [
+  {
+    icon: "🔗",
+    name: "Links",
+    href: "/core/short-links/",
+    blurb:
+      "Custom and random slugs, geo/device/OS/language routing, expiry and click limits, time-series analytics with bot detection, UTM builder, QR codes.",
+  },
+  {
+    icon: "✉️",
+    name: "Mail",
+    href: "/core/mailboxes/",
+    blurb:
+      "Inbound mail over Cloudflare Email Routing — no port 25, no spam daemons. Catch-all provisioning, a full read/reply/send client, raw .eml export.",
+  },
+  {
+    icon: "🌐",
+    name: "DNS",
+    href: "/core/dns/",
+    blurb:
+      "Cloudflare and DNSPod CRUD, subdomain presets for short-link and email auth (MX/SPF/DKIM), native comment mapping.",
+  },
+  {
+    icon: "🏢",
+    name: "Workspaces & RBAC",
+    blurb:
+      "Isolated multi-tenant orgs, server-enforced roles, invites and onboarding, hashed bearer API tokens.",
+  },
 ];
+
+// Where a reader goes next, by intent rather than by document order.
+const paths = [
+  {
+    href: "/quickstart/",
+    title: "Run it",
+    blurb: "Docker Compose or a single binary, in minutes.",
+  },
+  {
+    href: "/writing-a-plugin/",
+    title: "Extend it",
+    blurb: "A Go interface plus a React page is a new tool in your back office.",
+  },
+  {
+    href: "/architecture/overview/",
+    title: "Understand it",
+    blurb: "How the plugin seam, composition root and entitlements fit together.",
+  },
+];
+
+const cardClass =
+  "block rounded-lg border border-border bg-card p-5 no-underline transition-colors";
 ---
 
 <BaseLayout title={config.title} description={config.description}>
   <div class="flex flex-col min-h-screen">
-    <Header />
-    <main class="flex-1 mx-auto max-w-2xl w-full px-6 py-24">
-      <h1
-        class="text-foreground leading-tight"
-        style="font-size: var(--nb-h1-size); font-weight: var(--nb-h1-weight); letter-spacing: var(--nb-h1-tracking);"
-      >
-        {config.title}
-      </h1>
-      <p class="mt-2 text-[1.0625rem] text-muted-foreground leading-relaxed">
-        {config.description}
-      </p>
-      <p class="mt-4 text-[0.95rem] text-foreground leading-relaxed">
-        A single Go binary you extend with plugins — short links, custom-domain
-        email, and DNS as first-class plugins, each drivable by your AI agent
-        over <strong>MCP</strong>. Own the stack instead of paying three SaaS bills.
-      </p>
+    <Header showSidebar={false} />
 
-      <div class="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {
-          entries.map((e) => (
-            <a
-              href={e.href}
-              class="block rounded-lg border border-border p-4 transition-colors hover:border-border-strong no-underline"
-            >
-              <div class="font-medium text-foreground">{e.title}</div>
-              <div class="mt-0.5 text-sm text-muted-foreground">{e.blurb}</div>
-            </a>
-          ))
-        }
-      </div>
+    <main class="flex-1 w-full">
+      {/* Hero */}
+      <section class="mx-auto max-w-4xl w-full px-6 pt-20 pb-16">
+        <p
+          class="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground"
+        >
+          <span class="inline-block h-1.5 w-1.5 rounded-full bg-primary"></span>
+          Open source · Single Go binary · Agent-native
+        </p>
 
-      <p class="mt-8 text-sm text-muted-foreground">
-        Or browse the docs — <a href="/what-is-octarq/" class="text-foreground underline">Start</a>,
-        <a href="/core/short-links/" class="text-foreground underline">Core Features</a>, and
-        <a href="/architecture/overview/" class="text-foreground underline">Architecture</a>.
-      </p>
+        <h1
+          class="mt-6 text-foreground leading-[1.1]"
+          style="font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: var(--nb-h1-weight); letter-spacing: var(--nb-h1-tracking);"
+        >
+          The back office you own,<br />and extend in an afternoon.
+        </h1>
+
+        <p class="mt-5 max-w-2xl text-[1.0625rem] text-muted-foreground leading-relaxed">
+          Octarq is a self-hosted operations backend for indie hackers, one-person
+          companies and small AI-native teams. Short links, custom-domain email and
+          DNS ship as first-class plugins — then you add your own the same way the
+          core is built. Every capability is drivable by your AI agent over
+          <strong class="text-foreground font-medium">MCP</strong>.
+        </p>
+
+        <div class="mt-8 flex flex-wrap items-center gap-3">
+          <LinkButton href="/quickstart/" variant="primary">Get started</LinkButton>
+          <LinkButton href="/what-is-octarq/" variant="secondary">
+            Read the introduction
+          </LinkButton>
+          <LinkButton href="https://app.octarq.org" variant="minimal" icon>
+            Try Octarq Cloud
+          </LinkButton>
+        </div>
+
+        <div class="mt-10 rounded-xl border border-border bg-card overflow-hidden">
+          <div class="flex items-center gap-1.5 border-b border-border px-4 py-2.5">
+            <span class="h-2.5 w-2.5 rounded-full bg-muted-foreground/30"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-muted-foreground/30"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-muted-foreground/30"></span>
+            <span class="ml-2 text-xs text-muted-foreground">your server</span>
+          </div>
+          <pre
+            class="overflow-x-auto px-4 py-4 text-[0.8125rem] leading-relaxed"><code>git clone https://github.com/octarq-org/octarq.git && cd octarq
+cp .env.example .env          # set OCTARQ_SECRET_KEY and OCTARQ_ADMIN_PASSWORD
+docker compose up -d</code></pre>
+        </div>
+
+        <p class="mt-4 text-sm text-muted-foreground">
+          One binary. No CGO. SQLite by default. The dashboard is
+          <code>go:embed</code>'d. Extend without forking.
+        </p>
+      </section>
+
+      {/* Positioning */}
+      <section class="border-y border-border bg-surface-hover/20">
+        <div class="mx-auto max-w-4xl w-full px-6 py-14">
+          <h2 class="text-foreground text-xl font-semibold">
+            The intersection of three tools you already know
+          </h2>
+          <ul class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3 list-none pl-0">
+            <li class="rounded-lg border border-border bg-card p-4">
+              <div class="font-medium text-foreground">PocketBase</div>
+              <div class="mt-1 text-sm text-muted-foreground leading-relaxed">
+                Single binary, extend-in-an-afternoon developer experience.
+              </div>
+            </li>
+            <li class="rounded-lg border border-border bg-card p-4">
+              <div class="font-medium text-foreground">Dub</div>
+              <div class="mt-1 text-sm text-muted-foreground leading-relaxed">
+                Links, plus real domain, email and DNS infrastructure.
+              </div>
+            </li>
+            <li class="rounded-lg border border-border bg-card p-4">
+              <div class="font-medium text-foreground">n8n</div>
+              <div class="mt-1 text-sm text-muted-foreground leading-relaxed">
+                A plugin ecosystem for connectors — Telegram, webhooks, and more.
+              </div>
+            </li>
+          </ul>
+          <p class="mt-4 text-sm text-muted-foreground">
+            …with every capability agent-native over MCP.
+          </p>
+        </div>
+      </section>
+
+      {/* Bundled plugins */}
+      <section class="mx-auto max-w-4xl w-full px-6 py-16">
+        <h2 class="text-foreground text-xl font-semibold">Useful on minute one</h2>
+        <p class="mt-2 max-w-2xl text-[0.95rem] text-muted-foreground leading-relaxed">
+          These ship in the default build. Each is a <code>plugin.Plugin</code> +
+          <code>UIPlugin</code> — the exact seam your own plugins use, so the
+          bundled features double as reference implementations.
+        </p>
+
+        <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {
+            bundled.map((p) =>
+              p.href ? (
+                <a href={p.href} class={`${cardClass} hover:border-border-strong`}>
+                  <div class="flex items-center gap-2">
+                    <span aria-hidden="true">{p.icon}</span>
+                    <span class="font-medium text-foreground">{p.name}</span>
+                  </div>
+                  <p class="mt-2 text-sm text-muted-foreground leading-relaxed">
+                    {p.blurb}
+                  </p>
+                </a>
+              ) : (
+                <div class={cardClass}>
+                  <div class="flex items-center gap-2">
+                    <span aria-hidden="true">{p.icon}</span>
+                    <span class="font-medium text-foreground">{p.name}</span>
+                  </div>
+                  <p class="mt-2 text-sm text-muted-foreground leading-relaxed">
+                    {p.blurb}
+                  </p>
+                </div>
+              ),
+            )
+          }
+        </div>
+      </section>
+
+      {/* Agent-native */}
+      <section class="border-y border-border bg-surface-hover/20">
+        <div class="mx-auto max-w-4xl w-full px-6 py-14">
+          <h2 class="text-foreground text-xl font-semibold">Agent-native over MCP</h2>
+          <p class="mt-3 max-w-2xl text-[0.95rem] text-muted-foreground leading-relaxed">
+            Octarq ships a built-in MCP server (<code>octarq mcp</code>, over stdio
+            and SSE) so assistants like Claude Code can read and query your instance
+            — <code>list_links</code>, <code>list_mailboxes</code>,
+            <code>list_domains</code>, <code>export_data</code>, plus a guarded
+            read-only SQL tool (SELECT/WITH only, row-capped, secrets redacted).
+          </p>
+          <p class="mt-3 max-w-2xl text-[0.95rem] text-muted-foreground leading-relaxed">
+            A plugin implementing the optional <code>MCPProvider</code> interface
+            exposes its own tools to every connected agent, with no extra plumbing.
+            Write a plugin, and your agent can drive it.
+          </p>
+          <div class="mt-6">
+            <LinkButton href="/core/mcp/" variant="secondary">
+              How the MCP server works
+            </LinkButton>
+          </div>
+        </div>
+      </section>
+
+      {/* Next steps */}
+      <section class="mx-auto max-w-4xl w-full px-6 py-16">
+        <h2 class="text-foreground text-xl font-semibold">Where to go next</h2>
+        <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {
+            paths.map((e) => (
+              <a href={e.href} class={`${cardClass} hover:border-border-strong`}>
+                <div class="font-medium text-foreground">{e.title}</div>
+                <div class="mt-1.5 text-sm text-muted-foreground leading-relaxed">
+                  {e.blurb}
+                </div>
+              </a>
+            ))
+          }
+        </div>
+
+        <div
+          class="mt-10 rounded-xl border border-border bg-card p-6 sm:flex sm:items-center sm:justify-between sm:gap-6"
+        >
+          <div>
+            <div class="font-medium text-foreground">
+              Don't want to run it yourself?
+            </div>
+            <p class="mt-1 text-sm text-muted-foreground leading-relaxed">
+              Octarq Cloud is the same software, hosted and kept up to date. The
+              self-hosted build stays open source either way.
+            </p>
+          </div>
+          <div class="mt-4 sm:mt-0 shrink-0">
+            <LinkButton href="https://app.octarq.org" variant="primary">
+              Open Octarq Cloud
+            </LinkButton>
+          </div>
+        </div>
+      </section>
     </main>
+
+    <footer class="border-t border-border">
+      <div
+        class="mx-auto max-w-4xl w-full px-6 py-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground"
+      >
+        <a href="/quickstart/" class="hover:text-foreground no-underline">Docs</a>
+        <a
+          href="https://github.com/octarq-org/octarq"
+          class="hover:text-foreground no-underline">GitHub</a
+        >
+        <a
+          href="https://github.com/octarq-org/octarq-plugins"
+          class="hover:text-foreground no-underline">Plugins</a
+        >
+        <a href="https://octarq.org" class="hover:text-foreground no-underline">Website</a>
+        <a href="https://app.octarq.org" class="hover:text-foreground no-underline">Cloud</a>
+      </div>
+    </footer>
   </div>
 </BaseLayout>
