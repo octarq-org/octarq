@@ -61,19 +61,11 @@ jobs:
   web:
     name: Frontend build
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # auto-commit webembed/dist on main
     defaults:
       run:
         working-directory: web
     steps:
-      # On a pull_request the default checkout is a detached merge commit, which
-      # the dist auto-commit below has no branch to push back to. Check out the
-      # PR's own branch instead; on push events head_ref is empty and this falls
-      # back to the pushed ref.
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -124,28 +116,67 @@ jobs:
       - name: Build dashboard
         run: pnpm build
 
-      # webembed/dist must stay committed: octarq-pro consumes octarq as a Go module
-      # and gets the embedded dashboard from the module zip. CI keeps it fresh so
-      # nobody has to build and commit dist locally.
-      #
-      # This refreshes it on the PR branch, not on main. The original reason was
-      # that main was protected and required status checks a bare push cannot
-      # have, so every such push was rejected with GH006 and main's CI went red
-      # on every merge from 2026-07-28 on — and worse than the red X, dist
-      # silently stopped being refreshed, so octarq-pro shipped a dashboard two
-      # days older than main.
-      #
-      # That protection has since been removed (as of 2026-07-29 main has no
-      # branch protection rule and no ruleset), so the GH006 rejection no longer
-      # applies. Keep doing it on the branch anyway: the merge then carries a
-      # current dist through the normal PR path, with nothing bypassing review,
-      # and it does not depend on main's protection settings either way.
-      #
-      # Commits made with GITHUB_TOKEN don't retrigger workflows, so this can't
-      # loop, and the check that already passed stays passed.
-      - name: Commit refreshed webembed/dist (PR branches)
-        if: github.event_name == 'pull_request'
-        uses: stefanzweifel/git-auto-commit-action@v5
+  # webembed/dist must stay committed: octarq-pro consumes octarq as a Go module
+  # and gets the embedded dashboard from the module zip. CI keeps it fresh so
+  # nobody has to build and commit dist locally.
+  #
+  # This used to run on the PR branch, committing a fresh dist onto the head of
+  # every PR that touched web/. That bot-authored push became the new head, and
+  # GitHub gates workflow runs on bot pushes: the run stopped at
+  # `action_required` and the PR read as unchecked until a human approved it.
+  # Every frontend PR needed that click, on a commit nobody reviews anyway.
+  #
+  # So the refresh moved behind the merge. On a push to main, this rebuilds the
+  # dashboard and — only if the output actually differs — opens a PR with just
+  # webembed/dist. Merging that PR is the one manual step, and it replaces a
+  # manual approval that had to happen on every frontend PR.
+  #
+  # The dist PR itself carries no checks: PRs opened with GITHUB_TOKEN don't
+  # trigger workflows. That is the same restriction as before, but harmless
+  # here — the source it was built from already passed CI on this very commit.
+  dist:
+    name: Refresh embedded dashboard
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [go, web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
         with:
-          commit_message: "chore(web): refresh embedded dashboard build [auto]"
-          file_pattern: webembed/dist
+          version: 9.15.4 # keep in sync with web/package.json "packageManager"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - run: pnpm install --no-frozen-lockfile
+        working-directory: web
+
+      - run: pnpm build
+        working-directory: web
+
+      - name: Open a PR if dist changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          add-paths: webembed/dist
+          branch: chore/refresh-embedded-dashboard
+          # Reuse one branch: a second merge before the first dist PR lands
+          # updates that PR rather than opening a competing one.
+          commit-message: "chore(web): refresh embedded dashboard build [auto]"
+          title: "chore(web): refresh embedded dashboard build"
+          body: |
+            The dashboard bundle in `webembed/dist` no longer matches `web/`.
+
+            octarq-pro consumes octarq as a Go module and gets the embedded
+            dashboard from the module zip, so dist has to stay committed and
+            current. This was built from ${{ github.sha }}, which already
+            passed CI.
+
+            Nothing here is hand-written — merge it as-is, or close it if a
+            newer merge is about to supersede it.
