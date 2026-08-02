@@ -100,11 +100,10 @@ The committed pro dist means `go build`/Docker embed it with no cross-repo front
 
 ## 7. Publishing the SDK
 
-`@octarq/plugin-sdk` → **GitHub Packages** via changesets:
+`@octarq/plugin-sdk` → **npmjs** via changesets:
 - Root `pnpm-workspace.yaml` (`packages/*`), `.changeset/`, `.github/workflows/publish-sdk.yml`.
-- Package `publishConfig` → `npm.pkg.github.com`, scope `@octarq-org` (= GitHub org).
-- Consumer `.npmrc`: `@octarq-org:registry=https://npm.pkg.github.com`. See [Publishing Guide](/guides/publishing/).
-- Published (octarq-pro's plugin packages consume `@octarq/plugin-sdk` from GitHub Packages).
+- Package `publishConfig` → `registry.npmjs.org`, scope `@octarq` (public).
+- Community plugin authors can install it directly without authentication (`pnpm add @octarq/plugin-sdk`). Pro private packages (`@octarq-org/*`) remain on GitHub Packages. See [Publishing Guide](/guides/publishing/).
 
 ## 8. File map
 

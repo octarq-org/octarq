@@ -41,16 +41,8 @@ OCTARQ_PORT=8080
 
 ## 3. Consuming `@octarq/plugin-sdk`
 
-If you are developing plugins or extensions, configure `@octarq-org` in your consumer project's `.npmrc`:
-
-```ini
-@octarq-org:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-Set your token and install dependencies:
+If you are developing plugins or extensions, install `@octarq/plugin-sdk` directly from npm:
 
 ```bash
-export GITHUB_TOKEN=ghp_xxx
-pnpm install
+pnpm add @octarq/plugin-sdk
 ```

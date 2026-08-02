@@ -8,7 +8,7 @@ sidebar:
 ---
 
 
-The frontend plugin SDK is published from `packages/plugin-sdk/` using [Changesets](https://github.com/changesets/changesets). The default registry is **GitHub Packages** (private, org-scoped `@octarq-org`).
+The frontend plugin SDK is published from `packages/plugin-sdk/` using [Changesets](https://github.com/changesets/changesets) to **npmjs** (public, scope `@octarq`).
 
 ---
 
@@ -49,7 +49,7 @@ The `packages/plugin-sdk/package.json` file requires specific fields to successf
 ```json
 {
   "name": "@octarq/plugin-sdk",
-  "version": "0.0.0",
+  "version": "0.8.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -57,44 +57,38 @@ The `packages/plugin-sdk/package.json` file requires specific fields to successf
     "directory": "packages/plugin-sdk"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
   }
 }
 ```
 
-- **`publishConfig.registry`**: Directs `pnpm publish` to publish to GitHub Packages.
-- **`publishConfig.access`**: Marked `restricted` to keep it private within the organization.
+- **`publishConfig.registry`**: Directs `pnpm publish` to publish to npmjs (`https://registry.npmjs.org`).
+- **`publishConfig.access`**: Marked `public` so any plugin author can install it without authentication.
 
 ---
 
 ## 3. Consuming `@octarq/plugin-sdk`
 
-To consume `@octarq/plugin-sdk` from GitHub Packages, target projects must define a `.npmrc` file:
+Because `@octarq/plugin-sdk` is published publicly on npmjs, plugin authors can install it directly without configuring `.npmrc` or authentication:
+
+```bash
+pnpm add @octarq/plugin-sdk
+```
+
+---
+
+## 4. Pro Private Packages (GitHub Packages)
+
+Internal commercial packages (such as `@octarq-org/plugin-issuer` and `@octarq-org/api-client`) are published to **GitHub Packages** under the `@octarq-org` scope.
+
+Consumer projects that depend on Pro private packages require a `.npmrc` file:
 
 ```ini
 @octarq-org:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
-- The first line scopes `@octarq-org/*` package installations to GitHub Packages.
-- The second line provides authentication using a `GITHUB_TOKEN` environment variable. Set it before running installations:
+- The first line routes `@octarq-org/*` packages to GitHub Packages.
+- The second line provides authentication via `GITHUB_TOKEN`.
 
-```bash
-export GITHUB_TOKEN=your_personal_access_token
-pnpm install
-```
-
----
-
-## 4. Switching to Public npm
-
-To distribute the SDK on the public npm registry:
-
-1. Update `.changeset/config.json`: set `"access": "public"`.
-2. Update `packages/plugin-sdk/package.json` `publishConfig`:
-   ```json
-   "publishConfig": { "registry": "https://registry.npmjs.org", "access": "public" }
-   ```
-3. Update the publish workflow to point to `https://registry.npmjs.org` and provide an npm token (e.g. `NPM_TOKEN`) as `NODE_AUTH_TOKEN`.
-4. Consumer projects can then remove the custom scope redirection from their `.npmrc` files.

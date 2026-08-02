@@ -15,21 +15,21 @@ Explore official and reference plugins available for Octarq from the [octarq-plu
 ### 1. 🤖 Telegram (`octarq-plugin-telegram`)
 - **Category**: Integration / Notifications
 - **Description**: Connects your Octarq instance with Telegram bots. Send instant notification alerts, receive system status updates, and trigger automated tasks directly from Telegram chat commands.
-- **Repository**: [octarq-org/octarq-plugin-telegram](https://github.com/octarq-org/octarq-plugins)
+- **Repository**: [octarq-org/octarq-plugins/tree/main/telegram](https://github.com/octarq-org/octarq-plugins/tree/main/telegram)
 
 ---
 
 ### 2. 🪝 Webhook (`octarq-plugin-webhook`)
 - **Category**: Integration / Webhooks
 - **Description**: Outbound webhook delivery system for event-driven workflows. Features exponential backoff retries, secret signature verification (HMAC-SHA256), payload customization, and event filtering.
-- **Repository**: [octarq-org/octarq-plugin-webhook](https://github.com/octarq-org/octarq-plugins)
+- **Repository**: [octarq-org/octarq-plugins/tree/main/webhook](https://github.com/octarq-org/octarq-plugins/tree/main/webhook)
 
 ---
 
 ### 3. ✉️ Mail Links (`octarq-plugin-maillink`)
 - **Category**: Agent-Native / Automation
 - **Description**: An agent-native reference plugin that intercepts incoming OTP and magic link emails via `OnEmail` hooks, automatically generates short links using Octarq's links service, and exposes them as tools over the MCP server for Claude Code and Cursor to consume.
-- **Repository**: [octarq-org/octarq-plugins](https://github.com/octarq-org/octarq-plugins)
+- **Repository**: [octarq-org/octarq-plugins/tree/main/maillink](https://github.com/octarq-org/octarq-plugins/tree/main/maillink)
 
 ---
 
