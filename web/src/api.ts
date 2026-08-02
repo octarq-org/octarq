@@ -115,13 +115,17 @@ export interface ApiToken {
   createdAt: string;
 }
 
+export interface HelpCategory {
+  key: string;
+  order: number;
+  icon: string;
+  labels: Record<string, string>;
+}
+
 export interface HelpDocMeta {
   slug: string;
   title: string;
-  scope?: string;
-  category?: string;
-  group: string;
-  groupOrder?: number;
+  category: string;
   order: number;
 }
 
@@ -448,6 +452,7 @@ export const api = {
   purgeWorkspaceData: () => req<void>("DELETE", "/api/account/data"),
 
   // Help
+  helpCategories: () => req<HelpCategory[]>("GET", "/api/help/categories"),
   helpIndex: (lang?: string) => req<HelpDocMeta[]>("GET", lang ? `/api/help/docs?lang=${encodeURIComponent(lang)}` : "/api/help/docs", undefined, lang),
   helpPage: (slug: string, lang?: string) => req<HelpDocContent>("GET", lang ? `/api/help/docs/${encodeURIComponent(slug)}?lang=${encodeURIComponent(lang)}` : `/api/help/docs/${encodeURIComponent(slug)}`, undefined, lang),
 };

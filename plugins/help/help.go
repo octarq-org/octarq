@@ -7,6 +7,7 @@ import (
 	"log"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -61,13 +62,10 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 }
 
 type DocMeta struct {
-	Slug       string `json:"slug"`
-	Title      string `json:"title"`
-	Scope      string `json:"scope"`
-	Category   string `json:"category"`
-	Group      string `json:"group"`
-	GroupOrder int    `json:"groupOrder"`
-	Order      int    `json:"order"`
+	Slug     string `json:"slug"`
+	Title    string `json:"title"`
+	Category string `json:"category"`
+	Order    int    `json:"order"`
 }
 
 type ListDocsInput struct {
@@ -98,16 +96,30 @@ func (p *Plugin) listDocs(ctx context.Context, input *ListDocsInput) (*ListDocsO
 	out := make([]DocMeta, 0, len(allDocs))
 	for _, d := range allDocs {
 		out = append(out, DocMeta{
-			Slug:       d.Slug,
-			Title:      d.Title,
-			Scope:      d.Scope,
-			Category:   d.Category,
-			Group:      d.Group,
-			GroupOrder: d.GroupOrder,
-			Order:      d.Order,
+			Slug:     d.Slug,
+			Title:    d.Title,
+			Category: d.Category,
+			Order:    d.Order,
 		})
 	}
 	return &ListDocsOutput{Body: out}, nil
+}
+
+type ListCategoriesInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *ListCategoriesInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListCategoriesOutput struct {
+	Body []plugin.HelpCategory
+}
+
+func (p *Plugin) listCategories(ctx context.Context, input *ListCategoriesInput) (*ListCategoriesOutput, error) {
+	return &ListCategoriesOutput{Body: plugin.HelpCategories()}, nil
 }
 
 type GetDocInput struct {
@@ -192,18 +204,27 @@ func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
 				slugs[d.Slug] = pl.Name()
 
 				if lang != "" {
-					for k, tr := range d.Translations {
-						if strings.HasPrefix(lang, k) {
-							if tr.Title != "" {
-								d.Title = tr.Title
-							}
-							if tr.Group != "" {
-								d.Group = tr.Group
-							}
-							if tr.Markdown != "" {
-								d.Markdown = tr.Markdown
-							}
-							break
+					// Deterministic lang matching: exact match first, then primary language subtag (e.g. "zh-CN" -> "zh")
+					var matchedKey string
+					if _, ok := d.Translations[lang]; ok {
+						matchedKey = lang
+					} else if idx := strings.Index(lang, "-"); idx != -1 {
+						subtag := lang[:idx]
+						if _, ok := d.Translations[subtag]; ok {
+							matchedKey = subtag
+						}
+					}
+
+					if matchedKey != "" {
+						tr := d.Translations[matchedKey]
+						if tr.Title != "" {
+							d.Title = tr.Title
+						}
+						if tr.Category != "" {
+							d.Category = tr.Category
+						}
+						if tr.Markdown != "" {
+							d.Markdown = tr.Markdown
 						}
 					}
 				}
@@ -214,22 +235,20 @@ func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
 	}
 
 	sort.Slice(docs, func(i, j int) bool {
-		if docs[i].Order != docs[j].Order {
-			return docs[i].Order < docs[j].Order
-		}
-		if docs[i].GroupOrder != docs[j].GroupOrder {
-			return docs[i].GroupOrder < docs[j].GroupOrder
-		}
-		return docs[i].Title < docs[j].Title
+		return plugin.CompareHelpDocs(docs[i], docs[j])
 	})
 
 	return docs
 }
 
-func (p *Plugin) HelpDocs() []plugin.HelpDoc {
+var parsedHelpDocs = sync.OnceValue(func() []plugin.HelpDoc {
 	return []plugin.HelpDoc{
-		plugin.MustParseHelpDoc(gettingStartedEnDocs).WithTranslation("zh", gettingStartedZhDocs),
+		plugin.ParseHelpDocSafe(gettingStartedEnDocs).WithTranslation("zh", gettingStartedZhDocs),
 	}
+})
+
+func (p *Plugin) HelpDocs() []plugin.HelpDoc {
+	return parsedHelpDocs()
 }
 
 func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
@@ -241,6 +260,13 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		Summary:     "List help docs",
 		Tags:        []string{"Help"},
 	}, p.listDocs)
+	huma.Register(ctx.Huma, huma.Operation{
+		OperationID: "listHelpCategories",
+		Method:      "GET",
+		Path:        "/api/help/categories",
+		Summary:     "List help categories",
+		Tags:        []string{"Help"},
+	}, p.listCategories)
 	huma.Register(ctx.Huma, huma.Operation{
 		OperationID: "getHelpDoc",
 		Method:      "GET",

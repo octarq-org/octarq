@@ -1,8 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { api } from "../../../api";
+import { api, HelpCategory, HelpDocMeta } from "../../../api";
 import { useTranslation } from "../../../i18n";
-import { toast } from "../../../ui";
 import {
   BookOpen,
   ChevronRight,
@@ -13,20 +12,7 @@ import {
   AlertTriangle,
   Clock,
   Share2,
-  Sparkles,
-  ThumbsUp,
-  ThumbsDown,
 } from "lucide-react";
-
-interface DocMeta {
-  slug: string;
-  title: string;
-  scope?: string;
-  category?: string;
-  group: string;
-  groupOrder?: number;
-  order: number;
-}
 
 interface DocContent {
   title: string;
@@ -44,18 +30,18 @@ export default function HelpViewer() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Extract current slug from pathname: e.g. /help/plugins/dns/ddns or /admin/help/plugins/dns/ddns -> "ddns"
+  // Extract current slug from pathname: e.g. /help/services/ddns or /admin/help/services/ddns -> "ddns"
   const currentSlug = useMemo(() => {
     const normPath = location.pathname.startsWith("/admin/help")
       ? location.pathname.replace(/^\/admin\/help/, "/help")
       : location.pathname;
     const parts = normPath.split("/").filter(Boolean);
-    if (parts.length >= 4) return parts[3]; // /help/scope/category/slug
+    if (parts.length >= 3) return parts[2]; // /help/category/slug
     if (parts.length > 1) return parts[parts.length - 1];
     return "";
   }, [location.pathname]);
 
-  const [docs, setDocs] = useState<DocMeta[]>([]);
+  const [docs, setDocs] = useState<HelpDocMeta[]>([]);
   const [_loadingDocs, setLoadingDocs] = useState(true);
 
   const [content, setContent] = useState<DocContent | null>(null);
@@ -66,21 +52,13 @@ export default function HelpViewer() {
 
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Helper to build doc URL
-  const getDocUrl = (d: DocMeta) => {
-    const scope = (
-      d.scope ||
-      (d.group === "Core" || d.group === "Platform"
-        ? "platform"
-        : d.group === "Portal"
-        ? "portal"
-        : "plugins")
-    ).toLowerCase();
-    const category = (d.category || d.group || "general").toLowerCase();
+  // Helper to build doc URL: /help/{category}/{slug}
+  const getDocUrl = (d: HelpDocMeta) => {
+    const category = (d.category || "services").toLowerCase();
     const prefix = location.pathname.startsWith("/admin/help")
       ? "/admin/help"
       : "/help";
-    return `${prefix}/${scope}/${category}/${d.slug}`;
+    return `${prefix}/${category}/${d.slug}`;
   };
 
   // Fetch doc index & handle default redirect
@@ -88,24 +66,12 @@ export default function HelpViewer() {
     api
       .helpIndex(lang)
       .then((res) => {
-        const list: DocMeta[] = Array.isArray(res) ? res : (res as any)?.body || [];
-        const sortedList = [...list].sort((a, b) => {
-          const groupOrderA = a.groupOrder ?? 999;
-          const groupOrderB = b.groupOrder ?? 999;
-          if (groupOrderA !== groupOrderB) return groupOrderA - groupOrderB;
-
-          const orderA = a.order ?? 999;
-          const orderB = b.order ?? 999;
-          if (orderA !== orderB) return orderA - orderB;
-
-          return (a.title || "").localeCompare(b.title || "");
-        });
-
-        setDocs(sortedList);
-        if (!currentSlug && sortedList.length > 0) {
-          navigate(getDocUrl(sortedList[0]), { replace: true });
-        } else if (currentSlug && sortedList.length > 0) {
-          const matched = sortedList.find((d) => d.slug === currentSlug);
+        const list: HelpDocMeta[] = Array.isArray(res) ? res : (res as any)?.body || [];
+        setDocs(list);
+        if (!currentSlug && list.length > 0) {
+          navigate(getDocUrl(list[0]), { replace: true });
+        } else if (currentSlug && list.length > 0) {
+          const matched = list.find((d) => d.slug === currentSlug);
           if (matched) {
             const canonicalUrl = getDocUrl(matched);
             if (location.pathname !== canonicalUrl) {
@@ -113,7 +79,7 @@ export default function HelpViewer() {
             }
           } else {
             // Slug not found in active doc index -> redirect to default first doc
-            navigate(getDocUrl(sortedList[0]), { replace: true });
+            navigate(getDocUrl(list[0]), { replace: true });
           }
         }
       })
@@ -214,38 +180,32 @@ export default function HelpViewer() {
       wrapper.appendChild(pre);
     });
 
-    // Style blockquotes as GFM callouts / alert cards
+    // Style blockquotes as GFM callouts / alert cards based strictly on [!TYPE] tag at the start
     const blockquotes = contentRef.current.querySelectorAll("blockquote");
     blockquotes.forEach((bq) => {
       if (bq.dataset.enhanced) return;
       bq.dataset.enhanced = "true";
-      const text = bq.textContent || "";
+      const text = (bq.textContent || "").trim();
 
       let type: "tip" | "warning" | "important" | "note" | null = null;
       let label = "";
 
-      if (text.includes("[!TIP]") || text.includes("TIP") || text.includes("提示")) {
-        type = "tip";
-        label = `💡 ${t("help.callout_tip", "提示")}`;
-      } else if (
-        text.includes("[!WARNING]") ||
-        text.includes("[!CAUTION]") ||
-        text.includes("WARNING") ||
-        text.includes("警告") ||
-        text.includes("CAUTION")
-      ) {
-        type = "warning";
-        label = `⚠️ ${t("help.callout_warning", "警告")}`;
-      } else if (
-        text.includes("[!IMPORTANT]") ||
-        text.includes("IMPORTANT") ||
-        text.includes("注意")
-      ) {
-        type = "important";
-        label = `🚨 ${t("help.callout_important", "注意")}`;
-      } else if (text.includes("[!NOTE]") || text.includes("NOTE") || text.includes("说明")) {
-        type = "note";
-        label = `ℹ️ ${t("help.callout_note", "说明")}`;
+      const match = text.match(/^\[!(TIP|WARNING|CAUTION|IMPORTANT|NOTE)\]/i);
+      if (match) {
+        const tag = match[1].toUpperCase();
+        if (tag === "TIP") {
+          type = "tip";
+          label = `💡 ${t("help.callout_tip", "提示")}`;
+        } else if (tag === "WARNING" || tag === "CAUTION") {
+          type = "warning";
+          label = `⚠️ ${t("help.callout_warning", "警告")}`;
+        } else if (tag === "IMPORTANT") {
+          type = "important";
+          label = `🚨 ${t("help.callout_important", "注意")}`;
+        } else if (tag === "NOTE") {
+          type = "note";
+          label = `ℹ️ ${t("help.callout_note", "说明")}`;
+        }
       }
 
       if (type) {
@@ -254,7 +214,7 @@ export default function HelpViewer() {
         bq.innerHTML = `<div class="callout-title">${label}</div><div>${html}</div>`;
       }
     });
-  }, [content?.html]);
+  }, [content?.html, t]);
 
   // Extract Table of Contents from HTML content
   const toc = useMemo(() => {
@@ -283,26 +243,32 @@ export default function HelpViewer() {
     };
   }, [docs, currentSlug]);
 
+  const [categories, setCategories] = useState<HelpCategory[]>([]);
+  useEffect(() => {
+    api.helpCategories().then(setCategories).catch(() => {});
+  }, []);
+
   const currentDocMeta = useMemo(() => {
     return docs.find((d) => d.slug === currentSlug);
   }, [docs, currentSlug]);
+
+  const categoryObj = useMemo(() => {
+    if (!currentDocMeta) return null;
+    return categories.find((c) => c.key === currentDocMeta.category);
+  }, [categories, currentDocMeta]);
+
+  const readTimeMinutes = useMemo(() => {
+    if (!content?.html) return 1;
+    const text = content.html.replace(/<[^>]*>/g, " ");
+    const words = text.trim().split(/\s+/).filter(Boolean).length;
+    return Math.max(1, Math.ceil(words / 200));
+  }, [content?.html]);
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
   };
-
-  const isPlatformCore =
-    currentDocMeta?.group === "Core" || currentDocMeta?.group === "Platform";
-  const groupLabel = currentDocMeta
-    ? isPlatformCore
-      ? t("help.platform_title", "平台能力")
-      : `${t("help.plugin_title", "插件能力")} / ${t(
-          `help.group.${currentDocMeta.group}`,
-          currentDocMeta.group,
-        )}`
-    : "";
 
   return (
     <div className="h-full flex flex-col bg-background text-foreground overflow-hidden">
@@ -319,15 +285,13 @@ export default function HelpViewer() {
           {currentDocMeta && (
             <>
               <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
-              <span
-                className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
-                  isPlatformCore
-                    ? "bg-primary/10 text-primary border-primary/20"
-                    : "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
-                }`}
-              >
-                {groupLabel}
-              </span>
+              {categoryObj && (
+                <span
+                  className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-primary/10 text-primary border-primary/20"
+                >
+                  {categoryObj.labels[lang] || categoryObj.labels["en"] || categoryObj.key}
+                </span>
+              )}
               <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
               <span className="font-bold text-foreground truncate max-w-xs sm:max-w-sm">
                 {currentDocMeta.title}
@@ -379,21 +343,19 @@ export default function HelpViewer() {
                   {/* Document Title & Meta Header */}
                   <div className="space-y-4 border-b border-border/50 pb-6 mb-8">
                     <div className="flex flex-wrap items-center justify-between gap-4">
-                      <span
-                        className={`text-xs font-bold px-3 py-1 rounded-full border shadow-2xs flex items-center gap-1.5 ${
-                          isPlatformCore
-                            ? "bg-primary/10 text-primary border-primary/20"
-                            : "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20"
-                        }`}
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-current inline-block" />
-                        {groupLabel}
-                      </span>
+                      {categoryObj && (
+                        <span
+                          className="text-xs font-bold px-3 py-1 rounded-full border shadow-2xs flex items-center gap-1.5 bg-primary/10 text-primary border-primary/20"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-current inline-block" />
+                          {categoryObj.labels[lang] || categoryObj.labels["en"] || categoryObj.key}
+                        </span>
+                      )}
 
                       <div className="flex items-center gap-3 text-xs text-muted-foreground/80 font-medium">
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-primary" />
-                          <span>3 {t("help.read_time", "分钟阅读")}</span>
+                          <span>{readTimeMinutes} {t("help.read_time", "分钟阅读")}</span>
                         </div>
                         <span>•</span>
                         <span>
@@ -413,43 +375,6 @@ export default function HelpViewer() {
                     className="markdown-body"
                     dangerouslySetInnerHTML={{ __html: content.html }}
                   />
-
-                  {/* Feedback Rating Section */}
-                  <div className="mt-12 pt-6 border-t border-border/40 flex flex-wrap items-center justify-between gap-4 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-primary shrink-0" />
-                      <span className="font-medium">
-                        {t("help.feedback_title", "这份文档对您有帮助吗？")}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() =>
-                          toast.success(
-                            t("help.feedback_thanks", "感谢您的反馈！"),
-                          )
-                        }
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/80 bg-background hover:bg-surface-hover hover:text-foreground transition-all shadow-2xs font-medium"
-                      >
-                        <ThumbsUp className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span>{t("help.helpful", "有帮助")}</span>
-                      </button>
-                      <button
-                        onClick={() =>
-                          toast.success(
-                            t(
-                              "help.feedback_thanks",
-                              "感谢您的反馈，我们会持续优化！",
-                            ),
-                          )
-                        }
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/80 bg-background hover:bg-surface-hover hover:text-foreground transition-all shadow-2xs font-medium"
-                      >
-                        <ThumbsDown className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span>{t("help.unhelpful", "需改进")}</span>
-                      </button>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Bottom Pagination Controls */}

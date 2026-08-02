@@ -170,36 +170,6 @@ export function AreaPanel({
               )}
             <div className="space-y-0.5">
               {group.items.map((item) => {
-                if (item.children && item.children.length > 0 && !collapsed) {
-                  return (
-                    <div key={item.id} className="space-y-1 my-1.5">
-                      <div className="px-2.5 py-1 text-[11px] font-bold text-foreground/80 uppercase tracking-wider flex items-center gap-2 mt-1">
-                        <item.Icon className="w-3.5 h-3.5 text-primary shrink-0" strokeWidth={2} />
-                        <span className="truncate">{translateNavItemLabel(t, item.id, item.label)}</span>
-                      </div>
-                      <div className="space-y-0.5 pl-2.5 border-l-2 border-border/40 ml-4">
-                        {item.children.map((child) => {
-                          const childActive = currentPath === child.path || (child.path !== "/" && currentPath.endsWith(child.path.split("/").pop() || ""));
-                          return (
-                            <NavLink
-                              key={child.id}
-                              to={child.path}
-                              onClick={onNavigate}
-                              className={`group relative flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-all ${
-                                childActive
-                                  ? "font-bold text-primary bg-primary/15 -ml-[2px] border-l-2 border-primary shadow-2xs"
-                                  : "text-muted-foreground hover:text-foreground hover:bg-surface-hover/70"
-                              }`}
-                            >
-                              <span className="truncate">{translateNavItemLabel(t, child.id, child.label)}</span>
-                            </NavLink>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                }
-
                 const active = item.path.includes("?")
                   ? currentPath === item.path
                   : (item.path !== "/" && currentPath.startsWith(item.path));
@@ -272,7 +242,9 @@ export function AreaPanel({
       </div>
 
       {/* ── Footer: octarq resources + collapse toggle ──
-          Primary in-app Help entry placed directly above the collapse toggle. */}
+          These are octarq's OWN links (help, docs, about, source), kept in the
+          always-available footer and strictly apart from the org's business
+          nav above. Plugin footer-placement items (footerItems) list first. */}
       <div className={cn("border-t border-border", collapsed ? "space-y-1 p-2" : "space-y-0.5 px-3 py-2")}>
         <NavLink
           to="/help"
@@ -290,6 +262,67 @@ export function AreaPanel({
           <BookOpen className="h-[18px] w-[18px] shrink-0 text-primary" strokeWidth={1.75} />
           {!collapsed && <span className="truncate">{t("areas.help.title", "使用指南")}</span>}
         </NavLink>
+
+        <Menu.Root>
+          <Menu.Trigger
+            aria-label={t("footer.help", "Help & resources")}
+            title={collapsed ? t("footer.help", "Help & resources") : undefined}
+            className={cn(
+              "flex items-center rounded-xl text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground data-[popup-open]:bg-surface-hover data-[popup-open]:text-foreground",
+              collapsed ? "mx-auto h-10 w-10 justify-center" : "h-9 w-full gap-2 px-2.5 text-[13px] font-medium",
+            )}
+          >
+            <HelpCircle className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            {!collapsed && <span>{t("footer.help", "Help & resources")}</span>}
+          </Menu.Trigger>
+          <Menu.Portal>
+            <Menu.Positioner side={collapsed ? "right" : "top"} align="start" sideOffset={8} className="z-50 outline-none">
+              <Menu.Popup className={cn(MENU_POPUP, "w-60")}>
+                {footerItems && footerItems.length > 0 && (
+                  <>
+                    {footerItems.map((it) => (
+                      <Menu.Item
+                        key={it.id}
+                        render={<NavLink to={it.path} />}
+                        onClick={onNavigate}
+                        className={MENU_ITEM}
+                      >
+                        {it.iconStr ? (
+                          <span className="w-4 text-center text-sm">{it.iconStr}</span>
+                        ) : (
+                          <it.Icon className="h-4 w-4" strokeWidth={1.75} />
+                        )}
+                        <span className="flex-1 truncate">{it.label}</span>
+                      </Menu.Item>
+                    ))}
+                    <Menu.Separator className="my-1 h-px bg-border" />
+                  </>
+                )}
+                <div className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">octarq</div>
+                <Menu.Item render={<a href={RESOURCES.docs} target="_blank" rel="noreferrer" />} className={MENU_ITEM}>
+                  <BookOpen className="h-4 w-4" strokeWidth={1.75} />
+                  <span className="flex-1">{t("footer.docs", "Documentation")}</span>
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                </Menu.Item>
+                <Menu.Item render={<a href={RESOURCES.about} target="_blank" rel="noreferrer" />} className={MENU_ITEM}>
+                  <Info className="h-4 w-4" strokeWidth={1.75} />
+                  <span className="flex-1">{t("footer.about", "About Octarq")}</span>
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                </Menu.Item>
+                <Menu.Item render={<a href={RESOURCES.github} target="_blank" rel="noreferrer" />} className={MENU_ITEM}>
+                  <GithubIcon className="h-4 w-4" />
+                  <span className="flex-1">{t("footer.github", "GitHub")}</span>
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                </Menu.Item>
+                <Menu.Item render={<a href={RESOURCES.contact} target="_blank" rel="noreferrer" />} className={MENU_ITEM}>
+                  <MessageCircle className="h-4 w-4" strokeWidth={1.75} />
+                  <span className="flex-1">{t("footer.contact", "Contact")}</span>
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                </Menu.Item>
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
 
         <button
           onClick={onToggle}

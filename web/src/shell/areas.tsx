@@ -46,7 +46,6 @@ export interface NavItem {
   iconStr?: string;
   path: string;
   badge?: string | number;
-  children?: NavItem[];
 }
 
 export interface NavGroup {

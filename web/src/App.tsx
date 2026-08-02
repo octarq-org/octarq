@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { BookOpen, Bot, Boxes, FileText, Globe, Link2, Mail, Send, Server, Shield, Sparkles } from "lucide-react";
-import { api, MenuItem, Org, PluginInfo } from "./api";
+import { api, HelpCategory, HelpDocMeta, MenuItem, Org, PluginInfo } from "./api";
 import { BrandMark } from "./shell/BrandMark";
 // Route-level code splitting: each top-level page ships as its own chunk,
 // loaded on first navigation behind the Suspense boundary below.
@@ -499,119 +499,58 @@ function Shell({
       .catch(() => {});
   }, [activeOrgId, lang]);
 
+  // Help categories fetched from backend (single source of truth for categories & titles & icons)
+  const [helpCategories, setHelpCategories] = useState<HelpCategory[]>([]);
+  useEffect(() => {
+    api.helpCategories().then(setHelpCategories).catch(() => {});
+  }, []);
+
   const helpArea: Area = useMemo(() => {
-    // 1. Group docs by Level 1 Scope (platform | portal | plugins) and Level 2 Category
-    const scopesMap = new Map<string, Map<string, any[]>>();
-    const scopeOrder = ["platform", "portal", "plugins"];
+    // Group docs by category (2-tier: Category -> Doc)
+    const catDocsMap = new Map<string, HelpDocMeta[]>();
 
-    helpDocsNav.forEach((d: any) => {
-      let scope = (d.scope || "").toLowerCase();
-      if (!scope) {
-        if (d.group === "Core" || d.group === "Platform") scope = "platform";
-        else if (d.group === "Portal") scope = "portal";
-        else scope = "plugins";
+    helpDocsNav.forEach((d: HelpDocMeta) => {
+      const category = (d.category || "services").toLowerCase();
+      if (!catDocsMap.has(category)) {
+        catDocsMap.set(category, []);
       }
-
-      let category = (d.category || d.group || "general").toLowerCase();
-
-      if (!scopesMap.has(scope)) {
-        scopesMap.set(scope, new Map());
-      }
-      const catMap = scopesMap.get(scope)!;
-      if (!catMap.has(category)) {
-        catMap.set(category, []);
-      }
-      catMap.get(category)!.push(d);
+      catDocsMap.get(category)!.push(d);
     });
 
     const groups: NavGroup[] = [];
 
-    const scopeTitleMap: Record<string, string> = {
-      platform: t("help.scope_platform", "平台核心"),
-      portal: t("help.scope_portal", "门户与工作区"),
-      plugins: t("help.scope_plugins", "插件扩展"),
-    };
+    // Order categories by backend order, or fallback to alphabetical
+    const categoriesToRender = helpCategories.length > 0
+      ? helpCategories
+      : Array.from(catDocsMap.keys()).map((k, idx) => ({
+          key: k,
+          order: (idx + 1) * 10,
+          icon: "boxes",
+          labels: { en: k },
+        }));
 
-    const categoryTitleMap: Record<string, string> = {
-      general: t("help.cat_general", "快速入门与概览"),
-      security: t("help.cat_security", "身份认证与安全"),
-      portal: t("help.cat_portal", "多组织架构与工作区"),
-      workspace: t("help.cat_workspace", "工作区配置"),
-      ai: t("help.cat_ai", "AI 与 MCP 协议"),
-      events: t("help.cat_events", "事件中心与 Webhooks"),
-      links: t("help.cat_links", "短链接服务"),
-      dns: t("help.cat_dns", "域名与 DNS 服务"),
-      mail: t("help.cat_mail", "邮箱服务"),
-      marketing: t("help.cat_marketing", "营销服务"),
-      infrastructure: t("help.cat_infra", "网络与基础设施"),
-      messaging: t("help.cat_messaging", "消息与通讯"),
-    };
+    categoriesToRender.forEach((cat) => {
+      const docsList = catDocsMap.get(cat.key);
+      if (!docsList || docsList.length === 0) return;
 
-    const categoryIconMap: Record<string, React.ElementType> = {
-      general: BookOpen,
-      dns: Globe,
-      links: Link2,
-      mail: Mail,
-      messaging: Send,
-      marketing: Sparkles,
-      infrastructure: Server,
-      security: Shield,
-      platform: Boxes,
-      ai: Bot,
-      events: Send,
-    };
-
-    scopeOrder.forEach((scopeKey) => {
-      const catMap = scopesMap.get(scopeKey);
-      if (!catMap || catMap.size === 0) return;
-
-      const items: NavItem[] = [];
-
-      // Sort categories by the minimum order of their documents
-      const sortedCatEntries = Array.from(catMap.entries()).sort(([_, listA], [__, listB]) => {
-        const minA = Math.min(...listA.map((d: any) => d.order ?? 999));
-        const minB = Math.min(...listB.map((d: any) => d.order ?? 999));
-        return minA - minB;
+      // Sort docs by order, then title
+      const sortedDocsList = [...docsList].sort((a, b) => {
+        if ((a.order ?? 0) !== (b.order ?? 0)) return (a.order ?? 0) - (b.order ?? 0);
+        return (a.title || "").localeCompare(b.title || "");
       });
 
-      sortedCatEntries.forEach(([catKey, docsList]) => {
-        const catTitle = categoryTitleMap[catKey] || catKey;
-        const CatIcon = categoryIconMap[catKey] || FileText;
+      const catLabel = cat.labels[lang] || cat.labels["en"] || cat.key;
+      const CatIcon = menuIcon(cat.icon) || BookOpen;
 
-        // Sort documents by order and title
-        const sortedDocsList = [...docsList].sort((a, b) => {
-          if ((a.order ?? 0) !== (b.order ?? 0)) return (a.order ?? 0) - (b.order ?? 0);
-          return (a.title || "").localeCompare(b.title || "");
-        });
-
-        if (sortedDocsList.length === 1) {
-          const doc = sortedDocsList[0];
-          items.push({
-            id: `help-${doc.slug}`,
-            label: doc.title,
-            Icon: CatIcon,
-            path: `/help/${scopeKey}/${catKey}/${doc.slug}`,
-          });
-        } else {
-          const childrenItems: NavItem[] = sortedDocsList.map((doc) => ({
-            id: `help-${doc.slug}`,
-            label: doc.title,
-            Icon: FileText,
-            path: `/help/${scopeKey}/${catKey}/${doc.slug}`,
-          }));
-
-          items.push({
-            id: `cat-${scopeKey}-${catKey}`,
-            label: catTitle,
-            Icon: CatIcon,
-            path: `/help/${scopeKey}/${catKey}/${sortedDocsList[0].slug}`,
-            children: childrenItems,
-          });
-        }
-      });
+      const items: NavItem[] = sortedDocsList.map((doc) => ({
+        id: `help-${doc.slug}`,
+        label: doc.title,
+        Icon: CatIcon,
+        path: `/help/${cat.key}/${doc.slug}`,
+      }));
 
       groups.push({
-        label: scopeTitleMap[scopeKey] || scopeKey,
+        label: catLabel,
         items,
       });
     });
@@ -625,7 +564,7 @@ function Shell({
         { label: "Help", items: [{ id: "help-root", label: "Help", Icon: BookOpen, path: "/help" }] }
       ],
     };
-  }, [helpDocsNav, t]);
+  }, [helpDocsNav, helpCategories, lang, t]);
 
   const currentSettingsArea = useMemo(() => {
     if (isInstanceAdmin) return mergedSettingsArea;
@@ -686,6 +625,22 @@ function Shell({
     if (firstNav.current) { firstNav.current = false; return; }
     mainRef.current?.focus({ preventScroll: true });
   }, [location.pathname]);
+
+  const appRoutes = (
+    <Suspense fallback={<RouteFallback />}>
+      <PluginGateContext.Provider value={pluginGateCtxValue}>
+        <Routes>
+          <Route path="/"           element={<Navigate to="/overview" replace />} />
+          <Route path="/overview"   element={<OverviewPage />} />
+          <Route path="/settings/*" element={<SettingsPage />} />
+          <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
+          <Route path="/admin/reset" element={<ResetPasswordPage />} />
+          {pluginRouteElements()}
+          <Route path="*"           element={<PluginUnavailable />} />
+        </Routes>
+      </PluginGateContext.Provider>
+    </Suspense>
+  );
 
   return (
     <RoleProvider value={roleCtx}>
@@ -790,36 +745,12 @@ function Shell({
       <main ref={mainRef} id="main-content" tabIndex={-1} className="relative flex-1 overflow-hidden outline-none">
         {helpActive ? (
           <div key={orgEpoch} className="h-full w-full overflow-hidden">
-            <Suspense fallback={<RouteFallback />}>
-              <PluginGateContext.Provider value={pluginGateCtxValue}>
-                <Routes>
-                  <Route path="/"           element={<Navigate to="/overview" replace />} />
-                  <Route path="/overview"   element={<OverviewPage />} />
-                  <Route path="/settings/*" element={<SettingsPage />} />
-                  <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
-                  <Route path="/admin/reset" element={<ResetPasswordPage />} />
-                  {pluginRouteElements()}
-                  <Route path="*"           element={<PluginUnavailable />} />
-                </Routes>
-              </PluginGateContext.Provider>
-            </Suspense>
+            {appRoutes}
           </div>
         ) : (
           <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
             <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-8 py-8">
-              <Suspense fallback={<RouteFallback />}>
-                <PluginGateContext.Provider value={pluginGateCtxValue}>
-                  <Routes>
-                    <Route path="/"           element={<Navigate to="/overview" replace />} />
-                    <Route path="/overview"   element={<OverviewPage />} />
-                    <Route path="/settings/*" element={<SettingsPage />} />
-                    <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
-                    <Route path="/admin/reset" element={<ResetPasswordPage />} />
-                    {pluginRouteElements()}
-                    <Route path="*"           element={<PluginUnavailable />} />
-                  </Routes>
-                </PluginGateContext.Provider>
-              </Suspense>
+              {appRoutes}
             </div>
           </div>
         )}

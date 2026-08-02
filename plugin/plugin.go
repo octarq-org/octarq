@@ -66,6 +66,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -455,26 +456,136 @@ type MCPProvider interface {
 	RegisterMCP(srv *mcp.Server)
 }
 
+// HelpCategory is a sidebar group of help docs. The set is closed and lives
+// here so a doc only has to name its category — labels never live in the shell.
+type HelpCategory struct {
+	Key    string            `json:"key"`    // "start", "access", …
+	Order  int               `json:"order"`  // group ordering
+	Icon   string            `json:"icon"`   // lucide key, e.g. "book-open"
+	Labels map[string]string `json:"labels"` // lang → label; "en" is required
+}
+
+// HelpCategories returns the closed set of 6 help categories.
+func HelpCategories() []HelpCategory {
+	return []HelpCategory{
+		{
+			Key:   "start",
+			Order: 10,
+			Icon:  "book-open",
+			Labels: map[string]string{
+				"en": "Start here",
+				"zh": "入门",
+				"es": "Primeros pasos",
+				"pt": "Primeiros passos",
+				"ja": "はじめに",
+			},
+		},
+		{
+			Key:   "access",
+			Order: 20,
+			Icon:  "shield",
+			Labels: map[string]string{
+				"en": "Access & identity",
+				"zh": "身份与访问",
+				"es": "Acceso e identidad",
+				"pt": "Acesso e identidade",
+				"ja": "アクセスと認証",
+			},
+		},
+		{
+			Key:   "automation",
+			Order: 30,
+			Icon:  "bot",
+			Labels: map[string]string{
+				"en": "Automation & APIs",
+				"zh": "自动化与 API",
+				"es": "Automatización y API",
+				"pt": "Automação e APIs",
+				"ja": "自動化と API",
+			},
+		},
+		{
+			Key:   "services",
+			Order: 40,
+			Icon:  "boxes",
+			Labels: map[string]string{
+				"en": "Services",
+				"zh": "服务",
+				"es": "Servicios",
+				"pt": "Serviços",
+				"ja": "サービス",
+			},
+		},
+		{
+			Key:   "commerce",
+			Order: 50,
+			Icon:  "credit-card",
+			Labels: map[string]string{
+				"en": "Commerce & billing",
+				"zh": "商业化与计费",
+				"es": "Comercio y facturación",
+				"pt": "Comércio e faturamento",
+				"ja": "商取引と請求",
+			},
+		},
+		{
+			Key:   "licensing",
+			Order: 60,
+			Icon:  "key",
+			Labels: map[string]string{
+				"en": "Editions & licensing",
+				"zh": "版本与授权",
+				"es": "Ediciones y licencias",
+				"pt": "Edições e licenças",
+				"ja": "エディションとライセンス",
+			},
+		},
+	}
+}
+
+var helpCategoryMap = func() map[string]HelpCategory {
+	m := make(map[string]HelpCategory)
+	for _, c := range HelpCategories() {
+		m[c.Key] = c
+	}
+	return m
+}()
+
+// CompareHelpDocs orders HelpDocs first by category order, then doc Order, then Title.
+func CompareHelpDocs(a, b HelpDoc) bool {
+	catAOrder := 9999
+	if c, ok := helpCategoryMap[a.Category]; ok {
+		catAOrder = c.Order
+	}
+	catBOrder := 9999
+	if c, ok := helpCategoryMap[b.Category]; ok {
+		catBOrder = c.Order
+	}
+
+	if catAOrder != catBOrder {
+		return catAOrder < catBOrder
+	}
+	if a.Order != b.Order {
+		return a.Order < b.Order
+	}
+	return a.Title < b.Title
+}
+
 // HelpDocTranslation provides localized strings for a HelpDoc.
 type HelpDocTranslation struct {
 	Title    string `yaml:"title" json:"title,omitempty"`
-	Scope    string `yaml:"scope" json:"scope,omitempty"`
 	Category string `yaml:"category" json:"category,omitempty"`
-	Group    string `yaml:"group" json:"group,omitempty"`
 	Markdown string `yaml:"markdown" json:"markdown,omitempty"`
 }
 
 // HelpDoc is one page of in-app documentation contributed by a plugin.
 type HelpDoc struct {
-	Slug         string                         `yaml:"slug" json:"slug"`
-	Title        string                         `yaml:"title" json:"title"`
-	Scope        string                         `yaml:"scope" json:"scope"`
-	Category     string                         `yaml:"category" json:"category"`
-	Group        string                         `yaml:"group" json:"group"`
-	GroupOrder   int                            `yaml:"groupOrder" json:"groupOrder"`
-	Order        int                            `yaml:"order" json:"order"`
-	Feature      string                         `yaml:"feature" json:"feature,omitempty"`
-	Markdown     string                         `yaml:"-" json:"markdown"`
+	Slug         string                        `yaml:"slug" json:"slug"`
+	Title        string                        `yaml:"title" json:"title"`
+	Category     string                        `yaml:"category" json:"category"`
+	Order        int                           `yaml:"order" json:"order"`
+	Feature      string                        `yaml:"feature" json:"feature,omitempty"`
+	Markdown     string                        `yaml:"-" json:"markdown"`
 	Translations map[string]HelpDocTranslation `yaml:"translations" json:"translations,omitempty"`
 }
 
@@ -486,18 +597,12 @@ func (h HelpDoc) WithTranslation(lang, raw string) HelpDoc {
 	}
 	trDoc, err := ParseHelpDoc(raw)
 	tr := h.Translations[lang]
-	if err == nil && (trDoc.Title != "" || trDoc.Group != "" || trDoc.Markdown != "") {
+	if err == nil && (trDoc.Title != "" || trDoc.Category != "" || trDoc.Markdown != "") {
 		if trDoc.Title != "" {
 			tr.Title = trDoc.Title
 		}
-		if trDoc.Scope != "" {
-			tr.Scope = trDoc.Scope
-		}
 		if trDoc.Category != "" {
 			tr.Category = trDoc.Category
-		}
-		if trDoc.Group != "" {
-			tr.Group = trDoc.Group
 		}
 		tr.Markdown = trDoc.Markdown
 	} else {
@@ -537,7 +642,19 @@ func ParseHelpDoc(content string) (HelpDoc, error) {
 	return doc, nil
 }
 
-// FillDefaults automatically populates Scope, Category, Group, and GroupOrder based on taxonomy defaults if missing.
+// ParseHelpDocSafe parses an MDX/MD string and returns a fallback doc with markdown body on error without panic.
+func ParseHelpDocSafe(content string) HelpDoc {
+	doc, err := ParseHelpDoc(content)
+	if err != nil {
+		log.Printf("[help] warning: failed to parse help doc: %v", err)
+		return HelpDoc{
+			Markdown: strings.TrimSpace(content),
+		}
+	}
+	return doc
+}
+
+// FillDefaults automatically populates Category based on taxonomy defaults if missing or invalid.
 func (h *HelpDoc) FillDefaults(pluginName string, pluginCategory string) {
 	if h.Category == "" {
 		if pluginCategory != "" {
@@ -548,72 +665,24 @@ func (h *HelpDoc) FillDefaults(pluginName string, pluginCategory string) {
 	}
 	h.Category = strings.ToLower(h.Category)
 
-	if h.Group == "" || h.GroupOrder == 0 || h.Scope == "" {
-		switch h.Category {
-		case "general", "platform", "core":
-			if h.Scope == "" {
-				h.Scope = "platform"
-			}
-			if h.Group == "" {
-				h.Group = "Core"
-			}
-			if h.GroupOrder == 0 {
-				h.GroupOrder = 1
-			}
-		case CategoryInfrastructure, "dns":
-			if h.Scope == "" {
-				h.Scope = "plugins"
-			}
-			if h.Group == "" {
-				h.Group = "Infrastructure"
-			}
-			if h.GroupOrder == 0 {
-				h.GroupOrder = 20
-			}
-		case CategoryMessaging, "mail", "communication":
-			if h.Scope == "" {
-				h.Scope = "plugins"
-			}
-			if h.Group == "" {
-				h.Group = "Messaging"
-			}
-			if h.GroupOrder == 0 {
-				h.GroupOrder = 30
-			}
-		case CategoryMarketing, "links":
-			if h.Scope == "" {
-				h.Scope = "plugins"
-			}
-			if h.Group == "" {
-				h.Group = "Marketing"
-			}
-			if h.GroupOrder == 0 {
-				h.GroupOrder = 40
-			}
-		case CategorySecurity:
-			if h.Scope == "" {
-				h.Scope = "plugins"
-			}
-			if h.Group == "" {
-				h.Group = "Security"
-			}
-			if h.GroupOrder == 0 {
-				h.GroupOrder = 50
-			}
-		default:
-			if h.Scope == "" {
-				h.Scope = "plugins"
-			}
-			if h.Group == "" {
-				if len(h.Category) > 0 {
-					h.Group = strings.ToUpper(h.Category[:1]) + h.Category[1:]
-				} else {
-					h.Group = "General"
-				}
-			}
-			if h.GroupOrder == 0 {
-				h.GroupOrder = 99
-			}
+	// Remap known legacy categories or validate against closed set
+	switch h.Category {
+	case "getting-started", "start", "general", "platform", "core":
+		h.Category = "start"
+	case "access", "security", "identity":
+		h.Category = "access"
+	case "automation", "api", "apis":
+		h.Category = "automation"
+	case "services", "infrastructure", "dns", "ddns", "short-links", "links", "mail", "messaging", "marketing":
+		h.Category = "services"
+	case "commerce", "billing", "finance":
+		h.Category = "commerce"
+	case "licensing", "editions":
+		h.Category = "licensing"
+	default:
+		if _, ok := helpCategoryMap[h.Category]; !ok {
+			log.Printf("[help] warning: doc %q from plugin %q has unknown category %q, falling back to 'services'", h.Slug, pluginName, h.Category)
+			h.Category = "services"
 		}
 	}
 }

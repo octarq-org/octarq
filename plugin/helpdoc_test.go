@@ -8,16 +8,12 @@ func TestParseHelpDoc(t *testing.T) {
 	rawMDX := `---
 slug: test-doc
 title: Test Title
-scope: plugins
 category: test
-group: Testing
-groupOrder: 10
 order: 1
 feature: test_feat
 translations:
   zh:
     title: 测试标题
-    group: 测试组
 ---
 
 # Hello World
@@ -34,17 +30,8 @@ This is markdown content.`
 	if doc.Title != "Test Title" {
 		t.Errorf("expected title 'Test Title', got %q", doc.Title)
 	}
-	if doc.Scope != "plugins" {
-		t.Errorf("expected scope 'plugins', got %q", doc.Scope)
-	}
 	if doc.Category != "test" {
 		t.Errorf("expected category 'test', got %q", doc.Category)
-	}
-	if doc.Group != "Testing" {
-		t.Errorf("expected group 'Testing', got %q", doc.Group)
-	}
-	if doc.GroupOrder != 10 {
-		t.Errorf("expected groupOrder 10, got %d", doc.GroupOrder)
 	}
 	if doc.Order != 1 {
 		t.Errorf("expected order 1, got %d", doc.Order)
@@ -62,9 +49,6 @@ This is markdown content.`
 	}
 	if zh.Title != "测试标题" {
 		t.Errorf("expected zh title '测试标题', got %q", zh.Title)
-	}
-	if zh.Group != "测试组" {
-		t.Errorf("expected zh group '测试组', got %q", zh.Group)
 	}
 }
 
@@ -95,5 +79,19 @@ title: 中文标题
 	}
 	if zh.Markdown != "中文内容" {
 		t.Errorf("expected zh markdown '中文内容', got %q", zh.Markdown)
+	}
+}
+
+func TestFillDefaultsFallbackToServices(t *testing.T) {
+	doc := HelpDoc{
+		Slug:     "custom-doc",
+		Title:    "Custom Doc",
+		Category: "unknown_category_key",
+	}
+
+	doc.FillDefaults("custom-plugin", "")
+
+	if doc.Category != "services" {
+		t.Errorf("expected category fallback to 'services', got %q", doc.Category)
 	}
 }

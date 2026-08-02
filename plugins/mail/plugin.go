@@ -87,10 +87,14 @@ var helpDocs string
 //go:embed docs.zh.mdx
 var helpDocsZh string
 
-func (p *Plugin) HelpDocs() []plugin.HelpDoc {
+var parsedHelpDocs = sync.OnceValue(func() []plugin.HelpDoc {
 	return []plugin.HelpDoc{
-		plugin.MustParseHelpDoc(helpDocs).WithTranslation("zh", helpDocsZh),
+		plugin.ParseHelpDocSafe(helpDocs).WithTranslation("zh", helpDocsZh),
 	}
+})
+
+func (p *Plugin) HelpDocs() []plugin.HelpDoc {
+	return parsedHelpDocs()
 }
 
 // orgDB scopes a query to the caller's org.

@@ -47,18 +47,6 @@ export function CommandPalette({
               Icon: i.Icon,
               iconStr: i.iconStr,
             };
-            if (i.children && i.children.length > 0) {
-              const childrenItems = i.children.map((c) => ({
-                id: c.path,
-                label: translateNavItemLabel(t, c.id, c.label),
-                area: areaTitle,
-                group: `${groupLabel} → ${translateNavItemLabel(t, i.id, i.label)}`,
-                path: c.path,
-                Icon: c.Icon || i.Icon,
-                iconStr: c.iconStr,
-              }));
-              return childrenItems;
-            }
             return [parentItem];
           }),
         ),
