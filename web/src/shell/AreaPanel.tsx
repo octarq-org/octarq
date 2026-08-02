@@ -241,64 +241,65 @@ export function AreaPanel({
         ))}
       </div>
 
-      {/* ── Footer: octarq resources + collapse toggle ──
-          These are octarq's OWN links (help, docs, about, source), kept in the
-          always-available footer and strictly apart from the org's business
-          nav above. Plugin footer-placement items (footerItems) list first. */}
+      {/* ── Footer: plugin footer items + octarq's own links + collapse toggle ──
+          Kept always-available and strictly apart from the org's business nav
+          above. Footer-placed plugin menus (category "footer") render as rail
+          links here; the menu below holds only octarq's external links.
+
+          Help is one of those plugin menus, not a hardcoded route. It used to be
+          both — a literal <NavLink to="/help"> here AND the help plugin's own
+          Menus() entry, which lands in footerItems — so it rendered twice, once
+          as a rail link and once inside the menu. Hardcoding it also broke the
+          repo rule that the Go half is the only source of sidebar placement
+          (docs/PLUGINS.md): a build without the help plugin still showed the
+          link, pointing at a route nothing served. */}
       <div className={cn("border-t border-border", collapsed ? "space-y-1 p-2" : "space-y-0.5 px-3 py-2")}>
-        <NavLink
-          to="/help"
-          onClick={onNavigate}
-          aria-label={t("areas.help.title", "使用指南")}
-          title={collapsed ? t("areas.help.title", "使用指南") : undefined}
-          className={cn(
-            "flex items-center rounded-xl transition-colors",
-            currentPath.startsWith("/help") || currentPath.startsWith("/admin/help")
-              ? "bg-primary/15 font-bold text-primary shadow-2xs"
-              : "text-muted-foreground hover:bg-surface-hover hover:text-foreground",
-            collapsed ? "mx-auto h-10 w-10 justify-center" : "h-9 w-full gap-2 px-2.5 text-[13px] font-medium",
-          )}
-        >
-          <BookOpen className="h-[18px] w-[18px] shrink-0 text-primary" strokeWidth={1.75} />
-          {!collapsed && <span className="truncate">{t("areas.help.title", "使用指南")}</span>}
-        </NavLink>
+        {footerItems.map((it) => {
+          const label = translateNavItemLabel(t, it.id, it.label);
+          const active = currentPath === it.path || currentPath.startsWith(it.path + "/");
+          return (
+            <NavLink
+              key={it.id}
+              to={it.path}
+              onClick={onNavigate}
+              aria-label={label}
+              title={collapsed ? label : undefined}
+              className={cn(
+                "flex items-center rounded-xl transition-colors",
+                active
+                  ? "bg-primary/15 font-bold text-primary shadow-2xs"
+                  : "text-muted-foreground hover:bg-surface-hover hover:text-foreground",
+                collapsed ? "mx-auto h-10 w-10 justify-center" : "h-9 w-full gap-2 px-2.5 text-[13px] font-medium",
+              )}
+            >
+              {it.iconStr ? (
+                <span className="w-[18px] shrink-0 text-center text-sm">{it.iconStr}</span>
+              ) : (
+                <it.Icon className={cn("h-[18px] w-[18px] shrink-0", active && "text-primary")} strokeWidth={1.75} />
+              )}
+              {!collapsed && <span className="truncate">{label}</span>}
+            </NavLink>
+          );
+        })}
 
         <Menu.Root>
           <Menu.Trigger
-            aria-label={t("footer.help", "Help & resources")}
-            title={collapsed ? t("footer.help", "Help & resources") : undefined}
+            aria-label={t("footer.help", "About octarq")}
+            title={collapsed ? t("footer.help", "About octarq") : undefined}
             className={cn(
               "flex items-center rounded-xl text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground data-[popup-open]:bg-surface-hover data-[popup-open]:text-foreground",
               collapsed ? "mx-auto h-10 w-10 justify-center" : "h-9 w-full gap-2 px-2.5 text-[13px] font-medium",
             )}
           >
             <HelpCircle className="h-[18px] w-[18px]" strokeWidth={1.75} />
-            {!collapsed && <span>{t("footer.help", "Help & resources")}</span>}
+            {!collapsed && <span>{t("footer.help", "About octarq")}</span>}
           </Menu.Trigger>
           <Menu.Portal>
             <Menu.Positioner side={collapsed ? "right" : "top"} align="start" sideOffset={8} className="z-50 outline-none">
               <Menu.Popup className={cn(MENU_POPUP, "w-60")}>
-                {footerItems && footerItems.length > 0 && (
-                  <>
-                    {footerItems.map((it) => (
-                      <Menu.Item
-                        key={it.id}
-                        render={<NavLink to={it.path} />}
-                        onClick={onNavigate}
-                        className={MENU_ITEM}
-                      >
-                        {it.iconStr ? (
-                          <span className="w-4 text-center text-sm">{it.iconStr}</span>
-                        ) : (
-                          <it.Icon className="h-4 w-4" strokeWidth={1.75} />
-                        )}
-                        <span className="flex-1 truncate">{it.label}</span>
-                      </Menu.Item>
-                    ))}
-                    <Menu.Separator className="my-1 h-px bg-border" />
-                  </>
-                )}
-                <div className="px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">octarq</div>
+                {/* Only octarq's own external links. Plugin footer items render
+                    as rail links above — listing them here too is what put Help
+                    in the sidebar twice. */}
                 <Menu.Item render={<a href={RESOURCES.docs} target="_blank" rel="noreferrer" />} className={MENU_ITEM}>
                   <BookOpen className="h-4 w-4" strokeWidth={1.75} />
                   <span className="flex-1">{t("footer.docs", "Documentation")}</span>

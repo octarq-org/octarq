@@ -119,6 +119,7 @@ export const pt = {
     auth: "Autenticação",
     instance: "Configurações da Instância",
     "instance-plugins": "Plugins",
+    help: "Manual de uso",
   },
   reset: {
     heading: "Redefina sua senha",
@@ -136,7 +137,7 @@ export const pt = {
     errResetFailed: "Falha ao redefinir a senha.",
   },
   footer: {
-    help: "Ajuda e recursos",
+    help: "Sobre o octarq",
     docs: "Documentação",
     about: "Sobre o Octarq",
     github: "GitHub",

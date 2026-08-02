@@ -120,6 +120,7 @@ export const zh: Resources = {
     auth: "身份验证",
     instance: "实例配置",
     "instance-plugins": "插件",
+    help: "使用指南",
   },
   reset: {
     heading: "重置你的密码",
@@ -137,7 +138,7 @@ export const zh: Resources = {
     errResetFailed: "重置密码失败。",
   },
   footer: {
-    help: "更多资源",
+    help: "关于 octarq",
     docs: "官方开发者文档 (docs.octarq.org)",
     about: "关于 Octarq",
     github: "GitHub",
