@@ -29,6 +29,18 @@ export default function MailPage() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation();
+
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setNewBox(true);
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete("create");
+        return next;
+      }, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   const tabParam = searchParams.get("tab");
   const tab = (tabParam === "settings") ? "settings" : "mail";
   const setTab = (t: "mail" | "settings") => {

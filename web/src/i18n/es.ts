@@ -68,6 +68,7 @@ export const es = {
     orContinueWith: "o continuar con",
   },
   topbar: {
+    create: "Crear",
     lightMode: "Modo claro",
     darkMode: "Modo oscuro",
     workspaces: "Espacios de trabajo",
@@ -78,6 +79,7 @@ export const es = {
     settings: "Configuración",
   },
   command: {
+    create: "Crear",
     placeholder: "Buscar páginas…",
     empty: "No hay coincidencias para “{{q}}”.",
   },

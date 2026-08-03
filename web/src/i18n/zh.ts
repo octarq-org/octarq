@@ -69,6 +69,7 @@ export const zh: Resources = {
     orContinueWith: "或使用以下方式登录",
   },
   topbar: {
+    create: "新建",
     lightMode: "浅色模式",
     darkMode: "深色模式",
     workspaces: "工作区",
@@ -79,6 +80,7 @@ export const zh: Resources = {
     settings: "设置",
   },
   command: {
+    create: "创建",
     placeholder: "搜索页面…",
     empty: "没有匹配「{{q}}」的结果。",
   },

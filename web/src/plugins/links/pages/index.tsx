@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api, Domain, effectiveLinkHosts } from "../../../api";
 import { linksApi, Link, LinkStats } from "../api";
 import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard, confirmDialog } from "../../../ui";
@@ -25,8 +26,20 @@ export default function LinksPage() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
   const [tab, setTab] = useState<'links' | 'settings'>('links');
+  const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation();
   const pluginGate = usePluginGate();
+
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setActive("new");
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete("create");
+        return next;
+      }, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const linkHostOptions = Array.from(new Set(domains.flatMap(effectiveLinkHosts)));
 
