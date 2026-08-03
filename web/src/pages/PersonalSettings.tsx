@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, Token } from "../api";
-import { Empty, Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toast, confirmDialog, confirmPassword, cn, useTableDensity, TableDensity } from "../ui";
+import { Empty, Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toast, confirmDialog, confirmPassword, cn, useTableDensity, useSetTableDensity } from "../ui";
 import { User, Key, Settings, CheckCircle, Trash2, Eye, ClipboardCopy } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { roleSatisfies, useCurrentRole } from "../shell/role";
@@ -25,10 +25,7 @@ export function ProfileSettings() {
   const { t } = useTranslation();
   const currentDensity = useTableDensity();
 
-  const handleDensityChange = (d: TableDensity) => {
-    api.updateUserSettings("table_density", d).catch(() => {});
-    window.dispatchEvent(new CustomEvent("octarq:table-density-changed", { detail: d }));
-  };
+  const setDensity = useSetTableDensity();
 
   const reloadUser = () => {
     api.me().then((u) => setEmail(u.email || u.username || ""));
@@ -236,7 +233,7 @@ export function ProfileSettings() {
         <div className="inline-flex rounded-xl bg-foreground/[0.05] p-1 border border-foreground/[0.06]">
           <button
             type="button"
-            onClick={() => handleDensityChange("comfortable")}
+            onClick={() => setDensity("comfortable")}
             className={cn(
               "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
               currentDensity === "comfortable"
@@ -248,7 +245,7 @@ export function ProfileSettings() {
           </button>
           <button
             type="button"
-            onClick={() => handleDensityChange("compact")}
+            onClick={() => setDensity("compact")}
             className={cn(
               "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
               currentDensity === "compact"

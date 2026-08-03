@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
-import { render } from "@testing-library/react";
-import { TD, TableDensityProvider } from "@octarq/plugin-sdk";
+import { fireEvent, render } from "@testing-library/react";
+import { TD, TableDensityProvider, useSetTableDensity } from "@octarq/plugin-sdk";
 
 const TSX_MODULES = import.meta.glob("../**/*.tsx", {
   query: "?raw",
@@ -31,6 +31,31 @@ describe("table density & primitives guard", () => {
     expect(compClass).not.toEqual(comfClass);
     expect(compClass).toContain("py-1");
     expect(comfClass).toContain("py-2.5");
+  });
+
+  it("hands the preferences UI a setter through the same provider", () => {
+    // The provider carries the density down and the setter back up, so a
+    // preferences control needs no second channel. Outside a provider the
+    // setter is an inert no-op rather than a crash.
+    function Control() {
+      const setDensity = useSetTableDensity();
+      return <button onClick={() => setDensity("compact")}>set</button>;
+    }
+    const seen: string[] = [];
+    const { container, getByText } = render(
+      <TableDensityProvider density="comfortable" onDensityChange={(d) => seen.push(d)}>
+        <Control />
+        <table><tbody><tr><TD>Row</TD></tr></tbody></table>
+      </TableDensityProvider>,
+    );
+    expect(container.querySelector("td")?.className).toContain("py-2.5");
+    fireEvent.click(getByText("set"));
+    expect(seen).toEqual(["compact"]);
+
+    // Scope to this render's own container — both trees share document.body.
+    const orphan = render(<Control />);
+    const orphanButton = orphan.container.querySelector("button")!;
+    expect(() => fireEvent.click(orphanButton)).not.toThrow();
   });
 
   it("prohibits raw <table>, <thead>, and <tbody> elements in web/src", () => {

@@ -13,23 +13,35 @@ export type TableDensity = "comfortable" | "compact";
 
 const TableDensityContext = createContext<TableDensity>("comfortable");
 
+// The setter is part of the same context so a preferences UI can change the
+// density without the host wiring a second channel for it. Default is a no-op:
+// a table rendered outside any provider still reads "comfortable" and renders.
+const SetTableDensityContext = createContext<(d: TableDensity) => void>(() => {});
+
 export interface TableDensityProviderProps {
   density?: TableDensity;
-  value?: TableDensity;
+  onDensityChange?: (d: TableDensity) => void;
   children: ReactNode;
 }
 
-export function TableDensityProvider({ density, value, children }: TableDensityProviderProps) {
-  const current = value ?? density ?? "comfortable";
+export function TableDensityProvider({ density, onDensityChange, children }: TableDensityProviderProps) {
   return (
-    <TableDensityContext.Provider value={current}>
-      {children}
+    <TableDensityContext.Provider value={density ?? "comfortable"}>
+      <SetTableDensityContext.Provider value={onDensityChange ?? NOOP}>
+        {children}
+      </SetTableDensityContext.Provider>
     </TableDensityContext.Provider>
   );
 }
 
+const NOOP = () => {};
+
 export function useTableDensity(): TableDensity {
-  return useContext(TableDensityContext) ?? "comfortable";
+  return useContext(TableDensityContext);
+}
+
+export function useSetTableDensity(): (d: TableDensity) => void {
+  return useContext(SetTableDensityContext);
 }
 
 export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElement>) {

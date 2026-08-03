@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { BookOpen, Bot, Boxes, FileText, Globe, Link2, Mail, Send, Server, Shield, Sparkles } from "lucide-react";
 import { api, HelpCategory, HelpDocMeta, MenuItem, Action, Org, PluginInfo } from "./api";
@@ -55,17 +55,13 @@ export default function App() {
         }
       })
       .catch(() => {});
+  }, []);
 
-    const onDensityChanged = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail === "compact" || detail === "comfortable") {
-        setTableDensity(detail as TableDensity);
-      }
-    };
-    window.addEventListener("octarq:table-density-changed", onDensityChanged);
-    return () => {
-      window.removeEventListener("octarq:table-density-changed", onDensityChanged);
-    };
+  // Persist-and-apply, handed to the preferences UI through the same provider
+  // that carries the density down — no second channel for one piece of state.
+  const changeTableDensity = useCallback((d: TableDensity) => {
+    setTableDensity(d);
+    api.updateUserSettings("table_density", d).catch(() => {});
   }, []);
 
   let content;
@@ -113,7 +109,7 @@ export default function App() {
   }
 
   return (
-    <TableDensityProvider density={tableDensity}>
+    <TableDensityProvider density={tableDensity} onDensityChange={changeTableDensity}>
       {content}
     </TableDensityProvider>
   );
