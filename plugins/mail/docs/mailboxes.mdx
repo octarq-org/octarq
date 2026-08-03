@@ -1,49 +1,36 @@
 ---
-title: Mailboxes & Email Routing Console Guide
+title: Mailboxes
 category: services
 order: 1
 ---
 
-The Octarq Mailboxes engine processes inbound transactional emails, provisions on-the-fly Catch-All mailboxes, renders raw EML files with attachment inspection, and dispatches outbound mail via encrypted SMTP senders.
+Receive transactional inbound emails, configure Catch-All mailbox routing, inspect raw EML messages, and set up outbound SMTP gateways.
 
-## 1. Step-by-Step Console Workflows
+## Receive Inbound Mail via Webhook
 
-### 1. Connecting Inbound Email via Cloudflare Worker Webhook
-1. Go to **Operations → Messaging → Mail → Settings → Inbound Configuration**, and copy your workspace **Inbound Webhook URL** (`/api/webhook/{orgSlug}/email/inbound/{token}`).
-2. In your Cloudflare Dashboard under **Email Routing → Email Workers**, deploy a worker script to POST raw inbound emails to this endpoint.
-3. Once deployed, emails sent to your custom domain appear live in the Octarq Mail console.
+1. Go to **Operations → Messaging → Mail** and open the **Settings** tab.
+2. Under **Inbound Configuration**, copy your workspace **Inbound Webhook URL** (`/api/webhook/{orgSlug}/email/inbound/{token}`).
+3. Configure your mail worker (such as Cloudflare Email Routing Workers) to POST raw incoming email payloads to this webhook URL.
+4. Incoming emails sent to your domain will appear in the **Mail** inbox tab.
 
-### 2. Enabling Catch-All & Reserved Prefixes
-1. Go to **Operations → Messaging → Mail → Settings → Inbound Configuration**.
-2. Toggle ON **Enable Catch-All Routing**.
-3. Under **Reserved Mailbox Prefixes**, enter comma-separated prefixes (e.g. `admin, support, postmaster`) to prevent Catch-All from capturing reserved system addresses.
+## Catch-All Routing and Reserved Prefixes
 
-### 3. Adding Outbound SMTP Senders
-1. Navigate to **Operations → Messaging → Mail**, and switch to the **SMTP Senders** tab.
+1. Go to **Operations → Messaging → Mail** and open the **Settings** tab.
+2. Under **Inbound Configuration**, toggle on **Enable Catch-All Routing**.
+3. In **Reserved Mailbox Prefixes**, enter comma-separated prefixes (such as `admin, support, postmaster`) to prevent Catch-All from intercepting system addresses.
+
+## Outbound SMTP Gateways
+
+1. Go to **Operations → Messaging → Mail**, open the **Settings** tab, and locate the **SMTP Gateways** section.
 2. Click **Add SMTP Sender**.
-3. Enter your SMTP Host (e.g. `smtp.mailgun.org`), Port (`587`), Username, Password, and default From Email (`noreply@example.com`).
-4. Click **Save**. Password credentials are encrypted at rest using AES-GCM and never returned via API endpoints.
+3. Enter your SMTP Host (such as `smtp.mailgun.org`), Port (`587`), Username, Password, and default From Email address.
+4. Click **Save**. Password credentials are encrypted at rest using AES-GCM.
 
----
+> [!NOTE]
+> System transactional emails (such as member invites and password resets) use the first configured SMTP gateway in your active workspace.
 
-## 2. Important Operating Cautions
+## Related Guides
 
-> [!IMPORTANT]
-> **Outbound Transactional Mail**: System-generated emails (member invitations, password resets, verification emails) automatically use the first configured SMTP sender in your workspace.
-
----
-
-## 3. Frequently Asked Questions (FAQs)
-
-### Q1: Why does an incoming email show "SPF / DMARC Failed"?
-**Answer**: This indicates the sender's domain DNS lacks valid SPF/DMARC TXT records or was forwarded through an unauthenticated relay. Inspect the raw auth headers directly inside the email viewer.
-
-### Q2: How can I receive instant alerts when outbound mail dispatch fails?
-**Answer**: Go to **Settings → Workspace → Alerts** in the console and configure Telegram or HTTP Webhooks to listen for email dispatch failures.
-
----
-
-## 4. Related Console Guides
-
-- [DNS Management Console Guide](/help/dns) — Verifying SPF, DKIM, and DMARC DNS records.
-- [Short Links Console Guide](/help/short-links) — Configuring email link wrapping.
+- [DNS Management](/help/dns)
+- [Short Links](/help/short-links)
+- [Notification Channels](/help/notifications)

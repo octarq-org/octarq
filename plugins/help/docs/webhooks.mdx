@@ -5,34 +5,26 @@ category: automation
 order: 80
 ---
 
-Octarq's Outbound Webhooks engine sends real-time HTTP `POST` notifications to external servers whenever key events occur inside your workspace. Webhooks enable automated workflows, data synchronization, and custom alerting across your external infrastructure.
+Outbound Webhooks send HTTP `POST` notifications to external servers when events occur in your workspace.
 
 ## Key Capabilities
 
-- **Real-Time Event Delivery**: Receive instant HTTP callbacks for system events such as `email.receive`, `email.send_failed`, and abuse reports.
-- **Granular Event Subscriptions**: Subscribe to specific event topics or use the wildcard `*` to receive all workspace events.
-- **HMAC-SHA256 Payload Signing**: All webhook requests include an `X-Octarq-Signature` HTTP header containing an HMAC-SHA256 signature calculated with your secret key, allowing your endpoint to verify request origin and prevent tampering.
-- **Auto-Generated or Custom Secrets**: Provide your own signing secret or let Octarq generate a secure random secret key automatically.
-- **SSRF Protection & Timeouts**: Delivery requests are handled with strict timeouts to ensure workspace operations remain unaffected by external server slowdowns.
+- **Event Notification**: Receive HTTP requests for events such as `email.receive`, `email.send_failed`, and abuse reports.
+- **HMAC Signatures**: Each request includes an `X-Octarq-Signature` header calculated using your signing secret and the raw request body.
+- **Event Filtering**: Subscribe to specific event topics or use the wildcard `*` to receive all workspace events.
 
-## How to Use
+## Register a Webhook Endpoint
 
-### 1. Registering a Webhook Endpoint
 1. Go to **Settings → Workspace → Webhooks** (or press `⌘K` / `Ctrl+K` and search "Webhooks").
 2. Click **Add Webhook Endpoint**.
-3. Enter a descriptive **Endpoint Name** and the target **Endpoint URL** (e.g., `https://api.yourdomain.com/hooks/octarq`).
-4. (Optional) Provide a custom **Signing Secret** (leave empty to auto-generate).
-5. Select **Event Subscriptions** (choose **All Events (*)** or select specific events).
+3. Enter an **Endpoint Name** and the target **Endpoint URL** (such as `https://api.example.com/hooks/octarq`).
+4. (Optional) Provide a **Signing Secret**, or leave empty to auto-generate a secret key.
+5. Select **Event Subscriptions** (choose **All Events (*)** or check specific topics).
 6. Click **Add Webhook Endpoint**.
 
-### 2. Verifying Webhook Signatures
-When receiving a webhook, verify the `X-Octarq-Signature` header in your receiving server code:
+## Verify Webhook Signatures
 
-```crypto
-signature = HMAC-SHA256(raw_request_body, signing_secret)
-```
-
-Example in Node.js / Express:
+Verify incoming requests on your server by computing the HMAC-SHA256 signature of the raw request body using your secret key and comparing it against the `X-Octarq-Signature` header value:
 
 ```javascript
 const crypto = require('crypto');
@@ -52,18 +44,11 @@ function verifyOctarqWebhook(req, res, next) {
 }
 ```
 
-### 3. Deleting Endpoints
-Manage registered webhooks under **Settings → Workspace → Webhooks**. You can inspect endpoint secrets or delete obsolete endpoints at any time.
+## Manage Endpoints
 
-:::tip
-For local development and testing, use webhooks debugging tools like `ngrok` or `hookdeck` to inspect incoming payloads before deploying receiving logic to production.
-:::
-
-## Why It Matters
-
-Outbound Webhooks decouple Octarq from downstream systems. You can trigger automated customer workflows, pipe email notifications into custom databases, or initiate server deployments without polling Octarq APIs.
+Go to **Settings → Workspace → Webhooks** to inspect signing secrets or delete obsolete endpoints.
 
 ## Related Links
 
-- [Notification Channels](/help/notifications) — Deliver formatted alerts to Telegram or Webhook channels.
-- [API Tokens](/help/api-tokens) — Authenticate inbound API calls into Octarq.
+- [Notification Channels](/help/notifications)
+- [API Tokens](/help/api-tokens)
