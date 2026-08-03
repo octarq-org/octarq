@@ -4,12 +4,98 @@ import { api, fetchOverview, Overview } from "../api";
 import { useTranslation } from "../i18n";
 import { ExtensionSlot } from "../plugin-sdk";
 import { ScreenWrap, PageHeader, GlassCard, Skeleton } from "../ui";
-import { SetupStep } from "../components/SetupStep";
+import { SetupStep, SetupChecklistProvider, useSetupChecklist } from "../components/SetupStep";
 import { Sparkles, X } from "lucide-react";
+
+function OverviewChecklistSection({
+  dismissed,
+  dismiss,
+  twoFAEnabled,
+  nav,
+  t,
+}: {
+  dismissed: boolean;
+  dismiss: () => void;
+  twoFAEnabled: boolean | null;
+  nav: (path: string) => void;
+  t: (key: string) => string;
+}) {
+  const { totalCount, progressPercent, allCompleted } = useSetupChecklist();
+
+  if (dismissed) return null;
+
+  const steps = [
+    {
+      id: "2fa",
+      title: t("overview.step2FATitle"),
+      description: t("overview.step2FADesc"),
+      completed: twoFAEnabled === true,
+      path: "/settings/security",
+    },
+  ];
+
+  return (
+    <GlassCard className={`mb-6 p-6 border-indigo-500/20 bg-indigo-950/5 relative overflow-hidden ${totalCount === 0 ? "hidden" : ""}`}>
+      <div className="absolute top-0 right-0 h-40 w-40 bg-indigo-500/5 blur-3xl rounded-full -mr-10 -mt-10 pointer-events-none" />
+      
+      <button 
+        onClick={dismiss} 
+        className="absolute top-4 right-4 p-1 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-colors"
+        title={t("overview.dismissChecklist")}
+      >
+        <X size={16} />
+      </button>
+
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <div className={`flex items-center gap-2 ${allCompleted ? "text-success-fg" : "text-accent-fg"}`}>
+            <Sparkles size={18} className={allCompleted ? "" : "animate-pulse"} />
+            <span className="text-xs font-semibold uppercase tracking-wider">{t("overview.gettingStarted")}</span>
+          </div>
+          <h2 className="text-xl font-bold text-foreground mt-1">
+            {allCompleted ? t("overview.allSetTitle") : t("overview.setupTitle")}
+          </h2>
+          <p className="text-xs text-foreground/50 mt-1">
+            {allCompleted ? t("overview.allSetDesc") : t("overview.gettingStartedDesc")}
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="text-right">
+            <span className="text-xs text-foreground/40">{t("overview.setupProgress")}</span>
+            <span className={`block text-lg font-bold ${allCompleted ? "text-success-fg" : "text-accent-fg"}`}>{progressPercent}%</span>
+          </div>
+          <div className="w-32 bg-foreground/10 h-2 rounded-full overflow-hidden">
+            <div 
+              className={`h-full rounded-full transition-all duration-500 ${
+                allCompleted
+                  ? "bg-gradient-to-r from-emerald-500 to-teal-400" /* ui-color-ok */
+                  : "bg-gradient-to-r from-indigo-500 to-violet-500"
+              }`} 
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        {steps.map((step) => (
+          <SetupStep
+            key={step.id}
+            title={step.title}
+            description={step.description}
+            completed={step.completed}
+            onClick={() => nav(step.path)}
+          />
+        ))}
+        <ExtensionSlot name="home-setup-steps" />
+      </div>
+    </GlassCard>
+  );
+}
 
 export default function OverviewPage() {
   const [o, setO] = useState<Overview | null>(null);
-  const [memberCount, setMemberCount] = useState<number | null>(null);
   const [twoFAEnabled, setTwoFAEnabled] = useState<boolean | null>(null);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem("dismiss_onboarding") === "true");
   const nav = useNavigate();
@@ -17,7 +103,6 @@ export default function OverviewPage() {
 
   useEffect(() => {
     fetchOverview().then(setO).catch(() => {});
-    api.orgMembers().then(m => setMemberCount(m.length)).catch(() => {});
     api.twoFAStatus().then(r => setTwoFAEnabled(r.enabled)).catch(() => {});
     api.getUserSettings().then(s => {
       if (s?.onboarding_dismissed === "true") {
@@ -54,27 +139,6 @@ export default function OverviewPage() {
     </div>
   );
 
-  const steps = [
-    {
-      id: "2fa",
-      title: t("overview.step2FATitle"),
-      description: t("overview.step2FADesc"),
-      completed: twoFAEnabled === true,
-      path: "/settings/security",
-    },
-    {
-      id: "colleague",
-      title: t("overview.stepColleagueTitle"),
-      description: t("overview.stepColleagueDesc"),
-      completed: memberCount !== null && memberCount > 1,
-      path: "/settings/members",
-    },
-  ];
-
-  const completedCount = steps.filter(s => s.completed).length;
-  const progressPercent = Math.round((completedCount / steps.length) * 100);
-  const allCompleted = completedCount > 0 && completedCount === steps.length;
-
   return (
     <ScreenWrap>
       <PageHeader
@@ -82,64 +146,15 @@ export default function OverviewPage() {
         description={t("overview.description")}
       />
 
-      {!dismissed && (
-        <GlassCard className="mb-6 p-6 border-indigo-500/20 bg-indigo-950/5 relative overflow-hidden">
-          <div className="absolute top-0 right-0 h-40 w-40 bg-indigo-500/5 blur-3xl rounded-full -mr-10 -mt-10 pointer-events-none" />
-          
-          <button 
-            onClick={dismiss} 
-            className="absolute top-4 right-4 p-1 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-colors"
-            title={t("overview.dismissChecklist")}
-          >
-            <X size={16} />
-          </button>
-
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <div>
-              <div className={`flex items-center gap-2 ${allCompleted ? "text-success-fg" : "text-accent-fg"}`}>
-                <Sparkles size={18} className={allCompleted ? "" : "animate-pulse"} />
-                <span className="text-xs font-semibold uppercase tracking-wider">{t("overview.gettingStarted")}</span>
-              </div>
-              <h2 className="text-xl font-bold text-foreground mt-1">
-                {allCompleted ? t("overview.allSetTitle") : t("overview.setupTitle")}
-              </h2>
-              <p className="text-xs text-foreground/50 mt-1">
-                {allCompleted ? t("overview.allSetDesc") : t("overview.gettingStartedDesc")}
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="text-right">
-                <span className="text-xs text-foreground/40">{t("overview.setupProgress")}</span>
-                <span className={`block text-lg font-bold ${allCompleted ? "text-success-fg" : "text-accent-fg"}`}>{progressPercent}%</span>
-              </div>
-              <div className="w-32 bg-foreground/10 h-2 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    allCompleted
-                      ? "bg-gradient-to-r from-emerald-500 to-teal-400" /* ui-color-ok */
-                      : "bg-gradient-to-r from-indigo-500 to-violet-500"
-                  }`} 
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-            {steps.map((step) => (
-              <SetupStep
-                key={step.id}
-                title={step.title}
-                description={step.description}
-                completed={step.completed}
-                onClick={() => nav(step.path)}
-              />
-            ))}
-            <ExtensionSlot name="home-setup-steps" />
-          </div>
-        </GlassCard>
-      )}
+      <SetupChecklistProvider>
+        <OverviewChecklistSection
+          dismissed={dismissed}
+          dismiss={dismiss}
+          twoFAEnabled={twoFAEnabled}
+          nav={nav}
+          t={t}
+        />
+      </SetupChecklistProvider>
 
       <ExtensionSlot
         name="home-overview"

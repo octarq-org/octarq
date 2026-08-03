@@ -1,3 +1,4 @@
+import { createContext, useContext, useEffect, useId, useState, useCallback, useMemo, ReactNode } from "react";
 import { CheckCircle2, Circle, ArrowRight } from "lucide-react";
 
 export interface SetupStepProps {
@@ -7,7 +8,94 @@ export interface SetupStepProps {
   onClick: () => void;
 }
 
+export interface SetupChecklistRegisterContextType {
+  register: (id: string, completed: boolean) => void;
+  unregister: (id: string) => void;
+}
+
+export interface SetupChecklistStateContextType {
+  totalCount: number;
+  completedCount: number;
+  progressPercent: number;
+  allCompleted: boolean;
+}
+
+export const SetupChecklistRegisterContext = createContext<SetupChecklistRegisterContextType | null>(null);
+export const SetupChecklistStateContext = createContext<SetupChecklistStateContextType | null>(null);
+
+export interface SetupChecklistProviderProps {
+  children: ReactNode;
+}
+
+export function SetupChecklistProvider({ children }: SetupChecklistProviderProps) {
+  const [items, setItems] = useState<Record<string, boolean>>({});
+
+  const register = useCallback((id: string, completed: boolean) => {
+    setItems((prev) => {
+      if (prev[id] === completed) return prev;
+      return { ...prev, [id]: completed };
+    });
+  }, []);
+
+  const unregister = useCallback((id: string) => {
+    setItems((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
+  const totalCount = Object.keys(items).length;
+  const completedCount = Object.values(items).filter(Boolean).length;
+  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const allCompleted = totalCount > 0 && completedCount === totalCount;
+
+  const registerValue = useMemo(
+    () => ({ register, unregister }),
+    [register, unregister]
+  );
+
+  const stateValue = useMemo(
+    () => ({ totalCount, completedCount, progressPercent, allCompleted }),
+    [totalCount, completedCount, progressPercent, allCompleted]
+  );
+
+  return (
+    <SetupChecklistRegisterContext.Provider value={registerValue}>
+      <SetupChecklistStateContext.Provider value={stateValue}>
+        {children}
+      </SetupChecklistStateContext.Provider>
+    </SetupChecklistRegisterContext.Provider>
+  );
+}
+
+export function useSetupChecklist(): SetupChecklistStateContextType {
+  const ctx = useContext(SetupChecklistStateContext);
+  if (!ctx) {
+    return {
+      totalCount: 0,
+      completedCount: 0,
+      progressPercent: 0,
+      allCompleted: false,
+    };
+  }
+  return ctx;
+}
+
 export function SetupStep({ title, description, completed, onClick }: SetupStepProps) {
+  const id = useId();
+  const registerCtx = useContext(SetupChecklistRegisterContext);
+
+  useEffect(() => {
+    if (registerCtx) {
+      registerCtx.register(id, completed);
+      return () => {
+        registerCtx.unregister(id);
+      };
+    }
+  }, [id, completed, registerCtx]);
+
   return (
     <button
       onClick={onClick}
