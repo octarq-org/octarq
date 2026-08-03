@@ -1,6 +1,6 @@
 ---
 title: Publishing the SDK
-description: How to version, build, and publish the frontend plugin SDK (@octarq/plugin-sdk) using Changesets.
+description: Versioning, building, and publishing the frontend plugin SDK (@octarq/plugin-sdk) with Changesets.
 sidebar:
   order: 1
   group:
@@ -12,7 +12,7 @@ The frontend plugin SDK is published from `packages/plugin-sdk/` using [Changese
 
 ---
 
-## 1. Release Flow (Changesets)
+## Release Flow (Changesets)
 
 Releases are driven by changeset files committed alongside code changes.
 
@@ -42,9 +42,9 @@ When you merge the "Version Packages" pull request, the publishing workflow buil
 
 ---
 
-## 2. Package Configuration
+## Package Configuration
 
-The `packages/plugin-sdk/package.json` file requires specific fields to successfully publish:
+The `packages/plugin-sdk/package.json` file requires specific fields to publish:
 
 ```json
 {
@@ -68,7 +68,7 @@ The `packages/plugin-sdk/package.json` file requires specific fields to successf
 
 ---
 
-## 3. Consuming `@octarq/plugin-sdk`
+## Consuming `@octarq/plugin-sdk`
 
 Because `@octarq/plugin-sdk` is published publicly on npmjs, plugin authors can install it directly without configuring `.npmrc` or authentication:
 
@@ -78,7 +78,7 @@ pnpm add @octarq/plugin-sdk
 
 ---
 
-## 4. Pro Private Packages (GitHub Packages)
+## Pro Private Packages (GitHub Packages)
 
 Internal commercial packages (such as `@octarq-org/plugin-issuer` and `@octarq-org/api-client`) are published to **GitHub Packages** under the `@octarq-org` scope.
 
@@ -91,4 +91,5 @@ Consumer projects that depend on Pro private packages require a `.npmrc` file:
 
 - The first line routes `@octarq-org/*` packages to GitHub Packages.
 - The second line provides authentication via `GITHUB_TOKEN`.
+
 
