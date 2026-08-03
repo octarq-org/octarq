@@ -89,6 +89,20 @@ var ErrLoginRegistrationDisabled = errors.New("registration disabled")
 // ServiceDNSManager is the well-known service name under which the DNS manager is provided.
 const ServiceDNSManager = "dns.manager"
 
+// ServiceMailStorageProvider is the well-known service name under which the raw email storage provider is registered.
+const ServiceMailStorageProvider = "mail.storage_provider"
+
+// ErrStorageNotFound is returned when a storage object does not exist.
+var ErrStorageNotFound = errors.New("storage object not found")
+
+// StorageProvider defines the blob storage contract for raw email content.
+type StorageProvider interface {
+	Put(ctx context.Context, key string, data []byte) error
+	Get(ctx context.Context, key string) ([]byte, error)
+	Delete(ctx context.Context, key string) error
+	Stat(ctx context.Context, key string) (int64, error)
+}
+
 type contextKey string
 
 const orgIDKey contextKey = "org_id"

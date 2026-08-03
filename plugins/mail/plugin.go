@@ -35,6 +35,7 @@ type Plugin struct {
 	publishEvent func(orgID uint, event string, data any)
 	recordUsage  func(orgID uint, metric string, n int64)
 	requireRole  func(r *http.Request, min string) bool
+	ctx          *plugin.Context
 }
 
 // Compile-time capability checks.
@@ -66,7 +67,7 @@ func (p *Plugin) Describe() plugin.Info {
 }
 
 func (p *Plugin) Models() []any {
-	return []any{&Mailbox{}, &Email{}, &SMTPSender{}}
+	return []any{&Mailbox{}, &Email{}, &SMTPSender{}, &MailRawBlob{}}
 }
 
 // Menus announces this plugin's sidebar entry so /api/menus only offers it
@@ -100,6 +101,7 @@ func (p *Plugin) orgDB(r *http.Request) *gorm.DB {
 }
 
 func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
+	p.ctx = ctx
 	if ctx.DB != nil {
 		p.db = ctx.DB
 	}
@@ -189,7 +191,44 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		ctx.Provide("mail.email.get", p.getEmailForSummarize)
 		ctx.Provide("mailboxes.mcp_export", p.mcpExportMailboxes)
 		ctx.Provide("emails.mcp_export", p.mcpExportEmails)
+
+		dbProvider := NewDBStorageProvider(ctx.DB)
+		ctx.Provide(plugin.ServiceMailStorageProvider, plugin.StorageProvider(dbProvider))
 	}
+}
+
+func (p *Plugin) getStorageProvider() (plugin.StorageProvider, error) {
+	backend := p.getBackendConfig()
+	if backend != "" && backend != "database" && backend != "db" {
+		if p.ctx != nil {
+			if sp, ok := plugin.LookupAs[plugin.StorageProvider](p.ctx, plugin.ServiceMailStorageProvider); ok && sp != nil {
+				if _, isDB := sp.(*DBStorageProvider); !isDB {
+					return sp, nil
+				}
+			}
+		}
+		return nil, fmt.Errorf("mail storage provider %q requires Pro edition", backend)
+	}
+
+	if p.ctx != nil {
+		if sp, ok := plugin.LookupAs[plugin.StorageProvider](p.ctx, plugin.ServiceMailStorageProvider); ok && sp != nil {
+			return sp, nil
+		}
+	}
+	return NewDBStorageProvider(p.db), nil
+}
+
+// getBackendConfig resolves which storage backend to use. The single source is
+// the instance setting, so an operator can switch backends from the dashboard
+// without a restart — which is also what the Pro configuration UI writes.
+// Absent means the database backend, the only one OSS ships.
+func (p *Plugin) getBackendConfig() string {
+	if p.getGlobalSetting != nil {
+		if val := strings.TrimSpace(p.getGlobalSetting("mail_storage_backend")); val != "" {
+			return val
+		}
+	}
+	return "database"
 }
 
 func (p *Plugin) purge(orgID uint) error {
