@@ -100,7 +100,7 @@ func TestDownloadFlow(t *testing.T) {
 		suffix := r.URL.Query().Get("suffix")
 		if suffix == "tar.gz.sha256" {
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(fmt.Sprintf("%s  GeoLite2-City.tar.gz\n", shaHex)))
+			_, _ = fmt.Fprintf(w, "%s  GeoLite2-City.tar.gz\n", shaHex)
 			return
 		}
 		if suffix == "tar.gz" {
