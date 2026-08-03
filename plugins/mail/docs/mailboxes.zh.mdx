@@ -11,6 +11,24 @@ title: 邮箱与邮件路由
 3. 在 Cloudflare Email Routing Workers 等邮件服务中，配置脚本将收到的原始邮件 POST 至该 Webhook 地址。
 4. 配置完成后，发送至自定义域名的邮件将直接呈现在 **Mail** 邮箱收件箱中。
 
+## 通用原始 EML 入站 Webhook
+
+除了 Cloudflare Email Routing 之外，Octarq 提供了通用 Provider 无关的原始 EML 入站 Webhook 端点 `/api/webhook/{orgSlug}/email/inbound/raw`。该端点支持直接 POST 标准 RFC822 原始 EML 报文或 `multipart/form-data` 格式，并要求在 HTTP 请求 Header 中携带工作区密钥（`X-Octarq-Token: <token>` 或 `Authorization: Bearer <token>`）进行鉴权。
+
+### 常用邮件服务商配置示例
+
+#### Mailgun Routes 配置
+1. 在 Mailgun 控制台中进入 **Receiving → Routes**。
+2. 创建新 Rule 匹配目标收件人（如 `match_recipient(".*@yourdomain.com")`）。
+3. 添加 Action: `forward("https://your-octarq-host/api/webhook/{orgSlug}/email/inbound/raw")`。
+4. 在请求头配置中添加自定义 Header: `X-Octarq-Token: <your-inbound-token>`。
+
+#### SendGrid Inbound Parse 配置
+1. 在 SendGrid 控制台中进入 **Settings → Inbound Parse**。
+2. 添加 Host 与 Webhook URL: `https://your-octarq-host/api/webhook/{orgSlug}/email/inbound/raw`。
+3. 勾选 **POST the raw, full MIME message**（推送原始完整 MIME 消息）。
+4. 在反向代理/边缘网关上配置将入站请求附加 Header: `X-Octarq-Token: <your-inbound-token>` 或 `Authorization: Bearer <your-inbound-token>`。
+
 ## Catch-All 路由与保留前缀
 
 1. 进入 **日常运营 → 消息 → 邮件**，切换至 **Settings** 标签页。
