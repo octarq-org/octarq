@@ -101,7 +101,7 @@ export default function OverviewPage() {
                 <span className="text-xs font-semibold uppercase tracking-wider">{t("overview.gettingStarted")}</span>
               </div>
               <h2 className="text-xl font-bold text-foreground mt-1">
-                {allCompleted ? t("overview.allSetTitle") : t("overview.maximizePerformance")}
+                {allCompleted ? t("overview.allSetTitle") : t("overview.setupTitle")}
               </h2>
               <p className="text-xs text-foreground/50 mt-1">
                 {allCompleted ? t("overview.allSetDesc") : t("overview.gettingStartedDesc")}

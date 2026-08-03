@@ -195,7 +195,9 @@ Key rules:
   `"Marketing"`, `"Network"`); a category with no matching group creates one,
   routed to a top-level area by `areaForCategory`'s keywords. A plugin can also
   declare a **new top-level area** (`areas`) and point menu categories at its
-  id/title. Icons are string keys resolved by the app's single `PLUGIN_ICONS`
+  **id or one of its group labels** — never at its `title`, which is display
+  text the shell renders and localizes, so routing on it would make renaming an
+  area move menus. Icons are string keys resolved by the app's single `PLUGIN_ICONS`
   table (unknown menu icons render literally, e.g. an emoji).
 - **`requiredRole`/`requiredTier` are advisory UX only.** The host hides menu
   entries and pre-renders access-denied for users below `requiredRole`

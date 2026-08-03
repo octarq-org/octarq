@@ -171,11 +171,13 @@ export function areaForCategory(cat?: string, pluginAreas: UIArea[] = []): AreaI
   // octarq's own license → Settings, the org issuing licenses → Commerce.
   if (c === "settings" || c === "instance" || c === "account") return "settings";
 
-  // Category matches plugin area by id, title, or declared group label.
+  // Category matches a plugin area by id or by one of its declared group
+  // labels — never by title. Title is what the sidebar renders and what
+  // translateAreaTitle localizes; routing on it would mean renaming an area
+  // silently relocates every menu that named it. Guarded by areaForCategory.test.ts.
   const pluginHit = pluginAreas.find(
     (a) =>
       a.id.toLowerCase() === c ||
-      a.title.toLowerCase() === c ||
       (a.groups ?? []).some((g) => g.toLowerCase() === c),
   );
   if (pluginHit) return pluginHit.id;
