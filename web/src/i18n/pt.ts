@@ -49,7 +49,7 @@ export const pt = {
     createAccount: "Crie sua conta",
     signInTo: "Entrar no {{app}}",
     registerSubtitle: "Cadastre-se para criar seu próprio workspace",
-    loginSubtitle: "Insira suas credenciais para acessar o workspace de operador",
+    loginSubtitle: "Insira suas credenciais para acessar o painel de controle",
     email: "E-mail",
     emailPlaceholder: "voce@dominio.com",
     password: "Senha",
@@ -82,8 +82,8 @@ export const pt = {
     empty: "Nenhum resultado para “{{q}}”.",
   },
   areas: {
-    operations: { title: "Operações", subtitle: "Tráfego diário e comunicação" },
-    assets: { title: "Infraestrutura", subtitle: "Servidores, rede e bancos de dados" },
+    operations: { title: "Operations", subtitle: "Tráfego diário e comunicação" },
+    assets: { title: "Infrastructure", subtitle: "Servidores, rede e bancos de dados" },
     insights: { title: "Segurança e Admin", subtitle: "Defesa contra abuso e logs de atividade" },
     help: { title: "Manual de uso", subtitle: "Fluxos do console, notas operacionais e perguntas frequentes" },
     settings: { title: "Configurações", subtitle: "Configurações de workspace e perfil" },
@@ -140,7 +140,7 @@ export const pt = {
     errResetFailed: "Falha ao redefinir a senha.",
   },
   footer: {
-    help: "Sobre o octarq",
+    help: "Sobre o Octarq",
     docs: "Documentação para desenvolvedores",
     about: "Site oficial",
     github: "GitHub",
