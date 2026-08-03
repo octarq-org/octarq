@@ -1,4 +1,4 @@
-import { HTMLAttributes, TableHTMLAttributes, ThHTMLAttributes, TdHTMLAttributes } from "react";
+import { createContext, useContext, ReactNode, HTMLAttributes, TableHTMLAttributes, ThHTMLAttributes, TdHTMLAttributes } from "react";
 import { cn } from "../cn";
 
 // A small set of themed table primitives — native table elements carrying octarq's
@@ -8,6 +8,41 @@ import { cn } from "../cn";
 //     <THead><TR><TH>Name</TH></TR></THead>
 //     <TBody><TR><TD>…</TD></TR></TBody>
 //   </Table>
+
+export type TableDensity = "comfortable" | "compact";
+
+const TableDensityContext = createContext<TableDensity>("comfortable");
+
+// The setter is part of the same context so a preferences UI can change the
+// density without the host wiring a second channel for it. Default is a no-op:
+// a table rendered outside any provider still reads "comfortable" and renders.
+const SetTableDensityContext = createContext<(d: TableDensity) => void>(() => {});
+
+export interface TableDensityProviderProps {
+  density?: TableDensity;
+  onDensityChange?: (d: TableDensity) => void;
+  children: ReactNode;
+}
+
+export function TableDensityProvider({ density, onDensityChange, children }: TableDensityProviderProps) {
+  return (
+    <TableDensityContext.Provider value={density ?? "comfortable"}>
+      <SetTableDensityContext.Provider value={onDensityChange ?? NOOP}>
+        {children}
+      </SetTableDensityContext.Provider>
+    </TableDensityContext.Provider>
+  );
+}
+
+const NOOP = () => {};
+
+export function useTableDensity(): TableDensity {
+  return useContext(TableDensityContext);
+}
+
+export function useSetTableDensity(): (d: TableDensity) => void {
+  return useContext(SetTableDensityContext);
+}
 
 export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElement>) {
   return (
@@ -30,14 +65,29 @@ export function TR({ className, ...props }: HTMLAttributes<HTMLTableRowElement>)
 }
 
 export function TH({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
+  const density = useTableDensity();
   return (
     <th
-      className={cn("whitespace-nowrap px-3 py-2 text-[12px] font-medium uppercase tracking-wide", className)}
+      className={cn(
+        "whitespace-nowrap px-3 text-[12px] font-medium uppercase tracking-wide",
+        density === "compact" ? "py-1" : "py-2",
+        className,
+      )}
       {...props}
     />
   );
 }
 
 export function TD({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn("px-3 py-2.5 text-foreground/80", className)} {...props} />;
+  const density = useTableDensity();
+  return (
+    <td
+      className={cn(
+        "px-3 text-foreground/80",
+        density === "compact" ? "py-1" : "py-2.5",
+        className,
+      )}
+      {...props}
+    />
+  );
 }

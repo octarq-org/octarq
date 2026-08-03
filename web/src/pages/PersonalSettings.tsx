@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, Token } from "../api";
-import { Empty, Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toast, confirmDialog, confirmPassword } from "../ui";
+import { Empty, Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toast, confirmDialog, confirmPassword, cn, useTableDensity, useSetTableDensity } from "../ui";
 import { User, Key, Settings, CheckCircle, Trash2, Eye, ClipboardCopy } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { roleSatisfies, useCurrentRole } from "../shell/role";
@@ -23,6 +23,9 @@ export function ProfileSettings() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const { t } = useTranslation();
+  const currentDensity = useTableDensity();
+
+  const setDensity = useSetTableDensity();
 
   const reloadUser = () => {
     api.me().then((u) => setEmail(u.email || u.username || ""));
@@ -220,6 +223,39 @@ export function ProfileSettings() {
             </Button>
           </div>
         </form>
+      </GlassCard>
+
+      <GlassCard className="p-6 max-w-xl space-y-3">
+        <div>
+          <div className="font-semibold text-sm text-foreground">{t("personal.tableDensityTitle")}</div>
+          <div className="text-xs text-foreground/50 mt-0.5">{t("personal.tableDensityDesc")}</div>
+        </div>
+        <div className="inline-flex rounded-xl bg-foreground/[0.05] p-1 border border-foreground/[0.06]">
+          <button
+            type="button"
+            onClick={() => setDensity("comfortable")}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+              currentDensity === "comfortable"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-foreground/60 hover:text-foreground",
+            )}
+          >
+            {t("personal.densityComfortable")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setDensity("compact")}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+              currentDensity === "compact"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-foreground/60 hover:text-foreground",
+            )}
+          >
+            {t("personal.densityCompact")}
+          </button>
+        </div>
       </GlassCard>
     </div>
   );

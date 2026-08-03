@@ -11,7 +11,7 @@
 // licensing plugin is or isn't in the build.
 import { useEffect, useState } from "react";
 import { api, ApiError, InstancePluginInfo } from "../../api";
-import { PageHeader, GlassCard, Badge, Alert } from "../../ui";
+import { PageHeader, GlassCard, Badge, Alert, Table, THead, TBody, TR, TH, TD } from "../../ui";
 import { ShieldAlert } from "lucide-react";
 import { useTranslation } from "../../i18n";
 
@@ -49,71 +49,69 @@ export function InstancePluginsSettings() {
         <GlassCard className="p-8 text-sm text-center text-foreground/55">{t("settings.noPlugins")}</GlassCard>
       ) : (
         <GlassCard className="overflow-hidden p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border/60 text-left text-[11px] uppercase tracking-wider text-foreground/50">
-                  <th className="px-4 py-3 font-semibold">{t("settings.instancePluginName")}</th>
-                  <th className="px-4 py-3 font-semibold">{t("settings.instancePluginFeatureKey")}</th>
-                  <th className="px-4 py-3 font-semibold">{t("settings.instancePluginCategory")}</th>
-                  <th className="px-4 py-3 font-semibold">{t("settings.instancePluginRequires")}</th>
-                  <th className="px-4 py-3 font-semibold">{t("settings.instancePluginKind")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/40">
-                {plugins.map((p) => (
-                  <tr key={p.name} className="hover:bg-foreground/[0.03] transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-foreground">{p.title || p.name}</div>
-                      <div className="font-mono text-[10px] text-muted-foreground">{p.name}</div>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[11px] text-foreground/70">{p.featureKey}</td>
-                    <td className="px-4 py-3 text-foreground/70 capitalize">{p.category}</td>
-                    <td className="px-4 py-3">
-                      {p.requires && p.requires.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {p.requires.map((r) => (
-                            <span
-                              key={r}
-                              className="rounded-md bg-foreground/[0.05] px-1.5 py-0.5 font-mono text-[10px] text-foreground/70"
-                            >
-                              {r}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-[11px] text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {p.core ? (
-                          // Core plumbing has no workspace toggle at all, so
-                          // saying "on by default" about it would be misleading.
-                          <Badge tone="violet" className="text-[10px]">
-                            {t("settings.instancePluginCore")}
-                          </Badge>
-                        ) : p.enabledByDefault ? (
-                          <Badge tone="green" className="text-[10px]">
-                            {t("settings.instancePluginOptOut")}
-                          </Badge>
-                        ) : (
-                          <Badge tone="neutral" className="text-[10px]">
-                            {t("settings.instancePluginOptIn")}
-                          </Badge>
-                        )}
-                        {p.hasUI && (
-                          <Badge tone="cyan" className="text-[10px]">
-                            {t("settings.instancePluginHasUI")}
-                          </Badge>
-                        )}
+          <Table>
+            <THead className="border-b border-border/60">
+              <TR>
+                <TH>{t("settings.instancePluginName")}</TH>
+                <TH>{t("settings.instancePluginFeatureKey")}</TH>
+                <TH>{t("settings.instancePluginCategory")}</TH>
+                <TH>{t("settings.instancePluginRequires")}</TH>
+                <TH>{t("settings.instancePluginKind")}</TH>
+              </TR>
+            </THead>
+            <TBody className="divide-y divide-border/40">
+              {plugins.map((p) => (
+                <TR key={p.name}>
+                  <TD>
+                    <div className="font-medium text-foreground">{p.title || p.name}</div>
+                    <div className="font-mono text-[10px] text-muted-foreground">{p.name}</div>
+                  </TD>
+                  <TD className="font-mono text-[11px] text-foreground/70">{p.featureKey}</TD>
+                  <TD className="text-foreground/70 capitalize">{p.category}</TD>
+                  <TD>
+                    {p.requires && p.requires.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {p.requires.map((r) => (
+                          <span
+                            key={r}
+                            className="rounded-md bg-foreground/[0.05] px-1.5 py-0.5 font-mono text-[10px] text-foreground/70"
+                          >
+                            {r}
+                          </span>
+                        ))}
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">—</span>
+                    )}
+                  </TD>
+                  <TD>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {p.core ? (
+                        // Core plumbing has no workspace toggle at all, so
+                        // saying "on by default" about it would be misleading.
+                        <Badge tone="violet" className="text-[10px]">
+                          {t("settings.instancePluginCore")}
+                        </Badge>
+                      ) : p.enabledByDefault ? (
+                        <Badge tone="green" className="text-[10px]">
+                          {t("settings.instancePluginOptOut")}
+                        </Badge>
+                      ) : (
+                        <Badge tone="neutral" className="text-[10px]">
+                          {t("settings.instancePluginOptIn")}
+                        </Badge>
+                      )}
+                      {p.hasUI && (
+                        <Badge tone="cyan" className="text-[10px]">
+                          {t("settings.instancePluginHasUI")}
+                        </Badge>
+                      )}
+                    </div>
+                  </TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
         </GlassCard>
       )}
 

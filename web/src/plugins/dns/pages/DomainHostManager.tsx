@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, Domain, HostEntry, ProviderAccount } from "../../../api";
 import { dnsApi, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus } from "../api";
-import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../../ui";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Table, THead, TBody, TR, TH, TD } from "../../../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
@@ -66,83 +66,81 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
       {hosts.length === 0 ? (
         <p className="text-sm text-foreground/50">{t("domains.noActiveHosts")}</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-foreground/40 border-b border-foreground/[0.06] font-semibold uppercase tracking-wider">
-                <th className="py-2.5 pr-4">{t("domains.thHost")}</th>
-                <th className="py-2.5 pr-4 text-accent-fg">{t("domains.thLink")}</th>
-                <th className="py-2.5 pr-4 text-success-fg">{t("domains.thMail")}</th>
-                <th className="py-2.5 text-right" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-foreground/[0.04]">
-              {hosts.map((h) => (
-                <tr key={h.host} className="group">
-                  <td className="py-3 pr-4 font-mono text-xs text-foreground/70">{h.host}</td>
-                  <td className="py-3 pr-4">
-                    {h.linkEnabled !== null ? (
-                      <button
-                        disabled={!!busy}
-                        onClick={() => toggleHost(h.host, "linkHosts", h.linkEnabled!)}
-                        className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 ${
-                          h.linkEnabled
-                            ? "bg-indigo-500/25 text-accent-fg hover:bg-indigo-500/40"
-                            : "bg-foreground/[0.06] text-foreground/40 hover:bg-foreground/10 line-through"
-                        }`}
-                      >
-                        <span className={`h-1.5 w-1.5 rounded-full ${h.linkEnabled ? "bg-indigo-400" : "bg-foreground/[0.06]"}`} />
-                        {h.linkEnabled ? t("domains.on") : t("domains.off")}
-                      </button>
-                    ) : (
-                      <button
-                        disabled={!!busy}
-                        onClick={() => addHost(h.host, true, false)}
-                        className="text-xs text-foreground/50 hover:text-accent-fg transition-colors px-2 py-0.5 disabled:opacity-50"
-                      >
-                        {t("domains.addShort")}
-                      </button>
-                    )}
-                  </td>
-                  <td className="py-3 pr-4">
-                    {h.mailEnabled !== null ? (
-                      <button
-                        disabled={!!busy}
-                        onClick={() => toggleHost(h.host, "mailHosts", h.mailEnabled!)}
-                        className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 ${
-                          h.mailEnabled
-                            ? "bg-success-bg text-success-fg border border-success-border hover:brightness-95"
-                            : "bg-foreground/[0.06] text-foreground/40 hover:bg-foreground/10 line-through"
-                        }`}
-                      >
-                        <span className={`h-1.5 w-1.5 rounded-full ${h.mailEnabled ? "bg-success-fg" : "bg-foreground/[0.06]"}`} />
-                        {h.mailEnabled ? t("domains.on") : t("domains.off")}
-                      </button>
-                    ) : (
-                      <button
-                        disabled={!!busy}
-                        onClick={() => addHost(h.host, false, true)}
-                        className="text-xs text-foreground/50 hover:text-success-fg transition-colors px-2 py-0.5 disabled:opacity-50"
-                      >
-                        {t("domains.addShort")}
-                      </button>
-                    )}
-                  </td>
-                  <td className="py-3 text-right">
+        <Table>
+          <THead className="border-b border-foreground/[0.06]">
+            <TR>
+              <TH>{t("domains.thHost")}</TH>
+              <TH className="text-accent-fg">{t("domains.thLink")}</TH>
+              <TH className="text-success-fg">{t("domains.thMail")}</TH>
+              <TH className="text-right" />
+            </TR>
+          </THead>
+          <TBody className="divide-y divide-foreground/[0.04]">
+            {hosts.map((h) => (
+              <TR key={h.host} className="group">
+                <TD className="font-mono text-xs text-foreground/70">{h.host}</TD>
+                <TD>
+                  {h.linkEnabled !== null ? (
                     <button
                       disabled={!!busy}
-                      onClick={() => removeHost(h.host)}
-                      title={t("domains.removeHost")}
-                      className="text-xs text-danger-fg/70 hover:text-danger-fg opacity-0 group-hover:opacity-100 transition-all disabled:opacity-30 px-2.5 py-0.5"
+                      onClick={() => toggleHost(h.host, "linkHosts", h.linkEnabled!)}
+                      className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+                        h.linkEnabled
+                          ? "bg-indigo-500/25 text-accent-fg hover:bg-indigo-500/40"
+                          : "bg-foreground/[0.06] text-foreground/40 hover:bg-foreground/10 line-through"
+                      }`}
                     >
-                      {t("domains.remove")}
+                      <span className={`h-1.5 w-1.5 rounded-full ${h.linkEnabled ? "bg-indigo-400" : "bg-foreground/[0.06]"}`} />
+                      {h.linkEnabled ? t("domains.on") : t("domains.off")}
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  ) : (
+                    <button
+                      disabled={!!busy}
+                      onClick={() => addHost(h.host, true, false)}
+                      className="text-xs text-foreground/50 hover:text-accent-fg transition-colors px-2 py-0.5 disabled:opacity-50"
+                    >
+                      {t("domains.addShort")}
+                    </button>
+                  )}
+                </TD>
+                <TD>
+                  {h.mailEnabled !== null ? (
+                    <button
+                      disabled={!!busy}
+                      onClick={() => toggleHost(h.host, "mailHosts", h.mailEnabled!)}
+                      className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+                        h.mailEnabled
+                          ? "bg-success-bg text-success-fg border border-success-border hover:brightness-95"
+                          : "bg-foreground/[0.06] text-foreground/40 hover:bg-foreground/10 line-through"
+                      }`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${h.mailEnabled ? "bg-success-fg" : "bg-foreground/[0.06]"}`} />
+                      {h.mailEnabled ? t("domains.on") : t("domains.off")}
+                    </button>
+                  ) : (
+                    <button
+                      disabled={!!busy}
+                      onClick={() => addHost(h.host, false, true)}
+                      className="text-xs text-foreground/50 hover:text-success-fg transition-colors px-2 py-0.5 disabled:opacity-50"
+                    >
+                      {t("domains.addShort")}
+                    </button>
+                  )}
+                </TD>
+                <TD className="text-right">
+                  <button
+                    disabled={!!busy}
+                    onClick={() => removeHost(h.host)}
+                    title={t("domains.removeHost")}
+                    className="text-xs text-danger-fg/70 hover:text-danger-fg opacity-0 group-hover:opacity-100 transition-all disabled:opacity-30 px-2.5 py-0.5"
+                  >
+                    {t("domains.remove")}
+                  </button>
+                </TD>
+              </TR>
+            ))}
+          </TBody>
+        </Table>
       )}
       <AddHostRow domain={domain} busy={busy === "add"} onAdd={addHost} />
     </div>

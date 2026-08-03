@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { BookOpen, Bot, Boxes, FileText, Globe, Link2, Mail, Send, Server, Shield, Sparkles } from "lucide-react";
 import { api, HelpCategory, HelpDocMeta, MenuItem, Action, Org, PluginInfo } from "./api";
@@ -10,7 +10,7 @@ const SettingsPage = lazy(() => import("./pages/Settings"));
 const InviteAcceptPage = lazy(() => import("./pages/InviteAccept"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"));
 const StatusPage = lazy(() => import("./pages/Status"));
-import { Modal, Button, toast, cn, Alert } from "./ui";
+import { Modal, Button, toast, cn, Alert, TableDensityProvider, TableDensity } from "./ui";
 import { useTranslation } from "./i18n";
 import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
 import { RoleProvider, roleSatisfies } from "./shell/role";
@@ -41,11 +41,27 @@ export default function App() {
   const [activeOrgId, setActiveOrgId] = useState<number>(0);
   // Advisory org role from /api/auth/me for sidebar and PluginGate gating.
   const [role, setRole] = useState<string | undefined>(undefined);
+  const [tableDensity, setTableDensity] = useState<TableDensity>("comfortable");
 
   useEffect(() => {
     api.me()
       .then((m) => { setUser(m.email || m.username || ""); setActiveOrgId(m.orgId); setRole(m.role); setAuthed(true); })
       .catch(() => setAuthed(false));
+
+    api.getUserSettings()
+      .then((s) => {
+        if (s?.table_density === "compact" || s?.table_density === "comfortable") {
+          setTableDensity(s.table_density as TableDensity);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Persist-and-apply, handed to the preferences UI through the same provider
+  // that carries the density down — no second channel for one piece of state.
+  const changeTableDensity = useCallback((d: TableDensity) => {
+    setTableDensity(d);
+    api.updateUserSettings("table_density", d).catch(() => {});
   }, []);
 
   let content;
@@ -93,9 +109,9 @@ export default function App() {
   }
 
   return (
-    <>
+    <TableDensityProvider density={tableDensity} onDensityChange={changeTableDensity}>
       {content}
-    </>
+    </TableDensityProvider>
   );
 }
 
