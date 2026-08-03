@@ -94,9 +94,41 @@ function checkPlaceholderParity(label, enObj, langObj, lang) {
   }
 }
 
+function loadUntranslatedAllowlist() {
+  const allowlistFile = path.join(webDir, "src/i18n/untranslated-allowlist.ts");
+  if (!fs.existsSync(allowlistFile)) return new Set();
+  const mod = loadTsExports(allowlistFile);
+  const setOrArray = mod.UNTRANSLATED_ALLOWLIST;
+  if (setOrArray instanceof Set) return setOrArray;
+  if (Array.isArray(setOrArray)) return new Set(setOrArray);
+  return new Set();
+}
+
+function checkUntranslatedValues(label, enObj, langObj, lang, allowlist, nsPrefix = "") {
+  const en = getNestedStrings(enObj);
+  const other = getNestedStrings(langObj || {});
+  const bad = [];
+  for (const [key, enText] of en) {
+    if (!other.has(key)) continue;
+    const fullKey = nsPrefix ? `${nsPrefix}.${key}` : key;
+    const langText = other.get(key);
+    if (langText === enText && !allowlist.has(fullKey)) {
+      bad.push({ key: fullKey, text: langText });
+    }
+  }
+  if (bad.length > 0) {
+    console.error(`❌ [${label} -> ${lang}] ${bad.length} untranslated key(s) identical to en (not in allowlist):`);
+    for (const b of bad) {
+      console.error(`   - ${b.key}: "${b.text}"`);
+    }
+    hasErrors = true;
+  }
+}
+
 function checkDictionaryCompleteness() {
   console.log("=== Checking i18n Dictionary Key Completeness ===");
   const REQUIRED_WEB_LOCALES = ["zh", "es", "pt", "ja"];
+  const allowlist = loadUntranslatedAllowlist();
 
   // 1. Check web/src/i18n/ (en.ts vs zh.ts, es.ts, pt.ts, ja.ts)
   const rootLocales = {};
@@ -112,6 +144,7 @@ function checkDictionaryCompleteness() {
     for (const lang of REQUIRED_WEB_LOCALES) {
       const langKeys = new Set(getNestedKeys(rootLocales[lang] || {}));
       checkPlaceholderParity(`web/src/i18n/${lang}.ts`, rootLocales.en, rootLocales[lang], lang);
+      checkUntranslatedValues(`web/src/i18n/${lang}.ts`, rootLocales.en, rootLocales[lang], lang, allowlist);
       const missing = [...enKeys].filter((k) => !langKeys.has(k));
       if (missing.length > 0) {
         console.error(`❌ [web/src/i18n/${lang}.ts] Missing ${missing.length} key(s) relative to en:`);
@@ -135,6 +168,7 @@ function checkDictionaryCompleteness() {
         for (const lang of REQUIRED_WEB_LOCALES) {
           const langKeys = new Set(getNestedKeys(nsData[lang] || {}));
           checkPlaceholderParity(`${path.relative(repoDir, filePath)} -> ${nsName}`, nsData.en, nsData[lang], lang);
+          checkUntranslatedValues(`${path.relative(repoDir, filePath)} -> ${nsName}`, nsData.en, nsData[lang], lang, allowlist, nsName);
           const missing = [...enKeys].filter((k) => !langKeys.has(k));
           if (missing.length > 0) {
             console.error(`❌ [${path.relative(repoDir, filePath)} -> ${nsName}.${lang}] Missing ${missing.length} key(s) relative to en:`);
