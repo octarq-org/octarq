@@ -86,7 +86,6 @@ export const zh: Resources = {
     operations: { title: "Operations", subtitle: "日常流量与消息服务" },
     assets: { title: "Infrastructure", subtitle: "服务器、网络与数据库" },
     help: { title: "使用指南", subtitle: "控制台使用流程与常见问题说明" },
-    insights: { title: "安全与管理", subtitle: "安全防护与审计日志" },
     settings: { title: "设置", subtitle: "工作区与个人配置" },
   },
   groups: {

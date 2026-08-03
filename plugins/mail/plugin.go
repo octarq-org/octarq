@@ -73,7 +73,7 @@ func (p *Plugin) Models() []any {
 // when the plugin is mounted and enabled for the workspace.
 func (p *Plugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{
-		{ID: "mail", Label: "Mail", Path: "/mail", Icon: "mail", Category: "Communication", Order: 20},
+		{ID: "mail", Label: "Mail", Path: "/mail", Icon: "mail", Category: "Messaging", Order: 20},
 	}
 }
 
