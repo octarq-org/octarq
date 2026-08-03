@@ -12,29 +12,30 @@ Explore official and reference plugins available for Octarq from the [octarq-plu
 
 ## Official & Reference Plugins
 
-### 1. 🤖 Telegram (`octarq-plugin-telegram`)
+### 1. Telegram (`octarq-plugin-telegram`)
 - **Category**: Integration / Notifications
-- **Description**: Connects your Octarq instance with Telegram bots. Send instant notification alerts, receive system status updates, and trigger automated tasks directly from Telegram chat commands.
+- **Description**: Connects your Octarq instance with Telegram bots to send notification alerts and handle commands.
 - **Repository**: [octarq-org/octarq-plugins/tree/main/telegram](https://github.com/octarq-org/octarq-plugins/tree/main/telegram)
 
 ---
 
-### 2. 🪝 Webhook (`octarq-plugin-webhook`)
+### 2. Webhook (`octarq-plugin-webhook`)
 - **Category**: Integration / Webhooks
-- **Description**: Outbound webhook delivery system for event-driven workflows. Features exponential backoff retries, secret signature verification (HMAC-SHA256), payload customization, and event filtering.
+- **Description**: Outbound webhook delivery system with retries, signature verification (HMAC-SHA256), and event filtering.
 - **Repository**: [octarq-org/octarq-plugins/tree/main/webhook](https://github.com/octarq-org/octarq-plugins/tree/main/webhook)
 
 ---
 
-### 3. ✉️ Mail Links (`octarq-plugin-maillink`)
+### 3. Mail Links (`octarq-plugin-maillink`)
 - **Category**: Agent-Native / Automation
-- **Description**: An agent-native reference plugin that intercepts incoming OTP and magic link emails via `OnEmail` hooks, automatically generates short links using Octarq's links service, and exposes them as tools over the MCP server for Claude Code and Cursor to consume.
+- **Description**: Reference plugin that intercepts incoming OTP and magic link emails via `OnEmail` hooks, creates short links, and exposes them as tools over MCP for Claude Code and Cursor.
 - **Repository**: [octarq-org/octarq-plugins/tree/main/maillink](https://github.com/octarq-org/octarq-plugins/tree/main/maillink)
 
 ---
 
-## 🛠 Starter Template
+## Starter Template
 
 Want to create your own plugin? Start with the official plugin template:
 
-- **`_template`**: Pre-configured Go module + React TS frontend workspace with `@octarq/plugin-sdk` ready for instant copy-and-edit development.
+- **`_template`**: Pre-configured Go module and React TS frontend workspace using `@octarq/plugin-sdk`.
+

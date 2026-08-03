@@ -1,6 +1,6 @@
 ---
 title: Writing a Plugin
-description: Step-by-step guide to writing a custom Octarq plugin in 30 minutes.
+description: Guide to writing a custom Octarq plugin.
 sidebar:
   order: 1
   group:
@@ -8,16 +8,16 @@ sidebar:
 ---
 
 
-Octarq is extended by **plugins**, not forks. A plugin is a self-contained feature composed at build time, consisting of:
+Octarq is extended by plugins. A plugin consists of:
 
-- A **Go module** implementing the backend contract `plugin.Plugin`
-- A **JS package** implementing the frontend contract `UIPlugin` (from `@octarq/plugin-sdk`)
+- A **Go module** implementing `plugin.Plugin`
+- A **JS package** implementing `UIPlugin` (from `@octarq/plugin-sdk`)
 
 ---
 
 ## 1. Directory Structure
 
-A minimal full-stack plugin repository follows this structure:
+A minimal plugin repository follows this structure:
 
 ```
 your-plugin/
@@ -120,7 +120,7 @@ Plugins communicate through an in-memory service registry provided on `plugin.Co
   }
   ```
 
-> `Start(ctx context.Context)` from optional `Starter` interface runs in a background goroutine after all plugins have mounted, making it the safe entry point for inter-plugin initialization.
+> `Start(ctx context.Context)` from optional `Starter` interface runs in a background goroutine after all plugins have mounted, providing an entry point for inter-plugin initialization.
 
 ---
 
@@ -133,5 +133,6 @@ Octarq plugins are composed at build time (similar to `xcaddy`):
 OCTARQ_PLUGINS='[{"go":"github.com/you/octarq-plugin-hello","npm":"@you/octarq-plugin-hello"}]' make plugin-build
 ```
 
-- **Routes Auto-Gate**: Endpoints automatically return `404` when disabled in workspace settings.
-- **AutoMigrate Preflight**: Database tables are safely resolved and migrated at startup.
+- **Routes Auto-Gate**: Endpoints return `404` when disabled in workspace settings.
+- **AutoMigrate Preflight**: Database tables are resolved and migrated at startup.
+

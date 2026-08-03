@@ -1,6 +1,6 @@
 ---
 title: Accessibility Guide
-description: Accessibility standards, guidelines, and compliance details for the Octarq dashboard.
+description: Accessibility requirements and patterns for the Octarq dashboard.
 sidebar:
   order: 2
   group:
@@ -8,16 +8,16 @@ sidebar:
 ---
 
 
-This guide outlines the accessibility (a11y) standards, color contrast parameters, and keyboard operability requirements for the Octarq dashboard and plugins.
+Octarq dashboard and plugin UI requirements for keyboard navigation, ARIA attributes, and color contrast.
 
 ---
 
-## 1. Primitives & Components
+## Primitives & Components
 
 By default, Octarq uses **Base UI** (`@base-ui/react`) and **shadcn/ui** to build accessible interactive elements.
 
-- **Dialogs / Modals**: Built with `BaseDialog` which provides focus trapping, scroll locking, `Escape` key close, backdrop-click close, and correct `role="dialog"` + `aria-modal` + `aria-labelledby` attributes.
-- **Switches / Toggles**: Built with `BaseSwitch` which handles `role="switch"`, `aria-checked` states, and full keyboard interaction (Space/Enter).
+- **Dialogs / Modals**: Built with `BaseDialog` which provides focus trapping, scroll locking, `Escape` key close, backdrop-click close, and `role="dialog"` + `aria-modal` + `aria-labelledby` attributes.
+- **Switches / Toggles**: Built with `BaseSwitch` which handles `role="switch"`, `aria-checked` states, and keyboard interaction (Space/Enter).
 - **Focus Rings**: Interactive elements must include clear `focus-visible` styles using the application's shared token:
   ```css
   /* Example styling */
@@ -26,13 +26,13 @@ By default, Octarq uses **Base UI** (`@base-ui/react`) and **shadcn/ui** to buil
 
 ---
 
-## 2. Color Contrast (Glass Theme)
+## Color Contrast (Glass Theme)
 
 Octarq's dark "glass" theme targets WCAG AA standards:
-- **Normal text**: Requires a contrast ratio of at least **4.5:1** against the background.
-- **Large text**: Requires at least **3:1** (defined as $\ge$ 24px, or $\ge$ 18.6px bold).
+- **Normal text**: Contrast ratio of at least **4.5:1** against the background.
+- **Large text**: Contrast ratio of at least **3:1** ($\ge$ 24px, or $\ge$ 18.6px bold).
 
-### Reference Contrast Tones (over dark surface `#07070b`):
+### Reference Contrast Tones (over dark surface `#07070b`)
 
 | Opacity / Style | Contrast Ratio | Compliance | Role |
 |-----------------|----------------|------------|------|
@@ -43,18 +43,19 @@ Octarq's dark "glass" theme targets WCAG AA standards:
 | `text-white/30` | ~2.4:1 | **FAIL** (All) | Decorative elements only |
 
 > [!IMPORTANT]
-> Always use `text-white/50` (or `text-muted-foreground`) as the absolute contrast floor for readable content, captions, and descriptions.
+> Use `text-white/50` (or `text-muted-foreground`) as the contrast floor for readable content, captions, and descriptions.
 
 ---
 
-## 3. Keyboard Operability & ARIA Requirements
+## Keyboard Operability & ARIA Requirements
 
-Every interactive element contributed by a plugin must support keyboard navigation:
+Interactive elements contributed by plugins must support keyboard navigation:
 
-### 3.1 Copyable Code Blocks
-Do not place click listeners on plain `<code>` tags. Instead, wrap them in a `<button>` or add `role="button" tabIndex={0}` along with keydown listeners for Space/Enter and a clear `aria-label` (e.g., "Copy to clipboard").
+### Copyable Code Blocks
+Do not place click listeners on plain `<code>` tags. Instead, wrap them in a `<button>` or add `role="button" tabIndex={0}` along with keydown listeners for Space/Enter and an `aria-label` (e.g., "Copy to clipboard").
 
-### 3.2 Interactivity Metadata
-- **State indicators**: Expandable components (menus, accordions, disclosures) must expose `aria-expanded={isOpen}` and `aria-controls="region-id"`.
-- **Active links**: The active item in the navigation rail must carry `aria-current="page"`.
-- **Dialogs**: The close button in dialog headers should have an explicit `aria-label="Close"` instead of just rendering "✕".
+### Interactivity Metadata
+- **State indicators**: Expandable components (menus, accordions, disclosures) must set `aria-expanded={isOpen}` and `aria-controls="region-id"`.
+- **Active links**: The active item in the navigation rail must set `aria-current="page"`.
+- **Dialogs**: The close button in dialog headers requires an explicit `aria-label="Close"` instead of rendering a plain "✕".
+

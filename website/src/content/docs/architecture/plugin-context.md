@@ -90,5 +90,5 @@ Example (`octarq.nomail.json`):
 
 Build command:
 ```bash
-OCTARQ_PLUGINS_MANIFEST=octarq.nomail.json npm run build
+OCTARQ_PLUGINS_MANIFEST=octarq.nomail.json pnpm build
 ```

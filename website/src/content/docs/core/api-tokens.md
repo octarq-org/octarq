@@ -8,13 +8,13 @@ sidebar:
 ---
 
 
-Every data endpoint in octarq accepts either a session cookie or a bearer token, so
+Every data endpoint in Octarq accepts either a session cookie or a bearer token, so
 you can script against the same API the dashboard uses.
 
 ## Issuing a token
 
-Create a token in the dashboard. The raw value is shown **once** at creation —
-copy it then. octarq stores only a **SHA-256 hash**, so a database leak never exposes
+Create a token under **Settings → Account → API Tokens**. The raw value is shown **once** at creation —
+copy it then. Octarq stores only a **SHA-256 hash**, so a database leak never exposes
 a usable token.
 
 ## Using a token

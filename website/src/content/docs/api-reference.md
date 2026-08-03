@@ -7,9 +7,9 @@ sidebar:
     label: "API Reference"
 ---
 
-Octarq exposes a strongly-typed REST API generated directly from the Go backend handlers (via Huma OpenAPI v3).
+Octarq exposes a REST API generated from Go backend handlers via Huma OpenAPI v3.
 
-All management operations — including authentication, workspace settings, link shorteners, mailboxes, DNS zones, and Pro modules (SSO, Audit, Finance, Infra, Billing, AI) — are fully described by the OpenAPI 3.0 spec.
+Management operations (authentication, workspace settings, short links, mailboxes, and DNS zones) are defined in the OpenAPI 3.0 spec.
 
 ## OpenAPI 3.0 Spec File
 

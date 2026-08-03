@@ -9,7 +9,7 @@ sidebar:
 
 
 Mailboxes give you addresses on your own domains without running an SMTP server.
-octarq receives mail through **Cloudflare Email Routing**, so there's no port 25, MX,
+Octarq receives mail through **Cloudflare Email Routing**, so there's no port 25, MX,
 or anti-spam operations to manage.
 
 ## Receiving mail (Cloudflare)

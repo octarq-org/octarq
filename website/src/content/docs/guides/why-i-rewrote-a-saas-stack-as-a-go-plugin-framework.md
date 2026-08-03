@@ -7,12 +7,9 @@ sidebar:
     label: "Guides"
 ---
 
-Most SaaS applications start out simple: a database, a backend server, and a frontend dashboard. But as features scale — custom domains, mailbox routing, Stripe billing, SSO, role-based access control, notification dispatching, and audit logging — the architecture usually fractures into one of two extremes:
+Most SaaS applications start out simple: a database, a backend server, and a frontend dashboard. As features scale — custom domains, mailbox routing, Stripe billing, SSO, role-based access control, notification dispatching, and audit logging — the architecture often becomes difficult to manage across separate microservices or locked into hosted infrastructure.
 
-1. **The Microservice Maze**: Dozens of small repositories, complex Docker Compose setups, inter-service gRPC/REST overhead, and endless ops maintenance.
-2. **The Monolithic Lock-In**: A massive closed-source monolith where every customer pays monthly subscription fees for hosted infrastructure they don't control.
-
-**Octarq** was created to offer a third option: an **open-core Go plugin framework** that packs full backoffice infrastructure (short links, mailboxes, DNS management, AI helpers, notifications) into a single, zero-dependency binary — while allowing enterprise features (OIDC SSO, Audit Logs, Multi-Tenant Cloud Guard, Metered Billing) to be injected seamlessly via decoupled plugins.
+Octarq offers an open-core Go plugin framework that packs backoffice infrastructure (short links, mailboxes, DNS management, AI helpers, notifications) into a single binary, while allowing enterprise features (OIDC SSO, Audit Logs, Metered Billing) to be injected via decoupled plugins.
 
 Here is the architectural story of why and how we built it.
 
@@ -22,7 +19,7 @@ Here is the architectural story of why and how we built it.
 
 When developers self-host software today, they shouldn't need a Kubernetes cluster just to run a backoffice. 
 
-By building on **Go** and pure-Go **SQLite** (with seamless Postgres driver support), Octarq compiles into a single static binary. 
+By building on **Go** and pure-Go **SQLite** (with Postgres driver support), Octarq compiles into a single static binary. 
 - **Zero-config startup**: Running `docker run -p 8080:8080 -v octarq-data:/data octarq/octarq` auto-generates secret keys and admin credentials on first boot.
 - **Low footprint**: Starts in under 15ms and consumes under 30MB of RAM.
 - **Data Sovereignty**: All SQLite/Postgres data remains under the operator's physical control.

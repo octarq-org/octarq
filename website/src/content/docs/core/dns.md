@@ -8,12 +8,12 @@ sidebar:
 ---
 
 
-octarq manages DNS behind a **provider abstraction** — Cloudflare and DNSPod today,
+Octarq manages DNS behind a **provider abstraction** — Cloudflare and DNSPod today,
 with Aliyun and Route53 slotting into the same interface.
 
 ## Zone sync
 
-**One-click sync** pulls every zone and its records from your provider into octarq, so
+Navigate to **Infrastructure → Network → DNS**. **One-click sync** pulls every zone and its records from your provider into Octarq, so
 you manage them from one dashboard instead of juggling provider tabs.
 
 ## Records

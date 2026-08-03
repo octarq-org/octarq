@@ -1,5 +1,5 @@
 ---
-title: Unified Composition Model
+title: Composition Model
 description: How backend and frontend plugins are composed into different Octarq editions without build tags.
 sidebar:
   order: 3
@@ -8,9 +8,9 @@ sidebar:
 ---
 
 
-Octarq uses a unified, opt-in composition model across both open-source (OSS) and commercial (Pro) editions. Both backend and frontend follow the same design pattern.
+Octarq uses an opt-in composition model across both open-source (OSS) and commercial (Pro) editions. Both backend and frontend follow the same design pattern.
 
-## 1. Unified Backend Composition
+## 1. Backend Composition
 
 Rather than using complex Go build tags to conditionally compile features in or out, Octarq relies on explicit composition roots and Go linker dead-code elimination (DCE).
 
