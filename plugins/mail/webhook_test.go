@@ -5,7 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/glebarez/sqlite"
+	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/plugins/dns"
+	"gorm.io/gorm"
 )
 
 // TestEmitEmailFansOut verifies OnEmail handlers all receive the event and that
@@ -68,5 +72,75 @@ func TestMailDispatcherProvided(t *testing.T) {
 	svc, ok := reg.Lookup("mail.dispatcher")
 	if !ok || svc == nil {
 		t.Fatal("mail.dispatcher service was not provided during Mount")
+	}
+}
+
+func TestOwnsMailHostSecurityBoundary(t *testing.T) {
+	p := &Plugin{}
+
+	// 1. Nil DB or OrgID 0
+	if p.ownsMailHost(0, "user@example.com") {
+		t.Error("ownsMailHost with orgID=0 expected false")
+	}
+	if p.ownsMailHost(1, "user@example.com") {
+		t.Error("ownsMailHost with nil db expected false")
+	}
+
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.AutoMigrate(append(models.AllModels(), &Mailbox{}, &dns.Domain{})...); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	p.db = db
+
+	// 2. Invalid address inputs
+	invalidAddrs := []string{"invalid-addr", "user@", "@domain.com", ""}
+	for _, addr := range invalidAddrs {
+		if p.ownsMailHost(1, addr) {
+			t.Errorf("ownsMailHost(%q) expected false", addr)
+		}
+	}
+
+	// 3. Domain for_mail = false
+	db.Create(&dns.Domain{
+		OrgID:   1,
+		Name:    "nomail.com",
+		ForMail: false,
+	})
+	if p.ownsMailHost(1, "info@nomail.com") {
+		t.Error("ownsMailHost for domain with ForMail=false expected false")
+	}
+
+	// 4. Domain owned by Org 1 with no explicit MailHosts -> uses apex Name
+	db.Create(&dns.Domain{
+		OrgID:   1,
+		Name:    "apexmail.com",
+		ForMail: true,
+	})
+	if !p.ownsMailHost(1, "info@apexmail.com") {
+		t.Error("ownsMailHost for apex domain expected true")
+	}
+
+	// 5. Cross-org isolation: Org 2 should NOT own Org 1's domain
+	if p.ownsMailHost(2, "info@apexmail.com") {
+		t.Error("ownsMailHost for Org 2 on Org 1's domain expected false (cross-tenant breach)")
+	}
+
+	// 6. Subdomain / MailHosts explicit
+	db.Create(&dns.Domain{
+		OrgID:   1,
+		Name:    "custom.com",
+		ForMail: true,
+		MailHosts: models.HostList{
+			{Host: "sub.custom.com", Enabled: true},
+		},
+	})
+	if !p.ownsMailHost(1, "info@sub.custom.com") {
+		t.Error("ownsMailHost for explicit mail host expected true")
+	}
+	if p.ownsMailHost(1, "info@unlisted.custom.com") {
+		t.Error("ownsMailHost for unlisted mail host expected false")
 	}
 }

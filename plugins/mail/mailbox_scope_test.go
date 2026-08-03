@@ -17,11 +17,11 @@ import (
 
 func setupMailboxTestDB(t *testing.T) (*gorm.DB, *Plugin) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(append(models.AllModels(), &Mailbox{}, &Email{}, &dns.Domain{})...); err != nil {
+	if err := db.AutoMigrate(append(models.AllModels(), &Mailbox{}, &Email{}, &SMTPSender{}, &dns.Domain{})...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	db.Where("1 = 1").Delete(&Mailbox{})

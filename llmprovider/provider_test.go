@@ -133,4 +133,38 @@ func TestOptionsFromEnv(t *testing.T) {
 	if o.APIKey != "fallback-key" {
 		t.Errorf("APIKey should fall back to ANTHROPIC_API_KEY, got %q", o.APIKey)
 	}
+
+	t.Setenv("OCTARQ_LLM_PROVIDER", "openai")
+	t.Setenv("ANTHROPIC_API_KEY", "")
+	t.Setenv("OCTARQ_LLM_API_KEY", "openai-key")
+	o = OptionsFromEnv()
+	if o.APIKey != "openai-key" {
+		t.Errorf("APIKey should fall back to OCTARQ_LLM_API_KEY, got %q", o.APIKey)
+	}
+}
+
+func TestTokensFromInfo(t *testing.T) {
+	t.Parallel()
+
+	in, out := tokensFromInfo(map[string]any{
+		"PromptTokens":     int64(10),
+		"CompletionTokens": float64(20),
+	})
+	if in != 10 || out != 20 {
+		t.Errorf("tokensFromInfo expected 10/20, got %d/%d", in, out)
+	}
+}
+
+func TestEmptyMessagesErrors(t *testing.T) {
+	t.Parallel()
+
+	c, _ := New(Options{APIKey: "k"})
+	if _, err := c.Complete(context.Background(), Request{Messages: nil}); err == nil {
+		t.Error("expected error for empty messages in Claude")
+	}
+
+	p, _ := New(Options{Provider: "openai", APIKey: "k"})
+	if _, err := p.Complete(context.Background(), Request{Messages: nil}); err == nil {
+		t.Error("expected error for empty messages in Langchain")
+	}
 }
