@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, Domain, HostEntry, ProviderAccount } from "../../../api";
 import { dnsApi, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus } from "../api";
-import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert, confirmDialog } from "../../../ui";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert, confirmDialog, Table, THead, TBody, TR, TH, TD } from "../../../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
@@ -64,21 +64,21 @@ export function RecordsView({ domain }: { domain: Domain }) {
       ) : filtered.length === 0 ? (
         <p className="text-foreground/40 p-6 text-center text-xs">{t("domains.noRecordsMatching")}</p>
       ) : (
-        <div className="bg-well rounded-2xl border border-foreground/[0.05] overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-left text-foreground/40 border-b border-foreground/[0.06] bg-foreground/[0.01]">
-                <th className="py-2.5 pl-4 font-semibold uppercase tracking-wider">{t("domains.thType")}</th>
-                <th className="py-2.5 font-semibold uppercase tracking-wider">{t("domains.thName")}</th>
-                <th className="py-2.5 font-semibold uppercase tracking-wider">{t("domains.thContent")}</th>
-                <th className="py-2.5 font-semibold uppercase tracking-wider">{t("domains.thNote")}</th>
-                <th className="py-2.5 pr-4 text-right" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-foreground/[0.04]">
+        <div className="bg-well rounded-2xl border border-foreground/[0.05] overflow-hidden">
+          <Table>
+            <THead className="border-b border-foreground/[0.06] bg-foreground/[0.01]">
+              <TR>
+                <TH>{t("domains.thType")}</TH>
+                <TH>{t("domains.thName")}</TH>
+                <TH>{t("domains.thContent")}</TH>
+                <TH>{t("domains.thNote")}</TH>
+                <TH className="text-right" />
+              </TR>
+            </THead>
+            <TBody>
               {filtered.map((r) => (
-                <tr key={r.id} className="hover:bg-foreground/[0.01] transition-colors">
-                  <td className="py-3 pl-4 font-semibold text-foreground/80">
+                <TR key={r.id}>
+                  <TD className="font-semibold text-foreground/80">
                     <span className="inline-flex items-center gap-1.5">
                       <span className="font-mono text-foreground/85 bg-foreground/5 px-2 py-0.5 rounded-lg border border-foreground/[0.04]">{r.type}</span>
                       {r.proxied && (
@@ -87,20 +87,20 @@ export function RecordsView({ domain }: { domain: Domain }) {
                         </span>
                       )}
                     </span>
-                  </td>
-                  <td className="max-w-[120px] truncate font-mono text-foreground/80">{r.name}</td>
-                  <td className="max-w-[180px] truncate text-foreground/55 font-mono">{r.content}</td>
-                  <td className="max-w-[120px] truncate text-accent-fg/80">{r.comment}</td>
-                  <td className="py-3 pr-4 text-right">
+                  </TD>
+                  <TD className="max-w-[120px] truncate font-mono text-foreground/80">{r.name}</TD>
+                  <TD className="max-w-[180px] truncate text-foreground/55 font-mono">{r.content}</TD>
+                  <TD className="max-w-[120px] truncate text-accent-fg/80">{r.comment}</TD>
+                  <TD className="text-right">
                     <div className="flex gap-1.5 justify-end">
                       {canManageRecords && <Button variant="ghost" className="px-2 py-0.5 text-[10px]" onClick={() => setEditing(r)}>{t("domains.edit")}</Button>}
                       {canManageRecords && <Button variant="danger" className="px-2 py-0.5 text-[10px] text-danger-fg border-0" onClick={async () => { if (await confirmDialog(t("domains.deleteRecordConfirm", { type: r.type, name: r.name }))) { await dnsApi.deleteRecord(domain.id, r.id); load(); } }}>{t("domains.del")}</Button>}
                     </div>
-                  </td>
-                </tr>
+                  </TD>
+                </TR>
               ))}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </div>
       )}
       {editing && (

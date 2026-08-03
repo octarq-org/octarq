@@ -10,7 +10,7 @@ const SettingsPage = lazy(() => import("./pages/Settings"));
 const InviteAcceptPage = lazy(() => import("./pages/InviteAccept"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"));
 const StatusPage = lazy(() => import("./pages/Status"));
-import { Modal, Button, toast, cn, Alert } from "./ui";
+import { Modal, Button, toast, cn, Alert, TableDensityProvider, TableDensity } from "./ui";
 import { useTranslation } from "./i18n";
 import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
 import { RoleProvider, roleSatisfies } from "./shell/role";
@@ -41,11 +41,31 @@ export default function App() {
   const [activeOrgId, setActiveOrgId] = useState<number>(0);
   // Advisory org role from /api/auth/me for sidebar and PluginGate gating.
   const [role, setRole] = useState<string | undefined>(undefined);
+  const [tableDensity, setTableDensity] = useState<TableDensity>("comfortable");
 
   useEffect(() => {
     api.me()
       .then((m) => { setUser(m.email || m.username || ""); setActiveOrgId(m.orgId); setRole(m.role); setAuthed(true); })
       .catch(() => setAuthed(false));
+
+    api.getUserSettings()
+      .then((s) => {
+        if (s?.table_density === "compact" || s?.table_density === "comfortable") {
+          setTableDensity(s.table_density as TableDensity);
+        }
+      })
+      .catch(() => {});
+
+    const onDensityChanged = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail === "compact" || detail === "comfortable") {
+        setTableDensity(detail as TableDensity);
+      }
+    };
+    window.addEventListener("octarq:table-density-changed", onDensityChanged);
+    return () => {
+      window.removeEventListener("octarq:table-density-changed", onDensityChanged);
+    };
   }, []);
 
   let content;
@@ -93,9 +113,9 @@ export default function App() {
   }
 
   return (
-    <>
+    <TableDensityProvider density={tableDensity}>
       {content}
-    </>
+    </TableDensityProvider>
   );
 }
 

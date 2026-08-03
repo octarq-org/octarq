@@ -1,4 +1,4 @@
-import { HTMLAttributes, TableHTMLAttributes, ThHTMLAttributes, TdHTMLAttributes } from "react";
+import { createContext, useContext, ReactNode, HTMLAttributes, TableHTMLAttributes, ThHTMLAttributes, TdHTMLAttributes } from "react";
 import { cn } from "../cn";
 
 // A small set of themed table primitives — native table elements carrying octarq's
@@ -8,6 +8,29 @@ import { cn } from "../cn";
 //     <THead><TR><TH>Name</TH></TR></THead>
 //     <TBody><TR><TD>…</TD></TR></TBody>
 //   </Table>
+
+export type TableDensity = "comfortable" | "compact";
+
+const TableDensityContext = createContext<TableDensity>("comfortable");
+
+export interface TableDensityProviderProps {
+  density?: TableDensity;
+  value?: TableDensity;
+  children: ReactNode;
+}
+
+export function TableDensityProvider({ density, value, children }: TableDensityProviderProps) {
+  const current = value ?? density ?? "comfortable";
+  return (
+    <TableDensityContext.Provider value={current}>
+      {children}
+    </TableDensityContext.Provider>
+  );
+}
+
+export function useTableDensity(): TableDensity {
+  return useContext(TableDensityContext) ?? "comfortable";
+}
 
 export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElement>) {
   return (
@@ -30,14 +53,29 @@ export function TR({ className, ...props }: HTMLAttributes<HTMLTableRowElement>)
 }
 
 export function TH({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
+  const density = useTableDensity();
   return (
     <th
-      className={cn("whitespace-nowrap px-3 py-2 text-[12px] font-medium uppercase tracking-wide", className)}
+      className={cn(
+        "whitespace-nowrap px-3 text-[12px] font-medium uppercase tracking-wide",
+        density === "compact" ? "py-1" : "py-2",
+        className,
+      )}
       {...props}
     />
   );
 }
 
 export function TD({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn("px-3 py-2.5 text-foreground/80", className)} {...props} />;
+  const density = useTableDensity();
+  return (
+    <td
+      className={cn(
+        "px-3 text-foreground/80",
+        density === "compact" ? "py-1" : "py-2.5",
+        className,
+      )}
+      {...props}
+    />
+  );
 }
