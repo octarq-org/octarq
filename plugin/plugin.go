@@ -444,6 +444,28 @@ type MenuProvider interface {
 	Menus() []MenuItem
 }
 
+// Action is a create affordance a plugin exposes to the shell's global create
+// menu and command palette. It is placement data, not behavior: Path is a route
+// the shell navigates to, and the page behind it opens its own create flow.
+type Action struct {
+	ID       string `json:"id"`
+	Label    string `json:"label"`
+	Path     string `json:"path"`     // route that opens the create flow
+	Icon     string `json:"icon"`     // lucide key, same table as MenuItem.Icon
+	Category string `json:"category"` // grouping label in the create menu
+	Order    int    `json:"order,omitempty"`
+	// RequiredRole mirrors MenuItem.RequiredRole exactly — same semantics,
+	// same UX-hint-only caveat. The endpoint behind the create flow does its
+	// own enforcement and must, since nothing stops a direct request.
+	RequiredRole string `json:"requiredRole,omitempty"`
+}
+
+// ActionProvider is an optional interface a Plugin may implement to contribute
+// entries to the shell's global create menu.
+type ActionProvider interface {
+	Actions() []Action
+}
+
 // MCPProvider is an optional interface a Plugin may implement if it registers
 // dynamic MCP tools. MCP tools MUST use plugin.OrgIDFromContext(ctx) to retrieve
 // the caller's org ID, and MUST NOT read org fields cached on the plugin during Mount

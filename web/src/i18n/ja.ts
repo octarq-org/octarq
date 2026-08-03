@@ -101,6 +101,9 @@ export const ja = {
     Instance: "インスタンス",
   },
   nav: {
+    "create-link": "リンクを作成",
+    "create-domain": "ドメインを追加",
+    "create-mailbox": "メールボックスを作成",
     overview: "概要",
     links: "リンク",
     mail: "メール",

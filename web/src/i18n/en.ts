@@ -111,6 +111,9 @@ export const en = {
   // Lookups are `t(\`nav.${id}\`, item.label)`, so a build with no plugin for an
   // id simply renders the menu's own label.
   nav: {
+    "create-link": "New Link",
+    "create-domain": "Add Domain",
+    "create-mailbox": "New Mailbox",
     overview: "Overview",
     links: "Links",
     mail: "Mail",

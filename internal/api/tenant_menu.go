@@ -735,6 +735,70 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 	return &ListMenusOutput{Body: menus}, nil
 }
 
+type Action struct {
+	ID       string `json:"id"`
+	Label    string `json:"label"`
+	Path     string `json:"path"`
+	Icon     string `json:"icon"`
+	Category string `json:"category"`
+	Order    int    `json:"order,omitempty"`
+	// Mirrors plugin.Action.RequiredRole.
+	RequiredRole string `json:"requiredRole,omitempty"`
+}
+
+type ListActionsInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *ListActionsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListActionsOutput struct {
+	Body []Action
+}
+
+// listActions aggregates plugin-registered actions for global create menu.
+// GET /api/actions
+func (h *Handler) listActions(ctx context.Context, input *ListActionsInput) (*ListActionsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	actions := make([]Action, 0)
+
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range h.plugins {
+		if !h.pluginActive(orgID, p) {
+			continue
+		}
+		if ap, ok := p.(plugin.ActionProvider); ok {
+			for _, a := range ap.Actions() {
+				actions = append(actions, Action{
+					ID:           a.ID,
+					Label:        a.Label,
+					Path:         a.Path,
+					Icon:         a.Icon,
+					Category:     a.Category,
+					Order:        a.Order,
+					RequiredRole: a.RequiredRole,
+				})
+			}
+		}
+	}
+
+	return &ListActionsOutput{Body: actions}, nil
+}
+
 type GetUserSettingsInput struct {
 	Ctx huma.Context `hidden:"true"`
 }

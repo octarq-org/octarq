@@ -101,6 +101,9 @@ export const es = {
     Instance: "Instancia",
   },
   nav: {
+    "create-link": "Nuevo enlace",
+    "create-domain": "Añadir dominio",
+    "create-mailbox": "Nuevo buzón",
     overview: "Visión general",
     links: "Enlaces",
     mail: "Correo",
