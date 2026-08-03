@@ -3,6 +3,7 @@ import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "reac
 import { BookOpen, Bot, Boxes, FileText, Globe, Link2, Mail, Send, Server, Shield, Sparkles } from "lucide-react";
 import { api, HelpCategory, HelpDocMeta, MenuItem, Action, Org, PluginInfo } from "./api";
 import { BrandMark } from "./shell/BrandMark";
+import { visibleActions } from "./shell/globalActions";
 // Lazy-loaded route components.
 const OverviewPage = lazy(() => import("./pages/Overview"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
@@ -403,10 +404,7 @@ function Shell({
   const roleCtx = useMemo(() => ({ role, isInstanceAdmin }), [role, isInstanceAdmin]);
 
   const filteredActions = useMemo(
-    () =>
-      (backendNav.actions || []).filter((a) =>
-        roleSatisfies(a.requiredRole, role, isInstanceAdmin),
-      ),
+    () => visibleActions(backendNav.actions, role, isInstanceAdmin),
     [backendNav.actions, role, isInstanceAdmin],
   );
 

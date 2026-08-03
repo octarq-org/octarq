@@ -1,27 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useTranslation } from "../i18n";
-import { Area, menuIcon } from "./areas";
+import { Area } from "./areas";
 import { Action } from "../api";
+import { CommandPaletteItem, mergeCommandItems } from "./globalActions";
 import {
   translateAreaTitle,
   translateGroupLabel,
   translateNavItemLabel,
 } from "./navI18n";
-
-interface CommandPaletteItem {
-  id: string;
-  label: string;
-  path: string;
-  Icon?: React.ElementType;
-  iconStr?: string;
-  isAction: boolean;
-  order?: number;
-  category?: string;
-  area?: string;
-  group?: string;
-}
 
 export function CommandPalette({
   open,
@@ -43,24 +31,6 @@ export function CommandPalette({
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation();
-
-  const actionItems = useMemo<CommandPaletteItem[]>(() => {
-    return (actions || [])
-      .map((a) => {
-        const KeyIcon = menuIcon(a.icon);
-        return {
-          id: a.id,
-          label: a.label,
-          path: a.path,
-          Icon: KeyIcon ?? Plus,
-          iconStr: KeyIcon ? undefined : a.icon,
-          isAction: true,
-          order: a.order ?? 0,
-          category: a.category,
-        };
-      })
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  }, [actions]);
 
   // Flatten nav items (areas + settings) with translated labels for search.
   const navItems = useMemo<CommandPaletteItem[]>(
@@ -89,8 +59,8 @@ export function CommandPalette({
   );
 
   const commands = useMemo(
-    () => [...actionItems, ...navItems],
-    [actionItems, navItems],
+    () => mergeCommandItems(actions, navItems),
+    [actions, navItems],
   );
 
   const filtered = useMemo(() => {
