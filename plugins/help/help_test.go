@@ -166,16 +166,16 @@ func TestHelpDocsCategorySortingAndTranslation(t *testing.T) {
 		Category: "start",
 		Order:    50,
 	}
-	docAutomation := plugin.HelpDoc{
+	docOperations := plugin.HelpDoc{
 		Slug:     "auto-doc",
-		Title:    "Auto Doc",
-		Category: "automation",
+		Title:    "Operations Doc",
+		Category: "operations",
 		Order:    10,
 	}
-	docServices := plugin.HelpDoc{
+	docInfra := plugin.HelpDoc{
 		Slug:     "service-doc",
-		Title:    "Service Doc",
-		Category: "services",
+		Title:    "Infra Doc",
+		Category: "infrastructure",
 		Order:    1,
 		Translations: map[string]plugin.HelpDocTranslation{
 			"zh": {
@@ -188,7 +188,7 @@ func TestHelpDocsCategorySortingAndTranslation(t *testing.T) {
 
 	p := &mockPlugin{
 		name:     "test-plugin",
-		helpDocs: []plugin.HelpDoc{docServices, docAutomation, docStart},
+		helpDocs: []plugin.HelpDoc{docInfra, docOperations, docStart},
 	}
 
 	pctx := &plugin.Context{
@@ -200,7 +200,7 @@ func TestHelpDocsCategorySortingAndTranslation(t *testing.T) {
 	h := New()
 	h.pctx = pctx
 
-	// Test 1: Category sorting order (start [10] < automation [30] < services [40])
+	// Test 1: Category sorting order (start [10] < operations [20] < infrastructure [30])
 	docs := h.getDocs(1, "en")
 	if len(docs) != 3 {
 		t.Fatalf("expected 3 docs, got %d", len(docs))
@@ -321,6 +321,56 @@ func TestBundledDocsHaveTranslations(t *testing.T) {
 		}
 		if pages == 0 {
 			t.Errorf("%s: no docs found — the plugin implements HelpDocsFS but serves nothing", name)
+		}
+	}
+}
+
+// TestEveryCategoryHasAtLeastOneDoc asserts that every category in plugin.HelpCategories()
+// has at least one document assigned to it across all bundled plugins.
+func TestEveryCategoryHasAtLeastOneDoc(t *testing.T) {
+	categories := plugin.HelpCategories()
+	categoryCounts := make(map[string]int)
+	for _, c := range categories {
+		categoryCounts[c.Key] = 0
+	}
+
+	for name, p := range bundledDocsProviders() {
+		fsys := p.HelpDocsFS()
+		err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+			ext := filepath.Ext(d.Name())
+			if ext != ".md" && ext != ".mdx" {
+				return nil
+			}
+			base := strings.TrimSuffix(d.Name(), ext)
+			if filepath.Ext(base) == ".zh" {
+				return nil
+			}
+			raw, err := fs.ReadFile(fsys, path)
+			if err != nil {
+				t.Fatalf("%s: read %s: %v", name, path, err)
+			}
+			doc, err := plugin.ParseHelpDoc(string(raw))
+			if err != nil {
+				return nil
+			}
+			categoryCounts[doc.Category]++
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("%s: walk docs: %v", name, err)
+		}
+	}
+
+	for _, c := range categories {
+		// commerce and licensing are contributed by Pro plugins in a composed build.
+		if c.Key == "commerce" || c.Key == "licensing" {
+			continue
+		}
+		if categoryCounts[c.Key] == 0 {
+			t.Errorf("category %q has no documents — all categories in plugin.HelpCategories() must have at least one doc", c.Key)
 		}
 	}
 }
