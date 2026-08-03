@@ -23,7 +23,7 @@ import (
 
 // mountCoreDNS mounts the built-in dns Core plugin onto the handler's API so the
 // domain / provider-account / DNS-record routes (extracted out of the Handler,
-// see docs/CORE-PLUGIN-EXTRACTION.md) are present in the test server exactly as
+// see docs/PLUGIN-ARCHITECTURE.md) are present in the test server exactly as
 // the app mounts them in production. Uses default (net) DNS resolvers — tests
 // that stub resolution live in plugins/dns.
 func mountCoreDNS(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypto.Cipher) {

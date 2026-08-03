@@ -215,7 +215,7 @@ func New() (*App, error) {
 	// entry point (octarq/main.go, octarq-pro's main, a trimmed edition) Uses the
 	// plugins it wants — Core plugins the same way Pro plugins are added, via
 	// a.Use. The OSS default set is plugins/builtin.Default(); see
-	// docs/PLUGIN-COMPOSITION-UNIFICATION.md.
+	// docs/PLUGIN-ARCHITECTURE.md.
 	return a, nil
 }
 
