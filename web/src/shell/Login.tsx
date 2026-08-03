@@ -34,17 +34,14 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
     const verified = isVerifiedFlag(params.get("verified"));
     if (verified) setIsVerifiedNotice(true);
 
-    // A redirect that lands here carrying ?error= is the tail end of a sign-in
-    // that failed mid-navigation and had nowhere to report it. Say what
-    // happened in the same banner the form uses.
+    // Show navigation/OAuth redirect error in banner.
     const errKey = authErrorKey(params.get("error"));
     if (errKey) setErr(t(errKey));
 
     if (verified || errKey) {
       window.history.replaceState({}, "", window.location.pathname);
     }
-    // t is stable for the life of the page; re-running this would re-show a
-    // banner the user already dismissed by navigating.
+    // Run once on mount to prevent re-triggering dismissed banners.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

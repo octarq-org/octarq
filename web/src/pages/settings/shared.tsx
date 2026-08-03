@@ -17,12 +17,7 @@ export function useSettingsData() {
 // useInstanceSettingsData loads the instance-wide settings, which only an
 // instance admin may read.
 //
-// `forbidden` exists because "no data" and "not allowed" are different states
-// and the hook could not tell them apart. It fetches only for an instance
-// admin, so for everyone else `s` stayed null forever — and the pages read null
-// as "still loading" and rendered a spinner that never resolved. The routes are
-// registered unconditionally (only the nav group is filtered), so any member
-// who typed the URL or hit browser history landed on a page that hung.
+// Differentiates between loading and forbidden (non-instance-admin) states.
 export function useInstanceSettingsData() {
   const { s: wS } = useSettingsData();
   const [s, setS] = useState<import("../../api").InstanceSettings | null>(null);
@@ -34,9 +29,7 @@ export function useInstanceSettingsData() {
   return { s, reload, forbidden };
 }
 
-// InstanceAdminOnly is what those pages render instead. Deliberately a plain
-// notice rather than a redirect: silently bouncing someone off a URL they typed
-// reads as a broken link.
+// Plain notice rendered for non-instance-admins when visiting instance admin routes.
 export function InstanceAdminOnly() {
   const { t } = useTranslation();
   return (

@@ -25,10 +25,7 @@ function GithubIcon({ className }: { className?: string }) {
 }
 
 
-// Shared styling for the Base UI Menu popups/items used below. Base UI gives us
-// Esc-to-close, roving arrow-key focus, focus-return to the trigger,
-// outside-click dismissal and portalled positioning. `glass-strong` is the
-// mode-aware popover surface (flat white on light, frosted on dark).
+// Shared Base UI Menu popover styling.
 const MENU_POPUP =
   "glass-strong z-50 origin-[var(--transform-origin)] rounded-2xl p-1.5 outline-none " +
   "transition-[transform,opacity] duration-150 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0";

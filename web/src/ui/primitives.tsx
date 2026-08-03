@@ -1,13 +1,4 @@
-// After the frontend-SDK extraction, the pure shared primitives live in the
-// published package `@octarq/plugin-sdk/ui` (packages/plugin-sdk). This module
-// re-exports them so the ~50 app files that import from "../ui" keep working
-// unchanged, and it retains the two components that stay app-side:
-//   - `Code`, which reads the app's i18n (`useTranslation`) for its copy label;
-//   - `Guide`, kept here alongside `Code`.
-//
-// The package is imported by SOURCE PATH (not the `@octarq/plugin-sdk` name, which
-// is aliased to the app facade) to keep the dependency pointing app → package
-// and to avoid an import cycle through the facade's UI surface.
+// Re-exports primitives from packages/plugin-sdk/src/ui via source path (to avoid import cycles), plus app-side Code and Guide components.
 import { ReactNode, useState } from "react";
 import { useTranslation } from "../i18n";
 

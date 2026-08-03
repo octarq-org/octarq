@@ -1,26 +1,4 @@
-// PluginGate — the centralized degrade boundary wrapped around EVERY plugin route
-// element (see PluginRoutes.tsx). It standardizes octarq's gated-state
-// convention in one place so plugin pages degrade uniformly:
-//
-//   402 (unlicensed)          → the upsell (the plugin's lockedFallback, or the
-//                               SDK's LockedFeature as the default)
-//   403 (forbidden)           → the neutral AccessDenied note ("you lack
-//                               permission") — also pre-rendered, without
-//                               mounting the page, when the route declares a
-//                               requiredRole the current user doesn't meet
-//                               (member < admin < owner; instance admin
-//                               bypasses). UX only — the server stays
-//                               authoritative.
-//   404 (not in this build)   → the neutral PluginUnavailable note
-//   chunk-load / render crash → treated as 404 (the page couldn't be composed)
-//
-// Pages that already handle 402/404 themselves keep doing so — the gate is the
-// safety net, not a replacement. It catches two things a page can't: a lazy
-// chunk that fails to load, and an uncaught throw during render (including a
-// thrown ApiError, whose `status` is honored). It also provides a context
-// helper (`usePluginGate`) so a page can degrade declaratively —
-// `gate.degrade(err.status)` from a data-fetch catch — instead of each page
-// re-implementing the locked-state branch.
+// Centralized degrade boundary for plugin routes (402 upsell, 403 forbidden, 404 unavailable/crash).
 import {
   Component,
   ReactNode,

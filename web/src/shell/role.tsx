@@ -1,19 +1,10 @@
-// Current-user role plumbing — the single source of truth for how the shell
-// interprets the advisory `requiredRole` metadata on UIRoute / PluginMenuItem.
-// The role itself comes from /api/auth/me (api.me().role); the instance-admin
-// flag from api.settings(). Both are UX inputs only: the backend keeps
-// enforcing via callerOrgRole and answers 403, which PluginGate degrades to the
-// access-denied state.
+// Shell-side role evaluation for advisory requiredRole metadata on UIRoute/PluginMenuItem (UX input only; backend enforces via callerOrgRole).
 import { createContext, useContext } from "react";
 
-// Rank order for the built-in org roles. An unknown/blank requiredRole never
-// locks anyone out (fail-open — this is presentation, not security), while an
-// unknown/blank CURRENT role satisfies nothing above rank 0.
+// Rank order for built-in org roles (fail-open for unknown requiredRole).
 const ROLE_RANK: Record<string, number> = { member: 1, admin: 2, owner: 3 };
 
-// Whether a user holding `role` (with an optional instance-admin bypass) meets
-// an advisory `required` role. Used by both the sidebar merge (App.tsx) and
-// the route pre-check (PluginGate) so the two can never disagree.
+// Checks if user role or instance-admin bypass meets required role.
 export function roleSatisfies(
   required: string | undefined,
   role: string | undefined,
@@ -37,8 +28,7 @@ const RoleContext = createContext<CurrentRole>({ isInstanceAdmin: false });
 
 export const RoleProvider = RoleContext.Provider;
 
-// Safe anywhere: outside the provider (tests, portal pages) it reports an
-// anonymous non-admin, so requiredRole-gated UI simply stays hidden.
+// Returns current role context; defaults to non-admin outside provider.
 export function useCurrentRole(): CurrentRole {
   return useContext(RoleContext);
 }

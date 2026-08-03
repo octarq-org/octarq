@@ -33,8 +33,7 @@ export default function OverviewPage() {
   };
 
   if (!o) return (
-    // Skeleton mirrors the real layout (title + 4 stat tiles + chart) so the
-    // page doesn't jump when data arrives — replaces a bare "loading…" line.
+    // Skeleton mirrors the real layout (title + 4 stat tiles + chart) so the page doesn't jump when data arrives.
     <div className="animate-in fade-in duration-200" aria-busy="true" aria-label={t("overview.loading")}>
       <div className="mb-6 space-y-2">
         <Skeleton className="h-7 w-48" />
