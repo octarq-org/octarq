@@ -27,7 +27,7 @@ services:
     environment:
       - OCTARQ_SECRET_KEY=change-this-to-a-random-32-byte-string
       - OCTARQ_ADMIN_PASSWORD=change-this-admin-password
-      - OCTARQ_PORT=8080
+      - OCTARQ_LISTEN=:8080
     volumes:
       - ./data:/app/data
 ```
@@ -106,5 +106,5 @@ server {
 | --- | --- | --- |
 | `OCTARQ_SECRET_KEY` | Yes | 32-byte secret key for token hashing & encryption |
 | `OCTARQ_ADMIN_PASSWORD` | Yes | Initial administrator account password |
-| `OCTARQ_PORT` | No | HTTP listening port (default: `8080`) |
+| `OCTARQ_LISTEN` | No | Listen address (default: `:8080`) |
 | `OCTARQ_MAXMIND_LICENSE_KEY` | No | MaxMind GeoIP license key for auto-downloading GeoIP DB |

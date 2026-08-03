@@ -31,7 +31,7 @@ Create `.env` based on `.env.example`:
 ```ini
 OCTARQ_SECRET_KEY=your-32-byte-secret-key
 OCTARQ_ADMIN_PASSWORD=your-secure-admin-password
-OCTARQ_PORT=8080
+OCTARQ_LISTEN=:8080
 ```
 
 - **Database**: SQLite database stored automatically as `octarq.db` (no separate DB container required).
