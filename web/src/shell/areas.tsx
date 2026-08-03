@@ -31,12 +31,7 @@ import type { UIArea } from "@octarq/plugin-sdk";
 
 // ─── Area definitions ──────────────────────────────────────────────────────
 
-// Areas are data-driven: the built-in ids below come from STATIC_AREAS, and a
-// plugin may contribute a NEW top-level area (UIPlugin.areas → uiAreas()), so
-// the id space is open — plain string, with "settings" special-cased where it
-// matters (areaForPath, App's selectArea). Adding a built-in area now means
-// editing STATIC_AREAS (+ areaForCategory keywords if it should attract
-// dynamic menus) — no separate union to keep in sync.
+// Built-in area IDs come from STATIC_AREAS; plugins can contribute new top-level areas via UIPlugin.areas.
 export type AreaId = string;
 
 export interface NavItem {
@@ -86,10 +81,7 @@ export const STATIC_AREAS: Area[] = [
       { label: "System", items: [] },
     ],
   },
-  // Commerce is a Pro area: the commerce plugins (storefront / billing /
-  // finance / issuer / licensing) declare it via UIPlugin.areas with its
-  // Sales/Billing/Finance group shells. The OSS core ships no shell for it —
-  // an empty one only ever got dropped by App.tsx's empty-area filter anyway.
+  // Pro areas (e.g. Commerce) declare group shells dynamically via UIPlugin.areas.
   {
     id: "assets",
     title: "Infrastructure",
@@ -133,13 +125,7 @@ export const SETTINGS_AREA: Area = {
         { id: "tokens",   label: "API Tokens", Icon: KeyRound,  path: "/settings/tokens" },
       ],
     },
-    // ── octarq-PROVIDED, instance-admin ───────────────────────────────────
-    // Configuration of the octarq software/instance itself — shown only to
-    // instance admins (App gates this group on isInstanceAdmin). Plugins add
-    // here with category "Instance": e.g. the Pro licensing plugin lands the
-    // operator's octarq License (activation) here, NOT in the org-outward
-    // Commerce area. Passive octarq resources (Help, Docs, About, GitHub) are
-    // NOT here — they live in the always-available sidebar footer.
+    // Instance-admin configuration, shown only to instance admins.
     {
       label: "Instance",
       items: [
@@ -151,11 +137,7 @@ export const SETTINGS_AREA: Area = {
   ],
 };
 
-// The path→area mapping is DERIVED from the area definitions (single source of
-// truth — the menu data), never a parallel hardcoded map. Callers that have the
-// merged runtime areas (static + plugin areas + dynamic menu items — see
-// App.tsx) pass them in so plugin-contributed paths resolve too; the default
-// covers the static-only case.
+// Path mapping is derived from area definitions; callers pass merged runtime areas so plugin paths resolve.
 export function areaForPath(path: string, areas: Area[] = STATIC_AREAS): AreaId {
   // Settings live in their own area (SETTINGS_AREA), not the areas list.
   if (path.startsWith("/settings")) return "settings";
@@ -167,41 +149,19 @@ export function areaForPath(path: string, areas: Area[] = STATIC_AREAS): AreaId 
   return hit?.area ?? "operations";
 }
 
-// Map a dynamic menu category to an area. A category naming a plugin-declared
-// area (by id or title) lands there; otherwise the built-in keyword routing
-// applies. Keep the keywords in sync with the Category strings plugins set in
-// their Menus() — see docs/PLUGINS.md.
-// Placement keyword for the sidebar footer. A menu item whose category is this
-// (or "resources") is rendered among the always-available octarq resources in
-// the rail footer rather than in any nav area — one more optional placement a
-// plugin can pick, alongside the areas and Settings. Not a real Area id.
+// Placement keyword for sidebar footer items.
 export const FOOTER_PLACEMENT = "footer";
 
 export function areaForCategory(cat?: string, pluginAreas: UIArea[] = []): AreaId {
   const c = (cat ?? "").toLowerCase();
 
-  // ── octarq-PROVIDED resources → sidebar footer ────────────────────────────
-  // Low-frequency, always-available product links (Help, docs, …). A plugin
-  // opts into this placement with category "footer"/"resources"; the shell
-  // collects these out of the area merge and renders them in the rail footer.
+  // Product links categorized as "footer"/"resources" land in the sidebar footer.
   if (c === FOOTER_PLACEMENT || c === "resources") return FOOTER_PLACEMENT;
 
-  // ── octarq-PROVIDED settings ────────────────────────────────────────────
-  // The Settings area (the gear, NOT a top-level tab) holds configuration of
-  // the octarq instance/account itself. A plugin lands a page there with
-  // category "Instance" (octarq/instance admin — e.g. the operator's octarq
-  // license/activation), "Account" (the signed-in user), or a generic
-  // "Settings". This is the strict counterpart to the org-OUTWARD areas
-  // (operations/assets/insights + the Pro Commerce area) handled below, which
-  // carry what the org runs FOR its own users/customers. Keep the two apart:
-  // octarq's own license → Settings; the org issuing licenses to its customers
-  // → Commerce.
+  // Settings area holds Instance, Account, or Settings configurations.
   if (c === "settings" || c === "instance" || c === "account") return "settings";
 
-  // A menu lands in a plugin-declared area when its category matches the area's
-  // id, its title, or one of its declared group labels — so a Pro edition can
-  // own a whole multi-group area (e.g. Commerce with Sales/Billing/Finance)
-  // that the OSS core no longer ships a shell or keyword branch for.
+  // Category matches plugin area by id, title, or declared group label.
   const pluginHit = pluginAreas.find(
     (a) =>
       a.id.toLowerCase() === c ||

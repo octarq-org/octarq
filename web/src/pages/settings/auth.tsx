@@ -158,14 +158,7 @@ export function AuthenticationSettings() {
   // A read-only callback URL field with copy affordance — providers need the
   // exact redirect URI registered on their side.
   //
-  // The path is built here rather than passed in per provider: both call sites
-  // used to spell it out, and both spelled it wrong ("/api/auth/google/callback"
-  // against a real route of "/auth/callback/google" — wrong prefix AND wrong
-  // order). An operator who copied it into the Google or GitHub console
-  // registered a redirect URI that 404s, so OAuth sign-in never worked, and
-  // nothing on this screen could reveal that: the field is read-only decoration
-  // that the app itself never fetches. oauthCallbackPath is checked against the
-  // Go route by oauthRoutes.test.ts.
+  // Callback path constructed centrally; validated against Go route by oauthRoutes.test.ts.
   const CallbackField = ({ provider }: { provider: string }) => (
     <Field label={t("settings.callbackUrl")} hint={t("settings.callbackUrlHint")}>
       <input readOnly className="input w-full cursor-text bg-well font-mono text-xs text-foreground/80" value={`${origin}${oauthCallbackPath(provider)}`} />

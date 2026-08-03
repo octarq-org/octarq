@@ -17,17 +17,9 @@ export const helloPlugin: UIPlugin = {
   routes: [
     { path: "/hello", Component: lazy(() => import("./Page")) },
   ],
-  // No `menu` here, and not by omission: a UIPlugin cannot declare one. Sidebar
-  // placement comes from the Go half's Menus() (hello.go) alone — the host drops
-  // any entry whose path the backend didn't announce, which is what makes a
-  // disabled feature's menu disappear, so a frontend-declared menu could never
-  // stand on its own. It was only ever a hand-kept copy, and copies drift.
+  // Sidebar placement comes from the Go half's Menus() (hello.go) alone.
   //
-  // The frontend's job is the label: the shell renders each entry as
-  // t(`nav.${id}`, item.label), so a `nav.<id>` key under `_shared` translates
-  // the sidebar. Skip it and nothing breaks — the Go source's English label is
-  // the fallback — which is exactly why it is easy to forget in a language you
-  // don't read. `pnpm i18n:audit` fails on a Go menu id with no nav key.
+  // Shell renders each entry via `nav.<id>` key; falls back to English label from Go source.
   i18n: {
     en: {
       _shared: { nav: { hello: "Hello" } },

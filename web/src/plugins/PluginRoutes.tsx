@@ -1,18 +1,11 @@
-// The registry seam rendered: turns composed UIPlugins into <Route> elements
-// for App's <Routes>, and provides the neutral fallback the OSS build shows for
-// any path a plugin would own but isn't composed in.
-//
-// Kept out of App.tsx so the routing shell doesn't grow a plugin-plumbing bulge.
+// Maps composed UIPlugins into <Route> elements wrapped in PluginGate, with fallback components for unserved routes.
 import { Suspense } from "react";
 import { Route } from "react-router-dom";
 import { GlassCard, PageHeader, ScreenWrap, useTranslation } from "@octarq/plugin-sdk";
 import { uiPlugins } from "@octarq/plugin-sdk";
 import { PluginGate } from "./PluginGate";
 
-// Neutral "this feature isn't part of this build" note — the frontend mirror of
-// the backend answering 404 for a plugin that isn't mounted. Shown for any
-// unmatched path (empty registry ⇒ Pro routes land here) and as the default
-// degrade when a plugin page chunk fails to load.
+// Fallback view for unserved or failed plugin routes (404).
 export function PluginUnavailable() {
   const { t } = useTranslation();
   return (
@@ -27,9 +20,7 @@ export function PluginUnavailable() {
   );
 }
 
-// Neutral "you don't have permission" note — the 403 sibling of
-// PluginUnavailable. Rendered by PluginGate when the backend answers 403 or when
-// a route's advisory requiredRole isn't met by the current user.
+// Fallback view when user lacks required permissions (403).
 export function AccessDenied() {
   const { t } = useTranslation();
   return (
@@ -44,11 +35,7 @@ export function AccessDenied() {
   );
 }
 
-// The composed plugin routes, as an array of <Route> for <Routes>. Empty when
-// the registry is empty (OSS build) — then every such path falls to App's
-// catch-all neutral fallback. Every element is wrapped in PluginGate — the
-// centralized degrade boundary (402 ⇒ upsell, 404/chunk failure ⇒ neutral
-// note) — so pages degrade uniformly even without per-page handling.
+// Returns <Route> elements for all registered plugin routes.
 export function pluginRouteElements() {
   return uiPlugins().flatMap((plugin) =>
     plugin.routes.map((route) => {

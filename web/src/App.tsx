@@ -3,8 +3,7 @@ import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "reac
 import { BookOpen, Bot, Boxes, FileText, Globe, Link2, Mail, Send, Server, Shield, Sparkles } from "lucide-react";
 import { api, HelpCategory, HelpDocMeta, MenuItem, Org, PluginInfo } from "./api";
 import { BrandMark } from "./shell/BrandMark";
-// Route-level code splitting: each top-level page ships as its own chunk,
-// loaded on first navigation behind the Suspense boundary below.
+// Lazy-loaded route components.
 const OverviewPage = lazy(() => import("./pages/Overview"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const InviteAcceptPage = lazy(() => import("./pages/InviteAccept"));
@@ -23,9 +22,7 @@ import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
 import { PluginGateContext } from "./plugins/PluginGate";
 
 
-// Fallback while a route's lazily-loaded chunk is fetched — a subtle centered
-// spinner instead of a blank gap. Shared with the Settings sub-router. The spin
-// animation degrades under the global prefers-reduced-motion rule.
+// Fallback spinner while a lazily-loaded route chunk is fetched.
 export function RouteFallback() {
   return (
     <div className="grid h-64 place-items-center" role="status" aria-live="polite">
@@ -41,8 +38,7 @@ export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [user, setUser] = useState("");
   const [activeOrgId, setActiveOrgId] = useState<number>(0);
-  // Org role from /api/auth/me ("owner" | "admin" | "member") — advisory input
-  // for requiredRole gating (sidebar filter + PluginGate pre-check). UX only.
+  // Advisory org role from /api/auth/me for sidebar and PluginGate gating.
   const [role, setRole] = useState<string | undefined>(undefined);
 
   useEffect(() => {
@@ -87,9 +83,7 @@ export default function App() {
         setActiveOrgId={setActiveOrgId}
         onLogout={async () => {
           try { await api.logout(); } catch { /* clear locally even if the request fails */ }
-          // The nav cache is per-session by nature — it holds whatever the last
-          // signed-in user could see. Left behind, it paints their sidebar for
-          // the next person to reach the login screen on this browser.
+          // Clear cached nav to avoid showing previous user's sidebar.
           clearCachedNav();
           setAuthed(false);
         }}
@@ -106,16 +100,7 @@ export default function App() {
 
 // ─── Nav cache ────────────────────────────────────────────────────────────────
 
-// The sidebar used to paint instantly from a build-time list of frontend menu
-// entries. That list was a hand-maintained copy of what the Go plugins already
-// declare, and the two drifted. Caching the last api.menus()/api.plugins()
-// answer gives the same instant first paint from one source — and a strictly
-// better one: it reflects the plugins THIS workspace has enabled, where a
-// static list showed entries for features the workspace had turned off until
-// the API contradicted it.
-//
-// Treated as a rendering hint, never as truth: it is replaced the moment the
-// live answer lands, and any parse failure falls back to empty.
+// Cache last api.menus()/api.plugins() response for instant first paint; replaced when live data arrives.
 const NAV_CACHE_KEY = "octarq:nav-cache:v1";
 
 interface CachedNav {
@@ -155,19 +140,7 @@ function clearCachedNav() {
 
 // ─── Sidebar merge ────────────────────────────────────────────────────────────
 
-// Merge every menu source into the final area list — ONE pipeline:
-//   STATIC_AREAS      area/group shells (labels + order, no items);
-//   backendMenus      every menu, from api.menus() — core and plugin alike;
-// each item is routed to an area by the shared areaForCategory and into the
-// group whose label matches its category. The first render is fed from the
-// cached copy of the last api.menus() response (see NAV_CACHE_KEY) so the
-// sidebar paints immediately without a fetch round-trip; the live answer
-// replaces it a moment later.
-// `role`/`isInstanceAdmin` drive the requiredRole filter: menu entries whose
-// advisory requiredRole the current user doesn't meet are dropped here — the
-// single place — so the sidebar AND the command palette (both fed by the
-// resulting areas) agree. Ranking lives in roleSatisfies (shell/role.tsx),
-// shared with PluginGate's route pre-check.
+// Merges STATIC_AREAS, backend menus, and plugin areas into final area list filtered by requiredRole.
 function mergeAreas(
   backendMenus: MenuItem[],
   plugins: PluginInfo[],

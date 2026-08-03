@@ -19,8 +19,7 @@ export function CommandPalette({
   open: boolean;
   onClose: () => void;
   areas: Area[];
-  // The merged Settings area (already admin-filtered), passed in rather than the
-  // static SETTINGS_AREA so plugin-contributed settings pages are searchable.
+  // Admin-filtered merged Settings area with plugin-contributed settings pages.
   settingsArea: Area;
   onNavigate: (path: string) => void;
 }) {
@@ -29,8 +28,7 @@ export function CommandPalette({
   const inputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation();
 
-  // Flatten every nav item (areas + settings) into a flat, searchable list.
-  // Labels are translated so search matches the language the user sees.
+  // Flatten nav items (areas + settings) with translated labels for search.
   const commands = useMemo(
     () =>
       [...areas, settingsArea].flatMap((a) =>
@@ -79,9 +77,7 @@ export function CommandPalette({
   }, [open]);
   useEffect(() => { setSel(0); }, [q]);
 
-  // Arrow/Enter drive the result list; Base UI Dialog owns Escape, focus
-  // trapping, scroll locking, backdrop dismissal and focus return to the ⌘K
-  // trigger — replacing the previous hand-rolled fixed-overlay + manual Escape.
+  // Arrow/Enter drive result list navigation.
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") { e.preventDefault(); setSel((s) => Math.min(s + 1, filtered.length - 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setSel((s) => Math.max(s - 1, 0)); }

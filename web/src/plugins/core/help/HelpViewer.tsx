@@ -30,12 +30,7 @@ export default function HelpViewer() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // The dashboard is mounted under a router basename (/admin), so every path in
-  // this file is basename-relative — location.pathname reads /help/…, never
-  // /admin/help/…. The one place the basename has to reappear is the href of a
-  // link inside the rendered markdown: that string is what the browser shows on
-  // hover, copies on "copy link address", and opens on middle-click, so writing
-  // the router path there produced a real 404 at /help/api-tokens.
+  // Router basename prefix for markdown href links.
   const routerBase = useHref("/").replace(/\/$/, "");
 
   // Extract current slug from pathname: e.g. /help/services/ddns -> "ddns"
@@ -54,10 +49,7 @@ export default function HelpViewer() {
   const [error, setError] = useState("");
 
   const [copiedLink, setCopiedLink] = useState(false);
-  // Set when the URL names a page this build does not serve — a Pro slug on an
-  // OSS instance, or a page that was renamed. This used to redirect to the first
-  // doc in the index, which reads as "that link worked" and hides the dead
-  // cross-reference from whoever could fix it.
+  // Set when the requested doc is unavailable (e.g. Pro slug on OSS instance).
   const [notFound, setNotFound] = useState(false);
 
   const contentRef = useRef<HTMLDivElement>(null);
@@ -107,10 +99,7 @@ export default function HelpViewer() {
       .finally(() => setLoadingContent(false));
   }, [currentSlug, lang]);
 
-  // Docs cross-reference each other as /help/<slug> — two segments, no category.
-  // That is the form an author can write without knowing where the page was
-  // filed, and it stays correct when a page is refiled; the category only exists
-  // in the URL the sidebar builds. Expanding it here is what keeps both true.
+  // Expands 2-segment /help/<slug> links to include category using doc index.
   const resolveInAppPath = useCallback(
     (href: string) => {
       if (!href.startsWith("/help/")) return href;
