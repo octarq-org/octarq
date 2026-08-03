@@ -1,5 +1,13 @@
 // Package llmprovider abstracts large-language-model backends behind one small
-// interface. It is a public, importable package (github.com/octarq-org/octarq/llmprovider).
+// interface. It lives outside internal/ on purpose: octarq-pro's AI plugins
+// import it as github.com/octarq-org/octarq/llmprovider, so moving it under
+// internal/ would break them.
+//
+// Most backends (OpenAI and OpenAI-compatible endpoints, Gemini, Mistral,
+// Cohere, Ollama) go through one langchaingo adapter in langchain.go. Claude is
+// the exception, on the official anthropic-sdk-go in claude.go, because
+// langchaingo's Anthropic client sends a `temperature` parameter the Opus 4.7+
+// family rejects — don't fold it back into the adapter.
 package llmprovider
 
 import (

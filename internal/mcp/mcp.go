@@ -1,6 +1,9 @@
 // Package mcp implements octarq's Model Context Protocol server for the
 // `octarq mcp` subcommand. It exposes short link, email, and domain read-only
 // tools and a guarded read-only SQL tool over stdio transport.
+//
+// Scope is the open-core surface only. Write tools, and Finance/Infra tools,
+// belong to the Pro plugins — don't add them here.
 package mcp
 
 import (

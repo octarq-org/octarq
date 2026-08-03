@@ -68,7 +68,9 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 	}
 
 	// Data migration: backfill User.IsInstanceAdmin for existing installs by
-	// seeding the org-1 owner once.
+	// seeding the org-1 owner once. The guard on "no user already flagged"
+	// keeps it to exactly one run and leaves fresh installs — where the flag is
+	// set properly at first login — untouched.
 	{
 		var flagged int64
 		gdb.Model(&models.User{}).Where("is_instance_admin = ?", true).Count(&flagged)
@@ -86,7 +88,11 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 
 	// Data migration: drop sessions that carry no org.
 	//
-	// Drop legacy sessions with org_id = 0 so unassigned sessions force a fresh login.
+	// Such a session resolves to org 0 and fails closed on every tenant-scoped
+	// request — authenticated, but on a screen that looks logged in. Deleting
+	// the row sends the user through the normal login flow instead. Nobody
+	// loses data, and on any install created after multi-tenancy this deletes
+	// nothing.
 	gdb.Where("org_id = 0").Delete(&models.Session{})
 
 	return nil

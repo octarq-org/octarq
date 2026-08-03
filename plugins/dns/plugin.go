@@ -92,7 +92,9 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 	}
 }
 
-// docs is this plugin's documentation directory; see plugin.HelpDocsFS.
+// docs is this plugin's documentation directory and the only place its pages
+// are declared. Adding one means adding "docs/<slug>.mdx" plus its ".zh.mdx"
+// translation — nothing else. See plugin.HelpDocsFS.
 //
 //go:embed docs
 var docs embed.FS
