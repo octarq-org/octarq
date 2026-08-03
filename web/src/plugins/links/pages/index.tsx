@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Domain, effectiveLinkHosts } from "../../../api";
 import { linksApi, Link, LinkStats } from "../api";
@@ -11,14 +11,31 @@ import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 import { LinkEditorForm } from "./LinkEditorForm";
 import { StatsView } from "./StatsView";
 import { usePluginGate } from "../../PluginGate";
+import { parseLinksFilter, buildLinksFilterQuery } from "../filters";
 
 export default function LinksPage() {
   const { role, isInstanceAdmin } = useCurrentRole();
   const canDeleteLink = roleSatisfies("admin", role, isInstanceAdmin);
   const [links, setLinks] = useState<Link[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
-  const [q, setQ] = useState("");
-  const [archived, setArchived] = useState(false);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { q, archived } = useMemo(() => parseLinksFilter(searchParams), [searchParams]);
+  const [searchInput, setSearchInput] = useState(q);
+
+  useEffect(() => {
+    setSearchInput(q);
+  }, [q]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== q) {
+        setSearchParams(prev => buildLinksFilterQuery({ q: searchInput, archived }, prev), { replace: true });
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchInput, archived, q, setSearchParams]);
+
   const [active, setActive] = useState<Link | "new" | null>(null);
 
   const [page, setPage] = useState(0);
@@ -26,7 +43,6 @@ export default function LinksPage() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
   const [tab, setTab] = useState<'links' | 'settings'>('links');
-  const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation();
   const pluginGate = usePluginGate();
 
@@ -65,10 +81,7 @@ export default function LinksPage() {
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadMore(true);
-    }, 200);
-    return () => clearTimeout(timer);
+    loadMore(true);
   }, [q, archived]);
 
   useEffect(() => {
@@ -143,14 +156,16 @@ export default function LinksPage() {
               <input
                 className="input w-full !pl-8"
                 placeholder={t("links.searchPlaceholder")}
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
               />
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-foreground/50" />
             </div>
             <Button
               variant={archived ? "primary" : "subtle"}
-              onClick={() => setArchived((a) => !a)}
+              onClick={() => {
+                setSearchParams(prev => buildLinksFilterQuery({ q: searchInput, archived: !archived }, prev), { replace: true });
+              }}
               className="shrink-0 py-2 px-3 text-xs"
               title={t("links.toggleArchivedTitle")}
             >

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api, Domain, HostEntry, ProviderAccount } from "../../../api";
 import { dnsApi, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus } from "../api";
 import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert, confirmDialog, Table, THead, TBody, TR, TH, TD } from "../../../ui";
@@ -6,6 +7,7 @@ import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as 
 import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
+import { parseDnsFilter, buildDnsFilterQuery } from "../filters";
 
 const RECORD_TYPES = ["A", "AAAA", "CNAME", "TXT", "MX", "NS", "CAA"];
 
@@ -16,8 +18,23 @@ export function RecordsView({ domain }: { domain: Domain }) {
   const [records, setRecords] = useState<DNSRecord[] | null>(null);
   const [err, setErr] = useState("");
   const [editing, setEditing] = useState<DNSRecord | "new" | "subdomain" | null>(null);
-  const [typeFilter, setTypeFilter] = useState("");
-  const [search, setSearch] = useState("");
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { type: typeFilter, q: search } = useMemo(() => parseDnsFilter(searchParams), [searchParams]);
+  const [searchInput, setSearchInput] = useState(search);
+
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== search) {
+        setSearchParams(prev => buildDnsFilterQuery({ type: typeFilter, q: searchInput }, prev), { replace: true });
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchInput, typeFilter, search, setSearchParams]);
 
   async function load() {
     setErr("");
@@ -43,14 +60,16 @@ export function RecordsView({ domain }: { domain: Domain }) {
           <Select
             className="text-xs"
             value={typeFilter}
-            onValueChange={setTypeFilter}
+            onValueChange={(val) => {
+              setSearchParams(prev => buildDnsFilterQuery({ type: val, q: searchInput }, prev), { replace: true });
+            }}
             options={[
               { value: "", label: t("domains.allTypes") },
               ...presentTypes.map((rt) => ({ value: rt, label: rt })),
             ]}
           />
         </div>
-        <input className="input flex-1 min-w-0 sm:min-w-[140px] text-xs py-1" placeholder={t("domains.filterPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input className="input flex-1 min-w-0 sm:min-w-[140px] text-xs py-1" placeholder={t("domains.filterPlaceholder")} value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
         <Button variant="subtle" onClick={() => setEditing("subdomain")} className="py-1 px-3 text-xs">{t("domains.presetButton")}</Button>
         <Button variant="primary" onClick={() => setEditing("new")} className="py-1 px-3 text-xs">{t("domains.customButton")}</Button>
       </div>
