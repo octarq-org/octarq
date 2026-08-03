@@ -66,7 +66,7 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 // only offers them when the plugin is mounted and enabled for the workspace.
 func (p *Plugin) Actions() []plugin.Action {
 	return []plugin.Action{
-		{ID: "links.create", Label: "New Link", Path: "/links?create=1", Icon: "link-2", Category: "Marketing", Order: 10},
+		{ID: "create-link", Label: "New Link", Path: "/links?create=1", Icon: "link-2", Category: "Marketing", Order: 10},
 	}
 }
 

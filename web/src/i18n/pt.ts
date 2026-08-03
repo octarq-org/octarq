@@ -102,6 +102,9 @@ export const pt = {
     Instance: "Instância",
   },
   nav: {
+    "create-link": "Novo link",
+    "create-domain": "Adicionar domínio",
+    "create-mailbox": "Nova caixa de correio",
     overview: "Visão Geral",
     links: "Links",
     mail: "E-mail",

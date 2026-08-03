@@ -81,7 +81,7 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 // only offers them when the plugin is mounted and enabled for the workspace.
 func (p *Plugin) Actions() []plugin.Action {
 	return []plugin.Action{
-		{ID: "mail.create", Label: "New Mailbox", Path: "/mail?create=1", Icon: "mail", Category: "Messaging", Order: 10},
+		{ID: "create-mailbox", Label: "New Mailbox", Path: "/mail?create=1", Icon: "mail", Category: "Messaging", Order: 10},
 	}
 }
 

@@ -103,6 +103,9 @@ export const zh: Resources = {
     Instance: "实例",
   },
   nav: {
+    "create-link": "新建短链",
+    "create-domain": "添加域名",
+    "create-mailbox": "新建邮箱",
     overview: "概览",
     links: "短链",
     mail: "邮件",

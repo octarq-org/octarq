@@ -96,7 +96,7 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 // only offers them when the plugin is mounted and enabled for the workspace.
 func (p *Plugin) Actions() []plugin.Action {
 	return []plugin.Action{
-		{ID: "dns.create", Label: "Add Domain", Path: "/domains?create=1", Icon: "globe", Category: "Network", Order: 10},
+		{ID: "create-domain", Label: "Add Domain", Path: "/domains?create=1", Icon: "globe", Category: "Network", Order: 10},
 	}
 }
 
