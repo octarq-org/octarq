@@ -43,6 +43,20 @@ jobs:
       - name: go test
         run: go test -race -count=1 ./...
 
+      # Coverage gate: ensures total statement coverage (excluding build artifacts and generated code) does not drop below threshold.
+      # Current measured coverage is 71.4%. Threshold is set to 70 to allow minor jitter while blocking regressions.
+      - name: Verify coverage threshold
+        run: |
+          THRESHOLD=70
+          go list ./... | grep -v -E '/(webembed|openapi|cmd/octarq-build|cmd/openapi-gen|examples)' | xargs go test -coverprofile=coverage.out
+          total=$(go tool cover -func=coverage.out | awk '/total:/ {print $3}' | tr -d '%')
+          echo "Total test coverage: ${total}% (threshold: ${THRESHOLD}%)"
+          is_below=$(awk -v tot="$total" -v thresh="$THRESHOLD" 'BEGIN { print (tot < thresh) ? 1 : 0 }')
+          if [ "$is_below" -eq 1 ]; then
+            echo "Coverage ${total}% is below required threshold ${THRESHOLD}%!"
+            exit 1
+          fi
+
       # v6 of the action installs golangci-lint v1, which cannot read this
       # repo's `version: "2"` config and refuses outright to lint a module
       # targeting a newer Go than it was built with ("the Go language version
