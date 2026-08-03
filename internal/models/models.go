@@ -41,15 +41,7 @@ type User struct {
 	PasswordHash    string     `gorm:"size:255;not null" json:"-"`
 	InviteToken     string     `gorm:"size:255" json:"-"`
 	InviteExpiresAt *time.Time `json:"inviteExpiresAt,omitempty"`
-	// No SessionEpoch here. There used to be one, documented as the mechanism
-	// behind "log out everywhere" — a cookie carried the epoch it was minted
-	// under and stale ones were rejected. None of that was true: sessions are
-	// stateful (Manager.identify looks the token hash up in user_sessions), the
-	// field was written in exactly one place and read in none, and revocation
-	// has always worked by deleting the session rows and their cache entries.
-	// A field that documents a security control it does not implement is worse
-	// than no field, because the next person to need revocation trusts it.
-	// The column is left behind in existing databases; AutoMigrate never drops.
+	// Session revocation is handled by deleting Session rows from user_sessions.
 
 	// TOTPSecret is the base32 TOTP shared secret, stored AES-GCM encrypted at
 	// rest (via crypto.Cipher). Empty until 2FA enrollment begins.

@@ -1,18 +1,6 @@
-// Package mcp implements octarq's Model Context Protocol server: the `octarq mcp`
-// subcommand. It turns the existing self-hosted "one-person company" database
-// into something an AI assistant (Claude Code, Claude Desktop, Cursor) can read
-// directly — "how many SaaS did I pay for this month?", "what mail landed
-// today?", "which links got the most clicks?".
-//
-// It is the OSS引流神器 (lead-magnet) the AI roadmap calls for: the data and the
-// Bearer-token API already exist, so MCP is a thin, read-only protocol-translation
-// layer over them. Scope here is the open-core surface — short links, email,
-// domains — plus a guarded general-purpose read-only SQL tool. Write tools and
-// Finance/Infra tools belong to the Pro plugins.
-//
-// Transport is stdio (the universal local MCP transport): a client launches
-// `octarq mcp` as a subprocess and speaks JSON-RPC over stdin/stdout. The server is
-// built on the official MCP Go SDK so we don't hand-roll the protocol.
+// Package mcp implements octarq's Model Context Protocol server for the
+// `octarq mcp` subcommand. It exposes short link, email, and domain read-only
+// tools and a guarded read-only SQL tool over stdio transport.
 package mcp
 
 import (

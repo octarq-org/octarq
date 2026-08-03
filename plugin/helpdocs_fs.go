@@ -17,12 +17,8 @@ import (
 //
 //	func (p *Plugin) HelpDocsFS() fs.FS { return docsFS }
 //
-// Everything about a page — its slug, title, category, order — is then declared
-// once, in that page's own frontmatter, and adding a page means adding a file.
-// The alternative this replaces was a []HelpDoc literal per plugin listing the
-// same four fields the file already carried: two places to change, one of which
-// nothing verifies, and any doc whose Go entry was forgotten simply never
-// appeared.
+// Everything about a page — its slug, title, category, order — is declared
+// once, in that page's own frontmatter.
 //
 // A plugin may implement this, HelpProvider, or both. The two are concatenated,
 // so a plugin can ship static pages from disk alongside pages it generates at
@@ -31,10 +27,7 @@ type HelpDocsFS interface {
 	HelpDocsFS() fs.FS
 }
 
-// helpDocExts are the page extensions LoadHelpDocs recognises. Both exist in the
-// tree — the OSS plugins write .mdx, octarq-pro's modules write .md — and the
-// distinction has never meant anything to the renderer, which runs goldmark over
-// either one. Accepting both is what lets the convention land without a rename.
+// helpDocExts lists recognized documentation file extensions (.mdx and .md).
 var helpDocExts = []string{".mdx", ".md"}
 
 // LoadHelpDocs walks fsys and returns one HelpDoc per documentation page.

@@ -332,14 +332,8 @@ type AuthMethod struct {
 	LoginURL string `json:"loginUrl"` // launch/redirect URL (plugin's /api/... endpoint)
 	IconKey  string `json:"iconKey"`  // frontend icon key, optional
 	// Available reports whether the method can actually be used right now.
-	// Registration happens at Mount, before any configuration exists, and there
-	// is no way to unregister — so without this a method is offered from the
-	// moment its plugin is compiled in. That is how the login page came to show
-	// "Sign in with SSO" on instances where SSO was never configured: clicking
-	// it reached a handler that refused with a bare 404 page.
-	//
-	// Consulted per request, so it tracks configuration changes. nil means
-	// always available, which keeps existing plugins working unchanged.
+	// Consulted per request to track configuration changes. nil means always
+	// available.
 	Available func() bool `json:"-"`
 }
 
@@ -436,9 +430,7 @@ type MenuItem struct {
 	// hint only — the endpoints behind the page do their own enforcement, and
 	// must, since nothing stops a caller from requesting the path directly.
 	//
-	// Set it whenever every route behind the menu entry is role-gated. Omitting
-	// it there produces a nav item that leads only to a permission error, which
-	// is how /roles behaved: visible to every member, 403 on arrival.
+	// Set it whenever every route behind the menu entry is role-gated.
 	RequiredRole string `json:"requiredRole,omitempty"`
 }
 

@@ -92,12 +92,7 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 	}
 }
 
-// docs is this plugin's documentation directory. It holds two pages, dns.mdx
-// and ddns.mdx, and that is now the only place either is declared — under the
-// old scheme each also needed a matching //go:embed pair and a slot in a
-// []HelpDoc literal, which is how a plugin ends up shipping a doc file nothing
-// serves. Adding a page means adding "docs/<slug>.mdx" plus its ".zh.mdx"
-// translation; see plugin.HelpDocsFS.
+// docs is this plugin's documentation directory; see plugin.HelpDocsFS.
 //
 //go:embed docs
 var docs embed.FS

@@ -258,12 +258,9 @@ func (a *App) sendMail(orgID uint, to, subject, htmlBody, textBody string) error
 // models are migrated and their routes mounted.
 func (a *App) Use(p plugin.Plugin) { a.plugins = append(a.plugins, p) }
 
-// lazyDNSManager resolves the plugin.DNSManager that the dns Core plugin
-// provides under plugin.ServiceDNSManager, on each call. ctx.DNS used to be the API
-// Handler's own manager; with domain/DNS extracted into the dns plugin
-// (docs/CORE-PLUGIN-EXTRACTION.md) the plugin provides the seam during Mount and
-// consumers (Pro infra / ai MCP tools) resolve it here at request time — after
-// all plugins have mounted, so the lookup always succeeds in practice.
+// lazyDNSManager resolves the plugin.DNSManager provided by the dns Core plugin
+// under plugin.ServiceDNSManager on each call. Resolution happens at request
+// time, after all plugins have mounted.
 type lazyDNSManager struct {
 	lookup func(name string) (any, bool)
 }
