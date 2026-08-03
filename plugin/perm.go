@@ -25,7 +25,13 @@ var (
 	permResolver PermResolver
 )
 
-// DeclarePerm registers permission definitions (called during Mount). Re-declaring a key replaces it.
+// DeclarePerm registers permission definitions (called during Mount).
+//
+// Keyed, not appended: Mount runs more than once per process — internal/mcp
+// re-Mounts every plugin to build the MCP tool set — so appending would list
+// each permission twice in the roles matrix, and once more for every future
+// composition path. Re-declaring a key replaces it. Guarded by
+// TestDeclarePermIsIdempotent.
 func DeclarePerm(perms ...Perm) {
 	permMu.Lock()
 	defer permMu.Unlock()
@@ -80,6 +86,11 @@ func ResetPermRegistry() {
 }
 
 // HasPerm is the nil-safe way for a plugin to ask Context.RequirePerm.
+//
+// It fails closed. The inverted form — `if c.RequirePerm != nil && !c.RequirePerm(...)`
+// — reads as defensive and is the opposite: an unwired host leaves the field
+// nil, the check is skipped entirely, and the endpoint opens to everyone. That
+// exact bug shipped once in the links plugin; see plugins/links/role_gate_test.go.
 func (c *Context) HasPerm(r *http.Request, permKey, minRole string) bool {
 	if c == nil || c.RequirePerm == nil {
 		return false
