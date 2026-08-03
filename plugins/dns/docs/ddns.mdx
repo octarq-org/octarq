@@ -1,55 +1,48 @@
 ---
-title: Dynamic DNS (DDNS) Script & Operations Guide
+title: Dynamic DNS (DDNS)
 category: services
 order: 2
 ---
 
-The Octarq Dynamic DNS (DDNS) module allows routers, NAS devices, and home servers with dynamic IP addresses to automatically update A (IPv4) and AAAA (IPv6) records via standard Dyndns2 protocol endpoints.
+Update A (IPv4) and AAAA (IPv6) DNS records automatically from routers, NAS devices, or local servers using standard Dyndns2 protocol endpoints.
 
-## 1. Step-by-Step Console Workflows
+## Create a DDNS Token
 
-### 1. Creating a DDNS Token
-1. Navigate to **Infrastructure → Network → DNS**, and switch to the **Dynamic DNS (DDNS)** tab.
+1. Go to **Infrastructure → Network → DNS** and open the **Dynamic DNS (DDNS)** tab.
 2. Click **New DDNS Token**.
-3. Select your target domain (e.g. `example.com`), enter your record name (e.g. `home`), and specify the record type (`A` or `AAAA`).
+3. Select your domain, enter a record name (such as `home`), and pick the record type (`A` or `AAAA`).
 4. Click **Create Token**.
+5. Copy the generated secret token and update URL immediately. The cleartext secret is displayed only once.
 
 > [!CAUTION]
-> **Secret Key Shown Only Once**: The generated Secret token plain text is displayed ONCE upon creation. The database stores only a SHA-256 hash. Copy your secret and Update URL immediately!
+> The database stores only a SHA-256 hash of the secret token. If you lose the token, you will need to revoke it and generate a new one.
 
----
+## Client Configuration
 
-## 2. Client Setup & Script Examples
+### Cron Job with `curl`
 
-### 1. Simple `curl` Cron Job
-For Linux servers or open source routers, run a cron job to auto-detect public IP and push updates:
+Run a scheduled cron job on Linux servers or routers to auto-detect public IP and push updates:
 
 ```bash
-# Auto-detect public IP and update record
-curl -s "https://your-octarq-console.com/api/dns/ddns/update?hostname=home.example.com&key=YOUR_SECRET_TOKEN"
+curl -s "https://your-octarq-domain.com/api/dns/ddns/update?hostname=home.example.com&key=YOUR_SECRET_TOKEN"
 ```
 
-### 2. Router / NAS Configuration Settings
-In your router or NAS DDNS client settings (e.g. OpenWrt, Synology, `ddclient`):
+### Router and NAS Setup
+
+In router or NAS DDNS client settings (such as OpenWrt, Synology, or `ddclient`):
+
 - **Service Provider**: `Dyndns2` or `Custom`
-- **Server**: `your-octarq-console.com`
-- **Update URL Path**: `/api/dns/ddns/update?hostname=[DOMAIN]&key=[PASSWORD]`
+- **Server**: `your-octarq-domain.com`
+- **Path / Update URL**: `/api/dns/ddns/update?hostname=[DOMAIN]&key=[PASSWORD]`
 - **Username / Hostname**: `home.example.com`
-- **Password**: Enter your secret token
+- **Password**: Your secret token
 
----
+## Token Revocation and Manual IP Override
 
-## 3. Important Operating Cautions & FAQs
+- **Revoke Token**: If a device or token key is compromised, find the token in the Dynamic DNS table and click **Revoke Token** to block subsequent update requests.
+- **Pass Explicit IP**: Append `&ip=1.2.3.4` or `&ip=2001:db8::1` to the update URL to override automatic IP detection.
 
-> [!IMPORTANT]
-> **Revoking Tokens**: If a router or token key is compromised, click **Revoke Token** in the console immediately to block any future update attempts.
+## Related Guides
 
-### Q1: Can I explicitly pass an IP address instead of auto-detecting?
-**Answer**: Yes! Append `&ip=1.2.3.4` or `&ip=2001:db8::1` to the update URL to explicitly set your target IP.
-
----
-
-## 4. Related Console Guides
-
-- [DNS Management Console Guide](/help/dns) — Inspect active records in the console.
-- [Console Quick Start](/help/getting-started) — Workspace roles & navigation shortcuts.
+- [DNS Management](/help/dns)
+- [Quickstart](/help/quickstart)

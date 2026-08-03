@@ -1,53 +1,38 @@
 ---
-title: 域名与 DNS 解析控制台操作指南
+title: 域名与 DNS 管理
 ---
 
-本文档指导您在 Octarq 控制台中完成 DNS 服务商 API 密钥配置、域名一键同步、记录增删改查以及邮件/短链接 DNS 健康度校验。
+绑定 Cloudflare 或 DNSPod API 密钥、一键同步域名、管理解析记录，并对邮件与短链相关的 DNS 进行校验。
 
-## 一、标准操作步骤
+## 绑定服务商账户
 
-### 1. 绑定 DNS 服务商 API 密钥
-1. 前往 **基础设施 → 网络 → DNS**，切换至 **服务商账户** (或 **设置 → 服务商账户**)。
-2. 点击 **添加服务商账户**，选择提供商（如 `Cloudflare` 或 `DNSPod`）。
-3. 填入服务商 API Token 并保存（密钥将在数据库采用 AES-GCM 强加密存储）。
+1. 进入 **基础设施 → 网络 → DNS**，切换到 **服务商账户** 标签页。
+2. 点击 **添加服务商账户**，选择 `Cloudflare` 或 `DNSPod`。
+3. 输入 API Token 并保存。密钥采用 AES-GCM 加密存储。
 
 > [!CAUTION]
-> **Cloudflare Token 最小权限要求**：创建 Cloudflare API Token 时，需授予 `Zone - Zone:Read` 和 `Zone - DNS:Edit` 权限，否则无法拉取 Zone 列表或更新记录。
+> Cloudflare API Token 需开启 `Zone - Zone:Read` 和 `Zone - DNS:Edit` 权限。
 
-### 2. 域名同步与记录管理
-1. 在域名页面点击 **同步域名**，系统将自动识别 Cloudflare/DNSPod 下的托管域名。
-2. 点击任意域名行进入解析记录表格，支持快速新建 A、AAAA、CNAME、TXT、MX、NS 记录。
-3. **Cloudflare CDN 代理开关**：勾选记录的 **Proxied** 选项，即可开启 Cloudflare 节点加速与 SSL 代理防护。
+## 同步域名与管理记录
 
-### 3. 运行邮件与短链健康度校验
-1. 选择目标域名，点击右侧的 **校验 DNS** 按钮。
-2. 系统将发起实时 DNS 探测校验：
-   - **SPF 记录**：检查是否存在有效 `v=spf1` TXT 记录。
-   - **DMARC 记录**：验证 `_dmarc` 策略解析。
-   - **DKIM 记录**：校验指定的 DKIM 签名 Selector。
-   - **短链 CNAME**：探测短链接子域名是否正确指向本应用目标地址。
+1. 在 DNS 页面点击 **同步域名**，系统会自动拉取已绑定账号下的托管域名。
+2. 在左侧列表中选择域名，管理 A、AAAA、CNAME、TXT、MX、NS 记录。
+3. 勾选或取消 Cloudflare 记录的 **Proxied** 开关，开启或关闭 CDN 代理防护。
 
----
+## 运行 DNS 校验
 
-## 二、注意事项与避坑指南
+1. 选择目标域名，点击 **校验 DNS**。
+2. 系统会探测以下解析状态：
+   - **SPF**：检查是否存在有效 `v=spf1` TXT 记录。
+   - **DMARC**：校验 `_dmarc` 策略记录。
+   - **DKIM**：探测指定的 DKIM 签名 Selector。
+   - **短链 CNAME**：检查短链子域名是否正确指向目标地址。
 
 > [!WARNING]
-> **Cloudflare CNAME 展平与校验说明**：当短链接子域名在 Cloudflare 中开启橙色云朵 (Proxied) 代理时，Cloudflare 会自动展平 CNAME 记录。此时控制台校验可能提示“未验证 (Unverified)”，属于正常物理现象，不影响实际短链跳转访问。
+> 短链子域名开启 Cloudflare 代理（橙色云朵）时，CNAME 记录会被 Cloudflare 展平为 IP 地址。控制台可能显示“未验证”，但不影响实际短链跳转。
 
----
+## 相关指南
 
-## 三、常见问题解答 (FAQ)
-
-### Q1: 同步域名时报错 "Invalid API Token"？
-**答**：请核对 API Token 是否拼错，以及 Token 是否限制了请求来源 IP。DNSPod 账号需确保使用格式正确的 `ID,Token` 组合。
-
-### Q2: 修改 DNS 记录后多久生效？
-**答**：Octarq 提交编辑后会立即通过 API 推送到 Cloudflare/DNSPod。生效时间取决于记录的 TTL 设置（通常在 1~5 分钟内生效）。
-
----
-
-## 四、相关操作说明
-
-- [动态 DNS (DDNS) 脚本配置指南](/help/ddns) — 路由器与家宽 IP 自动更新记录。
-- [短链接服务控制台说明](/help/short-links) — 绑定短链二级域名。
-- [邮箱路由控制台说明](/help/mailboxes) — 校验入站与出站邮件 SPF/DKIM/DMARC 记录。
+- [动态 DNS (DDNS)](/help/ddns)
+- [短链接](/help/short-links)
+- [邮箱与邮件路由](/help/mailboxes)

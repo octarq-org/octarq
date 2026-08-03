@@ -1,46 +1,34 @@
 ---
 title: Notification Channels
-description: Route system alerts and events to Telegram bots or custom HTTP webhooks.
+description: Route system alerts to Telegram bots or custom HTTP POST webhooks.
 category: automation
 order: 60
 ---
 
-Octarq's Notification engine dispatches real-time alerts for critical system events—such as new inbound emails, SMTP dispatch failures, abuse reports, and security alerts—directly to your team's preferred messaging channels.
+Octarq sends notifications for system events (such as received emails, mail dispatch errors, abuse reports, and security alerts) to configured messaging channels.
 
-## Key Capabilities
+## Configure a Telegram Channel
 
-- **Telegram Bot Integration**: Send formatted markdown notifications to Telegram group chats or private user chats via a custom Telegram Bot.
-- **Custom HTTP Webhooks**: POST JSON alert payloads (`{"text": "..."}`) to custom webhooks or automation platforms (such as Make or n8n).
-- **SSRF-Hardened Security**: Outbound HTTP notification webhooks are validated and sanitized via `safehttp` to block Server-Side Request Forgery (SSRF) attempts against internal networks or cloud metadata IP ranges.
-- **Extensible Provider Architecture**: Plugins can register custom notification providers (e.g., Slack, SMS, Discord) at runtime via the core notifier interface.
-- **Instant Test Triggering**: Test channel configurations directly from the dashboard before enabling live event alerts.
-
-## How to Use
-
-### 1. Setting Up a Telegram Channel
-1. Create a bot using [@BotFather](https://t.me/BotFather) on Telegram and copy the **Bot Token**.
-2. Add your bot to a Telegram chat or group and retrieve your **Chat ID**.
-3. In Octarq, navigate to **Settings → Workspace → Alerts** (or press `⌘K` / `Ctrl+K` and search "Alerts").
+1. Create a bot using [@BotFather](https://t.me/BotFather) on Telegram and copy its **Bot Token**.
+2. Add the bot to your Telegram group or chat, and obtain your **Chat ID**.
+3. In Octarq, go to **Settings → Workspace → Alerts** (or press `⌘K` / `Ctrl+K` and search "Alerts").
 4. Click **Add Channel**, select **Telegram Bot**, enter your Bot Token and Chat ID, and click **Save**.
 
-### 2. Setting Up a Webhook Channel
-1. In Octarq, navigate to **Settings → Workspace → Alerts**.
+## Configure an HTTP Webhook Channel
+
+1. Go to **Settings → Workspace → Alerts**.
 2. Click **Add Channel** and select **Custom Webhook (HTTP POST)**.
-3. Enter your target Endpoint URL (e.g., `https://hooks.zapier.com/hooks/catch/...`).
+3. Enter your target endpoint URL (such as `https://example.com/hooks/alerts`).
 4. Click **Save**.
 
-### 3. Testing Notification Delivery
-Click the **Test** button next to any configured channel. Octarq dispatches a sample payload immediately and displays the status response.
+## Test Notification Delivery
 
-:::tip
-Notification delivery runs asynchronously in the background so that mail receiving and system dispatches remain responsive even if external chat APIs experience temporary latency.
-:::
+Click **Test** next to any configured channel on the **Alerts** page. Octarq sends a sample payload immediately and displays the HTTP response status.
 
-## Why It Matters
-
-Receiving instant notifications on Telegram or via Webhooks ensures you are immediately alerted to failed email dispatches, incoming customer inquiries, or abuse reports without needing to manually monitor dashboard pages.
+> [!NOTE]
+> Notification delivery runs asynchronously in the background so that email dispatches and API handlers remain unblocked if external services experience temporary network delays.
 
 ## Related Links
 
-- [Outbound Webhooks](/help/webhooks) — Subscribe to raw event streams for programmatic processing.
-- [Mailboxes & Email Routing](/help/mailboxes) — Configure inbound email receiving.
+- [Outbound Webhooks](/help/webhooks)
+- [Mailboxes](/help/mailboxes)

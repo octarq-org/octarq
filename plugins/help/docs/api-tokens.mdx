@@ -1,70 +1,51 @@
 ---
-title: API Tokens & Access
-description: Generate bearer tokens with oct_ prefix to automate Octarq via REST APIs.
+title: API Tokens
+description: Generate bearer tokens with oct_ prefix to authenticate REST API requests.
 category: automation
 order: 50
 ---
 
-Octarq provides a complete REST API surface for programmatically managing short links, mailboxes, DNS records, domain verification, and workspace settings. API Tokens grant secure, non-interactive access to these endpoints for automated scripts, CI/CD pipelines, and third-party integrations.
+API tokens grant non-interactive access to Octarq REST endpoints for scripts, CI/CD pipelines, and external services.
 
-## Key Capabilities
+## Overview
 
-- **Secure Token Format**: Generated with an `oct_` prefix followed by 24 URL-safe, cryptographically random bytes (e.g., `oct_AbC123...`).
-- **Hashed at Rest**: Tokens are stored as SHA-256 digests. Cleartext token strings are returned only once upon creation and cannot be retrieved later.
-- **Custom Expiration**: Configure tokens to expire automatically after a set number of days or create non-expiring tokens for persistent automated systems.
-- **Usage Tracking**: Track the `lastUsedAt` timestamp for each token to monitor active integrations and audit stale access credentials.
-- **Instant Revocation**: Instantly revoke any token from the dashboard to immediately terminate API access for compromised scripts or legacy services.
+- **Token Format**: Tokens begin with an `oct_` prefix followed by 24 cryptographically random bytes (such as `oct_AbC123...`).
+- **Storage**: Tokens are stored as SHA-256 hashes. The plain text is shown only once when generated.
+- **Expiration**: Tokens can be set to expire after a specified number of days, or set to remain active until manually revoked.
+- **Scope & Ownership**: Tokens act with the creator's permissions. Each user manages their own tokens under account settings. Removing a member from a workspace revokes all tokens created by that member.
 
-## Who Can Create One
+## Generate an API Token
 
-Anyone with an account can mint a token for themselves. A token acts as the
-person who created it and can never out-rank them, so a Member's token is a
-Member's token — narrowing it further with the **Scope** field is encouraged,
-widening it is refused.
-
-Tokens are personal all the way down: you see, edit and revoke your own, and
-nobody else's — a workspace admin included. What an admin has instead is member
-removal, which revokes that person's tokens along with their access.
-
-## How to Use
-
-### 1. Generating an API Token
 1. Go to **Settings → Account → API Tokens** (or press `⌘K` / `Ctrl+K` and search "API Tokens").
 2. Click **+ New Token**.
-3. Enter a descriptive **Name** (e.g., `GitHub Actions CI` or `Zapier Sync`).
-4. (Optional) Provide a **Note** and set an **Expiration (in days)**.
+3. Enter a **Name** (such as `GitHub Actions` or `Deployment Script`).
+4. (Optional) Set a **Note** and an **Expiration (in days)**.
 5. Click **Create**.
-6. **Copy your secret token immediately.** It will never be shown again.
+6. Copy the token immediately. It will not be shown again.
 
-### 2. Authenticating API Requests
-Pass your token in the standard HTTP `Authorization` header as a Bearer token:
+## Use a Token in Requests
+
+Pass the token in the HTTP `Authorization` header as a Bearer token:
 
 ```bash
-curl -X GET "https://your-octarq.com/api/domains" \
+curl -X GET "https://your-octarq-domain.com/api/domains" \
   -H "Authorization: Bearer oct_your_secret_api_token"
 ```
 
-Example request to create a short link via API:
+Example request to create a DNS record:
 
 ```bash
-curl -X POST "https://your-octarq.com/api/domains/1/records" \
+curl -X POST "https://your-octarq-domain.com/api/domains/1/records" \
   -H "Authorization: Bearer oct_your_secret_api_token" \
   -H "Content-Type: application/json" \
   -d '{"type":"A","name":"sub","content":"1.2.3.4","ttl":300}'
 ```
 
-### 3. Revoking Tokens
-To revoke access, find the token in the **API Tokens** table and click **Revoke**. All subsequent API requests using that token will be rejected immediately with HTTP 401 Unauthorized.
+## Revoke a Token
 
-:::tip
-Always use dedicated tokens for separate environments (e.g., staging vs. production) so you can audit or revoke access independently.
-:::
-
-## Why It Matters
-
-API tokens let you integrate Octarq seamlessly into your custom deployment scripts, automated DNS management workflows, and server monitoring toolchains without exposing user account passwords or session cookies.
+Go to **Settings → Account → API Tokens**, locate the token, and click **Revoke**. Requests using a revoked token receive an HTTP 401 response immediately.
 
 ## Related Links
 
-- [Model Context Protocol (MCP)](/help/mcp) — Connect AI assistants to Octarq via MCP server tools.
-- [Outbound Webhooks](/help/webhooks) — Receive real-time HTTP callbacks when events occur.
+- [Model Context Protocol (MCP)](/help/mcp)
+- [Outbound Webhooks](/help/webhooks)

@@ -1,15 +1,15 @@
 ---
 title: Quickstart
-description: Set up Octarq in 5 minutes — Docker deployment, organization setup, domain binding, and enabling features.
+description: Deploy Octarq with Docker, create an admin account, bind domains, and toggle workspace features.
 category: start
 order: 20
 ---
 
-Get your Octarq instance up and running in under five minutes using Docker.
+Deploy and set up an Octarq instance using Docker.
 
-## 1. Run via Docker
+## 1. Run Container
 
-Deploy the single-binary container with persistent data storage:
+Launch the Octarq single-binary container with persistent volume storage:
 
 ```bash
 docker run -d \
@@ -20,28 +20,28 @@ docker run -d \
   ghcr.io/octarq-org/octarq:latest
 ```
 
-Open `http://localhost:8080` in your browser to start the setup wizard.
+Open `http://localhost:8080` in your browser to access the setup wizard.
 
-## 2. Create Initial Account & Organization
+## 2. Register Admin Account and Workspace
 
-1. Follow the prompt to register the **Instance Admin** account.
-2. Create your primary business **Organization** (e.g. `Acme Corp`).
-3. Additional team members can be invited under **Settings -> Members** with granular RBAC roles (`owner`, `admin`, `member`).
+1. Complete the setup wizard to register your **Instance Admin** account.
+2. Enter a name to create your first **Organization** (workspace).
+3. Additional team members can be invited under **Settings → Workspace → Members**.
 
-## 3. Bind Custom Domain
+## 3. Add a Domain Zone
 
-To configure custom short links and digital storefronts:
+1. Configure an A or CNAME record in your DNS provider pointing your hostname to your Octarq server IP.
+2. In Octarq, go to **Infrastructure → Network → DNS**.
+3. Click **+ Add Domain Zone** (or click **Sync Domains** if you connected a Cloudflare/DNSPod provider account).
 
-1. Add a DNS CNAME record pointing `hub.yourdomain.com` to your server IP/hostname.
-2. Navigate to **DNS -> Add Domain** in the Octarq dashboard.
-3. Automated TLS certificate provisioning will secure your domain over HTTPS.
+## 4. Enable Features
 
-## 4. Enable the Features You Need
+1. Go to **Settings → Workspace → Features**.
+2. Toggle on the features (such as Links, Mail, or DNS) needed for the workspace.
+3. Sidebar navigation menus update immediately when features are toggled on or off.
 
-1. Navigate to **Settings -> Plugins**. Every feature — short links, mailboxes, DNS — is a plugin you can switch on or off per workspace.
-2. Toggle on what this workspace should use. Sidebar entries appear and disappear with the toggle.
-3. Access your in-app documentation anytime via the **Help** link in the sidebar footer.
+## Next Steps
 
-:::tip Next Steps
-Set up [Short Links](/help/short-links) for campaign tracking, [Mailboxes](/help/mailboxes) to receive email on your own domain, or generate an [API Token](/help/api-tokens) to drive Octarq from your scripts.
-:::
+- [Short Links](/help/short-links)
+- [Mailboxes](/help/mailboxes)
+- [API Tokens](/help/api-tokens)

@@ -1,38 +1,30 @@
 ---
 title: 出站 Webhook
-description: 用 HMAC 签名把系统事件实时推送到外部 HTTP 端点。
+description: 使用 HMAC 签名将系统事件实时推送到外部 HTTP 端点。
 category: automation
 order: 80
 ---
 
-Octarq 的出站 Webhook 引擎会在工作区内发生关键事件时，实时向外部服务器发送 HTTP `POST` 通知，用于打通自动化流程、数据同步和自定义告警。
+出站 Webhook 在工作区发生特定事件时，向外部服务器发送 HTTP `POST` 请求。
 
-## 能力概览
+## 功能说明
 
-- **实时事件投递**：`email.receive`、`email.send_failed`、滥用举报等系统事件即时回调。
-- **精细的事件订阅**：可订阅指定事件主题，也可用通配符 `*` 接收工作区全部事件。
-- **HMAC-SHA256 载荷签名**：每个请求都带 `X-Octarq-Signature` 头，内含用你的密钥算出的 HMAC-SHA256 签名，接收端可据此校验来源、防止篡改。
-- **自动生成或自定义密钥**：可以自带签名密钥，也可以让 Octarq 自动生成一个安全随机密钥。
-- **SSRF 防护与超时控制**：投递请求有严格超时，外部服务器变慢不会拖累工作区自身的操作。
+- **事件通知**：在收到邮件（`email.receive`）、邮件发送失败（`email.send_failed`）或接收到滥用举报时触发 HTTP 回调。
+- **HMAC 签名防篡改**：每个请求包含 `X-Octarq-Signature` 请求头，接收端使用签名密钥与原始 Body 重新计算摘要即可完成来源校验。
+- **精细订阅**：可订阅指定的单项事件，或使用通配符 `*` 接收全部工作区事件。
 
-## 使用方法
+## 注册 Webhook 端点
 
-### 1. 注册 Webhook 端点
-1. 进入 **设置 → 工作区 → Webhook**（或按 `⌘K` / `Ctrl+K` 搜索「Webhook」）。
-2. 点击**添加 Webhook 端点**。
-3. 填写有辨识度的**端点名称**和目标 **Endpoint URL**（例如 `https://api.yourdomain.com/hooks/octarq`）。
-4. （可选）填写自定义**签名密钥**（留空则自动生成）。
-5. 选择**订阅事件**（可选 **全部事件 (\*)** 或勾选具体事件）。
-6. 点击**添加 Webhook 端点**。
+1. 进入 **设置 → 工作区 → Webhook**（或按 `⌘K` / `Ctrl+K` 搜索“Webhook”）。
+2. 点击 **添加 Webhook 端点**。
+3. 填写 **端点名称** 与目标 **Endpoint URL**（例如 `https://api.example.com/hooks/octarq`）。
+4. （可选）设置 **签名密钥**；留空时系统将自动生成随机密钥。
+5. 选择 **订阅事件**（可选择 **全部事件 (*)** 或勾选具体事件）。
+6. 点击 **添加 Webhook 端点**。
 
-### 2. 校验 Webhook 签名
-收到回调后，在接收端校验 `X-Octarq-Signature` 头：
+## 校验 Webhook 签名
 
-```crypto
-signature = HMAC-SHA256(raw_request_body, signing_secret)
-```
-
-Node.js / Express 示例：
+接收服务器通过计算原始请求 Body 的 HMAC-SHA256 签名，并与 `X-Octarq-Signature` 请求头进行比对：
 
 ```javascript
 const crypto = require('crypto');
@@ -52,18 +44,11 @@ function verifyOctarqWebhook(req, res, next) {
 }
 ```
 
-### 3. 删除端点
-在 **设置 → 工作区 → Webhook** 中管理已注册的端点，可随时查看端点密钥或删除不再使用的端点。
+## 管理端点
 
-:::tip
-本地开发和调试时，可以用 `ngrok`、`hookdeck` 之类的工具先看清载荷长什么样，再把接收逻辑部署到生产。
-:::
-
-## 为什么重要
-
-出站 Webhook 让 Octarq 与下游系统解耦：你可以触发客户自动化流程、把邮件通知灌进自建数据库、或者拉起服务器部署，全程不需要轮询 Octarq 的 API。
+在 **设置 → 工作区 → Webhook** 中，可随时查看端点密钥或删除停用的 Webhook。
 
 ## 相关文档
 
-- [通知渠道](/help/notifications) —— 把格式化告警发到 Telegram 或 Webhook 渠道。
-- [API 令牌](/help/api-tokens) —— 为入站调用 Octarq 的 API 做鉴权。
+- [通知渠道](/help/notifications)
+- [API 令牌](/help/api-tokens)

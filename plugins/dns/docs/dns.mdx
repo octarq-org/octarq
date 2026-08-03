@@ -1,55 +1,40 @@
 ---
-title: DNS Management Console Guide
+title: DNS Management
 category: services
 order: 1
 ---
 
-This guide walks you through linking DNS provider API tokens, syncing domain zones, managing records, and executing automated health verifications inside the Octarq Console.
+Link Cloudflare or DNSPod provider tokens, sync domain zones, edit DNS records, and check email and short link DNS configurations.
 
-## 1. Step-by-Step Console Procedures
+## Add Provider Accounts
 
-### 1. Linking DNS Provider API Tokens
-1. Go to **Infrastructure → Network → DNS**, and click **Provider Accounts** (or **Settings → Provider Accounts**).
-2. Click **Add Provider Account**, and select your provider type (`Cloudflare` or `DNSPod`).
-3. Enter your API Token and save. Credentials are encrypted at rest using AES-GCM.
+1. Go to **Infrastructure → Network → DNS** and click the **Provider Accounts** tab.
+2. Click **Add Provider Account** and select `Cloudflare` or `DNSPod`.
+3. Enter your API token and save. Credentials are encrypted at rest using AES-GCM.
 
 > [!CAUTION]
-> **Cloudflare API Token Scope**: Ensure your Cloudflare API Token includes `Zone - Zone:Read` and `Zone - DNS:Edit` permissions. Without these, zone fetching and record updates will fail.
+> Cloudflare API tokens must include `Zone - Zone:Read` and `Zone - DNS:Edit` permissions.
 
-### 2. Domain Sync & Record Editing
-1. Click **Sync Domains** on the domain overview page to fetch all active zones from connected provider accounts.
-2. Select any domain to manage A, AAAA, CNAME, TXT, MX, and NS records directly from the Octarq console table.
-3. **Cloudflare CDN Proxy Toggle**: Toggle the **Proxied** badge on any Cloudflare record to enable or disable HTTP caching and SSL proxying.
+## Sync Domains and Manage Records
 
-### 3. Running DNS Health Verifications
-1. Open your domain details and click **Verify DNS**.
-2. Octarq performs real-time DNS queries for:
-   - **SPF**: Inspects for valid `v=spf1` TXT records.
+1. Click **Sync Domains** on the DNS page to fetch active zones from connected provider accounts.
+2. Select a domain from the left list to view and manage its A, AAAA, CNAME, TXT, MX, and NS records.
+3. Toggle the **Proxied** switch on Cloudflare records to turn CDN proxying and SSL protection on or off.
+
+## Run DNS Verification
+
+1. Select a domain and click **Verify DNS**.
+2. Octarq performs DNS queries for:
+   - **SPF**: Checks for valid `v=spf1` TXT records.
    - **DMARC**: Checks `_dmarc` policy TXT records.
    - **DKIM**: Inspects configured DKIM selectors.
-   - **Link CNAME**: Resolves short-link subdomain CNAME targets.
-
----
-
-## 2. Important Operating Cautions
+   - **Link CNAME**: Resolves short link subdomain CNAME targets.
 
 > [!WARNING]
-> **Cloudflare CNAME Flattening**: When short-link subdomains have the Cloudflare orange cloud (Proxied) turned ON, Cloudflare flattens CNAME responses to IP addresses. The verification status may show "Unverified" as expected; actual URL redirection remains completely functional.
+> When a short link subdomain has Cloudflare proxying (orange cloud) enabled, Cloudflare flattens CNAME responses to IP addresses. The status might show "Unverified", but short link redirects continue to work.
 
----
+## Related Guides
 
-## 3. Frequently Asked Questions (FAQs)
-
-### Q1: Why does domain sync return "Invalid API Token"?
-**Answer**: Double check that your API Token hasn't expired or restricted source IPs. For DNSPod, ensure the credentials follow the `ID,Token` format.
-
-### Q2: How long do DNS record changes take to propagate?
-**Answer**: Edits pushed in Octarq update provider APIs instantly. Public DNS propagation depends on record TTLs (typically 1–5 minutes).
-
----
-
-## 4. Related Console Guides
-
-- [Dynamic DNS (DDNS) Guide](/help/ddns) — Automated router IP update scripts.
-- [Short Links Console Guide](/help/short-links) — Binding custom CNAME domains.
-- [Mailboxes Console Guide](/help/mailboxes) — Verifying SPF/DKIM/DMARC for mail delivery.
+- [Dynamic DNS (DDNS)](/help/ddns)
+- [Short Links](/help/short-links)
+- [Mailboxes](/help/mailboxes)

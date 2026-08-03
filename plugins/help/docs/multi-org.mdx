@@ -1,58 +1,44 @@
 ---
 title: Organizations & Workspace RBAC
-description: Isolate data into multi-tenant orgs with role-based access for owners, admins, and members.
+description: Manage multi-tenant organizations, team invitations, and workspace role permissions.
 category: access
 order: 90
 ---
 
-Octarq is built on a multi-tenant architecture that allows users to create, manage, and switch between isolated **Organizations** (Workspaces). Each workspace maintains its own domains, mailboxes, short links, API tokens, and team members with strict Role-Based Access Control (RBAC).
+Octarq isolates resources into independent organizations (workspaces). Each workspace maintains its own domains, mailboxes, short links, API tokens, and member permissions.
 
-## Key Capabilities
+## Role Permissions
 
-- **Strict Multi-Tenant Isolation**: Data entities (links, mailboxes, DNS zones, webhooks, audit logs) are bound to a specific Organization ID (`OrgID`), ensuring total logical isolation between environments.
-- **Role-Based Access Control (RBAC)**:
-  - **Owner**: Full administrative privileges over the workspace, including billing, workspace deletion, and member management.
-  - **Admin**: Can manage domains, mailboxes, short links, settings, and team members.
-  - **Member**: Access to operational tools and views without administrative workspace settings privileges.
-- **Seamless Workspace Switching**: Switch between personal and team workspaces instantly via the sidebar switcher without logging out.
-- **Email Invitation System**: Invite team members by email. System dispatches a secure 24-hour expiration link for password setup.
-- **Instance Admin Privileges**: The initial operator account holds instance-wide administrative privileges (`IsInstanceAdmin`) to configure system settings across all organizations.
+- **Owner**: Full management privileges, including billing, workspace deletion, member role assignment, and owner transfer.
+- **Admin**: Configures workspace settings, domain zones, mailboxes, short links, and member invitations.
+- **Member**: Accesses operational features and views without access to administrative workspace settings.
 
-## How to Use
+## Switch Workspaces
 
-### 1. Switching Workspaces
-1. Click the **Workspace Selector** at the top of the left sidebar rail.
-2. Select any organization from your list to switch your active workspace session.
+1. Click the **Workspace Selector** at the top of the left sidebar.
+2. Select any organization from the list to switch active workspaces.
 
-### 2. Creating a New Workspace
-1. Open the **Workspace Selector** in the sidebar.
+## Create a New Workspace
+
+1. Open the **Workspace Selector** at the top of the left sidebar.
 2. Click **+ Create Workspace**.
-3. Enter your new workspace name (e.g., `Acme Corp` or `Client Project B`).
-4. Click **Create & Switch**. A new organization is provisioned with a unique URL slug and inbound webhook token.
+3. Enter a workspace name (such as `Acme Corp`).
+4. Click **Create & Switch**.
 
-### 3. Inviting Team Members
+## Invite Team Members
+
 1. Go to **Settings → Workspace → Members**.
 2. Click **Invite Member**.
-3. Enter the invitee's email address and assign their role (**Member**, **Admin**, or **Owner**).
-4. Click **Send Invite**. The invitee receives an email with an activation link valid for 24 hours.
+3. Enter the invitee's email address and assign a role (**Member**, **Admin**, or **Owner**).
+4. Click **Send Invite**. An email containing an activation link valid for 24 hours will be sent.
 
-### 4. Changing a Member's Role
-In **Settings → Workspace → Members**, pick a new role from the dropdown next to
-anyone you can manage. Two rules the console enforces on your behalf: only an
-Owner may grant or change the Owner role, and the last Owner cannot be demoted —
-promote a second Owner first, then hand the workspace over.
+## Modify Member Roles or Remove Access
 
-### 5. Revoking Member Access
-Navigate to **Settings → Workspace → Members** and click **Remove** next to any member to revoke their access to the workspace immediately.
+Go to **Settings → Workspace → Members**:
 
-:::note
-Deleting a workspace or revoking a member's access from one organization does not affect their membership or data in other organizations.
-:::
-
-## Why It Matters
-
-Multi-tenant organization support allows freelancers, agencies, and growing startups to manage multiple client projects, separate staging and production environments, or collaborate with team members from a single Octarq deployment.
+- **Change Role**: Select a new role from the dropdown next to the member. Only an Owner can assign or remove the Owner role. The last remaining Owner cannot be demoted or removed until another member is promoted to Owner.
+- **Remove Member**: Click **Remove** next to a member to revoke their access to the workspace immediately.
 
 ## Related Links
 
-- [Authentication & Access Control](/help/authentication) — Configure single sign-on, 2FA, and login policies.
+- [Authentication](/help/authentication)

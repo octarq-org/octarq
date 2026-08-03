@@ -1,59 +1,49 @@
 ---
-title: Authentication & Access Control
-description: Configure email/password sign-in, 2FA, OAuth providers, password recovery, and email verification.
+title: Authentication
+description: Email and password sign-in, 2FA, OAuth providers, and session management.
 category: access
 order: 20
 ---
 
-Octarq includes a comprehensive security and authentication engine that supports email/password credentials, two-factor authentication (TOTP 2FA), OAuth single sign-on (Google and GitHub), secure password recovery, registration email verification, and central session management.
+Octarq supports email and password authentication, TOTP two-factor authentication (2FA), Google and GitHub OAuth sign-in, password reset, and session management.
 
-## Key Capabilities
+## Two-Factor Authentication (2FA)
 
-- **Multi-Factor Authentication (TOTP 2FA)**: Secure accounts with time-based one-time passwords (compatible with Google Authenticator, 1Password, Authy) and bcrypt-hashed one-time recovery codes.
-- **OAuth 2.0 Integration**: Enable one-click OAuth sign-in with Google and GitHub. OAuth users are automatically marked as email-verified.
-- **Password Reset Flow**: Request password reset links via `/api/auth/forgot`. Secret tokens are stored as SHA-256 hashes and expire in 1 hour. Resetting a password automatically revokes all active browser sessions.
-- **Registration Email Verification**: Issue verification links (`/api/auth/verify-email`) on sign-up with optional instance-level login gating.
-- **Instance-Level Sign-In Policies**:
-  - **Public Registration (`allow_registration`)**: Toggle public sign-up on or off (default: ON).
-  - **Require Email Verification (`require_email_verification`)**: Require users to verify their email address before signing in (default: OFF).
-- **Session Management & Global Revocation**: Inspect active sessions (with client IP, location, user-agent) and execute "Sign out of all devices" to immediately invalidate all active cookies.
-
-## How to Use
-
-### 1. Setting Up Two-Factor Authentication (2FA)
-1. Go to **Settings → Account → Security** (or navigate to `/settings`).
+1. Go to **Settings → Account → Security**.
 2. Under **Two-Factor Authentication (TOTP)**, click **Enable 2FA**.
-3. Scan the displayed QR code with your authenticator app (or manually enter the setup key).
-4. Enter the 6-digit confirmation code and click **Confirm & Enable**.
-5. **Save your single-use recovery codes in a safe place.** If you lose access to your authenticator device, recovery codes are the only way to log in.
+3. Scan the displayed QR code with your authenticator app (such as Google Authenticator, 1Password, or Authy).
+4. Enter the 6-digit code from your app and click **Confirm & Enable**.
+5. Save your single-use recovery codes in a secure location.
 
-### 2. Resetting a Forgotten Password
-1. On the Sign-In page, click **Forgot password?**.
+> [!CAUTION]
+> If you lose your authenticator device, recovery codes are the only way to log back into your account.
+
+## Password Reset
+
+1. Click **Forgot password?** on the sign-in page.
 2. Enter your account email address and click **Send Reset Link**.
-3. Click the link delivered to your email inbox (valid for 1 hour) to enter a new password.
-4. Upon successful reset, all existing active sessions are terminated, and you are prompted to sign in with your new password.
+3. Open the link sent to your email (valid for 1 hour) and set a new password.
+4. Setting a new password automatically logs out all active browser sessions across all devices.
 
-### 3. Configuring OAuth Providers (Instance Admins)
-1. Navigate to **Settings → Instance → Authentication**.
-2. Expand the **Google** or **GitHub** provider section.
-3. Enter your **Client ID** and **Client Secret** (retrieved from your provider's developer console).
-4. Register the exact **Callback URL** shown in Octarq (e.g., `https://your-octarq.com/api/auth/google/callback`).
-5. Click **Save**. The OAuth login buttons will automatically appear on the Sign-In page.
+## OAuth Provider Setup (Instance Admins)
 
-### 4. Enforcement Policies (Instance Admins)
-In **Settings → Instance → Authentication**:
-- **Allow public sign-up**: Toggle to disable self-serve registration, making Octarq invite-only.
-- **Require Email Verification**: Toggle to block logins for unverified email accounts until they complete the email verification link.
+1. Go to **Settings → Instance → Authentication**.
+2. Expand the **Google** or **GitHub** section.
+3. Enter the **Client ID** and **Client Secret** obtained from the provider's developer console.
+4. Add the callback URL shown in Octarq (such as `https://your-octarq-domain.com/api/auth/google/callback`) to your provider settings.
+5. Click **Save**. The OAuth login buttons will appear on the sign-in page.
 
-:::note
-OAuth and OIDC users (Google, GitHub, or Enterprise SSO) are verified by the identity provider and are automatically treated as email-verified without receiving verification emails.
-:::
+## Registration and Sign-In Policies (Instance Admins)
 
-## Why It Matters
+Go to **Settings → Instance → Authentication** to adjust registration settings:
 
-A robust authentication system protects your single-person or multi-user instance against credential stuffing, unauthorized account creation, and session hijacking, while providing frictionless OAuth sign-in options for your team.
+- **Allow public sign-up**: Turn off to disable self-serve registration and make the instance invite-only.
+- **Require Email Verification**: Turn on to block unverified email accounts from signing in until they complete the email verification link.
+
+> [!NOTE]
+> Accounts created or authenticated via OAuth (Google or GitHub) are automatically marked as email-verified.
 
 ## Related Links
 
-- [Organizations & Workspace RBAC](/help/multi-org) — Manage roles and workspace invitations.
-- [API Tokens](/help/api-tokens) — Manage non-interactive API bearer tokens.
+- [Organizations & Workspace RBAC](/help/multi-org)
+- [API Tokens](/help/api-tokens)

@@ -1,51 +1,41 @@
 ---
 slug: getting-started
-title: Console Operating Guide & FAQs
+title: Console Overview
 category: start
 order: 1
 ---
 
-Welcome to the Octarq Console! This guide provides essential step-by-step operating workflows, role permission notes, and troubleshooting tips for console users.
+Learn how workspace switching, command palette navigation, and feature controls work inside the Octarq dashboard.
 
-## 1. Step-by-Step Console Workflows
+## Workspaces and Data Scope
 
-### 1. Workspace Switching & Asset Isolation
-- **Workspace Selector**: Click the dropdown at the top-left of the console sidebar to switch between organizations and team workspaces instantly.
-- **Asset Scope**: All resources (domains, short links, catch-all inboxes, SMTP senders) belong to the active workspace. Switching workspaces filters all data views cleanly.
+- **Workspace Switcher**: Use the dropdown at the top of the left sidebar to switch between personal and organization workspaces.
+- **Resource Isolation**: All domains, short links, mailboxes, webhooks, and audit logs belong to the active workspace. Switching workspaces filters all data views to match the selected workspace.
 
-### 2. Global Navigation Shortcuts (`⌘K` / `Ctrl+K`)
-- Press **`⌘K`** (macOS) or **`Ctrl+K`** (Windows/Linux) anywhere in the console to open the command palette.
-- Search for page routes, domain names, short links, or settings to jump directly without menu clicking.
+## Command Palette (`⌘K` / `Ctrl+K`)
 
----
+Press **`⌘K`** (macOS) or **`Ctrl+K`** (Windows/Linux) anywhere in the dashboard to open the command palette.
 
-## 2. Critical Operational Cautions
+Use the search bar to jump directly to any page, settings panel, or documentation guide. Note that the command palette navigates pages and does not run creation or deletion commands directly.
 
-> [!IMPORTANT]
-> **Admin Roles Only**: Only Workspace Owners or Admins can add or delete DNS provider API keys and configure workspace-wide mail routing endpoints.
+## Workspace Roles
 
-> [!WARNING]
-> **API Key Protection**: API Tokens generated under Personal Settings grant full API access to your workspace resources. Store them securely in secrets managers and never commit them to public repos.
+Workspace permissions are split into three roles:
 
----
+- **Owner**: Full workspace management, member role assignments, and workspace deletion.
+- **Admin**: Configures workspace features, domains, mailboxes, short links, and member invites.
+- **Member**: Uses active workspace features without access to workspace administrative settings.
 
-## 3. Frequently Asked Questions (FAQs)
+To manage team members and roles, go to **Settings → Workspace → Members**.
 
-### Q1: Why are some plugin features missing from the sidebar?
-**Answer**: Octarq uses a modular plugin engine. If an administrator disabled a specific plugin (e.g. Links or Mail) at the instance level, its navigation items are hidden automatically.
+## Toggle Features per Workspace
 
-### Q2: Why can't I see my domain after switching workspaces?
-**Answer**: Domain zones and DNS configurations are isolated per workspace. Verify that you have selected the correct organization in the top-left selector.
+Go to **Settings → Workspace → Features** (`/settings/plugins`) to turn individual plugins (such as Links, Mail, or DNS) on or off for your workspace. Unused features can be toggled off to clean up sidebar menu items.
 
-### Q3: How do I connect AI Agents via Model Context Protocol (MCP)?
-**Answer**: Generate a bearer token in **Settings → Account → API Tokens**. Octarq natively exposes MCP endpoints for AI Agents to inspect and manage infrastructure safely.
+## Related Guides
 
----
-
-## 4. Related Console Guides
-
-- [DNS Management Manual](/help/dns) — Configure provider API tokens & record posture.
-- [Short Links Console Manual](/help/short-links) — Create short URLs & dynamic targeting rules.
-- [Mailboxes & Email Routing Manual](/help/mailboxes) — Setup inbound webhooks & SMTP relays.
-- [API Tokens Configuration](/settings/tokens) — Generate and manage API bearer tokens.
-- [Account & Security Settings](/settings/security) — Password policies and account protection.
+- [Quickstart](/help/quickstart)
+- [DNS Management](/help/dns)
+- [Short Links](/help/short-links)
+- [Mailboxes](/help/mailboxes)
+- [API Tokens](/help/api-tokens)
