@@ -85,8 +85,8 @@ export const zh: Resources = {
     empty: "没有匹配「{{q}}」的结果。",
   },
   areas: {
-    operations: { title: "Operations", subtitle: "日常流量与消息服务" },
-    assets: { title: "Infrastructure", subtitle: "服务器、网络与数据库" },
+    operations: { title: "运营", subtitle: "日常流量与消息服务" },
+    assets: { title: "基础设施", subtitle: "服务器、网络与数据库" },
     help: { title: "使用指南", subtitle: "控制台使用流程与常见问题说明" },
     settings: { title: "设置", subtitle: "工作区与个人配置" },
   },
