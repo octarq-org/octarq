@@ -85,7 +85,6 @@ export const en = {
     operations: { title: "Operations", subtitle: "Daily traffic & communication" },
     assets: { title: "Infrastructure", subtitle: "Servers, network & databases" },
     help: { title: "User Manual", subtitle: "Console usage workflows, operational notes & FAQs" },
-    insights: { title: "Security & Admin", subtitle: "Abuse defense & activity logs" },
     settings: { title: "Settings", subtitle: "Workspace & profile configurations" },
   },
   groups: {

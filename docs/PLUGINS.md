@@ -152,7 +152,6 @@ interface UIPlugin {
   name: string;                 // match the Go Plugin.Name()
   routes: { path: string; Component: LazyPage;       // LazyPage = React.lazy(...)
             requiredTier?: string; requiredRole?: string }[];
-  menu?: PluginMenuItem[];      // same shape as the backend MenuItem (+ requiredRole)
   widgets?: { slot: string; Component: LazyPage; order?: number }[];
   areas?: { id: string; title: string; subtitle?: string; icon?: string }[];
   i18n?: { en: {...}; zh: {...} };
@@ -169,7 +168,7 @@ import type { UIPlugin } from "@octarq/plugin-sdk";
 export const helloPlugin: UIPlugin = {
   name: "hello",
   routes: [{ path: "/hello", Component: lazy(() => import("./Page")) }],
-  menu:  [{ id: "hello", label: "Hello", path: "/hello", icon: "👋", category: "Workspace" }],
+  // Sidebar placement comes from the Go half's Menus() (hello.go) alone.
   i18n:  { en: { pageTitle: "Hello Plugin", /* ... */ }, zh: { /* ... */ } },
 };
 ```
