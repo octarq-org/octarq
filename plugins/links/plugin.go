@@ -14,8 +14,9 @@ import (
 )
 
 type Plugin struct {
-	db   *gorm.DB
-	auth struct {
+	db     *gorm.DB
+	engine *Engine
+	auth   struct {
 		UserID func(r *http.Request) uint
 		OrgID  func(r *http.Request) uint
 	}
@@ -33,6 +34,7 @@ var (
 	_ plugin.Describer    = (*Plugin)(nil)
 	_ plugin.MenuProvider = (*Plugin)(nil)
 	_ plugin.HelpDocsFS   = (*Plugin)(nil)
+	_ plugin.Starter      = (*Plugin)(nil)
 )
 
 func New() *Plugin {
@@ -52,6 +54,13 @@ func (p *Plugin) Describe() plugin.Info {
 }
 func (p *Plugin) Models() []any {
 	return []any{&Link{}, &LinkEvent{}}
+}
+
+func (p *Plugin) Start(ctx context.Context) {
+	<-ctx.Done()
+	if p.engine != nil {
+		p.engine.Close()
+	}
 }
 
 // Menus announces this plugin's sidebar entry so /api/menus only offers it
@@ -127,6 +136,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	if api != nil {
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links", Summary: "List Links", Tags: []string{"Links"}}, p.listLinks)
 		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/links", Summary: "Create Link", Tags: []string{"Links"}, DefaultStatus: 201}, p.createLink)
+		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/links/quick", Summary: "Quick Create Link", Tags: []string{"Links"}, DefaultStatus: 201}, p.quickCreateLink)
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/metadata", Summary: "Link Metadata", Tags: []string{"Links"}}, p.linkMetadata)
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}", Summary: "Get Link", Tags: []string{"Links"}}, p.getLink)
 		huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/links/{id}", Summary: "Update Link", Tags: []string{"Links"}}, p.updateLink)
@@ -149,7 +159,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		ctx.RegisterTask("link.crawl", p.handleLinkCrawl)
 	}
 
-	engine := NewEngine(ctx.DB, ctx)
+	p.engine = NewEngine(ctx.DB, ctx)
 	if ctx.HandleRoot != nil {
 		ctx.HandleRoot(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			slug := strings.TrimPrefix(r.URL.Path, "/")
@@ -157,12 +167,12 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 				http.NotFound(w, r)
 				return
 			}
-			link, ok := engine.Lookup(r.Host, slug)
+			link, ok := p.engine.Lookup(r.Host, slug)
 			if !ok {
 				http.NotFound(w, r)
 				return
 			}
-			engine.Handle(w, r, link)
+			p.engine.Handle(w, r, link)
 		}))
 	}
 }

@@ -366,8 +366,7 @@ func TestRecordUsage(t *testing.T) {
 	r2.Header.Set("User-Agent", "Googlebot/2.1")
 	w2 := httptest.NewRecorder()
 	eng.Handle(w2, r2, link)
-
-	time.Sleep(50 * time.Millisecond)
+	eng.Close()
 
 	mu.Lock()
 	defer mu.Unlock()
