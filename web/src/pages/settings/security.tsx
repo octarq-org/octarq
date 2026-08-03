@@ -209,8 +209,8 @@ export function SecuritySettings() {
           <Alert variant="warning" className="p-4">
             <p className="text-xs font-bold text-warning-fg mb-2">{t("settings.saveRecoveryCodes")}</p>
             <p className="text-[11px] text-foreground/50 mb-3">{t("settings.recoveryCodesDesc")}</p>
-            <div className="grid grid-cols-2 gap-1 font-mono text-xs text-foreground/80">
-              {recoveryCodes.map((c) => <span key={c}>{c}</span>)}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-mono text-xs text-foreground/80">
+              {recoveryCodes.map((c) => <span key={c} className="select-all whitespace-nowrap">{c}</span>)}
             </div>
           </Alert>
         )}

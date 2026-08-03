@@ -39,7 +39,7 @@ export function RecordsView({ domain }: { domain: Domain }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="min-w-[120px]">
+        <div className="w-full sm:w-auto sm:min-w-[120px]">
           <Select
             className="text-xs"
             value={typeFilter}
@@ -50,7 +50,7 @@ export function RecordsView({ domain }: { domain: Domain }) {
             ]}
           />
         </div>
-        <input className="input flex-1 min-w-[140px] text-xs py-1" placeholder={t("domains.filterPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input className="input flex-1 min-w-0 sm:min-w-[140px] text-xs py-1" placeholder={t("domains.filterPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} />
         <Button variant="subtle" onClick={() => setEditing("subdomain")} className="py-1 px-3 text-xs">{t("domains.presetButton")}</Button>
         <Button variant="primary" onClick={() => setEditing("new")} className="py-1 px-3 text-xs">{t("domains.customButton")}</Button>
       </div>
@@ -64,7 +64,7 @@ export function RecordsView({ domain }: { domain: Domain }) {
       ) : filtered.length === 0 ? (
         <p className="text-foreground/40 p-6 text-center text-xs">{t("domains.noRecordsMatching")}</p>
       ) : (
-        <div className="bg-well rounded-2xl border border-foreground/[0.05] overflow-hidden">
+        <div className="bg-well rounded-2xl border border-foreground/[0.05] overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="text-left text-foreground/40 border-b border-foreground/[0.06] bg-foreground/[0.01]">
@@ -164,7 +164,7 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
         </div>
       )}
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label={t("domains.recordType")}>
             <Select
               value={type}
@@ -177,7 +177,7 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
           </Field>
         </div>
         
-        <div className={needsPriority ? "grid grid-cols-[1fr_120px] gap-4" : ""}>
+        <div className={needsPriority ? "grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-4" : ""}>
           <Field label={t("domains.targetValue")} hint={contentHint[type.toUpperCase()]}>
             <input className="input w-full font-mono text-xs" value={content} onChange={(e) => setContent(e.target.value)} required />
           </Field>

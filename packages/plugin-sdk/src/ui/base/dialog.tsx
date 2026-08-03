@@ -30,9 +30,10 @@ export function Dialog({
         <BaseDialog.Backdrop className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm modal-overlay" />
         <BaseDialog.Popup
           className={cn(
-            "glass-strong modal-card fixed left-1/2 top-16 z-50 w-[calc(100%-2rem)] -translate-x-1/2",
-            "max-h-[calc(100vh-8rem)] overflow-y-auto rounded-2xl p-5 outline-none",
-            wide ? "max-w-3xl" : "max-w-md",
+            "glass-strong modal-card fixed z-50 overflow-y-auto p-5 outline-none",
+            "inset-x-0 bottom-0 top-auto w-full max-h-[85vh] rounded-b-none rounded-t-2xl",
+            "sm:inset-auto sm:left-1/2 sm:top-16 sm:bottom-auto sm:-translate-x-1/2 sm:w-[calc(100%-2rem)] sm:rounded-2xl sm:max-h-[calc(100vh-8rem)]",
+            wide ? "sm:max-w-3xl" : "sm:max-w-md",
           )}
         >
           <div className="mb-4 flex items-center justify-between">
