@@ -62,6 +62,14 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 	}
 }
 
+// Actions announces this plugin's global create affordances so /api/actions
+// only offers them when the plugin is mounted and enabled for the workspace.
+func (p *Plugin) Actions() []plugin.Action {
+	return []plugin.Action{
+		{ID: "links.create", Label: "New Link", Path: "/links?create=1", Icon: "link-2", Category: "Marketing", Order: 10},
+	}
+}
+
 // docs is this plugin's documentation directory. Adding a page means adding
 // "docs/<slug>.mdx" (plus its "<slug>.zh.mdx" translation) — the file name is
 // the slug and the frontmatter carries the rest; see plugin.HelpDocsFS.

@@ -295,6 +295,7 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/2fa/disable", Summary: "Disable 2FA", Tags: []string{"2FA"}}, h.disable2FA)
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/menus", Summary: "List Menu Toggles", Tags: []string{"UI Settings"}}, h.listMenus)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/actions", Summary: "List Plugin Actions", Tags: []string{"UI Settings"}}, h.listActions)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/plugins", Summary: "List Plugins", Tags: []string{"UI Settings"}}, h.listPlugins)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/plugins/{name}", Summary: "Toggle Plugin", Tags: []string{"UI Settings"}}, h.updatePlugin)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/user/settings", Summary: "Get User Settings", Tags: []string{"UI Settings"}}, h.getUserSettings)

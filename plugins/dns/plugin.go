@@ -92,6 +92,14 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 	}
 }
 
+// Actions announces this plugin's global create affordances so /api/actions
+// only offers them when the plugin is mounted and enabled for the workspace.
+func (p *Plugin) Actions() []plugin.Action {
+	return []plugin.Action{
+		{ID: "dns.create", Label: "Add Domain", Path: "/domains?create=1", Icon: "globe", Category: "Network", Order: 10},
+	}
+}
+
 // docs is this plugin's documentation directory and the only place its pages
 // are declared. Adding one means adding "docs/<slug>.mdx" plus its ".zh.mdx"
 // translation — nothing else. See plugin.HelpDocsFS.
