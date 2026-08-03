@@ -13,6 +13,24 @@ Receive transactional inbound emails, configure Catch-All mailbox routing, inspe
 3. Configure your mail worker (such as Cloudflare Email Routing Workers) to POST raw incoming email payloads to this webhook URL.
 4. Incoming emails sent to your domain will appear in the **Mail** inbox tab.
 
+## Generic Raw EML Inbound Webhook
+
+For mail providers other than Cloudflare, Octarq provides a provider-agnostic inbound endpoint at `/api/webhook/{orgSlug}/email/inbound/raw`. This endpoint accepts standard RFC822 raw EML payloads or multipart forms and authenticates using your workspace secret in the request headers (`X-Octarq-Token: <token>` or `Authorization: Bearer <token>`).
+
+### Provider Setup Examples
+
+#### Mailgun Routes
+1. Navigate to **Receiving → Routes** in your Mailgun Dashboard.
+2. Create a new route matching your recipient filter (e.g., `match_recipient(".*@yourdomain.com")`).
+3. Add action: `forward("https://your-octarq-host/api/webhook/{orgSlug}/email/inbound/raw")`.
+4. Set custom HTTP header: `X-Octarq-Token: <your-inbound-token>`.
+
+#### SendGrid Inbound Parse
+1. Navigate to **Settings → Inbound Parse** in SendGrid.
+2. Add Host & URL: `https://your-octarq-host/api/webhook/{orgSlug}/email/inbound/raw`.
+3. Check **POST the raw, full MIME message**.
+4. Configure your HTTP proxy / edge headers to attach `X-Octarq-Token: <your-inbound-token>` or `Authorization: Bearer <your-inbound-token>`.
+
 ## Catch-All Routing and Reserved Prefixes
 
 1. Go to **Operations → Messaging → Mail** and open the **Settings** tab.

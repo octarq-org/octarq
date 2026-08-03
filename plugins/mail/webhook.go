@@ -65,37 +65,148 @@ func (p *Plugin) inbound(ctx context.Context, input *InboundInput) (*InboundOutp
 	if err != nil {
 		return nil, huma.Error400BadRequest("read body")
 	}
+	overrideTo := r.Header.Get("X-Octarq-To")
+	return p.processInboundMail(org.ID, overrideTo, raw)
+}
+
+type InboundGenericInput struct {
+	Ctx     huma.Context `hidden:"true"`
+	OrgSlug string       `path:"orgSlug"`
+}
+
+func (i *InboundGenericInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+func (p *Plugin) inboundGeneric(ctx context.Context, input *InboundGenericInput) (*InboundOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+
+	// Auth & Tenant check: look up org by slug, but return generic 401 for unknown org
+	// so no org existence is leaked in HTTP responses.
+	var org models.Org
+	if p.db.Where("slug = ?", input.OrgSlug).First(&org).Error != nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	token := extractTokenFromHeader(r)
+	if token == "" || org.InboundToken == "" || subtle.ConstantTimeCompare([]byte(token), []byte(org.InboundToken)) != 1 {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	raw, err := extractRawEmail(r)
+	if err != nil || len(raw) == 0 {
+		return nil, huma.Error400BadRequest("read body")
+	}
+
+	overrideTo := r.Header.Get("X-Octarq-To")
+	if overrideTo == "" {
+		overrideTo = r.Header.Get("X-Inbound-To")
+	}
+
+	return p.processInboundMail(org.ID, overrideTo, raw)
+}
+
+func extractTokenFromHeader(r *http.Request) string {
+	if tok := strings.TrimSpace(r.Header.Get("X-Octarq-Token")); tok != "" {
+		return tok
+	}
+	if tok := strings.TrimSpace(r.Header.Get("X-Inbound-Token")); tok != "" {
+		return tok
+	}
+	if tok := strings.TrimSpace(r.Header.Get("X-Octarq-Inbound-Token")); tok != "" {
+		return tok
+	}
+	if auth := strings.TrimSpace(r.Header.Get("Authorization")); auth != "" {
+		if strings.HasPrefix(strings.ToLower(auth), "bearer ") {
+			return strings.TrimSpace(auth[7:])
+		}
+		return auth
+	}
+	return ""
+}
+
+func extractRawEmail(r *http.Request) ([]byte, error) {
+	ct := r.Header.Get("Content-Type")
+	if strings.HasPrefix(strings.ToLower(ct), "multipart/form-data") {
+		if err := r.ParseMultipartForm(25 << 20); err == nil && r.MultipartForm != nil {
+			fieldNames := []string{"email", "raw", "body-mime", "message", "eml", "body"}
+			for _, name := range fieldNames {
+				if files, ok := r.MultipartForm.File[name]; ok && len(files) > 0 {
+					f, err := files[0].Open()
+					if err == nil {
+						b, err := io.ReadAll(io.LimitReader(f, 25<<20))
+						_ = f.Close()
+						if err == nil && len(b) > 0 {
+							return b, nil
+						}
+					}
+				}
+			}
+			for _, name := range fieldNames {
+				if vals, ok := r.MultipartForm.Value[name]; ok && len(vals) > 0 && vals[0] != "" {
+					return []byte(vals[0]), nil
+				}
+			}
+		}
+	}
+	return io.ReadAll(io.LimitReader(r.Body, 25<<20))
+}
+
+func (p *Plugin) processInboundMail(orgID uint, overrideTo string, raw []byte) (*InboundOutput, error) {
 	parsed, parseErr := mail.Parse(raw)
 	if parseErr != nil {
 		log.Printf("inbound: mail parse failed: %v", parseErr)
 	}
 
-	// The Worker may pass the intended recipient explicitly (more reliable than
-	// the To header after routing).
-	to := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Octarq-To")))
+	to := strings.ToLower(strings.TrimSpace(overrideTo))
 	if to == "" && parsed != nil {
 		to = strings.ToLower(parsed.To)
 	}
 
-	mb, ok := p.resolveMailbox(org.ID, to)
+	mb, ok := p.resolveMailbox(orgID, to)
 	if !ok {
 		// Unknown recipient and catch-all disabled: accept silently so the
-		// Worker doesn't bounce, but drop.
+		// Worker/MTA doesn't bounce, but drop.
 		return &InboundOutput{Body: map[string]any{"ok": true, "stored": false}}, nil
 	}
 
 	att := ""
-	if len(parsed.Attachments) > 0 {
+	if parsed != nil && len(parsed.Attachments) > 0 {
 		if b, err := json.Marshal(parsed.Attachments); err == nil {
 			att = string(b)
 		}
 	}
+
+	msgID := ""
+	from := ""
+	subject := ""
+	textBody := ""
+	htmlBody := ""
+	var receivedAt time.Time
+	spf, dkim, dmarc := "", "", ""
+
+	if parsed != nil {
+		msgID = parsed.MessageID
+		from = parsed.From
+		subject = parsed.Subject
+		textBody = parsed.Text
+		htmlBody = parsed.HTML
+		receivedAt = parsed.ReceivedAt
+		spf = parsed.Auth.SPF
+		dkim = parsed.Auth.DKIM
+		dmarc = parsed.Auth.DMARC
+	}
+
 	e := Email{
-		MailboxID: mb.ID, MessageID: parsed.MessageID,
-		FromAddr: parsed.From, ToAddr: to, Subject: parsed.Subject,
-		Text: parsed.Text, HTML: parsed.HTML, Raw: parsed.Raw,
-		Attachments: att, ReceivedAt: parsed.ReceivedAt,
-		AuthSPF: parsed.Auth.SPF, AuthDKIM: parsed.Auth.DKIM, AuthDMARC: parsed.Auth.DMARC,
+		MailboxID: mb.ID, MessageID: msgID,
+		FromAddr: from, ToAddr: to, Subject: subject,
+		Text: textBody, HTML: htmlBody, Raw: parsed.Raw,
+		Attachments: att, ReceivedAt: receivedAt,
+		AuthSPF: spf, AuthDKIM: dkim, AuthDMARC: dmarc,
 	}
 	if err := p.db.Create(&e).Error; err != nil {
 		log.Printf("inbound: failed to store email: %v", err)
@@ -119,16 +230,16 @@ func (p *Plugin) inbound(ctx context.Context, input *InboundInput) (*InboundOutp
 		ID:         e.ID,
 		MailboxID:  mb.ID,
 		OrgID:      mb.OrgID,
-		From:       parsed.From,
+		From:       from,
 		To:         to,
-		Subject:    parsed.Subject,
-		Text:       parsed.Text,
-		HTML:       parsed.HTML,
-		ReceivedAt: parsed.ReceivedAt,
+		Subject:    subject,
+		Text:       textBody,
+		HTML:       htmlBody,
+		ReceivedAt: receivedAt,
 	})
 
 	// Best-effort notification; never block or fail the webhook.
-	text := fmt.Sprintf("📧 New mail to %s — From: %s — %s", to, parsed.From, parsed.Subject)
+	text := fmt.Sprintf("📧 New mail to %s — From: %s — %s", to, from, subject)
 	var channels []models.NotificationChannel
 	p.db.Where("owner_id = ? AND enabled = ?", mb.OrgID, true).Find(&channels)
 	if len(channels) > 0 {

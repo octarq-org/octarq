@@ -164,6 +164,16 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 			Metadata: map[string]any{"public": true},
 		}, p.inbound)
 		huma.Register(api, huma.Operation{
+			Method: "POST", Path: "/api/webhook/{orgSlug}/email/inbound/raw",
+			Summary: "Generic Inbound Email Webhook (Raw EML)", Tags: []string{"Mailboxes"},
+			Metadata: map[string]any{"public": true},
+		}, p.inboundGeneric)
+		huma.Register(api, huma.Operation{
+			Method: "POST", Path: "/api/webhook/{orgSlug}/email/raw",
+			Summary: "Generic Inbound Email Webhook Alias (Raw EML)", Tags: []string{"Mailboxes"},
+			Metadata: map[string]any{"public": true},
+		}, p.inboundGeneric)
+		huma.Register(api, huma.Operation{
 			Method: "POST", Path: "/api/webhook/{orgSlug}/email/bounce/{token}",
 			Summary: "Email Bounce Webhook", Tags: []string{"Mailboxes"},
 			Metadata: map[string]any{"public": true},
