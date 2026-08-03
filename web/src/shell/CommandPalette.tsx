@@ -1,13 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useTranslation } from "../i18n";
-import { Area } from "./areas";
+import { Area, menuIcon } from "./areas";
+import { Action } from "../api";
 import {
   translateAreaTitle,
   translateGroupLabel,
   translateNavItemLabel,
 } from "./navI18n";
+
+interface CommandPaletteItem {
+  id: string;
+  label: string;
+  path: string;
+  Icon?: React.ElementType;
+  iconStr?: string;
+  isAction: boolean;
+  order?: number;
+  category?: string;
+  area?: string;
+  group?: string;
+}
 
 export function CommandPalette({
   open,
@@ -15,6 +29,7 @@ export function CommandPalette({
   areas,
   settingsArea,
   onNavigate,
+  actions = [],
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,34 +37,60 @@ export function CommandPalette({
   // Admin-filtered merged Settings area with plugin-contributed settings pages.
   settingsArea: Area;
   onNavigate: (path: string) => void;
+  actions?: Action[];
 }) {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const { t } = useTranslation();
 
+  const actionItems = useMemo<CommandPaletteItem[]>(() => {
+    return (actions || [])
+      .map((a) => {
+        const KeyIcon = menuIcon(a.icon);
+        return {
+          id: a.id,
+          label: a.label,
+          path: a.path,
+          Icon: KeyIcon ?? Plus,
+          iconStr: KeyIcon ? undefined : a.icon,
+          isAction: true,
+          order: a.order ?? 0,
+          category: a.category,
+        };
+      })
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [actions]);
+
   // Flatten nav items (areas + settings) with translated labels for search.
-  const commands = useMemo(
+  const navItems = useMemo<CommandPaletteItem[]>(
     () =>
       [...areas, settingsArea].flatMap((a) =>
         a.groups.flatMap((g) =>
           g.items.flatMap((i) => {
             const areaTitle = translateAreaTitle(t, a.id, a.title);
             const groupLabel = translateGroupLabel(t, g.label);
-            const parentItem = {
-              id: i.path,
-              label: translateNavItemLabel(t, i.id, i.label),
-              area: areaTitle,
-              group: groupLabel,
-              path: i.path,
-              Icon: i.Icon,
-              iconStr: i.iconStr,
-            };
-            return [parentItem];
+            return [
+              {
+                id: i.path,
+                label: translateNavItemLabel(t, i.id, i.label),
+                area: areaTitle,
+                group: groupLabel,
+                path: i.path,
+                Icon: i.Icon,
+                iconStr: i.iconStr,
+                isAction: false,
+              },
+            ];
           }),
         ),
       ),
     [areas, settingsArea, t],
+  );
+
+  const commands = useMemo(
+    () => [...actionItems, ...navItems],
+    [actionItems, navItems],
   );
 
   const filtered = useMemo(() => {
@@ -63,8 +104,9 @@ export function CommandPalette({
     return nonDocCommands.filter(
       (c) =>
         c.label.toLowerCase().includes(needle) ||
-        c.area.toLowerCase().includes(needle) ||
-        c.group.toLowerCase().includes(needle) ||
+        (c.isAction ? c.category?.toLowerCase().includes(needle) : false) ||
+        (!c.isAction && c.area?.toLowerCase().includes(needle)) ||
+        (!c.isAction && c.group?.toLowerCase().includes(needle)) ||
         c.path.toLowerCase().includes(needle),
     );
   }, [q, commands]);
@@ -122,11 +164,13 @@ export function CommandPalette({
               >
                 {c.iconStr ? (
                   <span className="w-4 text-center text-sm">{c.iconStr}</span>
-                ) : (
+                ) : c.Icon ? (
                   <c.Icon className={`h-4 w-4 shrink-0 transition-colors ${i === sel ? "text-primary" : "text-muted-foreground"}`} strokeWidth={1.75} />
-                )}
+                ) : null}
                 <span className="flex-1 truncate text-sm">{c.label}</span>
-                <span className="shrink-0 rounded-md border border-foreground/5 dark:border-white/5 bg-muted/40 dark:bg-white/5 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">{c.area} · {c.group}</span>
+                <span className="shrink-0 rounded-md border border-foreground/5 dark:border-white/5 bg-muted/40 dark:bg-white/5 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+                  {c.isAction ? t("command.create", "Create") : `${c.area} · ${c.group}`}
+                </span>
               </button>
             ))
           )}

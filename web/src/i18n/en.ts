@@ -68,6 +68,7 @@ export const en = {
     orContinueWith: "or continue with",
   },
   topbar: {
+    create: "Create",
     lightMode: "Light mode",
     darkMode: "Dark mode",
     workspaces: "Workspaces",
@@ -78,6 +79,7 @@ export const en = {
     settings: "Settings",
   },
   command: {
+    create: "Create",
     placeholder: "Search pages…",
     empty: "No matches for “{{q}}”.",
   },

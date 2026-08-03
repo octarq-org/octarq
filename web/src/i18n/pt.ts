@@ -68,6 +68,7 @@ export const pt = {
     orContinueWith: "ou continue com",
   },
   topbar: {
+    create: "Criar",
     lightMode: "Modo claro",
     darkMode: "Modo escuro",
     workspaces: "Workspaces",
@@ -78,6 +79,7 @@ export const pt = {
     settings: "Configurações",
   },
   command: {
+    create: "Criar",
     placeholder: "Pesquisar páginas…",
     empty: "Nenhum resultado para “{{q}}”.",
   },

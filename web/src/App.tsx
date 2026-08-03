@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { BookOpen, Bot, Boxes, FileText, Globe, Link2, Mail, Send, Server, Shield, Sparkles } from "lucide-react";
-import { api, HelpCategory, HelpDocMeta, MenuItem, Org, PluginInfo } from "./api";
+import { api, HelpCategory, HelpDocMeta, MenuItem, Action, Org, PluginInfo } from "./api";
 import { BrandMark } from "./shell/BrandMark";
 // Lazy-loaded route components.
 const OverviewPage = lazy(() => import("./pages/Overview"));
@@ -106,19 +106,24 @@ const NAV_CACHE_KEY = "octarq:nav-cache:v1";
 interface CachedNav {
   menus: MenuItem[];
   plugins: PluginInfo[];
+  actions?: Action[];
 }
 
 function readCachedNav(): CachedNav {
   try {
     const raw = localStorage.getItem(NAV_CACHE_KEY);
-    if (!raw) return { menus: [], plugins: [] };
+    if (!raw) return { menus: [], plugins: [], actions: [] };
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed?.menus) || !Array.isArray(parsed?.plugins)) {
-      return { menus: [], plugins: [] };
+      return { menus: [], plugins: [], actions: [] };
     }
-    return { menus: parsed.menus, plugins: parsed.plugins };
+    return {
+      menus: parsed.menus,
+      plugins: parsed.plugins,
+      actions: Array.isArray(parsed?.actions) ? parsed.actions : [],
+    };
   } catch {
-    return { menus: [], plugins: [] };
+    return { menus: [], plugins: [], actions: [] };
   }
 }
 
@@ -320,7 +325,7 @@ function Shell({
   // Raw nav inputs from the API; `areas` is DERIVED from them (plus the
   // role/admin flags) so a late-arriving isInstanceAdmin re-runs the same
   // mergeAreas pipeline instead of a second filtering pass.
-  const [backendNav, setBackendNav] = useState<{ menus: MenuItem[]; plugins: PluginInfo[] }>(
+  const [backendNav, setBackendNav] = useState<{ menus: MenuItem[]; plugins: PluginInfo[]; actions?: Action[] }>(
     readCachedNav,
   );
   // False until api.menus()/api.plugins() have answered at least once. Gates the
@@ -397,6 +402,14 @@ function Shell({
   // Role inputs for PluginGate requiredRole pre-check.
   const roleCtx = useMemo(() => ({ role, isInstanceAdmin }), [role, isInstanceAdmin]);
 
+  const filteredActions = useMemo(
+    () =>
+      (backendNav.actions || []).filter((a) =>
+        roleSatisfies(a.requiredRole, role, isInstanceAdmin),
+      ),
+    [backendNav.actions, role, isInstanceAdmin],
+  );
+
   const pluginGateCtxValue = useMemo(() => {
     const disabledPlugins = new Set(backendNav.plugins.filter((p) => !p.enabled).map((p) => p.key));
     const disabledPaths = new Set(backendNav.plugins.filter((p) => !p.enabled).flatMap((p) => p.menus.map((m) => m.path)));
@@ -433,12 +446,12 @@ function Shell({
     api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
     api.settings().then((s) => setIsInstanceAdmin(!!s.isInstanceAdmin)).catch(() => {});
 
-    Promise.all([api.menus().catch(() => []), api.plugins().catch(() => [])])
-      .then(([backendMenus, plugins]) => {
+    Promise.all([api.menus().catch(() => []), api.plugins().catch(() => []), api.actions().catch(() => [])])
+      .then(([backendMenus, plugins, actions]) => {
         setIsProBuild(plugins.length > 0);
-        setBackendNav({ menus: backendMenus, plugins });
+        setBackendNav({ menus: backendMenus, plugins, actions });
         setBackendLoaded(true);
-        writeCachedNav({ menus: backendMenus, plugins });
+        writeCachedNav({ menus: backendMenus, plugins, actions });
       })
       .catch(() => {});
   }, [activeOrgId]);
@@ -448,11 +461,11 @@ function Shell({
   useEffect(() => {
     const refreshOrgs = () => api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
     const refreshPlugins = () => {
-      Promise.all([api.menus().catch(() => []), api.plugins().catch(() => [])])
-        .then(([backendMenus, plugins]) => {
+      Promise.all([api.menus().catch(() => []), api.plugins().catch(() => []), api.actions().catch(() => [])])
+        .then(([backendMenus, plugins, actions]) => {
           setIsProBuild(plugins.length > 0);
-          setBackendNav({ menus: backendMenus, plugins });
-          writeCachedNav({ menus: backendMenus, plugins });
+          setBackendNav({ menus: backendMenus, plugins, actions });
+          writeCachedNav({ menus: backendMenus, plugins, actions });
         })
         .catch(() => {});
     };
@@ -637,6 +650,7 @@ function Shell({
         onOpenSettings={() => navigate("/settings")}
         onOpenCommand={() => setCmdOpen(true)}
         onLogout={onLogout}
+        actions={filteredActions}
       />
 
       {emailVerified === false && !dismissedVerifyBanner && (
@@ -736,6 +750,7 @@ function Shell({
         areas={helpDocsNav.length > 0 ? [...areas, helpArea] : areas}
         settingsArea={currentSettingsArea}
         onNavigate={(path) => { navigate(path); setCmdOpen(false); }}
+        actions={filteredActions}
       />
 
       {creatingOrg && (

@@ -424,6 +424,7 @@ export const api = {
 
   // menus and user settings
   menus: () => req<MenuItem[]>("GET", "/api/menus"),
+  actions: () => req<Action[]>("GET", "/api/actions"),
   plugins: () => req<PluginInfo[]>("GET", "/api/plugins"),
   updatePlugin: (key: string, enabled: boolean) =>
     req<{ ok: boolean }>("PUT", `/api/plugins/${key}`, { enabled }),
@@ -519,6 +520,16 @@ export interface MenuItem {
   // Advisory minimum org role (member < admin < owner) — items the current
   // user doesn't meet are hidden from the sidebar/command palette. Mirrors
   // PluginMenuItem.requiredRole; enforcement stays server-side.
+  requiredRole?: string;
+}
+
+export interface Action {
+  id: string;
+  label: string;
+  path: string;
+  icon: string;
+  category: string;
+  order?: number;
   requiredRole?: string;
 }
 

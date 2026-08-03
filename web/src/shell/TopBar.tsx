@@ -1,13 +1,15 @@
-import { NavLink } from "react-router-dom";
+import { useMemo } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Menu } from "@base-ui/react/menu";
-import { Search, Settings, User, LogOut, PanelLeft, Sun, Moon, Globe, BookOpen, ExternalLink, Info } from "lucide-react";
+import { Search, Settings, User, LogOut, PanelLeft, Sun, Moon, Globe, BookOpen, ExternalLink, Info, Plus } from "lucide-react";
+import { Action } from "../api";
 import { cn } from "../ui";
 import { useAppName } from "../brand";
 import { BrandMark } from "./BrandMark";
 import { useTranslation, LANGS } from "../i18n";
 import { useTheme, toggleTheme } from "../theme";
-import { Area, AreaId } from "./areas";
+import { Area, AreaId, menuIcon } from "./areas";
 import { translateAreaTitle } from "./navI18n";
 
 const RESOURCES = {
@@ -43,6 +45,7 @@ export function TopBar({
   onOpenSettings,
   onOpenCommand,
   onLogout,
+  actions = [],
 }: {
   areas: Area[];
   activeArea: AreaId;
@@ -54,12 +57,30 @@ export function TopBar({
   onOpenSettings: () => void;
   onOpenCommand: () => void;
   onLogout: () => void;
+  actions?: Action[];
 }) {
   const appName = useAppName();
   const { t, lang, setLang } = useTranslation();
   const theme = useTheme();
+  const navigate = useNavigate();
 
   const userInitials = user.slice(0, 2).toUpperCase();
+
+  const groupedActions = useMemo(() => {
+    if (!actions || actions.length === 0) return [];
+    const map = new Map<string, Action[]>();
+    for (const a of actions) {
+      const cat = a.category || "";
+      if (!map.has(cat)) map.set(cat, []);
+      map.get(cat)!.push(a);
+    }
+    const res: { category: string; items: Action[] }[] = [];
+    for (const [category, items] of map.entries()) {
+      items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      res.push({ category, items });
+    }
+    return res;
+  }, [actions]);
 
   return (
     <header className="relative z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/70 px-3 backdrop-blur-xl">
@@ -109,6 +130,52 @@ export function TopBar({
       </nav>
 
       <div className="flex-1" />
+
+      {/* Global create menu (+) */}
+      {actions.length > 0 && (
+        <Menu.Root>
+          <Menu.Trigger
+            aria-label={t("topbar.create", "Create")}
+            title={t("topbar.create", "Create")}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-foreground/10 dark:border-white/10 bg-surface-hover/50 hover:bg-surface-hover hover:border-foreground/20 text-muted-foreground hover:text-foreground transition-all shadow-2xs data-[popup-open]:bg-surface-hover data-[popup-open]:text-foreground"
+          >
+            <Plus className="h-4 w-4" strokeWidth={1.75} />
+          </Menu.Trigger>
+          <Menu.Portal>
+            <Menu.Positioner side="bottom" align="end" sideOffset={8} className="z-50 outline-none">
+              <Menu.Popup className={cn(MENU_POPUP, "w-52")}>
+                {groupedActions.map((group, gIdx) => (
+                  <div key={group.category || gIdx}>
+                    {gIdx > 0 && <Menu.Separator className="my-1 h-px bg-border" />}
+                    {group.category && (
+                      <div className="px-2 pb-1 pt-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">
+                        {group.category}
+                      </div>
+                    )}
+                    {group.items.map((act) => {
+                      const IconComp = menuIcon(act.icon);
+                      return (
+                        <Menu.Item
+                          key={act.id}
+                          onClick={() => navigate(act.path)}
+                          className={MENU_ITEM}
+                        >
+                          {IconComp ? (
+                            <IconComp className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.75} />
+                          ) : (
+                            <span className="w-4 text-center text-sm">{act.icon}</span>
+                          )}
+                          <span className="flex-1 truncate">{act.label}</span>
+                        </Menu.Item>
+                      );
+                    })}
+                  </div>
+                ))}
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
+      )}
 
       {/* Command palette trigger */}
       <button

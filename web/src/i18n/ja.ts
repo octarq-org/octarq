@@ -68,6 +68,7 @@ export const ja = {
     orContinueWith: "または以下で続行",
   },
   topbar: {
+    create: "作成",
     lightMode: "ライトモード",
     darkMode: "ダークモード",
     workspaces: "Workspaces",
@@ -78,6 +79,7 @@ export const ja = {
     settings: "設定",
   },
   command: {
+    create: "作成",
     placeholder: "ページを検索…",
     empty: "「{{q}}」に一致する結果はありません。",
   },
