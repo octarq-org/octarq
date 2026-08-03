@@ -10,7 +10,7 @@ import { TopBar } from "./TopBar";
 describe("Global Actions pure helpers", () => {
   const sampleActions: Action[] = [
     {
-      id: "links.create",
+      id: "create-link",
       label: "New Link",
       path: "/links?create=1",
       icon: "link-2",
@@ -19,7 +19,7 @@ describe("Global Actions pure helpers", () => {
       requiredRole: "",
     },
     {
-      id: "dns.create",
+      id: "create-domain",
       label: "Add Domain",
       path: "/domains?create=1",
       icon: "globe",
@@ -28,7 +28,7 @@ describe("Global Actions pure helpers", () => {
       requiredRole: "admin",
     },
     {
-      id: "mail.create",
+      id: "create-mailbox",
       label: "New Mailbox",
       path: "/mail?create=1",
       icon: "mail",
@@ -41,19 +41,19 @@ describe("Global Actions pure helpers", () => {
   it("1. visibleActions filters actions based on role and instance admin bypass", () => {
     // Normal member: only empty requiredRole or member requiredRole
     const memberActions = visibleActions(sampleActions, "member", false);
-    expect(memberActions.map((a) => a.id)).toEqual(["links.create"]);
+    expect(memberActions.map((a) => a.id)).toEqual(["create-link"]);
 
     // Admin: empty, member, or admin requiredRole
     const adminActions = visibleActions(sampleActions, "admin", false);
-    expect(adminActions.map((a) => a.id)).toEqual(["links.create", "dns.create"]);
+    expect(adminActions.map((a) => a.id)).toEqual(["create-link", "create-domain"]);
 
     // Owner: all actions
     const ownerActions = visibleActions(sampleActions, "owner", false);
-    expect(ownerActions.map((a) => a.id)).toEqual(["links.create", "dns.create", "mail.create"]);
+    expect(ownerActions.map((a) => a.id)).toEqual(["create-link", "create-domain", "create-mailbox"]);
 
     // Instance admin bypass: all actions regardless of role
     const bypassActions = visibleActions(sampleActions, "member", true);
-    expect(bypassActions.map((a) => a.id)).toEqual(["links.create", "dns.create", "mail.create"]);
+    expect(bypassActions.map((a) => a.id)).toEqual(["create-link", "create-domain", "create-mailbox"]);
   });
 
   it("2. mergeCommandItems puts action candidates before navigation candidates and handles matching", () => {
@@ -72,9 +72,9 @@ describe("Global Actions pure helpers", () => {
 
     // Actions must be placed before nav items
     expect(merged[0].isAction).toBe(true);
-    expect(merged[0].id).toBe("links.create");
-    expect(merged[1].id).toBe("dns.create");
-    expect(merged[2].id).toBe("mail.create");
+    expect(merged[0].id).toBe("create-link");
+    expect(merged[1].id).toBe("create-domain");
+    expect(merged[2].id).toBe("create-mailbox");
     expect(merged[3].isAction).toBe(false);
     expect(merged[3].id).toBe("/links");
 
@@ -82,7 +82,7 @@ describe("Global Actions pure helpers", () => {
     const needle = "new link";
     const matched = merged.filter((c) => c.label.toLowerCase().includes(needle));
     expect(matched).toHaveLength(1);
-    expect(matched[0].id).toBe("links.create");
+    expect(matched[0].id).toBe("create-link");
   });
 
   it("3. handles empty or undefined actions safely", () => {
@@ -125,7 +125,7 @@ describe("TopBar component rendering with actions", () => {
   it("renders create (+) button when actions are present", () => {
     const actions: Action[] = [
       {
-        id: "links.create",
+        id: "create-link",
         label: "New Link",
         path: "/links?create=1",
         icon: "link-2",

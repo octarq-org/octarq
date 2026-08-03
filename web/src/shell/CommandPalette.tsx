@@ -59,8 +59,12 @@ export function CommandPalette({
   );
 
   const commands = useMemo(
-    () => mergeCommandItems(actions, navItems),
-    [actions, navItems],
+    () =>
+      mergeCommandItems(
+        actions.map((a) => ({ ...a, label: translateNavItemLabel(t, a.id, a.label) })),
+        navItems,
+      ),
+    [actions, navItems, t],
   );
 
   const filtered = useMemo(() => {

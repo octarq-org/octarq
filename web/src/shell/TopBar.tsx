@@ -10,7 +10,7 @@ import { BrandMark } from "./BrandMark";
 import { useTranslation, LANGS } from "../i18n";
 import { useTheme, toggleTheme } from "../theme";
 import { Area, AreaId, menuIcon } from "./areas";
-import { translateAreaTitle } from "./navI18n";
+import { translateAreaTitle, translateGroupLabel, translateNavItemLabel } from "./navI18n";
 
 const RESOURCES = {
   docs: "https://docs.octarq.org",
@@ -149,7 +149,7 @@ export function TopBar({
                     {gIdx > 0 && <Menu.Separator className="my-1 h-px bg-border" />}
                     {group.category && (
                       <div className="px-2 pb-1 pt-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">
-                        {group.category}
+                        {translateGroupLabel(t, group.category)}
                       </div>
                     )}
                     {group.items.map((act) => {
@@ -165,7 +165,7 @@ export function TopBar({
                           ) : (
                             <span className="w-4 text-center text-sm">{act.icon}</span>
                           )}
-                          <span className="flex-1 truncate">{act.label}</span>
+                          <span className="flex-1 truncate">{translateNavItemLabel(t, act.id, act.label)}</span>
                         </Menu.Item>
                       );
                     })}
