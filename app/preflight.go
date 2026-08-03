@@ -82,13 +82,8 @@ func preflightTableCollisions(namer schema.Namer, plugins []plugin.Plugin) error
 // meaning when two plugins share one — the second plugin silently inherits
 // whatever the first registered.
 //
-// This is not hypothetical. octarq-pro's help module and this repo's help plugin
-// both answered Name() == "help" so the two halves would share one enablement
-// key; the help aggregator's per-plugin docs cache then served the OSS pages
-// twice and dropped the Pro page entirely (octarq#125). The sharing was the
-// legitimate need — expressing it through the name was the bug, and Info.Group
-// exists to express it properly: plugins in a group share one FeatureKey and one
-// toggle while keeping distinct names.
+// Plugins in a group share one FeatureKey and one toggle while keeping distinct
+// names. Set Info.Group when multiple plugins belong to one feature toggle.
 //
 // Deliberately a hard failure, not a warning: the symptoms are silent
 // wrong-content bugs that surface days later in a UI, and a name collision is

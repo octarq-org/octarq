@@ -102,11 +102,8 @@ func (h *Handler) notifyAbuse(rep models.AbuseReport) {
 		"🚨 Abuse report #%d\nSlug: %s\nReason: %s\nTarget: %s\nDescription: %s",
 		rep.ID, rep.Slug, rep.Reason, rep.Target, rep.Description,
 	)
-	// A report whose slug resolved to no workspace has no correct recipient. It
-	// used to go to org 1, which on a single-operator install is the operator and
-	// on a hosted one is simply whichever tenant registered first — someone who
-	// would be paged about a link that is not theirs. The report is still stored
-	// and visible in the abuse queue; only the channel notification is skipped.
+	// A report whose slug resolved to no workspace has no recipient. The report
+	// remains stored and visible in the abuse queue.
 	orgID := rep.OrgID
 	if orgID == 0 {
 		return

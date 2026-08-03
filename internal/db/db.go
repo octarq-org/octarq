@@ -67,13 +67,10 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 		}
 	}
 
-	// Data migration: backfill User.IsInstanceAdmin for existing installs.
-	// Instance admin used to be derived from "owner of org 1"; it is now a
-	// stable per-user flag set at admin login (see api.bootstrapUserID). For a
-	// pre-existing deployment whose admin may not log in again immediately, seed
-	// the flag once for the current org-1 owner so it doesn't lose admin. Guard
-	// on "no user already flagged" so this runs exactly once and a fresh install
-	// (where the flag is set the proper way at first login) is never touched.
+	// Data migration: backfill User.IsInstanceAdmin for existing installs by
+	// seeding the org-1 owner once. The guard on "no user already flagged"
+	// keeps it to exactly one run and leaves fresh installs — where the flag is
+	// set properly at first login — untouched.
 	{
 		var flagged int64
 		gdb.Model(&models.User{}).Where("is_instance_admin = ?", true).Count(&flagged)
@@ -91,17 +88,11 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 
 	// Data migration: drop sessions that carry no org.
 	//
-	// Handler.orgID used to substitute org 1 when a session had no org_id, which
-	// is how sessions predating multi-tenancy kept working — and also how an
-	// unidentified caller got served the bootstrap tenant's data. Now that the
-	// substitution is gone, such a session resolves to org 0 and every
-	// tenant-scoped request under it fails closed.
-	//
-	// Deleting the rows is kinder than leaving them to 401: an invalid cookie
-	// sends the user through the normal login flow, whereas a session that
-	// authenticates but resolves to no workspace produces unauthorized errors on
-	// a screen that looks logged in. Affected users re-login once; nobody loses
-	// data. On any install created after multi-tenancy this deletes nothing.
+	// Such a session resolves to org 0 and fails closed on every tenant-scoped
+	// request — authenticated, but on a screen that looks logged in. Deleting
+	// the row sends the user through the normal login flow instead. Nobody
+	// loses data, and on any install created after multi-tenancy this deletes
+	// nothing.
 	gdb.Where("org_id = 0").Delete(&models.Session{})
 
 	return nil

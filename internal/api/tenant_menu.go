@@ -663,10 +663,7 @@ type MenuItem struct {
 	Icon     string `json:"icon"`
 	Category string `json:"category"`
 	Order    int    `json:"order,omitempty"`
-	// Mirrors plugin.MenuItem.RequiredRole. The frontend has read this field
-	// since the sidebar was written (App.tsx drops entries the current role
-	// doesn't satisfy) but nothing could ever set it: neither this struct nor
-	// plugin.MenuItem had the field, so the filter was permanently a no-op.
+	// Mirrors plugin.MenuItem.RequiredRole.
 	RequiredRole string `json:"requiredRole,omitempty"`
 }
 
@@ -755,8 +752,6 @@ type GetUserSettingsOutput struct {
 // GET /api/user/settings
 //
 // The only key in use today is onboarding_dismissed, read by the Overview page.
-// The "custom menu groupings" this once advertised were never built — menu
-// layout comes from the backend's MenuProvider, not from here.
 func (h *Handler) getUserSettings(ctx context.Context, input *GetUserSettingsInput) (*GetUserSettingsOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")

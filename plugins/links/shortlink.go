@@ -87,13 +87,8 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 // every such listing is disabled. Unmanaged hosts (not listed on that org's
 // domains) are unaffected.
 //
-// orgID is passed in rather than inferred from the hostname. This used to scan
-// every tenant's domains and match on the name alone, so one workspace
-// disabling a host killed redirects for any other workspace using the same
-// name. Inferring the owner from the host instead would only move the bug:
-// LinkHosts entries are not unique across tenants (only Domain.Name is), so two
-// orgs can list the same string and the "owner" would be whichever row the
-// database returned first. The caller always knows whose link it is holding.
+// orgID is passed explicitly because host strings are not unique across tenants;
+// matching on host name alone would leak tenant isolation.
 func (e *Engine) linkHostDisabled(orgID uint, host string) bool {
 	if orgID == 0 {
 		return false

@@ -51,10 +51,7 @@ func (p *Plugin) Name() string { return "help" }
 
 func (p *Plugin) Describe() plugin.Info {
 	return plugin.Info{
-		// Title matches the sidebar entry below, not a broader grouping. It
-		// used to read "Help & Resources", which was the name of a nav group
-		// this plugin has never had — the sidebar footer's octarq links are the
-		// shell's, not this plugin's.
+		// Title matches the sidebar entry below.
 		Title:       "Help",
 		Description: "In-app documentation, versioned with the binary.",
 		Core:        true,
@@ -287,11 +284,7 @@ func (p *Plugin) getDocs(orgID uint, lang string) []plugin.HelpDoc {
 	return docs
 }
 
-// HelpDocsFS hands the embedded docs/ directory to the shared walker. Parsing
-// lives in plugin.LoadHelpDocs, not here: this package used to carry its own
-// directory walk and octarq-pro's help module carried a near-identical copy, and
-// two loaders for one file format is exactly the duplication the repo convention
-// says to collapse.
+// HelpDocsFS hands the embedded docs/ directory to the shared walker.
 func (p *Plugin) HelpDocsFS() fs.FS { return docs }
 
 func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {

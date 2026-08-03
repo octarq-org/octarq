@@ -1,25 +1,13 @@
 // Package llmprovider abstracts large-language-model backends behind one small
-// interface, the same way internal/dnsprovider abstracts DNS APIs. It is a
-// public, importable package (NOT internal) on purpose: both the OSS `octarq mcp`
-// server and the commercial octarq-pro AI plugins build on this single seam, so it
-// must live outside internal/ where external modules can import it
-// (github.com/octarq-org/octarq/llmprovider).
+// interface. It lives outside internal/ on purpose: octarq-pro's AI plugins
+// import it as github.com/octarq-org/octarq/llmprovider, so moving it under
+// internal/ would break them.
 //
-// Backends are not hand-written per vendor. The broad set — OpenAI (and any
-// OpenAI-compatible endpoint), Google Gemini, Mistral, Cohere, Ollama (local) —
-// is provided by the open-source langchaingo framework through one adapter
-// (langchain.go). Claude is the exception, on the official anthropic-sdk-go
-// (claude.go), because langchaingo's Anthropic client sends a `temperature`
-// parameter the Opus 4.7+ family rejects. Adding another langchaingo-supported
-// vendor is a few lines, not a new file.
-//
-// Design goals, inherited from the dnsprovider pattern:
-//
-//   - One Provider interface, a registry of named factories, and a config-driven
-//     New()/FromEnv() — switch vendor by name, no caller changes.
-//   - A "default" model for reasoning and a "cheap" model for high-volume
-//     classification/summary, so callers pick the right cost tier per call
-//     (e.g. Opus for a daily briefing, Haiku for per-email tagging).
+// Most backends (OpenAI and OpenAI-compatible endpoints, Gemini, Mistral,
+// Cohere, Ollama) go through one langchaingo adapter in langchain.go. Claude is
+// the exception, on the official anthropic-sdk-go in claude.go, because
+// langchaingo's Anthropic client sends a `temperature` parameter the Opus 4.7+
+// family rejects — don't fold it back into the adapter.
 package llmprovider
 
 import (

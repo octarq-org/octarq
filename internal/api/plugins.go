@@ -162,13 +162,7 @@ func (h *Handler) getFeatureDeps() (map[string]string, map[string][]string) {
 // feature key, with its per-workspace enabled state and the menu links it owns
 // (so the UI can toggle it and the sidebar can hide the right items).
 //
-// Core plumbing is listed too, flagged Core and always Enabled. It used to be
-// omitted — "they're always on, so there's nothing to toggle" — but absent and
-// off look identical from the plugin manager, and that is where someone goes to
-// answer "is this running?". A capability that never appears there reads as
-// disabled, which then makes its always-present help docs and menus look like a
-// gating leak. Listing it locked-on says the true thing instead. The write path
-// is unchanged: updatePlugin still 404s on a core key.
+// Core plumbing is listed too, flagged Core and always Enabled (updatePlugin 404s on a core key).
 // GET /api/plugins
 type ListPluginsInput struct {
 	Ctx huma.Context `hidden:"true"`

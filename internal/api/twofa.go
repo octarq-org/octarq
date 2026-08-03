@@ -217,12 +217,7 @@ type Disable2FAOutput struct {
 // disable2FA turns 2FA off after re-verifying the caller twice over: their
 // password, and a current TOTP or recovery code.
 //
-// Password alone used to be enough, which made the second factor removable by
-// exactly the thing it exists to survive — a leaked password. A code alone was
-// enough too, which made it removable by a hijacked session plus a glance at an
-// unlocked phone. Recovery codes are what a lost authenticator is for, and they
-// satisfy the second half here, so requiring both closes the hole without
-// stranding anyone.
+// Requiring both password and TOTP/recovery code ensures 2FA cannot be removed by password alone or session alone.
 // POST /api/auth/2fa/disable  {code, password}
 func (h *Handler) disable2FA(ctx context.Context, input *Disable2FAInput) (*Disable2FAOutput, error) {
 	if input.Ctx == nil {

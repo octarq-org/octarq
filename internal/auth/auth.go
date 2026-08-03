@@ -80,9 +80,8 @@ func TokenRoleFromContext(ctx context.Context) string {
 }
 
 // WithTokenIdentity stamps a validated bearer token onto ctx and kicks off the
-// best-effort LastUsedAt touch. Every bearer path funnels through here so a new
-// token field cannot be wired into one path and forgotten in the others — which
-// is exactly how mcpAuth ended up recording no token id at all.
+// best-effort LastUsedAt touch. Every bearer path funnels through here so token
+// context is consistently populated across all paths.
 func (m *Manager) WithTokenIdentity(ctx context.Context, tok models.Token) context.Context {
 	ctx = WithTokenID(ctx, tok.ID)
 	ctx = WithTokenRole(ctx, tok.Role)
