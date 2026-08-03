@@ -10,6 +10,7 @@ import (
 	"github.com/octarq-org/octarq/internal/auth"
 	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
 
@@ -128,6 +129,22 @@ func (h *Handler) callerHoldsRole(r *http.Request, min authz.Role) bool {
 // Exposed to plugins via plugin.Context.RequireRole.
 func (h *Handler) RequireRole(r *http.Request, min string) bool {
 	return h.callerHoldsRole(r, authz.Role(min))
+}
+
+// RequirePerm reports whether the caller holds permKey, falling back to the
+// built-in role comparison when no resolver has an opinion.
+// Exposed to plugins via plugin.Context.RequirePerm.
+func (h *Handler) RequirePerm(r *http.Request, permKey, minRole string) bool {
+	if r == nil {
+		return false
+	}
+	if allow, decided := plugin.ResolvePerm(r, permKey); decided {
+		return allow
+	}
+	if h == nil {
+		return false
+	}
+	return h.RequireRole(r, minRole)
 }
 
 // audit writes an AuditLog entry asynchronously; never blocks a request.

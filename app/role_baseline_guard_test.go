@@ -24,6 +24,7 @@ func TestBothPctxConstructorsSetRequireRole(t *testing.T) {
 
 	pctxCount := 0
 	requireRoleCount := 0
+	requirePermCount := 0
 
 	ast.Inspect(node, func(n ast.Node) bool {
 		compLit, ok := n.(*ast.CompositeLit)
@@ -49,8 +50,13 @@ func TestBothPctxConstructorsSetRequireRole(t *testing.T) {
 				continue
 			}
 			keyIdent, ok := kv.Key.(*ast.Ident)
-			if ok && keyIdent.Name == "RequireRole" {
-				requireRoleCount++
+			if ok {
+				if keyIdent.Name == "RequireRole" {
+					requireRoleCount++
+				}
+				if keyIdent.Name == "RequirePerm" {
+					requirePermCount++
+				}
 			}
 		}
 
@@ -63,5 +69,8 @@ func TestBothPctxConstructorsSetRequireRole(t *testing.T) {
 
 	if requireRoleCount != pctxCount {
 		t.Fatalf("expected all %d plugin.Context instantiations to set RequireRole, but only %d did", pctxCount, requireRoleCount)
+	}
+	if requirePermCount != pctxCount {
+		t.Fatalf("expected all %d plugin.Context instantiations to set RequirePerm, but only %d did", pctxCount, requirePermCount)
 	}
 }

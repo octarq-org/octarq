@@ -99,6 +99,8 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, allo
 			OrgID:   func(_ *http.Request) uint { return orgID },
 			Provide: reg.Provide,
 			Lookup:  reg.Lookup,
+			// RequirePerm is intentionally left nil: MCP requests do not carry per-request HTTP user identity.
+			// Authorization is handled by the MCP layer itself; plugin callers using HasPerm must tolerate nil.
 		}
 		for _, p := range plugins {
 			p.Mount(nil, pctx)

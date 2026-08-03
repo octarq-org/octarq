@@ -38,6 +38,7 @@ func mountCoreDNS(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypto
 		Provide:     reg.Provide,
 		Lookup:      reg.Lookup,
 		RequireRole: func(*http.Request, string) bool { return true },
+		RequirePerm: func(*http.Request, string, string) bool { return true },
 	})
 }
 
@@ -55,6 +56,7 @@ func mountCoreMail(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypt
 		Provide:             reg.Provide,
 		Lookup:              reg.Lookup,
 		RequireRole:         func(*http.Request, string) bool { return true },
+		RequirePerm:         func(*http.Request, string, string) bool { return true },
 	})
 }
 
@@ -73,7 +75,7 @@ func newTestHandlerRaw(t *testing.T) (*Handler, http.Handler, *gorm.DB) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mail.Mailbox{}, &mail.Email{}, &mail.SMTPSender{})...); err != nil {
+	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &dns.DDNSToken{}, &mail.Mailbox{}, &mail.Email{}, &mail.SMTPSender{})...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	// Isolate from other tests sharing the cache.
@@ -115,6 +117,7 @@ func newTestHandlerRaw(t *testing.T) (*Handler, http.Handler, *gorm.DB) {
 		Provide:             reg.Provide,
 		Lookup:              reg.Lookup,
 		RequireRole:         func(*http.Request, string) bool { return true },
+		RequirePerm:         h.RequirePerm,
 	}
 	dnsP.Mount(nil, pctx)
 	mailP.Mount(nil, pctx)

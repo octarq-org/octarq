@@ -200,6 +200,9 @@ type Context struct {
 	// role, for plugins gating destructive or credential-bearing operations.
 	// A caller with no membership holds no role and is always refused.
 	RequireRole func(r *http.Request, min string) bool
+	// RequirePerm reports whether the caller holds permKey, falling back to the
+	// built-in role comparison when no resolver has an opinion. Wired by the host.
+	RequirePerm func(r *http.Request, permKey, minRole string) bool
 	// IsInstanceAdmin reports whether the caller is the bootstrap operator
 	// account (User.IsInstanceAdmin, set deterministically for the configured
 	// OCTARQ_ADMIN_* identity at first login — never derived from org ordering).
