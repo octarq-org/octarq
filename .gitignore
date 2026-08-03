@@ -31,8 +31,10 @@ examples/*/web/node_modules
 # os & IDE
 .DS_Store
 .claude/
-.agents/
 
+# agent scratch: task briefings and handoff notes, not project docs
+.agents/
+.agy-specs/
 
 # octarq-build generated frontend manifest (transient)
 .octarq-frontend-plugins.json
