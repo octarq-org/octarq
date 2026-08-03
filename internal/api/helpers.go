@@ -167,4 +167,4 @@ func (h *Handler) Audit(r *http.Request, action, targetType string, targetID uin
 }
 
 // Domain/DNS provider helpers (encryptConfig, providerFor) moved to the dns
-// Core plugin (plugins/dns). See docs/CORE-PLUGIN-EXTRACTION.md.
+// Core plugin (plugins/dns). See docs/PLUGIN-ARCHITECTURE.md.

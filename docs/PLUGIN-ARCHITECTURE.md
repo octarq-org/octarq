@@ -134,8 +134,7 @@ commercial build overrides it:
 2. **`OCTARQ_WEBEMBED_OUT`** (core `web/vite.config.ts` + build script) — makes
    the dashboard build outDir overridable so the commercial build reuses the
    exact same build; default unchanged. (The buyer portal is no longer a core
-   Vite entry — it moved to octarq-pro behind `plugin.Context.HandleStatic`; see
-   CORE-DECOUPLING-AUDIT §2.5.)
+   Vite entry — it moved to octarq-pro behind `plugin.Context.HandleStatic`.)
 3. **octarq-pro `webembed/`** — its own package embedding a dashboard built
    against octarq-pro's plugin manifest into `octarq-pro/webembed/dist` (via
    `make web`, which runs `OCTARQ_WEBEMBED_OUT=$(CURDIR)/webembed/dist
