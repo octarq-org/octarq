@@ -300,6 +300,81 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 	return &CreateLinkOutput{Body: view(l)}, nil
 }
 
+type QuickCreateLinkBody struct {
+	URL  string `json:"url"`
+	Host string `json:"host,omitempty"`
+}
+
+type QuickCreateLinkInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body QuickCreateLinkBody
+}
+
+func (i *QuickCreateLinkInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type QuickCreateLinkOutput struct {
+	Body linkView
+}
+
+func (p *Plugin) quickCreateLink(ctx context.Context, input *QuickCreateLinkInput) (*QuickCreateLinkOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r = r.WithContext(ctx)
+	if p.orgID(r) == 0 {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	target := strings.TrimSpace(input.Body.URL)
+	if target == "" {
+		return nil, huma.Error400BadRequest("url is required")
+	}
+	normalized, ok := normalizeTarget(target)
+	if !ok {
+		return nil, huma.Error400BadRequest("url must be an http(s) URL")
+	}
+	host := strings.TrimSpace(input.Body.Host)
+	if host != "" && !p.ownsHost(p.orgID(r), host) {
+		return nil, huma.Error403Forbidden("host is not a link host of this workspace")
+	}
+	slug := models.RandomSlug(6)
+	if p.isReservedSlug(slug) {
+		return nil, huma.NewError(http.StatusConflict, "slug is reserved")
+	}
+	l := Link{
+		OrgID:   p.orgID(r),
+		Host:    host,
+		Slug:    slug,
+		Target:  normalized,
+		Enabled: true,
+	}
+	if err := p.db.Create(&l).Error; err != nil {
+		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
+	}
+	if p.audit != nil {
+		p.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
+	}
+	if p.publishEvent != nil {
+		p.publishEvent(l.OrgID, "link.create", map[string]any{"id": l.ID, "slug": l.Slug, "host": l.Host, "target": l.Target})
+	}
+
+	if p.enqueue != nil {
+		payload, _ := json.Marshal(map[string]any{
+			"id":     l.ID,
+			"target": l.Target,
+		})
+		_ = p.enqueue(r.Context(), "link.crawl", payload)
+	}
+
+	if p.deleteCache != nil {
+		_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+	}
+	return &QuickCreateLinkOutput{Body: view(l)}, nil
+}
+
 type ExportLinksCSVInput struct {
 	Ctx huma.Context `hidden:"true"`
 }

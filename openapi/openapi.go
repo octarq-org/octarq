@@ -480,6 +480,59 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 					},
 				},
 			},
+			"/api/links/quick": map[string]any{
+				"post": map[string]any{
+					"tags":        []string{"Links"},
+					"summary":     "Quick create short link",
+					"description": "Minimal endpoint to create a short link with just a URL. Slug is auto-generated.",
+					"requestBody": map[string]any{
+						"required": true,
+						"content": map[string]any{
+							"application/json": map[string]any{
+								"schema": map[string]any{
+									"type": "object",
+									"properties": map[string]any{
+										"url": map[string]any{
+											"type":        "string",
+											"description": "Target URL to shorten",
+											"example":     "https://example.com/long-page",
+										},
+										"host": map[string]any{
+											"type":        "string",
+											"description": "Optional custom short-domain host",
+											"example":     "go.example.com",
+										},
+									},
+									"required": []string{"url"},
+								},
+							},
+						},
+					},
+					"responses": map[string]any{
+						"201": map[string]any{
+							"description": "Successfully created short link",
+							"content": map[string]any{
+								"application/json": map[string]any{
+									"schema": map[string]any{"$ref": "#/components/schemas/LinkView"},
+								},
+							},
+						},
+						"400": map[string]any{
+							"description": "Missing or invalid URL",
+							"content":     errorResponseContent(),
+						},
+						"401": unauthorizedResponse(),
+						"403": map[string]any{
+							"description": "Host does not belong to workspace",
+							"content":     errorResponseContent(),
+						},
+						"409": map[string]any{
+							"description": "Slug is reserved or already exists on this host",
+							"content":     errorResponseContent(),
+						},
+					},
+				},
+			},
 			"/api/links/{id}": map[string]any{
 				"get": map[string]any{
 					"tags":        []string{"Links"},

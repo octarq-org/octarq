@@ -8,9 +8,12 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"html"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/octarq-org/octarq/plugin"
@@ -18,14 +21,211 @@ import (
 	"gorm.io/gorm"
 )
 
+type ipRateLimiter struct {
+	mu     sync.Mutex
+	counts map[string]int
+	resets map[string]time.Time
+	limit  int
+	window time.Duration
+}
+
+func newIPRateLimiter(limit int, window time.Duration) *ipRateLimiter {
+	return &ipRateLimiter{
+		counts: make(map[string]int),
+		resets: make(map[string]time.Time),
+		limit:  limit,
+		window: window,
+	}
+}
+
+func (l *ipRateLimiter) Allow(ip string) bool {
+	if l == nil || l.limit <= 0 {
+		return true
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	now := time.Now()
+	reset, ok := l.resets[ip]
+	if !ok || now.After(reset) {
+		l.counts[ip] = 1
+		l.resets[ip] = now.Add(l.window)
+		return true
+	}
+
+	if l.counts[ip] >= l.limit {
+		return false
+	}
+	l.counts[ip]++
+	return true
+}
+
+type clickItem struct {
+	orgID       uint
+	slug        string
+	linkID      uint
+	ip          string
+	country     string
+	region      string
+	city        string
+	ua          string
+	device      string
+	browser     string
+	osStr       string
+	bot         bool
+	referer     string
+	fingerprint string
+	createdAt   time.Time
+}
+
 // Service handles redirect resolution and analytics.
 type Engine struct {
-	db  *gorm.DB
-	ctx *plugin.Context
+	db          *gorm.DB
+	ctx         *plugin.Context
+	queue       chan clickItem
+	wg          sync.WaitGroup
+	closeOnce   sync.Once
+	dropCount   atomic.Uint64
+	txCount     atomic.Uint64
+	rateLimiter *ipRateLimiter
 }
 
 func NewEngine(db *gorm.DB, ctx *plugin.Context) *Engine {
-	return &Engine{db: db, ctx: ctx}
+	e := &Engine{
+		db:          db,
+		ctx:         ctx,
+		queue:       make(chan clickItem, 5000),
+		rateLimiter: newIPRateLimiter(300, time.Minute),
+	}
+	e.wg.Add(1)
+	go e.worker()
+	return e
+}
+
+func (e *Engine) SetRateLimit(limit int, window time.Duration) {
+	e.rateLimiter = newIPRateLimiter(limit, window)
+}
+
+func (e *Engine) Close() {
+	e.closeOnce.Do(func() {
+		close(e.queue)
+		e.wg.Wait()
+	})
+}
+
+func (e *Engine) DropCount() uint64 {
+	return e.dropCount.Load()
+}
+
+func (e *Engine) TxCount() uint64 {
+	return e.txCount.Load()
+}
+
+func (e *Engine) worker() {
+	defer e.wg.Done()
+	batch := make([]clickItem, 0, 100)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	flush := func() {
+		if len(batch) == 0 {
+			return
+		}
+		e.flushBatch(batch)
+		batch = batch[:0]
+	}
+
+	for {
+		select {
+		case item, ok := <-e.queue:
+			if !ok {
+				flush()
+				return
+			}
+			batch = append(batch, item)
+			if len(batch) >= 100 {
+				flush()
+			}
+		case <-ticker.C:
+			flush()
+		}
+	}
+}
+
+func (e *Engine) flushBatch(batch []clickItem) {
+	if len(batch) == 0 {
+		return
+	}
+	events := make([]LinkEvent, len(batch))
+	clicksByLink := make(map[uint]int64)
+	clicksByOrg := make(map[uint]int64)
+
+	for i, item := range batch {
+		events[i] = LinkEvent{
+			LinkID:      item.linkID,
+			CreatedAt:   item.createdAt,
+			IP:          item.ip,
+			Country:     item.country,
+			Region:      item.region,
+			City:        item.city,
+			Device:      item.device,
+			Browser:     item.browser,
+			OS:          item.osStr,
+			Referer:     item.referer,
+			UA:          item.ua,
+			Fingerprint: item.fingerprint,
+			IsBot:       item.bot,
+		}
+		if !item.bot {
+			clicksByLink[item.linkID]++
+			clicksByOrg[item.orgID]++
+		}
+	}
+
+	err := e.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&events).Error; err != nil {
+			return err
+		}
+		for linkID, count := range clicksByLink {
+			if err := tx.Model(&Link{}).Where("id = ?", linkID).
+				UpdateColumn("clicks", gorm.Expr("clicks + ?", count)).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err == nil {
+		e.txCount.Add(1)
+	} else {
+		slog.Error("failed to flush click events batch", "count", len(batch), "err", err)
+	}
+
+	if e.ctx != nil {
+		if e.ctx.RecordUsage != nil {
+			for orgID, count := range clicksByOrg {
+				e.ctx.RecordUsage(orgID, "links", count)
+			}
+		}
+		if e.ctx.PublishEvent != nil {
+			for _, item := range batch {
+				e.ctx.PublishEvent(item.orgID, "link.click", map[string]any{
+					"linkId":    item.linkID,
+					"slug":      item.slug,
+					"ip":        item.ip,
+					"country":   item.country,
+					"region":    item.region,
+					"city":      item.city,
+					"device":    item.device,
+					"browser":   item.browser,
+					"os":        item.osStr,
+					"referer":   item.referer,
+					"isBot":     item.bot,
+					"timestamp": item.createdAt,
+				})
+			}
+		}
+	}
 }
 
 // Lookup finds an enabled, non-archived link for (host, slug), preferring an
@@ -163,6 +363,11 @@ func (e *Engine) Handle(w http.ResponseWriter, r *http.Request, link *Link) {
 		}
 	}
 
+	if e.rateLimiter != nil && !e.rateLimiter.Allow(ip) {
+		http.Redirect(w, r, target, http.StatusFound)
+		return
+	}
+
 	e.record(r, link.OrgID, link.Slug, link.ID, ip, country, region, city, ua, device, browser, osStr, bot)
 	http.Redirect(w, r, target, http.StatusFound)
 }
@@ -232,39 +437,30 @@ func (e *Engine) record(r *http.Request, orgID uint, slug string, linkID uint, i
 	referer := r.Referer()
 	anonIP := anonymizeIP(ip)
 	fingerprint := deviceFingerprint(anonIP, ua, r.Header.Get("Accept-Language"))
-	go func() {
-		ev := LinkEvent{
-			LinkID: linkID, CreatedAt: time.Now(),
-			IP: anonIP, Country: country, Region: region, City: city,
-			Device: device, Browser: browser, OS: osStr,
-			Referer: referer, UA: ua, Fingerprint: fingerprint, IsBot: bot,
-		}
-		e.db.Create(&ev)
-		if !bot {
-			e.db.Model(&Link{}).Where("id = ?", linkID).
-				UpdateColumn("clicks", gorm.Expr("clicks + 1"))
-			if e.ctx != nil && e.ctx.RecordUsage != nil {
-				e.ctx.RecordUsage(orgID, "links", 1)
-			}
-		}
-		// Trigger Webhook Event Bus
-		if e.ctx != nil && e.ctx.PublishEvent != nil {
-			e.ctx.PublishEvent(orgID, "link.click", map[string]any{
-				"linkId":    linkID,
-				"slug":      slug,
-				"ip":        anonIP,
-				"country":   country,
-				"region":    region,
-				"city":      city,
-				"device":    device,
-				"browser":   browser,
-				"os":        osStr,
-				"referer":   referer,
-				"isBot":     bot,
-				"timestamp": ev.CreatedAt,
-			})
-		}
-	}()
+	item := clickItem{
+		orgID:       orgID,
+		slug:        slug,
+		linkID:      linkID,
+		ip:          anonIP,
+		country:     country,
+		region:      region,
+		city:        city,
+		ua:          ua,
+		device:      device,
+		browser:     browser,
+		osStr:       osStr,
+		bot:         bot,
+		referer:     referer,
+		fingerprint: fingerprint,
+		createdAt:   time.Now(),
+	}
+
+	select {
+	case e.queue <- item:
+	default:
+		cnt := e.dropCount.Add(1)
+		slog.Warn("link click event dropped due to full queue", "dropped_total", cnt, "link_id", linkID)
+	}
 }
 
 // trustProxy gates whether proxy-supplied client-IP headers are honoured when
