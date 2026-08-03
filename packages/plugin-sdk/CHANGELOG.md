@@ -1,5 +1,11 @@
 # @octarq-org/plugin-sdk
 
+## 0.9.1
+
+### Patch Changes
+
+- 424ae69: Improve Dialog layout responsiveness on mobile viewports with bottom-sheet presentation.
+
 ## 0.9.0
 
 ### Minor Changes
