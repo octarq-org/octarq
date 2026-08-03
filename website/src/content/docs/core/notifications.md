@@ -8,9 +8,7 @@ sidebar:
 ---
 
 
-octarq can push alerts to **Telegram** or a **webhook** when something happens — most
-commonly when new mail arrives. Channels are configured entirely from the
-dashboard; no redeploy needed.
+Octarq can push alerts to **Telegram** or a **webhook** when events occur (such as when new mail arrives). Channels are configured under **Settings → Workspace → Alerts**.
 
 ## Channels
 

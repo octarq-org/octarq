@@ -8,7 +8,7 @@ sidebar:
 ---
 
 
-Get Octarq up and running on your server or local environment in minutes using Docker Compose or single binary builds.
+Run Octarq on your server or local environment using Docker Compose or single binary builds.
 
 ## 1. Quick Start with Docker Compose
 
@@ -18,7 +18,7 @@ cp .env.example .env          # set OCTARQ_SECRET_KEY and OCTARQ_ADMIN_PASSWORD
 docker compose up -d
 ```
 
-Open `http://localhost:8080` and log in. That's the full stack — dashboard, API, redirector, MCP — in one container backed by SQLite.
+Open `http://localhost:8080` and log in. The container runs the dashboard, API, redirector, and MCP server using SQLite.
 
 Prefer a ~19MB `scratch` image or from-source build? See `make release` and `deploy/`.
 

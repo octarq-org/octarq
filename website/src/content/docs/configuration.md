@@ -8,9 +8,9 @@ sidebar:
 ---
 
 
-octarq is configured entirely through environment variables — the canonical list
+Octarq is configured entirely through environment variables — the canonical list
 lives in [`.env.example`](https://github.com/octarq-org/octarq/blob/main/.env.example).
-The most important ones:
+The primary configuration options are:
 
 ## Core
 

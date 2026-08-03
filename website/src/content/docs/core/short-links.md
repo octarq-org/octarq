@@ -8,7 +8,7 @@ sidebar:
 ---
 
 
-Short links are octarq's root namespace: every path that isn't `/admin` or `/api` is
+Short links are Octarq's root namespace: every path that isn't `/admin` or `/api` is
 a potential slug, so `https://go.example.com/abc` redirects without ever colliding
 with the dashboard.
 

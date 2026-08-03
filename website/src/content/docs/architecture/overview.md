@@ -8,7 +8,7 @@ sidebar:
 ---
 
 
-Reference for how Octarq's plugin system is built and how the commercial build (octarq-pro) composes on top of the open-source core **without forking**. For a plugin *author's* how-to, see [Writing a Plugin](/writing-a-plugin/); this document details the architecture and design.
+Reference for how Octarq's plugin system is built and how the commercial build (octarq-pro) composes on top of the open-source core without forking. For a plugin *author's* guide, see [Writing a Plugin](/writing-a-plugin/); this document details the architecture and design.
 
 - **octarq** — the open-source core (`github.com/octarq-org/octarq`), MIT.
 - **octarq-pro** — the private commercial build; consumes octarq as a Go module and mounts Pro features as plugins. `go.work` wires `.` + `../octarq` locally.
@@ -20,7 +20,7 @@ A feature is a **plugin** with two mirror halves composed into the core, never a
 - **Backend** — a Go module implementing `plugin.Plugin`.
 - **Frontend** — a JS package implementing `UIPlugin` (from the shared SDK).
 
-Both are composed **at build time** (not runtime): compile-time Go interface implementation + build-time frontend registry injection. One binary, `go:embed`. This fits the single-binary, self-hosted product and keeps the OSS/commercial line clean: the OSS build ships the plugin *page shells* that gracefully degrade (402 upsell / 404 neutral); the commercial build injects the real pages.
+Both are composed **at build time** (not runtime): compile-time Go interface implementation + build-time frontend registry injection. One binary, `go:embed`. The OSS build ships plugin page shells that degrade when unconfigured; the commercial build injects the actual pages.
 
 ## 2. Backend contract (`plugin/plugin.go`)
 

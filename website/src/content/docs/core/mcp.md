@@ -8,10 +8,9 @@ sidebar:
 ---
 
 
-octarq ships a built-in [Model Context Protocol](https://modelcontextprotocol.io)
-server, so an AI client — Claude Code, Claude Desktop, Cursor — can read your
-self-hosted company backend directly: *"which links got the most clicks?"*, *"what
-mail landed today?"*, *"how many SaaS am I paying for?"*
+Octarq ships a built-in [Model Context Protocol](https://modelcontextprotocol.io)
+server, allowing AI clients (such as Claude Code, Claude Desktop, or Cursor) to read your
+backend directly: *"which links got the most clicks?"*, *"what mail landed today?"*
 
 ## Running it
 
@@ -39,7 +38,7 @@ without a bespoke endpoint.
 
 This is the one place data reaches an LLM, so it is fenced:
 
-- Only a single `SELECT` / `WITH` runs, inside a **read-only transaction** —
+- Only a single `SELECT` or `WITH` statement runs inside a **read-only transaction**;
   writes, `PRAGMA`, and `ATTACH` are rejected.
 - Results are **row-capped**.
 - Sensitive columns (password/token hashes, encrypted provider credentials, raw

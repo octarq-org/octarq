@@ -8,7 +8,7 @@ sidebar:
 ---
 
 
-Octarq is designed as a single zero-dependency Go binary with an embedded SQLite database and frontend dashboard, making it lightweight and straightforward to deploy.
+Octarq is a single Go binary with an embedded SQLite database and frontend dashboard.
 
 ## 1. Docker Compose (Recommended)
 
