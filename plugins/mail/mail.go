@@ -366,9 +366,31 @@ func (p *Plugin) rawEmail(ctx context.Context, input *RawEmailInput) (*struct{},
 	if p.db.First(&e, input.ID).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
+
+	rawBytes := e.Raw
+	if len(rawBytes) == 0 {
+		key := e.StorageKey
+		if key == "" {
+			var mb Mailbox
+			_ = p.db.First(&mb, e.MailboxID).Error
+			key = fmt.Sprintf("mail/%d/%d.eml", mb.OrgID, e.ID)
+		}
+		if storageProv, err := p.getStorageProvider(); err == nil {
+			if data, getErr := storageProv.Get(ctx, key); getErr == nil {
+				rawBytes = data
+			}
+		}
+		if len(rawBytes) == 0 {
+			dbProv := NewDBStorageProvider(p.db)
+			if data, getErr := dbProv.Get(ctx, key); getErr == nil {
+				rawBytes = data
+			}
+		}
+	}
+
 	w.Header().Set("Content-Type", "message/rfc822")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"email-%d.eml\"", e.ID))
-	w.Write(e.Raw)
+	w.Write(rawBytes)
 	return nil, nil
 }
 
@@ -399,6 +421,20 @@ func (p *Plugin) deleteEmail(ctx context.Context, input *DeleteEmailInput) (*Del
 	}
 	if !p.emailBelongsToOrg(input.ID, p.orgID(r)) {
 		return nil, huma.Error404NotFound("not found")
+	}
+	var e Email
+	if p.db.First(&e, input.ID).Error == nil {
+		key := e.StorageKey
+		if key == "" {
+			var mb Mailbox
+			_ = p.db.First(&mb, e.MailboxID).Error
+			key = fmt.Sprintf("mail/%d/%d.eml", mb.OrgID, e.ID)
+		}
+		if storageProv, err := p.getStorageProvider(); err == nil {
+			_ = storageProv.Delete(ctx, key)
+		}
+		dbProv := NewDBStorageProvider(p.db)
+		_ = dbProv.Delete(ctx, key)
 	}
 	p.db.Delete(&Email{}, input.ID)
 	return &DeleteEmailOutput{Body: map[string]bool{"ok": true}}, nil

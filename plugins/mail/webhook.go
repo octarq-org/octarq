@@ -66,7 +66,7 @@ func (p *Plugin) inbound(ctx context.Context, input *InboundInput) (*InboundOutp
 		return nil, huma.Error400BadRequest("read body")
 	}
 	overrideTo := r.Header.Get("X-Octarq-To")
-	return p.processInboundMail(org.ID, overrideTo, raw)
+	return p.processInboundMail(ctx, org.ID, overrideTo, raw)
 }
 
 type InboundGenericInput struct {
@@ -107,7 +107,7 @@ func (p *Plugin) inboundGeneric(ctx context.Context, input *InboundGenericInput)
 		overrideTo = r.Header.Get("X-Inbound-To")
 	}
 
-	return p.processInboundMail(org.ID, overrideTo, raw)
+	return p.processInboundMail(ctx, org.ID, overrideTo, raw)
 }
 
 func extractTokenFromHeader(r *http.Request) string {
@@ -156,7 +156,7 @@ func extractRawEmail(r *http.Request) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(r.Body, 25<<20))
 }
 
-func (p *Plugin) processInboundMail(orgID uint, overrideTo string, raw []byte) (*InboundOutput, error) {
+func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo string, raw []byte) (*InboundOutput, error) {
 	parsed, parseErr := mail.Parse(raw)
 	if parseErr != nil {
 		log.Printf("inbound: mail parse failed: %v", parseErr)
@@ -204,13 +204,43 @@ func (p *Plugin) processInboundMail(orgID uint, overrideTo string, raw []byte) (
 	e := Email{
 		MailboxID: mb.ID, MessageID: msgID,
 		FromAddr: from, ToAddr: to, Subject: subject,
-		Text: textBody, HTML: htmlBody, Raw: parsed.Raw,
+		Text: textBody, HTML: htmlBody,
 		Attachments: att, ReceivedAt: receivedAt,
 		AuthSPF: spf, AuthDKIM: dkim, AuthDMARC: dmarc,
 	}
 	if err := p.db.Create(&e).Error; err != nil {
 		log.Printf("inbound: failed to store email: %v", err)
 		return nil, huma.Error500InternalServerError("failed to store email")
+	}
+
+	// The RFC822 original goes through the storage seam rather than onto the
+	// Email row: on the default database backend it lands in mail_raw_blobs,
+	// which keeps the emails table (the one every list query scans) free of
+	// multi-megabyte blobs. Email.Raw is only ever read now, never written —
+	// it holds the originals of messages received before this seam existed.
+	key := fmt.Sprintf("mail/%d/%d.eml", mb.OrgID, e.ID)
+	storageProv, spErr := p.getStorageProvider()
+	if spErr != nil {
+		log.Printf("inbound: storage provider configuration error: %v", spErr)
+		return nil, huma.Error500InternalServerError(spErr.Error())
+	}
+
+	// A misconfigured or unreachable backend must never cost us the message —
+	// it is the only copy. Fall back to the Email row and let the operator
+	// notice through the log rather than dropping mail on the floor.
+	if putErr := storageProv.Put(ctx, key, raw); putErr != nil {
+		log.Printf("mail storage: Put failed for key %s, falling back to the database: %v", key, putErr)
+		p.db.Model(&e).Update("raw", raw)
+	} else {
+		p.db.Model(&e).Update("storage_key", key)
+	}
+
+	// Bytes written, not bytes held: deletions and retention pruning do not come
+	// back through here, so this counts inbound volume and will drift above the
+	// true footprint. Billing storage by what an org currently occupies needs a
+	// periodic Stat sweep over its keys — deliberately not built here.
+	if p.recordUsage != nil {
+		p.recordUsage(mb.OrgID, "mail.raw_bytes", int64(len(raw)))
 	}
 
 	// Trigger Webhook Event Bus
