@@ -49,7 +49,7 @@ export const es = {
     createAccount: "Crear su cuenta",
     signInTo: "Iniciar sesión en {{app}}",
     registerSubtitle: "Regístrese para desplegar su propio espacio de trabajo",
-    loginSubtitle: "Ingrese sus credenciales para acceder al espacio de trabajo de operador",
+    loginSubtitle: "Ingrese sus credenciales para acceder al panel de control",
     email: "Correo electrónico",
     emailPlaceholder: "tu@dominio.com",
     password: "Contraseña",
@@ -82,8 +82,8 @@ export const es = {
     empty: "No hay coincidencias para “{{q}}”.",
   },
   areas: {
-    operations: { title: "Operaciones", subtitle: "Tráfico diario y comunicaciones" },
-    assets: { title: "Infraestructura", subtitle: "Servidores, red y bases de datos" },
+    operations: { title: "Operations", subtitle: "Tráfico diario y comunicaciones" },
+    assets: { title: "Infrastructure", subtitle: "Servidores, red y bases de datos" },
     insights: { title: "Seguridad y Admin", subtitle: "Defensa contra abusos y registros de actividad" },
     help: { title: "Manual de uso", subtitle: "Flujos de la consola, notas operativas y preguntas frecuentes" },
     settings: { title: "Configuración", subtitle: "Configuraciones del espacio de trabajo y perfil" },
@@ -140,7 +140,7 @@ export const es = {
     errResetFailed: "No se pudo restablecer la contraseña.",
   },
   footer: {
-    help: "Acerca de octarq",
+    help: "Acerca de Octarq",
     docs: "Documentación para desarrolladores",
     about: "Sitio web",
     github: "GitHub",
