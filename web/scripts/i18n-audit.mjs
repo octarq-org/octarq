@@ -310,7 +310,9 @@ function getTsxFiles(dir) {
       if (f !== "node_modules" && f !== "dist" && f !== ".git") {
         res = res.concat(getTsxFiles(p));
       }
-    } else if (f.endsWith(".tsx")) {
+    } else if (f.endsWith(".tsx") && !/\.(test|spec)\.tsx?$/.test(f)) {
+      // Test files are fixtures, not shipped UI — the key-resolution walk below
+      // already skips them; this walk drifted and did not.
       res.push(p);
     }
   }
