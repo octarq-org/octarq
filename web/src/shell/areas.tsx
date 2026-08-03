@@ -125,7 +125,11 @@ export const SETTINGS_AREA: Area = {
         { id: "tokens",   label: "API Tokens", Icon: KeyRound,  path: "/settings/tokens" },
       ],
     },
-    // Instance-admin configuration, shown only to instance admins.
+    // Configuration of the octarq instance itself, gated on isInstanceAdmin.
+    // Plugins land here with category "Instance" — the Pro licensing plugin
+    // puts the operator's own octarq license here, NOT in the org-outward
+    // Commerce area. Passive resources (Help, Docs, About) belong in the
+    // sidebar footer, not here.
     {
       label: "Instance",
       items: [
@@ -137,7 +141,9 @@ export const SETTINGS_AREA: Area = {
   ],
 };
 
-// Path mapping is derived from area definitions; callers pass merged runtime areas so plugin paths resolve.
+// Derived from the area/menu data — never reintroduce a parallel hardcoded
+// path→area map. Callers pass the merged runtime areas so plugin-contributed
+// paths resolve too; the default covers the static-only case.
 export function areaForPath(path: string, areas: Area[] = STATIC_AREAS): AreaId {
   // Settings live in their own area (SETTINGS_AREA), not the areas list.
   if (path.startsWith("/settings")) return "settings";
@@ -149,16 +155,20 @@ export function areaForPath(path: string, areas: Area[] = STATIC_AREAS): AreaId 
   return hit?.area ?? "operations";
 }
 
-// Placement keyword for sidebar footer items.
+// Placement keyword for sidebar footer items. Not a real Area id.
 export const FOOTER_PLACEMENT = "footer";
 
+// Maps a dynamic menu category to an area. Keep the keywords below in sync with
+// the Category strings plugins set in their Menus() — see docs/PLUGINS.md.
 export function areaForCategory(cat?: string, pluginAreas: UIArea[] = []): AreaId {
   const c = (cat ?? "").toLowerCase();
 
   // Product links categorized as "footer"/"resources" land in the sidebar footer.
   if (c === FOOTER_PLACEMENT || c === "resources") return FOOTER_PLACEMENT;
 
-  // Settings area holds Instance, Account, or Settings configurations.
+  // Settings holds what the org configures about octarq and itself; the areas
+  // below hold what the org runs FOR its own customers. Keep them apart:
+  // octarq's own license → Settings, the org issuing licenses → Commerce.
   if (c === "settings" || c === "instance" || c === "account") return "settings";
 
   // Category matches plugin area by id, title, or declared group label.
