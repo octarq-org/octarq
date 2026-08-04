@@ -193,9 +193,3 @@ func (h *OAuthHandler) upsertUser(email string) (*models.User, *models.Org, erro
 	}
 	return &user, &org, nil
 }
-
-// slugify turns an email into a URL-safe slug, e.g. "foo@bar.com" → "foo-bar-com".
-func slugify(email string) string {
-	r := strings.NewReplacer("@", "-", ".", "-", "_", "-", "+", "-")
-	return r.Replace(strings.ToLower(email))
-}

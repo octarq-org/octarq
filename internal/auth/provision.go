@@ -53,7 +53,11 @@ func UpsertUserByEmail(db *gorm.DB, email string, allowRegistration bool) (userI
 	var member models.OrgMember
 	me := db.Where("user_id = ?", user.ID).First(&member).Error
 	if errors.Is(me, gorm.ErrRecordNotFound) {
-		org := models.Org{Name: email, Slug: slugify(email), InboundToken: uuid.NewString()}
+		slug, err := models.AllocateOrgSlug(db)
+		if err != nil {
+			return 0, 0, err
+		}
+		org := models.Org{Name: email, Slug: slug, InboundToken: uuid.NewString()}
 		if err := db.Create(&org).Error; err != nil {
 			return 0, 0, err
 		}

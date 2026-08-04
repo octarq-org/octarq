@@ -91,7 +91,11 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 	verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.cfg.BaseURL, rawToken)
 	h.sendVerificationEmail(user.ID, email, verifyURL)
 
-	org := models.Org{Name: email, Slug: h.uniqueOrgSlug(email), InboundToken: uuid.NewString()}
+	slug, err := models.AllocateOrgSlug(h.db)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to create workspace")
+	}
+	org := models.Org{Name: email, Slug: slug, InboundToken: uuid.NewString()}
 	if err := h.db.Create(&org).Error; err != nil {
 		return nil, huma.Error500InternalServerError("failed to create workspace")
 	}
@@ -107,23 +111,4 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 	out.Body.Email = email
 	out.Body.Username = email
 	return out, nil
-}
-
-// uniqueOrgSlug derives a URL-safe slug from an email and guarantees it neither
-// collides with an existing org nor with a reserved slug, appending a short
-// random suffix until it's free.
-func (h *Handler) uniqueOrgSlug(email string) string {
-	base := safeSlug(email)
-	if base == "" {
-		base = "workspace"
-	}
-	slug := base
-	for {
-		var n int64
-		h.db.Model(&models.Org{}).Where("slug = ?", slug).Count(&n)
-		if n == 0 && !h.isReservedSlug(slug) {
-			return slug
-		}
-		slug = base + "-" + models.RandomSlug(4)
-	}
 }

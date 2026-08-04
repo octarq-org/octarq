@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -328,8 +329,13 @@ func TestOAuthHandlerUpsertUser(t *testing.T) {
 	if u.Email != "alice@example.com" {
 		t.Errorf("user email = %q, want alice@example.com", u.Email)
 	}
-	if o.Name != "alice@example.com" || o.Slug != "alice-example-com" {
+	if o.Name != "alice@example.com" {
 		t.Errorf("org mismatch: %+v", o)
+	}
+	// The slug is allocated at random, never derived: it lands in public URLs
+	// (the billing webhook path), so it must not spell out the founder's address.
+	if o.Slug == "" || strings.Contains(o.Slug, "alice") || strings.Contains(o.Slug, "example") {
+		t.Errorf("org slug %q leaks the founder's email", o.Slug)
 	}
 
 	u2, o2, err := handler.upsertUser("alice@example.com")

@@ -169,24 +169,13 @@ func (h *Handler) createOrg(ctx context.Context, input *CreateOrgInput) (*Create
 	if name == "" {
 		return nil, huma.Error400BadRequest("name is required")
 	}
-	slug := safeSlug(name)
-	if slug == "" {
-		slug = "org-" + time.Now().Format("20060102150405")
-	}
-
-	// Ensure slug uniqueness.
-	orig := slug
-	for i := 1; ; i++ {
-		var count int64
-		h.db.Model(&models.Org{}).Where("slug = ?", slug).Count(&count)
-		if count == 0 {
-			break
-		}
-		slug = fmt.Sprintf("%s-%d", orig, i)
-	}
-
-	org := models.Org{Name: name, Slug: slug}
+	org := models.Org{Name: name}
 	err := h.db.Transaction(func(tx *gorm.DB) error {
+		slug, err := models.AllocateOrgSlug(tx)
+		if err != nil {
+			return err
+		}
+		org.Slug = slug
 		if err := tx.Create(&org).Error; err != nil {
 			return err
 		}

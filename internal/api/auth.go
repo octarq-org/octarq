@@ -314,11 +314,16 @@ func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 	if err := h.db.Where("email = ?", username).First(&user).Error; err != nil {
 		user = models.User{Email: username, PasswordHash: "", IsInstanceAdmin: true}
 		h.db.Create(&user)
-		// Link to the bootstrap org as owner.
-		h.db.Create(&models.OrgMember{OrgID: orgID, UserID: user.ID, Role: "owner"})
 	} else if !user.IsInstanceAdmin {
 		// Backfill for accounts created before this column existed.
 		h.db.Model(&user).Update("is_instance_admin", true)
+	}
+	// Link to the bootstrap org as owner. Unconditional, because bootstrapOrgID
+	// now finds the admin's org *through* this membership: leave an admin user
+	// with no membership and every login would mint another org.
+	var member models.OrgMember
+	if h.db.Where("user_id = ?", user.ID).Order("id").First(&member).Error != nil {
+		h.db.Create(&models.OrgMember{OrgID: orgID, UserID: user.ID, Role: "owner"})
 	}
 	return user.ID
 }
@@ -460,37 +465,30 @@ func (h *Handler) revokeSession(ctx context.Context, input *RevokeSessionInput) 
 }
 
 // bootstrapOrgID returns the ID of the admin's own org, creating it if it
-// doesn't exist yet. It looks up by slug (derived from AdminUser) rather than
-// taking db.First(), so an OAuth user logging in before the admin password
-// login cannot accidentally become the admin's org.
+// doesn't exist yet.
+//
+// It resolves through the admin's own user row and membership, never db.First()
+// on orgs, so an OAuth user who signed in before the first admin password login
+// cannot accidentally become the admin's org. This used to key on a slug derived
+// from AdminUser; slugs are random now (models.AllocateOrgSlug), so the identity
+// that survives a restart is the admin credential's email, not its slug. Existing
+// instances resolve to the same org either way — the admin user row and its
+// owner membership were created alongside that org.
 func (h *Handler) bootstrapOrgID() uint {
-	slug := safeSlug(h.cfg.AdminUser)
-	if slug == "" {
-		slug = "default"
+	var user models.User
+	if h.db.Where("email = ?", h.cfg.AdminUser).First(&user).Error == nil {
+		var member models.OrgMember
+		if h.db.Where("user_id = ?", user.ID).Order("id").First(&member).Error == nil {
+			return member.OrgID
+		}
 	}
-	var org models.Org
-	if h.db.Where("slug = ?", slug).First(&org).Error == nil {
-		return org.ID
+	slug, err := models.AllocateOrgSlug(h.db)
+	if err != nil {
+		return 0
 	}
-	org = models.Org{Name: h.cfg.AdminUser, Slug: slug, InboundToken: uuid.NewString()}
+	org := models.Org{Name: h.cfg.AdminUser, Slug: slug, InboundToken: uuid.NewString()}
 	h.db.Create(&org)
 	return org.ID
-}
-
-// safeSlug lowercases s and replaces any non-alphanumeric character with "-".
-func safeSlug(s string) string {
-	b := []byte(s)
-	for i, c := range b {
-		if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' {
-			continue
-		}
-		if c >= 'A' && c <= 'Z' {
-			b[i] = c + 32
-		} else {
-			b[i] = '-'
-		}
-	}
-	return string(b)
 }
 
 type LogoutInput struct {
