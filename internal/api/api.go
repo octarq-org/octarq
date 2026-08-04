@@ -168,23 +168,11 @@ func (h *Handler) Routes() *http.ServeMux {
 				return
 			}
 		}
-		path := ctx.URL().Path
-		if strings.HasPrefix(path, "/api/") &&
-			!strings.HasPrefix(path, "/api/auth/login") &&
-			!strings.HasPrefix(path, "/api/auth/register") &&
-			!strings.HasPrefix(path, "/api/auth/2fa/verify") &&
-			!strings.HasPrefix(path, "/api/auth/logout") &&
-			!strings.HasPrefix(path, "/api/auth/config") &&
-			!strings.HasPrefix(path, "/api/auth/methods") &&
-			!strings.HasPrefix(path, "/api/auth/invite/accept") &&
-			!strings.HasPrefix(path, "/api/auth/forgot") &&
-			!strings.HasPrefix(path, "/api/auth/reset") &&
-			!strings.HasPrefix(path, "/api/auth/verify-email") &&
-			!strings.HasPrefix(path, "/api/auth/resend-verification") &&
-			!strings.HasPrefix(path, "/api/webhook/") &&
-			!strings.HasPrefix(path, "/api/health") &&
-			!strings.HasPrefix(path, "/api/status") {
-
+		// The prefix allowlist lives in public_endpoints.go next to the
+		// inventory that reports on it. Keeping the gate and its inventory on
+		// one list is what stops them drifting apart — a prefix added here but
+		// not there would exempt a route the registry test never sees.
+		if !isPublicPath(ctx.URL().Path) {
 			r, _ := humago.Unwrap(ctx)
 			if r != nil {
 				r2, ok := h.auth.AuthenticateRequest(r)
