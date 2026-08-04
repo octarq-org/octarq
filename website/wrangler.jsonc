@@ -1,9 +1,21 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // Still "octarq-docs" even though the site now answers on the apex: the name
+  // identifies the deployed Worker, and renaming it would publish a second
+  // Worker and strand the first one holding the old domain.
   "name": "octarq-docs",
   "compatibility_date": "2026-07-26",
   "assets": {
     "directory": "./dist",
     "not_found_handling": "404-page"
-  }
+  },
+  // The landing page and the docs are one build, served on one host.
+  // `custom_domain` makes wrangler own the DNS record, so the binding lives
+  // here in review rather than in someone's dashboard session.
+  "routes": [
+    {
+      "pattern": "octarq.org",
+      "custom_domain": true
+    }
+  ]
 }

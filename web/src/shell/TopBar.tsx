@@ -13,7 +13,7 @@ import { Area, AreaId, menuIcon } from "./areas";
 import { translateAreaTitle, translateGroupLabel, translateNavItemLabel } from "./navI18n";
 
 const RESOURCES = {
-  docs: "https://docs.octarq.org",
+  docs: "https://octarq.org/what-is-octarq/",
   about: "https://octarq.org",
   github: "https://github.com/octarq-org/octarq",
 };
