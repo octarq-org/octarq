@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, ApiError } from "../../api";
+import { api, ApiError, type LinkedIdentity } from "../../api";
 import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, toast, Alert, confirmDialog, confirmPassword } from "../../ui";
 import { Shield } from "lucide-react";
 import { useTranslation } from "../../i18n";
@@ -101,6 +101,64 @@ function SessionsList() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// LinkedIdentities lists the external identities that can sign in as this
+// account. There is no "link" button here on purpose: creating a binding needs
+// a verified assertion, which only the identity plugin that ran the handshake
+// holds, so it offers that from its own page. Removal is core's, because being
+// able to cut off a way into your account must not depend on which plugins the
+// build happens to include.
+function LinkedIdentities() {
+  const { t } = useTranslation();
+  const [items, setItems] = useState<LinkedIdentity[] | null>(null);
+  const [busy, setBusy] = useState<number | null>(null);
+
+  function load() {
+    api.identities().then(setItems).catch(() => setItems([]));
+  }
+  useEffect(() => { load(); }, []);
+
+  async function unlink(id: LinkedIdentity) {
+    if (!(await confirmDialog(t("settings.unlinkIdentityConfirm", { issuer: id.issuer })))) return;
+    setBusy(id.id);
+    try {
+      await api.unlinkIdentity(id.id);
+      load();
+    } catch (e) {
+      // 409 is the server refusing to leave the account with no way in.
+      toast.error(e instanceof ApiError ? e.message : t("settings.failed"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (items === null) return <div className="text-xs text-foreground/40 py-4 text-center">{t("settings.loadingIdentities")}</div>;
+  if (items.length === 0) return <div className="text-xs text-foreground/40 py-4 text-center">{t("settings.noLinkedIdentities")}</div>;
+
+  return (
+    <div className="divide-y divide-foreground/[0.04] rounded-xl border border-foreground/[0.05] overflow-hidden">
+      {items.map((id) => (
+        <div key={id.id} className="flex items-center gap-3 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium text-foreground/85 truncate">{id.issuer}</div>
+            <div className="flex items-center gap-3 mt-1">
+              <span className="text-xs text-foreground/50 truncate">{id.email}</span>
+              <span className="text-xs text-foreground/25">{t("settings.linkedAt", { time: timeAgo(id.createdAt) })}</span>
+            </div>
+          </div>
+          <Button
+            variant="danger"
+            onClick={() => unlink(id)}
+            disabled={busy === id.id}
+            className="text-xs py-1 px-2.5 shrink-0"
+          >
+            {busy === id.id ? "…" : t("settings.unlink")}
+          </Button>
+        </div>
+      ))}
     </div>
   );
 }
@@ -263,6 +321,12 @@ export function SecuritySettings() {
         </div>
         <p className="text-xs text-foreground/50">{t("settings.activeSessionsDesc")}</p>
         <SessionsList />
+      </GlassCard>
+
+      <GlassCard className="p-6 space-y-4">
+        <h2 className="text-base font-bold text-foreground">{t("settings.linkedIdentities")}</h2>
+        <p className="text-xs text-foreground/50">{t("settings.linkedIdentitiesDesc")}</p>
+        <LinkedIdentities />
       </GlassCard>
 
 

@@ -272,6 +272,8 @@ func (h *Handler) Routes() *http.ServeMux {
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/account/export", Summary: "Export Org Data", Tags: []string{"Account"}}, h.exportAccount)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/account/data", Summary: "Purge Org Data", Tags: []string{"Account"}}, h.purgeAccount)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/account/identities", Summary: "List Linked Identities", Tags: []string{"Account"}}, h.listIdentities)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/account/identities/{id}", Summary: "Unlink Identity", Tags: []string{"Account"}}, h.unlinkIdentity)
 
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/logout-all", Summary: "Logout All Sessions", Tags: []string{"Sessions"}}, h.logoutAll)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/sessions", Summary: "List Active Sessions", Tags: []string{"Sessions"}}, h.listSessions)

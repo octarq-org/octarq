@@ -303,6 +303,23 @@ func (a *App) loginByEmail(w http.ResponseWriter, r *http.Request, email string)
 	return uid, err
 }
 
+// loginByIdentity backs plugin.Context.LoginByIdentity, translating the
+// internal sentinels into the plugin-package ones the same way loginByEmail
+// does. The two refusals are deliberately distinct: "this instance won't create
+// accounts" is something an admin can change, while "that email already has an
+// account" tells the visitor to sign in the way they already can and link SSO
+// afterwards.
+func (a *App) loginByIdentity(w http.ResponseWriter, r *http.Request, id plugin.ExternalIdentity) (uint, error) {
+	uid, err := a.auth.LoginByIdentity(w, r, id)
+	switch {
+	case errors.Is(err, auth.ErrRegistrationDisabled):
+		return uid, plugin.ErrLoginRegistrationDisabled
+	case errors.Is(err, auth.ErrAccountLinkRequired):
+		return uid, plugin.ErrAccountLinkRequired
+	}
+	return uid, err
+}
+
 // Notify delivers a notification via a configured channel type ("telegram", "webhook").
 func (a *App) Notify(ctx context.Context, typ, cfgJSON, text string) error {
 	return notify.Send(ctx, typ, cfgJSON, text)
@@ -425,6 +442,8 @@ func (a *App) RunMCP(ctx context.Context) error {
 		RequirePerm:     apiHandler.RequirePerm,
 		IsInstanceAdmin: apiHandler.IsInstanceAdmin,
 		LoginByEmail:    a.loginByEmail,
+		LoginByIdentity: a.loginByIdentity,
+		BindIdentity:    a.auth.BindIdentity,
 		RegisterAuthMethod: func(m plugin.AuthMethod) {
 			auth.Register(auth.AuthMethod{
 				ID:        m.ID,
@@ -602,6 +621,8 @@ func (a *App) Run(ctx context.Context) error {
 		RequirePerm:     apiHandler.RequirePerm,
 		IsInstanceAdmin: apiHandler.IsInstanceAdmin,
 		LoginByEmail:    a.loginByEmail,
+		LoginByIdentity: a.loginByIdentity,
+		BindIdentity:    a.auth.BindIdentity,
 		RegisterAuthMethod: func(m plugin.AuthMethod) {
 			auth.Register(auth.AuthMethod{
 				ID:        m.ID,

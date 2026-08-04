@@ -88,6 +88,34 @@ func (Session) TableName() string {
 	return "user_sessions"
 }
 
+// UserIdentity binds a User to one external identity, keyed on the triple the
+// identity provider actually asserts: (provider, issuer, subject).
+//
+// Email is deliberately NOT part of the key. Core identity is matched globally
+// by email, orgs can be created by anyone, and an org's SSO issuer / client ID
+// are filled in by that org — so an attacker who points their own workspace at
+// an OIDC server they run can sign any email claim they like. The subject is
+// scoped to the issuer, which is the one part of the assertion the attacker
+// cannot forge for somebody else's IdP.
+//
+// The stored Email is what the provider asserted at binding time, kept for the
+// account-settings list ("signed in with alice@acme.com at accounts.acme.com").
+// Nothing looks a user up by it.
+type UserIdentity struct {
+	ID     uint `gorm:"primaryKey" json:"id"`
+	UserID uint `gorm:"index;not null" json:"userId"`
+	// Provider is the identity mechanism ("oidc"). Issuer must be normalized
+	// with plugin.NormalizeIssuer before it is written or queried — an IdP that
+	// advertises https://idp.example/ and one that advertises
+	// https://idp.example are the same IdP, and storing both spellings silently
+	// unbinds every user of whichever one wasn't stored.
+	Provider  string    `gorm:"uniqueIndex:idx_user_identity;size:32;not null" json:"provider"`
+	Issuer    string    `gorm:"uniqueIndex:idx_user_identity;size:255;not null" json:"issuer"`
+	Subject   string    `gorm:"uniqueIndex:idx_user_identity;size:255;not null" json:"subject"`
+	Email     string    `gorm:"size:320" json:"email"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
 // OrgMember links a User to an Org with a role.
 type OrgMember struct {
 	OrgID  uint   `gorm:"primaryKey;index:idx_org_user,unique" json:"orgId"`
@@ -339,7 +367,7 @@ type Webhook struct {
 // AllModels lists every model for AutoMigrate.
 func AllModels() []any {
 	return []any{
-		&Org{}, &User{}, &OrgMember{}, &UserSetting{}, &PluginSetting{},
+		&Org{}, &User{}, &OrgMember{}, &UserIdentity{}, &UserSetting{}, &PluginSetting{},
 		&Token{}, &Setting{}, &WorkspaceSetting{}, &NotificationChannel{},
 		&AbuseReport{}, &AuditLog{}, &Webhook{}, &Session{},
 	}

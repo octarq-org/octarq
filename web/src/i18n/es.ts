@@ -30,6 +30,7 @@ export const es = {
       emailUnverified: "Tu proveedor de identidad no ha verificado esta dirección de correo.",
       domainNotAllowed: "Este dominio de correo no tiene permitido iniciar sesión aquí.",
       inviteOnly: "Esta instancia es solo por invitación. Pide a un administrador que añada tu cuenta primero.",
+      accountLinkRequired: "Ya existe una cuenta con esta dirección de correo. Inicia sesión como lo haces habitualmente y luego vincula este proveedor de identidad desde los ajustes de la cuenta.",
       loginFailed: "Error al iniciar sesión. Inténtalo de nuevo.",
     },
     collapseMenu: "Contraer menú",
