@@ -34,10 +34,11 @@ func TestGenericInboundAuth(t *testing.T) {
 
 	// Case 1.1: Missing token -> 401
 	{
-		req := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/raw", bytes.NewReader(rawEML))
+		req := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/raw/tok", bytes.NewReader(rawEML))
 		input := &InboundGenericInput{
 			Ctx:     humago.NewContext(nil, req, httptest.NewRecorder()),
 			OrgSlug: "acme",
+			Token:   "",
 		}
 		_, err := p.inboundGeneric(ctx, input)
 		if err == nil {
@@ -47,11 +48,11 @@ func TestGenericInboundAuth(t *testing.T) {
 
 	// Case 1.2: Wrong token -> 401
 	{
-		req := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/raw", bytes.NewReader(rawEML))
-		req.Header.Set("X-Octarq-Token", "wrong-token")
+		req := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/raw/tok", bytes.NewReader(rawEML))
 		input := &InboundGenericInput{
 			Ctx:     humago.NewContext(nil, req, httptest.NewRecorder()),
 			OrgSlug: "acme",
+			Token:   "wrong-token",
 		}
 		_, err := p.inboundGeneric(ctx, input)
 		if err == nil {
@@ -61,11 +62,11 @@ func TestGenericInboundAuth(t *testing.T) {
 
 	// Case 1.3: Non-existent org slug with valid looking token -> 401 without leaking org existence
 	{
-		req := httptest.NewRequest(http.MethodPost, "/api/webhook/nonexistent-org/email/inbound/raw", bytes.NewReader(rawEML))
-		req.Header.Set("X-Octarq-Token", "valid-secret-123")
+		req := httptest.NewRequest(http.MethodPost, "/api/webhook/nonexistent-org/email/inbound/raw/tok", bytes.NewReader(rawEML))
 		input := &InboundGenericInput{
 			Ctx:     humago.NewContext(nil, req, httptest.NewRecorder()),
 			OrgSlug: "nonexistent-org",
+			Token:   "valid-secret-123",
 		}
 		_, err := p.inboundGeneric(ctx, input)
 		if err == nil {
@@ -78,11 +79,11 @@ func TestGenericInboundAuth(t *testing.T) {
 		mb := Mailbox{OrgID: 1, Address: "bob@acme.example", Enabled: true}
 		db.Create(&mb)
 
-		req := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/raw", bytes.NewReader(rawEML))
-		req.Header.Set("X-Octarq-Token", "valid-secret-123")
+		req := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/raw/tok", bytes.NewReader(rawEML))
 		input := &InboundGenericInput{
 			Ctx:     humago.NewContext(nil, req, httptest.NewRecorder()),
 			OrgSlug: "acme",
+			Token:   "valid-secret-123",
 		}
 		out, err := p.inboundGeneric(ctx, input)
 		if err != nil {
@@ -133,11 +134,11 @@ func TestGenericInboundOwnership(t *testing.T) {
 
 	// Org A attempts generic inbound delivery to an unowned domain (victim.example)
 	rawEML := []byte("From: attacker@external.com\r\nTo: someone@victim.example\r\nSubject: Exploit\r\n\r\nBody")
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook/org-a/email/inbound/raw", bytes.NewReader(rawEML))
-	req.Header.Set("X-Octarq-Token", "tok-a")
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook/org-a/email/inbound/raw/tok", bytes.NewReader(rawEML))
 	input := &InboundGenericInput{
 		Ctx:     humago.NewContext(nil, req, httptest.NewRecorder()),
 		OrgSlug: "org-a",
+		Token:   "tok-a",
 	}
 
 	out, err := p.inboundGeneric(ctx, input)
@@ -188,12 +189,12 @@ func TestGenericInboundParsing(t *testing.T) {
 	ctx := context.Background()
 
 	// Test 3.1: Raw EML POST with Authorization header
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/raw", bytes.NewReader(rawEML))
-	req.Header.Set("Authorization", "Bearer sec123")
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/raw/tok", bytes.NewReader(rawEML))
 	req.Header.Set("Content-Type", "message/rfc822")
 	input := &InboundGenericInput{
 		Ctx:     humago.NewContext(nil, req, httptest.NewRecorder()),
 		OrgSlug: "acme",
+		Token:   "sec123",
 	}
 
 	out, err := p.inboundGeneric(ctx, input)
@@ -245,12 +246,12 @@ func TestGenericInboundParsing(t *testing.T) {
 	part.Write(rawEML)
 	writer.Close()
 
-	reqMP := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/raw", &mpBuf)
-	reqMP.Header.Set("X-Octarq-Token", "sec123")
+	reqMP := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/raw/tok", &mpBuf)
 	reqMP.Header.Set("Content-Type", writer.FormDataContentType())
 	inputMP := &InboundGenericInput{
 		Ctx:     humago.NewContext(nil, reqMP, httptest.NewRecorder()),
 		OrgSlug: "acme",
+		Token:   "sec123",
 	}
 
 	outMP, err := p.inboundGeneric(ctx, inputMP)
@@ -292,11 +293,11 @@ func TestInboundEquivalence(t *testing.T) {
 	}
 
 	// Path 2: Generic route
-	reqGen := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/raw", bytes.NewReader(rawGen))
-	reqGen.Header.Set("X-Octarq-Token", "shared-token")
+	reqGen := httptest.NewRequest(http.MethodPost, "/api/webhook/acme/email/inbound/raw/tok", bytes.NewReader(rawGen))
 	inputGen := &InboundGenericInput{
 		Ctx:     humago.NewContext(nil, reqGen, httptest.NewRecorder()),
 		OrgSlug: "acme",
+		Token:   "shared-token",
 	}
 	outGen, err := p.inboundGeneric(ctx, inputGen)
 	if err != nil {

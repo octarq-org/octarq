@@ -62,6 +62,7 @@ func (p *Plugin) inbound(ctx context.Context, input *InboundInput) (*InboundOutp
 	// Auth is the org's per-tenant token, carried in the path so the Cloudflare
 	// worker needs only this one URL and no custom header.
 	if org.InboundToken == "" || subtle.ConstantTimeCompare([]byte(input.Token), []byte(org.InboundToken)) != 1 {
+		p.recordInboundAuthFailure(r, org.ID, "path-token")
 		return nil, huma.Error401Unauthorized("bad token")
 	}
 	raw, err := io.ReadAll(io.LimitReader(r.Body, 25<<20)) // 25 MiB cap
@@ -75,6 +76,7 @@ func (p *Plugin) inbound(ctx context.Context, input *InboundInput) (*InboundOutp
 type InboundGenericInput struct {
 	Ctx     huma.Context `hidden:"true"`
 	OrgSlug string       `path:"orgSlug"`
+	Token   string       `path:"token"`
 }
 
 func (i *InboundGenericInput) Resolve(ctx huma.Context) []error {
@@ -95,8 +97,15 @@ func (p *Plugin) inboundGeneric(ctx context.Context, input *InboundGenericInput)
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	token := extractTokenFromHeader(r)
-	if token == "" || org.InboundToken == "" || subtle.ConstantTimeCompare([]byte(token), []byte(org.InboundToken)) != 1 {
+	// Auth is the org token, in the path. This endpoint exists for providers
+	// where the only thing you can configure is a URL — SendGrid Inbound Parse,
+	// Mailgun routes — so demanding a custom header would defeat its purpose.
+	// It is the same shape n8n and every other webhook receiver uses, and it
+	// rotates from Mail settings (an empty inboundToken there mints a fresh
+	// UUID), which is what makes a URL-borne secret workable: if it leaks, you
+	// change it and repaste one URL.
+	if org.InboundToken == "" || subtle.ConstantTimeCompare([]byte(input.Token), []byte(org.InboundToken)) != 1 {
+		p.recordInboundAuthFailure(r, org.ID, "generic")
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
@@ -113,23 +122,30 @@ func (p *Plugin) inboundGeneric(ctx context.Context, input *InboundGenericInput)
 	return p.processInboundMail(ctx, org.ID, overrideTo, raw)
 }
 
-func extractTokenFromHeader(r *http.Request) string {
-	if tok := strings.TrimSpace(r.Header.Get("X-Octarq-Token")); tok != "" {
-		return tok
+// recordInboundAuthFailure leaves a trace when someone presents the wrong
+// inbound token.
+//
+// Both inbound routes and the bounce webhook are public by necessity — an MTA
+// arrives with no session — and all three authenticate on the same org-wide
+// InboundToken. Until this existed, a wrong token produced a bare 401: no audit
+// row, no log line, no counter. Someone could grind the token space for a week
+// and the only evidence would be the rate limiter's own bookkeeping, which
+// nobody reads. Guessing that token buys the ability to inject mail into any
+// mailbox in the workspace, so it is worth knowing that guessing is happening.
+//
+// The token itself is never recorded, in any form. An audit trail that stores
+// attempted credentials becomes a credential store the moment someone
+// mistypes their real token into the wrong tenant's URL.
+func (p *Plugin) recordInboundAuthFailure(r *http.Request, orgID uint, route string) {
+	ip := reporterIP(r)
+	log.Printf("inbound: rejected bad token for org %d via %s from %s", orgID, route, ip)
+	if p.audit == nil || r == nil {
+		return
 	}
-	if tok := strings.TrimSpace(r.Header.Get("X-Inbound-Token")); tok != "" {
-		return tok
-	}
-	if tok := strings.TrimSpace(r.Header.Get("X-Octarq-Inbound-Token")); tok != "" {
-		return tok
-	}
-	if auth := strings.TrimSpace(r.Header.Get("Authorization")); auth != "" {
-		if strings.HasPrefix(strings.ToLower(auth), "bearer ") {
-			return strings.TrimSpace(auth[7:])
-		}
-		return auth
-	}
-	return ""
+	p.audit(r, "email.inbound.auth_failed", "org", orgID, map[string]any{
+		"route": route,
+		"ip":    ip,
+	})
 }
 
 func extractRawEmail(r *http.Request) ([]byte, error) {
@@ -429,6 +445,7 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 		return nil, huma.Error404NotFound("unknown org")
 	}
 	if org.InboundToken == "" || subtle.ConstantTimeCompare([]byte(input.Token), []byte(org.InboundToken)) != 1 {
+		p.recordInboundAuthFailure(r, org.ID, "bounce")
 		return nil, huma.Error401Unauthorized("bad token")
 	}
 
