@@ -54,7 +54,6 @@ var registeredPublicEndpoints = map[string]string{
 	// at an internal address (isAWSSNSURL in plugins/mail/mail.go).
 	"POST /api/webhook/{orgSlug}/email/inbound/{token}": "per-mailbox token in path, compared against stored hash",
 	"POST /api/webhook/{orgSlug}/email/inbound/raw":     "per-mailbox token in path, compared against stored hash",
-	"POST /api/webhook/{orgSlug}/email/raw":             "per-mailbox token in path, compared against stored hash",
 	"POST /api/webhook/{orgSlug}/email/bounce/{token}":  "per-mailbox token in path; SNS SubscribeURL host validated",
 }
 

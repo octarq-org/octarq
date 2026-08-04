@@ -209,16 +209,3 @@ func TestTokenLifecycleAndBearerAuth(t *testing.T) {
 		t.Fatalf("bad bearer token: got %d want 401", rec.Code)
 	}
 }
-
-func TestAPIVersioningRewrite(t *testing.T) {
-	srv, _ := newTestHandler(t)
-
-	// A request to /api/v1/health should rewrite to /api/health and succeed
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
-	rec := httptest.NewRecorder()
-	srv.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("URL rewrite failed: got code %d, body %s", rec.Code, rec.Body.String())
-	}
-}

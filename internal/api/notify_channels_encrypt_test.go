@@ -35,7 +35,7 @@ func TestNotificationChannelConfigEncryptedInDB(t *testing.T) {
 		t.Fatalf("json.Marshal failed: %v", err)
 	}
 	reqBody := `{"name":"Custom Channel","type":"custom","config":` + string(jsonConfig) + `}`
-	rec := do(srv, "POST", "/api/v1/notification-channels", sess, reqBody)
+	rec := do(srv, "POST", "/api/notification-channels", sess, reqBody)
 	if rec.Code != http.StatusOK && rec.Code != http.StatusCreated {
 		t.Fatalf("expected HTTP 200/201 on create, got %d: %s", rec.Code, rec.Body.String())
 	}
