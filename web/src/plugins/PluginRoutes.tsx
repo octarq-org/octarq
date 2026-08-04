@@ -20,6 +20,21 @@ export function PluginUnavailable() {
   );
 }
 
+// View for plugins that are disabled in the current workspace.
+export function PluginDisabled() {
+  const { t } = useTranslation();
+  return (
+    <ScreenWrap>
+      <GlassCard className="mx-auto mt-12 flex max-w-md flex-col items-center gap-3 px-6 py-14 text-center">
+        <PageHeader
+          title={t("uiCommon.pluginDisabledTitle")}
+          description={t("uiCommon.pluginDisabledBody")}
+        />
+      </GlassCard>
+    </ScreenWrap>
+  );
+}
+
 // Fallback view when user lacks required permissions (403).
 export function AccessDenied() {
   const { t } = useTranslation();
