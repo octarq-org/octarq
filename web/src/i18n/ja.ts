@@ -30,6 +30,7 @@ export const ja = {
       emailUnverified: "IDプロバイダーがこのメールアドレスを確認していません。",
       domainNotAllowed: "このメールドメインではここにサインインできません。",
       inviteOnly: "このインスタンスは招待制です。管理者にアカウントの追加を依頼してください。",
+      accountLinkRequired: "このメールアドレスのアカウントは既に存在します。普段の方法でサインインしてから、アカウント設定でこのIDプロバイダーを連携してください。",
       loginFailed: "サインインに失敗しました。もう一度お試しください。",
     },
     collapseMenu: "メニューを折りたたむ",

@@ -31,6 +31,7 @@ export const zh: Resources = {
       emailUnverified: "身份提供方尚未验证该邮箱地址。",
       domainNotAllowed: "该邮箱域名不允许在此登录。",
       inviteOnly: "本实例仅限邀请注册，请联系管理员添加账号。",
+      accountLinkRequired: "该邮箱已有账号。请先用原有方式登录，再到账号设置里绑定此身份提供方。",
       loginFailed: "登录失败，请重试。",
     },
     collapseMenu: "收起菜单",

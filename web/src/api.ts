@@ -69,6 +69,15 @@ export interface SessionRecord {
   isCurrent?: boolean;
 }
 
+/** One external identity that can sign in as this account. */
+export interface LinkedIdentity {
+  id: number;
+  provider: string;
+  issuer: string;
+  email: string;
+  createdAt: string;
+}
+
 export interface HostEntry {
   host: string;
   enabled: boolean;
@@ -331,6 +340,11 @@ export const api = {
   logoutAll: () => req<{ ok: boolean }>("POST", "/api/auth/logout-all"),
   sessions: () => req<SessionRecord[]>("GET", "/api/auth/sessions"),
   revokeSession: (id: number) => req<{ ok: boolean; self: boolean }>("DELETE", `/api/auth/sessions/${id}`),
+  // Linked external identities (SSO). The *binding* is created by the identity
+  // plugin that ran the handshake — it is the only party holding a verified
+  // assertion — so core only lists and removes them.
+  identities: () => req<LinkedIdentity[]>("GET", "/api/account/identities"),
+  unlinkIdentity: (id: number) => req<{ ok: boolean }>("DELETE", `/api/account/identities/${id}`),
   acceptInvite: (token: string, password: string) =>
     req<{ ok: boolean }>("POST", "/api/auth/invite/accept", { token, password }),
 

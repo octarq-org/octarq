@@ -30,6 +30,7 @@ export const pt = {
       emailUnverified: "Seu provedor de identidade não verificou este endereço de e-mail.",
       domainNotAllowed: "Este domínio de e-mail não tem permissão para entrar aqui.",
       inviteOnly: "Esta instância é apenas por convite. Peça a um administrador para adicionar sua conta primeiro.",
+      accountLinkRequired: "Já existe uma conta com este endereço de e-mail. Entre da forma habitual e depois vincule este provedor de identidade nas configurações da conta.",
       loginFailed: "Falha no login. Tente novamente.",
     },
     collapseMenu: "Recolher menu",

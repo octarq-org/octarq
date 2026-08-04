@@ -30,6 +30,7 @@ export const en = {
       emailUnverified: "Your identity provider has not verified this email address.",
       domainNotAllowed: "This email domain is not permitted to sign in here.",
       inviteOnly: "This instance is invite-only. Ask an administrator to add your account first.",
+      accountLinkRequired: "An account already uses this email address. Sign in the way you normally do, then link this identity provider from account settings.",
       loginFailed: "Sign-in failed. Please try again.",
     },
     collapseMenu: "Collapse menu",

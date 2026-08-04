@@ -21,6 +21,7 @@ const AUTH_ERROR_KEYS: Record<string, string> = {
   email_unverified: "app.authError.emailUnverified",
   domain_not_allowed: "app.authError.domainNotAllowed",
   invite_only: "app.authError.inviteOnly",
+  account_link_required: "app.authError.accountLinkRequired",
   login_failed: "app.authError.loginFailed",
 };
 

@@ -86,6 +86,14 @@ import (
 // without importing internal packages.
 var ErrLoginRegistrationDisabled = errors.New("registration disabled")
 
+// ErrAccountLinkRequired is returned by Context.LoginByIdentity when the
+// external identity is not bound to anyone yet but its asserted email already
+// belongs to an account. Signing in would mean handing that account to whoever
+// controls the IdP, so the link has to be made from the other direction: the
+// owner signs in the way they already can and binds the identity from account
+// settings (Context.BindIdentity).
+var ErrAccountLinkRequired = errors.New("account link required")
+
 // ServiceDNSManager is the well-known service name under which the DNS manager is provided.
 const ServiceDNSManager = "dns.manager"
 
@@ -236,6 +244,24 @@ type Context struct {
 	// instance is refused). A privileged capability: only compile-time-composed
 	// plugins can reach it. nil on hosts that predate it.
 	LoginByEmail func(w http.ResponseWriter, r *http.Request, email string) (userID uint, err error)
+	// LoginByIdentity completes a login for an externally verified identity,
+	// keyed on (provider, issuer, subject) rather than on the asserted email.
+	// Callers MUST have verified the assertion; this performs no authentication
+	// of its own. It is what a per-org SSO plugin calls instead of LoginByEmail:
+	// once each tenant supplies its own issuer and client credentials, the email
+	// claim is attacker-controlled and matching on it is account takeover.
+	// See ExternalIdentity for the full decision table. nil on hosts that
+	// predate it.
+	LoginByIdentity func(w http.ResponseWriter, r *http.Request, id ExternalIdentity) (userID uint, err error)
+	// BindIdentity attaches an externally verified identity to the user already
+	// signed in on this request, and is the only way an identity whose email
+	// already has an account gets bound (ErrAccountLinkRequired). The direction
+	// matters: the owner of the account initiates it from account settings while
+	// authenticated, so controlling an IdP that asserts someone's address is not
+	// enough to reach their account. Returns an error if nobody is signed in or
+	// the identity is already bound to a different user. nil on hosts that
+	// predate it.
+	BindIdentity func(r *http.Request, id ExternalIdentity) error
 	// RegisterAuthMethod registers an available external auth method (e.g. SSO)
 	// so the login page can discover and display it. SSO / identity plugins call
 	// this during Mount. nil on hosts that predate it.
