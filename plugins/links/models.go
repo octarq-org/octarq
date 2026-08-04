@@ -86,4 +86,8 @@ type LinkEvent struct {
 	// Variant records which A/B split variant this click was assigned to.
 	// Empty string means no split routing was active (control / attribute-rule hit).
 	Variant string `gorm:"size:512" json:"variant"`
+	// UTM Parameters captured from query string (truncated to 128 chars max).
+	UTMSource   string `gorm:"column:utm_source;size:128;index" json:"utmSource,omitempty"`
+	UTMMedium   string `gorm:"column:utm_medium;size:128" json:"utmMedium,omitempty"`
+	UTMCampaign string `gorm:"column:utm_campaign;size:128;index" json:"utmCampaign,omitempty"`
 }

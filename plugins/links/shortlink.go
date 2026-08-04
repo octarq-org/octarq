@@ -79,6 +79,9 @@ type clickItem struct {
 	referer     string
 	fingerprint string
 	variant     string
+	utmSource   string
+	utmMedium   string
+	utmCampaign string
 	createdAt   time.Time
 }
 
@@ -194,6 +197,9 @@ func (e *Engine) flushBatch(batch []clickItem) {
 			Fingerprint: item.fingerprint,
 			IsBot:       item.bot,
 			Variant:     item.variant,
+			UTMSource:   item.utmSource,
+			UTMMedium:   item.utmMedium,
+			UTMCampaign: item.utmCampaign,
 		}
 		if !item.bot {
 			clicksByLink[item.linkID]++
@@ -527,11 +533,25 @@ func deviceFingerprint(anonIP, ua, acceptLang string) string {
 	return hex.EncodeToString(sum[:16]) // 128-bit hex, fits size:64
 }
 
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	return string(runes[:maxLen])
+}
+
 // record writes a click event and increments the counter in the background.
 func (e *Engine) record(r *http.Request, orgID uint, slug string, linkID uint, ip, country, region, city, ua string, device, browser, osStr string, bot bool, variant string) {
 	referer := r.Referer()
 	anonIP := anonymizeIP(ip)
 	fingerprint := deviceFingerprint(anonIP, ua, r.Header.Get("Accept-Language"))
+	utmSource := truncateString(r.URL.Query().Get("utm_source"), 128)
+	utmMedium := truncateString(r.URL.Query().Get("utm_medium"), 128)
+	utmCampaign := truncateString(r.URL.Query().Get("utm_campaign"), 128)
 	item := clickItem{
 		orgID:       orgID,
 		slug:        slug,
@@ -548,6 +568,9 @@ func (e *Engine) record(r *http.Request, orgID uint, slug string, linkID uint, i
 		referer:     referer,
 		fingerprint: fingerprint,
 		variant:     variant,
+		utmSource:   utmSource,
+		utmMedium:   utmMedium,
+		utmCampaign: utmCampaign,
 		createdAt:   time.Now(),
 	}
 

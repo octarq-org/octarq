@@ -5,8 +5,10 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/safehttp"
 	qrcode "github.com/skip2/go-qrcode"
+	"golang.org/x/net/publicsuffix"
 )
 
 // linkDTO is the create/update payload.
@@ -545,9 +548,10 @@ func (p *Plugin) deleteLink(ctx context.Context, input *DeleteLinkInput) (*Delet
 }
 
 type LinkStatsInput struct {
-	Ctx  huma.Context `hidden:"true"`
-	ID   uint         `path:"id"`
-	Days int          `query:"days"`
+	Ctx    huma.Context `hidden:"true"`
+	ID     uint         `path:"id"`
+	Days   int          `query:"days"`
+	Metric string       `query:"metric"`
 }
 
 func (i *LinkStatsInput) Resolve(ctx huma.Context) []error {
@@ -581,12 +585,19 @@ func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSta
 	}
 	since := time.Now().AddDate(0, 0, -days)
 
+	metric := strings.ToLower(strings.TrimSpace(input.Metric))
+	if metric != "pv" {
+		metric = "uv"
+	}
+	isUV := metric == "uv"
+
 	top := func(col string) []models.StatKV {
 		rows := make([]models.StatKV, 0)
 		q := p.db.Model(&LinkEvent{}).
 			Where("link_id = ? AND created_at >= ? AND "+col+" <> ''", input.ID, since)
-		if col == "device" {
-			q = q.Select(col + " as key, count(distinct(ip || ' ' || ua)) as count")
+		if isUV {
+			q = q.Where("fingerprint <> ''").
+				Select(col + " as key, count(distinct fingerprint) as count")
 		} else {
 			q = q.Select(col + " as key, count(*) as count")
 		}
@@ -620,18 +631,146 @@ func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSta
 
 	return &LinkStatsOutput{
 		Body: map[string]any{
-			"total":     total,
-			"windowed":  models.SumStatKV(series),
-			"days":      days,
-			"series":    series,
-			"referers":  top("referer"),
-			"countries": top("country"),
-			"regions":   top("region"),
-			"devices":   top("device"),
-			"browsers":  top("browser"),
-			"variants":  variants,
+			"total":        total,
+			"windowed":     models.SumStatKV(series),
+			"days":         days,
+			"metric":       metric,
+			"series":       series,
+			"referers":     top("referer"),
+			"channels":     p.topChannels(input.ID, since, isUV),
+			"countries":    top("country"),
+			"regions":      top("region"),
+			"devices":      top("device"),
+			"browsers":     top("browser"),
+			"utmSources":   top("utm_source"),
+			"utmMediums":   top("utm_medium"),
+			"utmCampaigns": top("utm_campaign"),
+			"variants":     variants,
 		},
 	}, nil
+}
+
+// classifyReferer categorizes a raw referer string into a channel name.
+func classifyReferer(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "Direct"
+	}
+
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		if !strings.Contains(raw, "://") {
+			u, err = url.Parse("http://" + raw)
+		}
+	}
+	if err != nil || u == nil || u.Host == "" {
+		return "Direct"
+	}
+
+	host := u.Host
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.ToLower(strings.TrimSpace(host))
+	if host == "" {
+		return "Direct"
+	}
+
+	if host == "t.co" || host == "twitter.com" || strings.HasSuffix(host, ".twitter.com") || host == "x.com" || strings.HasSuffix(host, ".x.com") {
+		return "Twitter"
+	}
+	if host == "google.com" || strings.HasSuffix(host, ".google.com") || strings.HasPrefix(host, "google.") || strings.Contains(host, ".google.") {
+		return "Google"
+	}
+	if host == "facebook.com" || strings.HasSuffix(host, ".facebook.com") || host == "fb.com" || host == "fb.me" || host == "instagram.com" || strings.HasSuffix(host, ".instagram.com") {
+		return "Facebook"
+	}
+	if host == "linkedin.com" || strings.HasSuffix(host, ".linkedin.com") || host == "lnkd.in" {
+		return "LinkedIn"
+	}
+	if host == "reddit.com" || strings.HasSuffix(host, ".reddit.com") || host == "redd.it" {
+		return "Reddit"
+	}
+	if host == "news.ycombinator.com" || host == "ycombinator.com" || strings.HasSuffix(host, ".ycombinator.com") {
+		return "Hacker News"
+	}
+	if host == "github.com" || strings.HasSuffix(host, ".github.com") {
+		return "GitHub"
+	}
+	if host == "weixin.qq.com" || host == "mp.weixin.qq.com" || strings.HasSuffix(host, ".weixin.qq.com") || host == "qq.com" || strings.HasSuffix(host, ".qq.com") {
+		return "WeChat"
+	}
+	if host == "zhihu.com" || strings.HasSuffix(host, ".zhihu.com") {
+		return "Zhihu"
+	}
+
+	if domain, err := publicsuffix.EffectiveTLDPlusOne(host); err == nil && domain != "" {
+		return domain
+	}
+
+	return host
+}
+
+func (p *Plugin) topChannels(linkID uint, since time.Time, isUV bool) []models.StatKV {
+	type row struct {
+		Referer     string
+		Fingerprint string
+	}
+	var rows []row
+	q := p.db.Model(&LinkEvent{}).
+		Where("link_id = ? AND created_at >= ? AND referer <> ''", linkID, since)
+	if isUV {
+		q = q.Where("fingerprint <> ''")
+	}
+	q.Select("referer, fingerprint").Scan(&rows)
+
+	if len(rows) == 0 {
+		return []models.StatKV{}
+	}
+
+	if isUV {
+		channelFP := make(map[string]map[string]struct{})
+		for _, r := range rows {
+			ch := classifyReferer(r.Referer)
+			if channelFP[ch] == nil {
+				channelFP[ch] = make(map[string]struct{})
+			}
+			channelFP[ch][r.Fingerprint] = struct{}{}
+		}
+		res := make([]models.StatKV, 0, len(channelFP))
+		for ch, fps := range channelFP {
+			res = append(res, models.StatKV{Key: ch, Count: int64(len(fps))})
+		}
+		sortStatKV(res)
+		if len(res) > 10 {
+			res = res[:10]
+		}
+		return res
+	} else {
+		counts := make(map[string]int64)
+		for _, r := range rows {
+			ch := classifyReferer(r.Referer)
+			counts[ch]++
+		}
+		res := make([]models.StatKV, 0, len(counts))
+		for ch, cnt := range counts {
+			res = append(res, models.StatKV{Key: ch, Count: cnt})
+		}
+		sortStatKV(res)
+		if len(res) > 10 {
+			res = res[:10]
+		}
+		return res
+	}
+}
+
+func sortStatKV(res []models.StatKV) {
+	sort.Slice(res, func(i, j int) bool {
+		if res[i].Count != res[j].Count {
+			return res[i].Count > res[j].Count
+		}
+		return res[i].Key < res[j].Key
+	})
 }
 
 // models.StatKV is a key/count pair used across link analytics responses.
