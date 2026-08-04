@@ -26,12 +26,17 @@ export interface LinkStats {
   total: number;
   windowed: number;
   days: number;
+  metric?: "pv" | "uv";
   series: StatKV[];
   referers: StatKV[] | null;
+  channels: StatKV[] | null;
   countries: StatKV[] | null;
   regions: StatKV[] | null;
   devices: StatKV[] | null;
   browsers: StatKV[] | null;
+  utmSources: StatKV[] | null;
+  utmMediums: StatKV[] | null;
+  utmCampaigns: StatKV[] | null;
   variants: StatKV[] | null;
 }
 
@@ -51,7 +56,8 @@ export const linksApi = {
   updateLink: (id: number, l: Partial<Link> & { password?: string }) =>
     req<Link>("PUT", `/api/links/${id}`, l),
   deleteLink: (id: number) => req("DELETE", `/api/links/${id}`),
-  linkStats: (id: number, days = 30) => req<LinkStats>("GET", `/api/links/${id}/stats?days=${days}`),
+  linkStats: (id: number, days = 30, metric: "pv" | "uv" = "uv") =>
+    req<LinkStats>("GET", `/api/links/${id}/stats?days=${days}&metric=${metric}`),
   linkMetadata: (url: string) =>
     req<{ title: string; description: string; favicon: string }>(
       "GET",
