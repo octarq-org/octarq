@@ -11,6 +11,7 @@ import (
 
 	"crypto/subtle"
 
+	"github.com/octarq-org/octarq/internal/safego"
 	"github.com/octarq-org/octarq/internal/safehttp"
 
 	"time"
@@ -273,7 +274,7 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 	var channels []models.NotificationChannel
 	p.db.Where("owner_id = ? AND enabled = ?", mb.OrgID, true).Find(&channels)
 	if len(channels) > 0 {
-		go func() {
+		safego.Go("mail.inbound-notify", func() {
 			ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 			for _, ch := range channels {
@@ -281,7 +282,7 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 					_ = p.notify(ctxCtx, ch.Type, ch.Config, text)
 				}
 			}
-		}()
+		})
 	}
 
 	return &InboundOutput{Body: map[string]any{"ok": true, "stored": true, "id": e.ID}}, nil
@@ -448,7 +449,7 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 						log.Printf("bounce: refusing SNS SubscribeURL with non-AWS host: %s", subURL)
 						return nil, huma.Error400BadRequest("invalid SubscribeURL")
 					}
-					go func() {
+					safego.Go("mail.sns-confirm", func() {
 						resp, err := safehttp.Get(context.Background(), http.DefaultClient, subURL, "")
 						if err == nil {
 							resp.Body.Close()
@@ -456,7 +457,7 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 						} else {
 							log.Printf("AWS SNS subscription confirmation failed: %v", err)
 						}
-					}()
+					})
 					return &EmailBounceWebhookOutput{
 						Body: map[string]any{"ok": true, "message": "Subscription confirmation triggered"},
 					}, nil
