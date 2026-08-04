@@ -12,12 +12,30 @@ import (
 	"github.com/octarq-org/octarq/internal/models"
 )
 
+func cleanProviderError(errStr string) string {
+	lower := strings.ToLower(errStr)
+	switch {
+	case strings.Contains(lower, "token"), strings.Contains(lower, "auth"), strings.Contains(lower, "credential"), strings.Contains(lower, "permission"), strings.Contains(lower, "unauthorized"), strings.Contains(lower, "401"), strings.Contains(lower, "403"):
+		return "authentication failed — check your API token or credentials"
+	case strings.Contains(lower, "already exists"), strings.Contains(lower, "exist"), strings.Contains(lower, "duplicate"):
+		return "record already exists"
+	case strings.Contains(lower, "not found"), strings.Contains(lower, "nxdomain"), strings.Contains(lower, "missing"):
+		return "record or zone not found"
+	case strings.Contains(lower, "invalid"), strings.Contains(lower, "validation"), strings.Contains(lower, "parameter"):
+		return "invalid record configuration or parameters"
+	default:
+		return "provider request failed"
+	}
+}
+
 // providerErr logs an upstream DNS-provider failure and returns it as a 400 so
-// the real message reaches the browser. (A 5xx would be replaced by the
-// Cloudflare proxy's own error page, hiding the cause.)
+// the real cause is logged, but third-party response bodies are sanitized.
 func (p *Plugin) providerErr(action string, err error) error {
 	log.Printf("dns provider: %s failed: %v", action, err)
-	return huma.Error400BadRequest(action + ": " + err.Error())
+	if err == nil {
+		return huma.Error400BadRequest(action + ": failed")
+	}
+	return huma.Error400BadRequest(action + ": " + cleanProviderError(err.Error()))
 }
 
 type DNSProvidersInput struct {
@@ -104,6 +122,9 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to sync domains")
 	}
 	if input.Body.ProviderAccountID == 0 {
 		return nil, huma.Error400BadRequest("providerAccountId is required")
@@ -242,6 +263,9 @@ func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*C
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to create domain")
+	}
 	name := strings.TrimSpace(strings.ToLower(input.Body.Name))
 	if name == "" || input.Body.ProviderAccountID == 0 {
 		return nil, huma.Error400BadRequest("name and provider account are required")
@@ -283,7 +307,7 @@ func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*C
 			if p.publishEvent != nil {
 				p.publishEvent(dom.OrgID, "domain.verify_failed", map[string]any{"name": dom.Name, "zoneId": dom.ZoneID, "error": err.Error()})
 			}
-			return nil, huma.Error400BadRequest("provider verification failed: " + err.Error())
+			return nil, p.providerErr("verify zone", err)
 		} else if dom.Name == "" {
 			dom.Name = name
 		}
@@ -320,6 +344,9 @@ func (p *Plugin) updateDomain(ctx context.Context, input *UpdateDomainInput) (*U
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to update domain")
 	}
 	var dom Domain
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&dom).Error != nil {

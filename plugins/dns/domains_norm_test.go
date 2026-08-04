@@ -58,11 +58,50 @@ func TestProviderErrUnit(t *testing.T) {
 	t.Parallel()
 
 	p := &Plugin{}
+
+	// "upstream timeout" has no auth/auth/invalid/exists keywords → falls through
+	// to the default bucket. The response must NOT contain the raw provider text,
+	// but providerErr still returns a non-nil error.
 	err := p.providerErr("create domain", errors.New("upstream timeout"))
 	if err == nil {
 		t.Fatal("expected non-nil error")
 	}
-	if err.Error() != "create domain: upstream timeout" {
-		t.Errorf("unexpected error string: %v", err.Error())
+	raw := "upstream timeout"
+	if msg := err.Error(); msg == "create domain: "+raw {
+		t.Errorf("provider raw text leaked into response: %v", msg)
 	}
+	// The sanitised response must still include the action name.
+	if msg := err.Error(); len(msg) == 0 || msg == "create domain: " {
+		t.Errorf("providerErr returned empty message: %v", msg)
+	}
+
+	// Auth-related errors are classified as a credential hint.
+	errAuth := p.providerErr("list zones", errors.New("401 Unauthorized: invalid token xyz-secret-abc"))
+	if errAuth == nil {
+		t.Fatal("expected non-nil error for auth failure")
+	}
+	if msg := errAuth.Error(); msg != "list zones: authentication failed — check your API token or credentials" {
+		t.Errorf("unexpected auth error message: %v", msg)
+	}
+	// The raw secret must not appear in the response.
+	if msg := errAuth.Error(); len(msg) > 0 {
+		for _, leaked := range []string{"xyz-secret-abc", "invalid token"} {
+			if contains(msg, leaked) {
+				t.Errorf("provider raw text %q leaked into response: %v", leaked, msg)
+			}
+		}
+	}
+}
+
+func contains(s, sub string) bool {
+	return len(sub) > 0 && len(s) >= len(sub) && (s == sub || len(s) > 0 && containsStr(s, sub))
+}
+
+func containsStr(s, sub string) bool {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
 }
