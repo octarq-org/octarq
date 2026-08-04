@@ -40,6 +40,11 @@ func setupMailboxTestDB(t *testing.T) (*gorm.DB, *Plugin) {
 			}
 			return 1
 		},
+		// Wire RequireRole so existing scope/domain tests can call mutating mailbox
+		// operations without being blocked by the fail-closed gate. Tests that need
+		// to verify fail-closed behaviour use a bare &Plugin{} directly (see
+		// role_gate_test.go), not this helper.
+		RequireRole: func(_ *http.Request, _ string) bool { return true },
 	})
 	return db, p
 }
