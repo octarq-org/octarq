@@ -140,7 +140,7 @@ func Parse(raw []byte) (*Parsed, error) {
 					filename = params["name"]
 				}
 				if filename == "" {
-					if cd := hdr.Header.Get("Content-Disposition"); cd != "" {
+					if cd := hdr.Get("Content-Disposition"); cd != "" {
 						for _, part := range strings.Split(cd, ";") {
 							part = strings.TrimSpace(part)
 							if strings.HasPrefix(strings.ToLower(part), "filename=") {
@@ -150,7 +150,7 @@ func Parse(raw []byte) (*Parsed, error) {
 						}
 					}
 				}
-				cid := strings.Trim(hdr.Header.Get("Content-ID"), "<>")
+				cid := strings.Trim(hdr.Get("Content-ID"), "<>")
 				p.Attachments = append(p.Attachments, Attachment{
 					Filename:    filename,
 					ContentType: ct,
@@ -163,9 +163,11 @@ func Parse(raw []byte) (*Parsed, error) {
 		case *mail.AttachmentHeader:
 			ct, _, _ := hdr.ContentType()
 			filename, _ := hdr.Filename()
-			b, truncated, totalBytes := readLimited(part.Body)
-			_ = b
-			cid := strings.Trim(hdr.Header.Get("Content-ID"), "<>")
+			// The bytes are read to measure and drain the part; only metadata is
+			// stored on the Email row. The original message is kept whole through
+			// the storage seam, so re-reading a body from there costs nothing here.
+			_, truncated, totalBytes := readLimited(part.Body)
+			cid := strings.Trim(hdr.Get("Content-ID"), "<>")
 			p.Attachments = append(p.Attachments, Attachment{
 				Filename:    filename,
 				ContentType: ct,
