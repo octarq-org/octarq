@@ -79,6 +79,9 @@ func (p *Plugin) createMailbox(ctx context.Context, input *CreateMailboxInput) (
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to create mailbox")
+	}
 	addr := strings.TrimSpace(strings.ToLower(input.Body.Address))
 	if !strings.Contains(addr, "@") {
 		return nil, huma.Error400BadRequest("address must be a full email")
@@ -125,6 +128,9 @@ func (p *Plugin) updateMailbox(ctx context.Context, input *UpdateMailboxInput) (
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to update mailbox")
 	}
 	var mb Mailbox
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&mb).Error != nil {
