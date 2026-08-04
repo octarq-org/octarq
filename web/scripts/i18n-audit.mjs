@@ -265,6 +265,9 @@ const ALLOWLIST_EXACT = new Set([
 
   // Code example placeholders in UI inputs
   "Acme Production",
+  // Example workspace slug. It is a URL label typed verbatim, so localising it
+  // would suggest the address itself changes with the interface language.
+  "acme",
   "colleague@example.com",
   "n8n automation",
   "My Dev Team Slack",

@@ -1,8 +1,99 @@
 import { useEffect, useState } from "react";
-import { api } from "../../api";
-import { Field, Modal, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
+import { api, type OrgSlug } from "../../api";
+import { Alert, Field, Modal, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
 import { ShieldAlert } from "lucide-react";
 import { useTranslation } from "../../i18n";
+
+// WorkspaceAddress edits the slug — the workspace's identity in URLs, not a
+// display name. Third parties hold addresses built from it (the billing
+// webhook registered with Stripe, the redirect URI registered with the org's
+// identity provider), and changing it breaks those until someone updates them
+// by hand. So the confirmation names them one by one rather than asking a
+// generic "are you sure": the cost of this change is entirely in what it
+// silently disconnects.
+function WorkspaceAddress() {
+  const { t } = useTranslation();
+  const [current, setCurrent] = useState<OrgSlug | null>(null);
+  const [slug, setSlug] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    api.orgSlug().then((s) => { setCurrent(s); setSlug(s.slug); }).catch(() => {});
+  }, []);
+
+  async function save() {
+    setBusy(true);
+    try {
+      const next = await api.updateOrgSlug(slug.trim());
+      setCurrent(next);
+      setSlug(next.slug);
+      setConfirming(false);
+      toast.success(t("settings.workspaceAddressSaved"));
+    } catch (err: any) {
+      toast.error(err.message || t("settings.workspaceAddressFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!current) return null;
+  const changed = slug.trim() !== "" && slug.trim() !== current.slug;
+
+  return (
+    <GlassCard className="p-6 space-y-4">
+      <h2 className="text-base font-bold text-foreground">{t("settings.workspaceAddress")}</h2>
+      {current.derivedFromEmail && (
+        <Alert variant="warning" className="p-3">
+          <p className="text-xs text-warning-fg">{t("settings.workspaceAddressEmailWarning")}</p>
+        </Alert>
+      )}
+      <form className="max-w-md" onSubmit={(e) => { e.preventDefault(); setConfirming(true); }}>
+        <Field label={t("settings.workspaceAddressLabel")} hint={t("settings.workspaceAddressHint")}>
+          <div className="flex gap-2">
+            <input
+              className="input flex-1 text-sm font-mono"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder="acme"
+              required
+            />
+            <Button type="submit" variant="primary" disabled={!changed} className="shrink-0">
+              {t("settings.update")}
+            </Button>
+          </div>
+        </Field>
+      </form>
+
+      {confirming && (
+        <Modal title={t("settings.workspaceAddressConfirmTitle")} onClose={() => setConfirming(false)}>
+          <div className="space-y-4">
+            <p className="text-sm text-foreground/70">
+              {t("settings.workspaceAddressConfirmDesc", { from: current.slug, to: slug.trim() })}
+            </p>
+            <ul className="space-y-2 rounded-xl border border-foreground/[0.05] bg-well p-4 text-xs text-foreground/60">
+              <li>
+                <div>{t("settings.workspaceAddressBreaksBilling")}</div>
+                <code className="mt-1 block break-all text-[11px] text-foreground/45">/api/webhook/{slug.trim()}/billing/…</code>
+              </li>
+              <li>
+                <div>{t("settings.workspaceAddressBreaksSso")}</div>
+                <code className="mt-1 block break-all text-[11px] text-foreground/45">/api/sso/{slug.trim()}/callback</code>
+              </li>
+            </ul>
+            <p className="text-xs text-foreground/50">{t("settings.workspaceAddressNoAlias")}</p>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="ghost" onClick={() => setConfirming(false)}>{t("settings.cancel")}</Button>
+              <Button variant="primary" onClick={save} disabled={busy}>
+                {busy ? t("settings.updating") : t("settings.workspaceAddressConfirm")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </GlassCard>
+  );
+}
 
 export function GeneralSettings() {
   const { t } = useTranslation();
@@ -103,7 +194,7 @@ export function GeneralSettings() {
         </form>
       </GlassCard>
 
-
+      {role === "owner" && <WorkspaceAddress />}
 
       {isAdminOrOwner && (
         <GlassCard className="p-6 space-y-4">
