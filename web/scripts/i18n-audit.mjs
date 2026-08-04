@@ -288,6 +288,13 @@ const ALLOWLIST_EXACT = new Set([
   // Object-key example in the S3 upload dialog. A path is a path in every
   // language; translating "file" here would suggest the key itself is localised.
   "folder/file.png",
+  // S3 region and bucket examples in the mail-storage card (octarq-pro). A
+  // region code is an AWS identifier and a bucket name is a global DNS label —
+  // both are typed verbatim by the operator, so localising them would suggest
+  // the value itself changes with the interface language. The sibling endpoint
+  // placeholder on that card is already exempt for being a URL.
+  "us-east-1",
+  "octarq-mail-blobs",
   "deploy/cloudflare-email-worker.js",
   "user.login",
   "workspace",
