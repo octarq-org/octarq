@@ -21,7 +21,10 @@ import {
 // footer (available to everyone), kept strictly apart from the org's own
 // business nav. Update these if the marketing/docs/repo hosts change.
 const RESOURCES = {
-  docs: "https://docs.octarq.org",
+  // The docs moved onto the apex — one site now carries both the landing page
+  // and the documentation — so this points at the docs entry page rather than
+  // the host, which is where `about` already goes.
+  docs: "https://octarq.org/what-is-octarq/",
   about: "https://octarq.org",
   github: "https://github.com/octarq-org/octarq",
   contact: "https://octarq.org/contact",

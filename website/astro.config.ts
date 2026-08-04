@@ -5,7 +5,12 @@ import nimbus, { defineConfig as defineNimbusConfig } from "@cloudflare/nimbus-d
 import { tableScroll } from "@cloudflare/nimbus-docs/markdown";
 
 const nimbusConfig = defineNimbusConfig({
-  site: "https://docs.octarq.org",
+  // One site, not two. This project already serves both halves — the landing
+  // page at "/" (src/pages/index.astro) and the docs under it — so splitting
+  // the marketing copy onto its own host would have meant a second deploy of
+  // the same build. Canonical URLs, sitemap, and OG cards all derive from
+  // this, so it has to be the host the pages are actually served on.
+  site: "https://octarq.org",
   title: "Octarq",
   description: "AI-native team backoffice & plugin framework",
   locale: "en",
