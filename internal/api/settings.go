@@ -164,10 +164,6 @@ func (h *Handler) requireEmailVerification() bool {
 // DefaultRetentionDays is used when no retention setting is configured.
 const DefaultRetentionDays = 90
 
-// Slugs that can never be short links because they collide with reserved
-// top-level routes.
-var builtinReservedSlugs = map[string]bool{"admin": true, "api": true, "assets": true, "portal": true}
-
 func (h *Handler) getSetting(key string) string {
 	var s models.Setting
 	if h.db.First(&s, "key = ?", key).Error == nil {
@@ -214,20 +210,6 @@ func splitList(s string) []string {
 		}
 	}
 	return out
-}
-
-// isReservedSlug reports whether a slug may not be used for a short link.
-func (h *Handler) isReservedSlug(slug string) bool {
-	slug = strings.ToLower(slug)
-	if builtinReservedSlugs[slug] {
-		return true
-	}
-	for _, r := range splitList(h.getSetting(keyReservedSlugs)) {
-		if r == slug {
-			return true
-		}
-	}
-	return false
 }
 
 // --- handlers ---
