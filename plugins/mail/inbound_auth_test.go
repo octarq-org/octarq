@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -29,14 +30,23 @@ type recordedAudit struct {
 	meta     map[string]any
 }
 
+// nextInboundAuthOrgID hands out org ids well clear of the low ones other
+// tests in this package assign explicitly.
+var nextInboundAuthOrgID atomic.Uint32
+
 // setupTestDB hands every test in this package the SAME shared in-memory
-// database, so a fixture that hardcodes a slug collides with any other test
-// using it. The slug is derived from the test name for that reason.
+// database. Two things follow, and both have already broken a build here:
+// a hardcoded slug collides with another test's org, and so does a hardcoded
+// id — storage_test.go inserts its org with an explicit ID of 1, which fails
+// silently if something else took that id first, leaving its lookup to 404.
+// So the slug comes from the test name and the id from a counter starting far
+// above anything assigned by hand.
 func inboundAuthFixture(t *testing.T) (*Plugin, *[]recordedAudit, string, uint) {
 	t.Helper()
 	db := setupTestDB(t)
 	slug := "inbound-auth-" + strings.ToLower(t.Name())
 	org := models.Org{Name: t.Name(), Slug: slug, InboundToken: "right-token"}
+	org.ID = 9000 + uint(nextInboundAuthOrgID.Add(1))
 	if err := db.Create(&org).Error; err != nil {
 		t.Fatalf("create org: %v", err)
 	}
