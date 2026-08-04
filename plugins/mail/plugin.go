@@ -67,7 +67,7 @@ func (p *Plugin) Describe() plugin.Info {
 }
 
 func (p *Plugin) Models() []any {
-	return []any{&Mailbox{}, &Email{}, &SMTPSender{}, &MailRawBlob{}}
+	return []any{&Mailbox{}, &Email{}, &SMTPSender{}, &MailRawBlob{}, &MailSuppression{}}
 }
 
 // Menus announces this plugin's sidebar entry so /api/menus only offers it
@@ -160,6 +160,10 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/emails/{id}", Summary: "Delete Email", Tags: []string{"Emails"}}, p.deleteEmail)
 		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/emails/send", Summary: "Send Email", Tags: []string{"Emails"}}, p.sendEmail)
 
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/mail/suppressions", Summary: "List Mail Suppressions", Tags: []string{"Emails"}}, p.listSuppressions)
+		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/mail/suppressions", Summary: "Create Mail Suppression", Tags: []string{"Emails"}, DefaultStatus: 201}, p.createSuppression)
+		huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/mail/suppressions/{id}", Summary: "Delete Mail Suppression", Tags: []string{"Emails"}}, p.deleteSuppression)
+
 		huma.Register(api, huma.Operation{
 			Method: "POST", Path: "/api/webhook/{orgSlug}/email/inbound/{token}",
 			Summary: "Inbound Email Webhook", Tags: []string{"Mailboxes"},
@@ -226,11 +230,22 @@ func (p *Plugin) getBackendConfig() string {
 	return "database"
 }
 
+func (p *Plugin) isSuppressed(orgID uint, addr string) bool {
+	if addr == "" || orgID == 0 {
+		return false
+	}
+	normAddr := strings.ToLower(strings.TrimSpace(addr))
+	var count int64
+	p.db.Model(&MailSuppression{}).Where("owner_id = ? AND address = ?", orgID, normAddr).Count(&count)
+	return count > 0
+}
+
 func (p *Plugin) purge(orgID uint) error {
 	mailboxIDs := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
 	p.db.Where("mailbox_id IN (?)", mailboxIDs).Delete(&Email{})
 	p.db.Where("owner_id = ?", orgID).Delete(&Mailbox{})
 	p.db.Where("owner_id = ?", orgID).Delete(&SMTPSender{})
+	p.db.Where("owner_id = ?", orgID).Delete(&MailSuppression{})
 	return nil
 }
 
@@ -238,18 +253,24 @@ func (p *Plugin) exportData(orgID uint) map[string]any {
 	var mailboxes []Mailbox
 	var emails []Email
 	var smtp []SMTPSender
+	var suppressions []MailSuppression
 	p.db.Where("owner_id = ?", orgID).Find(&mailboxes)
 	mailboxIDs := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
 	p.db.Where("mailbox_id IN (?)", mailboxIDs).Find(&emails)
 	p.db.Where("owner_id = ?", orgID).Find(&smtp)
+	p.db.Where("owner_id = ?", orgID).Find(&suppressions)
 	return map[string]any{
-		"mailboxes":   mailboxes,
-		"emails":      emails,
-		"smtpSenders": smtp,
+		"mailboxes":    mailboxes,
+		"emails":       emails,
+		"smtpSenders":  smtp,
+		"suppressions": suppressions,
 	}
 }
 
 func (p *Plugin) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
+	if p.isSuppressed(orgID, to) {
+		return fmt.Errorf("recipient address %s is in suppression list", to)
+	}
 	var s SMTPSender
 	if err := p.db.Where("owner_id = ?", orgID).Order("id").First(&s).Error; err != nil {
 		return fmt.Errorf("no SMTP sender configured for org %d", orgID)

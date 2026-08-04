@@ -21,7 +21,8 @@ func setupMailboxTestDB(t *testing.T) (*gorm.DB, *Plugin) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(append(models.AllModels(), &Mailbox{}, &Email{}, &SMTPSender{}, &dns.Domain{})...); err != nil {
+	p := New()
+	if err := db.AutoMigrate(append(append(models.AllModels(), p.Models()...), &dns.Domain{})...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	db.Where("1 = 1").Delete(&Mailbox{})
@@ -29,7 +30,6 @@ func setupMailboxTestDB(t *testing.T) (*gorm.DB, *Plugin) {
 	db.Where("1 = 1").Delete(&dns.Domain{})
 	db.Where("1 = 1").Delete(&models.Org{})
 
-	p := New()
 	p.Mount(nil, &plugin.Context{
 		DB: db,
 		OrgID: func(r *http.Request) uint {

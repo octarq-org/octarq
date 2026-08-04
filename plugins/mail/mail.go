@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -15,6 +16,7 @@ import (
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugins/dns"
 	"github.com/octarq-org/octarq/plugins/links"
+	"gorm.io/gorm/clause"
 )
 
 type ListMailboxesInput struct {
@@ -469,6 +471,12 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 	if len(input.Body.To) == 0 {
 		return nil, huma.Error400BadRequest("to is required")
 	}
+	orgID := p.orgID(r)
+	for _, rec := range input.Body.To {
+		if p.isSuppressed(orgID, rec) {
+			return nil, huma.Error400BadRequest(fmt.Sprintf("recipient address %s is in suppression list", rec))
+		}
+	}
 
 	// Rate-limit outbound mail per org so a leaked API token or a runaway client
 	// can't burn the sending domain's / relay IP's reputation into an RBL.
@@ -619,9 +627,10 @@ func (p *Plugin) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 // POST /api/webhook/{orgSlug}/email/bounce/{token}
 
 type bounceEvent struct {
-	Email   string
-	Event   string // "bounce" or "complaint"
-	Details string
+	Email      string
+	Event      string // "bounce" or "complaint"
+	BounceType string // "Permanent", "Transient", "Undetermined"
+	Details    string
 }
 
 // isAWSSNSURL reports whether u is a legitimate AWS SNS confirmation URL: https
@@ -655,9 +664,10 @@ func extractBounceEvents(body []byte) []bounceEvent {
 							if rMap, ok := rVal.(map[string]any); ok {
 								if email, ok := rMap["emailAddress"].(string); ok {
 									results = append(results, bounceEvent{
-										Email:   email,
-										Event:   "bounce",
-										Details: details,
+										Email:      email,
+										Event:      "bounce",
+										BounceType: bType,
+										Details:    details,
 									})
 								}
 							}
@@ -707,11 +717,20 @@ func extractBounceEvents(body []byte) []bounceEvent {
 				} else {
 					finalEv = "complaint"
 				}
+				var bType string
+				if sev, ok := edVal["severity"].(string); ok {
+					if strings.EqualFold(sev, "permanent") {
+						bType = "Permanent"
+					} else if strings.EqualFold(sev, "temporary") {
+						bType = "Transient"
+					}
+				}
 				if recipient != "" {
 					results = append(results, bounceEvent{
-						Email:   recipient,
-						Event:   finalEv,
-						Details: details,
+						Email:      recipient,
+						Event:      finalEv,
+						BounceType: bType,
+						Details:    details,
 					})
 					return results
 				}
@@ -719,7 +738,7 @@ func extractBounceEvents(body []byte) []bounceEvent {
 		}
 
 		// 3. SendGrid / Generic Format
-		var email, event, details string
+		var email, event, details, bType string
 		for _, key := range []string{"email", "recipient", "address", "rcpt"} {
 			if eVal, ok := m[key].(string); ok && eVal != "" {
 				email = eVal
@@ -738,6 +757,18 @@ func extractBounceEvents(body []byte) []bounceEvent {
 				break
 			}
 		}
+		for _, key := range []string{"bounceType", "bounce_type", "type", "severity"} {
+			if btVal, ok := m[key].(string); ok && btVal != "" {
+				if strings.EqualFold(btVal, "permanent") {
+					bType = "Permanent"
+				} else if strings.EqualFold(btVal, "transient") || strings.EqualFold(btVal, "temporary") {
+					bType = "Transient"
+				} else {
+					bType = btVal
+				}
+				break
+			}
+		}
 		event = strings.ToLower(event)
 		if strings.Contains(event, "bounce") || event == "dropped" || event == "failed" {
 			event = "bounce"
@@ -747,9 +778,10 @@ func extractBounceEvents(body []byte) []bounceEvent {
 
 		if email != "" && event != "" {
 			results = append(results, bounceEvent{
-				Email:   email,
-				Event:   event,
-				Details: details,
+				Email:      email,
+				Event:      event,
+				BounceType: bType,
+				Details:    details,
 			})
 		}
 		return results
@@ -769,6 +801,128 @@ func extractBounceEvents(body []byte) []bounceEvent {
 	}
 
 	return events
+}
+
+type ListSuppressionsInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *ListSuppressionsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListSuppressionsOutput struct {
+	Body []MailSuppression
+}
+
+func (p *Plugin) listSuppressions(ctx context.Context, input *ListSuppressionsInput) (*ListSuppressionsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	if p.orgID(r) == 0 {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	var items []MailSuppression
+	p.orgDB(r).Order("created_at DESC").Find(&items)
+	return &ListSuppressionsOutput{Body: items}, nil
+}
+
+type suppressionDTO struct {
+	Address string `json:"address"`
+}
+
+type CreateSuppressionInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body suppressionDTO
+}
+
+func (i *CreateSuppressionInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type CreateSuppressionOutput struct {
+	Body MailSuppression
+}
+
+func (p *Plugin) createSuppression(ctx context.Context, input *CreateSuppressionInput) (*CreateSuppressionOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	orgID := p.orgID(r)
+	if orgID == 0 {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	addr := strings.ToLower(strings.TrimSpace(input.Body.Address))
+	if !strings.Contains(addr, "@") {
+		return nil, huma.Error400BadRequest("address must be a full email")
+	}
+
+	item := MailSuppression{
+		OrgID:     orgID,
+		Address:   addr,
+		Reason:    "manual",
+		Source:    "manual",
+		Count:     1,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	err := p.db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "owner_id"}, {Name: "address"}},
+		DoUpdates: clause.Assignments(map[string]any{
+			"reason":     "manual",
+			"source":     "manual",
+			"updated_at": time.Now(),
+		}),
+	}).Create(&item).Error
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to save suppression")
+	}
+
+	if p.audit != nil {
+		p.audit(r, "suppression.create", "suppression", item.ID, map[string]any{"address": item.Address, "reason": "manual"})
+	}
+	return &CreateSuppressionOutput{Body: item}, nil
+}
+
+type DeleteSuppressionInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *DeleteSuppressionInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type DeleteSuppressionOutput struct {
+	Body map[string]bool
+}
+
+func (p *Plugin) deleteSuppression(ctx context.Context, input *DeleteSuppressionInput) (*DeleteSuppressionOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	orgID := p.orgID(r)
+	if orgID == 0 {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	var item MailSuppression
+	if err := p.orgDB(r).First(&item, input.ID).Error; err != nil {
+		return nil, huma.Error404NotFound("suppression item not found")
+	}
+	if err := p.db.Delete(&item).Error; err != nil {
+		return nil, huma.Error500InternalServerError("failed to delete suppression")
+	}
+	if p.audit != nil {
+		p.audit(r, "suppression.delete", "suppression", item.ID, map[string]any{"address": item.Address, "reason": item.Reason})
+	}
+	return &DeleteSuppressionOutput{Body: map[string]bool{"ok": true}}, nil
 }
 
 func (p *Plugin) emailBelongsToOrg(emailID, orgID uint) bool {

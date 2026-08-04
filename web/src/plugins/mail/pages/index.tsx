@@ -6,6 +6,7 @@ import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, Gla
 import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle } from "lucide-react";
 import { MailSettings } from "./MailSettings";
 import { SMTPSenders } from "./SMTPSenders";
+import { SuppressionList } from "./SuppressionList";
 import { useTranslation } from "../../../i18n";
 import { ReplyDraft } from "./types";
 import { EmailViewForm, AuthBadges } from "./EmailView";
@@ -273,6 +274,9 @@ export default function MailPage() {
           <div>
             <h3 className="text-sm font-semibold text-foreground/70 mb-3">{t("mail.smtpGateways")}</h3>
             <GlassCard className="p-6"><SMTPSenders /></GlassCard>
+          </div>
+          <div>
+            <GlassCard className="p-6"><SuppressionList /></GlassCard>
           </div>
         </div>
       )}

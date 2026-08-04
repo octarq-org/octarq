@@ -24,6 +24,8 @@ import (
 	"github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // --- inbound webhook (Cloudflare Email Routing -> Worker -> here) ---
@@ -511,20 +513,55 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 			IP:         ip,
 		})
 
+		// Check for suppression list entry (Hard bounce or Complaint)
+		shouldSuppress := false
+		reason := ""
+		if ev.Event == "complaint" {
+			shouldSuppress = true
+			reason = "complaint"
+		} else if ev.Event == "bounce" && strings.EqualFold(ev.BounceType, "Permanent") {
+			shouldSuppress = true
+			reason = "hard_bounce"
+		}
+
+		if shouldSuppress {
+			addr := strings.ToLower(strings.TrimSpace(ev.Email))
+			if addr != "" {
+				item := MailSuppression{
+					OrgID:     org.ID,
+					Address:   addr,
+					Reason:    reason,
+					Source:    ev.Details,
+					Count:     1,
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				}
+				p.db.Clauses(clause.OnConflict{
+					Columns: []clause.Column{{Name: "owner_id"}, {Name: "address"}},
+					DoUpdates: clause.Assignments(map[string]any{
+						"count":      gorm.Expr("count + 1"),
+						"reason":     reason,
+						"source":     ev.Details,
+						"updated_at": time.Now(),
+					}),
+				}).Create(&item)
+			}
+		}
+
 		// Send alert (notifications)
 		alertText := fmt.Sprintf("⚠️ Email reputation event: Mailbox %s experienced a %s event. Details: %s", mb.Address, ev.Event, ev.Details)
 		var channels []models.NotificationChannel
 		p.db.Where("owner_id = ? AND enabled = ?", mb.OrgID, true).Find(&channels)
 		if len(channels) > 0 {
-			go func(chans []models.NotificationChannel, txt string) {
+			safego.Go("mail.bounce-notify", func() {
 				ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
-				for _, ch := range chans {
+				for _, ch := range channels {
 					if p.notify != nil {
-						_ = p.notify(ctxCtx, ch.Type, ch.Config, txt)
+						_ = p.notify(ctxCtx, ch.Type, ch.Config, alertText)
 					}
 				}
-			}(channels, alertText)
+			})
 		}
 	}
 
