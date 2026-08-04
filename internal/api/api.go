@@ -265,6 +265,8 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/orgs", Summary: "List Orgs", Tags: []string{"Org Management"}}, h.listOrgs)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/orgs", Summary: "Create Org", Tags: []string{"Org Management"}, DefaultStatus: 201}, h.createOrg)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/org", Summary: "Update Org Details", Tags: []string{"Org Management"}}, h.updateOrg)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/org/slug", Summary: "Get Org Address", Tags: []string{"Org Management"}}, h.getOrgSlug)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/org/slug", Summary: "Change Org Address", Tags: []string{"Org Management"}}, h.updateOrgSlug)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/org/members", Summary: "List Org Members", Tags: []string{"Org Management"}}, h.listOrgMembers)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/org/members", Summary: "Add Org Member", Tags: []string{"Org Management"}}, h.addOrgMember)
 	huma.Register(api, huma.Operation{Method: "PATCH", Path: "/api/org/members/{userId}", Summary: "Update Org Member Role", Tags: []string{"Org Management"}}, h.updateOrgMember)

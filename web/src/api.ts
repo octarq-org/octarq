@@ -69,6 +69,12 @@ export interface SessionRecord {
   isCurrent?: boolean;
 }
 
+/** A workspace's URL address, and whether it is a pre-randomization leftover. */
+export interface OrgSlug {
+  slug: string;
+  derivedFromEmail: boolean;
+}
+
 /** One external identity that can sign in as this account. */
 export interface LinkedIdentity {
   id: number;
@@ -423,6 +429,8 @@ export const api = {
   orgs: () => req<Org[]>("GET", "/api/orgs"),
   createOrg: (d: { name: string }) => req<Org>("POST", "/api/orgs", d),
   updateOrg: (d: { name: string }) => req<Org>("PUT", "/api/org", d),
+  orgSlug: () => req<OrgSlug>("GET", "/api/org/slug"),
+  updateOrgSlug: (slug: string) => req<OrgSlug>("PUT", "/api/org/slug", { slug }),
   switchOrg: (orgId: number) => req<{ ok: boolean }>("POST", "/api/auth/switch-org", { orgId }),
   orgMembers: () => req<OrgMember[]>("GET", "/api/org/members"),
   // inviteUrl/inviteToken come back only when the address had no account yet.
