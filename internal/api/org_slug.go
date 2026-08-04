@@ -39,11 +39,6 @@ func (i *GetOrgSlugInput) Resolve(ctx huma.Context) []error { i.Ctx = ctx; retur
 
 type OrgSlugView struct {
 	Slug string `json:"slug"`
-	// DerivedFromEmail flags a slug left over from before slugs were random:
-	// it still spells out the founder's address, and the SSO login URL would
-	// publish it. The test is exact (slug == LegacyEmailSlug(owner email)), so
-	// it does not nag an owner who deliberately picked something similar.
-	DerivedFromEmail bool `json:"derivedFromEmail"`
 }
 
 type GetOrgSlugOutput struct {
@@ -69,27 +64,7 @@ func (h *Handler) getOrgSlug(ctx context.Context, input *GetOrgSlugInput) (*GetO
 	if err := h.db.First(&org, h.auth.OrgID(r)).Error; err != nil {
 		return nil, huma.Error404NotFound("workspace not found")
 	}
-	return &GetOrgSlugOutput{Body: OrgSlugView{
-		Slug:             org.Slug,
-		DerivedFromEmail: h.slugDerivedFromOwnerEmail(org),
-	}}, nil
-}
-
-// slugDerivedFromOwnerEmail reports whether org.Slug is what the retired
-// email derivation would have produced for one of its owners.
-func (h *Handler) slugDerivedFromOwnerEmail(org models.Org) bool {
-	var owners []models.OrgMember
-	h.db.Where("org_id = ? AND role = ?", org.ID, string(authz.RoleOwner)).Find(&owners)
-	for _, m := range owners {
-		var u models.User
-		if h.db.First(&u, m.UserID).Error != nil {
-			continue
-		}
-		if models.LegacyEmailSlug(u.Email) == org.Slug {
-			return true
-		}
-	}
-	return false
+	return &GetOrgSlugOutput{Body: OrgSlugView{Slug: org.Slug}}, nil
 }
 
 type UpdateOrgSlugInput struct {

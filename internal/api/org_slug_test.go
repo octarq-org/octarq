@@ -108,11 +108,8 @@ func TestUpdateOrgSlugValidation(t *testing.T) {
 	}
 }
 
-// The email-derived hint is what tells an owner to rename before publishing an
-// SSO link, and it must be exact rather than a guess — a false positive nags
-// forever, and a false negative leaks the founder's address.
-func TestOrgSlugFlagsEmailDerivedSlug(t *testing.T) {
-	db, do, owner, _, member := orgSlugFixture(t)
+func TestOrgSlugRead(t *testing.T) {
+	_, do, owner, _, member := orgSlugFixture(t)
 
 	rec := do("GET", "/api/org/slug", owner, "")
 	if rec.Code != 200 {
@@ -122,18 +119,8 @@ func TestOrgSlugFlagsEmailDerivedSlug(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &view); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if view.Slug != "owner-example-com" || !view.DerivedFromEmail {
-		t.Fatalf("view = %+v, want the slug flagged as email-derived", view)
-	}
-
-	// A slug that merely resembles the address is not flagged.
-	db.Model(&models.Org{}).Where("id = ?", 1).Update("slug", "owner-example")
-	rec = do("GET", "/api/org/slug", owner, "")
-	if err := json.Unmarshal(rec.Body.Bytes(), &view); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if view.DerivedFromEmail {
-		t.Fatalf("slug %q wrongly flagged as email-derived", view.Slug)
+	if view.Slug != "owner-example-com" {
+		t.Fatalf("view = %+v, want the workspace's own slug", view)
 	}
 
 	// Reading the workspace's address is still workspace administration.

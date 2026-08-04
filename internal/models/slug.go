@@ -59,16 +59,6 @@ func IsReservedOrgSlug(slug string) bool {
 	return reservedOrgSlugs[strings.ToLower(strings.TrimSpace(slug))]
 }
 
-// LegacyEmailSlug reproduces the pre-randomization derivation
-// ("foo@bar.com" → "foo-bar-com") for one purpose only: recognizing an existing
-// org whose slug still spells out its founder's address, so the UI can offer to
-// rename it before that slug goes public in an SSO login URL. Never call it to
-// mint a slug — AllocateOrgSlug is the only way to do that.
-func LegacyEmailSlug(email string) string {
-	r := strings.NewReplacer("@", "-", ".", "-", "_", "-", "+", "-")
-	return r.Replace(strings.ToLower(strings.TrimSpace(email)))
-}
-
 // AllocateOrgSlug returns a fresh, unused org slug. It is the single entry
 // point every org-creation path uses, so "how is a slug chosen" has one answer.
 //

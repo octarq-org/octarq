@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type OrgSlug } from "../../api";
-import { Alert, Field, Modal, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
+import { Field, Modal, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
 import { ShieldAlert } from "lucide-react";
 import { useTranslation } from "../../i18n";
 
@@ -43,11 +43,6 @@ function WorkspaceAddress() {
   return (
     <GlassCard className="p-6 space-y-4">
       <h2 className="text-base font-bold text-foreground">{t("settings.workspaceAddress")}</h2>
-      {current.derivedFromEmail && (
-        <Alert variant="warning" className="p-3">
-          <p className="text-xs text-warning-fg">{t("settings.workspaceAddressEmailWarning")}</p>
-        </Alert>
-      )}
       <form className="max-w-md" onSubmit={(e) => { e.preventDefault(); setConfirming(true); }}>
         <Field label={t("settings.workspaceAddressLabel")} hint={t("settings.workspaceAddressHint")}>
           <div className="flex gap-2">
