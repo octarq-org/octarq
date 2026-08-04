@@ -17,10 +17,12 @@ func cleanProviderError(errStr string) string {
 	switch {
 	case strings.Contains(lower, "token"), strings.Contains(lower, "auth"), strings.Contains(lower, "credential"), strings.Contains(lower, "permission"), strings.Contains(lower, "unauthorized"), strings.Contains(lower, "401"), strings.Contains(lower, "403"):
 		return "authentication failed — check your API token or credentials"
-	case strings.Contains(lower, "already exists"), strings.Contains(lower, "exist"), strings.Contains(lower, "duplicate"):
-		return "record already exists"
-	case strings.Contains(lower, "not found"), strings.Contains(lower, "nxdomain"), strings.Contains(lower, "missing"):
+	// Absence is matched before existence: "does not exist" contains "exist",
+	// so a bare "exist" test would report a missing record as a duplicate.
+	case strings.Contains(lower, "not found"), strings.Contains(lower, "not exist"), strings.Contains(lower, "nxdomain"), strings.Contains(lower, "missing"):
 		return "record or zone not found"
+	case strings.Contains(lower, "already exists"), strings.Contains(lower, "duplicate"):
+		return "record already exists"
 	case strings.Contains(lower, "invalid"), strings.Contains(lower, "validation"), strings.Contains(lower, "parameter"):
 		return "invalid record configuration or parameters"
 	default:

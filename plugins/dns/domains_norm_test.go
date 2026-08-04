@@ -91,6 +91,25 @@ func TestProviderErrUnit(t *testing.T) {
 			}
 		}
 	}
+
+	// Absence must not be reported as a duplicate: "does not exist" contains
+	// "exist", so an existence test placed first silently inverts the meaning
+	// and tells the user a missing record is already taken.
+	for _, absent := range []string{
+		"record does not exist",
+		"Record not found",
+		"NXDOMAIN",
+	} {
+		got := p.providerErr("delete record", errors.New(absent)).Error()
+		if got != "delete record: record or zone not found" {
+			t.Errorf("providerErr(%q) = %q, want the not-found classification", absent, got)
+		}
+	}
+
+	// The duplicate bucket still works for genuine collisions.
+	if got := p.providerErr("create record", errors.New("record already exists")).Error(); got != "create record: record already exists" {
+		t.Errorf("providerErr on a duplicate = %q, want the already-exists classification", got)
+	}
 }
 
 func contains(s, sub string) bool {
