@@ -34,6 +34,9 @@ export function StatsView({ link }: { link: Link }) {
         <TopList title={t("links.devices")} icon={<Eye className="h-3 w-3 text-foreground/40 mr-1 inline" />} rows={stats.devices} />
         <TopList title={t("links.browsers")} icon={<Link2 className="h-3 w-3 text-foreground/40 mr-1 inline" />} rows={stats.browsers} />
         <TopList title={t("links.referers")} icon={<Tag className="h-3 w-3 text-foreground/40 mr-1 inline" />} rows={stats.referers} />
+        {stats.variants && (
+          <TopList title={t("links.variants")} icon={<Settings className="h-3 w-3 text-foreground/40 mr-1 inline" />} rows={stats.variants} />
+        )}
       </div>
     </GlassCard>
   );

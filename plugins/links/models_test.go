@@ -34,3 +34,21 @@ func TestRoutingRulesRoundTrip(t *testing.T) {
 		t.Error("expected error scanning int, got nil")
 	}
 }
+
+func TestRoutingRules_CompatOldJSON(t *testing.T) {
+	// Old data doesn't have weight field
+	oldJSON := `[{"type":"geo","match":"US","target":"https://us"},{"type":"split","weight":50,"target":"https://a"}]`
+	var rules RoutingRules
+	if err := rules.Scan(oldJSON); err != nil {
+		t.Fatalf("Scan failed: %v", err)
+	}
+	if len(rules) != 2 {
+		t.Fatalf("expected 2 rules, got %d", len(rules))
+	}
+	if rules[0].Weight != 0 {
+		t.Errorf("expected weight 0 for geo rule, got %d", rules[0].Weight)
+	}
+	if rules[1].Weight != 50 {
+		t.Errorf("expected weight 50 for split rule, got %d", rules[1].Weight)
+	}
+}

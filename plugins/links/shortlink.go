@@ -6,7 +6,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"html"
 	"log/slog"
 	"net"
@@ -76,6 +78,7 @@ type clickItem struct {
 	bot         bool
 	referer     string
 	fingerprint string
+	variant     string
 	createdAt   time.Time
 }
 
@@ -190,6 +193,7 @@ func (e *Engine) flushBatch(batch []clickItem) {
 			UA:          item.ua,
 			Fingerprint: item.fingerprint,
 			IsBot:       item.bot,
+			Variant:     item.variant,
 		}
 		if !item.bot {
 			clicksByLink[item.linkID]++
@@ -368,12 +372,31 @@ func (e *Engine) Handle(w http.ResponseWriter, r *http.Request, link *Link) {
 
 	target := link.Target
 
+	// Priority: attribute rules (geo/device/os/language) are evaluated first.
+	// Split rules only apply when no attribute rule matched.
+	// Any panic or misconfiguration falls back silently to link.Target.
+	var variant string
 	if len(link.RoutingRules) > 0 {
 		lang := r.Header.Get("Accept-Language")
+		attributeHit := false
 		for _, rule := range link.RoutingRules {
+			if rule.Type == "split" {
+				continue // handle split group separately below
+			}
 			if matchRule(rule, country, device, osStr, lang) {
 				target = rule.Target
+				attributeHit = true
 				break
+			}
+		}
+		// Apply split routing only when no attribute rule fired.
+		if !attributeHit {
+			fingerprint := deviceFingerprint(anonymizeIP(ip), ua, r.Header.Get("Accept-Language"))
+			if splitTarget, splitVariant, ok := splitAssign(link.RoutingRules, fingerprint, link.ID); ok {
+				if splitTarget != "" {
+					target = splitTarget
+				}
+				variant = splitVariant
 			}
 		}
 	}
@@ -383,7 +406,7 @@ func (e *Engine) Handle(w http.ResponseWriter, r *http.Request, link *Link) {
 		return
 	}
 
-	e.record(r, link.OrgID, link.Slug, link.ID, ip, country, region, city, ua, device, browser, osStr, bot)
+	e.record(r, link.OrgID, link.Slug, link.ID, ip, country, region, city, ua, device, browser, osStr, bot, variant)
 	http.Redirect(w, r, target, http.StatusFound)
 }
 
@@ -404,6 +427,7 @@ func isBot(ua string) bool {
 	return false
 }
 
+// matchRule reports whether a non-split routing rule matches the given request attributes.
 func matchRule(rule RoutingRule, country, device, os, lang string) bool {
 	matchLower := strings.ToLower(rule.Match)
 	switch rule.Type {
@@ -417,6 +441,62 @@ func matchRule(rule RoutingRule, country, device, os, lang string) bool {
 		return strings.Contains(strings.ToLower(lang), matchLower)
 	}
 	return false
+}
+
+// splitAssign deterministically assigns a visitor to a split-rule variant.
+// It returns (target, variantName, true) when a split rule is selected,
+// or ("", "", false) when no split rules exist or the residual share falls
+// back to the link's own default target (caller treats that as control).
+//
+// Priority note: this function is called only after attribute rules
+// (geo/device/os/language) have been checked and none matched.
+//
+// Algorithm:
+//   - Collect all rules with type == "split".
+//   - Derive a stable bucket in [0, 100) by hashing fingerprint + linkID.
+//     The link ID is mixed in so that the same visitor does not always land
+//     on the same side across every short link in the system.
+//   - Walk the rules in order, accumulating weight. The first rule whose
+//     cumulative weight exceeds the bucket wins.
+//   - Weights summing < 100 leave the remainder as the control/default.
+//   - Weights summing > 100 are truncated (no errors; redirect path must
+//     never return 5xx due to misconfiguration).
+//
+// This function is a pure function: (fingerprint, linkID) → variant.
+// It never uses rand, time, or counters.
+func splitAssign(rules RoutingRules, fingerprint string, linkID uint) (target, variant string, ok bool) {
+	// Collect split rules.
+	var splits []RoutingRule
+	for _, r := range rules {
+		if r.Type == "split" {
+			splits = append(splits, r)
+		}
+	}
+	if len(splits) == 0 {
+		return "", "", false
+	}
+
+	// Derive a stable bucket [0, 100) by hashing fingerprint + linkID.
+	// Mixing in the linkID prevents cross-link systematic bias.
+	h := sha256.Sum256([]byte(fingerprint + "\n" + fmt.Sprintf("%d", linkID)))
+	bucket := int(binary.BigEndian.Uint32(h[:4]) % 100)
+
+	// Walk split rules, accumulating weight.
+	cum := 0
+	for _, r := range splits {
+		if r.Weight <= 0 {
+			continue
+		}
+		cum += r.Weight
+		if bucket < cum {
+			return r.Target, r.Target, true
+		}
+		if cum >= 100 {
+			break // weights exceeded 100; remaining rules are unreachable
+		}
+	}
+	// Residual share goes to the control (link.Target). Caller handles this.
+	return "", "control", true
 }
 
 // anonymizeIP truncates the last octet of IPv4 (1.2.3.4 → 1.2.3.0) and the
@@ -448,7 +528,7 @@ func deviceFingerprint(anonIP, ua, acceptLang string) string {
 }
 
 // record writes a click event and increments the counter in the background.
-func (e *Engine) record(r *http.Request, orgID uint, slug string, linkID uint, ip, country, region, city, ua string, device, browser, osStr string, bot bool) {
+func (e *Engine) record(r *http.Request, orgID uint, slug string, linkID uint, ip, country, region, city, ua string, device, browser, osStr string, bot bool, variant string) {
 	referer := r.Referer()
 	anonIP := anonymizeIP(ip)
 	fingerprint := deviceFingerprint(anonIP, ua, r.Header.Get("Accept-Language"))
@@ -467,6 +547,7 @@ func (e *Engine) record(r *http.Request, orgID uint, slug string, linkID uint, i
 		bot:         bot,
 		referer:     referer,
 		fingerprint: fingerprint,
+		variant:     variant,
 		createdAt:   time.Now(),
 	}
 

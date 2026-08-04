@@ -8,9 +8,10 @@ import (
 )
 
 type RoutingRule struct {
-	Type   string `json:"type"`   // "geo", "device", "os", "language"
-	Match  string `json:"match"`  // e.g. "US", "Mobile", "iOS", "zh-CN"
-	Target string `json:"target"` // redirect URL if matched
+	Type   string `json:"type"`             // "geo", "device", "os", "language", "split"
+	Match  string `json:"match,omitempty"`  // e.g. "US", "Mobile", "iOS", "zh-CN" (unused for split)
+	Target string `json:"target"`           // redirect URL if matched
+	Weight int    `json:"weight,omitempty"` // used by split rules: percentage [0,100]
 }
 type RoutingRules []RoutingRule
 
@@ -82,4 +83,7 @@ type LinkEvent struct {
 	// + user-agent + accept-language). Used to dedup unique devices in analytics.
 	Fingerprint string `gorm:"size:64;index" json:"-"`
 	IsBot       bool   `gorm:"default:false;index" json:"isBot"`
+	// Variant records which A/B split variant this click was assigned to.
+	// Empty string means no split routing was active (control / attribute-rule hit).
+	Variant string `gorm:"size:512" json:"variant"`
 }

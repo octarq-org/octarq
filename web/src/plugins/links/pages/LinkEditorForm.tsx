@@ -29,6 +29,7 @@ export function LinkEditorForm({
   const [expiredUrl, setExpiredUrl] = useState(link?.expiredUrl ?? "");
   const [clickLimit, setClickLimit] = useState(link?.clickLimit ?? 0);
   const [enabled, setEnabled] = useState(link?.enabled ?? true);
+  const [routingRules, setRoutingRules] = useState<any[]>(link?.routingRules ?? []);
   const [err, setErr] = useState("");
   const [fetching, setFetching] = useState(false);
   const [showUtm, setShowUtm] = useState(false);
@@ -79,6 +80,7 @@ export function LinkEditorForm({
       password,
       enabled,
       expiredUrl,
+      routingRules,
       clickLimit: Number(clickLimit) || 0,
       expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
     };
@@ -196,6 +198,10 @@ export function LinkEditorForm({
         <span className="text-sm text-foreground/60 select-none">{t("links.linkRoutingActive")}</span>
       </div>
 
+      <Field label={t("links.routingRules")}>
+        <RoutingRulesEditor rules={routingRules} onChange={setRoutingRules} />
+      </Field>
+
       {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
 
       <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
@@ -257,6 +263,108 @@ function UtmBuilder({ target, onApply }: { target: string; onApply: (url: string
       <Button variant="subtle" className="sm:col-span-2 md:col-span-3 h-8 text-xs py-1.5" onClick={apply}>
         {t("links.applyUtmParameters")}
       </Button>
+    </div>
+  );
+}
+
+function RoutingRulesEditor({ rules, onChange }: { rules: any[]; onChange: (r: any[]) => void }) {
+  const { t } = useTranslation();
+  const types = [
+    { value: "geo", label: t("links.ruleTypeGeo") },
+    { value: "device", label: t("links.ruleTypeDevice") },
+    { value: "os", label: t("links.ruleTypeOS") },
+    { value: "language", label: t("links.ruleTypeLanguage") },
+    { value: "split", label: t("links.ruleTypeSplit") },
+  ];
+
+  const splitTotal = rules.filter((r) => r.type === "split").reduce((acc, r) => acc + (Number(r.weight) || 0), 0);
+  const splitRem = Math.max(0, 100 - splitTotal);
+
+  return (
+    <div className="space-y-3">
+      {rules.map((rule, i) => (
+        <div key={i} className="flex gap-2 items-start bg-well p-3 rounded-lg border border-foreground/[0.05]">
+          <div className="flex-1 space-y-2">
+            <div className="flex gap-2">
+              <div className="w-1/3 min-w-[100px]">
+                <Select
+                  value={rule.type}
+                  onValueChange={(v) => {
+                    const next = [...rules];
+                    next[i] = { ...rule, type: v };
+                    if (v === "split") {
+                      delete next[i].match;
+                      next[i].weight = 50;
+                    } else {
+                      delete next[i].weight;
+                      next[i].match = "";
+                    }
+                    onChange(next);
+                  }}
+                  options={types}
+                />
+              </div>
+              <div className="flex-1">
+                {rule.type === "split" ? (
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    className="input w-full text-sm font-mono"
+                    placeholder={t("links.ruleWeight")}
+                    value={rule.weight ?? ""}
+                    onChange={(e) => {
+                      const next = [...rules];
+                      next[i] = { ...rule, weight: Number(e.target.value) };
+                      onChange(next);
+                    }}
+                  />
+                ) : (
+                  <input
+                    className="input w-full text-sm font-mono"
+                    placeholder={t("links.ruleMatch")}
+                    value={rule.match ?? ""}
+                    onChange={(e) => {
+                      const next = [...rules];
+                      next[i] = { ...rule, match: e.target.value };
+                      onChange(next);
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+            <input
+              className="input w-full text-sm font-mono"
+              placeholder={t("links.ruleTarget")}
+              value={rule.target ?? ""}
+              onChange={(e) => {
+                const next = [...rules];
+                next[i] = { ...rule, target: e.target.value };
+                onChange(next);
+              }}
+            />
+          </div>
+          <Button variant="ghost" className="shrink-0 p-2 text-danger-fg" onClick={() => {
+            const next = [...rules];
+            next.splice(i, 1);
+            onChange(next);
+          }}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ))}
+      
+      <div className="flex items-center justify-between mt-2">
+        <Button variant="subtle" className="text-xs py-1.5" onClick={() => onChange([...rules, { type: "split", weight: 50, target: "" }])}>
+          + {t("links.addRule")}
+        </Button>
+        
+        {rules.some((r) => r.type === "split") && (
+          <div className="text-xs text-foreground/60 font-mono">
+            {t("links.splitTotalLabel", { total: splitTotal })} · {t("links.ruleSplitRemainder")}: {splitRem}%
+          </div>
+        )}
+      </div>
     </div>
   );
 }
