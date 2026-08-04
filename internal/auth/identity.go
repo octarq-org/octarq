@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
@@ -190,14 +191,32 @@ func joinOrg(db *gorm.DB, userID uint, id plugin.ExternalIdentity) (uint, uint, 
 	if !id.AllowJIT {
 		return 0, 0, ErrRegistrationDisabled
 	}
-	role := strings.TrimSpace(id.JITRole)
-	if role == "" {
-		role = "member"
-	}
-	if err := db.Create(&models.OrgMember{OrgID: id.OrgID, UserID: userID, Role: role}).Error; err != nil {
+	if err := db.Create(&models.OrgMember{OrgID: id.OrgID, UserID: userID, Role: jitRole(id.JITRole)}).Error; err != nil {
 		return 0, 0, err
 	}
 	return userID, id.OrgID, nil
+}
+
+// jitRole clamps the role an identity provider may hand a new member to
+// "member" or "admin", defaulting to "member".
+//
+// Owner is deliberately unreachable. An org admin configures their own SSO,
+// and the API refuses to let an admin grant the owner role directly —
+// "self-promotion by proxy", in updateOrgMember's words. Passing the role
+// through an ID token instead would be the same promotion by a longer route,
+// and the person who picks the issuer is the person who decides who arrives
+// through it. Owner changes hands by an owner's own hand.
+//
+// The clamp also keeps an unrecognized string out of the column: roles are
+// compared by exact value, so a typo'd role is not a weaker role, it is a
+// member row that matches no rule at all.
+func jitRole(role string) string {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case string(authz.RoleAdmin):
+		return string(authz.RoleAdmin)
+	default:
+		return string(authz.RoleMember)
+	}
 }
 
 // firstOrPersonalOrg returns the user's existing org, provisioning a personal
