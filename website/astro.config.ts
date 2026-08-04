@@ -83,7 +83,11 @@ export default defineConfig({
       // ready to enforce them — see `nimbus-docs lint --help`.
       rules: {
         "nimbus/frontmatter-shape": "error",
-        "nimbus/internal-link": "error",
+        // Route truth comes from Astro's emitted pages, so anything served
+        // straight out of public/ reads as a broken link. The API reference
+        // links the spec file that lives there; ignore that one path rather
+        // than downgrade the rule, which would stop catching real 404s.
+        "nimbus/internal-link": ["error", { ignore: ["/openapi.json"] }],
       },
       // Wrap wide tables so they scroll instead of overflowing the page
       // (styled by `.nb-table-scroll` in src/styles/prose.css).

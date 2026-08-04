@@ -2,7 +2,14 @@
   "version": 1,
   "rules": {
     "nimbus/frontmatter-shape": "error",
-    "nimbus/internal-link": "error"
+    "nimbus/internal-link": [
+      "error",
+      {
+        "ignore": [
+          "/openapi.json"
+        ]
+      }
+    ]
   },
   "collections": {},
   "site": "https://octarq.org"

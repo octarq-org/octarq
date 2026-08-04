@@ -1,0 +1,24 @@
+# pnpm workspace rooted at website/.
+#
+# Without this file pnpm walks UP from website/ and finds the repo-root
+# pnpm-workspace.yaml, which lists only `packages/*`. Installing from inside
+# website/ then installs the ROOT workspace and leaves website/node_modules
+# empty. Locally that goes unnoticed because node_modules is already there from
+# an earlier install; in CI it surfaced as "sh: 1: astro: not found" right after
+# a seemingly successful install.
+#
+# Declaring website as its own single-package workspace stops the upward walk.
+# Same arrangement as web/, and for the same reason.
+packages:
+  - "."
+
+# esbuild and workerd need their postinstall to produce a usable binary. pnpm 9
+# only warns when it skips them; pnpm 10+ treats the skip as fatal
+# (ERR_PNPM_IGNORED_BUILDS), so an install that passes on the CI pin fails on a
+# newer local pnpm. Naming them keeps both working.
+onlyBuiltDependencies:
+  - esbuild
+  - workerd
+allowBuilds:
+  esbuild: true
+  workerd: true
