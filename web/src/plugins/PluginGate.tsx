@@ -9,7 +9,7 @@ import {
 } from "react";
 import { LockedFeature, PluginGateContext } from "@octarq/plugin-sdk";
 import type { UIPlugin, UIRoute, PluginGateContextValue } from "@octarq/plugin-sdk";
-import { AccessDenied, PluginUnavailable } from "./PluginRoutes";
+import { AccessDenied, PluginUnavailable, PluginDisabled } from "./PluginRoutes";
 import { roleSatisfies, useCurrentRole } from "../shell/role";
 
 export { PluginGateContext };
@@ -90,7 +90,7 @@ export function PluginGate({
       (plugin.name === "domains" && disabledPlugins.has("dns")) ||
       disabledPaths.has(route.path);
     if (isPluginDisabled) {
-      return <PluginUnavailable />;
+      return <PluginDisabled />;
     }
   }
   // Declarative pre-check: a route announcing a requiredRole the current user
