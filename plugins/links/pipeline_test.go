@@ -105,7 +105,7 @@ func TestClickPipelineBoundedQueueDropping(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		rec := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/droptest", nil)
-		eng.record(req, 1, "droptest", 1, "1.2.3.4", "", "", "", "UA", "", "", "", false)
+		eng.record(req, 1, "droptest", 1, "1.2.3.4", "", "", "", "UA", "", "", "", false, "")
 		if rec.Code != http.StatusOK && rec.Code != 0 {
 			t.Errorf("unexpected status: %d", rec.Code)
 		}

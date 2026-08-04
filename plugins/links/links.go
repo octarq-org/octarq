@@ -610,6 +610,14 @@ func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSta
 			Group("key").Order("key ASC").Scan(&series)
 	}
 
+	var variants []models.StatKV
+	for _, rule := range l.RoutingRules {
+		if rule.Type == "split" {
+			variants = top("variant")
+			break
+		}
+	}
+
 	return &LinkStatsOutput{
 		Body: map[string]any{
 			"total":     total,
@@ -621,6 +629,7 @@ func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSta
 			"regions":   top("region"),
 			"devices":   top("device"),
 			"browsers":  top("browser"),
+			"variants":  variants,
 		},
 	}, nil
 }

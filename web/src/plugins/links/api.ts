@@ -18,6 +18,7 @@ export interface Link {
   enabled: boolean;
   clicks: number;
   hasPassword: boolean;
+  routingRules?: any[];
   createdAt: string;
 }
 
@@ -31,6 +32,7 @@ export interface LinkStats {
   regions: StatKV[] | null;
   devices: StatKV[] | null;
   browsers: StatKV[] | null;
+  variants: StatKV[] | null;
 }
 
 export const linksApi = {
