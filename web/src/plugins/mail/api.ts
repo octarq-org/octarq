@@ -15,6 +15,9 @@ export interface Attachment {
   filename: string;
   contentType: string;
   size: number;
+  inline?: boolean;
+  contentId?: string;
+  truncated?: boolean;
 }
 
 export interface Email {

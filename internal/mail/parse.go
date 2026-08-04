@@ -3,6 +3,7 @@ package mail
 
 import (
 	"io"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -20,10 +21,13 @@ const (
 
 // readLimited reads up to maxPartBytes from r, discarding the rest so the
 // underlying reader is drained without buffering an unbounded payload.
-func readLimited(r io.Reader) []byte {
-	b, _ := io.ReadAll(io.LimitReader(r, maxPartBytes))
-	_, _ = io.Copy(io.Discard, r)
-	return b
+// It returns the read bytes, whether content was truncated, and the total size.
+func readLimited(r io.Reader) (b []byte, truncated bool, totalBytes int) {
+	b, _ = io.ReadAll(io.LimitReader(r, maxPartBytes))
+	nDiscarded, _ := io.Copy(io.Discard, r)
+	totalBytes = len(b) + int(nDiscarded)
+	truncated = nDiscarded > 0
+	return b, truncated, totalBytes
 }
 
 func init() {
@@ -31,11 +35,14 @@ func init() {
 	message.CharsetReader = charset.Reader
 }
 
-// Attachment is metadata for a non-inline message part.
+// Attachment is metadata for a message part.
 type Attachment struct {
 	Filename    string `json:"filename"`
 	ContentType string `json:"contentType"`
 	Size        int    `json:"size"`
+	Inline      bool   `json:"inline,omitempty"`
+	ContentID   string `json:"contentId,omitempty"`
+	Truncated   bool   `json:"truncated,omitempty"`
 }
 
 // AuthResults holds the outcome of SPF, DKIM, and DMARC checks as reported
@@ -48,16 +55,18 @@ type AuthResults struct {
 
 // Parsed is the normalized result of reading a raw RFC822 message.
 type Parsed struct {
-	MessageID   string
-	From        string
-	To          string
-	Subject     string
-	Text        string
-	HTML        string
-	Attachments []Attachment
-	ReceivedAt  time.Time
-	Raw         []byte
-	Auth        AuthResults
+	MessageID       string
+	From            string
+	To              string
+	Subject         string
+	Text            string
+	HTML            string
+	Attachments     []Attachment
+	ReceivedAt      time.Time
+	Raw             []byte
+	Auth            AuthResults
+	PartErrors      int
+	MaxPartsReached bool
 }
 
 // Parse reads a raw email and extracts the fields octarq stores.
@@ -92,26 +101,78 @@ func Parse(raw []byte) (*Parsed, error) {
 			break
 		}
 		if err != nil {
-			break
+			p.PartErrors++
+			slog.Warn("failed to parse mime part", "message_id", p.MessageID, "error", err)
+			continue
 		}
 		if parts++; parts > maxParts {
+			p.PartErrors++
+			p.MaxPartsReached = true
+			slog.Warn("max mime parts limit reached", "message_id", p.MessageID, "limit", maxParts)
 			break
 		}
 		switch hdr := part.Header.(type) {
 		case *mail.InlineHeader:
 			ct, _, _ := hdr.ContentType()
-			b := readLimited(part.Body)
+			b, truncated, totalBytes := readLimited(part.Body)
 			if strings.HasPrefix(ct, "text/html") {
-				p.HTML = string(b)
+				if p.HTML == "" && len(b) > 0 {
+					p.HTML = string(b)
+				} else if len(b) > 0 {
+					// According to RFC 2046 (multipart/alternative), later parts are "richer"
+					// representations, but earlier parts are more primary/authentic.
+					// We keep the first non-empty text/html part to prevent malicious or
+					// unexpected later parts from silently overwriting the primary body text,
+					// and increment PartErrors to flag the duplicate.
+					p.PartErrors++
+					slog.Warn("duplicate text/html part ignored", "message_id", p.MessageID)
+				}
 			} else if strings.HasPrefix(ct, "text/plain") {
-				p.Text = string(b)
+				if p.Text == "" && len(b) > 0 {
+					p.Text = string(b)
+				} else if len(b) > 0 {
+					p.PartErrors++
+					slog.Warn("duplicate text/plain part ignored", "message_id", p.MessageID)
+				}
+			} else {
+				filename := ""
+				if _, params, err := hdr.ContentType(); err == nil {
+					filename = params["name"]
+				}
+				if filename == "" {
+					if cd := hdr.Header.Get("Content-Disposition"); cd != "" {
+						for _, part := range strings.Split(cd, ";") {
+							part = strings.TrimSpace(part)
+							if strings.HasPrefix(strings.ToLower(part), "filename=") {
+								filename = strings.Trim(part[9:], "\"")
+								break
+							}
+						}
+					}
+				}
+				cid := strings.Trim(hdr.Header.Get("Content-ID"), "<>")
+				p.Attachments = append(p.Attachments, Attachment{
+					Filename:    filename,
+					ContentType: ct,
+					Size:        totalBytes,
+					Inline:      true,
+					ContentID:   cid,
+					Truncated:   truncated,
+				})
 			}
 		case *mail.AttachmentHeader:
 			ct, _, _ := hdr.ContentType()
 			filename, _ := hdr.Filename()
-			b := readLimited(part.Body)
+			b, truncated, totalBytes := readLimited(part.Body)
+			_ = b
+			cid := strings.Trim(hdr.Header.Get("Content-ID"), "<>")
 			p.Attachments = append(p.Attachments, Attachment{
-				Filename: filename, ContentType: ct, Size: len(b),
+				Filename:    filename,
+				ContentType: ct,
+				Size:        totalBytes,
+				Inline:      false,
+				ContentID:   cid,
+				Truncated:   truncated,
 			})
 		}
 	}

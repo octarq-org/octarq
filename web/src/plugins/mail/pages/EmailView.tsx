@@ -36,6 +36,7 @@ export function EmailViewForm({
   const { role, isInstanceAdmin } = useCurrentRole();
   const canDeleteEmail = roleSatisfies("admin", role, isInstanceAdmin);
   const attachments = parseAttachments(email.attachments);
+  const realAttachments = attachments.filter((a) => !a.inline);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [summary, setSummary] = useState("");
@@ -93,12 +94,17 @@ export function EmailViewForm({
       </div>
       
       <div className="p-5 border-t border-foreground/[0.06] shrink-0 bg-foreground/[0.01]">
-        {attachments.length > 0 && (
+        {realAttachments.length > 0 && (
           <div className="mb-4 flex flex-wrap gap-2">
-            {attachments.map((a, i) => (
+            {realAttachments.map((a, i) => (
               <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-foreground/[0.05] border border-foreground/[0.06] px-2.5 py-1 text-xs text-foreground/85" title={t("mail.attachmentTitle", { type: a.contentType, size: a.size })}>
                 <Paperclip className="h-3 w-3 text-accent-fg" />
                 {a.filename || t("mail.attachmentFallback")} ({Math.max(1, Math.round(a.size / 1024))} KB)
+                {a.truncated && (
+                  <Badge tone="amber" className="font-mono text-[9px] uppercase tracking-wider ml-1">
+                    {t("mail.truncated")}
+                  </Badge>
+                )}
               </span>
             ))}
           </div>
