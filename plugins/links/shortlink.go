@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/octarq-org/octarq/internal/safego"
 	"github.com/octarq-org/octarq/plugin"
 	"github.com/octarq-org/octarq/plugins/dns"
 	"gorm.io/gorm"
@@ -135,20 +136,34 @@ func (e *Engine) worker() {
 		batch = batch[:0]
 	}
 
-	for {
-		select {
-		case item, ok := <-e.queue:
-			if !ok {
+	// consume runs one iteration of the event loop. It returns true when the
+	// channel is closed (normal shutdown) — the caller must stop looping.
+	// A panic inside flushBatch / PublishEvent is caught by safego.Recover
+	// and consume returns false so the outer loop restarts it.
+	consume := func() (closed bool) {
+		defer safego.Recover("links.click-worker")
+		for {
+			select {
+			case item, ok := <-e.queue:
+				if !ok {
+					flush()
+					return true
+				}
+				batch = append(batch, item)
+				if len(batch) >= 100 {
+					flush()
+				}
+			case <-ticker.C:
 				flush()
-				return
 			}
-			batch = append(batch, item)
-			if len(batch) >= 100 {
-				flush()
-			}
-		case <-ticker.C:
-			flush()
 		}
+	}
+
+	for !consume() {
+		// After a panic-recovery, re-enter the loop. The channel and
+		// batch slice survive because they live in the outer scope.
+		// Reset the batch — whatever was in it may be half-processed.
+		batch = batch[:0]
 	}
 }
 

@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"syscall"
@@ -72,6 +73,35 @@ func (a *App) pluginGate(apiHandler interface{ PluginEnabled(uint, string) bool 
 	}
 }
 
+// recoverWriter wraps http.ResponseWriter to track whether response headers
+// have already been written. This lets the panic-recovery path avoid a
+// superfluous WriteHeader call (and the warning log it would produce) when a
+// handler panics after partially writing the response.
+type recoverWriter struct {
+	http.ResponseWriter
+	wroteHeader bool
+}
+
+func (rw *recoverWriter) WriteHeader(code int) {
+	rw.wroteHeader = true
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (rw *recoverWriter) Write(b []byte) (int, error) {
+	if !rw.wroteHeader {
+		rw.wroteHeader = true
+	}
+	return rw.ResponseWriter.Write(b)
+}
+
+// Flush forwards to the underlying ResponseWriter if it implements
+// http.Flusher, keeping SSE / streaming responses working.
+func (rw *recoverWriter) Flush() {
+	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
 // gatedMux wraps the shared API mux so every route a plugin registers is guarded
 // by a per-workspace "plugin enabled" check. It satisfies plugin.Mux; when the
 // caller's workspace has the plugin disabled, the wrapped handler answers 404
@@ -100,7 +130,26 @@ func (g *gatedMux) wrap(h http.Handler) http.Handler {
 			_, _ = w.Write([]byte(`{"error":"plugin not enabled for this workspace"}`))
 			return
 		}
-		h.ServeHTTP(w, r)
+		rw := &recoverWriter{ResponseWriter: w}
+		defer func() {
+			if rec := recover(); rec != nil {
+				if rec == http.ErrAbortHandler {
+					panic(rec)
+				}
+				slog.Error("plugin handler panic",
+					"plugin", g.plugin,
+					"path", r.URL.Path,
+					"panic", rec,
+					"stack", string(debug.Stack()),
+				)
+				if !rw.wroteHeader {
+					rw.ResponseWriter.Header().Set("Content-Type", "application/json")
+					rw.ResponseWriter.WriteHeader(http.StatusInternalServerError)
+					_, _ = rw.ResponseWriter.Write([]byte(`{"error":"internal server error"}`))
+				}
+			}
+		}()
+		h.ServeHTTP(rw, r)
 	})
 }
 
@@ -128,6 +177,26 @@ func (g *gatedAdapter) Handle(op *huma.Operation, handler func(ctx huma.Context)
 			_, _ = w.Write([]byte(`{"error":"plugin not enabled for this workspace"}`))
 			return
 		}
+		defer func() {
+			if rec := recover(); rec != nil {
+				if rec == http.ErrAbortHandler {
+					panic(rec)
+				}
+				slog.Error("plugin huma handler panic",
+					"plugin", g.plugin,
+					"path", r.URL.Path,
+					"panic", rec,
+					"stack", string(debug.Stack()),
+				)
+				// Best-effort 500 response. If the handler already wrote
+				// headers through the huma context, WriteHeader is a no-op
+				// with a harmless "superfluous" log — acceptable on a panic
+				// path that is already exceptional.
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(`{"error":"internal server error"}`))
+			}
+		}()
 		handler(ctx)
 	})
 }
