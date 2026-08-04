@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -288,12 +287,6 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/plugins/{name}", Summary: "Toggle Plugin", Tags: []string{"UI Settings"}}, h.updatePlugin)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/user/settings", Summary: "Get User Settings", Tags: []string{"UI Settings"}}, h.getUserSettings)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/user/settings", Summary: "Update User Settings", Tags: []string{"UI Settings"}}, h.updateUserSettings)
-
-	// URL rewriting for API versioning (/api/v1/xxx -> /api/xxx)
-	mux.HandleFunc("/api/v1/", func(w http.ResponseWriter, r *http.Request) {
-		r.URL.Path = "/api/" + strings.TrimPrefix(r.URL.Path, "/api/v1/")
-		mux.ServeHTTP(w, r)
-	})
 
 	return mux
 }
