@@ -37,6 +37,16 @@ export interface Email {
   receivedAt: string;
 }
 
+export interface MailSuppression {
+  id: number;
+  address: string;
+  reason: string;
+  source: string;
+  count: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const mailApi = {
   mailboxes: () => req<Mailbox[]>("GET", "/api/mailboxes"),
   createMailbox: (m: Partial<Mailbox>) => req<Mailbox>("POST", "/api/mailboxes", m),
@@ -63,4 +73,8 @@ export const mailApi = {
   rawEmailUrl: (id: number) => `/api/emails/${id}/raw`,
   sendEmail: (m: { from?: string; to: string[]; subject: string; text?: string; html?: string; smtpSenderId?: number; trackLinks?: boolean }) =>
     req("POST", "/api/emails/send", m),
+  suppressions: () => req<MailSuppression[]>("GET", "/api/mail/suppressions"),
+  createSuppression: (address: string) => req<MailSuppression>("POST", "/api/mail/suppressions", { address }),
+  deleteSuppression: (id: number) => req("DELETE", `/api/mail/suppressions/${id}`),
 };
+

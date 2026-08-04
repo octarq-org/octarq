@@ -79,13 +79,13 @@ func startDummySMTPServer(t *testing.T) (string, int, func()) {
 		wg.Wait()
 	}
 }
-
 func TestMailRecordUsageSuccessAndFailure(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(append(models.AllModels(), &Mailbox{}, &Email{}, &SMTPSender{})...); err != nil {
+	p := New()
+	if err := db.AutoMigrate(append(models.AllModels(), p.Models()...)...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	db.Where("1 = 1").Delete(&SMTPSender{})
@@ -100,7 +100,6 @@ func TestMailRecordUsageSuccessAndFailure(t *testing.T) {
 		n      int64
 	}
 
-	p := New()
 	p.Mount(nil, &plugin.Context{
 		DB:      db,
 		OrgID:   func(r *http.Request) uint { return 100 },

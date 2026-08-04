@@ -53,3 +53,15 @@ type SMTPSender struct {
 	// rather than an empty field that looks like nothing was ever entered.
 	PassSet bool `gorm:"-" json:"passSet"`
 }
+
+// MailSuppression is an email address blocked from outbound delivery.
+type MailSuppression struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	OrgID     uint      `gorm:"column:owner_id;index:idx_mail_suppression_owner_address,unique;default:1" json:"-"`
+	Address   string    `gorm:"size:320;index:idx_mail_suppression_owner_address,unique" json:"address"`
+	Reason    string    `gorm:"size:32" json:"reason"` // hard_bounce, complaint, manual
+	Source    string    `gorm:"type:text" json:"source"`
+	Count     int       `gorm:"default:1" json:"count"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
