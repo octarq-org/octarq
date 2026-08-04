@@ -1,0 +1,74 @@
+name: Deploy website
+
+# The Astro site in website/ (landing page + docs). It is a standalone pnpm
+# project — its own lockfile, deliberately outside the root pnpm-workspace.yaml
+# and outside web/'s workspace — so this job installs from website/ alone and
+# never sees the dashboard's dependency tree.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - ".github/workflows/deploy-website.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "website/**"
+      - ".github/workflows/deploy-website.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Deploys are not interchangeable: never cancel an in-flight main deploy, or the
+# live site can be left mid-upload. PR builds are only a check, so they cancel.
+concurrency:
+  group: deploy-website-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  build:
+    name: Build & deploy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4 # same pin as ci.yml; pnpm 10+ breaks on esbuild's build script
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: website/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Type-check
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      # After the build, not before: `nimbus/internal-link` reads its route
+      # truth from `.nimbus/routes.json`, which the build materializes at
+      # `astro:build:done`. Run it first and a stale or missing routes.json
+      # makes the rule skip itself — a gate that passes without checking.
+      - name: Lint docs
+        run: pnpm lint:docs
+
+      # Only main publishes. A PR run stops after the build above, which is the
+      # part that can actually be wrong.
+      - name: Deploy to Cloudflare
+        if: github.event_name != 'pull_request'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: website
+          # wrangler.jsonc points `assets` at ./dist — the build above.
+          command: deploy
