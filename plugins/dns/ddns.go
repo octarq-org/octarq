@@ -114,6 +114,12 @@ func (p *Plugin) createDDNSToken(ctx context.Context, input *createDDNSTokenInpu
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	orgID := p.orgID(r)
+	if orgID == 0 {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to create DDNS token")
+	}
 
 	if input.Body.DomainID == 0 {
 		return nil, huma.Error400BadRequest("domainId is required")

@@ -95,6 +95,9 @@ func (p *Plugin) createRecord(ctx context.Context, input *CreateRecordInput) (*C
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to create DNS record")
+	}
 	prov, dom, err := p.recordsProvider(r, input.ID)
 	if err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
@@ -135,6 +138,9 @@ func (p *Plugin) updateRecord(ctx context.Context, input *UpdateRecordInput) (*U
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to update DNS record")
 	}
 	prov, dom, err := p.recordsProvider(r, input.ID)
 	if err != nil {
