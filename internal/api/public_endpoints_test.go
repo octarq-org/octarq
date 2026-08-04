@@ -48,13 +48,15 @@ var registeredPublicEndpoints = map[string]string{
 	"POST /api/dns/ddns/update": "hashed per-record DDNS token",
 
 	// Inbound mail and bounce notifications. These arrive from Cloudflare Email
-	// Routing and SES/SNS with no session. Each carries a per-mailbox token in
-	// the path, matched against a stored hash; the SNS path additionally
-	// validates the SubscribeURL host so a confirmation cannot point the server
-	// at an internal address (isAWSSNSURL in plugins/mail/mail.go).
-	"POST /api/webhook/{orgSlug}/email/inbound/{token}": "per-mailbox token in path, compared against stored hash",
-	"POST /api/webhook/{orgSlug}/email/inbound/raw":     "per-mailbox token in path, compared against stored hash",
-	"POST /api/webhook/{orgSlug}/email/bounce/{token}":  "per-mailbox token in path; SNS SubscribeURL host validated",
+	// Routing, SendGrid/Mailgun and SES/SNS with no session, and often from a
+	// provider whose only configurable field is a URL. Each carries the org's
+	// inbound token as a path segment, constant-time compared; it rotates from
+	// Mail settings. The SNS path additionally validates the SubscribeURL host
+	// so a confirmation cannot point the server at an internal address
+	// (isAWSSNSURL in plugins/mail/mail.go).
+	"POST /api/webhook/{orgSlug}/email/inbound/{token}":     "org inbound token in path, constant-time compared",
+	"POST /api/webhook/{orgSlug}/email/inbound/raw/{token}": "org inbound token in path, constant-time compared",
+	"POST /api/webhook/{orgSlug}/email/bounce/{token}":      "org inbound token in path; SNS SubscribeURL host validated",
 }
 
 // TestPublicEndpointRegistry fails when the set of routes reachable without a

@@ -166,7 +166,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 			Metadata: map[string]any{"public": true},
 		}, p.inbound)
 		huma.Register(api, huma.Operation{
-			Method: "POST", Path: "/api/webhook/{orgSlug}/email/inbound/raw",
+			Method: "POST", Path: "/api/webhook/{orgSlug}/email/inbound/raw/{token}",
 			Summary: "Generic Inbound Email Webhook (Raw EML)", Tags: []string{"Mailboxes"},
 			Metadata: map[string]any{"public": true},
 		}, p.inboundGeneric)
