@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/glebarez/sqlite"
@@ -22,7 +23,17 @@ import (
 // about this test's writes.
 func identityDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	dsn := fmt.Sprintf("file:identity-%s?mode=memory&cache=shared", t.Name())
+	// The name goes into a URI, so anything with meaning there has to go. A
+	// subtest named "" becomes "#00", and the '#' truncated the DSN at the
+	// fragment — dropping mode=memory, writing an actual file into the package
+	// directory, and sharing it with the next case.
+	safe := strings.Map(func(r rune) rune {
+		if r == '#' || r == '?' || r == '/' || r == '&' || r == '=' || r == ' ' {
+			return '-'
+		}
+		return r
+	}, t.Name())
+	dsn := fmt.Sprintf("file:identity-%s?mode=memory&cache=shared", safe)
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Discard})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
@@ -307,5 +318,60 @@ func TestLoginByIdentityIssuesSession(t *testing.T) {
 	}
 	if len(rec.Result().Cookies()) == 0 {
 		t.Fatal("LoginByIdentity issued no session cookie")
+	}
+}
+
+// An identity provider does not get to hand out the owner role. The org admin
+// who configures that provider is refused the owner role through the members
+// API — "self-promotion by proxy" — and asserting it in an ID token would be
+// the same promotion by a longer road.
+func TestJITRoleCannotReachOwner(t *testing.T) {
+	for _, asserted := range []string{"owner", "OWNER", " owner ", "instance_admin", "superuser", ""} {
+		// Subtests, so identityDB's per-test database is actually per case.
+		t.Run(asserted, func(t *testing.T) {
+			db := identityDB(t)
+			org := mustOrg(t, db, "Acme")
+			user := mustUser(t, db, "bob@acme.com")
+			id := oidcID("https://idp.acme.com", "sub-bob", "bob@acme.com")
+			if err := bindIdentity(db, user.ID, id); err != nil {
+				t.Fatalf("bind: %v", err)
+			}
+			id.OrgID, id.AllowJIT, id.JITRole = org.ID, true, asserted
+
+			if _, _, err := resolveIdentity(db, id); err != nil {
+				t.Fatalf("resolveIdentity(%q): %v", asserted, err)
+			}
+			var member models.OrgMember
+			if err := db.Where("org_id = ? AND user_id = ?", org.ID, user.ID).First(&member).Error; err != nil {
+				t.Fatalf("membership missing: %v", err)
+			}
+			if member.Role != "member" {
+				t.Errorf("JITRole %q produced role %q, want member", asserted, member.Role)
+			}
+		})
+	}
+}
+
+// "admin" is the one elevated role a provider may hand out — an org admin can
+// already appoint admins directly, so nothing is escalated by the shortcut.
+func TestJITRoleAllowsAdmin(t *testing.T) {
+	db := identityDB(t)
+	org := mustOrg(t, db, "Acme")
+	user := mustUser(t, db, "bob@acme.com")
+	id := oidcID("https://idp.acme.com", "sub-bob", "bob@acme.com")
+	if err := bindIdentity(db, user.ID, id); err != nil {
+		t.Fatalf("bind: %v", err)
+	}
+	id.OrgID, id.AllowJIT, id.JITRole = org.ID, true, "Admin"
+
+	if _, _, err := resolveIdentity(db, id); err != nil {
+		t.Fatalf("resolveIdentity: %v", err)
+	}
+	var member models.OrgMember
+	if err := db.Where("org_id = ? AND user_id = ?", org.ID, user.ID).First(&member).Error; err != nil {
+		t.Fatalf("membership missing: %v", err)
+	}
+	if member.Role != "admin" {
+		t.Errorf("role = %q, want admin", member.Role)
 	}
 }

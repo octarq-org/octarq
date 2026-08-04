@@ -44,9 +44,15 @@ type ExternalIdentity struct {
 	// OrgID automatically. Owned by that org's admins: it decides who gets into
 	// their workspace, which is theirs to decide.
 	AllowJIT bool
-	// JITRole is the role such a member joins with. Empty means "member".
-	// Never grants instance admin — that privilege is bound to the configured
-	// admin credential and no external assertion can reach it.
+	// JITRole is the role such a member joins with: "member" or "admin", with
+	// anything else — including "owner" — clamped to "member".
+	//
+	// Owner is out of reach on purpose. The org admin who configures the issuer
+	// is refused the owner role through the members API ("self-promotion by
+	// proxy"), and routing it through an ID token instead would be the same
+	// promotion by a longer road. Instance admin is likewise unreachable: that
+	// privilege is bound to the configured admin credential, not to any
+	// assertion.
 	JITRole string
 	// MayCreateUser allows this IdP to mint a global account for an email that
 	// does not exist on the instance yet. It is emphatically NOT the org's
