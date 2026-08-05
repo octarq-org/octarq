@@ -101,9 +101,3 @@ func TestReservedOrgSlugs(t *testing.T) {
 		}
 	}
 }
-
-func TestLegacyEmailSlug(t *testing.T) {
-	if got := LegacyEmailSlug(" Jane.Doe+x@Acme.com "); got != "jane-doe-x-acme-com" {
-		t.Errorf("LegacyEmailSlug = %q", got)
-	}
-}

@@ -69,10 +69,9 @@ export interface SessionRecord {
   isCurrent?: boolean;
 }
 
-/** A workspace's URL address, and whether it is a pre-randomization leftover. */
+/** A workspace's URL address. */
 export interface OrgSlug {
   slug: string;
-  derivedFromEmail: boolean;
 }
 
 /** One external identity that can sign in as this account. */
