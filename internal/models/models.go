@@ -34,6 +34,13 @@ type Org struct {
 	UpdatedAt    time.Time `json:"updatedAt"`
 }
 
+// OrgSlugHistory holds retired workspace addresses (slugs) to prevent squatting/takeover.
+type OrgSlugHistory struct {
+	Slug      string `gorm:"primaryKey;size:64"`
+	OrgID     uint   `gorm:"index;not null"`
+	RetiredAt time.Time
+}
+
 // User is an authenticated human. A user can belong to multiple orgs.
 type User struct {
 	ID              uint       `gorm:"primaryKey" json:"id"`
@@ -369,6 +376,6 @@ func AllModels() []any {
 	return []any{
 		&Org{}, &User{}, &OrgMember{}, &UserIdentity{}, &UserSetting{}, &PluginSetting{},
 		&Token{}, &Setting{}, &WorkspaceSetting{}, &NotificationChannel{},
-		&AbuseReport{}, &AuditLog{}, &Webhook{}, &Session{},
+		&AbuseReport{}, &AuditLog{}, &Webhook{}, &Session{}, &OrgSlugHistory{},
 	}
 }

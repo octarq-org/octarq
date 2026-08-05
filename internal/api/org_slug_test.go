@@ -128,3 +128,51 @@ func TestOrgSlugRead(t *testing.T) {
 		t.Errorf("member GET /api/org/slug = %d, want 403", code)
 	}
 }
+
+func TestUpdateOrgSlugRetiredHistory(t *testing.T) {
+	db, do, owner1, _, _ := orgSlugFixture(t)
+
+	db.Create(&models.User{ID: 4, Email: "owner2@example.com"})
+	db.Create(&models.OrgMember{OrgID: 2, UserID: 4, Role: "owner"})
+	owner2 := sessionCookies(t, 4, 2)
+
+	// 1. Org 1 renames "owner-example-com" to "acme-inc" -> 200
+	if code := do("PUT", "/api/org/slug", owner1, `{"slug":"acme-inc"}`).Code; code != 200 {
+		t.Fatalf("owner1 PUT /api/org/slug acme-inc = %d, want 200", code)
+	}
+
+	// Direct DB query: verify org_slug_histories has "owner-example-com" for Org 1
+	var history models.OrgSlugHistory
+	if err := db.Where("slug = ?", "owner-example-com").First(&history).Error; err != nil {
+		t.Fatalf("expected history record for owner-example-com, got err: %v", err)
+	}
+	if history.OrgID != 1 {
+		t.Fatalf("history.OrgID = %d, want 1", history.OrgID)
+	}
+
+	// 2. Org 2 tries to rename to "owner-example-com" -> 409
+	if code := do("PUT", "/api/org/slug", owner2, `{"slug":"owner-example-com"}`).Code; code != 409 {
+		t.Fatalf("owner2 PUT /api/org/slug owner-example-com = %d, want 409", code)
+	}
+
+	// 3. Org 1 renames back to "owner-example-com" -> 200
+	if code := do("PUT", "/api/org/slug", owner1, `{"slug":"owner-example-com"}`).Code; code != 200 {
+		t.Fatalf("owner1 PUT /api/org/slug back to owner-example-com = %d, want 200", code)
+	}
+
+	// Direct DB query: verify history for "owner-example-com" was deleted
+	var count int64
+	db.Model(&models.OrgSlugHistory{}).Where("slug = ?", "owner-example-com").Count(&count)
+	if count != 0 {
+		t.Fatalf("history record for owner-example-com should be deleted, got count = %d", count)
+	}
+
+	// Direct DB query: verify history now contains "acme-inc" for Org 1
+	var history2 models.OrgSlugHistory
+	if err := db.Where("slug = ?", "acme-inc").First(&history2).Error; err != nil {
+		t.Fatalf("expected history record for acme-inc, got err: %v", err)
+	}
+	if history2.OrgID != 1 {
+		t.Fatalf("history.OrgID = %d for acme-inc, want 1", history2.OrgID)
+	}
+}

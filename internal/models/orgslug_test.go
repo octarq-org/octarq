@@ -15,7 +15,7 @@ func slugTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	if err := db.AutoMigrate(&Org{}); err != nil {
+	if err := db.AutoMigrate(&Org{}, &OrgSlugHistory{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	return db
@@ -99,5 +99,30 @@ func TestReservedOrgSlugs(t *testing.T) {
 		if IsReservedOrgSlug(s) {
 			t.Errorf("IsReservedOrgSlug(%q) = true, want false", s)
 		}
+	}
+}
+
+func TestAllocateOrgSlugSkipsHistory(t *testing.T) {
+	db := slugTestDB(t)
+	defer func(n, a int) { orgSlugLen, orgSlugAttempts = n, a }(orgSlugLen, orgSlugAttempts)
+	orgSlugLen = 1
+	orgSlugAttempts = 500
+
+	// Occupy every single-character slug except one in active Orgs, and put that last one into OrgSlugHistory.
+	freeInOrg := string(slugAlphabet[7])
+	for _, c := range slugAlphabet {
+		if string(c) == freeInOrg {
+			continue
+		}
+		if err := db.Create(&Org{Name: "active", Slug: string(c)}).Error; err != nil {
+			t.Fatalf("create org: %v", err)
+		}
+	}
+	if err := db.Create(&OrgSlugHistory{Slug: freeInOrg, OrgID: 99}).Error; err != nil {
+		t.Fatalf("create history: %v", err)
+	}
+
+	if got, err := AllocateOrgSlug(db); err == nil {
+		t.Fatalf("allocated %q from a space occupied by active orgs and retired history, want an error", got)
 	}
 }

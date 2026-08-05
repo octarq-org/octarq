@@ -4,11 +4,13 @@ import (
 	"context"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
+	"gorm.io/gorm"
 )
 
 // Renaming a workspace's slug.
@@ -102,9 +104,6 @@ func (h *Handler) updateOrgSlug(ctx context.Context, input *UpdateOrgSlugInput) 
 	if !orgSlugPattern.MatchString(slug) {
 		return nil, huma.Error400BadRequest("address must be 3-64 characters of lowercase letters, digits and inner hyphens")
 	}
-	if models.IsReservedOrgSlug(slug) {
-		return nil, huma.Error409Conflict("that address is reserved")
-	}
 
 	oid := h.auth.OrgID(r)
 	var org models.Org
@@ -115,16 +114,38 @@ func (h *Handler) updateOrgSlug(ctx context.Context, input *UpdateOrgSlugInput) 
 		return &UpdateOrgSlugOutput{Body: OrgSlugView{Slug: org.Slug}}, nil
 	}
 
-	var n int64
-	h.db.Model(&models.Org{}).Where("slug = ? AND id <> ?", slug, oid).Count(&n)
-	if n > 0 {
+	status, err := models.CheckOrgSlugAvailable(h.db, slug, oid)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to check address availability")
+	}
+	if status == models.SlugReserved {
+		return nil, huma.Error409Conflict("that address is reserved")
+	}
+	if status == models.SlugTaken {
 		// Same answer as "reserved": whether some other workspace holds this
 		// address is not something an outsider gets to probe.
 		return nil, huma.Error409Conflict("that address is taken")
 	}
 
 	old := org.Slug
-	if err := h.db.Model(&org).Update("slug", slug).Error; err != nil {
+	err = h.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&org).Update("slug", slug).Error; err != nil {
+			return err
+		}
+		history := models.OrgSlugHistory{
+			Slug:      old,
+			OrgID:     oid,
+			RetiredAt: time.Now(),
+		}
+		if err := tx.Save(&history).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("slug = ?", slug).Delete(&models.OrgSlugHistory{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
 		// The unique index is the real arbiter; a racing writer lands here.
 		return nil, huma.Error409Conflict("that address is taken")
 	}
