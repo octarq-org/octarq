@@ -59,6 +59,52 @@ func IsReservedOrgSlug(slug string) bool {
 	return reservedOrgSlugs[strings.ToLower(strings.TrimSpace(slug))]
 }
 
+// SlugStatus represents the availability status of an org address.
+type SlugStatus int
+
+const (
+	SlugAvailable SlugStatus = iota
+	SlugReserved
+	SlugTaken
+)
+
+// CheckOrgSlugAvailable unifies org address availability checking across 3 sources:
+// 1. Static reserved words list (reservedOrgSlugs)
+// 2. Active workspaces (orgs table)
+// 3. Retired workspace history (org_slug_histories table)
+//
+// targetOrgID is the ID of the org requesting the slug (0 for new workspace allocation).
+func CheckOrgSlugAvailable(db *gorm.DB, slug string, targetOrgID uint) (SlugStatus, error) {
+	if IsReservedOrgSlug(slug) {
+		return SlugReserved, nil
+	}
+
+	var n int64
+	query := db.Model(&Org{}).Where("slug = ?", slug)
+	if targetOrgID > 0 {
+		query = query.Where("id <> ?", targetOrgID)
+	}
+	if err := query.Count(&n).Error; err != nil {
+		return SlugTaken, err
+	}
+	if n > 0 {
+		return SlugTaken, nil
+	}
+
+	var history OrgSlugHistory
+	err := db.Where("slug = ?", slug).First(&history).Error
+	if err == nil {
+		if targetOrgID > 0 && history.OrgID == targetOrgID {
+			return SlugAvailable, nil
+		}
+		return SlugTaken, nil
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return SlugTaken, err
+	}
+
+	return SlugAvailable, nil
+}
+
 // AllocateOrgSlug returns a fresh, unused org slug. It is the single entry
 // point every org-creation path uses, so "how is a slug chosen" has one answer.
 //
@@ -77,14 +123,11 @@ func AllocateOrgSlug(db *gorm.DB) (string, error) {
 	}
 	for range orgSlugAttempts {
 		slug := RandomSlug(orgSlugLen)
-		if reservedOrgSlugs[slug] {
-			continue
-		}
-		var n int64
-		if err := db.Model(&Org{}).Where("slug = ?", slug).Count(&n).Error; err != nil {
+		status, err := CheckOrgSlugAvailable(db, slug, 0)
+		if err != nil {
 			return "", err
 		}
-		if n == 0 {
+		if status == SlugAvailable {
 			return slug, nil
 		}
 	}
