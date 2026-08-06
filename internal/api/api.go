@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -291,6 +292,20 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/plugins/{name}", Summary: "Toggle Plugin", Tags: []string{"UI Settings"}}, h.updatePlugin)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/user/settings", Summary: "Get User Settings", Tags: []string{"UI Settings"}}, h.getUserSettings)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/user/settings", Summary: "Update User Settings", Tags: []string{"UI Settings"}}, h.updateUserSettings)
+
+	// /api/v1/x is a published alias for /api/x: the docs, the billing webhook
+	// URLs and the inbound-mail webhook URLs all hand out the v1 form. Dispatch
+	// happens through the same mux at request time, so routes plugins mount
+	// after Routes() returns are reachable under the alias too.
+	//
+	// Anything classifying by path *before* the mux (the rate limiter's tierFor,
+	// see internal/server/middleware.go) still sees the raw /api/v1/ path and
+	// must normalize it itself — otherwise /api/v1/auth/login escapes the strict
+	// auth tier.
+	mux.HandleFunc("/api/v1/", func(w http.ResponseWriter, r *http.Request) {
+		r.URL.Path = "/api/" + strings.TrimPrefix(r.URL.Path, "/api/v1/")
+		mux.ServeHTTP(w, r)
+	})
 
 	return mux
 }

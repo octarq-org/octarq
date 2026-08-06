@@ -231,3 +231,30 @@ func TestTierFor(t *testing.T) {
 		}
 	}
 }
+
+// TestTierForV1AliasKeepsStrictTier is the security half of the /api/v1/ alias.
+// The mux rewrites /api/v1/x to /api/x, but this middleware runs before the mux
+// and sees the raw path, so tierFor has to normalize it itself. Without that,
+// POST /api/v1/auth/login drops out of the strict auth tier into the generous
+// API one — a rate-limit bypass for password brute force.
+func TestTierForV1AliasKeepsStrictTier(t *testing.T) {
+	cases := []struct{ method, v1Path, plainPath string }{
+		{"POST", "/api/v1/auth/login", "/api/auth/login"},
+		{"POST", "/api/v1/webhook/x", "/api/webhook/x"},
+		{"GET", "/api/v1/links", "/api/links"},
+	}
+	for _, c := range cases {
+		v1 := tierFor(httptest.NewRequest(c.method, c.v1Path, nil))
+		plain := tierFor(httptest.NewRequest(c.method, c.plainPath, nil))
+		if v1 != plain {
+			t.Errorf("tierFor(%s %s) = %d, want %d (same tier as %s)",
+				c.method, c.v1Path, v1, plain, c.plainPath)
+		}
+	}
+
+	// Spelled out separately so the intent survives even if the tier constants
+	// are renumbered: the login alias must not be classified as plain API.
+	if got := tierFor(httptest.NewRequest("POST", "/api/v1/auth/login", nil)); got != tierAuth {
+		t.Errorf("tierFor(POST /api/v1/auth/login) = %d, want tierAuth (%d)", got, tierAuth)
+	}
+}
