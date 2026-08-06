@@ -306,6 +306,44 @@ func TestSecure(t *testing.T) {
 // ones, and that a repeated question does not re-read the table — the endpoints
 // behind these are unauthenticated, so an attacker spraying Host headers would
 // otherwise be a free DB-query amplifier.
+// TestResolverOwnerOfCaches pins that the storefront/portal question — the one
+// asked on every unauthenticated request — is answered from the cache, both when
+// the host is owned and when it is not. An uncached negative answer is a free
+// full-table scan for anyone spraying hostnames.
+func TestResolverOwnerOfCaches(t *testing.T) {
+	db := testDB(t, acme())
+	var queries int
+	if err := db.Callback().Query().After("gorm:query").Register("test:count", func(tx *gorm.DB) {
+		queries++
+	}); err != nil {
+		t.Fatalf("register callback: %v", err)
+	}
+
+	rv := NewResolver(db)
+	if org, ok := rv.OwnerOf("go.partner.example"); !ok || org != 1 {
+		t.Errorf("Resolver.OwnerOf(go.partner.example) = (%d, %v), want (1, true)", org, ok)
+	}
+	if org, ok := rv.OwnerOf("stranger.example"); ok || org != 0 {
+		t.Errorf("Resolver.OwnerOf(stranger.example) = (%d, %v), want (0, false)", org, ok)
+	}
+
+	afterFirstPass := queries
+	if afterFirstPass == 0 {
+		t.Fatal("no queries were counted; the assertion below would be vacuous")
+	}
+	for i := 0; i < 5; i++ {
+		if org, ok := rv.OwnerOf("go.partner.example"); !ok || org != 1 {
+			t.Fatalf("cached OwnerOf returned (%d, %v); the cache must preserve the org", org, ok)
+		}
+		rv.OwnerOf("stranger.example")
+		// Port and case must land on the same cache key, not a fresh miss.
+		rv.OwnerOf("GO.Partner.Example:8443")
+	}
+	if queries != afterFirstPass {
+		t.Errorf("repeated lookups issued %d further queries; answers must come from the cache", queries-afterFirstPass)
+	}
+}
+
 func TestResolverCaches(t *testing.T) {
 	db := testDB(t, acme())
 	var queries int
