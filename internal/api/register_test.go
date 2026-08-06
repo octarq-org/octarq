@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -92,5 +93,86 @@ func TestDBUserPasswordLogin(t *testing.T) {
 	// Wrong password is rejected.
 	if rec := do(srv, "POST", "/api/auth/login", nil, `{"username":"member@corp.com","password":"wrongpass"}`); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("bad password: got %d, want 401", rec.Code)
+	}
+}
+
+// registerBody is the decoded shape of a POST /api/auth/register response.
+// Decoded from the wire, never reconstructed from the handler's own logic.
+type registerBody struct {
+	OK                   bool   `json:"ok"`
+	Email                string `json:"email"`
+	VerificationRequired bool   `json:"verificationRequired"`
+}
+
+// TestRegisterWithVerificationGateGivesNoSession pins the fix: when the
+// instance requires a verified email, sign-up must NOT hand out a session —
+// otherwise the new user gets in once and is locked out the moment they log
+// out (login rejects the same unverified user, auth.go:72).
+func TestRegisterWithVerificationGateGivesNoSession(t *testing.T) {
+	srv, db := newTestHandler(t)
+	if err := db.Save(&models.Setting{Key: keyRequireEmailVerification, Value: "true"}).Error; err != nil {
+		t.Fatalf("set setting: %v", err)
+	}
+
+	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"gated@user.com","password":"hunter2pw"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("register: got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	var body registerBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode register response: %v (%s)", err, rec.Body.String())
+	}
+	if !body.VerificationRequired {
+		t.Fatalf("register with gate on: verificationRequired = false, want true (%s)", rec.Body.String())
+	}
+
+	cookies := rec.Result().Cookies()
+	if len(cookies) != 0 {
+		t.Fatalf("register with gate on: got %d cookie(s), want none", len(cookies))
+	}
+	// Whatever came back (nothing) must not authenticate a protected endpoint.
+	if rec := do(srv, "GET", "/api/auth/me", cookies, ""); rec.Code == http.StatusOK {
+		t.Fatal("register with gate on: response authenticates /api/auth/me, want rejected")
+	}
+
+	// The account itself was still created — the user just has to verify.
+	var user models.User
+	if err := db.Where("email = ?", "gated@user.com").First(&user).Error; err != nil {
+		t.Fatalf("user not created: %v", err)
+	}
+	if user.EmailVerified {
+		t.Fatal("fresh account should start unverified")
+	}
+}
+
+// TestRegisterWithoutVerificationGateKeepsSession is the other direction: with
+// the (default-off) setting explicitly off, sign-up still logs the user in.
+// This is the guard against over-tightening the fix above.
+func TestRegisterWithoutVerificationGateKeepsSession(t *testing.T) {
+	srv, db := newTestHandler(t)
+	if err := db.Save(&models.Setting{Key: keyRequireEmailVerification, Value: "false"}).Error; err != nil {
+		t.Fatalf("set setting: %v", err)
+	}
+
+	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"open@user.com","password":"hunter2pw"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("register: got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	var body registerBody
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode register response: %v (%s)", err, rec.Body.String())
+	}
+	if body.VerificationRequired {
+		t.Fatalf("register with gate off: verificationRequired = true, want false (%s)", rec.Body.String())
+	}
+
+	cookies := rec.Result().Cookies()
+	if len(cookies) == 0 {
+		t.Fatal("register with gate off: expected a session cookie")
+	}
+	if rec := do(srv, "GET", "/api/auth/me", cookies, ""); rec.Code != http.StatusOK {
+		t.Fatalf("me with fresh session: got %d, want 200", rec.Code)
 	}
 }

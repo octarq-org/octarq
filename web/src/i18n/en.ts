@@ -44,6 +44,8 @@ export const en = {
     resendVerificationBtn: "Resend Verification Email",
     sending: "Sending...",
     verificationSent: "Verification email sent.",
+    registerVerifyTitle: "Verify your email to continue",
+    registerVerifyNotice: "Your account is ready, but this instance requires a verified email. We sent a verification link to {{email}} — open it, then sign in.",
     workspaceCreated: "Workspace created",
     skipToContent: "Skip to content",
     switchWorkspaceFailed: "Couldn't switch workspace",

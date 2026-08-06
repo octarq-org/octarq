@@ -44,6 +44,8 @@ export const es = {
     resendVerificationBtn: "Reenviar correo de verificación",
     sending: "Enviando…",
     verificationSent: "Correo de verificación enviado.",
+    registerVerifyTitle: "Verifique su correo para continuar",
+    registerVerifyNotice: "Su cuenta está lista, pero esta instancia exige un correo verificado. Enviamos un enlace de verificación a {{email}}: ábralo y luego inicie sesión.",
     workspaceCreated: "Espacio de trabajo creado",
     skipToContent: "Saltar al contenido",
     switchWorkspaceFailed: "No se pudo cambiar el espacio de trabajo",

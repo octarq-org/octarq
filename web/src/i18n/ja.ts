@@ -44,6 +44,8 @@ export const ja = {
     resendVerificationBtn: "検証メールを再送",
     sending: "送信中…",
     verificationSent: "検証メールを送信しました。",
+    registerVerifyTitle: "メールアドレスを検証してください",
+    registerVerifyNotice: "アカウントは作成されましたが、このインスタンスでは検証済みメールが必要です。{{email}} に検証リンクを送信しました。リンクを開いてからサインインしてください。",
     workspaceCreated: "Workspace を作成しました",
     skipToContent: "コンテンツへスキップ",
     switchWorkspaceFailed: "Workspace を切り替えられませんでした",
