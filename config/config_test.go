@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -20,7 +22,7 @@ func TestLoadAutoGeneratesSecrets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load with no secrets: %v", err)
 	}
-	if len(cfg.SecretKey) < minSecretKeyLen {
+	if len(cfg.SecretKey) < MinSecretKeyLen {
 		t.Errorf("auto SecretKey too short: %d bytes", len(cfg.SecretKey))
 	}
 	if cfg.AdminPassword == "" {
@@ -104,6 +106,63 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.DBDSN != "octarq.db" {
 		t.Errorf("DBDSN default = %q want octarq.db", cfg.DBDSN)
+	}
+}
+
+// TestLoadBaseURLValidation covers every combination of the three interesting
+// OCTARQ_BASE_URL inputs (absent / malformed / absolute) against the two
+// severity modes Load distinguishes.
+//
+// The mode is pinned with OCTARQ_SECURE_COOKIES because that is the real
+// production signal (Config.IsProduction) — the same one that decides the
+// secret-key floor. Setting it explicitly also keeps the cases independent: an
+// https:// base URL would otherwise flip the mode to production by itself.
+//
+// The empty-in-production case is the one that matters: a self-hosted instance
+// with no base URL boots fine and mails out unopenable relative links.
+func TestLoadBaseURLValidation(t *testing.T) {
+	cases := []struct {
+		name    string
+		baseURL string
+		prod    bool
+		wantErr bool
+	}{
+		{name: "absent in production is fatal", baseURL: "", prod: true, wantErr: true},
+		{name: "absent in development is tolerated", baseURL: "", prod: false, wantErr: false},
+		{name: "malformed in production is fatal", baseURL: "app.example.com", prod: true, wantErr: true},
+		{name: "malformed in development is fatal too", baseURL: "app.example.com", prod: false, wantErr: true},
+		{name: "absolute in production is accepted", baseURL: "https://app.example.com", prod: true, wantErr: false},
+		{name: "absolute in development is accepted", baseURL: "http://localhost:8080", prod: false, wantErr: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			// Long enough to clear the secret-key floor, so a production case
+			// can only fail for the reason under test.
+			t.Setenv("OCTARQ_SECRET_KEY", "0123456789abcdef0123456789abcdef")
+			t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
+			t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
+			t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
+			t.Setenv("OCTARQ_BASE_URL", tc.baseURL)
+			t.Setenv("OCTARQ_SECURE_COOKIES", strconv.FormatBool(tc.prod))
+
+			cfg, err := Load()
+			switch {
+			case tc.wantErr && err == nil:
+				t.Fatalf("Load(base=%q, production=%v) succeeded; expected a refusal to start", tc.baseURL, tc.prod)
+			case !tc.wantErr && err != nil:
+				t.Fatalf("Load(base=%q, production=%v) failed: %v", tc.baseURL, tc.prod, err)
+			}
+			if err != nil {
+				if !strings.Contains(err.Error(), "OCTARQ_BASE_URL") {
+					t.Errorf("error does not name the offending variable: %v", err)
+				}
+				return
+			}
+			if cfg.IsProduction() != tc.prod {
+				t.Fatalf("IsProduction() = %v, want %v — the production signal under test was not applied", cfg.IsProduction(), tc.prod)
+			}
+		})
 	}
 }
 
