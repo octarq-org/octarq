@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Menu } from "@base-ui/react/menu";
 import { Search, Settings, User, LogOut, PanelLeft, Sun, Moon, Globe, BookOpen, ExternalLink, Info, Plus } from "lucide-react";
+import { ExtensionSlot } from "../plugin-sdk";
 import { Action } from "../api";
 import { cn } from "../ui";
 import { useAppName } from "../brand";
@@ -130,6 +131,13 @@ export function TopBar({
       </nav>
 
       <div className="flex-1" />
+
+      {/* Plugin extension point — leftmost of the right-hand cluster, where
+          status-shaped content belongs: placed after the icon actions it would
+          read as one more action button. Renders nothing (not even a wrapper,
+          so not even a gap) when no plugin contributes a widget, which is
+          always the case in the OSS build. */}
+      <ExtensionSlot name="topbar-right" />
 
       {/* Global create menu (+) */}
       {actions.length > 0 && (
