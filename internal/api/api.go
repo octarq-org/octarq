@@ -18,9 +18,9 @@ import (
 	"github.com/octarq-org/octarq/internal/crypto"
 	"github.com/octarq-org/octarq/internal/geo"
 	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/origin"
 	"github.com/octarq-org/octarq/internal/queue"
 	"github.com/octarq-org/octarq/llmprovider"
+	"github.com/octarq-org/octarq/origin"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -34,7 +34,7 @@ type Handler struct {
 	geo    *geo.Resolver
 	oauth  *auth.OAuthHandler
 	// origins derives the absolute origin outbound links are built from, from
-	// the request that asks for them. See internal/origin and h.origin below.
+	// the request that asks for them. See origin and h.origin below.
 	origins      *origin.Resolver
 	loginLimiter *rateLimiter
 	// recoveryLimiter bounds the unauthenticated password-reset / verification-resend

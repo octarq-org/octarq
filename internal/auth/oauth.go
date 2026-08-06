@@ -14,7 +14,7 @@ import (
 	"github.com/markbates/goth/providers/google"
 	"github.com/octarq-org/octarq/internal/crypto"
 	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/origin"
+	"github.com/octarq-org/octarq/origin"
 	"gorm.io/gorm"
 )
 
@@ -153,7 +153,7 @@ func (h *OAuthHandler) loadProvider(provider, name, base string) bool {
 	}
 
 	// On an instance with no registered domains the origin falls back to the
-	// request host (see internal/origin), so the set of names is caller-
+	// request host (see origin), so the set of names is caller-
 	// influenced. Bound it: a sprayer would otherwise grow goth's process-wide
 	// registry without limit. Wholesale reset beats LRU bookkeeping here — the
 	// cost of a reset is one extra provider registration per live hostname.
