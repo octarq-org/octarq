@@ -129,3 +129,111 @@ func TestReadinessReportHealthyInstance(t *testing.T) {
 		}
 	}
 }
+
+func TestEnforceSecretKeyFloor(t *testing.T) {
+	shortKey := "s3cr3t"
+	longKey := "0123456789abcdef0123456789abcdef"
+
+	t.Run("four quadrants", func(t *testing.T) {
+		tests := []struct {
+			name              string
+			key               string
+			domainsRegistered bool
+			wantErr           bool
+		}{
+			{
+				name:              "registered and short key",
+				key:               shortKey,
+				domainsRegistered: true,
+				wantErr:           true,
+			},
+			{
+				name:              "registered and long key",
+				key:               longKey,
+				domainsRegistered: true,
+				wantErr:           false,
+			},
+			{
+				name:              "unregistered and short key",
+				key:               shortKey,
+				domainsRegistered: false,
+				wantErr:           false,
+			},
+			{
+				name:              "unregistered and long key",
+				key:               longKey,
+				domainsRegistered: false,
+				wantErr:           false,
+			},
+		}
+
+		for _, tc := range tests {
+			t.Run(tc.name, func(t *testing.T) {
+				cfg := loadReadinessConfig(t, map[string]string{
+					"OCTARQ_SECRET_KEY": tc.key,
+				})
+				err := enforceSecretKeyFloor(cfg, tc.domainsRegistered)
+				if (err != nil) != tc.wantErr {
+					t.Errorf("enforceSecretKeyFloor() error = %v, wantErr %v", err, tc.wantErr)
+				}
+			})
+		}
+	})
+
+	t.Run("error message omits secret key value", func(t *testing.T) {
+		cfg := loadReadinessConfig(t, map[string]string{
+			"OCTARQ_SECRET_KEY": shortKey,
+		})
+		err := enforceSecretKeyFloor(cfg, true)
+		if err == nil {
+			t.Fatal("expected error when domains registered with short key, got nil")
+		}
+		if strings.Contains(err.Error(), shortKey) {
+			t.Errorf("enforceSecretKeyFloor error leaks secret key value: %v", err)
+		}
+	})
+
+	t.Run("readiness report secret key statuses", func(t *testing.T) {
+		// 1) Registered + short key -> readyDegraded
+		cfgShort := loadReadinessConfig(t, map[string]string{
+			"OCTARQ_SECRET_KEY": shortKey,
+		})
+		linesRegShort := readinessReport(cfgShort, true, true)
+		var statusRegShort readinessStatus
+		for _, l := range linesRegShort {
+			if l.Subject == "secret key" {
+				statusRegShort = l.Status
+			}
+		}
+		if statusRegShort != readyDegraded {
+			t.Errorf("secret key status for registered domain with short key = %q, want %q", statusRegShort, readyDegraded)
+		}
+
+		// 2) Unregistered + short key -> readyDev
+		linesUnregShort := readinessReport(cfgShort, true, false)
+		var statusUnregShort readinessStatus
+		for _, l := range linesUnregShort {
+			if l.Subject == "secret key" {
+				statusUnregShort = l.Status
+			}
+		}
+		if statusUnregShort != readyDev {
+			t.Errorf("secret key status for unregistered domain with short key = %q, want %q", statusUnregShort, readyDev)
+		}
+
+		// 3) Long key -> readyOK
+		cfgLong := loadReadinessConfig(t, map[string]string{
+			"OCTARQ_SECRET_KEY": longKey,
+		})
+		linesLong := readinessReport(cfgLong, true, true)
+		var statusLong readinessStatus
+		for _, l := range linesLong {
+			if l.Subject == "secret key" {
+				statusLong = l.Status
+			}
+		}
+		if statusLong != readyOK {
+			t.Errorf("secret key status for long key = %q, want %q", statusLong, readyOK)
+		}
+	})
+}

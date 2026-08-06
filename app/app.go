@@ -783,9 +783,13 @@ func (a *App) Run(ctx context.Context) error {
 	// only Provides it when it mounts. Asking earlier (in New, or before the
 	// loop) would report "no mail" for every instance, including the ones that
 	// have it — an answer that is wrong rather than merely early.
+	domainsRegistered := origin.AnyRegistered(a.gdb)
 	_, mailAvailable := services.Lookup("mail.send")
-	for _, line := range readinessReport(a.cfg, mailAvailable, origin.AnyRegistered(a.gdb)) {
+	for _, line := range readinessReport(a.cfg, mailAvailable, domainsRegistered) {
 		slog.Info("readiness", "status", string(line.Status), "check", line.Subject, "detail", line.Detail)
+	}
+	if err := enforceSecretKeyFloor(a.cfg, domainsRegistered); err != nil {
+		return err
 	}
 
 	webFS := a.webFS

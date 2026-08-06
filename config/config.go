@@ -190,17 +190,22 @@ func Load() (*Config, error) {
 // request (origin) and the dashboard host comes from the domains
 // table. It is the SINGLE strictness predicate in this package: the secret-key
 // floor is the only rule that uses it, and a second notion of "is this
-// production" must not be introduced beside it.
+// production" must not be introduced beside it. Note that full strictness
+// enforcement consists of two halves: environment signals (this function)
+// plus registered domains (at startup, requiring DB access via
+// app.enforceSecretKeyFloor). Changing one must stay in sync with the other.
 //
 // It is deliberately not an env var — adding one would just move the decision
 // back onto the operator, and an operator who would set it correctly is an
 // operator who would already have set a long key.
 //
 // The trade-off is honest: a deployment on the default sqlite file with no
-// Redis is treated as development and only gets a warning, where an https
-// OCTARQ_BASE_URL used to make it fatal. Nobody reaches Postgres or Redis by
-// accident, though, whereas a laptop reaches sqlite by default — so the signal
-// no longer fires on the setup it must not break.
+// Redis is treated as development and only gets a warning at config load time
+// (unless a domain is registered, in which case app.enforceSecretKeyFloor
+// enforces the secret-key floor at boot time), where an https OCTARQ_BASE_URL
+// used to make it fatal. Nobody reaches Postgres or Redis by accident, though,
+// whereas a laptop reaches sqlite by default — so the signal no longer fires
+// on the setup it must not break.
 func (c *Config) Provisioned() bool {
 	return c.DBDriver == "postgres" || strings.TrimSpace(c.RedisURL) != ""
 }

@@ -72,16 +72,31 @@ func readinessReport(cfg *config.Config, mailAvailable, domainsRegistered bool) 
 
 	if !cfg.Provisioned() {
 		lines = append(lines, readinessLine{readyDev, "hardening",
-			"running on the default sqlite file with no Redis, which is treated as development: the secret-key length floor warns instead of refusing to start. Point OCTARQ_DB_DRIVER at postgres for a deployment that enforces it"})
+			"running on the default sqlite file with no Redis, which is treated as development: the secret-key length floor warns instead of refusing to start only when no domain is registered. Registering any domain enforces it"})
 	}
 	if len(cfg.SecretKey) < config.MinSecretKeyLen {
-		lines = append(lines, readinessLine{readyDev, "secret key",
-			fmt.Sprintf("configured but shorter than %d bytes, which is accepted only in development. Set OCTARQ_SECRET_KEY to at least %d bytes (`openssl rand -hex 32`) before production", config.MinSecretKeyLen, config.MinSecretKeyLen)})
+		if domainsRegistered {
+			lines = append(lines, readinessLine{readyDegraded, "secret key",
+				fmt.Sprintf("configured but shorter than %d bytes when a domain is registered: instance will refuse to boot. Set OCTARQ_SECRET_KEY to at least %d bytes (`openssl rand -hex 32`)", config.MinSecretKeyLen, config.MinSecretKeyLen)})
+		} else {
+			lines = append(lines, readinessLine{readyDev, "secret key",
+				fmt.Sprintf("configured but shorter than %d bytes, which is accepted only in development. Set OCTARQ_SECRET_KEY to at least %d bytes (`openssl rand -hex 32`) before production", config.MinSecretKeyLen, config.MinSecretKeyLen)})
+		}
 	} else {
 		lines = append(lines, readinessLine{readyOK, "secret key", "configured"})
 	}
 
 	return lines
+}
+
+// enforceSecretKeyFloor returns an error when this instance must not boot
+// because a registered domain indicates a production deployment with a secret key
+// shorter than config.MinSecretKeyLen.
+func enforceSecretKeyFloor(cfg *config.Config, domainsRegistered bool) error {
+	if domainsRegistered && len(cfg.SecretKey) < config.MinSecretKeyLen {
+		return fmt.Errorf("OCTARQ_SECRET_KEY must be at least %d bytes when a domain is registered; set OCTARQ_SECRET_KEY to a longer value (e.g. `openssl rand -hex 32`). WARNING: OCTARQ_SECRET_KEY is also the primary key for credential encryption; changing it will render existing encrypted credentials (such as TOTP keys and plugin credentials) un-decryptable", config.MinSecretKeyLen)
+	}
+	return nil
 }
 
 // redactDSN renders a data source name safely. A sqlite DSN is a file path and
