@@ -49,7 +49,7 @@ func readinessReport(cfg *config.Config, mailAvailable, domainsRegistered bool) 
 	var lines []readinessLine
 
 	// Absolute URLs come from the request host, checked against the registered
-	// domains (internal/origin). With none registered there is nothing to check
+	// domains (origin). With none registered there is nothing to check
 	// against and the request host is used as sent — worth saying out loud,
 	// because it is the one state in which a forged Host header could aim a
 	// password-reset link somewhere else.

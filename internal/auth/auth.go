@@ -20,7 +20,7 @@ import (
 	"github.com/octarq-org/octarq/internal/cache"
 	"github.com/octarq-org/octarq/internal/crypto"
 	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/origin"
+	"github.com/octarq-org/octarq/origin"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )

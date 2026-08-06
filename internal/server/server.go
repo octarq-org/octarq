@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/origin"
+	"github.com/octarq-org/octarq/origin"
 	"gorm.io/gorm"
 )
 

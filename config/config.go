@@ -40,7 +40,7 @@ type Config struct {
 	// X-Forwarded-For / X-Real-IP when determining the client IP (rate limiting
 	// and abuse throttling), and X-Forwarded-Proto when deciding whether the
 	// request reached us over TLS (the session cookie's Secure attribute — see
-	// internal/origin.Secure). Only enable when octarq sits behind a reverse
+	// origin.Secure). Only enable when octarq sits behind a reverse
 	// proxy that sets these headers itself; otherwise clients spoof them to
 	// evade per-IP limits or to claim a plaintext request was HTTPS. Set via
 	// OCTARQ_TRUST_PROXY=true|1. Off by default.
@@ -64,7 +64,7 @@ type Config struct {
 	// Absolute URLs (password-reset and email-verification links, invite links,
 	// OAuth redirect_uri) are NOT configured here. They are derived from the
 	// request that asks for them, validated against the hostnames this instance
-	// has registered — see internal/origin.
+	// has registered — see origin.
 
 	// RedisURL configures the optional Redis connection (e.g. "redis://localhost:6379").
 	// If empty, Redis-based features will be disabled or fall back to DB/in-memory.
@@ -187,7 +187,7 @@ func Load() (*Config, error) {
 //
 // It replaces the old IsProduction, which keyed on an https OCTARQ_BASE_URL or
 // a set OCTARQ_ADMIN_HOST — both gone, now that absolute URLs come from the
-// request (internal/origin) and the dashboard host comes from the domains
+// request (origin) and the dashboard host comes from the domains
 // table. It is the SINGLE strictness predicate in this package: the secret-key
 // floor is the only rule that uses it, and a second notion of "is this
 // production" must not be introduced beside it.

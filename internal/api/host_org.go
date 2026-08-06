@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/origin"
+	"github.com/octarq-org/octarq/origin"
 )
 
 // Resolving a workspace from the request Host.
@@ -72,7 +72,7 @@ func (c *hostOrgCache) put(host string, orgID uint) {
 	c.entries[host] = hostOrgEntry{orgID: orgID, expiry: time.Now().Add(hostOrgTTL)}
 }
 
-// normalizeHost and hostCandidates live in internal/origin, which owns hostname
+// normalizeHost and hostCandidates live in origin, which owns hostname
 // parsing for the whole product: the same two transformations decide whether a
 // request host may become an outbound link's origin, so a second copy here
 // would be a second answer to the same question.
