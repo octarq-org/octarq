@@ -72,16 +72,40 @@ func readinessReport(cfg *config.Config, mailAvailable, domainsRegistered bool) 
 
 	if !cfg.Provisioned() {
 		lines = append(lines, readinessLine{readyDev, "hardening",
-			"running on the default sqlite file with no Redis, which is treated as development: the secret-key length floor warns instead of refusing to start. Point OCTARQ_DB_DRIVER at postgres for a deployment that enforces it"})
+			"running on the default sqlite file with no Redis, which is treated as development: the secret-key length floor warns instead of refusing to start only when no domain is registered. Registering any domain enforces it"})
 	}
 	if len(cfg.SecretKey) < config.MinSecretKeyLen {
-		lines = append(lines, readinessLine{readyDev, "secret key",
-			fmt.Sprintf("configured but shorter than %d bytes, which is accepted only in development. Set OCTARQ_SECRET_KEY to at least %d bytes (`openssl rand -hex 32`) before production", config.MinSecretKeyLen, config.MinSecretKeyLen)})
+		if domainsRegistered {
+			lines = append(lines, readinessLine{readyDegraded, "secret key",
+				fmt.Sprintf("configured but shorter than %d bytes when a domain is registered: instance will refuse to boot. Set OCTARQ_SECRET_KEY to at least %d bytes (`openssl rand -hex 32`)", config.MinSecretKeyLen, config.MinSecretKeyLen)})
+		} else {
+			lines = append(lines, readinessLine{readyDev, "secret key",
+				fmt.Sprintf("configured but shorter than %d bytes, which is accepted only in development. Set OCTARQ_SECRET_KEY to at least %d bytes (`openssl rand -hex 32`) before production", config.MinSecretKeyLen, config.MinSecretKeyLen)})
+		}
 	} else {
 		lines = append(lines, readinessLine{readyOK, "secret key", "configured"})
 	}
 
 	return lines
+}
+
+// enforceSecretKeyFloor is the second half of the strictness predicate whose
+// first half is config.Provisioned — see the comment there.
+//
+// A registered domain means the operator has attached this instance to a
+// hostname they own, i.e. it is served to the public. That is the signal that
+// replaced the https OCTARQ_BASE_URL the floor used to key on, and it can only
+// be read here, after the database is open. Without it a sqlite instance behind
+// a TLS proxy — the most ordinary self-hosted shape there is — would boot with a
+// guessable key protecting both session cookies and every stored credential.
+//
+// Refusing to boot, rather than warning, is the point: a warning in a log
+// aggregator is a warning nobody reads.
+func enforceSecretKeyFloor(cfg *config.Config, domainsRegistered bool) error {
+	if domainsRegistered && len(cfg.SecretKey) < config.MinSecretKeyLen {
+		return fmt.Errorf("OCTARQ_SECRET_KEY must be at least %d bytes when a domain is registered; set OCTARQ_SECRET_KEY to a longer value (e.g. `openssl rand -hex 32`). WARNING: OCTARQ_SECRET_KEY is also the primary key for credential encryption; changing it will render existing encrypted credentials (such as TOTP keys and plugin credentials) un-decryptable", config.MinSecretKeyLen)
+	}
+	return nil
 }
 
 // redactDSN renders a data source name safely. A sqlite DSN is a file path and

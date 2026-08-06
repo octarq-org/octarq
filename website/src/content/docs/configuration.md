@@ -16,7 +16,7 @@ The primary configuration options are:
 
 | Variable | Purpose |
 | --- | --- |
-| `OCTARQ_SECRET_KEY` | Signs session cookies. **Required.** |
+| `OCTARQ_SECRET_KEY` | Signs session cookies and encrypts stored credentials. **Required.** Must be at least 16 bytes; once a domain is registered, this length floor is strictly enforced and the instance will refuse to start if shorter. |
 | `OCTARQ_ADMIN_USER` | First admin username (default `admin`). |
 | `OCTARQ_ADMIN_PASSWORD` | First admin password. **Required.** |
 | `OCTARQ_ALLOW_PRIVATE_WEBHOOKS` | Allow webhook & notification delivery to private/loopback IPs. Default `false`. |
