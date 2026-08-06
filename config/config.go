@@ -5,14 +5,16 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"strings"
 )
 
-// minSecretKeyLen is the minimum acceptable length for OCTARQ_SECRET_KEY. It is
+// MinSecretKeyLen is the minimum acceptable length for OCTARQ_SECRET_KEY. It is
 // the KEK for AES-GCM credential encryption and the HMAC key for session
-// cookies; a short key is brute-forceable.
-const minSecretKeyLen = 16
+// cookies; a short key is brute-forceable. Exported so the startup readiness
+// report can name the same threshold Load enforces instead of restating it.
+const MinSecretKeyLen = 16
 
 // DefaultAppName is the fallback product name shown in the UI when the
 // `app_name` runtime setting (Settings → General) is empty. Downstream builds
@@ -64,8 +66,11 @@ type Config struct {
 
 	GeoIPDB string // optional path to a MaxMind GeoLite2-City.mmdb
 
-	// BaseURL is the public-facing URL used to build OAuth callback URIs,
-	// e.g. "https://app.example.com". Leave empty to disable OAuth login.
+	// BaseURL is the public-facing URL every absolute link is built from —
+	// password-reset and email-verification links, OAuth callback URIs and
+	// outbound webhook addresses — e.g. "https://app.example.com". Required in
+	// production (see validateBaseURL); empty in development degrades those
+	// links to relative paths and disables OAuth login.
 	BaseURL string
 
 	// RedisURL configures the optional Redis connection (e.g. "redis://localhost:6379").
@@ -182,11 +187,58 @@ func Load() (*Config, error) {
 	// A weak secret key undermines both credential encryption and cookie
 	// integrity. Hard-fail in production-looking setups; warn otherwise so the
 	// documented local dev key (OCTARQ_SECRET_KEY=dev) keeps working.
-	if len(c.SecretKey) < minSecretKeyLen {
-		if c.SecureCookies {
-			return nil, fmt.Errorf("OCTARQ_SECRET_KEY must be at least %d bytes in production", minSecretKeyLen)
+	if len(c.SecretKey) < MinSecretKeyLen {
+		if c.IsProduction() {
+			return nil, fmt.Errorf("OCTARQ_SECRET_KEY must be at least %d bytes in production", MinSecretKeyLen)
 		}
-		log.Printf("WARNING: OCTARQ_SECRET_KEY is only %d bytes; use at least %d bytes (e.g. `openssl rand -hex 32`) before production", len(c.SecretKey), minSecretKeyLen)
+		log.Printf("WARNING: OCTARQ_SECRET_KEY is only %d bytes; use at least %d bytes (e.g. `openssl rand -hex 32`) before production", len(c.SecretKey), MinSecretKeyLen)
+	}
+	if err := c.validateBaseURL(); err != nil {
+		return nil, err
 	}
 	return c, nil
+}
+
+// IsProduction reports whether this deployment looks production-facing.
+//
+// It is deliberately the SAME signal that decides Secure cookies (see the
+// SecureCookies field): an https:// BaseURL or a configured OCTARQ_ADMIN_HOST,
+// with OCTARQ_SECURE_COOKIES as the explicit override. Every "strict in
+// production, lenient in development" rule in Load keys on this one predicate —
+// the secret-key length floor and the BaseURL requirement both — so an operator
+// only ever has to reason about one notion of "is this production". Do not
+// introduce a second one.
+//
+// It is only meaningful after Load has computed SecureCookies.
+func (c *Config) IsProduction() bool { return c.SecureCookies }
+
+// validateBaseURL checks OCTARQ_BASE_URL, which is the only source of absolute
+// URLs in the product: password-reset and email-verification links
+// (internal/api/recovery.go), OAuth callback URIs, and outbound webhook
+// addresses are all built by prefixing it. Left empty, those come out as bare
+// paths like "/admin/reset?token=…" — unopenable from a mail client — while the
+// instance boots and logs nothing.
+//
+// A malformed value is always fatal: it cannot produce a working link anywhere,
+// so there is no mode in which tolerating it helps. An empty value follows the
+// same production/development split as the secret-key floor (see IsProduction):
+// fatal for a production-looking deployment, a warning for local development,
+// where relative links are merely inconvenient and the operator is the only user.
+func (c *Config) validateBaseURL() error {
+	raw := strings.TrimSpace(c.BaseURL)
+	if raw == "" {
+		if c.IsProduction() {
+			return fmt.Errorf("OCTARQ_BASE_URL is required in production: it is the only source of absolute URLs — password-reset and email-verification links, OAuth callback URIs and outbound webhook addresses are all built from it, and without it they are emitted as relative paths that cannot be opened from a mail client. Set OCTARQ_BASE_URL=https://your.domain")
+		}
+		log.Printf("WARNING: OCTARQ_BASE_URL is not set; password-reset and email-verification links will be relative paths (unopenable from a mail client) and OAuth callbacks and webhook addresses cannot be built. Set OCTARQ_BASE_URL=http://localhost:8080 for local use")
+		return nil
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("OCTARQ_BASE_URL %q is not a parsable URL: %w — expected an absolute URL such as https://your.domain", raw, err)
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return fmt.Errorf("OCTARQ_BASE_URL %q must be an absolute URL with a scheme and a host, such as https://your.domain — it is prefixed onto password-reset links, OAuth callbacks and webhook addresses", raw)
+	}
+	return nil
 }

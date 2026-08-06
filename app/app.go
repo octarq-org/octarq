@@ -781,6 +781,20 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 
+	// Tell the operator, once and before anything is served, which capabilities
+	// this instance actually has. Several of them fail silently otherwise — see
+	// readinessReport.
+	//
+	// This has to run HERE, after the mount loop: "can this instance send mail"
+	// is a lookup of the mail.send service in the plugin registry, and a plugin
+	// only Provides it when it mounts. Asking earlier (in New, or before the
+	// loop) would report "no mail" for every instance, including the ones that
+	// have it — an answer that is wrong rather than merely early.
+	_, mailAvailable := services.Lookup("mail.send")
+	for _, line := range readinessReport(a.cfg, mailAvailable) {
+		slog.Info("readiness", "status", string(line.Status), "check", line.Subject, "detail", line.Detail)
+	}
+
 	webFS := a.webFS
 	if webFS == nil {
 		embedded, err := webembed.FS()
