@@ -107,6 +107,110 @@ func TestOwnedHost(t *testing.T) {
 	}
 }
 
+func TestOwnerOf(t *testing.T) {
+	db := testDB(t,
+		testDomain{
+			OrgID:   1,
+			Name:    "acme.example",
+			ForLink: true,
+			ForMail: true,
+			LinkHosts: models.HostList{
+				{Host: "go.partner.example", Enabled: true},
+				{Host: "off.partner.example", Enabled: false},
+			},
+			MailHosts: models.HostList{
+				{Host: "mail.partner.example", Enabled: true},
+			},
+		},
+		testDomain{
+			OrgID: 3,
+			Name:  "acme.com",
+		},
+		testDomain{
+			OrgID: 7,
+			Name:  "shop.acme.com",
+		},
+	)
+
+	cases := []struct {
+		name    string
+		host    string
+		wantOrg uint
+		wantOK  bool
+	}{
+		{name: "apex name hit", host: "acme.example", wantOrg: 1, wantOK: true},
+		{name: "link_hosts enabled item hit", host: "go.partner.example", wantOrg: 1, wantOK: true},
+		{name: "mail_hosts hit", host: "mail.partner.example", wantOrg: 1, wantOK: true},
+		{name: "disabled item does not hit", host: "off.partner.example", wantOrg: 0, wantOK: false},
+		{name: "subdomain fallback to parent domain org", host: "sub.app.acme.example", wantOrg: 1, wantOK: true},
+		{name: "most specific first", host: "shop.acme.com", wantOrg: 7, wantOK: true},
+		{name: "unknown host", host: "evil.example", wantOrg: 0, wantOK: false},
+		{name: "localhost", host: "localhost:8080", wantOrg: 0, wantOK: false},
+		{name: "ip literal", host: "203.0.113.9:80", wantOrg: 0, wantOK: false},
+		{name: "case, port, and trailing dot normalization", host: "Shop.Acme.COM.:8443", wantOrg: 7, wantOK: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			org, ok := OwnerOf(db, tc.host)
+			if org != tc.wantOrg || ok != tc.wantOK {
+				t.Errorf("OwnerOf(%q) = (%d, %v), want (%d, %v)", tc.host, org, ok, tc.wantOrg, tc.wantOK)
+			}
+		})
+	}
+
+	t.Run("nil db and missing domains table", func(t *testing.T) {
+		if org, ok := OwnerOf(nil, "shop.acme.com"); ok || org != 0 {
+			t.Errorf("OwnerOf(nil, host) = (%d, %v), want (0, false)", org, ok)
+		}
+		if org, ok := OwnerOf(testDB(t), "shop.acme.com"); ok || org != 0 {
+			t.Errorf("OwnerOf(emptyDB, host) = (%d, %v), want (0, false)", org, ok)
+		}
+	})
+}
+
+func TestOwnerOfAmbiguous(t *testing.T) {
+	t.Run("one org in name, another org in link_hosts", func(t *testing.T) {
+		db := testDB(t,
+			testDomain{
+				OrgID: 1,
+				Name:  "shop.acme.com",
+			},
+			testDomain{
+				OrgID: 2,
+				LinkHosts: models.HostList{
+					{Host: "shop.acme.com", Enabled: true},
+				},
+			},
+		)
+		org, ok := OwnerOf(db, "shop.acme.com")
+		if ok || org != 0 {
+			t.Fatalf("OwnerOf(shop.acme.com) = (%d, %v), want (0, false) due to ambiguity", org, ok)
+		}
+	})
+
+	t.Run("two orgs both have it in link_hosts", func(t *testing.T) {
+		db := testDB(t,
+			testDomain{
+				OrgID: 10,
+				LinkHosts: models.HostList{
+					{Host: "shared.example.com", Enabled: true},
+				},
+			},
+			testDomain{
+				OrgID: 20,
+				LinkHosts: models.HostList{
+					{Host: "shared.example.com", Enabled: true},
+				},
+			},
+		)
+		org, ok := OwnerOf(db, "shared.example.com")
+		if ok || org != 0 {
+			t.Fatalf("OwnerOf(shared.example.com) = (%d, %v), want (0, false) due to ambiguity", org, ok)
+		}
+	})
+}
+
 func TestAbsolute(t *testing.T) {
 	t.Run("registered host wins and is https", func(t *testing.T) {
 		rv := NewResolver(testDB(t, acme()))
