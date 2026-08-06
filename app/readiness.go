@@ -32,9 +32,9 @@ func (l readinessLine) String() string {
 
 // readinessReport describes what this instance can and cannot do, for printing
 // once at startup. It exists because several capabilities fail *silently*: an
-// instance with no BaseURL and no mail plugin boots cleanly, serves every page,
-// and only reveals that account recovery was never possible when a locked-out
-// user asks for a reset link that never arrives.
+// instance with no mail plugin boots cleanly, serves every page, and only
+// reveals that account recovery was never possible when a locked-out user asks
+// for a reset link that never arrives.
 //
 // mailAvailable must come from a real lookup of the "mail.send" service, not
 // from configuration: whether mail works depends on which plugins the
@@ -45,14 +45,20 @@ func (l readinessLine) String() string {
 // DSN password are reported as configured / not configured only — this output
 // goes to the operator's log aggregator, which is not a place to put the KEK.
 // TestReadinessReportOmitsSecrets pins that.
-func readinessReport(cfg *config.Config, mailAvailable bool) []readinessLine {
+func readinessReport(cfg *config.Config, mailAvailable, domainsRegistered bool) []readinessLine {
 	var lines []readinessLine
 
-	if strings.TrimSpace(cfg.BaseURL) == "" {
-		lines = append(lines, readinessLine{readyDegraded, "public base URL",
-			"not configured — password-reset and email-verification links, OAuth callbacks and webhook addresses will be relative paths and cannot be opened. Set OCTARQ_BASE_URL=https://your.domain"})
+	// Absolute URLs come from the request host, checked against the registered
+	// domains (internal/origin). With none registered there is nothing to check
+	// against and the request host is used as sent — worth saying out loud,
+	// because it is the one state in which a forged Host header could aim a
+	// password-reset link somewhere else.
+	if domainsRegistered {
+		lines = append(lines, readinessLine{readyOK, "public origin",
+			"password-reset, verification and invite links are built from the request host, accepted only when it matches a registered domain"})
 	} else {
-		lines = append(lines, readinessLine{readyOK, "public base URL", cfg.BaseURL})
+		lines = append(lines, readinessLine{readyDegraded, "public origin",
+			"no domain is registered, so links are built from the request host as sent, with nothing to validate it against. Add the domain this instance is served on (Domains → Add domain) to have octarq reject hostnames it does not own"})
 	}
 
 	if mailAvailable {
@@ -64,9 +70,9 @@ func readinessReport(cfg *config.Config, mailAvailable bool) []readinessLine {
 
 	lines = append(lines, readinessLine{readyOK, "database", fmt.Sprintf("driver=%s dsn=%s", cfg.DBDriver, redactDSN(cfg.DBDriver, cfg.DBDSN))})
 
-	if !cfg.IsProduction() {
+	if !cfg.Provisioned() {
 		lines = append(lines, readinessLine{readyDev, "hardening",
-			"development mode — session cookies are not marked Secure and production-only checks are relaxed. Set OCTARQ_SECURE_COOKIES=true (or serve an https OCTARQ_BASE_URL) before exposing this instance"})
+			"running on the default sqlite file with no Redis, which is treated as development: the secret-key length floor warns instead of refusing to start. Point OCTARQ_DB_DRIVER at postgres for a deployment that enforces it"})
 	}
 	if len(cfg.SecretKey) < config.MinSecretKeyLen {
 		lines = append(lines, readinessLine{readyDev, "secret key",

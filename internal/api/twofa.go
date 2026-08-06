@@ -96,10 +96,14 @@ func (h *Handler) setup2FA(ctx context.Context, input *Setup2FAInput) (*Setup2FA
 		return nil, err
 	}
 
-	issuer := "octarq"
-	if h.cfg.AdminHost != "" {
-		issuer = h.cfg.AdminHost
-	}
+	// The issuer is the label the authenticator app shows beside the account.
+	// It must NOT come from the request host: the same user enrolling from the
+	// dashboard host and later verifying from a custom domain would otherwise
+	// see two different names for one account. The instance product name is
+	// stable, operator-controlled, and already the brand shown in the UI.
+	// (Changing it renames existing entries in users' authenticators but never
+	// breaks verification — the issuer is not an input to the TOTP algorithm.)
+	issuer := h.AppName()
 	key, err := totp.Generate(totp.GenerateOpts{
 		Issuer:      issuer,
 		AccountName: user.Email,

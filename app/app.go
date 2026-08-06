@@ -22,7 +22,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -40,6 +39,7 @@ import (
 	"github.com/octarq-org/octarq/internal/geo"
 	"github.com/octarq-org/octarq/internal/mcp"
 	"github.com/octarq-org/octarq/internal/notify"
+	"github.com/octarq-org/octarq/internal/origin"
 	"github.com/octarq-org/octarq/internal/queue"
 	"github.com/octarq-org/octarq/internal/safehttp"
 	"github.com/octarq-org/octarq/internal/server"
@@ -226,13 +226,6 @@ func New() (*App, error) {
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
-	}
-
-	// Secure session cookies over a non-HTTPS base URL are silently dropped by
-	// browsers — a common "login works but every next request is 401" trap in
-	// local/HTTP setups. Warn loudly with the escape hatch.
-	if strings.HasPrefix(cfg.BaseURL, "http://") && cfg.SecureCookies {
-		slog.Warn("OCTARQ_SECURE_COOKIES is true over http:// — browser will reject session cookie. Set OCTARQ_SECURE_COOKIES=false for local HTTP.", "baseURL", cfg.BaseURL)
 	}
 
 	gdb, err := db.Open(cfg)
@@ -589,7 +582,7 @@ func (a *App) Run(ctx context.Context) error {
 	}
 
 	// 2. Core API mux, then let plugins mount their own routes onto it.
-	auth.InitGothStore(a.cfg.SecretKey, a.cfg.SecureCookies)
+	auth.InitGothStore(a.cfg.SecretKey)
 	taskQueue := queue.New(a.cfg.RedisURL)
 	go func() {
 		if err := taskQueue.Start(ctx); err != nil {
@@ -791,7 +784,7 @@ func (a *App) Run(ctx context.Context) error {
 	// loop) would report "no mail" for every instance, including the ones that
 	// have it — an answer that is wrong rather than merely early.
 	_, mailAvailable := services.Lookup("mail.send")
-	for _, line := range readinessReport(a.cfg, mailAvailable) {
+	for _, line := range readinessReport(a.cfg, mailAvailable, origin.AnyRegistered(a.gdb)) {
 		slog.Info("readiness", "status", string(line.Status), "check", line.Subject, "detail", line.Detail)
 	}
 
@@ -806,7 +799,7 @@ func (a *App) Run(ctx context.Context) error {
 	// CSRFGuard wraps the fully-assembled mux (core + plugin routes) to block
 	// cross-site state-changing requests riding the session cookie; bearer/webhook
 	// clients (no session cookie) pass through untouched.
-	srv, err := server.New(a.cfg, api.CSRFGuard(mux), rootHandler, webFS, staticMounts, server.RuntimeSettings{
+	srv, err := server.New(a.cfg, a.gdb, api.CSRFGuard(mux), rootHandler, webFS, staticMounts, server.RuntimeSettings{
 		MetricsToken: apiHandler.MetricsToken,
 		RateLimits:   apiHandler.RateLimits,
 	})

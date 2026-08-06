@@ -13,8 +13,6 @@ func TestAppLifecycleNew(t *testing.T) {
 	t.Setenv("OCTARQ_DB_DSN", dbPath)
 	t.Setenv("OCTARQ_SECRET_KEY", "test-secret-key-16-bytes")
 	t.Setenv("OCTARQ_ADMIN_PASSWORD", "test-admin-pass")
-	t.Setenv("OCTARQ_BASE_URL", "http://localhost:8080")
-	t.Setenv("OCTARQ_SECURE_COOKIES", "true")
 
 	a, err := New()
 	if err != nil {

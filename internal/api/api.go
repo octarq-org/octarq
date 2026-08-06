@@ -18,6 +18,7 @@ import (
 	"github.com/octarq-org/octarq/internal/crypto"
 	"github.com/octarq-org/octarq/internal/geo"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/origin"
 	"github.com/octarq-org/octarq/internal/queue"
 	"github.com/octarq-org/octarq/llmprovider"
 	"github.com/octarq-org/octarq/plugin"
@@ -26,12 +27,15 @@ import (
 
 // Handler bundles dependencies shared by all API endpoints.
 type Handler struct {
-	cfg          *config.Config
-	db           *gorm.DB
-	cipher       *crypto.Cipher
-	auth         *auth.Manager
-	geo          *geo.Resolver
-	oauth        *auth.OAuthHandler // nil if BaseURL not configured
+	cfg    *config.Config
+	db     *gorm.DB
+	cipher *crypto.Cipher
+	auth   *auth.Manager
+	geo    *geo.Resolver
+	oauth  *auth.OAuthHandler
+	// origins derives the absolute origin outbound links are built from, from
+	// the request that asks for them. See internal/origin and h.origin below.
+	origins      *origin.Resolver
 	loginLimiter *rateLimiter
 	// recoveryLimiter bounds the unauthenticated password-reset / verification-resend
 	// endpoints. It is deliberately SEPARATE from loginLimiter: those endpoints must
@@ -101,10 +105,9 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 		lookupTXT:       net.LookupTXT,
 		lookupCNAME:     net.LookupCNAME,
 		llmResolver:     envLLMResolver(),
+		origins:         origin.NewResolver(db),
 	}
-	if cfg.BaseURL != "" {
-		h.oauth = auth.NewOAuthHandler(db, cfg.BaseURL, a, c)
-	}
+	h.oauth = auth.NewOAuthHandler(db, a, c)
 	h.registerQueueHandlers(q)
 	return h
 }
@@ -209,11 +212,12 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/verify-email", Summary: "Verify Email", Tags: []string{"Auth"}, Metadata: map[string]any{"public": true}}, h.verifyEmail)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/resend-verification", Summary: "Resend Verification Email", Tags: []string{"Auth"}, Metadata: map[string]any{"public": true}}, h.resendVerification)
 
-	// OAuth (no session required — these redirect to provider and back).
-	if h.oauth != nil {
-		mux.HandleFunc("GET /auth/begin/{provider}", h.oauth.Begin)
-		mux.HandleFunc("GET /auth/callback/{provider}", h.oauth.Callback)
-	}
+	// OAuth (no session required — these redirect to provider and back). The
+	// routes always exist; the handler answers 503 when no provider is
+	// configured, or when the request arrived on a hostname it cannot build a
+	// callback URL for.
+	mux.HandleFunc("GET /auth/begin/{provider}", h.oauth.Begin)
+	mux.HandleFunc("GET /auth/callback/{provider}", h.oauth.Callback)
 
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/abuse", Summary: "Submit Abuse", Tags: []string{"Public"}, DefaultStatus: 201}, h.submitAbuse)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/health", Summary: "Health Check", Tags: []string{"Public"}}, h.health)
@@ -311,6 +315,22 @@ func (h *Handler) Routes() *http.ServeMux {
 }
 
 // --- helpers ---
+
+// origin returns the absolute origin ("https://app.example.com") that links
+// mailed out of this request must be rooted at, or "" when the request arrived
+// on a hostname this instance has not registered.
+//
+// "" is not a failure to handle — it degrades the link to a relative path, the
+// same thing an unset OCTARQ_BASE_URL used to produce. That is deliberate: a
+// link that cannot be opened from a mail client is a support ticket, whereas a
+// link built from a forged Host header is an account takeover (CWE-640).
+//
+// orgID is 0 (any hostname this instance owns) because these flows are
+// instance-wide: password reset starts before anyone is authenticated, so the
+// recipient's workspace is not known when the URL is built.
+func (h *Handler) origin(r *http.Request) string {
+	return h.origins.Absolute(0, r, origin.Secure(r, trustProxy))
+}
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")

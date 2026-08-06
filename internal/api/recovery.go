@@ -141,7 +141,10 @@ func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput
 		return nil, huma.Error500InternalServerError("failed to store reset token")
 	}
 
-	resetURL := fmt.Sprintf("%s/admin/reset?token=%s", h.cfg.BaseURL, rawToken)
+	// h.origin is "" when the request came in on a hostname this instance has
+	// not registered — including a forged one. The link degrades to a relative
+	// path rather than carrying a live reset token to an attacker (CWE-640).
+	resetURL := fmt.Sprintf("%s/admin/reset?token=%s", h.origin(r), rawToken)
 	h.sendPasswordResetEmail(user.ID, user.Email, resetURL)
 
 	return out, nil
@@ -345,7 +348,7 @@ func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificat
 		return nil, huma.Error500InternalServerError("failed to store verification token")
 	}
 
-	verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.cfg.BaseURL, rawToken)
+	verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.origin(r), rawToken)
 	h.sendVerificationEmail(user.ID, user.Email, verifyURL)
 
 	return out, nil

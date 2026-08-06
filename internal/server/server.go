@@ -15,6 +15,8 @@ import (
 	"strings"
 
 	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/internal/origin"
+	"gorm.io/gorm"
 )
 
 // StaticMount is an embedded single-page app served under Prefix (e.g.
@@ -46,14 +48,16 @@ type Server struct {
 	assets       fs.FS
 	mounts       []preparedMount
 	mw           *middleware
+	origins      *origin.Resolver
 }
 
 // New builds the combined handler. webFS is the embedded dist directory.
+// db backs the host lookup that decides where the dashboard is served.
 // mounts are plugin-contributed static SPAs (plugin.Context.HandleStatic),
 // each served under its own path prefix. rs supplies the DB-backed runtime
 // settings for the edge middleware (rate limits, metrics token); zero value =
 // built-in defaults.
-func New(cfg *config.Config, apiHandler http.Handler, rootFallback http.Handler, webFS fs.FS, mounts []StaticMount, rs RuntimeSettings) (*Server, error) {
+func New(cfg *config.Config, db *gorm.DB, apiHandler http.Handler, rootFallback http.Handler, webFS fs.FS, mounts []StaticMount, rs RuntimeSettings) (*Server, error) {
 	idx, err := fs.ReadFile(webFS, "index.html")
 	if err != nil {
 		return nil, err
@@ -67,6 +71,7 @@ func New(cfg *config.Config, apiHandler http.Handler, rootFallback http.Handler,
 		spaIdx:       idx,
 		assets:       webFS,
 		mw:           newMiddleware(rs),
+		origins:      origin.NewResolver(db),
 	}
 
 	for _, m := range mounts {
@@ -153,13 +158,20 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 }
 
 // dashboardAllowed reports whether the dashboard may be served for this host.
-// When OCTARQ_ADMIN_HOST is set, the dashboard is restricted to that host so pure
-// link hosts don't expose it; otherwise it is served on any host.
+//
+// A hostname a workspace registered for short links or for mail exists to serve
+// that workspace's public traffic; the operator console has no business
+// answering there, and hiding it removes a login form from a domain whose
+// visitors have no reason to see one. Every other hostname serves the
+// dashboard.
+//
+// This is the rule OCTARQ_ADMIN_HOST's documentation always claimed ("empty =
+// serve dashboard on any non-link host") but never implemented — unset, it
+// served the dashboard everywhere. The domains table is the better source
+// anyway: an instance legitimately answers on several hostnames for different
+// purposes, which one admin host could not express.
 func (s *Server) dashboardAllowed(host string) bool {
-	if s.cfg.AdminHost == "" {
-		return true
-	}
-	return stripPort(host) == s.cfg.AdminHost
+	return !s.origins.ServesTraffic(host)
 }
 
 func (s *Server) assetExists(name string) bool {

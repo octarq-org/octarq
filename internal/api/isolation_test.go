@@ -47,7 +47,7 @@ func sessionCookies(t *testing.T, uid, orgID uint) []*http.Cookie {
 	cfg := &config.Config{SecretKey: "secret"}
 	m := auth.New(cfg, crypto.New("secret")).WithDB(db)
 	rec := httptest.NewRecorder()
-	m.SetSession(rec, uid, orgID)
+	m.SetSession(rec, httptest.NewRequest(http.MethodGet, "/", nil), uid, orgID)
 	return rec.Result().Cookies()
 }
 

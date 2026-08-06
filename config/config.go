@@ -5,7 +5,6 @@ import (
 	"bufio"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"strings"
 )
@@ -24,8 +23,7 @@ var DefaultAppName = "octarq"
 
 // Config holds all runtime configuration for octarq.
 type Config struct {
-	Listen    string // e.g. ":8080"
-	AdminHost string // host that serves the dashboard; empty = serve dashboard on any non-link host
+	Listen string // e.g. ":8080"
 
 	DBDriver string // "sqlite" | "postgres"
 	DBDSN    string // sqlite: file path; postgres: connection string
@@ -38,16 +36,13 @@ type Config struct {
 	AdminUser     string
 	AdminPassword string
 
-	// SecureCookies adds the Secure attribute to the session cookie (HTTPS-only).
-	// Auto-enabled when the deployment looks production (BaseURL is https or
-	// AdminHost is set); force with OCTARQ_SECURE_COOKIES=true|false. Off by default
-	// for plain-http localhost dev, where a Secure cookie would never be sent.
-	SecureCookies bool
-
-	// TrustProxy controls whether X-Forwarded-For / X-Real-IP are honoured when
-	// determining the client IP (for rate limiting and abuse throttling). Only
-	// enable when octarq sits behind a trusted reverse proxy that sets these
-	// headers; otherwise clients can spoof them to evade per-IP limits. Set via
+	// TrustProxy controls whether proxy-supplied headers are honoured:
+	// X-Forwarded-For / X-Real-IP when determining the client IP (rate limiting
+	// and abuse throttling), and X-Forwarded-Proto when deciding whether the
+	// request reached us over TLS (the session cookie's Secure attribute — see
+	// internal/origin.Secure). Only enable when octarq sits behind a reverse
+	// proxy that sets these headers itself; otherwise clients spoof them to
+	// evade per-IP limits or to claim a plaintext request was HTTPS. Set via
 	// OCTARQ_TRUST_PROXY=true|1. Off by default.
 	TrustProxy bool
 
@@ -66,12 +61,10 @@ type Config struct {
 
 	GeoIPDB string // optional path to a MaxMind GeoLite2-City.mmdb
 
-	// BaseURL is the public-facing URL every absolute link is built from —
-	// password-reset and email-verification links, OAuth callback URIs and
-	// outbound webhook addresses — e.g. "https://app.example.com". Required in
-	// production (see validateBaseURL); empty in development degrades those
-	// links to relative paths and disables OAuth login.
-	BaseURL string
+	// Absolute URLs (password-reset and email-verification links, invite links,
+	// OAuth redirect_uri) are NOT configured here. They are derived from the
+	// request that asks for them, validated against the hostnames this instance
+	// has registered — see internal/origin.
 
 	// RedisURL configures the optional Redis connection (e.g. "redis://localhost:6379").
 	// If empty, Redis-based features will be disabled or fall back to DB/in-memory.
@@ -146,7 +139,6 @@ func Load() (*Config, error) {
 	}
 	c := &Config{
 		Listen:        env("OCTARQ_LISTEN", ":8080"),
-		AdminHost:     env("OCTARQ_ADMIN_HOST", ""),
 		DBDriver:      env("OCTARQ_DB_DRIVER", "sqlite"),
 		DBDSN:         env("OCTARQ_DB_DSN", "octarq.db"),
 		SecretKey:     env("OCTARQ_SECRET_KEY", ""),
@@ -160,7 +152,6 @@ func Load() (*Config, error) {
 		AllowPrivateSMTP: strings.EqualFold(strings.TrimSpace(env("OCTARQ_ALLOW_PRIVATE_SMTP", "")), "true") || strings.TrimSpace(env("OCTARQ_ALLOW_PRIVATE_SMTP", "")) == "1",
 
 		GeoIPDB:  env("OCTARQ_GEOIP_DB", ""),
-		BaseURL:  env("OCTARQ_BASE_URL", ""),
 		RedisURL: env("OCTARQ_REDIS_URL", ""),
 	}
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" {
@@ -176,69 +167,49 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("OCTARQ_SECRET_KEY is required (used for sessions and credential encryption)")
 	}
 
-	// Secure cookies: auto-on when prod-looking, overridable by env.
-	c.SecureCookies = strings.HasPrefix(strings.ToLower(c.BaseURL), "https://") || c.AdminHost != ""
-	if v, ok := os.LookupEnv("OCTARQ_SECURE_COOKIES"); ok {
-		c.SecureCookies = strings.EqualFold(strings.TrimSpace(v), "true") || strings.TrimSpace(v) == "1"
-	}
 	if c.AdminPassword == "" {
 		return nil, fmt.Errorf("OCTARQ_ADMIN_PASSWORD is required")
 	}
 	// A weak secret key undermines both credential encryption and cookie
-	// integrity. Hard-fail in production-looking setups; warn otherwise so the
+	// integrity. Hard-fail on a provisioned deployment; warn otherwise so the
 	// documented local dev key (OCTARQ_SECRET_KEY=dev) keeps working.
 	if len(c.SecretKey) < MinSecretKeyLen {
-		if c.IsProduction() {
-			return nil, fmt.Errorf("OCTARQ_SECRET_KEY must be at least %d bytes in production", MinSecretKeyLen)
+		if c.Provisioned() {
+			return nil, fmt.Errorf("OCTARQ_SECRET_KEY must be at least %d bytes when octarq is pointed at provisioned infrastructure (%s)", MinSecretKeyLen, c.provisionedBecause())
 		}
 		log.Printf("WARNING: OCTARQ_SECRET_KEY is only %d bytes; use at least %d bytes (e.g. `openssl rand -hex 32`) before production", len(c.SecretKey), MinSecretKeyLen)
-	}
-	if err := c.validateBaseURL(); err != nil {
-		return nil, err
 	}
 	return c, nil
 }
 
-// IsProduction reports whether this deployment looks production-facing.
+// Provisioned reports whether this instance is pointed at infrastructure
+// somebody stood up on purpose: an external Postgres, or an external Redis.
 //
-// It is deliberately the SAME signal that decides Secure cookies (see the
-// SecureCookies field): an https:// BaseURL or a configured OCTARQ_ADMIN_HOST,
-// with OCTARQ_SECURE_COOKIES as the explicit override. Every "strict in
-// production, lenient in development" rule in Load keys on this one predicate —
-// the secret-key length floor and the BaseURL requirement both — so an operator
-// only ever has to reason about one notion of "is this production". Do not
-// introduce a second one.
+// It replaces the old IsProduction, which keyed on an https OCTARQ_BASE_URL or
+// a set OCTARQ_ADMIN_HOST — both gone, now that absolute URLs come from the
+// request (internal/origin) and the dashboard host comes from the domains
+// table. It is the SINGLE strictness predicate in this package: the secret-key
+// floor is the only rule that uses it, and a second notion of "is this
+// production" must not be introduced beside it.
 //
-// It is only meaningful after Load has computed SecureCookies.
-func (c *Config) IsProduction() bool { return c.SecureCookies }
+// It is deliberately not an env var — adding one would just move the decision
+// back onto the operator, and an operator who would set it correctly is an
+// operator who would already have set a long key.
+//
+// The trade-off is honest: a deployment on the default sqlite file with no
+// Redis is treated as development and only gets a warning, where an https
+// OCTARQ_BASE_URL used to make it fatal. Nobody reaches Postgres or Redis by
+// accident, though, whereas a laptop reaches sqlite by default — so the signal
+// no longer fires on the setup it must not break.
+func (c *Config) Provisioned() bool {
+	return c.DBDriver == "postgres" || strings.TrimSpace(c.RedisURL) != ""
+}
 
-// validateBaseURL checks OCTARQ_BASE_URL, which is the only source of absolute
-// URLs in the product: password-reset and email-verification links
-// (internal/api/recovery.go), OAuth callback URIs, and outbound webhook
-// addresses are all built by prefixing it. Left empty, those come out as bare
-// paths like "/admin/reset?token=…" — unopenable from a mail client — while the
-// instance boots and logs nothing.
-//
-// A malformed value is always fatal: it cannot produce a working link anywhere,
-// so there is no mode in which tolerating it helps. An empty value follows the
-// same production/development split as the secret-key floor (see IsProduction):
-// fatal for a production-looking deployment, a warning for local development,
-// where relative links are merely inconvenient and the operator is the only user.
-func (c *Config) validateBaseURL() error {
-	raw := strings.TrimSpace(c.BaseURL)
-	if raw == "" {
-		if c.IsProduction() {
-			return fmt.Errorf("OCTARQ_BASE_URL is required in production: it is the only source of absolute URLs — password-reset and email-verification links, OAuth callback URIs and outbound webhook addresses are all built from it, and without it they are emitted as relative paths that cannot be opened from a mail client. Set OCTARQ_BASE_URL=https://your.domain")
-		}
-		log.Printf("WARNING: OCTARQ_BASE_URL is not set; password-reset and email-verification links will be relative paths (unopenable from a mail client) and OAuth callbacks and webhook addresses cannot be built. Set OCTARQ_BASE_URL=http://localhost:8080 for local use")
-		return nil
+// provisionedBecause names the signal that made Provisioned true, so the
+// startup error tells the operator which knob put them in the strict path.
+func (c *Config) provisionedBecause() string {
+	if c.DBDriver == "postgres" {
+		return "OCTARQ_DB_DRIVER=postgres"
 	}
-	u, err := url.Parse(raw)
-	if err != nil {
-		return fmt.Errorf("OCTARQ_BASE_URL %q is not a parsable URL: %w — expected an absolute URL such as https://your.domain", raw, err)
-	}
-	if u.Scheme == "" || u.Host == "" {
-		return fmt.Errorf("OCTARQ_BASE_URL %q must be an absolute URL with a scheme and a host, such as https://your.domain — it is prefixed onto password-reset links, OAuth callbacks and webhook addresses", raw)
-	}
-	return nil
+	return "OCTARQ_REDIS_URL is set"
 }

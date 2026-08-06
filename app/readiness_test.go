@@ -19,8 +19,6 @@ func loadReadinessConfig(t *testing.T, env map[string]string) *config.Config {
 		"OCTARQ_DB_DSN":         filepath.Join(dir, "octarq.db"),
 		"OCTARQ_SECRET_KEY":     "0123456789abcdef0123456789abcdef",
 		"OCTARQ_ADMIN_PASSWORD": "pw",
-		"OCTARQ_BASE_URL":       "",
-		"OCTARQ_SECURE_COOKIES": "false",
 	}
 	for k, v := range env {
 		base[k] = v
@@ -59,14 +57,13 @@ func TestReadinessReportOmitsSecrets(t *testing.T) {
 	cfg := loadReadinessConfig(t, map[string]string{
 		"OCTARQ_SECRET_KEY":     secretKey,
 		"OCTARQ_ADMIN_PASSWORD": adminPassword,
-		"OCTARQ_BASE_URL":       "https://app.example.com",
 	})
 	// Postgres is where a DSN carries a password. Set it on the loaded config
 	// rather than through the driver env so the test needs no live database.
 	cfg.DBDriver = "postgres"
 	cfg.DBDSN = "postgres://octarq:" + dsnPassword + "@db.internal:5432/octarq"
 
-	out := reportText(readinessReport(cfg, true))
+	out := reportText(readinessReport(cfg, true, true))
 	if out == "" {
 		t.Fatal("readinessReport produced no output; the leak assertion below would be vacuous")
 	}
@@ -86,26 +83,27 @@ func TestReadinessReportOmitsSecrets(t *testing.T) {
 }
 
 // TestReadinessReportFlagsSilentFailures pins the two capabilities that fail
-// with no error of their own: absolute links and outbound mail. Each degraded
-// line must also carry the env var or action that fixes it — a status with no
-// remedy leaves the operator exactly where they started.
+// with no error of their own: absolute links (now: no registered domain to
+// validate the request host against) and outbound mail. Each degraded line must
+// also carry the action that fixes it — a status with no remedy leaves the
+// operator exactly where they started.
 func TestReadinessReportFlagsSilentFailures(t *testing.T) {
-	cfg := loadReadinessConfig(t, nil) // no base URL, development mode
+	cfg := loadReadinessConfig(t, nil) // sqlite, no redis: development mode
 
 	degraded := map[string]readinessLine{}
 	statuses := map[string]readinessStatus{}
-	for _, l := range readinessReport(cfg, false) {
+	for _, l := range readinessReport(cfg, false, false) {
 		statuses[l.Subject] = l.Status
 		if l.Status == readyDegraded {
 			degraded[l.Subject] = l
 		}
 	}
-	for _, subject := range []string{"public base URL", "outbound mail"} {
+	for _, subject := range []string{"public origin", "outbound mail"} {
 		l, ok := degraded[subject]
 		if !ok {
 			t.Fatalf("%q reported as %q, want degraded — this is the case that boots silently broken", subject, statuses[subject])
 		}
-		if !strings.Contains(l.Detail, "OCTARQ_BASE_URL") && !strings.Contains(l.Detail, "mail.send") {
+		if !strings.Contains(l.Detail, "domain") && !strings.Contains(l.Detail, "mail.send") {
 			t.Errorf("%q degraded line gives no actionable next step: %s", subject, l.Detail)
 		}
 	}
@@ -122,10 +120,10 @@ func TestReadinessReportFlagsSilentFailures(t *testing.T) {
 // degraded lines above would mean nothing.
 func TestReadinessReportHealthyInstance(t *testing.T) {
 	cfg := loadReadinessConfig(t, map[string]string{
-		"OCTARQ_BASE_URL":       "https://app.example.com",
-		"OCTARQ_SECURE_COOKIES": "true",
+		"OCTARQ_DB_DRIVER": "postgres",
+		"OCTARQ_DB_DSN":    "postgres://octarq@db.internal:5432/octarq",
 	})
-	for _, l := range readinessReport(cfg, true) {
+	for _, l := range readinessReport(cfg, true, true) {
 		if l.Status != readyOK {
 			t.Errorf("healthy instance reported %q for %q: %s", l.Status, l.Subject, l.Detail)
 		}

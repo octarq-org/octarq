@@ -58,7 +58,7 @@ func TestStatefulSessionRoundtrip(t *testing.T) {
 	m := testManager(t).WithDB(db)
 
 	rec := httptest.NewRecorder()
-	m.SetSession(rec, 1, 42)
+	m.SetSession(rec, httptest.NewRequest(http.MethodGet, "/", nil), 1, 42)
 
 	cookies := rec.Result().Cookies()
 	if len(cookies) != 1 {
@@ -87,7 +87,7 @@ func TestStatefulSessionExpiryAndInvalidation(t *testing.T) {
 	m := testManager(t).WithDB(db)
 
 	rec := httptest.NewRecorder()
-	m.SetSession(rec, 1, 42)
+	m.SetSession(rec, httptest.NewRequest(http.MethodGet, "/", nil), 1, 42)
 	tokCookie := rec.Result().Cookies()[0]
 
 	// 1. Invalid token
@@ -115,7 +115,7 @@ func TestStatefulSessionExpiryAndInvalidation(t *testing.T) {
 
 	// 3. Clear session
 	rec2 := httptest.NewRecorder()
-	m.SetSession(rec2, 2, 42)
+	m.SetSession(rec2, httptest.NewRequest(http.MethodGet, "/", nil), 2, 42)
 	tokCookie2 := rec2.Result().Cookies()[0]
 	reqClear := httptest.NewRequest(http.MethodGet, "/api/links", nil)
 	reqClear.AddCookie(tokCookie2)
@@ -136,7 +136,7 @@ func TestAuthedReadsCookie(t *testing.T) {
 	db := testDB(t)
 	m := testManager(t).WithDB(db)
 	rec := httptest.NewRecorder()
-	m.SetSession(rec, 1, 1)
+	m.SetSession(rec, httptest.NewRequest(http.MethodGet, "/", nil), 1, 1)
 	req := httptest.NewRequest(http.MethodGet, "/api/links", nil)
 	for _, c := range rec.Result().Cookies() {
 		req.AddCookie(c)
@@ -150,7 +150,7 @@ func TestOrgIDExtractedFromCookie(t *testing.T) {
 	db := testDB(t)
 	m := testManager(t).WithDB(db)
 	rec := httptest.NewRecorder()
-	m.SetSession(rec, 7, 99)
+	m.SetSession(rec, httptest.NewRequest(http.MethodGet, "/", nil), 7, 99)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	for _, c := range rec.Result().Cookies() {
 		req.AddCookie(c)
@@ -224,7 +224,7 @@ func TestRequireMiddleware(t *testing.T) {
 
 	// Case 2: Authorized via Session Cookie
 	recCookie := httptest.NewRecorder()
-	m.SetSession(recCookie, 42, 99)
+	m.SetSession(recCookie, httptest.NewRequest(http.MethodGet, "/", nil), 42, 99)
 	reqCookie := httptest.NewRequest(http.MethodGet, "/api/test", nil)
 	for _, c := range recCookie.Result().Cookies() {
 		reqCookie.AddCookie(c)
@@ -279,13 +279,13 @@ func TestOAuthLoadProviderConcurrency(t *testing.T) {
 	db.Create(&models.Setting{Key: "oauth.google.client_id", Value: "google-id"})
 	db.Create(&models.Setting{Key: "oauth.google.client_secret", Value: encSecret})
 
-	handler := NewOAuthHandler(db, "http://localhost", m, cipher)
+	handler := NewOAuthHandler(db, m, cipher)
 
 	const workers = 10
 	done := make(chan bool, workers)
 	for i := 0; i < workers; i++ {
 		go func() {
-			ok := handler.loadProvider("google")
+			ok := handler.loadProvider("google", "google@http://localhost", "http://localhost")
 			if !ok {
 				t.Errorf("expected loadProvider to succeed")
 			}
@@ -302,9 +302,9 @@ func TestOAuthHandlerUpsertUser(t *testing.T) {
 	db := testDB(t)
 	cfg := &config.Config{SecretKey: "secret"}
 	m := New(cfg, crypto.New("secret")).WithDB(db)
-	handler := NewOAuthHandler(db, "http://localhost", m, crypto.New("secret"))
+	handler := NewOAuthHandler(db, m, crypto.New("secret"))
 
-	InitGothStore("secret", false)
+	InitGothStore("secret")
 
 	reqBegin := httptest.NewRequest(http.MethodGet, "/auth/begin/unconfigured", nil)
 	reqBegin.SetPathValue("provider", "unconfigured")
@@ -354,7 +354,7 @@ func TestOAuthUpsertRespectsRegistrationGate(t *testing.T) {
 	db := testDB(t)
 	cfg := &config.Config{SecretKey: "secret"}
 	m := New(cfg, crypto.New("secret")).WithDB(db)
-	handler := NewOAuthHandler(db, "http://localhost", m, crypto.New("secret"))
+	handler := NewOAuthHandler(db, m, crypto.New("secret"))
 
 	// Turn registration off (invite-only instance).
 	if err := db.Create(&models.Setting{Key: "allow_registration", Value: "false"}).Error; err != nil {

@@ -9,7 +9,6 @@ services:
       OCTARQ_SECRET_KEY: ${OCTARQ_SECRET_KEY:?set in .env}
       OCTARQ_ADMIN_PASSWORD: ${OCTARQ_ADMIN_PASSWORD:?set in .env}
       OCTARQ_ADMIN_USER: ${OCTARQ_ADMIN_USER:-admin}
-      OCTARQ_ADMIN_HOST: ${OCTARQ_ADMIN_HOST:-}
       # SQLite by default; data persisted in the named volume below.
       OCTARQ_DB_DRIVER: ${OCTARQ_DB_DRIVER:-sqlite}
       OCTARQ_DB_DSN: ${OCTARQ_DB_DSN:-/data/octarq.db}

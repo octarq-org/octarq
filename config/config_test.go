@@ -3,7 +3,6 @@ package config
 import (
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -109,60 +108,72 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 }
 
-// TestLoadBaseURLValidation covers every combination of the three interesting
-// OCTARQ_BASE_URL inputs (absent / malformed / absolute) against the two
-// severity modes Load distinguishes.
+// TestSecretKeyFloor pins the one strictness rule left in Load: a secret key
+// shorter than MinSecretKeyLen refuses to start on a provisioned deployment and
+// only warns on a development one.
 //
-// The mode is pinned with OCTARQ_SECURE_COOKIES because that is the real
-// production signal (Config.IsProduction) — the same one that decides the
-// secret-key floor. Setting it explicitly also keeps the cases independent: an
-// https:// base URL would otherwise flip the mode to production by itself.
-//
-// The empty-in-production case is the one that matters: a self-hosted instance
-// with no base URL boots fine and mails out unopenable relative links.
-func TestLoadBaseURLValidation(t *testing.T) {
+// The predicate is Config.Provisioned — an external Postgres or an external
+// Redis. It replaced IsProduction, which keyed on an https OCTARQ_BASE_URL or
+// OCTARQ_ADMIN_HOST, both of which this refactor deleted. The default sqlite
+// file with no Redis must stay lenient: it is what `go run .` and the
+// documented OCTARQ_SECRET_KEY=dev use.
+func TestSecretKeyFloor(t *testing.T) {
 	cases := []struct {
 		name    string
-		baseURL string
-		prod    bool
+		key     string
+		driver  string
+		redis   string
 		wantErr bool
 	}{
-		{name: "absent in production is fatal", baseURL: "", prod: true, wantErr: true},
-		{name: "absent in development is tolerated", baseURL: "", prod: false, wantErr: false},
-		{name: "malformed in production is fatal", baseURL: "app.example.com", prod: true, wantErr: true},
-		{name: "malformed in development is fatal too", baseURL: "app.example.com", prod: false, wantErr: true},
-		{name: "absolute in production is accepted", baseURL: "https://app.example.com", prod: true, wantErr: false},
-		{name: "absolute in development is accepted", baseURL: "http://localhost:8080", prod: false, wantErr: false},
+		{name: "short key on sqlite warns only", key: "dev", driver: "sqlite", wantErr: false},
+		{name: "short key on postgres is fatal", key: "dev", driver: "postgres", wantErr: true},
+		{name: "short key with redis is fatal", key: "dev", driver: "sqlite", redis: "redis://localhost:6379", wantErr: true},
+		{name: "long key on postgres is accepted", key: "0123456789abcdef0123456789abcdef", driver: "postgres", wantErr: false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
-			// Long enough to clear the secret-key floor, so a production case
-			// can only fail for the reason under test.
-			t.Setenv("OCTARQ_SECRET_KEY", "0123456789abcdef0123456789abcdef")
+			t.Setenv("OCTARQ_SECRET_KEY", tc.key)
 			t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
-			t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
+			t.Setenv("OCTARQ_DB_DRIVER", tc.driver)
 			t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
-			t.Setenv("OCTARQ_BASE_URL", tc.baseURL)
-			t.Setenv("OCTARQ_SECURE_COOKIES", strconv.FormatBool(tc.prod))
+			t.Setenv("OCTARQ_REDIS_URL", tc.redis)
 
 			cfg, err := Load()
 			switch {
 			case tc.wantErr && err == nil:
-				t.Fatalf("Load(base=%q, production=%v) succeeded; expected a refusal to start", tc.baseURL, tc.prod)
+				t.Fatalf("Load(key=%q, driver=%s, redis=%q) succeeded; expected a refusal to start", tc.key, tc.driver, tc.redis)
 			case !tc.wantErr && err != nil:
-				t.Fatalf("Load(base=%q, production=%v) failed: %v", tc.baseURL, tc.prod, err)
+				t.Fatalf("Load(key=%q, driver=%s, redis=%q) failed: %v", tc.key, tc.driver, tc.redis, err)
 			}
 			if err != nil {
-				if !strings.Contains(err.Error(), "OCTARQ_BASE_URL") {
+				if !strings.Contains(err.Error(), "OCTARQ_SECRET_KEY") {
 					t.Errorf("error does not name the offending variable: %v", err)
 				}
 				return
 			}
-			if cfg.IsProduction() != tc.prod {
-				t.Fatalf("IsProduction() = %v, want %v — the production signal under test was not applied", cfg.IsProduction(), tc.prod)
+			if want := tc.driver == "postgres" || tc.redis != ""; cfg.Provisioned() != want {
+				t.Fatalf("Provisioned() = %v, want %v", cfg.Provisioned(), want)
 			}
 		})
+	}
+}
+
+// TestLoadDropsRemovedVariables pins that the three variables this refactor
+// deleted stay deleted: setting them must not resurrect any behaviour, and Load
+// must not fail on their presence in an operator's stale .env either.
+func TestLoadDropsRemovedVariables(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("OCTARQ_SECRET_KEY", "0123456789abcdef0123456789abcdef")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
+	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
+	t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
+	t.Setenv("OCTARQ_BASE_URL", "not a url at all")
+	t.Setenv("OCTARQ_ADMIN_HOST", "admin.example.com")
+	t.Setenv("OCTARQ_SECURE_COOKIES", "true")
+
+	if _, err := Load(); err != nil {
+		t.Fatalf("Load() with the removed variables set failed: %v", err)
 	}
 }
 

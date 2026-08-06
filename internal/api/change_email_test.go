@@ -80,7 +80,7 @@ func TestChangeEmailSSOUserRejected(t *testing.T) {
 	db.Create(&models.OrgMember{OrgID: org.ID, UserID: ssoUser.ID, Role: "owner"})
 
 	rec := httptest.NewRecorder()
-	h.auth.SetSession(rec, ssoUser.ID, org.ID)
+	h.auth.SetSession(rec, httptest.NewRequest(http.MethodGet, "/", nil), ssoUser.ID, org.ID)
 	cookies := rec.Result().Cookies()
 
 	res := do(srv, "PUT", "/api/auth/email", cookies, `{"newEmail":"sso-new@example.com"}`)

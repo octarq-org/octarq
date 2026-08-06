@@ -20,6 +20,7 @@ import (
 	"github.com/octarq-org/octarq/internal/cache"
 	"github.com/octarq-org/octarq/internal/crypto"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/origin"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -141,8 +142,10 @@ func New(cfg *config.Config, c *crypto.Cipher) *Manager {
 	return &Manager{cfg: cfg, cipher: c, cache: cache.New("")}
 }
 
-// trustProxy gates whether proxy-supplied client-IP headers are honoured when
-// deriving the client IP for rate limiting. Set once from config in New.
+// trustProxy gates whether proxy-supplied headers are honoured: the client-IP
+// headers when deriving the client IP for rate limiting, and X-Forwarded-Proto
+// when deciding whether a request arrived over TLS (which sets the session
+// cookie's Secure attribute). Set once from config in New.
 var trustProxy bool
 
 // WithDB attaches a database so sessions and API bearer tokens can be
@@ -220,7 +223,7 @@ func (m *Manager) SetSessionFromRequest(r *http.Request, w http.ResponseWriter, 
 				// token — so without an explicit invalidation a cached row would
 				// keep serving the pre-switch org even now that the DB is right.
 				_ = m.cache.Delete(context.Background(), "session:"+existing.Token)
-				m.setCookie(w, raw)
+				m.setCookie(w, r, raw)
 				return
 			}
 			m.db.Model(&existing).Updates(map[string]any{
@@ -230,7 +233,7 @@ func (m *Manager) SetSessionFromRequest(r *http.Request, w http.ResponseWriter, 
 				"expires_at":   expires,
 			})
 			_ = m.cache.Delete(context.Background(), "session:"+existing.Token)
-			m.setCookie(w, token)
+			m.setCookie(w, r, token)
 			return
 		}
 
@@ -245,13 +248,14 @@ func (m *Manager) SetSessionFromRequest(r *http.Request, w http.ResponseWriter, 
 		}
 		m.db.Create(&sess)
 	}
-	m.setCookie(w, token)
+	m.setCookie(w, r, token)
 }
 
 // SetSession creates a minimal session row (no IP/UA) and sets the cookie.
-// It accepts the same signature as before so existing call sites (OAuth
-// callbacks, tests without a request object) continue to compile.
-func (m *Manager) SetSession(w http.ResponseWriter, uid, orgID uint) {
+// Prefer SetSessionFromRequest, which also records IP and User-Agent; this form
+// exists for callers that have nothing to record (the OAuth callback, tests).
+// r is still required: the cookie's Secure attribute is derived from it.
+func (m *Manager) SetSession(w http.ResponseWriter, r *http.Request, uid, orgID uint) {
 	token := generateToken()
 	if m.db != nil {
 		now := time.Now()
@@ -264,16 +268,24 @@ func (m *Manager) SetSession(w http.ResponseWriter, uid, orgID uint) {
 		}
 		m.db.Create(&sess)
 	}
-	m.setCookie(w, token)
+	m.setCookie(w, r, token)
 }
 
-func (m *Manager) setCookie(w http.ResponseWriter, token string) {
+// setCookie writes the session cookie, marking it Secure exactly when the
+// request that is establishing the session arrived over TLS.
+//
+// Deriving this from the request rather than from configuration removes the
+// trap that used to need a warning at startup: a Secure cookie set over plain
+// HTTP is silently dropped by the browser, so the user logs in and every
+// following request is a 401. It cannot happen now — over HTTP the flag is off,
+// and the moment the same instance is reached over HTTPS it is on.
+func (m *Manager) setCookie(w http.ResponseWriter, r *http.Request, token string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     cookieName,
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   m.cfg.SecureCookies,
+		Secure:   origin.Secure(r, trustProxy),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(sessionTTL.Seconds()),
 	})
