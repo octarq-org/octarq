@@ -360,8 +360,11 @@ func safeHostPort(raw string) bool {
 // amplifier. Negative answers are cached for exactly that reason.
 const ttl = 5 * time.Minute
 
+// entry holds one cached answer. org is meaningful only for OwnerOf's key
+// space; the boolean questions leave it zero.
 type entry struct {
 	ok     bool
+	org    uint
 	expiry time.Time
 }
 
@@ -378,13 +381,21 @@ func NewResolver(db *gorm.DB) *Resolver {
 }
 
 func (rv *Resolver) cached(key string, compute func() bool) bool {
+	_, ok := rv.cachedOwner(key, func() (uint, bool) { return 0, compute() })
+	return ok
+}
+
+// cachedOwner is cached() for answers that carry an org id. Both share one map,
+// so the size bound covers every question the resolver answers rather than one
+// per method.
+func (rv *Resolver) cachedOwner(key string, compute func() (uint, bool)) (uint, bool) {
 	rv.mu.RLock()
 	e, hit := rv.entries[key]
 	rv.mu.RUnlock()
 	if hit && time.Now().Before(e.expiry) {
-		return e.ok
+		return e.org, e.ok
 	}
-	ok := compute()
+	org, ok := compute()
 	rv.mu.Lock()
 	defer rv.mu.Unlock()
 	// Bound the map: a Host-header sprayer would otherwise grow it without
@@ -392,8 +403,8 @@ func (rv *Resolver) cached(key string, compute func() bool) bool {
 	if len(rv.entries) > 1024 {
 		rv.entries = make(map[string]entry)
 	}
-	rv.entries[key] = entry{ok: ok, expiry: time.Now().Add(ttl)}
-	return ok
+	rv.entries[key] = entry{ok: ok, org: org, expiry: time.Now().Add(ttl)}
+	return org, ok
 }
 
 // OwnedHost is the cached form of the package-level OwnedHost.
@@ -413,6 +424,25 @@ func (rv *Resolver) OwnedHost(orgID uint, r *http.Request) (string, bool) {
 		return host, true
 	}
 	return "", false
+}
+
+// OwnerOf is the cached form of the package-level OwnerOf.
+//
+// This is the form public, unauthenticated endpoints should use — a storefront
+// or a buyer portal asks this question on every request, including requests
+// from someone spraying hostnames, and each miss is a full scan of the domains
+// table. Negative answers are cached for that reason.
+//
+// The cost is that a newly registered domain takes up to ttl to start
+// resolving. That is the same staleness OwnedHost and ServesTraffic already
+// accept, and registering a domain is not an operation whose effect anyone
+// expects within the same second.
+func (rv *Resolver) OwnerOf(host string) (uint, bool) {
+	host = NormalizeHost(host)
+	if host == "" {
+		return 0, false
+	}
+	return rv.cachedOwner("owner:"+host, func() (uint, bool) { return OwnerOf(rv.db, host) })
 }
 
 // ServesTraffic is the cached form of the package-level ServesTraffic.
