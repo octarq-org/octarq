@@ -93,7 +93,7 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 		return nil, huma.Error500InternalServerError("failed to create account")
 	}
 
-	verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.cfg.BaseURL, rawToken)
+	verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.origin(r), rawToken)
 	h.sendVerificationEmail(user.ID, email, verifyURL)
 
 	slug, err := models.AllocateOrgSlug(h.db)

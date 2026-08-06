@@ -425,8 +425,8 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 		// sender (or a send error) must not fail the invite — the link is still
 		// returned so the operator can deliver it out-of-band.
 		acceptURL := "/admin/invite/accept?token=" + user.InviteToken
-		if h.cfg.BaseURL != "" {
-			acceptURL = h.cfg.BaseURL + acceptURL
+		if base := h.origin(r); base != "" {
+			acceptURL = base + acceptURL
 		}
 		h.sendInviteEmail(orgID, email, acceptURL)
 		return &AddOrgMemberOutput{

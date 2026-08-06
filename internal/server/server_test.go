@@ -7,8 +7,49 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/config"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
+
+// testDomain mirrors the dns plugin's domains table, which is what now decides
+// where the dashboard is served (see dashboardAllowed). The server package
+// cannot import the plugin, and neither can this test.
+type testDomain struct {
+	ID        uint `gorm:"primaryKey"`
+	OrgID     uint `gorm:"column:owner_id"`
+	Name      string
+	ForLink   bool
+	ForMail   bool
+	LinkHosts string
+	MailHosts string
+}
+
+func (testDomain) TableName() string { return "domains" }
+
+// domainsDB returns a database whose domains table contains rows, or no
+// domains table at all when none are given (an instance composed without the
+// dns plugin).
+func domainsDB(t *testing.T, rows ...testDomain) *gorm.DB {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{Logger: logger.Discard})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if len(rows) == 0 {
+		return db
+	}
+	if err := db.AutoMigrate(&testDomain{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	for i := range rows {
+		if err := db.Create(&rows[i]).Error; err != nil {
+			t.Fatalf("seed domain: %v", err)
+		}
+	}
+	return db
+}
 
 type mockAPI struct{}
 
@@ -23,11 +64,16 @@ func TestServer(t *testing.T) {
 		"asset.css":  &fstest.MapFile{Data: []byte("css style")},
 	}
 
-	cfg := &config.Config{
-		AdminHost: "admin.example.com",
-	}
+	// links.example.com serves this org's short links, so it must not serve the
+	// dashboard. admin.example.com is registered by nobody and therefore does.
+	db := domainsDB(t, testDomain{
+		OrgID:     1,
+		Name:      "example.com",
+		ForLink:   true,
+		LinkHosts: `[{"host":"links.example.com","enabled":true}]`,
+	})
 
-	srv, err := New(cfg, mockAPI{}, nil, webFS, nil, RuntimeSettings{})
+	srv, err := New(&config.Config{}, db, mockAPI{}, nil, webFS, nil, RuntimeSettings{})
 	if err != nil {
 		t.Fatalf("expected no error building server, got %v", err)
 	}
@@ -97,7 +143,7 @@ func TestStaticMounts(t *testing.T) {
 		"index.html":    &fstest.MapFile{Data: []byte("portal index")},
 		"assets/app.js": &fstest.MapFile{Data: []byte("portal js")},
 	}
-	srv, err := New(&config.Config{}, mockAPI{}, nil, webFS,
+	srv, err := New(&config.Config{}, domainsDB(t), mockAPI{}, nil, webFS,
 		[]StaticMount{{Prefix: "/portal", FS: portalFS}}, RuntimeSettings{})
 	if err != nil {
 		t.Fatalf("build server: %v", err)
@@ -120,6 +166,65 @@ func TestStaticMounts(t *testing.T) {
 		}
 		if c.wantBody != "" && !strings.Contains(rec.Body.String(), c.wantBody) {
 			t.Errorf("%s: body %q does not contain %q", c.path, rec.Body.String(), c.wantBody)
+		}
+	}
+}
+
+// TestDashboardHostFollowsRegisteredDomains pins where the operator console is
+// served now that OCTARQ_ADMIN_HOST is gone.
+//
+// A hostname a workspace registered for short links or for mail exists to serve
+// that workspace's public traffic; putting a login form on it hands visitors an
+// unexpected credential prompt on a domain they associate with the tenant. Every
+// other hostname serves the dashboard, which is what the old variable's
+// documentation always claimed for its empty value but never did.
+func TestDashboardHostFollowsRegisteredDomains(t *testing.T) {
+	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("index html")}}
+
+	db := domainsDB(t,
+		testDomain{
+			OrgID:     1,
+			Name:      "acme.example",
+			ForLink:   true,
+			LinkHosts: `[{"host":"go.acme.example","enabled":true},{"host":"old.acme.example","enabled":false}]`,
+		},
+		testDomain{
+			OrgID:     2,
+			Name:      "mail.example",
+			ForMail:   true,
+			MailHosts: `[{"host":"mx.mail.example","enabled":true}]`,
+		},
+		// Toggle on, no host list: the apex itself serves the short links.
+		testDomain{OrgID: 3, Name: "short.example", ForLink: true},
+	)
+	srv, err := New(&config.Config{}, db, mockAPI{}, nil, webFS, nil, RuntimeSettings{})
+	if err != nil {
+		t.Fatalf("build server: %v", err)
+	}
+
+	cases := []struct {
+		host  string
+		serve bool
+	}{
+		{host: "dashboard.example.net", serve: true}, // registered by nobody
+		{host: "app.acme.example", serve: true},      // a subdomain that serves nothing
+		{host: "old.acme.example", serve: true},      // link host, but disabled
+		{host: "go.acme.example", serve: false},      // serves short links
+		{host: "go.acme.example:8080", serve: false}, // ...port and case included
+		{host: "GO.Acme.Example", serve: false},      //
+		{host: "mx.mail.example", serve: false},      // receives mail
+		{host: "short.example", serve: false},        // apex serves its own links
+		{host: "sub.short.example", serve: true},     // but only the apex does
+	}
+	for _, tc := range cases {
+		req := httptest.NewRequest("GET", "/admin/", nil)
+		req.Host = tc.host
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+
+		got := rec.Code == http.StatusOK
+		if got != tc.serve {
+			t.Errorf("GET /admin/ on %q: code %d (serving=%v), want serving=%v", tc.host, rec.Code, got, tc.serve)
 		}
 	}
 }

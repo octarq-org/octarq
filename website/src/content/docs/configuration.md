@@ -19,9 +19,33 @@ The primary configuration options are:
 | `OCTARQ_SECRET_KEY` | Signs session cookies. **Required.** |
 | `OCTARQ_ADMIN_USER` | First admin username (default `admin`). |
 | `OCTARQ_ADMIN_PASSWORD` | First admin password. **Required.** |
-| `OCTARQ_ADMIN_HOST` | Restrict `/admin` to this hostname (e.g. `admin.example.com`). Unset = served anywhere. |
 | `OCTARQ_ALLOW_PRIVATE_WEBHOOKS` | Allow webhook & notification delivery to private/loopback IPs. Default `false`. |
 | `OCTARQ_ALLOW_PRIVATE_SMTP` | Allow outbound SMTP mail delivery to private/loopback IPs (e.g. local Postfix or Mailhog). Default `false`. |
+| `OCTARQ_TRUST_PROXY` | Honour `X-Forwarded-For` / `X-Real-IP` / `X-Forwarded-Proto`. Enable only behind a reverse proxy you control. Default `false`. |
+
+## Hostnames
+
+There is nothing to configure. Absolute links — password reset, email
+verification, workspace invites, OAuth `redirect_uri` — are built from the
+hostname the request arrived on, and that hostname is accepted only when it
+matches a domain registered under **Domains**. A hostname that matches none
+produces relative links instead, so a forged `Host` header can never aim a
+password-reset link at somebody else's site.
+
+An instance with no registered domain has nothing to check against and uses the
+request host as sent; register the domain you serve on to close that gap.
+
+Two things follow from the same request rather than from configuration:
+
+- **Where the dashboard is served.** Every hostname serves `/admin`, except one
+  registered as a short-link or mail host — those exist for a workspace's public
+  traffic and do not show a login form.
+- **The session cookie's `Secure` attribute.** Set when the request arrived over
+  HTTPS. `X-Forwarded-Proto` counts only with `OCTARQ_TRUST_PROXY` on.
+
+**OAuth operators:** `redirect_uri` now varies by hostname, so every hostname
+you offer social login on must be registered with the provider as
+`https://<host>/auth/callback/<provider>`.
 
 ## Database
 

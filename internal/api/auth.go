@@ -649,7 +649,7 @@ func (h *Handler) changeEmail(ctx context.Context, input *ChangeEmailInput) (*Ch
 		updates["verify_token_hash"] = tokenHash
 		updates["verify_token_expiry"] = expiry
 
-		verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.cfg.BaseURL, rawToken)
+		verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.origin(r), rawToken)
 		h.sendVerificationEmail(user.ID, newEmail, verifyURL)
 		verificationSent = true
 	} else {

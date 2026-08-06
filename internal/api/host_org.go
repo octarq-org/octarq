@@ -5,6 +5,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/octarq-org/octarq/internal/origin"
 )
 
 // Resolving a workspace from the request Host.
@@ -70,66 +72,12 @@ func (c *hostOrgCache) put(host string, orgID uint) {
 	c.entries[host] = hostOrgEntry{orgID: orgID, expiry: time.Now().Add(hostOrgTTL)}
 }
 
-// normalizeHost lowercases the Host header and strips the port and any trailing
-// dot, so "Acme.COM:8443" and "acme.com." both resolve like "acme.com".
-func normalizeHost(host string) string {
-	host = strings.ToLower(strings.TrimSpace(host))
-	if host == "" {
-		return ""
-	}
-	// Strip port. IPv6 literals arrive bracketed ("[::1]:8080"), so cut after the
-	// closing bracket rather than at the first colon.
-	if i := strings.LastIndex(host, "]"); i >= 0 {
-		host = host[:i+1]
-	} else if i := strings.LastIndex(host, ":"); i >= 0 {
-		host = host[:i]
-	}
-	return strings.TrimSuffix(host, ".")
-}
-
-// hostCandidates returns the hostname and each parent domain down to (but not
-// including) the public suffix guess, so "mail.app.acme.com" tries
-// "mail.app.acme.com", "app.acme.com", "acme.com". The registered domain is
-// usually what lives in the domains table while the dashboard runs on a
-// subdomain of it.
-//
-// It stops at two labels. That over-matches on multi-part suffixes like
-// "co.uk" — a tenant owning "acme.co.uk" is found at the 3-label step first, so
-// the extra "co.uk" probe only ever costs one wasted lookup and can only match
-// if someone actually registered "co.uk" as their own domain row.
-func hostCandidates(host string) []string {
-	if host == "" || strings.HasPrefix(host, "[") {
-		return nil
-	}
-	// A bare IP is nobody's branded domain.
-	if isNumericHost(host) {
-		return nil
-	}
-	labels := strings.Split(host, ".")
-	if len(labels) < 2 {
-		return nil
-	}
-	out := make([]string, 0, len(labels)-1)
-	for i := 0; i+1 < len(labels); i++ {
-		out = append(out, strings.Join(labels[i:], "."))
-	}
-	return out
-}
-
-// isNumericHost reports whether every label is numeric (an IPv4 literal).
-func isNumericHost(host string) bool {
-	for _, label := range strings.Split(host, ".") {
-		if label == "" {
-			return false
-		}
-		for _, c := range label {
-			if c < '0' || c > '9' {
-				return false
-			}
-		}
-	}
-	return true
-}
+// normalizeHost and hostCandidates live in internal/origin, which owns hostname
+// parsing for the whole product: the same two transformations decide whether a
+// request host may become an outbound link's origin, so a second copy here
+// would be a second answer to the same question.
+func normalizeHost(host string) string    { return origin.NormalizeHost(host) }
+func hostCandidates(host string) []string { return origin.Candidates(host) }
 
 // orgIDForHost resolves the workspace that owns the request's hostname, or 0
 // when the host belongs to no tenant (the shared dashboard host, an IP, or a
