@@ -16,6 +16,10 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
   const [needs2FA, setNeeds2FA] = useState(false);
   const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
   const [forgotSent, setForgotSent] = useState(false);
+  // Set from the register response's verificationRequired flag: the account
+  // exists but the instance withheld the session until the email is verified.
+  // Never inferred from "did we get a cookie" — the server states it.
+  const [pendingVerifyEmail, setPendingVerifyEmail] = useState("");
   const [resendingVerify, setResendingVerify] = useState(false);
   const [verifySent, setVerifySent] = useState(false);
   const [err, setErr] = useState("");
@@ -55,6 +59,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
     setErr("");
     setBusy(true);
     setVerifySent(false);
+    setPendingVerifyEmail("");
 
     try {
       if (mode === "forgot") {
@@ -64,7 +69,13 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
       }
 
       if (mode === "register") {
-        await api.register(u.trim(), p);
+        const res = await api.register(u.trim(), p);
+        if (res.verificationRequired) {
+          // No session was issued; sending them to the dashboard would just
+          // bounce off /api/auth/me. Ask for the mailbox instead.
+          setPendingVerifyEmail(u.trim());
+          return;
+        }
         await finishLogin(u.trim());
         return;
       }
@@ -106,6 +117,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
     setErr("");
     setForgotSent(false);
     setVerifySent(false);
+    setPendingVerifyEmail("");
     setNeeds2FA(false);
     setCode("");
     if (next === "register" || next === "forgot") {
@@ -134,19 +146,25 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
         <div className="mb-6 text-center">
           <BrandMark size="lg" className="mx-auto mb-4" />
           <h1 className="font-display text-2xl font-bold text-foreground">
-            {mode === "register"
+            {pendingVerifyEmail
+              ? t("app.registerVerifyTitle")
+              : mode === "register"
               ? t("app.createAccount")
               : mode === "forgot"
               ? t("app.forgotPasswordTitle")
               : t("app.signInTo", { app: appName })}
           </h1>
-          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-            {mode === "register"
-              ? t("app.registerSubtitle")
-              : mode === "forgot"
-              ? t("app.forgotPasswordDesc")
-              : t("app.loginSubtitle")}
-          </p>
+          {/* When verification is pending the explanation lives in the panel
+              below, next to the resend action — no need to say it twice. */}
+          {!pendingVerifyEmail && (
+            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+              {mode === "register"
+                ? t("app.registerSubtitle")
+                : mode === "forgot"
+                ? t("app.forgotPasswordDesc")
+                : t("app.loginSubtitle")}
+            </p>
+          )}
         </div>
 
         {isVerifiedNotice && (
@@ -185,7 +203,36 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
           </div>
         )}
 
-        {mode === "forgot" && forgotSent ? (
+        {pendingVerifyEmail ? (
+          <div className="py-2 space-y-4">
+            <Alert variant="info" icon={<Mail className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
+              <span>{t("app.registerVerifyNotice", { email: pendingVerifyEmail })}</span>
+            </Alert>
+            <div className="text-center space-y-3">
+              {verifySent ? (
+                <p className="text-xs text-success-fg font-medium">✓ {t("app.verificationSent")}</p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={resendingVerify}
+                  className="text-xs text-accent-fg hover:underline font-medium"
+                >
+                  {resendingVerify ? t("app.sending") : t("app.resendVerificationBtn")}
+                </button>
+              )}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => switchMode("login")}
+                  className="text-xs text-accent-fg hover:underline font-medium"
+                >
+                  {t("app.backToSignIn")}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : mode === "forgot" && forgotSent ? (
           <div className="text-center py-4 space-y-4">
             <Alert variant="success" icon={<CheckCircle2 className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
               <span>{t("app.forgotSentNotice")}</span>
@@ -283,7 +330,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
           </form>
         )}
 
-        {mode !== "forgot" && <ExtensionSlot name="login-methods" />}
+        {mode !== "forgot" && !pendingVerifyEmail && <ExtensionSlot name="login-methods" />}
 
         {mode === "forgot" && !forgotSent && (
           <p className="mt-4 text-center text-xs text-muted-foreground">
@@ -293,7 +340,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
           </p>
         )}
 
-        {mode !== "forgot" && oauthConfig?.registrationEnabled && !needs2FA && (
+        {mode !== "forgot" && !pendingVerifyEmail && oauthConfig?.registrationEnabled && !needs2FA && (
           <p className="mt-5 text-center text-xs text-muted-foreground">
             {mode === "register" ? (
               <>{t("app.haveAccount")}{" "}
@@ -307,7 +354,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
           </p>
         )}
 
-        {mode !== "forgot" && hasOauth && (
+        {mode !== "forgot" && !pendingVerifyEmail && hasOauth && (
           <div className="mt-6 space-y-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="h-px flex-1 bg-border" />

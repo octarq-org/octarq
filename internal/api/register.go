@@ -33,13 +33,18 @@ type RegisterOutput struct {
 		OK       bool   `json:"ok"`
 		Email    string `json:"email"`
 		Username string `json:"username,omitempty"`
+		// VerificationRequired reports that the account exists but no session
+		// was established: the instance requires a verified email first. The
+		// client must branch on this field, not on whether a cookie came back.
+		VerificationRequired bool `json:"verificationRequired"`
 	}
 }
 
 // POST /api/auth/register (public) — self-serve email/password sign-up.
 // Gated by the instance-level allow_registration setting (default on). On
 // success it provisions a fresh personal workspace with the user as owner and
-// logs them straight in.
+// logs them straight in — unless the instance requires a verified email, in
+// which case no session is set and the response says so.
 func (h *Handler) register(ctx context.Context, input *RegisterInput) (*RegisterOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
@@ -105,10 +110,23 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 
 	h.audit(r, "user.register", "user", user.ID, map[string]any{"email": email})
 	h.loginLimiter.reset(ip)
-	h.auth.SetSessionFromRequest(r, w, user.ID, org.ID)
+
 	out := &RegisterOutput{}
 	out.Body.OK = true
 	out.Body.Email = email
 	out.Body.Username = email
+
+	// Same answer as the login path (auth.go) for the same state: with the
+	// instance-level gate on, an unverified account gets no session. Login's
+	// extra !user.IsInstanceAdmin escape hatch has no counterpart here — that
+	// flag is only ever set for the bootstrap operator account (auth.go:315),
+	// never for a self-serve sign-up, so the freshly created user below is
+	// always a plain member.
+	if h.requireEmailVerification() && !user.EmailVerified {
+		out.Body.VerificationRequired = true
+		return out, nil
+	}
+
+	h.auth.SetSessionFromRequest(r, w, user.ID, org.ID)
 	return out, nil
 }
