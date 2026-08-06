@@ -188,17 +188,80 @@ func OwnedHost(db *gorm.DB, orgID uint, r *http.Request) (string, bool) {
 		return "", false
 	}
 	for _, d := range rows {
-		name := NormalizeHost(d.Name)
-		for _, c := range candidates {
-			if c == name {
-				return host, true
-			}
-		}
-		if hostListHas(d.LinkHosts, host) || hostListHas(d.MailHosts, host) {
+		if matchRow(d, host, candidates) {
 			return host, true
 		}
 	}
 	return "", false
+}
+
+// OwnerOf reports which org owns host.
+//
+// Matching evaluates Candidates from most specific to least specific. When
+// multiple distinct orgs match at the same specificity level, OwnerOf returns
+// (0, false) rather than guessing: selecting an arbitrary org could serve tenant
+// A's portal or catalog to tenant B's buyers.
+//
+// Unrecognised hostnames, localhost, IP literals, single-label hosts, nil db,
+// or builds without the domains table return (0, false). OwnerOf deliberately
+// does not fallback to org 1 — single-tenant defaults belong in caller logic,
+// not in ownership resolution.
+func OwnerOf(db *gorm.DB, host string) (uint, bool) {
+	if db == nil {
+		return 0, false
+	}
+	host = NormalizeHost(host)
+	if host == "" || host == "localhost" || host == "[::1]" {
+		return 0, false
+	}
+	candidates := Candidates(host)
+	if len(candidates) == 0 {
+		return 0, false
+	}
+	rows, ok := domains(db, 0)
+	if !ok || len(rows) == 0 {
+		return 0, false
+	}
+
+	for i, c := range candidates {
+		isLevelZero := (i == 0)
+		var matchedOrg uint
+		var found bool
+		for _, d := range rows {
+			if matchRowAt(d, host, c, isLevelZero) {
+				if !found {
+					matchedOrg = d.OrgID
+					found = true
+				} else if matchedOrg != d.OrgID {
+					return 0, false
+				}
+			}
+		}
+		if found {
+			return matchedOrg, true
+		}
+	}
+
+	return 0, false
+}
+
+func matchRow(d domainRow, host string, candidates []string) bool {
+	for i, c := range candidates {
+		if matchRowAt(d, host, c, i == 0) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchRowAt(d domainRow, host string, candidate string, isLevelZero bool) bool {
+	if candidate == NormalizeHost(d.Name) {
+		return true
+	}
+	if isLevelZero && (hostListHas(d.LinkHosts, host) || hostListHas(d.MailHosts, host)) {
+		return true
+	}
+	return false
 }
 
 // ServesTraffic reports whether host is registered as a hostname that serves
