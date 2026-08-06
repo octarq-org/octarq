@@ -212,10 +212,3 @@ func serveHTMLIndex(w http.ResponseWriter, idx []byte) {
 	w.WriteHeader(http.StatusOK)
 	io.Copy(w, strings.NewReader(string(idx)))
 }
-
-func stripPort(host string) string {
-	if i := strings.LastIndex(host, ":"); i > 0 {
-		return host[:i]
-	}
-	return host
-}
