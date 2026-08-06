@@ -1,13 +1,248 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/octarq-org/octarq/internal/models"
+	"gorm.io/gorm"
 )
+
+// errUserWriteInjected is the fault the guard tests below push into GORM.
+var errUserWriteInjected = errors.New("injected users-table write failure")
+
+// failUserWrites makes every UPDATE against the users table fail, and only that.
+// A before-"gorm:update" callback that calls AddError short-circuits gorm's own
+// update callback (it returns early on db.Error), so the row is genuinely not
+// written — no sleeps, no timing, stable under -race.
+//
+// Sessions live in their own table and are deleted, not updated, so this fault
+// leaves the session revocation path fully functional. That is the point: the
+// only thing standing between a failed password write and a logged-out user is
+// the error check in resetPassword.
+// It returns an idempotent restore func; it is also registered as cleanup, so
+// callers only call it when a later assertion needs writes working again.
+func failUserWrites(t *testing.T, db *gorm.DB) (restore func()) {
+	t.Helper()
+	const name = "test:fail_user_writes"
+	err := db.Callback().Update().Before("gorm:update").Register(name, func(tx *gorm.DB) {
+		if tx.Statement != nil && tx.Statement.Table == "users" {
+			tx.AddError(errUserWriteInjected)
+		}
+	})
+	if err != nil {
+		t.Fatalf("register failing callback: %v", err)
+	}
+	done := false
+	restore = func() {
+		if done {
+			return
+		}
+		done = true
+		if err := db.Callback().Update().Remove(name); err != nil {
+			t.Errorf("remove failing callback: %v", err)
+		}
+	}
+	t.Cleanup(restore)
+	return restore
+}
+
+// seedResetToken gives the user a valid, known reset token without going through
+// the mail path, and returns the raw token to POST back.
+func seedResetToken(t *testing.T, db *gorm.DB, user *models.User) string {
+	t.Helper()
+	rawToken, tokenHash, err := generateSecureToken()
+	if err != nil {
+		t.Fatalf("generate token: %v", err)
+	}
+	expiry := time.Now().Add(1 * time.Hour)
+	if err := db.Model(user).Updates(map[string]any{
+		"reset_token_hash":   tokenHash,
+		"reset_token_expiry": expiry,
+	}).Error; err != nil {
+		t.Fatalf("seed reset token: %v", err)
+	}
+	return rawToken
+}
+
+// A failed password write must not cost the user their sessions.
+//
+// resetPassword used to drop the *gorm.DB returned by Updates and then delete
+// every session unconditionally. When the write failed the caller got ok:true,
+// the old password still worked, and every device had been logged out — the
+// worst of all three outcomes, silently. Revocation is now strictly downstream
+// of a confirmed write.
+func TestResetPasswordKeepsSessionsWhenPasswordWriteFails(t *testing.T) {
+	srv, db := newTestHandler(t)
+
+	regRec := do(srv, "POST", "/api/auth/register", nil, `{"email":"fail@reset.com","password":"oldpassword123"}`)
+	if regRec.Code != http.StatusOK {
+		t.Fatalf("register: got %d (%s)", regRec.Code, regRec.Body.String())
+	}
+	cookies := regRec.Result().Cookies()
+
+	var user models.User
+	if err := db.Where("email = ?", "fail@reset.com").First(&user).Error; err != nil {
+		t.Fatalf("find user: %v", err)
+	}
+	rawToken := seedResetToken(t, db, &user)
+
+	var sessionsBefore int64
+	db.Model(&models.Session{}).Where("user_id = ?", user.ID).Count(&sessionsBefore)
+	if sessionsBefore == 0 {
+		t.Fatal("precondition failed: expected at least one session before the reset attempt")
+	}
+
+	restore := failUserWrites(t, db)
+
+	rec := do(srv, "POST", "/api/auth/reset", nil, `{"token":"`+rawToken+`","password":"newpassword123"}`)
+	if rec.Code >= 200 && rec.Code < 300 {
+		t.Errorf("reset with a failing password write: got %d, want a non-2xx status (body %s)", rec.Code, rec.Body.String())
+	}
+
+	// The load-bearing assertion.
+	var sessionsAfter int64
+	db.Model(&models.Session{}).Where("user_id = ?", user.ID).Count(&sessionsAfter)
+	if sessionsAfter != sessionsBefore {
+		t.Errorf("sessions revoked despite the password write failing: had %d, now %d — resetPassword must confirm the write before revoking", sessionsBefore, sessionsAfter)
+	}
+
+	// Same claim from the outside: the old cookie must still authenticate, i.e.
+	// the session cache entry was not dropped either.
+	restore()
+	if meRec := do(srv, "GET", "/api/auth/me", cookies, ""); meRec.Code != http.StatusOK {
+		t.Errorf("old session after failed reset: got %d, want 200 — the user was logged out by a reset that did not happen", meRec.Code)
+	}
+
+	// And the password really did not change.
+	var after models.User
+	if err := db.Where("email = ?", "fail@reset.com").First(&after).Error; err != nil {
+		t.Fatalf("reload user: %v", err)
+	}
+	if after.PasswordHash != user.PasswordHash {
+		t.Error("password hash changed even though the write was rejected")
+	}
+	if loginRec := do(srv, "POST", "/api/auth/login", nil, `{"username":"fail@reset.com","password":"oldpassword123"}`); loginRec.Code != http.StatusOK {
+		t.Errorf("login with the old password after a failed reset: got %d, want 200", loginRec.Code)
+	}
+}
+
+// A reset token that never reached the database must not be reported as sent.
+//
+// The 500 is enumeration-safe: unknown addresses short-circuit to 200 before any
+// write, so this status is only ever reached after a storage fault, and the body
+// says nothing about the account.
+func TestForgotPasswordFailsLoudlyWhenTokenWriteFails(t *testing.T) {
+	srv, db := newTestHandler(t)
+
+	if regRec := do(srv, "POST", "/api/auth/register", nil, `{"email":"fail@forgot.com","password":"password123"}`); regRec.Code != http.StatusOK {
+		t.Fatalf("register: got %d (%s)", regRec.Code, regRec.Body.String())
+	}
+
+	failUserWrites(t, db)
+
+	rec := do(srv, "POST", "/api/auth/forgot", nil, `{"email":"fail@forgot.com"}`)
+	if rec.Code == http.StatusOK {
+		t.Errorf("forgot with a failing token write: got 200 (%s), want a non-200 status", rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), `"ok":true`) {
+		t.Errorf("forgot claimed ok:true while the token write failed: %s", rec.Body.String())
+	}
+
+	// The token must not be half-committed.
+	var user models.User
+	if err := db.Where("email = ?", "fail@forgot.com").First(&user).Error; err != nil {
+		t.Fatalf("find user: %v", err)
+	}
+	if user.ResetTokenHash != "" {
+		t.Error("reset token hash was persisted despite the write being rejected")
+	}
+
+	// Anti-enumeration: nothing in the failure response may name the account or
+	// otherwise reveal that it exists.
+	body := strings.ToLower(rec.Body.String())
+	for _, leak := range []string{"fail@forgot.com", "not found", "no such", "unknown user", "does not exist"} {
+		if strings.Contains(body, leak) {
+			t.Errorf("failure body leaks account existence (%q): %s", leak, rec.Body.String())
+		}
+	}
+}
+
+// The verification link is a 302 flow. A failed write must redirect to the login
+// page with an error, not claim verified=1 and not switch to a JSON error.
+func TestVerifyEmailRedirectsWithErrorWhenWriteFails(t *testing.T) {
+	srv, db := newTestHandler(t)
+
+	if regRec := do(srv, "POST", "/api/auth/register", nil, `{"email":"fail@verify.com","password":"password123"}`); regRec.Code != http.StatusOK {
+		t.Fatalf("register: got %d (%s)", regRec.Code, regRec.Body.String())
+	}
+
+	var user models.User
+	if err := db.Where("email = ?", "fail@verify.com").First(&user).Error; err != nil {
+		t.Fatalf("find user: %v", err)
+	}
+	rawToken, tokenHash, _ := generateSecureToken()
+	if err := db.Model(&user).Updates(map[string]any{
+		"verify_token_hash":   tokenHash,
+		"verify_token_expiry": time.Now().Add(24 * time.Hour),
+	}).Error; err != nil {
+		t.Fatalf("seed verify token: %v", err)
+	}
+
+	restore := failUserWrites(t, db)
+
+	rec := do(srv, "GET", "/api/auth/verify-email?token="+rawToken, nil, "")
+	if rec.Code != http.StatusFound {
+		t.Fatalf("verify-email with a failing write: got %d, want 302 (the flow must stay a redirect)", rec.Code)
+	}
+	loc := rec.Header().Get("Location")
+	if strings.Contains(loc, "verified=1") {
+		t.Errorf("verify-email claimed success after a failed write: %s", loc)
+	}
+	if !strings.HasPrefix(loc, "/admin/login?error=") {
+		t.Errorf("expected a /admin/login?error=... redirect, got %s", loc)
+	}
+
+	restore()
+	var after models.User
+	if err := db.Where("email = ?", "fail@verify.com").First(&after).Error; err != nil {
+		t.Fatalf("reload user: %v", err)
+	}
+	if after.EmailVerified {
+		t.Error("email marked verified even though the write was rejected")
+	}
+}
+
+// Same contract as forgotPassword, for the resend path.
+func TestResendVerificationFailsLoudlyWhenTokenWriteFails(t *testing.T) {
+	srv, db := newTestHandler(t)
+
+	if regRec := do(srv, "POST", "/api/auth/register", nil, `{"email":"fail@resend.com","password":"password123"}`); regRec.Code != http.StatusOK {
+		t.Fatalf("register: got %d (%s)", regRec.Code, regRec.Body.String())
+	}
+
+	failUserWrites(t, db)
+
+	// Unknown addresses must still return 200 with the fault active — the failure
+	// below has to come from the write, not from the lookup.
+	if rec := do(srv, "POST", "/api/auth/resend-verification", nil, `{"email":"nobody@resend.com"}`); rec.Code != http.StatusOK {
+		t.Fatalf("resend for unknown address: got %d, want 200", rec.Code)
+	}
+
+	rec := do(srv, "POST", "/api/auth/resend-verification", nil, `{"email":"fail@resend.com"}`)
+	if rec.Code == http.StatusOK {
+		t.Errorf("resend with a failing token write: got 200 (%s), want a non-200 status", rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), `"ok":true`) {
+		t.Errorf("resend claimed ok:true while the token write failed: %s", rec.Body.String())
+	}
+	if strings.Contains(strings.ToLower(rec.Body.String()), "fail@resend.com") {
+		t.Errorf("failure body names the account: %s", rec.Body.String())
+	}
+}
 
 // TestForgotPasswordNoLeak verifies that /api/auth/forgot always returns 200
 // regardless of whether the email exists, and sets reset tokens for valid users.

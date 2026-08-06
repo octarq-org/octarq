@@ -130,10 +130,16 @@ func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput
 	}
 
 	expiry := time.Now().Add(1 * time.Hour)
-	h.db.Model(&user).Updates(map[string]any{
+	// Mailing a link whose token never reached the database would send the user
+	// to an "invalid or expired token" page with no way to tell why, so fail
+	// loudly instead. A 500 here is enumeration-safe: it is reached only after a
+	// storage fault, and an unknown address returned 200 long before this point.
+	if err := h.db.Model(&user).Updates(map[string]any{
 		"reset_token_hash":   tokenHash,
 		"reset_token_expiry": expiry,
-	})
+	}).Error; err != nil {
+		return nil, huma.Error500InternalServerError("failed to store reset token")
+	}
 
 	resetURL := fmt.Sprintf("%s/admin/reset?token=%s", h.cfg.BaseURL, rawToken)
 	h.sendPasswordResetEmail(user.ID, user.Email, resetURL)
@@ -194,11 +200,17 @@ func (h *Handler) resetPassword(ctx context.Context, input *ResetPasswordInput) 
 	// Update user password & clear reset token. No session_epoch bump: nothing
 	// read that column, so it never revoked anything — the session deletion
 	// below is what does.
-	h.db.Model(&user).Updates(map[string]any{
+	//
+	// Order matters: the sessions must outlive a failed write. Revoking first (or
+	// unconditionally) logs the user out of every device while leaving the old
+	// password in place, and the ok:true response tells them the opposite.
+	if err := h.db.Model(&user).Updates(map[string]any{
 		"password_hash":      string(pwHash),
 		"reset_token_hash":   "",
 		"reset_token_expiry": nil,
-	})
+	}).Error; err != nil {
+		return nil, huma.Error500InternalServerError("failed to update password")
+	}
 
 	// Invalidate all active sessions for this user
 	var sessions []models.Session
@@ -249,11 +261,16 @@ func (h *Handler) verifyEmail(ctx context.Context, input *VerifyEmailInput) (*st
 		return nil, nil
 	}
 
-	h.db.Model(&user).Updates(map[string]any{
+	// Claiming verified=1 on a failed write leaves the account unverified with a
+	// token that has apparently been spent. Stay in the redirect contract.
+	if err := h.db.Model(&user).Updates(map[string]any{
 		"email_verified":      true,
 		"verify_token_hash":   "",
 		"verify_token_expiry": nil,
-	})
+	}).Error; err != nil {
+		http.Redirect(w, r, "/admin/login?error=verification_failed", http.StatusFound)
+		return nil, nil
+	}
 
 	http.Redirect(w, r, "/admin/login?verified=1", http.StatusFound)
 	return nil, nil
@@ -318,10 +335,15 @@ func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificat
 	}
 
 	expiry := time.Now().Add(24 * time.Hour)
-	h.db.Model(&user).Updates(map[string]any{
+	// Same reasoning as forgotPassword: an unstored token makes the mailed link
+	// dead on arrival. Unknown and already-verified addresses returned 200 above,
+	// so this 500 says nothing about the account.
+	if err := h.db.Model(&user).Updates(map[string]any{
 		"verify_token_hash":   tokenHash,
 		"verify_token_expiry": expiry,
-	})
+	}).Error; err != nil {
+		return nil, huma.Error500InternalServerError("failed to store verification token")
+	}
 
 	verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.cfg.BaseURL, rawToken)
 	h.sendVerificationEmail(user.ID, user.Email, verifyURL)
