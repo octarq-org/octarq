@@ -164,6 +164,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Why this guard exists — it is what produced the empty PR #200.
+      #
+      # This job checks out `github.sha`, but the PR it opens targets `main` as
+      # main is *now*. Those are the same commit only if no merge landed while
+      # the job waited on `needs`. On 2026-08-06 three PRs merged inside four
+      # minutes: a web change (#196) queued its dist PR, that dist PR merged,
+      # and only then did the *older* #197 push finally reach this job. It
+      # rebuilt the dashboard from #197's tree, correctly saw 44 changed files
+      # against its own checkout — and opened a PR carrying a dist that main
+      # had already merged one commit earlier. Zero files, zero commits.
+      #
+      # Note what it was NOT: the build is deterministic. The two runs after it
+      # rebuilt the same sources and got byte-identical output, which is the
+      # only reason the diff stayed at exactly the 44 files #196 accounted for.
+      #
+      # A stale run has nothing useful to contribute anyway: the newer commit's
+      # own run builds from a tree that already contains ours, so skipping here
+      # loses nothing. If that newer run is red (`needs` gates it), dist simply
+      # stays stale until the next green push to main rebuilds it — the refresh
+      # is always driven off the newest green tip, so nothing is lost for good.
+      - name: Skip if a newer commit already landed on main
+        id: tip
+        run: |
+          tip=$(git ls-remote origin refs/heads/main | cut -f1)
+          echo "main is at $tip; this run is for $GITHUB_SHA"
+          if [ "$tip" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "A newer commit owns the dist refresh — skipping."
+          fi
+
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.4 # keep in sync with web/package.json "packageManager"
@@ -174,17 +206,41 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
 
-      - run: pnpm install --no-frozen-lockfile
+      - if: steps.tip.outputs.current == 'true'
+        run: pnpm install --no-frozen-lockfile
         working-directory: web
 
-      - run: pnpm build
+      - if: steps.tip.outputs.current == 'true'
+        run: pnpm build
         working-directory: web
+
+      # The build takes minutes; main can move during it. Re-check at the last
+      # possible moment so the decision is made against the base the PR will
+      # actually target, not against a tip that was current when we started.
+      - name: Re-check the tip after building
+        id: tip_after_build
+        if: steps.tip.outputs.current == 'true'
+        run: |
+          tip=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ "$tip" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "main moved to $tip during the build — skipping."
+          fi
 
       - name: Open a PR if dist changed
+        if: steps.tip_after_build.outputs.current == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           add-paths: webembed/dist
           branch: chore/refresh-embedded-dashboard
+          # Tidy up the reused branch once main has the dist — otherwise it
+          # outlives every merge and sits there looking like pending work. Only
+          # fires when the branch no longer differs from base, so it can never
+          # discard a refresh that still needs merging. This is a backstop for
+          # the seconds-wide window the re-check above can't close, not the fix.
+          delete-branch: true
           # Reuse one branch: a second merge before the first dist PR lands
           # updates that PR rather than opening a competing one.
           commit-message: "chore(web): refresh embedded dashboard build [auto]"
