@@ -176,6 +176,7 @@ func extractRawEmail(r *http.Request) ([]byte, error) {
 }
 
 func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo string, raw []byte) (*InboundOutput, error) {
+	ctx = plugin.WithOrgID(ctx, orgID)
 	parsed, parseErr := mail.Parse(raw)
 	if parseErr != nil {
 		log.Printf("inbound: mail parse failed: %v", parseErr)

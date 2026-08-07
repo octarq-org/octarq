@@ -242,6 +242,7 @@ func (p *Plugin) isSuppressed(orgID uint, addr string) bool {
 
 func (p *Plugin) purge(orgID uint) error {
 	ctx := context.Background()
+	ctx = plugin.WithOrgID(ctx, orgID)
 	mailboxIDs := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
 	var emails []Email
 	if err := p.db.Where("mailbox_id IN (?)", mailboxIDs).Find(&emails).Error; err == nil && len(emails) > 0 {
