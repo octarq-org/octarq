@@ -241,7 +241,25 @@ func (p *Plugin) isSuppressed(orgID uint, addr string) bool {
 }
 
 func (p *Plugin) purge(orgID uint) error {
+	ctx := context.Background()
 	mailboxIDs := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
+	var emails []Email
+	if err := p.db.Where("mailbox_id IN (?)", mailboxIDs).Find(&emails).Error; err == nil && len(emails) > 0 {
+		storageProv, _ := p.getStorageProvider()
+		dbProv := NewDBStorageProvider(p.db)
+		for _, e := range emails {
+			key := e.StorageKey
+			if key == "" {
+				key = fmt.Sprintf("mail/%d/%d.eml", orgID, e.ID)
+			}
+			if storageProv != nil {
+				_ = storageProv.Delete(ctx, key)
+			}
+			if dbProv != nil {
+				_ = dbProv.Delete(ctx, key)
+			}
+		}
+	}
 	p.db.Where("mailbox_id IN (?)", mailboxIDs).Delete(&Email{})
 	p.db.Where("owner_id = ?", orgID).Delete(&Mailbox{})
 	p.db.Where("owner_id = ?", orgID).Delete(&SMTPSender{})

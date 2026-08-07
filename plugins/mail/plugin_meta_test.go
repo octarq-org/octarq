@@ -74,6 +74,10 @@ func TestMailPluginMetaPurgeExportAndMCP(t *testing.T) {
 		t.Error("expected error when calling mcpListMailboxes with no org")
 	}
 
+	// Create a raw blob for the email
+	dbProv := NewDBStorageProvider(db)
+	_ = dbProv.Put(ctx, "mail/1/1.eml", []byte("From: test@example.com\r\nSubject: Test\r\n\r\nHello"))
+
 	// Purge
 	if err := p.purge(1); err != nil {
 		t.Fatalf("purge error: %v", err)
@@ -81,5 +85,10 @@ func TestMailPluginMetaPurgeExportAndMCP(t *testing.T) {
 	exp2 := p.exportData(1)
 	if len(exp2["mailboxes"].([]Mailbox)) != 0 {
 		t.Errorf("expected 0 mailboxes after purge, got %v", exp2)
+	}
+	var blobCount int64
+	db.Model(&MailRawBlob{}).Count(&blobCount)
+	if blobCount != 0 {
+		t.Errorf("expected 0 MailRawBlob after purge, got %d", blobCount)
 	}
 }
