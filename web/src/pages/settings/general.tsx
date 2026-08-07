@@ -3,6 +3,7 @@ import { api, type OrgSlug } from "../../api";
 import { Field, Modal, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
 import { ShieldAlert } from "lucide-react";
 import { useTranslation } from "../../i18n";
+import { ExtensionSlot } from "../../plugin-sdk";
 
 // WorkspaceAddress edits the slug — the workspace's identity in URLs, not a
 // display name. Third parties hold addresses built from it (the billing
@@ -190,6 +191,8 @@ export function GeneralSettings() {
       </GlassCard>
 
       {role === "owner" && <WorkspaceAddress />}
+
+      <ExtensionSlot name="settings-workspace" />
 
       {isAdminOrOwner && (
         <GlassCard className="p-6 space-y-4">
