@@ -241,8 +241,8 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 	key := fmt.Sprintf("mail/%d/%d.eml", mb.OrgID, e.ID)
 	storageProv, spErr := p.getStorageProvider()
 	if spErr != nil {
-		log.Printf("inbound: storage provider configuration error: %v", spErr)
-		return nil, huma.Error500InternalServerError(spErr.Error())
+		log.Printf("inbound: storage provider configuration error (%v); falling back to the database", spErr)
+		storageProv = NewDBStorageProvider(p.db)
 	}
 
 	// A misconfigured or unreachable backend must never cost us the message —
