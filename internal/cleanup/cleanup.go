@@ -5,11 +5,63 @@ package cleanup
 import (
 	"context"
 	"log"
+	"strconv"
 	"time"
 
+	"github.com/octarq-org/octarq/internal/api"
 	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
+
+// settingKeyDataRetentionDays mirrors the API's data_retention_days instance
+// setting key (internal/api/settings.go). 0 = retention disabled.
+const settingKeyDataRetentionDays = "data_retention_days"
+
+// auditLogRetentionDays resolves the audit-log retention window from the
+// data_retention_days instance setting. Falls back to api.DefaultRetentionDays
+// when the setting is unset or not an integer, mirroring
+// api.Handler.DataRetentionDays.
+func auditLogRetentionDays(db *gorm.DB) int {
+	var s models.Setting
+	if db.Where("key = ?", settingKeyDataRetentionDays).First(&s).Error == nil {
+		if n, err := strconv.Atoi(s.Value); err == nil {
+			return n
+		}
+	}
+	return api.DefaultRetentionDays
+}
+
+// pruneAuditLogs deletes audit_log rows older than the data_retention_days
+// retention window. Rows are deleted in small batches to avoid holding a long
+// lock on a potentially large table. A window of 0 or negative disables pruning.
+func pruneAuditLogs(db *gorm.DB) {
+	days := auditLogRetentionDays(db)
+	if days <= 0 {
+		return
+	}
+	cutoff := time.Now().AddDate(0, 0, -days)
+	totalPurged := int64(0)
+	for {
+		var ids []uint
+		if err := db.Model(&models.AuditLog{}).Where("created_at < ?", cutoff).Limit(2000).Pluck("id", &ids).Error; err != nil {
+			log.Printf("cleanup: prune audit logs: %v", err)
+			return
+		}
+		if len(ids) == 0 {
+			break
+		}
+		res := db.Delete(&models.AuditLog{}, ids)
+		if res.Error != nil {
+			log.Printf("cleanup: prune audit logs: %v", res.Error)
+			return
+		}
+		totalPurged += res.RowsAffected
+		time.Sleep(50 * time.Millisecond)
+	}
+	if totalPurged > 0 {
+		log.Printf("cleanup: purged %d audit log rows older than %d days", totalPurged, days)
+	}
+}
 
 // Start runs provided plugin cleanup functions (e.g. purging LinkEvents)
 // once at startup and then every 24 hours. retentionDays is called each cycle
@@ -42,6 +94,8 @@ func Start(ctx context.Context, retentionDays func() int, cleanups ...func(ctx c
 // StartSessionCleanup deletes expired sessions once at startup and every hour.
 // It also removes legacy "Unknown" sessions (empty user_agent) left over from
 // old switchOrg calls that used SetSession instead of SetSessionFromRequest.
+// It additionally prunes audit_log rows older than the data_retention_days
+// instance setting (see pruneAuditLogs).
 func StartSessionCleanup(ctx context.Context, db *gorm.DB) {
 	purge := func() {
 		now := time.Now()
@@ -59,6 +113,8 @@ func StartSessionCleanup(ctx context.Context, db *gorm.DB) {
 		} else if res2.RowsAffected > 0 {
 			log.Printf("cleanup: purged %d legacy empty-UA sessions", res2.RowsAffected)
 		}
+		// Audit logs older than the retention window
+		pruneAuditLogs(db)
 	}
 
 	purge()
