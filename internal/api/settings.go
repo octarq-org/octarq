@@ -248,19 +248,59 @@ func (h *Handler) getSettings(ctx context.Context, input *GetSettingsInput) (*Ge
 		"autoWrapLinks":     h.GetWorkspaceSetting(orgID, keyAutoWrapLinks) == "true",
 		"isInstanceAdmin":   h.isInstanceAdmin(r),
 	}
-	// inboundToken is this org's per-tenant secret for the inbound-email webhook:
-	// whoever holds it can forge inbound mail for the workspace, so a plain member
-	// must not see it. Gate through callerHoldsRole rather than comparing
+	// inboundTokenSet reports whether the org's inbound-email webhook secret is
+	// set, without exposing it. Whoever holds the token can forge inbound mail
+	// for the workspace, so the plaintext is never part of a settings dump — it
+	// is fetched explicitly through the admin-only GET /api/settings/inbound-token
+	// endpoint instead. Gate through callerHoldsRole rather than comparing
 	// callerOrgRole directly — that is the one function that also understands API
-	// tokens, and this endpoint is exactly what an automation reads the webhook
-	// secret from. Comparing the membership role alone hid the token from every
+	// tokens. Comparing the membership role alone hid the field from every
 	// bearer-authenticated caller, since a token has no membership row.
 	if h.callerHoldsRole(r, authz.RoleAdmin) {
-		body["inboundToken"] = org.InboundToken
+		body["inboundTokenSet"] = org.InboundToken != ""
 	}
 	out := &GetSettingsOutput{
 		Body: body,
 	}
+	return out, nil
+}
+
+type GetInboundTokenInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *GetInboundTokenInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type GetInboundTokenOutput struct {
+	Body struct {
+		InboundToken string `json:"inboundToken"`
+	}
+}
+
+// getInboundToken is the only endpoint that returns the org's inbound-email
+// webhook secret in full. getSettings now answers with a boolean (inboundTokenSet),
+// so the raw token never rides along in a settings dump; fetching it is an
+// explicit, admin-or-owner-only action.
+func (h *Handler) getInboundToken(ctx context.Context, input *GetInboundTokenInput) (*GetInboundTokenOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !h.callerHoldsRole(r, authz.RoleAdmin) {
+		return nil, huma.Error403Forbidden("owner or admin role required")
+	}
+	if _, err := h.requireOrg(r); err != nil {
+		return nil, err
+	}
+	out := &GetInboundTokenOutput{}
+	out.Body.InboundToken = h.currentOrg(r).InboundToken
 	return out, nil
 }
 
@@ -431,7 +471,7 @@ func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput
 		Body: map[string]any{
 			"reservedMailboxes": h.GetWorkspaceSetting(org.ID, keyReservedMailboxes),
 			"orgSlug":           org.Slug,
-			"inboundToken":      org.InboundToken,
+			"inboundTokenSet":   org.InboundToken != "",
 			"catchAll":          h.GetWorkspaceSetting(org.ID, keyCatchAll) == "true",
 			"autoWrapLinks":     h.GetWorkspaceSetting(org.ID, keyAutoWrapLinks) == "true",
 			"isInstanceAdmin":   h.isInstanceAdmin(r),
