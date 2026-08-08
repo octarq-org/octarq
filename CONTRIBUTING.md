@@ -41,7 +41,7 @@ over spinning up Docker locally.
   `registerUIPlugin` registry as Pro/third-party plugins. Never add a hardcoded
   business route to the shell.
 - **Optional/Pro features degrade gracefully.** Every plugin route is wrapped in
-  `ProGate`: **402** → upsell, **403** → access denied, **404** / chunk failure →
+  `PluginGate`: **402** → upsell, **403** → access denied, **404** / chunk failure →
   a neutral "not in this build" note — never a raw error. Pages may still handle
   these themselves; the gate is the safety net.
 - **Shared UI** lives in `web/src/ui` (shadcn / Base UI backed) and is re-exported
