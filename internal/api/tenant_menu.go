@@ -546,6 +546,7 @@ func (h *Handler) updateOrgMember(ctx context.Context, input *UpdateOrgMemberInp
 		return nil, huma.Error500InternalServerError("failed to update member role")
 	}
 
+	h.auth.RevokeUserOrgSessions(input.UserID, orgID)
 	h.audit(r, "member.role", "user", input.UserID, map[string]any{"from": target.Role, "to": string(role)})
 	eventbus.Publish(orgID, "member.role", map[string]any{"userId": input.UserID, "role": string(role)})
 

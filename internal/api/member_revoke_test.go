@@ -103,3 +103,42 @@ func TestRemovalLeavesOtherOrgSessionsIntact(t *testing.T) {
 		t.Errorf("org B sessions were revoked too; revocation must be per-org")
 	}
 }
+
+// Changing a member's role revokes their sessions exactly like removal does, so
+// a cached client holding a session minted under the old (higher) role cannot
+// keep acting on it after a demotion.
+func TestRoleChangeRevokesSessions(t *testing.T) {
+	srv, db := newTestHandler(t)
+	const org = uint(4301)
+
+	ownerUID := seedOrgMember(t, db, org, "owner@x.com", "owner")
+	memberUID := seedOrgMember(t, db, org, "admin@x.com", "admin")
+
+	ownerSession := sessionCookies(t, ownerUID, org)
+	memberSession := sessionCookies(t, memberUID, org)
+
+	if rec := do(srv, "GET", "/api/org/members", memberSession, ""); rec.Code != http.StatusOK {
+		t.Fatalf("baseline member read: got %d, want 200", rec.Code)
+	}
+
+	rec := do(srv, "PATCH", "/api/org/members/"+strconv.FormatUint(uint64(memberUID), 10), ownerSession, `{"role":"member"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("demote member: got %d, want 200 (body %s)", rec.Code, rec.Body.String())
+	}
+
+	var role string
+	db.Model(&models.OrgMember{}).Where("org_id = ? AND user_id = ?", org, memberUID).Pluck("role", &role)
+	if role != "member" {
+		t.Fatalf("role after demotion: %q, want member", role)
+	}
+
+	var sessions int64
+	db.Model(&models.Session{}).Where("user_id = ? AND org_id = ?", memberUID, org).Count(&sessions)
+	if sessions != 0 {
+		t.Errorf("demoted member kept %d live session(s)", sessions)
+	}
+
+	if rec := do(srv, "GET", "/api/org/members", memberSession, ""); rec.Code != http.StatusUnauthorized {
+		t.Errorf("demoted member session still valid: got %d, want 401", rec.Code)
+	}
+}

@@ -258,3 +258,113 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 	out.Body.OK = true
 	return out, nil
 }
+
+type DeleteAccountInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body struct {
+		Confirm string `json:"confirm"`
+	}
+}
+
+func (i *DeleteAccountInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type DeleteAccountOutput struct {
+	Body struct {
+		OK bool `json:"ok"`
+	}
+}
+
+// deleteAccount permanently deletes the caller's own User row and everything
+// user-scoped that references it — memberships, linked identities, per-user
+// settings, sessions, and API tokens — in one transaction. Self-service only:
+// the user ID comes from the authenticated session, never from a parameter, so
+// there is no way to address somebody else's account.
+//
+// Refused while the user still belongs to any org. Leaving workspaces is the
+// org members' management flow's job, and silently evicting someone from active
+// workspaces here would be destructive. The guard is "any OrgMember row", which
+// also covers the sole-owner case (an owner is a member like anyone else, and
+// the last-owner / owner-demotion guards in tenant_menu already refuse to leave
+// an org ownerless). DELETE /api/account/user
+// Body: {"confirm": "DELETE MY ACCOUNT"}
+func (h *Handler) deleteAccount(ctx context.Context, input *DeleteAccountInput) (*DeleteAccountOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	uid := h.auth.UserID(r)
+
+	var user models.User
+	if err := h.db.First(&user, uid).Error; err != nil {
+		return nil, huma.Error404NotFound("account not found")
+	}
+	if input.Body.Confirm != "DELETE MY ACCOUNT" {
+		return nil, huma.Error400BadRequest(`confirmation required: send {"confirm":"DELETE MY ACCOUNT"}`)
+	}
+
+	// Self-service deletion must not silently evict the user from active
+	// workspaces — they leave orgs through member management first. Any OrgMember
+	// row at all (including being a sole owner) blocks the delete.
+	var memberships int64
+	h.db.Model(&models.OrgMember{}).Where("user_id = ?", uid).Count(&memberships)
+	if memberships != 0 {
+		return nil, huma.Error409Conflict("leave all organizations before deleting your account")
+	}
+
+	// Evict every session from the cache first — the cache key is the token
+	// hash, so a cached row would keep serving after its DB row is gone. Same
+	// ordering purgeAccount uses before it drops org-scoped sessions.
+	var sessions []models.Session
+	h.db.Where("user_id = ?", uid).Find(&sessions)
+	for _, s := range sessions {
+		_ = h.auth.Cache().Delete(r.Context(), "session:"+s.Token)
+	}
+
+	// Delete user-scoped rows in one transaction. OrgMember is swept even though
+	// the guard above already guarantees it is empty, so the delete is atomic
+	// either way.
+	err := h.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("user_id = ?", uid).Delete(&models.Session{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", uid).Delete(&models.OrgMember{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", uid).Delete(&models.UserIdentity{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", uid).Delete(&models.UserSetting{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", uid).Delete(&models.Token{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("id = ?", uid).Delete(&models.User{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to delete account: " + err.Error())
+	}
+
+	// Unlike purgeAccount, the org survives this deletion, so h.audit is safe
+	// and appropriate here: it writes the record to the org the session last
+	// held, leaving the workspace a durable trace of who left and when.
+	h.audit(r, "account.delete", "user", uid, map[string]any{"email": user.Email})
+	slog.Info("account deleted",
+		"user_id", uid,
+		"request_id", r.Header.Get("X-Request-Id"),
+	)
+
+	out := &DeleteAccountOutput{}
+	out.Body.OK = true
+	return out, nil
+}
