@@ -193,7 +193,7 @@ func (h *Handler) updateAbuseReport(ctx context.Context, input *UpdateAbuseRepor
 	if status != "open" && status != "reviewed" && status != "dismissed" {
 		return nil, huma.Error400BadRequest("status must be open, reviewed, or dismissed")
 	}
-	h.db.Model(&rep).Update("status", status)
+	h.orgDB(r).Model(&rep).Update("status", status)
 	rep.Status = status
 	return &UpdateAbuseReportOutput{Body: rep}, nil
 }

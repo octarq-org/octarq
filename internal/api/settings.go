@@ -23,14 +23,17 @@ import (
 
 // currentOrg loads the caller's org, generating its inbound-webhook token on
 // first read so the operator always has a token to copy into the worker URL.
-func (h *Handler) currentOrg(r *http.Request) models.Org {
+func (h *Handler) currentOrg(r *http.Request) (models.Org, error) {
+	if _, err := h.requireOrg(r); err != nil {
+		return models.Org{}, err
+	}
 	var org models.Org
 	h.db.First(&org, h.orgID(r))
 	if org.ID != 0 && org.InboundToken == "" {
 		org.InboundToken = uuid.NewString()
 		h.db.Model(&org).Update("inbound_token", org.InboundToken)
 	}
-	return org
+	return org, nil
 }
 
 // Setting keys.
@@ -240,7 +243,10 @@ func (h *Handler) getSettings(ctx context.Context, input *GetSettingsInput) (*Ge
 	if err != nil {
 		return nil, err
 	}
-	org := h.currentOrg(r)
+	org, err := h.currentOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	body := map[string]any{
 		"reservedMailboxes": h.GetWorkspaceSetting(orgID, keyReservedMailboxes),
 		"orgSlug":           org.Slug,
@@ -426,7 +432,10 @@ func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput
 	}
 	h.audit(r, "settings.update", "settings", 0, meta)
 
-	org := h.currentOrg(r)
+	org, err := h.currentOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	out := &UpdateSettingsOutput{
 		Body: map[string]any{
 			"reservedMailboxes": h.GetWorkspaceSetting(org.ID, keyReservedMailboxes),

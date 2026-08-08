@@ -133,3 +133,60 @@ func TestLinksOverview(t *testing.T) {
 		t.Errorf("overview expected non-zero links count, got %+v", stats)
 	}
 }
+
+// LinkEvent cleanup on delete is scoped through the owned link, so deleting (or
+// attempting to delete) a link can never remove another workspace's analytics
+// rows even if the ownership check above were ever skipped or reordered.
+func TestDeleteLinkCleansOnlyOwnOrgEvents(t *testing.T) {
+	t.Parallel()
+
+	p, mkCtx := setupFullLinksTestDB(t)
+	ctx := context.Background()
+
+	req1 := httptest.NewRequest(http.MethodPost, "/api/links", nil)
+	out1, err := p.createLink(ctx, &CreateLinkInput{Ctx: mkCtx(req1), Body: linkDTO{Slug: "org1-link", Target: "https://org1.example"}})
+	if err != nil {
+		t.Fatalf("createLink org1: %v", err)
+	}
+	if err := p.db.Create(&LinkEvent{LinkID: out1.Body.ID, IP: "1.1.1.1"}).Error; err != nil {
+		t.Fatalf("seed org1 event: %v", err)
+	}
+
+	req2 := httptest.NewRequest(http.MethodPost, "/api/links", nil)
+	req2.Header.Set("X-Org-ID", "2")
+	out2, err := p.createLink(ctx, &CreateLinkInput{Ctx: mkCtx(req2), Body: linkDTO{Slug: "org2-link", Target: "https://org2.example"}})
+	if err != nil {
+		t.Fatalf("createLink org2: %v", err)
+	}
+	if err := p.db.Create(&LinkEvent{LinkID: out2.Body.ID, IP: "2.2.2.2"}).Error; err != nil {
+		t.Fatalf("seed org2 event: %v", err)
+	}
+
+	delCross := httptest.NewRequest(http.MethodDelete, "/api/links/1", nil)
+	delCross.Header.Set("X-Org-ID", "2")
+	delCross.Header.Set("X-Role", "admin")
+	if _, err := p.deleteLink(ctx, &DeleteLinkInput{Ctx: mkCtx(delCross), ID: out1.Body.ID}); err == nil {
+		t.Fatal("expected error when org2 deletes org1's link")
+	}
+	var org1Events int64
+	p.db.Model(&LinkEvent{}).Where("link_id = ?", out1.Body.ID).Count(&org1Events)
+	if org1Events != 1 {
+		t.Errorf("org1 events after cross-org delete: got %d, want 1", org1Events)
+	}
+
+	delSelf := httptest.NewRequest(http.MethodDelete, "/api/links/2", nil)
+	delSelf.Header.Set("X-Org-ID", "2")
+	delSelf.Header.Set("X-Role", "admin")
+	if _, err := p.deleteLink(ctx, &DeleteLinkInput{Ctx: mkCtx(delSelf), ID: out2.Body.ID}); err != nil {
+		t.Fatalf("deleteLink org2 self: %v", err)
+	}
+	var org2Events int64
+	p.db.Model(&LinkEvent{}).Where("link_id = ?", out2.Body.ID).Count(&org2Events)
+	if org2Events != 0 {
+		t.Errorf("org2 events after self-delete: got %d, want 0", org2Events)
+	}
+	p.db.Model(&LinkEvent{}).Where("link_id = ?", out1.Body.ID).Count(&org1Events)
+	if org1Events != 1 {
+		t.Errorf("org1 events after org2 self-delete: got %d, want 1", org1Events)
+	}
+}
