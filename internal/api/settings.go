@@ -305,8 +305,12 @@ func (h *Handler) getInboundToken(ctx context.Context, input *GetInboundTokenInp
 	if _, err := h.requireOrg(r); err != nil {
 		return nil, err
 	}
+	org, err := h.currentOrg(r)
+	if err != nil {
+		return nil, err
+	}
 	out := &GetInboundTokenOutput{}
-	out.Body.InboundToken = h.currentOrg(r).InboundToken
+	out.Body.InboundToken = org.InboundToken
 	return out, nil
 }
 
