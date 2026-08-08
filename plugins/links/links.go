@@ -532,12 +532,12 @@ func (p *Plugin) deleteLink(ctx context.Context, input *DeleteLinkInput) (*Delet
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
+	p.db.Where("link_id IN (SELECT id FROM links WHERE id = ? AND owner_id = ?)", input.ID, p.orgID(r)).Delete(&LinkEvent{})
 	p.db.Delete(&l)
 	if p.deleteCache != nil {
 		_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
 	}
 
-	p.db.Where("link_id = ?", input.ID).Delete(&LinkEvent{})
 	if p.audit != nil {
 		p.audit(r, "link.delete", "link", input.ID, nil)
 	}

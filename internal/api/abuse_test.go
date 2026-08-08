@@ -95,3 +95,50 @@ func TestAbuseEndpoints(t *testing.T) {
 		t.Errorf("expected status 'reviewed', got %q", updatedReport.Status)
 	}
 }
+
+// A report is owned by the workspace that owns the reported link, and only that
+// workspace's admins may change its status. Another workspace must get 404 and
+// leave the report untouched — the status write is scoped through orgDB, not
+// applied against the raw record.
+func TestAbuseStatusUpdateIsOrgScoped(t *testing.T) {
+	srv, db := newTestHandler(t)
+	org1 := sessionCookies(t, 1, 1)
+	org2 := sessionCookies(t, 2, 2)
+
+	if rec := do(srv, http.MethodPost, "/api/links", org1, `{"slug":"sec-scope","target":"https://example.com"}`); rec.Code != http.StatusCreated {
+		t.Fatalf("create link: got %d — %s", rec.Code, rec.Body)
+	}
+	rec := do(srv, http.MethodPost, "/abuse", nil, `{"slug":"sec-scope","reason":"phishing","description":"scope test"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("submit abuse: got %d — %s", rec.Code, rec.Body)
+	}
+	var submitResp struct {
+		OK bool `json:"ok"`
+		ID uint `json:"id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &submitResp); err != nil {
+		t.Fatalf("unmarshal submit response: %v", err)
+	}
+	path := fmt.Sprintf("/api/abuse/%d", submitResp.ID)
+
+	if rec := do(srv, http.MethodPut, path, org2, `{"status":"dismissed"}`); rec.Code != http.StatusNotFound {
+		t.Errorf("cross-org abuse update: got %d, want 404 (%s)", rec.Code, rec.Body)
+	}
+	var rep models.AbuseReport
+	if err := db.First(&rep, submitResp.ID).Error; err != nil {
+		t.Fatalf("reload report: %v", err)
+	}
+	if rep.Status != "open" {
+		t.Errorf("org2 changed org1's report status to %q", rep.Status)
+	}
+
+	if rec := do(srv, http.MethodPut, path, org1, `{"status":"reviewed"}`); rec.Code != http.StatusOK {
+		t.Errorf("self abuse update: got %d, want 200 (%s)", rec.Code, rec.Body)
+	}
+	if err := db.First(&rep, submitResp.ID).Error; err != nil {
+		t.Fatalf("reload report: %v", err)
+	}
+	if rep.Status != "reviewed" {
+		t.Errorf("self abuse update did not persist: got %q, want reviewed", rep.Status)
+	}
+}
