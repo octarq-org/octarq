@@ -176,6 +176,7 @@ func extractRawEmail(r *http.Request) ([]byte, error) {
 }
 
 func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo string, raw []byte) (*InboundOutput, error) {
+	ctx = plugin.WithOrgID(ctx, orgID)
 	parsed, parseErr := mail.Parse(raw)
 	if parseErr != nil {
 		log.Printf("inbound: mail parse failed: %v", parseErr)
@@ -240,8 +241,8 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 	key := fmt.Sprintf("mail/%d/%d.eml", mb.OrgID, e.ID)
 	storageProv, spErr := p.getStorageProvider()
 	if spErr != nil {
-		log.Printf("inbound: storage provider configuration error: %v", spErr)
-		return nil, huma.Error500InternalServerError(spErr.Error())
+		log.Printf("inbound: storage provider configuration error (%v); falling back to the database", spErr)
+		storageProv = NewDBStorageProvider(p.db)
 	}
 
 	// A misconfigured or unreachable backend must never cost us the message —

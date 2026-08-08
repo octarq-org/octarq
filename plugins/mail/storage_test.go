@@ -290,3 +290,42 @@ func TestStorageUsageMetering(t *testing.T) {
 			len(rawEML), recordedOrg, recordedMetric, recordedN)
 	}
 }
+
+func TestPurgeDeletesExternalProviderBlobs(t *testing.T) {
+	db := setupTestDB(t)
+	reg := plugin.NewRegistry()
+	mem := newMemoryStorageProvider()
+	p := New()
+
+	pctx := &plugin.Context{
+		DB:      db,
+		Provide: reg.Provide,
+		Lookup:  reg.Lookup,
+	}
+	p.Mount(http.NewServeMux(), pctx)
+	reg.Provide(plugin.ServiceMailStorageProvider, plugin.StorageProvider(mem))
+
+	mb := Mailbox{OrgID: 1, Address: "purge@example.com", Enabled: true}
+	db.Create(&mb)
+	e := Email{MailboxID: mb.ID, MessageID: "msg-purge", Raw: nil, StorageKey: "mail/1/3.eml"}
+	db.Create(&e)
+	_ = mem.Put(context.Background(), "mail/1/3.eml", []byte("raw"))
+
+	if err := p.purge(1); err != nil {
+		t.Fatalf("purge error: %v", err)
+	}
+
+	if _, err := mem.Get(context.Background(), "mail/1/3.eml"); err != plugin.ErrStorageNotFound {
+		t.Errorf("expected external provider blob deleted, got %v", err)
+	}
+	var emails int64
+	db.Model(&Email{}).Where("mailbox_id = ?", mb.ID).Count(&emails)
+	if emails != 0 {
+		t.Errorf("expected emails purged, got %d", emails)
+	}
+	var mailboxes int64
+	db.Model(&Mailbox{}).Where("owner_id = ?", 1).Count(&mailboxes)
+	if mailboxes != 0 {
+		t.Errorf("expected mailboxes purged, got %d", mailboxes)
+	}
+}

@@ -14,6 +14,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugin"
 	"github.com/octarq-org/octarq/plugins/dns"
 	"github.com/octarq-org/octarq/plugins/links"
 	"gorm.io/gorm/clause"
@@ -367,6 +368,7 @@ func (p *Plugin) rawEmail(ctx context.Context, input *RawEmailInput) (*struct{},
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	ctx = plugin.WithOrgID(ctx, p.orgID(r))
 	if !p.emailBelongsToOrg(input.ID, p.orgID(r)) {
 		return nil, huma.Error404NotFound("not found")
 	}
@@ -427,6 +429,7 @@ func (p *Plugin) deleteEmail(ctx context.Context, input *DeleteEmailInput) (*Del
 	if !p.hasRole(r, "admin") {
 		return nil, huma.Error403Forbidden("forbidden: admin role required to delete email")
 	}
+	ctx = plugin.WithOrgID(ctx, p.orgID(r))
 	if !p.emailBelongsToOrg(input.ID, p.orgID(r)) {
 		return nil, huma.Error404NotFound("not found")
 	}

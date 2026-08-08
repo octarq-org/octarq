@@ -618,6 +618,10 @@ func (h *Handler) GetGlobalSetting(key string) string {
 	return h.getSetting(key)
 }
 
+func (h *Handler) SetGlobalSetting(key, value string) error {
+	return h.setSetting(key, value)
+}
+
 type DownloadBackupInput struct {
 	Ctx huma.Context `hidden:"true"`
 }

@@ -479,6 +479,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 		},
 		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
 		GetGlobalSetting:    apiHandler.GetGlobalSetting,
+		SetGlobalSetting:    apiHandler.SetGlobalSetting,
 		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,
 		Enqueue:             taskQueue.Enqueue,
 		RegisterTask: func(taskType string, h func(ctx context.Context, payload []byte) error) {
@@ -658,6 +659,7 @@ func (a *App) Run(ctx context.Context) error {
 		},
 		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
 		GetGlobalSetting:    apiHandler.GetGlobalSetting,
+		SetGlobalSetting:    apiHandler.SetGlobalSetting,
 		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,
 		Enqueue:             taskQueue.Enqueue,
 		RegisterTask: func(taskType string, h func(ctx context.Context, payload []byte) error) {

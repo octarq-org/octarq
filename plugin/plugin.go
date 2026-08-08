@@ -322,6 +322,11 @@ type Context struct {
 	GetGlobalSetting    func(key string) string
 	// SetWorkspaceSetting writes a per-org setting value.
 	SetWorkspaceSetting func(orgID uint, key, value string) error
+	// SetGlobalSetting writes an instance-wide setting value, paired with
+	// GetGlobalSetting. Plugins that own a configuration table must push the
+	// runtime key the core reads through this seam instead of writing the
+	// settings table directly.
+	SetGlobalSetting func(key, value string) error
 	// Enqueue adds a task to the background job queue.
 	Enqueue func(ctx context.Context, taskType string, payload []byte) error
 	// RegisterTask registers a handler for a task type in the background job queue.

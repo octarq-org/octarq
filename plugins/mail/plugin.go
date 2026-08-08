@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -190,9 +191,6 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		ctx.Provide("mail.email.get", p.getEmailForSummarize)
 		ctx.Provide("mailboxes.mcp_export", p.mcpExportMailboxes)
 		ctx.Provide("emails.mcp_export", p.mcpExportEmails)
-
-		dbProvider := NewDBStorageProvider(ctx.DB)
-		ctx.Provide(plugin.ServiceMailStorageProvider, plugin.StorageProvider(dbProvider))
 	}
 }
 
@@ -217,10 +215,10 @@ func (p *Plugin) getStorageProvider() (plugin.StorageProvider, error) {
 	return NewDBStorageProvider(p.db), nil
 }
 
-// getBackendConfig resolves which storage backend to use. The single source is
-// the instance setting, so an operator can switch backends from the dashboard
-// without a restart — which is also what the Pro configuration UI writes.
-// Absent means the database backend, the only one OSS ships.
+// getBackendConfig resolves which storage backend to use. The Pro mailstorage
+// module owns the authoritative configuration table and pushes the runtime key
+// here via SetGlobalSetting; absent a value the database backend — the only one
+// OSS ships — applies.
 func (p *Plugin) getBackendConfig() string {
 	if p.getGlobalSetting != nil {
 		if val := strings.TrimSpace(p.getGlobalSetting("mail_storage_backend")); val != "" {
@@ -241,7 +239,33 @@ func (p *Plugin) isSuppressed(orgID uint, addr string) bool {
 }
 
 func (p *Plugin) purge(orgID uint) error {
+	ctx := context.Background()
+	ctx = plugin.WithOrgID(ctx, orgID)
 	mailboxIDs := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
+	var emails []Email
+	if err := p.db.Select("id", "storage_key").Where("mailbox_id IN (?)", mailboxIDs).Find(&emails).Error; err == nil && len(emails) > 0 {
+		storageProv, spErr := p.getStorageProvider()
+		if spErr != nil {
+			log.Printf("mail purge: storage provider unavailable (%v); deleting database blobs only", spErr)
+		}
+		dbProv := NewDBStorageProvider(p.db)
+		delCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+		defer cancel()
+		for _, e := range emails {
+			key := e.StorageKey
+			if key == "" {
+				key = fmt.Sprintf("mail/%d/%d.eml", orgID, e.ID)
+			}
+			if storageProv != nil {
+				if err := storageProv.Delete(delCtx, key); err != nil {
+					log.Printf("mail purge: failed to delete storage blob %q: %v", key, err)
+				}
+			}
+			if err := dbProv.Delete(delCtx, key); err != nil {
+				log.Printf("mail purge: failed to delete database blob %q: %v", key, err)
+			}
+		}
+	}
 	p.db.Where("mailbox_id IN (?)", mailboxIDs).Delete(&Email{})
 	p.db.Where("owner_id = ?", orgID).Delete(&Mailbox{})
 	p.db.Where("owner_id = ?", orgID).Delete(&SMTPSender{})
