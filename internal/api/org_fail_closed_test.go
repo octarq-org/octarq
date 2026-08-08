@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -56,13 +57,16 @@ func TestOrgIDNoDefaultAndFailClosed(t *testing.T) {
 	}
 }
 
-// P2-10: Ordinary member must not receive inboundToken in getSettings response;
-// owner/admin must receive it.
+// P2-10: The org's inbound-webhook secret must never ride along in a settings
+// dump. getSettings answers with a boolean (inboundTokenSet) that only an
+// owner/admin sees; the raw token is served only by the dedicated, admin-gated
+// GET /api/settings/inbound-token endpoint.
 func TestGetSettingsInboundTokenRoleControl(t *testing.T) {
 	_, srv, db := newTestHandlerRaw(t)
 	const orgID = uint(201)
+	const secret = "inbound-tok-201"
 
-	db.Create(&models.Org{ID: orgID, Slug: "test-org-201", InboundToken: "inbound-tok-201"})
+	db.Create(&models.Org{ID: orgID, Slug: "test-org-201", InboundToken: secret})
 
 	ownerUID := seedOrgMember(t, db, orgID, "owner@p210.com", "owner")
 	adminUID := seedOrgMember(t, db, orgID, "admin@p210.com", "admin")
@@ -72,43 +76,69 @@ func TestGetSettingsInboundTokenRoleControl(t *testing.T) {
 	adminSess := sessionCookies(t, adminUID, orgID)
 	memberSess := sessionCookies(t, memberUID, orgID)
 
-	// 1. Member GET /api/settings -> inboundToken key must NOT exist in JSON
-	recMember := do(srv, "GET", "/api/settings", memberSess, "")
-	if recMember.Code != http.StatusOK {
-		t.Fatalf("member getSettings status = %d, want 200", recMember.Code)
+	settingsBody := func(cookies []*http.Cookie) map[string]any {
+		t.Helper()
+		rec := do(srv, "GET", "/api/settings", cookies, "")
+		if rec.Code != http.StatusOK {
+			t.Fatalf("getSettings status = %d, want 200 (body=%s)", rec.Code, rec.Body.String())
+		}
+		var body map[string]any
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatalf("unmarshal settings body: %v", err)
+		}
+		return body
 	}
-	var memberBody map[string]any
-	if err := json.Unmarshal(recMember.Body.Bytes(), &memberBody); err != nil {
-		t.Fatalf("unmarshal member body: %v", err)
+	assertMasked := func(label string, body map[string]any) {
+		t.Helper()
+		if _, exists := body["inboundToken"]; exists {
+			t.Errorf("%s received inboundToken key in settings response: %v", label, body["inboundToken"])
+		}
+		if b, err := json.Marshal(body); err == nil && strings.Contains(string(b), secret) {
+			t.Errorf("%s settings dump leaked the raw inbound token: %v", label, body)
+		}
 	}
-	if _, exists := memberBody["inboundToken"]; exists {
-		t.Errorf("member received inboundToken key in settings response: %v", memberBody["inboundToken"])
+	assertSet := func(label string, body map[string]any) {
+		t.Helper()
+		if set, ok := body["inboundTokenSet"].(bool); !ok || !set {
+			t.Errorf("%s did not receive inboundTokenSet=true: %v", label, body["inboundTokenSet"])
+		}
+	}
+	tokenStatus := func(cookies []*http.Cookie) int {
+		t.Helper()
+		return do(srv, "GET", "/api/settings/inbound-token", cookies, "").Code
+	}
+	tokenBody := func(cookies []*http.Cookie) (int, string) {
+		t.Helper()
+		rec := do(srv, "GET", "/api/settings/inbound-token", cookies, "")
+		return rec.Code, rec.Body.String()
 	}
 
-	// 2. Owner GET /api/settings -> inboundToken key MUST exist in JSON
-	recOwner := do(srv, "GET", "/api/settings", ownerSess, "")
-	if recOwner.Code != http.StatusOK {
-		t.Fatalf("owner getSettings status = %d, want 200", recOwner.Code)
+	// 1. Member settings dump carries neither the token nor the boolean, and the
+	// dedicated endpoint refuses them.
+	memberBody := settingsBody(memberSess)
+	assertMasked("member", memberBody)
+	if _, exists := memberBody["inboundTokenSet"]; exists {
+		t.Errorf("member received inboundTokenSet key in settings response: %v", memberBody["inboundTokenSet"])
 	}
-	var ownerBody map[string]any
-	if err := json.Unmarshal(recOwner.Body.Bytes(), &ownerBody); err != nil {
-		t.Fatalf("unmarshal owner body: %v", err)
-	}
-	if tok, ok := ownerBody["inboundToken"].(string); !ok || tok == "" {
-		t.Errorf("owner did not receive valid inboundToken string: %v", ownerBody["inboundToken"])
+	if code := tokenStatus(memberSess); code != http.StatusForbidden {
+		t.Errorf("member GET /api/settings/inbound-token = %d, want 403", code)
 	}
 
-	// 3. Admin GET /api/settings -> inboundToken key MUST exist in JSON
-	recAdmin := do(srv, "GET", "/api/settings", adminSess, "")
-	if recAdmin.Code != http.StatusOK {
-		t.Fatalf("admin getSettings status = %d, want 200", recAdmin.Code)
+	// 2. Owner settings dump says the token is set but never reveals it; the
+	// dedicated endpoint returns it.
+	ownerBody := settingsBody(ownerSess)
+	assertMasked("owner", ownerBody)
+	assertSet("owner", ownerBody)
+	if code, body := tokenBody(ownerSess); code != http.StatusOK || !strings.Contains(body, secret) {
+		t.Errorf("owner GET /api/settings/inbound-token = %d, want 200 with token (body=%s)", code, body)
 	}
-	var adminBody map[string]any
-	if err := json.Unmarshal(recAdmin.Body.Bytes(), &adminBody); err != nil {
-		t.Fatalf("unmarshal admin body: %v", err)
-	}
-	if tok, ok := adminBody["inboundToken"].(string); !ok || tok == "" {
-		t.Errorf("admin did not receive valid inboundToken string: %v", adminBody["inboundToken"])
+
+	// 3. Admin matches the owner.
+	adminBody := settingsBody(adminSess)
+	assertMasked("admin", adminBody)
+	assertSet("admin", adminBody)
+	if code, body := tokenBody(adminSess); code != http.StatusOK || !strings.Contains(body, secret) {
+		t.Errorf("admin GET /api/settings/inbound-token = %d, want 200 with token (body=%s)", code, body)
 	}
 }
 

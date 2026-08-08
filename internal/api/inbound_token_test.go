@@ -11,12 +11,15 @@ import (
 )
 
 // P2-10: org.InboundToken is the per-tenant secret in the inbound-email webhook
-// URL. Anyone holding it can forge inbound mail for the workspace, so it must
-// not appear in GET /api/settings for a plain member.
+// URL. Anyone holding it can forge inbound mail for the workspace, so GET
+// /api/settings must not expose it to anyone — not even an admin. The dump
+// answers with a boolean (inboundTokenSet); the raw token is returned only by
+// the dedicated GET /api/settings/inbound-token endpoint, and that endpoint is
+// admin-gated.
 //
-// The gate also has to understand API tokens: this endpoint is where an
-// automation reads that webhook secret, and comparing the membership role alone
-// hides it from every bearer caller (a token has no membership row).
+// The gate also has to understand API tokens: an automation reads that webhook
+// secret, and comparing the membership role alone hides it from every bearer
+// caller (a token has no membership row).
 
 // seedOrgWithInboundToken ensures org 1 exists carrying a known secret. The base
 // fixture has no org row, and getSettings mints a fresh random token for an org
@@ -45,16 +48,30 @@ func TestInboundTokenHiddenFromMember(t *testing.T) {
 	const secret = "inbound-secret-do-not-leak"
 	seedOrgWithInboundToken(t, db, secret)
 
+	// The masked dump must not carry the raw secret for a member…
 	memberUID := seedOrgMember(t, db, 1, "member@example.com", "member")
 	if body := settingsBody(t, srv, sessionCookies(t, memberUID, 1)); strings.Contains(body, secret) {
 		t.Errorf("member can read the org's inbound webhook secret: body=%s", body)
 	}
 
-	// Positive half: an admin still gets it, so the assertion above cannot be
-	// satisfied by the field simply having disappeared for everybody.
+	// …and the dedicated endpoint refuses them.
+	recMember := do(srv, http.MethodGet, "/api/settings/inbound-token", sessionCookies(t, memberUID, 1), "")
+	if recMember.Code != http.StatusForbidden {
+		t.Errorf("member GET /api/settings/inbound-token: got %d, want 403", recMember.Code)
+	}
+
+	// The settings dump must not leak it for an admin either — only the
+	// dedicated endpoint returns the value, so the mask cannot be lifted by role.
 	adminUID := seedOrgMember(t, db, 1, "admin@example.com", "admin")
-	if body := settingsBody(t, srv, sessionCookies(t, adminUID, 1)); !strings.Contains(body, secret) {
-		t.Errorf("admin cannot read the inbound webhook secret: body=%s", body)
+	if body := settingsBody(t, srv, sessionCookies(t, adminUID, 1)); strings.Contains(body, secret) {
+		t.Errorf("admin settings dump leaked the inbound webhook secret: body=%s", body)
+	}
+	rec := do(srv, http.MethodGet, "/api/settings/inbound-token", sessionCookies(t, adminUID, 1), "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("admin GET /api/settings/inbound-token: got %d (body=%s)", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), secret) {
+		t.Errorf("admin cannot read the inbound webhook secret via its endpoint: body=%s", rec.Body.String())
 	}
 }
 
@@ -69,22 +86,19 @@ func TestInboundTokenFollowsTokenScope(t *testing.T) {
 	seedToken(t, db, adminRaw, 21, "admin")
 	seedToken(t, db, memberRaw, 21, "member")
 
-	get := func(raw string) string {
-		req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
+	get := func(raw string) (int, string) {
+		req := httptest.NewRequest(http.MethodGet, "/api/settings/inbound-token", nil)
 		req.Header.Set("Authorization", "Bearer "+raw)
 		rec := httptest.NewRecorder()
 		srv.ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("GET /api/settings with token: got %d (body=%s)", rec.Code, rec.Body.String())
-		}
-		return rec.Body.String()
+		return rec.Code, rec.Body.String()
 	}
 
-	if body := get(adminRaw); !strings.Contains(body, secret) {
-		t.Errorf("admin-scoped token cannot read the inbound webhook secret it is meant to use: body=%s", body)
+	if code, body := get(adminRaw); code != http.StatusOK || !strings.Contains(body, secret) {
+		t.Errorf("admin-scoped token cannot read the inbound webhook secret it is meant to use: got %d (body=%s)", code, body)
 	}
-	if body := get(memberRaw); strings.Contains(body, secret) {
-		t.Errorf("member-scoped token read the inbound webhook secret: body=%s", body)
+	if code, body := get(memberRaw); code != http.StatusForbidden {
+		t.Errorf("member-scoped token read the inbound webhook secret: got %d (body=%s)", code, body)
 	}
 }
 

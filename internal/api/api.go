@@ -229,6 +229,7 @@ func (h *Handler) Routes() *http.ServeMux {
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/overview", Summary: "Overview Stats", Tags: []string{"Dashboard"}}, h.overview)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/settings", Summary: "Get Settings", Tags: []string{"Settings"}}, h.getSettings)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/settings/inbound-token", Summary: "Get Inbound Webhook Token", Tags: []string{"Settings"}}, h.getInboundToken)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/settings", Summary: "Update Settings", Tags: []string{"Settings"}}, h.updateSettings)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/instance-settings", Summary: "Get Instance Settings", Tags: []string{"Settings"}}, h.getInstanceSettings)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/instance-settings", Summary: "Update Instance Settings", Tags: []string{"Settings"}}, h.updateInstanceSettings)

@@ -259,7 +259,7 @@ export async function req<T>(method: string, path: string, body?: unknown, lang?
 export interface Settings {
   reservedMailboxes: string;
   orgSlug: string;
-  inboundToken?: string;
+  inboundTokenSet?: boolean;
   catchAll: boolean;
   autoWrapLinks: boolean;
   isInstanceAdmin: boolean;
@@ -295,6 +295,7 @@ export const api = {
 
   // settings
   settings: () => req<Settings>("GET", "/api/settings"),
+  inboundToken: () => req<{ inboundToken: string }>("GET", "/api/settings/inbound-token"),
   updateSettings: (s: {
     reservedMailboxes?: string;
     inboundToken?: string;
