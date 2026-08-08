@@ -258,11 +258,9 @@ func (p *Plugin) getEmail(ctx context.Context, input *GetEmailInput) (*GetEmailO
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if !p.emailBelongsToOrg(input.ID, p.orgID(r)) {
-		return nil, huma.Error404NotFound("not found")
-	}
+	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
 	var e Email
-	if p.db.First(&e, input.ID).Error != nil {
+	if p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).First(&e).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	if !e.Read {
@@ -298,11 +296,9 @@ func (p *Plugin) updateEmail(ctx context.Context, input *UpdateEmailInput) (*Upd
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	if !p.emailBelongsToOrg(input.ID, p.orgID(r)) {
-		return nil, huma.Error404NotFound("not found")
-	}
+	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
 	var e Email
-	if p.db.First(&e, input.ID).Error != nil {
+	if p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).First(&e).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	if input.Body.Read != nil {
@@ -369,11 +365,9 @@ func (p *Plugin) rawEmail(ctx context.Context, input *RawEmailInput) (*struct{},
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	ctx = plugin.WithOrgID(ctx, p.orgID(r))
-	if !p.emailBelongsToOrg(input.ID, p.orgID(r)) {
-		return nil, huma.Error404NotFound("not found")
-	}
+	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
 	var e Email
-	if p.db.First(&e, input.ID).Error != nil {
+	if p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).First(&e).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 
@@ -430,24 +424,23 @@ func (p *Plugin) deleteEmail(ctx context.Context, input *DeleteEmailInput) (*Del
 		return nil, huma.Error403Forbidden("forbidden: admin role required to delete email")
 	}
 	ctx = plugin.WithOrgID(ctx, p.orgID(r))
-	if !p.emailBelongsToOrg(input.ID, p.orgID(r)) {
+	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
+	var e Email
+	if p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).First(&e).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
-	var e Email
-	if p.db.First(&e, input.ID).Error == nil {
-		key := e.StorageKey
-		if key == "" {
-			var mb Mailbox
-			_ = p.db.First(&mb, e.MailboxID).Error
-			key = fmt.Sprintf("mail/%d/%d.eml", mb.OrgID, e.ID)
-		}
-		if storageProv, err := p.getStorageProvider(); err == nil {
-			_ = storageProv.Delete(ctx, key)
-		}
-		dbProv := NewDBStorageProvider(p.db)
-		_ = dbProv.Delete(ctx, key)
+	key := e.StorageKey
+	if key == "" {
+		var mb Mailbox
+		_ = p.db.First(&mb, e.MailboxID).Error
+		key = fmt.Sprintf("mail/%d/%d.eml", mb.OrgID, e.ID)
 	}
-	p.db.Delete(&Email{}, input.ID)
+	if storageProv, err := p.getStorageProvider(); err == nil {
+		_ = storageProv.Delete(ctx, key)
+	}
+	dbProv := NewDBStorageProvider(p.db)
+	_ = dbProv.Delete(ctx, key)
+	p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).Delete(&Email{})
 	return &DeleteEmailOutput{Body: map[string]bool{"ok": true}}, nil
 }
 
@@ -932,16 +925,4 @@ func (p *Plugin) deleteSuppression(ctx context.Context, input *DeleteSuppression
 		p.audit(r, "suppression.delete", "suppression", item.ID, map[string]any{"address": item.Address, "reason": item.Reason})
 	}
 	return &DeleteSuppressionOutput{Body: map[string]bool{"ok": true}}, nil
-}
-
-func (p *Plugin) emailBelongsToOrg(emailID, orgID uint) bool {
-	var e Email
-	if p.db.Select("mailbox_id").First(&e, emailID).Error != nil {
-		return false
-	}
-	var mb Mailbox
-	if p.db.Select("owner_id").First(&mb, e.MailboxID).Error != nil {
-		return false
-	}
-	return mb.OrgID == orgID
 }
