@@ -61,10 +61,15 @@ func TestStatefulSessionRoundtrip(t *testing.T) {
 	m.SetSession(rec, httptest.NewRequest(http.MethodGet, "/", nil), 1, 42)
 
 	cookies := rec.Result().Cookies()
-	if len(cookies) != 1 {
-		t.Fatalf("expected 1 cookie, got %d", len(cookies))
+	var tokCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == cookieName {
+			tokCookie = c
+		}
 	}
-	tokCookie := cookies[0]
+	if tokCookie == nil {
+		t.Fatalf("expected session cookie")
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/links", nil)
 	req.AddCookie(tokCookie)
@@ -88,7 +93,12 @@ func TestStatefulSessionExpiryAndInvalidation(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	m.SetSession(rec, httptest.NewRequest(http.MethodGet, "/", nil), 1, 42)
-	tokCookie := rec.Result().Cookies()[0]
+	var tokCookie *http.Cookie
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == cookieName {
+			tokCookie = c
+		}
+	}
 
 	// 1. Invalid token
 	reqBad := httptest.NewRequest(http.MethodGet, "/api/links", nil)
@@ -116,7 +126,12 @@ func TestStatefulSessionExpiryAndInvalidation(t *testing.T) {
 	// 3. Clear session
 	rec2 := httptest.NewRecorder()
 	m.SetSession(rec2, httptest.NewRequest(http.MethodGet, "/", nil), 2, 42)
-	tokCookie2 := rec2.Result().Cookies()[0]
+	var tokCookie2 *http.Cookie
+	for _, c := range rec2.Result().Cookies() {
+		if c.Name == cookieName {
+			tokCookie2 = c
+		}
+	}
 	reqClear := httptest.NewRequest(http.MethodGet, "/api/links", nil)
 	reqClear.AddCookie(tokCookie2)
 

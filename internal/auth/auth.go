@@ -19,6 +19,7 @@ import (
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/cache"
 	"github.com/octarq-org/octarq/internal/crypto"
+	"github.com/octarq-org/octarq/internal/csrf"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/origin"
 	"github.com/octarq-org/octarq/plugin"
@@ -280,15 +281,21 @@ func (m *Manager) SetSession(w http.ResponseWriter, r *http.Request, uid, orgID 
 // following request is a 401. It cannot happen now — over HTTP the flag is off,
 // and the moment the same instance is reached over HTTPS it is on.
 func (m *Manager) setCookie(w http.ResponseWriter, r *http.Request, token string) {
+	secure := origin.Secure(r, trustProxy)
 	http.SetCookie(w, &http.Cookie{
 		Name:     cookieName,
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   origin.Secure(r, trustProxy),
+		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(sessionTTL.Seconds()),
 	})
+
+	// The readable half of the double submit, derived from the same token and
+	// marked Secure the same way — the pair has to travel together or writes
+	// start failing. See package internal/csrf.
+	http.SetCookie(w, csrf.NewCookie(m.cfg.SecretKey, token, secure))
 }
 
 // sessionByToken looks up a non-expired Session row by the raw cookie token.
@@ -382,6 +389,7 @@ func (m *Manager) Clear(r *http.Request, w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name: cookieName, Value: "", Path: "/", HttpOnly: true, MaxAge: -1,
 	})
+	http.SetCookie(w, csrf.ClearCookie())
 }
 
 // RevokeUserOrgSessions deletes every session that binds the given user to the
