@@ -38,3 +38,4 @@ examples/*/web/node_modules
 
 # octarq-build generated frontend manifest (transient)
 .octarq-frontend-plugins.json
+.worktrees/

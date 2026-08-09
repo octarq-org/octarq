@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/internal/api"
 	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
@@ -63,38 +62,13 @@ func TestStartSessionCleanup(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	StartSessionCleanup(ctx, db)
+	StartSessionCleanup(ctx, db, func() int { return 90 })
 
 	var count int64
 	db.Model(&models.Session{}).Count(&count)
 	if count != 0 {
 		t.Errorf("expected 0 sessions after cleanup, got %d", count)
 	}
-}
-
-func TestAuditLogRetentionDays(t *testing.T) {
-	t.Run("defaults to DefaultRetentionDays when unset", func(t *testing.T) {
-		db := testDB(t)
-		if got := auditLogRetentionDays(db); got != api.DefaultRetentionDays {
-			t.Errorf("expected default %d, got %d", api.DefaultRetentionDays, got)
-		}
-	})
-
-	t.Run("reads the instance setting", func(t *testing.T) {
-		db := testDB(t)
-		db.Create(&models.Setting{Key: settingKeyDataRetentionDays, Value: "45"})
-		if got := auditLogRetentionDays(db); got != 45 {
-			t.Errorf("expected 45, got %d", got)
-		}
-	})
-
-	t.Run("falls back on an invalid value", func(t *testing.T) {
-		db := testDB(t)
-		db.Create(&models.Setting{Key: settingKeyDataRetentionDays, Value: "not-a-number"})
-		if got := auditLogRetentionDays(db); got != api.DefaultRetentionDays {
-			t.Errorf("expected default %d, got %d", api.DefaultRetentionDays, got)
-		}
-	})
 }
 
 func TestPruneAuditLogs(t *testing.T) {
@@ -105,7 +79,7 @@ func TestPruneAuditLogs(t *testing.T) {
 		recent := &models.AuditLog{OrgID: 1, ActorID: 1, Action: "test.recent", CreatedAt: now.Add(-1 * 24 * time.Hour)}
 		db.Create(old)
 		db.Create(recent)
-		pruneAuditLogs(db)
+		pruneAuditLogs(db, 90)
 		if err := db.First(&models.AuditLog{}, old.ID).Error; err == nil {
 			t.Errorf("expected old audit log %d to be pruned", old.ID)
 		}
@@ -121,8 +95,7 @@ func TestPruneAuditLogs(t *testing.T) {
 		recent := &models.AuditLog{OrgID: 1, ActorID: 1, Action: "test.recent", CreatedAt: now.Add(-1 * 24 * time.Hour)}
 		db.Create(gap)
 		db.Create(recent)
-		db.Create(&models.Setting{Key: settingKeyDataRetentionDays, Value: "60"})
-		pruneAuditLogs(db)
+		pruneAuditLogs(db, 60)
 		if err := db.First(&models.AuditLog{}, gap.ID).Error; err == nil {
 			t.Errorf("expected audit log %d (75d old) to be pruned under the 60d instance setting", gap.ID)
 		}
@@ -138,8 +111,7 @@ func TestPruneAuditLogs(t *testing.T) {
 		recent := &models.AuditLog{OrgID: 1, ActorID: 1, Action: "test.recent", CreatedAt: now.Add(-1 * 24 * time.Hour)}
 		db.Create(old)
 		db.Create(recent)
-		db.Create(&models.Setting{Key: settingKeyDataRetentionDays, Value: "0"})
-		pruneAuditLogs(db)
+		pruneAuditLogs(db, 0)
 		if err := db.First(&models.AuditLog{}, old.ID).Error; err != nil {
 			t.Errorf("expected audit log %d to survive with pruning disabled", old.ID)
 		}
@@ -151,7 +123,6 @@ func TestPruneAuditLogs(t *testing.T) {
 
 func TestStartSessionCleanupPrunesAuditLogs(t *testing.T) {
 	db := testDB(t)
-	db.Create(&models.Setting{Key: settingKeyDataRetentionDays, Value: "30"})
 	now := time.Now()
 	old := &models.AuditLog{OrgID: 1, ActorID: 1, Action: "test.old", CreatedAt: now.Add(-90 * 24 * time.Hour)}
 	recent := &models.AuditLog{OrgID: 1, ActorID: 1, Action: "test.recent", CreatedAt: now.Add(-1 * 24 * time.Hour)}
@@ -161,7 +132,7 @@ func TestStartSessionCleanupPrunesAuditLogs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	StartSessionCleanup(ctx, db)
+	StartSessionCleanup(ctx, db, func() int { return 30 })
 
 	if err := db.First(&models.AuditLog{}, old.ID).Error; err == nil {
 		t.Errorf("expected old audit log %d to be pruned", old.ID)

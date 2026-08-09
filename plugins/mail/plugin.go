@@ -242,15 +242,25 @@ func (p *Plugin) purge(orgID uint) error {
 	ctx := context.Background()
 	ctx = plugin.WithOrgID(ctx, orgID)
 	mailboxIDs := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
-	var emails []Email
-	if err := p.db.Select("id", "storage_key").Where("mailbox_id IN (?)", mailboxIDs).Find(&emails).Error; err == nil && len(emails) > 0 {
-		storageProv, spErr := p.getStorageProvider()
-		if spErr != nil {
-			log.Printf("mail purge: storage provider unavailable (%v); deleting database blobs only", spErr)
+
+	storageProv, spErr := p.getStorageProvider()
+	if spErr != nil {
+		log.Printf("mail purge: storage provider unavailable (%v); deleting database blobs only", spErr)
+	}
+	dbProv := NewDBStorageProvider(p.db)
+	delCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
+	for {
+		var emails []Email
+		if err := p.db.Select("id", "storage_key").Where("mailbox_id IN (?)", mailboxIDs).Limit(2000).Find(&emails).Error; err != nil {
+			log.Printf("mail purge: failed to query emails for org %d: %v", orgID, err)
+			break
 		}
-		dbProv := NewDBStorageProvider(p.db)
-		delCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
-		defer cancel()
+		if len(emails) == 0 {
+			break
+		}
+
 		for _, e := range emails {
 			key := e.StorageKey
 			if key == "" {
@@ -265,7 +275,17 @@ func (p *Plugin) purge(orgID uint) error {
 				log.Printf("mail purge: failed to delete database blob %q: %v", key, err)
 			}
 		}
+
+		var ids []uint
+		for _, e := range emails {
+			ids = append(ids, e.ID)
+		}
+		if err := p.db.Where("id IN (?)", ids).Delete(&Email{}).Error; err != nil {
+			log.Printf("mail purge: failed to delete email records for org %d: %v", orgID, err)
+			break
+		}
 	}
+
 	p.db.Where("mailbox_id IN (?)", mailboxIDs).Delete(&Email{})
 	p.db.Where("owner_id = ?", orgID).Delete(&Mailbox{})
 	p.db.Where("owner_id = ?", orgID).Delete(&SMTPSender{})

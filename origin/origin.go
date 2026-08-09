@@ -362,6 +362,42 @@ const ttl = 5 * time.Minute
 
 // entry holds one cached answer. org is meaningful only for OwnerOf's key
 // space; the boolean questions leave it zero.
+var (
+	globalCacheMu sync.RWMutex
+	globalCache   = make(map[string]entry)
+)
+
+// ClearDomainCache removes all cached answers related to the given domain.
+// This should be called when a domain is registered, deleted, or moved between workspaces.
+func ClearDomainCache(domain string) {
+	domain = NormalizeHost(domain)
+	if domain == "" {
+		return
+	}
+	globalCacheMu.Lock()
+	defer globalCacheMu.Unlock()
+	for k := range globalCache {
+		if k == "any" {
+			delete(globalCache, k)
+			continue
+		}
+		idx := strings.LastIndexByte(k, ':')
+		if idx != -1 {
+			host := k[idx+1:]
+			if host == domain || strings.HasSuffix(host, "."+domain) {
+				delete(globalCache, k)
+			}
+		}
+	}
+}
+
+// clearAllCache is for tests.
+func clearAllCache() {
+	globalCacheMu.Lock()
+	defer globalCacheMu.Unlock()
+	globalCache = make(map[string]entry)
+}
+
 type entry struct {
 	ok     bool
 	org    uint
@@ -371,13 +407,11 @@ type entry struct {
 // Resolver answers origin questions with a short-lived cache in front of the
 // domains table. Zero value is not usable — call NewResolver.
 type Resolver struct {
-	db      *gorm.DB
-	mu      sync.RWMutex
-	entries map[string]entry
+	db *gorm.DB
 }
 
 func NewResolver(db *gorm.DB) *Resolver {
-	return &Resolver{db: db, entries: make(map[string]entry)}
+	return &Resolver{db: db}
 }
 
 func (rv *Resolver) cached(key string, compute func() bool) bool {
@@ -389,21 +423,21 @@ func (rv *Resolver) cached(key string, compute func() bool) bool {
 // so the size bound covers every question the resolver answers rather than one
 // per method.
 func (rv *Resolver) cachedOwner(key string, compute func() (uint, bool)) (uint, bool) {
-	rv.mu.RLock()
-	e, hit := rv.entries[key]
-	rv.mu.RUnlock()
+	globalCacheMu.RLock()
+	e, hit := globalCache[key]
+	globalCacheMu.RUnlock()
 	if hit && time.Now().Before(e.expiry) {
 		return e.org, e.ok
 	}
 	org, ok := compute()
-	rv.mu.Lock()
-	defer rv.mu.Unlock()
+	globalCacheMu.Lock()
+	defer globalCacheMu.Unlock()
 	// Bound the map: a Host-header sprayer would otherwise grow it without
 	// limit. A wholesale reset beats LRU bookkeeping for a cache this cold.
-	if len(rv.entries) > 1024 {
-		rv.entries = make(map[string]entry)
+	if len(globalCache) > 1024 {
+		globalCache = make(map[string]entry)
 	}
-	rv.entries[key] = entry{ok: ok, org: org, expiry: time.Now().Add(ttl)}
+	globalCache[key] = entry{ok: ok, org: org, expiry: time.Now().Add(ttl)}
 	return org, ok
 }
 

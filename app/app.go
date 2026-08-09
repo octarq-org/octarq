@@ -428,15 +428,16 @@ func (a *App) RunMCP(ctx context.Context) error {
 		RegisterNotifier: func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
 			notify.Register(typ, send)
 		},
-		UserID:          a.auth.UserID,
-		OrgID:           a.auth.OrgID,
-		OrgRole:         apiHandler.OrgRole,
-		RequireRole:     apiHandler.RequireRole,
-		RequirePerm:     apiHandler.RequirePerm,
-		IsInstanceAdmin: apiHandler.IsInstanceAdmin,
-		LoginByEmail:    a.loginByEmail,
-		LoginByIdentity: a.loginByIdentity,
-		BindIdentity:    a.auth.BindIdentity,
+		RevokeUserOrgSessions: a.auth.RevokeUserOrgSessions,
+		UserID:                a.auth.UserID,
+		OrgID:                 a.auth.OrgID,
+		OrgRole:               apiHandler.OrgRole,
+		RequireRole:           apiHandler.RequireRole,
+		RequirePerm:           apiHandler.RequirePerm,
+		IsInstanceAdmin:       apiHandler.IsInstanceAdmin,
+		LoginByEmail:          a.loginByEmail,
+		LoginByIdentity:       a.loginByIdentity,
+		BindIdentity:          a.auth.BindIdentity,
 		RegisterAuthMethod: func(m plugin.AuthMethod) {
 			auth.Register(auth.AuthMethod{
 				ID:        m.ID,
@@ -608,15 +609,16 @@ func (a *App) Run(ctx context.Context) error {
 		RegisterNotifier: func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
 			notify.Register(typ, send)
 		},
-		UserID:          a.auth.UserID,
-		OrgID:           a.auth.OrgID,
-		OrgRole:         apiHandler.OrgRole,
-		RequireRole:     apiHandler.RequireRole,
-		RequirePerm:     apiHandler.RequirePerm,
-		IsInstanceAdmin: apiHandler.IsInstanceAdmin,
-		LoginByEmail:    a.loginByEmail,
-		LoginByIdentity: a.loginByIdentity,
-		BindIdentity:    a.auth.BindIdentity,
+		RevokeUserOrgSessions: a.auth.RevokeUserOrgSessions,
+		UserID:                a.auth.UserID,
+		OrgID:                 a.auth.OrgID,
+		OrgRole:               apiHandler.OrgRole,
+		RequireRole:           apiHandler.RequireRole,
+		RequirePerm:           apiHandler.RequirePerm,
+		IsInstanceAdmin:       apiHandler.IsInstanceAdmin,
+		LoginByEmail:          a.loginByEmail,
+		LoginByIdentity:       a.loginByIdentity,
+		BindIdentity:          a.auth.BindIdentity,
 		RegisterAuthMethod: func(m plugin.AuthMethod) {
 			auth.Register(auth.AuthMethod{
 				ID:        m.ID,
@@ -828,7 +830,7 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 	go cleanup.Start(ctx, apiHandler.DataRetentionDays, cleanups...)
-	go cleanup.StartSessionCleanup(ctx, a.gdb)
+	go cleanup.StartSessionCleanup(ctx, a.gdb, apiHandler.DataRetentionDays)
 
 	go func() {
 		slog.Info("octarq listening", "addr", a.cfg.Listen, "db", a.cfg.DBDriver)
