@@ -349,7 +349,7 @@ export const settings = {
     notifyAddChannelOfType: "Add channel",
 
     // Shared status
-    infrastructure: "Infrastructure",
+    systemSettings: "System Settings",
   },
   zh: {
     instancePluginHasUI: "含界面",
@@ -701,7 +701,7 @@ export const settings = {
     notifyAddChannelOfType: "添加渠道",
 
     // Shared status
-    infrastructure: "基础设施",
+    systemSettings: "系统设置",
   },
   es: {
     instancePluginHasUI: "Con interfaz",
@@ -1053,7 +1053,7 @@ export const settings = {
     notifyAddChannelOfType: "Añadir canal",
 
     // Shared status
-    infrastructure: "Infraestructura",
+    systemSettings: "Configuración del sistema",
   },
   pt: {
     instancePluginHasUI: "Com interface",
@@ -1405,7 +1405,7 @@ export const settings = {
     notifyAddChannelOfType: "Adicionar canal",
 
     // Shared status
-    infrastructure: "Infraestrutura",
+    systemSettings: "Configurações do sistema",
   },
   ja: {
     instancePluginHasUI: "UI あり",
@@ -1757,6 +1757,6 @@ export const settings = {
     notifyAddChannelOfType: "チャンネルを追加",
 
     // Shared status
-    infrastructure: "インフラストラクチャ",
+    systemSettings: "システム設定",
   },
 };
