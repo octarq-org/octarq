@@ -1,279 +1,1140 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
-import { LinkButton } from "../components/ui/link-button";
+import SectionMotion from "../components/landing/SectionMotion.astro";
 import { config } from "virtual:nimbus/config";
 
 // Most of the copy below came from src/content/docs/index.md, which nobody could
 // read: Nimbus mapped that entry to "/", the same route this file owns, and a
 // file under src/pages wins. So the docs collection carried the project's best
 // pitch — the PocketBase/Dub/n8n framing, the plugin roster, the MCP story — to a
-// URL that rendered this file instead, while this file offered three bare cards.
-// That entry is gone and its content lives here, where the route resolves.
+// URL that rendered this file instead. That entry is gone and its content lives
+// here, where the route resolves.
+//
+// The layout follows the "Octarq Landing" design doc (option 2a): a positioning
+// section that names the three tools Octarq sits between, the bundled plugins as
+// a numbered list rather than a card grid, the MCP story told as a diagram, and
+// an FAQ. Every section carries its own ambient motion (SectionMotion.astro) —
+// particles or waves — which is the one thing the docs pages deliberately don't
+// have, so the front door reads as a front door.
+//
+// This page owns its own palette. The `is:global` block below re-points the
+// Nimbus tokens at the design's Nocturne values, and Astro only ships a page's
+// styles with that page, so the docs keep their neutral theme untouched.
 
 // The four capabilities in the default build. Each is a plugin.Plugin +
 // UIPlugin — the same seam a third-party plugin uses, which is the whole point,
 // so the wording stays concrete rather than promotional. href is optional: only
-// three of them have a dedicated page today, and a card linking to a 404 is
-// worse than a card that doesn't link.
+// three of them have a dedicated page today, and a row linking to a 404 is worse
+// than a row that doesn't link.
 const bundled = [
   {
-    icon: "🔗",
+    n: "01",
     name: "Links",
     href: "/core/short-links/",
     blurb:
       "Custom and random slugs, geo/device/OS/language routing, expiry and click limits, time-series analytics with bot detection, UTM builder, QR codes.",
   },
   {
-    icon: "✉️",
+    n: "02",
     name: "Mail",
     href: "/core/mailboxes/",
     blurb:
       "Inbound mail over Cloudflare Email Routing — no port 25, no spam daemons. Catch-all provisioning, a full read/reply/send client, raw .eml export.",
   },
   {
-    icon: "🌐",
+    n: "03",
     name: "DNS",
     href: "/core/dns/",
     blurb:
       "Cloudflare and DNSPod CRUD, subdomain presets for short-link and email auth (MX/SPF/DKIM), native comment mapping.",
   },
   {
-    icon: "🏢",
+    n: "04",
     name: "Workspaces & RBAC",
     blurb:
       "Isolated multi-tenant orgs, server-enforced roles, invites and onboarding, hashed bearer API tokens.",
   },
 ];
 
-// Where a reader goes next, by intent rather than by document order.
-const paths = [
+const faqs = [
   {
-    href: "/quickstart/",
-    title: "Run it",
-    blurb: "Docker Compose or a single binary, in minutes.",
+    q: "What is Octarq, exactly?",
+    a: "A self-hosted operations backend: short links, custom-domain email, DNS and multi-tenant workspaces, each shipped as a first-class plugin behind the same seam you'd use to add your own.",
   },
   {
+    q: 'What does "single Go binary" mean in practice?',
+    a: "No CGO, SQLite by default, the dashboard is go:embed'd into the binary. Docker Compose or a bare binary — either way, one process to run and one to back up.",
+  },
+  {
+    q: "How do I write a plugin?",
+    a: "Implement plugin.Plugin on the Go side and, if it needs a dashboard page, UIPlugin with a React page — the exact seam the bundled plugins use.",
     href: "/writing-a-plugin/",
-    title: "Extend it",
-    blurb: "A Go interface plus a React page is a new tool in your back office.",
   },
   {
-    href: "/architecture/overview/",
-    title: "Understand it",
-    blurb: "How the plugin seam, composition root and entitlements fit together.",
+    q: "Does the MCP server allow writes?",
+    a: "The built-in tools read and export. The SQL tool is guarded to SELECT/WITH, row-capped, secrets redacted. A plugin can expose its own write tools via MCPProvider if it chooses to.",
+  },
+  {
+    q: "Is this a PocketBase / Dub / n8n fork?",
+    a: "No. It sits at the intersection of what those three do well — single-binary DX, real link/domain/email infrastructure, a plugin ecosystem — but the codebase and plugin seam are Octarq's own.",
+  },
+  {
+    q: "Self-hosted vs Octarq Cloud?",
+    a: "Same software. Cloud is hosted and kept up to date; self-hosting keeps the code, the data and the binary on infrastructure you control. Both stay open source.",
   },
 ];
 
-const cardClass =
-  "block rounded-lg border border-border bg-card p-5 no-underline transition-colors";
+const neighbours = [
+  { name: "PocketBase", note: "single-binary DX" },
+  { name: "Dub", note: "links · domains · email" },
+  { name: "n8n", note: "plugin ecosystem" },
+];
 ---
 
 <BaseLayout title={config.title} description={config.description}>
-  <div class="flex flex-col min-h-screen">
+  <div class="oct-page">
     <Header showSidebar={false} />
 
-    <main class="flex-1 w-full">
-      {/* Hero */}
-      <section class="mx-auto max-w-4xl w-full px-6 pt-20 pb-16">
-        <p
-          class="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground"
-        >
-          <span class="inline-block h-1.5 w-1.5 rounded-full bg-primary"></span>
-          Open source · Single Go binary · Agent-native
-        </p>
+    {/* In-page nav. The shared Header carries search, theme and GitHub; this
+        strip carries the landing page's own anchors, and the accent sweep under
+        it is the design's one piece of chrome-level motion. */}
+    <nav class="oct-subnav" aria-label="Page sections">
+      <div class="oct-shell oct-subnav__inner">
+        <a href="#positioning">Why Octarq</a>
+        <a href="#plugins">Plugins</a>
+        <a href="#mcp">Agents</a>
+        <a href="#faq">FAQ</a>
+        <span class="oct-subnav__spacer"></span>
+        <a class="oct-btn oct-btn--primary oct-subnav__cta" href="/quickstart/">
+          Get started
+        </a>
+      </div>
+      <span class="oct-sweep" aria-hidden="true"></span>
+    </nav>
 
-        <h1
-          class="mt-6 text-foreground leading-[1.1]"
-          style="font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: var(--nb-h1-weight); letter-spacing: var(--nb-h1-tracking);"
-        >
-          The back office you own,<br />and extend in an afternoon.
-        </h1>
+    <main id="main-content" class="oct-main">
+      {/* ── Hero — motes rising past a drifting glow ─────────────────────── */}
+      <section class="oct-sec oct-sec--hero">
+        <span class="oct-glow oct-glow--hero" aria-hidden="true"></span>
+        <SectionMotion variant="particles" count={12} />
+        <div class="oct-shell oct-layer">
+          <h1 class="oct-h1">
+            <span>The back office you own,</span>
+            <span>and extend in an afternoon.</span>
+          </h1>
 
-        <p class="mt-5 max-w-2xl text-[1.0625rem] text-muted-foreground leading-relaxed">
-          Octarq is a self-hosted operations backend for indie hackers, one-person
-          companies and small AI-native teams. Short links, custom-domain email and
-          DNS ship as first-class plugins — then you add your own the same way the
-          core is built. Every capability is drivable by your AI agent over
-          <strong class="text-foreground font-medium">MCP</strong>.
-        </p>
+          <p class="oct-lede">
+            Octarq is a self-hosted operations backend for indie hackers,
+            one-person companies and small AI-native teams. Short links,
+            custom-domain email and DNS ship as first-class plugins — then you add
+            your own the same way the core is built. Every capability is drivable
+            by your AI agent over <strong>MCP</strong>.
+          </p>
 
-        <div class="mt-8 flex flex-wrap items-center gap-3">
-          <LinkButton href="/quickstart/" variant="primary">Get started</LinkButton>
-          <LinkButton href="/what-is-octarq/" variant="secondary">
-            Read the introduction
-          </LinkButton>
-          <LinkButton href="https://app.octarq.org" variant="minimal" icon>
-            Try Octarq Cloud
-          </LinkButton>
-        </div>
-
-        <div class="mt-10 rounded-xl border border-border bg-card overflow-hidden">
-          <div class="flex items-center gap-1.5 border-b border-border px-4 py-2.5">
-            <span class="h-2.5 w-2.5 rounded-full bg-muted-foreground/30"></span>
-            <span class="h-2.5 w-2.5 rounded-full bg-muted-foreground/30"></span>
-            <span class="h-2.5 w-2.5 rounded-full bg-muted-foreground/30"></span>
-            <span class="ml-2 text-xs text-muted-foreground">your server</span>
+          <div class="oct-actions">
+            <a class="oct-btn oct-btn--primary" href="/quickstart/">Get started</a>
+            <a class="oct-btn oct-btn--ghost" href="/what-is-octarq/">Read the docs</a>
+            <a class="oct-btn oct-btn--ghost" href="https://app.octarq.org">
+              Try Octarq Cloud
+            </a>
           </div>
-          <pre
-            class="overflow-x-auto px-4 py-4 text-[0.8125rem] leading-relaxed"><code>git clone https://github.com/octarq-org/octarq.git && cd octarq
+
+          <div class="oct-term">
+            <div class="oct-term__bar">
+              <span></span><span></span><span></span>
+              <em>your server</em>
+            </div>
+            <pre class="oct-term__body"><code>git clone https://github.com/octarq-org/octarq.git && cd octarq
 cp .env.example .env          # set OCTARQ_SECRET_KEY and OCTARQ_ADMIN_PASSWORD
 docker compose up -d</code></pre>
-        </div>
-
-        <p class="mt-4 text-sm text-muted-foreground">
-          One binary. No CGO. SQLite by default. The dashboard is
-          <code>go:embed</code>'d. Extend without forking.
-        </p>
-      </section>
-
-      {/* Positioning */}
-      <section class="border-y border-border bg-surface-hover/20">
-        <div class="mx-auto max-w-4xl w-full px-6 py-14">
-          <h2 class="text-foreground text-xl font-semibold">
-            The intersection of three tools you already know
-          </h2>
-          <ul class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3 list-none pl-0">
-            <li class="rounded-lg border border-border bg-card p-4">
-              <div class="font-medium text-foreground">PocketBase</div>
-              <div class="mt-1 text-sm text-muted-foreground leading-relaxed">
-                Single binary, extend-in-an-afternoon developer experience.
-              </div>
-            </li>
-            <li class="rounded-lg border border-border bg-card p-4">
-              <div class="font-medium text-foreground">Dub</div>
-              <div class="mt-1 text-sm text-muted-foreground leading-relaxed">
-                Links, plus real domain, email and DNS infrastructure.
-              </div>
-            </li>
-            <li class="rounded-lg border border-border bg-card p-4">
-              <div class="font-medium text-foreground">n8n</div>
-              <div class="mt-1 text-sm text-muted-foreground leading-relaxed">
-                A plugin ecosystem for connectors — Telegram, webhooks, and more.
-              </div>
-            </li>
-          </ul>
-          <p class="mt-4 text-sm text-muted-foreground">
-            …with every capability agent-native over MCP.
-          </p>
-        </div>
-      </section>
-
-      {/* Bundled plugins */}
-      <section class="mx-auto max-w-4xl w-full px-6 py-16">
-        <h2 class="text-foreground text-xl font-semibold">Useful on minute one</h2>
-        <p class="mt-2 max-w-2xl text-[0.95rem] text-muted-foreground leading-relaxed">
-          These ship in the default build. Each is a <code>plugin.Plugin</code> +
-          <code>UIPlugin</code> — the exact seam your own plugins use, so the
-          bundled features double as reference implementations.
-        </p>
-
-        <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {
-            bundled.map((p) =>
-              p.href ? (
-                <a href={p.href} class={`${cardClass} hover:border-border-strong`}>
-                  <div class="flex items-center gap-2">
-                    <span aria-hidden="true">{p.icon}</span>
-                    <span class="font-medium text-foreground">{p.name}</span>
-                  </div>
-                  <p class="mt-2 text-sm text-muted-foreground leading-relaxed">
-                    {p.blurb}
-                  </p>
-                </a>
-              ) : (
-                <div class={cardClass}>
-                  <div class="flex items-center gap-2">
-                    <span aria-hidden="true">{p.icon}</span>
-                    <span class="font-medium text-foreground">{p.name}</span>
-                  </div>
-                  <p class="mt-2 text-sm text-muted-foreground leading-relaxed">
-                    {p.blurb}
-                  </p>
-                </div>
-              ),
-            )
-          }
-        </div>
-      </section>
-
-      {/* Agent-native */}
-      <section class="border-y border-border bg-surface-hover/20">
-        <div class="mx-auto max-w-4xl w-full px-6 py-14">
-          <h2 class="text-foreground text-xl font-semibold">Agent-native over MCP</h2>
-          <p class="mt-3 max-w-2xl text-[0.95rem] text-muted-foreground leading-relaxed">
-            Octarq ships a built-in MCP server (<code>octarq mcp</code>, over stdio
-            and SSE) so assistants like Claude Code can read and query your instance
-            — <code>list_links</code>, <code>list_mailboxes</code>,
-            <code>list_domains</code>, <code>export_data</code>, plus a guarded
-            read-only SQL tool (SELECT/WITH only, row-capped, secrets redacted).
-          </p>
-          <p class="mt-3 max-w-2xl text-[0.95rem] text-muted-foreground leading-relaxed">
-            A plugin implementing the optional <code>MCPProvider</code> interface
-            exposes its own tools to every connected agent, with no extra plumbing.
-            Write a plugin, and your agent can drive it.
-          </p>
-          <div class="mt-6">
-            <LinkButton href="/core/mcp/" variant="secondary">
-              How the MCP server works
-            </LinkButton>
           </div>
         </div>
       </section>
 
-      {/* Next steps */}
-      <section class="mx-auto max-w-4xl w-full px-6 py-16">
-        <h2 class="text-foreground text-xl font-semibold">Where to go next</h2>
-        <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {
-            paths.map((e) => (
-              <a href={e.href} class={`${cardClass} hover:border-border-strong`}>
-                <div class="font-medium text-foreground">{e.title}</div>
-                <div class="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-                  {e.blurb}
-                </div>
-              </a>
-            ))
-          }
-        </div>
-
-        <div
-          class="mt-10 rounded-xl border border-border bg-card p-6 sm:flex sm:items-center sm:justify-between sm:gap-6"
-        >
-          <div>
-            <div class="font-medium text-foreground">
-              Don't want to run it yourself?
+      {/* ── Positioning — waves under the convergence diagram ────────────── */}
+      <section class="oct-sec oct-sec--rule" id="positioning">
+        <SectionMotion variant="waves" intensity={0.9} />
+        <div class="oct-shell oct-layer">
+          <p class="oct-kicker"><span aria-hidden="true"></span>Why Octarq</p>
+          <div class="oct-split">
+            <div>
+              <h2 class="oct-h2">
+                The intersection of three tools you already run.
+              </h2>
+              <p class="oct-body">
+                PocketBase's single-binary developer experience. Dub's real link,
+                domain and email infrastructure. n8n's plugin ecosystem for
+                connectors. Octarq sits where those three ideas meet, with every
+                capability agent-native over MCP.
+              </p>
             </div>
-            <p class="mt-1 text-sm text-muted-foreground leading-relaxed">
-              Octarq Cloud is the same software, hosted and kept up to date. The
-              self-hosted build stays open source either way.
-            </p>
+
+            <div class="oct-converge">
+              <div class="oct-converge__row">
+                {
+                  neighbours.map((t) => (
+                    <div class="oct-chip">
+                      <div class="oct-chip__name">{t.name}</div>
+                      <div class="oct-chip__note">{t.note}</div>
+                    </div>
+                  ))
+                }
+              </div>
+              <div class="oct-converge__wires" aria-hidden="true">
+                <span class="oct-wire oct-wire--bus"></span>
+                <span class="oct-wire oct-wire--left"></span>
+                <span class="oct-wire oct-wire--mid"></span>
+                <span class="oct-wire oct-wire--right"></span>
+                <span class="oct-wire oct-wire--drop"></span>
+              </div>
+              <div class="oct-chip oct-chip--accent">
+                <div class="oct-chip__name">Octarq</div>
+                <div class="oct-chip__note">one plugin seam, agent-native</div>
+              </div>
+            </div>
           </div>
-          <div class="mt-4 sm:mt-0 shrink-0">
-            <LinkButton href="https://app.octarq.org" variant="primary">
-              Open Octarq Cloud
-            </LinkButton>
+        </div>
+      </section>
+
+      {/* ── Bundled plugins — motes drifting between the numbered rows ───── */}
+      <section class="oct-sec oct-sec--rule" id="plugins">
+        <SectionMotion variant="particles" count={7} intensity={0.55} />
+        <div class="oct-shell oct-layer">
+          <p class="oct-kicker"><span aria-hidden="true"></span>Bundled plugins</p>
+          <h2 class="oct-h2">Useful on minute one</h2>
+          <p class="oct-body oct-body--wide">
+            Each one is a <code>plugin.Plugin</code> + <code>UIPlugin</code> — the
+            exact seam your own plugins use, so the bundled features double as
+            reference implementations.
+          </p>
+
+          <ul class="oct-rows">
+            {
+              bundled.map((p, i) => (
+                <li class="oct-row">
+                  {/* Rules separate rows, so the first one doesn't get one. */}
+                  {i > 0 && (
+                    <span class="oct-row__rule" aria-hidden="true">
+                      <span class="oct-row__spark" />
+                    </span>
+                  )}
+                  <p class="oct-row__n">{p.n}</p>
+                  <h3 class="oct-row__name">
+                    {p.href ? <a href={p.href}>{p.name}</a> : p.name}
+                  </h3>
+                  <p class="oct-row__blurb">{p.blurb}</p>
+                </li>
+              ))
+            }
+          </ul>
+        </div>
+      </section>
+
+      {/* ── MCP — packets travelling the wires of the stack diagram ──────── */}
+      <section class="oct-sec oct-sec--rule" id="mcp">
+        <SectionMotion variant="waves" edge="top" intensity={0.7} />
+        <div class="oct-shell oct-layer oct-split oct-split--wide">
+          <div>
+            <p class="oct-kicker">
+              <span aria-hidden="true"></span>Agent-native over MCP
+            </p>
+            <h2 class="oct-h2">Every capability, one MCP server away.</h2>
+            <p class="oct-body">
+              Octarq ships a built-in MCP server (<code>octarq mcp</code>, over
+              stdio and SSE) so assistants like Claude Code can read and query your
+              instance, plus a guarded read-only SQL tool — SELECT/WITH only,
+              row-capped, secrets redacted.
+            </p>
+            <p class="oct-body">
+              A plugin implementing the optional <code>MCPProvider</code> interface
+              exposes its own tools to every connected agent. Write a plugin, and
+              your agent can drive it.
+            </p>
+            <div class="oct-actions">
+              <a class="oct-btn oct-btn--ghost" href="/core/mcp/">
+                How the MCP server works
+              </a>
+            </div>
+          </div>
+
+          <div class="oct-stack">
+            <div class="oct-node">
+              <div class="oct-node__name">Your agent</div>
+              <div class="oct-node__note">Claude Code, or any MCP client</div>
+            </div>
+
+            <div class="oct-link" aria-hidden="true">
+              <span class="oct-link__wire"><i class="oct-link__packet"></i></span>
+              <span class="oct-link__label">stdio / SSE</span>
+            </div>
+
+            <div class="oct-node oct-node--accent">
+              <div class="oct-node__name">MCP server</div>
+              <div class="oct-tags">
+                <span class="oct-tag">list_links</span>
+                <span class="oct-tag">list_mailboxes</span>
+                <span class="oct-tag">list_domains</span>
+                <span class="oct-tag">export_data</span>
+                <span class="oct-tag oct-tag--outline">sql (read-only)</span>
+              </div>
+            </div>
+
+            <div class="oct-link" aria-hidden="true">
+              <span class="oct-link__wire"
+                ><i class="oct-link__packet" style="animation-delay:.9s"></i></span
+              >
+              <span class="oct-link__label">plugin.Plugin + UIPlugin</span>
+            </div>
+
+            <div class="oct-grid2">
+              <div class="oct-node oct-node--flat">Links</div>
+              <div class="oct-node oct-node--flat">Mail</div>
+              <div class="oct-node oct-node--flat">DNS</div>
+              <div class="oct-node oct-node--flat">Workspaces &amp; RBAC</div>
+            </div>
+
+            <div class="oct-link" aria-hidden="true">
+              <span class="oct-link__wire oct-link__wire--muted"></span>
+              <span class="oct-link__label">composition root</span>
+            </div>
+
+            <div class="oct-node oct-node--flat oct-node--base">
+              SQLite · single binary
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ — a slow swell behind the answers ────────────────────────── */}
+      <section class="oct-sec oct-sec--rule" id="faq">
+        <SectionMotion variant="waves" intensity={0.55} />
+        <div class="oct-shell oct-layer">
+          <p class="oct-kicker"><span aria-hidden="true"></span>FAQ</p>
+          <h2 class="oct-h2">Answers, dev to dev</h2>
+
+          <ul class="oct-faq">
+            {
+              faqs.map((f, i) => (
+                <li class="oct-faq__item">
+                  <span
+                    class="oct-faq__mark"
+                    aria-hidden="true"
+                    style={`animation-delay:${(i * 0.4).toFixed(1)}s`}
+                  >
+                    +
+                  </span>
+                  <h3 class="oct-faq__q">{f.q}</h3>
+                  <p class="oct-faq__a">
+                    {f.a}
+                    {f.href && (
+                      <>
+                        {" "}
+                        <a href={f.href}>Read the guide →</a>
+                      </>
+                    )}
+                  </p>
+                </li>
+              ))
+            }
+          </ul>
+        </div>
+      </section>
+
+      {/* ── Closing call — glow drift over a crest ───────────────────────── */}
+      <section class="oct-sec oct-sec--cta">
+        <div class="oct-shell">
+          <div class="oct-cta">
+            <span class="oct-glow oct-glow--cta" aria-hidden="true"></span>
+            <span class="oct-sweep oct-sweep--cta" aria-hidden="true"></span>
+            <SectionMotion variant="waves" intensity={0.8} />
+            <div class="oct-layer">
+              <h2 class="oct-h2 oct-h2--cta">Run it in an afternoon.</h2>
+              <p class="oct-body">
+                Clone it, set two environment variables, and it's up. Extend it
+                whenever you're ready.
+              </p>
+              <div class="oct-actions">
+                <a class="oct-btn oct-btn--primary" href="/quickstart/">Get started</a>
+                <a class="oct-btn oct-btn--ghost" href="https://app.octarq.org">
+                  Try Octarq Cloud
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </section>
     </main>
 
-    <footer class="border-t border-border">
-      <div
-        class="mx-auto max-w-4xl w-full px-6 py-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground"
-      >
-        <a href="/quickstart/" class="hover:text-foreground no-underline">Docs</a>
-        <a
-          href="https://github.com/octarq-org/octarq"
-          class="hover:text-foreground no-underline">GitHub</a
-        >
-        <a
-          href="https://github.com/octarq-org/octarq-plugins"
-          class="hover:text-foreground no-underline">Plugins</a
-        >
-        <a href="https://octarq.org" class="hover:text-foreground no-underline">Website</a>
-        <a href="https://app.octarq.org" class="hover:text-foreground no-underline">Cloud</a>
+    <footer class="oct-footer">
+      <div class="oct-shell oct-footer__inner">
+        <a href="/quickstart/">Docs</a>
+        <a href="https://github.com/octarq-org/octarq">GitHub</a>
+        <a href="https://github.com/octarq-org/octarq-plugins">Plugins</a>
+        <a href="https://octarq.org">Website</a>
+        <a href="https://app.octarq.org">Cloud</a>
       </div>
     </footer>
   </div>
 </BaseLayout>
+
+<style is:global>
+  /* ═══════════════════════════════════════════════════════════════════════
+     Landing page palette and layout.
+     Astro ships a page's styles only with that page, so re-pointing the Nimbus
+     tokens here restyles the shared Header and nothing else on the site. The
+     values are the design doc's Nocturne system; the light column is the same
+     hues inverted, because the site's theme toggle still has to work here.
+     ══════════════════════════════════════════════════════════════════════ */
+  :root:has(.oct-page) {
+    --oct-accent: #5d5294;
+    --oct-accent-2: #7972a9;
+    --oct-section: #2b2f68;
+    --oct-section-glow: #454c95;
+    --oct-section-text: #f3f5fe;
+
+    --nb-background: #fbfbfe;
+    --nb-card: #ffffff;
+    --nb-border: color-mix(in srgb, #161826 12%, transparent);
+    --nb-border-strong: color-mix(in srgb, #161826 22%, transparent);
+  }
+
+  :root[data-mode="dark"]:has(.oct-page) {
+    --oct-accent: #9184d9;
+    --oct-accent-2: #a7a1db;
+    --oct-section: #262a60;
+    --oct-section-glow: #353b80;
+    --oct-section-text: #e9e9ed;
+
+    --nb-background: #161826;
+    --nb-card: #232532;
+    --nb-border: color-mix(in srgb, #e9e9ed 16%, transparent);
+    --nb-border-strong: color-mix(in srgb, #e9e9ed 28%, transparent);
+  }
+
+  .oct-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    /* The design's off-axis bloom, anchored to the top-right of the page. */
+    background:
+      radial-gradient(
+        1100px 640px at 78% -120px,
+        color-mix(in srgb, var(--oct-accent) 22%, transparent),
+        transparent 60%
+      ),
+      var(--nb-background);
+  }
+  .oct-main {
+    flex: 1;
+    width: 100%;
+  }
+  .oct-shell {
+    width: 100%;
+    max-width: 1160px;
+    margin: 0 auto;
+    padding-inline: clamp(20px, 4vw, 64px);
+  }
+  /* Sections host absolutely-positioned motion; content rides above it. */
+  .oct-layer {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* — in-page nav — */
+  .oct-subnav {
+    position: relative;
+    border-bottom: 1px solid var(--nb-border);
+    background: color-mix(in srgb, var(--nb-card) 82%, transparent);
+    backdrop-filter: blur(10px);
+  }
+  .oct-subnav__inner {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    height: 46px;
+  }
+  .oct-subnav a {
+    font-size: 14px;
+    color: var(--nb-foreground);
+    text-decoration: none;
+  }
+  .oct-subnav a:hover {
+    color: var(--oct-accent);
+  }
+  .oct-subnav__spacer {
+    flex: 1;
+  }
+  .oct-subnav__cta {
+    padding-block: 4px;
+  }
+  @media (max-width: 640px) {
+    /* Needs to outrank `.oct-btn { display: inline-flex }`, which is declared
+       later in this sheet — same specificity, so the compound selector wins.
+       The hero's own "Get started" is right below, nothing is lost. */
+    .oct-subnav .oct-subnav__cta {
+      display: none;
+    }
+    .oct-subnav__inner {
+      gap: 14px;
+      overflow-x: auto;
+    }
+  }
+
+  /* A single accent glint crossing the divider, on a long period so it reads
+     as a sign of life rather than a loading bar. */
+  .oct-sweep {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .oct-sweep::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -30%;
+    width: 30%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--oct-accent),
+      var(--oct-accent-2),
+      transparent
+    );
+    animation: oct-sweep 5s linear infinite;
+  }
+  @keyframes oct-sweep {
+    from {
+      left: -30%;
+    }
+    to {
+      left: 100%;
+    }
+  }
+
+  /* — sections — */
+  .oct-sec {
+    position: relative;
+    overflow: hidden;
+    padding-block: 64px;
+  }
+  .oct-sec--rule::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: var(--nb-border);
+  }
+  .oct-sec--hero {
+    padding-block: clamp(64px, 9vw, 104px) 76px;
+  }
+  .oct-sec--cta {
+    padding-block: 40px 24px;
+  }
+
+  .oct-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(36px);
+    pointer-events: none;
+    animation: oct-drift 13s ease-in-out infinite;
+  }
+  .oct-glow--hero {
+    top: -160px;
+    right: -100px;
+    width: 460px;
+    height: 460px;
+    background: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--oct-accent) 28%, transparent),
+      transparent 70%
+    );
+  }
+  .oct-glow--cta {
+    top: -120px;
+    right: -60px;
+    width: 340px;
+    height: 340px;
+    filter: blur(20px);
+    animation-duration: 10s;
+    background: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--oct-section-glow) 80%, transparent),
+      transparent 70%
+    );
+  }
+  @keyframes oct-drift {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+    }
+    50% {
+      transform: translate(-30px, 20px) scale(1.08);
+    }
+  }
+
+  /* — type — */
+  .oct-h1 {
+    margin: 0 0 0 -0.06em;
+    font-size: clamp(38px, 5.6vw, 72px);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    font-weight: 600;
+  }
+  .oct-h1 span {
+    display: block;
+  }
+  .oct-h2 {
+    margin: 0;
+    font-size: clamp(24px, 2.6vw, 30px);
+    line-height: 1.22;
+    letter-spacing: -0.012em;
+    font-weight: 600;
+  }
+  .oct-lede {
+    max-width: 58ch;
+    margin: 32px 0 0;
+    font-size: 17px;
+    line-height: 28px;
+  }
+  .oct-lede strong {
+    font-weight: 600;
+  }
+  .oct-body {
+    max-width: 46ch;
+    margin: 18px 0 0;
+    font-size: 15.5px;
+    line-height: 26px;
+    color: color-mix(in srgb, var(--nb-foreground) 78%, transparent);
+  }
+  .oct-body--wide {
+    max-width: 64ch;
+  }
+  .oct-kicker {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 14px;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--oct-accent);
+  }
+  .oct-kicker span {
+    width: 44px;
+    height: 1px;
+    background: var(--oct-accent);
+  }
+  .oct-page code {
+    font-family: var(--nb-font-mono);
+    font-size: 0.92em;
+  }
+
+  /* — buttons — */
+  .oct-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 26px;
+  }
+  .oct-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 12px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.2;
+    text-decoration: none;
+    color: var(--oct-accent);
+    transition: background-color 0.15s ease;
+  }
+  .oct-btn--primary {
+    border-color: var(--oct-accent);
+  }
+  .oct-btn--primary:hover {
+    background: color-mix(in srgb, var(--oct-accent) 12%, transparent);
+  }
+  .oct-btn--ghost:hover {
+    background: color-mix(in srgb, var(--oct-accent) 10%, transparent);
+  }
+
+  /* — terminal — */
+  .oct-term {
+    max-width: 620px;
+    margin-top: 40px;
+    border: 1px solid var(--nb-border);
+    border-radius: 14px;
+    background: var(--nb-card);
+    overflow: hidden;
+  }
+  .oct-term__bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--nb-border);
+  }
+  .oct-term__bar span {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--nb-border-strong);
+  }
+  .oct-term__bar em {
+    margin-left: 8px;
+    font-style: normal;
+    font-size: 12px;
+    color: var(--nb-muted-foreground);
+  }
+  .oct-term__body {
+    margin: 0;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: var(--nb-font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  /* — two-column sections — */
+  .oct-split {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 28px clamp(24px, 4vw, 72px);
+    align-items: center;
+  }
+  .oct-split--wide {
+    gap: 28px clamp(24px, 5vw, 80px);
+  }
+  @media (max-width: 900px) {
+    .oct-split {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  /* — convergence diagram — */
+  .oct-converge {
+    padding-top: 8px;
+  }
+  .oct-converge__row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  .oct-chip {
+    flex: 1 1 0;
+    padding: 12px;
+    border: 1px solid var(--nb-border);
+    border-radius: 8px;
+    background: var(--nb-card);
+    text-align: center;
+  }
+  .oct-chip--accent {
+    flex: none;
+    max-width: 220px;
+    margin: 0 auto;
+    padding: 14px;
+    border-color: var(--oct-accent);
+    background: var(--nb-background);
+  }
+  .oct-chip__name {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .oct-chip__note {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--nb-muted-foreground);
+  }
+
+  /* The wires converge onto a bus and drop into Octarq; each tick pulses in
+     turn, so the eye reads left → right → down. */
+  .oct-converge__wires {
+    position: relative;
+    max-width: 520px;
+    height: 36px;
+    margin: 0 auto;
+  }
+  .oct-wire {
+    position: absolute;
+    background: var(--oct-accent);
+    animation: oct-pulse 2.6s ease-in-out infinite;
+  }
+  .oct-wire--bus {
+    top: 0;
+    left: 16%;
+    right: 16%;
+    height: 1px;
+    /* Solid, not the border token: at 1px the border grey disappears against
+       both grounds and the three drops read as unconnected stubs. */
+    background: color-mix(in srgb, var(--oct-accent) 55%, transparent);
+    animation: none;
+  }
+  .oct-wire--left {
+    top: 0;
+    left: 16%;
+    width: 1px;
+    height: 16px;
+  }
+  .oct-wire--mid {
+    top: 0;
+    left: 50%;
+    width: 1px;
+    height: 16px;
+    animation-delay: 0.3s;
+  }
+  .oct-wire--right {
+    top: 0;
+    right: 16%;
+    width: 1px;
+    height: 16px;
+    animation-delay: 0.6s;
+  }
+  .oct-wire--drop {
+    top: 16px;
+    left: 50%;
+    width: 1px;
+    height: 20px;
+    animation-delay: 0.9s;
+  }
+  @keyframes oct-pulse {
+    0%,
+    100% {
+      opacity: 0.35;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  /* — numbered plugin rows — */
+  .oct-rows {
+    margin: 20px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .oct-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(56px, 110px) minmax(0, 300px) minmax(0, 1fr);
+    gap: 12px clamp(20px, 4vw, 64px);
+    align-items: baseline;
+    padding: 32px 0;
+  }
+  @media (max-width: 760px) {
+    .oct-row {
+      grid-template-columns: 48px minmax(0, 1fr);
+    }
+    .oct-row__blurb {
+      grid-column: 2;
+    }
+  }
+  /* Rules fade at both ends — the design system's signature — and carry a
+     glint that crosses them on a stagger. */
+  .oct-row__rule {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    overflow: hidden;
+    background: linear-gradient(
+      to right,
+      transparent,
+      var(--nb-border-strong) 48px,
+      var(--nb-border-strong) calc(100% - 48px),
+      transparent
+    );
+  }
+  .oct-row__spark {
+    position: absolute;
+    top: 0;
+    left: -30%;
+    width: 30%;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--oct-accent),
+      transparent
+    );
+    animation: oct-sweep 6s linear infinite;
+  }
+  .oct-row:nth-child(2) .oct-row__spark {
+    animation-delay: 1.5s;
+  }
+  .oct-row:nth-child(3) .oct-row__spark {
+    animation-delay: 3s;
+  }
+  .oct-row:nth-child(4) .oct-row__spark {
+    animation-delay: 4.5s;
+  }
+  .oct-row__n {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--oct-accent);
+  }
+  .oct-row__name {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .oct-row__name a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .oct-row__name a:hover {
+    color: var(--oct-accent);
+  }
+  .oct-row__blurb {
+    margin: 0;
+    font-size: 15px;
+    line-height: 26px;
+    color: color-mix(in srgb, var(--nb-foreground) 78%, transparent);
+  }
+
+  /* — MCP stack — */
+  .oct-stack {
+    padding: 26px;
+    border: 1px solid var(--nb-border);
+    border-radius: 14px;
+    background: var(--nb-card);
+  }
+  .oct-node {
+    padding: 12px 16px;
+    border: 1px solid var(--nb-border);
+    border-radius: 8px;
+    background: var(--nb-background);
+    text-align: center;
+  }
+  .oct-node--accent {
+    border-color: var(--oct-accent);
+    text-align: left;
+  }
+  .oct-node--flat {
+    padding: 10px 12px;
+    font-size: 13px;
+    text-align: left;
+  }
+  .oct-node--base {
+    text-align: center;
+    color: var(--nb-muted-foreground);
+  }
+  .oct-node__name {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .oct-node__note {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--nb-muted-foreground);
+  }
+  .oct-grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* A packet running down the wire — the diagram's own particle. */
+  .oct-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 0;
+  }
+  .oct-link__wire {
+    position: relative;
+    width: 1px;
+    height: 20px;
+    background: color-mix(in srgb, var(--oct-accent) 45%, transparent);
+    overflow: visible;
+  }
+  .oct-link__wire--muted {
+    background: var(--nb-border-strong);
+    height: 14px;
+  }
+  .oct-link__packet {
+    position: absolute;
+    left: -1.5px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--oct-accent);
+    animation: oct-packet 2.6s ease-in-out infinite;
+  }
+  .oct-link__label {
+    font-size: 11px;
+    color: var(--nb-muted-foreground);
+  }
+  @keyframes oct-packet {
+    0% {
+      top: -4px;
+      opacity: 0;
+    }
+    20%,
+    80% {
+      opacity: 1;
+    }
+    100% {
+      top: 20px;
+      opacity: 0;
+    }
+  }
+
+  .oct-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .oct-tag {
+    padding: 3px 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    background: color-mix(in srgb, var(--oct-accent) 22%, transparent);
+    color: var(--nb-foreground);
+  }
+  .oct-tag--outline {
+    background: transparent;
+    border-color: var(--oct-accent);
+    color: var(--oct-accent);
+  }
+
+  /* — FAQ — */
+  .oct-faq {
+    margin: 20px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .oct-faq__item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 22px minmax(0, 300px) minmax(0, 1fr);
+    gap: 12px clamp(20px, 3vw, 56px);
+    padding: 26px 0;
+  }
+  .oct-faq__item + .oct-faq__item::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      var(--nb-border) 48px,
+      var(--nb-border) calc(100% - 48px),
+      transparent
+    );
+  }
+  @media (max-width: 760px) {
+    .oct-faq__item {
+      grid-template-columns: 22px minmax(0, 1fr);
+    }
+    .oct-faq__a {
+      grid-column: 2;
+    }
+  }
+  .oct-faq__mark {
+    font-size: 15px;
+    color: var(--oct-accent);
+    animation: oct-pulse 3s ease-in-out infinite;
+  }
+  .oct-faq__q {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .oct-faq__a {
+    margin: 0;
+    max-width: 56ch;
+    font-size: 15px;
+    line-height: 26px;
+    color: color-mix(in srgb, var(--nb-foreground) 78%, transparent);
+  }
+
+  /* — closing call — */
+  .oct-cta {
+    position: relative;
+    overflow: hidden;
+    padding: 44px clamp(24px, 4vw, 40px);
+    border-radius: 14px;
+    background: var(--oct-section);
+    color: var(--oct-section-text);
+  }
+  .oct-cta .oct-body {
+    color: color-mix(in srgb, var(--oct-section-text) 84%, transparent);
+  }
+  .oct-cta .oct-btn {
+    color: var(--oct-section-text);
+  }
+  .oct-cta .oct-btn--primary {
+    border-color: color-mix(in srgb, var(--oct-section-text) 55%, transparent);
+  }
+  .oct-cta .oct-btn:hover {
+    background: color-mix(in srgb, var(--oct-section-text) 12%, transparent);
+  }
+  .oct-h2--cta {
+    font-size: 26px;
+  }
+  .oct-sweep--cta {
+    top: 0;
+    bottom: auto;
+  }
+  .oct-sweep--cta::after {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--oct-section-glow),
+      transparent
+    );
+  }
+  /* Inside the CTA the waves ride the section fill, not the page ground. */
+  .oct-cta .oct-wave--back {
+    fill: color-mix(in srgb, var(--oct-section-glow) 55%, transparent);
+  }
+  .oct-cta .oct-wave--mid {
+    fill: color-mix(in srgb, var(--oct-section-glow) 38%, transparent);
+  }
+  .oct-cta .oct-wave--front {
+    fill: color-mix(in srgb, var(--oct-section-glow) 26%, transparent);
+  }
+
+  /* — footer — */
+  .oct-footer {
+    border-top: 1px solid var(--nb-border);
+  }
+  .oct-footer__inner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    padding-block: 28px 48px;
+    font-size: 13px;
+  }
+  .oct-footer a {
+    color: var(--nb-muted-foreground);
+    text-decoration: none;
+  }
+  .oct-footer a:hover {
+    color: var(--nb-foreground);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .oct-page *,
+    .oct-page *::after,
+    .oct-page *::before {
+      animation: none !important;
+    }
+  }
+</style>
