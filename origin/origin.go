@@ -441,8 +441,6 @@ func (rv *Resolver) cachedOwner(key string, compute func() (uint, bool)) (uint, 
 	return org, ok
 }
 
-
-
 // OwnedHost is the cached form of the package-level OwnedHost.
 func (rv *Resolver) OwnedHost(orgID uint, r *http.Request) (string, bool) {
 	if r == nil {

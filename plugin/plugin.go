@@ -206,7 +206,7 @@ type Context struct {
 
 	// UserID extracts the authenticated user ID from the request session (0 if unauthed).
 	RevokeUserOrgSessions func(userID, orgID uint) int
-	UserID func(*http.Request) uint
+	UserID                func(*http.Request) uint
 	// OrgID extracts the authenticated org ID from the request session (0 if unauthed).
 	OrgID func(*http.Request) uint
 	// OrgRole returns the role the caller holds in their ACTIVE org — "owner",

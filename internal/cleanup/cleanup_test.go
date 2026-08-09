@@ -71,7 +71,6 @@ func TestStartSessionCleanup(t *testing.T) {
 	}
 }
 
-
 func TestPruneAuditLogs(t *testing.T) {
 	t.Run("default window removes old rows, keeps recent", func(t *testing.T) {
 		db := testDB(t)

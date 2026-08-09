@@ -242,7 +242,7 @@ func (p *Plugin) purge(orgID uint) error {
 	ctx := context.Background()
 	ctx = plugin.WithOrgID(ctx, orgID)
 	mailboxIDs := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
-	
+
 	storageProv, spErr := p.getStorageProvider()
 	if spErr != nil {
 		log.Printf("mail purge: storage provider unavailable (%v); deleting database blobs only", spErr)
@@ -260,7 +260,7 @@ func (p *Plugin) purge(orgID uint) error {
 		if len(emails) == 0 {
 			break
 		}
-		
+
 		for _, e := range emails {
 			key := e.StorageKey
 			if key == "" {
@@ -275,7 +275,7 @@ func (p *Plugin) purge(orgID uint) error {
 				log.Printf("mail purge: failed to delete database blob %q: %v", key, err)
 			}
 		}
-		
+
 		var ids []uint
 		for _, e := range emails {
 			ids = append(ids, e.ID)
