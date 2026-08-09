@@ -13,7 +13,7 @@ import (
 // loginCookies runs the real login endpoint and returns the session cookies.
 func loginCookies(t *testing.T, srv http.Handler) []*http.Cookie {
 	t.Helper()
-	rec := do(srv, "POST", "/api/auth/login", nil, `{"username":"admin","password":"pw"}`)
+	rec := do(srv, "POST", "/api/auth/login", nil, `{"email":"admin","password":"pw"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("login: got %d (%s)", rec.Code, rec.Body.String())
 	}
@@ -92,7 +92,7 @@ func TestTwoFactorEnrollmentAndLogin(t *testing.T) {
 	}
 
 	// Login now defers the session pending a second factor.
-	rec = do(srv, "POST", "/api/auth/login", nil, `{"username":"admin","password":"pw"}`)
+	rec = do(srv, "POST", "/api/auth/login", nil, `{"email":"admin","password":"pw"}`)
 	if rec.Code != http.StatusOK || !containsJSON(rec.Body.Bytes(), "twoFactorRequired", true) {
 		t.Fatalf("login should require 2FA: got %d (%s)", rec.Code, rec.Body.String())
 	}
@@ -103,7 +103,7 @@ func TestTwoFactorEnrollmentAndLogin(t *testing.T) {
 	// Verify with a TOTP code → session set.
 	code, _ = totp.GenerateCode(setup.Secret, time.Now())
 	rec = do(srv, "POST", "/api/auth/2fa/verify", nil,
-		`{"username":"admin","password":"pw","code":"`+code+`"}`)
+		`{"email":"admin","password":"pw","code":"`+code+`"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("2fa verify (totp): got %d (%s)", rec.Code, rec.Body.String())
 	}
@@ -113,14 +113,14 @@ func TestTwoFactorEnrollmentAndLogin(t *testing.T) {
 
 	// A recovery code also completes login.
 	rec = do(srv, "POST", "/api/auth/2fa/verify", nil,
-		`{"username":"admin","password":"pw","code":"`+enable.RecoveryCodes[0]+`"}`)
+		`{"email":"admin","password":"pw","code":"`+enable.RecoveryCodes[0]+`"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("2fa verify (recovery): got %d (%s)", rec.Code, rec.Body.String())
 	}
 
 	// The consumed recovery code cannot be reused.
 	rec = do(srv, "POST", "/api/auth/2fa/verify", nil,
-		`{"username":"admin","password":"pw","code":"`+enable.RecoveryCodes[0]+`"}`)
+		`{"email":"admin","password":"pw","code":"`+enable.RecoveryCodes[0]+`"}`)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("reused recovery code: got %d, want 401", rec.Code)
 	}

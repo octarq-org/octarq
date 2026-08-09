@@ -18,6 +18,7 @@ import (
 	"github.com/octarq-org/octarq/internal/crypto"
 	"github.com/octarq-org/octarq/internal/geo"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/notify"
 	"github.com/octarq-org/octarq/internal/queue"
 	"gorm.io/gorm"
 )
@@ -40,6 +41,14 @@ func newTestHandlerWithInstance(t *testing.T) (*Handler, http.Handler, *gorm.DB)
 	if err := cipher.EnableEnvelope(apiEnvStore{db}); err != nil {
 		t.Fatalf("EnableEnvelope: %v", err)
 	}
+	notify.SetConfigDecryptor(func(stored string) (string, bool) {
+		b, err := cipher.Decrypt(stored)
+		if err != nil {
+			return "", false
+		}
+		return string(b), true
+	})
+	t.Cleanup(func() { notify.SetConfigDecryptor(nil) })
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))

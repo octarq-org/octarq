@@ -191,7 +191,7 @@ func TestTwoFALoginFlow(t *testing.T) {
 	}
 
 	// Password login now defers (no session cookie, twoFactorRequired).
-	rec = do(srv, "POST", "/api/auth/login", nil, `{"username":"admin","password":"pw"}`)
+	rec = do(srv, "POST", "/api/auth/login", nil, `{"email":"admin","password":"pw"}`)
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "twoFactorRequired") {
 		t.Fatalf("login should require 2FA: %d (%s)", rec.Code, rec.Body.String())
 	}
@@ -200,12 +200,12 @@ func TestTwoFALoginFlow(t *testing.T) {
 	}
 
 	// Wrong code → 401.
-	if rec := do(srv, "POST", "/api/auth/2fa/verify", nil, `{"username":"admin","password":"pw","code":"000000"}`); rec.Code != http.StatusUnauthorized {
+	if rec := do(srv, "POST", "/api/auth/2fa/verify", nil, `{"email":"admin","password":"pw","code":"000000"}`); rec.Code != http.StatusUnauthorized {
 		t.Errorf("wrong code: got %d, want 401", rec.Code)
 	}
 	// Right code → 200 + session.
 	code2, _ := totp.GenerateCode(setup.Secret, time.Now())
-	rec = do(srv, "POST", "/api/auth/2fa/verify", nil, `{"username":"admin","password":"pw","code":"`+code2+`"}`)
+	rec = do(srv, "POST", "/api/auth/2fa/verify", nil, `{"email":"admin","password":"pw","code":"`+code2+`"}`)
 	if rec.Code != http.StatusOK || len(rec.Result().Cookies()) == 0 {
 		t.Fatalf("valid verify: got %d, cookies=%d", rec.Code, len(rec.Result().Cookies()))
 	}

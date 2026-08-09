@@ -96,13 +96,3 @@ func TestChangeEmailUnauthenticated(t *testing.T) {
 		t.Fatalf("expected 401 unauthenticated, got %d (%s)", rec.Code, rec.Body.String())
 	}
 }
-
-func TestLegacyUsernameLoginCompatibility(t *testing.T) {
-	srv, _ := newTestHandler(t)
-	_ = registerUser(t, srv, "legacy@example.com", "password123")
-
-	rec := do(srv, "POST", "/api/auth/login", nil, `{"username":"legacy@example.com","password":"password123"}`)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("login with legacy username body: got %d (%s)", rec.Code, rec.Body.String())
-	}
-}

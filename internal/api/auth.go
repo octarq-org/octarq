@@ -20,7 +20,6 @@ import (
 type LoginInput struct {
 	Body struct {
 		Email    string `json:"email,omitempty" doc:"The user's email address" example:"admin@example.com"`
-		Username string `json:"username,omitempty" doc:"Legacy alias for email"`
 		Password string `json:"password" doc:"The user's password" example:"securepassword"`
 	}
 	Ctx huma.Context `hidden:"true"`
@@ -53,9 +52,6 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 	}
 
 	loginUser := strings.TrimSpace(input.Body.Email)
-	if loginUser == "" {
-		loginUser = strings.TrimSpace(input.Body.Username)
-	}
 
 	uid, orgID, ok := h.authenticate(loginUser, input.Body.Password)
 	if !ok {
@@ -100,7 +96,6 @@ type Verify2FAInput struct {
 	Ctx  huma.Context `hidden:"true"`
 	Body struct {
 		Email    string `json:"email,omitempty"`
-		Username string `json:"username,omitempty"`
 		Password string `json:"password"`
 		Code     string `json:"code"`
 	}
@@ -130,9 +125,6 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 	}
 
 	loginUser := strings.TrimSpace(input.Body.Email)
-	if loginUser == "" {
-		loginUser = strings.TrimSpace(input.Body.Username)
-	}
 
 	uid, orgID, ok := h.authenticate(loginUser, input.Body.Password)
 	if !ok {

@@ -22,7 +22,7 @@ func TestAdminBackupEndpoint(t *testing.T) {
 
 	// 2. Non-instance admin user -> 403 Forbidden
 	do(srv, "POST", "/api/auth/register", nil, `{"email":"regular@user.com","password":"password123"}`)
-	loginRec := do(srv, "POST", "/api/auth/login", nil, `{"username":"regular@user.com","password":"password123"}`)
+	loginRec := do(srv, "POST", "/api/auth/login", nil, `{"email":"regular@user.com","password":"password123"}`)
 	if loginRec.Code != http.StatusOK {
 		t.Fatalf("login regular user failed: %d", loginRec.Code)
 	}

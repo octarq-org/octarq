@@ -82,7 +82,7 @@ func TestDBUserPasswordLogin(t *testing.T) {
 	}
 
 	// Correct password logs in.
-	rec := do(srv, "POST", "/api/auth/login", nil, `{"username":"member@corp.com","password":"correcthorse"}`)
+	rec := do(srv, "POST", "/api/auth/login", nil, `{"email":"member@corp.com","password":"correcthorse"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("db-user login: got %d (%s)", rec.Code, rec.Body.String())
 	}
@@ -91,7 +91,7 @@ func TestDBUserPasswordLogin(t *testing.T) {
 	}
 
 	// Wrong password is rejected.
-	if rec := do(srv, "POST", "/api/auth/login", nil, `{"username":"member@corp.com","password":"wrongpass"}`); rec.Code != http.StatusUnauthorized {
+	if rec := do(srv, "POST", "/api/auth/login", nil, `{"email":"member@corp.com","password":"wrongpass"}`); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("bad password: got %d, want 401", rec.Code)
 	}
 }
