@@ -805,9 +805,9 @@ func (a *App) Run(ctx context.Context) error {
 		webFS = embedded
 	}
 	// CSRFGuard wraps the fully-assembled mux (core + plugin routes) to block
-	// cross-site state-changing requests riding the session cookie; bearer/webhook
-	// clients (no session cookie) pass through untouched.
-	srv, err := server.New(a.cfg, a.gdb, api.CSRFGuard(mux), rootHandler, webFS, staticMounts, server.RuntimeSettings{
+	// cross-site state-changing requests and validate double-submit tokens.
+	// It runs outside huma to protect standard library routes too.
+	srv, err := server.New(a.cfg, a.gdb, api.CSRFGuard(a.cfg.SecretKey, mux), rootHandler, webFS, staticMounts, server.RuntimeSettings{
 		MetricsToken: apiHandler.MetricsToken,
 		RateLimits:   apiHandler.RateLimits,
 	})

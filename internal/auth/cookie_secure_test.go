@@ -52,11 +52,13 @@ func TestSessionCookieSecureTrustsProxyOnlyWhenTold(t *testing.T) {
 			m.SetSessionFromRequest(req, rec, 1, 1)
 
 			cookies := rec.Result().Cookies()
-			if len(cookies) != 1 {
-				t.Fatalf("expected 1 cookie, got %d", len(cookies))
+			if len(cookies) != 2 {
+				t.Fatalf("expected 2 cookies, got %d", len(cookies))
 			}
-			if got := cookies[0].Secure; got != tc.want {
-				t.Errorf("Secure = %v, want %v", got, tc.want)
+			for _, cookie := range cookies {
+				if got := cookie.Secure; got != tc.want {
+					t.Errorf("Secure for %s = %v, want %v", cookie.Name, got, tc.want)
+				}
 			}
 		})
 	}

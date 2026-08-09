@@ -8,6 +8,7 @@ import { MotionConfig } from "framer-motion";
 // from the active plugin manifest (see plugins-manifest.ts): it imports and
 // registers exactly the plugins that edition ships. A build never imports —
 // and never bundles — a plugin its manifest doesn't name.
+import "./csrfFetch";
 import "./plugins/core";
 import "#octarq-plugins";
 import App from "./App";
