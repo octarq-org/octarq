@@ -198,6 +198,18 @@ Key rules:
   text the shell renders and localizes, so routing on it would make renaming an
   area move menus. Icons are string keys resolved by the app's single `PLUGIN_ICONS`
   table (unknown menu icons render literally, e.g. an emoji).
+- **A settings page's `Path` is `/settings/<menu id>`.** When the category routes
+  a menu into the Settings area (`Settings` / `Instance` / `Account`), the page
+  belongs in the settings URL space with the rest of them — `/settings/license`,
+  `/settings/roles`. The last segment is the menu's **`ID`**, not its `Label`, so
+  the Go menu and the frontend route can be checked against each other by eye.
+  Nothing has to be registered with the settings shell: react-router ranks static
+  segments above splats, so `/settings/roles` outranks `SettingsPage`'s
+  `/settings/*` even though the shell declares that first.
+  The Go `Path` and the frontend `UIRoute.path` must match **exactly** —
+  `PluginGate` compares them as strings to tell "the operator disabled this
+  plugin" apart from "this build doesn't have it", and a half-applied rename
+  turns a disabled page into a blank one.
 - **`requiredRole`/`requiredTier` are advisory UX only.** The host hides menu
   entries and pre-renders access-denied for users below `requiredRole`
   (member < admin < owner, instance admin bypasses) — but the server stays

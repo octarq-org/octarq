@@ -437,10 +437,11 @@ function Shell({
   }, [backendNav.plugins, backendLoaded]);
 
   // Every core settings page lives under /settings (one URL space — no /personal
-  // tree). Plugin settings pages keep top-level paths (e.g. /sso, /whitelabel,
-  // /license — a menu Category routed them into the Settings area), so the shell
-  // stays in the settings context for those too; otherwise navigating to one
-  // would drop the settings rail and orphan the highlight.
+  // tree), and so do the official plugin settings pages — `/settings/<menu id>`,
+  // see docs/PLUGINS.md. A third-party plugin is not obliged to: its Category can
+  // route it into the Settings area while its Path stays top-level. settingsPaths
+  // keeps the shell in the settings context for those too; without it, navigating
+  // to one drops the settings rail and orphans the highlight.
   const settingsPaths = useMemo(
     () => new Set(mergedSettingsArea.groups.flatMap((g) => g.items.map((i) => i.path))),
     [mergedSettingsArea],
