@@ -358,7 +358,7 @@ func (h *Handler) deleteAccount(ctx context.Context, input *DeleteAccountInput) 
 	// Unlike purgeAccount, the org survives this deletion, so h.audit is safe
 	// and appropriate here: it writes the record to the org the session last
 	// held, leaving the workspace a durable trace of who left and when.
-	h.audit(r, "account.delete", "user", uid, map[string]any{"email": user.Email})
+	h.audit(r, "account.delete", "user", uid, map[string]any{"userId": uid})
 	slog.Info("account deleted",
 		"user_id", uid,
 		"request_id", r.Header.Get("X-Request-Id"),

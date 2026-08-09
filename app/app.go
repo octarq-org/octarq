@@ -428,6 +428,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 		RegisterNotifier: func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
 			notify.Register(typ, send)
 		},
+		RevokeUserOrgSessions: a.auth.RevokeUserOrgSessions,
 		UserID:          a.auth.UserID,
 		OrgID:           a.auth.OrgID,
 		OrgRole:         apiHandler.OrgRole,
@@ -608,6 +609,7 @@ func (a *App) Run(ctx context.Context) error {
 		RegisterNotifier: func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
 			notify.Register(typ, send)
 		},
+		RevokeUserOrgSessions: a.auth.RevokeUserOrgSessions,
 		UserID:          a.auth.UserID,
 		OrgID:           a.auth.OrgID,
 		OrgRole:         apiHandler.OrgRole,
@@ -828,7 +830,7 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 	go cleanup.Start(ctx, apiHandler.DataRetentionDays, cleanups...)
-	go cleanup.StartSessionCleanup(ctx, a.gdb)
+	go cleanup.StartSessionCleanup(ctx, a.gdb, apiHandler.DataRetentionDays)
 
 	go func() {
 		slog.Info("octarq listening", "addr", a.cfg.Listen, "db", a.cfg.DBDriver)

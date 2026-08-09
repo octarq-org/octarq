@@ -31,6 +31,7 @@ func (testDomain) TableName() string { return "domains" }
 // looks like.
 func testDB(t *testing.T, rows ...testDomain) *gorm.DB {
 	t.Helper()
+	clearAllCache()
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{Logger: logger.Discard})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
@@ -311,6 +312,7 @@ func TestSecure(t *testing.T) {
 // the host is owned and when it is not. An uncached negative answer is a free
 // full-table scan for anyone spraying hostnames.
 func TestResolverOwnerOfCaches(t *testing.T) {
+	clearAllCache()
 	db := testDB(t, acme())
 	var queries int
 	if err := db.Callback().Query().After("gorm:query").Register("test:count", func(tx *gorm.DB) {
