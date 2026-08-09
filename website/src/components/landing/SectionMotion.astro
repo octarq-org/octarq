@@ -1,0 +1,205 @@
+---
+// The ambient motion layer behind every landing section.
+//
+// Two variants, both pure CSS/SVG so the landing page ships no client JS:
+//   particles — drifting motes rising through the section
+//   waves     — slow horizontal crests along one edge
+//
+// The layer is absolutely positioned and `pointer-events: none`, so a section
+// only needs `position: relative` (and `overflow: hidden` where the motion runs
+// past its box) to host one. It is decorative: aria-hidden, and every animation
+// is switched off under `prefers-reduced-motion` in index.astro's style block.
+//
+// Positions are taken from a fixed table rather than Math.random() so a rebuild
+// produces byte-identical HTML — a random layout would churn the diff of every
+// deploy for no visual gain.
+
+interface Props {
+  variant: "particles" | "waves";
+  /** particles: how many motes. Capped by the position table below. */
+  count?: number;
+  /** waves: which edge the crests ride. */
+  edge?: "top" | "bottom";
+  /** 0–1, scales the whole layer's opacity. */
+  intensity?: number;
+  class?: string;
+}
+
+const {
+  variant,
+  count = 9,
+  edge = "bottom",
+  intensity = 1,
+  class: className,
+} = Astro.props;
+
+// left %, size px, duration s, delay s, accent (1|2), start height (% up the
+// section), rise distance px. The scattered start heights matter: motes that
+// all launch from the baseline read as a strip along the bottom edge rather
+// than as a field you are looking through.
+const MOTES: [number, number, number, number, 1 | 2, number, number][] = [
+  [6, 6, 13, 0, 1, 4, 260],
+  [14, 4, 17, 2.4, 2, 38, 200],
+  [23, 7, 15, 1.2, 1, 16, 300],
+  [31, 4, 19, 4.1, 2, 61, 170],
+  [39, 5, 14, 3.2, 1, 27, 240],
+  [48, 4, 16, 0.6, 2, 72, 190],
+  [56, 7, 15, 5.3, 1, 9, 280],
+  [63, 4, 18, 1.9, 2, 44, 210],
+  [71, 6, 13, 4.7, 1, 20, 250],
+  [79, 4, 16, 2.8, 2, 55, 180],
+  [86, 7, 20, 0.3, 1, 33, 300],
+  [93, 5, 14, 3.7, 2, 66, 220],
+];
+
+const motes = MOTES.slice(0, Math.min(count, MOTES.length));
+---
+
+{
+  variant === "particles" ? (
+    <div
+      class:list={["oct-motion oct-motion--particles", className]}
+      style={`--oct-motion-intensity:${intensity}`}
+      aria-hidden="true"
+    >
+      {motes.map(([left, size, dur, delay, accent, bottom, rise]) => (
+        <span
+          class="oct-mote"
+          style={`left:${left}%;bottom:${bottom}%;width:${size}px;height:${size}px;--oct-rise:${rise}px;animation-duration:${dur}s;animation-delay:${delay}s;--oct-mote-color:var(--oct-accent${accent === 2 ? "-2" : ""})`}
+        />
+      ))}
+    </div>
+  ) : (
+    <div
+      class:list={[
+        "oct-motion oct-motion--waves",
+        `oct-motion--${edge}`,
+        className,
+      ]}
+      style={`--oct-motion-intensity:${intensity}`}
+      aria-hidden="true"
+    >
+      {/*
+        The viewBox shows 1200 units; each crest is drawn across 2400 with a
+        600-unit period. Sliding a path left by 1200 (two whole periods) lands
+        on an identical shape, so the loop has no seam and the visible band is
+        always covered. preserveAspectRatio=none stretches it to any width.
+      */}
+      <svg viewBox="0 0 1200 120" preserveAspectRatio="none">
+        <path
+          class="oct-wave oct-wave--back"
+          d="M0,72 C200,26 400,26 600,72 C800,118 1000,118 1200,72 C1400,26 1600,26 1800,72 C2000,118 2200,118 2400,72 L2400,120 L0,120 Z"
+        />
+        <path
+          class="oct-wave oct-wave--mid"
+          d="M0,84 C150,50 350,50 600,84 C850,118 1050,118 1200,84 C1350,50 1550,50 1800,84 C2050,118 2250,118 2400,84 L2400,120 L0,120 Z"
+        />
+        <path
+          class="oct-wave oct-wave--front"
+          d="M0,96 C300,68 300,124 600,96 C900,68 900,124 1200,96 C1500,68 1500,124 1800,96 C2100,68 2100,124 2400,96 L2400,120 L0,120 Z"
+        />
+      </svg>
+    </div>
+  )
+}
+
+<style>
+  .oct-motion {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: var(--oct-motion-intensity, 1);
+    z-index: 0;
+  }
+
+  /* — particles — */
+  .oct-mote {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0;
+    background: var(--oct-mote-color);
+    /* The halo is what makes a 5px dot legible against either ground; without
+       it the motes vanish into the page at these opacities. */
+    box-shadow: 0 0 12px 2px
+      color-mix(in srgb, var(--oct-mote-color) 55%, transparent);
+    animation-name: oct-rise;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+
+  @keyframes oct-rise {
+    0% {
+      transform: translate(0, 0);
+      opacity: 0;
+    }
+    18% {
+      opacity: 0.85;
+    }
+    50% {
+      transform: translate(12px, calc(var(--oct-rise, 220px) * -0.5));
+    }
+    82% {
+      opacity: 0.6;
+    }
+    100% {
+      transform: translate(-8px, calc(var(--oct-rise, 220px) * -1));
+      opacity: 0;
+    }
+  }
+
+  /* — waves — */
+  .oct-motion--waves {
+    inset: auto 0 0 0;
+    height: 140px;
+    overflow: hidden;
+  }
+  .oct-motion--waves.oct-motion--top {
+    inset: 0 0 auto 0;
+    transform: scaleY(-1);
+  }
+  .oct-motion--waves svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+  }
+  .oct-wave {
+    animation: oct-swell linear infinite;
+    transform-origin: center;
+  }
+  .oct-wave--back {
+    fill: color-mix(in srgb, var(--oct-accent) 14%, transparent);
+    animation-duration: 26s;
+  }
+  .oct-wave--mid {
+    fill: color-mix(in srgb, var(--oct-accent-2) 12%, transparent);
+    animation-duration: 19s;
+    animation-direction: reverse;
+  }
+  .oct-wave--front {
+    fill: color-mix(in srgb, var(--oct-accent) 9%, transparent);
+    animation-duration: 33s;
+  }
+
+  /* 1200 user units = two full periods of the crest, so the end state is
+     pixel-identical to the start. Units are viewBox units here, not CSS px. */
+  @keyframes oct-swell {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-1200px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .oct-mote,
+    .oct-wave {
+      animation: none;
+    }
+    .oct-mote {
+      opacity: 0.4;
+    }
+  }
+</style>
+
