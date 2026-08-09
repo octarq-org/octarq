@@ -26,16 +26,26 @@ type testDomain struct {
 
 func (testDomain) TableName() string { return "domains" }
 
+// openDB opens an empty in-memory database. Callers that want more than one
+// within a single test pass distinct suffixes: the DSN is the database's
+// identity under cache=shared, so reusing it would hand back the same storage.
+// Unlike testDB this leaves the resolver cache alone.
+func openDB(t *testing.T, suffix string) *gorm.DB {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+suffix+"?mode=memory&cache=shared"), &gorm.Config{Logger: logger.Discard})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	return db
+}
+
 // testDB returns a database seeded with rows. With no rows the domains table is
 // not created at all, which is what an instance composed without the dns plugin
 // looks like.
 func testDB(t *testing.T, rows ...testDomain) *gorm.DB {
 	t.Helper()
 	clearAllCache()
-	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{Logger: logger.Discard})
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
+	db := openDB(t, "")
 	if len(rows) == 0 {
 		return db
 	}
@@ -380,5 +390,55 @@ func TestResolverCaches(t *testing.T) {
 	}
 	if queries != afterFirstPass {
 		t.Errorf("repeated lookups issued %d further queries; answers must come from the cache", queries-afterFirstPass)
+	}
+}
+
+// TestCacheIsNamespacedPerDatabase pins that one Resolver's answers never reach
+// a Resolver built over a different database.
+//
+// The cache is package-global so that the several Resolvers a process builds
+// over the ONE production database invalidate together. Under test that global
+// meets many databases, and the entry that leaks worst is "any" — "this
+// instance has registered no domains", the flag that switches on the fallback
+// honouring the request Host verbatim. A case that registers nothing would
+// otherwise hand that verdict to the next case, whose registered domains are
+// the only thing standing between a forged Host and a password-reset link
+// pointed at the attacker.
+//
+// This deliberately does NOT go through testDB: that fixture calls
+// clearAllCache() on every use, which is what keeps the rest of this file
+// honest but would here reset the very state under test. The two databases are
+// opened directly, and nothing clears the cache between them.
+func TestCacheIsNamespacedPerDatabase(t *testing.T) {
+	clearAllCache()
+
+	// A whitelist-free instance: no domains table at all, so the fallback is on
+	// and the request Host is used as-is.
+	bare := NewResolver(openDB(t, "bare"))
+	if got := bare.Absolute(0, req("evil.example"), false); got != "http://evil.example" {
+		t.Fatalf("Absolute on a whitelist-free instance = %q, want the request host; the assertion below would be vacuous", got)
+	}
+	if bare.AnyRegistered() {
+		t.Fatal("AnyRegistered on a database with no domains table")
+	}
+
+	// A second database, registering a domain. Same process, same global cache.
+	guardedDB := openDB(t, "guarded")
+	if err := guardedDB.AutoMigrate(&testDomain{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	row := acme()
+	if err := guardedDB.Create(&row).Error; err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	guarded := NewResolver(guardedDB)
+	if !guarded.AnyRegistered() {
+		t.Error("AnyRegistered read back the other database's answer: a registered whitelist was reported as absent")
+	}
+	if got := guarded.Absolute(0, req("evil.example"), false); got != "" {
+		t.Errorf("Absolute honoured a forged Host as %q; a whitelist exists and evil.example is not on it", got)
+	}
+	if _, ok := guarded.OwnerOf("evil.example"); ok {
+		t.Error("OwnerOf claimed an owner for an unregistered host")
 	}
 }
