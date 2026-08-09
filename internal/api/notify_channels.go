@@ -21,17 +21,18 @@ type NotificationChannelType struct {
 	Icon        string `json:"icon"`
 }
 
-// channelConfigPlaintext returns the usable config JSON for a notification channel.
-// Configs are AES-GCM encrypted at rest; older rows may still hold plaintext, so
-// a failed decrypt falls back to the raw value for backward compatibility.
-func (h *Handler) channelConfigPlaintext(stored string) string {
+// channelConfigPlaintext returns the usable config JSON for a notification
+// channel. Configs are AES-GCM encrypted at rest; a stored value that cannot be
+// decrypted is an error rather than a passthrough of whatever was stored.
+func (h *Handler) channelConfigPlaintext(stored string) (string, error) {
 	if stored == "" {
-		return ""
+		return "", nil
 	}
-	if b, err := h.cipher.Decrypt(stored); err == nil {
-		return string(b)
+	b, err := h.cipher.Decrypt(stored)
+	if err != nil {
+		return "", err
 	}
-	return stored // legacy plaintext row
+	return string(b), nil
 }
 
 // encryptChannelConfig seals a plaintext config JSON for storage.
@@ -120,7 +121,10 @@ func (h *Handler) listNotificationChannels(ctx context.Context, input *ListNotif
 	var channels []models.NotificationChannel
 	h.orgDB(r).Order("created_at DESC").Find(&channels)
 	for i := range channels {
-		plain := h.channelConfigPlaintext(channels[i].Config)
+		plain, err := h.channelConfigPlaintext(channels[i].Config)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("failed to decrypt channel config")
+		}
 		channels[i].Config = redactConfigSecrets(plain)
 	}
 	return &ListNotificationChannelsOutput{Body: channels}, nil
@@ -243,7 +247,10 @@ func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNo
 	}
 	if d.Config != nil {
 		newCfgStr := *d.Config
-		oldPlaintext := h.channelConfigPlaintext(ch.Config)
+		oldPlaintext, err := h.channelConfigPlaintext(ch.Config)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("failed to decrypt channel config")
+		}
 		var targetPlaintext string
 		if oldPlaintext != "" && strings.Contains(newCfgStr, "[REDACTED]") {
 			targetPlaintext = mergeConfigPreservingSecrets(oldPlaintext, newCfgStr)
@@ -275,7 +282,10 @@ func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNo
 	}
 	h.audit(r, "notification.update", "notification_channel", ch.ID, meta)
 	out := ch
-	plain := h.channelConfigPlaintext(ch.Config)
+	plain, err := h.channelConfigPlaintext(ch.Config)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to decrypt channel config")
+	}
 	out.Config = redactConfigSecrets(plain)
 	return &UpdateNotificationChannelOutput{Body: out}, nil
 }
@@ -359,8 +369,7 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 	}
 	ctxTimeout, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	plainConfig := h.channelConfigPlaintext(ch.Config)
-	if err := notify.Send(ctxTimeout, ch.Type, plainConfig, "🔔 Test notification from octarq!"); err != nil {
+	if err := notify.Send(ctxTimeout, ch.Type, ch.Config, "🔔 Test notification from octarq!"); err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 	out := &TestNotificationChannelOutput{}

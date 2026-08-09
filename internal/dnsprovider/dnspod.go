@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
@@ -19,23 +18,11 @@ func init() {
 			return nil, fmt.Errorf("parse dnspod creds: %w", err)
 		}
 
-		var secretID, secretKey string
-		if c.SecretID != "" && c.SecretKey != "" {
-			secretID = c.SecretID
-			secretKey = c.SecretKey
-		} else if c.Token != "" {
-			parts := strings.Split(c.Token, ",")
-			if len(parts) == 2 {
-				secretID = parts[0]
-				secretKey = parts[1]
-			}
+		if c.SecretID == "" || c.SecretKey == "" {
+			return nil, fmt.Errorf("dnspod: secretId and secretKey required")
 		}
 
-		if secretID == "" || secretKey == "" {
-			return nil, fmt.Errorf("dnspod: secretId and secretKey (or legacy token) required")
-		}
-
-		credential := common.NewCredential(secretID, secretKey)
+		credential := common.NewCredential(c.SecretID, c.SecretKey)
 		cpf := profile.NewClientProfile()
 		client, err := dnspod.NewClient(credential, "", cpf)
 		if err != nil {
@@ -46,8 +33,7 @@ func init() {
 }
 
 type dpCreds struct {
-	Token     string `json:"token"`    // legacy: "ID,TOKEN"
-	SecretID  string `json:"secretId"` // alternative split form
+	SecretID  string `json:"secretId"`
 	SecretKey string `json:"secretKey"`
 }
 

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -116,15 +117,18 @@ func SetConfigDecryptor(fn func(string) (string, bool)) {
 	decryptConfig = fn
 }
 
-// configPlaintext resolves the plaintext config for a stored value, falling back
-// to the raw value for legacy plaintext rows or when no decryptor is set.
-func configPlaintext(stored string) string {
-	if decryptConfig != nil {
-		if pt, ok := decryptConfig(stored); ok {
-			return pt
-		}
+// configPlaintext resolves the plaintext config for a stored value. A stored
+// config that cannot be decrypted, or a build with no decryptor registered, is
+// an error rather than a silent passthrough of whatever was stored.
+func configPlaintext(stored string) (string, error) {
+	if decryptConfig == nil {
+		return "", errors.New("no config decryptor registered")
 	}
-	return stored // legacy plaintext row or failed decrypt
+	pt, ok := decryptConfig(stored)
+	if !ok {
+		return "", errors.New("stored notification channel config could not be decrypted")
+	}
+	return pt, nil
 }
 
 // Send dispatches a notification via the specified channel type. Built-in types
@@ -132,7 +136,11 @@ func configPlaintext(stored string) string {
 // plugin-contributed provider registry. An unregistered type is an error.
 func Send(ctx context.Context, typ, cfgJSON, text string) error {
 	typ = strings.ToLower(strings.TrimSpace(typ))
-	cfgJSON = configPlaintext(cfgJSON)
+	var err error
+	cfgJSON, err = configPlaintext(cfgJSON)
+	if err != nil {
+		return err
+	}
 	switch typ {
 	case "telegram":
 		return sendTelegram(ctx, cfgJSON, text)

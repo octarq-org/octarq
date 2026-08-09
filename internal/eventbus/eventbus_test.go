@@ -39,6 +39,9 @@ func TestIsSubscribed(t *testing.T) {
 }
 
 func TestDeliverAndHMACSignature(t *testing.T) {
+	SetSecretDecryptor(func(stored string) (string, bool) { return stored, true })
+	t.Cleanup(func() { SetSecretDecryptor(nil) })
+
 	secret := "test-webhook-secret-key"
 	payload := []byte(`{"event":"test.event","timestamp":"2026-06-29T10:00:00Z","orgId":1,"data":{"hello":"world"}}`)
 
@@ -87,6 +90,9 @@ func TestDeliverAndHMACSignature(t *testing.T) {
 }
 
 func TestPublish(t *testing.T) {
+	SetSecretDecryptor(func(stored string) (string, bool) { return stored, true })
+	t.Cleanup(func() { SetSecretDecryptor(nil) })
+
 	gdb, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)

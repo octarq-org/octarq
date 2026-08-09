@@ -28,7 +28,7 @@ func (h *Handler) mcpAuth(next http.Handler) http.Handler {
 			// default), so a token that somehow carries owner_id 0 must never be
 			// admitted here — it would read tenant 1's data. Legitimate tokens can't
 			// have owner_id 0 (the column defaults to 1), so this only rejects
-			// corrupt/legacy rows.
+			// corrupt rows.
 			if h.db.Where("hash = ?", hash).First(&tok).Error == nil && !tok.Expired() && tok.OrgID != 0 {
 				// Stamp the token identity, not just the org: without it an
 				// MCP-driven mutation lands in the audit log with actor 0 and no

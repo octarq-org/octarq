@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/octarq-org/octarq/plugin"
@@ -54,16 +52,6 @@ func (p *DBStorageProvider) Get(ctx context.Context, key string) ([]byte, error)
 	if err == nil && len(blob.Data) > 0 {
 		return blob.Data, nil
 	}
-
-	// Fallback for legacy email rows where Raw is stored on the Email table directly
-	emailID := parseEmailIDFromKey(key)
-	if emailID > 0 {
-		var e Email
-		if err := p.db.WithContext(ctx).Select("raw").First(&e, emailID).Error; err == nil && len(e.Raw) > 0 {
-			return e.Raw, nil
-		}
-	}
-
 	return nil, plugin.ErrStorageNotFound
 }
 
@@ -72,10 +60,6 @@ func (p *DBStorageProvider) Delete(ctx context.Context, key string) error {
 		return errors.New("database connection is nil")
 	}
 	p.db.WithContext(ctx).Where("key = ?", key).Delete(&MailRawBlob{})
-	emailID := parseEmailIDFromKey(key)
-	if emailID > 0 {
-		p.db.WithContext(ctx).Model(&Email{}).Where("id = ?", emailID).Update("raw", nil)
-	}
 	return nil
 }
 
@@ -93,27 +77,5 @@ func (p *DBStorageProvider) Stat(ctx context.Context, key string) (int64, error)
 	if err == nil && size > 0 {
 		return size, nil
 	}
-
-	// Same legacy fallback as Get: originals received before this seam existed
-	// still sit on the emails row.
-	if emailID := parseEmailIDFromKey(key); emailID > 0 {
-		var legacy int64
-		if err := p.db.WithContext(ctx).Model(&Email{}).
-			Where("id = ?", emailID).
-			Select("length(raw)").Scan(&legacy).Error; err == nil && legacy > 0 {
-			return legacy, nil
-		}
-	}
 	return 0, plugin.ErrStorageNotFound
-}
-
-func parseEmailIDFromKey(key string) uint {
-	key = strings.TrimSuffix(key, ".eml")
-	parts := strings.Split(key, "/")
-	last := parts[len(parts)-1]
-	id, err := strconv.ParseUint(last, 10, 64)
-	if err != nil {
-		return 0
-	}
-	return uint(id)
 }

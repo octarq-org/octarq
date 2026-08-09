@@ -50,7 +50,7 @@ func envLLMResolver() func(uint) (llmprovider.Provider, error) {
 	}
 }
 
-// SetLLMResolver swaps the resolver behind the AI assists using a legacy non-org
+// SetLLMResolver swaps the resolver behind the AI assists using a non-org
 // resolver. It backs plugin.Context.SetLLMResolver by wrapping the non-org callback.
 func (h *Handler) SetLLMResolver(f func() (llmprovider.Provider, error)) {
 	if f == nil {

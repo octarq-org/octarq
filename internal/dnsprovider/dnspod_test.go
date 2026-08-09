@@ -142,16 +142,12 @@ func TestDNSPodDeleteRecord(t *testing.T) {
 }
 
 func TestDNSPodFactoryRegistered(t *testing.T) {
-	p, err := New("dnspod", []byte(`{"token":"123,abctoken"}`))
+	p, err := New("dnspod", []byte(`{"secretId":"id","secretKey":"key"}`))
 	if err != nil {
 		t.Fatalf("New(dnspod): %v", err)
 	}
 	if p == nil {
 		t.Fatal("nil provider")
-	}
-	// secretId/secretKey form also works.
-	if _, err := New("dnspod", []byte(`{"secretId":"id","secretKey":"key"}`)); err != nil {
-		t.Fatalf("New(dnspod) split form: %v", err)
 	}
 	// Missing creds fails.
 	if _, err := New("dnspod", []byte(`{}`)); err == nil {

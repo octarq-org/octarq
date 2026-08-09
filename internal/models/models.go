@@ -170,9 +170,7 @@ type Host struct {
 	Enabled bool   `json:"enabled"`
 }
 
-// HostList is a []Host persisted as a JSON text column. Scan is backward
-// compatible with the older format that stored a plain []string (each such
-// host is treated as enabled).
+// HostList is a []Host persisted as a JSON text column.
 type HostList []Host
 
 func (l HostList) Value() (driver.Value, error) {
@@ -202,20 +200,10 @@ func (l *HostList) Scan(v any) error {
 		return nil
 	}
 	var hosts []Host
-	if err := json.Unmarshal(b, &hosts); err == nil {
-		*l = hosts
-		return nil
-	}
-	// Legacy []string format.
-	var strs []string
-	if err := json.Unmarshal(b, &strs); err != nil {
+	if err := json.Unmarshal(b, &hosts); err != nil {
 		return err
 	}
-	out := make(HostList, 0, len(strs))
-	for _, s := range strs {
-		out = append(out, Host{Host: s, Enabled: true})
-	}
-	*l = out
+	*l = hosts
 	return nil
 }
 

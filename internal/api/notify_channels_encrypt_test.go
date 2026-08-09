@@ -72,24 +72,4 @@ func TestNotificationChannelConfigEncryptedInDB(t *testing.T) {
 	if receivedConfig != plaintextConfig {
 		t.Errorf("expected notify.Send to receive decrypted plaintext %q, got %q", plaintextConfig, receivedConfig)
 	}
-
-	// 4. Test legacy plaintext row in DB: inserting raw plaintext config directly into DB
-	legacyConfig := `{"token":"legacy-token","endpoint":"https://legacy.com"}`
-	legacyCh := models.NotificationChannel{
-		OrgID:   orgID,
-		Name:    "Legacy Channel",
-		Type:    "custom",
-		Config:  legacyConfig,
-		Enabled: true,
-	}
-	db.Create(&legacyCh)
-
-	// Assert end-to-end send for legacy plaintext row succeeds
-	receivedConfig = ""
-	if err := notify.Send(context.Background(), "custom", legacyCh.Config, "hello legacy"); err != nil {
-		t.Fatalf("notify.Send failed for legacy row: %v", err)
-	}
-	if receivedConfig != legacyConfig {
-		t.Errorf("expected legacy plaintext row to fall back to raw string %q, got %q", legacyConfig, receivedConfig)
-	}
 }

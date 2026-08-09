@@ -138,8 +138,6 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "domain.verify_failed", Group: "Domain", Title: "Domain Verification Failed", Description: "A domain's provider or DNS verification check failed"})
 	}
 
-	p.migrateLegacy()
-
 	api := ctx.Huma
 	if api != nil {
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/dns/providers", Summary: "DNS Providers", Tags: []string{"DNS"}}, p.dnsProviders)
@@ -252,43 +250,6 @@ func (p *Plugin) providerFor(dom Domain) (dnsprovider.Provider, error) {
 		return nil, errors.New("stored API token could not be decrypted — re-save this provider's API token under Settings → DNS Providers (the encryption key or database changed since it was saved)")
 	}
 	return dnsprovider.New(acc.Type, creds)
-}
-
-func (p *Plugin) migrateLegacy() {
-	if p.db == nil {
-		return
-	}
-	if p.db.Migrator().HasColumn(&Domain{}, "provider") && p.db.Migrator().HasColumn(&Domain{}, "config") {
-		var legacyDomains []struct {
-			ID       uint
-			OwnerID  uint
-			Provider string
-			Config   string
-		}
-		p.db.Raw("SELECT id, owner_id, provider, config FROM domains WHERE provider_account_id = 0 OR provider_account_id IS NULL").Scan(&legacyDomains)
-		for _, ld := range legacyDomains {
-			if ld.Provider == "" {
-				continue
-			}
-			orgID := ld.OwnerID
-			if orgID == 0 {
-				// Fall back to org 1 for legacy single-tenant records where owner_id was unpopulated.
-				orgID = 1
-			}
-			accName := ld.Provider + " (Migrated)"
-			var acc ProviderAccount
-			if err := p.db.Where("owner_id = ? AND type = ? AND name = ?", orgID, ld.Provider, accName).First(&acc).Error; err != nil {
-				acc = ProviderAccount{
-					OrgID:  orgID,
-					Name:   accName,
-					Type:   ld.Provider,
-					Config: ld.Config,
-				}
-				p.db.Create(&acc)
-			}
-			p.db.Exec("UPDATE domains SET provider_account_id = ? WHERE id = ?", acc.ID, ld.ID)
-		}
-	}
 }
 
 // hasRole reports whether the caller holds at least the given workspace role.

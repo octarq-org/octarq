@@ -125,7 +125,7 @@ func TestResetPasswordKeepsSessionsWhenPasswordWriteFails(t *testing.T) {
 	if after.PasswordHash != user.PasswordHash {
 		t.Error("password hash changed even though the write was rejected")
 	}
-	if loginRec := do(srv, "POST", "/api/auth/login", nil, `{"username":"fail@reset.com","password":"oldpassword123"}`); loginRec.Code != http.StatusOK {
+	if loginRec := do(srv, "POST", "/api/auth/login", nil, `{"email":"fail@reset.com","password":"oldpassword123"}`); loginRec.Code != http.StatusOK {
 		t.Errorf("login with the old password after a failed reset: got %d, want 200", loginRec.Code)
 	}
 }
@@ -336,7 +336,7 @@ func TestResetPasswordFlow(t *testing.T) {
 	}
 
 	// 8. Verify login with new password succeeds
-	loginRec := do(srv, "POST", "/api/auth/login", nil, `{"username":"user@reset.com","password":"newpassword123"}`)
+	loginRec := do(srv, "POST", "/api/auth/login", nil, `{"email":"user@reset.com","password":"newpassword123"}`)
 	if loginRec.Code != http.StatusOK {
 		t.Fatalf("login with new password: got %d (%s)", loginRec.Code, loginRec.Body.String())
 	}
@@ -407,7 +407,7 @@ func TestEmailVerificationGatingToggle(t *testing.T) {
 	do(srv, "POST", "/api/auth/register", nil, `{"email":"gated@user.com","password":"password123"}`)
 
 	// 1. By default (setting OFF): unverified user can log in
-	recOff := do(srv, "POST", "/api/auth/login", nil, `{"username":"gated@user.com","password":"password123"}`)
+	recOff := do(srv, "POST", "/api/auth/login", nil, `{"email":"gated@user.com","password":"password123"}`)
 	if recOff.Code != http.StatusOK {
 		t.Fatalf("login when gating OFF: got %d, want 200", recOff.Code)
 	}
@@ -418,7 +418,7 @@ func TestEmailVerificationGatingToggle(t *testing.T) {
 	}
 
 	// 3. Unverified user login rejected -> 403
-	recOn := do(srv, "POST", "/api/auth/login", nil, `{"username":"gated@user.com","password":"password123"}`)
+	recOn := do(srv, "POST", "/api/auth/login", nil, `{"email":"gated@user.com","password":"password123"}`)
 	if recOn.Code != http.StatusForbidden {
 		t.Fatalf("login when gating ON: got %d, want 403 (%s)", recOn.Code, recOn.Body.String())
 	}
@@ -427,7 +427,7 @@ func TestEmailVerificationGatingToggle(t *testing.T) {
 	db.Model(&models.User{}).Where("email = ?", "gated@user.com").Update("email_verified", true)
 
 	// 5. Verified user login succeeds -> 200
-	recVerified := do(srv, "POST", "/api/auth/login", nil, `{"username":"gated@user.com","password":"password123"}`)
+	recVerified := do(srv, "POST", "/api/auth/login", nil, `{"email":"gated@user.com","password":"password123"}`)
 	if recVerified.Code != http.StatusOK {
 		t.Fatalf("login when verified and gating ON: got %d, want 200", recVerified.Code)
 	}
@@ -516,7 +516,7 @@ func TestForgotPasswordDoesNotExhaustTheLoginBudget(t *testing.T) {
 	}
 
 	// Login must still be reachable — 401 for bad credentials is fine, 429 is not.
-	rec := do(srv, "POST", "/api/auth/login", nil, `{"username":"nobody@x.com","password":"wrong"}`)
+	rec := do(srv, "POST", "/api/auth/login", nil, `{"email":"nobody@x.com","password":"wrong"}`)
 	if rec.Code == http.StatusTooManyRequests {
 		t.Errorf("login got 429 after forgot-password spam — the recovery endpoints are still spending the login budget")
 	}

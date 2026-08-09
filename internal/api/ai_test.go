@@ -196,7 +196,7 @@ func TestParseSlugList(t *testing.T) {
 	}
 }
 
-func TestLegacySetLLMResolverCompatibility(t *testing.T) {
+func TestSetLLMResolver(t *testing.T) {
 	h := &Handler{}
 	h.SetLLMResolver(func() (llmprovider.Provider, error) {
 		return fakeLLM{reply: "legacy"}, nil

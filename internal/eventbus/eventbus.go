@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strings"
@@ -37,15 +38,18 @@ func SetSecretDecryptor(fn func(string) (string, bool)) {
 	decryptSecret = fn
 }
 
-// signingSecret resolves the plaintext HMAC secret for a stored value, falling
-// back to the raw value for legacy plaintext rows or when no decryptor is set.
-func signingSecret(stored string) string {
-	if decryptSecret != nil {
-		if pt, ok := decryptSecret(stored); ok {
-			return pt
-		}
+// signingSecret resolves the plaintext HMAC secret for a stored value. A stored
+// secret that cannot be decrypted, or a build with no decryptor registered, is
+// an error rather than a silent passthrough of whatever was stored.
+func signingSecret(stored string) (string, error) {
+	if decryptSecret == nil {
+		return "", errors.New("no secret decryptor registered")
 	}
-	return stored
+	pt, ok := decryptSecret(stored)
+	if !ok {
+		return "", errors.New("stored webhook secret could not be decrypted")
+	}
+	return pt, nil
 }
 
 // EventPayload defines the JSON structure sent to webhook endpoints.
@@ -131,7 +135,12 @@ func deliver(ctx context.Context, url, secret string, body []byte) {
 	req.Header.Set("User-Agent", "octarq-webhook-dispatcher/1.0")
 
 	// Calculate HMAC-SHA256 signature over the plaintext signing secret.
-	mac := hmac.New(sha256.New, []byte(signingSecret(secret)))
+	secret, err = signingSecret(secret)
+	if err != nil {
+		log.Printf("eventbus: cannot sign delivery to %s: %v", url, err)
+		return
+	}
+	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(body)
 	sig := hex.EncodeToString(mac.Sum(nil))
 	req.Header.Set("X-Octarq-Signature", "sha256="+sig)

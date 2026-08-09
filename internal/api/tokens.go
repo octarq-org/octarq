@@ -354,8 +354,8 @@ func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*Up
 }
 
 // validTokenRole reports whether role is one a token may be minted with.
-// It deliberately rejects "" — that value means "legacy unrestricted" and is
-// reachable only by rows that predate scoping, never by minting a new token.
+// It deliberately rejects "" — an empty role is never minted, so the switch
+// covers every mintable value.
 func validTokenRole(role authz.Role) bool {
 	switch role {
 	case authz.RoleMember, authz.RoleAdmin, authz.RoleOwner:

@@ -59,11 +59,11 @@ func TestChangePasswordReplacesHashAndKeepsCallerSignedIn(t *testing.T) {
 
 	// And the new password is the one that logs in.
 	if rec := do(srv, "POST", "/api/auth/login", nil,
-		`{"username":"owner@example.com","password":"replacementpw2"}`); rec.Code != http.StatusOK {
+		`{"email":"owner@example.com","password":"replacementpw2"}`); rec.Code != http.StatusOK {
 		t.Fatalf("login with new password: got %d (%s)", rec.Code, rec.Body.String())
 	}
 	if rec := do(srv, "POST", "/api/auth/login", nil,
-		`{"username":"owner@example.com","password":"originalpw1"}`); rec.Code == http.StatusOK {
+		`{"email":"owner@example.com","password":"originalpw1"}`); rec.Code == http.StatusOK {
 		t.Fatal("login with the old password still succeeds")
 	}
 }
@@ -106,7 +106,7 @@ func TestChangePasswordRevokesOtherSessionsOnly(t *testing.T) {
 
 	// A second sign-in from another device.
 	rec = doUA(srv, "POST", "/api/auth/login", nil,
-		`{"username":"owner@example.com","password":"originalpw1"}`, agentB)
+		`{"email":"owner@example.com","password":"originalpw1"}`, agentB)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("second login: got %d (%s)", rec.Code, rec.Body.String())
 	}
@@ -243,7 +243,7 @@ func TestChangePasswordInvalidatesAnOutstandingResetToken(t *testing.T) {
 		t.Fatal("the owner's new password is not the stored one")
 	}
 	if rec := do(srv, "POST", "/api/auth/login", nil,
-		`{"username":"target@example.com","password":"chosenbyowner2"}`); rec.Code != http.StatusOK {
+		`{"email":"target@example.com","password":"chosenbyowner2"}`); rec.Code != http.StatusOK {
 		t.Fatalf("owner cannot log in with the password they chose: %d", rec.Code)
 	}
 }

@@ -33,10 +33,10 @@ func TestProviderRegistryAndConstructors(t *testing.T) {
 		t.Error("expected error for missing dnspod secrets")
 	}
 
-	// 6. DNSPod token split form
-	p2, err := New("dnspod", []byte(`{"token":"id123,key456"}`))
+	// 6. DNSPod secretId/secretKey form
+	p2, err := New("dnspod", []byte(`{"secretId":"id123","secretKey":"key456"}`))
 	if err != nil || p2 == nil {
-		t.Errorf("dnspod token constructor failed: %v", err)
+		t.Errorf("dnspod secretId/secretKey constructor failed: %v", err)
 	}
 
 	// 7. MarshalCreds & Names

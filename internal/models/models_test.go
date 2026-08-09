@@ -102,15 +102,12 @@ func TestHostListOperations(t *testing.T) {
 	}
 }
 
-func TestHostListLegacyScan(t *testing.T) {
+func TestHostListScanRejectsLegacyFormat(t *testing.T) {
 	t.Parallel()
 
 	var l HostList
-	if err := l.Scan(`["go.example.com","s.example.com"]`); err != nil {
-		t.Fatalf("legacy scan: %v", err)
-	}
-	if len(l) != 2 || !l[0].Enabled || l[0].Host != "go.example.com" {
-		t.Errorf("legacy []string not upgraded: %+v", l)
+	if err := l.Scan(`["go.example.com","s.example.com"]`); err == nil {
+		t.Errorf("Scan of legacy []string format expected error")
 	}
 
 	if err := l.Scan(`invalid-json`); err == nil {

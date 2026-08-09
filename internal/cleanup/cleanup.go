@@ -71,8 +71,6 @@ func Start(ctx context.Context, retentionDays func() int, cleanups ...func(ctx c
 }
 
 // StartSessionCleanup deletes expired sessions once at startup and every hour.
-// It also removes legacy "Unknown" sessions (empty user_agent) left over from
-// old switchOrg calls that used SetSession instead of SetSessionFromRequest.
 // It additionally prunes audit_log rows older than the data_retention_days
 // instance setting (see pruneAuditLogs).
 func StartSessionCleanup(ctx context.Context, db *gorm.DB, retentionDays func() int) {
@@ -84,13 +82,6 @@ func StartSessionCleanup(ctx context.Context, db *gorm.DB, retentionDays func() 
 			log.Printf("cleanup: purge expired sessions: %v", res.Error)
 		} else if res.RowsAffected > 0 {
 			log.Printf("cleanup: purged %d expired sessions", res.RowsAffected)
-		}
-		// Legacy empty-UA sessions (created by old SetSession without IP/UA)
-		res2 := db.Where("user_agent = ''").Delete(&models.Session{})
-		if res2.Error != nil {
-			log.Printf("cleanup: purge empty-UA sessions: %v", res2.Error)
-		} else if res2.RowsAffected > 0 {
-			log.Printf("cleanup: purged %d legacy empty-UA sessions", res2.RowsAffected)
 		}
 		// Audit logs older than the retention window
 		pruneAuditLogs(db, retentionDays())

@@ -14,16 +14,17 @@ import (
 )
 
 // webhookSecretPlaintext returns the usable signing secret for a stored webhook.
-// Secrets are AES-GCM encrypted at rest; older rows may still hold plaintext, so
-// a failed decrypt falls back to the raw value for backward compatibility.
-func (h *Handler) webhookSecretPlaintext(stored string) string {
+// Secrets are AES-GCM encrypted at rest; a stored value that cannot be decrypted
+// is an error rather than a passthrough of whatever was stored.
+func (h *Handler) webhookSecretPlaintext(stored string) (string, error) {
 	if stored == "" {
-		return ""
+		return "", nil
 	}
-	if b, err := h.cipher.Decrypt(stored); err == nil {
-		return string(b)
+	b, err := h.cipher.Decrypt(stored)
+	if err != nil {
+		return "", err
 	}
-	return stored // legacy plaintext row
+	return string(b), nil
 }
 
 // encryptWebhookSecret seals a plaintext signing secret for storage.
@@ -34,9 +35,13 @@ func (h *Handler) encryptWebhookSecret(plaintext string) (string, error) {
 // decryptedForResponse returns a copy of the hook with its secret decrypted, so
 // the dashboard (behind auth) can display/copy the signing secret while the
 // value stays encrypted at rest.
-func (h *Handler) decryptedForResponse(hook models.Webhook) models.Webhook {
-	hook.Secret = h.webhookSecretPlaintext(hook.Secret)
-	return hook
+func (h *Handler) decryptedForResponse(hook models.Webhook) (models.Webhook, error) {
+	secret, err := h.webhookSecretPlaintext(hook.Secret)
+	if err != nil {
+		return hook, err
+	}
+	hook.Secret = secret
+	return hook, nil
 }
 
 type ListWebhooksInput struct {
@@ -67,7 +72,11 @@ func (h *Handler) listWebhooks(ctx context.Context, input *ListWebhooksInput) (*
 	var hooks []models.Webhook
 	h.orgDB(r).Order("created_at DESC").Find(&hooks)
 	for i := range hooks {
-		hooks[i] = h.decryptedForResponse(hooks[i])
+		hook, err := h.decryptedForResponse(hooks[i])
+		if err != nil {
+			return nil, huma.Error500InternalServerError("failed to decrypt webhook secret")
+		}
+		hooks[i] = hook
 	}
 	return &ListWebhooksOutput{Body: hooks}, nil
 }
@@ -233,7 +242,11 @@ func (h *Handler) updateWebhook(ctx context.Context, input *UpdateWebhookInput) 
 		meta["secret"] = "[REDACTED]"
 	}
 	h.audit(r, "webhook.update", "webhook", hook.ID, meta)
-	return &UpdateWebhookOutput{Body: h.decryptedForResponse(hook)}, nil
+	out, err := h.decryptedForResponse(hook)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to decrypt webhook secret")
+	}
+	return &UpdateWebhookOutput{Body: out}, nil
 }
 
 type DeleteWebhookInput struct {

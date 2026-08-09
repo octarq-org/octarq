@@ -174,7 +174,7 @@ func TestSessionCookieSecureFollowsRequest(t *testing.T) {
 			srv, _, _ := originTestServer(t)
 
 			req := httptest.NewRequest("POST", "/api/auth/login",
-				strings.NewReader(`{"username":"admin","password":"pw"}`))
+				strings.NewReader(`{"email":"admin","password":"pw"}`))
 			req.Header.Set("Content-Type", "application/json")
 			if tc.tls {
 				req.TLS = &tls.ConnectionState{}
