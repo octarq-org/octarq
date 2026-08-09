@@ -216,10 +216,14 @@ export function InstanceSettings() {
         </div>
       </GlassCard>
 
-      {/* Infrastructure Extension Slot */}
+      {/* Operator-level extension slot. Named "System Settings", NOT
+          "Infrastructure": that word already labels the plugin CATEGORY
+          (plugin.CategoryInfrastructure, workspace-scoped assets like domains
+          and DNS), and the same word for two different scopes read as one
+          feature split across two pages. */}
       <div className="space-y-3 pt-2">
         <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t("settings.infrastructure", "Infrastructure")}
+          {t("settings.systemSettings", "System Settings")}
         </h3>
         <ExtensionSlot name="settings-infra" />
       </div>
