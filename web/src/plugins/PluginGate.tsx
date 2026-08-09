@@ -32,9 +32,30 @@ export function usePluginGate(): PluginRouteGateContextValue {
   return useContext(PluginRouteGateContext) ?? { degrade: () => {} };
 }
 
+// isPluginDisabled reports whether the operator switched this plugin off, as
+// opposed to it not being in the build at all. Both answer 404; only this set
+// tells them apart.
+//
+// A plain function, not a hook, and the single place the domains/dns aliasing
+// lives: the frontend plugin is "domains" while the backend that announces it
+// is "dns", so a disabled dns must also disable domains. Both callers below
+// read it, and the two must not be allowed to drift.
+function isPluginDisabled(disabledPlugins: Set<string>, plugin: UIPlugin): boolean {
+  return (
+    disabledPlugins.has(plugin.name) ||
+    (plugin.name === "domains" && disabledPlugins.has("dns"))
+  );
+}
+
 // The standard degraded rendering, shared by the declarative (`degrade`) and
 // exceptional (error boundary) paths.
 function GateFallback({ status, plugin }: { status: number; plugin: UIPlugin }) {
+  // Read the context before any early return. `status` changes across renders
+  // of this same component (degrade() sets it), so a hook called after one of
+  // the returns below would run on some renders and not others — React counts
+  // hooks per render and throws when the count drops.
+  const { disabledPlugins } = useContext(PluginGateContext);
+
   // 403 is a role problem, not a licensing/build problem — it always renders
   // the neutral access-denied note (lockedFallback is the 402/404 seam).
   if (status === 403) return <AccessDenied />;
@@ -42,6 +63,11 @@ function GateFallback({ status, plugin }: { status: number; plugin: UIPlugin }) 
   if (Fallback) return <Fallback status={status} />;
   // 402 without a plugin-supplied fallback still upsells — never a raw error.
   if (status === 402) return <LockedFeature status={402} feature={plugin.name} />;
+  // A 404 is ambiguous: switched off by the operator, or absent from this
+  // build. Only the first has anything the user can act on.
+  if (status === 404 && isPluginDisabled(disabledPlugins, plugin)) {
+    return <PluginDisabled />;
+  }
   return <PluginUnavailable />;
 }
 
@@ -84,14 +110,8 @@ export function PluginGate({
   );
   if (status !== null) return <GateFallback status={status} plugin={plugin} />;
 
-  if (loaded) {
-    const isPluginDisabled =
-      disabledPlugins.has(plugin.name) ||
-      (plugin.name === "domains" && disabledPlugins.has("dns")) ||
-      disabledPaths.has(route.path);
-    if (isPluginDisabled) {
-      return <PluginDisabled />;
-    }
+  if (loaded && (isPluginDisabled(disabledPlugins, plugin) || disabledPaths.has(route.path))) {
+    return <PluginDisabled />;
   }
   // Declarative pre-check: a route announcing a requiredRole the current user
   // doesn't meet renders access-denied WITHOUT mounting the page. Same ranking
