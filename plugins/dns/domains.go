@@ -10,7 +10,24 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/dnsprovider"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/origin"
 )
+
+// forgetOrigin drops the cached origin answers for a domain whose row just
+// changed. This table IS the whitelist origin resolves absolute URLs against,
+// and those answers are cached for minutes; without this a freshly registered
+// domain does not serve links or logins until the entry ages out, and — the
+// sharper edge — an instance that had no domains at all goes on honouring the
+// raw request Host for that long after the first one is added.
+//
+// Every write path to Domain has to call this. It is deliberately not a GORM
+// AfterSave hook: the bulk deletes below issue statements with no model
+// instance loaded, so a hook would silently cover some paths and not others.
+func forgetOrigin(names ...string) {
+	for _, n := range names {
+		origin.ClearDomainCache(n)
+	}
+}
 
 func cleanProviderError(errStr string) string {
 	lower := strings.ToLower(errStr)
@@ -165,6 +182,7 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 			})
 			created++
 		}
+		forgetOrigin(name)
 	}
 	return &SyncDomainsOutput{
 		Body: map[string]any{
@@ -317,6 +335,7 @@ func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*C
 	if err := p.db.Create(&dom).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "domain already exists")
 	}
+	forgetOrigin(dom.Name)
 	p.audit(r, "domain.create", "domain", dom.ID, map[string]any{"name": dom.Name})
 	if p.publishEvent != nil {
 		p.publishEvent(dom.OrgID, "domain.create", map[string]any{"id": dom.ID, "name": dom.Name})
@@ -377,6 +396,9 @@ func (p *Plugin) updateDomain(ctx context.Context, input *UpdateDomainInput) (*U
 		dom.ProviderAccountID = input.Body.ProviderAccountID
 	}
 	p.db.Save(&dom)
+	// The link/mail host lists moved even when the name did not, and those are
+	// what ServesTraffic answers from.
+	forgetOrigin(dom.Name)
 	p.audit(r, "domain.update", "domain", dom.ID, map[string]any{"name": dom.Name})
 	return &UpdateDomainOutput{Body: dom}, nil
 }
@@ -406,9 +428,16 @@ func (p *Plugin) deleteDomain(ctx context.Context, input *DeleteDomainInput) (*D
 	if !p.hasRole(r, "admin") {
 		return nil, huma.Error403Forbidden("forbidden: admin role required to delete domain")
 	}
+	// Read the name before the row goes: it is the cache key that has to be
+	// dropped, and after the DELETE there is nowhere left to read it from.
+	var dom Domain
+	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&dom).Error != nil {
+		return nil, huma.Error404NotFound("not found")
+	}
 	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&Domain{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}
+	forgetOrigin(dom.Name)
 	p.audit(r, "domain.delete", "domain", input.ID, nil)
 	return &DeleteDomainOutput{Body: map[string]bool{"ok": true}}, nil
 }

@@ -42,6 +42,7 @@
 package origin
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -362,13 +363,52 @@ const ttl = 5 * time.Minute
 
 // entry holds one cached answer. org is meaningful only for OwnerOf's key
 // space; the boolean questions leave it zero.
+//
+// The cache is package-global rather than per-Resolver because a process builds
+// several Resolvers over the same database — the API, the server and the OAuth
+// handler each hold one — and a domain registered through any of them has to
+// become visible to all of them at once. Per-Resolver caches meant up to ttl
+// where one half of the process served an origin the other half refused.
 var (
 	globalCacheMu sync.RWMutex
 	globalCache   = make(map[string]entry)
 )
 
-// ClearDomainCache removes all cached answers related to the given domain.
-// This should be called when a domain is registered, deleted, or moved between workspaces.
+// namespace identifies the database an answer was computed against. Every key
+// carries it, so Resolvers over *different* databases cannot read each other's
+// answers.
+//
+// That only happens under test — production has one database — and it is not a
+// theoretical tidiness: an answer here decides whether a forged Host is
+// honoured. A test that registers no domain caches "no whitelist exists", and
+// without this prefix the next test's Resolver reads that back over its own,
+// domain-bearing database and accepts "evil.com".
+//
+// The identity is the *sql.DB, not the *gorm.DB: gorm hands out a fresh
+// *gorm.DB for every chained call, while the connection pool underneath is
+// shared and stable. Two Resolvers over one database therefore share a
+// namespace, which is exactly what the cross-Resolver invalidation above needs.
+func namespace(db *gorm.DB) string {
+	if db == nil {
+		return "nodb|"
+	}
+	sqlDB, err := db.DB()
+	if err != nil || sqlDB == nil {
+		return "nodb|"
+	}
+	return fmt.Sprintf("%p|", sqlDB)
+}
+
+// ClearDomainCache removes all cached answers related to the given domain,
+// across every namespace. Call it whenever the domains table changes — a
+// register, a delete, a move between workspaces — or the change is invisible
+// for up to ttl.
+//
+// The "any" entries go too, and that is the one that matters most: it caches
+// "this instance has registered no domains at all", the condition that switches
+// on the fallback which honours the request Host verbatim. Left stale, an
+// instance keeps honouring forged Hosts for ttl after the operator registers
+// the very first domain that was supposed to end it.
 func ClearDomainCache(domain string) {
 	domain = NormalizeHost(domain)
 	if domain == "" {
@@ -377,7 +417,7 @@ func ClearDomainCache(domain string) {
 	globalCacheMu.Lock()
 	defer globalCacheMu.Unlock()
 	for k := range globalCache {
-		if k == "any" {
+		if strings.HasSuffix(k, "|any") {
 			delete(globalCache, k)
 			continue
 		}
@@ -408,10 +448,11 @@ type entry struct {
 // domains table. Zero value is not usable — call NewResolver.
 type Resolver struct {
 	db *gorm.DB
+	ns string // cache-key namespace; see namespace()
 }
 
 func NewResolver(db *gorm.DB) *Resolver {
-	return &Resolver{db: db}
+	return &Resolver{db: db, ns: namespace(db)}
 }
 
 func (rv *Resolver) cached(key string, compute func() bool) bool {
@@ -423,6 +464,7 @@ func (rv *Resolver) cached(key string, compute func() bool) bool {
 // so the size bound covers every question the resolver answers rather than one
 // per method.
 func (rv *Resolver) cachedOwner(key string, compute func() (uint, bool)) (uint, bool) {
+	key = rv.ns + key
 	globalCacheMu.RLock()
 	e, hit := globalCache[key]
 	globalCacheMu.RUnlock()

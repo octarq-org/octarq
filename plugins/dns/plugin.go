@@ -188,7 +188,13 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 }
 
 func (p *Plugin) purge(orgID uint) error {
+	// Collect the names before the rows go; see forgetOrigin. A purged
+	// workspace's hostnames must stop resolving to it immediately, not when the
+	// cache happens to expire.
+	var names []string
+	p.db.Model(&Domain{}).Where("owner_id = ?", orgID).Pluck("name", &names)
 	p.db.Where("owner_id = ?", orgID).Delete(&Domain{})
+	forgetOrigin(names...)
 	p.db.Where("owner_id = ?", orgID).Delete(&ProviderAccount{})
 	p.db.Where("owner_id = ?", orgID).Delete(&DDNSToken{})
 	return nil
