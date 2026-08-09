@@ -35,14 +35,19 @@ export function usePluginGate(): PluginRouteGateContextValue {
 // The standard degraded rendering, shared by the declarative (`degrade`) and
 // exceptional (error boundary) paths.
 function GateFallback({ status, plugin }: { status: number; plugin: UIPlugin }) {
-  // 403 is a role problem, not a licensing/build problem — it always renders
-  // the neutral access-denied note (lockedFallback is the 402/404 seam).
   if (status === 403) return <AccessDenied />;
   const Fallback = plugin.lockedFallback;
   if (Fallback) return <Fallback status={status} />;
-  // 402 without a plugin-supplied fallback still upsells — never a raw error.
   if (status === 402) return <LockedFeature status={402} feature={plugin.name} />;
+  const isDisabled = useIsPluginDisabled(plugin);
+  if (status === 404 && isDisabled) return <PluginDisabled />;
   return <PluginUnavailable />;
+}
+
+function useIsPluginDisabled(plugin: UIPlugin): boolean {
+  const { disabledPlugins } = useContext(PluginGateContext);
+  return disabledPlugins.has(plugin.name) ||
+    (plugin.name === "domains" && disabledPlugins.has("dns"));
 }
 
 // Error-boundary half: catches chunk-load failures and render-time throws. An
