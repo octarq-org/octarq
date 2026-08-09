@@ -313,6 +313,10 @@ const ALLOWLIST_EXACT = new Set([
 
   // Accessibility aria-labels on generic icon buttons
   "Dismiss alert",
+
+  // Legal / public pages (placeholder)
+  "Terms of Service",
+  "Privacy Policy",
 ]);
 
 // Pattern-based allowlist for non-translatable text formats:
