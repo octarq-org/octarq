@@ -71,18 +71,20 @@ func (h *Handler) listTokens(ctx context.Context, input *ListTokensInput) (*List
 	return &ListTokensOutput{Body: toks}, nil
 }
 
+type CreateTokenInputBody struct {
+	Name          string `json:"name"`
+	Note          string `json:"note,omitempty"`
+	ExpiresInDays int    `json:"expiresInDays,omitempty"`
+	// Role narrows the token below its holder; it can never widen it. Omitted
+	// means "member" — the least privilege that still works — so a caller who
+	// does not think about it gets a narrow token rather than a copy of their
+	// own account.
+	Role string `json:"role,omitempty"`
+}
+
 type CreateTokenInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Name          string `json:"name"`
-		Note          string `json:"note,omitempty"`
-		ExpiresInDays int    `json:"expiresInDays,omitempty"`
-		// Role narrows the token below its holder; it can never widen it. Omitted
-		// means "member" — the least privilege that still works — so a caller who
-		// does not think about it gets a narrow token rather than a copy of their
-		// own account.
-		Role string `json:"role,omitempty"`
-	}
+	Body CreateTokenInputBody
 }
 
 func (i *CreateTokenInput) Resolve(ctx huma.Context) []error {
@@ -181,10 +183,12 @@ func (i *DeleteTokenInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type DeleteTokenOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type DeleteTokenOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body DeleteTokenOutputBody
 }
 
 func (h *Handler) deleteToken(ctx context.Context, input *DeleteTokenInput) (*DeleteTokenOutput, error) {
@@ -210,15 +214,17 @@ func (h *Handler) deleteToken(ctx context.Context, input *DeleteTokenInput) (*De
 	return out, nil
 }
 
+type UpdateTokenInputBody struct {
+	Name          *string `json:"name,omitempty"`
+	Note          *string `json:"note,omitempty"`
+	Role          *string `json:"role,omitempty"`
+	ExpiresInDays *int    `json:"expiresInDays,omitempty"`
+}
+
 type UpdateTokenInput struct {
 	Ctx  huma.Context `hidden:"true"`
 	ID   uint         `path:"id"`
-	Body struct {
-		Name          *string `json:"name,omitempty"`
-		Note          *string `json:"note,omitempty"`
-		Role          *string `json:"role,omitempty"`
-		ExpiresInDays *int    `json:"expiresInDays,omitempty"`
-	}
+	Body UpdateTokenInputBody
 }
 
 func (i *UpdateTokenInput) Resolve(ctx huma.Context) []error {

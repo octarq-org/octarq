@@ -17,12 +17,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type LoginInputBody struct {
+	Email    string `json:"email,omitempty" doc:"The user's email address" example:"admin@example.com"`
+	Password string `json:"password" doc:"The user's password" example:"securepassword"`
+}
+
 type LoginInput struct {
-	Body struct {
-		Email    string `json:"email,omitempty" doc:"The user's email address" example:"admin@example.com"`
-		Password string `json:"password" doc:"The user's password" example:"securepassword"`
-	}
-	Ctx huma.Context `hidden:"true"`
+	Body LoginInputBody
+	Ctx  huma.Context `hidden:"true"`
 }
 
 func (i *LoginInput) Resolve(ctx huma.Context) []error {
@@ -30,13 +32,15 @@ func (i *LoginInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type LoginOutputBody struct {
+	OK                bool   `json:"ok,omitempty"`
+	Email             string `json:"email"`
+	Username          string `json:"username,omitempty"`
+	TwoFactorRequired bool   `json:"twoFactorRequired,omitempty"`
+}
+
 type LoginOutput struct {
-	Body struct {
-		OK                bool   `json:"ok,omitempty"`
-		Email             string `json:"email"`
-		Username          string `json:"username,omitempty"`
-		TwoFactorRequired bool   `json:"twoFactorRequired,omitempty"`
-	}
+	Body LoginOutputBody
 }
 
 // loginHuma is the huma-adapted login handler
@@ -92,13 +96,15 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 // email+password (re-verified here, so the challenge can't be forged) along
 // with a TOTP code or a one-time recovery code. On success the session is set.
 // POST /api/auth/2fa/verify  {email, password, code}
+type Verify2FAInputBody struct {
+	Email    string `json:"email,omitempty"`
+	Password string `json:"password"`
+	Code     string `json:"code"`
+}
+
 type Verify2FAInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Email    string `json:"email,omitempty"`
-		Password string `json:"password"`
-		Code     string `json:"code"`
-	}
+	Body Verify2FAInputBody
 }
 
 func (i *Verify2FAInput) Resolve(ctx huma.Context) []error {
@@ -106,12 +112,14 @@ func (i *Verify2FAInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type Verify2FAOutputBody struct {
+	OK       bool   `json:"ok"`
+	Email    string `json:"email"`
+	Username string `json:"username,omitempty"`
+}
+
 type Verify2FAOutput struct {
-	Body struct {
-		OK       bool   `json:"ok"`
-		Email    string `json:"email"`
-		Username string `json:"username,omitempty"`
-	}
+	Body Verify2FAOutputBody
 }
 
 func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify2FAOutput, error) {
@@ -165,10 +173,12 @@ func (i *LogoutAllInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type LogoutAllOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type LogoutAllOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body LogoutAllOutputBody
 }
 
 // logoutAll deletes every session row for the caller and clears the cookie.
@@ -196,12 +206,14 @@ func (h *Handler) logoutAll(ctx context.Context, input *LogoutAllInput) (*Logout
 	return out, nil
 }
 
+type ChangePasswordInputBody struct {
+	CurrentPassword string `json:"currentPassword" doc:"The password the account signs in with today"`
+	NewPassword     string `json:"newPassword" doc:"The replacement, at least 8 characters"`
+}
+
 type ChangePasswordInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		CurrentPassword string `json:"currentPassword" doc:"The password the account signs in with today"`
-		NewPassword     string `json:"newPassword" doc:"The replacement, at least 8 characters"`
-	}
+	Body ChangePasswordInputBody
 }
 
 func (i *ChangePasswordInput) Resolve(ctx huma.Context) []error {
@@ -209,10 +221,12 @@ func (i *ChangePasswordInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type ChangePasswordOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type ChangePasswordOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body ChangePasswordOutputBody
 }
 
 // changePassword replaces the caller's own password, given the current one.
@@ -304,7 +318,7 @@ func (h *Handler) changePassword(ctx context.Context, input *ChangePasswordInput
 func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 	var user models.User
 	if err := h.db.Where("email = ?", username).First(&user).Error; err != nil {
-		user = models.User{Email: username, PasswordHash: "", IsInstanceAdmin: true}
+		user = models.User{Email: username, PasswordHash: "", IsInstanceAdmin: true, EmailVerified: true}
 		h.db.Create(&user)
 	} else if !user.IsInstanceAdmin {
 		// Backfill for accounts created before this column existed.
@@ -417,11 +431,13 @@ func (i *RevokeSessionInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type RevokeSessionOutputBody struct {
+	OK   bool `json:"ok"`
+	Self bool `json:"self"`
+}
+
 type RevokeSessionOutput struct {
-	Body struct {
-		OK   bool `json:"ok"`
-		Self bool `json:"self"`
-	}
+	Body RevokeSessionOutputBody
 }
 
 // DELETE /api/auth/sessions/{id} — revoke a specific session row.
@@ -492,10 +508,12 @@ func (i *LogoutInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type LogoutOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type LogoutOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body LogoutOutputBody
 }
 
 func (h *Handler) logout(ctx context.Context, input *LogoutInput) (*LogoutOutput, error) {
@@ -518,14 +536,16 @@ func (i *MeInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type MeOutputBody struct {
+	Email         string `json:"email"`
+	Username      string `json:"username,omitempty"`
+	OrgID         uint   `json:"orgId"`
+	Role          string `json:"role"`
+	EmailVerified bool   `json:"emailVerified"`
+}
+
 type MeOutput struct {
-	Body struct {
-		Email         string `json:"email"`
-		Username      string `json:"username,omitempty"`
-		OrgID         uint   `json:"orgId"`
-		Role          string `json:"role"`
-		EmailVerified bool   `json:"emailVerified"`
-	}
+	Body MeOutputBody
 }
 
 func (h *Handler) me(ctx context.Context, input *MeInput) (*MeOutput, error) {
@@ -553,12 +573,14 @@ func (h *Handler) me(ctx context.Context, input *MeInput) (*MeOutput, error) {
 	return out, nil
 }
 
+type ChangeEmailInputBody struct {
+	NewEmail        string `json:"newEmail" doc:"The replacement email address"`
+	CurrentPassword string `json:"currentPassword,omitempty" doc:"Current password for verification"`
+}
+
 type ChangeEmailInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		NewEmail        string `json:"newEmail" doc:"The replacement email address"`
-		CurrentPassword string `json:"currentPassword,omitempty" doc:"Current password for verification"`
-	}
+	Body ChangeEmailInputBody
 }
 
 func (i *ChangeEmailInput) Resolve(ctx huma.Context) []error {
@@ -566,12 +588,14 @@ func (i *ChangeEmailInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type ChangeEmailOutputBody struct {
+	OK               bool   `json:"ok"`
+	Email            string `json:"email"`
+	VerificationSent bool   `json:"verificationSent"`
+}
+
 type ChangeEmailOutput struct {
-	Body struct {
-		OK               bool   `json:"ok"`
-		Email            string `json:"email"`
-		VerificationSent bool   `json:"verificationSent"`
-	}
+	Body ChangeEmailOutputBody
 }
 
 // changeEmail updates the authenticated user's email address.
@@ -677,12 +701,14 @@ func (h *Handler) changeEmail(ctx context.Context, input *ChangeEmailInput) (*Ch
 	return out, nil
 }
 
+type AcceptInviteInputBody struct {
+	Token    string `json:"token"`
+	Password string `json:"password"`
+}
+
 type AcceptInviteInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Token    string `json:"token"`
-		Password string `json:"password"`
-	}
+	Body AcceptInviteInputBody
 }
 
 func (i *AcceptInviteInput) Resolve(ctx huma.Context) []error {
@@ -690,10 +716,12 @@ func (i *AcceptInviteInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type AcceptInviteOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type AcceptInviteOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body AcceptInviteOutputBody
 }
 
 // POST /api/auth/invite/accept
@@ -777,16 +805,18 @@ func (i *AuthConfigInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type AuthConfigOutputBody struct {
+	GoogleEnabled       bool   `json:"googleEnabled"`
+	GithubEnabled       bool   `json:"githubEnabled"`
+	RegistrationEnabled bool   `json:"registrationEnabled"`
+	AppName             string `json:"appName"`
+	LogoURL             string `json:"logoUrl"`
+	BrandColor          string `json:"brandColor"`
+	BrandColor2         string `json:"brandColor2"`
+}
+
 type AuthConfigOutput struct {
-	Body struct {
-		GoogleEnabled       bool   `json:"googleEnabled"`
-		GithubEnabled       bool   `json:"githubEnabled"`
-		RegistrationEnabled bool   `json:"registrationEnabled"`
-		AppName             string `json:"appName"`
-		LogoURL             string `json:"logoUrl"`
-		BrandColor          string `json:"brandColor"`
-		BrandColor2         string `json:"brandColor2"`
-	}
+	Body AuthConfigOutputBody
 }
 
 // GET /api/auth/config (public) returns whether Google and GitHub logins are

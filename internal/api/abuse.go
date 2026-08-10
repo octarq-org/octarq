@@ -18,13 +18,15 @@ var validAbuseReasons = map[string]bool{
 	"spam": true, "phishing": true, "malware": true, "other": true,
 }
 
+type SubmitAbuseInputBody struct {
+	Slug        string `json:"slug"`
+	Reason      string `json:"reason"`
+	Description string `json:"description"`
+}
+
 type SubmitAbuseInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Slug        string `json:"slug"`
-		Reason      string `json:"reason"`
-		Description string `json:"description"`
-	}
+	Body SubmitAbuseInputBody
 }
 
 func (i *SubmitAbuseInput) Resolve(ctx huma.Context) []error {
@@ -32,11 +34,13 @@ func (i *SubmitAbuseInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type SubmitAbuseOutputBody struct {
+	OK bool `json:"ok"`
+	ID uint `json:"id"`
+}
+
 type SubmitAbuseOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-		ID uint `json:"id"`
-	}
+	Body SubmitAbuseOutputBody
 }
 
 // submitAbuse is a public (no auth) endpoint for reporting a short link.
@@ -154,12 +158,14 @@ func (h *Handler) listAbuseReports(ctx context.Context, input *ListAbuseReportsI
 	return &ListAbuseReportsOutput{Body: reports}, nil
 }
 
+type UpdateAbuseReportInputBody struct {
+	Status string `json:"status"`
+}
+
 type UpdateAbuseReportInput struct {
 	Ctx  huma.Context `hidden:"true"`
 	ID   uint         `path:"id"`
-	Body struct {
-		Status string `json:"status"`
-	}
+	Body UpdateAbuseReportInputBody
 }
 
 func (i *UpdateAbuseReportInput) Resolve(ctx huma.Context) []error {

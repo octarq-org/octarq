@@ -81,15 +81,17 @@ func (h *Handler) listWebhooks(ctx context.Context, input *ListWebhooksInput) (*
 	return &ListWebhooksOutput{Body: hooks}, nil
 }
 
+type CreateWebhookInputBody struct {
+	Name    string `json:"name"`
+	URL     string `json:"url"`
+	Secret  string `json:"secret,omitempty"` // optional, will auto-generate if empty
+	Events  string `json:"events,omitempty"` // comma-separated, default "*"
+	Enabled *bool  `json:"enabled,omitempty"`
+}
+
 type CreateWebhookInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Name    string `json:"name"`
-		URL     string `json:"url"`
-		Secret  string `json:"secret,omitempty"` // optional, will auto-generate if empty
-		Events  string `json:"events,omitempty"` // comma-separated, default "*"
-		Enabled *bool  `json:"enabled,omitempty"`
-	}
+	Body CreateWebhookInputBody
 }
 
 func (i *CreateWebhookInput) Resolve(ctx huma.Context) []error {
@@ -165,16 +167,18 @@ func (h *Handler) createWebhook(ctx context.Context, input *CreateWebhookInput) 
 	return &CreateWebhookOutput{Body: hook}, nil
 }
 
+type UpdateWebhookInputBody struct {
+	Name    string `json:"name,omitempty"`
+	URL     string `json:"url,omitempty"`
+	Secret  string `json:"secret,omitempty"`
+	Events  string `json:"events,omitempty"`
+	Enabled *bool  `json:"enabled,omitempty"`
+}
+
 type UpdateWebhookInput struct {
 	Ctx  huma.Context `hidden:"true"`
 	ID   uint         `path:"id"`
-	Body struct {
-		Name    string `json:"name,omitempty"`
-		URL     string `json:"url,omitempty"`
-		Secret  string `json:"secret,omitempty"`
-		Events  string `json:"events,omitempty"`
-		Enabled *bool  `json:"enabled,omitempty"`
-	}
+	Body UpdateWebhookInputBody
 }
 
 func (i *UpdateWebhookInput) Resolve(ctx huma.Context) []error {

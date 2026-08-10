@@ -280,10 +280,12 @@ func (i *GetInboundTokenInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type GetInboundTokenOutputBody struct {
+	InboundToken string `json:"inboundToken"`
+}
+
 type GetInboundTokenOutput struct {
-	Body struct {
-		InboundToken string `json:"inboundToken"`
-	}
+	Body GetInboundTokenOutputBody
 }
 
 // getInboundToken is the only endpoint that returns the org's inbound-email
@@ -398,14 +400,16 @@ func (h *Handler) IsInstanceAdmin(r *http.Request) bool {
 	return h.isInstanceAdmin(r)
 }
 
+type UpdateSettingsInputBody struct {
+	ReservedMailboxes *string `json:"reservedMailboxes,omitempty"`
+	InboundToken      *string `json:"inboundToken,omitempty"`
+	CatchAll          *bool   `json:"catchAll,omitempty"`
+	AutoWrapLinks     *bool   `json:"autoWrapLinks,omitempty"`
+}
+
 type UpdateSettingsInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		ReservedMailboxes *string `json:"reservedMailboxes,omitempty"`
-		InboundToken      *string `json:"inboundToken,omitempty"`
-		CatchAll          *bool   `json:"catchAll,omitempty"`
-		AutoWrapLinks     *bool   `json:"autoWrapLinks,omitempty"`
-	}
+	Body UpdateSettingsInputBody
 }
 
 func (i *UpdateSettingsInput) Resolve(ctx huma.Context) []error {
@@ -493,23 +497,25 @@ func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput
 	return out, nil
 }
 
+type UpdateInstanceSettingsInputBody struct {
+	ReservedSlugs            *string `json:"reservedSlugs,omitempty"`
+	GoogleClientID           *string `json:"googleClientId,omitempty"`
+	GoogleClientSecret       *string `json:"googleClientSecret,omitempty"`
+	GitHubClientID           *string `json:"githubClientId,omitempty"`
+	GitHubClientSecret       *string `json:"githubClientSecret,omitempty"`
+	DataRetentionDays        *int    `json:"dataRetentionDays,omitempty"`
+	AllowRegistration        *bool   `json:"allowRegistration,omitempty"`
+	RequireEmailVerification *bool   `json:"requireEmailVerification,omitempty"`
+	AppName                  *string `json:"appName,omitempty"`
+	MetricsToken             *string `json:"metricsToken,omitempty"`
+	RatelimitAuthRpm         *int    `json:"ratelimitAuthRpm,omitempty"`
+	RatelimitApiRpm          *int    `json:"ratelimitApiRpm,omitempty"`
+	RatelimitRedirectRpm     *int    `json:"ratelimitRedirectRpm,omitempty"`
+}
+
 type UpdateInstanceSettingsInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		ReservedSlugs            *string `json:"reservedSlugs,omitempty"`
-		GoogleClientID           *string `json:"googleClientId,omitempty"`
-		GoogleClientSecret       *string `json:"googleClientSecret,omitempty"`
-		GitHubClientID           *string `json:"githubClientId,omitempty"`
-		GitHubClientSecret       *string `json:"githubClientSecret,omitempty"`
-		DataRetentionDays        *int    `json:"dataRetentionDays,omitempty"`
-		AllowRegistration        *bool   `json:"allowRegistration,omitempty"`
-		RequireEmailVerification *bool   `json:"requireEmailVerification,omitempty"`
-		AppName                  *string `json:"appName,omitempty"`
-		MetricsToken             *string `json:"metricsToken,omitempty"`
-		RatelimitAuthRpm         *int    `json:"ratelimitAuthRpm,omitempty"`
-		RatelimitApiRpm          *int    `json:"ratelimitApiRpm,omitempty"`
-		RatelimitRedirectRpm     *int    `json:"ratelimitRedirectRpm,omitempty"`
-	}
+	Body UpdateInstanceSettingsInputBody
 }
 
 func (i *UpdateInstanceSettingsInput) Resolve(ctx huma.Context) []error {

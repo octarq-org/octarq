@@ -18,13 +18,15 @@ func (i *HealthInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type HealthOutputBody struct {
+	Status   string `json:"status"`
+	Database string `json:"database"`
+	Error    string `json:"error,omitempty"`
+	Time     string `json:"time"`
+}
+
 type HealthOutput struct {
-	Body struct {
-		Status   string `json:"status"`
-		Database string `json:"database"`
-		Error    string `json:"error,omitempty"`
-		Time     string `json:"time"`
-	}
+	Body HealthOutputBody
 }
 
 // health verifies system dependencies (specifically database connectivity)

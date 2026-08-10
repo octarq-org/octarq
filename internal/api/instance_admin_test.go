@@ -132,3 +132,18 @@ func TestInstanceAdminBackfillMigration(t *testing.T) {
 		t.Fatal("backfill should have flagged the org-1 owner")
 	}
 }
+
+func TestInstanceAdminEnvHasVerifiedEmail(t *testing.T) {
+	h, db := newHandlerForAdminTest(t)
+	uid, _, ok := h.authenticate("operator@example.com", "pw")
+	if !ok {
+		t.Fatal("configured admin credential should authenticate")
+	}
+	var user models.User
+	if err := db.First(&user, uid).Error; err != nil {
+		t.Fatalf("find admin: %v", err)
+	}
+	if !user.EmailVerified {
+		t.Fatal("env created instance admin must have EmailVerified = true")
+	}
+}

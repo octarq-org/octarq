@@ -47,11 +47,13 @@ func (h *Handler) OrgRole(r *http.Request) string {
 	return string(h.effectiveRole(r))
 }
 
+type SwitchOrgInputBody struct {
+	OrgID uint `json:"orgId"`
+}
+
 type SwitchOrgInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		OrgID uint `json:"orgId"`
-	}
+	Body SwitchOrgInputBody
 }
 
 func (i *SwitchOrgInput) Resolve(ctx huma.Context) []error {
@@ -59,10 +61,12 @@ func (i *SwitchOrgInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type SwitchOrgOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type SwitchOrgOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body SwitchOrgOutputBody
 }
 
 // switchOrg re-issues the session cookie with the new active organization ID.
@@ -136,11 +140,13 @@ func (h *Handler) listOrgs(ctx context.Context, input *ListOrgsInput) (*ListOrgs
 	return &ListOrgsOutput{Body: items}, nil
 }
 
+type CreateOrgInputBody struct {
+	Name string `json:"name"`
+}
+
 type CreateOrgInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Name string `json:"name"`
-	}
+	Body CreateOrgInputBody
 }
 
 func (i *CreateOrgInput) Resolve(ctx huma.Context) []error {
@@ -189,11 +195,13 @@ func (h *Handler) createOrg(ctx context.Context, input *CreateOrgInput) (*Create
 	return &CreateOrgOutput{Body: org}, nil
 }
 
+type UpdateOrgInputBody struct {
+	Name string `json:"name"`
+}
+
 type UpdateOrgInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Name string `json:"name"`
-	}
+	Body UpdateOrgInputBody
 }
 
 func (i *UpdateOrgInput) Resolve(ctx huma.Context) []error {
@@ -313,12 +321,14 @@ func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput
 	return &ListOrgMembersOutput{Body: items}, nil
 }
 
+type AddOrgMemberInputBody struct {
+	Email string `json:"email"`
+	Role  string `json:"role"`
+}
+
 type AddOrgMemberInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Email string `json:"email"`
-		Role  string `json:"role"`
-	}
+	Body AddOrgMemberInputBody
 }
 
 func (i *AddOrgMemberInput) Resolve(ctx huma.Context) []error {
@@ -461,12 +471,14 @@ func (h *Handler) sendInviteEmail(orgID uint, to, acceptURL string) {
 	log.Printf("invite email skipped for %s: mail plugin not mounted", to)
 }
 
+type UpdateOrgMemberInputBody struct {
+	Role string `json:"role"`
+}
+
 type UpdateOrgMemberInput struct {
 	Ctx    huma.Context `hidden:"true"`
 	UserID uint         `path:"userId"`
-	Body   struct {
-		Role string `json:"role"`
-	}
+	Body   UpdateOrgMemberInputBody
 }
 
 func (i *UpdateOrgMemberInput) Resolve(ctx huma.Context) []error {
@@ -474,10 +486,12 @@ func (i *UpdateOrgMemberInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type UpdateOrgMemberOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type UpdateOrgMemberOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body UpdateOrgMemberOutputBody
 }
 
 // updateOrgMember re-grades an existing member.
@@ -578,10 +592,12 @@ func (i *RemoveOrgMemberInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type RemoveOrgMemberOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type RemoveOrgMemberOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body RemoveOrgMemberOutputBody
 }
 
 // removeOrgMember removes a user from the active organization.
@@ -829,12 +845,14 @@ func (h *Handler) getUserSettings(ctx context.Context, input *GetUserSettingsInp
 	return &GetUserSettingsOutput{Body: out}, nil
 }
 
+type UpdateUserSettingsInputBody struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
 type UpdateUserSettingsInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Key   string `json:"key"`
-		Value string `json:"value"`
-	}
+	Body UpdateUserSettingsInputBody
 }
 
 func (i *UpdateUserSettingsInput) Resolve(ctx huma.Context) []error {
@@ -842,10 +860,12 @@ func (i *UpdateUserSettingsInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type UpdateUserSettingsOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type UpdateUserSettingsOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body UpdateUserSettingsOutputBody
 }
 
 // updateUserSettings sets or updates a single user preference.

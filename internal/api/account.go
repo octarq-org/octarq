@@ -126,11 +126,13 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 	return out, nil
 }
 
+type PurgeAccountInputBody struct {
+	Confirm string `json:"confirm"`
+}
+
 type PurgeAccountInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Confirm string `json:"confirm"`
-	}
+	Body PurgeAccountInputBody
 }
 
 func (i *PurgeAccountInput) Resolve(ctx huma.Context) []error {
@@ -138,10 +140,12 @@ func (i *PurgeAccountInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type PurgeAccountOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type PurgeAccountOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body PurgeAccountOutputBody
 }
 
 // purgeAccount permanently deletes all data the active org owns. Owner only, and
@@ -259,11 +263,13 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 	return out, nil
 }
 
+type DeleteAccountInputBody struct {
+	Confirm string `json:"confirm"`
+}
+
 type DeleteAccountInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Confirm string `json:"confirm"`
-	}
+	Body DeleteAccountInputBody
 }
 
 func (i *DeleteAccountInput) Resolve(ctx huma.Context) []error {
@@ -271,10 +277,12 @@ func (i *DeleteAccountInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type DeleteAccountOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type DeleteAccountOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body DeleteAccountOutputBody
 }
 
 // deleteAccount permanently deletes the caller's own User row and everything
