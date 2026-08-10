@@ -79,6 +79,12 @@ const showSections = sections.length >= 2;
 
     <div class="flex items-center gap-2">
       {config.search !== false && <SearchTrigger />}
+      <a
+        href="https://octarq.org/pricing/self-hosted/"
+        class="px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline transition-colors text-muted-foreground hover:text-foreground hover:bg-accent/60"
+      >
+        Pricing
+      </a>
       {config.github && (
         <LinkButton
           href={config.github}
