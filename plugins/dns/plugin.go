@@ -42,6 +42,7 @@ type Plugin struct {
 	requireRole func(r *http.Request, min string) bool
 
 	publishEvent func(orgID uint, event string, data any)
+	ctx          *plugin.Context
 
 	// DNS resolvers, injectable so tests can stub them; default to net.
 	lookupTXT   func(string) ([]string, error)
@@ -112,6 +113,7 @@ func (p *Plugin) HelpDocsFS() fs.FS { return docs }
 // Mount wires the plugin's dependencies from the shared context and registers
 // its routes on the core API, then provides the DNS manager seam.
 func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
+	p.ctx = ctx
 	if ctx.DB != nil {
 		p.db = ctx.DB
 	}

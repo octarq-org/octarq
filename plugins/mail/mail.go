@@ -3,6 +3,7 @@ package mail
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -507,6 +508,20 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 	msg := input.Body.Message
 	msg.From = s.FromEmail
 	sender := mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
+
+	// Metered consumption: outbound mail is the anti-abuse-critical metric on
+	// the hosted build (a Free org sending mail would burn the sending domain
+	// onto a blocklist that would take down paying tenants too), so ask the
+	// (hosted-only) quota checker whether this org may send n more. Self-hosted
+	// has no checker and this always passes there. The check runs before the
+	// first real side effect — actually handing the message to the SMTP relay —
+	// so a refusal sends nothing.
+	if err := plugin.CheckQuota(p.ctx, ctx, orgID, "mailOutPerMonth", int64(len(input.Body.To))); err != nil {
+		if errors.Is(err, plugin.ErrQuotaUnavailable) {
+			return nil, huma.Error402PaymentRequired("outbound mail is not included in this plan")
+		}
+		return nil, huma.Error429TooManyRequests("outbound mail quota exceeded for this workspace")
+	}
 
 	if input.Body.TrackLinks {
 		p.wrapLinksInEmail(r, &msg)
