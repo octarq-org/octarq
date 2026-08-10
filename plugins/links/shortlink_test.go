@@ -374,7 +374,7 @@ func TestRecordUsage(t *testing.T) {
 	if len(calls) != 1 {
 		t.Fatalf("expected 1 RecordUsage call, got %d", len(calls))
 	}
-	if calls[0].orgID != 42 || calls[0].metric != "links" || calls[0].n != 1 {
+	if calls[0].orgID != 42 || calls[0].metric != "clicks" || calls[0].n != 1 {
 		t.Errorf("unexpected call: %+v", calls[0])
 	}
 }
