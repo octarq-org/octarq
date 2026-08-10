@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/octarq-org/octarq/internal/dnsprovider"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/origin"
+	"github.com/octarq-org/octarq/plugin"
 )
 
 // forgetOrigin drops the cached origin answers for a domain whose row just
@@ -331,6 +333,16 @@ func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*C
 		} else if dom.Name == "" {
 			dom.Name = name
 		}
+	}
+	// Metered consumption: a custom domain is a metered resource on the hosted
+	// build, so ask the (hosted-only) quota checker whether this org may add
+	// one. Self-hosted has no checker and this always passes there. The check
+	// runs before the row exists so a refusal leaves no partial domain behind.
+	if err := plugin.CheckQuota(p.ctx, ctx, dom.OrgID, "customDomains", 1); err != nil {
+		if errors.Is(err, plugin.ErrQuotaUnavailable) {
+			return nil, huma.Error402PaymentRequired("custom domains are not included in this plan")
+		}
+		return nil, huma.Error429TooManyRequests("custom domain quota exceeded for this workspace")
 	}
 	if err := p.db.Create(&dom).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "domain already exists")

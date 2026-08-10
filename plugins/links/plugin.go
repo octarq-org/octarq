@@ -27,6 +27,7 @@ type Plugin struct {
 	deleteCache         func(ctx context.Context, key string) error
 	publishEvent        func(orgID uint, event string, data any)
 	requireRole         func(r *http.Request, min string) bool
+	ctx                 *plugin.Context
 }
 
 var (
@@ -97,6 +98,7 @@ func (p *Plugin) orgID(r *http.Request) uint {
 }
 
 func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
+	p.ctx = ctx
 	if ctx.DB != nil {
 		p.db = ctx.DB
 	}

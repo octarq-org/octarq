@@ -111,6 +111,39 @@ type StorageProvider interface {
 	Stat(ctx context.Context, key string) (int64, error)
 }
 
+// ServiceQuotaChecker is the well-known service name under which a per-org
+// quota checker is registered. Only the hosted (Cloud) build provides one;
+// a self-hosted install has no quota concept at all and every call site
+// simply finds nothing here and proceeds.
+const ServiceQuotaChecker = "quota.checker"
+
+// QuotaChecker decides whether an org may consume n more of a metered
+// resource. Metric names are the keys of the pricing catalog's per-plan quota
+// map ("links", "customDomains", "mailOutPerMonth", ...).
+//
+// The three outcomes are deliberately distinct and must not be collapsed:
+//
+//   - nil                  → allowed. Either under quota, or over it on a paid
+//     plan where the excess is billed as metered
+//     overage rather than refused.
+//   - ErrQuotaExceeded     → the org has a quota for this metric and has used
+//     it up. Callers answer 429.
+//   - ErrQuotaUnavailable  → the plan does not include this capability at all
+//     (a Free org sending outbound mail). Callers answer
+//     402: this is an upgrade prompt, not a rate limit.
+//
+// Implementations must be safe for concurrent use.
+type QuotaChecker interface {
+	Check(ctx context.Context, orgID uint, metric string, n int64) error
+}
+
+var (
+	// ErrQuotaExceeded means the org used up an allowance it does have.
+	ErrQuotaExceeded = errors.New("quota exceeded")
+	// ErrQuotaUnavailable means the org's plan does not include this capability.
+	ErrQuotaUnavailable = errors.New("capability not included in plan")
+)
+
 type contextKey string
 
 const orgIDKey contextKey = "org_id"

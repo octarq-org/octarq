@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/safehttp"
+	"github.com/octarq-org/octarq/plugin"
 	qrcode "github.com/skip2/go-qrcode"
 	"golang.org/x/net/publicsuffix"
 )
@@ -279,6 +281,14 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 	if err := validateRedirectTargets(&l); err != nil {
 		return nil, err
 	}
+	// Metered consumption: ask the (hosted-only) quota checker whether this
+	// org may create another link. A self-hosted install has no checker, so
+	// this always passes there — unlimited links are the self-hosted selling
+	// point, and the check must run before the row exists (no partial record
+	// when it refuses).
+	if err := p.checkQuota(ctx, l.OrgID, "links", 1); err != nil {
+		return nil, err
+	}
 	if err := p.db.Create(&l).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
 	}
@@ -353,6 +363,11 @@ func (p *Plugin) quickCreateLink(ctx context.Context, input *QuickCreateLinkInpu
 		Slug:    slug,
 		Target:  normalized,
 		Enabled: true,
+	}
+	// Same quota gate as createLink — quick-create is a second door into the
+	// same table, and leaving it ungated would be a trivial bypass.
+	if err := p.checkQuota(ctx, l.OrgID, "links", 1); err != nil {
+		return nil, err
 	}
 	if err := p.db.Create(&l).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
@@ -820,4 +835,21 @@ func shortURL(r *http.Request, l Link) string {
 		}
 	}
 	return scheme + "://" + host + "/" + l.Slug
+}
+
+// checkQuota asks the (hosted-only) quota checker whether the org may consume
+// n more of a metered resource, and maps a refusal to the HTTP error a client
+// should see. An exhausted allowance is a 429; a capability the plan simply
+// does not include is a 402 upgrade prompt — the two must stay distinct
+// because the dashboard renders them differently. With no checker registered
+// (self-hosted) it always passes: unlimited links are the self-hosted selling
+// point.
+func (p *Plugin) checkQuota(ctx context.Context, orgID uint, metric string, n int64) error {
+	if err := plugin.CheckQuota(p.ctx, ctx, orgID, metric, n); err != nil {
+		if errors.Is(err, plugin.ErrQuotaUnavailable) {
+			return huma.Error402PaymentRequired(metric + " is not included in this plan")
+		}
+		return huma.Error429TooManyRequests(metric + " quota exceeded for this workspace")
+	}
+	return nil
 }
