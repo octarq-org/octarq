@@ -30,6 +30,13 @@ jobs:
   build:
     name: Build & deploy
     runs-on: ubuntu-latest
+    # CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are environment secrets, not
+    # repository secrets, so a job that doesn't name the environment cannot see
+    # them — secrets.X is simply empty and wrangler fails at the deploy step with
+    # "necessary to set a CLOUDFLARE_API_TOKEN". That is what broke every deploy
+    # from 2026-08-06 on, silently: PR runs stop before the deploy step and stay
+    # green, so only main went red and the live site quietly froze.
+    environment: production
     defaults:
       run:
         working-directory: website

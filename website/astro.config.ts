@@ -10,7 +10,7 @@ const nimbusConfig = defineNimbusConfig({
   // the marketing copy onto its own host would have meant a second deploy of
   // the same build. Canonical URLs, sitemap, and OG cards all derive from
   // this, so it has to be the host the pages are actually served on.
-  site: "https://octarq.org",
+  site: "https://docs.octarq.org",
   title: "Octarq",
   description: "AI-native team backoffice & plugin framework",
   locale: "en",
