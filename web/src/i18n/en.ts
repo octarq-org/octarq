@@ -129,7 +129,7 @@ export const en = {
     abuse: "Abuse Reports",
     audit: "Audit Log",
     general: "General",
-    plugins: "Plugins",
+    plugins: "Features",
     members: "Members",
     webhooks: "Webhooks",
     notifications: "Alerts",
@@ -138,7 +138,7 @@ export const en = {
     tokens: "API Tokens",
     auth: "Authentication",
     instance: "Instance Settings",
-    "instance-plugins": "Plugins",
+    "instance-plugins": "Installed plugins",
     help: "User Manual",
   },
   reset: {

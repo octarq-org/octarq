@@ -638,6 +638,7 @@ function Shell({
       <PluginGateContext.Provider value={pluginGateCtxValue}>
         <Routes>
           <Route path="/"           element={<Navigate to="/overview" replace />} />
+          <Route path="/license"    element={true ? <Navigate to="/settings/license" replace /> : null} />
           <Route path="/overview"   element={<OverviewPage />} />
           <Route path="/settings/*" element={<SettingsPage />} />
           <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />

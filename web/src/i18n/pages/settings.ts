@@ -12,7 +12,7 @@ export const settings = {
     instancePluginsLoadFailed: "Could not load the instance plugin list.",
     instancePluginsFootnote: "This list is fixed by the build and the plugin manifest — changing it means redeploying. To turn a feature on or off for a workspace, use Settings → Features.",
     instancePluginsDescription: "Every plugin loaded by this instance, including always-on plumbing hidden from the workspace view.",
-    instancePluginsTitle: "Plugins",
+    instancePluginsTitle: "Installed plugins",
     pluginsInstanceLink: "See what this instance has loaded",
     pluginsScopeNote: "These switches apply to this workspace only. They don't install or remove anything — every plugin listed here is already part of this instance.",
     // Shared
@@ -364,7 +364,7 @@ export const settings = {
     instancePluginsLoadFailed: "无法加载实例插件列表。",
     instancePluginsFootnote: "此列表由构建和插件清单决定，改动需重新部署。如需为指定工作区开启或关闭功能，请前往「设置 → 功能」。",
     instancePluginsDescription: "本实例加载的全部插件，包含工作区视图中隐藏的常驻底层插件。",
-    instancePluginsTitle: "插件",
+    instancePluginsTitle: "已安装插件",
     pluginsInstanceLink: "查看本实例已加载的插件",
     pluginsScopeNote: "这些开关仅作用于当前工作区，不会安装或卸载任何程序 —— 列出的插件均已属于本实例。",
     // Shared
@@ -715,8 +715,8 @@ export const settings = {
     instancePluginName: "Plugin",
     instancePluginsLoadFailed: "No se pudo cargar la lista de plugins de la instancia.",
     instancePluginsFootnote: "Esta lista la fijan la compilación y el manifiesto de plugins; cambiarla requiere volver a desplegar. Para activar o desactivar una función en un espacio de trabajo, usa Ajustes → Funciones.",
-    instancePluginsDescription: "Todos los plugins cargados por esta instancia, incluida la infraestructura siempre activa que se oculta en la vista del espacio de trabajo.",
-    instancePluginsTitle: "Plugins",
+    instancePluginsDescription: "Todos los plugins cargados por esta instancia, incluida la infraestructura que no se muestra en la vista de espacio de trabajo.",
+    instancePluginsTitle: "Complementos instalados",
     pluginsInstanceLink: "Ver qué ha cargado esta instancia",
     pluginsScopeNote: "Estos interruptores solo afectan a este espacio de trabajo. No instalan ni eliminan nada: todos los plugins listados ya forman parte de esta instancia.",
     // Shared
@@ -1067,8 +1067,8 @@ export const settings = {
     instancePluginName: "Plugin",
     instancePluginsLoadFailed: "Não foi possível carregar a lista de plugins da instância.",
     instancePluginsFootnote: "Esta lista é definida pela build e pelo manifesto de plugins — alterá-la exige reimplantar. Para ligar ou desligar um recurso num espaço de trabalho, use Configurações → Recursos.",
-    instancePluginsDescription: "Todos os plugins carregados por esta instância, incluindo a infraestrutura sempre ativa oculta na visão do espaço de trabalho.",
-    instancePluginsTitle: "Plugins",
+    instancePluginsDescription: "Todos os plugins carregados por esta instância, incluindo a infraestrutura oculta da visão do workspace.",
+    instancePluginsTitle: "Plugins instalados",
     pluginsInstanceLink: "Ver o que esta instância carregou",
     pluginsScopeNote: "Estes interruptores valem apenas para este espaço de trabalho. Não instalam nem removem nada — todos os plugins listados já fazem parte desta instância.",
     // Shared
@@ -1420,7 +1420,7 @@ export const settings = {
     instancePluginsLoadFailed: "インスタンスのプラグイン一覧を読み込めませんでした。",
     instancePluginsFootnote: "この一覧はビルドとプラグインマニフェストで決まり、変更には再デプロイが必要です。ワークスペース単位で機能をオン・オフするには「設定 → 機能」を使ってください。",
     instancePluginsDescription: "このインスタンスが読み込んだ全プラグイン。ワークスペース画面では隠れている常時稼働の基盤プラグインも含みます。",
-    instancePluginsTitle: "プラグイン",
+    instancePluginsTitle: "インストール済みプラグイン",
     pluginsInstanceLink: "このインスタンスが読み込んでいるものを見る",
     pluginsScopeNote: "これらのスイッチはこのワークスペースにのみ適用されます。何かをインストールしたり削除したりはしません —— ここに並ぶプラグインはすでにこのインスタンスの一部です。",
     // Shared

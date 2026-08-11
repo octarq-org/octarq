@@ -128,7 +128,7 @@ export const pt = {
     tokens: "Tokens de API",
     auth: "Autenticação",
     instance: "Configurações da Instância",
-    "instance-plugins": "Plugins",
+    "instance-plugins": "Plugins instalados",
     help: "Manual de uso",
   },
   reset: {
