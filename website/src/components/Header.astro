@@ -27,12 +27,28 @@ interface Props {
    * present they share the one divider line.
    */
   anchors?: { href: string; label: string }[];
+  /**
+   * Cross-site destination links (Docs, API Reference, Pricing, Cloud).
+   * Rendered in the left navigation area. If `anchors` are provided, they take
+   * precedence and `destinations` are hidden.
+   */
+  destinations?: { href: string; label: string; external?: boolean }[];
 }
 
 // `entryId` is part of Props as a forward-compat hook (the version-switcher
 // recipe reads it) but the base Header doesn't use it — leave it off the
 // destructure to avoid an unused-var warning.
-const { collection, showSidebar = true, anchors } = Astro.props;
+const {
+  collection,
+  showSidebar = true,
+  anchors,
+  destinations = (anchors && anchors.length > 0) ? undefined : [
+    { href: "/", label: "Docs" },
+    { href: "/api-reference/", label: "API Reference" },
+    { href: "https://octarq.org/pricing/", label: "Pricing", external: true },
+    { href: "https://app.octarq.org/", label: "Cloud", external: true },
+  ]
+} = Astro.props;
 
 // Normalize trailing slash so isActive matches sidebar hrefs.
 const currentSlug = Astro.url.pathname.replace(/\/$/, "") || "/";
@@ -66,7 +82,7 @@ const showSections = sections.length >= 2;
         </span>
       </a>
 
-      {(showSections || anchors?.length) && (
+      {(showSections || anchors?.length || destinations?.length) && (
         <nav aria-label="Sections" class="hidden md:flex items-center gap-1 ml-4 pl-4 border-l border-border h-6">
           {showSections &&
             sections.map((section) => (
@@ -83,6 +99,29 @@ const showSections = sections.length >= 2;
                 {section.label}
               </a>
             ))}
+          {destinations?.map((dest) => {
+            const isActive = !dest.external && (
+              dest.href === "/"
+                ? currentSlug === "/" || (currentSlug !== "/" && !currentSlug.startsWith("/api-reference"))
+                : currentSlug.startsWith(dest.href)
+            );
+            return (
+              <a
+                href={dest.href}
+                target={dest.external ? "_blank" : undefined}
+                rel={dest.external ? "noopener" : undefined}
+                aria-current={isActive ? "page" : undefined}
+                class:list={[
+                  "px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline transition-colors",
+                  isActive
+                    ? "text-foreground bg-accent"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/60",
+                ]}
+              >
+                {dest.label}
+              </a>
+            );
+          })}
           {anchors?.map((anchor) => (
             <a
               href={anchor.href}
@@ -97,12 +136,6 @@ const showSections = sections.length >= 2;
 
     <div class="flex items-center gap-2">
       {config.search !== false && <SearchTrigger />}
-      <a
-        href="https://octarq.org/pricing/"
-        class="px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline transition-colors text-muted-foreground hover:text-foreground hover:bg-accent/60"
-      >
-        Pricing
-      </a>
       {config.github && (
         <LinkButton
           href={config.github}
