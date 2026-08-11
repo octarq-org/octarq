@@ -1,5 +1,11 @@
 # @octarq-org/plugin-sdk
 
+## 0.9.2
+
+### Patch Changes
+
+- b85cdb7: 主按钮/焦点环/Pro 徽标改为读取品牌 CSS 变量
+
 ## 0.9.1
 
 ### Patch Changes
