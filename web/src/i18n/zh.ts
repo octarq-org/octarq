@@ -129,7 +129,7 @@ export const zh: Resources = {
     tokens: "API 令牌",
     auth: "身份验证",
     instance: "实例配置",
-    "instance-plugins": "插件",
+    "instance-plugins": "已安装插件",
     help: "使用指南",
   },
   reset: {

@@ -128,7 +128,7 @@ export const es = {
     tokens: "Tokens de API",
     auth: "Autenticación",
     instance: "Configuración de Instancia",
-    "instance-plugins": "Complementos",
+    "instance-plugins": "Complementos instalados",
     help: "Manual de uso",
   },
   reset: {

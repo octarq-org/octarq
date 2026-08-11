@@ -14,7 +14,14 @@ export default function TopCitiesPanelWidget() {
 
   return (
     <Panel title={`${t("links.topCities")}${includeBot ? " " + t("links.inclBots") : ""}`}>
-      <BarList rows={cities} empty={t("links.noGeoData")} />
+      <BarList rows={cities} empty={
+        <span>
+          {t("links.noGeoData")}{" "}
+          <a href="/admin/help" className="text-indigo-500 hover:underline">
+            {t("links.noGeoDataHelp")}
+          </a>
+        </span>
+      } />
     </Panel>
   );
 }

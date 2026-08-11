@@ -59,4 +59,10 @@ test.describe('Settings E2E Tests', () => {
     // Secret should be empty/placeholder on reload as it is encrypted
     await expect(githubSecretInput).toBeEmpty();
   });
+
+  test('/admin/license redirects to /admin/settings/license', async ({ page }) => {
+    await page.goto('/admin/license');
+    await page.waitForURL('**/admin/settings/license');
+    await expect(page.getByText('Not part of this build')).not.toBeVisible();
+  });
 });

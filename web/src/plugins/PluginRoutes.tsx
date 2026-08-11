@@ -1,6 +1,7 @@
 // Maps composed UIPlugins into <Route> elements wrapped in PluginGate, with fallback components for unserved routes.
 import { Suspense } from "react";
-import { Route } from "react-router-dom";
+import { Route, Link } from "react-router-dom";
+import { useCurrentRole, roleSatisfies } from "../shell/role";
 import { GlassCard, PageHeader, ScreenWrap, useTranslation } from "@octarq/plugin-sdk";
 import { uiPlugins } from "@octarq/plugin-sdk";
 import { PluginGate } from "./PluginGate";
@@ -23,13 +24,20 @@ export function PluginUnavailable() {
 // View for plugins that are disabled in the current workspace.
 export function PluginDisabled() {
   const { t } = useTranslation();
+  const roleCtx = useCurrentRole();
+  const canEnable = roleSatisfies("admin", roleCtx.role, roleCtx.isInstanceAdmin);
   return (
     <ScreenWrap>
       <GlassCard className="mx-auto mt-12 flex max-w-md flex-col items-center gap-3 px-6 py-14 text-center">
         <PageHeader
           title={t("uiCommon.pluginDisabledTitle")}
-          description={t("uiCommon.pluginDisabledBody")}
+          description={canEnable ? t("uiCommon.pluginDisabledAdminBody") : t("uiCommon.pluginDisabledBody")}
         />
+        {canEnable && (
+          <Link to="/settings/plugins" className="text-indigo-500 hover:text-indigo-400 font-medium text-sm">
+            {t("uiCommon.pluginDisabledAdminLink")}
+          </Link>
+        )}
       </GlassCard>
     </ScreenWrap>
   );

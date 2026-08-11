@@ -54,7 +54,7 @@ export function BarList({
   empty = "—",
 }: {
   rows: { key: string; count: number }[] | null;
-  empty?: string;
+  empty?: ReactNode;
 }) {
   const { t } = useTranslation();
   if (!rows || rows.length === 0) return <p className="text-sm text-foreground/50">{empty}</p>;

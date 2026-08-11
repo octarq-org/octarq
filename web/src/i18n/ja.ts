@@ -128,7 +128,7 @@ export const ja = {
     tokens: "APIトークン",
     auth: "認証",
     instance: "インスタンス設定",
-    "instance-plugins": "プラグイン",
+    "instance-plugins": "インストール済みプラグイン",
     help: "利用ガイド",
   },
   reset: {
