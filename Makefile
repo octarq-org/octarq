@@ -64,8 +64,10 @@ vulncheck:
 	go install golang.org/x/vuln/cmd/govulncheck@latest
 	govulncheck ./...
 
+# Prints to stdout; redirect it where you want it. Writing a file here would
+# leave an untracked openapi.json in the repo root on every run.
 openapi:
-	go run cmd/openapi-gen/main.go > openapi.json
+	go run cmd/openapi-gen/main.go
 
 
 clean:
