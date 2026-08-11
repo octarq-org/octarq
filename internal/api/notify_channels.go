@@ -130,14 +130,16 @@ func (h *Handler) listNotificationChannels(ctx context.Context, input *ListNotif
 	return &ListNotificationChannelsOutput{Body: channels}, nil
 }
 
+type CreateNotificationChannelInputBody struct {
+	Name    string  `json:"name"`
+	Type    string  `json:"type"`
+	Config  *string `json:"config,omitempty"`
+	Enabled *bool   `json:"enabled,omitempty"`
+}
+
 type CreateNotificationChannelInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Name    string  `json:"name"`
-		Type    string  `json:"type"`
-		Config  *string `json:"config,omitempty"`
-		Enabled *bool   `json:"enabled,omitempty"`
-	}
+	Body CreateNotificationChannelInputBody
 }
 
 func (i *CreateNotificationChannelInput) Resolve(ctx huma.Context) []error {
@@ -198,15 +200,17 @@ func (h *Handler) createNotificationChannel(ctx context.Context, input *CreateNo
 	return &CreateNotificationChannelOutput{Body: out}, nil
 }
 
+type UpdateNotificationChannelInputBody struct {
+	Name    *string `json:"name,omitempty"`
+	Type    *string `json:"type,omitempty"`
+	Config  *string `json:"config,omitempty"`
+	Enabled *bool   `json:"enabled,omitempty"`
+}
+
 type UpdateNotificationChannelInput struct {
 	Ctx  huma.Context `hidden:"true"`
 	ID   uint         `path:"id"`
-	Body struct {
-		Name    *string `json:"name,omitempty"`
-		Type    *string `json:"type,omitempty"`
-		Config  *string `json:"config,omitempty"`
-		Enabled *bool   `json:"enabled,omitempty"`
-	}
+	Body UpdateNotificationChannelInputBody
 }
 
 func (i *UpdateNotificationChannelInput) Resolve(ctx huma.Context) []error {
@@ -300,10 +304,12 @@ func (i *DeleteNotificationChannelInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type DeleteNotificationChannelOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type DeleteNotificationChannelOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body DeleteNotificationChannelOutputBody
 }
 
 func (h *Handler) deleteNotificationChannel(ctx context.Context, input *DeleteNotificationChannelInput) (*DeleteNotificationChannelOutput, error) {
@@ -341,10 +347,12 @@ func (i *TestNotificationChannelInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type TestNotificationChannelOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type TestNotificationChannelOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body TestNotificationChannelOutputBody
 }
 
 func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotificationChannelInput) (*TestNotificationChannelOutput, error) {

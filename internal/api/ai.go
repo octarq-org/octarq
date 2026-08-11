@@ -96,11 +96,13 @@ func (i *AIStatusInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type AIStatusOutputBody struct {
+	Configured bool   `json:"configured"`
+	Provider   string `json:"provider"`
+}
+
 type AIStatusOutput struct {
-	Body struct {
-		Configured bool   `json:"configured"`
-		Provider   string `json:"provider"`
-	}
+	Body AIStatusOutputBody
 }
 
 func (h *Handler) aiStatus(ctx context.Context, input *AIStatusInput) (*AIStatusOutput, error) {
@@ -122,12 +124,14 @@ func (h *Handler) aiStatus(ctx context.Context, input *AIStatusInput) (*AIStatus
 	return out, nil
 }
 
+type AISuggestSlugInputBody struct {
+	Target string `json:"target"`
+	Title  string `json:"title,omitempty"`
+}
+
 type AISuggestSlugInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Target string `json:"target"`
-		Title  string `json:"title,omitempty"`
-	}
+	Body AISuggestSlugInputBody
 }
 
 func (i *AISuggestSlugInput) Resolve(ctx huma.Context) []error {
@@ -135,10 +139,12 @@ func (i *AISuggestSlugInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type AISuggestSlugOutputBody struct {
+	Slugs []string `json:"slugs"`
+}
+
 type AISuggestSlugOutput struct {
-	Body struct {
-		Slugs []string `json:"slugs"`
-	}
+	Body AISuggestSlugOutputBody
 }
 
 func (h *Handler) aiSuggestSlug(ctx context.Context, input *AISuggestSlugInput) (*AISuggestSlugOutput, error) {
@@ -231,10 +237,12 @@ func (i *AISummarizeEmailInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type AISummarizeEmailOutputBody struct {
+	Summary string `json:"summary"`
+}
+
 type AISummarizeEmailOutput struct {
-	Body struct {
-		Summary string `json:"summary"`
-	}
+	Body AISummarizeEmailOutputBody
 }
 
 func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailInput) (*AISummarizeEmailOutput, error) {

@@ -68,10 +68,12 @@ type UnlinkIdentityInput struct {
 
 func (i *UnlinkIdentityInput) Resolve(ctx huma.Context) []error { i.Ctx = ctx; return nil }
 
+type UnlinkIdentityOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type UnlinkIdentityOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body UnlinkIdentityOutputBody
 }
 
 // unlinkIdentity removes one of the caller's own linked identities.

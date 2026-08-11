@@ -2,7 +2,10 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/octarq-org/octarq/plugin"
@@ -289,4 +292,63 @@ func menuHasPath(t *testing.T, srv http.Handler, cookies []*http.Cookie, path st
 		}
 	}
 	return false
+}
+
+func TestPluginToggleSchemaNameNotLogout(t *testing.T) {
+	_, srv, _ := newTestHandlerWithInstance(t)
+
+	req := httptest.NewRequest("GET", "/openapi.json", nil)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+
+	if rec.Code != 200 {
+		t.Fatalf("openapi.json returned %d", rec.Code)
+	}
+
+	var doc struct {
+		Paths map[string]struct {
+			Put struct {
+				Responses map[string]struct {
+					Content map[string]struct {
+						Schema struct {
+							Ref string `json:"$ref"`
+						} `json:"schema"`
+					} `json:"content"`
+				} `json:"responses"`
+			} `json:"put"`
+		} `json:"paths"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		t.Fatalf("parse openapi: %v", err)
+	}
+
+	// Just for extraction:
+	var raw struct {
+		Paths map[string]struct {
+			Put struct {
+				Responses map[string]any `json:"responses"`
+			} `json:"put"`
+		} `json:"paths"`
+	}
+	json.Unmarshal(rec.Body.Bytes(), &raw)
+	out, _ := json.MarshalIndent(raw.Paths["/api/plugins/{name}"].Put.Responses, "", " ")
+	fmt.Printf("=== SCHEMA_OUTPUT ===\n%s\n=====================\n", string(out))
+
+	pathData, ok := doc.Paths["/api/plugins/{name}"]
+	if !ok {
+		t.Fatal("missing /api/plugins/{name} in openapi")
+	}
+	resp, ok := pathData.Put.Responses["200"]
+	if !ok {
+		t.Fatal("missing 200 response")
+	}
+	content, ok := resp.Content["application/json"]
+	if !ok {
+		t.Fatal("missing application/json content")
+	}
+
+	ref := content.Schema.Ref
+	if strings.Contains(strings.ToLower(ref), "logout") {
+		t.Fatalf("PUT /api/plugins/{name} schema must not be a logout type, got: %s", ref)
+	}
 }

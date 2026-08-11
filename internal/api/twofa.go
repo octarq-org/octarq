@@ -29,10 +29,12 @@ func (i *TwoFAStatusInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type TwoFAStatusOutputBody struct {
+	Enabled bool `json:"enabled"`
+}
+
 type TwoFAStatusOutput struct {
-	Body struct {
-		Enabled bool `json:"enabled"`
-	}
+	Body TwoFAStatusOutputBody
 }
 
 // twoFAStatus reports whether 2FA is enabled for the caller.
@@ -56,13 +58,15 @@ func (h *Handler) twoFAStatus(ctx context.Context, input *TwoFAStatusInput) (*Tw
 	return out, nil
 }
 
+type Setup2FAInputBody struct {
+	// Password re-authenticates the caller before their second factor is
+	// touched. See requirePasswordStepUp.
+	Password string `json:"password,omitempty"`
+}
+
 type Setup2FAInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		// Password re-authenticates the caller before their second factor is
-		// touched. See requirePasswordStepUp.
-		Password string `json:"password,omitempty"`
-	}
+	Body Setup2FAInputBody
 }
 
 func (i *Setup2FAInput) Resolve(ctx huma.Context) []error {
@@ -135,11 +139,13 @@ func (h *Handler) setup2FA(ctx context.Context, input *Setup2FAInput) (*Setup2FA
 	return &Setup2FAOutput{Body: resp}, nil
 }
 
+type Enable2FAInputBody struct {
+	Code string `json:"code"`
+}
+
 type Enable2FAInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Code string `json:"code"`
-	}
+	Body Enable2FAInputBody
 }
 
 func (i *Enable2FAInput) Resolve(ctx huma.Context) []error {
@@ -199,12 +205,14 @@ func (h *Handler) enable2FA(ctx context.Context, input *Enable2FAInput) (*Enable
 	}, nil
 }
 
+type Disable2FAInputBody struct {
+	Code     string `json:"code,omitempty"`
+	Password string `json:"password,omitempty"`
+}
+
 type Disable2FAInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Code     string `json:"code,omitempty"`
-		Password string `json:"password,omitempty"`
-	}
+	Body Disable2FAInputBody
 }
 
 func (i *Disable2FAInput) Resolve(ctx huma.Context) []error {
@@ -212,10 +220,12 @@ func (i *Disable2FAInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type Disable2FAOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type Disable2FAOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body Disable2FAOutputBody
 }
 
 // disable2FA turns 2FA off after re-verifying the caller twice over: their

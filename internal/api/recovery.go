@@ -77,11 +77,13 @@ func (h *Handler) sendVerificationEmail(userID uint, to, verifyURL string) {
 
 // --- Forgot Password ---
 
+type ForgotPasswordInputBody struct {
+	Email string `json:"email"`
+}
+
 type ForgotPasswordInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Email string `json:"email"`
-	}
+	Body ForgotPasswordInputBody
 }
 
 func (i *ForgotPasswordInput) Resolve(ctx huma.Context) []error {
@@ -89,10 +91,12 @@ func (i *ForgotPasswordInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type ForgotPasswordOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type ForgotPasswordOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body ForgotPasswordOutputBody
 }
 
 // POST /api/auth/forgot (public) — requests a password reset link.
@@ -152,12 +156,14 @@ func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput
 
 // --- Reset Password ---
 
+type ResetPasswordInputBody struct {
+	Token    string `json:"token"`
+	Password string `json:"password"`
+}
+
 type ResetPasswordInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Token    string `json:"token"`
-		Password string `json:"password"`
-	}
+	Body ResetPasswordInputBody
 }
 
 func (i *ResetPasswordInput) Resolve(ctx huma.Context) []error {
@@ -165,10 +171,12 @@ func (i *ResetPasswordInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type ResetPasswordOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type ResetPasswordOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body ResetPasswordOutputBody
 }
 
 // POST /api/auth/reset (public) — completes password reset using secret token.
@@ -281,11 +289,13 @@ func (h *Handler) verifyEmail(ctx context.Context, input *VerifyEmailInput) (*st
 
 // --- Resend Verification Email ---
 
+type ResendVerificationInputBody struct {
+	Email string `json:"email"`
+}
+
 type ResendVerificationInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Email string `json:"email"`
-	}
+	Body ResendVerificationInputBody
 }
 
 func (i *ResendVerificationInput) Resolve(ctx huma.Context) []error {
@@ -293,10 +303,12 @@ func (i *ResendVerificationInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type ResendVerificationOutputBody struct {
+	OK bool `json:"ok"`
+}
+
 type ResendVerificationOutput struct {
-	Body struct {
-		OK bool `json:"ok"`
-	}
+	Body ResendVerificationOutputBody
 }
 
 // POST /api/auth/resend-verification (public) — resends email verification link.

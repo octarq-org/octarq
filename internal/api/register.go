@@ -15,12 +15,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type RegisterInputBody struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 type RegisterInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+	Body RegisterInputBody
 }
 
 func (i *RegisterInput) Resolve(ctx huma.Context) []error {
@@ -28,16 +30,18 @@ func (i *RegisterInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+type RegisterOutputBody struct {
+	OK       bool   `json:"ok"`
+	Email    string `json:"email"`
+	Username string `json:"username,omitempty"`
+	// VerificationRequired reports that the account exists but no session
+	// was established: the instance requires a verified email first. The
+	// client must branch on this field, not on whether a cookie came back.
+	VerificationRequired bool `json:"verificationRequired"`
+}
+
 type RegisterOutput struct {
-	Body struct {
-		OK       bool   `json:"ok"`
-		Email    string `json:"email"`
-		Username string `json:"username,omitempty"`
-		// VerificationRequired reports that the account exists but no session
-		// was established: the instance requires a verified email first. The
-		// client must branch on this field, not on whether a cookie came back.
-		VerificationRequired bool `json:"verificationRequired"`
-	}
+	Body RegisterOutputBody
 }
 
 // POST /api/auth/register (public) — self-serve email/password sign-up.

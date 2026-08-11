@@ -69,11 +69,13 @@ func (h *Handler) getOrgSlug(ctx context.Context, input *GetOrgSlugInput) (*GetO
 	return &GetOrgSlugOutput{Body: OrgSlugView{Slug: org.Slug}}, nil
 }
 
+type UpdateOrgSlugInputBody struct {
+	Slug string `json:"slug" doc:"lowercase letters, digits and inner hyphens"`
+}
+
 type UpdateOrgSlugInput struct {
 	Ctx  huma.Context `hidden:"true"`
-	Body struct {
-		Slug string `json:"slug" doc:"lowercase letters, digits and inner hyphens"`
-	}
+	Body UpdateOrgSlugInputBody
 }
 
 func (i *UpdateOrgSlugInput) Resolve(ctx huma.Context) []error { i.Ctx = ctx; return nil }
