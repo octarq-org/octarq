@@ -302,9 +302,6 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 	return &ListPluginsOutput{Body: out}, nil
 }
 
-// updatePlugin enables or disables a feature for the caller's workspace. Only an
-// owner or admin may change it, since it flips whole feature areas on or off.
-// PUT /api/plugins/{name}  {"enabled": true}   (name is the feature key)
 type UpdatePluginInputBody struct {
 	Enabled bool `json:"enabled"`
 }
@@ -328,6 +325,9 @@ type UpdatePluginOutput struct {
 	Body UpdatePluginOutputBody
 }
 
+// updatePlugin enables or disables a feature for the caller's workspace. Only an
+// owner or admin may change it, since it flips whole feature areas on or off.
+// PUT /api/plugins/{name}  {"enabled": true}   (name is the feature key)
 func (h *Handler) updatePlugin(ctx context.Context, input *UpdatePluginInput) (*UpdatePluginOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")

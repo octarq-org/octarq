@@ -92,10 +92,6 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 	return out, nil
 }
 
-// verify2FA completes a login that requires a second factor. The client re-sends
-// email+password (re-verified here, so the challenge can't be forged) along
-// with a TOTP code or a one-time recovery code. On success the session is set.
-// POST /api/auth/2fa/verify  {email, password, code}
 type Verify2FAInputBody struct {
 	Email    string `json:"email,omitempty"`
 	Password string `json:"password"`
@@ -122,6 +118,10 @@ type Verify2FAOutput struct {
 	Body Verify2FAOutputBody
 }
 
+// verify2FA completes a login that requires a second factor. The client re-sends
+// email+password (re-verified here, so the challenge can't be forged) along
+// with a TOTP code or a one-time recovery code. On success the session is set.
+// POST /api/auth/2fa/verify  {email, password, code}
 func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify2FAOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
