@@ -1,8 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // Still "octarq-docs" even though the site now answers on the apex: the name
-  // identifies the deployed Worker, and renaming it would publish a second
-  // Worker and strand the first one holding the old domain.
+  // The name identifies the deployed Worker; renaming it would publish a second
+  // Worker and strand the first one holding the domain.
   "name": "octarq-docs",
   "compatibility_date": "2026-07-26",
   "assets": {
@@ -12,9 +11,15 @@
   // The landing page and the docs are one build, served on one host.
   // `custom_domain` makes wrangler own the DNS record, so the binding lives
   // here in review rather than in someone's dashboard session.
+  //
+  // docs., not the apex: octarq.org sells things — pricing, checkout, the legal
+  // pages — and all of that is built from the private octarq-pro repo. This is
+  // the MIT repo, so it takes the documentation host and leaves commerce where
+  // it lives. Claiming the apex here would have served this build there instead
+  // and 404'd every /pricing/* URL.
   "routes": [
     {
-      "pattern": "octarq.org",
+      "pattern": "docs.octarq.org",
       "custom_domain": true
     }
   ]
