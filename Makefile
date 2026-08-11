@@ -65,7 +65,7 @@ vulncheck:
 	govulncheck ./...
 
 openapi:
-	go run cmd/openapi-gen/main.go
+	go run cmd/openapi-gen/main.go > openapi.json
 
 
 clean:
