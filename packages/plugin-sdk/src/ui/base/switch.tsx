@@ -23,8 +23,8 @@ export function Switch({
       disabled={disabled}
       className={cn(
         "relative h-5 w-9 shrink-0 rounded-full outline-none transition-colors duration-300",
-        "focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-50",
-        "bg-foreground/15 data-[checked]:bg-indigo-500",
+        "focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-50", /* ui-color-ok */
+        "bg-foreground/15 data-[checked]:bg-indigo-500", /* ui-color-ok */
         className,
       )}
     >

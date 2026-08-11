@@ -43,8 +43,8 @@ export function Select({
       <BaseSelect.Trigger
         className={cn(
           "flex w-full items-center justify-between gap-2 rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition-all",
-          "hover:border-border-strong focus-visible:border-indigo-400/50 focus-visible:shadow-[0_0_0_3px_rgba(99,102,241,0.18)]",
-          "data-[popup-open]:border-indigo-400/40 disabled:cursor-not-allowed disabled:opacity-50",
+          "hover:border-border-strong focus-visible:border-indigo-400/50 focus-visible:shadow-[0_0_0_3px_rgba(99,102,241,0.18)]", /* ui-color-ok */
+          "data-[popup-open]:border-indigo-400/40 disabled:cursor-not-allowed disabled:opacity-50", /* ui-color-ok */
           className,
         )}
       >

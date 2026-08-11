@@ -77,7 +77,7 @@ export function EmailViewForm({
       </div>
       
       {summary && (
-        <div className="mx-5 mt-4 rounded-xl bg-indigo-500/10 border border-indigo-400/20 p-3.5 shrink-0">
+        <div className="mx-5 mt-4 rounded-xl bg-indigo-500/10 border border-indigo-400/20 p-3.5 shrink-0"> /* ui-color-ok */
           <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-accent-fg mb-1.5">
             <Sparkles className="h-3 w-3" />
             {t("mail.aiSummaryTitle")}

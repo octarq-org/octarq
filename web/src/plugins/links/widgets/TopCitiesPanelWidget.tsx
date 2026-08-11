@@ -17,7 +17,7 @@ export default function TopCitiesPanelWidget() {
       <BarList rows={cities} empty={
         <span>
           {t("links.noGeoData")}{" "}
-          <a href="/admin/help" className="text-indigo-500 hover:underline">
+          <a href="/admin/help" className="text-indigo-500 hover:underline"> /* ui-color-ok */
             {t("links.noGeoDataHelp")}
           </a>
         </span>

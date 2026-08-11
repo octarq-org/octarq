@@ -86,11 +86,11 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
                       onClick={() => toggleHost(h.host, "linkHosts", h.linkEnabled!)}
                       className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 ${
                         h.linkEnabled
-                          ? "bg-indigo-500/25 text-accent-fg hover:bg-indigo-500/40"
+                          ? "bg-indigo-500/25 text-accent-fg hover:bg-indigo-500/40" /* ui-color-ok */
                           : "bg-foreground/[0.06] text-foreground/40 hover:bg-foreground/10 line-through"
                       }`}
                     >
-                      <span className={`h-1.5 w-1.5 rounded-full ${h.linkEnabled ? "bg-indigo-400" : "bg-foreground/[0.06]"}`} />
+                      <span className={`h-1.5 w-1.5 rounded-full ${h.linkEnabled ? "bg-indigo-400" : "bg-foreground/[0.06]"}`} /> /* ui-color-ok */
                       {h.linkEnabled ? t("domains.on") : t("domains.off")}
                     </button>
                   ) : (

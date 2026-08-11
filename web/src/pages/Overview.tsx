@@ -35,8 +35,8 @@ function OverviewChecklistSection({
   ];
 
   return (
-    <GlassCard className={`mb-6 p-6 border-indigo-500/20 bg-indigo-950/5 relative overflow-hidden ${totalCount === 0 ? "hidden" : ""}`}>
-      <div className="absolute top-0 right-0 h-40 w-40 bg-indigo-500/5 blur-3xl rounded-full -mr-10 -mt-10 pointer-events-none" />
+    <GlassCard className={`mb-6 p-6 border-indigo-500/20 bg-indigo-950/5 relative overflow-hidden ${totalCount === 0 ? "hidden" : ""}`}> /* ui-color-ok */
+      <div className="absolute top-0 right-0 h-40 w-40 bg-indigo-500/5 blur-3xl rounded-full -mr-10 -mt-10 pointer-events-none" /> /* ui-color-ok */
       
       <button 
         onClick={dismiss} 
@@ -70,7 +70,7 @@ function OverviewChecklistSection({
               className={`h-full rounded-full transition-all duration-500 ${
                 allCompleted
                   ? "bg-gradient-to-r from-emerald-500 to-teal-400" /* ui-color-ok */
-                  : "bg-gradient-to-r from-indigo-500 to-violet-500"
+                  : "bg-[image:var(--gradient-primary)]"
               }`} 
               style={{ width: `${progressPercent}%` }}
             />

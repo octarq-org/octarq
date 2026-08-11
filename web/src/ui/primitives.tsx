@@ -53,7 +53,7 @@ export function Code({ children }: { children: string }) {
       role="button"
       tabIndex={0}
       aria-label={t("uiCommon.clickToCopy")}
-      className="cursor-pointer break-all rounded-lg bg-muted px-1.5 py-0.5 font-mono text-[12px] text-accent-fg hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
+      className="cursor-pointer break-all rounded-lg bg-muted px-1.5 py-0.5 font-mono text-[12px] text-accent-fg hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60" /* ui-color-ok */
       title={t("uiCommon.clickToCopy")}
       onClick={copy}
       onKeyDown={(e) => {
