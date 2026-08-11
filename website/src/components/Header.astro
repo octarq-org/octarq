@@ -18,12 +18,21 @@ interface Props {
    * shouldn't show a button that opens an empty dialog. Default `true`.
    */
   showSidebar?: boolean;
+  /**
+   * Landing-page in-page anchors (href + label), rendered next to the lockup
+   * in the same style as the cross-page `sections` nav. Only the front door
+   * passes these — docs pages leave the prop unset. Unlike `sections`, the
+   * links point at `id`s on the current page, so they never carry
+   * `aria-current`/active styling. When both `anchors` and `sections` are
+   * present they share the one divider line.
+   */
+  anchors?: { href: string; label: string }[];
 }
 
 // `entryId` is part of Props as a forward-compat hook (the version-switcher
 // recipe reads it) but the base Header doesn't use it — leave it off the
 // destructure to avoid an unused-var warning.
-const { collection, showSidebar = true } = Astro.props;
+const { collection, showSidebar = true, anchors } = Astro.props;
 
 // Normalize trailing slash so isActive matches sidebar hrefs.
 const currentSlug = Astro.url.pathname.replace(/\/$/, "") || "/";
@@ -57,20 +66,29 @@ const showSections = sections.length >= 2;
         </span>
       </a>
 
-      {showSections && (
+      {(showSections || anchors?.length) && (
         <nav aria-label="Sections" class="hidden md:flex items-center gap-1 ml-4 pl-4 border-l border-border h-6">
-          {sections.map((section) => (
+          {showSections &&
+            sections.map((section) => (
+              <a
+                href={section.href}
+                aria-current={section.isActive ? "page" : undefined}
+                class:list={[
+                  "px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline transition-colors",
+                  section.isActive
+                    ? "text-foreground bg-accent"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/60",
+                ]}
+              >
+                {section.label}
+              </a>
+            ))}
+          {anchors?.map((anchor) => (
             <a
-              href={section.href}
-              aria-current={section.isActive ? "page" : undefined}
-              class:list={[
-                "px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline transition-colors",
-                section.isActive
-                  ? "text-foreground bg-accent"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/60",
-              ]}
+              href={anchor.href}
+              class="px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline transition-colors text-muted-foreground hover:text-foreground hover:bg-accent/60"
             >
-              {section.label}
+              {anchor.label}
             </a>
           ))}
         </nav>
@@ -111,6 +129,9 @@ const showSections = sections.length >= 2;
           class="lg:hidden text-muted-foreground"
         />
       )}
+      {/* The site's one primary call-to-action, fed in by the landing page;
+          last in the row so it holds the strongest position. Empty for docs. */}
+      <slot name="cta" />
     </div>
   </div>
 </header>

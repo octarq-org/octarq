@@ -90,28 +90,34 @@ const neighbours = [
   { name: "Dub", note: "links · domains · email" },
   { name: "n8n", note: "plugin ecosystem" },
 ];
+
+// In-page anchors for the shared header. They land in the same seam the docs
+// sections nav uses, so the landing page reads as one bar instead of two; on
+// small screens the header hides them (`hidden md:flex`), which is fine — the
+// hero's own "Get started" sits right below and the sections come into view by
+// scrolling.
+const anchors = [
+  { href: "#positioning", label: "Why Octarq" },
+  { href: "#plugins", label: "Plugins" },
+  { href: "#mcp", label: "Agents" },
+  { href: "#faq", label: "FAQ" },
+];
 ---
 
 <BaseLayout title={config.title} description={config.description}>
   <div class="oct-page">
-    <Header showSidebar={false} />
-
-    {/* In-page nav. The shared Header carries search, theme and GitHub; this
-        strip carries the landing page's own anchors, and the accent sweep under
-        it is the design's one piece of chrome-level motion. */}
-    <nav class="oct-subnav" aria-label="Page sections">
-      <div class="oct-shell oct-subnav__inner">
-        <a href="#positioning">Why Octarq</a>
-        <a href="#plugins">Plugins</a>
-        <a href="#mcp">Agents</a>
-        <a href="#faq">FAQ</a>
-        <span class="oct-subnav__spacer"></span>
-        <a class="oct-btn oct-btn--primary oct-subnav__cta" href="/quickstart/">
+    <Header showSidebar={false} anchors={anchors}>
+      <Fragment slot="cta">
+        <a class="oct-btn oct-btn--primary oct-header-cta" href="/quickstart/">
           Get started
         </a>
-      </div>
-      <span class="oct-sweep" aria-hidden="true"></span>
-    </nav>
+      </Fragment>
+    </Header>
+
+    {/* The design's one piece of chrome-level motion: an accent glint crossing
+        the header's bottom edge, on a long period so it reads as a sign of
+        life rather than a loading bar. */}
+    <span class="oct-sweep" aria-hidden="true"></span>
 
     <main id="main-content" class="oct-main">
       {/* ── Hero — motes rising past a drifting glow ─────────────────────── */}
@@ -442,56 +448,22 @@ docker compose up -d</code></pre>
     z-index: 1;
   }
 
-  /* — in-page nav — */
-  .oct-subnav {
-    position: relative;
-    border-bottom: 1px solid var(--nb-border);
-    background: color-mix(in srgb, var(--nb-card) 82%, transparent);
-    backdrop-filter: blur(10px);
-  }
-  .oct-subnav__inner {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    height: 46px;
-  }
-  .oct-subnav a {
-    font-size: 14px;
-    color: var(--nb-foreground);
-    text-decoration: none;
-  }
-  .oct-subnav a:hover {
-    color: var(--oct-accent);
-  }
-  .oct-subnav__spacer {
-    flex: 1;
-  }
-  .oct-subnav__cta {
-    padding-block: 4px;
-  }
-  @media (max-width: 640px) {
-    /* Needs to outrank `.oct-btn { display: inline-flex }`, which is declared
-       later in this sheet — same specificity, so the compound selector wins.
-       The hero's own "Get started" is right below, nothing is lost. */
-    .oct-subnav .oct-subnav__cta {
-      display: none;
-    }
-    .oct-subnav__inner {
-      gap: 14px;
-      overflow-x: auto;
-    }
-  }
-
-  /* A single accent glint crossing the divider, on a long period so it reads
-     as a sign of life rather than a loading bar. */
+  /* The accent glint crossing the header's bottom edge. The in-page nav bar
+     this used to sit on is gone (its anchors moved into the shared header),
+     so the sweep now stands alone as a strip right under the header. */
   .oct-sweep {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -1px;
+    position: relative;
     height: 2px;
     overflow: hidden;
     pointer-events: none;
+  }
+  /* The header's one primary CTA shares the row with search, Pricing, GitHub
+     and the theme toggle; on narrow screens that doesn't fit at full padding,
+     so tighten it rather than hiding it. */
+  @media (max-width: 640px) {
+    .oct-header-cta {
+      padding-inline: 8px;
+    }
   }
   .oct-sweep::after {
     content: "";
