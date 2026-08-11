@@ -16,9 +16,16 @@ packages:
 # only warns when it skips them; pnpm 10+ treats the skip as fatal
 # (ERR_PNPM_IGNORED_BUILDS), so an install that passes on the CI pin fails on a
 # newer local pnpm. Naming them keeps both working.
+#
+# vue-demi is a transitive dependency of @scalar/api-reference (via
+# @floating-ui/vue / @vueuse/shared). Its postinstall pins the Vue entry file
+# to the installed Vue major; with only Vue 3 in the tree it writes the correct
+# file, so approving it is safe and keeps pnpm 10/11 installs green.
 onlyBuiltDependencies:
   - esbuild
   - workerd
+  - vue-demi
 allowBuilds:
   esbuild: true
+  vue-demi: true
   workerd: true
