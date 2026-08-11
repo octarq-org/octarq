@@ -61,6 +61,12 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # Regression guard for the /api-reference/ interactive explorer: the
+      # built page must contain the Scalar mount point and must not load any
+      # third-party scripts. Reads dist/ output, not the source.
+      - name: Check API reference build
+        run: node scripts/check-api-reference.mjs
+
       # `pnpm lint:docs` is deliberately NOT run here. The nimbus-docs CLI the
       # lockfile installs only walks `.mdx`, and every page under
       # src/content/docs is `.md`, so on a clean checkout it exits 1 with "No

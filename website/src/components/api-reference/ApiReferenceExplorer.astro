@@ -1,0 +1,76 @@
+---
+/**
+ * ApiReferenceExplorer — the interactive OpenAPI explorer for /api-reference/.
+ *
+ * Renders Scalar's reference into a fixed-height box. Scalar is a normal npm
+ * dependency of this site, so its JS and CSS ship in the page's own bundle —
+ * no CDN. The palette is mapped onto the site's `--nb-*` design tokens, which
+ * already flip with the `[data-mode="dark"]` switch on <html>, so the explorer
+ * follows the light/dark theme without any theme JavaScript of its own.
+ */
+---
+
+<div class="api-reference-explorer" data-api-reference-explorer>
+  <div id="api-reference" class="h-full"></div>
+</div>
+
+<style is:global>
+  .api-reference-explorer {
+    height: min(calc(100dvh - 16rem), 68rem);
+    min-height: 34rem;
+    max-width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--nb-border);
+    border-radius: 0.5rem;
+    background: var(--nb-background);
+  }
+
+  /* Scalar's app root fills the box; the app scrolls internally instead of
+     growing the page. */
+  .api-reference-explorer .scalar-app {
+    height: 100%;
+    min-height: 0;
+  }
+
+  /* Map the site's tokens onto Scalar's palette (light + dark) so both modes
+     are readable and match the rest of the page. */
+  .api-reference-explorer {
+    --scalar-background-1: var(--nb-background);
+    --scalar-background-2: var(--nb-muted);
+    --scalar-background-3: var(--nb-accent);
+    --scalar-background-accent: var(--nb-info-muted);
+    --scalar-color-1: var(--nb-foreground);
+    --scalar-color-2: var(--nb-muted-foreground);
+    --scalar-color-3: var(--nb-muted-foreground);
+    --scalar-color-accent: var(--nb-primary);
+    --scalar-border-color: var(--nb-border);
+    --scalar-button-1: var(--nb-primary);
+    --scalar-button-1-hover: var(--nb-primary-hover);
+    --scalar-button-1-color: var(--nb-primary-foreground);
+    --scalar-color-green: var(--nb-success);
+    --scalar-color-red: var(--nb-danger);
+    --scalar-color-yellow: var(--nb-warning);
+    --scalar-color-blue: var(--nb-info);
+    --scalar-color-orange: var(--nb-warning);
+    --scalar-color-purple: var(--nb-info);
+    --scalar-scrollbar-color: var(--nb-border);
+    --scalar-scrollbar-color-active: var(--nb-border-strong);
+  }
+</style>
+
+<script>
+  import "@scalar/api-reference/style.css";
+  import { createApiReference } from "@scalar/api-reference";
+
+  const mount = document.getElementById("api-reference");
+  if (mount) {
+    createApiReference(mount, {
+      url: "/openapi.json",
+      layout: "modern",
+      showSidebar: false,
+      hideDarkModeToggle: true,
+      hideClientButton: true,
+      withDefaultFonts: false,
+    });
+  }
+</script>
