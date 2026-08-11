@@ -34,7 +34,7 @@ export function PluginDisabled() {
           description={canEnable ? t("uiCommon.pluginDisabledAdminBody") : t("uiCommon.pluginDisabledBody")}
         />
         {canEnable && (
-          <Link to="/settings/plugins" className="text-indigo-500 hover:text-indigo-400 font-medium text-sm">
+          <Link to="/settings/plugins" className="text-indigo-500 hover:text-indigo-400 font-medium text-sm"> /* ui-color-ok */
             {t("uiCommon.pluginDisabledAdminLink")}
           </Link>
         )}

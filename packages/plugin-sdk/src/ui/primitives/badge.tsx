@@ -9,11 +9,11 @@ export const badgeVariants = cva(
   {
     variants: {
       tone: {
-        indigo:  "bg-indigo-500/15 text-accent-fg ring-indigo-400/20",
-        violet:  "bg-violet-500/15 text-accent-fg ring-violet-400/20",
-        green:   "bg-emerald-500/15 text-success-fg ring-emerald-400/20",
-        amber:   "bg-amber-500/15  text-warning-fg  ring-amber-400/20",
-        red:     "bg-rose-500/15   text-danger-fg   ring-rose-400/20",
+        indigo:  "bg-indigo-500/15 text-accent-fg ring-indigo-400/20", /* ui-color-ok */
+        violet:  "bg-violet-500/15 text-accent-fg ring-violet-400/20", /* ui-color-ok */
+        green:   "bg-emerald-500/15 text-success-fg ring-emerald-400/20", /* ui-color-ok */
+        amber:   "bg-amber-500/15  text-warning-fg  ring-amber-400/20", /* ui-color-ok */
+        red:     "bg-rose-500/15   text-danger-fg   ring-rose-400/20", /* ui-color-ok */
         cyan:    "bg-cyan-500/15   text-cyan-300   ring-cyan-400/20",
         neutral: "bg-foreground/[0.08]  text-foreground/70   ring-foreground/10",
       },

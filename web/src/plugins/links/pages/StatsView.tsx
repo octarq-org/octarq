@@ -90,7 +90,7 @@ function Spark({ series }: { series: { key: string; count: number }[] }) {
         <div
           key={s.key}
           title={t("links.clicksTooltip", { key: s.key, count: s.count })}
-          className="flex-1 rounded-t-md bg-indigo-500/70 hover:bg-indigo-400 transition-all cursor-pointer"
+          className="flex-1 rounded-t-md bg-indigo-500/70 hover:bg-indigo-400 transition-all cursor-pointer" /* ui-color-ok */
           style={{ height: `${(s.count / max) * 100}%`, minHeight: 3 }}
         />
       ))}

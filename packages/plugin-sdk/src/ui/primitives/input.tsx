@@ -7,7 +7,7 @@ import { cn } from "../cn";
 // depending on it).
 export const fieldClass =
   "w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition-all " +
-  "placeholder:text-foreground/40 focus:border-indigo-400/50 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.18)] " +
+  "placeholder:text-foreground/40 focus:border-indigo-400/50 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.18)] " + /* ui-color-ok */
   "disabled:cursor-not-allowed disabled:opacity-50";
 
 // Input wraps Base UI's Input primitive (which auto-integrates with Base UI

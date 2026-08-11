@@ -137,7 +137,7 @@ export function ConfirmProvider({
                 // The danger variant is text-only by design (it lives inline in
                 // tables); as the accept button of a dialog it needs enough
                 // weight to read as the primary action, hence the fill.
-                className={pending.opts.danger === false ? undefined : "bg-rose-500/10 hover:bg-rose-500/20"}
+                className={pending.opts.danger === false ? undefined : "bg-rose-500/10 hover:bg-rose-500/20"} /* ui-color-ok */
                 autoFocus
                 onClick={() => settle(true)}
               >

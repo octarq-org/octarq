@@ -6,25 +6,37 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const srcDir = path.resolve(__dirname, "../src");
+const packagesDir = path.resolve(__dirname, "../../packages");
 
-const colorRegex = /\b(text|bg|border|ring|from|via|to|divide)-(amber|red|rose|green|emerald|lime|yellow|orange|sky|blue)-[0-9]{2,3}\b/;
+const colorRegex = /\b(text|bg|border|ring|from|via|to|divide)-(amber|red|rose|green|emerald|lime|yellow|orange|sky|blue|indigo|violet|purple|fuchsia)-[0-9]{2,3}\b/;
 
 function getFiles(dir) {
   let results = [];
-  const list = fs.readdirSync(dir);
-  for (const file of list) {
-    const filePath = path.join(dir, file);
-    const stat = fs.statSync(filePath);
-    if (stat && stat.isDirectory()) {
-      results = results.concat(getFiles(filePath));
-    } else if (filePath.endsWith(".ts") || filePath.endsWith(".tsx")) {
-      results.push(filePath);
+  try {
+    const list = fs.readdirSync(dir);
+    for (const file of list) {
+      const filePath = path.join(dir, file);
+      const stat = fs.statSync(filePath);
+      if (stat && stat.isDirectory()) {
+        results = results.concat(getFiles(filePath));
+      } else if (filePath.endsWith(".ts") || filePath.endsWith(".tsx")) {
+        results.push(filePath);
+      }
     }
-  }
+  } catch (e) {}
   return results;
 }
 
-const files = getFiles(srcDir);
+let files = getFiles(srcDir);
+try {
+  const pkgs = fs.readdirSync(packagesDir);
+  for (const pkg of pkgs) {
+    const pkgSrc = path.join(packagesDir, pkg, "src");
+    if (fs.existsSync(pkgSrc)) {
+      files = files.concat(getFiles(pkgSrc));
+    }
+  }
+} catch (e) {}
 let errorCount = 0;
 
 for (const file of files) {

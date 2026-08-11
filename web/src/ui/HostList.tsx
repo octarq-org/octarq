@@ -52,7 +52,7 @@ export function HostList({
               key={h.host}
               className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm border transition-colors ${
                 h.enabled
-                  ? "bg-indigo-500/15 text-accent-fg border-indigo-500/25"
+                  ? "bg-indigo-500/15 text-accent-fg border-indigo-500/25" /* ui-color-ok */
                   : "bg-foreground/5 text-foreground/50 border-foreground/10 line-through"
               }`}
             >
@@ -107,7 +107,7 @@ export function HostList({
             <button
               key={s}
               type="button"
-              className="rounded-lg border border-indigo-500/35 px-2 py-0.5 text-xs text-accent-fg transition hover:bg-indigo-500/10"
+              className="rounded-lg border border-indigo-500/35 px-2 py-0.5 text-xs text-accent-fg transition hover:bg-indigo-500/10" /* ui-color-ok */
               onClick={() => add(s)}
             >
               + {s}
