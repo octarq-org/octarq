@@ -255,3 +255,69 @@ jobs:
 
             Nothing here is hand-written — merge it as-is, or close it if a
             newer merge is about to supersede it.
+
+  spec:
+    name: Refresh OpenAPI specification
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [go]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip if a newer commit already landed on main
+        id: tip
+        run: |
+          tip=$(git ls-remote origin refs/heads/main | cut -f1)
+          echo "main is at $tip; this run is for $GITHUB_SHA"
+          if [ "$tip" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "A newer commit owns the spec refresh — skipping."
+          fi
+
+      - uses: actions/setup-go@v5
+        if: steps.tip.outputs.current == 'true'
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - if: steps.tip.outputs.current == 'true'
+        run: go run . openapi > website/public/openapi.json
+
+      - name: Re-check the tip after building
+        id: tip_after_build
+        if: steps.tip.outputs.current == 'true'
+        run: |
+          tip=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ "$tip" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "main moved to $tip during the build — skipping."
+          fi
+
+      - name: Open a PR if spec changed
+        if: steps.tip_after_build.outputs.current == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          add-paths: website/public/openapi.json
+          branch: chore/refresh-openapi-spec
+          delete-branch: true
+          commit-message: "chore(docs): refresh OpenAPI specification [auto]"
+          title: "chore(docs): refresh OpenAPI specification"
+          body: |
+            The published spec in `website/public/openapi.json` no longer matches
+            the Go handlers.
+
+            The docs site's Scalar explorer loads this file, so a stale copy means
+            the API reference documents endpoints that no longer exist — and misses
+            ones that do. It is generated from the open-source core, which is what
+            the API reference page tells readers it covers. Built from
+            ${{ github.sha }}, which already passed CI.
+
+            Nothing here is hand-written — merge it as-is, or close it if a newer
+            merge is about to supersede it.
