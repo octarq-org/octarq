@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/octarq-org/octarq/internal/safego"
+	"github.com/octarq-org/octarq/internal/usagemetric"
 	"github.com/octarq-org/octarq/plugin"
 	"github.com/octarq-org/octarq/plugins/dns"
 	"gorm.io/gorm"
@@ -275,7 +276,7 @@ func (e *Engine) flushBatch(batch []clickItem) {
 				if suppressed[orgID] {
 					continue
 				}
-				e.ctx.RecordUsage(orgID, "clicks", count)
+				e.ctx.RecordUsage(orgID, usagemetric.Clicks, count)
 			}
 		}
 		if e.ctx.PublishEvent != nil {

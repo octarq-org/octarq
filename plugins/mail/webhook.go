@@ -23,6 +23,7 @@ import (
 	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/usagemetric"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -259,8 +260,14 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 	// back through here, so this counts inbound volume and will drift above the
 	// true footprint. Billing storage by what an org currently occupies needs a
 	// periodic Stat sweep over its keys — deliberately not built here.
+	// mail.raw_bytes has no consumer on the quota side today (it is absent from
+	// pkg/quota's metricNames); it is kept for future storage billing and must
+	// not be deleted.
 	if p.recordUsage != nil {
-		p.recordUsage(mb.OrgID, "mail.raw_bytes", int64(len(raw)))
+		p.recordUsage(mb.OrgID, usagemetric.RawBytes, int64(len(raw)))
+		// Count the message itself as one unit of inbound mail. This is the
+		// meter behind the mailInPerMonth quota key.
+		p.recordUsage(mb.OrgID, usagemetric.MailIn, 1)
 	}
 
 	// Trigger Webhook Event Bus

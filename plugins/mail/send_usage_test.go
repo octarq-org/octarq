@@ -16,6 +16,7 @@ import (
 	"github.com/glebarez/sqlite"
 	internalmail "github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/usagemetric"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -195,11 +196,11 @@ func TestMailRecordUsageSuccessAndFailure(t *testing.T) {
 		t.Fatalf("expected 2 successful RecordUsage calls, got %d", len(calls))
 	}
 	// Call 1 from sendMail: quantity = 1
-	if calls[0].orgID != 100 || calls[0].metric != "mail" || calls[0].n != 1 {
+	if calls[0].orgID != 100 || calls[0].metric != usagemetric.MailOut || calls[0].n != 1 {
 		t.Errorf("call 0 unexpected: %+v", calls[0])
 	}
 	// Call 2 from sendEmail HTTP: quantity = 2 (len(msg.To))
-	if calls[1].orgID != 100 || calls[1].metric != "mail" || calls[1].n != 2 {
+	if calls[1].orgID != 100 || calls[1].metric != usagemetric.MailOut || calls[1].n != 2 {
 		t.Errorf("call 1 unexpected: %+v", calls[1])
 	}
 }
