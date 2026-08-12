@@ -118,6 +118,14 @@ const llmsUrl = Astro.site
       import { codeCopy, headingAnchors } from "@cloudflare/nimbus-docs/client";
       codeCopy();
       headingAnchors();
+
+      document.addEventListener("click", (e) => {
+        const target = e.target;
+        if (!(target instanceof Element)) return;
+        if (!target.closest(".nb-code-copy")) return;
+        window.plausible &&
+          window.plausible("Code Copy", { props: { page: location.pathname } });
+      });
     </script>
   </body>
 </html>
