@@ -12,6 +12,7 @@ import { authErrorKey, isVerifiedFlag } from "./authErrors";
 export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
   const [u, setU] = useState("admin");
   const [p, setP] = useState("");
+  const [workspace, setWorkspace] = useState("");
   const [code, setCode] = useState("");
   const [needs2FA, setNeeds2FA] = useState(false);
   const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
@@ -31,7 +32,12 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
 
   useEffect(() => {
     api.authConfig()
-      .then(setOauthConfig)
+      .then((cfg) => {
+        setOauthConfig(cfg);
+        // A ?mode=register link must not force the register form when sign-up
+        // is disabled: the URL parameter is a convenience, not a bypass.
+        if (!cfg.registrationEnabled) setMode((m) => (m === "register" ? "login" : m));
+      })
       .catch(() => setOauthConfig(null));
 
     const params = new URLSearchParams(window.location.search);
@@ -41,6 +47,15 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
     // Show navigation/OAuth redirect error in banner.
     const errKey = authErrorKey(params.get("error"));
     if (errKey) setErr(t(errKey));
+
+    // Marketing entry point: /signup lands here with ?mode=register and the
+    // register form preselected. The registrationEnabled guard above runs once
+    // config arrives; until then the form renders but submitting is rejected
+    // server-side anyway.
+    if (params.get("mode") === "register") {
+      setMode("register");
+      if (u === "admin") setU("");
+    }
 
     if (verified || errKey) {
       window.history.replaceState({}, "", window.location.pathname);
@@ -69,7 +84,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
       }
 
       if (mode === "register") {
-        const res = await api.register(u.trim(), p);
+        const res = await api.register(u.trim(), p, workspace.trim());
         if (res.verificationRequired) {
           // No session was issued; sending them to the dashboard would just
           // bounce off /api/auth/me. Ask for the mailbox instead.
@@ -264,6 +279,25 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
                 required
               />
             </div>
+
+            {mode === "register" && (
+              <div>
+                <label className="label" htmlFor="login-workspace">
+                  {t("app.workspaceName")}
+                </label>
+                <input
+                  id="login-workspace"
+                  type="text"
+                  name="workspace"
+                  className="input animate-none"
+                  value={workspace}
+                  onChange={(e) => setWorkspace(e.target.value)}
+                  onKeyDown={onEnter}
+                  autoComplete="organization"
+                  placeholder={t("app.workspaceNamePlaceholder")}
+                />
+              </div>
+            )}
 
             {mode !== "forgot" && (
               <div>

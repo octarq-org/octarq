@@ -323,11 +323,11 @@ export const api = {
   // auth
   authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean; appName: string; logoUrl: string; brandColor: string; brandColor2: string }>("GET", "/api/auth/config"),
   me: () => req<{ email: string; username?: string; orgId: number; role?: string; emailVerified?: boolean }>("GET", "/api/auth/me"),
-  register: (email: string, password: string) =>
+  register: (email: string, password: string, orgName?: string) =>
     req<{ ok: boolean; email: string; username?: string; verificationRequired?: boolean }>(
       "POST",
       "/api/auth/register",
-      { email, password },
+      orgName ? { email, password, orgName } : { email, password },
     ),
   login: (email: string, password: string) =>
     req<{ ok?: boolean; twoFactorRequired?: boolean; email: string; username?: string }>(
