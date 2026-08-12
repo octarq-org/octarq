@@ -10,8 +10,6 @@ const SettingsPage = lazy(() => import("./pages/Settings"));
 const InviteAcceptPage = lazy(() => import("./pages/InviteAccept"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"));
 const StatusPage = lazy(() => import("./pages/Status"));
-const TermsOfServicePage = lazy(() => import("./pages/TermsOfService"));
-const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicy"));
 import { Modal, Button, toast, cn, Alert, TableDensityProvider, TableDensity } from "./ui";
 import { useTranslation } from "./i18n";
 import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
@@ -69,10 +67,6 @@ export default function App() {
   let content;
   if (window.location.pathname === "/status" || window.location.pathname === "/status/") {
     content = <Suspense fallback={<RouteFallback />}><StatusPage /></Suspense>;
-  } else if (window.location.pathname === "/admin/terms" || window.location.pathname === "/admin/terms/") {
-    content = <Suspense fallback={<RouteFallback />}><TermsOfServicePage /></Suspense>;
-  } else if (window.location.pathname === "/admin/privacy" || window.location.pathname === "/admin/privacy/") {
-    content = <Suspense fallback={<RouteFallback />}><PrivacyPolicyPage /></Suspense>;
   } else if (window.location.pathname === "/admin/invite/accept") {
     content = <InviteAcceptPage />;
   } else if (window.location.pathname === "/admin/reset") {
