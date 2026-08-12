@@ -25,6 +25,10 @@
 // registered names and parsed host lists, never a substring scan over the raw
 // JSON column, where one org's hostname can appear inside another's.
 //
+// Alternatively, the operator can explicitly declare instance-wide shared hosts
+// via the OCTARQ_SHARED_HOSTS environment variable. This is safe because it is
+// an explicit deployment declaration, not inferred from the request.
+//
 // # The no-whitelist fallback
 //
 // A fresh self-hosted instance has registered no domains at all, so there is
@@ -44,6 +48,7 @@ package origin
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -190,6 +195,27 @@ func OwnedHost(db *gorm.DB, orgID uint, r *http.Request) (string, bool) {
 	for _, d := range rows {
 		if matchRow(d, host, candidates) {
 			return host, true
+		}
+	}
+	return "", false
+}
+
+// SharedHost reports whether r arrived on a hostname that is explicitly declared
+// as an instance-wide shared host in the OCTARQ_SHARED_HOSTS environment variable.
+// It returns the normalised hostname if it is a declared shared host.
+func SharedHost(r *http.Request) (string, bool) {
+	if r == nil {
+		return "", false
+	}
+	host := NormalizeHost(r.Host)
+	if host == "" {
+		return "", false
+	}
+	if v := os.Getenv("OCTARQ_SHARED_HOSTS"); v != "" {
+		for _, h := range strings.Split(v, ",") {
+			if host == NormalizeHost(h) {
+				return host, true
+			}
 		}
 	}
 	return "", false
@@ -534,6 +560,24 @@ func (rv *Resolver) AnyRegistered() bool {
 	return rv.cached("any", func() bool { return AnyRegistered(rv.db) })
 }
 
+// SharedHost is the cached form of the package-level SharedHost.
+func (rv *Resolver) SharedHost(r *http.Request) (string, bool) {
+	if r == nil {
+		return "", false
+	}
+	host := NormalizeHost(r.Host)
+	if host == "" {
+		return "", false
+	}
+	if rv.cached("shared:"+host, func() bool {
+		_, ok := SharedHost(r)
+		return ok
+	}) {
+		return host, true
+	}
+	return "", false
+}
+
 // Absolute returns the origin that absolute URLs in this request's response —
 // or in mail it sends — must be built from, or "" when no origin can be
 // trusted. Callers that get "" emit a relative path: unopenable from a mail
@@ -551,9 +595,16 @@ func (rv *Resolver) Absolute(orgID uint, r *http.Request, secure bool) string {
 		// registers no domain and takes the fallback below.
 		return "https://" + host
 	}
-	// The Host is not one this instance owns. If ANY domain is registered there
-	// is a whitelist and this host failed it — a forged Host lands here, and
-	// honouring it would be the account-takeover in the package comment.
+	if host, ok := rv.SharedHost(r); ok {
+		// A shared host is explicitly declared by the operator in the instance
+		// configuration (OCTARQ_SHARED_HOSTS), meaning it is safe to use. It is
+		// not inferred from the request, so a forged Host cannot match here.
+		return "https://" + host
+	}
+	// The Host is not one this instance owns, nor is it a shared host. If ANY
+	// domain is registered there is a whitelist and this host failed it — a
+	// forged Host lands here, and honouring it would be the account-takeover
+	// in the package comment.
 	if rv.AnyRegistered() {
 		return ""
 	}
