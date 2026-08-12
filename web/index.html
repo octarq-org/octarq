@@ -21,6 +21,68 @@
         } catch (e) {}
       })();
     </script>
+    <!-- Campaign forwarding for the links that leave the dashboard for
+         octarq.org / docs.octarq.org. Plausible is cookieless and hashes the
+         domain into its visitor id, so those hosts see a different visitor than
+         this one does; the URL is the only channel they share, and a plain
+         <a href> drops the ?utm_source that brought the person in.
+
+         THIS IS NOT ANALYTICS AND IT MUST NOT BECOME ANALYTICS. This build is
+         also what every self-hosted operator runs. It rewrites hrefs and makes
+         no request of its own — the privacy policy's "your instance does not
+         phone home" has to stay true. It also returns immediately unless the
+         current URL carries a campaign parameter, which off Cloud it never
+         will, so for a self-hoster it is a no-op.
+
+         Same snippet as octarq/website/src/components/CampaignForward.astro and
+         octarq-pro/web/src/lib/campaign.mjs. Keep the three in step — the
+         allowlist especially, since a host missing from it silently stops
+         forwarding. -->
+    <script>
+      (function () {
+        var KEY = "octarq-campaign";
+        var HOSTS = ["octarq.org", "www.octarq.org", "docs.octarq.org", "app.octarq.org"];
+        var FIELDS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "ref"];
+
+        var here = new URLSearchParams(location.search);
+        var found = {};
+        FIELDS.forEach(function (f) {
+          var v = here.get(f);
+          if (v) found[f] = v;
+        });
+
+        // sessionStorage is per-origin and dies with the tab — not an
+        // identifier, and nothing reads it but this snippet.
+        var campaign = null;
+        if (Object.keys(found).length) {
+          campaign = found;
+          try { sessionStorage.setItem(KEY, JSON.stringify(found)); } catch (e) {}
+        } else {
+          try { campaign = JSON.parse(sessionStorage.getItem(KEY) || "null"); } catch (e) {}
+        }
+        if (!campaign || !Object.keys(campaign).length) return;
+
+        function decorate(e) {
+          var t = e.target;
+          var a = t && t.closest ? t.closest("a[href]") : null;
+          if (!a) return;
+          var url;
+          try { url = new URL(a.href, location.href); } catch (e2) { return; }
+          if (url.host === location.host) return;
+          if (HOSTS.indexOf(url.host) === -1) return;
+          Object.keys(campaign).forEach(function (k) {
+            if (!url.searchParams.has(k)) url.searchParams.set(k, campaign[k]);
+          });
+          a.href = url.toString();
+        }
+
+        // Delegated on document because the dashboard's links are rendered by
+        // React long after this runs. Capture phase so the href is rewritten
+        // before the browser reads it; auxclick for middle/ctrl-click.
+        document.addEventListener("click", decorate, true);
+        document.addEventListener("auxclick", decorate, true);
+      })();
+    </script>
     <!-- Fonts via <link> + preconnect rather than a CSS @import so they don't
          block the stylesheet from parsing; display=swap avoids FOIT. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

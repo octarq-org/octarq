@@ -1,0 +1,75 @@
+---
+// Carries campaign attribution across the octarq hosts.
+//
+// Why this is needed at all: Plausible is cookieless and hashes the domain into
+// its visitor id, so octarq.org, docs.octarq.org and app.octarq.org see three
+// unrelated visitors. Nothing is shared between them automatically, and a plain
+// <a href="https://docs.octarq.org/quickstart"> drops the ?utm_source that
+// brought the reader in. This puts it back on the URL, which is the only
+// channel the three hosts actually share.
+//
+// It rewrites hrefs. It does not track, and it sends no request of its own.
+//
+// The same snippet runs on octarq.org (octarq-pro/web) and in the dashboard
+// (octarq/web/index.html). Keep the three in step — the allowlist especially,
+// since a host missing from it silently stops forwarding.
+---
+
+<script is:inline>
+  (function () {
+    var KEY = "octarq-campaign";
+    // Destination hosts we own. Anything else is a genuine outbound link and
+    // must not have our parameters bolted onto it.
+    var HOSTS = ["octarq.org", "www.octarq.org", "docs.octarq.org", "app.octarq.org"];
+    var FIELDS = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "ref"];
+
+    var here = new URLSearchParams(location.search);
+    var found = {};
+    FIELDS.forEach(function (f) {
+      var v = here.get(f);
+      if (v) found[f] = v;
+    });
+
+    // Persist for the rest of the visit: a reader who lands on / with a utm tag
+    // and clicks through /pricing/ before leaving for the docs no longer has the
+    // tag on the URL by then. sessionStorage is per-origin and dies with the tab
+    // — it is not an identifier and nothing reads it but this snippet.
+    var campaign = null;
+    if (Object.keys(found).length) {
+      campaign = found;
+      try {
+        sessionStorage.setItem(KEY, JSON.stringify(found));
+      } catch (e) {}
+    } else {
+      try {
+        campaign = JSON.parse(sessionStorage.getItem(KEY) || "null");
+      } catch (e) {}
+    }
+    if (!campaign || !Object.keys(campaign).length) return;
+
+    function decorate(e) {
+      var t = e.target;
+      var a = t && t.closest ? t.closest("a[href]") : null;
+      if (!a) return;
+      var url;
+      try {
+        url = new URL(a.href, location.href);
+      } catch (e2) {
+        return;
+      }
+      // Same host needs nothing: the visit is already attributed there.
+      if (url.host === location.host) return;
+      if (HOSTS.indexOf(url.host) === -1) return;
+      // An explicit parameter on the link wins — someone wrote it on purpose.
+      Object.keys(campaign).forEach(function (k) {
+        if (!url.searchParams.has(k)) url.searchParams.set(k, campaign[k]);
+      });
+      a.href = url.toString();
+    }
+
+    // Capture phase, so the href is rewritten before the browser reads it.
+    // auxclick too, or middle-click and ctrl-click open the undecorated URL.
+    document.addEventListener("click", decorate, true);
+    document.addEventListener("auxclick", decorate, true);
+  })();
+</script>
