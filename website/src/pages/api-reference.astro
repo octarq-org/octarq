@@ -12,7 +12,9 @@ import ApiReferenceExplorer from "../components/api-reference/ApiReferenceExplor
       mobile menu button exists only to open one. Left at its default it would
       render a button that opens an empty dialog. */}
   <Header showSidebar={false} />
-  <main class="flex flex-col h-[calc(100dvh-3.5rem)]">
+  {/* Reserve the full header height (56px track + 1px border-b = --header-height);
+      using 3.5rem alone leaked 1px and scrolled the page. */}
+  <main class="flex flex-col h-[calc(100dvh-var(--header-height))]">
     <details class="bg-muted/50 px-4 py-2 text-sm border-b border-border shrink-0">
       <summary class="cursor-pointer font-medium text-foreground hover:text-primary transition-colors">
         About this API Reference
