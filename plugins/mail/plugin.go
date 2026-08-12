@@ -14,6 +14,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/internal/mail"
+	"github.com/octarq-org/octarq/internal/usagemetric"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -331,7 +332,7 @@ func (p *Plugin) sendMail(orgID uint, to, subject, htmlBody, textBody string) er
 		return err
 	}
 	if p.recordUsage != nil {
-		p.recordUsage(orgID, "mail", 1)
+		p.recordUsage(orgID, usagemetric.MailOut, 1)
 	}
 	return nil
 }

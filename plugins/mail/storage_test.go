@@ -13,6 +13,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/usagemetric"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -241,16 +242,19 @@ func TestOSSRejectsProProvider(t *testing.T) {
 	}
 }
 
-// Guard Test 6: Usage metering (writing N bytes records N bytes)
+// Guard Test 6: Usage metering (writing N bytes records N bytes plus one
+// message of inbound mail)
 func TestStorageUsageMetering(t *testing.T) {
 	db := setupTestDB(t)
 	p := New()
 	mux := http.NewServeMux()
 	humaAPI := humago.New(mux, huma.DefaultConfig("Test", "1.0.0"))
 
-	var recordedOrg uint
-	var recordedMetric string
-	var recordedN int64
+	var calls []struct {
+		orgID  uint
+		metric string
+		n      int64
+	}
 
 	reg := plugin.NewRegistry()
 	pctx := &plugin.Context{
@@ -258,9 +262,11 @@ func TestStorageUsageMetering(t *testing.T) {
 		Huma:  humaAPI,
 		OrgID: func(r *http.Request) uint { return 1 },
 		RecordUsage: func(orgID uint, metric string, n int64) {
-			recordedOrg = orgID
-			recordedMetric = metric
-			recordedN = n
+			calls = append(calls, struct {
+				orgID  uint
+				metric string
+				n      int64
+			}{orgID, metric, n})
 		},
 		Provide: reg.Provide,
 		Lookup:  reg.Lookup,
@@ -285,9 +291,17 @@ func TestStorageUsageMetering(t *testing.T) {
 		t.Fatalf("expected 200 from inbound webhook, got %d: %s", w.Code, w.Body.String())
 	}
 
-	if recordedOrg != 10 || recordedMetric != "mail.raw_bytes" || recordedN != int64(len(rawEML)) {
-		t.Fatalf("RecordUsage mismatch: expected org=10 metric=mail.raw_bytes n=%d, got org=%d metric=%s n=%d",
-			len(rawEML), recordedOrg, recordedMetric, recordedN)
+	if len(calls) != 2 {
+		t.Fatalf("expected 2 RecordUsage calls (raw bytes + message count), got %d: %+v", len(calls), calls)
+	}
+	// First: stored byte count, no quota consumer today.
+	if calls[0].orgID != 10 || calls[0].metric != usagemetric.RawBytes || calls[0].n != int64(len(rawEML)) {
+		t.Errorf("raw-bytes call mismatch: expected org=10 metric=%s n=%d, got %+v",
+			usagemetric.RawBytes, len(rawEML), calls[0])
+	}
+	// Second: one inbound message for the mailInPerMonth quota.
+	if calls[1].orgID != 10 || calls[1].metric != usagemetric.MailIn || calls[1].n != 1 {
+		t.Errorf("mailIn call mismatch: expected org=10 metric=%s n=1, got %+v", usagemetric.MailIn, calls[1])
 	}
 }
 
