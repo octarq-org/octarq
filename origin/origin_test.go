@@ -237,6 +237,44 @@ func TestAbsolute(t *testing.T) {
 		}
 	})
 
+	t.Run("shared host guard tests", func(t *testing.T) {
+		// 1. 未声明共享 host + 实例已注册其他域名 + 请求来自入口 host
+		t.Run("undeclared shared host yields nothing", func(t *testing.T) {
+			rv := NewResolver(testDB(t, acme()))
+			t.Setenv("OCTARQ_SHARED_HOSTS", "")
+			if got := rv.Absolute(0, req("app.octarq.org"), false); got != "" {
+				t.Errorf("Absolute = %q, want \"\" — an undeclared shared host must be rejected to prevent Host forgery", got)
+			}
+		})
+
+		// 2. 已声明共享 host → 返回该 host
+		t.Run("declared shared host is honoured", func(t *testing.T) {
+			rv := NewResolver(testDB(t, acme()))
+			t.Setenv("OCTARQ_SHARED_HOSTS", "app.octarq.org, api.octarq.org")
+			if got := rv.Absolute(0, req("app.octarq.org"), true); got != "https://app.octarq.org" {
+				t.Errorf("Absolute = %q, want https://app.octarq.org", got)
+			}
+		})
+
+		// 3. 已声明共享 host，但租户拥有自己的域名且请求来自该自有域名 → 返回自有域名，不是共享 host
+		t.Run("owned domain takes precedence over shared host", func(t *testing.T) {
+			rv := NewResolver(testDB(t, acme()))
+			t.Setenv("OCTARQ_SHARED_HOSTS", "app.octarq.org")
+			if got := rv.Absolute(1, req("acme.example"), true); got != "https://acme.example" {
+				t.Errorf("Absolute = %q, want https://acme.example", got)
+			}
+		})
+
+		// 4. 已声明共享 host，请求来自一个既非共享也非自有的域名 → 仍然 ErrNoOrigin
+		t.Run("forged host is rejected even with shared host declared", func(t *testing.T) {
+			rv := NewResolver(testDB(t, acme()))
+			t.Setenv("OCTARQ_SHARED_HOSTS", "app.octarq.org")
+			if got := rv.Absolute(0, req("evil.com"), true); got != "" {
+				t.Errorf("Absolute = %q, want \"\" — a forged host must never become an origin even if a shared host exists", got)
+			}
+		})
+	})
+
 	t.Run("no registered domain falls back to the request host", func(t *testing.T) {
 		rv := NewResolver(testDB(t))
 		if got := rv.Absolute(0, req("localhost:8080"), false); got != "http://localhost:8080" {
