@@ -46,7 +46,7 @@ const {
     { href: "/", label: "Docs" },
     { href: "/api-reference/", label: "API Reference" },
     { href: "https://octarq.org/pricing/", label: "Pricing", external: true },
-    { href: "https://app.octarq.org/", label: "Cloud", external: true },
+    { href: "https://octarq.org/", label: "Cloud", external: true },
   ]
 } = Astro.props;
 
@@ -100,10 +100,22 @@ const showSections = sections.length >= 2;
               </a>
             ))}
           {destinations?.map((dest) => {
+            // `currentSlug` has its trailing slash stripped, so strip the
+            // destination's too before comparing — otherwise "/api-reference"
+            // never startsWith "/api-reference/" and the page you are on is
+            // never the one marked current.
+            const target = dest.href.replace(/\/$/, "") || "/";
             const isActive = !dest.external && (
-              dest.href === "/"
-                ? currentSlug === "/" || (currentSlug !== "/" && !currentSlug.startsWith("/api-reference"))
-                : currentSlug.startsWith(dest.href)
+              // "Docs" is the site root, so it owns everything that isn't one
+              // of the other destinations rather than only "/" itself.
+              target === "/"
+                ? !destinations.some(
+                    (d) =>
+                      !d.external &&
+                      d.href !== "/" &&
+                      currentSlug.startsWith(d.href.replace(/\/$/, "")),
+                  )
+                : currentSlug === target || currentSlug.startsWith(`${target}/`)
             );
             return (
               <a
