@@ -36,7 +36,9 @@ jobs:
     # "necessary to set a CLOUDFLARE_API_TOKEN". That is what broke every deploy
     # from 2026-08-06 on, silently: PR runs stop before the deploy step and stay
     # green, so only main went red and the live site quietly froze.
-    environment: production
+    environment:
+      name: production
+      url: https://docs.octarq.org
     defaults:
       run:
         working-directory: website
