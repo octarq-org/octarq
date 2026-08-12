@@ -16,12 +16,9 @@
 
 <style is:global>
   .api-reference-explorer {
-    height: min(calc(100dvh - 16rem), 68rem);
-    min-height: 34rem;
-    max-width: 100%;
+    height: 100%;
+    width: 100%;
     overflow: hidden;
-    border: 1px solid var(--nb-border);
-    border-radius: 0.5rem;
     background: var(--nb-background);
   }
 
@@ -67,7 +64,7 @@
     createApiReference(mount, {
       url: "/openapi.json",
       layout: "modern",
-      showSidebar: false,
+      showSidebar: true,
       hideDarkModeToggle: true,
       hideClientButton: true,
       withDefaultFonts: false,

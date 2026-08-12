@@ -50,10 +50,6 @@ const nimbusConfig = defineNimbusConfig({
         label: "Guides",
         autogenerate: { directory: "guides" },
       },
-      {
-        label: "API Reference",
-        items: ["api-reference"],
-      },
     ],
   },
 });

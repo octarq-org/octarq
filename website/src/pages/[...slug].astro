@@ -12,7 +12,6 @@ import {
   getTOC,
 } from "@cloudflare/nimbus-docs";
 import { components } from "../components";
-import ApiReferenceExplorer from "../components/api-reference/ApiReferenceExplorer.astro";
 
 export const prerender = true;
 export const getStaticPaths = getDocsStaticPaths;
@@ -68,10 +67,4 @@ const socialImage = entry.data.socialImage ?? `/og/${entry.id}.png`;
   entryId={entry.id}
 >
   <Content components={components} />
-  {
-    // The api-reference page's "Interactive API Explorer" is a live component,
-    // not markdown. Keep the prose in the content entry (sidebar/URL depend on
-    // it) and mount the explorer underneath the article.
-    entry.id === "api-reference" && <ApiReferenceExplorer />
-  }
 </DocsLayout>
