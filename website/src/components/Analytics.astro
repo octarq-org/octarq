@@ -1,0 +1,27 @@
+---
+// Plausible, self-hosted at plausible.jungley.net.
+//
+// `data-domain` is the site key in Plausible, not the host the page is served
+// from — it has to match the site registered there ("docs.octarq.org") or the
+// events are dropped. Localhost is ignored by the script itself, so there is
+// no dev-only branch here.
+//
+// The `outbound-links.tagged-events` variant, not plain script.js:
+// outbound-links auto-tracks the GitHub/npm links that are most of what a docs
+// reader clicks, and tagged-events is what lets a CTA opt in to conversion
+// tracking with `class="plausible-event-name=Signup"` — markup only, no JS.
+// UTM parameters need neither: the script reads them off the URL on its own.
+const SRC = "https://plausible.jungley.net/js/script.outbound-links.tagged-events.js";
+const DOMAIN = "docs.octarq.org";
+---
+
+<script is:inline defer data-domain={DOMAIN} src={SRC}></script>
+<script is:inline>
+  // Queue stub: custom events fired before the deferred script lands would
+  // otherwise throw. Plausible flushes `.q` on load.
+  window.plausible =
+    window.plausible ||
+    function () {
+      (window.plausible.q = window.plausible.q || []).push(arguments);
+    };
+</script>

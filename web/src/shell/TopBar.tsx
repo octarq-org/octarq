@@ -12,12 +12,7 @@ import { useTranslation, LANGS } from "../i18n";
 import { useTheme, toggleTheme } from "../theme";
 import { Area, AreaId, menuIcon } from "./areas";
 import { translateAreaTitle, translateGroupLabel, translateNavItemLabel } from "./navI18n";
-
-const RESOURCES = {
-  docs: "https://octarq.org/what-is-octarq/",
-  about: "https://octarq.org",
-  github: "https://github.com/octarq-org/octarq",
-};
+import { RESOURCES } from "./resources";
 
 function GithubIcon({ className }: { className?: string }) {
   return (

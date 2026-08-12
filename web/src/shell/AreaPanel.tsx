@@ -15,20 +15,7 @@ import {
   translateGroupLabel,
   translateNavItemLabel,
 } from "./navI18n";
-
-// octarq-provided resources — the same product links a standard SaaS keeps
-// within reach. These are octarq's, not the org's, so they live in the sidebar
-// footer (available to everyone), kept strictly apart from the org's own
-// business nav. Update these if the marketing/docs/repo hosts change.
-const RESOURCES = {
-  // The docs moved onto the apex — one site now carries both the landing page
-  // and the documentation — so this points at the docs entry page rather than
-  // the host, which is where `about` already goes.
-  docs: "https://octarq.org/what-is-octarq/",
-  about: "https://octarq.org",
-  github: "https://github.com/octarq-org/octarq",
-  contact: "https://octarq.org/contact",
-};
+import { RESOURCES } from "./resources";
 
 // lucide-react @1.x dropped the `Github` glyph, so the mark is inlined (same
 // path the Login page uses for the GitHub OAuth button).
