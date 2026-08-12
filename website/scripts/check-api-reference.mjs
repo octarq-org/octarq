@@ -47,8 +47,24 @@ if (!htmlPath) {
     report("legacy explorer", 'built page still contains the legacy <rapi-doc> markup');
   }
 
-  // No third-party script origins. The page may only load its own /_astro/ assets.
-  const externalSrcs = [...html.matchAll(/<script[^>]*\bsrc="(https?:\/\/[^"]+)"/gi)].map((m) => m[1]);
+  // No third-party script origins. What this is really guarding is that the
+  // Scalar explorer stays vendored into /_astro/ instead of drifting back to a
+  // CDN — see the unpkg/jsdelivr check below, and the RapiDoc-era markup above.
+  //
+  // Hosts we run ourselves are not what it was aimed at. plausible.jungley.net
+  // is our own analytics server, injected site-wide by BaseLayout; excluding it
+  // here beats making this one page the only page with no analytics. Anything
+  // not on this list still fails, so the guard keeps its teeth.
+  const FIRST_PARTY_SCRIPT_HOSTS = ["plausible.jungley.net"];
+  const externalSrcs = [...html.matchAll(/<script[^>]*\bsrc="(https?:\/\/[^"]+)"/gi)]
+    .map((m) => m[1])
+    .filter((src) => {
+      try {
+        return !FIRST_PARTY_SCRIPT_HOSTS.includes(new URL(src).host);
+      } catch {
+        return true;
+      }
+    });
   if (externalSrcs.length > 0) {
     report("external scripts", `page loads scripts from third-party hosts: ${externalSrcs.join(", ")}`);
   }
