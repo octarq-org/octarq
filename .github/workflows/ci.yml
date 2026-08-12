@@ -310,7 +310,14 @@ jobs:
           commit-message: "chore(docs): refresh OpenAPI specification [auto]"
           title: "chore(docs): refresh OpenAPI specification"
           body: |
-            The OpenAPI specification in \`website/public/openapi.json\` is out of date.
+            The published spec in `website/public/openapi.json` no longer matches
+            the Go handlers.
 
-            It has been automatically refreshed from the Go handlers in \${{ github.sha }}.
-            Nothing here is hand-written — merge it as-is, or close it if a newer merge is about to supersede it.
+            The docs site's Scalar explorer loads this file, so a stale copy means
+            the API reference documents endpoints that no longer exist — and misses
+            ones that do. It is generated from the open-source core, which is what
+            the API reference page tells readers it covers. Built from
+            ${{ github.sha }}, which already passed CI.
+
+            Nothing here is hand-written — merge it as-is, or close it if a newer
+            merge is about to supersede it.
