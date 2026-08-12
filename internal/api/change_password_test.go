@@ -8,14 +8,16 @@ import (
 
 	"github.com/octarq-org/octarq/internal/models"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 // registerUser signs up a real (non-bootstrap) account and returns its session
 // cookies. The bootstrap admin can't be used here: its credentials come from
 // the environment and its user row has an empty PasswordHash, which the change
 // endpoint deliberately refuses.
-func registerUser(t *testing.T, srv http.Handler, email, password string) []*http.Cookie {
+func registerUser(t *testing.T, srv http.Handler, db *gorm.DB, email, password string) []*http.Cookie {
 	t.Helper()
+	disableEmailVerification(t, db)
 	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"`+email+`","password":"`+password+`"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("register %s: got %d (%s)", email, rec.Code, rec.Body.String())
@@ -25,7 +27,7 @@ func registerUser(t *testing.T, srv http.Handler, email, password string) []*htt
 
 func TestChangePasswordReplacesHashAndKeepsCallerSignedIn(t *testing.T) {
 	srv, db := newTestHandler(t)
-	cookies := registerUser(t, srv, "owner@example.com", "originalpw1")
+	cookies := registerUser(t, srv, db, "owner@example.com", "originalpw1")
 
 	var before models.User
 	if err := db.Where("email = ?", "owner@example.com").First(&before).Error; err != nil {
@@ -97,6 +99,7 @@ func TestChangePasswordRevokesOtherSessionsOnly(t *testing.T) {
 	const agentB = "device-b"
 
 	srv, db := newTestHandler(t)
+	disableEmailVerification(t, db)
 	rec := doUA(srv, "POST", "/api/auth/register", nil,
 		`{"email":"owner@example.com","password":"originalpw1"}`, agentA)
 	if rec.Code != http.StatusOK {
@@ -140,7 +143,7 @@ func TestChangePasswordRevokesOtherSessionsOnly(t *testing.T) {
 
 func TestChangePasswordRejectsBadInput(t *testing.T) {
 	srv, db := newTestHandler(t)
-	cookies := registerUser(t, srv, "owner@example.com", "originalpw1")
+	cookies := registerUser(t, srv, db, "owner@example.com", "originalpw1")
 
 	var before models.User
 	db.Where("email = ?", "owner@example.com").First(&before)
@@ -207,7 +210,7 @@ func TestChangePasswordRefusesAccountWithNoStoredPassword(t *testing.T) {
 // chose and deletes every one of your sessions, for the rest of its hour.
 func TestChangePasswordInvalidatesAnOutstandingResetToken(t *testing.T) {
 	srv, db := newTestHandler(t)
-	cookies := registerUser(t, srv, "target@example.com", "originalpw1")
+	cookies := registerUser(t, srv, db, "target@example.com", "originalpw1")
 
 	// An attacker requests a reset for the account.
 	if rec := do(srv, "POST", "/api/auth/forgot", nil,

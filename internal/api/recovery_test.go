@@ -77,6 +77,7 @@ func seedResetToken(t *testing.T, db *gorm.DB, user *models.User) string {
 // of a confirmed write.
 func TestResetPasswordKeepsSessionsWhenPasswordWriteFails(t *testing.T) {
 	srv, db := newTestHandler(t)
+	disableEmailVerification(t, db)
 
 	regRec := do(srv, "POST", "/api/auth/register", nil, `{"email":"fail@reset.com","password":"oldpassword123"}`)
 	if regRec.Code != http.StatusOK {
@@ -280,6 +281,7 @@ func TestForgotPasswordNoLeak(t *testing.T) {
 // and session revocation upon reset.
 func TestResetPasswordFlow(t *testing.T) {
 	srv, db := newTestHandler(t)
+	disableEmailVerification(t, db)
 
 	// 1. Register user and log in to obtain session
 	regRec := do(srv, "POST", "/api/auth/register", nil, `{"email":"user@reset.com","password":"oldpassword123"}`)
@@ -403,10 +405,15 @@ func TestVerifyEmailAndResendFlow(t *testing.T) {
 func TestEmailVerificationGatingToggle(t *testing.T) {
 	srv, db := newTestHandler(t)
 
+	// The setting defaults ON (absent → verification required); turn it off to
+	// exercise the unverified-login path, exactly as an operator who opts out
+	// would.
+	disableEmailVerification(t, db)
+
 	// Register user
 	do(srv, "POST", "/api/auth/register", nil, `{"email":"gated@user.com","password":"password123"}`)
 
-	// 1. By default (setting OFF): unverified user can log in
+	// 1. With the gate explicitly OFF: unverified user can log in
 	recOff := do(srv, "POST", "/api/auth/login", nil, `{"email":"gated@user.com","password":"password123"}`)
 	if recOff.Code != http.StatusOK {
 		t.Fatalf("login when gating OFF: got %d, want 200", recOff.Code)

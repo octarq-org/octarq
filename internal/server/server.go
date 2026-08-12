@@ -139,6 +139,36 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// 2.75 Marketing-entry shortcuts to the dashboard's auth views. The
+	// marketing site links these directly; both are gated by the same
+	// dashboardAllowed check as /admin, so a link/mail host can't be used to
+	// reach the login or register forms. Query strings pass through so a
+	// campaign param (?plan=pro) survives to the client.
+	switch path {
+	case "/signup":
+		if !s.dashboardAllowed(r.Host) {
+			http.NotFound(w, r)
+			return
+		}
+		target := "/admin/?mode=register"
+		if q := r.URL.RawQuery; q != "" {
+			target += "&" + q
+		}
+		http.Redirect(w, r, target, http.StatusFound)
+		return
+	case "/login":
+		if !s.dashboardAllowed(r.Host) {
+			http.NotFound(w, r)
+			return
+		}
+		target := "/admin/"
+		if q := r.URL.RawQuery; q != "" {
+			target += "?" + q
+		}
+		http.Redirect(w, r, target, http.StatusFound)
+		return
+	}
+
 	// 3. Root → dashboard.
 	if path == "/" {
 		if s.dashboardAllowed(r.Host) {

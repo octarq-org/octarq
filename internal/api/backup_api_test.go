@@ -21,6 +21,7 @@ func TestAdminBackupEndpoint(t *testing.T) {
 	}
 
 	// 2. Non-instance admin user -> 403 Forbidden
+	disableEmailVerification(t, db)
 	do(srv, "POST", "/api/auth/register", nil, `{"email":"regular@user.com","password":"password123"}`)
 	loginRec := do(srv, "POST", "/api/auth/login", nil, `{"email":"regular@user.com","password":"password123"}`)
 	if loginRec.Code != http.StatusOK {

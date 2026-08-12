@@ -56,7 +56,7 @@ const (
 	keyRatelimitAuthRPM         = "ratelimit_auth_rpm"
 	keyRatelimitAPIRPM          = "ratelimit_api_rpm"
 	keyRatelimitRedirRPM        = "ratelimit_redirect_rpm"
-	keyRequireEmailVerification = "require_email_verification" // "true" requires email verification; default "false"
+	keyRequireEmailVerification = "require_email_verification" // "false" disables the email-verification requirement; default on
 )
 
 // Rate-limit defaults (requests per minute per IP) when the setting is unset.
@@ -160,8 +160,12 @@ func (h *Handler) registrationEnabled() bool {
 	return h.getSetting(keyAllowRegistration) != "false"
 }
 
+// requireEmailVerification reports whether sign-up and login demand a verified
+// email. Absent setting → required (default on); only an explicit "false"
+// disables it. Multi-tenant instances default to requiring verification because
+// unverified sign-ups are a mail-relay and abuse vector.
 func (h *Handler) requireEmailVerification() bool {
-	return h.getSetting(keyRequireEmailVerification) == "true"
+	return h.getSetting(keyRequireEmailVerification) != "false"
 }
 
 // DefaultRetentionDays is used when no retention setting is configured.

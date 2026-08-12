@@ -130,6 +130,60 @@ func TestServer(t *testing.T) {
 	if recRoot404.Code != http.StatusNotFound {
 		t.Errorf("expected 404 for root when not allowed, got %d", recRoot404.Code)
 	}
+
+	// 7. Marketing-entry shortcuts redirect to the dashboard auth views (when allowed)
+	reqSignup := httptest.NewRequest("GET", "/signup", nil)
+	reqSignup.Host = "admin.example.com"
+	recSignup := httptest.NewRecorder()
+	srv.ServeHTTP(recSignup, reqSignup)
+	if recSignup.Code != http.StatusFound || recSignup.Header().Get("Location") != "/admin/?mode=register" {
+		t.Errorf("GET /signup: got %d Location %q, want 302 /admin/?mode=register", recSignup.Code, recSignup.Header().Get("Location"))
+	}
+
+	reqLogin := httptest.NewRequest("GET", "/login", nil)
+	reqLogin.Host = "admin.example.com"
+	recLogin := httptest.NewRecorder()
+	srv.ServeHTTP(recLogin, reqLogin)
+	if recLogin.Code != http.StatusFound || recLogin.Header().Get("Location") != "/admin/" {
+		t.Errorf("GET /login: got %d Location %q, want 302 /admin/", recLogin.Code, recLogin.Header().Get("Location"))
+	}
+
+	// 8. The same shortcuts on a short-link/mail host must 404 like /admin —
+	// otherwise a host that hides the dashboard would still expose its login
+	// and register forms.
+	for _, path := range []string{"/signup", "/login"} {
+		req := httptest.NewRequest("GET", path, nil)
+		req.Host = "links.example.com"
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("GET %s on disallowed host: got %d, want 404", path, rec.Code)
+		}
+	}
+}
+
+// TestMarketingEntryForwardsQueryString verifies campaign params on /signup and
+// /login survive the redirect so the client can read ?plan=pro etc.
+func TestMarketingEntryForwardsQueryString(t *testing.T) {
+	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("index html")}}
+	srv, err := New(&config.Config{}, domainsDB(t), mockAPI{}, nil, webFS, nil, RuntimeSettings{})
+	if err != nil {
+		t.Fatalf("build server: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/signup?plan=pro&utm_source=launch", nil)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/admin/?mode=register&plan=pro&utm_source=launch" {
+		t.Errorf("GET /signup?plan=pro: got %d Location %q, want 302 with query forwarded", rec.Code, rec.Header().Get("Location"))
+	}
+
+	req = httptest.NewRequest("GET", "/login?next=%2Fsettings", nil)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusFound || rec.Header().Get("Location") != "/admin/?next=%2Fsettings" {
+		t.Errorf("GET /login?next: got %d Location %q, want 302 with query forwarded", rec.Code, rec.Header().Get("Location"))
+	}
 }
 
 // TestStaticMounts exercises the plugin.Context.HandleStatic seam: a mounted SPA

@@ -11,7 +11,7 @@ import (
 
 func TestChangeEmailSuccess(t *testing.T) {
 	srv, db := newTestHandler(t)
-	cookies := registerUser(t, srv, "user1@example.com", "password123")
+	cookies := registerUser(t, srv, db, "user1@example.com", "password123")
 
 	// Mark user verified initially
 	if err := db.Model(&models.User{}).Where("email = ?", "user1@example.com").Update("email_verified", true).Error; err != nil {
@@ -41,7 +41,7 @@ func TestChangeEmailSuccess(t *testing.T) {
 
 func TestChangeEmailWrongPassword(t *testing.T) {
 	srv, db := newTestHandler(t)
-	cookies := registerUser(t, srv, "user2@example.com", "password123")
+	cookies := registerUser(t, srv, db, "user2@example.com", "password123")
 
 	rec := do(srv, "PUT", "/api/auth/email", cookies, `{"newEmail":"newuser2@example.com","currentPassword":"wrongpassword"}`)
 	if rec.Code != http.StatusBadRequest {
@@ -55,9 +55,9 @@ func TestChangeEmailWrongPassword(t *testing.T) {
 }
 
 func TestChangeEmailConflict(t *testing.T) {
-	srv, _ := newTestHandler(t)
-	cookies1 := registerUser(t, srv, "user3@example.com", "password123")
-	_ = registerUser(t, srv, "occupied@example.com", "password123")
+	srv, db := newTestHandler(t)
+	cookies1 := registerUser(t, srv, db, "user3@example.com", "password123")
+	_ = registerUser(t, srv, db, "occupied@example.com", "password123")
 
 	rec := do(srv, "PUT", "/api/auth/email", cookies1, `{"newEmail":"occupied@example.com","currentPassword":"password123"}`)
 	if rec.Code != http.StatusConflict {

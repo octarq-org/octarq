@@ -67,6 +67,17 @@ func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	return srv, db
 }
 
+// disableEmailVerification turns the (default-on) require_email_verification
+// setting off so tests exercising register-then-login against a fresh handler
+// keep the pre-gate behavior. Explicit opt-out: nothing may rely on the
+// verification default being off.
+func disableEmailVerification(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	if err := db.Save(&models.Setting{Key: keyRequireEmailVerification, Value: "false"}).Error; err != nil {
+		t.Fatalf("set require_email_verification=false: %v", err)
+	}
+}
+
 // newTestHandlerRaw is newTestHandler plus the *Handler itself, for tests that
 // exercise handler methods directly rather than over HTTP.
 func newTestHandlerRaw(t *testing.T) (*Handler, http.Handler, *gorm.DB) {

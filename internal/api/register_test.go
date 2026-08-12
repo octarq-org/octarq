@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/octarq-org/octarq/internal/models"
@@ -13,6 +14,7 @@ import (
 // returns a working session cookie.
 func TestRegisterCreatesUserOrgAndSession(t *testing.T) {
 	srv, db := newTestHandler(t)
+	disableEmailVerification(t, db)
 
 	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"new@user.com","password":"hunter2pw"}`)
 	if rec.Code != http.StatusOK {
@@ -72,10 +74,43 @@ func TestRegisterDisabledByToggle(t *testing.T) {
 	}
 }
 
+// TestRegisterUsesOrgNameOverEmail pins the optional orgName field: a non-blank
+// orgName becomes the provisioned workspace's name; omitting it falls back to
+// the registration email, exactly as before the field existed. Both run under
+// the default-on verification gate, which creates the org either way.
+func TestRegisterUsesOrgNameOverEmail(t *testing.T) {
+	srv, db := newTestHandler(t)
+
+	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"named@user.com","password":"hunter2pw","orgName":"  Acme Corp  "}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("register with orgName: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var named models.Org
+	if err := db.Where("name = ?", "Acme Corp").First(&named).Error; err != nil {
+		t.Fatalf("org named after orgName not created: %v", err)
+	}
+
+	rec = do(srv, "POST", "/api/auth/register", nil, `{"email":"fallback@user.com","password":"hunter2pw"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("register without orgName: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var fallback models.Org
+	if err := db.Where("name = ?", "fallback@user.com").First(&fallback).Error; err != nil {
+		t.Fatalf("org falling back to email not created: %v", err)
+	}
+
+	// An oversized orgName is rejected before any row is written.
+	long := strings.Repeat("x", 256)
+	if rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"long@user.com","password":"hunter2pw","orgName":"`+long+`"}`); rec.Code != http.StatusBadRequest {
+		t.Fatalf("register with oversized orgName: got %d, want 400", rec.Code)
+	}
+}
+
 // TestDBUserPasswordLogin verifies that a registered (non-admin) user can log
 // in with their email + password, not just via the admin credential or OAuth.
 func TestDBUserPasswordLogin(t *testing.T) {
-	srv, _ := newTestHandler(t)
+	srv, db := newTestHandler(t)
+	disableEmailVerification(t, db)
 
 	if rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"member@corp.com","password":"correcthorse"}`); rec.Code != http.StatusOK {
 		t.Fatalf("register: got %d (%s)", rec.Code, rec.Body.String())

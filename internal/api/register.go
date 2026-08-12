@@ -18,6 +18,10 @@ import (
 type RegisterInputBody struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	// OrgName is the display name for the provisioned personal workspace.
+	// Optional: when blank the registration email is used, preserving the
+	// pre-naming behavior for callers that don't send it.
+	OrgName string `json:"orgName,omitempty"`
 }
 
 type RegisterInput struct {
@@ -68,6 +72,10 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 	if len(input.Body.Password) < 8 {
 		return nil, huma.Error400BadRequest("password must be at least 8 characters")
 	}
+	orgName := strings.TrimSpace(input.Body.OrgName)
+	if orgName != "" && len(orgName) > 255 {
+		return nil, huma.Error400BadRequest("workspace name must be 255 characters or fewer")
+	}
 
 	// Reject duplicates case-insensitively (also covers OAuth-provisioned users).
 	var existing models.User
@@ -104,7 +112,11 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 	if err != nil {
 		return nil, huma.Error500InternalServerError("failed to create workspace")
 	}
-	org := models.Org{Name: email, Slug: slug, InboundToken: uuid.NewString()}
+	name := email
+	if orgName != "" {
+		name = orgName
+	}
+	org := models.Org{Name: name, Slug: slug, InboundToken: uuid.NewString()}
 	if err := h.db.Create(&org).Error; err != nil {
 		return nil, huma.Error500InternalServerError("failed to create workspace")
 	}
