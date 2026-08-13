@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, type OrgSlug } from "../../api";
-import { Field, Modal, PageHeader, GlassCard, Badge, Button, toast } from "../../ui";
+import { api, type OrgSlug, type Settings } from "../../api";
+import { Field, Modal, PageHeader, GlassCard, Badge, Button, toast, Code } from "../../ui";
 import { ShieldAlert } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { ExtensionSlot } from "../../plugin-sdk";
@@ -87,6 +87,31 @@ function WorkspaceAddress() {
           </div>
         </Modal>
       )}
+    </GlassCard>
+  );
+}
+
+// TenantAddress shows the workspace's automatic tenant subdomain — its
+// address on a cloud instance with a shared base domain configured — with the
+// one-click copy the whole app's Code component provides. Hidden entirely when
+// no base domain is configured (tenantSubdomain is "").
+function TenantAddress() {
+  const { t } = useTranslation();
+  const [subdomain, setSubdomain] = useState("");
+
+  useEffect(() => {
+    api.settings()
+      .then((s: Settings) => setSubdomain(s.tenantSubdomain || ""))
+      .catch(() => {});
+  }, []);
+
+  if (!subdomain) return null;
+
+  return (
+    <GlassCard className="p-6 space-y-2">
+      <h2 className="text-base font-bold text-foreground">{t("settings.tenantSubdomain")}</h2>
+      <p className="text-xs text-foreground/50">{t("settings.tenantSubdomainHint")}</p>
+      <Code>{subdomain}</Code>
     </GlassCard>
   );
 }
@@ -191,6 +216,8 @@ export function GeneralSettings() {
       </GlassCard>
 
       {role === "owner" && <WorkspaceAddress />}
+
+      <TenantAddress />
 
       <ExtensionSlot name="settings-workspace" />
 

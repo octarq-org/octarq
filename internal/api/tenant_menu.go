@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/tenancy"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -186,9 +188,19 @@ func (h *Handler) createOrg(ctx context.Context, input *CreateOrgInput) (*Create
 			return err
 		}
 		mem := models.OrgMember{OrgID: org.ID, UserID: uid, Role: "owner"}
-		return tx.Create(&mem).Error
+		if err := tx.Create(&mem).Error; err != nil {
+			return err
+		}
+		// A configured base domain provisions the org's <slug>.<base> address in
+		// the same transaction; an unclaimable address fails the whole create
+		// rather than producing a workspace nobody can reach at its address.
+		_, _, err = tenancy.Provision(tx, org.ID, org.Slug)
+		return err
 	})
 	if err != nil {
+		if errors.Is(err, tenancy.ErrNameTaken) {
+			return nil, huma.NewError(http.StatusConflict, "the workspace address could not be claimed — please try again")
+		}
 		return nil, huma.Error500InternalServerError("failed to create organization")
 	}
 

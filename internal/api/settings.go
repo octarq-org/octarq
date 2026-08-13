@@ -18,6 +18,7 @@ import (
 	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/db"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/tenancy"
 	"gorm.io/gorm/clause"
 )
 
@@ -57,6 +58,7 @@ const (
 	keyRatelimitAPIRPM          = "ratelimit_api_rpm"
 	keyRatelimitRedirRPM        = "ratelimit_redirect_rpm"
 	keyRequireEmailVerification = "require_email_verification" // "false" disables the email-verification requirement; default on
+	keyBaseDomain               = models.BaseDomainSetting     // shared tenant-subdomain base; empty = feature off
 )
 
 // Rate-limit defaults (requests per minute per IP) when the setting is unset.
@@ -254,9 +256,12 @@ func (h *Handler) getSettings(ctx context.Context, input *GetSettingsInput) (*Ge
 	body := map[string]any{
 		"reservedMailboxes": h.GetWorkspaceSetting(orgID, keyReservedMailboxes),
 		"orgSlug":           org.Slug,
-		"catchAll":          h.GetWorkspaceSetting(orgID, keyCatchAll) == "true",
-		"autoWrapLinks":     h.GetWorkspaceSetting(orgID, keyAutoWrapLinks) == "true",
-		"isInstanceAdmin":   h.isInstanceAdmin(r),
+		// The org's automatic tenant subdomain, when a base domain is
+		// configured; empty string = no base, so the org has only its slug.
+		"tenantSubdomain": h.tenantSubdomain(org.Slug),
+		"catchAll":        h.GetWorkspaceSetting(orgID, keyCatchAll) == "true",
+		"autoWrapLinks":   h.GetWorkspaceSetting(orgID, keyAutoWrapLinks) == "true",
+		"isInstanceAdmin": h.isInstanceAdmin(r),
 	}
 	// inboundTokenSet reports whether the org's inbound-email webhook secret is
 	// set, without exposing it. Whoever holds the token can forge inbound mail
@@ -363,6 +368,7 @@ func (h *Handler) getInstanceSettings(ctx context.Context, input *GetInstanceSet
 			"allowRegistration":        h.registrationEnabled(),
 			"requireEmailVerification": h.requireEmailVerification(),
 			"appName":                  h.getSetting(keyAppName), // raw value; empty = default
+			"baseDomain":               models.BaseDomain(h.db),  // effective value incl. the OCTARQ_BASE_DOMAIN bootstrap fallback
 			"metricsTokenSet":          h.getSetting(keyMetricsToken) != "",
 			"ratelimitAuthRpm":         h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
 			"ratelimitApiRpm":          h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
@@ -370,6 +376,15 @@ func (h *Handler) getInstanceSettings(ctx context.Context, input *GetInstanceSet
 		},
 	}
 	return out, nil
+}
+
+// tenantSubdomain returns the org's automatic tenant address under the
+// configured base domain, or "" when no base is configured. It is the read
+// side of the provisioning on org creation, so the dashboard can show the
+// address without importing the dns plugin.
+func (h *Handler) tenantSubdomain(slug string) string {
+	name, _ := tenancy.Subdomain(h.db, slug)
+	return name
 }
 
 // isInstanceAdmin reports whether the current user is the bootstrap operator
@@ -492,6 +507,7 @@ func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput
 		Body: map[string]any{
 			"reservedMailboxes": h.GetWorkspaceSetting(org.ID, keyReservedMailboxes),
 			"orgSlug":           org.Slug,
+			"tenantSubdomain":   h.tenantSubdomain(org.Slug),
 			"inboundTokenSet":   org.InboundToken != "",
 			"catchAll":          h.GetWorkspaceSetting(org.ID, keyCatchAll) == "true",
 			"autoWrapLinks":     h.GetWorkspaceSetting(org.ID, keyAutoWrapLinks) == "true",
@@ -511,6 +527,7 @@ type UpdateInstanceSettingsInputBody struct {
 	AllowRegistration        *bool   `json:"allowRegistration,omitempty"`
 	RequireEmailVerification *bool   `json:"requireEmailVerification,omitempty"`
 	AppName                  *string `json:"appName,omitempty"`
+	BaseDomain               *string `json:"baseDomain,omitempty"`
 	MetricsToken             *string `json:"metricsToken,omitempty"`
 	RatelimitAuthRpm         *int    `json:"ratelimitAuthRpm,omitempty"`
 	RatelimitApiRpm          *int    `json:"ratelimitApiRpm,omitempty"`
@@ -595,6 +612,9 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	if input.Body.AppName != nil {
 		h.setSetting(keyAppName, strings.TrimSpace(*input.Body.AppName))
 	}
+	if input.Body.BaseDomain != nil {
+		h.setSetting(keyBaseDomain, strings.TrimSpace(strings.ToLower(*input.Body.BaseDomain)))
+	}
 	if input.Body.MetricsToken != nil {
 		if *input.Body.MetricsToken == "" {
 			h.setSetting(keyMetricsToken, "")
@@ -637,6 +657,9 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	if input.Body.AppName != nil {
 		meta["appName"] = *input.Body.AppName
 	}
+	if input.Body.BaseDomain != nil {
+		meta["baseDomain"] = *input.Body.BaseDomain
+	}
 	if input.Body.MetricsToken != nil {
 		meta["metricsToken"] = "[REDACTED]"
 	}
@@ -668,6 +691,7 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 			"dataRetentionDays":     retDays,
 			"allowRegistration":     h.registrationEnabled(),
 			"appName":               h.getSetting(keyAppName),
+			"baseDomain":            models.BaseDomain(h.db),
 			"metricsTokenSet":       h.getSetting(keyMetricsToken) != "",
 			"ratelimitAuthRpm":      h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
 			"ratelimitApiRpm":       h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),

@@ -431,6 +431,106 @@ func TestResolverCaches(t *testing.T) {
 	}
 }
 
+// seedSetting ensures the settings table exists and inserts the given key/value
+// row, the way the instance-settings API would. Needed by every reserved-zone
+// test: models.BaseDomain reads the base domain from here.
+func seedSetting(t *testing.T, db *gorm.DB, key, value string) {
+	t.Helper()
+	if err := db.AutoMigrate(&models.Setting{}); err != nil {
+		t.Fatalf("migrate settings: %v", err)
+	}
+	if err := db.Create(&models.Setting{Key: key, Value: value}).Error; err != nil {
+		t.Fatalf("seed setting %q: %v", key, err)
+	}
+}
+
+// TestReservedZoneStopsApexBubbling pins trap 1: with a tenant-subdomain base
+// configured, an unprovisioned label under it must resolve to NO org — in
+// particular it must not bubble up through the operator's registered apex
+// (octarq.org) into the vendor org. That leak is the first step of one tenant
+// reading another's data.
+func TestReservedZoneStopsApexBubbling(t *testing.T) {
+	db := testDB(t,
+		testDomain{OrgID: 1, Name: "octarq.org"},
+		testDomain{OrgID: 7, Name: "acme7x.app.octarq.org"},
+	)
+	seedSetting(t, db, models.BaseDomainSetting, "app.octarq.org")
+
+	if org, ok := OwnerOf(db, "nobody.app.octarq.org"); ok || org != 0 {
+		t.Errorf("OwnerOf(nobody.app.octarq.org) = (%d, %v), want (0, false) — must not bubble to the vendor apex", org, ok)
+	}
+	if org, ok := OwnerOf(db, "acme7x.app.octarq.org"); !ok || org != 7 {
+		t.Errorf("OwnerOf(acme7x.app.octarq.org) = (%d, %v), want (7, true) — a provisioned tenant still resolves", org, ok)
+	}
+}
+
+// TestReservedZoneDoesNotLeakThroughBaseRow pins the sharper edge of the same
+// rule: even when the base itself is a registered row (the operator's dashboard
+// host), a deeper unprovisioned host must not resolve through it.
+func TestReservedZoneDoesNotLeakThroughBaseRow(t *testing.T) {
+	db := testDB(t,
+		testDomain{OrgID: 1, Name: "octarq.org"},
+		testDomain{OrgID: 1, Name: "app.octarq.org"},
+	)
+	seedSetting(t, db, models.BaseDomainSetting, "app.octarq.org")
+
+	if org, ok := OwnerOf(db, "nobody.app.octarq.org"); ok || org != 0 {
+		t.Errorf("OwnerOf(nobody.app.octarq.org) = (%d, %v), want (0, false) — must not match the base row", org, ok)
+	}
+	if org, ok := OwnerOf(db, "app.octarq.org"); !ok || org != 1 {
+		t.Errorf("OwnerOf(app.octarq.org) = (%d, %v), want (1, true) — the dashboard host still resolves", org, ok)
+	}
+}
+
+// TestOwnedHostReservedZoneIsolation pins the same reservation for OwnedHost:
+// the vendor must not claim a tenant's subdomain through its base row, while
+// the owning tenant still may.
+func TestOwnedHostReservedZoneIsolation(t *testing.T) {
+	db := testDB(t,
+		testDomain{OrgID: 1, Name: "app.octarq.org"},
+		testDomain{OrgID: 7, Name: "acme7x.app.octarq.org"},
+	)
+	seedSetting(t, db, models.BaseDomainSetting, "app.octarq.org")
+
+	if host, ok := OwnedHost(db, 1, req("acme7x.app.octarq.org")); ok {
+		t.Errorf("vendor OwnedHost claimed %q, another tenant's subdomain", host)
+	}
+	if host, ok := OwnedHost(db, 7, req("acme7x.app.octarq.org")); !ok || host != "acme7x.app.octarq.org" {
+		t.Errorf("tenant OwnedHost = (%q, %v), want its own subdomain", host, ok)
+	}
+}
+
+// TestNoBaseDomainKeepsTodayBehaviour pins that without a configured base the
+// parent-bubbling semantics are exactly what they always were: a subdomain of a
+// registered apex is owned, and an unknown host resolves to nothing.
+func TestNoBaseDomainKeepsTodayBehaviour(t *testing.T) {
+	db := testDB(t, acme())
+	if org, ok := OwnerOf(db, "sub.app.acme.example"); !ok || org != 1 {
+		t.Errorf("OwnerOf(sub.app.acme.example) = (%d, %v), want (1, true)", org, ok)
+	}
+	if org, ok := OwnerOf(db, "evil.example"); ok || org != 0 {
+		t.Errorf("OwnerOf(evil.example) = (%d, %v), want (0, false)", org, ok)
+	}
+}
+
+// TestAbsoluteAfterProvisioningUsesSharedHost pins trap 2: provisioning the
+// first tenant subdomain creates a whitelist, which closes origin's
+// no-whitelist fallback. The dashboard host must still build correct absolute
+// URLs — through OCTARQ_SHARED_HOSTS, the documented deployment path.
+func TestAbsoluteAfterProvisioningUsesSharedHost(t *testing.T) {
+	db := testDB(t, testDomain{OrgID: 7, Name: "acme7x.app.octarq.org"})
+	seedSetting(t, db, models.BaseDomainSetting, "app.octarq.org")
+	t.Setenv("OCTARQ_SHARED_HOSTS", "app.octarq.org")
+	rv := NewResolver(db)
+
+	if got := rv.Absolute(0, req("app.octarq.org"), true); got != "https://app.octarq.org" {
+		t.Errorf("Absolute on the dashboard host = %q, want https://app.octarq.org", got)
+	}
+	if got := rv.Absolute(0, req("acme7x.app.octarq.org"), true); got != "https://acme7x.app.octarq.org" {
+		t.Errorf("Absolute on a tenant subdomain = %q, want https://acme7x.app.octarq.org", got)
+	}
+}
+
 // TestCacheIsNamespacedPerDatabase pins that one Resolver's answers never reach
 // a Resolver built over a different database.
 //

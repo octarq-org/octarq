@@ -11,6 +11,7 @@ export function InstanceSettings() {
   const { s: settings, reload, forbidden } = useInstanceSettingsData();
 
   const [appName, setAppName] = useState("");
+  const [baseDomain, setBaseDomain] = useState("");
   const [retention, setRetention] = useState(90);
   const [rlAuth, setRlAuth] = useState(60);
   const [rlApi, setRlApi] = useState(600);
@@ -25,6 +26,7 @@ export function InstanceSettings() {
   useEffect(() => {
     if (settings) {
       setAppName(settings.appName ?? "");
+      setBaseDomain(settings.baseDomain ?? "");
       setRetention(settings.dataRetentionDays ?? 90);
       setRlAuth(settings.ratelimitAuthRpm ?? 60);
       setRlApi(settings.ratelimitApiRpm ?? 600);
@@ -38,6 +40,7 @@ export function InstanceSettings() {
     try {
       const payload: Parameters<typeof api.updateInstanceSettings>[0] = {
         appName,
+        baseDomain,
         dataRetentionDays: retention,
         ratelimitAuthRpm: rlAuth,
         ratelimitApiRpm: rlApi,
@@ -106,6 +109,14 @@ export function InstanceSettings() {
               value={appName}
               onChange={(e) => setAppName(e.target.value)}
               placeholder="octarq"
+            />
+          </Field>
+          <Field label={t("settings.instanceBaseDomain")} hint={t("settings.instanceBaseDomainHint")}>
+            <input
+              className="input w-full font-mono text-sm"
+              value={baseDomain}
+              onChange={(e) => setBaseDomain(e.target.value)}
+              placeholder="e.g. app.example.com"
             />
           </Field>
           <Field label={t("settings.retentionLabel")} hint={t("settings.retentionHint")}>

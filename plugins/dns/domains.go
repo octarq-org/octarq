@@ -13,6 +13,7 @@ import (
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/origin"
 	"github.com/octarq-org/octarq/plugin"
+	"gorm.io/gorm"
 )
 
 // forgetOrigin drops the cached origin answers for a domain whose row just
@@ -88,6 +89,24 @@ func normalizeHost(host string) string {
 		host = host[:i]
 	}
 	return host
+}
+
+// underBaseZone reports whether name is the reserved tenant-subdomain base
+// itself or a subdomain of it, when one is configured.
+//
+// The base zone is written ONLY by the auto-provisioning path (tenancy), never
+// by hand. Allowing any org to register the base or a label under it would let
+// tenant A squat the address of a future org — or of a retired slug — which is
+// a takeover. Rejecting every subdomain also covers retired slugs automatically:
+// a retired address is just another label under the base, and there is no org
+// left that could legitimately claim it.
+func underBaseZone(db *gorm.DB, name string) bool {
+	base := models.BaseDomain(db)
+	if base == "" {
+		return false
+	}
+	name = normalizeHost(name)
+	return name == base || strings.HasSuffix(name, "."+base)
 }
 
 // hostEntry is a host with its enable flag in create/update payloads.
@@ -171,6 +190,12 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 	var created, updated int
 	for _, z := range zones {
 		name := strings.ToLower(z.Name)
+		// The reserved tenant-subdomain zone is written only by provisioning.
+		// Importing a label under it here would give this org an address it
+		// must never hold — possibly another org's.
+		if underBaseZone(p.db, name) {
+			continue
+		}
 		var dom Domain
 		if p.db.Where("name = ? AND owner_id = ?", name, p.orgID(r)).First(&dom).Error == nil {
 			dom.ZoneID = z.ID
@@ -291,6 +316,9 @@ func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*C
 	name := strings.TrimSpace(strings.ToLower(input.Body.Name))
 	if name == "" || input.Body.ProviderAccountID == 0 {
 		return nil, huma.Error400BadRequest("name and provider account are required")
+	}
+	if underBaseZone(p.db, name) {
+		return nil, huma.Error400BadRequest("that hostname is reserved for automatic tenant subdomains")
 	}
 
 	if !p.ownsProviderAccount(r, input.Body.ProviderAccountID) {

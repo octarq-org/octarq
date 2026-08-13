@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/tenancy"
 	"gorm.io/gorm"
 )
 
@@ -59,6 +60,12 @@ func UpsertUserByEmail(db *gorm.DB, email string, allowRegistration bool) (userI
 		}
 		org := models.Org{Name: email, Slug: slug, InboundToken: uuid.NewString()}
 		if err := db.Create(&org).Error; err != nil {
+			return 0, 0, err
+		}
+		// A configured base domain gives the fresh org its tenant subdomain; a
+		// name collision propagates as an error rather than leaving an org with
+		// no address and nobody told.
+		if _, _, err := tenancy.Provision(db, org.ID, org.Slug); err != nil {
 			return 0, 0, err
 		}
 		member = models.OrgMember{OrgID: org.ID, UserID: user.ID, Role: "owner"}

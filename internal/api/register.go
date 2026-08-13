@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/mail"
@@ -12,7 +13,9 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/google/uuid"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/tenancy"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type RegisterInputBody struct {
@@ -116,11 +119,26 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 	if orgName != "" {
 		name = orgName
 	}
-	org := models.Org{Name: name, Slug: slug, InboundToken: uuid.NewString()}
-	if err := h.db.Create(&org).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to create workspace")
-	}
-	if err := h.db.Create(&models.OrgMember{OrgID: org.ID, UserID: user.ID, Role: "owner"}).Error; err != nil {
+	// Org + membership + the tenant subdomain claim (when a base domain is
+	// configured) are one transaction: if the address cannot be provisioned the
+	// workspace does not silently come into being half-set-up.
+	var orgID uint
+	err = h.db.Transaction(func(tx *gorm.DB) error {
+		org := models.Org{Name: name, Slug: slug, InboundToken: uuid.NewString()}
+		if err := tx.Create(&org).Error; err != nil {
+			return err
+		}
+		orgID = org.ID
+		if err := tx.Create(&models.OrgMember{OrgID: org.ID, UserID: user.ID, Role: "owner"}).Error; err != nil {
+			return err
+		}
+		_, _, err := tenancy.Provision(tx, org.ID, org.Slug)
+		return err
+	})
+	if err != nil {
+		if errors.Is(err, tenancy.ErrNameTaken) {
+			return nil, huma.NewError(http.StatusConflict, "the workspace address could not be claimed — please try again")
+		}
 		return nil, huma.Error500InternalServerError("failed to create workspace")
 	}
 
@@ -143,6 +161,6 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 		return out, nil
 	}
 
-	h.auth.SetSessionFromRequest(r, w, user.ID, org.ID)
+	h.auth.SetSessionFromRequest(r, w, user.ID, orgID)
 	return out, nil
 }
