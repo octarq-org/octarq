@@ -128,6 +128,90 @@ func TestUnderBaseZonePredicate(t *testing.T) {
 	})
 }
 
+// Guard: the reserved base zone holds in the host lists too, not just in
+// Domain.Name. A tenant must not be able to claim a label under the base by
+// listing it as a link or mail host — the same takeover trap, via a list.
+func TestCreateDomainRejectsReservedHostLists(t *testing.T) {
+	p, mkCtx := setupFullDNSTestDB(t)
+	seedBase(t, p, "app.octarq.org")
+	acc := ProviderAccount{OrgID: 1, Name: "P", Type: "cloudflare"}
+	if err := p.db.Create(&acc).Error; err != nil {
+		t.Fatalf("seed provider account: %v", err)
+	}
+
+	ctx := context.Background()
+	enabled := true
+	rejected := []domainDTO{
+		{Name: "evil.com", ProviderAccountID: acc.ID, LinkHosts: &[]hostEntry{{Host: "victim7x.app.octarq.org", Enabled: &enabled}}},
+		{Name: "evil.com", ProviderAccountID: acc.ID, MailHosts: &[]hostEntry{{Host: "victim8y.app.octarq.org", Enabled: &enabled}}},
+		{Name: "evil.com", ProviderAccountID: acc.ID, LinkHosts: &[]hostEntry{{Host: "app.octarq.org", Enabled: &enabled}}},
+		// Normalization must not smuggle a reserved label past the check.
+		{Name: "evil.com", ProviderAccountID: acc.ID, MailHosts: &[]hostEntry{{Host: "HTTPS://Victim9x.App.Octarq.Org:8443", Enabled: &enabled}}},
+	}
+	for _, dto := range rejected {
+		req := httptest.NewRequest(http.MethodPost, "/api/dns/domains", nil)
+		if _, err := p.createDomain(ctx, &CreateDomainInput{Ctx: mkCtx(req), Body: dto}); err == nil {
+			t.Errorf("createDomain with a reserved host-list entry succeeded: %+v", dto)
+		}
+		var n int64
+		p.db.Model(&Domain{}).Where("name = ?", "evil.com").Count(&n)
+		if n != 0 {
+			t.Fatalf("a rejected createDomain wrote a row")
+		}
+	}
+
+	// Unrelated hosts in the lists are untouched by the reservation.
+	req := httptest.NewRequest(http.MethodPost, "/api/dns/domains", nil)
+	if _, err := p.createDomain(ctx, &CreateDomainInput{
+		Ctx:  mkCtx(req),
+		Body: domainDTO{Name: "evil.com", ProviderAccountID: acc.ID, LinkHosts: &[]hostEntry{{Host: "go.evil.com", Enabled: &enabled}}},
+	}); err != nil {
+		t.Errorf("createDomain with an unrelated link host = %v, want success", err)
+	}
+}
+
+// The same rejection must hold when an existing domain's host lists are edited.
+func TestUpdateDomainRejectsReservedHostLists(t *testing.T) {
+	p, mkCtx := setupFullDNSTestDB(t)
+	seedBase(t, p, "app.octarq.org")
+	acc := ProviderAccount{OrgID: 1, Name: "P", Type: "cloudflare"}
+	if err := p.db.Create(&acc).Error; err != nil {
+		t.Fatalf("seed provider account: %v", err)
+	}
+	dom := Domain{OrgID: 1, Name: "evil.com", ProviderAccountID: acc.ID}
+	if err := p.db.Create(&dom).Error; err != nil {
+		t.Fatalf("seed domain: %v", err)
+	}
+
+	ctx := context.Background()
+	enabled := true
+	req := httptest.NewRequest(http.MethodPut, "/api/dns/domains/1", nil)
+	if _, err := p.updateDomain(ctx, &UpdateDomainInput{
+		Ctx:  mkCtx(req),
+		ID:   dom.ID,
+		Body: domainDTO{LinkHosts: &[]hostEntry{{Host: "victim7x.app.octarq.org", Enabled: &enabled}}},
+	}); err == nil {
+		t.Error("updateDomain with a reserved link host succeeded")
+	}
+	var after Domain
+	if err := p.db.First(&after, dom.ID).Error; err != nil {
+		t.Fatalf("reload domain: %v", err)
+	}
+	if len(after.LinkHosts) != 0 {
+		t.Errorf("a rejected update still wrote the host list: %+v", after.LinkHosts)
+	}
+
+	// An unrelated host-list edit still works.
+	req2 := httptest.NewRequest(http.MethodPut, "/api/dns/domains/1", nil)
+	if _, err := p.updateDomain(ctx, &UpdateDomainInput{
+		Ctx:  mkCtx(req2),
+		ID:   dom.ID,
+		Body: domainDTO{LinkHosts: &[]hostEntry{{Host: "go.evil.com", Enabled: &enabled}}},
+	}); err != nil {
+		t.Errorf("updateDomain with an unrelated link host = %v, want success", err)
+	}
+}
+
 // Guard 6 (trap 5): purging a workspace removes its provisioned tenant
 // subdomain rows, so the hostname stops resolving to the deleted org while the
 // bystander org's address is untouched.

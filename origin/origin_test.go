@@ -444,6 +444,82 @@ func seedSetting(t *testing.T, db *gorm.DB, key, value string) {
 	}
 }
 
+// TestReservedZoneHostListsNeverMatch pins the other half of the reserved-zone
+// guard: inside the base zone, another org's link/mail host list must not be
+// able to claim a label. The probe that exposed this: org 7 legitimately owns
+// evil.com and lists victim7x.app.octarq.org (an unprovisioned tenant slug) as
+// a link host — OwnerOf must still resolve that hostname to nothing, and the
+// vendor must not claim it either.
+func TestReservedZoneHostListsNeverMatch(t *testing.T) {
+	db := testDB(t,
+		testDomain{OrgID: 7, Name: "evil.com", LinkHosts: models.HostList{{Host: "victim7x.app.octarq.org", Enabled: true}}},
+		testDomain{OrgID: 8, Name: "spam.com", MailHosts: models.HostList{{Host: "victim8y.app.octarq.org", Enabled: true}}},
+		testDomain{OrgID: 9, Name: "quiet.com", LinkHosts: models.HostList{{Host: "off.app.octarq.org", Enabled: false}}},
+		testDomain{OrgID: 1, Name: "app.octarq.org"},
+	)
+	seedSetting(t, db, models.BaseDomainSetting, "app.octarq.org")
+
+	for _, host := range []string{"victim7x.app.octarq.org", "victim8y.app.octarq.org"} {
+		if org, ok := OwnerOf(db, host); ok || org != 0 {
+			t.Errorf("OwnerOf(%q) = (%d, %v), want (0, false) — a reserved label must not be claimable through another org's host list", host, org, ok)
+		}
+		// Same for the strict per-org question.
+		if owned, ok := OwnedHost(db, 7, req(host)); ok {
+			t.Errorf("OwnedHost(org 7, %q) claimed it via a host list — want unowned", owned)
+		}
+	}
+
+	// Outside the zone, host-list matching is unchanged.
+	if host, ok := OwnedHost(db, 7, req("go.evil.com")); !ok || host != "go.evil.com" {
+		t.Errorf("OwnedHost(org 7, go.evil.com) = (%q, %v), want owned via the link host list", host, ok)
+	}
+	if org, ok := OwnerOf(db, "go.evil.com"); !ok || org != 7 {
+		t.Errorf("OwnerOf(go.evil.com) = (%d, %v), want (7, true) — host lists still resolve outside the zone", org, ok)
+	}
+
+	// A disabled reserved entry is just as inert as an enabled one.
+	if org, ok := OwnerOf(db, "off.app.octarq.org"); ok || org != 0 {
+		t.Errorf("OwnerOf(off.app.octarq.org) = (%d, %v), want (0, false)", org, ok)
+	}
+}
+
+// TestBaseDomainCacheInvalidation pins the base-domain cache: the reserved zone
+// is read once per ttl per database, survives until the setting actually
+// changes, and is invalidated explicitly when it does. Without the cache every
+// OwnerOf/OwnedHost call would pay an extra settings-table round-trip.
+func TestBaseDomainCacheInvalidation(t *testing.T) {
+	clearAllCache()
+	db := testDB(t)
+	seedSetting(t, db, models.BaseDomainSetting, "app.example.com")
+
+	if got := cachedBaseDomain(db); got != "app.example.com" {
+		t.Fatalf("cachedBaseDomain = %q, want app.example.com", got)
+	}
+	// Change the row behind the cache's back; the cached answer must hold.
+	if err := db.Model(&models.Setting{}).Where("key = ?", models.BaseDomainSetting).Update("value", "other.example.net").Error; err != nil {
+		t.Fatalf("update setting: %v", err)
+	}
+	if got := cachedBaseDomain(db); got != "app.example.com" {
+		t.Fatalf("cachedBaseDomain read through the cache = %q, want the cached app.example.com", got)
+	}
+	// Explicit invalidation drops it, so the fresh value is read.
+	ClearBaseDomainCache(db)
+	if got := cachedBaseDomain(db); got != "other.example.net" {
+		t.Fatalf("cachedBaseDomain after invalidation = %q, want other.example.net", got)
+	}
+
+	// Namespace isolation: a different database keeps its own answer, and the
+	// first one is untouched by it. openDB (not testDB) so the cache survives.
+	other := openDB(t, "other")
+	seedSetting(t, other, models.BaseDomainSetting, "other.example.com")
+	if got := cachedBaseDomain(other); got != "other.example.com" {
+		t.Fatalf("other db cachedBaseDomain = %q, want other.example.com", got)
+	}
+	if got := cachedBaseDomain(db); got != "other.example.net" {
+		t.Fatalf("db cachedBaseDomain after other-db ops = %q, want other.example.net", got)
+	}
+}
+
 // TestReservedZoneStopsApexBubbling pins trap 1: with a tenant-subdomain base
 // configured, an unprovisioned label under it must resolve to NO org — in
 // particular it must not bubble up through the operator's registered apex

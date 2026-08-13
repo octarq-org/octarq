@@ -109,6 +109,32 @@ func underBaseZone(db *gorm.DB, name string) bool {
 	return name == base || strings.HasSuffix(name, "."+base)
 }
 
+// reservedInHostLists returns the first hostname across linkHosts and mailHosts
+// that lies inside the reserved tenant-subdomain base zone, or "" when none
+// does.
+//
+// The zone must hold in the host lists too, not just in Domain.Name: origin
+// matches a row's link/mail hosts at the same specificity as its name, so
+// without this a tenant could register evil.com and list
+// victim7x.app.octarq.org as a link host — claiming an unprovisioned (or
+// retired) tenant label through the list. Any entry, enabled or not, is
+// rejected: a disabled one is a single toggle away from serving.
+func reservedInHostLists(db *gorm.DB, linkHosts, mailHosts models.HostList) string {
+	base := models.BaseDomain(db)
+	if base == "" {
+		return ""
+	}
+	for _, list := range []models.HostList{linkHosts, mailHosts} {
+		for _, h := range list {
+			host := normalizeHost(h.Host)
+			if host == base || strings.HasSuffix(host, "."+base) {
+				return host
+			}
+		}
+	}
+	return ""
+}
+
 // hostEntry is a host with its enable flag in create/update payloads.
 type hostEntry struct {
 	Host    string `json:"host"`
@@ -351,6 +377,11 @@ func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*C
 	} else {
 		dom.ForMail = len(dom.MailHosts) > 0
 	}
+	// The reserved zone applies to the host lists as well as the name: a link
+	// or mail host under the base would claim a label no org owns yet.
+	if bad := reservedInHostLists(p.db, dom.LinkHosts, dom.MailHosts); bad != "" {
+		return nil, huma.Error400BadRequest("that hostname is reserved for automatic tenant subdomains")
+	}
 	// Best-effort credential check.
 	if prov, err := p.providerFor(dom); err == nil && dom.ZoneID != "" {
 		if name, err := prov.VerifyZone(r.Context(), dom.ZoneID); err != nil {
@@ -428,6 +459,10 @@ func (p *Plugin) updateDomain(ctx context.Context, input *UpdateDomainInput) (*U
 	}
 	if input.Body.MailHosts != nil {
 		dom.MailHosts = normalizeHosts(*input.Body.MailHosts)
+	}
+	// The reserved zone applies to the host lists as well as the name.
+	if bad := reservedInHostLists(p.db, dom.LinkHosts, dom.MailHosts); bad != "" {
+		return nil, huma.Error400BadRequest("that hostname is reserved for automatic tenant subdomains")
 	}
 	if input.Body.ProviderAccountID != 0 {
 		if !p.ownsProviderAccount(r, input.Body.ProviderAccountID) {

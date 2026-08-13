@@ -19,6 +19,7 @@ import (
 	"github.com/octarq-org/octarq/internal/db"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/tenancy"
+	"github.com/octarq-org/octarq/origin"
 	"gorm.io/gorm/clause"
 )
 
@@ -614,6 +615,10 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	}
 	if input.Body.BaseDomain != nil {
 		h.setSetting(keyBaseDomain, strings.TrimSpace(strings.ToLower(*input.Body.BaseDomain)))
+		// Origin caches the reserved zone (and every ownership answer computed
+		// against it) for minutes; a base-domain change must be visible now, so
+		// drop the whole namespace.
+		origin.ClearBaseDomainCache(h.db)
 	}
 	if input.Body.MetricsToken != nil {
 		if *input.Body.MetricsToken == "" {
