@@ -345,13 +345,19 @@ const (
 const settingsRefreshInterval = 30 * time.Second
 
 // RuntimeSettings supplies the DB-backed runtime configuration the edge
-// middleware needs. Both funcs are optional (nil = built-in defaults); they are
+// middleware needs. All funcs are optional (nil = built-in defaults); they are
 // polled at most once per settingsRefreshInterval.
 type RuntimeSettings struct {
 	// MetricsToken returns the /metrics bearer token; empty = loopback-only.
 	MetricsToken func() string
 	// RateLimits returns the per-IP RPM budgets for the auth/api/redirect tiers.
 	RateLimits func() (authRPM, apiRPM, redirectRPM int)
+	// CORSOrigins returns the exact origins allowed to read public GET API
+	// endpoints cross-origin. nil/empty = CORS disabled (no headers ever sent).
+	CORSOrigins func() []string
+	// PublicGET reports whether a path hosts a public GET endpoint — the only
+	// routes CORS is ever granted to. nil disables CORS.
+	PublicGET func(path string) bool
 }
 
 // middleware bundles the edge concerns (request IDs, rate limiting, metrics,
@@ -364,6 +370,7 @@ type middleware struct {
 	confMu       sync.Mutex
 	confAt       time.Time
 	metricsToken string
+	corsOrigins  []string
 }
 
 func newMiddleware(rs RuntimeSettings) *middleware {
@@ -390,6 +397,9 @@ func (mw *middleware) refreshConfig(now time.Time) {
 	if mw.settings.RateLimits != nil {
 		mw.limiter.setLimits(mw.settings.RateLimits())
 	}
+	if mw.settings.CORSOrigins != nil {
+		mw.corsOrigins = mw.settings.CORSOrigins()
+	}
 }
 
 // currentMetricsToken returns the cached metrics token.
@@ -397,6 +407,84 @@ func (mw *middleware) currentMetricsToken() string {
 	mw.confMu.Lock()
 	defer mw.confMu.Unlock()
 	return mw.metricsToken
+}
+
+// currentCORSOrigins returns the cached cross-origin allowlist.
+func (mw *middleware) currentCORSOrigins() []string {
+	mw.confMu.Lock()
+	defer mw.confMu.Unlock()
+	return mw.corsOrigins
+}
+
+// originAllowed reports whether origin is an EXACT member of allow. Prefix and
+// substring matches are deliberately rejected: "https://octarq.org.evil.com"
+// must never pass because it merely contains "octarq.org".
+func originAllowed(origin string, allow []string) bool {
+	for _, a := range allow {
+		if origin == a {
+			return true
+		}
+	}
+	return false
+}
+
+// applyCORS writes cross-origin headers for requests to public GET endpoints
+// whose Origin is in the configured allowlist, and short-circuits an approved
+// preflight. It returns true only when the request was a preflight that this
+// middleware already answered (204) and the router must not see.
+//
+// The security contract is deliberate and non-negotiable:
+//   - only GET endpoints the auth gate lets through unauthenticated;
+//   - the Origin must match the allowlist exactly;
+//   - Access-Control-Allow-Credentials is never set. These endpoints are public
+//     data; once credentials are allowed, any whitelisted origin that is ever
+//     compromised can act as the user against every API on the instance.
+func (mw *middleware) applyCORS(w http.ResponseWriter, r *http.Request) bool {
+	if mw.settings.PublicGET == nil {
+		return false
+	}
+	if !mw.settings.PublicGET(r.URL.Path) {
+		return false
+	}
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		// No Origin header: same-origin or non-browser client, no CORS needed.
+		return false
+	}
+
+	if r.Method == http.MethodOptions {
+		// Preflight. Only a GET read is ever on offer; a preflight asking for
+		// anything else is not answered (the browser will block the follow-up).
+		if !strings.EqualFold(r.Header.Get("Access-Control-Request-Method"), http.MethodGet) {
+			return false
+		}
+		if !originAllowed(origin, mw.currentCORSOrigins()) {
+			return false
+		}
+		h := w.Header()
+		h.Set("Access-Control-Allow-Origin", origin)
+		h.Set("Access-Control-Allow-Methods", http.MethodGet)
+		if reqHeaders := r.Header.Get("Access-Control-Request-Headers"); reqHeaders != "" {
+			h.Set("Access-Control-Allow-Headers", reqHeaders)
+		}
+		h.Set("Access-Control-Max-Age", "600")
+		h.Add("Vary", "Origin")
+		h.Add("Vary", "Access-Control-Request-Method")
+		h.Add("Vary", "Access-Control-Request-Headers")
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	}
+
+	if r.Method != http.MethodGet {
+		return false
+	}
+	// Vary on Origin whenever the response is origin-dependent, so a shared
+	// cache never serves a non-CORS copy to an allowed origin or vice versa.
+	if originAllowed(origin, mw.currentCORSOrigins()) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	}
+	w.Header().Add("Vary", "Origin")
+	return false
 }
 
 // setSecurityHeaders applies baseline hardening headers to every response.
@@ -425,6 +513,14 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 	}
 	w.Header().Set("X-Request-Id", rid)
 	r = r.WithContext(context.WithValue(r.Context(), RequestIDKey, rid))
+
+	// 1.5. Cross-origin reads of public GET endpoints. An approved preflight
+	// short-circuits here (before rate limiting — preflights are cheap and
+	// browsers batch them); everything else falls through to normal routing.
+	if mw.applyCORS(w, r) {
+		mw.finish(r, ip, rid, http.StatusNoContent, start)
+		return
+	}
 
 	// 2. Gated metrics endpoint.
 	if r.Method == http.MethodGet && r.URL.Path == "/metrics" {

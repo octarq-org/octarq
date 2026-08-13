@@ -152,3 +152,30 @@ func TestIsPublicPathRequiresSessionByDefault(t *testing.T) {
 		}
 	}
 }
+
+// TestPublicGETMatcher pins what CORS is allowed to attach to: public GET
+// endpoints and only those. A non-public GET, or a public route that is not a
+// GET (login is public but mutating), must never qualify — CORS is a read-only
+// concession and the whitelist must not widen it into a write path.
+func TestPublicGETMatcher(t *testing.T) {
+	h, _, _ := newTestHandlerRaw(t)
+	publicGET := PublicGETMatcher(h.Huma())
+
+	for _, path := range []string{"/api/auth/config", "/api/auth/methods", "/api/health", "/api/status"} {
+		if !publicGET(path) {
+			t.Errorf("public GET path %s must qualify for CORS", path)
+		}
+	}
+
+	for _, path := range []string{
+		"/api/auth/me",
+		"/api/links",
+		"/api/mailboxes",
+		"/api/auth/login", // public, but POST — never a CORS read
+		"/api/auth/logout",
+	} {
+		if publicGET(path) {
+			t.Errorf("%s must NOT qualify for CORS", path)
+		}
+	}
+}
