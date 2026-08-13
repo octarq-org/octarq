@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/tenancy"
 	"gorm.io/gorm"
 )
 
@@ -145,9 +147,22 @@ func (h *Handler) updateOrgSlug(ctx context.Context, input *UpdateOrgSlugInput) 
 		if err := tx.Where("slug = ?", slug).Delete(&models.OrgSlugHistory{}).Error; err != nil {
 			return err
 		}
+		// The tenant subdomain follows the slug: the old address goes offline
+		// (mirroring OrgSlugHistory — it must not keep resolving, and must not
+		// be pickable-up by anyone else) and the new one is claimed. A
+		// collision on the new address rolls the whole rename back.
+		if err := tenancy.Retire(tx, oid, old); err != nil {
+			return err
+		}
+		if _, _, err := tenancy.Provision(tx, oid, slug); err != nil {
+			return err
+		}
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, tenancy.ErrNameTaken) {
+			return nil, huma.Error409Conflict("that address is taken")
+		}
 		// The unique index is the real arbiter; a racing writer lands here.
 		return nil, huma.Error409Conflict("that address is taken")
 	}

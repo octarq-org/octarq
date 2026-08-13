@@ -115,6 +115,12 @@ func NormalizeHost(host string) string {
 // tenant owning "acme.co.uk" matches at the three-label step first, so the extra
 // "co.uk" probe only ever costs a wasted comparison and can only match if
 // somebody genuinely registered "co.uk" as a domain of their own.
+//
+// zoneCandidates additionally cuts the list at the reserved tenant-subdomain
+// base: a host that lives under the base must never resolve through anything
+// above it — an unprovisioned tenant label would otherwise bubble up to the
+// operator's registered apex and land in the vendor org, which is how one
+// tenant's unassigned address turns into another tenant's data exposure.
 func Candidates(host string) []string {
 	if host == "" || strings.HasPrefix(host, "[") {
 		return nil
@@ -132,6 +138,29 @@ func Candidates(host string) []string {
 		out = append(out, strings.Join(labels[i:], "."))
 	}
 	return out
+}
+
+// zoneCandidates returns the candidate list for host, truncated so that nothing
+// above base is considered when host lives under it. base may be "" (no
+// reserved zone), in which case the result is exactly Candidates(host).
+func zoneCandidates(host, base string) []string {
+	cands := Candidates(host)
+	if base == "" || !underBase(host, base) {
+		return cands
+	}
+	for i, c := range cands {
+		if c == base {
+			return cands[:i+1]
+		}
+	}
+	return cands
+}
+
+// underBase reports whether host is the reserved tenant-subdomain base itself
+// or lives beneath it (host == base or "x.base" for any non-empty x). base
+// must already be normalized; an empty base never reserves anything.
+func underBase(host, base string) bool {
+	return base != "" && (host == base || strings.HasSuffix(host, "."+base))
 }
 
 // isNumericHost reports whether every label is numeric (an IPv4 literal).
@@ -184,7 +213,8 @@ func OwnedHost(db *gorm.DB, orgID uint, r *http.Request) (string, bool) {
 	if host == "" || host == "localhost" || host == "[::1]" {
 		return "", false
 	}
-	candidates := Candidates(host)
+	base := cachedBaseDomain(db)
+	candidates := zoneCandidates(host, base)
 	if len(candidates) == 0 { // IP literal or single-label name
 		return "", false
 	}
@@ -193,7 +223,7 @@ func OwnedHost(db *gorm.DB, orgID uint, r *http.Request) (string, bool) {
 		return "", false
 	}
 	for _, d := range rows {
-		if matchRow(d, host, candidates) {
+		if matchRow(d, host, candidates, base) {
 			return host, true
 		}
 	}
@@ -240,7 +270,8 @@ func OwnerOf(db *gorm.DB, host string) (uint, bool) {
 	if host == "" || host == "localhost" || host == "[::1]" {
 		return 0, false
 	}
-	candidates := Candidates(host)
+	base := cachedBaseDomain(db)
+	candidates := zoneCandidates(host, base)
 	if len(candidates) == 0 {
 		return 0, false
 	}
@@ -250,11 +281,18 @@ func OwnerOf(db *gorm.DB, host string) (uint, bool) {
 	}
 
 	for i, c := range candidates {
+		// Within the reserved tenant-subdomain zone only an exact label counts:
+		// a deeper, unprovisioned host must not resolve through the base row
+		// (the operator's dashboard) nor through the apex above it. Provisioned
+		// tenants always match at level zero, so nothing legitimate is lost.
+		if underBase(host, base) && i > 0 {
+			continue
+		}
 		isLevelZero := (i == 0)
 		var matchedOrg uint
 		var found bool
 		for _, d := range rows {
-			if matchRowAt(d, host, c, isLevelZero) {
+			if matchRowAt(d, host, c, isLevelZero, base) {
 				if !found {
 					matchedOrg = d.OrgID
 					found = true
@@ -271,18 +309,31 @@ func OwnerOf(db *gorm.DB, host string) (uint, bool) {
 	return 0, false
 }
 
-func matchRow(d domainRow, host string, candidates []string) bool {
+func matchRow(d domainRow, host string, candidates []string, base string) bool {
 	for i, c := range candidates {
-		if matchRowAt(d, host, c, i == 0) {
+		// See OwnerOf: under the reserved zone only exact (level zero) matches
+		// are meaningful; within it there are no legitimate intermediate rows.
+		if underBase(host, base) && i > 0 {
+			break
+		}
+		if matchRowAt(d, host, c, i == 0, base) {
 			return true
 		}
 	}
 	return false
 }
 
-func matchRowAt(d domainRow, host string, candidate string, isLevelZero bool) bool {
+func matchRowAt(d domainRow, host string, candidate string, isLevelZero bool, base string) bool {
 	if candidate == NormalizeHost(d.Name) {
 		return true
+	}
+	// Inside the reserved tenant-subdomain zone, host lists never participate —
+	// not even at level zero, which is exactly the level this matching lets
+	// through. Another org's link/mail host list must not be able to claim a
+	// label under the base that belongs to no org yet (or to a retired slug);
+	// only the row whose Name IS the host (a provisioned address) resolves there.
+	if underBase(host, base) {
+		return false
 	}
 	if isLevelZero && (hostListHas(d.LinkHosts, host) || hostListHas(d.MailHosts, host)) {
 		return true
@@ -456,6 +507,53 @@ func ClearDomainCache(domain string) {
 	}
 }
 
+// baseDomainKey is the cache key for a database's reserved tenant-subdomain
+// base. It carries the namespace like every other answer.
+func baseDomainKey(db *gorm.DB) string {
+	return namespace(db) + "base|"
+}
+
+// cachedBaseDomain returns the reserved tenant-subdomain base for db, cached
+// per database with the same ttl and invalidation as the ownership answers.
+//
+// models.BaseDomain reads the settings table on every call, and OwnerOf and
+// OwnedHost consult it on every host→org resolution — the hot path the domains
+// cache above exists to protect. The base changes rarely (an operator flips it
+// once), so caching it keeps resolution at one settings round-trip per ttl per
+// database instead of one per request.
+func cachedBaseDomain(db *gorm.DB) string {
+	key := baseDomainKey(db)
+	globalCacheMu.RLock()
+	e, hit := globalCache[key]
+	globalCacheMu.RUnlock()
+	if hit && time.Now().Before(e.expiry) {
+		return e.name
+	}
+	base := models.BaseDomain(db)
+	globalCacheMu.Lock()
+	if len(globalCache) > 1024 {
+		globalCache = make(map[string]entry)
+	}
+	globalCache[key] = entry{ok: true, name: base, expiry: time.Now().Add(ttl)}
+	globalCacheMu.Unlock()
+	return base
+}
+
+// ClearBaseDomainCache drops every cached answer for db after the reserved
+// tenant-subdomain base changed. The base itself and every per-host ownership
+// answer were computed under the old base, so the whole namespace goes rather
+// than one key. Call it when the base domain setting is written.
+func ClearBaseDomainCache(db *gorm.DB) {
+	ns := namespace(db)
+	globalCacheMu.Lock()
+	defer globalCacheMu.Unlock()
+	for k := range globalCache {
+		if strings.HasPrefix(k, ns) {
+			delete(globalCache, k)
+		}
+	}
+}
+
 // clearAllCache is for tests.
 func clearAllCache() {
 	globalCacheMu.Lock()
@@ -466,6 +564,7 @@ func clearAllCache() {
 type entry struct {
 	ok     bool
 	org    uint
+	name   string // cachedBaseDomain's value
 	expiry time.Time
 }
 

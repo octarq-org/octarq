@@ -13,6 +13,7 @@ import (
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/origin"
 	"github.com/octarq-org/octarq/plugin"
+	"gorm.io/gorm"
 )
 
 // forgetOrigin drops the cached origin answers for a domain whose row just
@@ -88,6 +89,50 @@ func normalizeHost(host string) string {
 		host = host[:i]
 	}
 	return host
+}
+
+// underBaseZone reports whether name is the reserved tenant-subdomain base
+// itself or a subdomain of it, when one is configured.
+//
+// The base zone is written ONLY by the auto-provisioning path (tenancy), never
+// by hand. Allowing any org to register the base or a label under it would let
+// tenant A squat the address of a future org — or of a retired slug — which is
+// a takeover. Rejecting every subdomain also covers retired slugs automatically:
+// a retired address is just another label under the base, and there is no org
+// left that could legitimately claim it.
+func underBaseZone(db *gorm.DB, name string) bool {
+	base := models.BaseDomain(db)
+	if base == "" {
+		return false
+	}
+	name = normalizeHost(name)
+	return name == base || strings.HasSuffix(name, "."+base)
+}
+
+// reservedInHostLists returns the first hostname across linkHosts and mailHosts
+// that lies inside the reserved tenant-subdomain base zone, or "" when none
+// does.
+//
+// The zone must hold in the host lists too, not just in Domain.Name: origin
+// matches a row's link/mail hosts at the same specificity as its name, so
+// without this a tenant could register evil.com and list
+// victim7x.app.octarq.org as a link host — claiming an unprovisioned (or
+// retired) tenant label through the list. Any entry, enabled or not, is
+// rejected: a disabled one is a single toggle away from serving.
+func reservedInHostLists(db *gorm.DB, linkHosts, mailHosts models.HostList) string {
+	base := models.BaseDomain(db)
+	if base == "" {
+		return ""
+	}
+	for _, list := range []models.HostList{linkHosts, mailHosts} {
+		for _, h := range list {
+			host := normalizeHost(h.Host)
+			if host == base || strings.HasSuffix(host, "."+base) {
+				return host
+			}
+		}
+	}
+	return ""
 }
 
 // hostEntry is a host with its enable flag in create/update payloads.
@@ -171,6 +216,12 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 	var created, updated int
 	for _, z := range zones {
 		name := strings.ToLower(z.Name)
+		// The reserved tenant-subdomain zone is written only by provisioning.
+		// Importing a label under it here would give this org an address it
+		// must never hold — possibly another org's.
+		if underBaseZone(p.db, name) {
+			continue
+		}
 		var dom Domain
 		if p.db.Where("name = ? AND owner_id = ?", name, p.orgID(r)).First(&dom).Error == nil {
 			dom.ZoneID = z.ID
@@ -292,6 +343,9 @@ func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*C
 	if name == "" || input.Body.ProviderAccountID == 0 {
 		return nil, huma.Error400BadRequest("name and provider account are required")
 	}
+	if underBaseZone(p.db, name) {
+		return nil, huma.Error400BadRequest("that hostname is reserved for automatic tenant subdomains")
+	}
 
 	if !p.ownsProviderAccount(r, input.Body.ProviderAccountID) {
 		return nil, huma.Error404NotFound("provider account not found")
@@ -322,6 +376,11 @@ func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*C
 		dom.ForMail = *input.Body.ForMail
 	} else {
 		dom.ForMail = len(dom.MailHosts) > 0
+	}
+	// The reserved zone applies to the host lists as well as the name: a link
+	// or mail host under the base would claim a label no org owns yet.
+	if bad := reservedInHostLists(p.db, dom.LinkHosts, dom.MailHosts); bad != "" {
+		return nil, huma.Error400BadRequest("that hostname is reserved for automatic tenant subdomains")
 	}
 	// Best-effort credential check.
 	if prov, err := p.providerFor(dom); err == nil && dom.ZoneID != "" {
@@ -400,6 +459,10 @@ func (p *Plugin) updateDomain(ctx context.Context, input *UpdateDomainInput) (*U
 	}
 	if input.Body.MailHosts != nil {
 		dom.MailHosts = normalizeHosts(*input.Body.MailHosts)
+	}
+	// The reserved zone applies to the host lists as well as the name.
+	if bad := reservedInHostLists(p.db, dom.LinkHosts, dom.MailHosts); bad != "" {
+		return nil, huma.Error400BadRequest("that hostname is reserved for automatic tenant subdomains")
 	}
 	if input.Body.ProviderAccountID != 0 {
 		if !p.ownsProviderAccount(r, input.Body.ProviderAccountID) {

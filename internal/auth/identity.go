@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/tenancy"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -240,6 +241,9 @@ func firstOrPersonalOrg(db *gorm.DB, userID uint) (uint, error) {
 	}
 	org := models.Org{Name: user.Email, Slug: slug, InboundToken: uuid.NewString()}
 	if err := db.Create(&org).Error; err != nil {
+		return 0, err
+	}
+	if _, _, err := tenancy.Provision(db, org.ID, org.Slug); err != nil {
 		return 0, err
 	}
 	if err := db.Create(&models.OrgMember{OrgID: org.ID, UserID: userID, Role: "owner"}).Error; err != nil {

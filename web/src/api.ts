@@ -259,6 +259,9 @@ export async function req<T>(method: string, path: string, body?: unknown, lang?
 export interface Settings {
   reservedMailboxes: string;
   orgSlug: string;
+  // The org's automatic tenant address "<slug>.<base>" when a base domain is
+  // configured; "" when the feature is off.
+  tenantSubdomain?: string;
   inboundTokenSet?: boolean;
   catchAll: boolean;
   autoWrapLinks: boolean;
@@ -276,6 +279,7 @@ export interface InstanceSettings {
   allowRegistration: boolean;
   requireEmailVerification?: boolean;
   appName: string;
+  baseDomain: string;
   metricsTokenSet: boolean;
   ratelimitAuthRpm: number;
   ratelimitApiRpm: number;
@@ -314,6 +318,7 @@ export const api = {
     allowRegistration?: boolean;
     requireEmailVerification?: boolean;
     appName?: string;
+    baseDomain?: string;
     metricsToken?: string;
     ratelimitAuthRpm?: number;
     ratelimitApiRpm?: number;
