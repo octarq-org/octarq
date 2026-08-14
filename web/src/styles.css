@@ -1,5 +1,5 @@
-/* Inter + Outfit are loaded via <link rel="stylesheet"> in index.html
-   (with preconnect) so they don't block CSS parsing. */
+/* Inter is loaded via <link rel="stylesheet"> in index.html (with
+   preconnect) so it doesn't block CSS parsing. */
 @import "tailwindcss";
 @source "../../packages/plugin-sdk/src/ui/**/*.tsx";
 @source "../../packages/plugin-*/src/**/*.tsx";
@@ -31,8 +31,9 @@ body,
 :root {
   color-scheme: light;
 
-  /* Radius — btn/input = 0.625rem, cards = rounded-2xl (1rem) */
-  --radius: 0.625rem;
+  /* Radius — 4px base; the --radius-* ramp below (and every var(--radius)
+     consumer such as .input) resolves from here. */
+  --radius: 0.25rem;
 
   /* Surfaces — warm near-white app bg, pure-white cards, 1px flat borders.
      This is the Wise/Cloudflare signature: clean panels on a soft neutral. */
@@ -82,9 +83,6 @@ body,
   --input: #dcdcd5;
   --ring: #6366f1;
 
-  /* Glass blur radii — used only in dark mode (see `.dark .glass`). */
-  --blur-glass: 18px;
-  --blur-glass-strong: 22px;
 }
 
 .dark {
@@ -92,9 +90,9 @@ body,
 
   --background: #07070b;
   --foreground: #e7e7ef;
-  --card: rgba(22, 22, 32, 0.55);
+  --card: #14141c;
   --card-foreground: #e7e7ef;
-  --popover: rgba(13, 13, 20, 0.96);
+  --popover: #0d0d14;
   --popover-foreground: #ffffff;
   --muted: rgba(255, 255, 255, 0.05);
   --muted-foreground: rgba(255, 255, 255, 0.55);
@@ -122,8 +120,8 @@ body,
   --danger-border: rgba(244, 63, 94, 0.38);
   --danger-fg: #fda4af;
 
-  --border: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.10);
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.16);
   --input: rgba(255, 255, 255, 0.10);
   --ring: #6366f1;
 }
@@ -140,6 +138,7 @@ body,
   --color-surface-hover: var(--surface-hover);
   --color-well: var(--well);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
   --color-accent-indigo: var(--accent-indigo);
   --color-accent-violet: var(--accent-violet);
@@ -166,10 +165,14 @@ body,
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+  --radius-2xl: 4px;    /* new: closes the 27 existing rounded-2xl call sites */
+  --radius-3xl: 4px;    /* new: defensive */
+
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 body {
@@ -179,65 +182,45 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Display font */
+/* Display font — inherits the body face (Inter). The class stays (10 call
+   sites reference it); only the Outfit webfont goes away. */
 .font-display {
-  font-family: 'Outfit', 'Inter', sans-serif;
+  font-family: inherit;
 }
 
-/* App background — Wise/CF keep it calm: a soft neutral with a whisper of the
-   brand accent in the corners. Dark mode restores the richer aurora. */
+/* App background — a flat page fill in both modes. The class stays (5
+   consumers reference it); only the decorative radial gradients go away. */
 .octarq-aurora {
-  background:
-    radial-gradient(60rem 40rem at 12% -10%, rgba(99, 102, 241, 0.06), transparent 60%),
-    radial-gradient(50rem 38rem at 95% 8%, rgba(139, 92, 246, 0.05), transparent 55%),
-    var(--background);
+  background: var(--background);
 }
 .dark .octarq-aurora {
-  background:
-    radial-gradient(60rem 40rem at 12% -10%, rgba(99, 102, 241, 0.18), transparent 60%),
-    radial-gradient(50rem 38rem at 95% 8%, rgba(139, 92, 246, 0.16), transparent 55%),
-    radial-gradient(45rem 40rem at 60% 120%, rgba(99, 102, 241, 0.10), transparent 60%),
-    #07070b;
+  background: var(--background);
 }
 
-/* Surface — light: a flat white panel with a 1px border and a whisper of
-   shadow (Wise/CF). dark: the original frosted glass with an inset lit edge. */
+/* Surface — a flat panel with a 1px border and no shadow, in both modes.
+   Dark mode uses the solid --card fill (no backdrop blur), so panels never
+   let the page background bleed through. */
 .glass,
 .card {
   background: var(--card);
   border: 1px solid var(--border);
-  box-shadow: 0 1px 2px rgba(16, 16, 20, 0.04), 0 1px 3px -1px rgba(16, 16, 20, 0.03);
+  box-shadow: none;
 }
 .card {
-  border-radius: 1rem;
-}
-.dark .glass,
-.dark .card {
-  backdrop-filter: blur(var(--blur-glass)) saturate(140%);
-  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(140%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 12px 32px -16px rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius-lg);
 }
 
+/* Floating layers (dialog / popover / dropdown / toast / tooltip / ⌘K) get
+   exactly one restrained shadow per mode so the layer reads off the surface
+   beneath it — functional separation, not decoration. */
 .glass-strong {
   background: var(--popover);
   border: 1px solid var(--border-strong);
-  box-shadow: 0 8px 24px -12px rgba(16, 16, 20, 0.12), 0 2px 6px -2px rgba(16, 16, 20, 0.06);
+  box-shadow: 0 4px 12px -4px rgb(0 0 0 / 0.12);
 }
 .dark .glass-strong {
   border-color: rgba(255, 255, 255, 0.09);
-  backdrop-filter: blur(var(--blur-glass-strong)) saturate(150%);
-  -webkit-backdrop-filter: blur(var(--blur-glass-strong)) saturate(150%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
-}
-
-/* Glow shadow — the brand mark's halo. Softer on light, richer on dark. */
-.shadow-glow {
-  box-shadow: 0 6px 20px -8px rgba(99, 102, 241, 0.35);
-}
-.dark .shadow-glow {
-  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.4), 0 8px 40px -8px rgba(99, 102, 241, 0.45);
+  box-shadow: 0 4px 16px -4px rgb(0 0 0 / 0.45);
 }
 
 /* Brand gradient — the mark surface (BrandMark). Reads the accent design token
@@ -314,23 +297,16 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-primary,
 .btn {
-  background: var(--gradient-primary);
-  color: #ffffff;
-  /* Inner top highlight makes the gradient read as a lit surface. */
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    0 8px 20px -8px rgba(99, 102, 241, 0.45);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: none;
 }
 .btn-primary:hover,
 .btn:hover {
-  filter: brightness(1.08);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    0 10px 26px -8px rgba(124, 92, 246, 0.5);
+  background: var(--primary-hover);
 }
 .btn-primary:active,
 .btn:active {
-  filter: brightness(0.98);
   transform: translateY(1px);
 }
 .btn-primary:disabled,
@@ -414,17 +390,17 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Modal Animations */
 @keyframes modal-enter {
-  0%   { opacity: 0; transform: translateY(-20px) scale(0.95); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  0%   { opacity: 0; transform: translateY(-4px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes overlay-enter {
-  0%   { background-color: transparent; backdrop-filter: blur(0); }
-  100% { background-color: rgb(0 0 0 / 0.45); backdrop-filter: blur(8px); }
+  0%   { background-color: transparent; }
+  100% { background-color: rgb(0 0 0 / 0.45); }
 }
 
-.modal-overlay { animation: overlay-enter 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.modal-card    { animation: modal-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.modal-overlay { animation: overlay-enter 0.12s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.modal-card    { animation: modal-enter 0.12s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
 @keyframes expand-down {
   from { opacity: 0; transform: translateY(-10px); }
