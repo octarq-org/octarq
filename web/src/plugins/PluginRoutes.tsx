@@ -11,7 +11,7 @@ export function PluginUnavailable() {
   const { t } = useTranslation();
   return (
     <ScreenWrap>
-      <GlassCard className="mx-auto mt-12 flex max-w-md flex-col items-center gap-3 px-6 py-14 text-center">
+      <GlassCard className="mx-auto mt-12 flex max-w-md flex-col items-center gap-3 px-5 py-10 text-center">
         <PageHeader
           title={t("uiCommon.routeUnavailableTitle")}
           description={t("uiCommon.routeUnavailableBody")}
@@ -28,13 +28,13 @@ export function PluginDisabled() {
   const canEnable = roleSatisfies("admin", roleCtx.role, roleCtx.isInstanceAdmin);
   return (
     <ScreenWrap>
-      <GlassCard className="mx-auto mt-12 flex max-w-md flex-col items-center gap-3 px-6 py-14 text-center">
+      <GlassCard className="mx-auto mt-12 flex max-w-md flex-col items-center gap-3 px-5 py-10 text-center">
         <PageHeader
           title={t("uiCommon.pluginDisabledTitle")}
           description={canEnable ? t("uiCommon.pluginDisabledAdminBody") : t("uiCommon.pluginDisabledBody")}
         />
         {canEnable && (
-          <Link to="/settings/plugins" className="text-indigo-500 hover:text-indigo-400 font-medium text-sm" /* ui-color-ok */>
+          <Link to="/settings/plugins" className="text-primary hover:text-primary-hover font-medium text-sm">
             {t("uiCommon.pluginDisabledAdminLink")}
           </Link>
         )}
@@ -48,7 +48,7 @@ export function AccessDenied() {
   const { t } = useTranslation();
   return (
     <ScreenWrap>
-      <GlassCard className="mx-auto mt-12 flex max-w-md flex-col items-center gap-3 px-6 py-14 text-center">
+      <GlassCard className="mx-auto mt-12 flex max-w-md flex-col items-center gap-3 px-5 py-10 text-center">
         <PageHeader
           title={t("uiCommon.accessDeniedTitle")}
           description={t("uiCommon.accessDeniedBody")}
