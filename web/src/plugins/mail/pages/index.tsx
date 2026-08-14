@@ -219,7 +219,7 @@ export default function MailPage() {
                     >
                       <div className="flex items-center justify-between w-full mb-1 gap-2">
                         <div className="flex items-center gap-2 overflow-hidden">
-                          {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />} /* ui-color-ok */
+                          {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" /* ui-color-ok */ />}
                           <span className={`truncate text-sm ${e.read ? "text-foreground/55" : "font-semibold text-foreground"}`}>{e.from || t("mail.unknownSender")}</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0 ml-2">

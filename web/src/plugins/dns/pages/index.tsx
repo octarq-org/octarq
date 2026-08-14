@@ -342,7 +342,7 @@ export default function DomainsPage() {
             </div>
           ) : domains.length === 0 && !loading ? (
             <GlassCard className="flex flex-col items-center justify-center py-16 px-6 text-center border border-foreground/[0.04]/40">
-              <div className="h-14 w-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-accent-fg mb-4"> /* ui-color-ok */
+              <div className="h-14 w-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-accent-fg mb-4" /* ui-color-ok */>
                 <Globe className="h-7 w-7" />
               </div>
               <h3 className="text-lg font-bold text-foreground mb-1.5">{t("domains.addFirstDomain")}</h3>

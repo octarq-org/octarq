@@ -24,7 +24,7 @@ export default function RecentMailPanelWidget() {
               onClick={() => nav("/mail")}
               className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-foreground/[0.06] transition-colors"
             >
-              {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" />} /* ui-color-ok */
+              {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" /* ui-color-ok */ />}
               <span className={`w-40 shrink-0 truncate text-sm ${e.read ? "text-foreground/55" : "font-semibold"}`}>
                 {e.from || t("mail.unknownSender")}
               </span>

@@ -90,7 +90,7 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
                           : "bg-foreground/[0.06] text-foreground/40 hover:bg-foreground/10 line-through"
                       }`}
                     >
-                      <span className={`h-1.5 w-1.5 rounded-full ${h.linkEnabled ? "bg-indigo-400" : "bg-foreground/[0.06]"}`} /> /* ui-color-ok */
+                      <span className={`h-1.5 w-1.5 rounded-full ${h.linkEnabled ? "bg-indigo-400" : "bg-foreground/[0.06]"}`} /* ui-color-ok */ />
                       {h.linkEnabled ? t("domains.on") : t("domains.off")}
                     </button>
                   ) : (

@@ -75,7 +75,7 @@ export function LockedFeature({
         <ul className="w-full space-y-1.5 text-left">
           {perks.map((p) => (
             <li key={p} className="flex items-start gap-2 text-sm text-foreground/65">
-              <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-violet-400/70" /> /* ui-color-ok */
+              <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-violet-400/70" /* ui-color-ok */ />
               {p}
             </li>
           ))}
