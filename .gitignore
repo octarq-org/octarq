@@ -39,3 +39,8 @@ examples/*/web/node_modules
 # octarq-build generated frontend manifest (transient)
 .octarq-frontend-plugins.json
 .worktrees/
+
+# playwright e2e artifacts (the throwaway sqlite DB itself lives in the OS temp
+# dir, created and deleted by playwright.config.ts / global-teardown.ts)
+playwright-report/
+test-results/
