@@ -204,7 +204,7 @@ export function AreaPanel({
                         transition={{ type: "spring", stiffness: 500, damping: 40 }}
                         className="absolute inset-0 rounded-xl bg-foreground/[0.06] ring-1 ring-inset ring-border"
                       >
-                        <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-indigo-400 to-violet-400" /> /* ui-color-ok */
+                        <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-indigo-400 to-violet-400" /* ui-color-ok */ />
                       </motion.span>
                     )}
                     {item.iconStr ? (
