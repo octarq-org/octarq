@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { Button, Alert } from "../ui";
-import { Sparkles, KeyRound } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { BrandMark } from "../shell/BrandMark";
 
@@ -54,8 +54,7 @@ export default function InviteAcceptPage() {
 
         <div className="mb-6 text-center">
           <BrandMark size="lg" className="mx-auto mb-3" />
-          <h1 className="font-display text-2xl font-bold text-foreground flex items-center justify-center gap-2">
-            <Sparkles className="h-5 w-5 text-accent-fg" />
+          <h1 className="font-display text-2xl font-bold text-foreground">
             {t("invite.heading")}
           </h1>
           <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">

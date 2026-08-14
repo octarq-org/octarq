@@ -16,6 +16,7 @@ import {
   translateNavItemLabel,
 } from "./navI18n";
 import { RESOURCES } from "./resources";
+import { MENU_ITEM, MENU_POPUP } from "./menuStyles";
 
 // lucide-react @1.x dropped the `Github` glyph, so the mark is inlined (same
 // path the Login page uses for the GitHub OAuth button).
@@ -26,14 +27,6 @@ function GithubIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-
-// Popup styling shared with the account menu — `glass-strong` is the mode-aware
-// popover surface (flat white on light, frosted on dark).
-const MENU_POPUP =
-  "glass-strong z-50 origin-[var(--transform-origin)] rounded-2xl p-1.5 outline-none " +
-  "transition-[transform,opacity] duration-150 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0";
-const MENU_ITEM =
-  "flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-foreground/80 outline-none transition-colors data-[highlighted]:bg-surface-hover data-[highlighted]:text-foreground";
 
 // AreaPanel is the left navigation rail. It owns three stacked regions —
 // a header (workspace switcher on Pro, area title otherwise), the grouped
@@ -82,7 +75,7 @@ export function AreaPanel({
     .toUpperCase();
 
   return (
-    <div className="flex h-full w-full flex-col border-r border-border bg-background/80 backdrop-blur-xl">
+    <div className="flex h-full w-full flex-col border-r border-border bg-background">
       {/* ── Header: workspace switcher (Pro) or area title ── */}
       <div className={cn("border-b border-border", collapsed ? "p-2" : "px-3 py-3")}>
         {showWorkspaceSwitcher ? (
@@ -204,7 +197,7 @@ export function AreaPanel({
                         transition={{ type: "spring", stiffness: 500, damping: 40 }}
                         className="absolute inset-0 rounded-xl bg-foreground/[0.06] ring-1 ring-inset ring-border"
                       >
-                        <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-indigo-400 to-violet-400" /* ui-color-ok */ />
+                        <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-primary" />
                       </motion.span>
                     )}
                     {item.iconStr ? (

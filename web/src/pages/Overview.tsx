@@ -35,9 +35,7 @@ function OverviewChecklistSection({
   ];
 
   return (
-    <GlassCard className={`mb-6 p-6 border-indigo-500/20 bg-indigo-950/5 relative overflow-hidden ${totalCount === 0 ? "hidden" : ""}`} /* ui-color-ok */>
-      <div className="absolute top-0 right-0 h-40 w-40 bg-indigo-500/5 blur-3xl rounded-full -mr-10 -mt-10 pointer-events-none" /* ui-color-ok */ />
-      
+    <GlassCard className={`mb-6 p-6 relative overflow-hidden ${totalCount === 0 ? "hidden" : ""}`}>
       <button 
         onClick={dismiss} 
         className="absolute top-4 right-4 p-1 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-colors"
@@ -49,7 +47,7 @@ function OverviewChecklistSection({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <div className={`flex items-center gap-2 ${allCompleted ? "text-success-fg" : "text-accent-fg"}`}>
-            <Sparkles size={18} className={allCompleted ? "" : "animate-pulse"} />
+            <Sparkles size={18} />
             <span className="text-xs font-semibold uppercase tracking-wider">{t("overview.gettingStarted")}</span>
           </div>
           <h2 className="text-xl font-bold text-foreground mt-1">
@@ -68,9 +66,7 @@ function OverviewChecklistSection({
           <div className="w-32 bg-foreground/10 h-2 rounded-full overflow-hidden">
             <div 
               className={`h-full rounded-full transition-all duration-500 ${
-                allCompleted
-                  ? "bg-gradient-to-r from-emerald-500 to-teal-400" /* ui-color-ok */
-                  : "bg-[image:var(--gradient-primary)]"
+                allCompleted ? "bg-success-fg" : "bg-primary"
               }`} 
               style={{ width: `${progressPercent}%` }}
             />
@@ -78,7 +74,7 @@ function OverviewChecklistSection({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {steps.map((step) => (
           <SetupStep
             key={step.id}
