@@ -60,6 +60,7 @@ const (
 	keyRatelimitRedirRPM        = "ratelimit_redirect_rpm"
 	keyRequireEmailVerification = "require_email_verification" // "false" disables the email-verification requirement; default on
 	keyBaseDomain               = models.BaseDomainSetting     // shared tenant-subdomain base; empty = feature off
+	keyPublicCORSOrigins        = "public_cors_origins"        // comma/newline-separated exact origins allowed to read public GET endpoints
 )
 
 // Rate-limit defaults (requests per minute per IP) when the setting is unset.
@@ -155,6 +156,18 @@ func (h *Handler) settingInt(key string, def int) int {
 		return def
 	}
 	return n
+}
+
+// CORSOrigins returns the exact origins allowed to read public GET API
+// endpoints cross-origin. The runtime settings table is the source of truth;
+// the OCTARQ_CORS_ORIGINS env var is only a bootstrap fallback for a fresh
+// instance that has not set the setting yet. An empty result means CORS is
+// disabled entirely — no cross-origin reader is served CORS headers.
+func (h *Handler) CORSOrigins() []string {
+	if v := h.getSetting(keyPublicCORSOrigins); v != "" {
+		return splitList(v)
+	}
+	return splitList(h.cfg.PublicCORSOrigins)
 }
 
 // registrationEnabled reports whether public email/password sign-up is allowed.
@@ -374,6 +387,7 @@ func (h *Handler) getInstanceSettings(ctx context.Context, input *GetInstanceSet
 			"ratelimitAuthRpm":         h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
 			"ratelimitApiRpm":          h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
 			"ratelimitRedirectRpm":     h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM),
+			"publicCorsOrigins":        h.getSetting(keyPublicCORSOrigins),
 		},
 	}
 	return out, nil
@@ -533,6 +547,7 @@ type UpdateInstanceSettingsInputBody struct {
 	RatelimitAuthRpm         *int    `json:"ratelimitAuthRpm,omitempty"`
 	RatelimitApiRpm          *int    `json:"ratelimitApiRpm,omitempty"`
 	RatelimitRedirectRpm     *int    `json:"ratelimitRedirectRpm,omitempty"`
+	PublicCORSOrigins        *string `json:"publicCorsOrigins,omitempty"`
 }
 
 type UpdateInstanceSettingsInput struct {
@@ -637,6 +652,9 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	if input.Body.RatelimitApiRpm != nil {
 		h.setSetting(keyRatelimitAPIRPM, strconv.Itoa(*input.Body.RatelimitApiRpm))
 	}
+	if input.Body.PublicCORSOrigins != nil {
+		h.setSetting(keyPublicCORSOrigins, strings.Join(splitList(*input.Body.PublicCORSOrigins), "\n"))
+	}
 	meta := make(map[string]any)
 	if input.Body.ReservedSlugs != nil {
 		meta["reservedSlugs"] = *input.Body.ReservedSlugs
@@ -677,6 +695,9 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	if input.Body.RatelimitRedirectRpm != nil {
 		meta["ratelimitRedirectRpm"] = *input.Body.RatelimitRedirectRpm
 	}
+	if input.Body.PublicCORSOrigins != nil {
+		meta["publicCorsOrigins"] = *input.Body.PublicCORSOrigins
+	}
 	h.audit(r, "instance_settings.update", "settings", 0, meta)
 
 	retDays := DefaultRetentionDays
@@ -701,6 +722,7 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 			"ratelimitAuthRpm":      h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
 			"ratelimitApiRpm":       h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
 			"ratelimitRedirectRpm":  h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM),
+			"publicCorsOrigins":     h.getSetting(keyPublicCORSOrigins),
 		},
 	}
 	return out, nil

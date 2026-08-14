@@ -69,6 +69,14 @@ type Config struct {
 	// RedisURL configures the optional Redis connection (e.g. "redis://localhost:6379").
 	// If empty, Redis-based features will be disabled or fall back to DB/in-memory.
 	RedisURL string
+
+	// PublicCORSOrigins is the bootstrap allowlist of exact origins (e.g.
+	// "https://octarq.org") allowed to read public GET API endpoints
+	// cross-origin. It is only the startup fallback: once the runtime
+	// `public_cors_origins` setting is set, that wins. An empty value disables
+	// CORS entirely (today's behaviour). Never "*" — and even the configured
+	// origins never get credentials.
+	PublicCORSOrigins string
 }
 
 func env(key, def string) string {
@@ -153,6 +161,8 @@ func Load() (*Config, error) {
 
 		GeoIPDB:  env("OCTARQ_GEOIP_DB", ""),
 		RedisURL: env("OCTARQ_REDIS_URL", ""),
+
+		PublicCORSOrigins: env("OCTARQ_CORS_ORIGINS", ""),
 	}
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" {
 		return nil, fmt.Errorf("OCTARQ_DB_DRIVER must be sqlite or postgres, got %q", c.DBDriver)

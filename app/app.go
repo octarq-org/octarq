@@ -810,6 +810,12 @@ func (a *App) Run(ctx context.Context) error {
 	srv, err := server.New(a.cfg, a.gdb, api.CSRFGuard(a.cfg.SecretKey, mux), rootHandler, webFS, staticMounts, server.RuntimeSettings{
 		MetricsToken: apiHandler.MetricsToken,
 		RateLimits:   apiHandler.RateLimits,
+		// PublicGET must be derived AFTER the plugin mount loop above, so the
+		// storefront routes out-of-tree plugins register are in the OpenAPI doc
+		// it reads. Built from PublicOperations, it is exact per path — a new
+		// endpoint can't inherit cross-origin access by sharing a prefix.
+		PublicGET:   api.PublicGETMatcher(apiHandler.Huma()),
+		CORSOrigins: apiHandler.CORSOrigins,
 	})
 	if err != nil {
 		return err

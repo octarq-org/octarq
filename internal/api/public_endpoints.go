@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net/http"
 	"sort"
 	"strings"
 
@@ -153,4 +154,23 @@ func matchedPrefix(path string) string {
 		}
 	}
 	return best
+}
+
+// PublicGETMatcher returns a predicate reporting whether a path hosts a public
+// GET endpoint — i.e. one the auth gate lets through unauthenticated. It is
+// derived from PublicOperations (which reads the OpenAPI document), so it sees
+// exactly what was registered, including routes contributed by out-of-tree
+// plugins such as the Pro storefront.
+//
+// The CORS allowlist grants cross-origin reads only to these endpoints. The
+// matcher keys on the concrete path, never on a prefix, so a new endpoint
+// cannot inherit cross-origin access by sharing a name prefix with an old one.
+func PublicGETMatcher(api huma.API) func(path string) bool {
+	publicGET := map[string]bool{}
+	for _, ep := range PublicOperations(api) {
+		if ep.Method == http.MethodGet {
+			publicGET[ep.Path] = true
+		}
+	}
+	return func(path string) bool { return publicGET[path] }
 }
