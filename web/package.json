@@ -11,6 +11,7 @@
     "lint:colors": "node scripts/lint-colors.mjs",
     "i18n:audit": "node scripts/i18n-audit.mjs",
     "test": "vitest run",
+    "e2e": "playwright test",
     "preview": "vite preview --host"
   },
   "dependencies": {

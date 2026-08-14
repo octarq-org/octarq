@@ -135,6 +135,52 @@ jobs:
       - name: Build dashboard
         run: pnpm build
 
+  e2e:
+    name: End-to-end (Playwright)
+    needs: [go, web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4 # keep in sync with web/package.json "packageManager"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - run: pnpm install --no-frozen-lockfile
+        working-directory: web
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: web
+
+      # `pnpm e2e` is self-sufficient from a clean checkout: the webServer
+      # bootstrap (web/tests/e2e-server.mjs) rebuilds the dashboard and the Go
+      # binary itself, so no hand-started server or manual prebuild is needed.
+      # The committed webembed/dist is stale on any branch that touches web/,
+      # which is why the harness always rebuilds it rather than trusting dist.
+      - name: Run e2e
+        run: pnpm e2e
+        working-directory: web
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 7
+
   # webembed/dist must stay committed: octarq-pro consumes octarq as a Go module
   # and gets the embedded dashboard from the module zip. CI keeps it fresh so
   # nobody has to build and commit dist locally.

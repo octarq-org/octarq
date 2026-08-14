@@ -1,68 +1,44 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
+import { ADMIN_USER, ADMIN_PASSWORD, signIn, expectNoCommentLeak } from "./helpers";
 
-test.describe('Settings E2E Tests', () => {
-  // Login before testing
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/admin');
-    
-    // Check if login form is present
-    const loginVisible = await page.getByPlaceholder('you@domain.com').isVisible();
-    if (loginVisible) {
-      await page.getByPlaceholder('you@domain.com').fill('admin');
-      await page.getByPlaceholder('Password').fill('pw'); // default dev password or from env
-      await page.getByRole('button', { name: /Login/i }).click();
-    }
-    await expect(page.getByText('Settings')).toBeVisible();
-  });
+// Replaces the original spec, which was written against UI that no longer
+// exists and never ran:
+//  - "Update data retention setting" targeted a retention number input on
+//    /admin/settings/general that the page has never had (only a workspace
+//    rename form lives there) — deleted.
+//  - "OAuth settings configuration" targeted /admin/settings/general but the
+//    GitHub/Google provider config moved to /admin/settings/auth (an accordion
+//    list) — rewritten against the real page below.
+//  - "/admin/license redirects" asserted a redirect to a settings page that the
+//    OSS build does not ship (/settings/license renders nothing), so its
+//    assertions were trivially true — deleted.
+test.describe("Settings", () => {
+  test("persists GitHub OAuth credentials on the Authentication page", async ({ page }) => {
+    await signIn(page, ADMIN_USER, ADMIN_PASSWORD);
+    // Wait for the authenticated shell before navigating: a goto issued while
+    // the login POST is still in flight aborts the response and the session
+    // cookie never reaches the browser, stranding the test on the login page.
+    await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
+    await page.goto("/admin/settings/auth");
 
-  test('Update data retention setting', async ({ page }) => {
-    await page.goto('/admin/settings/general');
-    
-    // Find retention days input (assuming it has a label or can be found)
-    const retentionInput = page.locator('input[type="number"]').first();
-    await expect(retentionInput).toBeVisible();
+    // Expand the GitHub provider row (accordion) to reveal its config.
+    await page.getByRole("button", { name: /GitHub/ }).click();
 
-    // Change value
-    await retentionInput.fill('45');
-    
-    // Save
-    await page.getByRole('button', { name: /Save changes/i }).click();
-    
-    // Verify saved notification/status
-    await expect(page.getByText('Saved')).toBeVisible();
+    const clientId = page.getByPlaceholder("Ov23li…");
+    await expect(clientId).toBeVisible();
+    await clientId.fill("e2e-github-client-id");
+    await page.getByPlaceholder("Secret value").fill("e2e-github-client-secret");
+    await page.getByRole("button", { name: "Save" }).click();
 
-    // Reload page to verify persistence
+    await expect(page.getByText("✓ Saved")).toBeVisible();
+
+    // Reload: the client id persists (the secret is stored encrypted).
     await page.reload();
-    await expect(retentionInput).toHaveValue('45');
+    await page.getByRole("button", { name: /GitHub/ }).click();
+    await expect(page.getByPlaceholder("Ov23li…")).toHaveValue("e2e-github-client-id");
 
-    // Restore original value
-    await retentionInput.fill('90');
-    await page.getByRole('button', { name: /Save changes/i }).click();
-    await expect(page.getByText('Saved')).toBeVisible();
-  });
-
-  test('OAuth settings configuration', async ({ page }) => {
-    await page.goto('/admin/settings/general');
-
-    const githubIdInput = page.getByPlaceholder('e.g. Iv1.xxx');
-    const githubSecretInput = page.getByPlaceholder('Begins with gho_... (or leave blank to keep unchanged)');
-
-    await githubIdInput.fill('test-github-id');
-    await githubSecretInput.fill('test-github-secret');
-
-    await page.getByRole('button', { name: /Save changes/i }).click();
-    await expect(page.getByText('Saved')).toBeVisible();
-
-    // Reload and verify ID is persisted
-    await page.reload();
-    await expect(githubIdInput).toHaveValue('test-github-id');
-    // Secret should be empty/placeholder on reload as it is encrypted
-    await expect(githubSecretInput).toBeEmpty();
-  });
-
-  test('/admin/license redirects to /admin/settings/license', async ({ page }) => {
-    await page.goto('/admin/license');
-    await page.waitForURL('**/admin/settings/license');
-    await expect(page.getByText('Not part of this build')).not.toBeVisible();
+    // The settings page is a backoffice page, so the comment-leak backstop
+    // applies here too.
+    await expectNoCommentLeak(page);
   });
 });
