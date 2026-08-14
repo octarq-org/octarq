@@ -17,11 +17,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 
 	"github.com/octarq-org/octarq/app"
 	hello "github.com/octarq-org/octarq/examples/plugin-hello"
+	"github.com/octarq-org/octarq/internal/buildinfo"
 	"github.com/octarq-org/octarq/internal/mcp"
 	"github.com/octarq-org/octarq/openapi"
 	"github.com/octarq-org/octarq/plugins/builtin"
@@ -31,6 +33,15 @@ func main() {
 	// Structured JSON logging for the whole process. Edge access logs and the
 	// app lifecycle logs both flow through this default logger.
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
+
+	// Print build metadata and exit. Version/commit are injected at build time
+	// (see Makefile's LDFLAGS); outside a git checkout they degrade to dev /
+	// unknown, which is also what `go run .` reports.
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version") {
+		info := buildinfo.Get()
+		fmt.Printf("octarq %s (commit %s, built %s)\n", info.Version, info.Commit, info.BuiltAt)
+		return
+	}
 
 	// Dispatch subcommands before standing up the full server. `octarq mcp` runs a
 	// stdio MCP server instead of the HTTP service.

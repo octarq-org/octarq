@@ -9,9 +9,21 @@ all: web build
 web:
 	cd web && pnpm install && pnpm build
 
+# Build metadata injected via ldflags. Version prefers an exact tag and falls
+# back to the short commit hash; commit is always the short hash. Outside a git
+# checkout (e.g. building from a release tarball) both degrade to explicit
+# placeholders — a build must never fail, or ship empty strings, for lack of git.
+GIT_COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+GIT_VERSION := $(shell git describe --tags --exact-match 2>/dev/null || git rev-parse --short HEAD 2>/dev/null || echo dev)
+BUILD_TIME  := $(shell date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo unknown)
+LDFLAGS     := -s -w \
+	-X github.com/octarq-org/octarq/internal/buildinfo.Version=$(GIT_VERSION) \
+	-X github.com/octarq-org/octarq/internal/buildinfo.Commit=$(GIT_COMMIT) \
+	-X github.com/octarq-org/octarq/internal/buildinfo.BuiltAt=$(BUILD_TIME)
+
 # Build the single binary (assumes web is already built).
 build:
-	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o $(BINARY) .
+	CGO_ENABLED=0 go build -trimpath -ldflags="$(LDFLAGS)" -o $(BINARY) .
 
 # Build everything from scratch.
 release: web build
