@@ -179,7 +179,12 @@ export default function MailPage() {
                   { value: "", label: t("mail.allMailboxes") },
                   ...boxes.map((b) => ({
                     value: String(b.id),
-                    label: `${b.address}${b.unread > 0 ? ` (${b.unread})` : ""}`,
+                    label: (
+                      <span className="font-mono">
+                        {b.address}
+                        {b.unread > 0 ? ` (${b.unread})` : ""}
+                      </span>
+                    ),
                   })),
                 ]}
               />

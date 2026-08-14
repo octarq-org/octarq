@@ -114,7 +114,7 @@ function TopList({ title, icon, rows }: { title: string; icon?: React.ReactNode;
           {rows.map((r) => (
             <div key={r.key} className="flex justify-between text-xs font-normal">
               <span className="truncate text-foreground/70 mr-2 font-mono" title={r.key || t("links.directUnknown")}>{r.key || t("links.direct")}</span>
-              <span className="text-foreground/45 font-semibold font-mono">{r.count}</span>
+              <span className="font-mono tnum text-foreground/45 font-semibold">{r.count}</span>
             </div>
           ))}
         </div>

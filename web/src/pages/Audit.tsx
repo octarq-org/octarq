@@ -50,7 +50,7 @@ export default function AuditLogPage() {
             <TBody>
               {logs.map((l) => (
                 <TR key={l.id}>
-                  <TD className="whitespace-nowrap text-foreground/60 text-xs" title={l.createdAt}>
+                  <TD className="whitespace-nowrap font-mono tnum text-xs text-foreground/60" title={l.createdAt}>
                     {timeAgo(l.createdAt)}
                   </TD>
                   <TD className="whitespace-nowrap text-sm font-medium">

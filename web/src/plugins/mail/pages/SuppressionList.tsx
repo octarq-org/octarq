@@ -101,8 +101,8 @@ export function SuppressionList() {
                 <TR key={item.id}>
                   <TD className="font-mono font-medium text-foreground">{item.address}</TD>
                   <TD>{renderReasonBadge(item.reason)}</TD>
-                  <TD className="text-foreground/60">{item.count}</TD>
-                  <TD className="text-foreground/40">{timeAgo(item.createdAt)}</TD>
+                  <TD className="font-mono tnum text-foreground/60">{item.count}</TD>
+                  <TD className="font-mono tnum text-foreground/40">{timeAgo(item.createdAt)}</TD>
                   <TD className="text-right">
                     <Button
                       variant="ghost"

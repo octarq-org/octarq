@@ -85,9 +85,9 @@ function SessionsList() {
                 <span className="text-xs text-foreground/50">{ua.os}</span>
               </div>
               <div className="flex items-center gap-3 mt-1">
-                <span className="text-xs text-foreground/40">{s.location || s.ip}</span>
-                <span className="text-xs text-foreground/50">{t("settings.lastSeen", { time: timeAgo(s.lastSeenAt) })}</span>
-                <span className="text-xs text-foreground/25">{t("settings.signedIn", { time: timeAgo(s.createdAt) })}</span>
+                <span className="font-mono text-xs text-foreground/40">{s.location || s.ip}</span>
+                <span className="font-mono tnum text-xs text-foreground/50">{t("settings.lastSeen", { time: timeAgo(s.lastSeenAt) })}</span>
+                <span className="font-mono tnum text-xs text-foreground/25">{t("settings.signedIn", { time: timeAgo(s.createdAt) })}</span>
               </div>
             </div>
             <Button
@@ -145,8 +145,8 @@ function LinkedIdentities() {
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium text-foreground/85 truncate">{id.issuer}</div>
             <div className="flex items-center gap-3 mt-1">
-              <span className="text-xs text-foreground/50 truncate">{id.email}</span>
-              <span className="text-xs text-foreground/25">{t("settings.linkedAt", { time: timeAgo(id.createdAt) })}</span>
+              <span className="font-mono text-xs text-foreground/50 truncate">{id.email}</span>
+              <span className="font-mono tnum text-xs text-foreground/25">{t("settings.linkedAt", { time: timeAgo(id.createdAt) })}</span>
             </div>
           </div>
           <Button

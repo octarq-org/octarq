@@ -24,14 +24,36 @@ export const badgeVariants = cva(
 
 export type BadgeTone = NonNullable<VariantProps<typeof badgeVariants>["tone"]>;
 
+// Optional `shape` prefix: a glyph channel so status reads without color
+// (grayscale / color-blind); the text label is the third channel.
+export type BadgeShape = "square" | "square-outline" | "dot" | "dash";
+
+const SHAPE_GLYPH: Record<BadgeShape, string> = {
+  square: "■",
+  "square-outline": "□",
+  dot: "●",
+  dash: "—",
+};
+
 export function Badge({
   children,
   tone = "neutral",
+  shape,
   className,
 }: {
   children: ReactNode;
   tone?: BadgeTone;
+  shape?: BadgeShape;
   className?: string;
 }) {
-  return <span className={cn(badgeVariants({ tone }), className)}>{children}</span>;
+  return (
+    <span className={cn(badgeVariants({ tone }), className)}>
+      {shape && (
+        <span aria-hidden className="text-[0.9em] leading-none">
+          {SHAPE_GLYPH[shape]}
+        </span>
+      )}
+      {children}
+    </span>
+  );
 }

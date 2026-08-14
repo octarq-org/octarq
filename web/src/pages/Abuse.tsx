@@ -95,7 +95,7 @@ export default function AbusePage() {
                   </div>
                 </div>
                 <div className="text-left sm:text-right text-xs text-foreground/40">
-                  <div title={r.createdAt}>{timeAgo(r.createdAt)}</div>
+                  <div className="font-mono tnum" title={r.createdAt}>{timeAgo(r.createdAt)}</div>
                   <div className="mt-1">{t("abuse.ip", { ip: r.reporterIp })}</div>
                 </div>
               </div>
