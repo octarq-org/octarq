@@ -1,1 +1,0 @@
-import{j as t}from"./vendor-motion-Bwh5_M0_.js";function s({children:e}){return t.jsx("div",{className:"glass flex flex-col items-center justify-center gap-2 rounded-2xl py-16 text-foreground/45",children:e})}export{s as E};
