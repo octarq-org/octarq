@@ -131,7 +131,7 @@ export function LinkEditorForm({
                   key={s}
                   type="button"
                   onClick={() => setSlug(s)}
-                  className="rounded-lg bg-indigo-500/10 border border-indigo-400/20 px-2.5 py-1 text-xs font-mono text-accent-fg hover:bg-indigo-500/20" /* ui-color-ok */
+                  className="rounded-lg bg-info-bg border border-info-border px-2.5 py-1 text-xs font-mono text-info-fg hover:bg-info-fg/10"
                 >
                   {s}
                 </button>

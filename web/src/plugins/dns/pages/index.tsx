@@ -341,7 +341,7 @@ export default function DomainsPage() {
               </GlassCard>
             </div>
           ) : domains.length === 0 && !loading ? (
-            <GlassCard className="flex flex-col items-center justify-center py-16 px-6 text-center border border-foreground/[0.04]/40">
+            <GlassCard className="flex flex-col items-center justify-center py-10 px-6 text-center border border-foreground/[0.04]/40">
               <div className="h-14 w-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-accent-fg mb-4" /* ui-color-ok */>
                 <Globe className="h-7 w-7" />
               </div>
@@ -368,7 +368,7 @@ export default function DomainsPage() {
               </button>
             </GlassCard>
           ) : (
-            <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-foreground/40 border border-foreground/[0.04]/40">
+            <GlassCard className="flex flex-col items-center justify-center py-10 px-6 text-center text-foreground/40 border border-foreground/[0.04]/40">
               <Globe className="h-10 w-10 mb-2 opacity-50 text-accent-fg" />
               <p className="text-sm">{t("domains.selectDomainHint")}</p>
             </GlassCard>
