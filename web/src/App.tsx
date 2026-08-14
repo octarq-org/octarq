@@ -651,7 +651,7 @@ function Shell({
           focused, jumps past the nav chrome straight to page content. */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-[60] focus:rounded-xl focus:bg-indigo-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:shadow-glow" /* ui-color-ok */
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-[60] focus:rounded-xl focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
       >
         {t("app.skipToContent")}
       </a>
@@ -752,7 +752,7 @@ function Shell({
           </div>
         ) : (
           <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-            <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-8 sm:py-8">
+            <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-8 sm:py-5">
               {appRoutes}
             </div>
           </div>

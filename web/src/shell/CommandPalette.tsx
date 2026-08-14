@@ -107,7 +107,7 @@ export function CommandPalette({
         <BaseDialog.Popup
           initialFocus={inputRef}
           aria-label={t("command.placeholder")}
-          className="fixed left-1/2 top-[12vh] z-[100] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl border border-foreground/10 dark:border-white/10 bg-popover/95 dark:bg-slate-950/95 backdrop-blur-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] ring-1 ring-black/5 dark:ring-white/10 modal-card outline-none"
+          className="glass-strong fixed left-1/2 top-[12vh] z-[100] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-lg modal-card outline-none"
         >
         <div className="flex items-center gap-3 border-b border-foreground/[0.08] dark:border-white/[0.08] focus-within:border-primary/50 bg-foreground/[0.015] dark:bg-white/[0.015] px-4 py-1 transition-colors">
           <Search className="h-4 w-4 shrink-0 text-primary" />

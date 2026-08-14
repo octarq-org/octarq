@@ -203,10 +203,13 @@ export interface Overview extends Record<string, unknown> {
 export class ApiError extends Error {
   status: number;
   body?: any;
-  constructor(status: number, message: string, body?: any) {
+  /** Server-side correlation id (X-Request-Id), when the response carried one. */
+  requestId?: string;
+  constructor(status: number, message: string, body?: any, requestId?: string) {
     super(message);
     this.status = status;
     this.body = body;
+    this.requestId = requestId;
   }
 }
 
@@ -247,8 +250,10 @@ export async function req<T>(method: string, path: string, body?: unknown, lang?
     }
     // Carry the decoded body: some errors are structured (e.g. a 409 from the
     // plugin toggle names the dependents that block the change) and the caller
-    // needs the fields, not just the message.
-    throw new ApiError(res.status, msg, parsed);
+    // needs the fields, not just the message. Also carry the server's
+    // X-Request-Id so error surfaces can point a self-hosted operator at the
+    // matching log line.
+    throw new ApiError(res.status, msg, parsed, res.headers.get("x-request-id") ?? undefined);
   }
   if (res.status === 204) return undefined as T;
   const ct = res.headers.get("content-type") || "";
