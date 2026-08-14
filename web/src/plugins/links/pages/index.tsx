@@ -188,7 +188,7 @@ export default function LinksPage() {
                       onClick={() => setActive(l)}
                     >
                       <div className="flex items-center gap-2 w-full justify-between">
-                        <span className="font-semibold text-sm text-accent-fg truncate flex-1">
+                        <span className="font-mono font-semibold text-sm text-accent-fg truncate flex-1">
                           /{l.slug}
                         </span>
                         <Badge tone="neutral" className="text-[10px]">
@@ -227,7 +227,7 @@ export default function LinksPage() {
             <div className="space-y-6">
               <GlassCard className="p-5">
                 <div className="flex flex-wrap justify-between items-center mb-5 border-b border-foreground/[0.06] pb-4 gap-4">
-                  <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                  <h2 className="font-mono text-lg font-bold text-foreground flex items-center gap-2">
                     <Link2 className="h-5 w-5 text-accent-fg" />
                     /{active.slug}
                   </h2>

@@ -145,7 +145,7 @@ export default function StatusPage() {
           {banner.icon}
           <div>
             <h2 className="text-xl font-bold">{banner.title}</h2>
-            <p className="text-xs opacity-80 mt-0.5">
+            <p className="font-mono tnum text-xs opacity-80 mt-0.5">
               {data?.time
                 ? t("status.lastChecked", { time: new Date(data.time).toLocaleTimeString() })
                 : error || "Checking status..."}

@@ -63,7 +63,7 @@ export function BarList({
     <div className="space-y-1.5">
       {rows.map((r) => (
         <div key={r.key} className="flex items-center gap-2 text-sm">
-          <span className="w-24 truncate text-foreground/70">{r.key || t("uiCommon.direct")}</span>
+          <span className="w-24 truncate font-mono text-foreground/70">{r.key || t("uiCommon.direct")}</span>
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-foreground/8">
             <div
               className="h-full rounded-full bg-indigo-500/60" /* ui-color-ok */

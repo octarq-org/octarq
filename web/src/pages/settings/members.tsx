@@ -155,7 +155,7 @@ export function OrgMembersManager() {
             return (
               <div key={m.userId} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 sm:gap-4">
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="font-semibold text-sm text-foreground truncate">{m.email}</span>
+                  <span className="font-mono font-semibold text-sm text-foreground truncate">{m.email}</span>
                   {canEditRole ? (
                     <Select
                       className="text-xs py-1"

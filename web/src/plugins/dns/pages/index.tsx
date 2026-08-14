@@ -190,7 +190,7 @@ export default function DomainsPage() {
                       onClick={() => setActive(d)}
                     >
                       <div className="flex items-center justify-between w-full gap-2">
-                        <span className="font-semibold text-sm truncate flex-1 text-foreground">{d.name}</span>
+                        <span className="font-mono font-semibold text-sm truncate flex-1 text-foreground">{d.name}</span>
                         <div className="flex gap-2 shrink-0">
                           <button
                             className="p-1 hover:bg-foreground/10 rounded transition-colors"
@@ -240,7 +240,7 @@ export default function DomainsPage() {
             <div className="space-y-6">
               <GlassCard className="p-5">
                 <div className="flex justify-between items-center mb-5 border-b border-foreground/[0.06] pb-4">
-                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <h2 className="font-mono text-xl font-bold text-foreground flex items-center gap-2">
                     <Globe className="h-5 w-5 text-accent-fg" />
                     {active.name}
                   </h2>

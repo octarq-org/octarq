@@ -31,17 +31,35 @@ export const badgeVariants = cva(
 
 export type BadgeTone = "indigo" | "violet" | "green" | "amber" | "red" | "cyan" | "neutral" | "info" | "success" | "warning" | "danger";
 
+// Optional `shape` prefix: a glyph channel so status reads without color
+// (grayscale / color-blind); the text label is the third channel.
+export type BadgeShape = "square" | "square-outline" | "dot" | "dash";
+
+const SHAPE_GLYPH: Record<BadgeShape, string> = {
+  square: "■",
+  "square-outline": "□",
+  dot: "●",
+  dash: "—",
+};
+
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement> {
   variant?: VariantProps<typeof badgeVariants>["variant"];
   tone?: BadgeTone;
+  shape?: BadgeShape;
 }
 
 export const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
-  ({ className, variant, tone, ...props }, ref) => {
+  ({ className, variant, tone, shape, ...props }, ref) => {
     const resolvedVariant = (variant || tone || "default") as any;
     return (
-      <div ref={ref} className={cn(badgeVariants({ variant: resolvedVariant }), className)} {...props} />
+      <div ref={ref} className={cn(badgeVariants({ variant: resolvedVariant }), className)} {...props}>
+        {shape && (
+          <span aria-hidden className="text-[0.9em] leading-none">
+            {SHAPE_GLYPH[shape]}
+          </span>
+        )}
+      </div>
     );
   }
 );

@@ -99,7 +99,7 @@ export function EmailViewForm({
             {realAttachments.map((a, i) => (
               <span key={i} className="inline-flex items-center gap-1.5 rounded-lg bg-foreground/[0.05] border border-foreground/[0.06] px-2.5 py-1 text-xs text-foreground/85" title={t("mail.attachmentTitle", { type: a.contentType, size: a.size })}>
                 <Paperclip className="h-3 w-3 text-accent-fg" />
-                {a.filename || t("mail.attachmentFallback")} ({Math.max(1, Math.round(a.size / 1024))} KB)
+                {a.filename || t("mail.attachmentFallback")} <span className="font-mono tnum">({Math.max(1, Math.round(a.size / 1024))} KB)</span>
                 {a.truncated && (
                   <Badge tone="amber" className="font-mono text-[9px] uppercase tracking-wider ml-1">
                     {t("mail.truncated")}
