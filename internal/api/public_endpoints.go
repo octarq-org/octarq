@@ -163,14 +163,64 @@ func matchedPrefix(path string) string {
 // plugins such as the Pro storefront.
 //
 // The CORS allowlist grants cross-origin reads only to these endpoints. The
-// matcher keys on the concrete path, never on a prefix, so a new endpoint
-// cannot inherit cross-origin access by sharing a name prefix with an old one.
+// matcher never does prefix matching, so a new endpoint cannot inherit
+// cross-origin access by sharing a name prefix with an old one.
+//
+// The document gives PATH TEMPLATES ("/api/storefront/{slug}") while the
+// middleware asks about the CONCRETE request path ("/api/storefront/pro"), so a
+// straight map lookup answers false for every parameterized route — the route
+// is public, the browser is refused, and the page silently renders nothing.
+// Templates are therefore matched segment by segment: same segment count,
+// literal segments equal, and a "{...}" segment matching exactly one non-empty
+// segment. That keeps the no-prefix-inheritance property (a longer or shorter
+// path can never match) while letting a parameterized public route work.
 func PublicGETMatcher(api huma.API) func(path string) bool {
-	publicGET := map[string]bool{}
+	var exact []string
+	var templates [][]string
 	for _, ep := range PublicOperations(api) {
-		if ep.Method == http.MethodGet {
-			publicGET[ep.Path] = true
+		if ep.Method != http.MethodGet {
+			continue
+		}
+		if strings.ContainsRune(ep.Path, '{') {
+			templates = append(templates, strings.Split(ep.Path, "/"))
+			continue
+		}
+		exact = append(exact, ep.Path)
+	}
+	return func(path string) bool {
+		for _, p := range exact {
+			if p == path {
+				return true
+			}
+		}
+		got := strings.Split(path, "/")
+		for _, tmpl := range templates {
+			if templateMatches(tmpl, got) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+// templateMatches reports whether the concrete path segments satisfy the
+// template segments. A parameter segment matches exactly one non-empty
+// segment — never zero, never several — so "/api/storefront/a/b" does not
+// match "/api/storefront/{slug}".
+func templateMatches(tmpl, got []string) bool {
+	if len(tmpl) != len(got) {
+		return false
+	}
+	for i, seg := range tmpl {
+		if strings.HasPrefix(seg, "{") && strings.HasSuffix(seg, "}") {
+			if got[i] == "" {
+				return false
+			}
+			continue
+		}
+		if seg != got[i] {
+			return false
 		}
 	}
-	return func(path string) bool { return publicGET[path] }
+	return true
 }
