@@ -255,7 +255,7 @@ export default function MailPage() {
               }}
             />
           ) : (
-            <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-foreground/40 border border-foreground/[0.04]/40">
+            <GlassCard className="flex flex-col items-center justify-center py-10 px-6 text-center text-foreground/40 border border-foreground/[0.04]/40">
               <Inbox className="h-10 w-10 mb-2 opacity-50 text-accent-fg" />
               <p className="text-sm">{t("mail.selectEmail")}</p>
             </GlassCard>

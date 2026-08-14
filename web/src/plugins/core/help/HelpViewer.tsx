@@ -289,7 +289,7 @@ export default function HelpViewer() {
   return (
     <div className="h-full flex flex-col bg-background text-foreground overflow-hidden">
       {/* Top Breadcrumb & Share Action Header */}
-      <div className="border-b border-border/60 bg-card/60 backdrop-blur-md px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 shadow-xs shrink-0">
+      <div className="border-b border-border/60 bg-card px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 shrink-0">
         {/* Left: Breadcrumbs */}
         <div className="flex items-center gap-2 text-xs">
           <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -361,12 +361,12 @@ export default function HelpViewer() {
             ) : loadingContent ? (
               <div className="flex flex-col items-center justify-center h-80 gap-3">
                 <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                <p className="text-xs text-muted-foreground animate-pulse">
+                <p className="text-xs text-muted-foreground">
                   {t("help.loading", "Loading documentation…")}
                 </p>
               </div>
             ) : error ? (
-              <div className="p-6 bg-destructive/10 text-destructive rounded-2xl border border-destructive/20 text-sm flex items-center gap-3 shadow-xs">
+              <div className="p-6 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm flex items-center gap-3">
                 <AlertTriangle className="w-5 h-5 shrink-0" />
                 <span>{error}</span>
               </div>
@@ -458,7 +458,7 @@ export default function HelpViewer() {
 
         {/* Right Table of Contents Sidebar (Desktop) */}
         {toc.length > 0 && (
-          <div className="w-64 border-l border-border/60 bg-background/40 backdrop-blur-xs p-6 hidden lg:flex flex-col h-full overflow-hidden shrink-0">
+          <div className="w-64 border-l border-border/60 bg-background p-6 hidden lg:flex flex-col h-full overflow-hidden shrink-0">
             <div className="flex items-center gap-2 text-xs font-bold text-foreground mb-4 shrink-0">
               <ListFilter className="w-4 h-4 text-primary" />
               <span>{t("help.on_this_page", "On this page")}</span>

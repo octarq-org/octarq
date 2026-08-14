@@ -278,7 +278,7 @@ export default function LinksPage() {
                   <QrCode className="h-4 w-4 text-accent-fg" />
                   {t("links.linkQrCode")}
                 </h3>
-                <div className="bg-white p-3 rounded-2xl shadow-glow">
+                <div className="bg-white p-3 rounded-lg">
                   <img
                     src={`/api/links/${active.id}/qr`}
                     alt={t("links.qrAlt")}
@@ -294,7 +294,7 @@ export default function LinksPage() {
               </GlassCard>
             </div>
           ) : (
-            <GlassCard className="flex flex-col items-center justify-center py-20 px-6 text-center text-foreground/40 border border-foreground/[0.04]/40">
+            <GlassCard className="flex flex-col items-center justify-center py-10 px-6 text-center text-foreground/40 border border-foreground/[0.04]/40">
               <Link2 className="h-10 w-10 mb-2 opacity-50 text-accent-fg" />
               <p className="text-sm">{t("links.emptyDetail")}</p>
             </GlassCard>
