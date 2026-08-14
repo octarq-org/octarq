@@ -43,7 +43,7 @@ export function Select({
       <BaseSelect.Trigger
         className={cn(
           "flex w-full items-center justify-between gap-2 rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition-all",
-          "hover:border-border-strong focus-visible:border-indigo-400/50 focus-visible:shadow-[0_0_0_3px_rgba(99,102,241,0.18)]", /* ui-color-ok */
+          "hover:border-border-strong focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30",
           "data-[popup-open]:border-indigo-400/40 disabled:cursor-not-allowed disabled:opacity-50", /* ui-color-ok */
           className,
         )}
@@ -56,7 +56,7 @@ export function Select({
           <BaseSelect.Popup
             className={cn(
               "glass-strong max-h-[min(24rem,var(--available-height))] min-w-[var(--anchor-width)] overflow-y-auto rounded-xl p-1 outline-none",
-              "origin-[var(--transform-origin)] shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)]",
+              "origin-[var(--transform-origin)]",
             )}
           >
             {options.map((opt) => (

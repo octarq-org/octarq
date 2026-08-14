@@ -30,7 +30,7 @@ describe("table density & primitives guard", () => {
     expect(noProvClass).toEqual(comfClass);
     expect(compClass).not.toEqual(comfClass);
     expect(compClass).toContain("py-1");
-    expect(comfClass).toContain("py-2.5");
+    expect(comfClass).toContain("py-2");
   });
 
   it("hands the preferences UI a setter through the same provider", () => {
@@ -48,7 +48,7 @@ describe("table density & primitives guard", () => {
         <table><tbody><tr><TD>Row</TD></tr></tbody></table>
       </TableDensityProvider>,
     );
-    expect(container.querySelector("td")?.className).toContain("py-2.5");
+    expect(container.querySelector("td")?.className).toContain("py-2");
     fireEvent.click(getByText("set"));
     expect(seen).toEqual(["compact"]);
 

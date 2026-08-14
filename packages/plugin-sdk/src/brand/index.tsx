@@ -82,7 +82,7 @@ export function BrandGlyph({
       <img
         src={logoUrl}
         alt={appName || FALLBACK}
-        className={`${box} rounded-xl object-contain shadow-glow ${className}`}
+        className={`${box} rounded-xl object-contain ${className}`}
         style={style}
       />
     );
@@ -90,9 +90,10 @@ export function BrandGlyph({
 
   const isOctarq = (appName || "").trim().toLowerCase() === FALLBACK;
 
+  // Brand halo, inlined as a component class (light + dark) since the global .shadow-glow utility was removed.
   return (
     <div
-      className={`${box} brand-gradient flex items-center justify-center rounded-xl shadow-glow ${className}`}
+      className={`${box} brand-gradient flex items-center justify-center rounded-xl shadow-[0_6px_20px_-8px_rgba(99,102,241,0.35)] dark:shadow-[0_0_0_1px_rgba(99,102,241,0.4),0_8px_40px_-8px_rgba(99,102,241,0.45)] ${className}`}
       style={style}
     >
       {isOctarq ? (

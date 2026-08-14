@@ -14,7 +14,7 @@ export function GlassCard({
   strong?: boolean;
 }) {
   return (
-    <div className={cn(strong ? "glass-strong" : "glass", "rounded-2xl", className)}>
+    <div className={cn(strong ? "glass-strong" : "glass", "rounded-lg", className)}>
       {children}
     </div>
   );

@@ -84,7 +84,12 @@ export function TD({ className, ...props }: TdHTMLAttributes<HTMLTableCellElemen
     <td
       className={cn(
         "px-3 text-foreground/80",
-        density === "compact" ? "py-1" : "py-2.5",
+        // Tightened from py-2.5 for the denser look, but NOT down to py-1.5:
+        // that left comfortable a hair from compact and made the density
+        // control pointless. Comfortable matches the header's py-2; compact
+        // stays visibly tighter. Whatever these values become, the two must
+        // stay distinguishable — tableDensity.test.tsx pins that.
+        density === "compact" ? "py-1" : "py-2",
         className,
       )}
       {...props}

@@ -53,7 +53,7 @@ export function StatCard({
         {icon && <span className="text-foreground/40">{icon}</span>}
       </div>
       <div className="flex items-end gap-2">
-        <span className="tnum font-display text-2xl font-bold tracking-tight text-foreground">
+        <span className="tnum font-mono text-2xl font-bold tracking-tight text-foreground">
           {value}
         </span>
         {delta && (
