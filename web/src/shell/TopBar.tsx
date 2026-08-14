@@ -13,6 +13,7 @@ import { useTheme, toggleTheme } from "../theme";
 import { Area, AreaId, menuIcon } from "./areas";
 import { translateAreaTitle, translateGroupLabel, translateNavItemLabel } from "./navI18n";
 import { RESOURCES } from "./resources";
+import { MENU_ITEM, MENU_POPUP } from "./menuStyles";
 
 function GithubIcon({ className }: { className?: string }) {
   return (
@@ -23,12 +24,11 @@ function GithubIcon({ className }: { className?: string }) {
 }
 
 
-// Shared Base UI Menu popover styling.
-const MENU_POPUP =
-  "glass-strong z-50 origin-[var(--transform-origin)] rounded-2xl p-1.5 outline-none " +
-  "transition-[transform,opacity] duration-150 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0";
-const MENU_ITEM =
-  "flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-foreground/80 outline-none transition-colors data-[highlighted]:bg-surface-hover data-[highlighted]:text-foreground";
+// Shared surface for the create / search / language buttons — no shadow:
+// elevation is reserved for floating layers.
+const ACTION_BUTTON =
+  "rounded-xl border border-foreground/10 dark:border-white/10 bg-surface-hover/50 " +
+  "hover:bg-surface-hover hover:border-foreground/20 text-muted-foreground transition-all";
 
 export function TopBar({
   areas,
@@ -79,7 +79,7 @@ export function TopBar({
   }, [actions]);
 
   return (
-    <header className="relative z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/70 px-3 backdrop-blur-xl">
+    <header className="relative z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-3">
       {/* Menu toggle — mobile only. It opens the overlay drawer on small
           screens; on desktop the collapse control lives in the rail's footer,
           so this is hidden at md+ to avoid two toggles for one state. */}
@@ -140,7 +140,7 @@ export function TopBar({
           <Menu.Trigger
             aria-label={t("topbar.create", "Create")}
             title={t("topbar.create", "Create")}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-foreground/10 dark:border-white/10 bg-surface-hover/50 hover:bg-surface-hover hover:border-foreground/20 text-muted-foreground hover:text-foreground transition-all shadow-2xs data-[popup-open]:bg-surface-hover data-[popup-open]:text-foreground"
+            className={cn(ACTION_BUTTON, "flex h-9 w-9 items-center justify-center hover:text-foreground data-[popup-open]:bg-surface-hover data-[popup-open]:text-foreground")}
           >
             <Plus className="h-4 w-4" strokeWidth={1.75} />
           </Menu.Trigger>
@@ -183,7 +183,7 @@ export function TopBar({
       {/* Command palette trigger */}
       <button
         onClick={onOpenCommand}
-        className="flex h-9 items-center gap-2 rounded-xl border border-foreground/10 dark:border-white/10 bg-surface-hover/50 hover:bg-surface-hover hover:border-foreground/20 px-3 text-muted-foreground transition-all shadow-2xs group"
+        className={cn(ACTION_BUTTON, "group flex h-9 items-center gap-2 px-3")}
       >
         <Search className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
         <span className="hidden text-xs font-medium md:block group-hover:text-foreground">{t("common.search")}</span>
@@ -205,7 +205,7 @@ export function TopBar({
         <Menu.Trigger
           aria-label={t("common.language")}
           title={t("common.language")}
-          className="flex h-9 items-center gap-1.5 rounded-xl border border-foreground/10 dark:border-white/10 bg-surface-hover/50 hover:bg-surface-hover hover:border-foreground/20 px-2.5 text-xs font-semibold text-muted-foreground transition-all shadow-2xs data-[popup-open]:bg-surface-hover data-[popup-open]:text-foreground"
+          className={cn(ACTION_BUTTON, "flex h-9 items-center gap-1.5 px-2.5 text-xs font-semibold data-[popup-open]:bg-surface-hover data-[popup-open]:text-foreground")}
         >
           <Globe className="h-4 w-4 stroke-[1.75]" />
           <span className="uppercase">{lang}</span>
