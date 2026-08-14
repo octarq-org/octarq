@@ -106,7 +106,7 @@ export function SetupStep({ title, description, completed, onClick }: SetupStepP
       }`}
     >
       <div className="flex items-center justify-between w-full">
-        <div className={`p-1.5 rounded-lg ${completed ? "text-success-fg bg-success-bg" : "text-accent-fg bg-indigo-500/10"}`}> /* ui-color-ok */
+        <div className={`p-1.5 rounded-lg ${completed ? "text-success-fg bg-success-bg" : "text-accent-fg bg-indigo-500/10"}`} /* ui-color-ok */>
           {completed ? <CheckCircle2 size={16} /> : <Circle size={16} />}
         </div>
         {!completed && (
