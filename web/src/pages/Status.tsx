@@ -41,14 +41,14 @@ export default function StatusPage() {
     if (overall === "ok") {
       return {
         bg: "bg-success-bg border-success-border text-success-fg",
-        icon: <CheckCircle2 className="h-8 w-8 text-success-fg animate-pulse" />,
+        icon: <CheckCircle2 className="h-8 w-8 text-success-fg" />,
         title: t("status.allSystemsOperational"),
       };
     }
     if (overall === "degraded") {
       return {
         bg: "bg-warning-bg border-warning-border text-warning-fg",
-        icon: <AlertTriangle className="h-8 w-8 text-warning-fg animate-bounce" />,
+        icon: <AlertTriangle className="h-8 w-8 text-warning-fg" />,
         title: t("status.someSystemsDegraded"),
       };
     }
@@ -66,29 +66,21 @@ export default function StatusPage() {
       case "ok":
         return (
           <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success-fg opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-success-fg"></span>
-            </span>
+            <span className="inline-flex h-2.5 w-2.5 bg-success-fg" />
             <Badge variant="success">{t("status.statusOk")}</Badge>
           </div>
         );
       case "degraded":
         return (
           <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-warning-fg opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-warning-fg"></span>
-            </span>
+            <span className="inline-flex h-2.5 w-2.5 border-2 border-warning-fg" />
             <Badge variant="warning">{t("status.statusDegraded")}</Badge>
           </div>
         );
       case "down":
         return (
           <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-danger-fg"></span>
-            </span>
+            <span className="inline-flex h-1 w-4 bg-danger-fg" />
             <Badge variant="danger">{t("status.statusDown")}</Badge>
           </div>
         );
@@ -118,7 +110,7 @@ export default function StatusPage() {
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
       {/* Header */}
-      <header className="border-b border-foreground/10 bg-background/80 backdrop-blur-md sticky top-0 z-10">
+      <header className="border-b border-foreground/10 bg-background sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <BrandMark size="md" />
@@ -147,9 +139,9 @@ export default function StatusPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      <main className="max-w-4xl mx-auto px-4 py-5 space-y-4">
         {/* Banner */}
-        <div className={`p-6 rounded-2xl border flex items-center gap-4 shadow-sm ${banner.bg}`}>
+        <div className={`p-4 rounded-lg border flex items-center gap-4 ${banner.bg}`}>
           {banner.icon}
           <div>
             <h2 className="text-xl font-bold">{banner.title}</h2>
@@ -162,7 +154,7 @@ export default function StatusPage() {
         </div>
 
         {/* Subsystems Card */}
-        <div className="bg-card border border-foreground/10 rounded-2xl p-6 shadow-sm">
+        <div className="bg-card border border-foreground/10 rounded-lg p-4">
           <div className="flex items-center justify-between mb-6 pb-4 border-b border-foreground/10">
             <h3 className="font-semibold text-base text-foreground/90">{t("status.subsystems")}</h3>
             <button
@@ -176,7 +168,7 @@ export default function StatusPage() {
           </div>
 
           {loading ? (
-            <div className="py-12 text-center text-foreground/40 text-sm">
+            <div className="py-10 text-center text-foreground/40 text-sm">
               <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 opacity-50" />
               {t("status.loadingSystemStatus")}
             </div>
