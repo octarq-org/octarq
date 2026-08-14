@@ -146,6 +146,8 @@ func TestIsPublicPathRequiresSessionByDefault(t *testing.T) {
 		// and must still be gated.
 		"/api/authx/login",
 		"/api/webhooks",
+		// Build info fingerprints the instance's version for CVE scanning.
+		"/api/instance/build",
 	} {
 		if isPublicPath(path) {
 			t.Errorf("%q must require a session", path)
