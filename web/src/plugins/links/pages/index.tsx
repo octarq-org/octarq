@@ -176,7 +176,34 @@ export default function LinksPage() {
           <GlassCard className="overflow-hidden">
             <div className="overflow-y-auto max-h-[600px] divide-y divide-foreground/[0.04]" onScroll={handleScroll}>
               {links.length === 0 && !loading ? (
-                <div className="p-8 text-center text-foreground/40 text-sm">{t("links.noLinksFound")}</div>
+                q ? (
+                  <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+                    <p className="text-sm text-foreground/60">
+                      {t("links.emptyFilteredReason")} <span className="font-mono text-foreground/80">{`“${q}”`}</span>
+                    </p>
+                    <Button
+                      variant="ghost"
+                      className="text-xs py-1.5"
+                      onClick={() => setSearchParams(prev => buildLinksFilterQuery({ q: "", archived: false }, prev), { replace: true })}
+                    >
+                      {t("links.emptyFilteredAction")}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+                    <p className="text-sm font-medium text-foreground/75">{t("links.emptyNoLinksReason")}</p>
+                    <p className="max-w-[260px] text-[13px] leading-relaxed text-foreground/45">
+                      {linkHostOptions.length > 0 ? (
+                        <>{t("links.emptyNoLinksDetailPre")} <span className="font-mono">{`“${linkHostOptions.join(", ")}”`}</span></>
+                      ) : (
+                        <>{t("links.emptyNoHostDetailPre")} <span className="font-mono">{`“${window.location.origin}”`}</span></>
+                      )}
+                    </p>
+                    <Button variant="primary" className="mt-1 text-xs py-1.5" onClick={() => setActive("new")}>
+                      {t("links.newLink")}
+                    </Button>
+                  </div>
+                )
               ) : (
                 <>
                   {links.map((l) => (

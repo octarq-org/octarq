@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../../api";
-import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog } from "../../../ui";
+import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog, FormError } from "../../../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { useSettingsData, SavedBadge } from "../../../pages/settings/shared";
@@ -108,7 +108,7 @@ function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onC
   const [type, setType] = useState(account?.type || "cloudflare");
   const [config, setConfig] = useState<string>("");
   const [types, setTypes] = useState<string[]>([]);
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState<string | { message?: string; status?: number; requestId?: string }>("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -131,7 +131,7 @@ function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onC
       }
       onSaved();
     } catch (e: any) {
-      setErr(e.message || t("settings.failedGeneric"));
+      setErr(e);
     } finally {
       setBusy(false);
     }
@@ -156,7 +156,7 @@ function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onC
         <Field label={t("settings.apiKeysCredentials")} hint={account ? t("settings.apiKeysHintExisting") : t("settings.apiKeysHintNew")}>
           <input className="input w-full font-mono text-xs" type="password" value={config} onChange={e => setConfig(e.target.value)} placeholder={account ? "••••••••" : t("settings.apiKeysPlaceholderNew")} required={!account} />
         </Field>
-        {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
+        {err && <FormError err={err} />}
         <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
           <Button type="button" variant="ghost" onClick={onClose}>{t("settings.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={busy || !name.trim()}>

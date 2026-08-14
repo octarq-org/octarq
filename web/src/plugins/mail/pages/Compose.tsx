@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Domain, effectiveMailHosts } from "../../../api";
 import { mailApi, Attachment, Email, Mailbox } from "../api";
-import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../../ui";
+import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, FormError } from "../../../ui";
 import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle } from "lucide-react";
 import { MailSettings } from "./MailSettings";
 import { SMTPSenders } from "./SMTPSenders";
@@ -16,7 +16,7 @@ export function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () =>
   const [text, setText] = useState("");
   const [smtpSenderId, setSmtpSenderId] = useState<number>(0);
   const [senders, setSenders] = useState<any[]>([]);
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState<string | { message?: string; status?: number; requestId?: string }>("");
   const [ok, setOk] = useState(false);
   const [autoWrapLinksEnabled, setAutoWrapLinksEnabled] = useState(false);
   const [trackLinks, setTrackLinks] = useState(false);
@@ -48,7 +48,7 @@ export function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () =>
       });
       setOk(true);
     } catch (e: any) {
-      setErr(e.message ?? t("mail.sendFailed"));
+      setErr(e);
     }
   }
 
@@ -100,7 +100,7 @@ export function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () =>
               <span>{t("mail.trackLinks")}</span>
             </label>
           )}
-          {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
+          {err && <FormError err={err} />}
           <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
             <Button variant="ghost" onClick={onClose}>
               {t("mail.cancel")}

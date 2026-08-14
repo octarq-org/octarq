@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, Domain, HostEntry, ProviderAccount } from "../../../api";
 import { dnsApi, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus } from "../api";
-import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../../ui";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, FormError } from "../../../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
@@ -10,14 +10,14 @@ export function SyncModal({ accounts, onClose, onSynced }: { accounts: ProviderA
   const { t } = useTranslation();
   const [accountId, setAccountId] = useState<number>(accounts[0]?.id || 0);
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState<string | { message?: string; status?: number; requestId?: string }>("");
   const [result, setResult] = useState<{ total: number; created: number; updated: number } | null>(null);
 
   async function run() {
     if (!accountId) return setErr(t("domains.selectProviderAccount"));
     setBusy(true); setErr("");
     try { const r = await dnsApi.syncDomains(accountId); setResult(r); }
-    catch (e: any) { setErr(e.message ?? t("domains.syncFailed")); }
+    catch (e: any) { setErr(e); }
     finally { setBusy(false); }
   }
 
@@ -55,7 +55,7 @@ export function SyncModal({ accounts, onClose, onSynced }: { accounts: ProviderA
               ]}
             />
           </Field>
-          {err && <p className="mb-4 text-sm text-danger-fg font-medium">{err}</p>}
+          {err && <div className="mb-4"><FormError err={err} /></div>}
           <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
             <Button variant="ghost" onClick={onClose}>{t("domains.cancel")}</Button>
             <Button variant="primary" onClick={run} disabled={busy || !accountId}>{busy ? t("domains.queryingApi") : t("domains.syncZones")}</Button>

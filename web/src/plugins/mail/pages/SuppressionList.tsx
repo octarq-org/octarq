@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { mailApi, MailSuppression } from "../api";
-import { Button, Modal, Field, Badge, confirmDialog, timeAgo, Table, THead, TBody, TR, TH, TD } from "../../../ui";
+import { Button, Modal, Field, Badge, confirmDialog, timeAgo, Table, THead, TBody, TR, TH, TD, FormError } from "../../../ui";
 import { useTranslation } from "../../../i18n";
 import { Plus, Trash2, ShieldAlert } from "lucide-react";
 
@@ -10,7 +10,7 @@ export function SuppressionList() {
   const [loading, setLoading] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [address, setAddress] = useState("");
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState<string | { message?: string; status?: number; requestId?: string }>("");
   const [saving, setSaving] = useState(false);
 
   async function load() {
@@ -39,7 +39,7 @@ export function SuppressionList() {
       setAddress("");
       load();
     } catch (e: any) {
-      setErr(e.message ?? t("mail.saveFailed"));
+      setErr(e);
     } finally {
       setSaving(false);
     }
@@ -132,7 +132,7 @@ export function SuppressionList() {
                 autoFocus
               />
             </Field>
-            {err && <p className="text-xs text-danger-fg font-medium">{err}</p>}
+            {err && <FormError err={err} />}
             <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
               <Button variant="ghost" onClick={() => setShowAdd(false)}>
                 {t("mail.cancel")}

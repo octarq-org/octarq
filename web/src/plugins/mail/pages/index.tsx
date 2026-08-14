@@ -213,7 +213,31 @@ export default function MailPage() {
           <GlassCard className="overflow-hidden">
             <div className="overflow-y-auto max-h-[600px] divide-y divide-foreground/[0.04]" onScroll={handleScroll}>
               {emails.length === 0 && !loading ? (
-                <div className="p-8 text-center text-foreground/40 text-sm">{t("mail.noMessages")}</div>
+                q ? (
+                  <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+                    <p className="text-sm text-foreground/60">
+                      {t("mail.emptyFilteredReason")} <span className="font-mono text-foreground/80">{`“${q}”`}</span>
+                    </p>
+                    <Button variant="ghost" className="text-xs py-1.5" onClick={() => setQ("")}>
+                      {t("mail.clearSearch")}
+                    </Button>
+                  </div>
+                ) : boxes.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+                    <p className="text-sm font-medium text-foreground/75">{t("mail.emptyNoBoxesReason")}</p>
+                    <p className="max-w-[260px] text-[13px] leading-relaxed text-foreground/45">{t("mail.emptyNoBoxesDetail")}</p>
+                    <Button variant="primary" className="mt-1 text-xs py-1.5" onClick={() => setNewBox(true)}>
+                      {t("mail.newMailbox")}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+                    <p className="text-sm font-medium text-foreground/75">
+                      {t("mail.emptyInboxReasonPre")} <span className="font-mono">{`“${boxes.find(b => b.id === active)?.address ?? boxes[0]?.address}”`}</span>
+                    </p>
+                    <p className="max-w-[260px] text-[13px] leading-relaxed text-foreground/45">{t("mail.emptyInboxDetail")}</p>
+                  </div>
+                )
               ) : (
                 <>
                   {emails.map((e) => (

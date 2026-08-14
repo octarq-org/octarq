@@ -69,6 +69,7 @@ export const es = {
     noAccount: "¿No tiene una cuenta?",
     createOne: "Crear una",
     orContinueWith: "o continuar con",
+    shellBuildFooter: "octarq {{version}} ({{commit}}) · construido {{builtAt}}",
   },
   topbar: {
     create: "Crear",
@@ -84,7 +85,8 @@ export const es = {
   command: {
     create: "Crear",
     placeholder: "Buscar páginas…",
-    empty: "No hay coincidencias para “{{q}}”.",
+    emptyTitle: "Ninguna página ni acción coincide",
+    emptyHint: "⌘K abre páginas; no puede crear nada. Prueba una de estas áreas: {{areas}}.",
   },
   areas: {
     operations: { title: "Operaciones", subtitle: "Tráfico diario y comunicaciones" },
@@ -171,5 +173,9 @@ export const es = {
     statusNa: "N/D",
     refresh: "Actualizar",
     refreshing: "Actualizando…",
+    probeFailedTitle: "Error en la comprobación de estado",
+    probeFailedAt: "Comprobación fallida a las {{time}}",
+    requestId: "solicitud {{requestId}}",
+    footerLine: "{{count}} subsistemas · comprobación cada 15 s · última comprobación {{time}}",
   },
 };

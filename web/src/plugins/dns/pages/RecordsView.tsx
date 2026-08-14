@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Domain, HostEntry, ProviderAccount } from "../../../api";
 import { dnsApi, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus } from "../api";
-import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert, confirmDialog, Table, THead, TBody, TR, TH, TD } from "../../../ui";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert, confirmDialog, Table, THead, TBody, TR, TH, TD, FormError } from "../../../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
@@ -16,7 +16,7 @@ export function RecordsView({ domain }: { domain: Domain }) {
   const { role, isInstanceAdmin } = useCurrentRole();
   const canManageRecords = roleSatisfies("admin", role, isInstanceAdmin);
   const [records, setRecords] = useState<DNSRecord[] | null>(null);
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState<string | { message?: string; status?: number; requestId?: string }>("");
   const [editing, setEditing] = useState<DNSRecord | "new" | "subdomain" | null>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -39,7 +39,7 @@ export function RecordsView({ domain }: { domain: Domain }) {
   async function load() {
     setErr("");
     try { setRecords(await dnsApi.records(domain.id)); }
-    catch (e: any) { setErr(e.message ?? t("domains.loadRecordsFailed")); setRecords([]); }
+    catch (e: any) { setErr(e); setRecords([]); }
   }
   useEffect(() => { load(); }, [domain.id]);
 
@@ -76,7 +76,7 @@ export function RecordsView({ domain }: { domain: Domain }) {
 
       <p className="text-[11px] text-foreground/50">{t("domains.recordsNote", { shown: filtered.length, total: records?.length ?? 0 })}</p>
       
-      {err && <Alert variant="danger" className="p-3 text-xs font-medium">{err}</Alert>}
+      {err && <Alert variant="danger" className="p-3 text-xs font-medium">{typeof err === "string" ? err : err.message}</Alert>}
       
       {records === null ? (
         <p className="text-foreground/40 p-6 text-center text-xs">{t("domains.loadingRecords")}</p>
@@ -144,7 +144,7 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
   const [comment, setComment] = useState(record?.comment ?? "");
   const [proxied, setProxied] = useState(record?.proxied ?? false);
   const [priority, setPriority] = useState<number>(record?.priority ?? 10);
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState<string | { message?: string; status?: number; requestId?: string }>("");
 
   const needsPriority = ["MX", "SRV", "URI"].includes(type.toUpperCase());
   const canProxy = ["A", "AAAA", "CNAME"].includes(type.toUpperCase());
@@ -165,7 +165,7 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
       if (record) await dnsApi.updateRecord(domainId, record.id, payload);
       else await dnsApi.createRecord(domainId, payload);
       onSaved();
-    } catch (e: any) { setErr(e.message ?? t("domains.saveFailed")); }
+    } catch (e: any) { setErr(e); }
   }
 
   return (
@@ -218,7 +218,7 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
           </div>
         )}
 
-        {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
+        {err && <FormError err={err} />}
         
         <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
           <Button variant="ghost" onClick={onClose}>{t("domains.cancel")}</Button>

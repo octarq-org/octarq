@@ -25,6 +25,17 @@ export const uiCommon = {
     copied: "copied ✓",
     clickToCopy: "click to copy",
     toggleTheme: "Toggle theme",
+    // Form-failure detail line: HTTP status + X-Request-Id from the server.
+    // The operator is their own ops — this is what they grep their logs with.
+    formErrorStatus: "HTTP {{status}}",
+    formErrorRequestId: "request {{requestId}}",
+    // Plugin route fallbacks: each answers id (mono), current state, and
+    // where the state can be changed.
+    pluginId: "Plugin",
+    routeUnavailableState: "Not installed in this build — it appears only after a build that includes it is deployed.",
+    pluginDisabledState: "Switched off for this workspace.",
+    accessDeniedState: "Your role doesn't grant access to this page.",
+    accessDeniedLink: "Open Settings → Members",
   },
   zh: {
     lockedIntroPre: "这是 ",
@@ -52,6 +63,13 @@ export const uiCommon = {
     copied: "已复制 ✓",
     clickToCopy: "点击复制",
     toggleTheme: "切换主题",
+    formErrorStatus: "HTTP {{status}}",
+    formErrorRequestId: "请求 {{requestId}}",
+    pluginId: "插件",
+    routeUnavailableState: "此版本未安装该插件 —— 部署包含它的构建后才会出现。",
+    pluginDisabledState: "已在本工作区停用。",
+    accessDeniedState: "你的角色无权访问此页面。",
+    accessDeniedLink: "打开 设置 → 成员",
   },
   es: {
     lockedIntroPre: "Esta es una función ",
@@ -79,6 +97,13 @@ export const uiCommon = {
     copied: "copiado ✓",
     clickToCopy: "clic para copiar",
     toggleTheme: "Cambiar tema",
+    formErrorStatus: "HTTP {{status}}",
+    formErrorRequestId: "solicitud {{requestId}}",
+    pluginId: "Complemento",
+    routeUnavailableState: "No está instalado en esta versión: solo aparecerá tras desplegar una versión que lo incluya.",
+    pluginDisabledState: "Desactivado para este espacio de trabajo.",
+    accessDeniedState: "Tu rol no permite acceder a esta página.",
+    accessDeniedLink: "Abrir Ajustes → Miembros",
   },
   pt: {
     lockedIntroPre: "Este é um recurso ",
@@ -106,6 +131,13 @@ export const uiCommon = {
     copied: "copiado ✓",
     clickToCopy: "clique para copiar",
     toggleTheme: "Alternar tema",
+    formErrorStatus: "HTTP {{status}}",
+    formErrorRequestId: "solicitação {{requestId}}",
+    pluginId: "Plugin",
+    routeUnavailableState: "Não instalado nesta build — só aparece após implantar uma build que o inclua.",
+    pluginDisabledState: "Desativado para este workspace.",
+    accessDeniedState: "Seu papel não concede acesso a esta página.",
+    accessDeniedLink: "Abrir Configurações → Membros",
   },
   ja: {
     lockedIntroPre: "これは ",
@@ -133,5 +165,12 @@ export const uiCommon = {
     copied: "コピー済み ✓",
     clickToCopy: "クリックしてコピー",
     toggleTheme: "テーマを切り替え",
+    formErrorStatus: "HTTP {{status}}",
+    formErrorRequestId: "リクエスト {{requestId}}",
+    pluginId: "プラグイン",
+    routeUnavailableState: "このビルドには含まれていません。含むビルドをデプロイすると表示されます。",
+    pluginDisabledState: "このワークスペースでは無効になっています。",
+    accessDeniedState: "お使いのロールではこのページにアクセスできません。",
+    accessDeniedLink: "設定 → メンバー を開く",
   },
 };

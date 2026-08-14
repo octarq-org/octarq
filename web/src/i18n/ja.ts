@@ -69,6 +69,7 @@ export const ja = {
     noAccount: "アカウントをお持ちではありませんか？",
     createOne: "作成する",
     orContinueWith: "または以下で続行",
+    shellBuildFooter: "octarq {{version}}（{{commit}}）・ビルド {{builtAt}}",
   },
   topbar: {
     create: "作成",
@@ -84,7 +85,8 @@ export const ja = {
   command: {
     create: "作成",
     placeholder: "ページを検索…",
-    empty: "「{{q}}」に一致する結果はありません。",
+    emptyTitle: "一致するページやアクションはありません",
+    emptyHint: "⌘K はページを開くだけです（作成はできません）。次のエリアを試してください: {{areas}}。",
   },
   areas: {
     operations: { title: "オペレーション", subtitle: "日常のトラフィックとコミュニケーション" },
@@ -171,5 +173,9 @@ export const ja = {
     statusNa: "該当なし",
     refresh: "更新",
     refreshing: "更新中…",
+    probeFailedTitle: "ステータスプローブに失敗しました",
+    probeFailedAt: "{{time}} にプローブ失敗",
+    requestId: "リクエスト {{requestId}}",
+    footerLine: "サブシステム {{count}} 件・15 秒ごとにプローブ・最終確認 {{time}}",
   },
 };

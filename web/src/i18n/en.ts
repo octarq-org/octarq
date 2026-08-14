@@ -69,6 +69,9 @@ export const en = {
     noAccount: "Don't have an account?",
     createOne: "Create one",
     orContinueWith: "or continue with",
+    // Authenticated-only build stamp: never the login page — an unauthenticated
+    // version string is a CVE checklist for scanners.
+    shellBuildFooter: "octarq {{version}} ({{commit}}) · built {{builtAt}}",
   },
   topbar: {
     create: "Create",
@@ -84,7 +87,10 @@ export const en = {
   command: {
     create: "Create",
     placeholder: "Search pages…",
-    empty: "No matches for “{{q}}”.",
+    // Empty palette result. The query is rendered beside this in mono;
+    // the hint is the real constraint: ⌘K jumps, it doesn't create.
+    emptyTitle: "No page or action matches",
+    emptyHint: "⌘K opens pages — it can't create anything. Try one of: {{areas}}.",
   },
   areas: {
     operations: { title: "Operations", subtitle: "Daily traffic & communication" },
@@ -181,6 +187,14 @@ export const en = {
     statusNa: "N/A",
     refresh: "Refresh",
     refreshing: "Refreshing…",
+    // Whole-probe failure (not a subsystem failure): the probe itself didn't
+    // get an answer. Time and request id are machine values → mono.
+    probeFailedTitle: "Status probe failed",
+    probeFailedAt: "Probe failed at {{time}}",
+    requestId: "request {{requestId}}",
+    // Public status-page footer: subsystems count, fixed 15s probe interval,
+    // last successful probe timestamp (mono).
+    footerLine: "{{count}} subsystems · probe every 15s · last check {{time}}",
   },
 };
 

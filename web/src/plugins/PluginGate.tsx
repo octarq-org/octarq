@@ -58,7 +58,7 @@ function GateFallback({ status, plugin }: { status: number; plugin: UIPlugin }) 
 
   // 403 is a role problem, not a licensing/build problem — it always renders
   // the neutral access-denied note (lockedFallback is the 402/404 seam).
-  if (status === 403) return <AccessDenied />;
+  if (status === 403) return <AccessDenied plugin={plugin} />;
   const Fallback = plugin.lockedFallback;
   if (Fallback) return <Fallback status={status} />;
   // 402 without a plugin-supplied fallback still upsells — never a raw error.
@@ -66,9 +66,9 @@ function GateFallback({ status, plugin }: { status: number; plugin: UIPlugin }) 
   // A 404 is ambiguous: switched off by the operator, or absent from this
   // build. Only the first has anything the user can act on.
   if (status === 404 && isPluginDisabled(disabledPlugins, plugin)) {
-    return <PluginDisabled />;
+    return <PluginDisabled plugin={plugin} />;
   }
-  return <PluginUnavailable />;
+  return <PluginUnavailable plugin={plugin} />;
 }
 
 // Error-boundary half: catches chunk-load failures and render-time throws. An
@@ -111,7 +111,7 @@ export function PluginGate({
   if (status !== null) return <GateFallback status={status} plugin={plugin} />;
 
   if (loaded && (isPluginDisabled(disabledPlugins, plugin) || disabledPaths.has(route.path))) {
-    return <PluginDisabled />;
+    return <PluginDisabled plugin={plugin} />;
   }
   // Declarative pre-check: a route announcing a requiredRole the current user
   // doesn't meet renders access-denied WITHOUT mounting the page. Same ranking
