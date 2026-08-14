@@ -67,6 +67,11 @@ export function CommandPalette({
     [actions, navItems, t],
   );
 
+  const areaTitles = useMemo(
+    () => [...areas, settingsArea].map((a) => translateAreaTitle(t, a.id, a.title)),
+    [areas, settingsArea, t],
+  );
+
   const filtered = useMemo(() => {
     const nonDocCommands = commands.filter(
       (c) => !c.path.startsWith("/help") && !c.path.startsWith("/admin/help"),
@@ -123,7 +128,14 @@ export function CommandPalette({
         </div>
         <div className="max-h-[50vh] overflow-y-auto p-2 scrollbar-thin">
           {filtered.length === 0 ? (
-            <div className="px-3 py-8 text-center text-sm text-muted-foreground">{t("command.empty", { q })}</div>
+            <div className="px-3 py-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                {t("command.emptyTitle")} <span className="font-mono">{`“${q}”`}</span>
+              </p>
+              <p className="mx-auto mt-1.5 max-w-sm text-xs leading-relaxed text-muted-foreground/70">
+                {t("command.emptyHint", { areas: areaTitles.join(", ") })}
+              </p>
+            </div>
           ) : (
             filtered.map((c, i) => (
               <button

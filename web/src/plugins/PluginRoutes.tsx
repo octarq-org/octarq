@@ -4,10 +4,26 @@ import { Route, Link } from "react-router-dom";
 import { useCurrentRole, roleSatisfies } from "../shell/role";
 import { GlassCard, PageHeader, ScreenWrap, useTranslation } from "@octarq/plugin-sdk";
 import { uiPlugins } from "@octarq/plugin-sdk";
+import type { UIPlugin } from "@octarq/plugin-sdk";
 import { PluginGate } from "./PluginGate";
 
-// Fallback view for unserved or failed plugin routes (404).
-export function PluginUnavailable() {
+// The three fallbacks answer the same three questions every degraded route
+// should: which plugin (id in mono), what its current state is, and where the
+// state can be changed. The plugin id is a machine identifier → mono.
+
+function PluginIdLine({ plugin }: { plugin?: UIPlugin }) {
+  const { t } = useTranslation();
+  if (!plugin) return null;
+  return (
+    <p className="text-sm text-foreground/60">
+      {t("uiCommon.pluginId")}: <span className="font-mono text-foreground/80">{plugin.name}</span>
+    </p>
+  );
+}
+
+// Fallback view for unserved or failed plugin routes (404). Also the app's
+// catch-all route, where no plugin is known — `plugin` is optional there.
+export function PluginUnavailable({ plugin }: { plugin?: UIPlugin }) {
   const { t } = useTranslation();
   return (
     <ScreenWrap>
@@ -16,13 +32,15 @@ export function PluginUnavailable() {
           title={t("uiCommon.routeUnavailableTitle")}
           description={t("uiCommon.routeUnavailableBody")}
         />
+        <PluginIdLine plugin={plugin} />
+        {plugin && <p className="text-xs text-foreground/45">{t("uiCommon.routeUnavailableState")}</p>}
       </GlassCard>
     </ScreenWrap>
   );
 }
 
 // View for plugins that are disabled in the current workspace.
-export function PluginDisabled() {
+export function PluginDisabled({ plugin }: { plugin: UIPlugin }) {
   const { t } = useTranslation();
   const roleCtx = useCurrentRole();
   const canEnable = roleSatisfies("admin", roleCtx.role, roleCtx.isInstanceAdmin);
@@ -33,6 +51,8 @@ export function PluginDisabled() {
           title={t("uiCommon.pluginDisabledTitle")}
           description={canEnable ? t("uiCommon.pluginDisabledAdminBody") : t("uiCommon.pluginDisabledBody")}
         />
+        <PluginIdLine plugin={plugin} />
+        <p className="text-xs text-foreground/45">{t("uiCommon.pluginDisabledState")}</p>
         {canEnable && (
           <Link to="/settings/plugins" className="text-primary hover:text-primary-hover font-medium text-sm">
             {t("uiCommon.pluginDisabledAdminLink")}
@@ -44,7 +64,7 @@ export function PluginDisabled() {
 }
 
 // Fallback view when user lacks required permissions (403).
-export function AccessDenied() {
+export function AccessDenied({ plugin }: { plugin: UIPlugin }) {
   const { t } = useTranslation();
   return (
     <ScreenWrap>
@@ -53,6 +73,11 @@ export function AccessDenied() {
           title={t("uiCommon.accessDeniedTitle")}
           description={t("uiCommon.accessDeniedBody")}
         />
+        <PluginIdLine plugin={plugin} />
+        <p className="text-xs text-foreground/45">{t("uiCommon.accessDeniedState")}</p>
+        <Link to="/settings/members" className="text-primary hover:text-primary-hover font-medium text-sm">
+          {t("uiCommon.accessDeniedLink")}
+        </Link>
       </GlassCard>
     </ScreenWrap>
   );

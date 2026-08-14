@@ -70,6 +70,12 @@ export const settings = {
     generalDescription: "Your workspace name, data settings, and privacy controls.",
     instanceTitle: "Instance",
     instanceDesc: "Instance-wide runtime settings — applied live, no restart needed.",
+    // Build stamp card: version/commit/builtAt from the authenticated
+    // /api/instance/build endpoint. Machine values, shown verbatim (UTC).
+    buildTitle: "Build",
+    buildVersion: "Version",
+    buildCommit: "Commit",
+    buildBuiltAt: "Built at (UTC)",
     instanceAppName: "Product name",
     instanceAppNameHint: "Brand shown across the UI. Empty = default",
     instanceBaseDomain: "Tenant base domain",
@@ -311,7 +317,6 @@ export const settings = {
     noCredentials: "no credentials",
 
     // ProviderAccountModal
-    failedGeneric: "Failed",
     editProviderAccount: "Edit DNS Provider",
     registerProviderAccount: "Add DNS Provider",
     providerLabelName: "Name",
@@ -426,6 +431,10 @@ export const settings = {
     generalDescription: "你的工作区名称、数据设置和隐私控制。",
     instanceTitle: "实例",
     instanceDesc: "实例级运行时设置 —— 实时生效，无需重启。",
+    buildTitle: "构建信息",
+    buildVersion: "版本",
+    buildCommit: "提交",
+    buildBuiltAt: "构建时间（UTC）",
     instanceAppName: "产品名称",
     instanceAppNameHint: "界面显示的品牌名。留空 = 默认",
     instanceBaseDomain: "租户基础域名",
@@ -667,7 +676,6 @@ export const settings = {
     noCredentials: "无凭据",
 
     // ProviderAccountModal
-    failedGeneric: "失败",
     editProviderAccount: "编辑 DNS 提供商",
     registerProviderAccount: "添加 DNS 提供商",
     providerLabelName: "名称",
@@ -782,6 +790,10 @@ export const settings = {
     generalDescription: "Nombre del espacio de trabajo, configuración de datos y controles de privacidad.",
     instanceTitle: "Instancia",
     instanceDesc: "Configuración de ejecución a nivel de instancia — se aplica en vivo, sin necesidad de reiniciar.",
+    buildTitle: "Compilación",
+    buildVersion: "Versión",
+    buildCommit: "Commit",
+    buildBuiltAt: "Compilado en (UTC)",
     instanceAppName: "Nombre del producto",
     instanceAppNameHint: "Marca mostrada en toda la interfaz. Vacío = predeterminado",
     instanceBaseDomain: "Dominio base de inquilinos",
@@ -1023,7 +1035,6 @@ export const settings = {
     noCredentials: "sin credenciales",
 
     // ProviderAccountModal
-    failedGeneric: "Error",
     editProviderAccount: "Editar Proveedor DNS",
     registerProviderAccount: "Añadir Proveedor DNS",
     providerLabelName: "Nombre",
@@ -1138,6 +1149,10 @@ export const settings = {
     generalDescription: "Nome do seu workspace, configurações de dados e controles de privacidade.",
     instanceTitle: "Instância",
     instanceDesc: "Configurações de execução em nível de instância — aplicadas ao vivo, sem necessidade de reinício.",
+    buildTitle: "Build",
+    buildVersion: "Versão",
+    buildCommit: "Commit",
+    buildBuiltAt: "Compilado em (UTC)",
     instanceAppName: "Nome do produto",
     instanceAppNameHint: "Marca mostrada na UI. Vazio = padrão",
     instanceBaseDomain: "Domínio base do inquilino",
@@ -1379,7 +1394,6 @@ export const settings = {
     noCredentials: "sem credenciais",
 
     // ProviderAccountModal
-    failedGeneric: "Falha",
     editProviderAccount: "Editar Provedor de DNS",
     registerProviderAccount: "Adicionar Provedor de DNS",
     providerLabelName: "Nome",
@@ -1494,6 +1508,10 @@ export const settings = {
     generalDescription: "ワークスペース名、データ設定、プライバシーコントロール。",
     instanceTitle: "インスタンス",
     instanceDesc: "インスタンス全体の実行時設定 — ライブで適用され、再起動は不要です。",
+    buildTitle: "ビルド情報",
+    buildVersion: "バージョン",
+    buildCommit: "コミット",
+    buildBuiltAt: "ビルド日時（UTC）",
     instanceAppName: "製品名",
     instanceAppNameHint: "UI全体に表示されるブランド。空 = デフォルト",
     instanceBaseDomain: "テナント用ベースドメイン",
@@ -1735,7 +1753,6 @@ export const settings = {
     noCredentials: "認証情報なし",
 
     // ProviderAccountModal
-    failedGeneric: "失敗",
     editProviderAccount: "DNSプロバイダーを編集",
     registerProviderAccount: "DNSプロバイダーを追加",
     providerLabelName: "名前",

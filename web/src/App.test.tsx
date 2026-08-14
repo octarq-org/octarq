@@ -30,6 +30,7 @@ vi.mock("./api", () => {
       actions: vi.fn().mockResolvedValue([]),
       helpIndex: vi.fn().mockResolvedValue([]),
       helpCategories: vi.fn().mockResolvedValue([]),
+      instanceBuild: vi.fn().mockResolvedValue({ version: "dev", commit: "unknown", builtAt: "unknown" }),
     },
   };
 });

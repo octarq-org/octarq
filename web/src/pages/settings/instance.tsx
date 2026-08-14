@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, InstanceSettings as InstanceSettingsData } from "../../api";
 import { Field, PageHeader, GlassCard, Button, toast, confirmDialog } from "../../ui";
-import { Server, Sliders, DatabaseBackup } from "lucide-react";
+import { Server, Sliders, DatabaseBackup, Cpu } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useInstanceSettingsData, InstanceAdminOnly, SavedBadge } from "./shared";
 import { ExtensionSlot } from "../../plugin-sdk";
@@ -22,6 +22,11 @@ export function InstanceSettings() {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
+  const [build, setBuild] = useState<{ version: string; commit: string; builtAt: string } | null>(null);
+
+  useEffect(() => {
+    api.instanceBuild().then(setBuild).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (settings) {
@@ -208,6 +213,29 @@ export function InstanceSettings() {
           </Button>
         </div>
       </GlassCard>
+
+      {/* Build stamp. Authenticated endpoint, values from the binary via
+          ldflags; dev/unknown are legit values for a non-git build, so they
+          render as-is. builtAt is the raw UTC string — no local-time masquerade. */}
+      {build && (
+        <GlassCard className="p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Cpu className="h-5 w-5 text-accent-fg" />
+            <h2 className="text-base font-bold text-foreground">{t("settings.buildTitle")}</h2>
+          </div>
+          <div className="grid grid-cols-1 gap-4 max-w-2xl sm:grid-cols-3">
+            <Field label={t("settings.buildVersion")}>
+              <div className="font-mono text-sm text-foreground/80">{build.version}</div>
+            </Field>
+            <Field label={t("settings.buildCommit")}>
+              <div className="font-mono text-sm text-foreground/80">{build.commit}</div>
+            </Field>
+            <Field label={t("settings.buildBuiltAt")}>
+              <div className="font-mono tnum text-sm text-foreground/80">{build.builtAt}</div>
+            </Field>
+          </div>
+        </GlassCard>
+      )}
 
       {/* Database backup. The endpoint has shipped since the backup work but had
           no UI — an operator's only way to reach it was the CLI (`octarq backup`)

@@ -298,6 +298,10 @@ export const api = {
   // plugins: instance-level registry (read-only, instance admins only)
   instancePlugins: () => req<InstancePluginInfo[]>("GET", "/api/instance/plugins"),
 
+  // build metadata (authenticated — never surfaced pre-login)
+  instanceBuild: () =>
+    req<{ version: string; commit: string; builtAt: string }>("GET", "/api/instance/build"),
+
   // overview
   overview: (includeBot = false) =>
     req<Overview>("GET", `/api/overview${includeBot ? "?includeBot=true" : ""}`),

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, Domain, HostEntry, ProviderAccount } from "../../../api";
 import { dnsApi, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus } from "../api";
-import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../../ui";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, FormError } from "../../../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
@@ -14,7 +14,7 @@ export function DomainEditorForm({ domain, accounts, onCancel, onSaved }: { doma
   const [note, setNote] = useState(domain?.note ?? "");
   const [linkHosts, setLinkHosts] = useState<HostEntry[]>(domain?.linkHosts ?? []);
   const [mailHosts, setMailHosts] = useState<HostEntry[]>(domain?.mailHosts ?? []);
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState<string | { message?: string; status?: number; requestId?: string }>("");
   const [busy, setBusy] = useState(false);
 
   const linkSubs = name ? [`go.${name}`, `s.${name}`, `link.${name}`, name] : [];
@@ -28,7 +28,7 @@ export function DomainEditorForm({ domain, accounts, onCancel, onSaved }: { doma
       if (domain) res = await dnsApi.updateDomain(domain.id, payload);
       else res = await dnsApi.createDomain(payload);
       onSaved(res);
-    } catch (e: any) { setErr(e.message ?? t("domains.saveFailed")); }
+    } catch (e: any) { setErr(e); }
     finally { setBusy(false); }
   }
 
@@ -66,7 +66,7 @@ export function DomainEditorForm({ domain, accounts, onCancel, onSaved }: { doma
           </Field>
         </>
       )}
-      {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
+      {err && <FormError err={err} />}
       <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
         {onCancel && (
           <Button type="button" variant="ghost" onClick={onCancel}>{t("domains.cancel")}</Button>

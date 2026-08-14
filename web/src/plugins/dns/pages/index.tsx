@@ -178,7 +178,18 @@ export default function DomainsPage() {
           <GlassCard className="overflow-hidden">
             <div className="overflow-y-auto max-h-[600px] divide-y divide-foreground/[0.04]" onScroll={handleScroll}>
               {domains.length === 0 && !loading ? (
-                <div className="p-8 text-center text-foreground/40 text-sm">{t("domains.noDomainsFound")}</div>
+                q ? (
+                  <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+                    <p className="text-sm text-foreground/60">
+                      {t("domains.emptyFilteredReason")} <span className="font-mono text-foreground/80">{`“${q}”`}</span>
+                    </p>
+                    <Button variant="ghost" className="text-xs py-1.5" onClick={() => setQ("")}>
+                      {t("domains.emptyFilteredAction")}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-foreground/40 text-sm">{t("domains.emptyNoDomainsReason")}</div>
+                )
               ) : (
                 <>
                   {domains.map((d) => (
@@ -349,6 +360,13 @@ export default function DomainsPage() {
               <p className="text-sm text-foreground/50 max-w-sm leading-relaxed mb-6">
                 {t("domains.addFirstDomainHint")}
               </p>
+              {accounts.length > 0 ? (
+                <p className="mb-4 text-xs text-foreground/45">
+                  {t("domains.connectedProvidersPre")} <span className="font-mono tnum">{accounts.length}</span>
+                </p>
+              ) : (
+                <p className="mb-4 max-w-sm text-xs leading-relaxed text-foreground/45">{t("domains.providerBlockerDetail")}</p>
+              )}
               {accounts.length > 0 ? (
                 <Button variant="primary" onClick={() => setSyncing(true)} className="gap-1.5">
                   <RefreshCw className="h-4 w-4" />

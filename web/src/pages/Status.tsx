@@ -14,6 +14,8 @@ export default function StatusPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorRequestId, setErrorRequestId] = useState<string | undefined>(undefined);
+  const [errorAt, setErrorAt] = useState<string | null>(null);
 
   const fetchStatus = async (isManual = false) => {
     if (isManual) setRefreshing(true);
@@ -21,8 +23,12 @@ export default function StatusPage() {
       const res = await api.subsystemStatus();
       setData(res);
       setError(null);
+      setErrorRequestId(undefined);
+      setErrorAt(null);
     } catch (e: any) {
       setError(e.message || "Failed to load subsystem status");
+      setErrorRequestId(e?.requestId);
+      setErrorAt(new Date().toLocaleTimeString());
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -141,16 +147,37 @@ export default function StatusPage() {
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-5 space-y-4">
         {/* Banner */}
-        <div className={`p-4 rounded-lg border flex items-center gap-4 ${banner.bg}`}>
-          {banner.icon}
-          <div>
-            <h2 className="text-xl font-bold">{banner.title}</h2>
+        <div className={`p-4 rounded-lg border flex items-center gap-4 ${
+          error ? "bg-danger-bg border-danger-border text-danger-fg" : banner.bg
+        }`}>
+          {error ? <AlertTriangle className="h-8 w-8 shrink-0" /> : banner.icon}
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl font-bold">{error ? t("status.probeFailedTitle") : banner.title}</h2>
             <p className="font-mono tnum text-xs opacity-80 mt-0.5">
-              {data?.time
-                ? t("status.lastChecked", { time: new Date(data.time).toLocaleTimeString() })
-                : error || "Checking status..."}
+              {loading ? t("status.loadingSystemStatus")
+                : error
+                  ? t("status.probeFailedAt", { time: errorAt ?? "" })
+                  : data?.time
+                    ? t("status.lastChecked", { time: new Date(data.time).toLocaleTimeString() })
+                    : ""}
+              {error && errorRequestId && (
+                <> · {t("status.requestId", { requestId: errorRequestId })}</>
+              )}
             </p>
+            {error && (
+              <p className="text-xs mt-1 opacity-90">{error}</p>
+            )}
           </div>
+          {error && (
+            <button
+              onClick={() => fetchStatus(true)}
+              disabled={refreshing}
+              className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-danger-border bg-danger-bg hover:bg-danger-fg/10 transition-colors"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              {t("status.refresh")}
+            </button>
+          )}
         </div>
 
         {/* Subsystems Card */}
@@ -192,9 +219,17 @@ export default function StatusPage() {
         </div>
       </main>
 
-      {/* Footer */}
+      {/* Footer: what this page actually monitors, when it last got an answer.
+          The timestamp is machine-produced → mono. */}
       <footer className="max-w-4xl mx-auto px-4 py-8 text-center text-xs text-foreground/40 border-t border-foreground/10 mt-12">
-        <p>Octarq Status Page &bull; Powered by Octarq</p>
+        {data && (
+          <p className="font-mono tnum">
+            {t("status.footerLine", {
+              count: data.subsystems.length,
+              time: new Date(data.time).toLocaleTimeString(),
+            })}
+          </p>
+        )}
       </footer>
     </div>
   );

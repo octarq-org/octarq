@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, Domain, effectiveLinkHosts } from "../../../api";
 import { linksApi, Link, LinkStats } from "../api";
-import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard, Select } from "../../../ui";
+import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard, Select, FormError } from "../../../ui";
 import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe, Settings, Sparkles } from "lucide-react";
 import { LinkSettings } from "./LinkSettings";
 import { useTranslation } from "../../../i18n";
@@ -30,7 +30,7 @@ export function LinkEditorForm({
   const [clickLimit, setClickLimit] = useState(link?.clickLimit ?? 0);
   const [enabled, setEnabled] = useState(link?.enabled ?? true);
   const [routingRules, setRoutingRules] = useState<any[]>(link?.routingRules ?? []);
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState<string | { message?: string; status?: number; requestId?: string }>("");
   const [fetching, setFetching] = useState(false);
   const [showUtm, setShowUtm] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
@@ -90,7 +90,7 @@ export function LinkEditorForm({
       else res = await linksApi.createLink(payload);
       onSaved(res);
     } catch (e: any) {
-      setErr(e.message ?? t("links.saveFailed"));
+      setErr(e);
     }
   }
 
@@ -202,7 +202,7 @@ export function LinkEditorForm({
         <RoutingRulesEditor rules={routingRules} onChange={setRoutingRules} />
       </Field>
 
-      {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
+      {err && <FormError err={err} />}
 
       <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
         <Button variant="ghost" onClick={onCancel}>

@@ -41,6 +41,7 @@ vi.mock("../../api", () => {
     updateOrg: vi.fn(async () => ({ id: 1 })),
     exportWorkspaceData: vi.fn(async () => ({})),
     purgeWorkspaceData: vi.fn(async () => ({ ok: true })),
+    instanceBuild: vi.fn(async () => ({ version: "dev", commit: "unknown", builtAt: "unknown" })),
   };
   return { api };
 });

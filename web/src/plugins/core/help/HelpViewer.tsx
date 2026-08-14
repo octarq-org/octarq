@@ -47,6 +47,10 @@ export default function HelpViewer() {
   const [content, setContent] = useState<DocContent | null>(null);
   const [loadingContent, setLoadingContent] = useState(false);
   const [error, setError] = useState("");
+  // HTTP status + X-Request-Id from the failed load: the operator's log
+  // correlation for a self-hosted instance. Both machine values → mono.
+  const [errorMeta, setErrorMeta] = useState<{ status?: number; requestId?: string } | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   const [copiedLink, setCopiedLink] = useState(false);
   // Set when the requested doc is unavailable (e.g. Pro slug on OSS instance).
@@ -90,14 +94,16 @@ export default function HelpViewer() {
     if (!currentSlug) return;
     setLoadingContent(true);
     setError("");
+    setErrorMeta(null);
     api
       .helpPage(currentSlug, lang)
       .then((res) => setContent(res))
-      .catch((err: any) =>
-        setError(err.message || "Failed to load documentation"),
-      )
+      .catch((err: any) => {
+        setError(err.message || "Failed to load documentation");
+        setErrorMeta({ status: err?.status, requestId: err?.requestId });
+      })
       .finally(() => setLoadingContent(false));
-  }, [currentSlug, lang]);
+  }, [currentSlug, lang, retryNonce]);
 
   // Expands 2-segment /help/<slug> links to include category using doc index.
   const resolveInAppPath = useCallback(
@@ -366,9 +372,27 @@ export default function HelpViewer() {
                 </p>
               </div>
             ) : error ? (
-              <div className="p-6 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm flex items-center gap-3">
-                <AlertTriangle className="w-5 h-5 shrink-0" />
-                <span>{error}</span>
+              <div className="p-6 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-1.5 min-w-0">
+                  <p className="font-semibold">{t("help.error_title", "Couldn't load this page")}</p>
+                  <p className="break-words">{error}</p>
+                  <div className="font-mono text-[11px] opacity-80 space-y-0.5">
+                    <p>{t("help.error_path", "Path: {{path}}", { path: location.pathname })}</p>
+                    {errorMeta?.status !== undefined && (
+                      <p>{t("help.error_status", "Status: {{status}}", { status: errorMeta.status })}</p>
+                    )}
+                    {errorMeta?.requestId && (
+                      <p>{t("help.error_request", "Request ID: {{requestId}}", { requestId: errorMeta.requestId })}</p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setRetryNonce((n) => n + 1)}
+                  className="shrink-0 px-3 py-1.5 rounded-lg border border-destructive/30 text-xs font-semibold hover:bg-destructive/20 transition-colors"
+                >
+                  {t("help.error_retry", "Retry")}
+                </button>
               </div>
             ) : content ? (
               <div className="space-y-8">

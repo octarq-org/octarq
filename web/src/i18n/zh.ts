@@ -70,6 +70,7 @@ export const zh: Resources = {
     noAccount: "还没有账户？",
     createOne: "创建账户",
     orContinueWith: "或使用以下方式登录",
+    shellBuildFooter: "octarq {{version}}（{{commit}}）· 构建于 {{builtAt}}",
   },
   topbar: {
     create: "新建",
@@ -85,7 +86,8 @@ export const zh: Resources = {
   command: {
     create: "创建",
     placeholder: "搜索页面…",
-    empty: "没有匹配「{{q}}」的结果。",
+    emptyTitle: "没有页面或操作匹配",
+    emptyHint: "⌘K 只能跳转页面，不能创建内容。试试这些区域：{{areas}}。",
   },
   areas: {
     operations: { title: "运营", subtitle: "日常流量与消息服务" },
@@ -172,5 +174,9 @@ export const zh: Resources = {
     statusNa: "不可用",
     refresh: "刷新",
     refreshing: "刷新中…",
+    probeFailedTitle: "状态探测失败",
+    probeFailedAt: "探测失败于 {{time}}",
+    requestId: "请求 {{requestId}}",
+    footerLine: "{{count}} 个子系统 · 每 15 秒探测一次 · 最后检查 {{time}}",
   },
 };

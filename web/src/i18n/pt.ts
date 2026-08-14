@@ -69,6 +69,7 @@ export const pt = {
     noAccount: "Não tem uma conta?",
     createOne: "Crie uma",
     orContinueWith: "ou continue com",
+    shellBuildFooter: "octarq {{version}} ({{commit}}) · construído em {{builtAt}}",
   },
   topbar: {
     create: "Criar",
@@ -84,7 +85,8 @@ export const pt = {
   command: {
     create: "Criar",
     placeholder: "Pesquisar páginas…",
-    empty: "Nenhum resultado para “{{q}}”.",
+    emptyTitle: "Nenhuma página ou ação corresponde",
+    emptyHint: "O ⌘K abre páginas — não pode criar nada. Tente uma destas áreas: {{areas}}.",
   },
   areas: {
     operations: { title: "Operações", subtitle: "Tráfego diário e comunicação" },
@@ -171,5 +173,9 @@ export const pt = {
     statusNa: "N/A",
     refresh: "Atualizar",
     refreshing: "Atualizando…",
+    probeFailedTitle: "Falha na verificação de status",
+    probeFailedAt: "Falha na verificação às {{time}}",
+    requestId: "solicitação {{requestId}}",
+    footerLine: "{{count}} subsistemas · verificação a cada 15 s · última verificação {{time}}",
   },
 };

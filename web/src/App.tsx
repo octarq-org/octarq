@@ -17,6 +17,7 @@ import { RoleProvider, roleSatisfies } from "./shell/role";
 import { TopBar } from "./shell/TopBar";
 import { CommandPalette } from "./shell/CommandPalette";
 import { AreaPanel } from "./shell/AreaPanel";
+import { ShellFooter } from "./shell/ShellFooter";
 import { Login } from "./shell/Login";
 import { uiAreas } from "./plugin-sdk";
 import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
@@ -754,6 +755,7 @@ function Shell({
           <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
             <div key={orgEpoch} className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-8 sm:py-5">
               {appRoutes}
+              <ShellFooter />
             </div>
           </div>
         )}

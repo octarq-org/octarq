@@ -38,9 +38,15 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "settings.pluginCategory.marketing", // Industry standard term in ES/PT (Marketing)
   "nav.links", // Standard term in PT tech UI (Links)
   "settings.instancePluginName", // Loanword standard in ES/PT (Plugin)
+  "settings.buildTitle", // "Build" is the standard loanword in PT tech UI
+  "settings.buildCommit", // Git term used verbatim in ES/PT (Commit)
+  "uiCommon.pluginId", // Loanword standard in PT (Plugin)
 
   // Words with identical spelling in the target language
   "nav.general", // Identical spelling in Spanish (General)
   "settings.generalTitle", // Identical spelling in Spanish (General)
   "audit.colActor", // Identical spelling in Spanish (Actor)
+
+  // Protocol acronyms that are universal
+  "uiCommon.formErrorStatus", // Technical acronym (HTTP)
 ]);
