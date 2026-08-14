@@ -422,6 +422,16 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
             </div>
           </div>
         )}
+
+        {/* Instance identity: the host you are signing into, machine-provided so
+            mono. Deliberately the ONLY place it appears on this card — the same
+            fact stated twice reads as noise, not reassurance. Footer rather than
+            under the title because it is a stamp, not part of the heading, and
+            because this spot stays visible in every mode (login / register /
+            forgot / pending-verification). */}
+        <p className="mt-6 border-t border-border pt-4 text-center font-mono text-[11px] text-foreground/40">
+          {window.location.host}
+        </p>
       </div>
     </div>
   );

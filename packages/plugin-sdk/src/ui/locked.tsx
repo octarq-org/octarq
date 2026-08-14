@@ -37,13 +37,13 @@ export function LockedFeature({
   return (
     <GlassCard
       strong
-      className="mx-auto mt-12 flex max-w-md flex-col items-center gap-5 px-6 py-14 text-center"
+      className="mx-auto mt-12 flex max-w-md flex-col items-center gap-5 px-5 py-10 text-center"
     >
       <div
         className={twMerge(
-          "flex h-14 w-14 items-center justify-center rounded-2xl",
+          "flex h-14 w-14 items-center justify-center rounded-lg",
           locked
-            ? "bg-gradient-to-br from-[color:color-mix(in_srgb,var(--accent-indigo)_20%,transparent)] to-[color:color-mix(in_srgb,var(--accent-violet)_20%,transparent)] text-accent-fg ring-1 ring-inset ring-[color:color-mix(in_srgb,var(--primary)_25%,transparent)]"
+            ? "bg-info-bg text-accent-fg ring-1 ring-inset ring-info-border"
             : "bg-rose-500/10 text-danger-fg", /* ui-color-ok */
         )}
       >
@@ -75,7 +75,7 @@ export function LockedFeature({
         <ul className="w-full space-y-1.5 text-left">
           {perks.map((p) => (
             <li key={p} className="flex items-start gap-2 text-sm text-foreground/65">
-              <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-violet-400/70" /* ui-color-ok */ />
+              <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-muted-foreground" />
               {p}
             </li>
           ))}
