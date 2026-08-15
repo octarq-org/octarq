@@ -3,6 +3,16 @@
 @import "tailwindcss";
 @source "../../packages/plugin-sdk/src/ui/**/*.tsx";
 @source "../../packages/plugin-*/src/**/*.tsx";
+/* Composed Pro/third-party UI plugins. They are not workspace source — the
+   manifest build (scripts/install-manifest-plugins.mjs, OCTARQ_PLUGINS_MANIFEST)
+   fetches each published package into web/node_modules — and Tailwind's default
+   content detection skips node_modules entirely. Without this line NONE of a
+   composed plugin's utility classes are generated: the Pro dashboard was
+   shipping pages whose `text-gray-500`, `max-w-5xl` and `border-l-4` had no
+   rules at all, which is why those pages never picked up the brand accents
+   either. An OSS build has no such packages and the glob simply matches
+   nothing. */
+@source "../node_modules/@octarq-org/plugin-*/dist/**/*.js";
 /* Base UI Dialog/Tooltip enter-exit + the existing animate-* keyframes share one
    animation vocabulary. tw-animate-css resolves to
    node_modules/tw-animate-css/dist/tw-animate.css via its package "style" export. */
@@ -51,19 +61,41 @@ body,
   /* Accents. The primary action surface stays the brand gradient (indigo→violet,
      same axis as the TopBar mark) so actions and chrome read as one system.
      --primary is the flat fallback for borders/rings/charts; --accent-fg is the
-     readable accent for text/icons on the current surface (indigo-600 on light). */
-  --primary: #6366f1;                             /* indigo-500 */
-  --primary-hover: #4f46e5;                       /* indigo-600 */
-  --primary-foreground: #ffffff;
-  --accent-indigo: #6366f1;
-  --accent-violet: #8b5cf6;                        /* violet-500 */
-  --accent-fg: #4f46e5;                            /* indigo-600 — accent text/icons on surface */
-  --gradient-primary: linear-gradient(135deg, #6366f1 0%, #7c5cf6 55%, #8b5cf6 100%);
+     readable accent for text/icons on the current surface (indigo-600 on light).
 
-  /* Status accents — readable on the current surface (600-weight on light). */
-  --info-bg: #eef2ff;
-  --info-border: #c7d2fe;
-  --info-fg: #4338ca;
+     Only the three SEED values below are literal: --primary, --accent-violet and
+     --primary-foreground. Every other brand-tinted token is mixed from --primary
+     so the white-label plugin re-themes the whole app by overriding the seeds
+     alone (brand.tsx applyAccents). Hardcoding a derived value here is how the
+     accent, hover and info surfaces used to stay indigo on a rebranded instance.
+     Two mechanisms, on purpose. Tints (soft fills, hairlines, info surfaces)
+     are color-mix, which is what a wash of the accent over the surface means.
+     The text and hover ramp is `oklch(from …)` instead, moving ONLY lightness
+     and keeping chroma and hue: mixing toward black drags a/b toward zero too,
+     which desaturated indigo-600 into a muddy #4a4db9.
+
+     The text tokens clamp their lightness rather than just offsetting it. An
+     operator may pick a near-white brand (a bright yellow, a pale cyan), and an
+     accent label one step darker than that is still unreadable on white. The
+     clamp floors readability at any hue — that is the whole point of accepting
+     an arbitrary brand colour. */
+  --primary: #6366f1;                             /* SEED — indigo-500 */
+  --accent-violet: #8b5cf6;                        /* SEED — violet-500, gradient end */
+  --primary-foreground: #ffffff;                   /* SEED — text on the primary fill */
+
+  --primary-hover: oklch(from var(--primary) calc(l - 0.08) c h);
+  --accent-indigo: var(--primary);                 /* gradient start — legacy name */
+  --accent-fg: oklch(from var(--primary) clamp(0.30, l - 0.08, 0.55) c h);  /* accent text/icons on surface */
+  --accent-soft: color-mix(in oklab, var(--primary) 12%, transparent);   /* tinted fill */
+  --accent-border: color-mix(in oklab, var(--primary) 28%, transparent); /* tinted hairline */
+  --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--accent-violet) 100%);
+
+  /* Status accents — readable on the current surface (600-weight on light).
+     Info is the brand-tinted one: it mixes from --primary so it follows a
+     rebrand. Success/warning/danger are semantic, not brand, and stay literal. */
+  --info-bg: color-mix(in oklab, var(--primary) 10%, #fff);
+  --info-border: color-mix(in oklab, var(--primary) 30%, #fff);
+  --info-fg: oklch(from var(--primary) clamp(0.30, l - 0.13, 0.50) c h);
 
   --success-bg: #ecfdf5;
   --success-border: #a7f3d0;
@@ -81,7 +113,7 @@ body,
   --border: #e7e7e3;
   --border-strong: #d8d8d2;
   --input: #dcdcd5;
-  --ring: #6366f1;
+  --ring: var(--primary);
 
 }
 
@@ -99,14 +131,20 @@ body,
   --surface-hover: rgba(255, 255, 255, 0.06);
   --well: rgba(0, 0, 0, 0.22);
 
-  --primary: #6366f1;
-  --primary-hover: #818cf8;
-  --primary-foreground: #ffffff;
-  --accent-fg: #a5b4fc;                            /* indigo-300 — accent text on dark */
+  /* Same seed, opposite mix direction: on dark the accents lighten toward #fff
+     instead of darkening toward #000. Derived tokens are NOT repeated here —
+     they inherit the :root formulas, which re-resolve against whatever --primary
+     is in scope, including the white-label override applyAccents writes inline
+     on <html> (the same element .dark sits on, so the inline seed wins). */
+  --primary: #6366f1;                              /* SEED */
+  --primary-hover: oklch(from var(--primary) calc(l + 0.09) c h);
+  --accent-fg: oklch(from var(--primary) clamp(0.72, l + 0.22, 0.92) c h);  /* accent text on dark */
+  --accent-soft: color-mix(in oklab, var(--primary) 18%, transparent);
+  --accent-border: color-mix(in oklab, var(--primary) 38%, transparent);
 
-  --info-bg: rgba(99, 102, 241, 0.15);
-  --info-border: rgba(99, 102, 241, 0.35);
-  --info-fg: #a5b4fc;
+  --info-bg: color-mix(in oklab, var(--primary) 15%, transparent);
+  --info-border: color-mix(in oklab, var(--primary) 35%, transparent);
+  --info-fg: oklch(from var(--primary) clamp(0.72, l + 0.22, 0.92) c h);
 
   --success-bg: rgba(16, 185, 129, 0.15);
   --success-border: rgba(16, 185, 129, 0.35);
@@ -123,7 +161,7 @@ body,
   --border: rgba(255, 255, 255, 0.10);
   --border-strong: rgba(255, 255, 255, 0.16);
   --input: rgba(255, 255, 255, 0.10);
-  --ring: #6366f1;
+  --ring: var(--primary);
 }
 
 @theme inline {
@@ -143,6 +181,8 @@ body,
   --color-accent-indigo: var(--accent-indigo);
   --color-accent-violet: var(--accent-violet);
   --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-border: var(--accent-border);
 
   --color-info-bg: var(--info-bg);
   --color-info-border: var(--info-border);
@@ -265,7 +305,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ::selection {
-  background: rgba(99, 102, 241, 0.28);
+  background: var(--accent-border);
   color: inherit;
 }
 
@@ -358,7 +398,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 .input:focus {
   border-color: color-mix(in srgb, var(--primary) 55%, transparent);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent);
 }
 .dark .input {
   background: rgba(255, 255, 255, 0.04);
@@ -640,7 +680,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .markdown-body .code-block-lang {
   font-weight: 700;
-  color: #818cf8;
+  color: var(--accent-fg);
   letter-spacing: 0.05em;
 }
 
@@ -716,9 +756,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .markdown-body .callout-note {
-  background-color: rgba(59, 130, 246, 0.08);
-  border-color: #3b82f6;
-  color: #1e3a8a;
+  /* ui-not-brand: `note` is one of a four-colour semantic callout family
+     (tip green / note blue / warning amber / important red). Tinting it with
+     the brand accent would collide with `tip` on a green brand and destroy the
+     distinction the family exists to draw. */
+  background-color: rgba(59, 130, 246, 0.08); /* ui-not-brand */
+  border-color: #3b82f6; /* ui-not-brand */
+  color: #1e3a8a; /* ui-not-brand */
 }
 .dark .markdown-body .callout-note {
   background-color: rgba(59, 130, 246, 0.12);

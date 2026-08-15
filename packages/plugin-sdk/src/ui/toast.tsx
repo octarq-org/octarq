@@ -52,7 +52,7 @@ export const toast: ToastApi = {
 const TONE_STYLES: Record<ToastTone, { ring: string; dot: string; label: string }> = {
   success: { ring: "ring-emerald-400/25", dot: "bg-emerald-400", label: "Success" }, /* ui-color-ok */
   error: { ring: "ring-rose-400/25", dot: "bg-rose-400", label: "Error" }, /* ui-color-ok */
-  info: { ring: "ring-indigo-400/25", dot: "bg-indigo-400", label: "Info" }, /* ui-color-ok */
+  info: { ring: "ring-ring/25", dot: "bg-primary", label: "Info" },
 };
 
 const AUTO_DISMISS_MS = 4200;

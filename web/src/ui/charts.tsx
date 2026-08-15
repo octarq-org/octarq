@@ -66,7 +66,7 @@ export function BarList({
           <span className="w-24 truncate font-mono text-foreground/70">{r.key || t("uiCommon.direct")}</span>
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-foreground/8">
             <div
-              className="h-full rounded-full bg-indigo-500/60" /* ui-color-ok */
+              className="h-full rounded-full bg-primary/60"
               style={{ width: `${(r.count / max) * 100}%` }}
             />
           </div>
