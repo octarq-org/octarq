@@ -136,7 +136,7 @@ export default function MailPage() {
           onClick={() => setTab('mail')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap ${
             tab === 'mail'
-              ? 'border-indigo-500 text-foreground' /* ui-color-ok */
+              ? 'border-primary text-foreground'
               : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >
@@ -146,7 +146,7 @@ export default function MailPage() {
           onClick={() => setTab('settings')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
             tab === 'settings'
-              ? 'border-indigo-500 text-foreground' /* ui-color-ok */
+              ? 'border-primary text-foreground'
               : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >
@@ -248,7 +248,7 @@ export default function MailPage() {
                     >
                       <div className="flex items-center justify-between w-full mb-1 gap-2">
                         <div className="flex items-center gap-2 overflow-hidden">
-                          {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-400" /* ui-color-ok */ />}
+                          {!e.read && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
                           <span className={`truncate text-sm ${e.read ? "text-foreground/55" : "font-semibold text-foreground"}`}>{e.from || t("mail.unknownSender")}</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0 ml-2">
