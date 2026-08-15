@@ -11,16 +11,22 @@ export default function TopCitiesPanelWidget() {
   if (!o || o.cities === undefined) return null;
 
   const cities = (o.cities as StatKV[]) ?? [];
+  // cities only spans the last 30 days; clicks30d is the matching window.
+  const hasClicksInWindow = (o.clicks30d ?? 0) > 0;
 
   return (
     <Panel title={`${t("links.topCities")}${includeBot ? " " + t("links.inclBots") : ""}`}>
       <BarList rows={cities} empty={
-        <span>
-          {t("links.noGeoData")}{" "}
-          <a href="/admin/help" className="text-accent-fg hover:underline">
-            {t("links.noGeoDataHelp")}
-          </a>
-        </span>
+        hasClicksInWindow ? (
+          <span>
+            {t("links.noGeoData")}{" "}
+            <a href="/admin/help" className="text-accent-fg hover:underline">
+              {t("links.noGeoDataHelp")}
+            </a>
+          </span>
+        ) : (
+          t("links.noClickData")
+        )
       } />
     </Panel>
   );
