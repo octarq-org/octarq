@@ -18,6 +18,14 @@ import { ToastProvider } from "./ui";
 import { ConfirmBridge } from "./ConfirmBridge";
 import "./styles.css";
 
+// The dashboard normally lives under /admin (Vite base + BrowserRouter
+// basename). The public status page is served at the bare /status path (the
+// backend returns the same index.html there), so the router basename must be
+// "/" for that route — React Router renders nothing when the URL does not
+// start with the basename. Everything else keeps /admin.
+const routerBasename =
+  window.location.pathname === "/status" || window.location.pathname === "/status/" ? "/" : "/admin";
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     {/* Honor the OS "reduce motion" setting for every framer-motion animation
@@ -29,7 +37,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <BrandBridge>
           <ToastProvider>
             <ConfirmBridge>
-              <BrowserRouter basename="/admin">
+              <BrowserRouter basename={routerBasename}>
                 <App />
               </BrowserRouter>
             </ConfirmBridge>
