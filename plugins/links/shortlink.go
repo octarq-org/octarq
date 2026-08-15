@@ -21,6 +21,7 @@ import (
 
 	"github.com/octarq-org/octarq/internal/safego"
 	"github.com/octarq-org/octarq/internal/usagemetric"
+	"github.com/octarq-org/octarq/origin"
 	"github.com/octarq-org/octarq/plugin"
 	"github.com/octarq-org/octarq/plugins/dns"
 	"gorm.io/gorm"
@@ -90,6 +91,7 @@ type clickItem struct {
 // Service handles redirect resolution and analytics.
 type Engine struct {
 	db          *gorm.DB
+	resolver    *origin.Resolver
 	ctx         *plugin.Context
 	queue       chan clickItem
 	wg          sync.WaitGroup
@@ -102,6 +104,7 @@ type Engine struct {
 func NewEngine(db *gorm.DB, ctx *plugin.Context) *Engine {
 	e := &Engine{
 		db:          db,
+		resolver:    origin.NewResolver(db),
 		ctx:         ctx,
 		queue:       make(chan clickItem, 5000),
 		rateLimiter: newIPRateLimiter(300, time.Minute),
@@ -320,26 +323,40 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 	}
 
 	query := e.db.Where("slug = ? AND (host = ? OR host = '')", slug, host)
-	if ownerOrg := resolveHostOrg(e.db, host); ownerOrg != 0 {
-		query = query.Where("owner_id = ?", ownerOrg)
+	if owner, ok := e.resolver.OwnerOf(host); ok {
+		query = query.Where("owner_id = ?", owner)
+	} else if e.resolver.ServesTraffic(host) {
+		// The host is registered — someone claims it — but OwnerOf refused to
+		// name a single owner, which happens exactly when two or more orgs
+		// contest it. Serving either side would land one tenant's links on
+		// another tenant's hostname, so fail closed: a 404 beats a
+		// cross-tenant hijack, and the victim's links are still served on
+		// their own registered hosts.
+		e.cacheNegative(ctx, cacheKey)
+		return nil, false
+	} else {
+		// No registered domain covers this host at all: the bare instance
+		// hostname, the shared dashboard host (app.octarq.org), an IP literal.
+		// Only host-agnostic links (host = '') are unambiguous here — the slug
+		// is their only credential, so serving them from a neutral host
+		// exposes nothing a link is not already public about. This is the
+		// branch mail click tracking runs on (plugins/mail wrapLinksInEmail
+		// creates Host:"" links and serves them from the shared host when the
+		// org has no custom link domain). A Link row that claims this exact
+		// host while no domain owns it is an unauthorized claim and must not
+		// be served, so the exact-host branch of the query is dropped.
+		query = e.db.Where("slug = ? AND host = ''", slug)
 	}
 
 	err := query.
 		Order("host DESC"). // non-empty host sorts first, so exact match wins
 		First(&link).Error
 	if err != nil {
-		// Cache negative result (1 minute TTL) to prevent DB hammering for invalid links
-		var empty Link
-		if e.ctx != nil && e.ctx.CacheSet != nil {
-			_ = e.ctx.CacheSet(ctx, cacheKey, &empty, time.Minute)
-		}
+		e.cacheNegative(ctx, cacheKey)
 		return nil, false
 	}
 	if !link.Enabled || link.Archived {
-		var empty Link
-		if e.ctx != nil && e.ctx.CacheSet != nil {
-			_ = e.ctx.CacheSet(ctx, cacheKey, &empty, time.Minute)
-		}
+		e.cacheNegative(ctx, cacheKey)
 		return nil, false
 	}
 	// A host-scoped link does not resolve if its host is a temporarily disabled
@@ -353,6 +370,15 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 		_ = e.ctx.CacheSet(ctx, cacheKey, &link, time.Hour)
 	}
 	return &link, true
+}
+
+// cacheNegative records that (host, slug) resolves to nothing for one minute,
+// so a spray of invalid short-link requests does not hammer the database.
+func (e *Engine) cacheNegative(ctx context.Context, cacheKey string) {
+	var empty Link
+	if e.ctx != nil && e.ctx.CacheSet != nil {
+		_ = e.ctx.CacheSet(ctx, cacheKey, &empty, time.Minute)
+	}
 }
 
 // linkHostDisabled reports whether host is listed as a link host by orgID but
