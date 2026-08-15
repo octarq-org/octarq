@@ -44,7 +44,7 @@ export function StatCard({
       className={cn(
         "glass rounded-2xl p-4 text-left transition-all duration-150",
         onClick
-          ? "cursor-pointer hover:bg-foreground/[0.06] hover:ring-1 hover:ring-inset hover:ring-foreground/10 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60" /* ui-color-ok */
+          ? "cursor-pointer hover:bg-foreground/[0.06] hover:ring-1 hover:ring-inset hover:ring-foreground/10 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
           : "",
       )}
     >

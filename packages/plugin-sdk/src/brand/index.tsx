@@ -93,7 +93,7 @@ export function BrandGlyph({
   // Brand halo, inlined as a component class (light + dark) since the global .shadow-glow utility was removed.
   return (
     <div
-      className={`${box} brand-gradient flex items-center justify-center rounded-xl shadow-[0_6px_20px_-8px_rgba(99,102,241,0.35)] dark:shadow-[0_0_0_1px_rgba(99,102,241,0.4),0_8px_40px_-8px_rgba(99,102,241,0.45)] ${className}`}
+      className={`${box} brand-gradient flex items-center justify-center rounded-xl shadow-[0_6px_20px_-8px_color-mix(in_oklab,var(--primary)_35%,transparent)] dark:shadow-[0_0_0_1px_color-mix(in_oklab,var(--primary)_40%,transparent),0_8px_40px_-8px_color-mix(in_oklab,var(--primary)_45%,transparent)] ${className}`}
       style={style}
     >
       {isOctarq ? (

@@ -44,7 +44,7 @@ export function Select({
         className={cn(
           "flex w-full items-center justify-between gap-2 rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition-all",
           "hover:border-border-strong focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30",
-          "data-[popup-open]:border-indigo-400/40 disabled:cursor-not-allowed disabled:opacity-50", /* ui-color-ok */
+          "data-[popup-open]:border-accent-border disabled:cursor-not-allowed disabled:opacity-50",
           className,
         )}
       >
