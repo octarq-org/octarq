@@ -135,7 +135,7 @@ export const SETTINGS_AREA: Area = {
     {
       label: "Instance",
       items: [
-        { id: "auth",     label: "Authentication",    Icon: KeyRound, path: "/settings/auth" },
+        { id: "auth",     label: "Authentication",    Icon: KeyRound, path: "/settings/instance/auth" },
         { id: "instance", label: "Instance Settings", Icon: Server,   path: "/settings/instance" },
         { id: "instance-plugins", label: "Plugins",  Icon: Puzzle,   path: "/settings/instance/plugins" },
       ],

@@ -27,7 +27,8 @@ export default function SettingsPage() {
         <Route path="/webhooks" element={<WebhooksSettings />} />
         <Route path="/notifications" element={<NotificationChannels />} />
         <Route path="/members" element={<OrgMembersManager />} />
-        <Route path="/auth" element={<AuthenticationSettings />} />
+        <Route path="/auth" element={<Navigate to="/settings/instance/auth" replace />} />
+        <Route path="/instance/auth" element={<AuthenticationSettings />} />
         <Route path="/instance" element={<InstanceSettings />} />
         <Route path="/instance/plugins" element={<InstancePluginsSettings />} />
         {/* Account panels (per-user) — same /settings space, no separate /personal tree. */}
