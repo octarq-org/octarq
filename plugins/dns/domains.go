@@ -135,6 +135,36 @@ func reservedInHostLists(db *gorm.DB, linkHosts, mailHosts models.HostList) stri
 	return ""
 }
 
+// hostsOutsideZone returns the first hostname across linkHosts and mailHosts
+// that is neither the domain's own name nor a subdomain of it, or "" when
+// every entry is inside the zone.
+//
+// A domain's host lists are the serving surface of that domain, so every
+// entry has to be this zone's apex or a label beneath it. Domain.Name is
+// unique across the table, which makes this rule the arbiter of host
+// ownership: a host can only ever be listed on the domain it belongs under,
+// so two orgs can never legally claim the same hostname. Without it, the
+// host-list JSON columns (which carry no uniqueness constraint) let org A
+// list org B's hostname as its own, and the redirect side could not tell
+// whose host it is.
+func hostsOutsideZone(name string, linkHosts, mailHosts models.HostList) string {
+	name = NormalizeHost(name)
+	if name == "" {
+		return ""
+	}
+	for _, list := range []models.HostList{linkHosts, mailHosts} {
+		for _, h := range list {
+			host := NormalizeHost(h.Host)
+			// The dot-prefixed suffix keeps "notexample.com" out of
+			// "example.com"'s zone: only whole labels count as subdomains.
+			if host != name && !strings.HasSuffix(host, "."+name) {
+				return host
+			}
+		}
+	}
+	return ""
+}
+
 // hostEntry is a host with its enable flag in create/update payloads.
 type hostEntry struct {
 	Host    string `json:"host"`
@@ -382,6 +412,12 @@ func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*C
 	if bad := reservedInHostLists(p.db, dom.LinkHosts, dom.MailHosts); bad != "" {
 		return nil, huma.Error400BadRequest("that hostname is reserved for automatic tenant subdomains")
 	}
+	// Host lists must stay inside this domain's own zone — the apex itself or
+	// a subdomain of it. Domain.Name is unique, so this is what keeps two orgs
+	// from claiming the same hostname through their lists.
+	if bad := hostsOutsideZone(dom.Name, dom.LinkHosts, dom.MailHosts); bad != "" {
+		return nil, huma.Error400BadRequest("host list entry " + bad + " is outside this domain's zone")
+	}
 	// Best-effort credential check.
 	if prov, err := p.providerFor(dom); err == nil && dom.ZoneID != "" {
 		if name, err := prov.VerifyZone(r.Context(), dom.ZoneID); err != nil {
@@ -463,6 +499,10 @@ func (p *Plugin) updateDomain(ctx context.Context, input *UpdateDomainInput) (*U
 	// The reserved zone applies to the host lists as well as the name.
 	if bad := reservedInHostLists(p.db, dom.LinkHosts, dom.MailHosts); bad != "" {
 		return nil, huma.Error400BadRequest("that hostname is reserved for automatic tenant subdomains")
+	}
+	// The lists must stay inside this domain's own zone, exactly as on create.
+	if bad := hostsOutsideZone(dom.Name, dom.LinkHosts, dom.MailHosts); bad != "" {
+		return nil, huma.Error400BadRequest("host list entry " + bad + " is outside this domain's zone")
 	}
 	if input.Body.ProviderAccountID != 0 {
 		if !p.ownsProviderAccount(r, input.Body.ProviderAccountID) {

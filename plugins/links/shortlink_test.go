@@ -120,9 +120,13 @@ func newTestEngine(t *testing.T) *Engine {
 
 func TestLookupHostPreference(t *testing.T) {
 	s := newTestEngine(t)
+	// The org owns example.com, so both its exact-host and host-agnostic links
+	// are legitimate. An exact-host link on an unregistered host would be an
+	// unauthorized claim and is covered by TestLookupRefusesUnregisteredHostClaim.
+	s.db.Create(&dns.Domain{OrgID: 1, Name: "example.com", ForLink: true})
 	// A host-agnostic link and a host-specific link share the same slug.
-	s.db.Create(&Link{Slug: "x", Host: "", Target: "https://any", Enabled: true})
-	s.db.Create(&Link{Slug: "x", Host: "go.example.com", Target: "https://exact", Enabled: true})
+	s.db.Create(&Link{OrgID: 1, Slug: "x", Host: "", Target: "https://any", Enabled: true})
+	s.db.Create(&Link{OrgID: 1, Slug: "x", Host: "go.example.com", Target: "https://exact", Enabled: true})
 
 	link, ok := s.Lookup("go.example.com:8080", "x")
 	if !ok {
@@ -132,7 +136,7 @@ func TestLookupHostPreference(t *testing.T) {
 		t.Errorf("host preference: got %q want https://exact", link.Target)
 	}
 
-	// A different host falls back to the host-agnostic link.
+	// A different host under the same zone falls back to the host-agnostic link.
 	link, ok = s.Lookup("other.example.com", "x")
 	if !ok || link.Target != "https://any" {
 		t.Errorf("fallback: ok=%v target=%q want https://any", ok, link.Target)
@@ -195,6 +199,9 @@ func TestHandleExpiryAndClickLimit(t *testing.T) {
 
 func TestLookupLinkHostDisabled(t *testing.T) {
 	s := newTestEngine(t)
+	// This test registers its own domain; clear ones left by earlier tests
+	// sharing the in-memory cache (name has a unique index).
+	s.db.Where("1 = 1").Delete(&dns.Domain{})
 
 	d := dns.Domain{
 		Name:    "example.com",
