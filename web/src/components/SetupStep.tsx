@@ -102,11 +102,11 @@ export function SetupStep({ title, description, completed, onClick }: SetupStepP
       className={`group flex flex-col text-left p-4 rounded-xl border transition-all duration-200 ${
         completed 
           ? "bg-foreground/[0.02] border-success-border/50 hover:border-success-border" 
-          : "bg-foreground/5 border-foreground/[0.06] hover:border-indigo-500/30 hover:bg-foreground/[0.08]" /* ui-color-ok */
+          : "bg-foreground/5 border-foreground/[0.06] hover:border-accent-border hover:bg-foreground/[0.08]"
       }`}
     >
       <div className="flex items-center justify-between w-full">
-        <div className={`p-1.5 rounded-lg ${completed ? "text-success-fg bg-success-bg" : "text-accent-fg bg-indigo-500/10"}`} /* ui-color-ok */>
+        <div className={`p-1.5 rounded-lg ${completed ? "text-success-fg bg-success-bg" : "text-accent-fg bg-accent-soft"}`}>
           {completed ? <CheckCircle2 size={16} /> : <Circle size={16} />}
         </div>
         {!completed && (
