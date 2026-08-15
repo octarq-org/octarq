@@ -147,11 +147,12 @@ func (h *Handler) RequirePerm(r *http.Request, permKey, minRole string) bool {
 	return h.RequireRole(r, minRole)
 }
 
-// audit writes an AuditLog entry asynchronously; never blocks a request.
+// auditAs writes an AuditLog entry with explicit attribution asynchronously;
+// never blocks a request. Used where the actor or org is known outside the
+// request's session — login/register run before a session exists, so deriving
+// them from the request (h.orgID / h.auth.UserID) would record 0/0.
 // meta is an optional map that is JSON-encoded (pass nil to omit).
-func (h *Handler) audit(r *http.Request, action, targetType string, targetID uint, meta map[string]any) {
-	orgID := h.orgID(r)
-	actorID := h.auth.UserID(r)
+func (h *Handler) auditAs(r *http.Request, orgID, actorID uint, action, targetType string, targetID uint, meta map[string]any) {
 	ip := reporterIP(r)
 	if tokID := auth.TokenIDFromContext(r.Context()); tokID != 0 {
 		if meta == nil {
@@ -176,6 +177,13 @@ func (h *Handler) audit(r *http.Request, action, targetType string, targetID uin
 			IP:         ip,
 		})
 	}()
+}
+
+// audit writes an AuditLog entry attributed to the request's session,
+// asynchronously; never blocks a request. Thin wrapper around auditAs — call
+// auditAs directly when the actor or org is known outside the session.
+func (h *Handler) audit(r *http.Request, action, targetType string, targetID uint, meta map[string]any) {
+	h.auditAs(r, h.orgID(r), h.auth.UserID(r), action, targetType, targetID, meta)
 }
 
 // Audit is a public wrapper around audit, exposed for plugins via plugin.Context.

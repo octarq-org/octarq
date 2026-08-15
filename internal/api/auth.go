@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/mail"
@@ -15,6 +16,7 @@ import (
 	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/models"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type LoginInputBody struct {
@@ -82,7 +84,7 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 	}
 
 	h.loginLimiter.reset(ip)
-	h.audit(r, "user.login", "user", user.ID, map[string]any{"email": loginUser})
+	h.auditAs(r, orgID, user.ID, "user.login", "user", user.ID, map[string]any{"email": loginUser})
 	h.auth.SetSessionFromRequest(r, w, user.ID, orgID)
 
 	out := &LoginOutput{}
@@ -156,6 +158,7 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 		}
 	}
 	h.loginLimiter.reset(ip)
+	h.auditAs(r, orgID, user.ID, "user.login", "user", user.ID, map[string]any{"email": loginUser})
 	h.auth.SetSessionFromRequest(r, w, uid, orgID)
 	out := &Verify2FAOutput{}
 	out.Body.OK = true
@@ -317,9 +320,11 @@ func (h *Handler) changePassword(ctx context.Context, input *ChangePasswordInput
 // identity rather than to org_id ordering (see isInstanceAdmin).
 func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 	var user models.User
-	if err := h.db.Where("email = ?", username).First(&user).Error; err != nil {
+	if err := h.db.Where("email = ?", username).First(&user).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		user = models.User{Email: username, PasswordHash: "", IsInstanceAdmin: true, EmailVerified: true}
 		h.db.Create(&user)
+	} else if err != nil {
+		return 0
 	} else if !user.IsInstanceAdmin {
 		// Backfill for accounts created before this column existed.
 		h.db.Model(&user).Update("is_instance_admin", true)
@@ -328,7 +333,7 @@ func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 	// now finds the admin's org *through* this membership: leave an admin user
 	// with no membership and every login would mint another org.
 	var member models.OrgMember
-	if h.db.Where("user_id = ?", user.ID).Order("id").First(&member).Error != nil {
+	if err := h.db.Where("user_id = ?", user.ID).Order("org_id").First(&member).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		h.db.Create(&models.OrgMember{OrgID: orgID, UserID: user.ID, Role: "owner"})
 	}
 	return user.ID
@@ -484,10 +489,16 @@ func (h *Handler) revokeSession(ctx context.Context, input *RevokeSessionInput) 
 // owner membership were created alongside that org.
 func (h *Handler) bootstrapOrgID() uint {
 	var user models.User
-	if h.db.Where("email = ?", h.cfg.AdminUser).First(&user).Error == nil {
+	if err := h.db.Where("email = ?", h.cfg.AdminUser).First(&user).Error; err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0
+		}
+	} else {
 		var member models.OrgMember
-		if h.db.Where("user_id = ?", user.ID).Order("id").First(&member).Error == nil {
+		if err := h.db.Where("user_id = ?", user.ID).Order("org_id").First(&member).Error; err == nil {
 			return member.OrgID
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0
 		}
 	}
 	slug, err := models.AllocateOrgSlug(h.db)
@@ -495,7 +506,9 @@ func (h *Handler) bootstrapOrgID() uint {
 		return 0
 	}
 	org := models.Org{Name: h.cfg.AdminUser, Slug: slug, InboundToken: uuid.NewString()}
-	h.db.Create(&org)
+	if err := h.db.Create(&org).Error; err != nil {
+		return 0
+	}
 	return org.ID
 }
 

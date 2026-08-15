@@ -142,7 +142,7 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 		return nil, huma.Error500InternalServerError("failed to create workspace")
 	}
 
-	h.audit(r, "user.register", "user", user.ID, map[string]any{"email": email})
+	h.auditAs(r, orgID, user.ID, "user.register", "user", user.ID, map[string]any{"email": email})
 	h.loginLimiter.reset(ip)
 
 	out := &RegisterOutput{}
