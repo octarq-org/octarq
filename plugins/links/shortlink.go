@@ -322,30 +322,10 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 		return &link, true
 	}
 
-	query := e.db.Where("slug = ? AND (host = ? OR host = '')", slug, host)
-	if owner, ok := e.resolver.OwnerOf(host); ok {
-		query = query.Where("owner_id = ?", owner)
-	} else if e.resolver.ServesTraffic(host) {
-		// The host is registered — someone claims it — but OwnerOf refused to
-		// name a single owner, which happens exactly when two or more orgs
-		// contest it. Serving either side would land one tenant's links on
-		// another tenant's hostname, so fail closed: a 404 beats a
-		// cross-tenant hijack, and the victim's links are still served on
-		// their own registered hosts.
+	query, servable := e.scopeForHost(slug, host)
+	if !servable {
 		e.cacheNegative(ctx, cacheKey)
 		return nil, false
-	} else {
-		// No registered domain covers this host at all: the bare instance
-		// hostname, the shared dashboard host (app.octarq.org), an IP literal.
-		// Only host-agnostic links (host = '') are unambiguous here — the slug
-		// is their only credential, so serving them from a neutral host
-		// exposes nothing a link is not already public about. This is the
-		// branch mail click tracking runs on (plugins/mail wrapLinksInEmail
-		// creates Host:"" links and serves them from the shared host when the
-		// org has no custom link domain). A Link row that claims this exact
-		// host while no domain owns it is an unauthorized claim and must not
-		// be served, so the exact-host branch of the query is dropped.
-		query = e.db.Where("slug = ? AND host = ''", slug)
 	}
 
 	err := query.
@@ -370,6 +350,40 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 		_ = e.ctx.CacheSet(ctx, cacheKey, &link, time.Hour)
 	}
 	return &link, true
+}
+
+// scopeForHost narrows a slug query to the link rows host may legitimately
+// serve, and reports whether host may serve any link at all.
+//
+// This is the single answer to "whose link is this hostname allowed to
+// resolve", shared by the public redirect (Lookup) and by attribution
+// (resolveSlug). Two copies of this policy would drift, and a drifted copy is
+// how the hijack this replaced worked in the first place.
+func (e *Engine) scopeForHost(slug, host string) (*gorm.DB, bool) {
+	if owner, ok := e.resolver.OwnerOf(host); ok {
+		return e.db.Where("slug = ? AND (host = ? OR host = '')", slug, host).
+			Where("owner_id = ?", owner), true
+	}
+	if e.resolver.ServesTraffic(host) {
+		// The host is registered — someone claims it — but OwnerOf refused to
+		// name a single owner, which happens exactly when two or more orgs
+		// contest it. Serving either side would land one tenant's links on
+		// another tenant's hostname, so fail closed: a 404 beats a
+		// cross-tenant hijack, and the victim's links are still served on
+		// their own registered hosts.
+		return nil, false
+	}
+	// No registered domain covers this host at all: the bare instance
+	// hostname, the shared dashboard host (app.octarq.org), an IP literal.
+	// Only host-agnostic links (host = '') are unambiguous here — the slug is
+	// their only credential, so serving them from a neutral host exposes
+	// nothing a link is not already public about. This is the branch mail
+	// click tracking runs on (plugins/mail wrapLinksInEmail creates Host:""
+	// links and serves them from the shared host when the org has no custom
+	// link domain). A Link row that claims this exact host while no domain
+	// owns it is an unauthorized claim and must not be served, so the
+	// exact-host branch of the query is dropped.
+	return e.db.Where("slug = ? AND host = ''", slug), true
 }
 
 // cacheNegative records that (host, slug) resolves to nothing for one minute,
