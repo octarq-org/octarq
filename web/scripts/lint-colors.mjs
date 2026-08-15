@@ -88,7 +88,11 @@ for (const file of files) {
     const relPathOf = () => path.relative(path.resolve(__dirname, ".."), file);
     // Checked before the marker short-circuit: the brand family is unexemptible,
     // so a `/* ui-color-ok */` on the line must not buy it a pass.
-    if (brandColorRegex.test(line) || brandLiteralRegex.test(line)) {
+    // `/* ui-not-brand */` is the narrow opt-out, for the two cases where a blue
+    // literal genuinely is not the brand accent: the branding editor naming
+    // octarq's default seed to prime its own colour picker, and fixed external
+    // palettes such as the xterm ANSI 16. It is not a licence to tint chrome.
+    if (!line.includes("ui-not-brand") && (brandColorRegex.test(line) || brandLiteralRegex.test(line))) {
       console.error(`${relPathOf()}:${index + 1}: hardcoded brand color — use accent tokens (text-accent-fg / bg-accent-soft / border-accent-border / ring-ring / bg-primary) so white-label branding applies: ${line.trim()}`);
       errorCount++;
       return;
