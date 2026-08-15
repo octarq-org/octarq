@@ -70,9 +70,15 @@ func (h *Handler) submitAbuse(ctx context.Context, input *SubmitAbuseInput) (*Su
 	// Resolve the slug to get the current target and owning org for context.
 	var target string
 	var orgID uint
+	// The request Host decides which workspace's link this slug names — a
+	// report from victim.com must not be filed against another tenant that
+	// happens to hold the same slug. Host is safe here for the same reason it
+	// is safe in the redirect: it selects which public link is being reported,
+	// never what the caller may see. The endpoint is unauthenticated and
+	// returns no link data, so nothing crosses a tenant boundary either way.
 	if resolver, ok := h.LookupService("links.resolve"); ok {
-		if fn, ok := resolver.(func(slug string) (target string, orgID uint, ok bool)); ok {
-			target, orgID, _ = fn(slug)
+		if fn, ok := resolver.(func(host, slug string) (target string, orgID uint, ok bool)); ok {
+			target, orgID, _ = fn(r.Host, slug)
 		}
 	}
 

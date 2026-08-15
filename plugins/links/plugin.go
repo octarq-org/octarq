@@ -194,9 +194,30 @@ func (p *Plugin) exportData(orgID uint) map[string]any {
 	}
 }
 
-func (p *Plugin) resolveSlug(slug string) (target string, orgID uint, ok bool) {
+// resolveSlug attributes a reported slug to the link actually served at
+// (host, slug). It backs the public abuse-report form, which files a report
+// against the owning workspace.
+//
+// Host is not decoration. Two workspaces may hold the same slug on different
+// hostnames, and matching by slug alone files the report against whichever row
+// the database happened to return first — so a report about victim.com/x could
+// land on another tenant's queue while the victim never learns their link was
+// reported. Scoping is delegated to the engine so attribution and the redirect
+// itself can never disagree about whose link a hostname serves.
+//
+// Unlike the redirect, a disabled or archived link still attributes: a report
+// about a link that was just turned off is exactly the report a moderator
+// wants to see.
+func (p *Plugin) resolveSlug(host, slug string) (target string, orgID uint, ok bool) {
+	if p.engine == nil {
+		return "", 0, false
+	}
+	query, servable := p.engine.scopeForHost(slug, host)
+	if !servable {
+		return "", 0, false
+	}
 	var l Link
-	if p.db.Where("slug = ?", slug).First(&l).Error == nil {
+	if query.Order("host DESC").First(&l).Error == nil {
 		return l.Target, l.OrgID, true
 	}
 	return "", 0, false
