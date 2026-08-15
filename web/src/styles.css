@@ -51,19 +51,32 @@ body,
   /* Accents. The primary action surface stays the brand gradient (indigo→violet,
      same axis as the TopBar mark) so actions and chrome read as one system.
      --primary is the flat fallback for borders/rings/charts; --accent-fg is the
-     readable accent for text/icons on the current surface (indigo-600 on light). */
-  --primary: #6366f1;                             /* indigo-500 */
-  --primary-hover: #4f46e5;                       /* indigo-600 */
-  --primary-foreground: #ffffff;
-  --accent-indigo: #6366f1;
-  --accent-violet: #8b5cf6;                        /* violet-500 */
-  --accent-fg: #4f46e5;                            /* indigo-600 — accent text/icons on surface */
-  --gradient-primary: linear-gradient(135deg, #6366f1 0%, #7c5cf6 55%, #8b5cf6 100%);
+     readable accent for text/icons on the current surface (indigo-600 on light).
 
-  /* Status accents — readable on the current surface (600-weight on light). */
-  --info-bg: #eef2ff;
-  --info-border: #c7d2fe;
-  --info-fg: #4338ca;
+     Only the three SEED values below are literal: --primary, --accent-violet and
+     --primary-foreground. Every other brand-tinted token is mixed from --primary
+     so the white-label plugin re-themes the whole app by overriding the seeds
+     alone (brand.tsx applyAccents). Hardcoding a derived value here is how the
+     accent, hover and info surfaces used to stay indigo on a rebranded instance.
+     Mixes are perceptual (oklab), so an arbitrary operator hue keeps its chroma
+     instead of washing out the way an sRGB mix does. */
+  --primary: #6366f1;                             /* SEED — indigo-500 */
+  --accent-violet: #8b5cf6;                        /* SEED — violet-500, gradient end */
+  --primary-foreground: #ffffff;                   /* SEED — text on the primary fill */
+
+  --primary-hover: color-mix(in oklab, var(--primary) 82%, #000);
+  --accent-indigo: var(--primary);                 /* gradient start — legacy name */
+  --accent-fg: color-mix(in oklab, var(--primary) 88%, #000);  /* accent text/icons on surface */
+  --accent-soft: color-mix(in oklab, var(--primary) 12%, transparent);   /* tinted fill */
+  --accent-border: color-mix(in oklab, var(--primary) 28%, transparent); /* tinted hairline */
+  --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--accent-violet) 100%);
+
+  /* Status accents — readable on the current surface (600-weight on light).
+     Info is the brand-tinted one: it mixes from --primary so it follows a
+     rebrand. Success/warning/danger are semantic, not brand, and stay literal. */
+  --info-bg: color-mix(in oklab, var(--primary) 10%, #fff);
+  --info-border: color-mix(in oklab, var(--primary) 30%, #fff);
+  --info-fg: color-mix(in oklab, var(--primary) 78%, #000);
 
   --success-bg: #ecfdf5;
   --success-border: #a7f3d0;
@@ -81,7 +94,7 @@ body,
   --border: #e7e7e3;
   --border-strong: #d8d8d2;
   --input: #dcdcd5;
-  --ring: #6366f1;
+  --ring: var(--primary);
 
 }
 
@@ -99,14 +112,20 @@ body,
   --surface-hover: rgba(255, 255, 255, 0.06);
   --well: rgba(0, 0, 0, 0.22);
 
-  --primary: #6366f1;
-  --primary-hover: #818cf8;
-  --primary-foreground: #ffffff;
-  --accent-fg: #a5b4fc;                            /* indigo-300 — accent text on dark */
+  /* Same seed, opposite mix direction: on dark the accents lighten toward #fff
+     instead of darkening toward #000. Derived tokens are NOT repeated here —
+     they inherit the :root formulas, which re-resolve against whatever --primary
+     is in scope, including the white-label override applyAccents writes inline
+     on <html> (the same element .dark sits on, so the inline seed wins). */
+  --primary: #6366f1;                              /* SEED */
+  --primary-hover: color-mix(in oklab, var(--primary) 78%, #fff);
+  --accent-fg: color-mix(in oklab, var(--primary) 58%, #fff);  /* accent text on dark */
+  --accent-soft: color-mix(in oklab, var(--primary) 18%, transparent);
+  --accent-border: color-mix(in oklab, var(--primary) 38%, transparent);
 
-  --info-bg: rgba(99, 102, 241, 0.15);
-  --info-border: rgba(99, 102, 241, 0.35);
-  --info-fg: #a5b4fc;
+  --info-bg: color-mix(in oklab, var(--primary) 15%, transparent);
+  --info-border: color-mix(in oklab, var(--primary) 35%, transparent);
+  --info-fg: color-mix(in oklab, var(--primary) 58%, #fff);
 
   --success-bg: rgba(16, 185, 129, 0.15);
   --success-border: rgba(16, 185, 129, 0.35);
@@ -123,7 +142,7 @@ body,
   --border: rgba(255, 255, 255, 0.10);
   --border-strong: rgba(255, 255, 255, 0.16);
   --input: rgba(255, 255, 255, 0.10);
-  --ring: #6366f1;
+  --ring: var(--primary);
 }
 
 @theme inline {
@@ -143,6 +162,8 @@ body,
   --color-accent-indigo: var(--accent-indigo);
   --color-accent-violet: var(--accent-violet);
   --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-border: var(--accent-border);
 
   --color-info-bg: var(--info-bg);
   --color-info-border: var(--info-border);

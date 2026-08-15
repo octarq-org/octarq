@@ -20,19 +20,21 @@ let cached: Brand | null = null;
 let inflight: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 
-// applyAccents overrides the brand accent design tokens (styles.css :root) with
-// the operator's colors. Only the gradient/accent/ring tokens move; the rest of
-// the palette is untouched. Blank values leave the defaults in place.
+// applyAccents overrides the brand accent design tokens with the operator's
+// colors. It writes only the two SEED tokens: everything else brand-tinted
+// (--primary-hover, --accent-fg, --accent-soft, --accent-border, --ring,
+// --gradient-primary, --info-*) is mixed from these in styles.css and follows
+// automatically. Do NOT re-add derived tokens here — a value set in both places
+// drifts, and the JS copy silently wins.
+//
+// The write lands inline on <html>, the same element `.dark` sits on, so the
+// operator seed outranks both the :root and .dark declarations in either theme.
+// Blank values leave the octarq defaults in place (the OSS look).
 function applyAccents(color: string, color2: string) {
   if (!color) return;
-  const c1 = color;
-  const c2 = color2 || color;
   const root = document.documentElement.style;
-  root.setProperty("--accent-indigo", c1);
-  root.setProperty("--accent-violet", c2);
-  root.setProperty("--primary", c1);
-  root.setProperty("--ring", c1);
-  root.setProperty("--gradient-primary", `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`);
+  root.setProperty("--primary", color);
+  root.setProperty("--accent-violet", color2 || color);
 }
 
 // applyFavicon points the tab icon at the operator's white-label logo. Without
