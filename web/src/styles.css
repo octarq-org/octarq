@@ -3,6 +3,16 @@
 @import "tailwindcss";
 @source "../../packages/plugin-sdk/src/ui/**/*.tsx";
 @source "../../packages/plugin-*/src/**/*.tsx";
+/* Composed Pro/third-party UI plugins. They are not workspace source — the
+   manifest build (scripts/install-manifest-plugins.mjs, OCTARQ_PLUGINS_MANIFEST)
+   fetches each published package into web/node_modules — and Tailwind's default
+   content detection skips node_modules entirely. Without this line NONE of a
+   composed plugin's utility classes are generated: the Pro dashboard was
+   shipping pages whose `text-gray-500`, `max-w-5xl` and `border-l-4` had no
+   rules at all, which is why those pages never picked up the brand accents
+   either. An OSS build has no such packages and the glob simply matches
+   nothing. */
+@source "../node_modules/@octarq-org/plugin-*/dist/**/*.js";
 /* Base UI Dialog/Tooltip enter-exit + the existing animate-* keyframes share one
    animation vocabulary. tw-animate-css resolves to
    node_modules/tw-animate-css/dist/tw-animate.css via its package "style" export. */
