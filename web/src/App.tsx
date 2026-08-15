@@ -3,6 +3,7 @@ import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "reac
 import { BookOpen, Bot, Boxes, FileText, Globe, Link2, Mail, Send, Server, Shield, Sparkles } from "lucide-react";
 import { api, HelpCategory, HelpDocMeta, MenuItem, Action, Org, PluginInfo } from "./api";
 import { BrandMark } from "./shell/BrandMark";
+import { refreshBrand } from "./brand";
 import { visibleActions } from "./shell/globalActions";
 // Lazy-loaded route components.
 const OverviewPage = lazy(() => import("./pages/Overview"));
@@ -590,6 +591,11 @@ function Shell({
   function switchToOrg(id: number) {
     setActiveOrgId(id);
     setOrgEpoch((e) => e + 1);
+    // Branding is per workspace, and brand.tsx caches it module-wide. The epoch
+    // bump remounts the routed content but not module state, so without this the
+    // new workspace renders under the previous one's colours, name and logo.
+    // (The full-page reload this replaced used to invalidate that cache for free.)
+    void refreshBrand();
     navigate("/overview");
   }
 

@@ -10,8 +10,34 @@ import { createContext, useContext, ReactNode, CSSProperties } from "react";
 const FALLBACK = "octarq";
 const Ctx = createContext<string>(FALLBACK);
 
-export function BrandProvider({ name, children }: { name: string; children: ReactNode }) {
-  return <Ctx.Provider value={name || FALLBACK}>{children}</Ctx.Provider>;
+// The host's "re-read the brand from the server and re-apply it" callback. The
+// SDK cannot own this: the fetch, the module-level cache and the CSS seeds all
+// live in the app. A plugin that CHANGES the branding (the white-label editor)
+// needs to tell the shell to catch up, otherwise its own save leaves every other
+// surface — sidebar mark, page title, accent colours — showing the old brand
+// until a manual reload. No-op when the host mounts no provider.
+const RefreshCtx = createContext<() => void>(() => {});
+
+export function BrandProvider({
+  name,
+  onRefresh,
+  children,
+}: {
+  name: string;
+  onRefresh?: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Ctx.Provider value={name || FALLBACK}>
+      <RefreshCtx.Provider value={onRefresh ?? (() => {})}>{children}</RefreshCtx.Provider>
+    </Ctx.Provider>
+  );
+}
+
+// useBrandRefresh returns a callback that re-reads the operator's branding and
+// re-applies it across the shell. Call it after saving a branding change.
+export function useBrandRefresh(): () => void {
+  return useContext(RefreshCtx);
 }
 
 // useAppName returns the operator's product name (or "octarq" if unset).
