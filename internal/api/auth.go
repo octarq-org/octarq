@@ -388,13 +388,7 @@ func (h *Handler) listSessions(ctx context.Context, input *ListSessionsInput) (*
 			location = "Localhost"
 		} else if h.geo != nil {
 			country, _, city := h.geo.Locate(ipClean)
-			if city != "" && country != "" {
-				location = city + ", " + country
-			} else if country != "" {
-				location = country
-			} else if city != "" {
-				location = city
-			}
+			location = locationFromGeo(country, city)
 		}
 		out[i] = SessionRow{
 			ID:         s.ID,
@@ -407,6 +401,19 @@ func (h *Handler) listSessions(ctx context.Context, input *ListSessionsInput) (*
 		}
 	}
 	return &ListSessionsOutput{Body: out}, nil
+}
+
+// locationFromGeo joins the non-empty parts of a geo lookup, city first.
+// Both empty yields "".
+func locationFromGeo(country, city string) string {
+	parts := make([]string, 0, 2)
+	if city != "" {
+		parts = append(parts, city)
+	}
+	if country != "" {
+		parts = append(parts, country)
+	}
+	return strings.Join(parts, ", ")
 }
 
 // maskIPServer redacts the last octet/group of an IP (GDPR-style).

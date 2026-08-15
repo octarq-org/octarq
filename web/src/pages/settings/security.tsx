@@ -4,25 +4,35 @@ import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, toast, Alert, con
 import { Shield } from "lucide-react";
 import { useTranslation } from "../../i18n";
 
-function parseUA(ua: string): { browser?: string; browserKey?: "uaUnknown" | "uaBrowser"; os: string } {
-  if (!ua) return { browserKey: "uaUnknown", os: "" };
-  let browser = "";
-  let browserKey: "uaBrowser" | undefined = undefined;
-  if (ua.includes("Edg/")) browser = "Microsoft Edge";
-  else if (ua.includes("OPR/") || ua.includes("Opera")) browser = "Opera";
-  else if (ua.includes("Chrome")) browser = "Chrome";
-  else if (ua.includes("Firefox")) browser = "Firefox";
-  else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Safari";
-  else if (ua.includes("curl")) browser = "curl / API";
-  else browserKey = "uaBrowser";
+// First-match tables, in priority order. Mobile UAs embed desktop tokens
+// ("iPhone OS 17_0 like Mac OS X", "Linux; Android 14"), so the mobile
+// checks must precede the desktop ones or phones read as macOS/Linux.
+const UA_BROWSERS: Array<[string, (ua: string) => boolean]> = [
+  ["Microsoft Edge", (ua) => ua.includes("Edg/")],
+  ["Opera", (ua) => ua.includes("OPR/") || ua.includes("Opera")],
+  ["Chrome", (ua) => ua.includes("Chrome")],
+  ["Firefox", (ua) => ua.includes("Firefox")],
+  ["Safari", (ua) => ua.includes("Safari") && !ua.includes("Chrome")],
+  ["curl / API", (ua) => ua.includes("curl")],
+];
 
-  let os = "";
-  if (ua.includes("Windows")) os = "Windows";
-  else if (ua.includes("Mac OS X")) os = "macOS";
-  else if (ua.includes("Linux")) os = "Linux";
-  else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
-  else if (ua.includes("Android")) os = "Android";
-  return { browser: browser || undefined, browserKey, os };
+const UA_OSS: Array<[string, (ua: string) => boolean]> = [
+  ["iOS", (ua) => ua.includes("iPhone") || ua.includes("iPad")],
+  ["Android", (ua) => ua.includes("Android")],
+  ["Windows", (ua) => ua.includes("Windows")],
+  ["macOS", (ua) => ua.includes("Mac OS X")],
+  ["Linux", (ua) => ua.includes("Linux")],
+];
+
+export function parseUA(ua: string): { browser?: string; browserKey?: "uaUnknown" | "uaBrowser"; os: string } {
+  if (!ua) return { browserKey: "uaUnknown", os: "" };
+  const browser = UA_BROWSERS.find(([, match]) => match(ua))?.[0];
+  const os = UA_OSS.find(([, match]) => match(ua))?.[0] ?? "";
+  return {
+    browser,
+    browserKey: browser === undefined ? "uaBrowser" : undefined,
+    os,
+  };
 }
 
 
