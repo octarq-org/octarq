@@ -58,15 +58,24 @@ body,
      so the white-label plugin re-themes the whole app by overriding the seeds
      alone (brand.tsx applyAccents). Hardcoding a derived value here is how the
      accent, hover and info surfaces used to stay indigo on a rebranded instance.
-     Mixes are perceptual (oklab), so an arbitrary operator hue keeps its chroma
-     instead of washing out the way an sRGB mix does. */
+     Two mechanisms, on purpose. Tints (soft fills, hairlines, info surfaces)
+     are color-mix, which is what a wash of the accent over the surface means.
+     The text and hover ramp is `oklch(from …)` instead, moving ONLY lightness
+     and keeping chroma and hue: mixing toward black drags a/b toward zero too,
+     which desaturated indigo-600 into a muddy #4a4db9.
+
+     The text tokens clamp their lightness rather than just offsetting it. An
+     operator may pick a near-white brand (a bright yellow, a pale cyan), and an
+     accent label one step darker than that is still unreadable on white. The
+     clamp floors readability at any hue — that is the whole point of accepting
+     an arbitrary brand colour. */
   --primary: #6366f1;                             /* SEED — indigo-500 */
   --accent-violet: #8b5cf6;                        /* SEED — violet-500, gradient end */
   --primary-foreground: #ffffff;                   /* SEED — text on the primary fill */
 
-  --primary-hover: color-mix(in oklab, var(--primary) 82%, #000);
+  --primary-hover: oklch(from var(--primary) calc(l - 0.08) c h);
   --accent-indigo: var(--primary);                 /* gradient start — legacy name */
-  --accent-fg: color-mix(in oklab, var(--primary) 88%, #000);  /* accent text/icons on surface */
+  --accent-fg: oklch(from var(--primary) clamp(0.30, l - 0.08, 0.55) c h);  /* accent text/icons on surface */
   --accent-soft: color-mix(in oklab, var(--primary) 12%, transparent);   /* tinted fill */
   --accent-border: color-mix(in oklab, var(--primary) 28%, transparent); /* tinted hairline */
   --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--accent-violet) 100%);
@@ -76,7 +85,7 @@ body,
      rebrand. Success/warning/danger are semantic, not brand, and stay literal. */
   --info-bg: color-mix(in oklab, var(--primary) 10%, #fff);
   --info-border: color-mix(in oklab, var(--primary) 30%, #fff);
-  --info-fg: color-mix(in oklab, var(--primary) 78%, #000);
+  --info-fg: oklch(from var(--primary) clamp(0.30, l - 0.13, 0.50) c h);
 
   --success-bg: #ecfdf5;
   --success-border: #a7f3d0;
@@ -118,14 +127,14 @@ body,
      is in scope, including the white-label override applyAccents writes inline
      on <html> (the same element .dark sits on, so the inline seed wins). */
   --primary: #6366f1;                              /* SEED */
-  --primary-hover: color-mix(in oklab, var(--primary) 78%, #fff);
-  --accent-fg: color-mix(in oklab, var(--primary) 58%, #fff);  /* accent text on dark */
+  --primary-hover: oklch(from var(--primary) calc(l + 0.09) c h);
+  --accent-fg: oklch(from var(--primary) clamp(0.72, l + 0.22, 0.92) c h);  /* accent text on dark */
   --accent-soft: color-mix(in oklab, var(--primary) 18%, transparent);
   --accent-border: color-mix(in oklab, var(--primary) 38%, transparent);
 
   --info-bg: color-mix(in oklab, var(--primary) 15%, transparent);
   --info-border: color-mix(in oklab, var(--primary) 35%, transparent);
-  --info-fg: color-mix(in oklab, var(--primary) 58%, #fff);
+  --info-fg: oklch(from var(--primary) clamp(0.72, l + 0.22, 0.92) c h);
 
   --success-bg: rgba(16, 185, 129, 0.15);
   --success-border: rgba(16, 185, 129, 0.35);
