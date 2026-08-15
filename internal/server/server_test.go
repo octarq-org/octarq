@@ -282,3 +282,61 @@ func TestDashboardHostFollowsRegisteredDomains(t *testing.T) {
 		}
 	}
 }
+
+// TestStatusPageServesIndex verifies that GET /status and GET /status/ return
+// the SPA index.html (200) on an allowed host — the fix for the /status 404.
+func TestStatusPageServesIndex(t *testing.T) {
+	const indexBody = "index html"
+	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte(indexBody)}}
+	srv, err := New(&config.Config{}, domainsDB(t), mockAPI{}, nil, webFS, nil, RuntimeSettings{})
+	if err != nil {
+		t.Fatalf("build server: %v", err)
+	}
+
+	for _, path := range []string{"/status", "/status/"} {
+		req := httptest.NewRequest("GET", path, nil)
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Errorf("GET %s: got %d, want 200", path, rec.Code)
+		}
+		if body := rec.Body.String(); body != indexBody {
+			t.Errorf("GET %s: body %q, want %q", path, body, indexBody)
+		}
+	}
+}
+
+// TestStatusPageDisallowedHost ensures /status returns 404 on a host that is
+// registered for short links (same gate as /admin).
+func TestStatusPageDisallowedHost(t *testing.T) {
+	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("index html")}}
+	db := domainsDB(t, testDomain{
+		OrgID:     1,
+		Name:      "example.com",
+		ForLink:   true,
+		LinkHosts: `[{"host":"links.example.com","enabled":true}]`,
+	})
+	srv, err := New(&config.Config{}, db, mockAPI{}, nil, webFS, nil, RuntimeSettings{})
+	if err != nil {
+		t.Fatalf("build server: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/status", nil)
+	req.Host = "links.example.com"
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("GET /status on disallowed host: got %d, want 404", rec.Code)
+	}
+}
+
+// TestStatusTierFor verifies that /status is classified as tierAPI (not the
+// default tierRedirect that belongs to the short-link hot path).
+func TestStatusTierFor(t *testing.T) {
+	for _, path := range []string{"/status", "/status/"} {
+		req := httptest.NewRequest("GET", path, nil)
+		if got := tierFor(req); got != tierAPI {
+			t.Errorf("tierFor(%q) = %d, want %d (tierAPI)", path, got, tierAPI)
+		}
+	}
+}

@@ -4,6 +4,7 @@
 // Routing:
 //   - /api/*    → JSON API
 //   - /admin/*  → embedded React dashboard (assets + SPA fallback)
+//   - /status   → public status page (same SPA, gated by dashboardAllowed)
 //   - /         → redirect to /admin/
 //   - /{slug}   → short-link redirect (the root namespace belongs to links)
 package server
@@ -115,6 +116,21 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		rest := strings.TrimPrefix(strings.TrimPrefix(path, "/admin"), "/")
 		if rest != "" && s.assetExists(rest) {
 			s.static.ServeHTTP(w, r)
+			return
+		}
+		s.serveIndex(w)
+		return
+	}
+
+	// 2.25 Public status page. Serves the same SPA index.html — the React
+	// client reads window.location.pathname and renders StatusPage when it
+	// sees /status. Assets load from /admin/assets/ (the Vite base) so
+	// nothing extra is needed. Gated by dashboardAllowed like the admin
+	// console: a host registered for short links / mail has no reason to
+	// expose the instance's operational status.
+	if path == "/status" || path == "/status/" {
+		if !s.dashboardAllowed(r.Host) {
+			http.NotFound(w, r)
 			return
 		}
 		s.serveIndex(w)

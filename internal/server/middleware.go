@@ -209,6 +209,7 @@ func tierFor(r *http.Request) tier {
 		return tierAPI
 	case p == "/admin" || strings.HasPrefix(p, "/admin/"),
 		p == "/portal" || strings.HasPrefix(p, "/portal/"),
+		p == "/status" || p == "/status/",
 		p == "/", p == "/metrics":
 		// Dashboard/portal/root: treat as general API budget, not the loose
 		// redirect budget (these are not the redirect hot path).
