@@ -9,7 +9,6 @@ export * from "./ui/time";
 
 // Semantic UI components
 export { Alert, alertVariants } from "./components/ui/Alert";
-export { Badge, badgeVariants, type BadgeProps } from "./components/ui/Badge";
 export { Button, buttonVariants, type ButtonProps } from "./components/ui/Button";
 export { FormError } from "./components/ui/FormError";
 export { SetupStep, type SetupStepProps } from "./components/SetupStep";

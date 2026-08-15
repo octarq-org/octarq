@@ -1,24 +1,33 @@
-import { ReactNode } from "react";
+import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../cn";
 
 // cva variants — the shadcn pattern: a base class string plus a `tone` axis,
 // combined with the caller's className through cn().
+// `variant` and `tone` are accepted as synonyms for this axis (see BadgeProps):
+// both spellings exist across call sites and must keep working.
 export const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+  "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
   {
     variants: {
       tone: {
-        indigo:  "bg-indigo-500/15 text-accent-fg ring-indigo-400/20", /* ui-color-ok */
-        violet:  "bg-violet-500/15 text-accent-fg ring-violet-400/20", /* ui-color-ok */
-        green:   "bg-emerald-500/15 text-success-fg ring-emerald-400/20", /* ui-color-ok */
-        amber:   "bg-amber-500/15  text-warning-fg  ring-amber-400/20", /* ui-color-ok */
-        red:     "bg-rose-500/15   text-danger-fg   ring-rose-400/20", /* ui-color-ok */
-        cyan:    "bg-cyan-500/15   text-cyan-300   ring-cyan-400/20",
-        neutral: "bg-foreground/[0.08]  text-foreground/70   ring-foreground/10",
+        default: "bg-muted text-muted-foreground border-border",
+        info: "bg-info-bg text-info-fg border-info-border",
+        success: "bg-success-bg text-success-fg border-success-border",
+        warning: "bg-warning-bg text-warning-fg border-warning-border",
+        danger: "bg-danger-bg text-danger-fg border-danger-border",
+        secondary: "bg-muted text-foreground border-transparent",
+        outline: "text-foreground border-border",
+        indigo: "bg-info-bg text-info-fg border-info-border",
+        violet: "bg-info-bg text-info-fg border-info-border",
+        green: "bg-success-bg text-success-fg border-success-border",
+        amber: "bg-warning-bg text-warning-fg border-warning-border",
+        red: "bg-danger-bg text-danger-fg border-danger-border",
+        cyan: "bg-info-bg text-info-fg border-info-border",
+        neutral: "bg-muted text-muted-foreground border-border",
       },
     },
-    defaultVariants: { tone: "neutral" },
+    defaultVariants: { tone: "default" },
   },
 );
 
@@ -35,25 +44,25 @@ const SHAPE_GLYPH: Record<BadgeShape, string> = {
   dash: "—",
 };
 
-export function Badge({
-  children,
-  tone = "neutral",
-  shape,
-  className,
-}: {
-  children: ReactNode;
+export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
+  variant?: BadgeTone;
   tone?: BadgeTone;
   shape?: BadgeShape;
-  className?: string;
-}) {
-  return (
-    <span className={cn(badgeVariants({ tone }), className)}>
-      {shape && (
-        <span aria-hidden className="text-[0.9em] leading-none">
-          {SHAPE_GLYPH[shape]}
-        </span>
-      )}
-      {children}
-    </span>
-  );
 }
+
+export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
+  ({ className, variant, tone, shape, children, ...rest }, ref) => {
+    const resolvedTone = variant || tone || "default";
+    return (
+      <span ref={ref} className={cn(badgeVariants({ tone: resolvedTone }), className)} {...rest}>
+        {shape && (
+          <span aria-hidden className="text-[0.9em] leading-none">
+            {SHAPE_GLYPH[shape]}
+          </span>
+        )}
+        {children}
+      </span>
+    );
+  },
+);
+Badge.displayName = "Badge";
