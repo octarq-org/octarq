@@ -40,7 +40,7 @@ export function Tabs({
             disabled={it.disabled}
             className={cn(
               "relative z-10 flex-1 rounded-lg px-3 py-1.5 text-sm font-medium outline-none transition-colors",
-              "text-foreground/55 hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-indigo-400/60", /* ui-color-ok */
+              "text-foreground/55 hover:text-foreground/80 focus-visible:ring-2 focus-visible:ring-ring/60",
               "data-selected:text-foreground disabled:cursor-not-allowed disabled:opacity-40",
             )}
           >

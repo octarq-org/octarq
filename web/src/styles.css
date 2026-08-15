@@ -3,6 +3,16 @@
 @import "tailwindcss";
 @source "../../packages/plugin-sdk/src/ui/**/*.tsx";
 @source "../../packages/plugin-*/src/**/*.tsx";
+/* Composed Pro/third-party UI plugins. They are not workspace source — the
+   manifest build (scripts/install-manifest-plugins.mjs, OCTARQ_PLUGINS_MANIFEST)
+   fetches each published package into web/node_modules — and Tailwind's default
+   content detection skips node_modules entirely. Without this line NONE of a
+   composed plugin's utility classes are generated: the Pro dashboard was
+   shipping pages whose `text-gray-500`, `max-w-5xl` and `border-l-4` had no
+   rules at all, which is why those pages never picked up the brand accents
+   either. An OSS build has no such packages and the glob simply matches
+   nothing. */
+@source "../node_modules/@octarq-org/plugin-*/dist/**/*.js";
 /* Base UI Dialog/Tooltip enter-exit + the existing animate-* keyframes share one
    animation vocabulary. tw-animate-css resolves to
    node_modules/tw-animate-css/dist/tw-animate.css via its package "style" export. */
@@ -295,7 +305,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ::selection {
-  background: rgba(99, 102, 241, 0.28);
+  background: var(--accent-border);
   color: inherit;
 }
 
@@ -388,7 +398,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 .input:focus {
   border-color: color-mix(in srgb, var(--primary) 55%, transparent);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent);
 }
 .dark .input {
   background: rgba(255, 255, 255, 0.04);
@@ -670,7 +680,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .markdown-body .code-block-lang {
   font-weight: 700;
-  color: #818cf8;
+  color: var(--accent-fg);
   letter-spacing: 0.05em;
 }
 
@@ -746,9 +756,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .markdown-body .callout-note {
-  background-color: rgba(59, 130, 246, 0.08);
-  border-color: #3b82f6;
-  color: #1e3a8a;
+  /* ui-not-brand: `note` is one of a four-colour semantic callout family
+     (tip green / note blue / warning amber / important red). Tinting it with
+     the brand accent would collide with `tip` on a green brand and destroy the
+     distinction the family exists to draw. */
+  background-color: rgba(59, 130, 246, 0.08); /* ui-not-brand */
+  border-color: #3b82f6; /* ui-not-brand */
+  color: #1e3a8a; /* ui-not-brand */
 }
 .dark .markdown-body .callout-note {
   background-color: rgba(59, 130, 246, 0.12);

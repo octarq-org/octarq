@@ -129,7 +129,7 @@ export default function LinksPage() {
           onClick={() => setTab('links')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap ${
             tab === 'links'
-              ? 'border-indigo-500 text-foreground' /* ui-color-ok */
+              ? 'border-primary text-foreground'
               : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >
@@ -139,7 +139,7 @@ export default function LinksPage() {
           onClick={() => setTab('settings')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
             tab === 'settings'
-              ? 'border-indigo-500 text-foreground' /* ui-color-ok */
+              ? 'border-primary text-foreground'
               : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >

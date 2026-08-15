@@ -21,6 +21,11 @@ const brandColorRegex = /\b(text|bg|border|ring|from|via|to|divide|fill|stroke|o
 
 // Brand hexes have the same problem in a raw style/arbitrary value, where no
 // Tailwind class name gives them away (e.g. shadow-[0_0_0_3px_rgba(99,102,241,.18)]).
+// The seed declarations themselves are the one place a brand hex belongs: they
+// DEFINE the brand colour rather than consuming it, and the white-label plugin
+// overrides them at runtime. Everything else must derive from them.
+const seedDeclRegex = /^\s*--(primary|accent-violet)\s*:/;
+
 const brandLiteralRegex = /#(6366f1|4f46e5|4338ca|818cf8|a5b4fc|c7d2fe|eef2ff|8b5cf6|7c5cf6|3b82f6|2563eb)\b|rgba?\(\s*99\s*,\s*102\s*,\s*241/i;
 
 function getFiles(dir) {
@@ -32,7 +37,16 @@ function getFiles(dir) {
       const stat = fs.statSync(filePath);
       if (stat && stat.isDirectory()) {
         results = results.concat(getFiles(filePath));
-      } else if (filePath.endsWith(".ts") || filePath.endsWith(".tsx")) {
+      } else if (
+        filePath.endsWith(".ts") ||
+        filePath.endsWith(".tsx") ||
+        // .css too: the brand rule has to cover component classes like `.input`
+        // and `::selection`, whose colours live in the stylesheet and never
+        // appear as a Tailwind class. A hardcoded focus ring there is invisible
+        // to a .tsx-only scan — that is how `.input:focus` kept an indigo glow
+        // on every settings form after the class-level call sites were fixed.
+        filePath.endsWith(".css")
+      ) {
         results.push(filePath);
       }
     }
@@ -82,6 +96,7 @@ function markerSitsInChildren(line) {
 }
 
 for (const file of files) {
+  const isCss = file.endsWith(".css");
   const content = fs.readFileSync(file, "utf8");
   const lines = content.split("\n");
   lines.forEach((line, index) => {
@@ -92,11 +107,18 @@ for (const file of files) {
     // literal genuinely is not the brand accent: the branding editor naming
     // octarq's default seed to prime its own colour picker, and fixed external
     // palettes such as the xterm ANSI 16. It is not a licence to tint chrome.
-    if (!line.includes("ui-not-brand") && (brandColorRegex.test(line) || brandLiteralRegex.test(line))) {
+    if (
+      !line.includes("ui-not-brand") &&
+      !(isCss && seedDeclRegex.test(line)) &&
+      (brandColorRegex.test(line) || brandLiteralRegex.test(line))
+    ) {
       console.error(`${relPathOf()}:${index + 1}: hardcoded brand color — use accent tokens (text-accent-fg / bg-accent-soft / border-accent-border / ring-ring / bg-primary) so white-label branding applies: ${line.trim()}`);
       errorCount++;
       return;
     }
+    // The status rule matches Tailwind class names, which a stylesheet has none
+    // of; only the brand rule above applies to CSS.
+    if (isCss) return;
     if (line.includes("ui-color-ok")) {
       if (markerSitsInChildren(line)) {
         console.error(`${relPathOf()}:${index + 1}: /* ui-color-ok */ sits after a closed tag and would render as page text — move it inside the opening tag`);

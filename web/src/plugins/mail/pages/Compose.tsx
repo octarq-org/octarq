@@ -95,7 +95,7 @@ export function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () =>
                 type="checkbox"
                 checked={trackLinks}
                 onChange={(e) => setTrackLinks(e.target.checked)}
-                className="rounded border-zinc-700 bg-zinc-900/50 text-purple-600 focus:ring-purple-500" /* ui-color-ok */
+                className="rounded border-zinc-700 bg-zinc-900/50 text-accent-fg focus:ring-ring"
               />
               <span>{t("mail.trackLinks")}</span>
             </label>
