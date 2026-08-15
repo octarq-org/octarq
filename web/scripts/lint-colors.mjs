@@ -34,6 +34,11 @@ function getFiles(dir) {
     const list = fs.readdirSync(dir);
     for (const file of list) {
       const filePath = path.join(dir, file);
+      // Generated clients are not hand-written UI: their colours come from
+      // upstream doc strings, and editing them here would be undone by the next
+      // regeneration. octarq has no such directory today; the rule is here so the
+      // two repos' lints stay identical.
+      if (file === "generated") continue;
       const stat = fs.statSync(filePath);
       if (stat && stat.isDirectory()) {
         results = results.concat(getFiles(filePath));
@@ -101,14 +106,21 @@ for (const file of files) {
   const lines = content.split("\n");
   lines.forEach((line, index) => {
     const relPathOf = () => path.relative(path.resolve(__dirname, ".."), file);
-    // Checked before the marker short-circuit: the brand family is unexemptible,
-    // so a `/* ui-color-ok */` on the line must not buy it a pass.
-    // `/* ui-not-brand */` is the narrow opt-out, for the two cases where a blue
-    // literal genuinely is not the brand accent: the branding editor naming
-    // octarq's default seed to prime its own colour picker, and fixed external
-    // palettes such as the xterm ANSI 16. It is not a licence to tint chrome.
+    // `/* ui-not-brand */` marks a literal that carries NO UI semantics at all —
+    // neither brand accent nor status — so it exempts BOTH rules. The cases it
+    // covers span both: the branding editor naming octarq's default seed to prime
+    // its own colour picker, and fixed external palettes such as the xterm ANSI 16,
+    // where `red`/`green`/`yellow` mean ANSI red/green/yellow and not
+    // danger/success/warning. It is not a licence to colour chrome by hand.
+    //
+    // Keep this identical to octarq-pro's portal/scripts/lint-colors.mjs. The two
+    // drifted once — the marker exempted one rule here and both there — which
+    // makes a marker that reads as legitimate in one repo silently insufficient
+    // in the other.
+    if (line.includes("ui-not-brand")) return;
+    // Checked before the ui-color-ok short-circuit: the brand family is
+    // unexemptible, so that marker must not buy it a pass.
     if (
-      !line.includes("ui-not-brand") &&
       !(isCss && seedDeclRegex.test(line)) &&
       (brandColorRegex.test(line) || brandLiteralRegex.test(line))
     ) {
