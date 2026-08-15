@@ -134,7 +134,7 @@ export default function DomainsPage() {
           onClick={() => setTab('domains')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap ${
             tab === 'domains'
-              ? 'border-indigo-500 text-foreground' /* ui-color-ok */
+              ? 'border-primary text-foreground'
               : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >
@@ -144,7 +144,7 @@ export default function DomainsPage() {
           onClick={() => setTab('ddns')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
             tab === 'ddns'
-              ? 'border-indigo-500 text-foreground' /* ui-color-ok */
+              ? 'border-primary text-foreground'
               : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >
@@ -154,7 +154,7 @@ export default function DomainsPage() {
           onClick={() => setTab('settings')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
             tab === 'settings'
-              ? 'border-indigo-500 text-foreground' /* ui-color-ok */
+              ? 'border-primary text-foreground'
               : 'border-transparent text-foreground/45 hover:text-foreground/70'
           }`}
         >
@@ -353,7 +353,7 @@ export default function DomainsPage() {
             </div>
           ) : domains.length === 0 && !loading ? (
             <GlassCard className="flex flex-col items-center justify-center py-10 px-6 text-center border border-foreground/[0.04]/40">
-              <div className="h-14 w-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-accent-fg mb-4" /* ui-color-ok */>
+              <div className="h-14 w-14 rounded-2xl bg-accent-soft flex items-center justify-center text-accent-fg mb-4">
                 <Globe className="h-7 w-7" />
               </div>
               <h3 className="text-lg font-bold text-foreground mb-1.5">{t("domains.addFirstDomain")}</h3>
