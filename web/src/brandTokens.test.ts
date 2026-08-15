@@ -92,19 +92,21 @@ describe("brand accent tokens derive from the --primary seed", () => {
 });
 
 describe("applyAccents writes only the seeds", () => {
-  const brand = fs.readFileSync(path.resolve(__dirname, "brand.tsx"), "utf8");
-  const fn = brand.slice(brand.indexOf("function applyAccents"));
-  const body = fn.slice(0, fn.indexOf("\n}"));
+  const source = fs.readFileSync(path.resolve(__dirname, "brand.tsx"), "utf8");
+  // Only the setProperty call sites matter. Slicing a region of the file instead
+  // would let the explanatory comment naming these tokens fail the assertion.
+  const writes = source.split("\n").filter((l) => l.includes("setProperty("));
 
   it("does not set derived tokens from JS", () => {
     // A token set in both CSS and JS drifts, and the JS copy silently wins.
     for (const token of DERIVED) {
-      expect(body, `applyAccents still sets ${token}; let styles.css derive it`).not.toContain(token);
+      const offender = writes.find((l) => l.includes(`"${token}"`) || l.includes(`'${token}'`));
+      expect(offender, `applyAccents still sets ${token}; let styles.css derive it`).toBeUndefined();
     }
   });
 
   it("sets the two operator seeds", () => {
-    expect(body).toContain('setProperty("--primary"');
-    expect(body).toContain('setProperty("--accent-violet"');
+    expect(writes.join("\n")).toMatch(/setProperty\(['"]--primary['"]/);
+    expect(writes.join("\n")).toMatch(/setProperty\(['"]--accent-violet['"]/);
   });
 });
