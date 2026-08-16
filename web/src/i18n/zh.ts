@@ -106,7 +106,6 @@ export const zh: Resources = {
     Security: "安全",
     System: "系统",
     Account: "账户",
-    Subscriptions: "订阅",
     Instance: "实例",
   },
   nav: {
@@ -117,9 +116,6 @@ export const zh: Resources = {
     links: "短链",
     mail: "邮件",
     domains: "DNS",
-    certs: "证书",
-    databases: "数据库",
-    storage: "对象存储",
     abuse: "滥用举报",
     audit: "审计日志",
     general: "通用",

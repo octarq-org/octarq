@@ -5,6 +5,7 @@ import { api, HelpCategory, HelpDocMeta, MenuItem, Action, Org, PluginInfo } fro
 import { BrandMark } from "./shell/BrandMark";
 import { refreshBrand } from "./brand";
 import { visibleActions } from "./shell/globalActions";
+import { RouteFallback } from "./components/ui/RouteFallback";
 // Lazy-loaded route components.
 const OverviewPage = lazy(() => import("./pages/Overview"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
@@ -25,14 +26,9 @@ import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
 import { PluginGateContext } from "./plugins/PluginGate";
 
 
-// Fallback spinner while a lazily-loaded route chunk is fetched.
-export function RouteFallback() {
-  return (
-    <div className="grid h-64 place-items-center" role="status" aria-live="polite">
-      <div className="h-6 w-6 animate-spin rounded-full border-2 border-foreground/15 border-t-foreground/60" />
-    </div>
-  );
-}
+// Re-exported so existing `import { RouteFallback } from "../App"` call sites
+// (Settings.tsx) keep working now that it lives in ./components/ui/RouteFallback.
+export { RouteFallback } from "./components/ui/RouteFallback";
 
 
 // ─── App ──────────────────────────────────────────────────────────────────────

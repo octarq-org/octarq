@@ -105,7 +105,6 @@ export const es = {
     Security: "Seguridad",
     System: "Sistema",
     Account: "Cuenta",
-    Subscriptions: "Suscripciones",
     Instance: "Instancia",
   },
   nav: {
@@ -116,9 +115,6 @@ export const es = {
     links: "Enlaces",
     mail: "Correo",
     domains: "DNS",
-    certs: "Certificados",
-    databases: "Bases de datos",
-    storage: "Almacenamiento de objetos",
     abuse: "Reportes de abuso",
     audit: "Registro de auditoría",
     general: "General",

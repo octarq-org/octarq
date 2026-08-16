@@ -90,14 +90,14 @@ export const STATIC_AREAS: Area[] = [
     subtitle: "Servers, network & databases",
     Icon: Boxes,
     groups: [
-      // DNS → core plugin (plugins/core/domains.ts); Certificates → core
-      // plugin (plugins/core/assets.ts). Both use category "Network".
+      // DNS → core plugin (plugins/core/domains.ts); Certificates → Pro
+      // infra plugin (@octarq-org/plugin-infra). Both use category "Network".
       { label: "Network", items: [] },
       // Servers + SSH Vault are Pro plugins (@octarq-org/plugin-infra,
       // category "Hosting") — injected dynamically only in a composed build.
       { label: "Hosting", items: [] },
-      // Databases + Object Storage → core plugin (plugins/core/assets.ts,
-      // category "Storage & Databases").
+      // Databases + Object Storage → Pro plugins (@octarq-org/plugin-infra,
+      // @octarq-org/plugin-databases, category "Storage & Databases").
       { label: "Storage & Databases", items: [] },
     ],
   },
@@ -137,7 +137,7 @@ export const SETTINGS_AREA: Area = {
       items: [
         { id: "auth",     label: "Authentication",    Icon: KeyRound, path: "/settings/instance/auth" },
         { id: "instance", label: "Instance Settings", Icon: Server,   path: "/settings/instance" },
-        { id: "instance-plugins", label: "Plugins",  Icon: Puzzle,   path: "/settings/instance/plugins" },
+        { id: "instance-plugins", label: "Installed plugins", Icon: Puzzle, path: "/settings/instance/plugins" },
       ],
     },
   ],
