@@ -32,7 +32,13 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /octarq .
 # shell-capable stage — the distroless runtime has no shell — then copied into
 # the final image (below) so a Docker-created volume over /data inherits the
 # ownership on first boot instead of being root:root.
-RUN mkdir -p /data && chown 65532:65532 /data
+#
+# The .keep placeholder is load-bearing: COPY copies a directory's *contents*,
+# not the directory itself, so copying an empty /data would leave whether the
+# destination gets created (and whether --chown applies to it) up to the
+# BuildKit version. One file in it makes the directory materialise with the
+# right ownership on every builder.
+RUN mkdir -p /data && touch /data/.keep && chown -R 65532:65532 /data
 
 # ---- Stage 3: minimal runtime ----
 FROM gcr.io/distroless/static-debian12
