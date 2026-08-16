@@ -37,15 +37,6 @@ func hashToken(token string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-// primaryOrgForUser returns the lowest orgID the user belongs to as a deterministic default for notifications/system emails.
-func (h *Handler) primaryOrgForUser(userID uint) uint {
-	var orgMember models.OrgMember
-	if h.db.Where("user_id = ?", userID).Order("org_id ASC").First(&orgMember).Error == nil {
-		return orgMember.OrgID
-	}
-	return 0
-}
-
 // sendPasswordResetEmail best-effort delivers a password reset link to the user
 // through the instance's system sender. Password reset must not depend on the
 // recipient's workspace: the request arrives before anyone is authenticated.

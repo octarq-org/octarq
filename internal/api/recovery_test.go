@@ -499,29 +499,6 @@ func TestForgotPasswordNoLeakExistence(t *testing.T) {
 	}
 }
 
-// TestPrimaryOrgForUserDeterministic verifies that primaryOrgForUser returns
-// the lowest orgID deterministically for multi-org users.
-func TestPrimaryOrgForUserDeterministic(t *testing.T) {
-	_, db := newTestHandler(t)
-	h := &Handler{db: db}
-
-	user := models.User{Email: "multiorg@domain.com", PasswordHash: "xxx"}
-	if err := db.Create(&user).Error; err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-
-	// Add user to org 10 first, then org 5
-	db.Create(&models.OrgMember{OrgID: 10, UserID: user.ID, Role: "member"})
-	db.Create(&models.OrgMember{OrgID: 5, UserID: user.ID, Role: "admin"})
-
-	for i := 0; i < 5; i++ {
-		got := h.primaryOrgForUser(user.ID)
-		if got != 5 {
-			t.Fatalf("iteration %d: got orgID %d, want 5 (lowest orgID)", i+1, got)
-		}
-	}
-}
-
 // Password-reset spam must not lock anyone out of logging in.
 //
 // The recovery endpoints originally shared loginLimiter, whose budget is 5 per
