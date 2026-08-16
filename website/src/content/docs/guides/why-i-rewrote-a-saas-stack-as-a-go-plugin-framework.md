@@ -20,7 +20,7 @@ Here is the architectural story of why and how we built it.
 When developers self-host software today, they shouldn't need a Kubernetes cluster just to run a backoffice. 
 
 By building on **Go** and pure-Go **SQLite** (with Postgres driver support), Octarq compiles into a single static binary. 
-- **Zero-config startup**: Running `docker run -p 8080:8080 -v octarq-data:/data octarq/octarq` auto-generates secret keys and admin credentials on first boot.
+- **Zero-config startup**: Running `docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest` auto-generates secret keys and admin credentials on first boot.
 - **Data Sovereignty**: All SQLite/Postgres data remains under the operator's physical control.
 
 ---
@@ -32,8 +32,8 @@ Rather than hardcoding backoffice features into a monolithic app struct, Octarq 
 ```go
 type Plugin interface {
     Name() string
-    Init(ctx context.Context, pctx *plugin.Context) error
-    Mount(router *http.ServeMux, pctx *plugin.Context) error
+    Models() []any
+    Mount(mux Mux, ctx *Context)
 }
 ```
 
@@ -50,8 +50,8 @@ Because core features (like `links`, `mail`, and `dns`) use the exact same seam 
 
 ```go
 // Registering a Slack notification provider from a plugin
-pctx.RegisterNotifier("slack", func(ctx context.Context, cfg string, msg notify.Message) error {
-    return slack.Send(ctx, cfg, msg)
+pctx.RegisterNotifier("slack", func(ctx context.Context, cfgJSON, text string) error {
+    return slack.Send(ctx, cfgJSON, text)
 })
 ```
 
@@ -74,8 +74,8 @@ type CreateLinkInput struct {
 
 This guarantees that:
 1. Invalid requests are rejected automatically with structured 400 Bad Request errors.
-2. The entire API surface — core and plugins — is automatically documented and browsable via `/openapi.json` and interactive API docs.
-3. Client SDKs (like `@octarq/plugin-sdk`) stay 100% in sync with backend Go definitions.
+2. The entire API surface — core and plugins — is documented and browsable via `/openapi.json` and interactive API docs.
+3. Client SDKs (like `@octarq-org/api-client`) stay in sync with the backend OpenAPI definitions.
 
 ---
 

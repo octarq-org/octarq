@@ -57,7 +57,7 @@ The `packages/plugin-sdk/package.json` file requires specific fields to publish:
 ```json
 {
   "name": "@octarq/plugin-sdk",
-  "version": "0.8.0",
+  "version": "0.10.0",
   "license": "MIT",
   "repository": {
     "type": "git",

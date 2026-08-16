@@ -48,7 +48,7 @@ Build a production binary with embedded dashboard assets:
 make release
 ```
 
-This outputs a compiled binary without CGO dependencies (~19MB). Run it as a systemd service:
+This outputs a compiled binary without CGO dependencies. Run it as a systemd service:
 
 ```ini
 [Unit]

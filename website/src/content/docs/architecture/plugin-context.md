@@ -25,7 +25,6 @@ To enforce dependency safety at startup, the `plugin.Info` struct has a `Require
 ```go
 type Info struct {
     Title    string
-    Version  string
     Requires []string // Slice of plugin names this plugin depends on
 }
 ```
