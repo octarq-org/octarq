@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../../api";
-import { Field, Toggle, Button } from "../../../ui";
+import { Field, Toggle, Button, FormError } from "../../../ui";
 import { useTranslation } from "../../../i18n";
 import { useSettingsData, SavedBadge } from "../../../pages/settings/shared";
 
@@ -18,6 +18,7 @@ export function MailSettings() {
   const [autoWrap, setAutoWrap] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [err, setErr] = useState<{ message?: string; status?: number; requestId?: string } | null>(null);
 
   const adminView = s?.inboundTokenSet !== undefined;
 
@@ -41,6 +42,7 @@ export function MailSettings() {
 
   async function save() {
     setBusy(true);
+    setErr(null);
     try {
       await api.updateSettings({
         reservedMailboxes,
@@ -56,6 +58,8 @@ export function MailSettings() {
         const r = await api.inboundToken();
         setInboundToken(r.inboundToken);
       }
+    } catch (e: any) {
+      setErr({ message: e?.message, status: e?.status, requestId: e?.requestId });
     } finally { setBusy(false); }
   }
 
@@ -131,6 +135,11 @@ export function MailSettings() {
       <div className="border-t border-foreground/[0.06] pt-4 flex justify-end">
         <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("settings.saveSettings")}</Button>
       </div>
+      {err && (
+        <div className="pt-2">
+          <FormError err={err} />
+        </div>
+      )}
     </div>
   );
 }

@@ -194,19 +194,17 @@ export default function LinksPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-                    <p className="text-sm font-medium text-foreground/75">{t("links.emptyNoLinksReason")}</p>
-                    <p className="max-w-[260px] text-[13px] leading-relaxed text-foreground/45">
-                      {linkHostOptions.length > 0 ? (
-                        <>{t("links.emptyNoLinksDetailPre")} <span className="font-mono">{`“${linkHostOptions.join(", ")}”`}</span></>
-                      ) : (
-                        <>{t("links.emptyNoHostDetailPre")} <span className="font-mono">{`“${window.location.origin}”`}</span></>
-                      )}
-                    </p>
-                    <Button variant="primary" className="mt-1 text-xs py-1.5" onClick={() => setActive("new")}>
-                      {t("links.newLink")}
-                    </Button>
-                  </div>
+                  <Empty
+                    reason={t("links.emptyNoLinksReason")}
+                    detail={linkHostOptions.length > 0 ? (
+                      <>{t("links.emptyNoLinksDetailPre")} <span className="font-mono">{`“${linkHostOptions.join(", ")}”`}</span></>
+                    ) : (
+                      <>{t("links.emptyNoHostDetailPre")} <span className="font-mono">{`“${window.location.origin}”`}</span></>
+                    )}
+                    action={<Button variant="primary" className="mt-1 text-xs py-1.5" onClick={() => setActive("new")}>{t("links.newLink")}</Button>}
+                  >
+                    <Link2 className="h-8 w-8 text-foreground/50 mb-1" />
+                  </Empty>
                 )
               ) : (
                 <>
