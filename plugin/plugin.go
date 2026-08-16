@@ -401,7 +401,7 @@ type Context struct {
 	// PluginActive reports whether a plugin's feature is enabled for the
 	// given workspace. Core plugins are always active.
 	PluginActive func(orgID uint, p Plugin) bool
-	// ActivePlugins returns a snapshot of all registered plugins.
+	// ActivePlugins returns the currently registered plugins.
 	ActivePlugins func() []Plugin
 }
 

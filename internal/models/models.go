@@ -17,8 +17,9 @@ import (
 	"time"
 )
 
-// SingleUserID is kept as a transition constant; handlers will replace it
-// with the org ID extracted from the authenticated session.
+// SingleUserID is a legacy placeholder org ID from before multi-tenancy,
+// retained for backward compatibility. Current handlers use the org ID
+// resolved from the authenticated session.
 const SingleUserID uint = 1
 
 // Org is a tenant — every data row is scoped to exactly one Org.
@@ -52,7 +53,6 @@ type User struct {
 	// leak (backup, shared disk, SQLi) therefore exposes no live invite.
 	InviteTokenHash string     `gorm:"index;size:64" json:"-"`
 	InviteExpiresAt *time.Time `json:"inviteExpiresAt,omitempty"`
-	// Session revocation is handled by deleting Session rows from user_sessions.
 
 	// TOTPSecret is the base32 TOTP shared secret, stored AES-GCM encrypted at
 	// rest (via crypto.Cipher). Empty until 2FA enrollment begins.

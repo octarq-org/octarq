@@ -1,7 +1,5 @@
 // Shared Base UI Menu popover styling. TopBar and AreaPanel each carried a
-// verbatim copy of these two strings (B5). TopBar consumes this module now;
-// AreaPanel still holds its copy and is migrated in the batch that owns that
-// file — until then the duplication is halved, not gone.
+// verbatim copy of these two strings (B5); both consume this module now.
 //
 // `rounded-2xl` / `rounded-xl` here are not stale: the radius ramp in
 // styles.css maps every step to 4px, so the class names stay while the value

@@ -70,7 +70,6 @@ func TestComprehensiveAPI(t *testing.T) {
 
 	// 2. Settings API
 	{
-		// GET settings
 		req := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
 		for _, c := range cookies {
 			req.AddCookie(c)
@@ -81,7 +80,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("get settings failed: got %d", rec.Code)
 		}
 
-		// PUT settings (workspace)
 		body := `{"catchAll":true}`
 		reqPut := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))
 		for _, c := range cookies {
@@ -93,7 +91,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("put settings failed: got %d (%s)", recPut.Code, recPut.Body.String())
 		}
 
-		// GET instance settings
 		reqInst := httptest.NewRequest(http.MethodGet, "/api/instance-settings", nil)
 		for _, c := range cookies {
 			reqInst.AddCookie(c)
@@ -104,7 +101,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("get instance settings failed: got %d (%s)", recInst.Code, recInst.Body.String())
 		}
 
-		// PUT instance settings
 		bodyInst := `{"dataRetentionDays":30}`
 		reqPutInst := httptest.NewRequest(http.MethodPut, "/api/instance-settings", strings.NewReader(bodyInst))
 		for _, c := range cookies {
@@ -144,7 +140,6 @@ func TestComprehensiveAPI(t *testing.T) {
 
 	// 3. SMTP Senders CRUD
 	{
-		// Create SMTPSender
 		body := `{"name":"test-sender","host":"smtp.example.com","port":587,"user":"user","pass":"pass","fromEmail":"test@example.com"}`
 		req := httptest.NewRequest(http.MethodPost, "/api/smtp-senders", strings.NewReader(body))
 		for _, c := range cookies {
@@ -160,7 +155,6 @@ func TestComprehensiveAPI(t *testing.T) {
 		}
 		_ = json.Unmarshal(rec.Body.Bytes(), &sender)
 
-		// List SMTP Senders
 		reqList := httptest.NewRequest(http.MethodGet, "/api/smtp-senders", nil)
 		for _, c := range cookies {
 			reqList.AddCookie(c)
@@ -171,7 +165,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("list smtp senders failed: got %d", recList.Code)
 		}
 
-		// Update SMTP Sender
 		bodyUpdate := `{"name":"test-sender-updated"}`
 		reqUpdate := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/smtp-senders/%d", sender.ID), strings.NewReader(bodyUpdate))
 		reqUpdate.SetPathValue("id", fmt.Sprintf("%d", sender.ID))
@@ -184,7 +177,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("update smtp sender failed: got %d (%s)", recUpdate.Code, recUpdate.Body.String())
 		}
 
-		// Delete SMTP Sender
 		reqDelete := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/smtp-senders/%d", sender.ID), nil)
 		reqDelete.SetPathValue("id", fmt.Sprintf("%d", sender.ID))
 		for _, c := range cookies {
@@ -200,7 +192,6 @@ func TestComprehensiveAPI(t *testing.T) {
 	// 4. Provider Accounts CRUD
 	var providerAccID uint
 	{
-		// Create Provider Account
 		body := `{"name":"mock-acc","type":"mock","config":{"token":"test-token"}}`
 		req := httptest.NewRequest(http.MethodPost, "/api/provider-accounts", strings.NewReader(body))
 		for _, c := range cookies {
@@ -217,7 +208,6 @@ func TestComprehensiveAPI(t *testing.T) {
 		_ = json.Unmarshal(rec.Body.Bytes(), &acc)
 		providerAccID = acc.ID
 
-		// List Provider Accounts
 		reqList := httptest.NewRequest(http.MethodGet, "/api/provider-accounts", nil)
 		for _, c := range cookies {
 			reqList.AddCookie(c)
@@ -228,7 +218,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("list provider accounts failed: got %d", recList.Code)
 		}
 
-		// Update Provider Account
 		bodyUpdate := `{"name":"cf-acc-updated"}`
 		reqUpdate := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/provider-accounts/%d", acc.ID), strings.NewReader(bodyUpdate))
 		reqUpdate.SetPathValue("id", fmt.Sprintf("%d", acc.ID))
@@ -244,7 +233,6 @@ func TestComprehensiveAPI(t *testing.T) {
 
 	// 5. Notification Channels CRUD
 	{
-		// Create Notification Channel
 		body := `{"name":"my-channel","type":"webhook","config":"{\"url\":\"http://localhost\"}","enabled":true}`
 		req := httptest.NewRequest(http.MethodPost, "/api/notification-channels", strings.NewReader(body))
 		for _, c := range cookies {
@@ -260,7 +248,6 @@ func TestComprehensiveAPI(t *testing.T) {
 		}
 		_ = json.Unmarshal(rec.Body.Bytes(), &ch)
 
-		// List Notification Channels
 		reqList := httptest.NewRequest(http.MethodGet, "/api/notification-channels", nil)
 		for _, c := range cookies {
 			reqList.AddCookie(c)
@@ -271,7 +258,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("list notify channels failed: got %d", recList.Code)
 		}
 
-		// Update Notification Channel
 		bodyUpdate := `{"enabled":false}`
 		reqUpdate := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/notification-channels/%d", ch.ID), strings.NewReader(bodyUpdate))
 		reqUpdate.SetPathValue("id", fmt.Sprintf("%d", ch.ID))
@@ -284,7 +270,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("update notify ch failed: got %d (%s)", recUpdate.Code, recUpdate.Body.String())
 		}
 
-		// Delete Notification Channel
 		reqDelete := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/notification-channels/%d", ch.ID), nil)
 		reqDelete.SetPathValue("id", fmt.Sprintf("%d", ch.ID))
 		for _, c := range cookies {
@@ -299,7 +284,6 @@ func TestComprehensiveAPI(t *testing.T) {
 
 	// 6. Domains & Records CRUD
 	{
-		// Sync domains from Mock provider
 		bodySync := fmt.Sprintf(`{"providerAccountId":%d}`, providerAccID)
 		reqSync := httptest.NewRequest(http.MethodPost, "/api/domains/sync", strings.NewReader(bodySync))
 		for _, c := range cookies {
@@ -311,7 +295,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Fatalf("sync domains failed: got %d (%s)", recSync.Code, recSync.Body.String())
 		}
 
-		// List Domains to find the synced domain ID
 		reqList := httptest.NewRequest(http.MethodGet, "/api/domains", nil)
 		for _, c := range cookies {
 			reqList.AddCookie(c)
@@ -331,7 +314,6 @@ func TestComprehensiveAPI(t *testing.T) {
 		}
 		domainID := domainsList[0].ID
 
-		// Update Domain
 		bodyUpdate := fmt.Sprintf(`{"note":"updated domain note","forLink":true,"forMail":true,"zoneId":"z123","providerAccountId":%d}`, providerAccID)
 		reqUpdate := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/domains/%d", domainID), strings.NewReader(bodyUpdate))
 		reqUpdate.SetPathValue("id", fmt.Sprintf("%d", domainID))
@@ -344,7 +326,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("update domain failed: got %d (%s)", recUpdate.Code, recUpdate.Body.String())
 		}
 
-		// Create Record
 		bodyRec := `{"type":"A","name":"www","content":"1.2.3.4","ttl":3600}`
 		reqRec := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/domains/%d/records", domainID), strings.NewReader(bodyRec))
 		reqRec.SetPathValue("id", fmt.Sprintf("%d", domainID))
@@ -357,7 +338,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("create dns record failed: got %d (%s)", recRec.Code, recRec.Body.String())
 		}
 
-		// List Records
 		reqRecList := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/domains/%d/records", domainID), nil)
 		reqRecList.SetPathValue("id", fmt.Sprintf("%d", domainID))
 		for _, c := range cookies {
@@ -369,7 +349,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("list dns records failed: got %d", recRecList.Code)
 		}
 
-		// Update Record
 		bodyRecUpd := `{"type":"A","name":"www","content":"5.6.7.8","ttl":1800}`
 		reqRecUpd := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/domains/%d/records/r123", domainID), strings.NewReader(bodyRecUpd))
 		reqRecUpd.SetPathValue("id", fmt.Sprintf("%d", domainID))
@@ -383,7 +362,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("update dns record failed: got %d (%s)", recRecUpd.Code, recRecUpd.Body.String())
 		}
 
-		// Delete Record
 		reqRecDel := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/domains/%d/records/r123", domainID), nil)
 		reqRecDel.SetPathValue("id", fmt.Sprintf("%d", domainID))
 		reqRecDel.SetPathValue("rid", "r123")
@@ -396,7 +374,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("delete dns record failed: got %d", recRecDel.Code)
 		}
 
-		// Delete Domain
 		reqDelete := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/domains/%d", domainID), nil)
 		reqDelete.SetPathValue("id", fmt.Sprintf("%d", domainID))
 		for _, c := range cookies {
@@ -411,7 +388,6 @@ func TestComprehensiveAPI(t *testing.T) {
 
 	// 7. Mailboxes CRUD
 	{
-		// Create Mailbox
 		body := `{"address":"support@example.com","note":"customer support","enabled":true}`
 		req := httptest.NewRequest(http.MethodPost, "/api/mailboxes", strings.NewReader(body))
 		for _, c := range cookies {
@@ -427,7 +403,6 @@ func TestComprehensiveAPI(t *testing.T) {
 		}
 		_ = json.Unmarshal(rec.Body.Bytes(), &mb)
 
-		// List Mailboxes
 		reqList := httptest.NewRequest(http.MethodGet, "/api/mailboxes", nil)
 		for _, c := range cookies {
 			reqList.AddCookie(c)
@@ -438,7 +413,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("list mailboxes failed: got %d", recList.Code)
 		}
 
-		// Update Mailbox
 		bodyUpdate := `{"note":"updated support note"}`
 		reqUpdate := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/mailboxes/%d", mb.ID), strings.NewReader(bodyUpdate))
 		reqUpdate.SetPathValue("id", fmt.Sprintf("%d", mb.ID))
@@ -451,7 +425,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("update mailbox failed: got %d (%s)", recUpdate.Code, recUpdate.Body.String())
 		}
 
-		// Delete Mailbox
 		reqDelete := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/mailboxes/%d", mb.ID), nil)
 		reqDelete.SetPathValue("id", fmt.Sprintf("%d", mb.ID))
 		for _, c := range cookies {
@@ -466,7 +439,6 @@ func TestComprehensiveAPI(t *testing.T) {
 
 	// 8. Links CRUD
 	{
-		// Create Link
 		body := `{"slug":"mylink","target":"https://mylink.com","note":"test link"}`
 		req := httptest.NewRequest(http.MethodPost, "/api/links", strings.NewReader(body))
 		for _, c := range cookies {
@@ -482,7 +454,6 @@ func TestComprehensiveAPI(t *testing.T) {
 		}
 		_ = json.Unmarshal(rec.Body.Bytes(), &link)
 
-		// List Links
 		reqList := httptest.NewRequest(http.MethodGet, "/api/links", nil)
 		for _, c := range cookies {
 			reqList.AddCookie(c)
@@ -493,7 +464,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("list links failed: got %d", recList.Code)
 		}
 
-		// Get Link
 		reqGet := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/links/%d", link.ID), nil)
 		reqGet.SetPathValue("id", fmt.Sprintf("%d", link.ID))
 		for _, c := range cookies {
@@ -505,7 +475,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("get link failed: got %d", recGet.Code)
 		}
 
-		// Update Link
 		bodyUpdate := `{"target":"https://mylink-updated.com"}`
 		reqUpdate := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/links/%d", link.ID), strings.NewReader(bodyUpdate))
 		reqUpdate.SetPathValue("id", fmt.Sprintf("%d", link.ID))
@@ -518,7 +487,6 @@ func TestComprehensiveAPI(t *testing.T) {
 			t.Errorf("update link failed: got %d (%s)", recUpdate.Code, recUpdate.Body.String())
 		}
 
-		// Delete Link
 		reqDelete := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/links/%d", link.ID), nil)
 		reqDelete.SetPathValue("id", fmt.Sprintf("%d", link.ID))
 		for _, c := range cookies {

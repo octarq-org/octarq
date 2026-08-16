@@ -61,9 +61,8 @@ export default defineConfig({
     // dev server's own fallback refuses paths outside base /admin/, so this
     // middleware rewrites them all to the /admin/ entry BEFORE the base check.
     // The browser stays on the original path — the router picks the basename —
-    // and assets load from /admin/assets like everywhere else. Remove the
-    // /instance branch with the missing backend route (see report); the others
-    // mirror what server.go already does.
+    // and assets load from /admin/assets like everywhere else. All three
+    // branches mirror what server.go already serves.
     {
       name: "spa-basename-html",
       configureServer(server) {

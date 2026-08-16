@@ -98,8 +98,10 @@ func main() {
 	// Compose the full-stack example plugin so the OSS demo binary ships a
 	// complete, toggleable feature end-to-end: its Go half (hello.Plugin) pairs
 	// with the @acme/octarq-plugin-hello UI half from the frontend manifest. It
-	// has no Describer, so it is a user-toggleable feature — off by default,
-	// opt-in from Settings → Plugins, and its /hello menu is backend-gated.
+	// implements plugin.Describer with EnabledByDefault, so the feature is on
+	// for a fresh workspace yet stays user-toggleable (it is not Core) from
+	// Settings → Plugins; the app's feature gate 404s its route and the host
+	// drops its menu while the feature is turned off.
 	a.Use(hello.Plugin{})
 	// Compose any third-party plugins wired in at build time via the
 	// OCTARQ_PLUGINS manifest (see custom_plugins.go + cmd/octarq-build). The

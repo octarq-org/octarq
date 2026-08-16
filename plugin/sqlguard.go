@@ -1,4 +1,3 @@
-// Package plugin SQL guardrails for query_db_readonly.
 package plugin
 
 import (
@@ -62,19 +61,16 @@ func ValidateReadOnlyQuery(query string) (string, error) {
 		return "", fmt.Errorf("query is empty")
 	}
 
-	// Reject anything with an embedded statement separator.
 	if strings.Contains(q, ";") {
 		return "", fmt.Errorf("only a single statement is allowed (no ';')")
 	}
 
 	lower := strings.ToLower(q)
 
-	// Must be a read query.
 	if !strings.HasPrefix(lower, "select") && !strings.HasPrefix(lower, "with") {
 		return "", fmt.Errorf("only SELECT (or WITH…SELECT) queries are allowed")
 	}
 
-	// Reject write / DDL / PRAGMA / ATTACH keywords.
 	for _, kw := range BannedKeywords {
 		if ContainsWord(lower, kw) {
 			return "", fmt.Errorf("disallowed keyword %q in a read-only query", kw)
@@ -89,7 +85,6 @@ func ValidateReadOnlyQuery(query string) (string, error) {
 		}
 	}
 
-	// Inject a LIMIT when the query doesn't already constrain itself.
 	if !ContainsWord(lower, "limit") {
 		q = fmt.Sprintf("%s LIMIT %d", q, MaxRows)
 	}

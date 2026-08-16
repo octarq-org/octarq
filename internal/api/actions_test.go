@@ -66,7 +66,7 @@ func TestActionsAPI(t *testing.T) {
 		if act.ID != "action_test.create" || act.Label != "New Test Item" || act.Path != "/test?create=1" || act.Icon != "plus" || act.Category != "Test" || act.Order != 5 {
 			t.Errorf("unexpected action fields: %+v", act)
 		}
-		// 4. RequiredRole passes through to JSON
+		// 3. RequiredRole passes through to JSON
 		if act.RequiredRole != "admin" {
 			t.Errorf("expected RequiredRole \"admin\", got %q", act.RequiredRole)
 		}

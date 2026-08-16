@@ -18,7 +18,6 @@ import (
 func TestDecideModeAndDataDir(t *testing.T) {
 	t.Parallel()
 
-	// decideMode
 	m, p := decideMode("/path/to/db.mmdb", "/data", "")
 	if m != modeManual || p != "/path/to/db.mmdb" {
 		t.Errorf("manual mode failed: %v, %s", m, p)
@@ -34,7 +33,6 @@ func TestDecideModeAndDataDir(t *testing.T) {
 		t.Errorf("disabled mode failed: %v", m3)
 	}
 
-	// dataDirFor
 	d1 := dataDirFor("sqlite", "file:/var/app/octarq.db?_pragma=1")
 	if d1 != "/var/app" {
 		t.Errorf("dataDirFor sqlite failed: %s", d1)
@@ -49,14 +47,12 @@ func TestDecideModeAndDataDir(t *testing.T) {
 func TestHelpers(t *testing.T) {
 	t.Parallel()
 
-	// redactKey
 	err := errors.New("failed request to http://example.com?license_key=secretkey123&foo=bar")
 	redacted := redactKey(err, "secretkey123")
 	if redacted == nil || bytes.Contains([]byte(redacted.Error()), []byte("secretkey123")) {
 		t.Errorf("redactKey failed to redact key: %v", redacted)
 	}
 
-	// firstN
 	s1 := firstN("hello world", 5)
 	if s1 != "hello…" {
 		t.Errorf("firstN failed: %s", s1)

@@ -53,21 +53,13 @@ func Run(ctx context.Context) error {
 	return RunWithPlugins(ctx, nil)
 }
 
-// RunWithPlugins is identical to Run but lets the caller supply registered
-// Pro plugins so they can register their custom MCP write or finance tools.
-//
-// allowRawSQL gates the general-purpose query_db_readonly tool. It must be true
-// ONLY for the single-operator stdio transport (`octarq mcp`), where the caller has
-// local access to the whole database anyway. Over the HTTP/SSE transports the
-// caller is one tenant among many (orgID comes from their API token), and raw
-// SQL cannot be safely scoped to a single owner_id — so it is never registered
-// there. The tenant-scoped convenience tools remain available on every transport.
 // NewNetworkedServerInstance builds an MCP server for a networked transport
 // (HTTP/SSE), where the caller is one tenant among many (orgID comes from their
 // API token) and raw SQL cannot be safely scoped to a single owner_id. It hard-
 // wires allowRawSQL=false so the raw-SQL tool can NEVER be exposed over the
 // network: the invariant is enforced in code, not by convention at the call
-// site. All networked callers MUST use this constructor.
+// site. All networked callers MUST use this constructor. The tenant-scoped
+// convenience tools remain available on every transport.
 //
 // It also never Mounts the plugins. They are shared instances, already mounted
 // at app boot with per-request resolvers; re-Mounting them here — once per
@@ -82,6 +74,11 @@ func NewNetworkedServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugi
 	return srv
 }
 
+// NewServerInstance builds an MCP server for a single operator, scoped to
+// orgID, with the given plugins mounted the way app boot mounts them. allowRawSQL
+// gates the general-purpose query_db_readonly tool and must be true ONLY where
+// the caller already has full local access to the database — the `octarq mcp`
+// stdio CLI. The networked counterpart is NewNetworkedServerInstance.
 func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, allowRawSQL bool) *mcp.Server {
 	srv, _ := buildServerInstance(gdb, orgID, plugins, allowRawSQL, nil, true)
 	return srv
@@ -129,6 +126,12 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, allo
 	return srv, s
 }
 
+// RunWithPlugins is identical to Run but lets the caller supply registered
+// Pro plugins so they can register their custom MCP write or finance tools.
+//
+// It is the stdio entry point: the caller is the single local operator, so the
+// raw-SQL tool is enabled and the tools are scoped to the bootstrap org
+// (stdioOrgID).
 func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
 	cfg, err := config.Load()
 	if err != nil {
@@ -155,7 +158,8 @@ func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
 
 // registerTools wires every tool onto the server. The general-purpose raw-SQL
 // tool is registered only when allowRawSQL is set (stdio transport); see
-// NewServerInstance for why it is withheld from the multi-tenant HTTP transports.
+// NewNetworkedServerInstance for why it is withheld from the multi-tenant HTTP
+// transports.
 func (s *server) registerTools(srv *mcp.Server, allowRawSQL bool) {
 	// The general-purpose raw-SQL tool is registered ONLY on the single-operator
 	// stdio transport (allowRawSQL). Over a networked transport the caller is one
@@ -179,8 +183,6 @@ func (s *server) registerTools(srv *mcp.Server, allowRawSQL bool) {
 		Description: "Export the operator's data for one resource type (links, emails, domains, mailboxes) as JSON — for backup and data sovereignty.",
 	}, s.exportData)
 }
-
-// --- shared helpers ---
 
 // jsonResult marshals v to pretty JSON and wraps it as an MCP text result,
 // returning v as the structured output too.

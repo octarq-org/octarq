@@ -351,10 +351,6 @@ func TestSecure(t *testing.T) {
 	}
 }
 
-// TestResolverCaches pins that the cached forms answer the same as the direct
-// ones, and that a repeated question does not re-read the table — the endpoints
-// behind these are unauthenticated, so an attacker spraying Host headers would
-// otherwise be a free DB-query amplifier.
 // TestResolverOwnerOfCaches pins that the storefront/portal question — the one
 // asked on every unauthenticated request — is answered from the cache, both when
 // the host is owned and when it is not. An uncached negative answer is a free
@@ -394,6 +390,10 @@ func TestResolverOwnerOfCaches(t *testing.T) {
 	}
 }
 
+// TestResolverCaches pins that the cached forms answer the same as the direct
+// ones, and that a repeated question does not re-read the table — the endpoints
+// behind these are unauthenticated, so an attacker spraying Host headers would
+// otherwise be a free DB-query amplifier.
 func TestResolverCaches(t *testing.T) {
 	db := testDB(t, acme())
 	var queries int

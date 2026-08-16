@@ -168,9 +168,6 @@ func TestUpdateOrgRename(t *testing.T) {
 	}
 }
 
-// TestInboundWebhookAuth covers the per-org inbound email webhook: bad token →
-// 401, unknown org → 404, and a valid post stores the message in the org's box.
-
 // TestTwoFALoginFlow covers the full second-factor login: password alone defers,
 // a wrong code is refused, and the right code completes the session.
 func TestTwoFALoginFlow(t *testing.T) {

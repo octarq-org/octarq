@@ -136,13 +136,11 @@ func TestNotificationChannelTypes_FilteringAndSecrets(t *testing.T) {
 		t.Errorf("list notification channels expected [REDACTED] in secret field. Response: %s", recList.Body.String())
 	}
 
-	// Test channel delivery endpoint
 	recTest := do(srv, http.MethodPost, fmt.Sprintf("/api/notification-channels/%d/test", created.ID), org1Cookies, "")
 	if recTest.Code != http.StatusOK {
 		t.Errorf("test notification channel failed: %d — %s", recTest.Code, recTest.Body.String())
 	}
 
-	// Delete channel
 	recDel := do(srv, http.MethodDelete, fmt.Sprintf("/api/notification-channels/%d", created.ID), org1Cookies, "")
 	if recDel.Code != http.StatusOK {
 		t.Errorf("delete notification channel failed: %d — %s", recDel.Code, recDel.Body.String())

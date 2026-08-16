@@ -28,7 +28,6 @@ func TestRoutingRulesRoundTrip(t *testing.T) {
 		}
 	}
 
-	// Test scan invalid type
 	var out RoutingRules
 	if err := out.Scan(123); err == nil {
 		t.Error("expected error scanning int, got nil")

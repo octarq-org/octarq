@@ -27,7 +27,7 @@ import (
 // This used to be prefix matching, and prefix matching had already misfired:
 // "/api/auth/logout" also matched "/api/auth/logout-all", silently exempting an
 // endpoint that nukes every session a user has. It was not exploitable — the
-// handler re-authenticates (auth.go:189) — but it survived on the handler
+// handler re-authenticates (see logoutAll) — but it survived on the handler
 // author's care rather than on the gate, which is the arrangement this whole
 // inventory exists to stop relying on. Exact matching means a new endpoint
 // cannot inherit an exemption by sharing a name prefix with an old one.

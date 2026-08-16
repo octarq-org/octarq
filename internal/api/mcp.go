@@ -10,8 +10,8 @@ import (
 	"github.com/octarq-org/octarq/internal/models"
 )
 
-// mcpAuth is a middleware that authenticates MCP requests. It checks the session cookie,
-// the Authorization Bearer header, and falls back to the ?token= query parameter.
+// mcpAuth is a middleware that authenticates MCP requests. An authenticated
+// session passes; otherwise a valid ?token= query parameter is accepted.
 func (h *Handler) mcpAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if h.auth.OrgID(r) != 0 {

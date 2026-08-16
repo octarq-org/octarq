@@ -37,8 +37,9 @@ var registeredPublicEndpoints = map[string]string{
 
 	// Abuse reporting. Registered outside /api/, so this gate never saw it at
 	// all. Public by design — a takedown request comes from a stranger — but it
-	// writes a row, so it is rate-limited as its own tier in
-	// internal/server/middleware.go:205.
+	// writes a row, so the handler rate-limits it with its own 5/hour
+	// abuseLimiter (internal/api/abuse.go), and the middleware additionally
+	// gives POST /abuse the auth-tier budget (internal/server/middleware.go).
 	"POST /abuse": "public by design; rate-limited as its own tier",
 
 	// DDNS. A router calls this on a schedule with no cookie; the caller is
@@ -126,7 +127,7 @@ func TestPublicPrefixesAreNarrow(t *testing.T) {
 // The old gate matched "/api/auth/logout" as a prefix, which also matched
 // "/api/auth/logout-all" — an endpoint that deletes every session a user has.
 // It was never exploitable, because logoutAll re-authenticates on its own
-// (auth.go:189), but the gate was not the reason. Reintroduce prefix matching
+// (auth.go:245), but the gate was not the reason. Reintroduce prefix matching
 // and this goes red.
 func TestLogoutAllIsNotExemptByPrefix(t *testing.T) {
 	if isPublicPath("/api/auth/logout-all") {

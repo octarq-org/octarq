@@ -13,7 +13,6 @@ func TestDNSPluginMetaPurgeExportAndMCP(t *testing.T) {
 	p, _ := setupFullDNSTestDB(t)
 	ctx := context.Background()
 
-	// 1. Metadata
 	if p.Name() != "dns" {
 		t.Errorf("Name = %q", p.Name())
 	}
@@ -34,7 +33,6 @@ func TestDNSPluginMetaPurgeExportAndMCP(t *testing.T) {
 		t.Error("HelpDocsFS is nil")
 	}
 
-	// 2. Data population and Purge / Export
 	acc := ProviderAccount{OrgID: 1, Name: "Prov 1", Type: "cloudflare"}
 	p.db.Create(&acc)
 	dom := Domain{OrgID: 1, Name: "testdom.com", ProviderAccountID: acc.ID}
@@ -47,7 +45,6 @@ func TestDNSPluginMetaPurgeExportAndMCP(t *testing.T) {
 		t.Errorf("exportData failed: %+v", exp)
 	}
 
-	// MCP Export
 	domExp, err := p.mcpExportDomains(ctx, 1)
 	if err != nil || domExp == nil {
 		t.Errorf("mcpExportDomains failed: %v, %+v", err, domExp)
@@ -65,7 +62,6 @@ func TestDNSPluginMetaPurgeExportAndMCP(t *testing.T) {
 		t.Error("expected error when calling mcpListDomains with no org")
 	}
 
-	// Purge
 	if err := p.purge(1); err != nil {
 		t.Fatalf("purge error: %v", err)
 	}

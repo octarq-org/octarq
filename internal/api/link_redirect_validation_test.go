@@ -35,7 +35,7 @@ func TestUpdateLinkRejectsDangerousExpiredURL(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("seed create: got %d (%s)", rec.Code, rec.Body.String())
 	}
-	// Slug 1 (first link) — update by id 1.
+	// The first created link gets id 1 — update by id 1.
 	rec = do(srv, "PUT", "/api/links/1", cookies, `{"target":"https://ok.example","expiredUrl":"data:text/html,<script>x</script>"}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("update with data: expiredUrl: want 400, got %d (%s)", rec.Code, rec.Body.String())

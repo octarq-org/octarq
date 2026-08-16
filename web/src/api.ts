@@ -644,11 +644,11 @@ export interface WebhookEventGroup {
 }
 
 // No AuthMethod type or api.authMethods() here. /api/auth/methods has exactly
-// one consumer — plugin-sso's login button — and a Pro package cannot import
-// the host's api module, so it calls fetch() directly. The typed wrapper had no
-// reachable caller and drifting it from the live untyped call was the only
-// thing it could ever do. Expose it through @octarq/plugin-sdk if a plugin
-// needs it typed.
+// two consumers — plugin-sso's login button and core's SecuritySettings SSO
+// check — and both call fetch() directly (a Pro package cannot import the
+// host's api module either). The typed wrapper had no reachable caller and
+// drifting it from the live untyped calls was the only thing it could ever do.
+// Expose it through @octarq/plugin-sdk if a plugin needs it typed.
 
 
 

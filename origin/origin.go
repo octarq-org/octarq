@@ -179,7 +179,7 @@ func isNumericHost(host string) bool {
 }
 
 // domainRow mirrors the dns plugin's domains table. Core cannot import the
-// plugin (the dependency runs the other way) and this needs five columns, so a
+// plugin (the dependency runs the other way) and this needs six columns, so a
 // local mirror is cheaper than a service round-trip. The host-list columns are
 // typed models.HostList so the JSON decoding stays in the one place that owns it.
 type domainRow struct {

@@ -13,7 +13,6 @@ func TestLinksPluginMetaPurgeExportAndMCP(t *testing.T) {
 	p, _ := setupFullLinksTestDB(t)
 	ctx := context.Background()
 
-	// 1. Metadata
 	if p.Name() != "links" {
 		t.Errorf("Name = %q", p.Name())
 	}
@@ -34,7 +33,6 @@ func TestLinksPluginMetaPurgeExportAndMCP(t *testing.T) {
 		t.Error("HelpDocsFS is nil")
 	}
 
-	// 2. Data population and Purge / Export
 	lk := Link{OrgID: 1, Slug: "test-slug", Target: "https://example.com"}
 	p.db.Create(&lk)
 	ev := LinkEvent{LinkID: lk.ID, IP: "127.0.0.1"}
@@ -45,7 +43,6 @@ func TestLinksPluginMetaPurgeExportAndMCP(t *testing.T) {
 		t.Errorf("exportData failed: %+v", exp)
 	}
 
-	// MCP Export
 	lkExp, err := p.mcpExportLinks(ctx, 1)
 	if err != nil || lkExp == nil {
 		t.Errorf("mcpExportLinks failed: %v, %+v", err, lkExp)
@@ -63,7 +60,6 @@ func TestLinksPluginMetaPurgeExportAndMCP(t *testing.T) {
 		t.Error("expected error when calling mcpListLinks with no org")
 	}
 
-	// Purge
 	if err := p.purge(1); err != nil {
 		t.Fatalf("purge error: %v", err)
 	}

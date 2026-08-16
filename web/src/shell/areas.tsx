@@ -74,9 +74,9 @@ export const STATIC_AREAS: Area[] = [
           { id: "overview", label: "Overview", Icon: LayoutDashboard, path: "/overview" },
         ],
       },
-      // Links → core plugin (plugins/core/links.ts, category "Marketing").
+      // Links → plugin (plugins/links, category "Marketing").
       { label: "Marketing", items: [] },
-      // Mail → core plugin (plugins/core/mail.ts, category "Messaging").
+      // Mail → plugin (plugins/mail, category "Messaging").
       // AI Inbox is a Pro plugin — its menu entry is injected dynamically
       // (@octarq-org/plugin-ai, category "Messaging") only in a composed build.
       { label: "Messaging", items: [] },
@@ -93,7 +93,7 @@ export const STATIC_AREAS: Area[] = [
     subtitle: "Servers, network & databases",
     Icon: Boxes,
     groups: [
-      // DNS → core plugin (plugins/core/domains.ts); Certificates → Pro
+      // DNS → plugin (plugins/dns); Certificates → Pro
       // infra plugin (@octarq-org/plugin-infra). Both use category "Network".
       { label: "Network", items: [] },
       // Servers + SSH Vault are Pro plugins (@octarq-org/plugin-infra,

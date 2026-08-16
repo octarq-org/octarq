@@ -12,8 +12,6 @@ import (
 	"github.com/octarq-org/octarq/plugin"
 )
 
-// --- query_db_readonly ---
-
 type queryInput struct {
 	Query string `json:"query"` // a single read-only SELECT / WITH…SELECT statement
 }
@@ -44,8 +42,6 @@ func (s *server) queryDBReadonly(ctx context.Context, _ *mcp.CallToolRequest, in
 	out := queryOutput{Columns: cols, Rows: rows, Count: len(rows), Truncated: len(rows) >= maxRows}
 	return jsonResult(out)
 }
-
-// --- export_data ---
 
 type exportInput struct {
 	Resource string `json:"resource"` // one of: links, emails, domains, mailboxes

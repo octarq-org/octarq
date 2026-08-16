@@ -26,7 +26,6 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 			map[string]any{"bearerAuth": []any{}},
 		},
 		"paths": map[string]any{
-			// --- Auth Endpoints ---
 			"/api/auth/login": map[string]any{
 				"post": map[string]any{
 					"tags":        []string{"Auth"},
@@ -190,7 +189,6 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 				},
 			},
 
-			// --- Overview ---
 			"/api/overview": map[string]any{
 				"get": map[string]any{
 					"tags":        []string{"Overview"},
@@ -276,7 +274,6 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 				},
 			},
 
-			// --- Settings ---
 			"/api/settings": map[string]any{
 				"get": map[string]any{
 					"tags":        []string{"Settings"},
@@ -382,7 +379,6 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 				},
 			},
 
-			// --- Links ---
 			"/api/links": map[string]any{
 				"get": map[string]any{
 					"tags":        []string{"Links"},
@@ -694,7 +690,6 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 				},
 			},
 
-			// --- Domains ---
 			"/api/domains": map[string]any{
 				"get": map[string]any{
 					"tags":        []string{"Domains"},
@@ -1033,7 +1028,6 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 				},
 			},
 
-			// --- Mailboxes ---
 			"/api/mailboxes": map[string]any{
 				"get": map[string]any{
 					"tags":        []string{"Mailboxes"},
@@ -1155,7 +1149,6 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 				},
 			},
 
-			// --- Emails ---
 			"/api/emails": map[string]any{
 				"get": map[string]any{
 					"tags":        []string{"Emails"},
@@ -1471,7 +1464,6 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 				},
 			},
 
-			// --- Health ---
 			"/api/health": map[string]any{
 				"get": map[string]any{
 					"tags":        []string{"System"},
@@ -1789,13 +1781,11 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 	// Merge plugin paths and schemas
 	for _, p := range plugins {
 		if contributor, ok := p.(plugin.OpenAPIContributor); ok {
-			// merge paths
 			if paths, ok := spec["paths"].(map[string]any); ok {
 				for k, v := range contributor.OpenAPIPaths() {
 					paths[k] = v
 				}
 			}
-			// merge schemas
 			if components, ok := spec["components"].(map[string]any); ok {
 				if schemas, ok := components["schemas"].(map[string]any); ok {
 					for k, v := range contributor.OpenAPISchemas() {

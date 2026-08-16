@@ -66,7 +66,6 @@ func TestInviteFlow(t *testing.T) {
 	adminUID := seedOrgMember(t, db, orgID, "admin@example.com", "owner")
 	adminSession := sessionCookies(t, adminUID, orgID)
 
-	// Invite a new user
 	email := t.Name() + "+newbie@example.com"
 	rec := do(srv, "POST", "/api/org/members", adminSession, fmt.Sprintf(`{"email":%q,"role":"member"}`, email))
 	if rec.Code != http.StatusOK {
@@ -215,8 +214,3 @@ func TestInviteAcceptMarksEmailVerifiedAndAllowsLogin(t *testing.T) {
 		t.Fatalf("invited user login under verification gate: got %d (%s), want 200", rec.Code, rec.Body.String())
 	}
 }
-
-// TestVerifyDNSMailHosts checks that verification probes each enabled mail host
-// (including subdomains) rather than only the apex.
-
-// TestVerifyDNSLinkHosts checks CNAME resolution for enabled short-link hosts.

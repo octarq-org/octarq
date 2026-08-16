@@ -326,7 +326,7 @@ type ResendVerificationOutput struct {
 }
 
 // POST /api/auth/resend-verification (public) — resends email verification link.
-// ALWAYS returns 200 {ok: true}. Rate-limited via loginLimiter.
+// ALWAYS returns 200 {ok: true}. Rate-limited via recoveryLimiter.
 func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificationInput) (*ResendVerificationOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")

@@ -37,7 +37,7 @@ func TestAbuseEndpoints(t *testing.T) {
 		t.Errorf("unexpected submit response: %+v", submitResp)
 	}
 
-	// Submit 5 more times to trigger the rate limiter (making a total of 6 calls)
+	// 2. Submit 5 more times to trigger the rate limiter (making a total of 6 calls)
 	for i := 0; i < 5; i++ {
 		req := httptest.NewRequest(http.MethodPost, "/abuse", strings.NewReader(body))
 		rec := httptest.NewRecorder()

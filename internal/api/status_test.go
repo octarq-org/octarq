@@ -82,7 +82,6 @@ func TestStatusEndpoint(t *testing.T) {
 		t.Errorf("invalid timestamp format: %v", err)
 	}
 
-	// Verify no sensitive fields in response JSON
 	bodyStr := rec.Body.String()
 	for _, sensitive := range []string{"password", "secret", "token", "127.0.0.1"} {
 		if strings.Contains(bodyStr, sensitive) {

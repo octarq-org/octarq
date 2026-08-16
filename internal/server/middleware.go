@@ -32,9 +32,7 @@ func RequestID(ctx context.Context) string {
 	return ""
 }
 
-// -----------------------------------------------------------------------------
 // Metrics (stdlib expvar)
-// -----------------------------------------------------------------------------
 
 // metrics holds the operational counters exposed at /metrics. They are backed
 // by expvar so they are safe for concurrent updates without extra locking.
@@ -100,9 +98,7 @@ func (m *metrics) snapshot() map[string]any {
 	}
 }
 
-// -----------------------------------------------------------------------------
 // Rate limiter (fixed-window, in-memory, IP-keyed)
-// -----------------------------------------------------------------------------
 
 // tier identifies which threshold applies to a request.
 type tier int
@@ -221,9 +217,7 @@ func tierFor(r *http.Request) tier {
 	}
 }
 
-// -----------------------------------------------------------------------------
 // Client IP
-// -----------------------------------------------------------------------------
 
 // trustProxy gates whether proxy-supplied client-IP headers are honoured. Set
 // once from config at server construction; when false, X-Forwarded-For /
@@ -267,9 +261,7 @@ func isLoopback(r *http.Request) bool {
 	return host == "localhost"
 }
 
-// -----------------------------------------------------------------------------
 // Request ID
-// -----------------------------------------------------------------------------
 
 // newRequestID returns a random 16-hex-char (8-byte) request ID.
 func newRequestID() string {
@@ -295,9 +287,7 @@ func sanitizeRequestID(v string) string {
 	return v
 }
 
-// -----------------------------------------------------------------------------
 // ResponseWriter wrapper (capture status + byte count)
-// -----------------------------------------------------------------------------
 
 type statusRecorder struct {
 	http.ResponseWriter
@@ -328,9 +318,7 @@ func (sr *statusRecorder) Flush() {
 	}
 }
 
-// -----------------------------------------------------------------------------
 // Middleware
-// -----------------------------------------------------------------------------
 
 // Rate-limit defaults (requests per minute per IP), used until the first
 // settings refresh and when a setting is absent. Kept in sync with the API

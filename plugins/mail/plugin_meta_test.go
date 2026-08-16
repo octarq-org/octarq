@@ -13,7 +13,6 @@ func TestMailPluginMetaPurgeExportAndMCP(t *testing.T) {
 	db, p := setupMailboxTestDB(t)
 	ctx := context.Background()
 
-	// 1. Metadata
 	if p.Name() != "mail" {
 		t.Errorf("Name = %q", p.Name())
 	}
@@ -34,7 +33,6 @@ func TestMailPluginMetaPurgeExportAndMCP(t *testing.T) {
 		t.Error("HelpDocsFS is nil")
 	}
 
-	// 2. Data population and Purge / Export
 	mb := Mailbox{OrgID: 1, Address: "test@example.com"}
 	db.Create(&mb)
 	em := Email{MailboxID: mb.ID, Subject: "Test Email", Text: "Body"}
@@ -47,7 +45,6 @@ func TestMailPluginMetaPurgeExportAndMCP(t *testing.T) {
 		t.Errorf("exportData failed: %+v", exp)
 	}
 
-	// MCP Export
 	mbExp, err := p.mcpExportMailboxes(ctx, 1)
 	if err != nil || mbExp == nil {
 		t.Errorf("mcpExportMailboxes failed: %v, %+v", err, mbExp)
@@ -74,11 +71,9 @@ func TestMailPluginMetaPurgeExportAndMCP(t *testing.T) {
 		t.Error("expected error when calling mcpListMailboxes with no org")
 	}
 
-	// Create a raw blob for the email
 	dbProv := NewDBStorageProvider(db)
 	_ = dbProv.Put(ctx, "mail/1/1.eml", []byte("From: test@example.com\r\nSubject: Test\r\n\r\nHello"))
 
-	// Purge
 	if err := p.purge(1); err != nil {
 		t.Fatalf("purge error: %v", err)
 	}

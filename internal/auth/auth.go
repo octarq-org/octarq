@@ -167,8 +167,9 @@ func (m *Manager) Cache() cache.Cache {
 	return m.cache
 }
 
-// Check verifies admin credentials using constant-time comparison so neither
-// the username nor password leaks length/prefix information via timing.
+// Check verifies admin credentials using a constant-time comparison, so a
+// timing side channel cannot reveal prefix information about them (the
+// comparison still reveals each string's length).
 func (m *Manager) Check(user, pass string) bool {
 	userOK := subtle.ConstantTimeCompare([]byte(user), []byte(m.cfg.AdminUser)) == 1
 	passOK := subtle.ConstantTimeCompare([]byte(pass), []byte(m.cfg.AdminPassword)) == 1

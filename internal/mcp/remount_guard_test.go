@@ -10,7 +10,7 @@ import (
 
 // fakePlugin mimics every real plugin: it caches ctx.OrgID into a field at
 // Mount and uses that field to resolve the org of later HTTP requests
-// (plugins/links/plugin.go:94-96, plugins/mail/plugin.go:105, and every Pro module).
+// (plugins/links/plugin.go:120-122, plugins/mail/plugin.go:127-129, and every Pro module).
 type fakePlugin struct {
 	mu     sync.Mutex
 	mounts int

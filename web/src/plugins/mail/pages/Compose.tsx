@@ -114,6 +114,3 @@ export function Compose({ draft, onClose }: { draft?: ReplyDraft; onClose: () =>
     </Modal>
   );
 }
-
-// AuthBadges renders compact SPF/DKIM/DMARC result pills.
-// In compact mode (list row) only failing/suspicious results are shown to save space.
