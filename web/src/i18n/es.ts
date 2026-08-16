@@ -46,6 +46,7 @@ export const es = {
     verificationSent: "Correo de verificación enviado.",
     registerVerifyTitle: "Verifique su correo para continuar",
     registerVerifyNotice: "Su cuenta está lista, pero esta instancia exige un correo verificado. Enviamos un enlace de verificación a {{email}}: ábralo y luego inicie sesión.",
+    registerMailUnavailable: "Esta instancia aún no puede enviar correos, por lo que las cuentas no pueden verificarse. Pida a un administrador que configure un remitente SMTP o desactive la verificación de correo.",
     workspaceCreated: "Espacio de trabajo creado",
     skipToContent: "Saltar al contenido",
     switchWorkspaceFailed: "No se pudo cambiar el espacio de trabajo",

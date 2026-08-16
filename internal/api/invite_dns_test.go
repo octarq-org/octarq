@@ -158,6 +158,59 @@ func TestInviteFlow(t *testing.T) {
 	}
 }
 
+// TestInviteAcceptMarksEmailVerifiedAndAllowsLogin pins the fix for the broken
+// team-invite path: redeeming a valid invite token proves the user owns the
+// invited address (the token is delivered only to that mailbox), so
+// acceptInvite must mark the email verified. Otherwise a teammate who just set
+// their password is bounced from login by "email verification required" on
+// instances that require verification (the default) and waits for a
+// verification email that was never sent.
+func TestInviteAcceptMarksEmailVerifiedAndAllowsLogin(t *testing.T) {
+	srv, db := newTestHandler(t)
+	// Pin the default-on gate explicitly rather than leaning on it silently.
+	if err := db.Save(&models.Setting{Key: keyRequireEmailVerification, Value: "true"}).Error; err != nil {
+		t.Fatalf("set require_email_verification=true: %v", err)
+	}
+
+	const orgID = uint(1)
+	adminUID := seedOrgMember(t, db, orgID, "inviteadmin@example.com", "owner")
+	adminSession := sessionCookies(t, adminUID, orgID)
+
+	email := t.Name() + "+teammate@example.com"
+	rec := do(srv, "POST", "/api/org/members", adminSession, fmt.Sprintf(`{"email":%q,"role":"member"}`, email))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("addOrgMember failed: %s", rec.Body.String())
+	}
+	var res struct {
+		InviteToken string `json:"inviteToken"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+		t.Fatalf("decode invite response: %v", err)
+	}
+	if res.InviteToken == "" {
+		t.Fatal("expected an invite token, got empty")
+	}
+
+	rec = do(srv, "POST", "/api/auth/invite/accept", nil, fmt.Sprintf(`{"token":%q,"password":"teampass123"}`, res.InviteToken))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("accept invite: got %d (%s), want 200", rec.Code, rec.Body.String())
+	}
+
+	var user models.User
+	if err := db.Where("email = ?", email).First(&user).Error; err != nil {
+		t.Fatalf("invited user not found: %v", err)
+	}
+	if !user.EmailVerified {
+		t.Fatal("acceptInvite did not mark the invited email verified")
+	}
+
+	// The verified teammate must be able to log in under the verification gate.
+	rec = do(srv, "POST", "/api/auth/login", nil, fmt.Sprintf(`{"email":%q,"password":"teampass123"}`, email))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("invited user login under verification gate: got %d (%s), want 200", rec.Code, rec.Body.String())
+	}
+}
+
 // TestVerifyDNSMailHosts checks that verification probes each enabled mail host
 // (including subdomains) rather than only the apex.
 

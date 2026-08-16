@@ -151,6 +151,10 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
 
   const hasOauth = oauthConfig && (oauthConfig.googleEnabled || oauthConfig.githubEnabled);
   const isUnverifiedErr = err.toLowerCase().includes("email verification required");
+  // The register endpoint answers 503 with this detail when verification is
+  // required but no SMTP sender is configured. Show the localized notice
+  // instead of the raw English API message.
+  const isMailUnavailableErr = err.toLowerCase().includes("cannot send email");
 
   return (
     <div className="bg-background grid h-full place-items-center p-4">
@@ -190,7 +194,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
           <div className="mb-4 p-3 rounded-xl bg-danger-fg/10 border border-danger-fg/20 text-danger-fg text-xs space-y-2">
             <div className="flex gap-2 items-center">
               <ShieldAlert className="h-4 w-4 shrink-0" />
-              <span>{err}</span>
+              <span>{isMailUnavailableErr ? t("app.registerMailUnavailable") : err}</span>
             </div>
             {isUnverifiedErr && (
               <div className="pt-1">

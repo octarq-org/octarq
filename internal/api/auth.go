@@ -776,6 +776,12 @@ func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*
 	user.PasswordHash = string(hash)
 	user.InviteToken = ""
 	user.InviteExpiresAt = nil
+	// Redeeming a valid, unexpired invite token proves ownership of the account's
+	// address: the token is delivered only to that mailbox (see sendInviteEmail),
+	// so nothing more than holding it is needed to mark the email verified. This
+	// keeps invited teammates from bouncing off the login gate on instances that
+	// require verification — the very users the admin just brought in.
+	user.EmailVerified = true
 
 	if err := h.db.Save(&user).Error; err != nil {
 		return nil, huma.Error500InternalServerError("failed to save user settings")

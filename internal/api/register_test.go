@@ -2,11 +2,13 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/octarq-org/octarq/internal/models"
+	mailmodels "github.com/octarq-org/octarq/plugins/mail"
 )
 
 // TestRegisterCreatesUserOrgAndSession verifies the public sign-up path:
@@ -48,7 +50,10 @@ func TestRegisterCreatesUserOrgAndSession(t *testing.T) {
 
 // TestRegisterRejectsDuplicateAndShortPassword covers the guard rails.
 func TestRegisterRejectsDuplicateAndShortPassword(t *testing.T) {
-	srv, _ := newTestHandler(t)
+	srv, db := newTestHandler(t)
+	// A mail-less test instance cannot pass the verification gate (register
+	// 503s), which is not what this test is about — opt out explicitly.
+	disableEmailVerification(t, db)
 
 	if rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"a@b.com","password":"short"}`); rec.Code != http.StatusBadRequest {
 		t.Fatalf("short password: got %d, want 400", rec.Code)
@@ -76,10 +81,12 @@ func TestRegisterDisabledByToggle(t *testing.T) {
 
 // TestRegisterUsesOrgNameOverEmail pins the optional orgName field: a non-blank
 // orgName becomes the provisioned workspace's name; omitting it falls back to
-// the registration email, exactly as before the field existed. Both run under
-// the default-on verification gate, which creates the org either way.
+// the registration email, exactly as before the field existed. The gate is
+// disabled because a mail-less test instance cannot pass it (register 503s) —
+// the org provisioning is what this test pins, not the gate.
 func TestRegisterUsesOrgNameOverEmail(t *testing.T) {
 	srv, db := newTestHandler(t)
+	disableEmailVerification(t, db)
 
 	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"named@user.com","password":"hunter2pw","orgName":"  Acme Corp  "}`)
 	if rec.Code != http.StatusOK {
@@ -140,13 +147,23 @@ type registerBody struct {
 }
 
 // TestRegisterWithVerificationGateGivesNoSession pins the fix: when the
-// instance requires a verified email, sign-up must NOT hand out a session —
-// otherwise the new user gets in once and is locked out the moment they log
-// out (login rejects the same unverified user, auth.go:72).
+// instance requires a verified email AND can send mail (an SMTP sender is
+// configured), sign-up must NOT hand out a session — otherwise the new user
+// gets in once and is locked out the moment they log out (login rejects the
+// same unverified user, auth.go:72). The sender matters: on an instance that
+// cannot send mail, register fails with 503 instead (see
+// TestRegisterFailsLoudlyWhenMailUnavailable), because a verificationRequired
+// answer would promise an email that can never arrive.
 func TestRegisterWithVerificationGateGivesNoSession(t *testing.T) {
 	srv, db := newTestHandler(t)
 	if err := db.Save(&models.Setting{Key: keyRequireEmailVerification, Value: "true"}).Error; err != nil {
 		t.Fatalf("set setting: %v", err)
+	}
+	// A configured sender makes the mail.ready service answer true, so the
+	// gate is exercised through its verificationRequired branch rather than
+	// the no-mail 503 branch.
+	if err := db.Create(&mailmodels.SMTPSender{OrgID: 1, Name: "test", Host: "smtp.example.com", Port: 587, User: "u", Pass: "enc", FromEmail: "noreply@example.com"}).Error; err != nil {
+		t.Fatalf("seed smtp sender: %v", err)
 	}
 
 	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"gated@user.com","password":"hunter2pw"}`)
@@ -209,5 +226,57 @@ func TestRegisterWithoutVerificationGateKeepsSession(t *testing.T) {
 	}
 	if rec := do(srv, "GET", "/api/auth/me", cookies, ""); rec.Code != http.StatusOK {
 		t.Fatalf("me with fresh session: got %d, want 200", rec.Code)
+	}
+}
+
+// TestRegisterFailsLoudlyWhenMailUnavailable pins the fix for the sign-up
+// dead end: on a fresh instance (verification required, no SMTP sender
+// configured), registration must fail with a clear 503 instead of returning a
+// verificationRequired that can never be fulfilled — the verification email
+// cannot be sent, so the account would be locked out forever.
+func TestRegisterFailsLoudlyWhenMailUnavailable(t *testing.T) {
+	srv, db := newTestHandler(t)
+	if err := db.Save(&models.Setting{Key: keyRequireEmailVerification, Value: "true"}).Error; err != nil {
+		t.Fatalf("set setting: %v", err)
+	}
+	// Deliberately no SMTPSender row: the mail plugin IS mounted (newTestHandler
+	// mounts it), but an instance with no sender cannot deliver a single
+	// message — exactly the fresh `docker run` shape.
+
+	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"stuck@user.com","password":"hunter2pw"}`)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("register on mail-less instance: got %d (%s), want 503", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "cannot send email") {
+		t.Fatalf("register 503 does not explain the failure to the user: %s", rec.Body.String())
+	}
+
+	// No half-created account may linger behind the error.
+	var count int64
+	db.Model(&models.User{}).Where("email = ?", "stuck@user.com").Count(&count)
+	if count != 0 {
+		t.Fatal("register 503 still created an account")
+	}
+}
+
+// TestRegisterRateLimitedPerIP pins the fix for the phantom registration
+// budget: sign-ups used to share loginLimiter, which only Peek()s and counts
+// failures, and a successful registration even reset it — so one IP could
+// register indefinitely. Registration now has its own 5/hour budget and counts
+// every request.
+func TestRegisterRateLimitedPerIP(t *testing.T) {
+	srv, db := newTestHandler(t)
+	disableEmailVerification(t, db) // exercise the full success path; no mail needed
+
+	for i := 0; i < 5; i++ {
+		rec := do(srv, "POST", "/api/auth/register", nil, fmt.Sprintf(`{"email":"user%d@rate.test","password":"hunter2pw"}`, i))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("register %d: got %d (%s), want 200", i+1, rec.Code, rec.Body.String())
+		}
+	}
+
+	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"user5@rate.test","password":"hunter2pw"}`)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("6th register from the same IP: got %d, want 429", rec.Code)
 	}
 }

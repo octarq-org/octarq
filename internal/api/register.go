@@ -52,10 +52,14 @@ type RegisterOutput struct {
 }
 
 // POST /api/auth/register (public) — self-serve email/password sign-up.
-// Gated by the instance-level allow_registration setting (default on). On
-// success it provisions a fresh personal workspace with the user as owner and
-// logs them straight in — unless the instance requires a verified email, in
-// which case no session is set and the response says so.
+// Gated by the instance-level allow_registration setting (default on) and an
+// independent per-IP budget (registerLimiter, 5/hour) that counts every
+// request. On success it provisions a fresh personal workspace with the user
+// as owner and logs them straight in — unless the instance requires a verified
+// email, in which case no session is set and the response says so. When
+// verification is required but the instance cannot send mail, registration
+// fails with 503 instead of promising a verification email that can never
+// arrive.
 func (h *Handler) register(ctx context.Context, input *RegisterInput) (*RegisterOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
@@ -65,8 +69,19 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 		return nil, huma.Error403Forbidden("registration is disabled")
 	}
 	ip := reporterIP(r)
-	if !h.loginLimiter.allow(ip) {
+	// Own budget, not the login one: register succeeds without ever counting
+	// on the login limiter (which only Peek()s and counts failures), so the
+	// shared budget was never spent and could never stop a sign-up flood.
+	// Every request counts here, exactly like recoveryLimiter.
+	if !h.registerLimiter.allow(ip) {
 		return nil, huma.Error429TooManyRequests("too many attempts")
+	}
+	h.registerLimiter.recordFailure(ip)
+
+	// Fail loudly instead of returning an unfulfillable verificationRequired:
+	// a verification email is only deliverable when some SMTP sender exists.
+	if h.requireEmailVerification() && !h.mailReady() {
+		return nil, huma.NewError(http.StatusServiceUnavailable, "this instance cannot send email yet; ask the administrator to configure an SMTP sender or disable email verification")
 	}
 	email := strings.ToLower(strings.TrimSpace(input.Body.Email))
 	if addr, err := mail.ParseAddress(email); err != nil || addr.Address != email || !strings.Contains(email, "@") {
@@ -143,7 +158,6 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 	}
 
 	h.auditAs(r, orgID, user.ID, "user.register", "user", user.ID, map[string]any{"email": email})
-	h.loginLimiter.reset(ip)
 
 	out := &RegisterOutput{}
 	out.Body.OK = true

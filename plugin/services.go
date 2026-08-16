@@ -13,6 +13,13 @@ import "context"
 // mail sender is provided (contract type MailSender).
 const ServiceMailSend = "mail.send"
 
+// ServiceMailReady is the well-known service name under which the mail plugin
+// reports whether the instance can actually deliver transactional mail
+// (contract type MailReady). It answers "is at least one SMTP sender
+// configured", which is a different question from "is the mail plugin mounted":
+// a mounted plugin with no sender cannot deliver a single message.
+const ServiceMailReady = "mail.ready"
+
 // ServiceMailDispatcher is the well-known service name under which the inbound
 // email handler registrar is provided (contract type EmailDispatcher).
 const ServiceMailDispatcher = "mail.dispatcher"
@@ -35,6 +42,14 @@ func CleanupServiceName(pluginName string) string {
 // must change together, which the explicit conversion at the Provide call site
 // enforces at compile time.
 type MailSender func(orgID uint, to, subject, htmlBody, textBody string) error
+
+// MailReady is the cross-plugin contract for the "can this instance send mail"
+// question: true when at least one SMTP sender is configured, false otherwise.
+// The provider (the mail plugin) answers from its own database; consumers
+// (core API, app readiness) must treat "service absent" as "not ready" — a
+// mounted plugin with no sender configured is exactly the instance that cannot
+// deliver a single message.
+type MailReady func() bool
 
 // EmailDispatcher is the cross-plugin contract for registering inbound-email
 // handlers. The provider (the mail plugin) registers handlers to run after each

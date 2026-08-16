@@ -59,6 +59,20 @@ func (h *Handler) sendPasswordResetEmail(userID uint, to, resetURL string) {
 	log.Printf("password reset email skipped for %s: mail plugin not mounted", to)
 }
 
+// mailReady reports whether this instance can actually deliver transactional
+// mail: at least one SMTP sender is configured on some workspace. It resolves
+// the mail plugin's mail.ready service; "service absent" (no mail plugin, or a
+// plugin that cannot answer) means not ready. Registration's verification gate
+// and the startup readiness report consume this — promising a verification
+// email that can never arrive locks a fresh instance out of its own sign-up.
+func (h *Handler) mailReady() bool {
+	fn, ok := plugin.LookupServiceAs[plugin.MailReady](h.LookupService, plugin.ServiceMailReady)
+	if !ok {
+		return false
+	}
+	return fn()
+}
+
 // sendVerificationEmail best-effort delivers an email verification link to the user.
 func (h *Handler) sendVerificationEmail(userID uint, to, verifyURL string) {
 	orgID := h.primaryOrgForUser(userID)

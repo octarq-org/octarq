@@ -54,6 +54,7 @@ var (
 var (
 	_ plugin.MailSender      = (*Plugin)(nil).sendMail
 	_ plugin.EmailDispatcher = (*Plugin)(nil).OnEmail
+	_ plugin.MailReady       = (*Plugin)(nil).mailReady
 )
 
 // New constructs the mail plugin.
@@ -197,6 +198,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		ctx.Provide("mail.purge", p.purge)
 		ctx.Provide("mail.export", p.exportData)
 		ctx.Provide(plugin.ServiceMailSend, plugin.MailSender(p.sendMail))
+		ctx.Provide(plugin.ServiceMailReady, plugin.MailReady(p.mailReady))
 		ctx.Provide("mail.email.get", p.getEmailForSummarize)
 		ctx.Provide("mailboxes.mcp_export", p.mcpExportMailboxes)
 		ctx.Provide("emails.mcp_export", p.mcpExportEmails)
@@ -318,6 +320,16 @@ func (p *Plugin) exportData(orgID uint) map[string]any {
 		"smtpSenders":  smtp,
 		"suppressions": suppressions,
 	}
+}
+
+// mailReady reports whether at least one SMTP sender is configured anywhere on
+// this instance. Consumed through the mail.ready service by the registration
+// verification gate and the startup readiness report: "plugin mounted" is not
+// the same question as "can this instance deliver a message".
+func (p *Plugin) mailReady() bool {
+	var n int64
+	p.db.Model(&SMTPSender{}).Count(&n)
+	return n > 0
 }
 
 func (p *Plugin) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
