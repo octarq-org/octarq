@@ -97,6 +97,10 @@ working. Nothing logs an error that names this setting.
       Backing up an encrypted database next to nothing that can decrypt it is a
       common and complete loss.
 
+`octarq backup` / `octarq restore` and the container restrictions (Postgres
+needs host-side `pg_dump`) are documented in
+[`website/src/content/docs/backup-restore.md`](website/src/content/docs/backup-restore.md).
+
 ---
 
 ## 4. Who can get in

@@ -115,6 +115,7 @@ export const helloPlugin: UIPlugin = {
 - **通过 Cloudflare Worker 接收邮件** —— 部署 [`deploy/cloudflare-email-worker.js`](deploy/cloudflare-email-worker.js)，配置 catch-all 路由，并开启 *Accept email*。
 - **GeoIP 地理位置统计** —— 设置 `OCTARQ_MAXMIND_LICENSE_KEY`（免费），Octarq 会自动下载并热加载 GeoLite2。参阅 [`deploy/GEOIP.md`](deploy/GEOIP.md)。
 - **Claude Desktop 配置 MCP** —— 在 `claude_desktop_config.json` 中指向 `octarq mcp`。
+- **备份与恢复** —— `octarq backup` / `octarq restore` 备份数据库。请备份整个 `/data` 目录（数据库 **以及** 自动生成的 `octarq.secret` / `octarq-admin-password.txt` 密钥文件），并注意 Postgres 备份需要宿主机上的 `pg_dump`。参见 [`website/src/content/docs/backup-restore.md`](website/src/content/docs/backup-restore.md)。
 
 <details>
 <summary>Claude Desktop MCP 配置</summary>

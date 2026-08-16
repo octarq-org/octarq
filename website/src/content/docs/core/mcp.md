@@ -43,5 +43,8 @@ This is the one place data reaches an LLM, so it is fenced:
 - Results are **row-capped**.
 - Sensitive columns (password/token hashes, encrypted provider credentials, raw
   email bodies) are **redacted**.
-- Tools are scoped to one operator via `OCTARQ_MCP_ORG_ID`; for multi-tenant, run one
-  `octarq mcp` process per tenant.
+- Tools are scoped to one tenant. Over stdio, `octarq mcp` operates as the
+  instance's bootstrap tenant (org 1) — there is no org-selector environment
+  variable; to run tools as a different tenant, run one `octarq mcp` process per
+  tenant (e.g. with its own `.env` / database). The HTTP/SSE transport instead
+  scopes tools to the tenant of the caller's API token automatically.

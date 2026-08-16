@@ -22,6 +22,8 @@ The primary configuration options are:
 | `OCTARQ_ALLOW_PRIVATE_WEBHOOKS` | Allow webhook & notification delivery to private/loopback IPs. Default `false`. |
 | `OCTARQ_ALLOW_PRIVATE_SMTP` | Allow outbound SMTP mail delivery to private/loopback IPs (e.g. local Postfix or Mailhog). Default `false`. |
 | `OCTARQ_TRUST_PROXY` | Honour `X-Forwarded-For` / `X-Real-IP` / `X-Forwarded-Proto`. Enable only behind a reverse proxy you control. Default `false`. |
+| `OCTARQ_LISTEN` | Address the binary binds (default `:8080`). |
+| `OCTARQ_PORT` | **Docker Compose only** — the host port published by `docker-compose.yml` (default `8080`), also the port knob for `make dev`. **Not read by the binary**; to change the binary's own listen port use `OCTARQ_LISTEN`. |
 
 ## Hostnames
 
@@ -34,6 +36,17 @@ password-reset link at somebody else's site.
 
 An instance with no registered domain has nothing to check against and uses the
 request host as sent; register the domain you serve on to close that gap.
+
+### Hostname environment variables (optional)
+
+Two optional bootstrap-fallback variables exist for shared / tenant-subdomain
+hosts. Both are read at startup only; once saved, the dashboard settings
+(Settings → Instance) take over:
+
+| Variable | Purpose |
+| --- | --- |
+| `OCTARQ_SHARED_HOSTS` | Comma-separated hostnames the dashboard answers on. **Required when tenant subdomains are in use**: once any domain is registered, absolute links (password reset, invites) are only built for registered or declared hosts — without this the shared host builds no absolute URLs. |
+| `OCTARQ_BASE_DOMAIN` | Shared tenant-subdomain base (bootstrap fallback): every new org gets `<slug>.<base>` automatically. Needs a wildcard DNS record and a wildcard TLS cert on the base, plus `OCTARQ_SHARED_HOSTS` declaring the base itself. |
 
 Two things follow from the same request rather than from configuration:
 
@@ -55,6 +68,7 @@ octarq defaults to pure-Go SQLite (no cgo). Flip to Postgres with two env vars:
 | --- | --- |
 | `OCTARQ_DB_DRIVER` | `sqlite` (default) or `postgres`. |
 | `OCTARQ_DB_DSN` | Connection string when using Postgres. |
+| `OCTARQ_REDIS_URL` | Optional Redis connection (e.g. `redis://localhost:6379`) for rate limiting / caching. Empty = those features fall back to DB / in-memory. |
 
 ## Email inbound
 
