@@ -58,9 +58,9 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 		"includeBot": includeBot,
 	}
 
-	// Plugins flat-merge their statistics into outMap.
-	// NOTE: If two plugins define duplicate keys, the later registration will overwrite the earlier key.
-	// We keep this protocol flat for compatibility, but log a warning when collisions happen.
+	// Plugin statistics merge flat into outMap; a duplicate key is overwritten
+	// by the later registration (warned, not refused — the flat protocol is kept
+	// for compatibility).
 	for _, p := range h.plugins {
 		if !h.pluginActive(org, p) {
 			continue

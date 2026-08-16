@@ -482,7 +482,6 @@ func (p *Plugin) updateDomain(ctx context.Context, input *UpdateDomainInput) (*U
 	}
 	dom.Note = input.Body.Note
 	dom.ZoneID = input.Body.ZoneID
-	// Apply master switches when explicitly provided.
 	if input.Body.ForLink != nil {
 		dom.ForLink = *input.Body.ForLink
 	}

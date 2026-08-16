@@ -32,7 +32,6 @@ func New(redisURL string) Cache {
 	}
 
 	client := redis.NewClient(opts)
-	// Quick ping to check if Redis is up
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := client.Ping(ctx).Err(); err != nil {

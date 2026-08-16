@@ -10,7 +10,7 @@
 
 拥有一套独立域名？Octarq 能直接为你省去三份 SaaS 账单：**带数据分析的短链接、邮件收发与路由、DNS 自动化管理** —— 每一项都作为一等插件交付，而非死板的功能硬编码。你可以像官方核心一样扩展它：**一个轻量的 Go 接口 + 一个 React 页面 = 一个全新的后台工具**。并且由于 Octarq 原生支持 **MCP**，你编写的每一个插件都能被 AI Agent（如 Claude Code、Cursor、Claude Desktop）直接驱动。
 
-> 单二进制。无 CGO。默认 SQLite 存储。嵌入式 React 控制面板 (`go:embed`)。无需 Fork 自由扩展。
+> 单二进制。无 CGO。默认 SQLite 存储。嵌入式 React 管理后台 (`go:embed`)。无需 Fork 自由扩展。
 
 <p align="center">
   <img src="docs/assets/octarq-demo.gif" alt="Octarq agent-native 演示 —— 在终端里通过 MCP 驱动每一个插件" width="720">
@@ -68,7 +68,7 @@ docker run -p 8080:8080 -v octarq-data:/data octarq/octarq
 
 首次启动时 Octarq 会自动生成密钥与初始 `admin` 密码(两者都持久化在 `/data`,并在日志里打印一次),默认用 SQLite 起来。打开 `http://localhost:8080`,从容器日志里拿到密码即可登录。邮件、DNS、GeoIP 全部 opt-in —— 之后在 **设置** 里配置,启动时什么都不需要。
 
-这就是完整栈 —— 控制面板、API、重定向器、MCP —— 统一运行在单个容器中。想自己管理密钥/密码时,再显式设置 `OCTARQ_SECRET_KEY` / `OCTARQ_ADMIN_PASSWORD`(见 `.env.example` 与 `docker compose`)。
+这就是完整栈 —— 管理后台、API、重定向器、MCP —— 统一运行在单个容器中。想自己管理密钥/密码时,再显式设置 `OCTARQ_SECRET_KEY` / `OCTARQ_ADMIN_PASSWORD`(见 `.env.example` 与 `docker compose`)。
 
 偏好约 19MB 的 `scratch` 极轻量镜像或源码构建？参阅 `make release` 与 [`deploy/`](deploy/)。
 
@@ -92,7 +92,6 @@ func (Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 export const helloPlugin: UIPlugin = {
   name: "hello",
   routes: [{ path: "/hello", Component: lazy(() => import("./Page")) }],
-  menu:  [{ id: "hello", label: "Hello", path: "/hello", icon: "👋", category: "Workspace" }],
 };
 ```
 
@@ -147,7 +146,7 @@ go test ./... -race
 - [wr.do](https://github.com/oiov/wr.do),
 - [dub](https://github.com/dubinc/dub),
 
-以及由以下项目设立的极致开发者体验 (DX) 标准：
+以及由以下项目设立的开发者体验 (DX) 标准：
 - [PocketBase](https://github.com/pocketbase/pocketbase).
 
 ## 开源协议

@@ -21,7 +21,6 @@ When developers self-host software today, they shouldn't need a Kubernetes clust
 
 By building on **Go** and pure-Go **SQLite** (with Postgres driver support), Octarq compiles into a single static binary. 
 - **Zero-config startup**: Running `docker run -p 8080:8080 -v octarq-data:/data octarq/octarq` auto-generates secret keys and admin credentials on first boot.
-- **Low footprint**: Starts in under 15ms and consumes under 30MB of RAM.
 - **Data Sovereignty**: All SQLite/Postgres data remains under the operator's physical control.
 
 ---
@@ -102,10 +101,6 @@ Octarq maintains strict **OSS Purity**:
 ---
 
 ## Summary
-
-Rewriting a SaaS stack into a Go plugin framework delivered the best of both worlds: the simplicity and performance of a compiled single-binary, combined with the modularity and extensibility of enterprise software.
-
-Whether self-hosting on a $5/mo VPS or scaling across multi-tenant Cloud nodes, Octarq lets you **own your stack**.
 
 - Explore the code on [GitHub](https://github.com/octarq-org/octarq)
 - Read the [Documentation](/quickstart/)

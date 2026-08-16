@@ -270,7 +270,6 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 		p.recordUsage(mb.OrgID, usagemetric.MailIn, 1)
 	}
 
-	// Trigger Webhook Event Bus
 	eventbus.Publish(mb.OrgID, "email.receive", map[string]any{
 		"emailId":    e.ID,
 		"mailboxId":  mb.ID,
@@ -462,7 +461,6 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 		return nil, huma.Error400BadRequest("read body")
 	}
 
-	// Check for AWS SNS wrapped payload
 	var snsWrap map[string]any
 	if err := json.Unmarshal(body, &snsWrap); err == nil {
 		if snsType, ok := snsWrap["Type"].(string); ok {
@@ -517,7 +515,6 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 
 		processedCount++
 
-		// Write Audit Log
 		meta := map[string]any{
 			"address": ev.Email,
 			"event":   ev.Event,
@@ -538,7 +535,6 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 			IP:         ip,
 		})
 
-		// Check for suppression list entry (Hard bounce or Complaint)
 		shouldSuppress := false
 		reason := ""
 		if ev.Event == "complaint" {
@@ -573,7 +569,6 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 			}
 		}
 
-		// Send alert (notifications)
 		alertText := fmt.Sprintf("⚠️ Email reputation event: Mailbox %s experienced a %s event. Details: %s", mb.Address, ev.Event, ev.Details)
 		var channels []models.NotificationChannel
 		p.db.Where("owner_id = ? AND enabled = ?", mb.OrgID, true).Find(&channels)

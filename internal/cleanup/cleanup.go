@@ -76,14 +76,12 @@ func Start(ctx context.Context, retentionDays func() int, cleanups ...func(ctx c
 func StartSessionCleanup(ctx context.Context, db *gorm.DB, retentionDays func() int) {
 	purge := func() {
 		now := time.Now()
-		// Expired sessions
 		res := db.Where("expires_at < ?", now).Delete(&models.Session{})
 		if res.Error != nil {
 			log.Printf("cleanup: purge expired sessions: %v", res.Error)
 		} else if res.RowsAffected > 0 {
 			log.Printf("cleanup: purged %d expired sessions", res.RowsAffected)
 		}
-		// Audit logs older than the retention window
 		pruneAuditLogs(db, retentionDays())
 	}
 

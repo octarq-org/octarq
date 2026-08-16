@@ -544,14 +544,12 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 func (p *Plugin) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 	orgID := p.orgID(r)
 
-	// Determine the short link domain host
 	var doms []dns.Domain
 	p.db.Where("owner_id = ? AND for_link = ?", orgID, true).Find(&doms)
 	shortHost := r.Host
 	if len(doms) > 0 {
 		shortHost = doms[0].Name
 	}
-	// Strip port from host
 	if idx := strings.IndexByte(shortHost, ':'); idx >= 0 {
 		shortHost = shortHost[:idx]
 	}
@@ -561,13 +559,10 @@ func (p *Plugin) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 		scheme = "https"
 	}
 
-	// Regex for HTTP/HTTPS links
 	reLink := regexp.MustCompile(`https?://[a-zA-Z0-9.\-_~%#?&=/]+`)
 
-	// Map to track wrapped URLs in this email
 	urlMap := make(map[string]string)
 
-	// Helper to process a text body
 	processBody := func(body string) string {
 		return reLink.ReplaceAllStringFunc(body, func(rawURL string) string {
 			// Clean trailing punctuation that might be captured by regex in plain text
@@ -597,12 +592,10 @@ func (p *Plugin) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 				return rawURL
 			}
 
-			// Check if we already wrapped this URL in this email
 			if cached, ok := urlMap[cleanURL]; ok {
 				return cached + suffix
 			}
 
-			// Generate a unique slug
 			var slug string
 			for i := 0; i < 5; i++ {
 				slug = models.RandomSlug(6)
@@ -615,7 +608,6 @@ func (p *Plugin) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 				}
 			}
 
-			// Create the link record
 			link := links.Link{
 				OrgID:   orgID,
 				Host:    "", // host-agnostic
