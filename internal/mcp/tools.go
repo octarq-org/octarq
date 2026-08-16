@@ -57,14 +57,14 @@ func (s *server) exportData(ctx context.Context, _ *mcp.CallToolRequest, in expo
 		return nil, nil, errNoOrgInContext
 	}
 	if s.lookup != nil {
-		if v, ok := s.lookup(in.Resource + ".mcp_export"); ok {
-			if fn, ok := v.(func(ctx context.Context, orgID uint) (any, error)); ok {
-				res, err := fn(ctx, orgID)
-				if err != nil {
-					return nil, nil, err
-				}
-				return jsonResultAny(res)
+		// A resource whose plugin isn't mounted falls through to the
+		// unknown-resource reply below; see plugin.MCPExporter.
+		if fn, ok := plugin.LookupServiceAs[plugin.MCPExporter](s.lookup, plugin.MCPExportServiceName(in.Resource)); ok {
+			res, err := fn(ctx, orgID)
+			if err != nil {
+				return nil, nil, err
 			}
+			return jsonResultAny(res)
 		}
 	}
 	return &mcp.CallToolResult{

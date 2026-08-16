@@ -62,6 +62,14 @@ func PurgeServiceName(pluginName string) string {
 	return pluginName + ".purge"
 }
 
+// MCPExportServiceName returns the well-known "<resource>.mcp_export" service
+// name under which a plugin provides that resource's MCP export (contract type
+// MCPExporter). The key is the RESOURCE, not the plugin: mail provides both
+// "emails" and "mailboxes", dns provides "domains".
+func MCPExportServiceName(resource string) string {
+	return resource + ".mcp_export"
+}
+
 // OverviewServiceName returns the well-known "<pluginName>.overview" service
 // name under which a plugin provides its overview statistics (contract type
 // OverviewFunc). The app looks every registered plugin's overview service up
@@ -155,3 +163,15 @@ type LinkResolver func(host, slug string) (target string, orgID uint, ok bool)
 // ServiceMailEmailGet. Changing this signature breaks the contract: provider
 // and the app must change together.
 type EmailGetter func(orgID uint, id uint) (from, subject, body string, ok bool)
+
+// MCPExporter is the cross-plugin contract for exporting one resource through
+// the MCP export tool. It is keyed by RESOURCE, not by plugin name — the mail
+// plugin provides two ("emails", "mailboxes") — so providers register it under
+// MCPExportServiceName(resource).
+//
+// A signature drift fails silently and confusingly: the lookup succeeds, the
+// type assertion does not, and the tool answers "unknown resource" for a
+// resource that is in fact mounted. Changing this signature breaks the
+// contract: every provider and the MCP server must change together, which the
+// explicit conversion at the Provide call site enforces at compile time.
+type MCPExporter func(ctx context.Context, orgID uint) (any, error)
