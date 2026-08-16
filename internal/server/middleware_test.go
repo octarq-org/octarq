@@ -1,10 +1,17 @@
 package server
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/octarq-org/octarq/webembed"
 )
 
 func okHandler(w http.ResponseWriter, r *http.Request) {
@@ -257,4 +264,77 @@ func TestTierForV1AliasKeepsStrictTier(t *testing.T) {
 	if got := tierFor(httptest.NewRequest("POST", "/api/v1/auth/login", nil)); got != tierAuth {
 		t.Errorf("tierFor(POST /api/v1/auth/login) = %d, want tierAuth (%d)", got, tierAuth)
 	}
+}
+
+// TestSecurityHeadersCSP pins the CSP contract that keeps XSS from becoming
+// code execution: script-src must NOT carry 'unsafe-inline', while style-src
+// MUST keep it (Tailwind injects its stylesheet at runtime and removing it
+// blanks the dashboard).
+//
+// The allowed inline scripts are the two the dashboard genuinely ships in
+// index.html (the synchronous theme toggle and the campaign-forwarding
+// snippet). Their build-time SHA-256 hashes must be present in script-src,
+// recomputed here from the actually-embedded dist — so if a frontend build
+// ever refreshes those inline scripts without updating contentSecurityPolicy,
+// this test fails instead of letting the browser silently block them.
+func TestSecurityHeadersCSP(t *testing.T) {
+	rec := httptest.NewRecorder()
+	setSecurityHeaders(rec, httptest.NewRequest("GET", "/", nil))
+	csp := rec.Header().Get("Content-Security-Policy")
+	if csp == "" {
+		t.Fatal("missing Content-Security-Policy header")
+	}
+
+	scriptSrc := cspDirective(csp, "script-src")
+	if strings.Contains(scriptSrc, "'unsafe-inline'") {
+		t.Errorf("script-src must not contain 'unsafe-inline', got %q", scriptSrc)
+	}
+	styleSrc := cspDirective(csp, "style-src")
+	if !strings.Contains(styleSrc, "'unsafe-inline'") {
+		t.Errorf("style-src must keep 'unsafe-inline' (Tailwind), got %q", styleSrc)
+	}
+
+	idx, err := webembed.FS()
+	if err != nil {
+		t.Fatalf("webembed.FS: %v", err)
+	}
+	raw, err := fs.ReadFile(idx, "index.html")
+	if err != nil {
+		t.Fatalf("read embedded index.html: %v", err)
+	}
+	hashes := inlineScriptHashes(string(raw))
+	if len(hashes) == 0 {
+		t.Fatal("no inline scripts found in embedded index.html; CSP hashes would be dead weight")
+	}
+	for _, h := range hashes {
+		if !strings.Contains(scriptSrc, "'"+h+"'") {
+			t.Errorf("script-src missing %s for an inline script in the served index.html; regenerate contentSecurityPolicy", h)
+		}
+	}
+}
+
+// cspDirective extracts a single directive (everything after "name ") from a
+// semicolon-joined Content-Security-Policy value.
+func cspDirective(csp, name string) string {
+	for _, d := range strings.Split(csp, ";") {
+		d = strings.TrimSpace(d)
+		if strings.HasPrefix(d, name+" ") {
+			return strings.TrimPrefix(d, name+" ")
+		}
+	}
+	return ""
+}
+
+// inlineScriptHashes returns "sha256-<base64>" for every inline <script> block
+// (script tags without attributes) in the given HTML. Vite preserves these
+// verbatim in the build, so hashing the served file matches what the browser
+// will actually check against the CSP.
+func inlineScriptHashes(html string) []string {
+	re := regexp.MustCompile(`(?s)<script>([\s\S]*?)</script>`)
+	var out []string
+	for _, m := range re.FindAllStringSubmatch(html, -1) {
+		sum := sha256.Sum256([]byte(m[1]))
+		out = append(out, "sha256-"+base64.StdEncoding.EncodeToString(sum[:]))
+	}
+	return out
 }

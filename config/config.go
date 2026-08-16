@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"strings"
 )
@@ -77,6 +78,56 @@ type Config struct {
 	// CORS entirely (today's behaviour). Never "*" — and even the configured
 	// origins never get credentials.
 	PublicCORSOrigins string
+
+	// LogLevel is the slog severity threshold for the process-wide default
+	// logger: "debug", "info", "warn", or "error". Set via OCTARQ_LOG_LEVEL.
+	// An unrecognised value is a fatal startup error (like OCTARQ_DB_DRIVER),
+	// never a silent fallback — a typo that downgrades to info would quietly
+	// silence ops debugging. Empty means "info".
+	LogLevel string
+}
+
+// validLogLevels is the vocabulary OCTARQ_LOG_LEVEL accepts. Keeping the list
+// here makes the config package the single owner of what "a log level is".
+var validLogLevels = map[string]bool{
+	"debug": true,
+	"info":  true,
+	"warn":  true,
+	"error": true,
+}
+
+// slogsByLevel maps the OCTARQ_LOG_LEVEL vocabulary to slog severity levels so
+// the process logger and the config value can never disagree.
+var slogsByLevel = map[string]slog.Level{
+	"debug": slog.LevelDebug,
+	"info":  slog.LevelInfo,
+	"warn":  slog.LevelWarn,
+	"error": slog.LevelError,
+}
+
+// normalizeLogLevel trims and case-folds an OCTARQ_LOG_LEVEL value; an empty
+// (set-but-blank) value behaves like an unset one and resolves to the default
+// "info". Shared by Load and LogLevel so the two can never disagree.
+func normalizeLogLevel(v string) string {
+	v = strings.ToLower(strings.TrimSpace(v))
+	if v == "" {
+		return "info"
+	}
+	return v
+}
+
+// LogLevel resolves OCTARQ_LOG_LEVEL to the slog severity threshold for the
+// process default logger. It is read eagerly (before config.Load) because the
+// logger is a process-wide singleton configured in main; config.Load validates
+// the same value again for any code that reads Config.LogLevel. An unknown
+// value is an error that names the variable — never a silent downgrade to a
+// quieter level that would swallow the very logs the operator is reaching for.
+func LogLevel() (slog.Level, error) {
+	l, ok := slogsByLevel[normalizeLogLevel(env("OCTARQ_LOG_LEVEL", "info"))]
+	if !ok {
+		return slog.LevelInfo, fmt.Errorf("OCTARQ_LOG_LEVEL must be debug, info, warn or error, got %q", normalizeLogLevel(env("OCTARQ_LOG_LEVEL", "info")))
+	}
+	return l, nil
 }
 
 func env(key, def string) string {
@@ -163,9 +214,14 @@ func Load() (*Config, error) {
 		RedisURL: env("OCTARQ_REDIS_URL", ""),
 
 		PublicCORSOrigins: env("OCTARQ_CORS_ORIGINS", ""),
+
+		LogLevel: normalizeLogLevel(env("OCTARQ_LOG_LEVEL", "info")),
 	}
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" {
 		return nil, fmt.Errorf("OCTARQ_DB_DRIVER must be sqlite or postgres, got %q", c.DBDriver)
+	}
+	if c.LogLevel != "info" && !validLogLevels[c.LogLevel] {
+		return nil, fmt.Errorf("OCTARQ_LOG_LEVEL must be debug, info, warn or error, got %q", c.LogLevel)
 	}
 	// Zero-config boot: when the secret key and/or admin password are absent,
 	// generate and persist them next to the database so `docker run` needs no

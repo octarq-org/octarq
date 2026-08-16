@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/octarq-org/octarq/app"
+	"github.com/octarq-org/octarq/config"
 	hello "github.com/octarq-org/octarq/examples/plugin-hello"
 	"github.com/octarq-org/octarq/internal/buildinfo"
 	"github.com/octarq-org/octarq/internal/mcp"
@@ -31,8 +32,14 @@ import (
 
 func main() {
 	// Structured JSON logging for the whole process. Edge access logs and the
-	// app lifecycle logs both flow through this default logger.
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
+	// app lifecycle logs both flow through this default logger. The severity
+	// threshold is operator-configurable via OCTARQ_LOG_LEVEL.
+	level, err := config.LogLevel()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
 
 	// Print build metadata and exit. Version/commit are injected at build time
 	// (see Makefile's LDFLAGS); outside a git checkout they degrade to dev /

@@ -1,6 +1,9 @@
 package config
 
 import (
+	"context"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -220,5 +223,87 @@ KEY4=value4 # another comment
 
 	if err := loadDotEnv("nonexistent_dotenv_file"); err != nil {
 		t.Errorf("loadDotEnv on missing file returned error: %v", err)
+	}
+}
+
+// setLevelEnv is the common environment for the log-level tests: a plain
+// sqlite dev boot whose only variable is the log level under test.
+func setLevelEnv(t *testing.T) {
+	t.Helper()
+	dir := t.TempDir()
+	t.Setenv("OCTARQ_SECRET_KEY", "0123456789abcdef0123456789abcdef")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
+	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
+	t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
+}
+
+// TestLoadLogLevel checks OCTARQ_LOG_LEVEL is read and normalised
+// (case/whitespace-insensitive), defaulting to info.
+func TestLoadLogLevel(t *testing.T) {
+	cases := []struct {
+		env  string
+		want string
+	}{
+		{"", "info"},
+		{"debug", "debug"},
+		{"INFO", "info"},
+		{"  warn  ", "warn"},
+		{"error", "error"},
+	}
+	for _, tc := range cases {
+		t.Run("env="+tc.env, func(t *testing.T) {
+			setLevelEnv(t)
+			t.Setenv("OCTARQ_LOG_LEVEL", tc.env)
+			cfg, err := Load()
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if cfg.LogLevel != tc.want {
+				t.Errorf("LogLevel = %q, want %q", cfg.LogLevel, tc.want)
+			}
+		})
+	}
+}
+
+// TestLoadRejectsBadLogLevel pins the chosen invalid-value semantics: an
+// unrecognised OCTARQ_LOG_LEVEL is a fatal startup error that names the
+// variable, mirroring OCTARQ_DB_DRIVER's handling — never a silent fallback.
+func TestLoadRejectsBadLogLevel(t *testing.T) {
+	setLevelEnv(t)
+	t.Setenv("OCTARQ_LOG_LEVEL", "noisy")
+	_, err := Load()
+	if err == nil {
+		t.Fatal("expected a refusal to start for an unsupported log level")
+	}
+	if !strings.Contains(err.Error(), "OCTARQ_LOG_LEVEL") {
+		t.Errorf("error must name the offending variable, got: %v", err)
+	}
+}
+
+// TestLogLevelFeedsSlogLogger is the behavioural half of the guard: the level
+// resolved from OCTARQ_LOG_LEVEL must actually gate the slog logger, so that
+// with OCTARQ_LOG_LEVEL=error an info statement is dropped, and an unknown
+// value must surface as an error (never silently downgrade to a level that
+// would swallow the very debug logs the operator is reaching for).
+func TestLogLevelFeedsSlogLogger(t *testing.T) {
+	t.Setenv("OCTARQ_LOG_LEVEL", "error")
+	level, err := LogLevel()
+	if err != nil {
+		t.Fatalf("LogLevel: %v", err)
+	}
+	h := slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: level})
+	logger := slog.New(h)
+	if logger.Enabled(context.Background(), slog.LevelInfo) {
+		t.Error("OCTARQ_LOG_LEVEL=error must drop info-level statements")
+	}
+	if !logger.Enabled(context.Background(), slog.LevelError) {
+		t.Error("OCTARQ_LOG_LEVEL=error must keep error-level statements")
+	}
+
+	t.Setenv("OCTARQ_LOG_LEVEL", "bogus")
+	if _, lerr := LogLevel(); lerr == nil {
+		t.Fatal("LogLevel() with an unknown value must error, not silently default")
+	} else if !strings.Contains(lerr.Error(), "OCTARQ_LOG_LEVEL") {
+		t.Errorf("error must name the variable, got: %v", lerr)
 	}
 }
