@@ -60,6 +60,7 @@ export const zh: Resources = {
     password: "密码",
     passwordRegisterPlaceholder: "至少 8 个字符",
     authCode: "验证码",
+    twoFactorOAuthDesc: "您的账号已启用双重验证。请输入身份验证器应用中的验证码以完成登录。",
     authCodePlaceholder: "6 位验证码或恢复码",
     creating: "创建中…",
     signingIn: "登录中…",

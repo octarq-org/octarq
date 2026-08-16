@@ -59,6 +59,7 @@ export const pt = {
     password: "Senha",
     passwordRegisterPlaceholder: "Pelo menos 8 caracteres",
     authCode: "Código de autenticação",
+    twoFactorOAuthDesc: "Sua conta tem a autenticação de dois fatores ativada. Insira um código do seu aplicativo autenticador para concluir o login.",
     authCodePlaceholder: "Código de 6 dígitos ou código de recuperação",
     creating: "Criando…",
     signingIn: "Entrando…",

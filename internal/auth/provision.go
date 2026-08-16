@@ -111,6 +111,15 @@ func (m *Manager) LoginByEmail(w http.ResponseWriter, r *http.Request, email str
 	if err != nil {
 		return 0, err
 	}
+	// Second factor: same deliberate skip as LoginByIdentity (R3-twofa
+	// decision 2). This method's only callers are identity plugins that have
+	// already verified the email against an external source — audit of the
+	// call sites as of the fix: app.App.loginByEmail, the sole wire for
+	// plugin.Context.LoginByEmail; no other caller exists in-repo or in
+	// octarq-pro. There is no admin-impersonation path to force TOTP on.
+	if m.userHasTOTP(uid) {
+		m.auditSSOTOTPBypass(r, orgID, uid, "email", "", "")
+	}
 	m.SetSessionFromRequest(r, w, uid, orgID)
 	return uid, nil
 }
