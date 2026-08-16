@@ -14,6 +14,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugin"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -48,14 +49,12 @@ func (h *Handler) primaryOrgForUser(userID uint) uint {
 // sendPasswordResetEmail best-effort delivers a password reset link to the user.
 func (h *Handler) sendPasswordResetEmail(userID uint, to, resetURL string) {
 	orgID := h.primaryOrgForUser(userID)
-	if sendMail, ok := h.LookupService("mail.send"); ok {
-		if fn, ok := sendMail.(func(orgID uint, to, subject, htmlBody, textBody string) error); ok {
-			text := fmt.Sprintf("Reset your password for octarq:\n\n%s\n\nThis link expires in 1 hour.", resetURL)
-			if err := fn(orgID, to, "Reset your octarq password", "", text); err != nil {
-				log.Printf("password reset email to %s failed: %v", to, err)
-			}
-			return
+	if fn, ok := plugin.LookupServiceAs[plugin.MailSender](h.LookupService, plugin.ServiceMailSend); ok {
+		text := fmt.Sprintf("Reset your password for octarq:\n\n%s\n\nThis link expires in 1 hour.", resetURL)
+		if err := fn(orgID, to, "Reset your octarq password", "", text); err != nil {
+			log.Printf("password reset email to %s failed: %v", to, err)
 		}
+		return
 	}
 	log.Printf("password reset email skipped for %s: mail plugin not mounted", to)
 }
@@ -63,14 +62,12 @@ func (h *Handler) sendPasswordResetEmail(userID uint, to, resetURL string) {
 // sendVerificationEmail best-effort delivers an email verification link to the user.
 func (h *Handler) sendVerificationEmail(userID uint, to, verifyURL string) {
 	orgID := h.primaryOrgForUser(userID)
-	if sendMail, ok := h.LookupService("mail.send"); ok {
-		if fn, ok := sendMail.(func(orgID uint, to, subject, htmlBody, textBody string) error); ok {
-			text := fmt.Sprintf("Verify your email address for octarq:\n\n%s\n\nThis link expires in 24 hours.", verifyURL)
-			if err := fn(orgID, to, "Verify your octarq email", "", text); err != nil {
-				log.Printf("verification email to %s failed: %v", to, err)
-			}
-			return
+	if fn, ok := plugin.LookupServiceAs[plugin.MailSender](h.LookupService, plugin.ServiceMailSend); ok {
+		text := fmt.Sprintf("Verify your email address for octarq:\n\n%s\n\nThis link expires in 24 hours.", verifyURL)
+		if err := fn(orgID, to, "Verify your octarq email", "", text); err != nil {
+			log.Printf("verification email to %s failed: %v", to, err)
 		}
+		return
 	}
 	log.Printf("verification email skipped for %s: mail plugin not mounted", to)
 }

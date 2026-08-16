@@ -38,6 +38,11 @@ var (
 	_ plugin.Starter      = (*Plugin)(nil)
 )
 
+// Compile-time service contract assertion: cleanupEvents is provided to the
+// registry under plugin.CleanupFunc in Mount. A signature drift here fails the
+// build instead of silently breaking the app's cleanup collector.
+var _ plugin.CleanupFunc = (*Plugin)(nil).cleanupEvents
+
 func New() *Plugin {
 	return &Plugin{}
 }
@@ -153,7 +158,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		ctx.Provide("links.export", p.exportData)
 		ctx.Provide("links.resolve", p.resolveSlug)
 		ctx.Provide("links.create", plugin.LinkCreator(p))
-		ctx.Provide("links.cleanup", p.cleanupEvents)
+		ctx.Provide("links.cleanup", plugin.CleanupFunc(p.cleanupEvents))
 		ctx.Provide("links.mcp_export", p.mcpExportLinks)
 		ctx.Provide("links.trust_proxy", SetTrustProxy)
 	}

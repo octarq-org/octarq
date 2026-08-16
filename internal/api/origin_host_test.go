@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugin"
 	"github.com/octarq-org/octarq/plugins/dns"
 	"gorm.io/gorm"
 )
@@ -23,12 +24,12 @@ func originTestServer(t *testing.T, domains ...dns.Domain) (http.Handler, *gorm.
 	h, srv, db := newTestHandlerRaw(t)
 
 	var sent []string
-	send := func(orgID uint, to, subject, htmlBody, textBody string) error {
+	send := plugin.MailSender(func(orgID uint, to, subject, htmlBody, textBody string) error {
 		sent = append(sent, textBody)
 		return nil
-	}
+	})
 	h.SetServiceLookup(func(name string) (any, bool) {
-		if name == "mail.send" {
+		if name == plugin.ServiceMailSend {
 			return send, true
 		}
 		return nil, false

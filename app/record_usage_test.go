@@ -69,11 +69,10 @@ func TestRecordUsageLazyResolution(t *testing.T) {
 	var capturedN int64
 
 	recordUsageFn := func(orgID uint, metric string, n int64) {
-		// Lazily resolved: mock what app.go RecordUsage closure does
-		if v, ok := reg.Lookup("cloud.usage"); ok {
-			if fn, ok := v.(func(orgID uint, metric string, n int64)); ok {
-				fn(orgID, metric, n)
-			}
+		// Lazily resolved: the same LookupServiceAs path app.go's RecordUsage
+		// closure uses, through the named contract type.
+		if fn, ok := plugin.LookupServiceAs[plugin.UsageMeter](reg.Lookup, plugin.ServiceCloudUsage); ok {
+			fn(orgID, metric, n)
 		}
 	}
 
@@ -83,12 +82,13 @@ func TestRecordUsageLazyResolution(t *testing.T) {
 		t.Fatal("expected no-op when cloud.usage is not provided")
 	}
 
-	// 2. Register service after plugin mount
-	reg.Provide("cloud.usage", func(orgID uint, metric string, n int64) {
+	// 2. Register service after plugin mount, converted to the named contract
+	// type exactly as the Pro cloud module provider does.
+	reg.Provide(plugin.ServiceCloudUsage, plugin.UsageMeter(func(orgID uint, metric string, n int64) {
 		capturedOrgID = orgID
 		capturedMetric = metric
 		capturedN = n
-	})
+	}))
 
 	// 3. Call after provide -> resolves lazily and invokes target
 	recordUsageFn(42, "links", 5)

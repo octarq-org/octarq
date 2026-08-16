@@ -94,11 +94,28 @@ func (r *Registry) Err() error {
 //		_ plugin.Starter = (*Plugin)(nil)
 //	)
 func LookupAs[T any](ctx *Context, name string) (T, bool) {
-	var zero T
 	if ctx == nil || ctx.Lookup == nil {
+		var zero T
 		return zero, false
 	}
-	svc, ok := ctx.Lookup(name)
+	return LookupServiceAs[T](ctx.Lookup, name)
+}
+
+// LookupServiceAs is the underlying form of LookupAs, for callers that hold a
+// lookup func (a *Registry, or a Handler's LookupService) instead of a
+// *Context — e.g. the app assembly layer. It resolves name via lookup and
+// type-asserts the result to T, returning (zero, false) when the service is
+// absent or has a different type, or when lookup is nil. LookupAs delegates to
+// it so there is exactly one assertion implementation. Pair it with a named
+// contract type declared in this package (MailSender, EmailDispatcher, …) so a
+// provider signature drift fails at the Provide call site instead of silently
+// failing this assertion at runtime.
+func LookupServiceAs[T any](lookup func(name string) (any, bool), name string) (T, bool) {
+	var zero T
+	if lookup == nil {
+		return zero, false
+	}
+	svc, ok := lookup(name)
 	if !ok {
 		return zero, false
 	}
