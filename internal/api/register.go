@@ -124,7 +124,10 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 	}
 
 	verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.origin(r), rawToken)
-	h.sendVerificationEmail(user.ID, email, verifyURL)
+	// Sent before the org/membership transaction below: at this point the user
+	// belongs to no workspace, so the email goes through the instance's system
+	// sender — an org-scoped sender lookup would find nothing and drop the mail.
+	h.sendVerificationEmail(email, verifyURL)
 
 	slug, err := models.AllocateOrgSlug(h.db)
 	if err != nil {

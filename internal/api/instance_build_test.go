@@ -39,6 +39,26 @@ func TestInstanceBuildNotPublicPinned(t *testing.T) {
 	}
 }
 
+// TestInstanceBuildRequiresInstanceAdmin pins the audit finding: build info
+// used to be readable by any logged-in tenant member, which fingerprints a
+// self-hosted instance for CVE-version scanning just one login further in than
+// the anonymous case. A plain member gets 403; the bootstrap admin gets 200.
+func TestInstanceBuildRequiresInstanceAdmin(t *testing.T) {
+	_, srv, db := newTestHandlerRaw(t)
+
+	const org = uint(101)
+	memberUID := seedOrgMember(t, db, org, "member@x.com", "member")
+	req := httptest.NewRequest(http.MethodGet, "/api/instance/build", nil)
+	for _, c := range sessionCookies(t, memberUID, org) {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("member GET /api/instance/build: expected 403, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 // TestInstanceBuildAuthenticated verifies the route serves its payload to a
 // logged-in caller. The values themselves are build-time injection, so the
 // test pins shape and non-empty fields, not specific strings.

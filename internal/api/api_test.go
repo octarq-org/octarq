@@ -82,6 +82,14 @@ func disableEmailVerification(t *testing.T, db *gorm.DB) {
 // exercise handler methods directly rather than over HTTP.
 func newTestHandlerRaw(t *testing.T) (*Handler, http.Handler, *gorm.DB) {
 	t.Helper()
+	return newTestHandlerRawCfg(t, &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"})
+}
+
+// newTestHandlerRawCfg is newTestHandlerRaw with an explicit config, for tests
+// that need sentinel values (e.g. proving a response omits secrets) or a
+// specific driver/DSN the default handler cannot express.
+func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Handler, *gorm.DB) {
+	t.Helper()
 	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
 	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
 	if err != nil {
@@ -94,7 +102,6 @@ func newTestHandlerRaw(t *testing.T) (*Handler, http.Handler, *gorm.DB) {
 	db.Where("1 = 1").Delete(&models.Token{})
 	db.Where("1 = 1").Delete(&links.Link{})
 
-	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
 	cipher := crypto.New(cfg.SecretKey)
 	if err := cipher.EnableEnvelope(apiEnvStore{db}); err != nil {
 		t.Fatalf("EnableEnvelope: %v", err)

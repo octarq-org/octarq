@@ -63,7 +63,7 @@ func TestReadinessReportOmitsSecrets(t *testing.T) {
 	cfg.DBDriver = "postgres"
 	cfg.DBDSN = "postgres://octarq:" + dsnPassword + "@db.internal:5432/octarq"
 
-	out := reportText(readinessReport(cfg, true, true))
+	out := reportText(readinessReport(cfg, true, true, true))
 	if out == "" {
 		t.Fatal("readinessReport produced no output; the leak assertion below would be vacuous")
 	}
@@ -92,7 +92,7 @@ func TestReadinessReportFlagsSilentFailures(t *testing.T) {
 
 	degraded := map[string]readinessLine{}
 	statuses := map[string]readinessStatus{}
-	for _, l := range readinessReport(cfg, false, false) {
+	for _, l := range readinessReport(cfg, false, false, true) {
 		statuses[l.Subject] = l.Status
 		if l.Status == readyDegraded {
 			degraded[l.Subject] = l
@@ -123,7 +123,7 @@ func TestReadinessReportHealthyInstance(t *testing.T) {
 		"OCTARQ_DB_DRIVER": "postgres",
 		"OCTARQ_DB_DSN":    "postgres://octarq@db.internal:5432/octarq",
 	})
-	for _, l := range readinessReport(cfg, true, true) {
+	for _, l := range readinessReport(cfg, true, true, true) {
 		if l.Status != readyOK {
 			t.Errorf("healthy instance reported %q for %q: %s", l.Status, l.Subject, l.Detail)
 		}
@@ -198,7 +198,7 @@ func TestEnforceSecretKeyFloor(t *testing.T) {
 		cfgShort := loadReadinessConfig(t, map[string]string{
 			"OCTARQ_SECRET_KEY": shortKey,
 		})
-		linesRegShort := readinessReport(cfgShort, true, true)
+		linesRegShort := readinessReport(cfgShort, true, true, true)
 		var statusRegShort readinessStatus
 		for _, l := range linesRegShort {
 			if l.Subject == "secret key" {
@@ -210,7 +210,7 @@ func TestEnforceSecretKeyFloor(t *testing.T) {
 		}
 
 		// 2) Unregistered + short key -> readyDev
-		linesUnregShort := readinessReport(cfgShort, true, false)
+		linesUnregShort := readinessReport(cfgShort, true, false, true)
 		var statusUnregShort readinessStatus
 		for _, l := range linesUnregShort {
 			if l.Subject == "secret key" {
@@ -225,7 +225,7 @@ func TestEnforceSecretKeyFloor(t *testing.T) {
 		cfgLong := loadReadinessConfig(t, map[string]string{
 			"OCTARQ_SECRET_KEY": longKey,
 		})
-		linesLong := readinessReport(cfgLong, true, true)
+		linesLong := readinessReport(cfgLong, true, true, true)
 		var statusLong readinessStatus
 		for _, l := range linesLong {
 			if l.Subject == "secret key" {
