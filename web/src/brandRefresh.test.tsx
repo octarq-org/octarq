@@ -36,11 +36,28 @@ function cfg(over: Partial<Cfg>): Cfg & typeof BASE {
 // The api spy has to be installed AFTER resetModules and on the freshly imported
 // api object — spying the outer instance leaves the reloaded brand.tsx holding a
 // different module, and the test makes real network calls instead.
+//
+// Responses come from an explicit queue rather than stacked mockResolvedValueOnce
+// entries: once that queue is empty, mockResolvedValueOnce silently falls back to
+// the REAL authConfig — a live fetch to /api/auth/config — and the failure turns
+// machine-dependent (a local proxy hang, a CI refusal) instead of a test failure.
+// The queue throws synchronously instead, which also matters because brand.tsx's
+// load() swallows async rejections via `.catch()`: only a synchronous throw
+// surfaces through refreshBrand() to name the missing response.
 async function freshBrand(...responses: Array<Cfg & typeof BASE>) {
   vi.resetModules();
   const { api } = await import("./api");
-  const spy = vi.spyOn(api, "authConfig");
-  for (const r of responses) spy.mockResolvedValueOnce(r);
+  const queue = [...responses];
+  const spy = vi.spyOn(api, "authConfig").mockImplementation(() => {
+    const r = queue.shift();
+    if (r === undefined) {
+      throw new Error(
+        `authConfig called more times than the test queued responses (${responses.length}) — ` +
+          "a real request to GET /api/auth/config was blocked instead",
+      );
+    }
+    return Promise.resolve(r);
+  });
   const brand = await import("./brand");
   return { ...brand, spy };
 }
