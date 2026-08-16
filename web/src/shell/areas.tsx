@@ -169,7 +169,8 @@ export function areaForPath(path: string, areas: Area[] = STATIC_AREAS): AreaId 
 export const FOOTER_PLACEMENT = "footer";
 
 // Maps a dynamic menu category to an area. Keep the keywords below in sync with
-// the Category strings plugins set in their Menus() — see docs/PLUGINS.md.
+// the Category strings plugins set in their Menus() — see
+// website/src/content/docs/writing-a-plugin.md.
 export function areaForCategory(cat?: string, pluginAreas: UIArea[] = []): AreaId {
   const c = (cat ?? "").toLowerCase();
 

@@ -80,6 +80,6 @@ octarq restore --in <backup-file> [-y | --yes]
 `backup` is on-demand only — there is no built-in scheduler and nothing runs on
 a timer. Backups happen when you make them happen: wire `octarq backup` (plus
 the key files, §1) into your cron, Kubernetes CronJob, or backup agent, and test
-a restore before you need one. The pre-launch checklist
-([`docs/PRE-LAUNCH.md`](https://github.com/octarq-org/octarq/blob/main/docs/PRE-LAUNCH.md))
-treats this as a checklist item for a reason.
+a restore before you need one. The internal pre-launch checklist
+(maintained outside this repo, `.agy-specs/PRE-LAUNCH.md`) treats this as a
+checklist item for a reason.

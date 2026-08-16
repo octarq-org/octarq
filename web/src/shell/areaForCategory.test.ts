@@ -4,8 +4,8 @@ import { areaForCategory, FOOTER_PLACEMENT } from "./areas";
 
 // A plugin places a menu by setting Category in its Go half. areaForCategory
 // resolves that string to an area id. What it may resolve *against* is the
-// contract in docs/PLUGINS.md: the area's id, or one of its declared group
-// labels.
+// contract in website/src/content/docs/writing-a-plugin.md: the area's id, or
+// one of its declared group labels.
 //
 // Title used to work too, which made a display string load-bearing: `title` is
 // what the sidebar renders and what translateAreaTitle localizes, so renaming

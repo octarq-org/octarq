@@ -2,7 +2,7 @@
 
 Thanks for helping improve octarq. This covers core contributions; if you want to
 build a **feature as a plugin** (the way Pro features and third-party extensions
-are built, with no fork), see the **[plugin development guide](docs/PLUGINS.md)**.
+are built, with no fork), see the **[plugin development guide](website/src/content/docs/writing-a-plugin.md)**.
 
 ## Toolchain
 

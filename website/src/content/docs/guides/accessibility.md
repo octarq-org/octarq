@@ -24,6 +24,12 @@ By default, Octarq uses **Base UI** (`@base-ui/react`) and **shadcn/ui** to buil
   focus-visible:ring-2 focus-visible:ring-indigo-400/60
   ```
 
+## Motion
+
+CSS animations are guarded by a `@media (prefers-reduced-motion: reduce)` block,
+and framer-motion respects user preference via `<MotionConfig reducedMotion="user">`
+in `main.tsx`. Do not add animations that cannot be disabled this way.
+
 ---
 
 ## Color Contrast (Glass Theme)

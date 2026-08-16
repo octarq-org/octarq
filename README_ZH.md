@@ -13,7 +13,7 @@
 > 单二进制。无 CGO。默认 SQLite 存储。嵌入式 React 管理后台 (`go:embed`)。无需 Fork 自由扩展。
 
 <p align="center">
-  <img src="docs/assets/octarq-demo.gif" alt="Octarq agent-native 演示 —— 在终端里通过 MCP 驱动每一个插件" width="720">
+  <img src="assets/octarq-demo.gif" alt="Octarq agent-native 演示 —— 在终端里通过 MCP 驱动每一个插件" width="720">
 </p>
 
 ---
@@ -104,7 +104,7 @@ export const helloPlugin: UIPlugin = {
 
 **几秒生成骨架** —— `octarq plugin new <name>` 直接生成可构建的 Go + web 插件骨架作为起点。
 
-**官方插件与起步模板** → [octarq-plugins](https://github.com/octarq-org/octarq-plugins)(Telegram、Webhook、agent-native 的 Mail Links demo,以及可复制的 `_template`) · **详细开发指南** → [docs/PLUGINS.md](docs/PLUGINS.md)
+**官方插件与起步模板** → [octarq-plugins](https://github.com/octarq-org/octarq-plugins)(Telegram、Webhook、agent-native 的 Mail Links demo,以及可复制的 `_template`) · **详细开发指南** → [插件编写指南](website/src/content/docs/writing-a-plugin.md)
 
 *Octarq 自己的商业 Pro 版也只是基于这同一套公开接口构建的另一组插件 —— 没有任何社区做不到的事情。*
 

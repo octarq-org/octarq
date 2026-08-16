@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 
-// Sidebar placement comes from the Go halves and nothing else (docs/PLUGINS.md):
-// a plugin's Menus() is the only source of id, path, label, category and icon.
+// Sidebar placement comes from the Go halves and nothing else
+// (website/src/content/docs/writing-a-plugin.md): a plugin's Menus() is the
+// only source of id, path, label, category and icon.
 // The shell had drifted from that in the footer, which hardcoded
 //
 //   <NavLink to="/help">

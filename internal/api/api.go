@@ -252,7 +252,7 @@ func (h *Handler) Routes() *http.ServeMux {
 
 	// DNS providers, provider-accounts, domains, and DNS records are served by the
 	// built-in dns Core plugin (plugins/dns), mounted by the app. See
-	// docs/PLUGIN-ARCHITECTURE.md.
+	// website/src/content/docs/architecture/overview.md.
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/ai/assist/status", Summary: "Get AI Assist Status", Tags: []string{"AI"}}, h.aiStatus)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/ai/assist/suggest-slug", Summary: "Suggest Link Slug via AI", Tags: []string{"AI"}}, h.aiSuggestSlug)

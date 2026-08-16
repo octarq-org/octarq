@@ -13,7 +13,7 @@ Own a domain? Octarq already gives you the things you'd otherwise wire together 
 > One binary. No CGO. SQLite by default. `go:embed`'d dashboard. Extend without forking.
 
 <p align="center">
-  <img src="docs/assets/octarq-demo.gif" alt="Octarq agent-native demo — drive every plugin over MCP from your terminal" width="720">
+  <img src="assets/octarq-demo.gif" alt="Octarq agent-native demo — drive every plugin over MCP from your terminal" width="720">
 </p>
 
 ---
@@ -104,7 +104,7 @@ export const helloPlugin: UIPlugin = {
 
 **Scaffold one in seconds** — `octarq plugin new <name>` writes a buildable Go + web skeleton to start from.
 
-**Official plugins & starter template** → [octarq-plugins](https://github.com/octarq-org/octarq-plugins) (Telegram, Webhook, the agent-native Mail Links demo, and a `_template` to copy) · **Guide** → [docs/PLUGINS.md](docs/PLUGINS.md)
+**Official plugins & starter template** → [octarq-plugins](https://github.com/octarq-org/octarq-plugins) (Telegram, Webhook, the agent-native Mail Links demo, and a `_template` to copy) · **Guide** → [Writing a plugin](website/src/content/docs/writing-a-plugin.md)
 
 *Octarq's own Pro edition is just another set of plugins built against this same public interface — nothing the community can't do.*
 

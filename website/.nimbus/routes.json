@@ -9,6 +9,7 @@
     "/architecture/core-plugins",
     "/architecture/overview",
     "/architecture/plugin-context",
+    "/backup-restore",
     "/configuration",
     "/core/api-tokens",
     "/core/dns",
