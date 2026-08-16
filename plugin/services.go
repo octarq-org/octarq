@@ -111,34 +111,35 @@ type CleanupFunc func(ctx context.Context, retentionDays int)
 // ExportFunc is the cross-plugin contract for a plugin's contribution to the
 // org account export (GET /api/account/export): the plugin returns a
 // flat map of key/value pairs that the app merges into the export body, one
-// entry per key. Every plugin — OSS (links, mail, dns) and the Pro modules
-// (databases, infra, roles, product, sso, ai, cloud, finance, mailstorage,
-// billing, customer, issuer) — provides it under ExportServiceName(pluginName).
-// A signature drift fails silently in production: the plugin's data is
-// simply missing from the user's export. Changing this signature breaks the
-// contract: every provider and the app must change together, which the
-// explicit conversion at the Provide call site enforces at compile time.
+// entry per key. Any plugin holding tenant data worth exporting provides it
+// under ExportServiceName(pluginName) — the OSS plugins here, and several of
+// the Pro modules in octarq-pro. Providing it is optional; a plugin that does
+// not is simply skipped.
+//
+// A signature drift fails silently in production: the plugin's data is simply
+// missing from the user's export. Changing this signature breaks the contract:
+// every provider and the app must change together, which the explicit
+// conversion at the Provide call site enforces at compile time.
 type ExportFunc func(orgID uint) map[string]any
 
 // PurgeFunc is the cross-plugin contract for a plugin's tenant-data erasure,
 // run by the app before the org row itself is deleted (DELETE
-// /api/account/data). Every plugin — OSS (links, mail, dns) and the Pro
-// modules (databases, infra, roles, product, sso, ai, cloud, finance,
-// mailstorage, billing, customer, issuer) — provides it under
-// PurgeServiceName(pluginName). A signature drift fails silently in
-// production: the plugin's tenant data survives the deletion and the operator
-// believes the workspace was erased — a data-retention/compliance problem.
-// Changing this signature breaks the contract: every provider and the app
-// must change together, which the explicit conversion at the Provide call
-// site enforces at compile time.
+// /api/account/data). Every plugin that stores tenant rows provides it under
+// PurgeServiceName(pluginName) — the OSS plugins here, and every Pro module in
+// octarq-pro.
+//
+// A signature drift fails silently in production: the plugin's tenant data
+// survives the deletion and the operator believes the workspace was erased — a
+// data-retention/compliance problem. Changing this signature breaks the
+// contract: every provider and the app must change together, which the
+// explicit conversion at the Provide call site enforces at compile time.
 type PurgeFunc func(orgID uint) error
 
 // OverviewFunc is the cross-plugin contract for a plugin's contribution to
 // the overview endpoint: the plugin returns a flat map of statistics the app
-// merges into the overview body. Every plugin — OSS (links, mail, dns) and
-// the Pro modules (databases, infra, roles, product, sso, ai, cloud,
-// finance, mailstorage, billing, customer, issuer) — provides it under
-// OverviewServiceName(pluginName). Changing this signature breaks the
+// merges into the overview body, warning on a key collision. It is provided
+// under OverviewServiceName(pluginName) by the OSS plugins (links, mail, dns);
+// no Pro module currently provides one. Changing this signature breaks the
 // contract: every provider and the app must change together.
 type OverviewFunc func(orgID uint, includeBot bool) map[string]any
 
