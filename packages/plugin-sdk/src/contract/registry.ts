@@ -12,8 +12,28 @@ const REGISTRY: UIPlugin[] = [];
 
 // Compose a plugin into the app. Called by the injection module at build time.
 // Idempotent per plugin name so a double-import can't duplicate routes.
+//
+// A name collision is never silent — it is a composition mistake (two editions
+// claiming the same plugin id, the exact bug that kept the Pro audit page from
+// ever rendering). Mirroring the backend's preflightNameCollisions, which
+// refuses startup on duplicate plugin names:
+//   - dev  → throw, so the mistake fails loudly in front of the developer;
+//   - prod → console.error + first-wins, so a third-party plugin with a clashing
+//     name can't white-screen the whole admin, but the conflict stays visible.
 export function registerUIPlugin(plugin: UIPlugin): void {
-  if (REGISTRY.some((p) => p.name === plugin.name)) return;
+  const existing = REGISTRY.find((p) => p.name === plugin.name);
+  if (existing) {
+    const message =
+      `UIPlugin name collision: "${existing.name}" is already registered by another plugin ` +
+      `(routes: ${existing.routes.length}); the incoming plugin "${plugin.name}" ` +
+      `(routes: ${plugin.routes.length}) was ignored. A plugin name is its identity — ` +
+      `first registration wins, so rename one of the two plugins.`;
+    if (import.meta.env.DEV) {
+      throw new Error(message);
+    }
+    console.error(message);
+    return;
+  }
   REGISTRY.push(plugin);
 }
 

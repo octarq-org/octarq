@@ -32,11 +32,11 @@ describe("registerUIPlugin", () => {
     expect(uiPlugins().map((p) => p.name)).toEqual(["a", "b"]);
   });
 
-  it("is idempotent per name: the second registration is ignored", () => {
+  it("throws in dev when a name is registered twice, keeping the first registration", () => {
     const first = plugin("dup", { routes: [{ path: "/first", Component: page("first") }] });
     const second = plugin("dup", { routes: [{ path: "/second", Component: page("second") }] });
     registerUIPlugin(first);
-    registerUIPlugin(second);
+    expect(() => registerUIPlugin(second)).toThrow(/UIPlugin name collision: "dup"/);
     expect(uiPlugins()).toHaveLength(1);
     expect(uiPlugins()[0]).toBe(first);
     expect(uiRoutes().map((r) => r.path)).toEqual(["/first"]);
