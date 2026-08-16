@@ -12,6 +12,7 @@ import (
 	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/notify"
+	"github.com/octarq-org/octarq/plugin"
 )
 
 var validAbuseReasons = map[string]bool{
@@ -76,10 +77,10 @@ func (h *Handler) submitAbuse(ctx context.Context, input *SubmitAbuseInput) (*Su
 	// is safe in the redirect: it selects which public link is being reported,
 	// never what the caller may see. The endpoint is unauthenticated and
 	// returns no link data, so nothing crosses a tenant boundary either way.
-	if resolver, ok := h.LookupService("links.resolve"); ok {
-		if fn, ok := resolver.(func(host, slug string) (target string, orgID uint, ok bool)); ok {
-			target, orgID, _ = fn(r.Host, slug)
-		}
+	// Absent resolver (links not in this build) degrades to an empty
+	// attribution; see plugin.LinkResolver.
+	if fn, ok := plugin.LookupServiceAs[plugin.LinkResolver](h.LookupService, plugin.ServiceLinkResolve); ok {
+		target, orgID, _ = fn(r.Host, slug)
 	}
 
 	rep := models.AbuseReport{

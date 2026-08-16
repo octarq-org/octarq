@@ -7,6 +7,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugin"
 )
 
 type OverviewInput struct {
@@ -65,15 +66,14 @@ func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*Overview
 		if !h.pluginActive(org, p) {
 			continue
 		}
-		svcName := p.Name() + ".overview"
-		if v, ok := h.LookupService(svcName); ok {
-			if fn, ok := v.(func(orgID uint, includeBot bool) map[string]any); ok {
-				for k, val := range fn(org, includeBot) {
-					if _, exists := outMap[k]; exists {
-						log.Printf("[overview] warning: plugin %s overwrites existing overview key %q", p.Name(), k)
-					}
-					outMap[k] = val
+		// Plugins that don't provide an overview service are skipped; the
+		// rest flat-merge their statistics. See plugin.OverviewFunc.
+		if fn, ok := plugin.LookupServiceAs[plugin.OverviewFunc](h.LookupService, plugin.OverviewServiceName(p.Name())); ok {
+			for k, val := range fn(org, includeBot) {
+				if _, exists := outMap[k]; exists {
+					log.Printf("[overview] warning: plugin %s overwrites existing overview key %q", p.Name(), k)
 				}
+				outMap[k] = val
 			}
 		}
 	}

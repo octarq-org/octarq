@@ -55,6 +55,10 @@ var (
 	_ plugin.MailSender      = (*Plugin)(nil).sendMail
 	_ plugin.EmailDispatcher = (*Plugin)(nil).OnEmail
 	_ plugin.MailReady       = (*Plugin)(nil).mailReady
+	_ plugin.ExportFunc      = (*Plugin)(nil).exportData
+	_ plugin.PurgeFunc       = (*Plugin)(nil).purge
+	_ plugin.OverviewFunc    = (*Plugin)(nil).overview
+	_ plugin.EmailGetter     = (*Plugin)(nil).getEmailForSummarize
 )
 
 // New constructs the mail plugin.
@@ -194,12 +198,12 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 
 	if ctx.Provide != nil {
 		ctx.Provide(plugin.ServiceMailDispatcher, plugin.EmailDispatcher(p.OnEmail))
-		ctx.Provide("mail.overview", p.overview)
-		ctx.Provide("mail.purge", p.purge)
-		ctx.Provide("mail.export", p.exportData)
+		ctx.Provide(plugin.OverviewServiceName("mail"), plugin.OverviewFunc(p.overview))
+		ctx.Provide(plugin.PurgeServiceName("mail"), plugin.PurgeFunc(p.purge))
+		ctx.Provide(plugin.ExportServiceName("mail"), plugin.ExportFunc(p.exportData))
 		ctx.Provide(plugin.ServiceMailSend, plugin.MailSender(p.sendMail))
 		ctx.Provide(plugin.ServiceMailReady, plugin.MailReady(p.mailReady))
-		ctx.Provide("mail.email.get", p.getEmailForSummarize)
+		ctx.Provide(plugin.ServiceMailEmailGet, plugin.EmailGetter(p.getEmailForSummarize))
 		ctx.Provide("mailboxes.mcp_export", p.mcpExportMailboxes)
 		ctx.Provide("emails.mcp_export", p.mcpExportEmails)
 	}
