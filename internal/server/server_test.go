@@ -306,6 +306,32 @@ func TestStatusPageServesIndex(t *testing.T) {
 	}
 }
 
+// TestInstanceConsoleServesIndex verifies the operator console gets the SPA
+// index.html on every path under /instance. Without this route the paths fall
+// through to the root namespace, where they are looked up as short-link slugs
+// — so a missing route does not 404 cleanly, it hands the console's URLs to
+// the redirector.
+func TestInstanceConsoleServesIndex(t *testing.T) {
+	const indexBody = "index html"
+	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte(indexBody)}}
+	srv, err := New(&config.Config{}, domainsDB(t), mockAPI{}, nil, webFS, nil, RuntimeSettings{})
+	if err != nil {
+		t.Fatalf("build server: %v", err)
+	}
+
+	for _, path := range []string{"/instance", "/instance/", "/instance/wizard", "/instance/settings"} {
+		req := httptest.NewRequest("GET", path, nil)
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Errorf("GET %s: got %d, want 200", path, rec.Code)
+		}
+		if body := rec.Body.String(); body != indexBody {
+			t.Errorf("GET %s: body %q, want %q", path, body, indexBody)
+		}
+	}
+}
+
 // TestStatusPageDisallowedHost ensures /status returns 404 on a host that is
 // registered for short links (same gate as /admin).
 func TestStatusPageDisallowedHost(t *testing.T) {
