@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -47,8 +48,54 @@ func (m *Manager) LoginByIdentity(w http.ResponseWriter, r *http.Request, id plu
 	if err != nil {
 		return 0, err
 	}
+	// Second factor: deliberately skipped, and recorded. This path is
+	// enterprise SSO: the identity provider stands behind the assertion, and
+	// the IdP's own sign-in policy — including any MFA it enforces — is the
+	// second factor. Requiring a local TOTP code on top of a provider-backed
+	// assertion is double MFA and enterprise customers will complain (R3-twofa
+	// decision 2). This is NOT a forgotten check: the audit row below is what
+	// lets an operator tell "SSO behind IdP MFA" from "SSO with no MFA at all".
+	if m.userHasTOTP(uid) {
+		m.auditSSOTOTPBypass(r, orgID, uid, "identity", id.Provider, id.Issuer)
+	}
 	m.SetSessionFromRequest(r, w, uid, orgID)
 	return uid, nil
+}
+
+// userHasTOTP reports whether the account carries an enabled second factor.
+func (m *Manager) userHasTOTP(uid uint) bool {
+	if m.db == nil {
+		return false
+	}
+	var user models.User
+	if m.db.First(&user, uid).Error != nil {
+		return false
+	}
+	return user.TOTPEnabled
+}
+
+// auditSSOTOTPBypass records that an external-identity login admitted a
+// TOTP-enabled account without asking for its TOTP code. Synchronous on
+// purpose: the write is part of the login decision, and a lost audit row
+// would be indistinguishable from no audit row.
+func (m *Manager) auditSSOTOTPBypass(r *http.Request, orgID, uid uint, method, provider, issuer string) {
+	meta := map[string]any{"method": method}
+	if provider != "" {
+		meta["provider"] = provider
+	}
+	if issuer != "" {
+		meta["issuer"] = issuer
+	}
+	metaJSON, _ := json.Marshal(meta)
+	m.db.Create(&models.AuditLog{
+		OrgID:      orgID,
+		ActorID:    uid,
+		Action:     "auth.sso_login_bypassed_totp",
+		TargetType: "user",
+		TargetID:   uid,
+		Meta:       string(metaJSON),
+		IP:         reporterIP(r),
+	})
 }
 
 // BindIdentity attaches a verified external identity to the user already

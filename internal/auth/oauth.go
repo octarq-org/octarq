@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -248,6 +249,25 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("oauth upsert error: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// A TOTP-enabled account must prove its second factor before any session
+	// exists — the OAuth round-trip is not a substitute for it (R3-twofa).
+	// The browser is sent to the SAME second-factor page password login uses,
+	// carrying a short-lived signed challenge in place of the password the
+	// OAuth account does not have; /api/auth/2fa/verify completes it via
+	// challengeToken and mints the session through the shared tail of
+	// verify2FA. No parallel pending state is introduced — one challenge
+	// endpoint, one session-issuance path.
+	if user.TOTPEnabled {
+		challenge, err := h.auth.NewTwoFAChallenge(user.ID)
+		if err != nil {
+			log.Printf("oauth 2fa challenge error: %v", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/admin/?twofa="+url.QueryEscape(challenge), http.StatusFound)
 		return
 	}
 

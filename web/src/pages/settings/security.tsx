@@ -180,6 +180,12 @@ export function SecuritySettings() {
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
 
+  // Which login methods exist on this instance, so the 2FA card can state the
+  // truth about its coverage: password + built-in OAuth are covered, per-org
+  // SSO delegates the second factor to the identity provider.
+  const [hasOauth, setHasOauth] = useState(false);
+  const [hasSso, setHasSso] = useState(false);
+
   // Enrollment state.
   const [setup, setSetup] = useState<{ secret: string; otpauthUrl: string; qrDataUri?: string } | null>(null);
   const [enrollCode, setEnrollCode] = useState("");
@@ -197,6 +203,20 @@ export function SecuritySettings() {
     }
   }
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    api.authConfig()
+      .then((cfg) => setHasOauth(cfg.googleEnabled || cfg.githubEnabled))
+      .catch(() => {});
+    // /api/auth/methods is public; plugin-sso registers its method there only
+    // while configured, so its presence means this instance offers SSO.
+    fetch("/api/auth/methods")
+      .then((r) => r.json())
+      .then((m: { id: string }[]) =>
+        setHasSso(m.some((x) => x.id === "sso" || x.id.startsWith("oidc") || x.id.startsWith("saml"))),
+      )
+      .catch(() => {});
+  }, []);
 
   // Both halves of the 2FA switch re-authenticate. A live session is exactly
   // what an attacker holds when the second factor is the last thing standing,
@@ -269,6 +289,14 @@ export function SecuritySettings() {
           <Badge tone={enabled ? "green" : "neutral"}>{enabled == null ? "…" : enabled ? t("settings.enabled") : t("settings.disabled")}</Badge>
         </div>
         <p className="text-xs text-foreground/50">{t("settings.twoFADesc")}</p>
+
+        {enabled && (
+          <div className="space-y-1">
+            <p className="text-[11px] text-foreground/45">{t("settings.twoFACoverageBase")}</p>
+            {hasOauth && <p className="text-[11px] text-foreground/45">{t("settings.twoFACoverageOauth")}</p>}
+            {hasSso && <p className="text-[11px] text-foreground/45">{t("settings.twoFACoverageSso")}</p>}
+          </div>
+        )}
 
         {err && <p className="text-sm text-danger-fg">{err}</p>}
         {msg && <p className="text-sm text-success-fg">{msg}</p>}

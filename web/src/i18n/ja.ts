@@ -59,6 +59,7 @@ export const ja = {
     password: "パスワード",
     passwordRegisterPlaceholder: "8文字以上",
     authCode: "認証コード",
+    twoFactorOAuthDesc: "このアカウントは二要素認証が有効です。認証アプリのコードを入力してサインインを完了してください。",
     authCodePlaceholder: "6桁のコードまたはリカバリーコード",
     creating: "作成中…",
     signingIn: "サインイン中…",

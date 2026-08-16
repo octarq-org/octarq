@@ -62,6 +62,7 @@ export const en = {
     password: "Password",
     passwordRegisterPlaceholder: "At least 8 characters",
     authCode: "Authentication code",
+    twoFactorOAuthDesc: "Your account has two-factor authentication enabled. Enter a code from your authenticator app to finish signing in.",
     authCodePlaceholder: "6-digit code or recovery code",
     creating: "Creating…",
     signingIn: "Signing in…",

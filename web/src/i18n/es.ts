@@ -59,6 +59,7 @@ export const es = {
     password: "Contraseña",
     passwordRegisterPlaceholder: "Al menos 8 caracteres",
     authCode: "Código de autenticación",
+    twoFactorOAuthDesc: "Su cuenta tiene la autenticación de dos factores habilitada. Ingrese un código de su aplicación de autenticación para terminar de iniciar sesión.",
     authCodePlaceholder: "Código de 6 dígitos o código de recuperación",
     creating: "Creando…",
     signingIn: "Iniciando sesión…",

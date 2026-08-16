@@ -15,6 +15,10 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
   const [workspace, setWorkspace] = useState("");
   const [code, setCode] = useState("");
   const [needs2FA, setNeeds2FA] = useState(false);
+  // Set when the OAuth callback bounced us here with ?twofa=<challengeToken>:
+  // the account needs its second factor, and the challenge stands in for the
+  // password an OAuth account does not have.
+  const [oauthChallenge, setOauthChallenge] = useState("");
   const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
   const [forgotSent, setForgotSent] = useState(false);
   // Set from the register response's verificationRequired flag: the account
@@ -57,6 +61,16 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
       if (u === "admin") setU("");
     }
 
+    // OAuth callback with a pending second factor: /admin/?twofa=<challenge>.
+    // The token is short-lived and spent by the verify call; it stays in the
+    // URL so a refresh can complete the login instead of forcing a restart.
+    const challenge = params.get("twofa");
+    if (challenge) {
+      setOauthChallenge(challenge);
+      setNeeds2FA(true);
+      setMode("login");
+    }
+
     if (verified || errKey) {
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -96,8 +110,15 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
       }
 
       if (needs2FA) {
-        await api.verify2FA(u, p, code.trim());
+        if (oauthChallenge) {
+          await api.verify2FAChallenge(oauthChallenge, code.trim());
+        } else {
+          await api.verify2FA(u, p, code.trim());
+        }
         await finishLogin(u);
+        // The challenge is spent; drop it from the URL so it stops lingering
+        // in history and logs.
+        if (oauthChallenge) window.history.replaceState({}, "", window.location.pathname);
         return;
       }
 
@@ -134,6 +155,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
     setVerifySent(false);
     setPendingVerifyEmail("");
     setNeeds2FA(false);
+    setOauthChallenge("");
     setCode("");
     if (next === "register" || next === "forgot") {
       if (u === "admin") setU("");
@@ -175,7 +197,9 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
               below, next to the resend action — no need to say it twice. */}
           {!pendingVerifyEmail && (
             <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              {mode === "register"
+              {oauthChallenge
+                ? t("app.twoFactorOAuthDesc")
+                : mode === "register"
                 ? t("app.registerSubtitle")
                 : mode === "forgot"
                 ? t("app.forgotPasswordDesc")
@@ -279,6 +303,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
                 autoComplete="email"
                 placeholder={t("app.emailPlaceholder")}
                 required
+                disabled={!!oauthChallenge}
               />
             </div>
 
@@ -301,7 +326,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
               </div>
             )}
 
-            {mode !== "forgot" && (
+            {!oauthChallenge && mode !== "forgot" && (
               <div>
                 <div className="flex items-center justify-between">
                   <label className="label" htmlFor="login-password">{t("app.password")}</label>
@@ -331,7 +356,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
               </div>
             )}
 
-            {needs2FA && mode === "login" && (
+            {needs2FA && (mode === "login" || !!oauthChallenge) && (
               <div>
                 <label className="label" htmlFor="login-otp">{t("app.authCode")}</label>
                 <input
@@ -390,7 +415,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
           </p>
         )}
 
-        {mode !== "forgot" && !pendingVerifyEmail && hasOauth && (
+        {mode !== "forgot" && !pendingVerifyEmail && !oauthChallenge && hasOauth && (
           <div className="mt-6 space-y-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="h-px flex-1 bg-border" />
