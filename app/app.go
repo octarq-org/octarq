@@ -324,10 +324,8 @@ func (a *App) Notify(ctx context.Context, typ, cfgJSON, text string) error {
 // transactional mail without importing octarq's internal packages.
 func (a *App) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
 	if a.services != nil {
-		if v, ok := a.services.Lookup("mail.send"); ok {
-			if fn, ok := v.(func(uint, string, string, string, string) error); ok {
-				return fn(orgID, to, subject, htmlBody, textBody)
-			}
+		if fn, ok := plugin.LookupServiceAs[plugin.MailSender](a.services.Lookup, plugin.ServiceMailSend); ok {
+			return fn(orgID, to, subject, htmlBody, textBody)
 		}
 	}
 	return fmt.Errorf("no mail plugin mounted to send email for org %d", orgID)
@@ -454,11 +452,9 @@ func (a *App) RunMCP(ctx context.Context) error {
 			if handler == nil {
 				return
 			}
-			if disp, ok := services.Lookup("mail.dispatcher"); ok {
-				if onEmailService, ok := disp.(func(func(plugin.EmailEvent))); ok {
-					onEmailService(handler)
-					return
-				}
+			if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {
+				onEmailService(handler)
+				return
 			}
 			emailMu.Lock()
 			deferredOnEmail = append(deferredOnEmail, handler)
@@ -472,10 +468,8 @@ func (a *App) RunMCP(ctx context.Context) error {
 			// Lazily resolved on every call: the provider (Pro's cloud module) may
 			// mount after the plugin that meters, so a Mount-time Lookup would
 			// silently never find it.
-			if v, ok := services.Lookup("cloud.usage"); ok {
-				if fn, ok := v.(func(orgID uint, metric string, n int64)); ok {
-					fn(orgID, metric, n)
-				}
+			if fn, ok := plugin.LookupServiceAs[plugin.UsageMeter](services.Lookup, plugin.ServiceCloudUsage); ok {
+				fn(orgID, metric, n)
 			}
 		},
 		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
@@ -537,15 +531,13 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if err := services.Err(); err != nil {
 		return err
 	}
-	if disp, ok := services.Lookup("mail.dispatcher"); ok {
-		if onEmailService, ok := disp.(func(func(plugin.EmailEvent))); ok {
-			emailMu.Lock()
-			handlers := deferredOnEmail
-			deferredOnEmail = nil
-			emailMu.Unlock()
-			for _, handler := range handlers {
-				onEmailService(handler)
-			}
+	if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {
+		emailMu.Lock()
+		handlers := deferredOnEmail
+		deferredOnEmail = nil
+		emailMu.Unlock()
+		for _, handler := range handlers {
+			onEmailService(handler)
 		}
 	}
 
@@ -635,11 +627,9 @@ func (a *App) Run(ctx context.Context) error {
 			if handler == nil {
 				return
 			}
-			if disp, ok := services.Lookup("mail.dispatcher"); ok {
-				if onEmailService, ok := disp.(func(func(plugin.EmailEvent))); ok {
-					onEmailService(handler)
-					return
-				}
+			if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {
+				onEmailService(handler)
+				return
 			}
 			runEmailMu.Lock()
 			runDeferredOnEmail = append(runDeferredOnEmail, handler)
@@ -653,10 +643,8 @@ func (a *App) Run(ctx context.Context) error {
 			// Lazily resolved on every call: the provider (Pro's cloud module) may
 			// mount after the plugin that meters, so a Mount-time Lookup would
 			// silently never find it.
-			if v, ok := services.Lookup("cloud.usage"); ok {
-				if fn, ok := v.(func(orgID uint, metric string, n int64)); ok {
-					fn(orgID, metric, n)
-				}
+			if fn, ok := plugin.LookupServiceAs[plugin.UsageMeter](services.Lookup, plugin.ServiceCloudUsage); ok {
+				fn(orgID, metric, n)
 			}
 		},
 		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
@@ -760,15 +748,13 @@ func (a *App) Run(ctx context.Context) error {
 	// Launch Starters only after EVERY plugin has mounted (and Provided): this
 	// is the ordering guarantee that makes Start-time Lookup of another
 	// plugin's services safe regardless of registration order.
-	if disp, ok := services.Lookup("mail.dispatcher"); ok {
-		if onEmailService, ok := disp.(func(func(plugin.EmailEvent))); ok {
-			runEmailMu.Lock()
-			handlers := runDeferredOnEmail
-			runDeferredOnEmail = nil
-			runEmailMu.Unlock()
-			for _, handler := range handlers {
-				onEmailService(handler)
-			}
+	if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {
+		runEmailMu.Lock()
+		handlers := runDeferredOnEmail
+		runDeferredOnEmail = nil
+		runEmailMu.Unlock()
+		for _, handler := range handlers {
+			onEmailService(handler)
 		}
 	}
 
@@ -788,7 +774,7 @@ func (a *App) Run(ctx context.Context) error {
 	// loop) would report "no mail" for every instance, including the ones that
 	// have it — an answer that is wrong rather than merely early.
 	domainsRegistered := origin.AnyRegistered(a.gdb)
-	_, mailAvailable := services.Lookup("mail.send")
+	_, mailAvailable := services.Lookup(plugin.ServiceMailSend)
 	for _, line := range readinessReport(a.cfg, mailAvailable, domainsRegistered) {
 		slog.Info("readiness", "status", string(line.Status), "check", line.Subject, "detail", line.Detail)
 	}
@@ -829,10 +815,8 @@ func (a *App) Run(ctx context.Context) error {
 
 	var cleanups []func(context.Context, int)
 	for _, p := range a.plugins {
-		if v, ok := services.Lookup(p.Name() + ".cleanup"); ok {
-			if fn, ok := v.(func(context.Context, int)); ok {
-				cleanups = append(cleanups, fn)
-			}
+		if fn, ok := plugin.LookupServiceAs[plugin.CleanupFunc](services.Lookup, plugin.CleanupServiceName(p.Name())); ok {
+			cleanups = append(cleanups, fn)
 		}
 	}
 	go cleanup.Start(ctx, apiHandler.DataRetentionDays, cleanups...)

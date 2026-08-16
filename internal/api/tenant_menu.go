@@ -469,16 +469,14 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 // error: a missing sender or a send failure is logged and swallowed so the
 // invite itself still succeeds.
 func (h *Handler) sendInviteEmail(orgID uint, to, acceptURL string) {
-	if sendMail, ok := h.LookupService("mail.send"); ok {
-		if fn, ok := sendMail.(func(orgID uint, to, subject, htmlBody, textBody string) error); ok {
-			text := fmt.Sprintf("You've been invited to join a workspace on octarq.\n\n"+
-				"Accept your invite and set a password here:\n%s\n\n"+
-				"This link expires in 24 hours.", acceptURL)
-			if err := fn(orgID, to, "You've been invited to octarq", "", text); err != nil {
-				log.Printf("invite email to %s failed: %v", to, err)
-			}
-			return
+	if fn, ok := plugin.LookupServiceAs[plugin.MailSender](h.LookupService, plugin.ServiceMailSend); ok {
+		text := fmt.Sprintf("You've been invited to join a workspace on octarq.\n\n"+
+			"Accept your invite and set a password here:\n%s\n\n"+
+			"This link expires in 24 hours.", acceptURL)
+		if err := fn(orgID, to, "You've been invited to octarq", "", text); err != nil {
+			log.Printf("invite email to %s failed: %v", to, err)
 		}
+		return
 	}
 	log.Printf("invite email skipped for %s: mail plugin not mounted", to)
 }

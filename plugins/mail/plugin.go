@@ -48,6 +48,14 @@ var (
 	_ plugin.HelpDocsFS   = (*Plugin)(nil)
 )
 
+// Compile-time service contract assertions: these methods are provided to the
+// registry under the named contract types in Mount. A signature drift here
+// fails the build instead of silently breaking consumers' LookupServiceAs.
+var (
+	_ plugin.MailSender      = (*Plugin)(nil).sendMail
+	_ plugin.EmailDispatcher = (*Plugin)(nil).OnEmail
+)
+
 // New constructs the mail plugin.
 func New() *Plugin {
 	return &Plugin{
@@ -184,11 +192,11 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	}
 
 	if ctx.Provide != nil {
-		ctx.Provide("mail.dispatcher", p.OnEmail)
+		ctx.Provide(plugin.ServiceMailDispatcher, plugin.EmailDispatcher(p.OnEmail))
 		ctx.Provide("mail.overview", p.overview)
 		ctx.Provide("mail.purge", p.purge)
 		ctx.Provide("mail.export", p.exportData)
-		ctx.Provide("mail.send", p.sendMail)
+		ctx.Provide(plugin.ServiceMailSend, plugin.MailSender(p.sendMail))
 		ctx.Provide("mail.email.get", p.getEmailForSummarize)
 		ctx.Provide("mailboxes.mcp_export", p.mcpExportMailboxes)
 		ctx.Provide("emails.mcp_export", p.mcpExportEmails)
