@@ -46,6 +46,7 @@ var (
 	_ plugin.PurgeFunc    = (*Plugin)(nil).purge
 	_ plugin.OverviewFunc = (*Plugin)(nil).overview
 	_ plugin.LinkResolver = (*Plugin)(nil).resolveSlug
+	_ plugin.MCPExporter  = (*Plugin)(nil).mcpExportLinks
 	_ plugin.CleanupFunc  = (*Plugin)(nil).cleanupEvents
 )
 
@@ -165,7 +166,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		ctx.Provide(plugin.ServiceLinkResolve, plugin.LinkResolver(p.resolveSlug))
 		ctx.Provide("links.create", plugin.LinkCreator(p))
 		ctx.Provide(plugin.CleanupServiceName("links"), plugin.CleanupFunc(p.cleanupEvents))
-		ctx.Provide("links.mcp_export", p.mcpExportLinks)
+		ctx.Provide(plugin.MCPExportServiceName("links"), plugin.MCPExporter(p.mcpExportLinks))
 		ctx.Provide("links.trust_proxy", SetTrustProxy)
 	}
 	if ctx.RegisterTask != nil {

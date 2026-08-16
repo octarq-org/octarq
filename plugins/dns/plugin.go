@@ -64,6 +64,7 @@ var (
 	_ plugin.ExportFunc   = (*Plugin)(nil).exportData
 	_ plugin.PurgeFunc    = (*Plugin)(nil).purge
 	_ plugin.OverviewFunc = (*Plugin)(nil).overview
+	_ plugin.MCPExporter  = (*Plugin)(nil).mcpExportDomains
 )
 
 // New constructs the dns plugin.
@@ -193,7 +194,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	ctx.Provide(plugin.OverviewServiceName("dns"), plugin.OverviewFunc(p.overview))
 	ctx.Provide(plugin.PurgeServiceName("dns"), plugin.PurgeFunc(p.purge))
 	ctx.Provide(plugin.ExportServiceName("dns"), plugin.ExportFunc(p.exportData))
-	ctx.Provide("domains.mcp_export", p.mcpExportDomains)
+	ctx.Provide(plugin.MCPExportServiceName("domains"), plugin.MCPExporter(p.mcpExportDomains))
 }
 
 func (p *Plugin) purge(orgID uint) error {
