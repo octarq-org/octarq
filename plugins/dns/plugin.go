@@ -3,9 +3,8 @@
 // record CRUD through the provider, and the DNS-verification posture (SPF/DMARC/
 // DKIM for mail hosts, CNAME health for link hosts).
 //
-// It was lifted out of the monolithic internal/api.Handler (design in
-// website/src/content/docs/architecture/overview.md) and now mounts through the same plugin
-// contract Pro features use, marked Core so it is always on and never gated. It
+// It was lifted out of the monolithic internal/api.Handler and now mounts
+// through the same plugin contract Pro features use, marked Core so it is always on and never gated. It
 // still shares the model types in internal/models (phase 1); the redirect engine
 // and mail features consume the domain's host lists directly from the DB, and
 // Pro plugins reach live DNS through the plugin.DNSManager this plugin provides

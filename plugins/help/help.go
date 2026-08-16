@@ -18,8 +18,8 @@ import (
 // document capabilities the core owns but no plugin does — authentication,
 // organizations/RBAC, API tokens, webhooks, notification channels, MCP.
 //
-// Those pages have no other home. "Docs live with the feature"
-// (website/src/content/docs/writing-a-plugin.md) resolves cleanly for links/mail/dns, which are plugins and carry their own
+// Those pages have no other home. "Docs live with the feature" resolves
+// cleanly for links/mail/dns, which are plugins and carry their own
 // docs/ directory — but auth, orgs, tokens and webhooks live in internal/ and
 // app/, which nothing can hang a docs directory on. Until they are plugins, the
 // help plugin is their custodian: it is already Core, already mounted in every

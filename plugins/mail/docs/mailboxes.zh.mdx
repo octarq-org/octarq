@@ -15,19 +15,19 @@ order: 20
 
 ## 通用原始 EML 入站 Webhook
 
-除了 Cloudflare Email Routing 之外，Octarq 提供了通用 Provider 无关的原始 EML 入站 Webhook 端点 `/api/webhook/{orgSlug}/email/inbound/raw`。该端点支持直接 POST 标准 RFC822 原始 EML 报文或 `multipart/form-data` 格式，并要求在 HTTP 请求 Header 中携带工作区密钥（`X-Octarq-Token: <token>` 或 `Authorization: Bearer <token>`）进行鉴权。
+除了 Cloudflare Email Routing 之外，Octarq 提供了通用 Provider 无关的原始 EML 入站 Webhook 端点 `/api/webhook/{orgSlug}/email/inbound/raw/{token}`。该端点支持直接 POST 标准 RFC822 原始 EML 报文或 `multipart/form-data` 格式。token 是最后一段路径而非 Header——放在 `X-Octarq-Token` 或 `Authorization` 里的 token 会被拒绝。
 
 ### 常用邮件服务商配置示例
 
 #### Mailgun Routes 配置
 1. 在 Mailgun 控制台中进入 **Receiving → Routes**。
 2. 创建新 Rule 匹配目标收件人（如 `match_recipient(".*@yourdomain.com")`）。
-3. 添加 Action: `forward("https://your-octarq-host/api/webhook/{orgSlug}/email/inbound/raw")`。
+3. 添加 Action: `forward("https://your-octarq-host/api/webhook/{orgSlug}/email/inbound/raw/{token}")`。
 4. 在请求头配置中添加自定义 Header: `X-Octarq-Token: <your-inbound-token>`。
 
 #### SendGrid Inbound Parse 配置
 1. 在 SendGrid 控制台中进入 **Settings → Inbound Parse**。
-2. 添加 Host 与 Webhook URL: `https://your-octarq-host/api/webhook/{orgSlug}/email/inbound/raw`。
+2. 添加 Host 与 Webhook URL: `https://your-octarq-host/api/webhook/{orgSlug}/email/inbound/raw/{token}`。
 3. 勾选 **POST the raw, full MIME message**（推送原始完整 MIME 消息）。
 4. 在反向代理/边缘网关上配置将入站请求附加 Header: `X-Octarq-Token: <your-inbound-token>` 或 `Authorization: Bearer <your-inbound-token>`。
 
