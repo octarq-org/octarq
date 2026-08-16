@@ -2,15 +2,13 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ScreenWrap } from "../ui";
 import { RouteFallback } from "../App";
+import { InstanceExitRedirect } from "./instance/redirect";
 // Each settings panel is its own chunk, loaded when its sub-route is opened.
 const PluginsSettings = lazy(() => import("./settings/plugins").then((m) => ({ default: m.PluginsSettings })));
 const GeneralSettings = lazy(() => import("./settings/general").then((m) => ({ default: m.GeneralSettings })));
 const WebhooksSettings = lazy(() => import("./settings/webhooks").then((m) => ({ default: m.WebhooksSettings })));
 const NotificationChannels = lazy(() => import("./settings/notifications").then((m) => ({ default: m.NotificationChannels })));
 const OrgMembersManager = lazy(() => import("./settings/members").then((m) => ({ default: m.OrgMembersManager })));
-const AuthenticationSettings = lazy(() => import("./settings/auth").then((m) => ({ default: m.AuthenticationSettings })));
-const InstancePluginsSettings = lazy(() => import("./settings/instance-plugins").then((m) => ({ default: m.InstancePluginsSettings })));
-const InstanceSettings = lazy(() => import("./settings/instance").then((m) => ({ default: m.InstanceSettings })));
 // Account panels — every settings page is served under /settings (one URL space).
 const SecuritySettings = lazy(() => import("./settings/security").then((m) => ({ default: m.SecuritySettings })));
 const ProfileSettings = lazy(() => import("./PersonalSettings").then((m) => ({ default: m.ProfileSettings })));
@@ -27,10 +25,10 @@ export default function SettingsPage() {
         <Route path="/webhooks" element={<WebhooksSettings />} />
         <Route path="/notifications" element={<NotificationChannels />} />
         <Route path="/members" element={<OrgMembersManager />} />
-        <Route path="/auth" element={<Navigate to="/settings/instance/auth" replace />} />
-        <Route path="/instance/auth" element={<AuthenticationSettings />} />
-        <Route path="/instance" element={<InstanceSettings />} />
-        <Route path="/instance/plugins" element={<InstancePluginsSettings />} />
+        {/* The instance console moved out of /settings into its own /instance
+            basename (R4) — old paths redirect with a full page navigation. */}
+        <Route path="/instance/*" element={<InstanceExitRedirect />} />
+        <Route path="/auth" element={<InstanceExitRedirect to="/instance/auth" />} />
         {/* Account panels (per-user) — same /settings space, no separate /personal tree. */}
         <Route path="/profile" element={<ProfileSettings />} />
         <Route path="/security" element={<SecuritySettings />} />

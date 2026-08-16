@@ -3,6 +3,7 @@
 import { overview } from "./overview";
 import { personal } from "./personal";
 import { settings } from "./settings";
+import { instance } from "./instance";
 // Note: Feature namespaces (links, domains, mail, licenses, etc.) are owned by
 // their UIPlugin and injected via UIPlugin.i18n when composed into the build.
 import { abuse } from "./abuse";
@@ -14,6 +15,7 @@ const NS = {
   overview,
   personal,
   settings,
+  instance,
   abuse,
   audit,
   invite,

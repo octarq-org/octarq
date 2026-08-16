@@ -45,4 +45,3 @@ export function SavedBadge({ on }: { on: boolean }) {
   const { t } = useTranslation();
   return on ? <Badge tone="green">{t("settings.saved")}</Badge> : null;
 }
-

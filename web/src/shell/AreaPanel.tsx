@@ -157,6 +157,20 @@ export function AreaPanel({
                   ? currentPath === item.path
                   : (item.path !== "/" && currentPath.startsWith(item.path));
                 if (collapsed) {
+                  if (item.external) {
+                    return (
+                      <a
+                        key={item.id}
+                        href={item.path}
+                        onClick={onNavigate}
+                        title={translateNavItemLabel(t, item.id, item.label)}
+                        aria-label={translateNavItemLabel(t, item.id, item.label)}
+                        className="relative mx-auto flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+                      >
+                        <ExternalLink className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                      </a>
+                    );
+                  }
                   return (
                     <NavLink
                       key={item.id}
@@ -180,6 +194,19 @@ export function AreaPanel({
                         <span className="absolute -right-0.5 -top-0.5 flex h-2 w-2 rounded-full bg-accent-fg" />
                       )}
                     </NavLink>
+                  );
+                }
+                if (item.external) {
+                  return (
+                    <a
+                      key={item.id}
+                      href={item.path}
+                      onClick={onNavigate}
+                      className="group relative flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+                    >
+                      <ExternalLink className="relative h-[18px] w-[18px] text-muted-foreground group-hover:text-foreground" strokeWidth={1.75} />
+                      <span className="relative flex-1 truncate">{translateNavItemLabel(t, item.id, item.label)}</span>
+                    </a>
                   );
                 }
                 return (

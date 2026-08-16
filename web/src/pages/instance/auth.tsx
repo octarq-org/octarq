@@ -3,7 +3,7 @@ import { api } from "../../api";
 import { Field, Toggle, PageHeader, GlassCard, Button, confirmDialog } from "../../ui";
 import { Mail, ChevronDown, Check } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { useInstanceSettingsData, InstanceAdminOnly } from "./shared";
+import { useInstanceSettings } from "./shared";
 import { ExtensionSlot } from "../../plugin-sdk";
 import { oauthCallbackPath } from "../../shell/oauthRoutes";
 
@@ -81,7 +81,7 @@ function ProviderRow({
 
 export function AuthenticationSettings() {
   const { t } = useTranslation();
-  const { s: settings, reload, forbidden } = useInstanceSettingsData();
+  const { s: settings, reload } = useInstanceSettings();
 
   const [allowReg, setAllowReg] = useState(true);
   const [requireVerify, setRequireVerify] = useState(false);
@@ -142,7 +142,6 @@ export function AuthenticationSettings() {
     reload();
   }
 
-  if (forbidden) return <InstanceAdminOnly />;
   if (!settings) {
     return (
       <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">

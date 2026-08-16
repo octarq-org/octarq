@@ -3,12 +3,13 @@ import { api, InstanceSettings as InstanceSettingsData } from "../../api";
 import { Field, PageHeader, GlassCard, Button, toast, confirmDialog } from "../../ui";
 import { Server, Sliders, DatabaseBackup, Cpu } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { useInstanceSettingsData, InstanceAdminOnly, SavedBadge } from "./shared";
+import { useInstanceSettings } from "./shared";
+import { SavedBadge } from "../settings/shared";
 import { ExtensionSlot } from "../../plugin-sdk";
 
 export function InstanceSettings() {
   const { t } = useTranslation();
-  const { s: settings, reload, forbidden } = useInstanceSettingsData();
+  const { s: settings, reload } = useInstanceSettings();
 
   const [appName, setAppName] = useState("");
   const [baseDomain, setBaseDomain] = useState("");
@@ -82,7 +83,6 @@ export function InstanceSettings() {
     }
   }
 
-  if (forbidden) return <InstanceAdminOnly />;
   if (!settings) {
     return (
       <div className="flex h-32 items-center justify-center text-sm text-foreground/40">

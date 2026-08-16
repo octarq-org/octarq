@@ -273,6 +273,18 @@ export interface Settings {
   isInstanceAdmin: boolean;
 }
 
+// One capability check in the instance readiness report (GET
+// /api/instance/readiness, instance-admin only). Mirrors the Go
+// readiness.Check struct; the API vocabulary is ok|degraded|blocked (the
+// log-only "dev" status collapses to ok server-side).
+export interface ReadinessCheck {
+  id: string;
+  status: "ok" | "degraded" | "blocked";
+  title: string;
+  detail: string;
+  fixPath: string;
+}
+
 export interface InstanceSettings {
   reservedSlugs: string;
   builtinReserved: string[];
@@ -294,6 +306,9 @@ export interface InstanceSettings {
 export const api = {
   // subsystem status (public)
   subsystemStatus: () => req<SubsystemStatusResponse>("GET", "/api/status"),
+
+  // instance readiness (instance admins only)
+  instanceReadiness: () => req<ReadinessCheck[]>("GET", "/api/instance/readiness"),
 
   // plugins: instance-level registry (read-only, instance admins only)
   instancePlugins: () => req<InstancePluginInfo[]>("GET", "/api/instance/plugins"),
@@ -336,7 +351,7 @@ export const api = {
 
   // auth
   authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean; appName: string; logoUrl: string; brandColor: string; brandColor2: string }>("GET", "/api/auth/config"),
-  me: () => req<{ email: string; username?: string; orgId: number; role?: string; emailVerified?: boolean }>("GET", "/api/auth/me"),
+  me: () => req<{ email: string; username?: string; orgId: number; role?: string; emailVerified?: boolean; isInstanceAdmin?: boolean }>("GET", "/api/auth/me"),
   register: (email: string, password: string, orgName?: string) =>
     req<{ ok: boolean; email: string; username?: string; verificationRequired?: boolean }>(
       "POST",
