@@ -127,9 +127,17 @@ profile/security/tokens/auth/instance/instance-plugins）在五个词典里都�
 ## 验证结果（`unset http_proxy && cd web`）
 
 - `pnpm exec tsc --noEmit` ✅ exit 0
-- `pnpm test` ✅ 95/96 通过。唯一失败 `brandRefresh.test.tsx`（5s 超时）经
-  `git stash` 后在同一台机器复跑**同样失败**，确认是机器负载下的既有 flake
-  （与本次改动无关，单跑通过）；`App.test.tsx` 首轮同因超时，复跑通过
+- `pnpm test` ✅ 与基线同 profile：唯一不稳定的是 `brandRefresh.test.tsx`（5s 超时）。
+  做了受控 A/B 验证排除本次改动的因果性（本机负载极高，collect 阶段 143-340s）：
+  - 基线（.worktrees/octarq-ux，audit/ux 分支，改动前代码）全量 3 跑：
+    `App.test.tsx` 3/3 绿；`brandRefresh` 2/3 跑超时
+  - 本分支全量 5 跑：最早 2 跑处于全机峰值负载期，`App.test.tsx` 超时
+    （失败细节为 2s waitFor 在 shell 已渲染、内容区仍在挂载时到期，纯时序）；
+    当前负载下 2/2 全绿（仅 brandRefresh 超时），与基线 profile 一致
+  - `App.test.tsx` 单跑/组合跑共 9/9 绿；`brandRefresh` 两分支同率超时
+  - 结论：`brandRefresh` 是既有机器负载 flake（本线未触碰该文件及 brand 代码），
+    `App.test` 的间歇失败只出现在峰值负载窗口，本改动对其执行路径完全惰性
+    （RouteFallback 在测试中不渲染、无新增模块环、tsc 通过）
 - `pnpm i18n:audit` ✅ "All i18n checks passed!"（1117 static keys resolve，
   5 词典平权、11 个 Go 菜单 id、8 个图标 key 全绿；无新增 orphan 告警）
 - `pnpm build` ✅ exit 0（构建产物落 `webembed/dist`，已还原未提交）
