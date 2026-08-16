@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -52,15 +53,16 @@ var (
 // registry under the named contract types in Mount. A signature drift here
 // fails the build instead of silently breaking consumers' LookupServiceAs.
 var (
-	_ plugin.MailSender      = (*Plugin)(nil).sendMail
-	_ plugin.EmailDispatcher = (*Plugin)(nil).OnEmail
-	_ plugin.MailReady       = (*Plugin)(nil).mailReady
-	_ plugin.ExportFunc      = (*Plugin)(nil).exportData
-	_ plugin.PurgeFunc       = (*Plugin)(nil).purge
-	_ plugin.OverviewFunc    = (*Plugin)(nil).overview
-	_ plugin.EmailGetter     = (*Plugin)(nil).getEmailForSummarize
-	_ plugin.MCPExporter     = (*Plugin)(nil).mcpExportEmails
-	_ plugin.MCPExporter     = (*Plugin)(nil).mcpExportMailboxes
+	_ plugin.MailSender       = (*Plugin)(nil).sendMail
+	_ plugin.EmailDispatcher  = (*Plugin)(nil).OnEmail
+	_ plugin.MailReady        = (*Plugin)(nil).mailReady
+	_ plugin.SystemMailSender = (*Plugin)(nil).sendSystemMail
+	_ plugin.ExportFunc       = (*Plugin)(nil).exportData
+	_ plugin.PurgeFunc        = (*Plugin)(nil).purge
+	_ plugin.OverviewFunc     = (*Plugin)(nil).overview
+	_ plugin.EmailGetter      = (*Plugin)(nil).getEmailForSummarize
+	_ plugin.MCPExporter      = (*Plugin)(nil).mcpExportEmails
+	_ plugin.MCPExporter      = (*Plugin)(nil).mcpExportMailboxes
 )
 
 // New constructs the mail plugin.
@@ -205,6 +207,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		ctx.Provide(plugin.ExportServiceName("mail"), plugin.ExportFunc(p.exportData))
 		ctx.Provide(plugin.ServiceMailSend, plugin.MailSender(p.sendMail))
 		ctx.Provide(plugin.ServiceMailReady, plugin.MailReady(p.mailReady))
+		ctx.Provide(plugin.ServiceMailSendSystem, plugin.SystemMailSender(p.sendSystemMail))
 		ctx.Provide(plugin.ServiceMailEmailGet, plugin.EmailGetter(p.getEmailForSummarize))
 		ctx.Provide(plugin.MCPExportServiceName("mailboxes"), plugin.MCPExporter(p.mcpExportMailboxes))
 		ctx.Provide(plugin.MCPExportServiceName("emails"), plugin.MCPExporter(p.mcpExportEmails))
@@ -328,14 +331,66 @@ func (p *Plugin) exportData(orgID uint) map[string]any {
 	}
 }
 
-// mailReady reports whether at least one SMTP sender is configured anywhere on
-// this instance. Consumed through the mail.ready service by the registration
-// verification gate and the startup readiness report: "plugin mounted" is not
-// the same question as "can this instance deliver a message".
+// mailReady reports whether the instance's SYSTEM sender is available: at
+// least one SMTP sender exists somewhere on the instance, which is exactly
+// when sendSystemMail (via the mail.send.system service) can deliver.
+// Consumed through the mail.ready service by the registration verification
+// gate and both readiness reports: "plugin mounted" is not the same question
+// as "can this instance deliver a system message".
 func (p *Plugin) mailReady() bool {
 	var n int64
 	p.db.Model(&SMTPSender{}).Count(&n)
 	return n > 0
+}
+
+// systemSender resolves the instance's system sender: the one selected in
+// instance settings (mail_system_sender_id) when present and still existing,
+// otherwise the lowest-id sender on the instance (deterministic fallback that
+// also covers a stale reference to a deleted sender). Returns an explicit
+// error when no sender exists at all.
+func (p *Plugin) systemSender() (*SMTPSender, error) {
+	if p.getGlobalSetting != nil {
+		if idStr := strings.TrimSpace(p.getGlobalSetting("mail_system_sender_id")); idStr != "" {
+			if id, err := strconv.ParseUint(idStr, 10, 64); err == nil && id != 0 {
+				var s SMTPSender
+				if err := p.db.First(&s, id).Error; err == nil {
+					return &s, nil
+				}
+			}
+		}
+	}
+	var s SMTPSender
+	if err := p.db.Order("id ASC").First(&s).Error; err != nil {
+		return nil, fmt.Errorf("no SMTP sender configured on this instance; system email cannot be sent. Configure an SMTP sender (Mail → SMTP senders) or mount a plugin providing mail.send")
+	}
+	return &s, nil
+}
+
+// sendSystemMail delivers an instance-level system message (verification,
+// password reset, invite) through the system sender resolved by systemSender.
+// Unlike sendMail it has no orgID: these flows must work for recipients with
+// no membership yet. Usage and failure events are attributed to the sender's
+// owning workspace so metering and webhooks keep a real org id.
+func (p *Plugin) sendSystemMail(to, subject, htmlBody, textBody string) error {
+	s, err := p.systemSender()
+	if err != nil {
+		return err
+	}
+	pass, err := p.decrypt(s.Pass)
+	if err != nil {
+		return err
+	}
+	sender := mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
+	if err := sender.Send(mail.Message{From: s.FromEmail, To: []string{to}, Subject: subject, HTML: htmlBody, Text: textBody}); err != nil {
+		if p.publishEvent != nil {
+			p.publishEvent(s.OrgID, "email.send_failed", map[string]any{"to": []string{to}, "subject": subject, "error": err.Error()})
+		}
+		return err
+	}
+	if p.recordUsage != nil {
+		p.recordUsage(s.OrgID, usagemetric.MailOut, 1)
+	}
+	return nil
 }
 
 func (p *Plugin) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {

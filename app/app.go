@@ -783,7 +783,7 @@ func (a *App) Run(ctx context.Context) error {
 	if fn, ok := plugin.LookupServiceAs[plugin.MailReady](services.Lookup, plugin.ServiceMailReady); ok {
 		mailReady = fn()
 	}
-	for _, line := range readinessReport(a.cfg, mailReady, domainsRegistered) {
+	for _, line := range readinessReport(a.cfg, mailReady, domainsRegistered, apiHandler.RequireEmailVerification()) {
 		slog.Info("readiness", "status", string(line.Status), "check", line.Subject, "detail", line.Detail)
 	}
 	if err := enforceSecretKeyFloor(a.cfg, domainsRegistered); err != nil {

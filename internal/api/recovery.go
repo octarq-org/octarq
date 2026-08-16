@@ -46,12 +46,13 @@ func (h *Handler) primaryOrgForUser(userID uint) uint {
 	return 0
 }
 
-// sendPasswordResetEmail best-effort delivers a password reset link to the user.
-func (h *Handler) sendPasswordResetEmail(userID uint, to, resetURL string) {
-	orgID := h.primaryOrgForUser(userID)
-	if fn, ok := plugin.LookupServiceAs[plugin.MailSender](h.LookupService, plugin.ServiceMailSend); ok {
+// sendPasswordResetEmail best-effort delivers a password reset link to the user
+// through the instance's system sender. Password reset must not depend on the
+// recipient's workspace: the request arrives before anyone is authenticated.
+func (h *Handler) sendPasswordResetEmail(to, resetURL string) {
+	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
 		text := fmt.Sprintf("Reset your password for octarq:\n\n%s\n\nThis link expires in 1 hour.", resetURL)
-		if err := fn(orgID, to, "Reset your octarq password", "", text); err != nil {
+		if err := fn(to, "Reset your octarq password", "", text); err != nil {
 			log.Printf("password reset email to %s failed: %v", to, err)
 		}
 		return
@@ -59,12 +60,12 @@ func (h *Handler) sendPasswordResetEmail(userID uint, to, resetURL string) {
 	log.Printf("password reset email skipped for %s: mail plugin not mounted", to)
 }
 
-// mailReady reports whether this instance can actually deliver transactional
-// mail: at least one SMTP sender is configured on some workspace. It resolves
-// the mail plugin's mail.ready service; "service absent" (no mail plugin, or a
-// plugin that cannot answer) means not ready. Registration's verification gate
-// and the startup readiness report consume this — promising a verification
-// email that can never arrive locks a fresh instance out of its own sign-up.
+// mailReady reports whether this instance can actually deliver system mail:
+// the mail plugin's mail.ready service answers "is the system sender
+// available"; "service absent" (no mail plugin, or a plugin that cannot
+// answer) means not ready. Registration's verification gate and both readiness
+// reports consume this — promising a verification email that can never arrive
+// locks a fresh instance out of its own sign-up.
 func (h *Handler) mailReady() bool {
 	fn, ok := plugin.LookupServiceAs[plugin.MailReady](h.LookupService, plugin.ServiceMailReady)
 	if !ok {
@@ -73,12 +74,14 @@ func (h *Handler) mailReady() bool {
 	return fn()
 }
 
-// sendVerificationEmail best-effort delivers an email verification link to the user.
-func (h *Handler) sendVerificationEmail(userID uint, to, verifyURL string) {
-	orgID := h.primaryOrgForUser(userID)
-	if fn, ok := plugin.LookupServiceAs[plugin.MailSender](h.LookupService, plugin.ServiceMailSend); ok {
+// sendVerificationEmail best-effort delivers an email verification link to the
+// user through the instance's system sender. It deliberately carries no org:
+// registration sends it before the user has any workspace membership, and
+// resolving the org's sender there would find none and drop the mail.
+func (h *Handler) sendVerificationEmail(to, verifyURL string) {
+	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
 		text := fmt.Sprintf("Verify your email address for octarq:\n\n%s\n\nThis link expires in 24 hours.", verifyURL)
-		if err := fn(orgID, to, "Verify your octarq email", "", text); err != nil {
+		if err := fn(to, "Verify your octarq email", "", text); err != nil {
 			log.Printf("verification email to %s failed: %v", to, err)
 		}
 		return
@@ -160,7 +163,7 @@ func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput
 	// not registered — including a forged one. The link degrades to a relative
 	// path rather than carrying a live reset token to an attacker (CWE-640).
 	resetURL := fmt.Sprintf("%s/admin/reset?token=%s", h.origin(r), rawToken)
-	h.sendPasswordResetEmail(user.ID, user.Email, resetURL)
+	h.sendPasswordResetEmail(user.Email, resetURL)
 
 	return out, nil
 }
@@ -371,7 +374,7 @@ func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificat
 	}
 
 	verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.origin(r), rawToken)
-	h.sendVerificationEmail(user.ID, user.Email, verifyURL)
+	h.sendVerificationEmail(user.Email, verifyURL)
 
 	return out, nil
 }

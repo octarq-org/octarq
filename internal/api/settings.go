@@ -61,6 +61,7 @@ const (
 	keyRequireEmailVerification = "require_email_verification" // "false" disables the email-verification requirement; default on
 	keyBaseDomain               = models.BaseDomainSetting     // shared tenant-subdomain base; empty = feature off
 	keyPublicCORSOrigins        = "public_cors_origins"        // comma/newline-separated exact origins allowed to read public GET endpoints
+	keySystemSenderID           = "mail_system_sender_id"      // SMTPSender id used for instance-level system mail; empty = lowest-id sender
 )
 
 // Rate-limit defaults (requests per minute per IP) when the setting is unset.
@@ -182,6 +183,27 @@ func (h *Handler) registrationEnabled() bool {
 // unverified sign-ups are a mail-relay and abuse vector.
 func (h *Handler) requireEmailVerification() bool {
 	return h.getSetting(keyRequireEmailVerification) != "false"
+}
+
+// RequireEmailVerification is the public wrapper around requireEmailVerification,
+// exposed to the app package so the startup readiness report reads the same
+// setting the registration gate and the readiness API read.
+func (h *Handler) RequireEmailVerification() bool {
+	return h.requireEmailVerification()
+}
+
+// systemSenderID returns the instance setting naming which SMTPSender is the
+// system sender; 0 means "unset — use the lowest-id sender".
+func (h *Handler) systemSenderID() uint {
+	v := strings.TrimSpace(h.getSetting(keySystemSenderID))
+	if v == "" {
+		return 0
+	}
+	n, err := strconv.ParseUint(v, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return uint(n)
 }
 
 // DefaultRetentionDays is used when no retention setting is configured.
@@ -388,6 +410,7 @@ func (h *Handler) getInstanceSettings(ctx context.Context, input *GetInstanceSet
 			"ratelimitApiRpm":          h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
 			"ratelimitRedirectRpm":     h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM),
 			"publicCorsOrigins":        h.getSetting(keyPublicCORSOrigins),
+			"systemSenderId":           h.systemSenderID(),
 		},
 	}
 	return out, nil
@@ -548,6 +571,7 @@ type UpdateInstanceSettingsInputBody struct {
 	RatelimitApiRpm          *int    `json:"ratelimitApiRpm,omitempty"`
 	RatelimitRedirectRpm     *int    `json:"ratelimitRedirectRpm,omitempty"`
 	PublicCORSOrigins        *string `json:"publicCorsOrigins,omitempty"`
+	SystemSenderID           *uint   `json:"systemSenderId,omitempty"`
 }
 
 type UpdateInstanceSettingsInput struct {
@@ -655,6 +679,13 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	if input.Body.PublicCORSOrigins != nil {
 		h.setSetting(keyPublicCORSOrigins, strings.Join(splitList(*input.Body.PublicCORSOrigins), "\n"))
 	}
+	if input.Body.SystemSenderID != nil {
+		if *input.Body.SystemSenderID == 0 {
+			h.setSetting(keySystemSenderID, "")
+		} else {
+			h.setSetting(keySystemSenderID, strconv.FormatUint(uint64(*input.Body.SystemSenderID), 10))
+		}
+	}
 	meta := make(map[string]any)
 	if input.Body.ReservedSlugs != nil {
 		meta["reservedSlugs"] = *input.Body.ReservedSlugs
@@ -698,6 +729,9 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	if input.Body.PublicCORSOrigins != nil {
 		meta["publicCorsOrigins"] = *input.Body.PublicCORSOrigins
 	}
+	if input.Body.SystemSenderID != nil {
+		meta["systemSenderId"] = *input.Body.SystemSenderID
+	}
 	h.audit(r, "instance_settings.update", "settings", 0, meta)
 
 	retDays := DefaultRetentionDays
@@ -723,6 +757,7 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 			"ratelimitApiRpm":       h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
 			"ratelimitRedirectRpm":  h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM),
 			"publicCorsOrigins":     h.getSetting(keyPublicCORSOrigins),
+			"systemSenderId":        h.systemSenderID(),
 		},
 	}
 	return out, nil

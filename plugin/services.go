@@ -15,10 +15,19 @@ const ServiceMailSend = "mail.send"
 
 // ServiceMailReady is the well-known service name under which the mail plugin
 // reports whether the instance can actually deliver transactional mail
-// (contract type MailReady). It answers "is at least one SMTP sender
-// configured", which is a different question from "is the mail plugin mounted":
-// a mounted plugin with no sender cannot deliver a single message.
+// (contract type MailReady). It answers "is the system sender available",
+// which is a different question from "is the mail plugin mounted": a mounted
+// plugin with no sender cannot deliver a single message. The registration
+// verification gate and the startup/API readiness reports consume this.
 const ServiceMailReady = "mail.ready"
+
+// ServiceMailSendSystem is the well-known service name under which the
+// instance-level system mail sender is provided (contract type
+// SystemMailSender). System mail — email verification, password reset,
+// invites — must not depend on which org the recipient belongs to (at
+// registration time there is no org yet), so it goes through the instance's
+// system sender instead of the org-scoped mail.send contract.
+const ServiceMailSendSystem = "mail.send.system"
 
 // ServiceMailDispatcher is the well-known service name under which the inbound
 // email handler registrar is provided (contract type EmailDispatcher).
@@ -84,6 +93,16 @@ func OverviewServiceName(pluginName string) string {
 // must change together, which the explicit conversion at the Provide call site
 // enforces at compile time.
 type MailSender func(orgID uint, to, subject, htmlBody, textBody string) error
+
+// SystemMailSender is the cross-plugin contract for sending instance-level
+// system mail (email verification, password reset, invites) through the
+// instance's system sender. It carries no orgID: those flows run before any
+// membership exists (registration) or for recipients whose org is irrelevant,
+// and the instance setting (or the deterministic lowest-id fallback) picks the
+// sender. Changing this signature breaks the contract: provider and consumers
+// must change together, which the explicit conversion at the Provide call site
+// enforces at compile time.
+type SystemMailSender func(to, subject, htmlBody, textBody string) error
 
 // MailReady is the cross-plugin contract for the "can this instance send mail"
 // question: true when at least one SMTP sender is configured, false otherwise.

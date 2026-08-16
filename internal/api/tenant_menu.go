@@ -448,7 +448,7 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 		if base := h.origin(r); base != "" {
 			acceptURL = base + acceptURL
 		}
-		h.sendInviteEmail(orgID, email, acceptURL)
+		h.sendInviteEmail(email, acceptURL)
 		return &AddOrgMemberOutput{
 			Body: map[string]any{
 				"ok":          true,
@@ -463,15 +463,15 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 }
 
 // sendInviteEmail best-effort delivers the invite accept link to the invited
-// address using the org's first configured SMTP sender. It never returns an
-// error: a missing sender or a send failure is logged and swallowed so the
-// invite itself still succeeds.
-func (h *Handler) sendInviteEmail(orgID uint, to, acceptURL string) {
-	if fn, ok := plugin.LookupServiceAs[plugin.MailSender](h.LookupService, plugin.ServiceMailSend); ok {
+// address through the instance's system sender. It never returns an error: a
+// missing sender or a send failure is logged and swallowed so the invite
+// itself still succeeds.
+func (h *Handler) sendInviteEmail(to, acceptURL string) {
+	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
 		text := fmt.Sprintf("You've been invited to join a workspace on octarq.\n\n"+
 			"Accept your invite and set a password here:\n%s\n\n"+
 			"This link expires in 24 hours.", acceptURL)
-		if err := fn(orgID, to, "You've been invited to octarq", "", text); err != nil {
+		if err := fn(to, "You've been invited to octarq", "", text); err != nil {
 			log.Printf("invite email to %s failed: %v", to, err)
 		}
 		return

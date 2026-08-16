@@ -562,6 +562,10 @@ type MeOutputBody struct {
 	OrgID         uint   `json:"orgId"`
 	Role          string `json:"role"`
 	EmailVerified bool   `json:"emailVerified"`
+	// IsInstanceAdmin is the instance identity of the caller, reported where
+	// the session is: the tenant settings response still carries a copy (the
+	// frontend reads it there today); this field is the new, correct source.
+	IsInstanceAdmin bool `json:"isInstanceAdmin"`
 }
 
 type MeOutput struct {
@@ -590,6 +594,7 @@ func (h *Handler) me(ctx context.Context, input *MeInput) (*MeOutput, error) {
 	// not report its holder as an owner to whatever is reading /me.
 	out.Body.Role = string(h.effectiveRole(r))
 	out.Body.EmailVerified = user.EmailVerified
+	out.Body.IsInstanceAdmin = user.IsInstanceAdmin
 	return out, nil
 }
 
@@ -685,7 +690,7 @@ func (h *Handler) changeEmail(ctx context.Context, input *ChangeEmailInput) (*Ch
 		updates["verify_token_expiry"] = expiry
 
 		verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.origin(r), rawToken)
-		h.sendVerificationEmail(user.ID, newEmail, verifyURL)
+		h.sendVerificationEmail(newEmail, verifyURL)
 		verificationSent = true
 	} else {
 		updates["verify_token_hash"] = ""

@@ -24,12 +24,12 @@ func originTestServer(t *testing.T, domains ...dns.Domain) (http.Handler, *gorm.
 	h, srv, db := newTestHandlerRaw(t)
 
 	var sent []string
-	send := plugin.MailSender(func(orgID uint, to, subject, htmlBody, textBody string) error {
+	send := plugin.SystemMailSender(func(to, subject, htmlBody, textBody string) error {
 		sent = append(sent, textBody)
 		return nil
 	})
 	h.SetServiceLookup(func(name string) (any, bool) {
-		if name == plugin.ServiceMailSend {
+		if name == plugin.ServiceMailSendSystem {
 			return send, true
 		}
 		return nil, false
