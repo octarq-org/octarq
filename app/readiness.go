@@ -36,16 +36,16 @@ func (l readinessLine) String() string {
 // reveals that account recovery was never possible when a locked-out user asks
 // for a reset link that never arrives.
 //
-// mailAvailable must come from a real lookup of the "mail.send" service, not
-// from configuration: whether mail works depends on which plugins the
-// composition root mounted, which is why Run calls this after the mount loop
-// rather than at New() time.
+// mailReady must come from a real lookup of the "mail.ready" service, not from
+// configuration: whether mail works depends on which plugins the composition
+// root mounted AND whether any SMTP sender is configured, which is why Run
+// calls this after the mount loop rather than at New() time.
 //
 // It NEVER includes a secret value. The secret key, the admin password and any
 // DSN password are reported as configured / not configured only — this output
 // goes to the operator's log aggregator, which is not a place to put the KEK.
 // TestReadinessReportOmitsSecrets pins that.
-func readinessReport(cfg *config.Config, mailAvailable, domainsRegistered bool) []readinessLine {
+func readinessReport(cfg *config.Config, mailReady, domainsRegistered bool) []readinessLine {
 	var lines []readinessLine
 
 	// Absolute URLs come from the request host, checked against the registered
@@ -61,11 +61,11 @@ func readinessReport(cfg *config.Config, mailAvailable, domainsRegistered bool) 
 			"no domain is registered, so links are built from the request host as sent, with nothing to validate it against. Add the domain this instance is served on (Domains → Add domain) to have octarq reject hostnames it does not own"})
 	}
 
-	if mailAvailable {
-		lines = append(lines, readinessLine{readyOK, "outbound mail", "a mail plugin provides mail.send; password reset and email verification can be delivered"})
+	if mailReady {
+		lines = append(lines, readinessLine{readyOK, "outbound mail", "at least one SMTP sender is configured; password reset and email verification can be delivered"})
 	} else {
 		lines = append(lines, readinessLine{readyDegraded, "outbound mail",
-			"no plugin provides mail.send — password-reset and email-verification messages will NOT be delivered and a locked-out user cannot recover their account. Mount the mail plugin (plugins/builtin) or another plugin providing mail.send"})
+			"no SMTP sender is configured — password-reset and email-verification messages will NOT be delivered and a locked-out user cannot recover their account. Configure an SMTP sender (Mail → SMTP senders), or mount a plugin providing mail.send"})
 	}
 
 	lines = append(lines, readinessLine{readyOK, "database", fmt.Sprintf("driver=%s dsn=%s", cfg.DBDriver, redactDSN(cfg.DBDriver, cfg.DBDSN))})

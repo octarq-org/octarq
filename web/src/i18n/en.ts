@@ -46,6 +46,10 @@ export const en = {
     verificationSent: "Verification email sent.",
     registerVerifyTitle: "Verify your email to continue",
     registerVerifyNotice: "Your account is ready, but this instance requires a verified email. We sent a verification link to {{email}} — open it, then sign in.",
+    // Shown when registration cannot pass the verification gate because the
+    // instance has no SMTP sender configured: promising a verification email
+    // that can never arrive would leave the account locked out forever.
+    registerMailUnavailable: "This instance cannot send email yet, so accounts cannot be verified. Ask an administrator to configure an SMTP sender or disable email verification.",
     workspaceCreated: "Workspace created",
     skipToContent: "Skip to content",
     switchWorkspaceFailed: "Couldn't switch workspace",

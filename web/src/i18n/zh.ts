@@ -47,6 +47,7 @@ export const zh: Resources = {
     verificationSent: "验证邮件已发送。",
     registerVerifyTitle: "请先验证邮箱",
     registerVerifyNotice: "账户已创建，但本实例要求邮箱通过验证。验证链接已发送至 {{email}}，请打开链接后再登录。",
+    registerMailUnavailable: "本实例尚无法发送邮件，因此无法完成账户验证。请联系管理员配置 SMTP 发送器，或关闭邮箱验证。",
     workspaceCreated: "工作区已创建",
     skipToContent: "跳转至主要内容",
     switchWorkspaceFailed: "无法切换工作区",

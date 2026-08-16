@@ -138,6 +138,9 @@ func TestResetPasswordKeepsSessionsWhenPasswordWriteFails(t *testing.T) {
 // says nothing about the account.
 func TestForgotPasswordFailsLoudlyWhenTokenWriteFails(t *testing.T) {
 	srv, db := newTestHandler(t)
+	// Register is pure setup here; a mail-less test instance cannot pass the
+	// verification gate (register 503s), so opt out explicitly.
+	disableEmailVerification(t, db)
 
 	if regRec := do(srv, "POST", "/api/auth/register", nil, `{"email":"fail@forgot.com","password":"password123"}`); regRec.Code != http.StatusOK {
 		t.Fatalf("register: got %d (%s)", regRec.Code, regRec.Body.String())
@@ -176,6 +179,9 @@ func TestForgotPasswordFailsLoudlyWhenTokenWriteFails(t *testing.T) {
 // page with an error, not claim verified=1 and not switch to a JSON error.
 func TestVerifyEmailRedirectsWithErrorWhenWriteFails(t *testing.T) {
 	srv, db := newTestHandler(t)
+	// Register is pure setup here; a mail-less test instance cannot pass the
+	// verification gate (register 503s), so opt out explicitly.
+	disableEmailVerification(t, db)
 
 	if regRec := do(srv, "POST", "/api/auth/register", nil, `{"email":"fail@verify.com","password":"password123"}`); regRec.Code != http.StatusOK {
 		t.Fatalf("register: got %d (%s)", regRec.Code, regRec.Body.String())
@@ -220,6 +226,9 @@ func TestVerifyEmailRedirectsWithErrorWhenWriteFails(t *testing.T) {
 // Same contract as forgotPassword, for the resend path.
 func TestResendVerificationFailsLoudlyWhenTokenWriteFails(t *testing.T) {
 	srv, db := newTestHandler(t)
+	// Register is pure setup here; a mail-less test instance cannot pass the
+	// verification gate (register 503s), so opt out explicitly.
+	disableEmailVerification(t, db)
 
 	if regRec := do(srv, "POST", "/api/auth/register", nil, `{"email":"fail@resend.com","password":"password123"}`); regRec.Code != http.StatusOK {
 		t.Fatalf("register: got %d (%s)", regRec.Code, regRec.Body.String())
@@ -249,6 +258,9 @@ func TestResendVerificationFailsLoudlyWhenTokenWriteFails(t *testing.T) {
 // regardless of whether the email exists, and sets reset tokens for valid users.
 func TestForgotPasswordNoLeak(t *testing.T) {
 	srv, db := newTestHandler(t)
+	// Register is pure setup here; a mail-less test instance cannot pass the
+	// verification gate (register 503s), so opt out explicitly.
+	disableEmailVerification(t, db)
 
 	// Register a user
 	do(srv, "POST", "/api/auth/register", nil, `{"email":"exist@user.com","password":"password123"}`)
@@ -348,6 +360,9 @@ func TestResetPasswordFlow(t *testing.T) {
 // and resending verification email.
 func TestVerifyEmailAndResendFlow(t *testing.T) {
 	srv, db := newTestHandler(t)
+	// Register is pure setup here; a mail-less test instance cannot pass the
+	// verification gate (register 503s), so opt out explicitly.
+	disableEmailVerification(t, db)
 
 	// 1. Register user
 	do(srv, "POST", "/api/auth/register", nil, `{"email":"unverified@domain.com","password":"password123"}`)
@@ -463,7 +478,10 @@ func TestForgotPasswordRateLimit(t *testing.T) {
 // TestForgotPasswordNoLeakExistence verifies that POST /api/auth/forgot
 // returns identical status code and response body for existent vs non-existent emails.
 func TestForgotPasswordNoLeakExistence(t *testing.T) {
-	srv, _ := newTestHandler(t)
+	srv, db := newTestHandler(t)
+	// Register is pure setup here; a mail-less test instance cannot pass the
+	// verification gate (register 503s), so opt out explicitly.
+	disableEmailVerification(t, db)
 
 	do(srv, "POST", "/api/auth/register", nil, `{"email":"realuser@domain.com","password":"password123"}`)
 

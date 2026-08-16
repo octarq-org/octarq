@@ -46,6 +46,7 @@ export const ja = {
     verificationSent: "検証メールを送信しました。",
     registerVerifyTitle: "メールアドレスを検証してください",
     registerVerifyNotice: "アカウントは作成されましたが、このインスタンスでは検証済みメールが必要です。{{email}} に検証リンクを送信しました。リンクを開いてからサインインしてください。",
+    registerMailUnavailable: "このインスタンスはまだメールを送信できないため、アカウントを検証できません。管理者に SMTP 送信者の設定、またはメール検証の無効化を依頼してください。",
     workspaceCreated: "Workspace を作成しました",
     skipToContent: "コンテンツへスキップ",
     switchWorkspaceFailed: "Workspace を切り替えられませんでした",

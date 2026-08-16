@@ -774,8 +774,16 @@ func (a *App) Run(ctx context.Context) error {
 	// loop) would report "no mail" for every instance, including the ones that
 	// have it — an answer that is wrong rather than merely early.
 	domainsRegistered := origin.AnyRegistered(a.gdb)
-	_, mailAvailable := services.Lookup(plugin.ServiceMailSend)
-	for _, line := range readinessReport(a.cfg, mailAvailable, domainsRegistered) {
+	// "Can this instance send mail" is no longer answered by the mail.send
+	// service existing — a mounted plugin with no SMTP sender configured
+	// delivers nothing. Ask the mail.ready service for the real state; absent
+	// that service, report not ready (fail closed, exactly what a fresh
+	// instance is until a sender exists).
+	mailReady := false
+	if fn, ok := plugin.LookupServiceAs[plugin.MailReady](services.Lookup, plugin.ServiceMailReady); ok {
+		mailReady = fn()
+	}
+	for _, line := range readinessReport(a.cfg, mailReady, domainsRegistered) {
 		slog.Info("readiness", "status", string(line.Status), "check", line.Subject, "detail", line.Detail)
 	}
 	if err := enforceSecretKeyFloor(a.cfg, domainsRegistered); err != nil {

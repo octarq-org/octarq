@@ -46,6 +46,7 @@ export const pt = {
     verificationSent: "E-mail de verificação enviado.",
     registerVerifyTitle: "Verifique seu e-mail para continuar",
     registerVerifyNotice: "Sua conta está pronta, mas esta instância exige um e-mail verificado. Enviamos um link de verificação para {{email}} — abra-o e depois entre.",
+    registerMailUnavailable: "Esta instância ainda não pode enviar e-mails, então as contas não podem ser verificadas. Peça a um administrador para configurar um remetente SMTP ou desativar a verificação de e-mail.",
     workspaceCreated: "Workspace criado",
     skipToContent: "Pular para o conteúdo",
     switchWorkspaceFailed: "Não foi possível alternar o workspace",

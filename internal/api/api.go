@@ -43,6 +43,11 @@ type Handler struct {
 	// login budget would let anyone lock a whole NAT out of logging in by firing a
 	// handful of reset requests.
 	recoveryLimiter *rateLimiter
+	// registerLimiter bounds public sign-ups per IP (5/hour). It is deliberately
+	// separate from loginLimiter too: a successful registration used to reset the
+	// shared login budget and never counted against it, so sign-up was
+	// effectively unlimited from a single IP.
+	registerLimiter *rateLimiter
 	abuseLimiter    *rateLimiter
 	sendLimiter     *rateLimiter // outbound-email rate cap, keyed by org
 	statusLimiter   *rateLimiter
@@ -99,6 +104,7 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 		queue:           q,
 		loginLimiter:    newRateLimiter(cfg.RedisURL, "login", 5, 15*time.Minute),    // 5 fails / 15 mins
 		recoveryLimiter: newRateLimiter(cfg.RedisURL, "recovery", 5, 15*time.Minute), // 5 reset/verify requests / 15 mins
+		registerLimiter: newRateLimiter(cfg.RedisURL, "register", 5, time.Hour),      // 5 sign-ups / hour
 		abuseLimiter:    newRateLimiter(cfg.RedisURL, "abuse", 5, time.Hour),         // 5 reports / 1 hour
 		sendLimiter:     newRateLimiter(cfg.RedisURL, "send", 100, time.Hour),        // 100 outbound emails / org / hour
 		statusLimiter:   newRateLimiter(cfg.RedisURL, "status", 60, time.Minute),     // 60 requests / minute
