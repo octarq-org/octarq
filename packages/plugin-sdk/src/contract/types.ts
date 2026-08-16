@@ -123,4 +123,29 @@ export interface UIPlugin {
   areas?: UIArea[];
   i18n?: PluginI18n;
   lockedFallback?: LockedFallback;
+  // Names of other UIPlugins this plugin replaces — the plugin-market
+  // "enhanced edition" seam: a commercial plugin supersedes the OSS/vanilla
+  // plugin that delivers the same feature under a different name (e.g. a Pro
+  // audit page with filtering, pagination, and CSV export replacing core's
+  // basic audit page). Each named plugin is excluded WHOLESALE from the
+  // composed app: its routes, widgets, areas, and i18n ALL stop applying —
+  // not just the overlapping route. There is no half-replaced state; the
+  // replacer owns the feature, the replaced plugin is gone.
+  //
+  // Replacement is DERIVED AT READ TIME from the full registry, never applied
+  // when plugins register — so the composed result is independent of
+  // registration order (core registers before manifest plugins, but
+  // correctness must not depend on that).
+  //
+  // Declarations are validated against the composed registry:
+  //   - two plugins replacing the same target is a composition error — dev
+  //     throws, prod console.errors and neither wins (the target stays);
+  //   - `replaces` naming a plugin that is not composed is a dev warning
+  //     (likely a typo, possibly an optional dependency absent from this
+  //     build) and silently ignored in prod;
+  //   - a plugin must not replace itself — an error;
+  //   - replace CHAINS (A replaces B while B replaces C) are NOT supported —
+  //     declaring that shape is an error. The registry refuses to invent a
+  //     semantics for it.
+  replaces?: string[];
 }
