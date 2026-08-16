@@ -489,13 +489,28 @@ func (mw *middleware) applyCORS(w http.ResponseWriter, r *http.Request) bool {
 	return false
 }
 
+// contentSecurityPolicy is the baseline CSP applied to every response.
+//
+// script-src deliberately has NO 'unsafe-inline': without it, an XSS that finds
+// a single injection point cannot execute arbitrary inline scripts — CSP is a
+// real mitigation layer. The two inline scripts the dashboard genuinely ships
+// (the synchronous theme toggle and the campaign-forwarding snippet in
+// index.html) are allow-listed by their exact build-time SHA-256 hashes instead.
+// Rebuilding index.html changes those hashes; the hash values here must be
+// regenerated from the served index.html (see setSecurityHeaders' guard test,
+// which recomputes them from the embedded dist and fails if they drift).
+//
+// style-src KEEPS 'unsafe-inline': Tailwind injects its styles at runtime and
+// removing it would blank the whole dashboard.
+const contentSecurityPolicy = "default-src 'self'; script-src 'self' 'sha256-XOdMZOShyEmv5lOxX1JVnl4Ve1llBlA5kNEaund+AXQ=' 'sha256-0la+svl4yiuBleyZsFu+6aWjFtuvmwtPoqXKtkLO42Q='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'"
+
 // setSecurityHeaders applies baseline hardening headers to every response.
 func setSecurityHeaders(w http.ResponseWriter, r *http.Request) {
 	h := w.Header()
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("X-Frame-Options", "SAMEORIGIN")
 	h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
-	h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'")
+	h.Set("Content-Security-Policy", contentSecurityPolicy)
 	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
 		h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 	}
