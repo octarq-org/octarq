@@ -98,8 +98,13 @@ func TestInviteFlow(t *testing.T) {
 	if err := db.Where("email = ?", t.Name()+"+newbie@example.com").First(&user).Error; err != nil {
 		t.Fatalf("user not found in db: %v", err)
 	}
-	if user.InviteToken != res.InviteToken {
-		t.Fatalf("db token %q does not match response token %q", user.InviteToken, res.InviteToken)
+	// The raw token never leaves the API response / mailed link: the DB row
+	// stores only its SHA-256 hash, so a DB read cannot recover a live invite.
+	if user.InviteTokenHash == res.InviteToken {
+		t.Fatalf("invite token stored in plaintext: db hash %q equals the raw token %q", user.InviteTokenHash, res.InviteToken)
+	}
+	if user.InviteTokenHash != hashToken(res.InviteToken) {
+		t.Fatalf("db token hash %q does not match SHA-256 of the response token %q", user.InviteTokenHash, res.InviteToken)
 	}
 	if user.InviteExpiresAt == nil {
 		t.Fatal("db invite expires at is nil")
@@ -150,8 +155,8 @@ func TestInviteFlow(t *testing.T) {
 	if updatedUser.PasswordHash == "" {
 		t.Fatal("expected password hash, got empty")
 	}
-	if updatedUser.InviteToken != "" {
-		t.Fatalf("expected invite token to be cleared, got %q", updatedUser.InviteToken)
+	if updatedUser.InviteTokenHash != "" {
+		t.Fatalf("expected invite token hash to be cleared, got %q", updatedUser.InviteTokenHash)
 	}
 	if updatedUser.InviteExpiresAt != nil {
 		t.Fatal("expected invite expiration to be nil")

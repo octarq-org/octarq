@@ -247,6 +247,7 @@ func (h *Handler) logoutAll(ctx context.Context, input *LogoutAllInput) (*Logout
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	uid := h.auth.UserID(r)
+	oid := h.orgID(r)
 	var sessions []models.Session
 	h.db.Where("user_id = ?", uid).Find(&sessions)
 	ctxCtx := r.Context()
@@ -255,6 +256,7 @@ func (h *Handler) logoutAll(ctx context.Context, input *LogoutAllInput) (*Logout
 	}
 	h.db.Where("user_id = ?", uid).Delete(&models.Session{})
 	h.auth.Clear(r, w)
+	h.auditAs(r, oid, uid, "user.logout_all", "session", 0, map[string]any{"sessionsRevoked": len(sessions)})
 	out := &LogoutAllOutput{}
 	out.Body.OK = true
 	return out, nil
@@ -359,6 +361,8 @@ func (h *Handler) changePassword(ctx context.Context, input *ChangePasswordInput
 		_ = h.auth.Cache().Delete(reqCtx, "session:"+s.Token)
 	}
 	h.db.Where("user_id = ? AND id <> ?", uid, currentID).Delete(&models.Session{})
+
+	h.audit(r, "user.change_password", "user", user.ID, map[string]any{"sessionsRevoked": len(sessions)})
 
 	out := &ChangePasswordOutput{}
 	out.Body.OK = true
@@ -517,12 +521,14 @@ func (h *Handler) revokeSession(ctx context.Context, input *RevokeSessionInput) 
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 	uid := h.auth.UserID(r)
+	oid := h.orgID(r)
 	var sess models.Session
 	if err := h.db.Where("id = ? AND user_id = ?", input.ID, uid).First(&sess).Error; err != nil {
 		return nil, huma.Error404NotFound("session not found")
 	}
 	h.db.Delete(&sess)
 	_ = h.auth.Cache().Delete(r.Context(), "session:"+sess.Token)
+	h.auditAs(r, oid, uid, "user.session_revoke", "session", sess.ID, nil)
 
 	// If the caller just revoked their own session, clear the cookie too.
 	isSelf := h.auth.SessionID(r) == sess.ID
@@ -592,7 +598,11 @@ func (h *Handler) logout(ctx context.Context, input *LogoutInput) (*LogoutOutput
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, w := humago.Unwrap(input.Ctx)
+	uid := h.auth.UserID(r)
+	oid := h.orgID(r)
+	sid := h.auth.SessionID(r)
 	h.auth.Clear(r, w)
+	h.auditAs(r, oid, uid, "user.logout", "session", sid, nil)
 	out := &LogoutOutput{}
 	out.Body.OK = true
 	return out, nil
@@ -805,6 +815,15 @@ func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
+	ip := reporterIP(r)
+	// Same budget as the password-reset endpoints: this is an unauthenticated
+	// "completion" endpoint, so every request counts (there is no "failed"
+	// attempt to budget on), and sharing the budget keeps a single limiter.
+	if !h.recoveryLimiter.allow(ip) {
+		return nil, huma.Error429TooManyRequests("too many attempts")
+	}
+	h.recoveryLimiter.recordFailure(ip)
+
 	token := strings.TrimSpace(input.Body.Token)
 	if token == "" {
 		return nil, huma.Error400BadRequest("token is required")
@@ -815,7 +834,7 @@ func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*
 	}
 
 	var user models.User
-	if err := h.db.Where("invite_token = ?", token).First(&user).Error; err != nil {
+	if err := h.db.Where("invite_token_hash = ?", hashToken(token)).First(&user).Error; err != nil {
 		return nil, huma.Error400BadRequest("invalid token")
 	}
 
@@ -829,7 +848,7 @@ func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*
 	}
 
 	user.PasswordHash = string(hash)
-	user.InviteToken = ""
+	user.InviteTokenHash = ""
 	user.InviteExpiresAt = nil
 	// Redeeming a valid, unexpired invite token proves ownership of the account's
 	// address: the token is delivered only to that mailbox (see sendInviteEmail),
@@ -865,8 +884,10 @@ func (h *Handler) memberOrgIDs(userID uint) []uint {
 }
 
 // publishLoginFailed emits auth.login_failed to every workspace the target
-// account belongs to. Unknown usernames publish nowhere — there is no org to
-// notify, and firing on arbitrary strings would let probes spam webhooks.
+// account belongs to, and records it in audit_logs for the same workspaces.
+// Unknown usernames publish nowhere — there is no org to notify, and firing on
+// arbitrary strings would let probes spam webhooks. The stored meta carries
+// email + reason only: never the attempted password nor any token.
 func (h *Handler) publishLoginFailed(r *http.Request, username, reason string) {
 	var user models.User
 	if h.db.Where("email = ?", strings.TrimSpace(username)).First(&user).Error != nil {
@@ -874,6 +895,7 @@ func (h *Handler) publishLoginFailed(r *http.Request, username, reason string) {
 	}
 	for _, oid := range h.memberOrgIDs(user.ID) {
 		eventbus.Publish(oid, "auth.login_failed", map[string]any{"email": user.Email, "reason": reason, "ip": reporterIP(r)})
+		h.auditAs(r, oid, user.ID, "auth.login_failed", "user", user.ID, map[string]any{"email": user.Email, "reason": reason})
 	}
 }
 
