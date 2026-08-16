@@ -662,7 +662,6 @@ func (h *Handler) changeEmail(ctx context.Context, input *ChangeEmailInput) (*Ch
 		return nil, huma.Error400BadRequest("current password is incorrect")
 	}
 
-	// Check if another account already uses this email
 	var existing models.User
 	if h.db.Where("LOWER(email) = ? AND id <> ?", newEmail, user.ID).First(&existing).Error == nil {
 		return nil, huma.NewError(http.StatusConflict, "an account with this email already exists")

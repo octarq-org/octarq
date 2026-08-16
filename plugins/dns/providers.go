@@ -197,7 +197,6 @@ func (p *Plugin) deleteProviderAccount(ctx context.Context, input *DeleteProvide
 		return nil, huma.Error404NotFound("not found")
 	}
 
-	// Check if any domain is using this account
 	var count int64
 	p.db.Model(&Domain{}).Where("provider_account_id = ?", input.ID).Count(&count)
 	if count > 0 {

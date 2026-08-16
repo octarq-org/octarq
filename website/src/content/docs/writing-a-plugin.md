@@ -91,15 +91,6 @@ export const helloPlugin: UIPlugin = {
       Component: lazy(() => import("./Page")),
     },
   ],
-  menu: [
-    {
-      id: "hello",
-      label: "Hello World",
-      path: "/hello",
-      icon: "👋",
-      category: "Workspace",
-    },
-  ],
 };
 ```
 

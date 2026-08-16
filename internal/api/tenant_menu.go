@@ -387,7 +387,6 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 		return nil, huma.Error403Forbidden("forbidden: only an owner can grant the owner role")
 	}
 
-	// Find or create the target User.
 	var user models.User
 	var isNew bool
 	if err := h.db.Where("email = ?", email).First(&user).Error; err != nil {
@@ -410,7 +409,6 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 		}
 	}
 
-	// Check if already a member.
 	var existing models.OrgMember
 	memErr := h.db.Where("org_id = ? AND user_id = ?", orgID, user.ID).First(&existing).Error
 	if memErr == nil {

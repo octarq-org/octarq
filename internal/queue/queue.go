@@ -182,7 +182,6 @@ func (q *AsynqQueue) Start(ctx context.Context) error {
 		return err
 	}
 
-	// Shut down workers gracefully on context done
 	go func() {
 		<-ctx.Done()
 		srv.Shutdown()

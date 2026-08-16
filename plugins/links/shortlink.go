@@ -313,7 +313,6 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 	var link Link
 	cacheKey := "link:redirect:" + host + ":" + slug
 
-	// Try reading from cache first
 	if e.ctx != nil && e.ctx.CacheGet != nil && e.ctx.CacheGet(ctx, cacheKey, &link) {
 		if link.ID == 0 {
 			// Cached negative result
@@ -345,7 +344,6 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 		return nil, false
 	}
 
-	// Cache successful result (1 hour TTL)
 	if e.ctx != nil && e.ctx.CacheSet != nil {
 		_ = e.ctx.CacheSet(ctx, cacheKey, &link, time.Hour)
 	}
@@ -558,7 +556,6 @@ func matchRule(rule RoutingRule, country, device, os, lang string) bool {
 // This function is a pure function: (fingerprint, linkID) → variant.
 // It never uses rand, time, or counters.
 func splitAssign(rules RoutingRules, fingerprint string, linkID uint) (target, variant string, ok bool) {
-	// Collect split rules.
 	var splits []RoutingRule
 	for _, r := range rules {
 		if r.Type == "split" {
@@ -569,12 +566,9 @@ func splitAssign(rules RoutingRules, fingerprint string, linkID uint) (target, v
 		return "", "", false
 	}
 
-	// Derive a stable bucket [0, 100) by hashing fingerprint + linkID.
-	// Mixing in the linkID prevents cross-link systematic bias.
 	h := sha256.Sum256([]byte(fingerprint + "\n" + fmt.Sprintf("%d", linkID)))
 	bucket := int(binary.BigEndian.Uint32(h[:4]) % 100)
 
-	// Walk split rules, accumulating weight.
 	cum := 0
 	for _, r := range splits {
 		if r.Weight <= 0 {

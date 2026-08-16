@@ -308,13 +308,11 @@ func (m *Manager) sessionByToken(token string) *models.Session {
 	hashed := models.HashToken(token)
 	var s models.Session
 	ctx := context.Background()
-	// Try fetching from cache first
 	if m.cache.Get(ctx, "session:"+hashed, &s) {
 		// Verify if it is expired in case Redis TTL hasn't kicked in
 		if s.ExpiresAt.After(time.Now()) {
 			return &s
 		}
-		// If expired, clean it up
 		_ = m.cache.Delete(ctx, "session:"+hashed)
 	}
 
@@ -322,7 +320,6 @@ func (m *Manager) sessionByToken(token string) *models.Session {
 		return nil
 	}
 
-	// Cache the retrieved session
 	ttl := time.Until(s.ExpiresAt)
 	if ttl > 0 {
 		_ = m.cache.Set(ctx, "session:"+hashed, &s, ttl)

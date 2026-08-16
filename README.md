@@ -92,7 +92,6 @@ func (Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 export const helloPlugin: UIPlugin = {
   name: "hello",
   routes: [{ path: "/hello", Component: lazy(() => import("./Page")) }],
-  menu:  [{ id: "hello", label: "Hello", path: "/hello", icon: "👋", category: "Workspace" }],
 };
 ```
 

@@ -82,8 +82,6 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 		c.Config = ""
 		chOut[i] = channelOut{NotificationChannel: c, Config: "[redacted]"}
 	}
-
-	// Redact webhook secrets.
 	type webhookOut struct {
 		models.Webhook
 		Secret string `json:"secret"`

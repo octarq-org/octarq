@@ -121,7 +121,6 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, allo
 	srv := mcp.NewServer(impl, opts)
 	s.registerTools(srv, allowRawSQL)
 
-	// Register any plugin-supplied MCP tools.
 	for _, p := range plugins {
 		if mp, ok := p.(plugin.MCPProvider); ok {
 			mp.RegisterMCP(srv)

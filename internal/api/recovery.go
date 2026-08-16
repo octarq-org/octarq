@@ -220,7 +220,6 @@ func (h *Handler) resetPassword(ctx context.Context, input *ResetPasswordInput) 
 		return nil, huma.Error500InternalServerError("failed to update password")
 	}
 
-	// Invalidate all active sessions for this user
 	var sessions []models.Session
 	h.db.Where("user_id = ?", user.ID).Find(&sessions)
 	for _, s := range sessions {
