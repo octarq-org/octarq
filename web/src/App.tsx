@@ -437,7 +437,8 @@ function Shell({
 
   // Every core settings page lives under /settings (one URL space — no /personal
   // tree), and so do the official plugin settings pages — `/settings/<menu id>`,
-  // see docs/PLUGINS.md. A third-party plugin is not obliged to: its Category can
+  // see website/src/content/docs/writing-a-plugin.md. A third-party plugin is
+  // not obliged to: its Category can
   // route it into the Settings area while its Path stays top-level. settingsPaths
   // keeps the shell in the settings context for those too; without it, navigating
   // to one drops the settings rail and orphans the highlight.

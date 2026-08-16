@@ -118,7 +118,8 @@ Core (octarq):
 - `web/src/plugins/core/` — octarq's own core-feature UIPlugins (always composed from `main.tsx`).
 - `web/vite.config.ts` — `octarqPlugins()`, `OCTARQ_WEBEMBED_OUT`.
 - `examples/plugin-hello/web/` — the example plugin, packaged as `@acme/octarq-plugin-hello` (OSS default).
-- `docs/{PLUGINS.md,PUBLISHING.md,ACCESSIBILITY.md}`.
+- `plugins/*/docs/` — in-app help pages, served under `/help/<slug>`.
+- `website/src/content/docs/` — this documentation site.
 
 octarq-pro:
 - `main.go` — `app.New().WithWebFS(webembed.FS()).Use(...)`.

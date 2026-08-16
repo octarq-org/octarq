@@ -73,6 +73,14 @@ var (
 )
 ```
 
+Key backend rules:
+
+- **Every route is auto-gated.** The host wraps your mux so a feature disabled for the caller's workspace answers `404` before your handler runs.
+- **License-gate paid routes with `402`.** Return `402 Payment Required` when the license lacks the tier; the frontend `PluginGate` turns it into an upsell.
+- **Never import `internal/*`.** Everything a plugin needs is on `plugin.Context`: `DB`, `Guard`, `Encrypt`/`Decrypt` (AES-256-GCM), `Audit`, `Notify`, `SendMail`, `OnEmail`, `DNS`, `UserID`/`OrgID`, `GetWorkspaceSetting`/`SetWorkspaceSetting`.
+- **Pair every optional interface with a compile-time assertion** (`var _ plugin.MenuProvider = Plugin{}`). Optional capabilities are detected by runtime type assertion, so a typo'd method silently never runs without these.
+- **Own your tables.** Every model (core + plugins) is AutoMigrated once at startup; a preflight fails if two plugin model types claim the same table. Mirror an existing core table with a local struct (`TableName()` override) to read core data without importing `internal/models`.
+
 ---
 
 ## 3. Frontend Implementation (`UIPlugin`)
@@ -94,6 +102,16 @@ export const helloPlugin: UIPlugin = {
 };
 ```
 
+Key frontend rules:
+
+- **Wrap every page in `React.lazy`.** An uncomposed build ships none of your bytes; each page gets its own async chunk.
+- **Build your UI from `@octarq/plugin-sdk`.** It re-exports the shared library (`GlassCard`, `Button`, `Field`, `Modal`, `Toggle`, `LockedFeature`, `useTranslation`, …). Import by name, never reach into app-internal paths.
+- **`PluginGate` wraps every plugin route.** `402` → upsell (`lockedFallback` or the SDK's `LockedFeature`), `403` → access-denied note, `404`/chunk failure → neutral "not in this build" note. Degrade declaratively via `usePluginGate().degrade(err.status)`; the gate is the safety net, never a raw error.
+- **`category` equals the sidebar group label it joins.** A `category` with no matching group creates one via `areaForCategory`. A plugin can declare a **new top-level area** (`areas`) and point menu categories at its id or group labels — never at its `title` (display text).
+- **A settings page's `Path` is `/settings/<menu id>`.** The last segment is the menu's **`ID`**, not its `Label`. The Go `Path` and frontend `UIRoute.path` must match exactly — `PluginGate` compares them to tell "operator disabled this" apart from "this build doesn't have it".
+- **`requiredRole`/`requiredTier` are advisory UX only.** The host hides menu entries and pre-renders access-denied below `requiredRole` — but the server stays authoritative: enforce with `403`/`402` in your backend.
+- **i18n namespace = your `name`.** `i18n.en`/`i18n.zh` merge under `"<name>"`, so a `pageTitle` key is read as `t("hello.pageTitle")`.
+
 ---
 
 ## 4. Inter-Plugin Service Registry
@@ -113,6 +131,23 @@ Plugins communicate through an in-memory service registry provided on `plugin.Co
 
 > `Start(ctx context.Context)` from optional `Starter` interface runs in a background goroutine after all plugins have mounted, providing an entry point for inter-plugin initialization.
 
+Services are resolved **lazily** — in `Start` or per-request, never in your own `Mount` — and degrade gracefully when absent. Providing the same service name twice is a startup error.
+
+---
+
+## 6. Ship In-App Help Docs
+
+Ship documentation as a `docs/` directory, embedded and served under `/help/<slug>`:
+
+```go
+//go:embed docs
+var docs embed.FS
+
+func (p *Plugin) HelpDocsFS() fs.FS { return docs }
+```
+
+The naming is the contract: `docs/webhooks.mdx` is a page whose slug is `webhooks`; `docs/webhooks.zh.mdx` is its Chinese translation and never a page of its own. Everything else — title, category, order — is YAML frontmatter in the file, and `category` must be one of the six keys from `plugin.HelpCategories()`. Subdirectories are walked and don't affect slugs. For pages built at runtime, implement `HelpProvider` (`HelpDocs() []plugin.HelpDoc`) instead — a plugin may implement both, and the two are concatenated.
+
 ---
 
 ## 5. Composition & Building
@@ -126,4 +161,37 @@ OCTARQ_PLUGINS='[{"go":"github.com/you/octarq-plugin-hello","npm":"@you/octarq-p
 
 - **Routes Auto-Gate**: Endpoints return `404` when disabled in workspace settings.
 - **AutoMigrate Preflight**: Database tables are resolved and migrated at startup.
+
+---
+
+## 7. Trust model
+
+There is **no runtime plugin loading** — a compiled-in plugin runs **in-process with
+full access** (DB, secrets, network). This fits a **curated / operator-opt-in**
+ecosystem: the operator chooses which plugins to build in, and you review what you
+ship. It is **not** a sandbox for untrusted third-party code; untrusted plugins
+would need process/WASM isolation.
+
+---
+
+## 8. Distribution
+
+A plugin is **one repo** with the two halves: the Go module is `go get`-able, and
+the `web/` package publishes to npm with `@octarq/plugin-sdk` and `react` as
+**peer** dependencies. The working reference is
+[`examples/plugin-hello`](https://github.com/octarq-org/octarq/tree/main/examples/plugin-hello).
+For publishing the SDK itself, see [Publishing the SDK](/guides/publishing/).
+
+---
+
+## 9. Checklist
+
+- [ ] `Plugin.Name()` and `UIPlugin.name` are identical.
+- [ ] A compile-time `var _ plugin.X = Plugin{}` assert for **every** interface (Plugin + each optional one).
+- [ ] Backend routes registered on the passed `Mux`; secrets via `ctx.Encrypt`; cross-plugin services via `ctx.Provide` / lazy `plugin.LookupAs`.
+- [ ] Paid/tiered routes return **402** when unlicensed; rely on the host's auto-**404** for the disabled-feature case.
+- [ ] Pages are `React.lazy`; UI built from `@octarq/plugin-sdk`; 402/404 handled.
+- [ ] i18n keys live under your `name` namespace.
+- [ ] Help pages live in `docs/<slug>.mdx` with a `<slug>.zh.mdx` translation; title/category/order are frontmatter.
+- [ ] `go build ./...` and `pnpm build` are green; `go:embed` produces one binary.
 

@@ -20,4 +20,4 @@ project in
 
 > `access` is set to `restricted` in `config.json` because the default target is
 > GitHub Packages (private, org-scoped). To publish publicly to npm, flip it to
-> `"public"`. See `docs/PUBLISHING.md`.
+> `"public"`. See `website/src/content/docs/guides/publishing.md`.

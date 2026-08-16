@@ -8,7 +8,7 @@ import (
 // registeredPublicEndpoints is the reviewed inventory of routes reachable
 // without a dashboard session, together with how each one authenticates its
 // caller instead. Every entry was checked against its handler; the reasoning
-// is written up in docs/AUDIT-public-endpoints.md.
+// is written up in the AUDIT-public-endpoints audit (kept outside this repo).
 //
 // THIS LIST IS A REVIEW GATE, NOT A CONFIG. Adding a line here makes a route
 // publicly reachable in the eyes of this test, so a diff that grows it is a

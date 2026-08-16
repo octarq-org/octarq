@@ -11,7 +11,7 @@ import (
 // feature from the binary with no build tags: this edition imports only dns+links,
 // so the Go linker must drop github.com/octarq-org/octarq/plugins/mail entirely.
 // It is the standing regression guard for Phase 4
-// (docs/PLUGIN-ARCHITECTURE.md), run by the normal `go test ./...`.
+// (website/src/content/docs/architecture/overview.md), run by the normal `go test ./...`.
 func TestMailExcludedFromBinary(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go toolchain not available")

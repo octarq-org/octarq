@@ -30,6 +30,8 @@ pnpm changeset
 
 This command generates a markdown file inside the `.changeset/` directory. Commit this file as part of your pull request.
 
+> No changeset = no release. PRs that only touch docs or CI don't need one.
+
 ### Step 2: Merge to `main`
 
 On a push to the `main` branch, the publishing workflow runs:
@@ -39,6 +41,12 @@ On a push to the `main` branch, the publishing workflow runs:
 ### Step 3: Merge the "Version Packages" PR
 
 When you merge the "Version Packages" pull request, the publishing workflow builds the package and runs `changeset publish` to publish the package to the registry and create a git tag (e.g., `@octarq/plugin-sdk@x.y.z`).
+
+This is loop-safe: publishing removes the changesets, so the next `main` push has nothing to release.
+
+### Escape hatch — tag publish
+
+Pushing a tag matching `sdk-v*` (e.g. `sdk-v1.2.3`) triggers a direct one-shot publish of the current SDK version. Use this only for manual/out-of-band releases; the changesets flow above is the normal path.
 
 ---
 
@@ -91,5 +99,13 @@ Consumer projects that depend on Pro private packages require a `.npmrc` file:
 
 - The first line routes `@octarq-org/*` packages to GitHub Packages.
 - The second line provides authentication via `GITHUB_TOKEN`.
+
+---
+
+## Secrets & permissions needed to publish
+
+- **npmjs (`@octarq/plugin-sdk`)**: uses the `NPM_TOKEN` repo secret, wired to `NODE_AUTH_TOKEN` in `.github/workflows/publish-sdk.yml`.
+- **GitHub Packages (`@octarq-org/*` Pro packages)**: uses built-in `${{ secrets.GITHUB_TOKEN }}` with `permissions: packages: write`.
+- **Version PR**: the `release` job needs `pull-requests: write` and `contents: write`.
 
 

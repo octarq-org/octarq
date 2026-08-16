@@ -14,6 +14,25 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # The repo-root docs/ directory was removed (content consolidated into the
+  # two surfaces below). This guard keeps it from coming back — a stray
+  # docs/*.md would be a third, unmaintained copy of documentation.
+  docs-surface:
+    name: Docs surface check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Root docs/ must not contain markdown
+        run: |
+          if find docs -name '*.md' -print -quit 2>/dev/null | grep -q .; then
+            echo "::error::docs/*.md is not a documentation surface in this repo."
+            echo "::error::Documentation lives in exactly two places:"
+            echo "::error::  - in-app help: plugins/*/docs/*.mdx (served under /help)"
+            echo "::error::  - website docs: website/src/content/docs/"
+            echo "::error::Put new docs in one of those, or delete the file instead."
+            exit 1
+          fi
+
   go:
     name: Go test & lint
     runs-on: ubuntu-latest

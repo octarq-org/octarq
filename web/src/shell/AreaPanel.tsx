@@ -261,7 +261,8 @@ export function AreaPanel({
           Menus() entry, which lands in footerItems — so it rendered twice, once
           as a rail link and once inside the menu. Hardcoding it also broke the
           repo rule that the Go half is the only source of sidebar placement
-          (docs/PLUGINS.md): a build without the help plugin still showed the
+          (website/src/content/docs/writing-a-plugin.md): a build without the
+          help plugin still showed the
           link, pointing at a route nothing served. */}
       <div className={cn("border-t border-border", collapsed ? "space-y-1 p-2" : "space-y-0.5 px-3 py-2")}>
         {footerItems.map((it) => {
