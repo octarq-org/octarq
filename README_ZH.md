@@ -46,7 +46,7 @@ Octarq 绝非一个顺便做邮箱的短链工具，它是一个**框架**：短
 
 ## Agent-Native：你的插件即 MCP 工具
 
-Octarq 内置了 **MCP 服务器**（`octarq mcp`，支持 stdio 及 SSE/stream 模式），AI 助手（如 Claude Code）可以直接读取并查询你的实例能力 —— `list_links`、`list_mailboxes`、`list_domains`、`export_data`，以及一个**受控只读 SQL 查询工具**（限制仅 `SELECT`/`WITH` 只读事务，结果自动分页并屏蔽敏感字段）。
+Octarq 内置了 **MCP 服务器**（`octarq mcp` 走 stdio；服务器自身在 `/api/mcp/sse` 与 `/api/mcp/stream` 提供 SSE 与 Streamable HTTP），AI 助手（如 Claude Code）可以直接读取并查询你的实例能力 —— `list_links`、`list_mailboxes`、`list_domains`、`export_data`，以及一个**受控只读 SQL 查询工具**（限制仅 `SELECT`/`WITH` 只读事务，结果自动分页并屏蔽敏感字段）。
 
 重点不在于“我们加入了 AI”，而在于**框架级别的管线机制**：实现可选 `MCPProvider` 接口的插件会自动将其工具暴露给所有连接的 AI Agent —— 无需额外胶水代码。编写一个插件，你的 AI Agent 就能直接驱动它。
 
@@ -70,7 +70,7 @@ docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
 
 这就是完整栈 —— 管理后台、API、重定向器、MCP —— 统一运行在单个容器中。想自己管理密钥/密码时,再显式设置 `OCTARQ_SECRET_KEY` / `OCTARQ_ADMIN_PASSWORD`(见 `.env.example` 与 `docker compose`)。
 
-偏好约 19MB 的 `scratch` 极轻量镜像或源码构建？参阅 `make release` 与 [`deploy/`](deploy/)。
+偏好最小体积镜像（`deploy/Dockerfile.binary`）或源码构建？参阅 `make release` 与 [`deploy/`](deploy/)。
 
 ---
 

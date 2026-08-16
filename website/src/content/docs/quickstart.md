@@ -20,7 +20,7 @@ docker compose up -d
 
 Open `http://localhost:8080` and log in. The container runs the dashboard, API, redirector, and MCP server using SQLite.
 
-Prefer a ~19MB `scratch` image or from-source build? See `make release` and `deploy/`.
+Prefer a minimal image (`deploy/Dockerfile.binary`) or from-source build? See `make release` and `deploy/`.
 
 ---
 
