@@ -262,7 +262,6 @@ func TestForgotPasswordNoLeak(t *testing.T) {
 	// verification gate (register 503s), so opt out explicitly.
 	disableEmailVerification(t, db)
 
-	// Register a user
 	do(srv, "POST", "/api/auth/register", nil, `{"email":"exist@user.com","password":"password123"}`)
 
 	// Request for non-existent email -> 200 OK
@@ -330,7 +329,7 @@ func TestResetPasswordFlow(t *testing.T) {
 		t.Fatalf("expired token: got %d, want 400", rec.Code)
 	}
 
-	// Re-trigger forgot password to get valid token
+	// Seed a known, unexpired token directly (bypassing the mail path).
 	rawToken, tokenHash, _ := generateSecureToken()
 	expiry := time.Now().Add(1 * time.Hour)
 	db.Model(&user).Updates(map[string]any{
@@ -425,7 +424,6 @@ func TestEmailVerificationGatingToggle(t *testing.T) {
 	// would.
 	disableEmailVerification(t, db)
 
-	// Register user
 	do(srv, "POST", "/api/auth/register", nil, `{"email":"gated@user.com","password":"password123"}`)
 
 	// 1. With the gate explicitly OFF: unverified user can log in

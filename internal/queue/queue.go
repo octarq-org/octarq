@@ -46,8 +46,6 @@ type task struct {
 	Payload []byte `json:"payload"`
 }
 
-// --- InMemoryQueue implementation ---
-
 type InMemoryQueue struct {
 	mu       sync.RWMutex
 	handlers map[string]Handler
@@ -122,8 +120,6 @@ func (q *InMemoryQueue) Enqueue(ctx context.Context, taskType string, payload []
 		return nil
 	}
 }
-
-// --- AsynqQueue implementation ---
 
 type AsynqQueue struct {
 	redisOpt asynq.RedisConnOpt

@@ -150,7 +150,7 @@ type registerBody struct {
 // instance requires a verified email AND can send mail (an SMTP sender is
 // configured), sign-up must NOT hand out a session — otherwise the new user
 // gets in once and is locked out the moment they log out (login rejects the
-// same unverified user, auth.go:72). The sender matters: on an instance that
+// same unverified user, auth.go:74). The sender matters: on an instance that
 // cannot send mail, register fails with 503 instead (see
 // TestRegisterFailsLoudlyWhenMailUnavailable), because a verificationRequired
 // answer would promise an email that can never arrive.

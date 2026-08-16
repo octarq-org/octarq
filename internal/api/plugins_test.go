@@ -120,7 +120,6 @@ func TestPluginRegistryToggleAndMenuFilter(t *testing.T) {
 		t.Fatal("disabled plugin menu should not appear")
 	}
 
-	// Enable it.
 	if rec := do(srv, "PUT", "/api/plugins/fake", cookies, `{"enabled":true}`); rec.Code != http.StatusOK {
 		t.Fatalf("enable: got %d (%s)", rec.Code, rec.Body.String())
 	}

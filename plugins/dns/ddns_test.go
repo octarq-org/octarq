@@ -60,7 +60,6 @@ func TestDDNSTokenManagement(t *testing.T) {
 	_, srv, db := newVerifyHarness(t)
 	const orgID = uint(1)
 
-	// Create domain
 	dom := Domain{
 		OrgID:  orgID,
 		Name:   "home.example.com",
@@ -70,7 +69,6 @@ func TestDDNSTokenManagement(t *testing.T) {
 		t.Fatalf("failed to create domain: %v", err)
 	}
 
-	// 1. Create Token
 	createReqBody := map[string]any{
 		"domainId":   dom.ID,
 		"recordName": "home.example.com",
@@ -104,7 +102,6 @@ func TestDDNSTokenManagement(t *testing.T) {
 		t.Fatalf("invalid create response: %+v", createResp)
 	}
 
-	// 2. List Tokens
 	rec = do(srv, "GET", "/api/dns/ddns")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list DDNS tokens: want 200, got %d", rec.Code)
@@ -117,13 +114,11 @@ func TestDDNSTokenManagement(t *testing.T) {
 		t.Fatalf("list DDNS tokens mismatch: %+v", listResp)
 	}
 
-	// 3. Delete Token
 	rec = do(srv, "DELETE", fmt.Sprintf("/api/dns/ddns/%d", createResp.ID))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("delete DDNS token: want 200, got %d", rec.Code)
 	}
 
-	// 4. Verify Deleted
 	rec = do(srv, "GET", "/api/dns/ddns")
 	var listAfter []DDNSToken
 	json.Unmarshal(rec.Body.Bytes(), &listAfter)
@@ -141,7 +136,6 @@ func TestDDNSUpdateEndpoint(t *testing.T) {
 	_, srv, db := newVerifyHarness(t)
 	const orgID = uint(1)
 
-	// Create Provider Account & Domain
 	acc := ProviderAccount{
 		OrgID:  orgID,
 		Name:   "Mock Provider",
@@ -162,7 +156,6 @@ func TestDDNSUpdateEndpoint(t *testing.T) {
 		t.Fatalf("failed to create domain: %v", err)
 	}
 
-	// Create Token via API
 	createReqBody := map[string]any{
 		"domainId":   dom.ID,
 		"recordName": "home.example.com",
@@ -194,7 +187,6 @@ func TestDDNSUpdateEndpoint(t *testing.T) {
 		t.Fatalf("first update: want 200 'good 1.2.3.4', got %d %q", rec.Code, rec.Body.String())
 	}
 
-	// Verify token state in DB
 	var tok DDNSToken
 	db.First(&tok, createResp.ID)
 	if tok.LastIP != "1.2.3.4" || tok.LastSeenAt == nil {

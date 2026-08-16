@@ -71,7 +71,6 @@ func runRestoreCommand(args []string) int {
 		return 1
 	}
 
-	// 1. Confirmation check
 	if !*confirm {
 		fmt.Printf("WARNING: Restoring database from '%s' will overwrite existing data.\n", *inPath)
 		fmt.Printf("An automatic safety backup of the current database will be created first.\n")
@@ -85,7 +84,8 @@ func runRestoreCommand(args []string) int {
 		}
 	}
 
-	// 2. Pre-restore Safety Net: Auto-backup current database first
+	// Pre-restore safety net: the current database is backed up before it is
+	// overwritten.
 	autoBackupPath := fmt.Sprintf("octarq-backup-before-restore-%s", db.DefaultBackupFilename(cfg.DBDriver, time.Now()))
 	slog.Info("creating safety backup of current database before restore", "out", autoBackupPath)
 	if err := db.Backup(cfg, autoBackupPath); err != nil {
@@ -96,7 +96,6 @@ func runRestoreCommand(args []string) int {
 		fmt.Printf("Created safety backup of current database: %s (%s)\n", autoBackupPath, formatBytes(info.Size()))
 	}
 
-	// 3. Execute Restore
 	slog.Info("restoring database from backup", "driver", cfg.DBDriver, "in", *inPath)
 	if err := db.Restore(cfg, *inPath); err != nil {
 		slog.Error("restore failed", "err", err)

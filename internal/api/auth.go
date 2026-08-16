@@ -293,11 +293,11 @@ type ChangePasswordOutput struct {
 // as much as the new hash is, since "someone else is logged in as me" is the
 // reason people change a password in a hurry.
 //
-// Deliberately not bumping SessionEpoch, which resetPassword does: the field is
-// written in exactly one place and read in none, so it invalidates nothing.
-// Deleting the session rows and their cache entries is what actually revokes
-// access, and doing only the thing that works beats doing both and leaving the
-// next reader unsure which one matters.
+// What actually revokes access is deleting the session rows and their cache
+// entries — there is no epoch column to bump, and resetPassword neither
+// bumps one nor needs to: deletion is the whole mechanism. Doing only the
+// thing that works beats doing two things and leaving the next reader unsure
+// which one matters.
 func (h *Handler) changePassword(ctx context.Context, input *ChangePasswordInput) (*ChangePasswordOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")

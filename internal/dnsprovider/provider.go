@@ -1,9 +1,9 @@
 // Package dnsprovider abstracts DNS record management across providers.
 //
-// Cloudflare is implemented today; the Provider interface and the registry
-// keep room for Aliyun / DNSPod / Route53 without touching callers. Each
-// record carries a Comment field — that is where a record's "note" lives,
-// mapping onto Cloudflare's native per-record comment.
+// Cloudflare and DNSPod are implemented today; the Provider interface and the
+// registry leave room for further backends (e.g. Aliyun / Route53) without
+// touching callers. Each record carries a Comment field — that is where a
+// record's "note" lives, mapping onto Cloudflare's native per-record comment.
 package dnsprovider
 
 import (

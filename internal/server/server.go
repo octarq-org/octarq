@@ -108,7 +108,7 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Dashboard SPA under /admin (gated to the admin host when configured).
+	// 2. Dashboard SPA under /admin (gated by dashboardAllowed).
 	if path == "/admin" || strings.HasPrefix(path, "/admin/") {
 		if !s.dashboardAllowed(r.Host) {
 			http.NotFound(w, r)

@@ -15,7 +15,6 @@ import (
 // They are not the same thing, and this tool writes to stdout so it
 // does not overwrite the pro repository's file.
 func main() {
-	// In the standalone generator, no plugins are passed (nil)
 	if err := openapi.Generate(os.Stdout, nil); err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating spec: %v\n", err)
 		os.Exit(1)

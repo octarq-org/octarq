@@ -19,7 +19,6 @@ import (
 func TestOrgIDNoDefaultAndFailClosed(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 
-	// Seed a row under org 1
 	db.Create(&models.Token{
 		OrgID:  1,
 		Name:   "Org 1 Token",

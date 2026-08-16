@@ -22,24 +22,20 @@ func TestSettingsStore(t *testing.T) {
 
 	store := settingsStore{db: db}
 
-	// Get missing key
 	_, ok := store.Get("key1")
 	if ok {
 		t.Error("expected false for missing key")
 	}
 
-	// Set key
 	if err := store.Set("key1", "val1"); err != nil {
 		t.Fatalf("Set failed: %v", err)
 	}
 
-	// Get existing key
 	val, ok := store.Get("key1")
 	if !ok || val != "val1" {
 		t.Errorf("Get expected val1, got %q, ok=%v", val, ok)
 	}
 
-	// Update existing key
 	if err := store.Set("key1", "val2"); err != nil {
 		t.Fatalf("Set update failed: %v", err)
 	}

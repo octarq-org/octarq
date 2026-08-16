@@ -170,9 +170,9 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 	// Same answer as the login path (auth.go) for the same state: with the
 	// instance-level gate on, an unverified account gets no session. Login's
 	// extra !user.IsInstanceAdmin escape hatch has no counterpart here — that
-	// flag is only ever set for the bootstrap operator account (auth.go:315),
-	// never for a self-serve sign-up, so the freshly created user below is
-	// always a plain member.
+	// flag is only ever set for the bootstrap operator account (see
+	// bootstrapUserID in auth.go), never for a self-serve sign-up, so the
+	// freshly created user below is always a plain member.
 	if h.requireEmailVerification() && !user.EmailVerified {
 		out.Body.VerificationRequired = true
 		return out, nil

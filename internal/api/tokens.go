@@ -13,8 +13,7 @@ import (
 	"github.com/octarq-org/octarq/internal/models"
 )
 
-// tokenAlphabet length-independent random token body. We use URL-safe base64
-// (without padding) so the token is copy/paste friendly.
+// The token body is URL-safe base64 (without padding) so it is copy/paste friendly.
 func newRawToken() string {
 	b := make([]byte, 24) // 24 bytes -> 32 url-safe chars
 	rand.Read(b)

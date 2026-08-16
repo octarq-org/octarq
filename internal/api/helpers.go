@@ -19,7 +19,7 @@ import (
 // to get a fresh abuse-report rate-limit bucket.
 var trustProxy bool
 
-// reporterIP returns the best-guess client IP for abuse reports.
+// reporterIP returns the best-guess client IP for rate limiting and abuse reports.
 // We keep the full IP here (unlike analytics) so admins can block repeat abusers.
 func reporterIP(r *http.Request) string {
 	if trustProxy {
@@ -38,9 +38,7 @@ func reporterIP(r *http.Request) string {
 }
 
 func splitHostPort(addr string) (host, port string, err error) {
-	// Thin wrapper so abuse.go doesn't import "net" directly.
 	import_net_SplitHostPort := func(hostport string) (string, string, error) {
-		// inline net.SplitHostPort to keep imports clean
 		for i := len(hostport) - 1; i >= 0; i-- {
 			if hostport[i] == ':' {
 				return hostport[:i], hostport[i+1:], nil

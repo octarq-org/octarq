@@ -423,4 +423,3 @@ export default function DomainsPage() {
   );
 }
 
-// Three-state badge: healthy (green), present-but-misconfigured (amber), missing (red).

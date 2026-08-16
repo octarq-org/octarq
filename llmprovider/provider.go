@@ -35,8 +35,8 @@ const (
 //
 // IDs are the exact, complete strings — never append a date suffix.
 const (
-	ModelClaudeOpus  = "claude-opus-4-8"  // complex reasoning
-	ModelClaudeHaiku = "claude-haiku-4-5" // cheap classification / summary
+	ModelClaudeOpus  = "claude-opus-4-8"
+	ModelClaudeHaiku = "claude-haiku-4-5"
 )
 
 // Message is one conversational turn. Content is plain text; multimodal blocks

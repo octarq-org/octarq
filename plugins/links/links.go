@@ -788,8 +788,6 @@ func sortStatKV(res []models.StatKV) {
 	})
 }
 
-// models.StatKV is a key/count pair used across link analytics responses.
-
 type LinkQRInput struct {
 	Ctx huma.Context `hidden:"true"`
 	ID  uint         `path:"id"`

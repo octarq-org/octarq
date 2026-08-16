@@ -12,14 +12,11 @@ import (
 func TestAuditAndAbuseRoleGates(t *testing.T) {
 	_, srv, db := newTestHandlerRaw(t)
 
-	// Create Org 1
 	db.Create(&models.Org{ID: 1, Name: "Test Workspace", Slug: "test-workspace"})
 
-	// Create User 2 (admin of Org 1)
 	db.Create(&models.User{ID: 2, Email: "admin@example.com"})
 	db.Create(&models.OrgMember{OrgID: 1, UserID: 2, Role: "admin"})
 
-	// Create User 3 (member of Org 1)
 	db.Create(&models.User{ID: 3, Email: "member@example.com"})
 	db.Create(&models.OrgMember{OrgID: 1, UserID: 3, Role: "member"})
 

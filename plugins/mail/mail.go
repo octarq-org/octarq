@@ -45,7 +45,6 @@ func (p *Plugin) listMailboxes(ctx context.Context, input *ListMailboxesInput) (
 	}
 	var boxes []Mailbox
 	p.orgDB(r).Order("created_at DESC").Find(&boxes)
-	// Attach unread counts.
 	for i := range boxes {
 		p.db.Model(&Email{}).
 			Where("mailbox_id = ? AND read = ?", boxes[i].ID, false).
@@ -633,8 +632,6 @@ func (p *Plugin) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 		msg.HTML = processBody(msg.HTML)
 	}
 }
-
-// POST /api/webhook/{orgSlug}/email/bounce/{token}
 
 type bounceEvent struct {
 	Email      string

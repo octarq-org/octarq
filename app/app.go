@@ -318,10 +318,11 @@ func (a *App) Notify(ctx context.Context, typ, cfgJSON, text string) error {
 	return notify.Send(ctx, typ, cfgJSON, text)
 }
 
-// sendMail is the implementation behind plugin.Context.SendMail. It resolves the
-// org's first configured SMTP sender, decrypts its password, and relays the
-// message — mirroring internal/api.Handler.sendEmail so plugins can send
-// transactional mail without importing octarq's internal packages.
+// sendMail is the implementation behind plugin.Context.SendMail. It delegates
+// to the mail plugin's "mail.send" service, which resolves the org's first
+// configured SMTP sender, decrypts its password, and relays the message —
+// mirroring internal/api.Handler.sendEmail so plugins can send transactional
+// mail without importing octarq's internal packages.
 func (a *App) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
 	if a.services != nil {
 		if fn, ok := plugin.LookupServiceAs[plugin.MailSender](a.services.Lookup, plugin.ServiceMailSend); ok {
@@ -769,7 +770,7 @@ func (a *App) Run(ctx context.Context) error {
 	// readinessReport.
 	//
 	// This has to run HERE, after the mount loop: "can this instance send mail"
-	// is a lookup of the mail.send service in the plugin registry, and a plugin
+	// is a lookup of the mail.ready service in the plugin registry, and a plugin
 	// only Provides it when it mounts. Asking earlier (in New, or before the
 	// loop) would report "no mail" for every instance, including the ones that
 	// have it — an answer that is wrong rather than merely early.

@@ -20,9 +20,10 @@ import (
 )
 
 // PluginEnabled reports whether the given feature key is enabled for the
-// workspace. Features are opt-in: a missing row means disabled. Used by the
-// route gate (app wraps every plugin handler with this check) and the menu
-// filter. The key is a plugin's group, or its name when ungrouped.
+// workspace. A row that was never toggled falls back to the feature's declared
+// default (FeatureDefaultEnabled). Used by the route gate (app wraps every
+// plugin handler with this check) and the menu filter. The key is a plugin's
+// group, or its name when ungrouped.
 func (h *Handler) PluginEnabled(orgID uint, featureKey string) bool {
 	// No workspace in the session → fail closed, per the org-scoping invariant
 	// pinned by TestOrgIDNoDefaultAndFailClosed. Callers that legitimately have

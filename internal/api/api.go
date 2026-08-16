@@ -62,10 +62,10 @@ type Handler struct {
 	llmMu       sync.RWMutex
 	llmResolver func(orgID uint) (llmprovider.Provider, error)
 
-	// emailHandlers are notified after each inbound email is stored. They are
-	// registered by plugins via OnEmail and fired by emitEmail. Guarded by
-	// emailMu because registration happens during plugin Mount (startup) while
-	// dispatch happens on the inbound webhook path.
+	// lookupService resolves named services for plugins (see
+	// plugin.LookupServiceAs), and is what export/purge/overview and the AI
+	// assists reach through when a plugin is absent from this build. Registered
+	// by the app via SetServiceLookup.
 	lookupService func(name string) (any, bool)
 	humaAPI       huma.API
 
@@ -195,7 +195,7 @@ func (h *Handler) Routes() *http.ServeMux {
 		next(ctx)
 	})
 
-	// Auth (no session required).
+	// Auth routes.
 	huma.Register(api, huma.Operation{
 		OperationID: "login",
 		Method:      "POST",

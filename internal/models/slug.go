@@ -34,9 +34,10 @@ var orgSlugAttempts = 20
 
 // reservedOrgSlugs are the words an org slug may not take.
 //
-// This is deliberately NOT the short-link reserved list (api.isReservedSlug):
-// short links and orgs are different namespaces, and register.go used to
-// consult the short-link one, which both over- and under-restricted.
+// This is deliberately NOT the short-link reserved list (the links plugin's
+// isReservedSlug): short links and orgs are different namespaces, and
+// register.go used to consult the short-link one, which both over- and
+// under-restricted.
 //
 // Today every org slug appears as a path *parameter*
 // (/api/webhook/{orgSlug}/billing/{provider}), so none of these could actually

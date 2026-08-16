@@ -6,7 +6,6 @@ import (
 )
 
 func TestRateLimiter(t *testing.T) {
-	// Limit: 2 failures per 100ms
 	rl := newRateLimiter("", "test", 2, 100*time.Millisecond)
 
 	// 1. Initially allowed

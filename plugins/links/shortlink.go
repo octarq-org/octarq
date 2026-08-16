@@ -1,4 +1,4 @@
-// Package shortlink resolves slugs to targets, records click events
+// Package links resolves slugs to targets, records click events
 // asynchronously, and renders the password gate when a link is protected.
 package links
 

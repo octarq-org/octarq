@@ -10,7 +10,6 @@ import (
 func TestDDNSClientIPAndSecretHelpers(t *testing.T) {
 	t.Parallel()
 
-	// hashDDNSSecret
 	h := hashDDNSSecret("secret123")
 	if len(h) != 64 {
 		t.Errorf("hashDDNSSecret output length = %d, want 64", len(h))
@@ -21,7 +20,6 @@ func TestDDNSClientIPAndSecretHelpers(t *testing.T) {
 		t.Fatalf("generateDDNSSecret failed: %v, len=%d", err, len(sec))
 	}
 
-	// clientIP with trustProxy=true
 	SetTrustProxy(true)
 	defer SetTrustProxy(false)
 
@@ -50,13 +48,11 @@ func TestDDNSTokenCRUDHandlers(t *testing.T) {
 	p, mkCtx := setupFullDNSTestDB(t)
 	ctx := context.Background()
 
-	// Seed domain
 	acc := ProviderAccount{OrgID: 1, Name: "Prov", Type: "cloudflare"}
 	p.db.Create(&acc)
 	dom := Domain{OrgID: 1, Name: "ddns.com", ProviderAccountID: acc.ID}
 	p.db.Create(&dom)
 
-	// 1. Create DDNS Token
 	reqCreate := httptest.NewRequest(http.MethodPost, "/api/dns/ddns", nil)
 	createIn := &createDDNSTokenInput{
 		Ctx: mkCtx(reqCreate),
@@ -72,14 +68,12 @@ func TestDDNSTokenCRUDHandlers(t *testing.T) {
 	}
 	tokID := outCreate.Body.ID
 
-	// 2. List DDNS Tokens
 	reqList := httptest.NewRequest(http.MethodGet, "/api/dns/ddns", nil)
 	outList, err := p.listDDNSTokens(ctx, &listDDNSTokensInput{Ctx: mkCtx(reqList)})
 	if err != nil || len(outList.Body) != 1 {
 		t.Fatalf("listDDNSTokens failed: %v, count=%d", err, len(outList.Body))
 	}
 
-	// 3. Delete DDNS Token
 	reqDel := httptest.NewRequest(http.MethodDelete, "/api/dns/ddns/1", nil)
 	outDel, err := p.deleteDDNSToken(ctx, &deleteDDNSTokenInput{Ctx: mkCtx(reqDel), ID: tokID})
 	if err != nil || !outDel.Body.OK {
