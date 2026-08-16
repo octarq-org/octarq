@@ -84,6 +84,7 @@ func (h *Handler) switchOrg(ctx context.Context, input *SwitchOrgInput) (*Switch
 	}
 
 	uid := h.auth.UserID(r)
+	oldOrg := h.orgID(r)
 	// Verify the user belongs to the target organization.
 	var mem models.OrgMember
 	if err := h.db.Where("org_id = ? AND user_id = ?", input.Body.OrgID, uid).First(&mem).Error; err != nil {
@@ -91,6 +92,10 @@ func (h *Handler) switchOrg(ctx context.Context, input *SwitchOrgInput) (*Switch
 	}
 
 	h.auth.SetSessionFromRequest(r, w, uid, input.Body.OrgID)
+	// Write the audit row to the workspace being switched INTO, recording the
+	// switch explicitly in meta (h.audit would attribute it to the old org).
+	h.auditAs(r, input.Body.OrgID, uid, "user.switch_org", "org", input.Body.OrgID,
+		map[string]any{"from": oldOrg, "to": input.Body.OrgID})
 	out := &SwitchOrgOutput{}
 	out.Body.OK = true
 	return out, nil
@@ -301,15 +306,15 @@ func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput
 	}
 	items := []MemberItem{}
 	type queryResult struct {
-		UserID      uint
-		Email       string
-		Role        string
-		InviteToken string
-		CreatedAt   time.Time
+		UserID          uint
+		Email           string
+		Role            string
+		InviteTokenHash string
+		CreatedAt       time.Time
 	}
 	var rows []queryResult
 	err = h.db.Table("org_members").
-		Select("users.id as user_id, users.email, org_members.role, users.invite_token, users.created_at").
+		Select("users.id as user_id, users.email, org_members.role, users.invite_token_hash, users.created_at").
 		Joins("JOIN users ON users.id = org_members.user_id").
 		Where("org_members.org_id = ?", orgID).
 		Scan(&rows).Error
@@ -320,7 +325,7 @@ func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput
 		// Pending means an unredeemed invite. An empty password hash alone is
 		// NOT pending: the bootstrap instance admin authenticates against the
 		// configured env password and never stores a hash.
-		isPending := row.InviteToken != ""
+		isPending := row.InviteTokenHash != ""
 		t := row.CreatedAt
 		items = append(items, MemberItem{
 			UserID:   row.UserID,
@@ -389,19 +394,24 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 
 	var user models.User
 	var isNew bool
+	var rawInviteToken string
 	if err := h.db.Where("email = ?", email).First(&user).Error; err != nil {
 		isNew = true
 		tokenBytes := make([]byte, 24)
 		if _, err := rand.Read(tokenBytes); err != nil {
 			return nil, huma.Error500InternalServerError("failed to generate invite token")
 		}
-		token := hex.EncodeToString(tokenBytes)
+		rawInviteToken = hex.EncodeToString(tokenBytes)
 		expiresAt := time.Now().Add(24 * time.Hour)
 
+		// The raw invite token is a 192-bit secret delivered only to the invited
+		// mailbox (sendInviteEmail) and shown once to the operator right here. Only
+		// its SHA-256 hash is persisted; the accept endpoint looks up by hash, so a
+		// DB read cannot hand out a live invite.
 		user = models.User{
 			Email:           email,
 			PasswordHash:    "",
-			InviteToken:     token,
+			InviteTokenHash: hashToken(rawInviteToken),
 			InviteExpiresAt: &expiresAt,
 		}
 		if err := h.db.Create(&user).Error; err != nil {
@@ -438,13 +448,13 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 	}
 
 	h.audit(r, "member.add", "user", user.ID, map[string]any{"email": user.Email, "role": role})
-	eventbus.Publish(orgID, "member.invite", map[string]any{"userId": user.ID, "email": user.Email, "role": role, "pending": user.InviteToken != ""})
+	eventbus.Publish(orgID, "member.invite", map[string]any{"userId": user.ID, "email": user.Email, "role": role, "pending": user.InviteTokenHash != ""})
 
 	if isNew {
 		// Best-effort: email the invite link via the org's SMTP sender. A missing
 		// sender (or a send error) must not fail the invite — the link is still
 		// returned so the operator can deliver it out-of-band.
-		acceptURL := "/admin/invite/accept?token=" + user.InviteToken
+		acceptURL := "/admin/invite/accept?token=" + rawInviteToken
 		if base := h.origin(r); base != "" {
 			acceptURL = base + acceptURL
 		}
@@ -452,8 +462,8 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 		return &AddOrgMemberOutput{
 			Body: map[string]any{
 				"ok":          true,
-				"inviteToken": user.InviteToken,
-				"inviteUrl":   "/admin/invite/accept?token=" + user.InviteToken,
+				"inviteToken": rawInviteToken,
+				"inviteUrl":   "/admin/invite/accept?token=" + rawInviteToken,
 			},
 		}, nil
 	}

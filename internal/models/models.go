@@ -43,10 +43,14 @@ type OrgSlugHistory struct {
 
 // User is an authenticated human. A user can belong to multiple orgs.
 type User struct {
-	ID              uint       `gorm:"primaryKey" json:"id"`
-	Email           string     `gorm:"uniqueIndex;size:320;not null" json:"email"`
-	PasswordHash    string     `gorm:"size:255;not null" json:"-"`
-	InviteToken     string     `gorm:"size:255" json:"-"`
+	ID           uint   `gorm:"primaryKey" json:"id"`
+	Email        string `gorm:"uniqueIndex;size:320;not null" json:"email"`
+	PasswordHash string `gorm:"size:255;not null" json:"-"`
+	// InviteTokenHash is the SHA-256 hex hash of the raw invite token. The raw
+	// 192-bit token is only ever shown/mailed once, never stored — mirroring
+	// ResetTokenHash / VerifyTokenHash below — and is indexed for lookup. A DB
+	// leak (backup, shared disk, SQLi) therefore exposes no live invite.
+	InviteTokenHash string     `gorm:"index;size:64" json:"-"`
 	InviteExpiresAt *time.Time `json:"inviteExpiresAt,omitempty"`
 	// Session revocation is handled by deleting Session rows from user_sessions.
 

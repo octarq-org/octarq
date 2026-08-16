@@ -189,6 +189,16 @@ func (h *Handler) resetPassword(ctx context.Context, input *ResetPasswordInput) 
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
+	r, _ := humago.Unwrap(input.Ctx)
+	ip := reporterIP(r)
+	// Same budget as forgot/resend: an unauthenticated endpoint where every
+	// request counts (there is no successful attempt to exempt), so a burst of
+	// junk or real requests cannot burn unbounded CPU/DB/email for one IP.
+	if !h.recoveryLimiter.allow(ip) {
+		return nil, huma.Error429TooManyRequests("too many attempts")
+	}
+	h.recoveryLimiter.recordFailure(ip)
+
 	token := strings.TrimSpace(input.Body.Token)
 	password := input.Body.Password
 	if token == "" {
