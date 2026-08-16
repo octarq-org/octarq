@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -97,10 +96,19 @@ func sessionCookie(cookies []*http.Cookie) *http.Cookie {
 	return nil
 }
 
+func challengeCookie(cookies []*http.Cookie) *http.Cookie {
+	for _, c := range cookies {
+		if c.Name == "octarq_2fa_challenge" {
+			return c
+		}
+	}
+	return nil
+}
+
 // Guard test 1 (core): a TOTP-enabled account arriving through the OAuth
 // callback must NOT receive a session. The callback redirects to the same 2FA
-// page password login uses, carrying a short-lived challenge; only
-// /api/auth/2fa/verify with the code mints the session.
+// page password login uses, storing the short-lived challenge in an HttpOnly
+// cookie; only /api/auth/2fa/verify with the code mints the session.
 func TestOAuthCallbackRequiresTwoFactorForTOTPUsers(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 	disableEmailVerification(t, db)
@@ -132,37 +140,73 @@ func TestOAuthCallbackRequiresTwoFactorForTOTPUsers(t *testing.T) {
 	if cb.Code != http.StatusFound {
 		t.Fatalf("oauth callback: got %d (%s), want a redirect to the 2FA page", cb.Code, cb.Body.String())
 	}
-	loc, err := url.Parse(cb.Header().Get("Location"))
-	if err != nil {
-		t.Fatalf("parse callback Location: %v", err)
-	}
-	challenge := loc.Query().Get("twofa")
-	if challenge == "" {
-		t.Fatalf("callback redirected to %q, want /admin/?twofa=<challenge>", cb.Header().Get("Location"))
+	loc := cb.Header().Get("Location")
+	if !strings.Contains(loc, "twofa=1") {
+		t.Fatalf("callback did not send the browser to the 2FA page: %q", loc)
 	}
 	if sess := sessionCookie(cb.Result().Cookies()); sess != nil {
 		t.Fatal("OAuth callback set a session cookie while 2FA is pending")
 	}
 
-	rec = do(srv, "POST", "/api/auth/2fa/verify", nil, `{"challengeToken":"`+challenge+`","code":"000000"}`)
+	// The challenge arrives in an HttpOnly cookie with a Max-Age matching the
+	// 10-minute TTL, not in the redirect URL.
+	challenge := challengeCookie(cb.Result().Cookies())
+	if challenge == nil {
+		t.Fatal("OAuth callback set no 2FA challenge cookie")
+	}
+	if !challenge.HttpOnly {
+		t.Fatal("2FA challenge cookie is not HttpOnly")
+	}
+	if challenge.MaxAge != int((10 * time.Minute).Seconds()) {
+		t.Fatalf("challenge cookie MaxAge = %d, want %d (10-minute TTL)", challenge.MaxAge, int((10 * time.Minute).Seconds()))
+	}
+	// Guard (this fix): the challenge value must never appear in the redirect
+	// Location — the URL is what proxy access logs and browser history record.
+	if strings.Contains(loc, challenge.Value) {
+		t.Fatalf("challenge value leaked into the redirect Location %q", loc)
+	}
+
+	// The verify endpoint reads the challenge from the cookie: with the cookie
+	// but no code the login must fail without issuing a session.
+	rec = do(srv, "POST", "/api/auth/2fa/verify", []*http.Cookie{challenge}, `{"code":"000000"}`)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("challenge without code: got %d, want 401", rec.Code)
 	}
 	if sess := sessionCookie(rec.Result().Cookies()); sess != nil {
 		t.Fatal("challenge without code set a session cookie")
 	}
+	// A wrong code is retryable: the challenge cookie must NOT be cleared, or a
+	// typo would force a full OAuth restart.
+	if c := challengeCookie(rec.Result().Cookies()); c != nil {
+		t.Fatalf("wrong code cleared the challenge cookie (MaxAge=%d), want it kept for retry", c.MaxAge)
+	}
 
-	// The shared verify2FA endpoint completes the login: challenge + TOTP code
-	// mints a usable session.
+	// Guard: the challenge is read from the cookie — a request carrying only
+	// the code, no challenge cookie, cannot complete an OAuth login.
 	code, _ = totp.GenerateCode(setup.Secret, time.Now())
-	rec = do(srv, "POST", "/api/auth/2fa/verify", nil,
-		`{"challengeToken":"`+challenge+`","code":"`+code+`"}`)
+	rec = do(srv, "POST", "/api/auth/2fa/verify", nil, `{"code":"`+code+`"}`)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("verify without challenge cookie: got %d, want 401", rec.Code)
+	}
+
+	// The shared verify2FA endpoint completes the login: challenge cookie +
+	// TOTP code mints a usable session and spends the challenge.
+	code, _ = totp.GenerateCode(setup.Secret, time.Now())
+	rec = do(srv, "POST", "/api/auth/2fa/verify", []*http.Cookie{challenge}, `{"code":"`+code+`"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("2fa verify via challenge: got %d (%s)", rec.Code, rec.Body.String())
 	}
 	sess := sessionCookie(rec.Result().Cookies())
 	if sess == nil {
 		t.Fatal("2fa verify via challenge set no session cookie")
+	}
+	// Guard: the spent challenge cookie is cleared in the same response.
+	c := challengeCookie(rec.Result().Cookies())
+	if c == nil {
+		t.Fatal("spent challenge cookie was not cleared after successful verify")
+	}
+	if c.MaxAge >= 0 {
+		t.Fatalf("spent challenge cookie MaxAge = %d, want < 0 (expired)", c.MaxAge)
 	}
 	if rec := do(srv, "GET", "/api/overview", []*http.Cookie{sess}, ""); rec.Code != http.StatusOK {
 		t.Fatalf("session from challenge+code is not usable: got %d", rec.Code)

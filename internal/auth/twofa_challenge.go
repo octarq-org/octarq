@@ -7,8 +7,11 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
+	"net/http"
 	"strings"
 	"time"
+
+	"github.com/octarq-org/octarq/origin"
 )
 
 // twofaChallengeTTL bounds how long a login may sit between the proof that
@@ -16,6 +19,18 @@ import (
 // completes it. Short enough that a captured challenge is not a standing
 // backdoor, long enough that a human can fetch their authenticator app.
 const twofaChallengeTTL = 10 * time.Minute
+
+// twofaChallengeCookie is the HttpOnly cookie carrying the pending challenge
+// between the OAuth callback and /api/auth/2fa/verify. Path is narrowed to the
+// single endpoint that consumes it: the 2FA page itself only needs the
+// ?twofa=1 fact in its URL, never the challenge value, so the cookie has no
+// business on /admin/ or any other /api/ route.
+const twofaChallengeCookie = "octarq_2fa_challenge"
+
+// twofaChallengePath is the one path the challenge cookie must reach. Set and
+// clear must agree on it or the browser would treat them as two different
+// cookies (one for the URL, one for the jar's clearing rules).
+const twofaChallengePath = "/api/auth/2fa/verify"
 
 // NewTwoFAChallenge mints a short-lived, signed challenge token that proves
 // the holder has just completed an OAuth login round-trip as uid. It is the
@@ -49,6 +64,50 @@ func (m *Manager) mintChallenge(uid uint, expiry time.Time) (string, error) {
 	sig.Write(payload)
 	return base64.RawURLEncoding.EncodeToString(payload) + "." +
 		base64.RawURLEncoding.EncodeToString(sig.Sum(nil)), nil
+}
+
+// SetTwoFAChallengeCookie hands the pending OAuth 2FA challenge to the browser
+// in an HttpOnly cookie instead of a URL query parameter, so it never lands in
+// proxy access logs or browser history. The attributes mirror the session
+// cookie (auth.go setCookie): Secure derived per request via origin.Secure and
+// the same trustProxy gate, SameSite=Lax, HttpOnly, and Max-Age equal to the
+// challenge's 10-minute TTL so the cookie and the credential expire together.
+func (m *Manager) SetTwoFAChallengeCookie(w http.ResponseWriter, r *http.Request, challenge string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     twofaChallengeCookie,
+		Value:    challenge,
+		Path:     twofaChallengePath,
+		HttpOnly: true,
+		Secure:   origin.Secure(r, trustProxy),
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   int(twofaChallengeTTL.Seconds()),
+	})
+}
+
+// TwoFAChallengeFromRequest reads the pending challenge cookie, or "" when the
+// request carries none.
+func (m *Manager) TwoFAChallengeFromRequest(r *http.Request) string {
+	c, err := r.Cookie(twofaChallengeCookie)
+	if err != nil {
+		return ""
+	}
+	return c.Value
+}
+
+// ClearTwoFAChallengeCookie expires the challenge cookie. Called the moment a
+// session is issued for a challenge (spent) and when a challenge is refused as
+// invalid (dead) — never on a wrong TOTP code, where the challenge is still
+// good and the user gets to retry.
+func (m *Manager) ClearTwoFAChallengeCookie(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     twofaChallengeCookie,
+		Value:    "",
+		Path:     twofaChallengePath,
+		HttpOnly: true,
+		Secure:   origin.Secure(r, trustProxy),
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
 }
 
 // VerifyTwoFAChallenge validates a challenge token's signature and expiry and

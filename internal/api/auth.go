@@ -96,12 +96,8 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 
 type Verify2FAInputBody struct {
 	Email    string `json:"email,omitempty"`
-	Password string `json:"password,omitempty"` // required for password logins; absent for challengeToken logins
+	Password string `json:"password,omitempty"` // required for password logins; absent for OAuth challenge logins
 	Code     string `json:"code"`
-	// ChallengeToken proves a pending OAuth login without a password to
-	// re-send: a short-lived signed token minted by the OAuth callback
-	// (auth.Manager.NewTwoFAChallenge). Mutually exclusive with email+password.
-	ChallengeToken string `json:"challengeToken,omitempty"`
 }
 
 type Verify2FAInput struct {
@@ -129,11 +125,12 @@ type Verify2FAOutput struct {
 // with a TOTP code or a one-time recovery code. On success the session is set.
 //
 // OAuth logins have no password to re-send; the callback instead mints a
-// short-lived signed challenge (auth.Manager.NewTwoFAChallenge) and redirects
-// to the same 2FA page, which submits it as challengeToken. Both branches
-// share the TOTP/recovery verification and session issuance below — the
-// second-factor step is one mechanism, whichever proof started it.
-// POST /api/auth/2fa/verify  {email, password, code} | {challengeToken, code}
+// short-lived signed challenge (auth.Manager.NewTwoFAChallenge), stores it in
+// an HttpOnly cookie, and redirects to the same 2FA page, which submits only
+// the code. Both branches share the TOTP/recovery verification and session
+// issuance below — the second-factor step is one mechanism, whichever proof
+// started it.
+// POST /api/auth/2fa/verify  {email, password, code} | {code + challenge cookie}
 func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify2FAOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
@@ -149,10 +146,18 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 		uid, orgID uint
 		user       models.User
 		meta       map[string]any
+		challenge  bool // login rides on an OAuth 2FA challenge cookie
 	)
-	if token := strings.TrimSpace(input.Body.ChallengeToken); token != "" {
+	if token := h.auth.TwoFAChallengeFromRequest(r); token != "" {
+		challenge = true
 		uid = h.auth.VerifyTwoFAChallenge(token)
 		if uid == 0 {
+			// Forged, expired or malformed: the challenge is dead and no retry
+			// can revive it, so clear the cookie instead of letting the browser
+			// resubmit it. (A wrong TOTP code does NOT get here and must not
+			// clear the cookie — the challenge is still good, and clearing
+			// would turn a typo into a full OAuth restart.)
+			h.auth.ClearTwoFAChallengeCookie(w, r)
 			h.loginLimiter.recordFailure(ip)
 			return nil, huma.Error401Unauthorized("invalid 2FA challenge")
 		}
@@ -201,6 +206,11 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 	h.loginLimiter.reset(ip)
 	h.auditAs(r, orgID, user.ID, "user.login", "user", user.ID, meta)
 	h.auth.SetSessionFromRequest(r, w, uid, orgID)
+	if challenge {
+		// The challenge is spent the moment a session exists for it: expire
+		// the cookie in the same response so it cannot be replayed or linger.
+		h.auth.ClearTwoFAChallengeCookie(w, r)
+	}
 	out := &Verify2FAOutput{}
 	out.Body.OK = true
 	out.Body.Email = loginUser

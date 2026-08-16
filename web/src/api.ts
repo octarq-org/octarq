@@ -352,10 +352,11 @@ export const api = {
   verify2FA: (email: string, password: string, code: string) =>
     req<{ ok: boolean }>("POST", "/api/auth/2fa/verify", { email, password, code }),
   // Completes a pending OAuth login's second factor: the callback redirects
-  // with ?twofa=<challengeToken>, which stands in for the password an OAuth
-  // account does not have. Same endpoint, same code verification.
-  verify2FAChallenge: (challengeToken: string, code: string) =>
-    req<{ ok: boolean }>("POST", "/api/auth/2fa/verify", { challengeToken, code }),
+  // with ?twofa=1 and stores the signed challenge in an HttpOnly cookie. Only
+  // the code is sent — the challenge travels in the cookie, never in the body
+  // or URL. Same endpoint, same code verification.
+  verify2FAChallenge: (code: string) =>
+    req<{ ok: boolean }>("POST", "/api/auth/2fa/verify", { code }),
   forgotPassword: (email: string) => req<{ ok: boolean }>("POST", "/api/auth/forgot", { email }),
   resetPassword: (token: string, password: string) => req<{ ok: boolean }>("POST", "/api/auth/reset", { token, password }),
   // Authenticated change, as opposed to the emailed reset above. Succeeding

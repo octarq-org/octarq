@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 
@@ -255,11 +254,18 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	// A TOTP-enabled account must prove its second factor before any session
 	// exists — the OAuth round-trip is not a substitute for it (R3-twofa).
 	// The browser is sent to the SAME second-factor page password login uses,
-	// carrying a short-lived signed challenge in place of the password the
-	// OAuth account does not have; /api/auth/2fa/verify completes it via
-	// challengeToken and mints the session through the shared tail of
+	// with a short-lived signed challenge standing in for the password the
+	// OAuth account does not have; /api/auth/2fa/verify completes it via the
+	// challenge cookie and mints the session through the shared tail of
 	// verify2FA. No parallel pending state is introduced — one challenge
 	// endpoint, one session-issuance path.
+	//
+	// The challenge travels in an HttpOnly cookie, not in the URL: it is
+	// authentication material, and the query string ends up in proxy access
+	// logs and browser history. The redirect only carries the ?twofa=1 fact —
+	// enough for the page to know a second factor is pending. (Referrer-Policy
+	// is strict-origin-when-cross-origin, so the URL form did not leak
+	// cross-origin, but the local logs were real.)
 	if user.TOTPEnabled {
 		challenge, err := h.auth.NewTwoFAChallenge(user.ID)
 		if err != nil {
@@ -267,7 +273,8 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		http.Redirect(w, r, "/admin/?twofa="+url.QueryEscape(challenge), http.StatusFound)
+		h.auth.SetTwoFAChallengeCookie(w, r, challenge)
+		http.Redirect(w, r, "/admin/?twofa=1", http.StatusFound)
 		return
 	}
 
