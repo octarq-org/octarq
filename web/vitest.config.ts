@@ -13,6 +13,10 @@ export default mergeConfig(
   defineConfig({
     test: {
       include: ["src/**/*.test.{ts,tsx}"],
+      // Global network guard: any test that reaches real fetch() fails with a
+      // method+URL error instead of silently hitting the network (see
+      // src/test/setup.ts and src/test/networkGuard.test.ts).
+      setupFiles: ["./src/test/setup.ts"],
     },
   }),
 );
