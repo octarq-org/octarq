@@ -115,6 +115,7 @@ export const helloPlugin: UIPlugin = {
 - **Email via Cloudflare Worker** — deploy [`deploy/cloudflare-email-worker.js`](deploy/cloudflare-email-worker.js), set a catch-all route, enable *Accept email*.
 - **GeoIP analytics** — set `OCTARQ_MAXMIND_LICENSE_KEY` (free) and Octarq auto-downloads + hot-loads GeoLite2. See [`deploy/GEOIP.md`](deploy/GEOIP.md).
 - **MCP in Claude Desktop** — point `claude_desktop_config.json` at `octarq mcp`.
+- **Backup & restore** — `octarq backup` / `octarq restore` back up the database. Back up the whole `/data` directory (database **plus** the generated `octarq.secret` / `octarq-admin-password.txt` key files), and note Postgres backup needs host-side `pg_dump`. See [`website/src/content/docs/backup-restore.md`](website/src/content/docs/backup-restore.md).
 
 <details>
 <summary>Claude Desktop MCP config</summary>

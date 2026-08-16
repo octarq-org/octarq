@@ -108,3 +108,13 @@ server {
 | `OCTARQ_ADMIN_PASSWORD` | Yes | Initial administrator account password |
 | `OCTARQ_LISTEN` | No | Listen address (default: `:8080`) |
 | `OCTARQ_MAXMIND_LICENSE_KEY` | No | MaxMind GeoIP license key for auto-downloading GeoIP DB |
+
+---
+
+## 5. Backup & Restore
+
+Octarq ships `octarq backup` and `octarq restore` subcommands for the database,
+plus on-demand backups from the dashboard (Settings → Instance). Two things are
+easy to get wrong in production — the auto-generated key files that live next to
+the database, and the fact that Postgres backup needs host-side `pg_dump` — so
+read the full walkthrough before relying on it: **[Backup & Restore](/backup-restore/)**.
