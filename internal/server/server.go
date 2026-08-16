@@ -5,6 +5,7 @@
 //   - /api/*    → JSON API
 //   - /admin/*  → embedded React dashboard (assets + SPA fallback)
 //   - /status   → public status page (same SPA, gated by dashboardAllowed)
+//   - /instance → instance operator console (same SPA, gated by dashboardAllowed)
 //   - /         → redirect to /admin/
 //   - /{slug}   → short-link redirect (the root namespace belongs to links)
 package server
@@ -129,6 +130,23 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	// console: a host registered for short links / mail has no reason to
 	// expose the instance's operational status.
 	if path == "/status" || path == "/status/" {
+		if !s.dashboardAllowed(r.Host) {
+			http.NotFound(w, r)
+			return
+		}
+		s.serveIndex(w)
+		return
+	}
+
+	// 2.3 Instance operator console. Same SPA index.html again — the router
+	// picks its basename from the path (main.tsx) and renders the console.
+	// It lives OUTSIDE /admin on purpose: operating the deployment is not a
+	// workspace activity, and the two surfaces should not read as one.
+	// Serving it here also keeps /instance out of the root namespace, where
+	// an unrouted path is looked up as a short-link slug.
+	// Authorisation is the API's job — every /api/instance/* endpoint requires
+	// an instance admin; this only decides which HTML the browser gets.
+	if path == "/instance" || strings.HasPrefix(path, "/instance/") {
 		if !s.dashboardAllowed(r.Host) {
 			http.NotFound(w, r)
 			return

@@ -4,7 +4,6 @@ import { Toggle, PageHeader, GlassCard, Badge, Alert, Tooltip, confirmDialog } f
 import { ShieldAlert, Puzzle, Search, Tag, Info } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { menuIcon } from "../../shell/areas";
-import { Link } from "react-router-dom";
 import { useSettingsData } from "./shared";
 
 // Category display metadata & tones
@@ -139,9 +138,9 @@ export function PluginsSettings() {
         {settings?.isInstanceAdmin && (
           <>
             {" "}
-            <Link to="/settings/instance/plugins" className="underline underline-offset-2 hover:text-accent-fg">
+            <a href="/instance/plugins" className="underline underline-offset-2 hover:text-accent-fg">
               {t("settings.pluginsInstanceLink")}
-            </Link>
+            </a>
           </>
         )}
       </Alert>

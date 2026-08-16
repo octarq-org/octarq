@@ -43,6 +43,9 @@ export interface NavItem {
   iconStr?: string;
   path: string;
   badge?: string | number;
+  // Full-page navigation to a different basename (e.g. the /instance console):
+  // rendered as a plain <a href> by the shell instead of a router NavLink.
+  external?: boolean;
 }
 
 export interface NavGroup {
@@ -127,17 +130,22 @@ export const SETTINGS_AREA: Area = {
         { id: "tokens",   label: "API Tokens", Icon: KeyRound,  path: "/settings/tokens" },
       ],
     },
-    // Configuration of the octarq instance itself, gated on isInstanceAdmin.
-    // Plugins land here with category "Instance" — the Pro licensing plugin
-    // puts the operator's own octarq license here, NOT in the org-outward
-    // Commerce area. Passive resources (Help, Docs, About) belong in the
-    // sidebar footer, not here.
+    // The instance console (/instance) is a separate entry with its own
+    // basename — the three instance pages (settings/auth/plugins) moved there.
+    // This single item is the exit from the tenant shell; everything else
+    // instance-level lives behind it. Plugins with category "Instance" (e.g.
+    // the Pro licensing plugin) still land here — mergeAreas recreates the
+    // group dynamically from their menu entry.
     {
       label: "Instance",
       items: [
-        { id: "auth",     label: "Authentication",    Icon: KeyRound, path: "/settings/instance/auth" },
-        { id: "instance", label: "Instance Settings", Icon: Server,   path: "/settings/instance" },
-        { id: "instance-plugins", label: "Installed plugins", Icon: Puzzle, path: "/settings/instance/plugins" },
+        {
+          id: "instance-console",
+          label: "Instance Management",
+          Icon: Server,
+          path: "/instance",
+          external: true,
+        },
       ],
     },
   ],

@@ -1,4 +1,4 @@
-// Instance → Plugins: what this *binary* has loaded.
+// Instance console → Plugins: what this *binary* has loaded.
 //
 // This is the counterpart to Settings → Workspace → Features, and the two
 // answer different questions. What is compiled into the instance is decided by

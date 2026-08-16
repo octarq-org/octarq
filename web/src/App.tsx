@@ -12,6 +12,9 @@ const SettingsPage = lazy(() => import("./pages/Settings"));
 const InviteAcceptPage = lazy(() => import("./pages/InviteAccept"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"));
 const StatusPage = lazy(() => import("./pages/Status"));
+// The instance console (own /instance basename) — its own shell, no tenant
+// chrome. Lazy so a /admin-only session never pays for the chunk.
+const InstanceConsole = lazy(() => import("./pages/instance/console"));
 import { Modal, Button, toast, cn, Alert, TableDensityProvider, TableDensity } from "./ui";
 import { useTranslation } from "./i18n";
 import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
@@ -65,6 +68,10 @@ export default function App() {
   let content;
   if (window.location.pathname === "/status" || window.location.pathname === "/status/") {
     content = <Suspense fallback={<RouteFallback />}><StatusPage /></Suspense>;
+  } else if (window.location.pathname.startsWith("/instance")) {
+    // Same pattern as /status: the browser is on the console's basename, so
+    // the tenant shell must not boot. The console handles its own auth gate.
+    content = <Suspense fallback={<RouteFallback />}><InstanceConsole /></Suspense>;
   } else if (window.location.pathname === "/admin/invite/accept") {
     content = <InviteAcceptPage />;
   } else if (window.location.pathname === "/admin/reset") {

@@ -52,7 +52,31 @@ export default defineConfig({
   // octarqPlugins() serves the `#octarq-plugins` virtual module, composing the
   // UI plugins named in the active manifest (see plugins-manifest.ts). WHICH
   // plugins ship is chosen by manifest, not a code switch.
-  plugins: [react(), tailwindcss(), octarqPlugins()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    octarqPlugins(),
+    // Dev-only basename handling for a `base`-rooted SPA. The backend serves
+    // /admin (→ /admin/), /status and the instance console at /instance; the
+    // dev server's own fallback refuses paths outside base /admin/, so this
+    // middleware rewrites them all to the /admin/ entry BEFORE the base check.
+    // The browser stays on the original path — the router picks the basename —
+    // and assets load from /admin/assets like everywhere else. Remove the
+    // /instance branch with the missing backend route (see report); the others
+    // mirror what server.go already does.
+    {
+      name: "spa-basename-html",
+      configureServer(server) {
+        server.middlewares.use((req, _res, next) => {
+          const url = req.url ?? "";
+          if (url.startsWith("/instance") || url === "/admin" || url === "/status") {
+            req.url = "/admin/";
+          }
+          next();
+        });
+      },
+    },
+  ],
   resolve: {
     // React must be a singleton so plugin source composed from OUTSIDE this repo
     // (dev-from-source) shares the app's React — otherwise hooks throw.

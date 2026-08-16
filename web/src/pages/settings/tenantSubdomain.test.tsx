@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { I18nProvider } from "../../i18n";
 import { GeneralSettings } from "./general";
-import { InstanceSettings } from "./instance";
+import { InstanceSettings } from "../instance/settings";
 
 vi.mock("../../api", () => {
   const api = {

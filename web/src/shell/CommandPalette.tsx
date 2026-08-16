@@ -38,6 +38,10 @@ export function CommandPalette({
       [...areas, settingsArea].flatMap((a) =>
         a.groups.flatMap((g) =>
           g.items.flatMap((i) => {
+            // External items (cross-basename exits like the instance console)
+            // are full-page navigations — the palette's router jump can't do
+            // them, so they stay out of search.
+            if (i.external) return [];
             const areaTitle = translateAreaTitle(t, a.id, a.title);
             const groupLabel = translateGroupLabel(t, g.label);
             return [
