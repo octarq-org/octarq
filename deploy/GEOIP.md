@@ -143,4 +143,5 @@ spec:
 - octarq reads the `.mmdb` into memory at startup (not mmap) so it works on overlay
   / network volumes that don't support mmap. A database swapped on disk is picked
   up on the next restart.
-- Only **GeoLite2-City** is needed.
+- Only **GeoLite2-City** is needed. The Country edition also works but yields no
+  region/city.
