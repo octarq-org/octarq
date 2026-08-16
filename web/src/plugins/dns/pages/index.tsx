@@ -192,7 +192,7 @@ export default function DomainsPage() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="p-8 text-center text-foreground/40 text-sm">{t("domains.emptyNoDomainsReason")}</div>
+                  null // no-domains empty state lives in the right column's guide card
                 )
               ) : (
                 <>
@@ -357,39 +357,46 @@ export default function DomainsPage() {
               </GlassCard>
             </div>
           ) : domains.length === 0 && !loading ? (
-            <GlassCard className="flex flex-col items-center justify-center py-10 px-6 text-center border border-foreground/[0.04]/40">
-              <div className="h-14 w-14 rounded-2xl bg-accent-soft flex items-center justify-center text-accent-fg mb-4">
+            <Empty
+              reason={t("domains.addFirstDomain")}
+              detail={
+                <>
+                  <p className="text-sm text-foreground/50 leading-relaxed">{t("domains.addFirstDomainHint")}</p>
+                  {accounts.length > 0 ? (
+                    <p className="mt-3 text-xs text-foreground/45">
+                      {t("domains.connectedProvidersPre")} <span className="font-mono tnum">{accounts.length}</span>
+                    </p>
+                  ) : (
+                    <p className="mt-3 text-xs leading-relaxed text-foreground/45">{t("domains.providerBlockerDetail")}</p>
+                  )}
+                </>
+              }
+              action={
+                <div className="flex flex-col items-center gap-2">
+                  {accounts.length > 0 ? (
+                    <Button variant="primary" onClick={() => setSyncing(true)} className="gap-1.5">
+                      <RefreshCw className="h-4 w-4" />
+                      {t("domains.syncFrom", { name: accounts.length === 1 ? accounts[0].name : t("domains.provider") })}
+                    </Button>
+                  ) : (
+                    <Button variant="primary" onClick={() => setTab('settings')} className="gap-1.5">
+                      <Plus className="h-4 w-4" />
+                      {t("domains.connectProvider")}
+                    </Button>
+                  )}
+                  <button
+                    onClick={() => setActive("new")}
+                    className="text-xs text-foreground/45 hover:text-foreground/70 underline underline-offset-2 transition-colors"
+                  >
+                    {t("domains.orAddManually")}
+                  </button>
+                </div>
+              }
+            >
+              <div className="h-14 w-14 rounded-2xl bg-accent-soft flex items-center justify-center text-accent-fg">
                 <Globe className="h-7 w-7" />
               </div>
-              <h3 className="text-lg font-bold text-foreground mb-1.5">{t("domains.addFirstDomain")}</h3>
-              <p className="text-sm text-foreground/50 max-w-sm leading-relaxed mb-6">
-                {t("domains.addFirstDomainHint")}
-              </p>
-              {accounts.length > 0 ? (
-                <p className="mb-4 text-xs text-foreground/45">
-                  {t("domains.connectedProvidersPre")} <span className="font-mono tnum">{accounts.length}</span>
-                </p>
-              ) : (
-                <p className="mb-4 max-w-sm text-xs leading-relaxed text-foreground/45">{t("domains.providerBlockerDetail")}</p>
-              )}
-              {accounts.length > 0 ? (
-                <Button variant="primary" onClick={() => setSyncing(true)} className="gap-1.5">
-                  <RefreshCw className="h-4 w-4" />
-                  {t("domains.syncFrom", { name: accounts.length === 1 ? accounts[0].name : t("domains.provider") })}
-                </Button>
-              ) : (
-                <Button variant="primary" onClick={() => setTab('settings')} className="gap-1.5">
-                  <Plus className="h-4 w-4" />
-                  {t("domains.connectProvider")}
-                </Button>
-              )}
-              <button
-                onClick={() => setActive("new")}
-                className="mt-3 text-xs text-foreground/45 hover:text-foreground/70 underline underline-offset-2 transition-colors"
-              >
-                {t("domains.orAddManually")}
-              </button>
-            </GlassCard>
+            </Empty>
           ) : (
             <GlassCard className="flex flex-col items-center justify-center py-10 px-6 text-center text-foreground/40 border border-foreground/[0.04]/40">
               <Globe className="h-10 w-10 mb-2 opacity-50 text-accent-fg" />

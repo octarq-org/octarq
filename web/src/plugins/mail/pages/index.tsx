@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Domain, effectiveMailHosts } from "../../../api";
 import { mailApi, Attachment, Email, Mailbox } from "../api";
-import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../../ui";
+import { Code, Empty, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select } from "../../../ui";
 import { Inbox, Send, Plus, CheckCircle, Mail as MailIcon, Paperclip, Settings, Trash2, Reply, Download, X, AlertTriangle } from "lucide-react";
 import { MailSettings } from "./MailSettings";
 import { SMTPSenders } from "./SMTPSenders";
@@ -227,20 +227,20 @@ export default function MailPage() {
                     </Button>
                   </div>
                 ) : boxes.length === 0 ? (
-                  <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-                    <p className="text-sm font-medium text-foreground/75">{t("mail.emptyNoBoxesReason")}</p>
-                    <p className="max-w-[260px] text-[13px] leading-relaxed text-foreground/45">{t("mail.emptyNoBoxesDetail")}</p>
-                    <Button variant="primary" className="mt-1 text-xs py-1.5" onClick={() => setNewBox(true)}>
-                      {t("mail.newMailbox")}
-                    </Button>
-                  </div>
+                  <Empty
+                    reason={t("mail.emptyNoBoxesReason")}
+                    detail={t("mail.emptyNoBoxesDetail")}
+                    action={<Button variant="primary" className="mt-1 text-xs py-1.5" onClick={() => setNewBox(true)}>{t("mail.newMailbox")}</Button>}
+                  >
+                    <MailIcon className="h-8 w-8 text-foreground/50 mb-1" />
+                  </Empty>
                 ) : (
-                  <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-                    <p className="text-sm font-medium text-foreground/75">
-                      {t("mail.emptyInboxReasonPre")} <span className="font-mono">{`“${boxes.find(b => b.id === active)?.address ?? boxes[0]?.address}”`}</span>
-                    </p>
-                    <p className="max-w-[260px] text-[13px] leading-relaxed text-foreground/45">{t("mail.emptyInboxDetail")}</p>
-                  </div>
+                  <Empty
+                    reason={<>{t("mail.emptyInboxReasonPre")} <span className="font-mono">{`“${boxes.find(b => b.id === active)?.address ?? boxes[0]?.address}”`}</span></>}
+                    detail={t("mail.emptyInboxDetail")}
+                  >
+                    <Inbox className="h-8 w-8 text-foreground/50 mb-1" />
+                  </Empty>
                 )
               ) : (
                 <>

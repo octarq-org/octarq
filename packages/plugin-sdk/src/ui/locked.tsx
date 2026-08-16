@@ -86,7 +86,7 @@ export function LockedFeature({
         <div className="flex flex-col items-stretch gap-2 pt-1 sm:flex-row">
           <Button
             variant="primary"
-            onClick={() => (window.location.href = "/admin/license")}
+            onClick={() => (window.location.href = "/admin/settings/license")}
           >
             {t("uiCommon.upgradeTo", { tier: label })}
           </Button>
