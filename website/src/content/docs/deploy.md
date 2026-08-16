@@ -29,7 +29,7 @@ services:
       - OCTARQ_ADMIN_PASSWORD=change-this-admin-password
       - OCTARQ_LISTEN=:8080
     volumes:
-      - ./data:/app/data
+      - ./data:/data
 ```
 
 Start the container:

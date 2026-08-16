@@ -63,7 +63,7 @@ Octarq 内置了 **MCP 服务器**（`octarq mcp`，支持 stdio 及 SSE/stream 
 零配置 —— 一条命令,无需 `.env`:
 
 ```bash
-docker run -p 8080:8080 -v octarq-data:/data octarq/octarq
+docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
 ```
 
 首次启动时 Octarq 会自动生成密钥与初始 `admin` 密码(两者都持久化在 `/data`,并在日志里打印一次),默认用 SQLite 起来。打开 `http://localhost:8080`,从容器日志里拿到密码即可登录。邮件、DNS、GeoIP 全部 opt-in —— 之后在 **设置** 里配置,启动时什么都不需要。
@@ -122,7 +122,7 @@ export const helloPlugin: UIPlugin = {
 ```json
 { "mcpServers": { "octarq": {
   "command": "/path/to/octarq", "args": ["mcp"],
-  "env": { "OCTARQ_DB_PATH": "/path/to/octarq.db" }
+  "env": { "OCTARQ_DB_DSN": "/path/to/octarq.db" }
 }}}
 ```
 </details>
