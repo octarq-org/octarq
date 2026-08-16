@@ -57,6 +57,15 @@ var (
 	_ plugin.HelpDocsFS   = (*Plugin)(nil)
 )
 
+// Compile-time service contract assertions: these methods are provided to the
+// registry under the named contract types in Mount. A signature drift here
+// fails the build instead of silently breaking consumers' LookupServiceAs.
+var (
+	_ plugin.ExportFunc   = (*Plugin)(nil).exportData
+	_ plugin.PurgeFunc    = (*Plugin)(nil).purge
+	_ plugin.OverviewFunc = (*Plugin)(nil).overview
+)
+
 // New constructs the dns plugin.
 func New() *Plugin {
 	return &Plugin{
@@ -181,9 +190,9 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	}
 
 	ctx.Provide(plugin.ServiceDNSManager, p.DNSManager())
-	ctx.Provide("dns.overview", p.overview)
-	ctx.Provide("dns.purge", p.purge)
-	ctx.Provide("dns.export", p.exportData)
+	ctx.Provide(plugin.OverviewServiceName("dns"), plugin.OverviewFunc(p.overview))
+	ctx.Provide(plugin.PurgeServiceName("dns"), plugin.PurgeFunc(p.purge))
+	ctx.Provide(plugin.ExportServiceName("dns"), plugin.ExportFunc(p.exportData))
 	ctx.Provide("domains.mcp_export", p.mcpExportDomains)
 }
 

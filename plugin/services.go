@@ -28,12 +28,46 @@ const ServiceMailDispatcher = "mail.dispatcher"
 // usage reporter is provided (contract type UsageMeter).
 const ServiceCloudUsage = "cloud.usage"
 
+// ServiceLinkResolve is the well-known service name under which the links
+// plugin provides slug resolution for the public abuse-report form (contract
+// type LinkResolver).
+const ServiceLinkResolve = "links.resolve"
+
+// ServiceMailEmailGet is the well-known service name under which the mail
+// plugin provides email lookup for the AI summarizer (contract type
+// EmailGetter).
+const ServiceMailEmailGet = "mail.email.get"
+
 // CleanupServiceName returns the well-known "<pluginName>.cleanup" service name
 // under which a plugin provides its retention cleanup (contract type
 // CleanupFunc). The app looks every registered plugin's cleanup service up
 // under this name before launching the retention sweeper.
 func CleanupServiceName(pluginName string) string {
 	return pluginName + ".cleanup"
+}
+
+// ExportServiceName returns the well-known "<pluginName>.export" service name
+// under which a plugin provides its contribution to the org account export
+// (contract type ExportFunc). The app looks every registered plugin's export
+// service up under this name while assembling GET /api/account/export.
+func ExportServiceName(pluginName string) string {
+	return pluginName + ".export"
+}
+
+// PurgeServiceName returns the well-known "<pluginName>.purge" service name
+// under which a plugin provides its tenant-data erasure (contract type
+// PurgeFunc). The app looks every registered plugin's purge service up under
+// this name before deleting the org (DELETE /api/account/data).
+func PurgeServiceName(pluginName string) string {
+	return pluginName + ".purge"
+}
+
+// OverviewServiceName returns the well-known "<pluginName>.overview" service
+// name under which a plugin provides its overview statistics (contract type
+// OverviewFunc). The app looks every registered plugin's overview service up
+// under this name while assembling the overview endpoint.
+func OverviewServiceName(pluginName string) string {
+	return pluginName + ".overview"
 }
 
 // MailSender is the cross-plugin contract for sending transactional email
@@ -73,3 +107,50 @@ type UsageMeter func(orgID uint, metric string, n int64)
 // provider registers it under CleanupServiceName(pluginName). Changing this
 // signature breaks the contract: provider and the app must change together.
 type CleanupFunc func(ctx context.Context, retentionDays int)
+
+// ExportFunc is the cross-plugin contract for a plugin's contribution to the
+// org account export (GET /api/account/export): the plugin returns a
+// flat map of key/value pairs that the app merges into the export body, one
+// entry per key. Every plugin — OSS (links, mail, dns) and the Pro modules
+// (databases, infra, roles, product, sso, ai, cloud, finance, mailstorage,
+// billing, customer, issuer) — provides it under ExportServiceName(pluginName).
+// A signature drift fails silently in production: the plugin's data is
+// simply missing from the user's export. Changing this signature breaks the
+// contract: every provider and the app must change together, which the
+// explicit conversion at the Provide call site enforces at compile time.
+type ExportFunc func(orgID uint) map[string]any
+
+// PurgeFunc is the cross-plugin contract for a plugin's tenant-data erasure,
+// run by the app before the org row itself is deleted (DELETE
+// /api/account/data). Every plugin — OSS (links, mail, dns) and the Pro
+// modules (databases, infra, roles, product, sso, ai, cloud, finance,
+// mailstorage, billing, customer, issuer) — provides it under
+// PurgeServiceName(pluginName). A signature drift fails silently in
+// production: the plugin's tenant data survives the deletion and the operator
+// believes the workspace was erased — a data-retention/compliance problem.
+// Changing this signature breaks the contract: every provider and the app
+// must change together, which the explicit conversion at the Provide call
+// site enforces at compile time.
+type PurgeFunc func(orgID uint) error
+
+// OverviewFunc is the cross-plugin contract for a plugin's contribution to
+// the overview endpoint: the plugin returns a flat map of statistics the app
+// merges into the overview body. Every plugin — OSS (links, mail, dns) and
+// the Pro modules (databases, infra, roles, product, sso, ai, cloud,
+// finance, mailstorage, billing, customer, issuer) — provides it under
+// OverviewServiceName(pluginName). Changing this signature breaks the
+// contract: every provider and the app must change together.
+type OverviewFunc func(orgID uint, includeBot bool) map[string]any
+
+// LinkResolver is the cross-plugin contract for attributing a reported slug
+// to the link actually served at (host, slug), backing the public abuse-report
+// form. The provider (the links plugin) registers it under ServiceLinkResolve.
+// Changing this signature breaks the contract: provider and the app must
+// change together.
+type LinkResolver func(host, slug string) (target string, orgID uint, ok bool)
+
+// EmailGetter is the cross-plugin contract for fetching one inbound email for
+// the AI summarizer. The provider (the mail plugin) registers it under
+// ServiceMailEmailGet. Changing this signature breaks the contract: provider
+// and the app must change together.
+type EmailGetter func(orgID uint, id uint) (from, subject, body string, ok bool)

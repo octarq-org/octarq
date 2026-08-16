@@ -13,6 +13,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/llmprovider"
+	"github.com/octarq-org/octarq/plugin"
 )
 
 // Single-step, user-triggered AI assists for the open-source build: suggest a
@@ -260,10 +261,10 @@ func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailI
 	}
 	var fromAddr, subject, body string
 	var found bool
-	if getEmail, ok := h.LookupService("mail.email.get"); ok {
-		if fn, ok := getEmail.(func(orgID uint, id uint) (string, string, string, bool)); ok {
-			fromAddr, subject, body, found = fn(orgID, input.ID)
-		}
+	// Absent getter (mail not in this build) leaves found=false → 404;
+	// see plugin.EmailGetter.
+	if fn, ok := plugin.LookupServiceAs[plugin.EmailGetter](h.LookupService, plugin.ServiceMailEmailGet); ok {
+		fromAddr, subject, body, found = fn(orgID, input.ID)
 	}
 	if !found {
 		return nil, huma.Error404NotFound("not found")

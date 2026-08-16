@@ -38,10 +38,16 @@ var (
 	_ plugin.Starter      = (*Plugin)(nil)
 )
 
-// Compile-time service contract assertion: cleanupEvents is provided to the
-// registry under plugin.CleanupFunc in Mount. A signature drift here fails the
-// build instead of silently breaking the app's cleanup collector.
-var _ plugin.CleanupFunc = (*Plugin)(nil).cleanupEvents
+// Compile-time service contract assertions: these methods are provided to the
+// registry under the named contract types in Mount. A signature drift here
+// fails the build instead of silently breaking consumers' LookupServiceAs.
+var (
+	_ plugin.ExportFunc   = (*Plugin)(nil).exportData
+	_ plugin.PurgeFunc    = (*Plugin)(nil).purge
+	_ plugin.OverviewFunc = (*Plugin)(nil).overview
+	_ plugin.LinkResolver = (*Plugin)(nil).resolveSlug
+	_ plugin.CleanupFunc  = (*Plugin)(nil).cleanupEvents
+)
 
 func New() *Plugin {
 	return &Plugin{}
@@ -153,12 +159,12 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/export.csv", Summary: "Export Links", Tags: []string{"Links"}}, p.exportLinksCSV)
 	}
 	if ctx.Provide != nil {
-		ctx.Provide("links.overview", p.overview)
-		ctx.Provide("links.purge", p.purge)
-		ctx.Provide("links.export", p.exportData)
-		ctx.Provide("links.resolve", p.resolveSlug)
+		ctx.Provide(plugin.OverviewServiceName("links"), plugin.OverviewFunc(p.overview))
+		ctx.Provide(plugin.PurgeServiceName("links"), plugin.PurgeFunc(p.purge))
+		ctx.Provide(plugin.ExportServiceName("links"), plugin.ExportFunc(p.exportData))
+		ctx.Provide(plugin.ServiceLinkResolve, plugin.LinkResolver(p.resolveSlug))
 		ctx.Provide("links.create", plugin.LinkCreator(p))
-		ctx.Provide("links.cleanup", plugin.CleanupFunc(p.cleanupEvents))
+		ctx.Provide(plugin.CleanupServiceName("links"), plugin.CleanupFunc(p.cleanupEvents))
 		ctx.Provide("links.mcp_export", p.mcpExportLinks)
 		ctx.Provide("links.trust_proxy", SetTrustProxy)
 	}

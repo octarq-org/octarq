@@ -10,6 +10,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
 
@@ -107,12 +108,11 @@ func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) 
 	}
 
 	for _, p := range h.plugins {
-		svcName := p.Name() + ".export"
-		if v, ok := h.LookupService(svcName); ok {
-			if fn, ok := v.(func(orgID uint) map[string]any); ok {
-				for k, val := range fn(org) {
-					bodyMap[k] = val
-				}
+		// Plugins that don't provide an export service are skipped: their data
+		// is simply absent from the export. See plugin.ExportFunc.
+		if fn, ok := plugin.LookupServiceAs[plugin.ExportFunc](h.LookupService, plugin.ExportServiceName(p.Name())); ok {
+			for k, val := range fn(org) {
+				bodyMap[k] = val
 			}
 		}
 	}
@@ -169,13 +169,12 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 		return nil, err
 	}
 
-	// 1. Call plugin purge services first
+	// 1. Call plugin purge services first. Plugins that don't provide a purge
+	// service are skipped (nothing to erase); errors are deliberately
+	// swallowed — the purge proceeds regardless, matching prior behavior.
 	for _, p := range h.plugins {
-		svcName := p.Name() + ".purge"
-		if v, ok := h.LookupService(svcName); ok {
-			if fn, ok := v.(func(orgID uint) error); ok {
-				_ = fn(org)
-			}
+		if fn, ok := plugin.LookupServiceAs[plugin.PurgeFunc](h.LookupService, plugin.PurgeServiceName(p.Name())); ok {
+			_ = fn(org)
 		}
 	}
 
