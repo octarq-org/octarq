@@ -10,6 +10,84 @@ import type { PluginI18n, PluginMenuItem, UIArea, UIPlugin, UIRoute, UIWidget } 
 
 const REGISTRY: UIPlugin[] = [];
 
+// The plugins a read sees: REGISTRY minus every plugin that another plugin's
+// `replaces` names. Derived lazily from the FULL registry at first read (and
+// invalidated on every mutation), never applied at registration time — so the
+// composed result is independent of registration order. See UIPlugin.replaces
+// in types.ts for the contract-level statement.
+let derivedPlugins: UIPlugin[] | null = null;
+
+// Composition errors are surfaced exactly like name collisions: throw in dev,
+// console.error in prod (a bad declaration must not white-screen the admin,
+// but must stay visible).
+function reportCompositionError(message: string): void {
+  if (import.meta.env.DEV) {
+    throw new Error(message);
+  }
+  console.error(message);
+}
+
+function effectivePlugins(): UIPlugin[] {
+  if (derivedPlugins !== null) return derivedPlugins;
+
+  const replaced = new Set<string>();
+  const replacersByTarget = new Map<string, UIPlugin[]>();
+
+  for (const p of REGISTRY) {
+    const targets = new Set(p.replaces ?? []);
+    for (const target of targets) {
+      if (target === p.name) {
+        reportCompositionError(
+          `UIPlugin replaces: "${p.name}" declares replaces: ["${target}"] — ` +
+            `a plugin cannot replace itself. Remove the self-reference.`,
+        );
+        continue;
+      }
+      const replacers = replacersByTarget.get(target);
+      if (replacers) {
+        replacers.push(p);
+      } else {
+        replacersByTarget.set(target, [p]);
+      }
+    }
+  }
+
+  for (const [target, replacers] of replacersByTarget) {
+    if (replacers.length > 1) {
+      reportCompositionError(
+        `UIPlugin replaces ambiguity: "${target}" is declared as replaced by ` +
+          `${replacers.map((r) => `"${r.name}"`).join(" and ")}. A replacement target ` +
+          `must have exactly one replacer — rename or drop one of the two declarations.`,
+      );
+      continue; // no winner: the target stays composed
+    }
+    const targetPlugin = REGISTRY.find((p) => p.name === target);
+    if (!targetPlugin) {
+      if (import.meta.env.DEV) {
+        console.warn(
+          `UIPlugin replaces: "${replacers[0].name}" declares replaces: ["${target}"], ` +
+            `but no composed plugin is named "${target}" — a typo, or an optional ` +
+            `dependency that this build doesn't compose. The declaration is ignored.`,
+        );
+      }
+      continue;
+    }
+    if (targetPlugin.replaces?.length) {
+      reportCompositionError(
+        `UIPlugin replace chain is not supported: "${replacers[0].name}" replaces ` +
+          `"${target}", but "${target}" itself declares replaces: ` +
+          `${targetPlugin.replaces.map((n) => `"${n}"`).join(", ")}. Chain declarations ` +
+          `are a composition error — declare each level explicitly or drop one.`,
+      );
+      continue;
+    }
+    replaced.add(target);
+  }
+
+  derivedPlugins = REGISTRY.filter((p) => !replaced.has(p.name));
+  return derivedPlugins;
+}
+
 // Compose a plugin into the app. Called by the injection module at build time.
 // Idempotent per plugin name so a double-import can't duplicate routes.
 //
@@ -35,16 +113,18 @@ export function registerUIPlugin(plugin: UIPlugin): void {
     return;
   }
   REGISTRY.push(plugin);
+  derivedPlugins = null;
 }
 
-// All composed plugins, in registration order.
+// All composed plugins, in registration order, minus any that another plugin
+// replaces.
 export function uiPlugins(): UIPlugin[] {
-  return REGISTRY;
+  return effectivePlugins();
 }
 
 // Every plugin route, flattened — the app maps these into <Routes>.
 export function uiRoutes(): UIRoute[] {
-  return REGISTRY.flatMap((p) => p.routes);
+  return effectivePlugins().flatMap((p) => p.routes);
 }
 
 // Every widget registered for `slot`, across all plugins, in ascending `order`
@@ -52,9 +132,10 @@ export function uiRoutes(): UIRoute[] {
 // stable). Rendered by <ExtensionSlot name={slot}/>. Empty registry ⇒ empty
 // array ⇒ the slot renders nothing (the OSS build).
 export function uiWidgets(slot: string): UIWidget[] {
-  return REGISTRY.flatMap((p) =>
-    (p.widgets ?? []).map((w) => ({ ...w, pluginName: w.pluginName ?? p.name }))
-  )
+  return effectivePlugins()
+    .flatMap((p) =>
+      (p.widgets ?? []).map((w) => ({ ...w, pluginName: w.pluginName ?? p.name }))
+    )
     .filter((w) => w.slot === slot)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
@@ -65,7 +146,7 @@ export function uiWidgets(slot: string): UIWidget[] {
 // shared `areaForCategory` pipeline.
 export function uiAreas(): UIArea[] {
   const seen = new Set<string>();
-  return REGISTRY.flatMap((p) => p.areas ?? []).filter((a) => {
+  return effectivePlugins().flatMap((p) => p.areas ?? []).filter((a) => {
     if (seen.has(a.id)) return false;
     seen.add(a.id);
     return true;
@@ -78,7 +159,7 @@ export function uiAreas(): UIArea[] {
 // namespace — it is collected separately by uiPluginSharedI18n.
 export function uiPluginI18n(): PluginI18n {
   const out: Record<string, Record<string, unknown>> = {};
-  for (const p of REGISTRY) {
+  for (const p of effectivePlugins()) {
     if (!p.i18n) continue;
     for (const [lang, dict] of Object.entries(p.i18n)) {
       if (!dict) continue;
@@ -111,7 +192,7 @@ function mergeUnder(base: Record<string, unknown>, extra: unknown): void {
 // OVER this dict, so core copy always wins.
 export function uiPluginSharedI18n(): PluginI18n {
   const out: Record<string, Record<string, unknown>> = {};
-  for (const p of REGISTRY) {
+  for (const p of effectivePlugins()) {
     if (!p.i18n) continue;
     for (const [lang, dict] of Object.entries(p.i18n)) {
       if (!dict) continue;
@@ -125,4 +206,5 @@ export function uiPluginSharedI18n(): PluginI18n {
 // Test-only: clear the registry between cases. Not used by the app.
 export function resetRegistry(): void {
   REGISTRY.length = 0;
+  derivedPlugins = null;
 }

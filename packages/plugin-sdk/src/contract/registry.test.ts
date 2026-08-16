@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LazyPage, UIPlugin } from "./types";
 import {
   registerUIPlugin,
@@ -14,6 +14,10 @@ import {
 // Tests never render these, so a plain marker object is enough. The cast is
 // confined to the fixture helper.
 const page = (marker: string): LazyPage => ({ marker }) as unknown as LazyPage;
+
+// page() builds a fresh object per call, so identity (toBe) can't be used —
+// compare the marker instead.
+const markerOf = (c: unknown): string => (c as { marker: string }).marker;
 
 const plugin = (name: string, rest: Partial<UIPlugin> = {}): UIPlugin => ({
   name,
@@ -187,5 +191,85 @@ describe("resetRegistry", () => {
     expect(uiPlugins()).toEqual([]);
     registerUIPlugin(plugin("a", { routes: [{ path: "/a2", Component: page("a2") }] }));
     expect(uiRoutes().map((r) => r.path)).toEqual(["/a2"]);
+  });
+});
+
+describe("replaces", () => {
+  const coreAudit = () =>
+    plugin("audit", {
+      routes: [{ path: "/audit", Component: page("core-audit") }],
+      widgets: [{ slot: "home", Component: page("core-widget") }],
+      areas: [{ id: "audit-area", title: "Audit (core)" }],
+      i18n: { en: { audit: { title: "Audit log" } } },
+    });
+  const proAudit = () =>
+    plugin("auditPro", {
+      replaces: ["audit"],
+      routes: [{ path: "/audit", Component: page("pro-audit") }],
+    });
+
+  it("wholesale-excludes a replaced plugin: routes, widgets, areas, and i18n all disappear", () => {
+    registerUIPlugin(coreAudit());
+    registerUIPlugin(proAudit());
+    expect(uiPlugins().map((p) => p.name)).toEqual(["auditPro"]);
+    expect(uiRoutes().map((r) => r.path)).toEqual(["/audit"]);
+    expect(markerOf(uiRoutes()[0].Component)).toBe("pro-audit");
+    expect(uiWidgets("home")).toEqual([]);
+    expect(uiAreas()).toEqual([]);
+    expect(uiPluginI18n()).toEqual({});
+    expect(uiPluginSharedI18n()).toEqual({});
+  });
+
+  it("is order-independent: registering the replacer before the target composes identically", () => {
+    registerUIPlugin(proAudit());
+    registerUIPlugin(coreAudit());
+    expect(uiPlugins().map((p) => p.name)).toEqual(["auditPro"]);
+    expect(uiRoutes().map((r) => markerOf(r.Component))).toEqual(["pro-audit"]);
+
+    resetRegistry();
+    registerUIPlugin(coreAudit());
+    registerUIPlugin(proAudit());
+    expect(uiPlugins().map((p) => p.name)).toEqual(["auditPro"]);
+    expect(uiRoutes().map((r) => markerOf(r.Component))).toEqual(["pro-audit"]);
+  });
+
+  it("throws in dev when two plugins declare the same replacement target", () => {
+    registerUIPlugin(coreAudit());
+    registerUIPlugin(plugin("auditPro1", { replaces: ["audit"], routes: [] }));
+    registerUIPlugin(plugin("auditPro2", { replaces: ["audit"], routes: [] }));
+    expect(() => uiRoutes()).toThrow(/replaces ambiguity: "audit" is declared as replaced by "auditPro1" and "auditPro2"/);
+  });
+
+  it("throws when a plugin replaces itself", () => {
+    registerUIPlugin(plugin("audit", { replaces: ["audit"], routes: [{ path: "/audit", Component: page("a") }] }));
+    expect(() => uiRoutes()).toThrow(/cannot replace itself/);
+  });
+
+  it("warns in dev when replaces names a plugin that is not composed, and still composes the replacer", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      registerUIPlugin(plugin("auditPro", { replaces: ["audit"], routes: [{ path: "/audit", Component: page("pro") }] }));
+      expect(uiRoutes().map((r) => r.Component)).toEqual([page("pro")]);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('no composed plugin is named "audit"'));
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("throws on replace chains (A replaces B while B replaces C) — the shape is unsupported", () => {
+    registerUIPlugin(plugin("a", { replaces: ["b"], routes: [] }));
+    registerUIPlugin(plugin("b", { replaces: ["c"], routes: [] }));
+    registerUIPlugin(plugin("c", { routes: [] }));
+    expect(() => uiRoutes()).toThrow(/replace chain is not supported: "a" replaces "b", but "b" itself declares replaces/);
+  });
+
+  it("keeps name-collision detection intact: a same-name registration still throws even when replaces is involved", () => {
+    const first = plugin("dup", { routes: [{ path: "/first", Component: page("first") }] });
+    const second = plugin("dup", { replaces: ["other"], routes: [{ path: "/second", Component: page("second") }] });
+    registerUIPlugin(first);
+    expect(() => registerUIPlugin(second)).toThrow(/UIPlugin name collision: "dup"/);
+    expect(uiPlugins()).toHaveLength(1);
+    expect(uiPlugins()[0]).toBe(first);
+    expect(uiRoutes().map((r) => r.path)).toEqual(["/first"]);
   });
 });
