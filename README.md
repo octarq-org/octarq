@@ -63,7 +63,7 @@ The point isn't "we added AI." The point is the **framework** wiring: a plugin t
 Zero config — one command, no `.env`:
 
 ```bash
-docker run -p 8080:8080 -v octarq-data:/data octarq/octarq
+docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
 ```
 
 On first boot Octarq generates a secret key and an initial `admin` password (both persisted under `/data`, printed once in the logs) and comes up on SQLite. Open `http://localhost:8080`, grab the password from the container logs, and log in. Mail, DNS and GeoIP are all opt-in — configure them later from **Settings**, nothing is required to start.
@@ -123,7 +123,7 @@ export const helloPlugin: UIPlugin = {
 ```json
 { "mcpServers": { "octarq": {
   "command": "/path/to/octarq", "args": ["mcp"],
-  "env": { "OCTARQ_DB_PATH": "/path/to/octarq.db" }
+  "env": { "OCTARQ_DB_DSN": "/path/to/octarq.db" }
 }}}
 ```
 </details>

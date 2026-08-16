@@ -28,10 +28,19 @@ COPY . .
 # Bring in the freshly built dashboard so go:embed picks it up.
 COPY --from=web /app/webembed/dist ./webembed/dist
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /octarq .
+# Runtime data dir, owned by the container UID 65532. Created in this
+# shell-capable stage — the distroless runtime has no shell — then copied into
+# the final image (below) so a Docker-created volume over /data inherits the
+# ownership on first boot instead of being root:root.
+RUN mkdir -p /data && chown 65532:65532 /data
 
 # ---- Stage 3: minimal runtime ----
 FROM gcr.io/distroless/static-debian12
 COPY --from=build /octarq /octarq
+# Bake /data (owned 65532:65532) in BEFORE declaring VOLUME — build-time
+# changes to a path after its VOLUME declaration are discarded, so the COPY
+# must precede it.
+COPY --from=build --chown=65532:65532 /data /data
 EXPOSE 8080
 VOLUME ["/data"]
 ENV OCTARQ_DB_DSN=/data/octarq.db
