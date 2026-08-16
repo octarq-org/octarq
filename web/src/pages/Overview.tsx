@@ -24,14 +24,22 @@ function OverviewChecklistSection({
 
   if (dismissed) return null;
 
+  // twoFAEnabled is null while the request is in flight and stays null when
+  // the status endpoint fails. In both cases the state is unknown: judging it
+  // "not completed" would mark 2FA users as stuck on the step forever and cap
+  // the progress bar below 100%. The step is hidden until the state is known.
   const steps = [
-    {
-      id: "2fa",
-      title: t("overview.step2FATitle"),
-      description: t("overview.step2FADesc"),
-      completed: twoFAEnabled === true,
-      path: "/settings/security",
-    },
+    ...(twoFAEnabled === null
+      ? []
+      : [
+          {
+            id: "2fa",
+            title: t("overview.step2FATitle"),
+            description: t("overview.step2FADesc"),
+            completed: twoFAEnabled === true,
+            path: "/settings/security",
+          },
+        ]),
   ];
 
   return (

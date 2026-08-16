@@ -12,6 +12,7 @@ import { ReplyDraft } from "./types";
 import { EmailViewForm, AuthBadges } from "./EmailView";
 import { MailboxEditor } from "./MailboxEditor";
 import { Compose } from "./Compose";
+import { ListSkeleton } from "../../../components/ListSkeleton";
 
 export default function MailPage() {
   const [boxes, setBoxes] = useState<Mailbox[]>([]);
@@ -211,8 +212,11 @@ export default function MailPage() {
           </div>
           
           <GlassCard className="overflow-hidden">
+            {emails.length === 0 && loading ? (
+              <ListSkeleton rows={7} ariaLabel={t("mail.loading")} />
+            ) : (
             <div className="overflow-y-auto max-h-[600px] divide-y divide-foreground/[0.04]" onScroll={handleScroll}>
-              {emails.length === 0 && !loading ? (
+              {emails.length === 0 ? (
                 q ? (
                   <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
                     <p className="text-sm text-foreground/60">
@@ -265,6 +269,7 @@ export default function MailPage() {
                 </>
               )}
             </div>
+            )}
           </GlassCard>
         </div>
 

@@ -567,8 +567,8 @@ export const settings = {
     clear: "清除",
 
     // LinkSettings
-    shortLinksSettings: "短链接设置（实例）",
-    reservedSlugsLabel: "保留的短链接别名",
+    shortLinksSettings: "短链设置（实例）",
+    reservedSlugsLabel: "保留的短链别名",
     reservedSlugsHint: "用户无法注册的别名。内置：{{list}}。",
     saveSettings: "保存设置",
 

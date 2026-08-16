@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, AuditLog } from "../api";
 import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Table, THead, TBody, TR, TH, TD } from "@octarq/plugin-sdk";
 import { useTranslation } from "@octarq/plugin-sdk";
+import { ListSkeleton } from "../components/ListSkeleton";
 
 export default function AuditLogPage() {
   const { t } = useTranslation();
@@ -29,7 +30,7 @@ export default function AuditLogPage() {
       />
 
       {loading ? (
-        <div className="text-foreground/40 py-12 text-center">{t("audit.loading")}</div>
+        <ListSkeleton rows={8} ariaLabel={t("audit.loading")} />
       ) : logs.length === 0 ? (
         <GlassCard className="p-10 text-center text-foreground/40">
           {t("audit.emptyState")}

@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Route, Link } from "react-router-dom";
 import { useCurrentRole, roleSatisfies } from "../shell/role";
 import { GlassCard, PageHeader, ScreenWrap, useTranslation } from "@octarq/plugin-sdk";
+import { RouteFallback } from "../ui";
 import { uiPlugins } from "@octarq/plugin-sdk";
 import type { UIPlugin } from "@octarq/plugin-sdk";
 import { PluginGate } from "./PluginGate";
@@ -94,7 +95,11 @@ export function pluginRouteElements() {
           path={route.path}
           element={
             <PluginGate plugin={plugin} route={route}>
-              <Suspense fallback={null}>
+              {/* Not fallback={null}: this boundary is closer to the lazy page
+                  than the shell's Suspense, so a null fallback would mask the
+                  RouteFallback spinner and white-screen plugin pages while
+                  their chunk loads. */}
+              <Suspense fallback={<RouteFallback />}>
                 <Page />
               </Suspense>
             </PluginGate>

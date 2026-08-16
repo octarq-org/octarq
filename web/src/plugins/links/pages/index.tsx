@@ -12,6 +12,7 @@ import { LinkEditorForm } from "./LinkEditorForm";
 import { StatsView } from "./StatsView";
 import { usePluginGate } from "../../PluginGate";
 import { parseLinksFilter, buildLinksFilterQuery } from "../filters";
+import { ListSkeleton } from "../../../components/ListSkeleton";
 
 export default function LinksPage() {
   const { role, isInstanceAdmin } = useCurrentRole();
@@ -174,8 +175,11 @@ export default function LinksPage() {
           </div>
           
           <GlassCard className="overflow-hidden">
+            {links.length === 0 && loading ? (
+              <ListSkeleton rows={7} ariaLabel={t("links.loading")} />
+            ) : (
             <div className="overflow-y-auto max-h-[600px] divide-y divide-foreground/[0.04]" onScroll={handleScroll}>
-              {links.length === 0 && !loading ? (
+              {links.length === 0 ? (
                 q ? (
                   <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
                     <p className="text-sm text-foreground/60">
@@ -229,6 +233,7 @@ export default function LinksPage() {
                 </>
               )}
             </div>
+            )}
           </GlassCard>
         </div>
 

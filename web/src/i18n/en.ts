@@ -108,7 +108,6 @@ export const en = {
     Security: "Security",
     System: "System",
     Account: "Account",
-    Subscriptions: "Subscriptions",
     Instance: "Instance",
   },
   // Core carries only what THIS build declares: the static area/group shells in
@@ -129,9 +128,6 @@ export const en = {
     links: "Links",
     mail: "Mail",
     domains: "DNS",
-    certs: "Certificates",
-    databases: "Databases",
-    storage: "Object Storage",
     abuse: "Abuse Reports",
     audit: "Audit Log",
     general: "General",

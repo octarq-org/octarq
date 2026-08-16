@@ -104,7 +104,6 @@ export const ja = {
     Security: "セキュリティ",
     System: "システム",
     Account: "アカウント",
-    Subscriptions: "サブスクリプション",
     Instance: "インスタンス",
   },
   nav: {
@@ -115,9 +114,6 @@ export const ja = {
     links: "リンク",
     mail: "メール",
     domains: "DNS",
-    certs: "証明書",
-    databases: "データベース",
-    storage: "オブジェクトストレージ",
     abuse: "不正使用レポート",
     audit: "監査ログ",
     general: "一般",

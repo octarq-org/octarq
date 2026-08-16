@@ -14,6 +14,7 @@ import { RecordsView } from "./RecordsView";
 import { DDNSView } from "./DDNSView";
 import { usePluginGate } from "../../PluginGate";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
+import { ListSkeleton } from "../../../components/ListSkeleton";
 
 export default function DomainsPage() {
   const { role, isInstanceAdmin } = useCurrentRole();
@@ -176,8 +177,11 @@ export default function DomainsPage() {
             />
           </div>
           <GlassCard className="overflow-hidden">
+            {domains.length === 0 && loading ? (
+              <ListSkeleton rows={7} ariaLabel={t("domains.loading")} />
+            ) : (
             <div className="overflow-y-auto max-h-[600px] divide-y divide-foreground/[0.04]" onScroll={handleScroll}>
-              {domains.length === 0 && !loading ? (
+              {domains.length === 0 ? (
                 q ? (
                   <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
                     <p className="text-sm text-foreground/60">
@@ -226,6 +230,7 @@ export default function DomainsPage() {
                 </>
               )}
             </div>
+            )}
           </GlassCard>
         </div>
 

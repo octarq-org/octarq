@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, AbuseReport } from "../api";
 import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../ui";
 import { useTranslation } from "../i18n";
+import { ListSkeleton } from "../components/ListSkeleton";
 
 export default function AbusePage() {
   const { t } = useTranslation();
@@ -62,7 +63,7 @@ export default function AbusePage() {
       </div>
 
       {loading ? (
-        <div className="text-foreground/40 py-12 text-center">{t("abuse.loading")}</div>
+        <ListSkeleton rows={5} ariaLabel={t("abuse.loading")} />
       ) : reports.length === 0 ? (
         <GlassCard className="p-10 text-center text-foreground/40">
           {t("abuse.emptyState")}

@@ -50,7 +50,7 @@ export const domainsI18n = {
 
     // Domain editor / detail
     addDomainZone: "Add Domain Zone",
-    removeConfirm: "Remove {{name}}?",
+    removeConfirm: "Delete {{name}}?",
     delete: "Delete",
     managedHosts: "Managed Hosts",
 
@@ -132,8 +132,8 @@ export const domainsI18n = {
     on: "on",
     off: "off",
     addShort: "+ add",
-    removeHost: "Remove host",
-    remove: "Remove",
+    removeHost: "Delete host",
+    remove: "Delete",
 
     // AddHostRow
     hostDraftPlaceholder: "e.g. blog or cname",
@@ -244,7 +244,7 @@ export const domainsI18n = {
 
     // Domain editor / detail
     addDomainZone: "添加域名区域",
-    removeConfirm: "确定移除 {{name}}？",
+    removeConfirm: "确定删除 {{name}}？",
     delete: "删除",
     managedHosts: "已管理主机",
 
@@ -325,8 +325,8 @@ export const domainsI18n = {
     on: "开",
     off: "关",
     addShort: "+ 添加",
-    removeHost: "移除主机",
-    remove: "移除",
+    removeHost: "删除主机",
+    remove: "删除",
 
     // AddHostRow
     hostDraftPlaceholder: "例如 blog 或 cname",
@@ -587,7 +587,7 @@ export const domainsI18n = {
     toggleMailRouting: "Alternar roteamento de e-mail",
     loading: "Carregando…",
     addDomainZone: "Adicionar zona de domínio",
-    removeConfirm: "Remover {{name}}?",
+    removeConfirm: "Excluir {{name}}?",
     delete: "Excluir",
     managedHosts: "Hosts gerenciados",
     dnsSetupVerification: "Verificação de configuração de DNS",
@@ -653,8 +653,8 @@ export const domainsI18n = {
     on: "on",
     off: "off",
     addShort: "+ adicionar",
-    removeHost: "Remover host",
-    remove: "Remover",
+    removeHost: "Excluir host",
+    remove: "Excluir",
     hostDraftPlaceholder: "ex: blog ou cname",
     addHostButton: "+ Adicionar host",
     syncDnsZones: "Sincronizar zonas DNS",

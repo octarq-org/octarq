@@ -11,5 +11,6 @@ export * from "./ui/time";
 export { Alert, alertVariants } from "./components/ui/Alert";
 export { Button, buttonVariants, type ButtonProps } from "./components/ui/Button";
 export { FormError } from "./components/ui/FormError";
+export { RouteFallback } from "./components/ui/RouteFallback";
 export { SetupStep, type SetupStepProps } from "./components/SetupStep";
 
