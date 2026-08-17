@@ -248,10 +248,13 @@ type Token struct {
 	Prefix string `gorm:"size:32" json:"prefix"`        // e.g. "oct_abcd" for identification
 	Note   string `gorm:"type:text" json:"note"`
 	// UserID is the person the token acts as. A token borrows its holder's
-	// membership rather than carrying standalone authority, so removing someone
-	// from the workspace takes their tokens with them — the role is read live on
-	// every request, not frozen at mint time. It also means an API call lands in
-	// the audit log attributed to a person instead of to nobody.
+	// membership rather than carrying standalone authority, so a token's role is
+	// read live on every request, not frozen at mint time. That live read is one
+	// layer of defence; on top of it, removing someone from a workspace
+	// explicitly revokes their (user, org) tokens (see auth.RevokeUserOrgTokens),
+	// because any authorization seam that answers before the live read must not
+	// let a removed member's token keep working. It also means an API call lands
+	// in the audit log attributed to a person instead of to nobody.
 	UserID uint `gorm:"index;not null" json:"userId"`
 	// Role narrows the token *below* its holder — it never widens it. The
 	// effective role is min(the user's role in OrgID, this). That is what lets an

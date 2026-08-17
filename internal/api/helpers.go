@@ -136,6 +136,23 @@ func (h *Handler) RequirePerm(r *http.Request, permKey, minRole string) bool {
 	if r == nil {
 		return false
 	}
+	// A bearer token carries a role cap, and the cap is a ceiling no resolver may
+	// cross: a resolver is only allowed to refine permissions above the role
+	// baseline, never to hand a capped token more than its own role permits. So
+	// token requests must clear minRole on their own first — through
+	// callerHoldsRole, which is AtLeast(effectiveRole) and therefore already
+	// clamps to the cap — and are refused outright otherwise. Sessions have no
+	// cap, so this pre-gate is token-only: a plugin-granted custom role may still
+	// widen a session's authority above its base role, and that is the Pro
+	// behaviour this must not break.
+	if auth.TokenIDFromContext(r.Context()) != 0 {
+		if h == nil {
+			return false
+		}
+		if !h.callerHoldsRole(r, authz.Role(minRole)) {
+			return false
+		}
+	}
 	if allow, decided := plugin.ResolvePerm(r, permKey); decided {
 		return allow
 	}
