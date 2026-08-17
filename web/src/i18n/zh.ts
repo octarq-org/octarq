@@ -115,6 +115,7 @@ export const zh: Resources = {
     "create-mailbox": "新建邮箱",
     overview: "概览",
     links: "短链",
+    "links-instance-settings": "短链设置",
     mail: "邮件",
     domains: "DNS",
     abuse: "滥用举报",

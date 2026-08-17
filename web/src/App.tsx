@@ -27,6 +27,7 @@ import { Login } from "./shell/Login";
 import { uiAreas } from "./plugin-sdk";
 import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
 import { PluginGateContext } from "./plugins/PluginGate";
+import { InstanceExitRedirect } from "./pages/instance/redirect";
 
 
 // Re-exported so existing `import { RouteFallback } from "../App"` call sites
@@ -643,7 +644,10 @@ function Shell({
       <PluginGateContext.Provider value={pluginGateCtxValue}>
         <Routes>
           <Route path="/"           element={<Navigate to="/overview" replace />} />
-          <Route path="/license"    element={<Navigate to="/settings/license" replace />} />
+          {/* The Pro license is instance state, so its page lives in the
+              /instance console. Crossing basenames needs a full page load —
+              a router <Navigate> would resolve to /admin/instance. */}
+          <Route path="/license"    element={<InstanceExitRedirect to="/instance/license" />} />
           <Route path="/overview"   element={<OverviewPage />} />
           <Route path="/settings/*" element={<SettingsPage />} />
           <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />

@@ -3,8 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { api, Domain, effectiveLinkHosts } from "../../../api";
 import { linksApi, Link, LinkStats } from "../api";
 import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard, confirmDialog } from "../../../ui";
-import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe, Settings } from "lucide-react";
-import { LinkSettings } from "./LinkSettings";
+import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 
@@ -43,7 +42,6 @@ export default function LinksPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);
-  const [tab, setTab] = useState<'links' | 'settings'>('links');
   const { t } = useTranslation();
   const pluginGate = usePluginGate();
 
@@ -125,30 +123,6 @@ export default function LinksPage() {
         }
       />
 
-      <div className="flex gap-0 border-b border-foreground/[0.06] mb-6 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-        <button
-          onClick={() => setTab('links')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap ${
-            tab === 'links'
-              ? 'border-primary text-foreground'
-              : 'border-transparent text-foreground/45 hover:text-foreground/70'
-          }`}
-        >
-          {t("links.tabLinks")}
-        </button>
-        <button
-          onClick={() => setTab('settings')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-            tab === 'settings'
-              ? 'border-primary text-foreground'
-              : 'border-transparent text-foreground/45 hover:text-foreground/70'
-          }`}
-        >
-          {t("links.tabSettings")}
-        </button>
-      </div>
-
-      {tab === 'links' && (
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 min-h-0 items-start">
         {/* Left column - links list */}
         <div className="flex flex-col min-h-0 w-full">
@@ -331,12 +305,6 @@ export default function LinksPage() {
           )}
         </div>
       </div>
-      )}
-      {tab === 'settings' && (
-        <GlassCard className="p-6">
-          <LinkSettings />
-        </GlassCard>
-      )}
     </ScreenWrap>
   );
 }
