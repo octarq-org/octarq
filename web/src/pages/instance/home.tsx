@@ -1,13 +1,12 @@
 // The instance console home: a flat overview of the deployment. Top keeps the
 // health summary (every readiness check, including non-actionable ones like
-// database); when a fixable check needs work, a prominent card leads into the
-// setup wizard — the wizard is never a modal prison, just an entry.
-import { AlertTriangle, ArrowRight, CheckCircle2, RefreshCw, XCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+// database); when fixable checks need work, a blocked banner and progress bar
+// summarize attention needed above the live checklist.
+import { AlertTriangle, CheckCircle2, RefreshCw, XCircle } from "lucide-react";
 import { ReadinessCheck } from "../../api";
-import { Badge, Button, GlassCard, PageHeader, cn } from "../../ui";
+import { Alert, Badge, Button, GlassCard, PageHeader, cn } from "../../ui";
 import { useTranslation } from "../../i18n";
-import { fixableChecks, hasFixableIssues, stepBadge, stepState, stepTone } from "./shared";
+import { fixableChecks, hasFixableIssues, stepBadge, stepState } from "./shared";
 
 export function ConsoleHome({ checks, onRefresh }: { checks: ReadinessCheck[]; onRefresh: () => void }) {
   const { t } = useTranslation();
@@ -36,28 +35,27 @@ export function ConsoleHome({ checks, onRefresh }: { checks: ReadinessCheck[]; o
       />
 
       {issues && (
-        <GlassCard className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-start gap-3">
-            {blockedCount > 0 ? (
-              <XCircle className="mt-0.5 h-6 w-6 shrink-0 text-danger-fg" strokeWidth={1.75} />
-            ) : (
-              <AlertTriangle className="mt-0.5 h-6 w-6 shrink-0 text-warning-fg" strokeWidth={1.75} />
-            )}
-            <div>
-              <h2 className="text-sm font-bold text-foreground">{t("instance.wizardTitle")}</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {t("instance.wizardProgress", { done, total: steps.length })}
-              </p>
+        <>
+          {blockedCount > 0 && (
+            <Alert variant="danger" icon={<XCircle className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
+              {t("instance.blockedBanner", { count: blockedCount })}
+            </Alert>
+          )}
+
+          <GlassCard className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <span className="block text-xs text-foreground/40">{t("instance.wizardProgress", { done, total: steps.length })}</span>
+              </div>
+              <div className="w-32 bg-foreground/10 h-2 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-500"
+                  style={{ width: `${steps.length ? Math.round((done / steps.length) * 100) : 0}%` }}
+                />
+              </div>
             </div>
-          </div>
-          <Link
-            to="/wizard"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:brightness-110"
-          >
-            {t("instance.openWizard")}
-            <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
-          </Link>
-        </GlassCard>
+          </GlassCard>
+        </>
       )}
 
       {allOperational && (

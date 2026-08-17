@@ -100,8 +100,8 @@ describe("InstanceConsole gate", () => {
   });
 });
 
-describe("Setup wizard derivation", () => {
-  it("derives steps from the readiness report and renders a blocked step as blocked", async () => {
+describe("Console home overview", () => {
+  it("renders all readiness checks including unfixable ones when fixable issues exist", async () => {
     (api.me as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       email: "admin@example.com",
       orgId: 1,
@@ -115,11 +115,13 @@ describe("Setup wizard derivation", () => {
     // blocked state, the degraded one with degraded, the ok one with ok.
     await waitFor(() => {
       expect(document.querySelector('[data-state="blocked"]')).toBeTruthy();
-    });
+    }, { timeout: 3000 });
     expect(document.querySelector('[data-state="degraded"]')).toBeTruthy();
     expect(document.querySelector('[data-state="ok"]')).toBeTruthy();
-    // Only fixable checks become wizard steps — database (no fixPath) doesn't.
-    expect(document.querySelectorAll("[data-state]").length).toBe(3);
+    // All checks are rendered — including database (no fixPath).
+    expect(document.querySelectorAll("[data-state]").length).toBe(4);
+    expect(screen.getByText("Database")).toBeTruthy();
+    expect(screen.getByText("driver=sqlite")).toBeTruthy();
 
     // Blocked steps carry a fix action that jumps into the dashboard.
     const blockedFix = document.querySelector(
@@ -133,6 +135,39 @@ describe("Setup wizard derivation", () => {
     // degraded's — the two states must not read the same.
     expect(screen.getByText("Blocked")).toBeTruthy();
     expect(screen.getByText("Degraded")).toBeTruthy();
+  });
+
+  it("redirects legacy /wizard route to /", async () => {
+    (api.me as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      email: "admin@example.com",
+      orgId: 1,
+      isInstanceAdmin: true,
+    });
+    (api.instanceReadiness as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(FIXABLE_READINESS);
+
+    renderConsole("/wizard");
+
+    await waitFor(() => {
+      expect(screen.getByText("Instance health")).toBeTruthy();
+    }, { timeout: 3000 });
+    expect(document.querySelectorAll("[data-state]").length).toBe(4);
+    expect(screen.getByText("Database")).toBeTruthy();
+  });
+
+  it("redirects legacy /console route to /", async () => {
+    (api.me as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      email: "admin@example.com",
+      orgId: 1,
+      isInstanceAdmin: true,
+    });
+    (api.instanceReadiness as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(FIXABLE_READINESS);
+
+    renderConsole("/console");
+
+    await waitFor(() => {
+      expect(screen.getByText("Instance health")).toBeTruthy();
+    }, { timeout: 3000 });
+    expect(document.querySelectorAll("[data-state]").length).toBe(4);
   });
 });
 

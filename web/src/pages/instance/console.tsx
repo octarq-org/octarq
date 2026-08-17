@@ -6,7 +6,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { Menu } from "@base-ui/react/menu";
-import { ArrowLeft, Globe, KeyRound, LayoutDashboard, Moon, Puzzle, Server, Sparkles, Sun } from "lucide-react";
+import { ArrowLeft, Globe, KeyRound, LayoutDashboard, Moon, Puzzle, Server, Sun } from "lucide-react";
 import { uiInstanceRoutes } from "@octarq/plugin-sdk";
 import { api, type MenuItem } from "../../api";
 import { BrandMark } from "../../shell/BrandMark";
@@ -18,9 +18,8 @@ import { MENU_ITEM, MENU_POPUP } from "../../shell/menuStyles";
 import { translateNavItemLabel } from "../../shell/navI18n";
 import { menuIcon } from "../../shell/areas";
 import { Button, GlassCard, RouteFallback, cn } from "../../ui";
-import { hasFixableIssues, useInstanceReadiness } from "./shared";
+import { useInstanceReadiness } from "./shared";
 import { ConsoleHome } from "./home";
-import { SetupWizard } from "./wizard";
 
 // Each migrated panel stays its own chunk, loaded when its route opens.
 const InstanceSettings = lazy(() => import("./settings").then((m) => ({ default: m.InstanceSettings })));
@@ -136,13 +135,7 @@ function ConsoleShell() {
     api.instanceMenus().then(setInstanceMenus).catch(() => setInstanceMenus([]));
   }, []);
 
-  // The first-launch decision is derived from the live readiness report: an
-  // incomplete instance opens on the wizard, a healthy one on the flat home.
-  // Nothing here is local state — the next /instance visit re-reads the API.
-  const needsSetup = hasFixableIssues(checks);
-  const rail = needsSetup
-    ? [{ id: "console-wizard", label: "Setup wizard", path: "/wizard", Icon: Sparkles }, ...RAIL, ...pluginRail]
-    : [...RAIL, ...pluginRail];
+  const rail = [...RAIL, ...pluginRail];
 
   return (
     <div className="octarq-aurora flex h-screen w-full flex-col overflow-hidden text-foreground">
@@ -253,36 +246,13 @@ function ConsoleShell() {
                   element={
                     checks === null ? (
                       failed ? <LoadFailedCard onRetry={reload} /> : <RouteFallback />
-                    ) : needsSetup ? (
-                      <SetupWizard checks={checks} onRefresh={reload} />
                     ) : (
                       <ConsoleHome checks={checks} onRefresh={reload} />
                     )
                   }
                 />
-                <Route
-                  path="/wizard"
-                  element={
-                    checks === null ? (
-                      failed ? <LoadFailedCard onRetry={reload} /> : <RouteFallback />
-                    ) : (
-                      <SetupWizard checks={checks} onRefresh={reload} />
-                    )
-                  }
-                />
-                {/* Skipping the wizard lands here: the flat home even while
-                    checks still need work. "/" itself shows the wizard until
-                    every fixable check is ok. */}
-                <Route
-                  path="/console"
-                  element={
-                    checks === null ? (
-                      failed ? <LoadFailedCard onRetry={reload} /> : <RouteFallback />
-                    ) : (
-                      <ConsoleHome checks={checks} onRefresh={reload} />
-                    )
-                  }
-                />
+                <Route path="/wizard" element={<Navigate to="/" replace />} />
+                <Route path="/console" element={<Navigate to="/" replace />} />
                 <Route path="/settings" element={<InstanceSettings />} />
                 <Route path="/auth" element={<AuthenticationSettings />} />
                 <Route path="/plugins" element={<InstancePluginsSettings />} />

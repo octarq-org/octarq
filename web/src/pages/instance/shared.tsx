@@ -44,11 +44,6 @@ export function stepState(status: ReadinessCheck["status"]): "blocked" | "degrad
   return "ok";
 }
 
-export type StepTone = "ok" | "warn" | "danger";
-export function stepTone(status: ReadinessCheck["status"]): StepTone {
-  return stepState(status) === "blocked" ? "danger" : stepState(status) === "degraded" ? "warn" : "ok";
-}
-
 export interface StepBadge {
   key: string;
   tone: BadgeTone;
