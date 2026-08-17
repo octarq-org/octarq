@@ -421,6 +421,28 @@ func (m *Manager) RevokeUserOrgSessions(userID, orgID uint) int {
 	return len(ids)
 }
 
+// RevokeUserOrgTokens deletes every API bearer token bound to the given user
+// in the given org. A token's authority is normally read live from its
+// holder's membership, but that live read is only one layer of defence: any
+// authorization seam that answers before the live read (a plugin resolver, for
+// one) would let a removed member's token keep acting. Deleting the rows makes
+// the removal explicit rather than implied. Returns the number of tokens
+// revoked.
+//
+// Token.OrgID maps to the owner_id column, so the query is scoped by that name;
+// like sessions, revocation is per (user, org) and leaves the user's tokens in
+// their other workspaces alone.
+func (m *Manager) RevokeUserOrgTokens(userID, orgID uint) int {
+	if m.db == nil || userID == 0 || orgID == 0 {
+		return 0
+	}
+	res := m.db.Where("user_id = ? AND owner_id = ?", userID, orgID).Delete(&models.Token{})
+	if res.Error != nil {
+		return 0
+	}
+	return int(res.RowsAffected)
+}
+
 // TouchSession updates LastSeenAt for the session associated with r, but
 // only if it has not been touched within touchInterval to limit write
 // amplification. Safe to call asynchronously.

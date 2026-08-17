@@ -670,9 +670,15 @@ func (h *Handler) removeOrgMember(ctx context.Context, input *RemoveOrgMemberInp
 	// membership. Without this the removed member keeps full read/write on this
 	// workspace's data until their session expires.
 	revoked := h.auth.RevokeUserOrgSessions(input.UserID, orgID)
+	// API tokens are revoked too. Most authorization paths read the membership
+	// live, which is one layer of protection — but any seam that answers before
+	// that live read (a plugin resolver) would let a removed member's token keep
+	// acting, so the tokens are deleted explicitly.
+	tokensRevoked := h.auth.RevokeUserOrgTokens(input.UserID, orgID)
 	h.audit(r, "member.remove", "user", input.UserID, map[string]any{
 		"role":            target.Role,
 		"sessionsRevoked": revoked,
+		"tokensRevoked":   tokensRevoked,
 	})
 	eventbus.Publish(orgID, "member.remove", map[string]any{"userId": input.UserID, "role": target.Role})
 	out := &RemoveOrgMemberOutput{}
