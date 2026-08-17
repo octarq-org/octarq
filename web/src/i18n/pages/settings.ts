@@ -26,6 +26,7 @@ export const settings = {
 
     // PluginsSettings
     pluginsTitle: "Features",
+    pluginLogoAlt: "Plugin logo",
     pluginsDescription: "Turn optional features on or off for this workspace.",
     failedLoadPlugins: "Could not load plugins",
     failedUpdatePlugin: "Could not update plugin",
@@ -390,6 +391,7 @@ export const settings = {
 
     // PluginsSettings
     pluginsTitle: "功能",
+    pluginLogoAlt: "插件徽标",
     pluginsDescription: "为当前工作区开启或关闭可选功能。",
     failedLoadPlugins: "无法加载插件",
     failedUpdatePlugin: "无法更新插件",
@@ -752,6 +754,7 @@ export const settings = {
 
     // PluginsSettings
     pluginsTitle: "Funciones",
+    pluginLogoAlt: "Logotipo del complemento",
     pluginsDescription: "Activa o desactiva funciones opcionales para este espacio de trabajo.",
     failedLoadPlugins: "No se pudieron cargar los complementos",
     failedUpdatePlugin: "No se pudo actualizar el complemento",
@@ -1114,6 +1117,7 @@ export const settings = {
 
     // PluginsSettings
     pluginsTitle: "Recursos",
+    pluginLogoAlt: "Logotipo do plugin",
     pluginsDescription: "Ative ou desative recursos opcionais para este espaço de trabalho.",
     failedLoadPlugins: "Não foi possível carregar os plugins",
     failedUpdatePlugin: "Não foi possível atualizar o plugin",
@@ -1476,6 +1480,7 @@ export const settings = {
 
     // PluginsSettings
     pluginsTitle: "機能",
+    pluginLogoAlt: "プラグインのロゴ",
     pluginsDescription: "このワークスペースで使うオプション機能のオン・オフを切り替えます。",
     failedLoadPlugins: "プラグインを読み込めませんでした",
     failedUpdatePlugin: "プラグインを更新できませんでした",

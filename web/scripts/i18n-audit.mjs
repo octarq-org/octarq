@@ -2,6 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as ts from "typescript";
+// The hardcoded-string scanner and its allowlists live in i18n-audit-core.mjs so
+// they can be unit-tested without executing this CLI (importing this module
+// would run every audit at module top level).
+import { scanTsxSource } from "./i18n-audit-core.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -212,141 +216,10 @@ function checkDictionaryCompleteness() {
 // ---------------------------------------------------------------------------
 // Part 2: Hardcoded User-Visible String Audit
 // ---------------------------------------------------------------------------
-
-// Exact match allowlist for non-translatable text with comments explaining why:
-const ALLOWLIST_EXACT = new Set([
-  // Product & brand names (should not be translated)
-  "Octarq",
-  "octarq",
-  "octarq-pro",
-  "Google",
-  "GitHub",
-  "Slack",
-  "Stripe",
-  "PostgreSQL",
-  "SQLite",
-
-  // Technical protocols, DNS record types & web standards
-  "CNAME",
-  "A / AAAA",
-  "A (IPv4)",
-  "AAAA (IPv6)",
-  "UTM",
-  "KB)",
-  ".eml",
-  "via",
-
-  // Keyboard shortcuts & UI symbols / icons
-  "⌘K",
-  "esc",
-  "Esc",
-  "Ctrl",
-  "Alt",
-  "Shift",
-  "Enter",
-  "Space",
-  "→",
-  "—",
-  "📝",
-  "💡",
-  "🔐",
-  "loading…",
-  "…",
-
-  // Technical confirmation tokens & constant identifiers
-  "DELETE MY DATA",
-  "OCTARQ_PRO_LICENSE",
-  "OCTARQ_ENDPOINT",
-  "license.publicKeyB64",
-  "plink_…",
-  "metadata",
-  "current",
-  "Total",
-
-  // Code example placeholders in UI inputs
-  "Acme Production",
-  // Example workspace slug. It is a URL label typed verbatim, so localising it
-  // would suggest the address itself changes with the interface language.
-  "acme",
-  "colleague@example.com",
-  "n8n automation",
-  "My Dev Team Slack",
-  "My Dev Team Telegram",
-  "go.example.com",
-  "mail.example.com",
-  "example.com",
-  "promo2026",
-  "q3-ads, product-hunt",
-  "https://my-site.com/expired",
-  "pricing\nlogin\nabout",
-  "pricing&#10;login&#10;about",
-  "admin\npostmaster",
-  "admin&#10;postmaster",
-  "smtp.mailgun.org",
-  "noreply@domain.com",
-  // ACME account email placeholder (plugin-infra certificates page) and the S3
-  // key-prefix placeholder next to it — both are input examples, not copy.
-  "admin@example.com",
-  "folder/",
-  // Object-key example in the S3 upload dialog. A path is a path in every
-  // language; translating "file" here would suggest the key itself is localised.
-  "folder/file.png",
-  // S3 region and bucket examples in the mail-storage card (octarq-pro). A
-  // region code is an AWS identifier and a bucket name is a global DNS label —
-  // both are typed verbatim by the operator, so localising them would suggest
-  // the value itself changes with the interface language. The sibling endpoint
-  // placeholder on that card is already exempt for being a URL.
-  "us-east-1",
-  "octarq-mail-blobs",
-  "deploy/cloudflare-email-worker.js",
-  "user.login",
-  "workspace",
-  "octarq-client",
-  "company.com",
-  "Pro",
-  "pro",
-  "v1.2.0",
-  "Acme Links",
-  "Ov23li…",
-  "Octarq Status Page • Powered by Octarq",
-  "Octarq Status Page &bull; Powered by Octarq",
-
-  // Accessibility aria-labels on generic icon buttons
-  "Dismiss alert",
-
-  // Legal / public pages (placeholder)
-  "Terms of Service",
-  "Privacy Policy",
-]);
-
-// Pattern-based allowlist for non-translatable text formats:
-const ALLOWLIST_PATTERNS = [
-  /^(?:&[a-z]+;|\s)+$/,                 // Bare HTML entities (&mdash; &bull; &larr;) — typography, not copy
-  /^https?:\/\//,                       // URLs
-  /^data:/,                             // Data URIs
-  /^\//,                                // Absolute paths
-  /^@octarq/,                           // Package scopes
-  /^\*[\.\w-]+$/,                       // Wildcard patterns like *.apps.googleusercontent.com
-  /^e\.g\.\s/i,                         // Example hints in code placeholder (e.g. home.example.com)
-  /^eyJ/,                               // Base64 JWT tokens
-  /^-----BEGIN/,                        // PEM keys
-  /^[A-Z0-9_]{3,}$/,                    // ENV variable names or all-caps IDs
-  /^[a-z0-9_-]+\.[a-z]{2,}$/i,         // Domain examples like example.com
-  /pricing.*login/i,                     // Multiline placeholder example in LinkSettings
-  /admin.*postmaster/i,                  // Multiline placeholder example in MailSettings
-];
-
-function isAllowlisted(text) {
-  const s = text.trim();
-  if (!s) return true;
-  // Pure punctuation, numbers, symbols
-  if (/^[0-9\s\-_.:,;\/\\(){}\[\]*+="'"'"'!@#$%^&|<>?~`•·✕✓▾]+$/.test(s)) return true;
-  if (ALLOWLIST_EXACT.has(s)) return true;
-  for (const pat of ALLOWLIST_PATTERNS) {
-    if (pat.test(s)) return true;
-  }
-  return false;
-}
+//
+// The scanner (scanTsxSource) and its allowlists (ALLOWLIST_EXACT,
+// ALLOWLIST_PATTERNS) are imported from i18n-audit-core.mjs — see there for the
+// coverage rules and how they are tested.
 
 function getTsxFiles(dir) {
   let res = [];
@@ -381,41 +254,13 @@ function checkHardcodedStrings() {
 
   for (const file of tsxFiles) {
     const code = fs.readFileSync(file, "utf8");
-    const sf = ts.createSourceFile(file, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-
-    function getLine(pos) {
-      return sf.getLineAndCharacterOfPosition(pos).line + 1;
+    for (const hit of scanTsxSource(code, file)) {
+      const displayPath = file.startsWith(proDir)
+        ? path.relative(proDir, file)
+        : path.relative(repoDir, file);
+      console.error(`❌ ${displayPath}:${hit.line} [${hit.kind}] "${hit.text}"`);
+      hasErrors = true;
     }
-
-    function visit(node) {
-      if (ts.isJsxText(node)) {
-        const text = node.getText();
-        if (!isAllowlisted(text)) {
-          const displayPath = file.startsWith(proDir)
-            ? path.relative(proDir, file)
-            : path.relative(repoDir, file);
-          console.error(`❌ ${displayPath}:${getLine(node.getStart())} [JSXText] "${text.trim()}"`);
-          hasErrors = true;
-        }
-      } else if (ts.isJsxAttribute(node)) {
-        const attrName = node.name.getText();
-        if (["placeholder", "title", "aria-label"].includes(attrName) && node.initializer) {
-          if (ts.isStringLiteral(node.initializer)) {
-            const val = node.initializer.text;
-            if (!isAllowlisted(val)) {
-              const displayPath = file.startsWith(proDir)
-                ? path.relative(proDir, file)
-                : path.relative(repoDir, file);
-              console.error(`❌ ${displayPath}:${getLine(node.getStart())} [${attrName}] "${val}"`);
-              hasErrors = true;
-            }
-          }
-        }
-      }
-      ts.forEachChild(node, visit);
-    }
-
-    visit(sf);
   }
 }
 
