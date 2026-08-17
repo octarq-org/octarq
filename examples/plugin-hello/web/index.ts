@@ -17,6 +17,14 @@ export const helloPlugin: UIPlugin = {
   routes: [
     { path: "/hello", Component: lazy(() => import("./Page")) },
   ],
+  // The instance-console half of plugin.InstanceMenuProvider (hello.go):
+  // the same page shape rendered under the /instance basename instead of
+  // /admin. The console shows this route only when the backend's
+  // /api/instance/menus announces it — the same backend-is-truth rule as the
+  // tenant sidebar.
+  instanceRoutes: [
+    { path: "/hello", Component: lazy(() => import("./Page")) },
+  ],
   // Sidebar placement comes from the Go half's Menus() (hello.go) alone.
   //
   // Shell renders each entry via `nav.<id>` key; falls back to English label from Go source.

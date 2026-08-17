@@ -119,6 +119,12 @@ export type LockedFallback = ComponentType<{ status: number }>;
 export interface UIPlugin {
   name: string;
   routes: UIRoute[];
+  // Routes rendered under the /instance console basename instead of /admin —
+  // the frontend half of plugin.InstanceMenuProvider. Same UIRoute shape, but
+  // `requiredRole` is meaningless here (instance admin is the only gate) and
+  // the console drops any entry the backend's /api/instance/menus does not
+  // announce, exactly as the tenant sidebar does with /api/menus.
+  instanceRoutes?: UIRoute[];
   widgets?: UIWidget[];
   areas?: UIArea[];
   i18n?: PluginI18n;

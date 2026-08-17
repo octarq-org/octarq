@@ -3,11 +3,12 @@
 // tenant shell (App.tsx): no org switcher, no plugin menu pipeline, no
 // workspace chrome. Instance admins only; everyone else gets a neutral notice
 // and a way back to /admin — the server stays authoritative either way.
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { Menu } from "@base-ui/react/menu";
 import { ArrowLeft, Globe, KeyRound, LayoutDashboard, Moon, Puzzle, Server, Sparkles, Sun } from "lucide-react";
-import { api } from "../../api";
+import { uiInstanceRoutes } from "@octarq/plugin-sdk";
+import { api, type MenuItem } from "../../api";
 import { BrandMark } from "../../shell/BrandMark";
 import { useAppName } from "../../brand";
 import { LANGS, useTranslation } from "../../i18n";
@@ -15,6 +16,7 @@ import { useTheme, toggleTheme } from "../../theme";
 import { Login } from "../../shell/Login";
 import { MENU_ITEM, MENU_POPUP } from "../../shell/menuStyles";
 import { translateNavItemLabel } from "../../shell/navI18n";
+import { menuIcon } from "../../shell/areas";
 import { Button, GlassCard, RouteFallback, cn } from "../../ui";
 import { hasFixableIssues, useInstanceReadiness } from "./shared";
 import { ConsoleHome } from "./home";
@@ -96,9 +98,42 @@ function ConsoleShell() {
   const appName = useAppName();
   const [build, setBuild] = useState<{ version: string; commit: string; builtAt: string } | null>(null);
   const { checks, failed, reload } = useInstanceReadiness();
+  const [instanceMenus, setInstanceMenus] = useState<MenuItem[]>([]);
 
   useEffect(() => {
     api.instanceBuild().then(setBuild).catch(() => {});
+  }, []);
+
+  // The backend is the only source of truth for which instance pages exist in
+  // this build: an entry survives only when /api/instance/menus announces it
+  // AND the frontend registers an instanceRoutes entry for the same path
+  // (mirroring the tenant sidebar merge in App.tsx). Announce-without-frontend
+  // would point at a blank page; frontend-without-announce means the plugin is
+  // disabled or not compiled in.
+  const registeredInstanceRoutes = useMemo(() => uiInstanceRoutes(), []);
+  const registeredInstancePaths = useMemo(
+    () => new Set(registeredInstanceRoutes.map((r) => r.path)),
+    [registeredInstanceRoutes],
+  );
+  const instanceRoutes = useMemo(
+    () => registeredInstanceRoutes.filter((r) => instanceMenus.some((m) => m.path === r.path)),
+    [registeredInstanceRoutes, instanceMenus],
+  );
+  const pluginRail = useMemo(
+    () =>
+      instanceMenus
+        .filter((m) => registeredInstancePaths.has(m.path))
+        .map((m) => ({
+          id: m.id,
+          label: m.label,
+          path: m.path,
+          Icon: menuIcon(m.icon) ?? Puzzle,
+        })),
+    [instanceMenus, registeredInstancePaths],
+  );
+
+  useEffect(() => {
+    api.instanceMenus().then(setInstanceMenus).catch(() => setInstanceMenus([]));
   }, []);
 
   // The first-launch decision is derived from the live readiness report: an
@@ -106,8 +141,8 @@ function ConsoleShell() {
   // Nothing here is local state — the next /instance visit re-reads the API.
   const needsSetup = hasFixableIssues(checks);
   const rail = needsSetup
-    ? [{ id: "console-wizard", label: "Setup wizard", path: "/wizard", Icon: Sparkles }, ...RAIL]
-    : RAIL;
+    ? [{ id: "console-wizard", label: "Setup wizard", path: "/wizard", Icon: Sparkles }, ...RAIL, ...pluginRail]
+    : [...RAIL, ...pluginRail];
 
   return (
     <div className="octarq-aurora flex h-screen w-full flex-col overflow-hidden text-foreground">
@@ -251,6 +286,9 @@ function ConsoleShell() {
                 <Route path="/settings" element={<InstanceSettings />} />
                 <Route path="/auth" element={<AuthenticationSettings />} />
                 <Route path="/plugins" element={<InstancePluginsSettings />} />
+                {instanceRoutes.map((route) => (
+                  <Route key={route.path} path={route.path} element={<route.Component />} />
+                ))}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>

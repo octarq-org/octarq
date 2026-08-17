@@ -15,6 +15,7 @@ export {
   registerUIPlugin,
   uiPlugins,
   uiRoutes,
+  uiInstanceRoutes,
   uiWidgets,
   uiAreas,
   uiPluginI18n,

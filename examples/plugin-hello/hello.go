@@ -102,9 +102,24 @@ func (Plugin) Menus() []plugin.MenuItem {
 	}
 }
 
+// InstanceMenus contributes a link in the /instance console rail — the
+// deployment-wide surface (one config per deployment, not per workspace).
+// Implementing this optional interface alongside Menus() shows the two scopes
+// on one plugin: the tenant sidebar entry above and this console entry are
+// deliberately disjoint, and the two endpoints (/api/menus, /api/instance/menus)
+// each serve only their own scope. Category and RequiredRole are ignored here —
+// the console rail is flat and instance admin is the only gate. The frontend
+// half of this page is the plugin's instanceRoutes entry (./web/index.ts).
+func (Plugin) InstanceMenus() []plugin.MenuItem {
+	return []plugin.MenuItem{
+		{ID: "hello-instance", Label: "Hello (instance)", Path: "/hello", Icon: "sparkles"},
+	}
+}
+
 // Compile-time assertions that Plugin satisfies the contracts it claims.
 var (
-	_ plugin.Plugin       = Plugin{}
-	_ plugin.MenuProvider = Plugin{}
-	_ plugin.Describer    = Plugin{}
+	_ plugin.Plugin               = Plugin{}
+	_ plugin.MenuProvider         = Plugin{}
+	_ plugin.InstanceMenuProvider = Plugin{}
+	_ plugin.Describer            = Plugin{}
 )

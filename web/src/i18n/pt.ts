@@ -118,6 +118,7 @@ export const pt = {
     domains: "DNS",
     abuse: "Relatórios de Abuso",
     audit: "Log de Auditoria",
+    "hello-instance": "Olá (instância)",
     general: "Geral",
     plugins: "Recursos",
     members: "Membros",

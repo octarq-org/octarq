@@ -313,6 +313,11 @@ export const api = {
   // plugins: instance-level registry (read-only, instance admins only)
   instancePlugins: () => req<InstancePluginInfo[]>("GET", "/api/instance/plugins"),
 
+  // instance-level plugin menus (instance admins only) — the backend half of
+  // plugin.InstanceMenuProvider; the console renders only paths this list
+  // announces AND the frontend registers (see console.tsx)
+  instanceMenus: () => req<MenuItem[]>("GET", "/api/instance/menus"),
+
   // build metadata (authenticated — never surfaced pre-login)
   instanceBuild: () =>
     req<{ version: string; commit: string; builtAt: string }>("GET", "/api/instance/build"),

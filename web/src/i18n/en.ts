@@ -135,6 +135,7 @@ export const en = {
     domains: "DNS",
     abuse: "Abuse Reports",
     audit: "Audit Log",
+    "hello-instance": "Hello (instance)",
     general: "General",
     plugins: "Features",
     members: "Members",
