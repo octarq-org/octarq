@@ -52,8 +52,7 @@ export function InstanceLinkSettings() {
         <GlassCard className="p-8 text-sm text-center text-foreground/50">{t("settings.loadingLower")}</GlassCard>
       ) : (
         <GlassCard className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground/90">{t("settings.shortLinksSettings")}</h2>
+          <div className="flex justify-end">
             <SavedBadge on={saved} />
           </div>
           <Field label={t("settings.reservedSlugsLabel")} hint={t("settings.reservedSlugsHint", { list: builtinReserved.join(", ") })}>
