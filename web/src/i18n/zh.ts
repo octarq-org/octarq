@@ -119,6 +119,7 @@ export const zh: Resources = {
     domains: "DNS",
     abuse: "滥用举报",
     audit: "审计日志",
+    "hello-instance": "实例示例",
     general: "通用",
     plugins: "功能",
     members: "成员",

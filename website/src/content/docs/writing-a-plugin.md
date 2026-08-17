@@ -114,7 +114,55 @@ Key frontend rules:
 
 ---
 
-## 4. Inter-Plugin Service Registry
+## 4. Instance vs Tenant Scope
+
+Octarq runs at two scopes, and a plugin page belongs to exactly one of them:
+
+- **Tenant scope** — one per workspace. The UI lives in the `/admin` shell; the
+  sidebar entry comes from `plugin.MenuProvider` (`plugin/plugin.go`), is served
+  by `GET /api/menus`, and is gated per workspace: a workspace that disables the
+  feature stops seeing it. The frontend page is a `UIPlugin.routes` entry.
+- **Instance scope** — one per deployment. The UI lives in the `/instance`
+  console; the rail entry comes from `plugin.InstanceMenuProvider`
+  (`plugin/plugin.go`), is served by the instance-admin-gated
+  `GET /api/instance/menus` endpoint, and has no per-workspace toggle — the
+  entry is announced by the deployment or it isn't. The frontend page is a
+  `UIPlugin.instanceRoutes` entry.
+
+Pick the scope with the deciding question:
+
+> A config that exists once per deployment → instance scope; one that exists per
+> workspace → tenant scope. The same page must never be reachable from both
+> shells.
+
+To pair the two halves of an instance-scope page, implement
+`InstanceMenuProvider` on the Go side and register `instanceRoutes` on the JS
+side, with matching `Path`/`path` values:
+
+```go
+var _ plugin.InstanceMenuProvider = (*Plugin)(nil)
+
+func (p *Plugin) InstanceMenus() []plugin.MenuItem {
+    return []plugin.MenuItem{{ID: "sso", Label: "SSO", Path: "/sso", Icon: "key-round"}}
+}
+```
+
+```ts
+const myPlugin: UIPlugin = {
+  name: "my-plugin",
+  instanceRoutes: [{ path: "/sso", Component: lazy(() => import("./SsoPage")) }],
+};
+```
+
+The console renders an entry only when the backend's `/api/instance/menus`
+announces it **and** the frontend registers an `instanceRoutes` entry for the
+same path — mirroring how the tenant sidebar trusts `/api/menus` (see the
+sidebar merge in `web/src/App.tsx`). The rail ignores `Category` and
+`RequiredRole`: it is flat, and instance admin is the only gate.
+
+---
+
+## 5. Inter-Plugin Service Registry
 
 Plugins communicate through an in-memory service registry provided on `plugin.Context`.
 
@@ -150,7 +198,7 @@ The naming is the contract: `docs/webhooks.mdx` is a page whose slug is `webhook
 
 ---
 
-## 5. Composition & Building
+## 7. Composition & Building
 
 Octarq plugins are composed at build time (similar to `xcaddy`):
 
@@ -164,7 +212,7 @@ OCTARQ_PLUGINS='[{"go":"github.com/you/octarq-plugin-hello","npm":"@you/octarq-p
 
 ---
 
-## 7. Trust model
+## 8. Trust model
 
 There is **no runtime plugin loading** — a compiled-in plugin runs **in-process with
 full access** (DB, secrets, network). This fits a **curated / operator-opt-in**
@@ -174,7 +222,7 @@ would need process/WASM isolation.
 
 ---
 
-## 8. Distribution
+## 9. Distribution
 
 A plugin is **one repo** with the two halves: the Go module is `go get`-able, and
 the `web/` package publishes to npm with `@octarq/plugin-sdk` and `react` as
@@ -184,7 +232,7 @@ For publishing the SDK itself, see [Publishing the SDK](/guides/publishing/).
 
 ---
 
-## 9. Checklist
+## 10. Checklist
 
 - [ ] `Plugin.Name()` and `UIPlugin.name` are identical.
 - [ ] A compile-time `var _ plugin.X = Plugin{}` assert for **every** interface (Plugin + each optional one).

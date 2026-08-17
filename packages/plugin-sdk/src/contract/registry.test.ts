@@ -4,6 +4,7 @@ import {
   registerUIPlugin,
   resetRegistry,
   uiAreas,
+  uiInstanceRoutes,
   uiPluginI18n,
   uiPluginSharedI18n,
   uiPlugins,
@@ -63,6 +64,39 @@ describe("uiRoutes", () => {
     );
     registerUIPlugin(plugin("b", { routes: [{ path: "/b1", Component: page("b1") }] }));
     expect(uiRoutes().map((r) => r.path)).toEqual(["/a1", "/a2", "/b1"]);
+  });
+});
+
+describe("uiInstanceRoutes", () => {
+  it("returns an empty array for an empty registry or plugins without instanceRoutes", () => {
+    expect(uiInstanceRoutes()).toEqual([]);
+    registerUIPlugin(plugin("a", { routes: [{ path: "/a", Component: page("a") }] }));
+    expect(uiInstanceRoutes()).toEqual([]);
+  });
+
+  it("flattens instanceRoutes across plugins in registration order, independent of routes", () => {
+    registerUIPlugin(
+      plugin("a", {
+        routes: [{ path: "/a-admin", Component: page("a-admin") }],
+        instanceRoutes: [
+          { path: "/a1", Component: page("a1") },
+          { path: "/a2", Component: page("a2") },
+        ],
+      }),
+    );
+    registerUIPlugin(plugin("b", { instanceRoutes: [{ path: "/b1", Component: page("b1") }] }));
+    expect(uiInstanceRoutes().map((r) => r.path)).toEqual(["/a1", "/a2", "/b1"]);
+  });
+
+  it("drops a replaced plugin's instanceRoutes along with everything else", () => {
+    registerUIPlugin(
+      plugin("audit", { instanceRoutes: [{ path: "/audit", Component: page("core-audit") }] }),
+    );
+    registerUIPlugin(
+      plugin("auditPro", { replaces: ["audit"], instanceRoutes: [{ path: "/audit", Component: page("pro-audit") }] }),
+    );
+    expect(uiInstanceRoutes().map((r) => markerOf(r.Component))).toEqual(["pro-audit"]);
+    expect(uiRoutes()).toEqual([]);
   });
 });
 

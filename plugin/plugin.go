@@ -526,6 +526,23 @@ type MenuProvider interface {
 	Menus() []MenuItem
 }
 
+// InstanceMenuProvider is the instance-console analog of MenuProvider: entries
+// land in the /instance console rail, never in a tenant sidebar. A plugin
+// implements it for deployment-wide surfaces (one config per deployment, not
+// per workspace); the endpoint that serves these entries is instance-admin
+// gated, and Menus()/InstanceMenus() are disjoint on purpose — the same page
+// must never be reachable from both shells.
+//
+// Semantics differ from MenuProvider in three ways:
+//   - Category is ignored: the console rail is flat, there are no groups.
+//   - RequiredRole is ignored: instance admin is the only gate, and an org
+//     role says nothing about instance privilege.
+//   - Order is honoured, ascending; ties break on ID (lexicographic) so the
+//     served list is stable.
+type InstanceMenuProvider interface {
+	InstanceMenus() []MenuItem
+}
+
 // Action is a create affordance a plugin exposes to the shell's global create
 // menu and command palette. It is placement data, not behavior: Path is a route
 // the shell navigates to, and the page behind it opens its own create flow.

@@ -127,6 +127,14 @@ export function uiRoutes(): UIRoute[] {
   return effectivePlugins().flatMap((p) => p.routes);
 }
 
+// Every plugin instance-route, flattened — the instance console maps these
+// into its <Routes> under the /instance basename. Same `replaces` filter as
+// uiRoutes: a replaced plugin's instance pages disappear with it, so a
+// superseded plugin can never keep a page in the instance console.
+export function uiInstanceRoutes(): UIRoute[] {
+  return effectivePlugins().flatMap((p) => p.instanceRoutes ?? []);
+}
+
 // Every widget registered for `slot`, across all plugins, in ascending `order`
 // (missing order sorts as 0; ties keep registration order — Array.sort is
 // stable). Rendered by <ExtensionSlot name={slot}/>. Empty registry ⇒ empty

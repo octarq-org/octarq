@@ -118,6 +118,7 @@ export const ja = {
     domains: "DNS",
     abuse: "不正使用レポート",
     audit: "監査ログ",
+    "hello-instance": "ハロー（インスタンス）",
     general: "一般",
     plugins: "機能",
     members: "メンバー",
