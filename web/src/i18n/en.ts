@@ -131,6 +131,7 @@ export const en = {
     "create-mailbox": "New Mailbox",
     overview: "Overview",
     links: "Links",
+    "links-instance-settings": "Short Link Settings",
     mail: "Mail",
     domains: "DNS",
     abuse: "Abuse Reports",

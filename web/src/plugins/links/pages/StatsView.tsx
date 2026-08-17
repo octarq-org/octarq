@@ -3,7 +3,6 @@ import { api, Domain, effectiveLinkHosts } from "../../../api";
 import { linksApi, Link, LinkStats } from "../api";
 import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard } from "../../../ui";
 import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe, Settings, Share2, Filter, Target } from "lucide-react";
-import { LinkSettings } from "./LinkSettings";
 import { useTranslation } from "../../../i18n";
 
 export function StatsView({ link }: { link: Link }) {

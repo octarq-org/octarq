@@ -31,11 +31,12 @@ type Plugin struct {
 }
 
 var (
-	_ plugin.Plugin       = (*Plugin)(nil)
-	_ plugin.Describer    = (*Plugin)(nil)
-	_ plugin.MenuProvider = (*Plugin)(nil)
-	_ plugin.HelpDocsFS   = (*Plugin)(nil)
-	_ plugin.Starter      = (*Plugin)(nil)
+	_ plugin.Plugin               = (*Plugin)(nil)
+	_ plugin.Describer            = (*Plugin)(nil)
+	_ plugin.MenuProvider         = (*Plugin)(nil)
+	_ plugin.InstanceMenuProvider = (*Plugin)(nil)
+	_ plugin.HelpDocsFS           = (*Plugin)(nil)
+	_ plugin.Starter              = (*Plugin)(nil)
 )
 
 // Compile-time service contract assertions: these methods are provided to the
@@ -89,6 +90,17 @@ func (p *Plugin) Menus() []plugin.MenuItem {
 func (p *Plugin) Actions() []plugin.Action {
 	return []plugin.Action{
 		{ID: "create-link", Label: "New Link", Path: "/links?create=1", Icon: "link-2", Category: "Marketing", Order: 10},
+	}
+}
+
+// InstanceMenus announces this plugin's deployment-wide settings page so
+// /api/instance/menus only offers it when the plugin is mounted. The
+// reserved-slug list is one config per deployment (GET/PUT
+// /api/instance-settings), so its editor lives in the /instance console —
+// the tenant Links shell carries no instance-scope settings.
+func (p *Plugin) InstanceMenus() []plugin.MenuItem {
+	return []plugin.MenuItem{
+		{ID: "links-instance-settings", Label: "Short Link Settings", Path: "/link-settings", Icon: "link-2"},
 	}
 }
 

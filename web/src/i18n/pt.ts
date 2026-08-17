@@ -114,6 +114,7 @@ export const pt = {
     "create-mailbox": "Nova caixa de correio",
     overview: "Visão Geral",
     links: "Links",
+    "links-instance-settings": "Configurações de links curtos",
     mail: "E-mail",
     domains: "DNS",
     abuse: "Relatórios de Abuso",

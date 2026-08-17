@@ -114,6 +114,7 @@ export const ja = {
     "create-mailbox": "メールボックスを作成",
     overview: "概要",
     links: "リンク",
+    "links-instance-settings": "ショートリンク設定",
     mail: "メール",
     domains: "DNS",
     abuse: "不正使用レポート",

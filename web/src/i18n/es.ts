@@ -114,6 +114,7 @@ export const es = {
     "create-mailbox": "Nuevo buzón",
     overview: "Visión general",
     links: "Enlaces",
+    "links-instance-settings": "Configuración de enlaces cortos",
     mail: "Correo",
     domains: "DNS",
     abuse: "Reportes de abuso",
