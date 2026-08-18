@@ -78,4 +78,54 @@ describe("sign-up when the instance requires a verified email", () => {
     await waitFor(() => expect(onLogin).toHaveBeenCalledWith("new@user.com", 7));
     expect(screen.queryByText(/verify your email/i)).toBeNull();
   });
+
+  it("does not render success notice when resendVerification returns mailConfigured: false", async () => {
+    renderLogin();
+    vi.spyOn(api, "register").mockResolvedValue({
+      ok: true,
+      email: "new@user.com",
+      verificationRequired: true,
+    });
+    const resendSpy = vi.spyOn(api, "resendVerification").mockResolvedValue({
+      ok: true,
+      mailConfigured: false,
+    });
+
+    await signUp();
+
+    const resendBtn = await screen.findByRole("button", { name: /resend verification email/i });
+    fireEvent.click(resendBtn);
+
+    await waitFor(() => expect(resendSpy).toHaveBeenCalledWith("new@user.com"));
+
+    // Success notice must NOT be rendered
+    expect(screen.queryByText(/verification email sent/i)).toBeNull();
+    // Error banner must display the unconfigured mail notice
+    expect(await screen.findByText(/mail service is not configured/i)).toBeTruthy();
+  });
+
+  it("renders success notice when resendVerification returns mailConfigured: true", async () => {
+    renderLogin();
+    vi.spyOn(api, "register").mockResolvedValue({
+      ok: true,
+      email: "new@user.com",
+      verificationRequired: true,
+    });
+    const resendSpy = vi.spyOn(api, "resendVerification").mockResolvedValue({
+      ok: true,
+      mailConfigured: true,
+    });
+
+    await signUp();
+
+    const resendBtn = await screen.findByRole("button", { name: /resend verification email/i });
+    fireEvent.click(resendBtn);
+
+    await waitFor(() => expect(resendSpy).toHaveBeenCalledWith("new@user.com"));
+
+    // Success notice MUST be rendered
+    expect(await screen.findByText(/verification email sent/i)).toBeTruthy();
+    // Error notice must NOT be displayed
+    expect(screen.queryByText(/mail service is not configured/i)).toBeNull();
+  });
 });

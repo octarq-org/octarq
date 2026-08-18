@@ -696,8 +696,12 @@ function Shell({
               onClick={async () => {
                 setResendingVerify(true);
                 try {
-                  await api.resendVerification(user);
-                  toast.success(t("app.verificationSent"));
+                  const res = await api.resendVerification(user);
+                  if (res.mailConfigured === false) {
+                    toast.error(t("app.verificationMailNotConfigured"));
+                  } else {
+                    toast.success(t("app.verificationSent"));
+                  }
                 } catch (e: any) {
                   toast.error(e.message || "Failed to send verification email.");
                 } finally {

@@ -44,6 +44,7 @@ export const en = {
     resendVerificationBtn: "Resend Verification Email",
     sending: "Sending...",
     verificationSent: "Verification email sent.",
+    verificationMailNotConfigured: "Mail service is not configured on this instance. Please contact the administrator.",
     registerVerifyTitle: "Verify your email to continue",
     registerVerifyNotice: "Your account is ready, but this instance requires a verified email. We sent a verification link to {{email}} — open it, then sign in.",
     // Shown when registration cannot pass the verification gate because the
@@ -83,7 +84,7 @@ export const en = {
     lightMode: "Light mode",
     darkMode: "Dark mode",
     workspaces: "Workspaces",
-    newWorkspace: "+ New workspace",
+    newWorkspace: "New workspace",
     switchWorkspace: "Switch workspace",
     account: "Account menu",
     personalSettings: "Personal settings",

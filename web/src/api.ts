@@ -385,7 +385,8 @@ export const api = {
     req<{ ok: boolean }>("POST", "/api/auth/password", { currentPassword, newPassword }),
   changeEmail: (newEmail: string, currentPassword?: string) =>
     req<{ ok: boolean; email: string; verificationSent?: boolean }>("PUT", "/api/auth/email", { newEmail, currentPassword }),
-  resendVerification: (email: string) => req<{ ok: boolean }>("POST", "/api/auth/resend-verification", { email }),
+  resendVerification: (email: string) =>
+    req<{ ok: boolean; mailConfigured: boolean }>("POST", "/api/auth/resend-verification", { email }),
   logout: () => req<{ ok: boolean }>("POST", "/api/auth/logout"),
   logoutAll: () => req<{ ok: boolean }>("POST", "/api/auth/logout-all"),
   sessions: () => req<SessionRecord[]>("GET", "/api/auth/sessions"),
