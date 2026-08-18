@@ -69,9 +69,13 @@ jobs:
       # actually produces — a threshold nobody can reach fails every later PR.
       # The excludes are generated or embedded-artifact packages, which have no
       # meaningful statements to cover and would only drag the total down.
+      # A ratchet, not an aspiration: the number is the floor the suite already
+      # clears, so the only way it goes red is a change that tests less than the
+      # code it replaces. Raise it when coverage rises; never lower it to make a
+      # branch pass.
       - name: Verify coverage threshold
         run: |
-          THRESHOLD=69
+          THRESHOLD=90
           go list ./... | grep -v -E '/(webembed|openapi|cmd/octarq-build|cmd/openapi-gen|examples)' | xargs go test -coverprofile=coverage.out
           total=$(go tool cover -func=coverage.out | awk '/total:/ {print $3}' | tr -d '%')
           echo "Total test coverage: ${total}% (threshold: ${THRESHOLD}%)"
