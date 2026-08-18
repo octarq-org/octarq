@@ -21,20 +21,28 @@ import (
 )
 
 func main() {
+	os.Exit(run(context.Background()))
+}
+
+// run is the composition-root body, extracted from main() so tests can drive
+// the full boot (and its failure paths) with an injectable context instead of
+// forking a process. main() only os.Exit's the returned code.
+func run(ctx context.Context) int {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
 
 	a, err := app.New()
 	if err != nil {
 		slog.Error("init failed", "err", err)
-		os.Exit(1)
+		return 1
 	}
 	// Composition root: only the wanted Core plugins. mail is not imported, so
 	// the linker excludes it.
 	a.Use(dns.New())
 	a.Use(links.New())
 
-	if err := a.Run(context.Background()); err != nil {
+	if err := a.Run(ctx); err != nil {
 		slog.Error("run failed", "err", err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }

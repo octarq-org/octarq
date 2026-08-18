@@ -43,6 +43,11 @@ func testManager(t *testing.T) *Manager {
 
 func testDB(t *testing.T) *gorm.DB {
 	t.Helper()
+	// One process-wide database on purpose. Opening a *per-test* one means a
+	// *sql.DB per test, and origin's cache namespace is keyed on that pointer —
+	// Go reuses the address after a closed DB is collected, so the next test
+	// reads back a dead one's "no domain is registered here" and honours a
+	// forged Host. See origin.namespace.
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)

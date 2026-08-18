@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -49,6 +50,13 @@ func runBackupCommand(args []string) int {
 }
 
 func runRestoreCommand(args []string) int {
+	return runRestoreCommandWithInput(args, os.Stdin)
+}
+
+// runRestoreCommandWithInput is the body of runRestoreCommand with the prompt's
+// reader injected, so the interactive confirm path is testable without tying up
+// a real stdin. runRestoreCommand passes os.Stdin, preserving the CLI behaviour.
+func runRestoreCommandWithInput(args []string, in io.Reader) int {
 	fs := flag.NewFlagSet("restore", flag.ContinueOnError)
 	inPath := fs.String("in", "", "Input backup file path to restore from (required)")
 	fs.StringVar(inPath, "i", "", "Input backup file path (shorthand)")
@@ -76,7 +84,7 @@ func runRestoreCommand(args []string) int {
 		fmt.Printf("An automatic safety backup of the current database will be created first.\n")
 		fmt.Print("Type 'yes' to confirm and proceed: ")
 
-		reader := bufio.NewReader(os.Stdin)
+		reader := bufio.NewReader(in)
 		input, _ := reader.ReadString('\n')
 		if strings.ToLower(strings.TrimSpace(input)) != "yes" {
 			fmt.Println("Restore cancelled by user.")
