@@ -278,6 +278,9 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 	if l.Host != "" && !p.ownsHost(l.OrgID, l.Host) {
 		return nil, huma.Error403Forbidden("host is not a link host of this workspace")
 	}
+	if l.Host == "" && p.linkHostRequired(l.OrgID) {
+		return nil, huma.Error400BadRequest("host is required: this instance is multi-tenant, short links must pick a link host")
+	}
 	if err := validateRedirectTargets(&l); err != nil {
 		return nil, err
 	}
@@ -352,6 +355,9 @@ func (p *Plugin) quickCreateLink(ctx context.Context, input *QuickCreateLinkInpu
 	host := strings.TrimSpace(input.Body.Host)
 	if host != "" && !p.ownsHost(p.orgID(r), host) {
 		return nil, huma.Error403Forbidden("host is not a link host of this workspace")
+	}
+	if host == "" && p.linkHostRequired(p.orgID(r)) {
+		return nil, huma.Error400BadRequest("host is required: this instance is multi-tenant, short links must pick a link host")
 	}
 	slug := models.RandomSlug(6)
 	if p.isReservedSlug(slug) {
@@ -483,6 +489,9 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 	l.Host = strings.TrimSpace(input.Body.Host)
 	if l.Host != "" && !p.ownsHost(p.orgID(r), l.Host) {
 		return nil, huma.Error403Forbidden("host is not a link host of this workspace")
+	}
+	if l.Host == "" && p.linkHostRequired(p.orgID(r)) {
+		return nil, huma.Error400BadRequest("host is required: this instance is multi-tenant, short links must pick a link host")
 	}
 	l.Note = input.Body.Note
 	l.Title = input.Body.Title

@@ -68,6 +68,20 @@ func Subdomain(db *gorm.DB, slug string) (string, bool) {
 // Provision writes the tenant subdomain row for a newly created org and returns
 // its hostname and whether one was provisioned.
 //
+// The row is written as a usable link host — ForLink true plus an enabled
+// LinkHosts entry for the subdomain itself — so the org's own address shows up
+// in the links plugin's host dropdown. Without this, a Cloud install (where a
+// shared base domain is configured) would give every tenant an empty dropdown
+// and funnel every short link into the single shared host="" namespace:
+// tenant A's "launch" then blocks tenant B from ever creating the same slug,
+// and the resulting 409 is an existence probe across tenants.
+//
+// ForMail is deliberately NOT enabled and MailHosts is left empty: accepting
+// inbound mail for a subdomain requires MX/SPF/DKIM provisioning, which is not
+// something a boolean can turn on — flipping the toggle here would claim a mail
+// capability the zone does not actually have. Link serving only needs the
+// hostname to resolve, which the base domain's wildcard already provides.
+//
 // provisioned is false (and err nil) when the feature is off — no base domain
 // configured — or when this build has no domains table at all. A build without
 // the dns plugin cannot resolve hostnames anyway, so there is nothing to write
@@ -84,7 +98,13 @@ func Provision(db *gorm.DB, orgID uint, slug string) (name string, provisioned b
 		return "", false, nil
 	}
 	name = strings.ToLower(slug) + "." + base
-	row := domainRow{OrgID: orgID, Name: name}
+	row := domainRow{
+		OrgID:     orgID,
+		Name:      name,
+		ForLink:   true,
+		LinkHosts: models.HostList{{Host: name, Enabled: true}},
+		// ForMail + MailHosts intentionally zero: mail needs MX/SPF/DKIM, not a flag.
+	}
 	if err := db.Create(&row).Error; err != nil {
 		if isDuplicateKey(err) {
 			return "", false, ErrNameTaken

@@ -123,6 +123,33 @@ func TestProvisionWritesResolvableRow(t *testing.T) {
 	}
 }
 
+// Guard 8: the subdomain row Provision writes must be a usable link host —
+// ForLink true plus one enabled LinkHost naming the subdomain itself. Before
+// this, Cloud tenants had an empty host dropdown and every link fell into a
+// shared host="" namespace (one tenant's slug blocking all others).
+func TestProvisionWritesLinkHostRow(t *testing.T) {
+	db := openDB(t)
+	setBase(t, db, "app.example.com")
+	seedOrg(t, db, 7, "acme7x")
+
+	if _, ok, err := Provision(db, 7, "acme7x"); err != nil || !ok {
+		t.Fatalf("Provision = (ok=%v, err=%v), want provisioned", ok, err)
+	}
+	var row domainRow
+	if err := db.Where("name = ?", "acme7x.app.example.com").First(&row).Error; err != nil {
+		t.Fatalf("read domain row: %v", err)
+	}
+	if !row.ForLink {
+		t.Fatal("tenant subdomain row has for_link = false, want true")
+	}
+	if len(row.LinkHosts) != 1 || row.LinkHosts[0].Host != "acme7x.app.example.com" || !row.LinkHosts[0].Enabled {
+		t.Fatalf("LinkHosts = %+v, want one enabled host acme7x.app.example.com", row.LinkHosts)
+	}
+	if row.ForMail || len(row.MailHosts) != 0 {
+		t.Fatalf("ForMail=%v MailHosts=%+v, want mail untouched (false, empty)", row.ForMail, row.MailHosts)
+	}
+}
+
 // Guard 7: a hostname collision must surface as an error, never a silent skip.
 func TestProvisionCollisionIsError(t *testing.T) {
 	db := openDB(t)
