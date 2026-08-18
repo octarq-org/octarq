@@ -1,33 +1,80 @@
-# Octarq —— 一人公司与 AI 团队的自托管后台
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.png">
+    <img src="assets/banner-light.png" alt="Octarq" width="620">
+  </picture>
+</p>
 
-[![CI](https://github.com/octarq-org/octarq/actions/workflows/ci.yml/badge.svg)](https://github.com/octarq-org/octarq/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![MCP Powered](https://img.shields.io/badge/MCP-Enabled-purple.svg)](https://modelcontextprotocol.io)
+<p align="center">
+  <b>一个 Go 二进制。短链、邮件、DNS 开箱即用；用插件扩展它 —— 并让 AI Agent 通过 MCP 驱动这一切。</b>
+</p>
 
-[English](README.md) | [简体中文](README_ZH.md)
+<p align="center">
+  <a href="https://github.com/octarq-org/octarq/actions/workflows/ci.yml"><img src="https://github.com/octarq-org/octarq/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="go.mod"><img src="https://img.shields.io/github/go-mod/go-version/octarq-org/octarq?logo=go&label=Go" alt="Go version"></a>
+  <a href="https://pkg.go.dev/github.com/octarq-org/octarq"><img src="https://pkg.go.dev/badge/github.com/octarq-org/octarq.svg" alt="Go Reference"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-enabled-8b5cf6.svg" alt="MCP enabled"></a>
+</p>
 
-**Octarq 是一个用插件扩展的单 Go 二进制应用** —— 专为独立开发者、一人公司及 AI-native 敏捷团队打造的自托管运营后台。
+<p align="center">
+  <a href="https://octarq.org">官网</a> ·
+  <a href="https://docs.octarq.org">文档</a> ·
+  <a href="#快速开始">快速开始</a> ·
+  <a href="#插件扩展开发编写一个插件">编写插件</a> ·
+  <a href="https://github.com/octarq-org/octarq-plugins">插件仓库</a> ·
+  <a href="README.md">English</a>
+</p>
 
-拥有一套独立域名？Octarq 能直接为你省去三份 SaaS 账单：**带数据分析的短链接、邮件收发与路由、DNS 自动化管理** —— 每一项都作为一等插件交付，而非死板的功能硬编码。你可以像官方核心一样扩展它：**一个轻量的 Go 接口 + 一个 React 页面 = 一个全新的后台工具**。并且由于 Octarq 原生支持 **MCP**，你编写的每一个插件都能被 AI Agent（如 Claude Code、Cursor、Claude Desktop）直接驱动。
+---
+
+## Octarq 是什么？
+
+Octarq 是**面向独立开发者、一人公司与 AI-native 小团队的自托管运营后台** —— 那些原本要靠三份 SaaS 账单拼出来的后台，收进一个二进制里。
+
+拥有一套独立域名？Octarq 直接给你**带数据分析的短链接、邮件收发与路由、DNS 自动化管理** —— 每一项都作为一等插件交付，而非死板的功能硬编码。你可以像官方核心一样扩展它：**一个轻量的 Go 接口 + 一个 React 页面 = 一个全新的后台工具**。并且由于 Octarq 原生支持 **MCP**，你编写的每一个插件都能被 AI Agent（如 Claude Code、Cursor、Claude Desktop）直接驱动。
 
 > 单二进制。无 CGO。默认 SQLite 存储。嵌入式 React 管理后台 (`go:embed`)。无需 Fork 自由扩展。
 
 <p align="center">
-  <img src="assets/octarq-demo.gif" alt="Octarq agent-native 演示 —— 在终端里通过 MCP 驱动每一个插件" width="720">
+  <img src="assets/screenshot-overview.png" alt="Octarq 管理后台 —— 点击分析、Top 短链、地域与设备分布、最近邮件" width="900">
 </p>
+
+---
+
+## 快速开始
+
+零配置 —— 一条命令，无需 `.env`：
+
+```bash
+docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
+```
+
+首次启动时 Octarq 会自动生成密钥与初始 `admin` 密码（两者都持久化在 `/data`，并在日志里打印一次），默认用 SQLite 起来。打开 `http://localhost:8080`，从容器日志里拿到密码即可登录。邮件、DNS、GeoIP 全部 opt-in —— 之后在 **设置** 里配置，启动时什么都不需要。
+
+这就是完整栈 —— 管理后台、API、重定向器、MCP —— 统一运行在单个容器中。
+
+<details>
+<summary>想从源码构建？</summary>
+
+```bash
+git clone https://github.com/octarq-org/octarq && cd octarq
+make release                                                # 构建 ./octarq，管理后台已嵌入
+OCTARQ_SECRET_KEY=… OCTARQ_ADMIN_PASSWORD=… ./octarq        # 监听 :8080
+```
+
+想自己管理密钥/密码时，显式设置 `OCTARQ_SECRET_KEY` / `OCTARQ_ADMIN_PASSWORD`（见 `.env.example` 与 `docker compose`）。最小体积镜像见 [`deploy/Dockerfile.binary`](deploy/Dockerfile.binary)。
+</details>
 
 ---
 
 ## 为什么选择 Octarq
 
-把它想象成你所熟知的三个工具的交集：
-
-- **PocketBase 式的单二进制 DX** —— 抽空半天就能扩展开发；
-- 结合 **Dub 式的短链场景** + 真实的域名/邮件/DNS 基础设施；
-- 加上 **n8n 式的连接器生态**（支持 Telegram、Webhooks、SMS 等插件）；
-- 并且所有能力在 **MCP 协议下原生 agent-native**。
-
-Octarq 绝非一个顺便做邮箱的短链工具，它是一个**框架**：短链接、邮件、DNS 是用于证明该架构模型的官方参考插件，而整个生态将随一人公司自托管所需的下一个能力自然延伸。
+- **一个二进制，一个下午。** 下载、运行、扩展。无需安装运行时，无需拼接服务，无 CGO。
+- **是真基础设施，不是玩具。** 带地理/设备分流与机器人过滤的短链分析、能读能回的自定义域名邮箱、对接 Cloudflare 与 DNSPod 的 DNS 自动化。
+- **是框架，不是套餐。** 短链、邮件、DNS 都写在你同样能用的那套公开接口之上，它们没有任何特权。
+- **原生面向 Agent。** 每个插件的能力无需额外胶水即可通过 MCP 交给你的 AI Agent 驱动。
+- **完全属于你。** 你的服务器、你的数据库、你的域名，MIT 协议。
 
 ---
 
@@ -35,12 +82,23 @@ Octarq 绝非一个顺便做邮箱的短链工具，它是一个**框架**：短
 
 默认构建中内嵌了以下插件，使 Octarq 在第一分钟就落地可用：
 
-- **🔗 短链接 (Links)** —— 自定义/随机 slug，地理/设备/OS/语言动态分流路由，过期机制与点击上限，过期 URL 兜底，带机器人过滤的时序数据分析，UTM 构造器，二维码，标签管理（支持可选 MaxMind GeoIP）。
-- **✉️ 邮箱路由 (Mail)** —— 基于 Cloudflare Email Routing 的 Serverless 邮件接收（无需开启 25 端口，无垃圾邮件守护进程），Catch-all 自动建箱，完整邮件客户端（读件/回复/通过自定义 SMTP relays 发信，下载原始 `.eml`），按需 AI 邮件摘要（BYO key）。
-- **🌐 DNS 管理 (DNS)** —— Cloudflare 与 DNSPod CRUD 操作，短链接与邮件认证 presets（MX/SPF/DKIM），原生备注/注释映射。
-- **🏢 工作区与 RBAC (Workspaces & RBAC)** —— 隔离的多租户组织，服务端强制角色校验，邀请与设密流程，SHA-256 哈希 Bearer API tokens。
+| 插件 | 能力 |
+| --- | --- |
+| **🔗 短链接 Links** | 自定义/随机 slug，地理/设备/OS/语言动态分流路由，过期机制与点击上限，过期 URL 兜底，带机器人过滤的时序数据分析，UTM 构造器，二维码，标签管理（支持可选 MaxMind GeoIP）。 |
+| **✉️ 邮箱路由 Mail** | 基于 Cloudflare Email Routing 的 Serverless 邮件接收（无需开启 25 端口，无垃圾邮件守护进程），Catch-all 自动建箱，完整邮件客户端（读件/回复/通过自定义 SMTP relays 发信，下载原始 `.eml`），按需 AI 邮件摘要（BYO key）。 |
+| **🌐 DNS 管理** | Cloudflare 与 DNSPod CRUD 操作，短链接与邮件认证 presets（MX/SPF/DKIM），原生备注/注释映射。 |
 
-上述每一个能力均为一个 Go `plugin.Plugin` + 前端 `UIPlugin` —— 与你自己编写插件时使用的完全是同一套缝隙。
+<details>
+<summary>看看短链与邮件插件的实际界面</summary>
+
+<p align="center">
+  <img src="assets/screenshot-links.png" alt="短链插件 —— slug、路由域名、标签、点击上限与过期设置" width="880">
+  <br><br>
+  <img src="assets/screenshot-mail.png" alt="邮件插件 —— 跨自定义域名邮箱的收件箱" width="880">
+</p>
+</details>
+
+其余能力 —— 鉴权、工作区与 RBAC、审计日志、通知、任务队列、Webhooks、备份 —— 属于核心，且对你编写的每一个插件开放。
 
 ---
 
@@ -48,7 +106,7 @@ Octarq 绝非一个顺便做邮箱的短链工具，它是一个**框架**：短
 
 Octarq 内置了 **MCP 服务器**（`octarq mcp` 走 stdio；服务器自身在 `/api/mcp/sse` 与 `/api/mcp/stream` 提供 SSE 与 Streamable HTTP），AI 助手（如 Claude Code）可以直接读取并查询你的实例能力 —— `list_links`、`list_mailboxes`、`list_domains`、`export_data`，以及一个**受控只读 SQL 查询工具**（限制仅 `SELECT`/`WITH` 只读事务，结果自动分页并屏蔽敏感字段）。
 
-重点不在于“我们加入了 AI”，而在于**框架级别的管线机制**：实现可选 `MCPProvider` 接口的插件会自动将其工具暴露给所有连接的 AI Agent —— 无需额外胶水代码。编写一个插件，你的 AI Agent 就能直接驱动它。
+重点不在于"我们加入了 AI"，而在于**框架级别的管线机制**：实现可选 `MCPProvider` 接口的插件会自动将其工具暴露给所有连接的 AI Agent —— 无需额外胶水代码。编写一个插件，你的 AI Agent 就能直接驱动它。
 
 ```
 📬 收到新的 OTP 验证码邮件 ──▶ 你编写的 10 行插件 (OnEmail hook)
@@ -56,21 +114,20 @@ Octarq 内置了 **MCP 服务器**（`octarq mcp` 走 stdio；服务器自身在
                                 └─ 暴露为 MCP 工具 ──▶ Claude Code 直接消费使用
 ```
 
----
+<p align="center">
+  <img src="assets/octarq-demo.gif" alt="Octarq agent-native 演示 —— 在终端里通过 MCP 驱动每一个插件" width="720">
+</p>
 
-## 快速开始
+<details>
+<summary>Claude Desktop MCP 配置</summary>
 
-零配置 —— 一条命令,无需 `.env`:
-
-```bash
-docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
+```json
+{ "mcpServers": { "octarq": {
+  "command": "/path/to/octarq", "args": ["mcp"],
+  "env": { "OCTARQ_DB_DSN": "/path/to/octarq.db" }
+}}}
 ```
-
-首次启动时 Octarq 会自动生成密钥与初始 `admin` 密码(两者都持久化在 `/data`,并在日志里打印一次),默认用 SQLite 起来。打开 `http://localhost:8080`,从容器日志里拿到密码即可登录。邮件、DNS、GeoIP 全部 opt-in —— 之后在 **设置** 里配置,启动时什么都不需要。
-
-这就是完整栈 —— 管理后台、API、重定向器、MCP —— 统一运行在单个容器中。想自己管理密钥/密码时,再显式设置 `OCTARQ_SECRET_KEY` / `OCTARQ_ADMIN_PASSWORD`(见 `.env.example` 与 `docker compose`)。
-
-偏好最小体积镜像（`deploy/Dockerfile.binary`）或源码构建？参阅 `make release` 与 [`deploy/`](deploy/)。
+</details>
 
 ---
 
@@ -104,7 +161,7 @@ export const helloPlugin: UIPlugin = {
 
 **几秒生成骨架** —— `octarq plugin new <name>` 直接生成可构建的 Go + web 插件骨架作为起点。
 
-**官方插件与起步模板** → [octarq-plugins](https://github.com/octarq-org/octarq-plugins)(Telegram、Webhook、agent-native 的 Mail Links demo,以及可复制的 `_template`) · **详细开发指南** → [插件编写指南](website/src/content/docs/writing-a-plugin.md)
+**官方插件与起步模板** → [octarq-plugins](https://github.com/octarq-org/octarq-plugins)（Telegram、Webhook、agent-native 的 Mail Links demo，以及可复制的 `_template`） · **详细开发指南** → [插件编写指南](https://docs.octarq.org/writing-a-plugin/)
 
 *Octarq 自己的商业 Pro 版也只是基于这同一套公开接口构建的另一组插件 —— 没有任何社区做不到的事情。*
 
@@ -114,19 +171,8 @@ export const helloPlugin: UIPlugin = {
 
 - **通过 Cloudflare Worker 接收邮件** —— 部署 [`deploy/cloudflare-email-worker.js`](deploy/cloudflare-email-worker.js)，配置 catch-all 路由，并开启 *Accept email*。
 - **GeoIP 地理位置统计** —— 设置 `OCTARQ_MAXMIND_LICENSE_KEY`（免费），Octarq 会自动下载并热加载 GeoLite2。参阅 [`deploy/GEOIP.md`](deploy/GEOIP.md)。
-- **Claude Desktop 配置 MCP** —— 在 `claude_desktop_config.json` 中指向 `octarq mcp`。
-- **备份与恢复** —— `octarq backup` / `octarq restore` 备份数据库。请备份整个 `/data` 目录（数据库 **以及** 自动生成的 `octarq.secret` / `octarq-admin-password.txt` 密钥文件），并注意 Postgres 备份需要宿主机上的 `pg_dump`。参见 [`website/src/content/docs/backup-restore.md`](website/src/content/docs/backup-restore.md)。
-
-<details>
-<summary>Claude Desktop MCP 配置</summary>
-
-```json
-{ "mcpServers": { "octarq": {
-  "command": "/path/to/octarq", "args": ["mcp"],
-  "env": { "OCTARQ_DB_DSN": "/path/to/octarq.db" }
-}}}
-```
-</details>
+- **Claude Desktop 配置 MCP** —— 在 `claude_desktop_config.json` 中指向 `octarq mcp`（配置见上）。
+- **备份与恢复** —— `octarq backup` / `octarq restore` 备份数据库。请备份整个 `/data` 目录（数据库 **以及** 自动生成的 `octarq.secret` / `octarq-admin-password.txt` 密钥文件），并注意 Postgres 备份需要宿主机上的 `pg_dump`。参见 [备份与恢复](https://docs.octarq.org/backup-restore/)。
 
 ---
 
@@ -138,18 +184,10 @@ make dev                                                  # Vite 前端开发服
 go test ./... -race
 ```
 
+欢迎贡献代码 —— 参见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
 ---
-
-## 致谢 (Credits)
-
-设计灵感与思路借鉴自：
-- [sink](https://github.com/ccbikai/sink),
-- [wr.do](https://github.com/oiov/wr.do),
-- [dub](https://github.com/dubinc/dub),
-
-以及由以下项目设立的开发者体验 (DX) 标准：
-- [PocketBase](https://github.com/pocketbase/pocketbase).
 
 ## 开源协议
 
-基于 [MIT 协议](LICENSE) 开源。框架部分保持宽松代码许可证；商业版则为构建于其上的闭源插件集。
+基于 [MIT 协议](LICENSE) 开源。框架永远保持宽松许可；商业版是构建在同一套公开接口之上的另一组插件。
