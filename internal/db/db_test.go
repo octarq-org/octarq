@@ -71,6 +71,85 @@ func TestDBOpenAndMigrate(t *testing.T) {
 	}
 }
 
+func assertDomainRow(t *testing.T, gdb *gorm.DB, name string, wantForLink bool, wantHost string) {
+	t.Helper()
+	var row tenantDomainRow
+	if err := gdb.Where("name = ?", name).First(&row).Error; err != nil {
+		t.Fatalf("read %s: %v", name, err)
+	}
+	if row.ForLink != wantForLink {
+		t.Fatalf("%s for_link = %v, want %v", name, row.ForLink, wantForLink)
+	}
+	if wantHost == "" {
+		if len(row.LinkHosts) != 0 {
+			t.Fatalf("%s LinkHosts = %+v, want none", name, row.LinkHosts)
+		}
+		return
+	}
+	if len(row.LinkHosts) != 1 || row.LinkHosts[0].Host != wantHost || !row.LinkHosts[0].Enabled {
+		t.Fatalf("%s LinkHosts = %+v, want [{%s true}]", name, row.LinkHosts, wantHost)
+	}
+}
+
+// Tenant-subdomain backfill: only rows whose name equals <org slug>.<base> (and
+// are for_link=false with no link hosts) become link hosts. Custom domains the
+// user added deliberately are never flipped, and a second run is a no-op.
+func TestBackfillTenantSubdomainLinkHosts(t *testing.T) {
+	gdb, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := gdb.AutoMigrate(&models.Setting{}, &models.Org{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if err := gdb.Migrator().CreateTable(&tenantDomainRow{}); err != nil {
+		t.Fatalf("create domains: %v", err)
+	}
+
+	gdb.Create(&models.Setting{Key: models.BaseDomainSetting, Value: "app.example.com"})
+	gdb.Create(&models.Org{ID: 1, Name: "Acme", Slug: "acme9x"})
+	gdb.Create(&models.Org{ID: 2, Name: "Globex", Slug: "globex"})
+
+	// Old-style provisioned tenant subdomains: for_link=false, no link hosts.
+	gdb.Create(&tenantDomainRow{OrgID: 1, Name: "acme9x.app.example.com"})
+	gdb.Create(&tenantDomainRow{OrgID: 2, Name: "globex.app.example.com"})
+	// Custom domain the user added deliberately and never enabled for links.
+	gdb.Create(&tenantDomainRow{OrgID: 1, Name: "mail.example.com"})
+
+	backfillTenantSubdomainLinkHosts(gdb)
+
+	assertDomainRow(t, gdb, "acme9x.app.example.com", true, "acme9x.app.example.com")
+	assertDomainRow(t, gdb, "globex.app.example.com", true, "globex.app.example.com")
+	assertDomainRow(t, gdb, "mail.example.com", false, "")
+
+	// Idempotent: a second run must change nothing (the guard is structural).
+	backfillTenantSubdomainLinkHosts(gdb)
+	assertDomainRow(t, gdb, "acme9x.app.example.com", true, "acme9x.app.example.com")
+	assertDomainRow(t, gdb, "mail.example.com", false, "")
+}
+
+// No base domain configured → the backfill is skipped entirely. This mirrors
+// the handler guard: single-tenant self-hosted installs keep neutral-host links.
+func TestBackfillSkipsWithoutBase(t *testing.T) {
+	gdb, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := gdb.AutoMigrate(&models.Setting{}, &models.Org{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	if err := gdb.Migrator().CreateTable(&tenantDomainRow{}); err != nil {
+		t.Fatalf("create domains: %v", err)
+	}
+
+	gdb.Create(&models.Org{ID: 1, Name: "Acme", Slug: "acme9x"})
+	gdb.Create(&tenantDomainRow{OrgID: 1, Name: "acme9x.app.example.com"})
+
+	backfillTenantSubdomainLinkHosts(gdb)
+
+	assertDomainRow(t, gdb, "acme9x.app.example.com", false, "")
+}
+
 func TestParsePostgresDSNEdgeCases(t *testing.T) {
 	t.Parallel()
 

@@ -5,6 +5,7 @@ package db
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/config"
@@ -88,5 +89,72 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 	// nothing.
 	gdb.Where("org_id = 0").Delete(&models.Session{})
 
+	// Data migration: make existing tenant subdomains usable link hosts.
+	backfillTenantSubdomainLinkHosts(gdb)
+
 	return nil
+}
+
+// tenantDomainRow mirrors the dns plugin's Domain for the backfill below. Core
+// cannot import the plugin; this is the same bargain internal/tenancy already
+// makes for provisioning and origin makes for reads.
+type tenantDomainRow struct {
+	ID        uint   `gorm:"primaryKey"`
+	OrgID     uint   `gorm:"column:owner_id"`
+	Name      string `gorm:"size:255"`
+	ForLink   bool
+	LinkHosts models.HostList `gorm:"type:text"`
+}
+
+func (tenantDomainRow) TableName() string { return "domains" }
+
+// backfillTenantSubdomainLinkHosts upgrades existing tenant-subdomain domain
+// rows into usable link hosts.
+//
+// Before Provision wrote ForLink + LinkHosts, every Cloud tenant subdomain row
+// was for_link=false with an empty host list — invisible to the links plugin,
+// so every tenant's host dropdown was empty and all short links fell into the
+// single shared host="" namespace (tenant A's slug blocking tenant B forever,
+// plus a 409 existence probe across tenants). This backfills exactly those
+// rows: for_link=true plus an enabled LinkHost for the subdomain itself.
+//
+// Only rows whose name equals <org slug>.<current base domain> are touched —
+// a custom domain the user added deliberately, and chose never to serve links
+// on, must never be flipped by a migration. When no base domain is configured
+// the whole migration is skipped, and the structural guard (for_link=false AND
+// no link host) keeps it to a single run: once upgraded a row no longer
+// matches the selection.
+func backfillTenantSubdomainLinkHosts(gdb *gorm.DB) {
+	base := models.BaseDomain(gdb)
+	if base == "" || !gdb.Migrator().HasTable("domains") || !gdb.Migrator().HasTable("orgs") {
+		return
+	}
+	var orgs []models.Org
+	if err := gdb.Find(&orgs).Error; err != nil {
+		return
+	}
+	slugByOrg := make(map[uint]string, len(orgs))
+	for _, o := range orgs {
+		slugByOrg[o.ID] = o.Slug
+	}
+	var doms []tenantDomainRow
+	if err := gdb.Where("for_link = ?", false).Find(&doms).Error; err != nil {
+		return
+	}
+	for _, d := range doms {
+		if len(d.LinkHosts) > 0 {
+			continue
+		}
+		slug, ok := slugByOrg[d.OrgID]
+		if !ok {
+			continue
+		}
+		if d.Name != strings.ToLower(slug)+"."+base {
+			continue
+		}
+		gdb.Model(&tenantDomainRow{}).Where("id = ?", d.ID).Updates(map[string]any{
+			"for_link":   true,
+			"link_hosts": models.HostList{{Host: d.Name, Enabled: true}},
+		})
+	}
 }
