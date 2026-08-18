@@ -127,3 +127,66 @@ func TestWrapLinksAvoidDoubleWrapAndInternal(t *testing.T) {
 		t.Error("normal link should have been wrapped")
 	}
 }
+
+func TestWrapLinksSlugExhaustionFallback(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{})...); err != nil {
+		t.Fatal(err)
+	}
+
+	// Force every slug query on links to report count = 1 (collision)
+	origQuery := db.Callback().Query().Get("gorm:query")
+	db.Callback().Query().Replace("gorm:query", func(d *gorm.DB) {
+		if cp, ok := d.Statement.Dest.(*int64); ok {
+			*cp = 1
+			d.RowsAffected = 1
+			return
+		}
+		if origQuery != nil {
+			origQuery(d)
+		}
+	})
+
+	p := New()
+	p.db = db
+	p.orgID = func(r *http.Request) uint { return 1 }
+	p.getWorkspaceSetting = func(orgID uint, key string) string { return "" }
+
+	db.Create(&dns.Domain{
+		OrgID:   1,
+		Name:    "short.mycorp.com",
+		ForLink: true,
+		LinkHosts: models.HostList{
+			{Host: "short.mycorp.com", Enabled: true},
+		},
+	})
+
+	msg := mail.Message{
+		Text: "Hello, visit our site at https://example.com/target for info.",
+		HTML: `<p>Hello, visit <a href="https://example.com/target">Example</a>.</p>`,
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/emails/send", nil)
+	req.Host = "dashboard.mycorp.com"
+
+	p.wrapLinksInEmail(req, &msg)
+
+	// Assertions: original URL returned without shortlink wrapping
+	if !strings.Contains(msg.Text, "https://example.com/target") || strings.Contains(msg.Text, "short.mycorp.com") {
+		t.Errorf("expected original URL in Text on slug exhaustion, got %q", msg.Text)
+	}
+	if !strings.Contains(msg.HTML, "https://example.com/target") || strings.Contains(msg.HTML, "short.mycorp.com") {
+		t.Errorf("expected original URL in HTML on slug exhaustion, got %q", msg.HTML)
+	}
+
+	// Verify no Link rows were created in DB
+	var allLinks []links.Link
+	// Query directly without Dest being *int64
+	db.Session(&gorm.Session{}).Find(&allLinks)
+	if len(allLinks) != 0 {
+		t.Errorf("expected 0 links created, got %d", len(allLinks))
+	}
+}

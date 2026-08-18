@@ -595,16 +595,24 @@ func (p *Plugin) wrapLinksInEmail(r *http.Request, msg *mail.Message) {
 				return cached + suffix
 			}
 
-			var slug string
+			var (
+				slug  string
+				found bool
+			)
 			for i := 0; i < 5; i++ {
-				slug = models.RandomSlug(6)
-				if !p.isReservedSlug(slug) {
+				candidate := models.RandomSlug(6)
+				if !p.isReservedSlug(candidate) {
 					var count int64
-					p.db.Model(&links.Link{}).Where("slug = ?", slug).Count(&count)
+					p.db.Model(&links.Link{}).Where("slug = ?", candidate).Count(&count)
 					if count == 0 {
+						slug = candidate
+						found = true
 						break
 					}
 				}
+			}
+			if !found {
+				return rawURL
 			}
 
 			link := links.Link{
