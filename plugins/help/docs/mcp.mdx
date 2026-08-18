@@ -9,8 +9,10 @@ Octarq provides a Model Context Protocol (MCP) server that lets AI desktop clien
 
 ## Transports and Security
 
-- **Local stdio Transport**: Runs `octarq mcp` as a local subprocess for desktop tools like Claude Desktop or Cursor. Includes a `query_db_readonly` tool that executes read-only SQL queries with automatic redaction of password hashes and secret tokens.
-- **HTTP / SSE Transport**: Accepts remote connections at `/api/mcp/sse`. Authenticates callers using standard [API Tokens](/help/api-tokens) (`Authorization: Bearer oct_...`) and scopes all tool calls to the caller's active workspace. Direct SQL execution is disabled over SSE for multi-tenant isolation.
+- **Local stdio Transport**: Runs `octarq mcp` as a local subprocess for desktop tools like Claude Desktop or Cursor. Tools are scoped to your workspace.
+- **HTTP / SSE Transport**: Accepts remote connections at `/api/mcp/sse`. Authenticates callers using standard [API Tokens](/help/api-tokens) (`Authorization: Bearer oct_...`) and scopes all tool calls to the caller's active workspace.
+
+Every tool is a read-only, workspace-scoped projection over your data — short links, mailboxes, emails, domains, and a full data export. There is no raw-SQL tool on any transport: an arbitrary query cannot be confined to a single workspace, so the capability is not offered rather than merely restricted.
 
 ## Local stdio Setup (Claude Desktop)
 

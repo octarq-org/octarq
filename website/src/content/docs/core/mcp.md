@@ -30,20 +30,18 @@ It reads the same `.env` / environment (and database) as the server.
 
 ## Tools (all read-only)
 
-`list_links`, `list_mailboxes`, `list_emails`, `list_domains`, `export_data`, and
-`query_db_readonly` — a general-purpose SQL tool so the AI can compute any metric
-without a bespoke endpoint.
+`list_links`, `list_mailboxes`, `list_emails`, `list_domains`, and `export_data`.
 
-## Guardrails on `query_db_readonly`
+## Guardrails
 
 This is the one place data reaches an LLM, so it is fenced:
 
-- Only a single `SELECT` or `WITH` statement runs inside a **read-only transaction**;
-  writes, `PRAGMA`, and `ATTACH` are rejected.
-- Results are **row-capped**.
-- Sensitive columns (password/token hashes, encrypted provider credentials, raw
-  email bodies) are **redacted**.
-- Tools always run as the bootstrap tenant (org 1): the stdio process has local
-  access to the whole database, so this is by design. No environment variable
-  changes it; to act as another tenant, connect over HTTP/SSE, where the tenant
-  comes from the caller's API token.
+- Every tool is a **read-only projection** over a specific resource. There is no
+  general-purpose SQL tool: an arbitrary query reaches arbitrary tables, so it
+  cannot carry the workspace predicate that scopes every other tool. The
+  capability is absent from the code rather than gated by a flag.
+- Each tool **resolves its workspace from the request** and refuses the call when
+  none is present, so an unidentified caller is never served a default tenant.
+- Over stdio the workspace is the bootstrap tenant (org 1): that process already
+  has local access to the whole database, so this is by design. Over HTTP/SSE the
+  workspace comes from the caller's API token.
