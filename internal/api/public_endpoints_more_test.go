@@ -61,7 +61,7 @@ func TestPublicEndpointsMore(t *testing.T) {
 		t.Errorf("LookupService(nil) = (%v, %v)", s, ok)
 	}
 	if api := h.Huma(); api == nil {
-		// Huma() should return registered humaAPI
+		t.Error("Huma() = nil, want the registered humaAPI")
 	}
 
 	// queue handlers test

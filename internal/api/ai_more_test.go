@@ -106,8 +106,12 @@ func TestAISummarizeEmailAndSuggestSlugFlows(t *testing.T) {
 
 	// 6. Nil Ctx calls
 	ctx := context.Background()
-	if _, err := h.aiStatus(ctx, &AIStatusInput{Ctx: nil}); err != nil {
-		// should return status without error
+	// aiStatus is readable without a request context: it reports whether AI is
+	// configured, so a nil Ctx must still yield a status rather than an error.
+	if out, err := h.aiStatus(ctx, &AIStatusInput{Ctx: nil}); err != nil {
+		t.Errorf("aiStatus with nil Ctx = %v, want no error", err)
+	} else if out == nil {
+		t.Error("aiStatus with nil Ctx returned no output")
 	}
 	if _, err := h.aiSuggestSlug(ctx, &AISuggestSlugInput{Ctx: nil}); err == nil {
 		t.Error("expected error for nil Ctx in aiSuggestSlug")

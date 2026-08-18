@@ -166,7 +166,7 @@ func TestOrgLifecycleAndMemberManagement(t *testing.T) {
 	}
 
 	// Add user2 as member
-	rec = do(srv, "POST", "/api/org/members", acmeCookies, fmt.Sprintf(`{"email":"alice@example.com","role":"member"}`))
+	rec = do(srv, "POST", "/api/org/members", acmeCookies, `{"email":"alice@example.com","role":"member"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("add user2 as member: got %d (%s)", rec.Code, rec.Body.String())
 	}
@@ -186,13 +186,13 @@ func TestOrgLifecycleAndMemberManagement(t *testing.T) {
 	}
 
 	// Re-invite user2 as admin -> updates existing membership
-	rec = do(srv, "POST", "/api/org/members", acmeCookies, fmt.Sprintf(`{"email":"alice@example.com","role":"admin"}`))
+	rec = do(srv, "POST", "/api/org/members", acmeCookies, `{"email":"alice@example.com","role":"admin"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("re-invite user2 as admin: got %d (%s)", rec.Code, rec.Body.String())
 	}
 
 	// Add user3 as admin
-	rec = do(srv, "POST", "/api/org/members", acmeCookies, fmt.Sprintf(`{"email":"bob@example.com","role":"admin"}`))
+	rec = do(srv, "POST", "/api/org/members", acmeCookies, `{"email":"bob@example.com","role":"admin"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("add user3 as admin: got %d (%s)", rec.Code, rec.Body.String())
 	}

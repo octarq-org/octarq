@@ -59,7 +59,11 @@ func TestHealthAndSubsystems(t *testing.T) {
 
 	// 6. Direct calls with nil Ctx
 	ctx := context.Background()
-	if _, err := h.health(ctx, &HealthInput{Ctx: nil}); err != nil {
-		// health on valid db should return health response
+	// The health probe is unauthenticated, so a nil Ctx must not turn into an
+	// error: a reachable DB still has to answer.
+	if out, err := h.health(ctx, &HealthInput{Ctx: nil}); err != nil {
+		t.Errorf("health with nil Ctx = %v, want no error", err)
+	} else if out == nil {
+		t.Error("health with nil Ctx returned no output")
 	}
 }
