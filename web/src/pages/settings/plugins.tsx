@@ -19,6 +19,7 @@ const CATEGORIES: Record<string, { labelKey: string; tone: "indigo" | "amber" | 
 
 // Helper component to render a plugin's icon or custom logo.
 function PluginIcon({ iconStr, firstMenuIcon }: { iconStr?: string; firstMenuIcon?: string }) {
+  const { t } = useTranslation();
   const target = iconStr || firstMenuIcon;
   if (!target) {
     return <Puzzle className="h-5 w-5 text-accent-fg" />;
@@ -26,7 +27,7 @@ function PluginIcon({ iconStr, firstMenuIcon }: { iconStr?: string; firstMenuIco
 
   // Check if target is an image URL or data URI
   if (target.startsWith("http://") || target.startsWith("https://") || target.startsWith("data:") || target.startsWith("/")) {
-    return <img src={target} alt="Plugin logo" className="h-6 w-6 object-contain rounded-lg" />;
+    return <img src={target} alt={t("settings.pluginLogoAlt")} className="h-6 w-6 object-contain rounded-lg" />;
   }
 
   // Resolve via single menuIcon map in shell/areas
