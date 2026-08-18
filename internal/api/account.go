@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -170,12 +171,19 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 	}
 
 	// 1. Call plugin purge services first. Plugins that don't provide a purge
-	// service are skipped (nothing to erase); errors are deliberately
-	// swallowed — the purge proceeds regardless, matching prior behavior.
+	// service are skipped (nothing to erase). If any plugin purge fails, the
+	// operation is aborted before any core data is deleted so that tenant
+	// data is not partially orphaned.
+	var purgeErrs []string
 	for _, p := range h.plugins {
 		if fn, ok := plugin.LookupServiceAs[plugin.PurgeFunc](h.LookupService, plugin.PurgeServiceName(p.Name())); ok {
-			_ = fn(org)
+			if err := fn(org); err != nil {
+				purgeErrs = append(purgeErrs, fmt.Sprintf("%s: %v", p.Name(), err))
+			}
 		}
+	}
+	if len(purgeErrs) > 0 {
+		return nil, huma.Error500InternalServerError("plugin purge failed: " + strings.Join(purgeErrs, "; "))
 	}
 
 	// 2. Revoke sessions for all members of this org before purging org_members

@@ -2,8 +2,10 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/octarq-org/octarq/internal/models"
@@ -161,5 +163,41 @@ func TestAccountExportAndPurgeServices(t *testing.T) {
 	rec = do(srv, "DELETE", "/api/account/data", adminCookies, `{"confirm":"DELETE MY DATA"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("purge with plugin: got %d (%s)", rec.Code, rec.Body.String())
+	}
+}
+
+type failingAccountPlugin struct{}
+
+func (failingAccountPlugin) Name() string                      { return "failing_plugin" }
+func (failingAccountPlugin) Models() []any                     { return nil }
+func (failingAccountPlugin) Init(*plugin.Context) error        { return nil }
+func (failingAccountPlugin) Mount(plugin.Mux, *plugin.Context) {}
+
+func TestAccountPurgePluginFailure(t *testing.T) {
+	h, srv, db := newTestHandlerRaw(t)
+	adminCookies := loginCookies(t, srv)
+
+	reg := plugin.NewRegistry()
+	reg.Provide(plugin.PurgeServiceName("failing_plugin"), plugin.PurgeFunc(func(orgID uint) error {
+		return errors.New("s3 connection timeout")
+	}))
+	h.SetServiceLookup(reg.Lookup)
+	h.SetPlugins([]plugin.Plugin{failingAccountPlugin{}})
+
+	// Attempt purge
+	rec := do(srv, "DELETE", "/api/account/data", adminCookies, `{"confirm":"DELETE MY DATA"}`)
+	// (a) returns 5xx
+	if rec.Code < 500 || rec.Code > 599 {
+		t.Fatalf("expected 5xx status code on purge failure, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	// (b) Org row STILL exists
+	var count int64
+	db.Model(&models.Org{}).Where("id = ?", 1).Count(&count)
+	if count != 1 {
+		t.Fatalf("expected Org row to still exist in DB after purge error, got count %d", count)
+	}
+	// (c) error message contains the plugin name
+	if !strings.Contains(rec.Body.String(), "failing_plugin") {
+		t.Fatalf("expected error response to mention plugin 'failing_plugin', got: %s", rec.Body.String())
 	}
 }
