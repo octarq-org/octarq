@@ -1,36 +1,29 @@
 package mcp
 
 import (
-	"context"
+	"errors"
 	"testing"
-
-	links "github.com/octarq-org/octarq/plugins/links"
 
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
 
-// TestQueryAudited verifies query_db_readonly writes an audit row for both
-// successful and rejected queries.
-func TestQueryAudited(t *testing.T) {
+// TestAuditQueryRecordsBothOutcomes verifies the audit trail records a database
+// access whether it succeeded or was rejected, with the system actor and the
+// caller's org.
+func TestAuditQueryRecordsBothOutcomes(t *testing.T) {
 	gdb, err := gorm.Open(sqlite.Open(t.TempDir()+"/mcpaudit.db"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := gdb.AutoMigrate(&links.Link{}, &models.AuditLog{}); err != nil {
+	if err := gdb.AutoMigrate(&models.AuditLog{}); err != nil {
 		t.Fatal(err)
 	}
 	s := &server{gdb: gdb, orgID: 1}
 
-	// Successful query.
-	if _, _, err := s.queryDBReadonly(context.Background(), nil, queryInput{Query: "SELECT count(*) AS n FROM links"}); err != nil {
-		t.Fatal(err)
-	}
-	// Rejected query.
-	if _, _, err := s.queryDBReadonly(context.Background(), nil, queryInput{Query: "DELETE FROM links"}); err != nil {
-		t.Fatal(err)
-	}
+	s.auditQuery("SELECT count(*) AS n FROM links", 1, nil)
+	s.auditQuery("DELETE FROM links", 0, errors.New("disallowed keyword"))
 
 	var logs []auditRow
 	gdb.Where("action = ?", "ai.mcp.query").Find(&logs)

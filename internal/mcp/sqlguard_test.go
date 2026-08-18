@@ -1,16 +1,10 @@
 package mcp
 
 import (
-	"context"
 	"strings"
 	"testing"
 
-	links "github.com/octarq-org/octarq/plugins/links"
-
-	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
-	"gorm.io/gorm"
 )
 
 func TestValidateReadOnlyQueryAccepts(t *testing.T) {
@@ -86,40 +80,5 @@ func TestRedactRow(t *testing.T) {
 	}
 	if row["email"] != "a@b.c" {
 		t.Errorf("non-sensitive column altered: %v", row["email"])
-	}
-}
-
-// TestRunReadOnlyQueryRejectsSecretTable is an end-to-end check: querying a
-// secret-bearing table (users) is rejected outright, so no password hash can be
-// exfiltrated — not even via an output-column alias that would dodge redaction.
-func TestRunReadOnlyQueryRejectsSecretTable(t *testing.T) {
-	gdb, err := gorm.Open(sqlite.Open(t.TempDir()+"/secret.db"), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := gdb.AutoMigrate(&models.User{}, &links.Link{}); err != nil {
-		t.Fatal(err)
-	}
-	gdb.Create(&models.User{Email: "boss@co", PasswordHash: "TOPSECRET"})
-
-	s := &server{gdb: gdb, orgID: 1}
-	// Direct table access is blocked…
-	if _, _, err := s.runReadOnlyQuery(context.Background(), "SELECT * FROM users"); err == nil {
-		t.Error("expected SELECT * FROM users to be rejected")
-	}
-	// …and so is the alias trick that previously dodged column-name redaction.
-	if _, _, err := s.runReadOnlyQuery(context.Background(), "SELECT password_hash AS x FROM users"); err == nil {
-		t.Error("expected aliased password_hash select to be rejected")
-	}
-}
-
-// TestRunReadOnlyQueryRejectsWrite confirms the write is blocked before it
-// reaches the DB.
-func TestRunReadOnlyQueryRejectsWrite(t *testing.T) {
-	gdb, _ := gorm.Open(sqlite.Open(t.TempDir()+"/write.db"), &gorm.Config{})
-	gdb.AutoMigrate(&links.Link{})
-	s := &server{gdb: gdb, orgID: 1}
-	if _, _, err := s.runReadOnlyQuery(context.Background(), "DELETE FROM links"); err == nil {
-		t.Error("expected write to be rejected")
 	}
 }

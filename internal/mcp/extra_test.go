@@ -3,7 +3,6 @@ package mcp
 import (
 	"context"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,7 +11,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
-	links "github.com/octarq-org/octarq/plugins/links"
 	"gorm.io/gorm"
 )
 
@@ -35,7 +33,7 @@ func TestBuildServerInstance_WithMCPProvider(t *testing.T) {
 	}
 
 	p := &mockMCPPlugin{name: "mock-mcp"}
-	srv := NewServerInstance(gdb, 1, []plugin.Plugin{p}, true)
+	srv := NewServerInstance(gdb, 1, []plugin.Plugin{p})
 	if srv == nil {
 		t.Fatal("expected non-nil server")
 	}
@@ -72,71 +70,6 @@ func TestAuditQuery_TruncateAndNilDB(t *testing.T) {
 	}
 	if !strings.Contains(log.Meta, strings.Repeat("A", 100)) {
 		t.Errorf("expected audit log to contain SQL snippet, got: %s", log.Meta)
-	}
-}
-
-func TestReadOnlyQuery_MaxRowsAndBlob(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "mcpmaxrows.db")
-	gdb, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := gdb.AutoMigrate(&links.Link{}, &models.AuditLog{}); err != nil {
-		t.Fatal(err)
-	}
-
-	// Insert maxRows + 5 rows
-	for i := 1; i <= maxRows+5; i++ {
-		gdb.Create(&links.Link{
-			OrgID:  1,
-			Slug:   fmt.Sprintf("slug-%d", i),
-			Target: "https://example.com",
-		})
-	}
-
-	s := &server{gdb: gdb, orgID: 1}
-	res, anyOut, err := s.queryDBReadonly(context.Background(), nil, queryInput{
-		Query: "SELECT id, slug, CAST(slug AS BLOB) as blob_col FROM links ORDER BY id ASC",
-	})
-	if err != nil {
-		t.Fatalf("queryDBReadonly error: %v", err)
-	}
-	if res.IsError {
-		t.Fatalf("expected successful query result, got isError")
-	}
-	qOut, ok := anyOut.(queryOutput)
-	if !ok {
-		t.Fatalf("expected queryOutput, got %T", anyOut)
-	}
-	if qOut.Count != maxRows {
-		t.Errorf("expected count == %d (maxRows), got %d", maxRows, qOut.Count)
-	}
-	if !qOut.Truncated {
-		t.Errorf("expected Truncated == true")
-	}
-}
-
-func TestRunReadOnlyQuery_QueryError(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "mcpqerr.db")
-	gdb, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := &server{gdb: gdb, orgID: 1}
-	// Valid SELECT syntax according to validator, but table does not exist in DB
-	_, _, err = s.runReadOnlyQuery(context.Background(), "SELECT * FROM nonexistent_table_123")
-	if err == nil {
-		t.Error("expected error querying non-existent table, got nil")
-	}
-}
-
-func TestNormalizeSQLValue(t *testing.T) {
-	b := []byte("hello")
-	if got := normalizeSQLValue(b); got != "hello" {
-		t.Errorf("got %v, want hello", got)
-	}
-	if got := normalizeSQLValue(123); got != 123 {
-		t.Errorf("got %v, want 123", got)
 	}
 }
 

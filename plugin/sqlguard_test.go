@@ -77,3 +77,40 @@ func (d dummyPlugin) Models() []any       { return nil }
 func (d dummyPlugin) Menus() []MenuItem   { return nil }
 func (d dummyPlugin) Actions() []Action   { return nil }
 func (d dummyPlugin) Mount(Mux, *Context) {}
+
+// The identifiers below were reachable before this guard existed: `email_ais`
+// (a Pro table) and its `otp` column let a raw SELECT dump other tenants' one-
+// time codes, and `subject`/`text` returned other tenants' plaintext mail.
+// ValidateReadOnlyQuery is only a content filter, but out-of-tree plugins call
+// it, so these must stay closed.
+func TestValidateReadOnlyQueryBlocksMailAndOTPIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	for _, q := range []string{
+		"SELECT otp, subject FROM email_ais",
+		"SELECT * FROM email_ais",
+		"SELECT otp FROM links",
+	} {
+		if _, err := ValidateReadOnlyQuery(q); err == nil {
+			t.Errorf("expected reject for %q, got nil error", q)
+		}
+	}
+}
+
+// Redaction is the second line: a column that slips through the identifier check
+// (a view, a computed alias) must still not return message contents.
+func TestRedactRowRedactsMessageContentAndOTP(t *testing.T) {
+	t.Parallel()
+
+	cols := []string{"id", "subject", "text", "otp"}
+	row := map[string]any{"id": 1, "subject": "Your code", "text": "code is 123456", "otp": "123456"}
+	RedactRow(cols, row)
+	for _, c := range []string{"subject", "text", "otp"} {
+		if row[c] != RedactedValue {
+			t.Errorf("column %q not redacted: %v", c, row[c])
+		}
+	}
+	if row["id"] != 1 {
+		t.Errorf("non-sensitive column altered: %v", row["id"])
+	}
+}
