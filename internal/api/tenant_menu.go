@@ -675,6 +675,13 @@ func (h *Handler) removeOrgMember(ctx context.Context, input *RemoveOrgMemberInp
 	// that live read (a plugin resolver) would let a removed member's token keep
 	// acting, so the tokens are deleted explicitly.
 	tokensRevoked := h.auth.RevokeUserOrgTokens(input.UserID, orgID)
+	// The membership row is gone and the credentials revoked — now tell plugins
+	// their own per-member state (role assignments, caches) is stale. This only
+	// runs on success because a hook that fires for a still-present member
+	// would wipe state for someone who is still in the workspace. It is a
+	// best-effort cleanup notice, never an authorization decision — see
+	// plugin.MemberRemovedHook.
+	plugin.NotifyMemberRemoved(orgID, input.UserID)
 	h.audit(r, "member.remove", "user", input.UserID, map[string]any{
 		"role":            target.Role,
 		"sessionsRevoked": revoked,
