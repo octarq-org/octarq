@@ -92,3 +92,42 @@ func TestCheckMirrorRejectsNilDB(t *testing.T) {
 		t.Fatal("nil db must be an error, not a silent pass")
 	}
 }
+
+type mirrorWithIgnoredField struct {
+	OrgID   uint   `gorm:"column:org_id"`
+	Ignored string `gorm:"-"`
+}
+
+func (mirrorWithIgnoredField) TableName() string { return "org_members" }
+
+type emptyTableMirror struct {
+	OrgID uint `gorm:"column:org_id"`
+}
+
+func (emptyTableMirror) TableName() string { return "" }
+
+func TestCheckMirrorWithIgnoredField(t *testing.T) {
+	if err := coreschema.CheckMirror(migrated(t), mirrorWithIgnoredField{}); err != nil {
+		t.Fatalf("mirror with ignored field should pass: %v", err)
+	}
+}
+
+func TestCheckMirrorEmptyTableName(t *testing.T) {
+	err := coreschema.CheckMirror(migrated(t), emptyTableMirror{})
+	if err == nil {
+		t.Fatal("mirror with empty table name must fail")
+	}
+	if !strings.Contains(err.Error(), "resolves to an empty table name") {
+		t.Errorf("expected empty table error, got: %v", err)
+	}
+}
+
+func TestCheckMirrorInvalidType(t *testing.T) {
+	err := coreschema.CheckMirror(migrated(t), 12345)
+	if err == nil {
+		t.Fatal("mirror with invalid non-struct type must fail")
+	}
+	if !strings.Contains(err.Error(), "parse mirror") {
+		t.Errorf("expected parse mirror error, got: %v", err)
+	}
+}

@@ -126,3 +126,61 @@ func TestAllocateOrgSlugSkipsHistory(t *testing.T) {
 		t.Fatalf("allocated %q from a space occupied by active orgs and retired history, want an error", got)
 	}
 }
+
+func TestAllocateOrgSlugNilDB(t *testing.T) {
+	_, err := AllocateOrgSlug(nil)
+	if err == nil {
+		t.Fatal("expected error when db is nil")
+	}
+}
+
+func TestCheckOrgSlugAvailable(t *testing.T) {
+	db := slugTestDB(t)
+
+	// Reserved slug
+	status, err := CheckOrgSlugAvailable(db, "admin", 0)
+	if err != nil || status != SlugReserved {
+		t.Fatalf("expected SlugReserved for 'admin', got status=%v err=%v", status, err)
+	}
+
+	// Create org with slug "alpha"
+	org := Org{Name: "Alpha", Slug: "alpha"}
+	if err := db.Create(&org).Error; err != nil {
+		t.Fatalf("create org: %v", err)
+	}
+
+	// Same slug queried for new org (targetOrgID = 0) -> Taken
+	status, err = CheckOrgSlugAvailable(db, "alpha", 0)
+	if err != nil || status != SlugTaken {
+		t.Fatalf("expected SlugTaken for existing org slug, got status=%v err=%v", status, err)
+	}
+
+	// Same slug queried for targetOrgID == org.ID -> Available (retaining own slug)
+	status, err = CheckOrgSlugAvailable(db, "alpha", org.ID)
+	if err != nil || status != SlugAvailable {
+		t.Fatalf("expected SlugAvailable when targetOrgID matches existing org, got status=%v err=%v", status, err)
+	}
+
+	// Slug in history for org 10
+	if err := db.Create(&OrgSlugHistory{Slug: "retired-beta", OrgID: 10}).Error; err != nil {
+		t.Fatalf("create history: %v", err)
+	}
+
+	// Queried by org 10 -> Available (reclaiming own old slug)
+	status, err = CheckOrgSlugAvailable(db, "retired-beta", 10)
+	if err != nil || status != SlugAvailable {
+		t.Fatalf("expected SlugAvailable when reclaiming historical slug, got status=%v err=%v", status, err)
+	}
+
+	// Queried by another org (e.g. 20) -> Taken
+	status, err = CheckOrgSlugAvailable(db, "retired-beta", 20)
+	if err != nil || status != SlugTaken {
+		t.Fatalf("expected SlugTaken when claiming another org's historical slug, got status=%v err=%v", status, err)
+	}
+
+	// Brand new available slug
+	status, err = CheckOrgSlugAvailable(db, "brand-new-slug", 0)
+	if err != nil || status != SlugAvailable {
+		t.Fatalf("expected SlugAvailable for new slug, got status=%v err=%v", status, err)
+	}
+}
