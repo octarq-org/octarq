@@ -129,6 +129,7 @@ export const pt = {
     profile: "Meu Perfil",
     security: "Segurança",
     tokens: "Tokens de API",
+    appearance: "Aparência",
     "console-overview": "Visão geral",
     "console-wizard": "Assistente de configuração",
     "console-settings": "Configurações da instância",

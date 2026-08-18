@@ -132,6 +132,12 @@ type OrgMember struct {
 	OrgID  uint   `gorm:"primaryKey;index:idx_org_user,unique" json:"orgId"`
 	UserID uint   `gorm:"primaryKey;index:idx_org_user,unique" json:"userId"`
 	Role   string `gorm:"size:32;not null;default:'member'" json:"role"` // "owner" | "admin" | "member"
+	// CreatedAt is when this person joined THIS workspace. The members list
+	// used to show users.created_at instead, so the same person read as having
+	// joined every workspace on the day they registered. Rows written before
+	// this column existed carry the zero time and render as unknown rather
+	// than as a date nobody can vouch for.
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 // StringList is a []string persisted as a JSON text column, portable across

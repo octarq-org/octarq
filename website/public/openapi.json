@@ -878,18 +878,18 @@
             "application/json": {
               "schema": {
                 "properties": {
-                  "password": {
-                    "example": "securepassword",
+                  "email": {
+                    "description": "The account's email address (the bootstrap admin signs in with its configured username here).",
+                    "example": "admin@example.com",
                     "type": "string"
                   },
-                  "username": {
-                    "description": "The user's email address",
-                    "example": "admin@example.com",
+                  "password": {
+                    "example": "securepassword",
                     "type": "string"
                   }
                 },
                 "required": [
-                  "username",
+                  "email",
                   "password"
                 ],
                 "type": "object"
@@ -904,12 +904,20 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "email": {
+                      "example": "admin@example.com",
+                      "type": "string"
+                    },
                     "ok": {
                       "example": true,
                       "type": "boolean"
                     },
+                    "twoFactorRequired": {
+                      "example": false,
+                      "type": "boolean"
+                    },
                     "username": {
-                      "example": "admin@example.com",
+                      "example": "admin",
                       "type": "string"
                     }
                   },
@@ -1012,12 +1020,28 @@
               "application/json": {
                 "schema": {
                   "properties": {
+                    "email": {
+                      "example": "admin@example.com",
+                      "type": "string"
+                    },
+                    "emailVerified": {
+                      "example": true,
+                      "type": "boolean"
+                    },
+                    "isInstanceAdmin": {
+                      "example": true,
+                      "type": "boolean"
+                    },
                     "orgId": {
                       "example": 1,
                       "type": "integer"
                     },
+                    "role": {
+                      "example": "owner",
+                      "type": "string"
+                    },
                     "username": {
-                      "example": "admin@example.com",
+                      "example": "admin",
                       "type": "string"
                     }
                   },

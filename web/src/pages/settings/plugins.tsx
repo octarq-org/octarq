@@ -132,8 +132,9 @@ export function PluginsSettings() {
       <PageHeader title={t("settings.pluginsTitle")} description={t("settings.pluginsDescription")} />
 
       {/* The card grid reads like an app store, so say plainly what a toggle
-          does: it scopes to this workspace and installs nothing. Instance
-          admins get the pointer to what the binary actually loaded. */}
+          does: it scopes to this workspace and installs nothing. The wording
+          stays in workspace terms — deployment-level concepts belong in the
+          console, behind the link only instance admins see. */}
       <Alert variant="info" icon={<Info className="h-4 w-4 shrink-0" />} className="text-xs p-3 rounded-xl">
         <span>{t("settings.pluginsScopeNote")}</span>
         {settings?.isInstanceAdmin && (

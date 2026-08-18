@@ -129,6 +129,7 @@ export const ja = {
     profile: "マイプロファイル",
     security: "セキュリティ",
     tokens: "APIトークン",
+    appearance: "外観",
     "console-overview": "概要",
     "console-wizard": "セットアップウィザード",
     "console-settings": "インスタンス設定",

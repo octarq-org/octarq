@@ -13,6 +13,7 @@ const OrgMembersManager = lazy(() => import("./settings/members").then((m) => ({
 const SecuritySettings = lazy(() => import("./settings/security").then((m) => ({ default: m.SecuritySettings })));
 const ProfileSettings = lazy(() => import("./PersonalSettings").then((m) => ({ default: m.ProfileSettings })));
 const ApiTokens = lazy(() => import("./PersonalSettings").then((m) => ({ default: m.ApiTokens })));
+const AppearanceSettings = lazy(() => import("./settings/appearance").then((m) => ({ default: m.AppearanceSettings })));
 
 export default function SettingsPage() {
   return (
@@ -33,6 +34,7 @@ export default function SettingsPage() {
         <Route path="/profile" element={<ProfileSettings />} />
         <Route path="/security" element={<SecuritySettings />} />
         <Route path="/tokens" element={<ApiTokens />} />
+        <Route path="/appearance" element={<AppearanceSettings />} />
       </Routes>
       </Suspense>
     </ScreenWrap>

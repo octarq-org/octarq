@@ -14,7 +14,7 @@ export const settings = {
     instancePluginsDescription: "Every plugin loaded by this instance, including always-on plumbing hidden from the workspace view.",
     instancePluginsTitle: "Installed plugins",
     pluginsInstanceLink: "See what this instance has loaded",
-    pluginsScopeNote: "These switches apply to this workspace only. They don't install or remove anything — every plugin listed here is already part of this instance.",
+    pluginsScopeNote: "These switches turn features on and off for this workspace. Nothing is installed or removed — everything listed is already available to you.",
     // Shared
     cancel: "Cancel",
     remove: "Remove",
@@ -212,7 +212,7 @@ export const settings = {
     clear: "Clear",
 
     // LinkSettings
-    shortLinksSettings: "Short Links Settings (Instance)",
+    shortLinksSettings: "Short Links",
     reservedSlugsLabel: "Reserved Short Link Slugs",
     reservedSlugsHint: "Slugs users cannot register. Built-in: {{list}}.",
     saveSettings: "Save Settings",
@@ -379,7 +379,7 @@ export const settings = {
     instancePluginsDescription: "本实例加载的全部插件，包含工作区视图中隐藏的常驻底层插件。",
     instancePluginsTitle: "已安装插件",
     pluginsInstanceLink: "查看本实例已加载的插件",
-    pluginsScopeNote: "这些开关仅作用于当前工作区，不会安装或卸载任何程序 —— 列出的插件均已属于本实例。",
+    pluginsScopeNote: "这些开关控制当前工作区启用哪些功能，不会安装或卸载任何东西 —— 列出的功能都已可用。",
     // Shared
     cancel: "取消",
     remove: "移除",
@@ -575,7 +575,7 @@ export const settings = {
     clear: "清除",
 
     // LinkSettings
-    shortLinksSettings: "短链设置（实例）",
+    shortLinksSettings: "短链设置",
     reservedSlugsLabel: "保留的短链别名",
     reservedSlugsHint: "用户无法注册的别名。内置：{{list}}。",
     saveSettings: "保存设置",
@@ -742,7 +742,7 @@ export const settings = {
     instancePluginsDescription: "Todos los plugins cargados por esta instancia, incluida la infraestructura que no se muestra en la vista de espacio de trabajo.",
     instancePluginsTitle: "Complementos instalados",
     pluginsInstanceLink: "Ver qué ha cargado esta instancia",
-    pluginsScopeNote: "Estos interruptores solo afectan a este espacio de trabajo. No instalan ni eliminan nada: todos los plugins listados ya forman parte de esta instancia.",
+    pluginsScopeNote: "Estos interruptores activan o desactivan funciones en este espacio de trabajo. No instalan ni eliminan nada: todo lo listado ya está disponible.",
     // Shared
     cancel: "Cancelar",
     remove: "Eliminar",
@@ -938,7 +938,7 @@ export const settings = {
     clear: "Borrar",
 
     // LinkSettings
-    shortLinksSettings: "Configuración de Enlaces Cortos (Instancia)",
+    shortLinksSettings: "Enlaces cortos",
     reservedSlugsLabel: "Slugs de Enlaces Cortos Reservados",
     reservedSlugsHint: "Slugs que los usuarios no pueden registrar. Integrados: {{list}}.",
     saveSettings: "Guardar Configuración",
@@ -1105,7 +1105,7 @@ export const settings = {
     instancePluginsDescription: "Todos os plugins carregados por esta instância, incluindo a infraestrutura oculta da visão do workspace.",
     instancePluginsTitle: "Plugins instalados",
     pluginsInstanceLink: "Ver o que esta instância carregou",
-    pluginsScopeNote: "Estes interruptores valem apenas para este espaço de trabalho. Não instalam nem removem nada — todos os plugins listados já fazem parte desta instância.",
+    pluginsScopeNote: "Estes interruptores ativam ou desativam recursos neste espaço de trabalho. Nada é instalado ou removido — tudo o que está listado já está disponível.",
     // Shared
     cancel: "Cancelar",
     remove: "Remover",
@@ -1301,7 +1301,7 @@ export const settings = {
     clear: "Limpar",
 
     // LinkSettings
-    shortLinksSettings: "Configurações de Links Curtos (Instância)",
+    shortLinksSettings: "Links curtos",
     reservedSlugsLabel: "Slugs Reservados para Links Curtos",
     reservedSlugsHint: "Slugs que os usuários não podem registrar. Integrados: {{list}}.",
     saveSettings: "Salvar Configurações",
@@ -1468,7 +1468,7 @@ export const settings = {
     instancePluginsDescription: "このインスタンスが読み込んだ全プラグイン。ワークスペース画面では隠れている常時稼働の基盤プラグインも含みます。",
     instancePluginsTitle: "インストール済みプラグイン",
     pluginsInstanceLink: "このインスタンスが読み込んでいるものを見る",
-    pluginsScopeNote: "これらのスイッチはこのワークスペースにのみ適用されます。何かをインストールしたり削除したりはしません —— ここに並ぶプラグインはすでにこのインスタンスの一部です。",
+    pluginsScopeNote: "これらのスイッチはこのワークスペースの機能をオン・オフします。インストールや削除は行いません —— 並んでいる機能はすでに利用可能です。",
     // Shared
     cancel: "キャンセル",
     remove: "削除",
@@ -1664,7 +1664,7 @@ export const settings = {
     clear: "クリア",
 
     // LinkSettings
-    shortLinksSettings: "ショートリンク設定 (インスタンス)",
+    shortLinksSettings: "ショートリンク",
     reservedSlugsLabel: "予約済みショートリンク スラグ",
     reservedSlugsHint: "ユーザーが登録できないスラグ。組み込み: {{list}}。",
     saveSettings: "設定を保存",

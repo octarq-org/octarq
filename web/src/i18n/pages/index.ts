@@ -7,11 +7,13 @@ import { instance } from "./instance";
 // Note: Feature namespaces (links, domains, mail, licenses, etc.) are owned by
 // their UIPlugin and injected via UIPlugin.i18n when composed into the build.
 import { abuse } from "./abuse";
+import { appearance } from "./appearance";
 import { audit } from "./audit";
 import { invite } from "./invite";
 import { uiCommon } from "./uiCommon";
 
 const NS = {
+  appearance,
   overview,
   personal,
   settings,
