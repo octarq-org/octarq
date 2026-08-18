@@ -9,7 +9,7 @@
 // build leaves them blank, keeping the default indigo→violet look.
 import { useEffect, useState, ReactNode, createContext, useContext } from "react";
 import { api } from "./api";
-import { BrandProvider, useAppName, brandInitial } from "../../packages/plugin-sdk/src";
+import { BrandProvider, useAppName, brandInitial, ARCH_PATH } from "../../packages/plugin-sdk/src";
 
 export { useAppName, brandInitial };
 
@@ -18,6 +18,12 @@ const FALLBACK = "octarq";
 type Brand = { name: string; logoUrl: string };
 let cached: Brand | null = null;
 let inflight: Promise<void> | null = null;
+// The brand colours live in module state alongside the name/logo cache so the
+// favicon, theme-color meta and CSS seeds all read the SAME values on every
+// recompute — a workspace switch repaints the tab and the chrome with exactly
+// what reset the CSS variables.
+let brandColor = "";
+let brandColor2 = "";
 const listeners = new Set<() => void>();
 
 // applyAccents overrides the brand accent design tokens with the operator's
@@ -46,22 +52,56 @@ function applyAccents(color: string, color2: string) {
   root.setProperty("--accent-violet", color2 || color);
 }
 
-// applyFavicon points the tab icon at the operator's white-label logo. Without
-// one the markup default in index.html (the Octarq mark) stands — so an OSS
-// instance never pays for this, and a branded one doesn't show Octarq's glyph
-// in the tab while showing the operator's logo in the app.
-//
-// The markup default is captured once, before the first override, so switching
-// to a workspace with no logo restores it instead of keeping the previous
-// workspace's icon in the tab.
+// Brand colours are tenant-writable (the Pro white-label plugin writes them),
+// so any value destined for markup goes through this gate: only #rgb / #rrggbb
+// hex is accepted (case-insensitive), anything else counts as "no colour" and
+// the caller falls back to the Octarq default. Pro's whitelabel plugin checks
+// the same shape on write; this is defence in depth — a raw string must never
+// be spliced into SVG markup.
+const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+function validColor(color: string): string | null {
+  const c = color.trim().toLowerCase();
+  return HEX_COLOR.test(c) ? c : null;
+}
+
+// brandFavicon builds an SVG data URI for the Keystone Arch in the brand's
+// accent colours: same structure as web/public/favicon.svg, with the shape from
+// the single-source ARCH_PATH and the two hardcoded stop colours swapped for the
+// brand's. Without a white-label logo this is what keeps one workspace's tab
+// distinguishable from another's. The whole SVG is encodeURIComponent'd — a raw
+// '#' in a data URI would read as a URL fragment separator and the icon would
+// never load. Returns null when the colour isn't a valid hex triplet.
+function brandFavicon(color: string, color2: string): string | null {
+  const c1 = validColor(color);
+  if (!c1) return null;
+  const c2 = validColor(color2) ?? c1; // blank/invalid color2 → solid c1, like applyAccents' color2 || color
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">` +
+    `<defs><linearGradient id="g" x1="10" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse">` +
+    `<stop stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/>` +
+    `</linearGradient></defs>` +
+    `<path fill="url(#g)" fill-rule="evenodd" clip-rule="evenodd" d="${ARCH_PATH}"/></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
 let defaultFavicon: { href: string; type: string | null } | null = null;
 
-function applyFavicon(logoUrl: string) {
+// applyFavicon points the tab icon at, in order of precedence: the operator's
+// white-label logo, a favicon generated from the brand's accent colour, or the
+// markup default from index.html (the Octarq mark). A workspace that only sets
+// brand colours therefore still gets a colour-matched icon instead of Octarq's
+// glyph, while a workspace with neither keeps the default. The markup default
+// is captured once, before the first override, so switching to an unbranded
+// workspace restores it instead of keeping the previous workspace's icon in the
+// tab.
+function applyFavicon(logoUrl: string, color: string, color2: string) {
   const existing = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
   if (defaultFavicon === null && existing) {
     defaultFavicon = { href: existing.href, type: existing.getAttribute("type") };
   }
-  if (!logoUrl) {
+  const branded = brandFavicon(color, color2);
+  if (!logoUrl && !branded) {
     if (existing && defaultFavicon) {
       existing.href = defaultFavicon.href;
       if (defaultFavicon.type) existing.setAttribute("type", defaultFavicon.type);
@@ -72,9 +112,31 @@ function applyFavicon(logoUrl: string) {
   const link =
     existing ??
     document.head.appendChild(Object.assign(document.createElement("link"), { rel: "icon" }));
-  link.href = logoUrl;
-  link.removeAttribute("type"); // the operator's logo may be png/jpeg, not svg
+  if (logoUrl) {
+    link.setAttribute("href", logoUrl);
+    link.removeAttribute("type"); // the operator's logo may be png/jpeg, not svg
+  } else if (branded) {
+    link.setAttribute("href", branded);
+    link.setAttribute("type", "image/svg+xml");
+  }
   document.querySelector('link[rel="alternate icon"]')?.remove();
+}
+
+// applyThemeColor keeps the browser chrome (mobile address bar, tab strip) in
+// the brand's accent colour. index.html ships no theme-color meta, so there is
+// no markup default to restore: "no brand colour" REMOVES the meta rather than
+// leaving an empty or stale value behind after a workspace switch.
+function applyThemeColor(color: string) {
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (!color) {
+    meta?.remove();
+    return;
+  }
+  if (meta) meta.content = color;
+  else
+    document.head.appendChild(
+      Object.assign(document.createElement("meta"), { name: "theme-color", content: color }),
+    );
 }
 
 function load(): Promise<void> {
@@ -83,14 +145,24 @@ function load(): Promise<void> {
       .authConfig()
       .then((c) => {
         cached = { name: c.appName || FALLBACK, logoUrl: c.logoUrl || "" };
-        applyAccents(c.brandColor || "", c.brandColor2 || "");
+        brandColor = c.brandColor || "";
+        brandColor2 = c.brandColor2 || "";
+        applyAccents(brandColor, brandColor2);
       })
       .catch(() => {
+        // The fetch failed: this workspace's branding is unknown, so the whole
+        // surface falls back to the colourless Octarq default. In particular
+        // the previous workspace's colour must not linger in the tab — that
+        // exact failure is what the test file's header documents.
         cached = { name: FALLBACK, logoUrl: "" };
+        brandColor = "";
+        brandColor2 = "";
+        applyAccents("", "");
       })
       .then(() => {
         document.title = cached!.name;
-        applyFavicon(cached!.logoUrl);
+        applyFavicon(cached!.logoUrl, brandColor, brandColor2);
+        applyThemeColor(validColor(brandColor) ?? "");
         listeners.forEach((l) => l());
       });
   }
