@@ -11,6 +11,7 @@ import (
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/crypto"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/origin"
 	"github.com/octarq-org/octarq/plugins/dns"
 )
 
@@ -46,6 +47,14 @@ func TestOAuthCallbackURLComesFromTheRequest(t *testing.T) {
 	if err := db.Create(&dns.Domain{OrgID: 1, Name: "acme.example"}).Error; err != nil {
 		t.Fatalf("seed domain: %v", err)
 	}
+	// Seeding the row directly bypasses the register path, which is what
+	// normally invalidates origin's cache. Package tests share one database and
+	// therefore one cache namespace, so any earlier test that asked about a host
+	// while the domains table was empty has already cached "this instance has
+	// registered no domains" — the entry that switches on the fallback honouring
+	// the request Host verbatim. Read back here, a forged Host reaches the
+	// provider and this test's whole point evaporates.
+	origin.ClearDomainCache("acme.example")
 
 	h := NewOAuthHandler(db, m, cipher)
 

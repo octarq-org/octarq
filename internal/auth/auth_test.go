@@ -41,44 +41,17 @@ func testManager(t *testing.T) *Manager {
 	return New(cfg, crypto.New(cfg.SecretKey))
 }
 
-// memDSN builds a per-test in-memory SQLite DSN. The name goes into a URI, so
-// anything with meaning there has to go: a subtest named "" becomes "#00", and
-// the '#' truncates the DSN at the fragment — dropping mode=memory, writing an
-// actual file into the package directory, and sharing it with the next case.
-func memDSN(t *testing.T, prefix string) string {
-	t.Helper()
-	safe := strings.Map(func(r rune) rune {
-		if r == '#' || r == '?' || r == '/' || r == '&' || r == '=' || r == ' ' {
-			return '-'
-		}
-		return r
-	}, t.Name())
-	return fmt.Sprintf("file:%s-%s?mode=memory&cache=shared", prefix, safe)
-}
-
-// testDB gives each test its own in-memory database.
-//
-// It used to hand every test the one process-wide `file::memory:?cache=shared`
-// database. That is only survivable while nobody closes it: with mode=memory
-// the database dies with its last connection, so a per-test Cleanup that closes
-// the handle drops the rows out from under whatever else is running — and this
-// package has parallel tests. The visible casualty was
-// TestOAuthCallbackURLComesFromTheRequest: its seeded dns.Domain vanished, host
-// resolution fell back to "no domain is registered here", and a forged Host
-// sailed through the guard the test exists to pin. Green locally, red on CI.
 func testDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(memDSN(t, "auth")), &gorm.Config{})
+	// One process-wide database on purpose. Opening a *per-test* one means a
+	// *sql.DB per test, and origin's cache namespace is keyed on that pointer —
+	// Go reuses the address after a closed DB is collected, so the next test
+	// reads back a dead one's "no domain is registered here" and honours a
+	// forged Host. See origin.namespace.
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	// mode=memory means the DB lives only while a connection is open, so closing
-	// it here drops it and a -count=2 re-run starts from a clean schema.
-	t.Cleanup(func() {
-		if sqlDB, err := db.DB(); err == nil {
-			sqlDB.Close()
-		}
-	})
 	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mailmodels.Mailbox{}, &mailmodels.Email{}, &mailmodels.SMTPSender{})...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
