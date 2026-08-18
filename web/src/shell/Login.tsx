@@ -138,8 +138,12 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
     if (!u.trim()) return;
     setResendingVerify(true);
     try {
-      await api.resendVerification(u.trim());
-      setVerifySent(true);
+      const res = await api.resendVerification(u.trim());
+      if (res.mailConfigured === false) {
+        setErr(t("app.verificationMailNotConfigured"));
+      } else {
+        setVerifySent(true);
+      }
     } catch (e: any) {
       setErr(e.message || "Failed to resend verification email");
     } finally {

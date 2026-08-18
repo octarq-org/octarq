@@ -156,6 +156,71 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 	return h, srv, db
 }
 
+// newTestHandlerWithoutMail builds a test handler with only dns and links mounted
+// (no mail plugin), mirroring the edition-nomail composition.
+func newTestHandlerWithoutMail(t *testing.T) (*Handler, http.Handler, *gorm.DB) {
+	t.Helper()
+	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
+	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "_nomail?mode=memory&cache=shared"
+	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &dns.DDNSToken{})...); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	db.Where("1 = 1").Delete(&models.Token{})
+	db.Where("1 = 1").Delete(&links.Link{})
+
+	cipher := crypto.New(cfg.SecretKey)
+	if err := cipher.EnableEnvelope(apiEnvStore{db}); err != nil {
+		t.Fatalf("EnableEnvelope: %v", err)
+	}
+	notify.SetConfigDecryptor(func(stored string) (string, bool) {
+		b, err := cipher.Decrypt(stored)
+		if err != nil {
+			return "", false
+		}
+		return string(b), true
+	})
+	t.Cleanup(func() { notify.SetConfigDecryptor(nil) })
+	authMgr := auth.New(cfg, cipher).WithDB(db)
+	g, _ := geo.Open("")
+	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
+
+	dnsP := dns.New()
+	linksP := links.New()
+	h.SetPlugins([]plugin.Plugin{dnsP, linksP})
+
+	reg := plugin.NewRegistry()
+	h.SetServiceLookup(reg.Lookup)
+
+	srv := h.Routes()
+
+	pctx := &plugin.Context{
+		Huma:                h.Huma(),
+		DB:                  db,
+		Guard:               authMgr.Require,
+		UserID:              authMgr.UserID,
+		OrgID:               authMgr.OrgID,
+		Audit:               h.Audit,
+		Encrypt:             cipher.Encrypt,
+		Decrypt:             cipher.Decrypt,
+		GetGlobalSetting:    h.GetGlobalSetting,
+		GetWorkspaceSetting: h.GetWorkspaceSetting,
+		Enqueue:             h.queue.Enqueue,
+		DeleteCache:         authMgr.Cache().Delete,
+		Provide:             reg.Provide,
+		Lookup:              reg.Lookup,
+		RequireRole:         func(*http.Request, string) bool { return true },
+		RequirePerm:         h.RequirePerm,
+	}
+	dnsP.Mount(nil, pctx)
+	linksP.Mount(nil, pctx)
+
+	return h, srv, db
+}
+
 // apiEnvStore backs crypto.EnableEnvelope with the test DB's settings table.
 type apiEnvStore struct{ db *gorm.DB }
 

@@ -318,7 +318,8 @@ func (i *ResendVerificationInput) Resolve(ctx huma.Context) []error {
 }
 
 type ResendVerificationOutputBody struct {
-	OK bool `json:"ok"`
+	OK             bool `json:"ok"`
+	MailConfigured bool `json:"mailConfigured"`
 }
 
 type ResendVerificationOutput struct {
@@ -341,9 +342,11 @@ func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificat
 	}
 	h.recoveryLimiter.recordFailure(ip)
 
-	email := strings.ToLower(strings.TrimSpace(input.Body.Email))
 	out := &ResendVerificationOutput{}
 	out.Body.OK = true
+	out.Body.MailConfigured = h.mailReady()
+
+	email := strings.ToLower(strings.TrimSpace(input.Body.Email))
 
 	if email == "" {
 		return out, nil
