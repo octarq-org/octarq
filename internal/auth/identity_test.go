@@ -2,10 +2,8 @@ package auth
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/glebarez/sqlite"
@@ -23,18 +21,7 @@ import (
 // about this test's writes.
 func identityDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	// The name goes into a URI, so anything with meaning there has to go. A
-	// subtest named "" becomes "#00", and the '#' truncated the DSN at the
-	// fragment — dropping mode=memory, writing an actual file into the package
-	// directory, and sharing it with the next case.
-	safe := strings.Map(func(r rune) rune {
-		if r == '#' || r == '?' || r == '/' || r == '&' || r == '=' || r == ' ' {
-			return '-'
-		}
-		return r
-	}, t.Name())
-	dsn := fmt.Sprintf("file:identity-%s?mode=memory&cache=shared", safe)
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Discard})
+	db, err := gorm.Open(sqlite.Open(memDSN(t, "identity")), &gorm.Config{Logger: logger.Discard})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
