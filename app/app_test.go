@@ -18,6 +18,12 @@ func TestSettingsStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
+	// Drop the shared in-memory DB on cleanup so -count=2 re-runs stay isolated.
+	t.Cleanup(func() {
+		if sqlDB, err := db.DB(); err == nil {
+			sqlDB.Close()
+		}
+	})
 	db.AutoMigrate(&models.Setting{})
 
 	store := settingsStore{db: db}

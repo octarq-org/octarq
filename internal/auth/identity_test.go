@@ -38,6 +38,14 @@ func identityDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
+	// With mode=memory the DB lives only while a connection is open, so closing
+	// it on cleanup drops it — otherwise a -count=2 re-run re-attaches to the
+	// same shared DB and trips unique constraints on duplicate writes.
+	t.Cleanup(func() {
+		if sqlDB, err := db.DB(); err == nil {
+			sqlDB.Close()
+		}
+	})
 	if err := db.AutoMigrate(models.AllModels()...); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
