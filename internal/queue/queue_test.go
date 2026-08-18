@@ -36,11 +36,16 @@ func TestInMemoryQueue_Execution(t *testing.T) {
 	defer cancel()
 
 	var count atomic.Int32
+	successCh := make(chan struct{})
+	failCh := make(chan struct{})
+
 	q.Register("test_task", func(ctx context.Context, payload []byte) error {
 		if string(payload) == "fail" {
+			close(failCh)
 			return errors.New("handler error")
 		}
 		count.Add(1)
+		close(successCh)
 		return nil
 	})
 
@@ -60,8 +65,17 @@ func TestInMemoryQueue_Execution(t *testing.T) {
 		t.Fatalf("Enqueue unknown task failed: %v", err)
 	}
 
-	// Wait for worker processing
-	time.Sleep(100 * time.Millisecond)
+	select {
+	case <-successCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for success task")
+	}
+
+	select {
+	case <-failCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for fail task")
+	}
 
 	if count.Load() != 1 {
 		t.Errorf("expected count 1, got %d", count.Load())
@@ -80,9 +94,9 @@ func TestInMemoryQueue_FullFallback(t *testing.T) {
 	}
 
 	// Registered task when full
-	var ran atomic.Bool
+	ranCh := make(chan struct{})
 	q.Register("overflow_task", func(ctx context.Context, payload []byte) error {
-		ran.Store(true)
+		close(ranCh)
 		return nil
 	})
 	err = q.Enqueue(context.Background(), "overflow_task", []byte("overflow"))
@@ -90,9 +104,27 @@ func TestInMemoryQueue_FullFallback(t *testing.T) {
 		t.Errorf("expected no error when fallback instant execution succeeds, got %v", err)
 	}
 
-	time.Sleep(100 * time.Millisecond)
-	if !ran.Load() {
-		t.Errorf("expected fallback instant execution to run task")
+	select {
+	case <-ranCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for fallback task execution")
+	}
+
+	// Fallback error branch
+	ranFailCh := make(chan struct{})
+	q.Register("overflow_fail_task", func(ctx context.Context, payload []byte) error {
+		close(ranFailCh)
+		return errors.New("fallback error")
+	})
+	err = q.Enqueue(context.Background(), "overflow_fail_task", []byte("overflow_fail"))
+	if err != nil {
+		t.Errorf("expected no error from Enqueue even when fallback handler errors, got %v", err)
+	}
+
+	select {
+	case <-ranFailCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for fallback failure task")
 	}
 }
 
@@ -111,9 +143,9 @@ func TestAsynqQueue_Fallback(t *testing.T) {
 	}
 
 	// Enqueue with handler registered -> triggers fallback
-	var ran atomic.Bool
+	ranCh := make(chan struct{})
 	asynqQ.Register("task1", func(ctx context.Context, payload []byte) error {
-		ran.Store(true)
+		close(ranCh)
 		return nil
 	})
 
@@ -122,8 +154,47 @@ func TestAsynqQueue_Fallback(t *testing.T) {
 		t.Errorf("expected fallback success when handler registered, got %v", err)
 	}
 
-	time.Sleep(100 * time.Millisecond)
-	if !ran.Load() {
-		t.Errorf("expected fallback execution when Redis is unreachable")
+	select {
+	case <-ranCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for fallback execution")
 	}
+
+	// Fallback with error
+	ranFailCh := make(chan struct{})
+	asynqQ.Register("task_fail", func(ctx context.Context, payload []byte) error {
+		close(ranFailCh)
+		return errors.New("asynq fallback handler error")
+	})
+	err = asynqQ.Enqueue(context.Background(), "task_fail", []byte("p_fail"))
+	if err != nil {
+		t.Errorf("expected no enqueue error for fallback task, got %v", err)
+	}
+	select {
+	case <-ranFailCh:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for asynq fallback error execution")
+	}
+}
+
+func TestAsynqQueue_StartAndShutdown(t *testing.T) {
+	q := New("redis://127.0.0.1:58999/0")
+	asynqQ, ok := q.(*AsynqQueue)
+	if !ok {
+		t.Fatalf("expected *AsynqQueue")
+	}
+
+	asynqQ.Register("asynq_task_a", func(ctx context.Context, payload []byte) error {
+		return nil
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := asynqQ.Start(ctx); err != nil {
+		t.Fatalf("Start failed: %v", err)
+	}
+
+	// Cancel context to trigger shutdown
+	cancel()
+	// Shutdown takes a moment; give the goroutine a moment to finish srv.Shutdown()
+	asynqQ.server.Shutdown()
 }

@@ -93,7 +93,7 @@ func TestRedactRow(t *testing.T) {
 // secret-bearing table (users) is rejected outright, so no password hash can be
 // exfiltrated — not even via an output-column alias that would dodge redaction.
 func TestRunReadOnlyQueryRejectsSecretTable(t *testing.T) {
-	gdb, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	gdb, err := gorm.Open(sqlite.Open(t.TempDir()+"/secret.db"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestRunReadOnlyQueryRejectsSecretTable(t *testing.T) {
 // TestRunReadOnlyQueryRejectsWrite confirms the write is blocked before it
 // reaches the DB.
 func TestRunReadOnlyQueryRejectsWrite(t *testing.T) {
-	gdb, _ := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	gdb, _ := gorm.Open(sqlite.Open(t.TempDir()+"/write.db"), &gorm.Config{})
 	gdb.AutoMigrate(&links.Link{})
 	s := &server{gdb: gdb, orgID: 1}
 	if _, _, err := s.runReadOnlyQuery(context.Background(), "DELETE FROM links"); err == nil {
