@@ -101,7 +101,7 @@ func openAuto(dataDir, licenseKey string) (*Resolver, error) {
 // paths log a warning and leave geo disabled.
 func (r *Resolver) autoDownload(ctx context.Context, dataDir, licenseKey string) {
 	opts := downloadOptions{licenseKey: licenseKey, dir: dataDir}
-	path, err := download(ctx, opts)
+	path, err := downloadFn(ctx, opts)
 	if err != nil {
 		slog.Warn("geoip: auto-download failed, retrying once", "err", err)
 		select {
@@ -109,7 +109,7 @@ func (r *Resolver) autoDownload(ctx context.Context, dataDir, licenseKey string)
 			return
 		case <-time.After(retryDelay):
 		}
-		if path, err = download(ctx, opts); err != nil {
+		if path, err = downloadFn(ctx, opts); err != nil {
 			slog.Warn("geoip: auto-download failed, geo lookups stay disabled", "err", err)
 			return
 		}

@@ -99,6 +99,12 @@ type downloadOptions struct {
 	client     *http.Client // defaults to a 5-minute-timeout client
 }
 
+// downloadFn is the archive-fetch entry point used by autoDownload. It is a
+// package-level var so tests can stub the whole download pipeline (which
+// otherwise hard-codes MaxMind's base URL and a 5-minute HTTP client) without
+// touching the network.
+var downloadFn = download
+
 // download fetches the GeoLite2-City tar.gz from MaxMind, verifies it against
 // the published sha256, extracts the .mmdb, and installs it atomically at
 // <dir>/GeoLite2-City.mmdb. Returns the installed path.
