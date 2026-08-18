@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"strings"
+	"sync"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -18,9 +19,9 @@ import (
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/auth"
 	"github.com/octarq-org/octarq/internal/crypto"
+	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/notify"
-	"github.com/octarq-org/octarq/llmprovider"
 	"github.com/octarq-org/octarq/plugin"
 	"github.com/octarq-org/octarq/plugins/builtin"
 	"github.com/octarq-org/octarq/plugins/dns"
@@ -71,153 +72,428 @@ func (p requiringPlugin) Describe() plugin.Info {
 func (p requiringPlugin) Models() []any                     { return nil }
 func (p requiringPlugin) Mount(plugin.Mux, *plugin.Context) {}
 
-// ctxProbePlugin exercises every plugin.Context closure during Mount so the
-// wiring closures inside Run/RunMCP actually execute in tests rather than
-// remaining dead code. It provides no services and asserts nothing itself; the
-// calls are the point. Each call is gated on non-nil because the stdio MCP
-// server re-mounts plugins with a minimal Context (DB/OrgID/Provide/Lookup only).
-type ctxProbePlugin struct{ name string }
+// wiringCapture records the observable side effects of ctx closures that
+// delegate to service providers, shared between the assertion plugin and the
+// boot tests so a wiring regression turns one of them red.
+type wiringCapture struct {
+	mu            sync.Mutex
+	usageMetric   string
+	usageN        int64
+	mailTo        string
+	emailHandlers int
+}
 
-func (p ctxProbePlugin) Name() string          { return p.name }
-func (p ctxProbePlugin) Describe() plugin.Info { return plugin.Info{Title: p.name} }
-func (p ctxProbePlugin) Models() []any         { return nil }
-func (p ctxProbePlugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	w := httptest.NewRecorder()
+func (c *wiringCapture) addUsage(metric string, n int64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.usageMetric, c.usageN = metric, n
+}
 
-	if ctx.Guard != nil {
-		ctx.Guard(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})).ServeHTTP(w, r)
+func (c *wiringCapture) addMail(to string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.mailTo = to
+}
+
+func (c *wiringCapture) addEmailHandler() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.emailHandlers++
+}
+
+// mapCache is a real in-memory cache.Cache injected into the app's auth manager
+// so the CacheGet/CacheSet/DeleteCache wiring round-trips (the production
+// NoopCache never stores, so it could not back an assertion).
+type mapCache struct {
+	mu sync.Mutex
+	m  map[string]any
+}
+
+func newMapCache() *mapCache { return &mapCache{m: map[string]any{}} }
+
+func (c *mapCache) Get(_ context.Context, key string, dst any) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	v, ok := c.m[key]
+	if !ok {
+		return false
 	}
-	if ctx.Notify != nil {
-		ctx.Notify(context.Background(), "probe-chan", "{}", "hi")
+	if sp, ok := dst.(*string); ok {
+		*sp, _ = v.(string)
 	}
-	if ctx.RegisterNotifier != nil {
-		ctx.RegisterNotifier("probe-chan", func(context.Context, string, string) error { return nil })
+	return true
+}
+
+func (c *mapCache) Set(_ context.Context, key string, val any, _ time.Duration) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.m[key] = val
+	return nil
+}
+
+func (c *mapCache) Delete(_ context.Context, key string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.m, key)
+	return nil
+}
+
+func (c *mapCache) IsRedis() bool { return false }
+
+// ctxAssertPlugin mounts during Run's and RunMCP's plugin loops and asserts the
+// plugin Context wiring with real observable round-trips: settings written via
+// Set*Setting must read back through Get*Setting, a registered notifier must
+// receive the Notify, the cache must round-trip, Guard must admit only an
+// authenticated request, and UserID/OrgID/OrgRole must come back from the
+// request. A broken wire (say SetGlobalSetting pointing at a no-op) turns the
+// boot tests red. httpMode selects the surface Run wires (it adds
+// PluginActive/FeatureActive/ActivePlugins) versus the MCP path that omits them.
+type ctxAssertPlugin struct {
+	t        *testing.T
+	name     string
+	cap      *wiringCapture
+	httpMode bool
+}
+
+func (p ctxAssertPlugin) Name() string { return p.name }
+func (p ctxAssertPlugin) Describe() plugin.Info {
+	return plugin.Info{Title: p.name, EnabledByDefault: true}
+}
+func (p ctxAssertPlugin) Models() []any { return nil }
+
+func (p ctxAssertPlugin) surface() string {
+	if p.httpMode {
+		return "HTTP (Run)"
 	}
-	if ctx.RegisterAuthMethod != nil {
-		ctx.RegisterAuthMethod(plugin.AuthMethod{ID: "probe"})
+	return "MCP (RunMCP)"
+}
+
+func (p ctxAssertPlugin) present(name string, ok bool) {
+	p.t.Helper()
+	if !ok {
+		p.t.Errorf("plugin.Context.%s must be wired in the %s path", name, p.surface())
 	}
-	if ctx.RevokeUserOrgSessions != nil {
-		ctx.RevokeUserOrgSessions(1, 1)
+}
+
+func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
+	t := p.t
+	t.Helper()
+
+	// The stdio MCP server re-mounts every plugin with a minimal Context (only
+	// DB/OrgID/Provide/Lookup — see mcp.buildServerInstance). That surface is
+	// pinned by TestMCPRemountUsesMinimalContext; here we just confirm the
+	// remount kept the minimal subset and defer the full assertions.
+	if ctx.SetGlobalSetting == nil {
+		p.present("DB", ctx.DB != nil)
+		p.present("OrgID", ctx.OrgID != nil)
+		p.present("Provide", ctx.Provide != nil)
+		p.present("Lookup", ctx.Lookup != nil)
+		return
 	}
-	if ctx.UserID != nil {
-		_ = ctx.UserID(r)
-	}
-	if ctx.OrgID != nil {
-		_ = ctx.OrgID(r)
-	}
-	if ctx.OrgRole != nil {
-		_ = ctx.OrgRole(r)
-	}
-	if ctx.RequireRole != nil {
-		ctx.RequireRole(r, "member")
-	}
-	if ctx.RequirePerm != nil {
-		ctx.RequirePerm(r, "probe.perm", "member")
-	}
-	if ctx.IsInstanceAdmin != nil {
-		ctx.IsInstanceAdmin(r)
-	}
-	if ctx.Audit != nil {
-		ctx.Audit(r, "probe.action", "user", 1, nil)
-	}
-	if ctx.Encrypt != nil {
-		if enc, err := ctx.Encrypt([]byte("secret")); err == nil {
-			_, _ = ctx.Decrypt(enc)
+
+	// The whole surface must be wired.
+	p.present("Guard", ctx.Guard != nil)
+	p.present("UserID", ctx.UserID != nil)
+	p.present("OrgID", ctx.OrgID != nil)
+	p.present("OrgRole", ctx.OrgRole != nil)
+	p.present("RequireRole", ctx.RequireRole != nil)
+	p.present("RequirePerm", ctx.RequirePerm != nil)
+	p.present("IsInstanceAdmin", ctx.IsInstanceAdmin != nil)
+	p.present("Audit", ctx.Audit != nil)
+	p.present("Encrypt", ctx.Encrypt != nil)
+	p.present("Decrypt", ctx.Decrypt != nil)
+	p.present("Notify", ctx.Notify != nil)
+	p.present("RegisterNotifier", ctx.RegisterNotifier != nil)
+	p.present("OnEmail", ctx.OnEmail != nil)
+	p.present("SendMail", ctx.SendMail != nil)
+	p.present("RecordUsage", ctx.RecordUsage != nil)
+	p.present("GetGlobalSetting", ctx.GetGlobalSetting != nil)
+	p.present("SetGlobalSetting", ctx.SetGlobalSetting != nil)
+	p.present("GetWorkspaceSetting", ctx.GetWorkspaceSetting != nil)
+	p.present("SetWorkspaceSetting", ctx.SetWorkspaceSetting != nil)
+	p.present("CacheGet", ctx.CacheGet != nil)
+	p.present("CacheSet", ctx.CacheSet != nil)
+	p.present("DeleteCache", ctx.DeleteCache != nil)
+	p.present("ParseUA", ctx.ParseUA != nil)
+	p.present("RegisterAuthMethod", ctx.RegisterAuthMethod != nil)
+	p.present("RegisterWebhookEvent", ctx.RegisterWebhookEvent != nil)
+	p.present("LoginByEmail", ctx.LoginByEmail != nil)
+	p.present("LoginByIdentity", ctx.LoginByIdentity != nil)
+	p.present("BindIdentity", ctx.BindIdentity != nil)
+	p.present("Provide", ctx.Provide != nil)
+	p.present("Lookup", ctx.Lookup != nil)
+	p.present("DB", ctx.DB != nil)
+
+	if p.httpMode {
+		p.present("PluginActive", ctx.PluginActive != nil)
+		p.present("FeatureActive", ctx.FeatureActive != nil)
+		p.present("ActivePlugins", ctx.ActivePlugins != nil)
+		p.present("HandleRoot", ctx.HandleRoot != nil)
+		p.present("HandleStatic", ctx.HandleStatic != nil)
+	} else {
+		for _, name := range []string{"PluginActive", "FeatureActive", "ActivePlugins"} {
+			if !isNilFunc(ctxField(ctx, name)) {
+				t.Errorf("plugin.Context.%s must stay nil in the MCP path", name)
+			}
 		}
 	}
-	if ctx.SendMail != nil {
-		_ = ctx.SendMail(1, "to@example.com", "sub", "<p>hi</p>", "hi")
+
+	// Global setting round-trip.
+	if err := ctx.SetGlobalSetting("cov.g"+p.name, "gv"); err != nil {
+		t.Fatalf("SetGlobalSetting: %v", err)
 	}
-	if ctx.SetLLMResolver != nil {
-		ctx.SetLLMResolver(func() (llmprovider.Provider, error) { return nil, nil })
+	if got := ctx.GetGlobalSetting("cov.g" + p.name); got != "gv" {
+		t.Errorf("GetGlobalSetting after Set = %q, want gv", got)
 	}
-	if ctx.SetLLMResolverForOrg != nil {
-		ctx.SetLLMResolverForOrg(func(uint) (llmprovider.Provider, error) { return nil, nil })
+
+	// Workspace setting round-trip + cross-org isolation. A fixed org id far
+	// from the auto-increment range keeps the isolation check unambiguous; the
+	// key is per-probe so the two instances never overwrite each other.
+	wsOrg := uint(4242)
+	if err := ctx.SetWorkspaceSetting(wsOrg, "cov.ws"+p.name, "wv"); err != nil {
+		t.Fatalf("SetWorkspaceSetting: %v", err)
 	}
-	if ctx.GetWorkspaceSetting != nil {
-		_ = ctx.GetWorkspaceSetting(1, "k")
+	if got := ctx.GetWorkspaceSetting(wsOrg, "cov.ws"+p.name); got != "wv" {
+		t.Errorf("GetWorkspaceSetting after Set = %q, want wv", got)
 	}
-	if ctx.GetGlobalSetting != nil {
-		_ = ctx.GetGlobalSetting("k")
+	if got := ctx.GetWorkspaceSetting(wsOrg+1, "cov.ws"+p.name); got != "" {
+		t.Errorf("GetWorkspaceSetting crossed org boundaries: %q", got)
 	}
-	if ctx.SetWorkspaceSetting != nil {
-		_ = ctx.SetWorkspaceSetting(1, "k", "v")
+
+	// A registered notifier must receive the Notify.
+	var gotText string
+	ctx.RegisterNotifier("cov.notify."+p.name, func(_ context.Context, _, text string) error {
+		gotText = text
+		return nil
+	})
+	cfg, err := ctx.Encrypt([]byte(`{}`))
+	if err != nil {
+		t.Fatalf("Encrypt notifier config: %v", err)
 	}
-	if ctx.SetGlobalSetting != nil {
-		_ = ctx.SetGlobalSetting("k", "v")
+	if err := ctx.Notify(context.Background(), "cov.notify."+p.name, cfg, "hello "+p.name); err != nil {
+		t.Fatalf("Notify: %v", err)
 	}
-	if ctx.RegisterTask != nil {
-		ctx.RegisterTask("probe-task", func(context.Context, []byte) error { return nil })
+	if gotText != "hello "+p.name {
+		t.Errorf("notifier received %q, want %q", gotText, "hello "+p.name)
 	}
-	if ctx.Enqueue != nil {
-		_ = ctx.Enqueue(context.Background(), "probe-task", []byte(`{}`))
+
+	// Cache round-trips through the real in-memory cache.
+	ck := "cov:cache:" + p.name
+	if err := ctx.CacheSet(context.Background(), ck, "cacheval", time.Minute); err != nil {
+		t.Fatalf("CacheSet: %v", err)
 	}
-	if ctx.CacheGet != nil {
-		ctx.CacheGet(context.Background(), "k", new(string))
+	var cached string
+	if !ctx.CacheGet(context.Background(), ck, &cached) || cached != "cacheval" {
+		t.Errorf("CacheGet after set = %q, want cacheval", cached)
 	}
-	if ctx.CacheSet != nil {
-		_ = ctx.CacheSet(context.Background(), "k", "v", time.Second)
+	if err := ctx.DeleteCache(context.Background(), ck); err != nil {
+		t.Fatalf("DeleteCache: %v", err)
 	}
-	if ctx.DeleteCache != nil {
-		_ = ctx.DeleteCache(context.Background(), "k")
+	var after string
+	if ctx.CacheGet(context.Background(), ck, &after) {
+		t.Errorf("CacheGet after delete = %q, want a miss", after)
 	}
-	if ctx.GeoLookup != nil {
-		ctx.GeoLookup("192.0.2.1")
+
+	// Guard admits only an authenticated request. The identity rows are built
+	// through the wired DB so the authenticated path is self-contained; the
+	// generated user/org IDs feed the identity assertions below.
+	u := models.User{Email: p.name + "@cov.example", EmailVerified: true}
+	if err := ctx.DB.Create(&u).Error; err != nil {
+		t.Fatalf("create user: %v", err)
 	}
-	if ctx.ParseUA != nil {
-		_, _, _ = ctx.ParseUA("Mozilla/5.0")
+	o := models.Org{Name: p.name + " org", Slug: "cov-" + p.name, InboundToken: "tok"}
+	if err := ctx.DB.Create(&o).Error; err != nil {
+		t.Fatalf("create org: %v", err)
 	}
-	if ctx.PublishEvent != nil {
-		ctx.PublishEvent(1, "probe.event", map[string]any{"probe": true})
+	if err := ctx.DB.Create(&models.OrgMember{OrgID: o.ID, UserID: u.ID, Role: "owner"}).Error; err != nil {
+		t.Fatalf("create membership: %v", err)
 	}
-	if ctx.RecordUsage != nil {
-		ctx.RecordUsage(1, "clicks", 1)
+	raw := "cov-session-" + p.name
+	if err := ctx.DB.Create(&models.Session{
+		UserID: u.ID, OrgID: o.ID, Token: models.HashToken(raw),
+		IP: "192.0.2.1", UserAgent: "cov", LastSeenAt: time.Now(), ExpiresAt: time.Now().Add(time.Hour),
+	}).Error; err != nil {
+		t.Fatalf("create session: %v", err)
 	}
-	if ctx.RegisterWebhookEvent != nil {
-		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "probe.event", Group: "g", Title: "t"})
+
+	guarded := ctx.Guard(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	anon := httptest.NewRecorder()
+	guarded.ServeHTTP(anon, httptest.NewRequest(http.MethodGet, "/cov-guard", nil))
+	if anon.Code != http.StatusUnauthorized {
+		t.Errorf("Guard admitted an anonymous request: %d", anon.Code)
 	}
-	if ctx.OnEmail != nil {
-		ctx.OnEmail(func(plugin.EmailEvent) {})
+
+	authedReq := httptest.NewRequest(http.MethodGet, "/cov-guard", nil)
+	authedReq.AddCookie(&http.Cookie{Name: "octarq_session", Value: raw})
+	authed := httptest.NewRecorder()
+	guarded.ServeHTTP(authed, authedReq)
+	if authed.Code != http.StatusOK {
+		t.Errorf("Guard blocked an authenticated request: %d", authed.Code)
 	}
-	if ctx.PluginActive != nil {
-		ctx.PluginActive(1, p)
+
+	// Identity extraction returns the request's user/org/role.
+	if got := ctx.UserID(authedReq); got != u.ID {
+		t.Errorf("UserID = %d, want %d", got, u.ID)
 	}
-	if ctx.FeatureActive != nil {
-		ctx.FeatureActive(1, "anything")
+	if got := ctx.OrgID(authedReq); got != o.ID {
+		t.Errorf("OrgID = %d, want %d", got, o.ID)
 	}
-	if ctx.ActivePlugins != nil {
-		_ = ctx.ActivePlugins()
+	if got := ctx.OrgRole(authedReq); got != "owner" {
+		t.Errorf("OrgRole = %q, want owner", got)
 	}
-	if ctx.HandleRoot != nil {
-		ctx.HandleRoot(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	if ctx.IsInstanceAdmin(authedReq) {
+		t.Error("a regular user was reported instance admin")
 	}
-	if ctx.HandleStatic != nil {
-		ctx.HandleStatic("/probe", fstest.MapFS{
-			"index.html": &fstest.MapFile{Data: []byte("<!doctype html><html></html>")},
-		})
+	if !ctx.RequireRole(authedReq, "owner") {
+		t.Error("owner failed RequireRole(owner)")
 	}
-	if ctx.DNS != nil {
-		_, _ = ctx.DNS.List(context.Background(), 1, 1)
-		_, _ = ctx.DNS.Set(context.Background(), 1, 1, plugin.DNSRecord{})
-		_ = ctx.DNS.Delete(context.Background(), 1, 1, "r1")
+	if !ctx.RequirePerm(authedReq, "cov.perm", "member") {
+		t.Error("owner failed RequirePerm(min member)")
 	}
-	if ctx.LoginByEmail != nil {
-		_, _ = ctx.LoginByEmail(w, r, "probe@"+p.name+".example.com")
+
+	// Encrypt/Decrypt round-trip.
+	enc, err := ctx.Encrypt([]byte("cov secret"))
+	if err != nil {
+		t.Fatalf("Encrypt: %v", err)
 	}
-	if ctx.LoginByIdentity != nil {
-		_, _ = ctx.LoginByIdentity(w, r, plugin.ExternalIdentity{
-			Provider: "oidc", Issuer: "https://idp.probe.example", Subject: p.name,
-			Email: "probe@" + p.name + ".example.com",
-		})
+	if dec, err := ctx.Decrypt(enc); err != nil || string(dec) != "cov secret" {
+		t.Errorf("Decrypt(Encrypt(x)) = %q, %v; want cov secret", dec, err)
 	}
-	if ctx.BindIdentity != nil {
-		_ = ctx.BindIdentity(r, plugin.ExternalIdentity{Provider: "oidc", Issuer: "https://idp.probe.example", Subject: p.name})
+
+	// ParseUA actually parses a desktop Chrome UA.
+	dev, browser, osName := ctx.ParseUA("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
+	if dev == "" && browser == "" && osName == "" {
+		t.Error("ParseUA returned no fields for a desktop Chrome UA")
 	}
-	if ctx.Provide != nil {
-		ctx.Provide("probe.svc."+p.name, "value")
-		_, _ = ctx.Lookup("probe.svc." + p.name)
+
+	// RegisterAuthMethod surfaces the method to auth.List.
+	ctx.RegisterAuthMethod(plugin.AuthMethod{ID: "cov.method." + p.name})
+	var methodFound bool
+	for _, m := range auth.List() {
+		if m.ID == "cov.method."+p.name {
+			methodFound = true
+		}
 	}
+	if !methodFound {
+		t.Error("RegisterAuthMethod did not surface in auth.List")
+	}
+
+	// RegisterWebhookEvent surfaces the event to the eventbus registry.
+	ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "cov.event." + p.name, Group: "cov", Title: "t", Description: "d"})
+	var eventFound bool
+	for _, g := range eventbus.EventGroups() {
+		for _, e := range g.Events {
+			if e.Key == "cov.event."+p.name {
+				eventFound = true
+			}
+		}
+	}
+	if !eventFound {
+		t.Error("RegisterWebhookEvent did not surface in eventbus.EventGroups")
+	}
+
+	// RecordUsage reaches the usage-meter service.
+	ctx.RecordUsage(o.ID, "clicks", 5)
+	if p.cap.usageMetric != "clicks" || p.cap.usageN != 5 {
+		t.Errorf("usage meter got %q/%d, want clicks/5", p.cap.usageMetric, p.cap.usageN)
+	}
+
+	// SendMail reaches the mail-send service.
+	if err := ctx.SendMail(o.ID, "to@cov.example", "sub", "<p>h</p>", "h"); err != nil {
+		t.Fatalf("SendMail: %v", err)
+	}
+	if p.cap.mailTo != "to@cov.example" {
+		t.Errorf("mail service got to=%q, want to@cov.example", p.cap.mailTo)
+	}
+
+	// OnEmail must hand the handler to the dispatcher (immediate for the probe
+	// mounted after it, deferred-and-flushed for the one before it; the boot
+	// test asserts the captured count).
+	ctx.OnEmail(func(plugin.EmailEvent) {})
+
+	// Provide/Lookup round-trip.
+	svc := "cov.svc." + p.name
+	ctx.Provide(svc, "svcval")
+	if v, ok := ctx.Lookup(svc); !ok || v != "svcval" {
+		t.Errorf("Lookup after Provide = %v (ok=%v), want svcval", v, ok)
+	}
+
+	// HTTP-only enablement behavior.
+	if p.httpMode {
+		names := map[string]bool{}
+		for _, pl := range ctx.ActivePlugins() {
+			names[pl.Name()] = true
+		}
+		if !names[p.name] {
+			t.Errorf("ActivePlugins missing %s (have %v)", p.name, names)
+		}
+		if !ctx.PluginActive(1, help.New()) {
+			t.Error("core help plugin reported inactive")
+		}
+		if !ctx.PluginActive(1, p) {
+			t.Error("an EnabledByDefault plugin reported inactive")
+		}
+		if !ctx.FeatureActive(1, "dns") {
+			t.Error("core dns feature reported inactive")
+		}
+		if ctx.FeatureActive(0, "no-such-feature") {
+			t.Error("an unknown feature defaulted enabled")
+		}
+		if !ctx.FeatureActive(1, p.name) {
+			t.Error("an EnabledByDefault feature reported inactive in org 1")
+		}
+	}
+
+	// LoginByEmail provisions a real account through the wired auth manager.
+	rec := httptest.NewRecorder()
+	uid, err := ctx.LoginByEmail(rec, httptest.NewRequest(http.MethodGet, "/", nil), "cov-login-"+p.name+"@example.com")
+	if err != nil {
+		t.Fatalf("LoginByEmail: %v", err)
+	}
+	if uid == 0 {
+		t.Error("LoginByEmail returned user 0")
+	}
+	if len(rec.Result().Cookies()) == 0 {
+		t.Error("LoginByEmail issued no session cookie")
+	}
+
+	// LoginByIdentity provisions a JIT account through the wired resolver.
+	recID := httptest.NewRecorder()
+	uid, err = ctx.LoginByIdentity(recID, httptest.NewRequest(http.MethodGet, "/", nil), plugin.ExternalIdentity{
+		Provider: "oidc", Issuer: "https://cov.example", Subject: p.name + "-s",
+		Email: "cov-id-" + p.name + "@example.com", MayCreateUser: true,
+	})
+	if err != nil {
+		t.Fatalf("LoginByIdentity: %v", err)
+	}
+	if uid == 0 {
+		t.Error("LoginByIdentity returned user 0")
+	}
+
+	// RevokeUserOrgSessions removes the guard session minted above.
+	if n := ctx.RevokeUserOrgSessions(u.ID, o.ID); n < 1 {
+		t.Errorf("revoked %d session(s), want >= 1", n)
+	}
+	var sessLeft int64
+	if err := ctx.DB.Model(&models.Session{}).Where("user_id = ? AND org_id = ?", u.ID, o.ID).Count(&sessLeft).Error; err != nil {
+		t.Fatalf("session count: %v", err)
+	}
+	if sessLeft != 0 {
+		t.Errorf("sessions after revoke = %d, want 0", sessLeft)
+	}
+}
+
+func ctxField(ctx *plugin.Context, name string) reflect.Value {
+	return reflect.ValueOf(ctx).Elem().FieldByName(name)
+}
+
+func isNilFunc(v reflect.Value) bool {
+	if !v.IsValid() {
+		return true
+	}
+	return v.IsNil()
 }
 
 // servicePlugin Provides a single well-known service when mounted.
@@ -235,36 +511,42 @@ func (p servicePlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 }
 
 // appBootComposition is the plugin set the Run/RunMCP boot tests mount: real
-// core plugins plus the probe and the service providers that unlock the code
-// paths which only fire when a service exists. The ordering lets probe-a mount
-// before the mail dispatcher exists (its OnEmail lands on the deferred list)
-// while probe-b mounts after (its OnEmail takes the immediate branch), and the
-// usage meter before either probe so RecordUsage finds it. help.New() is NOT
-// here: the stdio MCP server re-mounts plugins with a Huma-less Context and
-// help's Mount assumes one.
-func appBootComposition() []plugin.Plugin {
-	return []plugin.Plugin{
+// core plugins, the capturing service providers (usage meter, mail sender, mail
+// dispatcher) and two ctxAssertPlugin instances. probe-a mounts before the
+// dispatcher exists (its OnEmail lands on the deferred list, flushed after the
+// mount loop), probe-b after it (immediate dispatch) — so both OnEmail paths
+// are observable. help.New() is appended only for the HTTP path: the stdio MCP
+// server re-mounts plugins with a Huma-less Context and help's Mount assumes
+// Huma is wired.
+func appBootComposition(t *testing.T, cap *wiringCapture, httpMode bool) []plugin.Plugin {
+	plugins := []plugin.Plugin{
 		dns.New(),
 		links.New(),
-		servicePlugin{name: "usage-meter", svc: plugin.ServiceCloudUsage, val: plugin.UsageMeter(func(uint, string, int64) {})},
-		ctxProbePlugin{name: "probe-a"},
+		servicePlugin{name: "usage-meter", svc: plugin.ServiceCloudUsage, val: plugin.UsageMeter(func(_ uint, metric string, n int64) { cap.addUsage(metric, n) })},
+		servicePlugin{name: "mail-send", svc: plugin.ServiceMailSend, val: plugin.MailSender(func(_ uint, to, _, _, _ string) error { cap.addMail(to); return nil })},
+		ctxAssertPlugin{t: t, name: "probe-a", cap: cap, httpMode: httpMode},
 		servicePlugin{name: "mail-ready", svc: plugin.ServiceMailReady, val: plugin.MailReady(func() bool { return true })},
-		servicePlugin{name: "mail-send", svc: plugin.ServiceMailSend, val: plugin.MailSender(func(uint, string, string, string, string) error { return nil })},
-		servicePlugin{name: "dispatcher", svc: plugin.ServiceMailDispatcher, val: plugin.EmailDispatcher(func(func(plugin.EmailEvent)) {})},
-		ctxProbePlugin{name: "probe-b"},
+		servicePlugin{name: "dispatcher", svc: plugin.ServiceMailDispatcher, val: plugin.EmailDispatcher(func(func(plugin.EmailEvent)) { cap.addEmailHandler() })},
+		ctxAssertPlugin{t: t, name: "probe-b", cap: cap, httpMode: httpMode},
 	}
+	if httpMode {
+		plugins = append(plugins, help.New())
+	}
+	return plugins
 }
 
 // TestRunMCPWiring boots the MCP path (preflight, migrate, plugin mount) with a
-// minimal composition and a cancelled context, so the stdio server returns
-// immediately instead of blocking on stdin. It pins that plugins get a wired
-// service registry and a migrated schema before the MCP server starts.
+// cancelled context, so the stdio server returns immediately instead of blocking
+// on stdin. The ctx-assertion plugin runs its round-trips against RunMCP's full
+// Context; the on-email capture proves the dispatcher wiring; a migrated schema
+// proves RunMCP ran its migration pass.
 func TestRunMCPWiring(t *testing.T) {
 	a := bootApp(t)
-	for _, p := range appBootComposition() {
+	c := &wiringCapture{}
+	a.auth.WithCache(newMapCache())
+	for _, p := range appBootComposition(t, c, false) {
 		a.Use(p)
 	}
-	a.Use(testDummyPlugin{name: "stub"})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -272,8 +554,11 @@ func TestRunMCPWiring(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("RunMCP = %v, want context.Canceled", err)
 	}
-	if a.services == nil {
-		t.Error("RunMCP did not create the service registry")
+	if c.emailHandlers < 2 {
+		t.Errorf("email dispatcher captured %d handler(s), want >= 2", c.emailHandlers)
+	}
+	if c.usageMetric != "clicks" || c.mailTo == "" {
+		t.Errorf("usage/mail captures missing: %+v", c)
 	}
 	var tables int
 	if err := a.gdb.Raw(`SELECT count(*) FROM sqlite_master WHERE type='table'`).Scan(&tables).Error; err != nil {
@@ -284,15 +569,19 @@ func TestRunMCPWiring(t *testing.T) {
 	}
 }
 
-// TestRunBootsAndShutsDown boots the full HTTP composition root (core plugins
-// plus one non-core stub) with a cancelled context. Run must migrate, serve
-// briefly, and return nil on shutdown.
+// TestRunBootsAndShutsDown boots the full HTTP composition root with a
+// cancelled context. Run must migrate, serve briefly, and return nil on
+// shutdown, and the ctx-assertion plugin's observable round-trips (settings,
+// notifier, cache, guard, identity) must all pass — broken wiring turns this
+// test red. The on-email capture covers both the deferred and immediate
+// dispatcher paths.
 func TestRunBootsAndShutsDown(t *testing.T) {
 	a := bootApp(t)
-	for _, p := range appBootComposition() {
+	c := &wiringCapture{}
+	a.auth.WithCache(newMapCache())
+	for _, p := range appBootComposition(t, c, true) {
 		a.Use(p)
 	}
-	a.Use(help.New())
 	a.Use(testDummyPlugin{name: "stub"})
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -300,12 +589,70 @@ func TestRunBootsAndShutsDown(t *testing.T) {
 	if err := a.Run(ctx); err != nil {
 		t.Fatalf("Run = %v, want nil", err)
 	}
+	if c.emailHandlers < 2 {
+		t.Errorf("email dispatcher captured %d handler(s), want >= 2", c.emailHandlers)
+	}
 	var tables int
 	if err := a.gdb.Raw(`SELECT count(*) FROM sqlite_master WHERE type='table'`).Scan(&tables).Error; err != nil {
 		t.Fatalf("counting tables: %v", err)
 	}
 	if tables == 0 {
 		t.Error("Run migrated no tables")
+	}
+}
+
+// TestMCPRemountUsesMinimalContext pins the Context the stdio MCP server
+// re-mounts plugins with (mcp.buildServerInstance): only DB/OrgID/Provide/
+// Lookup are wired; every HTTP-oriented closure is deliberately nil there.
+func TestMCPRemountUsesMinimalContext(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:mcp-minimal-"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() {
+		if sqlDB, err := db.DB(); err == nil {
+			sqlDB.Close()
+		}
+	})
+
+	minimal := &plugin.Context{
+		DB:      db,
+		OrgID:   func(*http.Request) uint { return 1 },
+		Provide: func(string, any) {},
+		Lookup:  func(string) (any, bool) { return nil, false },
+	}
+	if minimal.DB == nil || minimal.OrgID == nil || minimal.Provide == nil || minimal.Lookup == nil {
+		t.Fatal("minimal remount context lost its wired subset")
+	}
+	for _, name := range []string{
+		"Guard", "UserID", "OrgRole", "RequirePerm", "Notify", "RegisterNotifier",
+		"SetGlobalSetting", "GetGlobalSetting", "SetWorkspaceSetting", "GetWorkspaceSetting",
+		"CacheSet", "CacheGet", "DeleteCache", "LoginByEmail", "LoginByIdentity", "BindIdentity",
+		"OnEmail", "SendMail", "RecordUsage", "PluginActive", "FeatureActive", "ActivePlugins",
+		"RegisterAuthMethod", "RegisterWebhookEvent", "Audit", "ParseUA",
+	} {
+		if !isNilFunc(ctxField(minimal, name)) {
+			t.Errorf("minimal MCP Context must leave %s nil", name)
+		}
+	}
+}
+
+// TestRunEnableEnvelopeFailure drives Run's envelope branch to failure: a
+// pre-seeded unwrappable DEK makes EnableEnvelope abort startup.
+func TestRunEnableEnvelopeFailure(t *testing.T) {
+	a := bootApp(t)
+	if err := a.gdb.AutoMigrate(&models.Setting{}); err != nil {
+		t.Fatalf("migrate settings: %v", err)
+	}
+	if err := a.gdb.Create(&models.Setting{Key: "crypto.dek", Value: "garbage"}).Error; err != nil {
+		t.Fatalf("seed DEK: %v", err)
+	}
+	err := a.Run(context.Background())
+	if err == nil {
+		t.Fatal("Run succeeded with a corrupted DEK")
+	}
+	if !strings.Contains(err.Error(), "cannot unwrap DEK") {
+		t.Fatalf("Run = %v, want the DEK unwrap refusal", err)
 	}
 }
 
