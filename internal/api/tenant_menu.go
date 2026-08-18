@@ -310,11 +310,15 @@ func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput
 		Email           string
 		Role            string
 		InviteTokenHash string
-		CreatedAt       time.Time
+		JoinedAt        time.Time
 	}
 	var rows []queryResult
+	// joined_at is the membership row's own timestamp. Selecting
+	// users.created_at here instead — which this did — reported the account's
+	// registration date, so one person showed the same "joined" date in every
+	// workspace they belong to.
 	err = h.db.Table("org_members").
-		Select("users.id as user_id, users.email, org_members.role, users.invite_token_hash, users.created_at").
+		Select("users.id as user_id, users.email, org_members.role, users.invite_token_hash, org_members.created_at as joined_at").
 		Joins("JOIN users ON users.id = org_members.user_id").
 		Where("org_members.org_id = ?", orgID).
 		Scan(&rows).Error
@@ -326,14 +330,19 @@ func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput
 		// NOT pending: the bootstrap instance admin authenticates against the
 		// configured env password and never stores a hash.
 		isPending := row.InviteTokenHash != ""
-		t := row.CreatedAt
-		items = append(items, MemberItem{
-			UserID:   row.UserID,
-			Email:    row.Email,
-			Role:     row.Role,
-			JoinedAt: &t,
-			Pending:  isPending,
-		})
+		item := MemberItem{
+			UserID:  row.UserID,
+			Email:   row.Email,
+			Role:    row.Role,
+			Pending: isPending,
+		}
+		// Zero means the row predates the column: omit the field rather than
+		// serialising the zero time as a join date.
+		if !row.JoinedAt.IsZero() {
+			t := row.JoinedAt
+			item.JoinedAt = &t
+		}
+		items = append(items, item)
 	}
 	return &ListOrgMembersOutput{Body: items}, nil
 }

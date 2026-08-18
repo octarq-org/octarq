@@ -129,6 +129,7 @@ export const es = {
     profile: "Mi Perfil",
     security: "Seguridad",
     tokens: "Tokens de API",
+    appearance: "Apariencia",
     "console-overview": "Visión general",
     "console-wizard": "Asistente de configuración",
     "console-settings": "Configuración de instancia",

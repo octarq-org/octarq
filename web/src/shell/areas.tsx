@@ -14,6 +14,7 @@ import {
   LineChart,
   Link2,
   Mail,
+  Palette,
   Puzzle,
   ScrollText,
   Send,
@@ -128,6 +129,7 @@ export const SETTINGS_AREA: Area = {
         { id: "profile",  label: "My Profile", Icon: User,      path: "/settings/profile" },
         { id: "security", label: "Security",   Icon: Shield,    path: "/settings/security" },
         { id: "tokens",   label: "API Tokens", Icon: KeyRound,  path: "/settings/tokens" },
+        { id: "appearance", label: "Appearance", Icon: Palette, path: "/settings/appearance" },
       ],
     },
     // The instance console (/instance) is a separate entry with its own

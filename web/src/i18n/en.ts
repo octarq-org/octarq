@@ -146,6 +146,7 @@ export const en = {
     profile: "My Profile",
     security: "Security",
     tokens: "API Tokens",
+    appearance: "Appearance",
     "console-overview": "Overview",
     "console-wizard": "Setup wizard",
     "console-settings": "Instance Settings",

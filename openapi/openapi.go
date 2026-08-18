@@ -39,9 +39,9 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 								"schema": map[string]any{
 									"type": "object",
 									"properties": map[string]any{
-										"username": map[string]any{
+										"email": map[string]any{
 											"type":        "string",
-											"description": "The user's email address",
+											"description": "The account's email address (the bootstrap admin signs in with its configured username here).",
 											"example":     "admin@example.com",
 										},
 										"password": map[string]any{
@@ -49,7 +49,7 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 											"example": "securepassword",
 										},
 									},
-									"required": []string{"username", "password"},
+									"required": []string{"email", "password"},
 								},
 							},
 						},
@@ -62,8 +62,10 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 									"schema": map[string]any{
 										"type": "object",
 										"properties": map[string]any{
-											"ok":       map[string]any{"type": "boolean", "example": true},
-											"username": map[string]any{"type": "string", "example": "admin@example.com"},
+											"ok":                map[string]any{"type": "boolean", "example": true},
+											"email":             map[string]any{"type": "string", "example": "admin@example.com"},
+											"username":          map[string]any{"type": "string", "example": "admin"},
+											"twoFactorRequired": map[string]any{"type": "boolean", "example": false},
 										},
 									},
 								},
@@ -120,8 +122,12 @@ func Generate(w io.Writer, plugins []plugin.Plugin) error {
 									"schema": map[string]any{
 										"type": "object",
 										"properties": map[string]any{
-											"username": map[string]any{"type": "string", "example": "admin@example.com"},
-											"orgId":    map[string]any{"type": "integer", "example": 1},
+											"email":           map[string]any{"type": "string", "example": "admin@example.com"},
+											"username":        map[string]any{"type": "string", "example": "admin"},
+											"orgId":           map[string]any{"type": "integer", "example": 1},
+											"role":            map[string]any{"type": "string", "example": "owner"},
+											"emailVerified":   map[string]any{"type": "boolean", "example": true},
+											"isInstanceAdmin": map[string]any{"type": "boolean", "example": true},
 										},
 									},
 								},

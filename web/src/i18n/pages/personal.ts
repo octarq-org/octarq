@@ -72,10 +72,6 @@ export const personal = {
     saveToken: "Save Changes",
     expiresAt: "Expires {{time}}",
     expired: "Expired",
-    tableDensityTitle: "Table Density",
-    tableDensityDesc: "Choose default row spacing for tables across the application",
-    densityComfortable: "Comfortable",
-    densityCompact: "Compact",
   },
   zh: {
     profileTitle: "我的资料",
@@ -150,10 +146,6 @@ export const personal = {
     saveToken: "保存修改",
     expiresAt: "到期于 {{time}}",
     expired: "已到期",
-    tableDensityTitle: "表格密度",
-    tableDensityDesc: "设置全站表格的默认行距与间距",
-    densityComfortable: "舒适",
-    densityCompact: "紧凑",
   },
   es: {
     profileTitle: "Mi Perfil",
@@ -228,10 +220,6 @@ export const personal = {
     saveToken: "Guardar Cambios",
     expiresAt: "Expira {{time}}",
     expired: "Expirado",
-    tableDensityTitle: "Densidad de Tabla",
-    tableDensityDesc: "Elija el espaciado predeterminado de filas para las tablas en toda la aplicación",
-    densityComfortable: "Cómodo",
-    densityCompact: "Compacto",
   },
   pt: {
     profileTitle: "Meu Perfil",
@@ -306,10 +294,6 @@ export const personal = {
     saveToken: "Salvar Alterações",
     expiresAt: "Expira em {{time}}",
     expired: "Expirado",
-    tableDensityTitle: "Densidade da Tabela",
-    tableDensityDesc: "Escolha o espaçamento padrão de linhas para tabelas em todo o aplicativo",
-    densityComfortable: "Confortável",
-    densityCompact: "Compacto",
   },
   ja: {
     profileTitle: "マイプロフィール",
@@ -384,9 +368,5 @@ export const personal = {
     saveToken: "変更を保存",
     expiresAt: "{{time}} に失効",
     expired: "期限切れ",
-    tableDensityTitle: "テーブルの密度",
-    tableDensityDesc: "アプリケーション全体のテーブルのデフォルト行間隔を選択します",
-    densityComfortable: "ゆったり",
-    densityCompact: "コンパクト",
   },
 };

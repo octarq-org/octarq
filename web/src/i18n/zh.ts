@@ -130,6 +130,7 @@ export const zh: Resources = {
     profile: "我的资料",
     security: "安全",
     tokens: "API 令牌",
+    appearance: "外观",
     "console-overview": "概览",
     "console-wizard": "设置向导",
     "console-settings": "实例设置",
