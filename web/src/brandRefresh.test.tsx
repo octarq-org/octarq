@@ -15,7 +15,7 @@
 //      this paints one tenant's colour onto another's workspace
 //   3. the accent repainting (a DOM side effect) while the product name and logo
 //      stayed behind, because a warm cache skipped the subscription
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import fs from "node:fs";
 import path from "node:path";
@@ -61,6 +61,19 @@ async function freshBrand(...responses: Array<Cfg & typeof BASE>) {
   const brand = await import("./brand");
   return { ...brand, spy };
 }
+
+// Warm the module graph once, outside any test's clock. freshBrand() does a
+// vi.resetModules() + dynamic import of brand.tsx, which pulls React, the plugin
+// SDK and api.ts through the transform pipeline the first time it runs — on a
+// loaded machine that cold start alone measured 9s and blew the 5s default
+// timeout, failing whichever case happened to be first. Re-instantiating the
+// modules afterwards is cheap; only the transform is not, and it is cached
+// across resetModules. The hook gets its own generous budget because it is the
+// one place that pays the cost.
+beforeAll(async () => {
+  await import("./api");
+  await import("./brand");
+}, 60_000);
 
 const seed = () => document.documentElement.style.getPropertyValue("--primary");
 
