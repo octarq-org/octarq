@@ -14,7 +14,7 @@ import (
 // TestQueryAudited verifies query_db_readonly writes an audit row for both
 // successful and rejected queries.
 func TestQueryAudited(t *testing.T) {
-	gdb, err := gorm.Open(sqlite.Open("file:mcpaudit?mode=memory&cache=shared"), &gorm.Config{})
+	gdb, err := gorm.Open(sqlite.Open(t.TempDir()+"/mcpaudit.db"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}

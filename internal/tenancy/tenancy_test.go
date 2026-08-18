@@ -2,6 +2,7 @@ package tenancy
 
 import (
 	"errors"
+	"path/filepath"
 	"testing"
 
 	"github.com/glebarez/sqlite"
@@ -13,7 +14,8 @@ import (
 
 func openDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{Logger: logger.Discard})
+	dbPath := filepath.Join(t.TempDir(), "tenancy.db")
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{Logger: logger.Discard})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

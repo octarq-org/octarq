@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -89,17 +90,77 @@ func TestDeliverAndHMACSignature(t *testing.T) {
 	}
 }
 
+func TestDeliverErrors(t *testing.T) {
+	// 1. Invalid URL scheme
+	deliver(context.Background(), "ftp://example.com/hook", "secret", []byte("{}"))
+
+	// 2. Secret decryptor failure
+	SetSecretDecryptor(func(stored string) (string, bool) { return "", false })
+	deliver(context.Background(), "http://example.com/hook", "secret", []byte("{}"))
+
+	// 3. No secret decryptor registered
+	SetSecretDecryptor(nil)
+	deliver(context.Background(), "http://example.com/hook", "secret", []byte("{}"))
+
+	// 4. Server returns HTTP 500
+	SetSecretDecryptor(func(stored string) (string, bool) { return stored, true })
+	t.Cleanup(func() { SetSecretDecryptor(nil) })
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer ts.Close()
+	deliver(context.Background(), ts.URL, "secret", []byte("{}"))
+}
+
+func TestSigningSecret(t *testing.T) {
+	// 1. Nil decryptor
+	SetSecretDecryptor(nil)
+	_, err := signingSecret("raw")
+	if err == nil || !strings.Contains(err.Error(), "no secret decryptor registered") {
+		t.Errorf("expected no decryptor error, got %v", err)
+	}
+
+	// 2. Decryptor failure
+	SetSecretDecryptor(func(s string) (string, bool) { return "", false })
+	_, err = signingSecret("raw")
+	if err == nil || !strings.Contains(err.Error(), "could not be decrypted") {
+		t.Errorf("expected could not be decrypted error, got %v", err)
+	}
+
+	// 3. Success
+	SetSecretDecryptor(func(s string) (string, bool) { return "plaintext-" + s, true })
+	defer SetSecretDecryptor(nil)
+	got, err := signingSecret("abc")
+	if err != nil || got != "plaintext-abc" {
+		t.Errorf("got %q, %v, want plaintext-abc", got, err)
+	}
+}
+
 func TestPublish(t *testing.T) {
 	SetSecretDecryptor(func(stored string) (string, bool) { return stored, true })
 	t.Cleanup(func() { SetSecretDecryptor(nil) })
 
-	gdb, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	// Nil DB test
+	Init(nil)
+	Publish(1, "link.click", map[string]any{"ok": true})
+
+	dbPath := filepath.Join(t.TempDir(), "eventbus.db")
+	gdb, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := gdb.AutoMigrate(&models.Webhook{}); err != nil {
 		t.Fatal(err)
 	}
+
+	Init(gdb)
+
+	// Publish with no hooks
+	Publish(999, "link.click", map[string]any{"ok": true})
+
+	// Publish with unmarshalable data
+	Publish(1, "link.click", make(chan int))
 
 	received := make(chan struct{}, 1)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -108,24 +169,29 @@ func TestPublish(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Register webhook
-	hook := models.Webhook{
+	// Register webhook subscribed to link.click and another hook unsubscribed
+	gdb.Create(&models.Webhook{
 		OrgID:   1,
 		Name:    "Test Hook",
 		URL:     ts.URL,
 		Secret:  "secret",
 		Events:  "link.click",
 		Enabled: true,
-	}
-	gdb.Create(&hook)
-
-	Init(gdb)
+	})
+	gdb.Create(&models.Webhook{
+		OrgID:   1,
+		Name:    "Unsubscribed Hook",
+		URL:     ts.URL,
+		Secret:  "secret",
+		Events:  "domain.created",
+		Enabled: true,
+	})
 
 	Publish(1, "link.click", map[string]any{"ok": true})
 
 	select {
 	case <-received:
-	case <-time.After(1 * time.Second):
-		t.Error("expected webhook to be delivered")
+	case <-time.After(3 * time.Second):
+		t.Fatal("expected webhook to be delivered")
 	}
 }
