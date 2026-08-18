@@ -22,20 +22,14 @@ func TestListLinksFiltersAndPaging(t *testing.T) {
 	wipeLinksTables(t, p)
 	ctx := context.Background()
 
-	archived := true
 	mk := func(slug, host, tags string, archived bool) {
-		a := false
-		if archived {
-			a = true
-		}
-		if err := p.db.Create(&Link{OrgID: 1, Host: host, Slug: slug, Target: "https://t.example", Title: "T " + slug, Tags: tags, Archived: a}).Error; err != nil {
+		if err := p.db.Create(&Link{OrgID: 1, Host: host, Slug: slug, Target: "https://t.example", Title: "T " + slug, Tags: tags, Archived: archived}).Error; err != nil {
 			t.Fatalf("seed %s: %v", slug, err)
 		}
 	}
 	mk("one", "h1.example", "marketing", false)
 	mk("two", "h1.example", "sales", false)
 	mk("three", "h2.example", "marketing", true)
-	_ = archived
 
 	req := httptest.NewRequest(http.MethodGet, "/api/links", nil)
 	req.Header.Set("X-Org-ID", "1")
