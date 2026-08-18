@@ -34,6 +34,12 @@ func fetchPageMeta(ctx context.Context, rawURL string) (title, desc string) {
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 256<<10))
+	return parsePageMeta(body)
+}
+
+// parsePageMeta is split from fetchPageMeta so extraction is testable without
+// a network round-trip (the SSRF-guarded client refuses loopback by design).
+func parsePageMeta(body []byte) (title, desc string) {
 	if m := reOgTitle.FindSubmatch(body); m != nil {
 		title = strings.TrimSpace(html.UnescapeString(string(m[1])))
 	} else if m := reOgTitle2.FindSubmatch(body); m != nil {
