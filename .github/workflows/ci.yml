@@ -162,6 +162,19 @@ jobs:
     name: End-to-end (Playwright)
     needs: [go, web]
     runs-on: ubuntu-latest
+    # Run inside the official Playwright image, which ships the browsers and the
+    # system libraries they need. The job previously called
+    # `playwright install --with-deps` on a bare runner, so every run did an
+    # apt-get against archive.ubuntu.com. On 2026-08-19 that fetch stalled after
+    # five Get: lines and the job sat for 2h13m before being cancelled, without
+    # having started a single test — a network dependency on the critical path
+    # of every PR, buying nothing that the image does not already provide.
+    #
+    # Keep this tag in sync with @playwright/test in web/package.json. Playwright
+    # refuses to launch when the client and the bundled browsers disagree, and
+    # the failure names a missing executable rather than a version mismatch.
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
     steps:
       - uses: actions/checkout@v4
 
@@ -181,10 +194,6 @@ jobs:
           cache: true
 
       - run: pnpm install --no-frozen-lockfile
-        working-directory: web
-
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
         working-directory: web
 
       # `pnpm e2e` is self-sufficient from a clean checkout: the webServer
