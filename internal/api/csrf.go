@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/octarq-org/octarq/internal/apierror"
 	"github.com/octarq-org/octarq/internal/csrf"
 	"github.com/octarq-org/octarq/origin"
 )
@@ -65,13 +66,13 @@ func CSRFGuard(secret string, next http.Handler) http.Handler {
 		}
 
 		if !sameOriginRequest(r) {
-			writeErr(w, http.StatusForbidden, "cross-origin request blocked")
+			writeErr(w, r, http.StatusForbidden, apierror.CodeCSRFOriginBlocked, "cross-origin request blocked")
 			return
 		}
 
 		if sc, err := r.Cookie(sessionCookieName); err == nil {
 			if !hmac.Equal([]byte(r.Header.Get(csrf.HeaderName)), []byte(csrf.GenerateToken(secret, sc.Value))) {
-				writeErr(w, http.StatusForbidden, "invalid csrf token")
+				writeErr(w, r, http.StatusForbidden, apierror.CodeCSRFTokenInvalid, "invalid csrf token")
 				return
 			}
 		}

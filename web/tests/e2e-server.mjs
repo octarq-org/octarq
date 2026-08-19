@@ -22,8 +22,13 @@ const binary = path.join(repoRoot, "octarq");
 console.log("[e2e] building the dashboard (webembed/dist)…");
 execFileSync("pnpm", ["build"], { cwd: webDir, stdio: "inherit" });
 
+// -buildvcs=false: this is a throwaway test server, so the VCS stamp buys
+// nothing, and obtaining it means shelling out to git. Under a container whose
+// uid does not own the checkout — which is how the e2e job runs — git refuses
+// with "dubious ownership" and the build fails as
+// `error obtaining VCS status: exit status 128`, before a single test runs.
 console.log("[e2e] building the octarq binary…");
-execFileSync("go", ["build", "-o", binary, "."], {
+execFileSync("go", ["build", "-buildvcs=false", "-o", binary, "."], {
   cwd: repoRoot,
   stdio: "inherit",
   env: { ...process.env, CGO_ENABLED: "0" },

@@ -40,7 +40,7 @@ func (h *Handler) mcpAuth(next http.Handler) http.Handler {
 			}
 		}
 
-		writeErr(w, http.StatusUnauthorized, "unauthorized: missing or invalid token")
+		writeErr(w, r, http.StatusUnauthorized, "", "unauthorized: missing or invalid token")
 	})
 }
 

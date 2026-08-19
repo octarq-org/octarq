@@ -108,6 +108,23 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 1.5 The API's own generated reference. huma registers these on the API
+	// mux from the real handler registrations, so this document cannot drift
+	// from what the instance serves — it IS what the instance serves.
+	//
+	// They live outside /api/ because huma puts them there, and without this
+	// branch every one of them fell through to the short-link router and 404ed:
+	// the one spec that cannot go stale was the one nobody could fetch. The
+	// published website artifact is generated from this same document.
+	//
+	// Deliberately reachable without a session: an API reference a developer
+	// must first log in to read is a reference they will not read, and it
+	// describes only the shape of the API, never any workspace's data.
+	if isSpecPath(path) {
+		s.api.ServeHTTP(w, r)
+		return
+	}
+
 	// 2. Dashboard SPA under /admin (gated by dashboardAllowed).
 	if path == "/admin" || strings.HasPrefix(path, "/admin/") {
 		if !s.dashboardAllowed(r.Host) {
@@ -219,6 +236,28 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.NotFound(w, r)
+}
+
+// specPaths are the documentation endpoints huma registers on the API mux (see
+// huma.DefaultConfig: OpenAPIPath "/openapi", DocsPath "/docs", SchemasPath
+// "/schemas"). Listing them exactly — rather than prefix-matching — keeps the
+// root namespace intact: /openapi-notes stays a short-link slug.
+var specPaths = map[string]bool{
+	"/openapi.json":     true,
+	"/openapi.yaml":     true,
+	"/openapi-3.0.json": true,
+	"/openapi-3.0.yaml": true,
+	"/docs":             true,
+}
+
+// isSpecPath reports whether path is one of the generated reference endpoints.
+func isSpecPath(path string) bool {
+	if specPaths[path] {
+		return true
+	}
+	// Individual JSON Schemas the document $refs into. Without these the
+	// reference renders with dangling references.
+	return strings.HasPrefix(path, "/schemas/")
 }
 
 // dashboardAllowed reports whether the dashboard may be served for this host.
