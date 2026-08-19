@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -190,13 +189,4 @@ func documentErrorCodes(doc *huma.OpenAPI) {
 	code.Description = "Stable machine-readable error code. This set is closed: codes are added " +
 		"additively and never renamed or removed without going through the deprecation process. " +
 		"Branch on this field; never string-match `message`."
-}
-
-// statusText names a status for a response description without importing the
-// status constants at every call site.
-func statusText(code int) string {
-	if s := http.StatusText(code); s != "" {
-		return s
-	}
-	return strconv.Itoa(code)
 }
