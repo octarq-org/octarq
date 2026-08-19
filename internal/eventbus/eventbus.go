@@ -1,15 +1,11 @@
 package eventbus
 
 import (
-	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
-	"net/http"
 	"strings"
 	"time"
 
@@ -61,6 +57,10 @@ type EventPayload struct {
 }
 
 // Publish dispatches an event asynchronously to all subscribed webhooks.
+//
+// Each (event, hook) pair becomes one delivery with its own id, retry budget
+// and persisted log row. Fan-out is bounded by deliverySem: a tenant with a
+// long hook list queues rather than spawning a goroutine per hook.
 func Publish(orgID uint, event string, data any) {
 	if db == nil {
 		return
@@ -80,9 +80,10 @@ func Publish(orgID uint, event string, data any) {
 			return
 		}
 
+		signedAt := nowFn()
 		payload := EventPayload{
 			Event:     event,
-			Timestamp: time.Now(),
+			Timestamp: signedAt,
 			OrgID:     orgID,
 			Data:      data,
 		}
@@ -97,13 +98,43 @@ func Publish(orgID uint, event string, data any) {
 			if !isSubscribed(hook.Events, event) {
 				continue
 			}
-			go func(h models.Webhook) {
-				deliverCtx, cancelDeliver := context.WithTimeout(context.Background(), 10*time.Second)
+			d := delivery{
+				DeliveryID: newDeliveryID(),
+				OrgID:      orgID,
+				WebhookID:  hook.ID,
+				Event:      event,
+				URL:        hook.URL,
+				Secret:     hook.Secret,
+				Body:       bodyBytes,
+				SignedAt:   signedAt,
+			}
+			deliverySem <- struct{}{}
+			go func(d delivery) {
+				defer func() { <-deliverySem }()
+				// Detached from the query context on purpose: the retry budget
+				// outlives the 30s lookup window by design.
+				deliverCtx, cancelDeliver := context.WithTimeout(context.Background(), deliveryBudget)
 				defer cancelDeliver()
-				deliver(deliverCtx, h.URL, h.Secret, bodyBytes)
-			}(hook)
+				deliverWithRetry(deliverCtx, d)
+			}(d)
 		}
 	}()
+}
+
+// deliveryBudget caps the whole attempt+backoff loop for one delivery, so a
+// permanently dead receiver cannot pin a slot in deliverySem forever.
+var deliveryBudget = 15 * time.Minute
+
+// webhookSecret loads the stored (still encrypted) signing secret for a hook.
+func webhookSecret(ctx context.Context, webhookID uint) (string, error) {
+	if db == nil {
+		return "", errors.New("eventbus: not initialised")
+	}
+	var hook models.Webhook
+	if err := db.WithContext(ctx).Where("id = ?", webhookID).First(&hook).Error; err != nil {
+		return "", fmt.Errorf("eventbus: webhook %d: %w", webhookID, err)
+	}
+	return hook.Secret, nil
 }
 
 // isSubscribed checks if the comma-separated subscriptions string matches the event.
@@ -119,40 +150,4 @@ func isSubscribed(subs, event string) bool {
 		}
 	}
 	return false
-}
-
-// deliver posts the payload to the URL with the HMAC signature header.
-func deliver(ctx context.Context, url, secret string, body []byte) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-	if err != nil {
-		return
-	}
-	if err := safehttp.ValidateScheme(req.URL.Scheme); err != nil {
-		log.Printf("eventbus: refusing webhook delivery to %s: %v", url, err)
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "octarq-webhook-dispatcher/1.0")
-
-	// Calculate HMAC-SHA256 signature over the plaintext signing secret.
-	secret, err = signingSecret(secret)
-	if err != nil {
-		log.Printf("eventbus: cannot sign delivery to %s: %v", url, err)
-		return
-	}
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write(body)
-	sig := hex.EncodeToString(mac.Sum(nil))
-	req.Header.Set("X-Octarq-Signature", "sha256="+sig)
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		log.Printf("eventbus: deliver to %s failed: %v", url, err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		log.Printf("eventbus: deliver to %s returned HTTP status %d", url, resp.StatusCode)
-	}
 }

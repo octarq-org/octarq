@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -59,7 +60,19 @@ func TestDeliverAndHMACSignature(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	deliver(ctx, ts.URL, secret, payload)
+	signedAt := time.Unix(1750000000, 0)
+	d := delivery{
+		DeliveryID: "dlv-fixed-1",
+		OrgID:      1,
+		Event:      "test.event",
+		URL:        ts.URL,
+		Secret:     secret,
+		Body:       payload,
+		SignedAt:   signedAt,
+	}
+	if res := attempt(ctx, d, 1); res.Err != nil {
+		t.Fatalf("attempt failed: %v", res.Err)
+	}
 
 	if receivedHeaders.Get("Content-Type") != "application/json" {
 		t.Errorf("expected Content-Type application/json, got %q", receivedHeaders.Get("Content-Type"))
@@ -76,7 +89,7 @@ func TestDeliverAndHMACSignature(t *testing.T) {
 
 	gotSig := sigHeader[len("sha256="):]
 
-	// Verify HMAC
+	// v1 signature: HMAC over the body alone (unchanged, for existing receivers).
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(payload)
 	expectedSig := hex.EncodeToString(mac.Sum(nil))
@@ -91,18 +104,34 @@ func TestDeliverAndHMACSignature(t *testing.T) {
 }
 
 func TestDeliverErrors(t *testing.T) {
-	// 1. Invalid URL scheme
-	deliver(context.Background(), "ftp://example.com/hook", "secret", []byte("{}"))
+	run := func(url, secret string) attemptResult {
+		return attempt(context.Background(), delivery{
+			DeliveryID: "dlv-err",
+			URL:        url,
+			Secret:     secret,
+			Body:       []byte("{}"),
+			SignedAt:   time.Now(),
+		}, 1)
+	}
 
-	// 2. Secret decryptor failure
+	// 1. Invalid URL scheme — permanent, never retried.
+	if res := run("ftp://example.com/hook", "secret"); !errors.Is(res.Err, errPermanent) {
+		t.Errorf("bad scheme should be permanent, got %v", res.Err)
+	}
+
+	// 2. Secret decryptor failure — permanent.
 	SetSecretDecryptor(func(stored string) (string, bool) { return "", false })
-	deliver(context.Background(), "http://example.com/hook", "secret", []byte("{}"))
+	if res := run("http://example.com/hook", "secret"); !errors.Is(res.Err, errPermanent) {
+		t.Errorf("undecryptable secret should be permanent, got %v", res.Err)
+	}
 
-	// 3. No secret decryptor registered
+	// 3. No secret decryptor registered — permanent.
 	SetSecretDecryptor(nil)
-	deliver(context.Background(), "http://example.com/hook", "secret", []byte("{}"))
+	if res := run("http://example.com/hook", "secret"); !errors.Is(res.Err, errPermanent) {
+		t.Errorf("missing decryptor should be permanent, got %v", res.Err)
+	}
 
-	// 4. Server returns HTTP 500
+	// 4. Server returns HTTP 500 — retryable, and the status is reported.
 	SetSecretDecryptor(func(stored string) (string, bool) { return stored, true })
 	t.Cleanup(func() { SetSecretDecryptor(nil) })
 
@@ -110,7 +139,13 @@ func TestDeliverErrors(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()
-	deliver(context.Background(), ts.URL, "secret", []byte("{}"))
+	res := run(ts.URL, "secret")
+	if res.Err == nil || errors.Is(res.Err, errPermanent) {
+		t.Errorf("HTTP 500 should be a retryable error, got %v", res.Err)
+	}
+	if res.StatusCode != http.StatusInternalServerError {
+		t.Errorf("expected recorded status 500, got %d", res.StatusCode)
+	}
 }
 
 func TestSigningSecret(t *testing.T) {
