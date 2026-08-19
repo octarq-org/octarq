@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -59,51 +58,35 @@ func newTestHandlerWithInstance(t *testing.T) (*Handler, http.Handler, *gorm.DB)
 }
 
 func TestInviteFlow(t *testing.T) {
-	srv, db := newTestHandler(t)
+	h, srv, db := newTestHandlerRaw(t)
 	const orgID = uint(1)
 
 	// Create an admin user first to manage members.
 	adminUID := seedOrgMember(t, db, orgID, "admin@example.com", "owner")
 	adminSession := sessionCookies(t, adminUID, orgID)
 
+	// The raw token reaches the invited mailbox and nowhere else, so the test
+	// reads it the way the invitee would.
+	sent := captureInviteMail(t, h)
+
 	email := t.Name() + "+newbie@example.com"
-	rec := do(srv, "POST", "/api/org/members", adminSession, fmt.Sprintf(`{"email":%q,"role":"member"}`, email))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("addOrgMember failed: %s", rec.Body.String())
-	}
-
-	var res struct {
-		Ok          bool   `json:"ok"`
-		InviteToken string `json:"inviteToken"`
-		InviteUrl   string `json:"inviteUrl"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
-
-	if !res.Ok {
-		t.Fatal("response ok is not true")
-	}
-	if res.InviteToken == "" {
-		t.Fatal("expected invite token, got empty")
-	}
-	expectedUrl := "/admin/invite/accept?token=" + res.InviteToken
-	if res.InviteUrl != expectedUrl {
-		t.Fatalf("expected invite url %q, got %q", expectedUrl, res.InviteUrl)
+	rawToken := inviteAndReadToken(t, srv, sent, adminSession, email)
+	if rawToken == "" {
+		t.Fatal("expected invite token in the mailed link, got empty")
 	}
 
 	// Verify database record has token and expiry
 	var user models.User
-	if err := db.Where("email = ?", t.Name()+"+newbie@example.com").First(&user).Error; err != nil {
+	if err := db.Where("email = ?", email).First(&user).Error; err != nil {
 		t.Fatalf("user not found in db: %v", err)
 	}
-	// The raw token never leaves the API response / mailed link: the DB row
-	// stores only its SHA-256 hash, so a DB read cannot recover a live invite.
-	if user.InviteTokenHash == res.InviteToken {
-		t.Fatalf("invite token stored in plaintext: db hash %q equals the raw token %q", user.InviteTokenHash, res.InviteToken)
+	// The raw token lives only in the mailed link: the DB row stores only its
+	// SHA-256 hash, so a DB read cannot recover a live invite.
+	if user.InviteTokenHash == rawToken {
+		t.Fatalf("invite token stored in plaintext: db hash %q equals the raw token %q", user.InviteTokenHash, rawToken)
 	}
-	if user.InviteTokenHash != hashToken(res.InviteToken) {
-		t.Fatalf("db token hash %q does not match SHA-256 of the response token %q", user.InviteTokenHash, res.InviteToken)
+	if user.InviteTokenHash != hashToken(rawToken) {
+		t.Fatalf("db token hash %q does not match SHA-256 of the mailed token %q", user.InviteTokenHash, rawToken)
 	}
 	if user.InviteExpiresAt == nil {
 		t.Fatal("db invite expires at is nil")
@@ -129,7 +112,7 @@ func TestInviteFlow(t *testing.T) {
 	db.Model(&user).Updates(map[string]any{
 		"invite_expires_at": &expiredTime,
 	})
-	recAcceptExpired := do(srv, "POST", "/api/auth/invite/accept", nil, fmt.Sprintf(`{"token":%q,"password":"newpassword"}`, res.InviteToken))
+	recAcceptExpired := do(srv, "POST", "/api/auth/invite/accept", nil, fmt.Sprintf(`{"token":%q,"password":"newpassword"}`, rawToken))
 	if recAcceptExpired.Code != http.StatusBadRequest {
 		t.Errorf("accept expired token: got status %d, want 400", recAcceptExpired.Code)
 	}
@@ -141,7 +124,7 @@ func TestInviteFlow(t *testing.T) {
 	})
 
 	// Accept invite successfully
-	recAcceptSuccess := do(srv, "POST", "/api/auth/invite/accept", nil, fmt.Sprintf(`{"token":%q,"password":"newpassword"}`, res.InviteToken))
+	recAcceptSuccess := do(srv, "POST", "/api/auth/invite/accept", nil, fmt.Sprintf(`{"token":%q,"password":"newpassword"}`, rawToken))
 	if recAcceptSuccess.Code != http.StatusOK {
 		t.Fatalf("accept invite success: got status %d, body %s", recAcceptSuccess.Code, recAcceptSuccess.Body.String())
 	}
@@ -170,7 +153,7 @@ func TestInviteFlow(t *testing.T) {
 // instances that require verification (the default) and waits for a
 // verification email that was never sent.
 func TestInviteAcceptMarksEmailVerifiedAndAllowsLogin(t *testing.T) {
-	srv, db := newTestHandler(t)
+	h, srv, db := newTestHandlerRaw(t)
 	// Pin the default-on gate explicitly rather than leaning on it silently.
 	if err := db.Save(&models.Setting{Key: keyRequireEmailVerification, Value: "true"}).Error; err != nil {
 		t.Fatalf("set require_email_verification=true: %v", err)
@@ -179,23 +162,15 @@ func TestInviteAcceptMarksEmailVerifiedAndAllowsLogin(t *testing.T) {
 	const orgID = uint(1)
 	adminUID := seedOrgMember(t, db, orgID, "inviteadmin@example.com", "owner")
 	adminSession := sessionCookies(t, adminUID, orgID)
+	sent := captureInviteMail(t, h)
 
 	email := t.Name() + "+teammate@example.com"
-	rec := do(srv, "POST", "/api/org/members", adminSession, fmt.Sprintf(`{"email":%q,"role":"member"}`, email))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("addOrgMember failed: %s", rec.Body.String())
-	}
-	var res struct {
-		InviteToken string `json:"inviteToken"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
-		t.Fatalf("decode invite response: %v", err)
-	}
-	if res.InviteToken == "" {
+	rawToken := inviteAndReadToken(t, srv, sent, adminSession, email)
+	if rawToken == "" {
 		t.Fatal("expected an invite token, got empty")
 	}
 
-	rec = do(srv, "POST", "/api/auth/invite/accept", nil, fmt.Sprintf(`{"token":%q,"password":"teampass123"}`, res.InviteToken))
+	rec := do(srv, "POST", "/api/auth/invite/accept", nil, fmt.Sprintf(`{"token":%q,"password":"teampass123"}`, rawToken))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("accept invite: got %d (%s), want 200", rec.Code, rec.Body.String())
 	}
