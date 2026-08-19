@@ -162,7 +162,75 @@ sidebar merge in `web/src/App.tsx`). The rail ignores `Category` and
 
 ---
 
-## 5. Inter-Plugin Service Registry
+## 5. Route Namespace & Idempotent Writes
+
+### Namespace
+
+`http.ServeMux` **panics** on a duplicate pattern, so two plugins claiming the
+same path is a boot crash. Octarq catches that before the mux does and refuses
+to start with an error naming both plugins — but the only way to be sure your
+routes never collide with a future core or Pro route is to stay inside the
+namespace reserved for out-of-tree plugins:
+
+```
+/api/x/{your-plugin-name}/...
+```
+
+This is **enforced** for third-party plugins: an out-of-tree plugin that
+registers an `/api/...` route outside `/api/x/{name}/` is refused at startup.
+In-tree paths that predate the rule (`/api/domains`, `/api/emails`,
+`/api/products`) are deliberately left alone; the bare top-level nouns are
+already spoken for, and this is what keeps them from becoming a moving target
+for you.
+
+Routes outside `/api/` (a public landing page, an OAuth callback) are not
+subject to the rule.
+
+```go
+mux.Handle("POST /api/x/hello/greetings", ctx.Guard(createGreeting))
+```
+
+### Idempotent writes
+
+Any endpoint that creates a resource, sends a message, or moves money should
+accept an `Idempotency-Key`. A client whose request times out mid-flight will
+retry, and without a key the retry is a second side effect.
+
+The host provides the mechanism through the service registry; resolve it
+lazily and wrap the handlers that need it:
+
+```go
+import "github.com/octarq-org/octarq/idempotency"
+
+type middleware = func(http.Handler) http.Handler
+
+func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
+    idem := func(h http.Handler) http.Handler { return h } // no-op fallback
+    if m, ok := plugin.LookupAs[middleware](ctx, idempotency.ServiceName); ok {
+        idem = m
+    }
+    mux.Handle("POST /api/x/hello/greetings", idem(ctx.Guard(createGreeting)))
+}
+```
+
+Behaviour, once wrapped:
+
+- Requests **without** the header are unaffected — adoption never changes
+  existing clients.
+- The first request runs; its response is stored per `(workspace, endpoint,
+  key)` and replayed for repeats within 24h with `Idempotency-Replayed: true`.
+- A repeat arriving while the first is still running gets `409` + `Retry-After`.
+- The same key with a **different** body gets `422` — never someone else's
+  response.
+- `5xx`, `429` and panics release the key, so the client's retry is still
+  possible.
+- A response too large (>1 MiB) or streamed cannot be stored; the repeat gets
+  `409` with `Idempotency-Original-Status` rather than a fabricated empty body.
+  The handler still never runs twice.
+
+---
+
+## 6. Inter-Plugin Service Registry
 
 Plugins communicate through an in-memory service registry provided on `plugin.Context`.
 
@@ -183,7 +251,7 @@ Services are resolved **lazily** — in `Start` or per-request, never in your ow
 
 ---
 
-## 6. Ship In-App Help Docs
+## 7. Ship In-App Help Docs
 
 Ship documentation as a `docs/` directory, embedded and served under `/help/<slug>`:
 
@@ -198,7 +266,7 @@ The naming is the contract: `docs/webhooks.mdx` is a page whose slug is `webhook
 
 ---
 
-## 7. Composition & Building
+## 8. Composition & Building
 
 Octarq plugins are composed at build time (similar to `xcaddy`):
 
@@ -212,7 +280,7 @@ OCTARQ_PLUGINS='[{"go":"github.com/you/octarq-plugin-hello","npm":"@you/octarq-p
 
 ---
 
-## 8. Trust model
+## 9. Trust model
 
 There is **no runtime plugin loading** — a compiled-in plugin runs **in-process with
 full access** (DB, secrets, network). This fits a **curated / operator-opt-in**
@@ -222,7 +290,7 @@ would need process/WASM isolation.
 
 ---
 
-## 9. Distribution
+## 10. Distribution
 
 A plugin is **one repo** with the two halves: the Go module is `go get`-able, and
 the `web/` package publishes to npm with `@octarq/plugin-sdk` and `react` as
@@ -232,10 +300,11 @@ For publishing the SDK itself, see [Publishing the SDK](/guides/publishing/).
 
 ---
 
-## 10. Checklist
+## 11. Checklist
 
 - [ ] `Plugin.Name()` and `UIPlugin.name` are identical.
 - [ ] A compile-time `var _ plugin.X = Plugin{}` assert for **every** interface (Plugin + each optional one).
+- [ ] Backend `/api` routes live under `/api/x/<name>/`; write endpoints accept `Idempotency-Key`.
 - [ ] Backend routes registered on the passed `Mux`; secrets via `ctx.Encrypt`; cross-plugin services via `ctx.Provide` / lazy `plugin.LookupAs`.
 - [ ] Paid/tiered routes return **402** when unlicensed; rely on the host's auto-**404** for the disabled-feature case.
 - [ ] Pages are `React.lazy`; UI built from `@octarq/plugin-sdk`; 402/404 handled.

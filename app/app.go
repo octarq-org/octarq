@@ -29,6 +29,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/idempotency"
 	"github.com/octarq-org/octarq/internal/api"
 	"github.com/octarq-org/octarq/internal/auth"
 	"github.com/octarq-org/octarq/internal/cache"
@@ -109,7 +110,7 @@ func (rw *recoverWriter) Flush() {
 // such as payment webhooks and the customer portal) pass through unchanged —
 // they aren't workspace-scoped and can't be org-gated here.
 type gatedMux struct {
-	real    *http.ServeMux
+	real    muxSink
 	plugin  string
 	enabled func(r *http.Request, plugin string) (allowed, scoped bool)
 }
@@ -162,13 +163,44 @@ func (g *gatedAPI) Adapter() huma.Adapter {
 	return g.gAdapter
 }
 
+// recordingAPI wraps the shared huma API for a CORE plugin: core routes are not
+// feature-gated, but they still have to be checked for collisions — a core
+// plugin and a Pro module claiming the same path panics exactly the same way.
+type recordingAPI struct {
+	huma.API
+	rAdapter huma.Adapter
+}
+
+func (r *recordingAPI) Adapter() huma.Adapter { return r.rAdapter }
+
+type recordingAdapter struct {
+	huma.Adapter
+	routes *routeRegistry
+	owner  string
+}
+
+func (r *recordingAdapter) Handle(op *huma.Operation, handler func(ctx huma.Context)) {
+	if r.routes != nil && !r.routes.claim(r.owner, op.Method+" "+op.Path, false) {
+		return
+	}
+	r.Adapter.Handle(op, handler)
+}
+
 type gatedAdapter struct {
 	huma.Adapter
 	plugin  string
 	enabled func(r *http.Request, plugin string) (allowed, scoped bool)
+	// routes is the same collision guard the mux wrapper uses: huma routes end
+	// up on the same ServeMux and panic on a duplicate just the same.
+	routes     *routeRegistry
+	owner      string
+	thirdParty bool
 }
 
 func (g *gatedAdapter) Handle(op *huma.Operation, handler func(ctx huma.Context)) {
+	if g.routes != nil && !g.routes.claim(g.owner, op.Method+" "+op.Path, g.thirdParty) {
+		return
+	}
 	g.Adapter.Handle(op, func(ctx huma.Context) {
 		r, w := humago.Unwrap(ctx)
 		if allowed, scoped := g.enabled(r, g.plugin); scoped && !allowed {
@@ -398,7 +430,9 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if err := preflightTableCollisions(a.gdb.NamingStrategy, a.plugins); err != nil {
 		return err
 	}
-	var extra []any
+	// The webhook delivery log and the idempotency ledger are core
+	// infrastructure that no plugin owns, so they join the same single pass.
+	extra := append(eventbus.Models(), idempotency.Models()...)
 	for _, p := range a.plugins {
 		extra = append(extra, p.Models()...)
 	}
@@ -498,7 +532,15 @@ func (a *App) RunMCP(ctx context.Context) error {
 		Provide:      services.Provide,
 		Lookup:       services.Lookup,
 	}
+	// Same idempotency seam as the HTTP path — a plugin that resolves it in
+	// Mount must find it in both compositions.
+	services.Provide(idempotency.ServiceName, idempotency.New(a.gdb).Middleware(func(r *http.Request) uint {
+		return a.auth.OrgID(r)
+	}))
 	enabled := a.pluginGate(apiHandler)
+	// Route ownership guard: see routeRegistry. Declared before the mount loop
+	// because every plugin registers through it.
+	routes := newRouteRegistry()
 	for _, p := range a.plugins {
 		pctxCopy := *pctx
 		pInfo := plugin.Describe(p)
@@ -512,23 +554,35 @@ func (a *App) RunMCP(ctx context.Context) error {
 				PluginName:  pName,
 			}, send)
 		}
+		thirdParty := pluginIsThirdParty(p)
+		recorder := &recordingMux{real: throwaway, routes: routes, plugin: pName, thirdParty: thirdParty}
 		if plugin.FeatureIsCore(a.plugins, plugin.FeatureKey(p)) {
-			pctxCopy.Huma = apiHandler.Huma()
-			p.Mount(throwaway, &pctxCopy)
+			pctxCopy.Huma = &recordingAPI{
+				API:      apiHandler.Huma(),
+				rAdapter: &recordingAdapter{Adapter: apiHandler.Huma().Adapter(), routes: routes, owner: pName},
+			}
+			p.Mount(recorder, &pctxCopy)
 		} else {
 			pctxCopy.Huma = &gatedAPI{
 				API: apiHandler.Huma(),
 				gAdapter: &gatedAdapter{
-					Adapter: apiHandler.Huma().Adapter(),
-					plugin:  plugin.FeatureKey(p),
-					enabled: enabled,
+					Adapter:    apiHandler.Huma().Adapter(),
+					plugin:     plugin.FeatureKey(p),
+					enabled:    enabled,
+					routes:     routes,
+					owner:      pName,
+					thirdParty: thirdParty,
 				},
 			}
-			p.Mount(&gatedMux{real: throwaway, plugin: plugin.FeatureKey(p), enabled: enabled}, &pctxCopy)
+			p.Mount(&gatedMux{real: recorder, plugin: plugin.FeatureKey(p), enabled: enabled}, &pctxCopy)
 		}
 	}
-	// Two plugins Providing the same service name is a wiring bug — refuse to
-	// serve, same as a table collision.
+	// Two plugins claiming the same route, or the same service name, is a wiring
+	// bug — refuse to serve, same as a table collision. Routes first: that one
+	// would otherwise have been a ServeMux panic.
+	if err := routes.Err(); err != nil {
+		return err
+	}
 	if err := services.Err(); err != nil {
 		return err
 	}
@@ -562,7 +616,9 @@ func (a *App) Run(ctx context.Context) error {
 	if err := preflightTableCollisions(a.gdb.NamingStrategy, a.plugins); err != nil {
 		return err
 	}
-	var extra []any
+	// The webhook delivery log and the idempotency ledger are core
+	// infrastructure that no plugin owns, so they join the same single pass.
+	extra := append(eventbus.Models(), idempotency.Models()...)
 	for _, p := range a.plugins {
 		extra = append(extra, p.Models()...)
 	}
@@ -700,6 +756,12 @@ func (a *App) Run(ctx context.Context) error {
 		Provide: services.Provide,
 		Lookup:  services.Lookup,
 	}
+	// Idempotency-Key support is offered to plugin routes through the service
+	// registry rather than a new plugin.Context field, so a plugin adopts it
+	// per route (see idempotency.ServiceName) without every route paying for it.
+	services.Provide(idempotency.ServiceName, idempotency.New(a.gdb).Middleware(func(r *http.Request) uint {
+		return a.auth.OrgID(r)
+	}))
 	// Non-core plugin routes are gated by a per-workspace feature toggle: when the
 	// caller's workspace has the feature disabled, the app answers 404 before the
 	// handler runs. Core plumbing (license activation) mounts ungated — it must
@@ -712,6 +774,9 @@ func (a *App) Run(ctx context.Context) error {
 	// is core. So a buyer-facing feature does not need Core to stay reachable —
 	// see pluginGate for the org-0 contract and the test that pins it.
 	enabled := a.pluginGate(apiHandler)
+	// Route ownership guard: see routeRegistry. Declared before the mount loop
+	// because every plugin registers through it.
+	routes := newRouteRegistry()
 	for _, p := range a.plugins {
 		pctxCopy := *pctx
 		pInfo := plugin.Describe(p)
@@ -725,24 +790,36 @@ func (a *App) Run(ctx context.Context) error {
 				PluginName:  pName,
 			}, send)
 		}
+		thirdParty := pluginIsThirdParty(p)
+		recorder := &recordingMux{real: mux, routes: routes, plugin: pName, thirdParty: thirdParty}
 		if plugin.FeatureIsCore(a.plugins, plugin.FeatureKey(p)) {
-			pctxCopy.Huma = apiHandler.Huma()
-			p.Mount(mux, &pctxCopy)
+			pctxCopy.Huma = &recordingAPI{
+				API:      apiHandler.Huma(),
+				rAdapter: &recordingAdapter{Adapter: apiHandler.Huma().Adapter(), routes: routes, owner: pName},
+			}
+			p.Mount(recorder, &pctxCopy)
 		} else {
 			pctxCopy.Huma = &gatedAPI{
 				API: apiHandler.Huma(),
 				gAdapter: &gatedAdapter{
-					Adapter: apiHandler.Huma().Adapter(),
-					plugin:  plugin.FeatureKey(p),
-					enabled: enabled,
+					Adapter:    apiHandler.Huma().Adapter(),
+					plugin:     plugin.FeatureKey(p),
+					enabled:    enabled,
+					routes:     routes,
+					owner:      pName,
+					thirdParty: thirdParty,
 				},
 			}
-			p.Mount(&gatedMux{real: mux, plugin: plugin.FeatureKey(p), enabled: enabled}, &pctxCopy)
+			p.Mount(&gatedMux{real: recorder, plugin: plugin.FeatureKey(p), enabled: enabled}, &pctxCopy)
 		}
 		slog.Info("plugin mounted", "name", p.Name())
 	}
-	// Two plugins Providing the same service name is a wiring bug — refuse to
-	// serve, same as a table collision.
+	// Two plugins claiming the same route, or the same service name, is a wiring
+	// bug — refuse to serve, same as a table collision. Routes first: that one
+	// would otherwise have been a ServeMux panic.
+	if err := routes.Err(); err != nil {
+		return err
+	}
 	if err := services.Err(); err != nil {
 		return err
 	}
