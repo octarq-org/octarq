@@ -71,8 +71,13 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 
+	// `octarq openapi` prints the published specification. It boots the same
+	// composition the server does — Core plugins included — so the document is
+	// read off the live handler registrations rather than described alongside
+	// them. Passing nil here would emit a spec missing every links, mail, DNS
+	// and help route.
 	if len(args) > 0 && args[0] == "openapi" {
-		if err := openapi.Generate(stdout, nil); err != nil {
+		if err := openapi.Generate(stdout, builtin.Default()); err != nil {
 			slog.Error("openapi generation failed", "err", err)
 			return 1
 		}

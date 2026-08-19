@@ -14,6 +14,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/internal/apierror"
 	"github.com/octarq-org/octarq/internal/auth"
 	"github.com/octarq-org/octarq/internal/crypto"
 	"github.com/octarq-org/octarq/internal/geo"
@@ -150,17 +151,29 @@ func (h *Handler) Routes() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	config := huma.DefaultConfig("Octarq API", "1.0.0")
+	config.Info.Description = apiDescription
+	config.Servers = []*huma.Server{{URL: "/", Description: "This instance"}}
+	// Hooks run on EVERY operation added to the document, including the ones
+	// plugins register after Routes() returns. That is the point: a rule
+	// enforced only over the core's own registrations is a rule half the
+	// surface escapes.
+	config.OnAddOperation = append(config.OnAddOperation, normalizeValidationResponse, applyDeprecation)
+
 	api := humago.New(mux, config)
 	h.humaAPI = api
 
-	// Override validation error status from 422 to 400 for consistency with tests and clients.
-	oldNewError := huma.NewError
-	huma.NewError = func(status int, msg string, errs ...error) huma.StatusError {
-		if status == 422 {
-			status = 400
-		}
-		return oldNewError(status, msg, errs...)
-	}
+	// The single error envelope is installed process-wide in errors.go's init().
+	// It used to be assigned here, wrapping whatever was already installed —
+	// which nested on the second Routes() call and silently rewrote status codes
+	// other repositories had declared. See errors.go.
+
+	// Deprecation signalling runs first so the headers are on the response even
+	// when a later middleware refuses the request: a caller whose integration
+	// has a deadline should learn about it from a 401 too.
+	api.UseMiddleware(func(ctx huma.Context, next func(huma.Context)) {
+		deprecationHeaders(ctx)
+		next(ctx)
+	})
 
 	// Early authentication middleware to avoid validation failures returning 400/422 for unauthenticated requests.
 	api.UseMiddleware(func(ctx huma.Context, next func(huma.Context)) {
@@ -201,13 +214,51 @@ func (h *Handler) Routes() *http.ServeMux {
 		Method:      "POST",
 		Path:        "/api/auth/login",
 		Summary:     "Log in",
-		Tags:        []string{"Auth"},
+		Description: "Exchange credentials for a browser session. On success the `octarq_session` cookie is set " +
+			"along with the CSRF token cookie; subsequent cookie-authenticated writes must echo that token in " +
+			"`X-CSRF-Token`. When the account has 2FA enabled the response asks for a second factor instead of " +
+			"completing the login — finish it at `POST /api/auth/2fa/verify`.\n\n" +
+			"Machine clients should not use this endpoint: create an API token (see the Tokens tag) and send " +
+			"`Authorization: Bearer <token>` instead. Failed attempts are rate limited per IP (5 per 15 minutes) " +
+			"and answer 429.",
+		Tags:   []string{"Auth"},
+		Errors: []int{401, 429},
 	}, h.loginHuma)
 
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/register", Summary: "Register", Tags: []string{"Auth"}}, h.register)
+	huma.Register(api, huma.Operation{
+		OperationID: "register",
+		Method:      "POST",
+		Path:        "/api/auth/register",
+		Summary:     "Register",
+		Description: "Create an account and its first workspace. Refused with 403 when the instance has public " +
+			"sign-up disabled, and rate limited to 5 sign-ups per IP per hour. When email verification is " +
+			"required the account exists but cannot sign in until the emailed link is followed.",
+		Tags:   []string{"Auth"},
+		Errors: []int{403, 409, 429},
+	}, h.register)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/2fa/verify", Summary: "Verify 2FA", Tags: []string{"Auth"}}, h.verify2FA)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/logout", Summary: "Log out", Tags: []string{"Auth"}}, h.logout)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/auth/me", Summary: "Me", Tags: []string{"Auth"}}, h.me)
+	huma.Register(api, huma.Operation{
+		OperationID: "logout",
+		Method:      "POST",
+		Path:        "/api/auth/logout",
+		Summary:     "Log out",
+		Description: "Ends the current session and clears its cookies. Idempotent: logging out without a valid " +
+			"session still succeeds, so a client recovering from an expired session need not special-case it. " +
+			"Other sessions of the same user are untouched — use `POST /api/auth/logout-all` for those.",
+		Tags: []string{"Auth"},
+	}, h.logout)
+	huma.Register(api, huma.Operation{
+		OperationID: "getCurrentUser",
+		Method:      "GET",
+		Path:        "/api/auth/me",
+		Summary:     "Get the authenticated user",
+		Description: "Returns the caller's identity, their role in the active workspace, and which workspace is " +
+			"active. This is the canonical way to test whether a session or bearer token is still valid: a 401 " +
+			"here means re-authenticate. The active workspace is a property of the session, not of the user — " +
+			"change it with `POST /api/auth/switch-org`.",
+		Tags:   []string{"Auth"},
+		Errors: []int{401},
+	}, h.me)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/invite/accept", Summary: "Accept Invite", Tags: []string{"Auth"}}, h.acceptInvite)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/password", Summary: "Change Password", Tags: []string{"Auth"}}, h.changePassword)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/auth/email", Summary: "Change Email", Tags: []string{"Auth"}}, h.changeEmail)
@@ -226,14 +277,43 @@ func (h *Handler) Routes() *http.ServeMux {
 	mux.HandleFunc("GET /auth/callback/{provider}", h.oauth.Callback)
 
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/abuse", Summary: "Submit Abuse", Tags: []string{"Public"}, DefaultStatus: 201}, h.submitAbuse)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/health", Summary: "Health Check", Tags: []string{"Public"}}, h.health)
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/status", Summary: "Subsystem Status", Tags: []string{"Public"}, Metadata: map[string]any{"public": true}}, h.subsystemStatus)
+	huma.Register(api, huma.Operation{
+		OperationID: "health",
+		Method:      "GET",
+		Path:        "/api/health",
+		Summary:     "Health check",
+		Description: "Liveness probe: answers 200 whenever the process is serving. It deliberately does NOT check " +
+			"the database or any dependency, so an orchestrator does not restart a healthy process over a " +
+			"transient outage downstream. For dependency state use `GET /api/status`.",
+		Tags: []string{"Public"},
+	}, h.health)
+	huma.Register(api, huma.Operation{
+		OperationID: "subsystemStatus",
+		Method:      "GET",
+		Path:        "/api/status",
+		Summary:     "Subsystem status",
+		Description: "Per-subsystem health (database, queue, mail, DNS) behind the public status page. Unlike " +
+			"`/api/health` this does reach dependencies, so it is rate limited to 60 requests per minute per IP.",
+		Tags:     []string{"Public"},
+		Errors:   []int{429},
+		Metadata: map[string]any{"public": true},
+	}, h.subsystemStatus)
 
 	// MCP SSE and Streamable HTTP endpoints.
 	mux.Handle("/api/mcp/sse", h.mcpSSEHandler())
 	mux.Handle("/api/mcp/stream", h.mcpStreamHandler())
 
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/overview", Summary: "Overview Stats", Tags: []string{"Dashboard"}}, h.overview)
+	huma.Register(api, huma.Operation{
+		OperationID: "overview",
+		Method:      "GET",
+		Path:        "/api/overview",
+		Summary:     "Workspace overview",
+		Description: "Aggregate counters and recent activity for the active workspace — what the dashboard home " +
+			"renders. Scoped to the workspace on the session; it never aggregates across workspaces, even for " +
+			"an instance administrator.",
+		Tags:   []string{"Dashboard"},
+		Errors: []int{401},
+	}, h.overview)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/settings", Summary: "Get Settings", Tags: []string{"Settings"}}, h.getSettings)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/settings/inbound-token", Summary: "Get Inbound Webhook Token", Tags: []string{"Settings"}}, h.getInboundToken)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/settings", Summary: "Update Settings", Tags: []string{"Settings"}}, h.updateSettings)
@@ -247,7 +327,19 @@ func (h *Handler) Routes() *http.ServeMux {
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/webhooks", Summary: "List Webhooks", Tags: []string{"Webhooks"}}, h.listWebhooks)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/webhooks/events", Summary: "List Webhook Event Types", Tags: []string{"Webhooks"}}, h.listWebhookEvents)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/webhooks", Summary: "Create Webhook", Tags: []string{"Webhooks"}, DefaultStatus: 201}, h.createWebhook)
+	huma.Register(api, huma.Operation{
+		OperationID: "createWebhook",
+		Method:      "POST",
+		Path:        "/api/webhooks",
+		Summary:     "Create a webhook",
+		Description: "Subscribes an HTTPS endpoint to workspace events (list them at `GET /api/webhooks/events`). " +
+			"Deliveries are signed with the generated secret — verify that signature and reject anything that " +
+			"fails it. Private and loopback targets are refused unless the operator has explicitly allowed them, " +
+			"which is what stops a webhook being used to probe the instance's own network.",
+		Tags:          []string{"Webhooks"},
+		DefaultStatus: 201,
+		Errors:        []int{400, 401, 403},
+	}, h.createWebhook)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/webhooks/{id}", Summary: "Update Webhook", Tags: []string{"Webhooks"}}, h.updateWebhook)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/webhooks/{id}", Summary: "Delete Webhook", Tags: []string{"Webhooks"}}, h.deleteWebhook)
 
@@ -259,10 +351,43 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/ai/assist/suggest-slug", Summary: "Suggest Link Slug via AI", Tags: []string{"AI"}}, h.aiSuggestSlug)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/ai/assist/summarize-email/{id}", Summary: "Summarize Email via AI", Tags: []string{"AI"}}, h.aiSummarizeEmail)
 
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/tokens", Summary: "List API Tokens", Tags: []string{"Tokens"}}, h.listTokens)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/tokens", Summary: "Create API Token", Tags: []string{"Tokens"}, DefaultStatus: 201}, h.createToken)
+	huma.Register(api, huma.Operation{
+		OperationID: "listTokens",
+		Method:      "GET",
+		Path:        "/api/tokens",
+		Summary:     "List API tokens",
+		Description: "Lists the active workspace's API tokens. The secret is never returned here — it is shown " +
+			"once, at creation. A token listed with no `lastUsedAt` has never authenticated a request and is " +
+			"safe to delete.",
+		Tags:   []string{"Tokens"},
+		Errors: []int{401},
+	}, h.listTokens)
+	huma.Register(api, huma.Operation{
+		OperationID: "createToken",
+		Method:      "POST",
+		Path:        "/api/tokens",
+		Summary:     "Create an API token",
+		Description: "Mints a bearer token for the active workspace and returns the secret **once** — it is stored " +
+			"hashed and cannot be retrieved again. Send it as `Authorization: Bearer <token>`. A bearer-authenticated " +
+			"request sends no cookies, so it is exempt from CSRF entirely.\n\n" +
+			"The token inherits the creating user's role in the workspace; it does not outlive the workspace, and " +
+			"deleting it takes effect on the next request.",
+		Tags:          []string{"Tokens"},
+		DefaultStatus: 201,
+		Errors:        []int{401, 403},
+	}, h.createToken)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/tokens/{id}", Summary: "Update API Token", Tags: []string{"Tokens"}}, h.updateToken)
-	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/tokens/{id}", Summary: "Delete API Token", Tags: []string{"Tokens"}}, h.deleteToken)
+	huma.Register(api, huma.Operation{
+		OperationID: "deleteToken",
+		Method:      "DELETE",
+		Path:        "/api/tokens/{id}",
+		Summary:     "Delete an API token",
+		Description: "Revokes a token immediately: the next request presenting it answers 401. Deleting a token " +
+			"that is already gone answers 404, so a retry after a lost response is distinguishable from a " +
+			"double-revoke.",
+		Tags:   []string{"Tokens"},
+		Errors: []int{401, 404},
+	}, h.deleteToken)
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notification-channel-types", Summary: "List Notification Channel Types", Tags: []string{"Notification Channels"}}, h.listNotificationChannelTypes)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notification-channels", Summary: "List Notification Channels", Tags: []string{"Notification Channels"}}, h.listNotificationChannels)
@@ -287,7 +412,17 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "PATCH", Path: "/api/org/members/{userId}", Summary: "Update Org Member Role", Tags: []string{"Org Management"}}, h.updateOrgMember)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/org/members/{userId}", Summary: "Remove Org Member", Tags: []string{"Org Management"}}, h.removeOrgMember)
 
-	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/account/export", Summary: "Export Org Data", Tags: []string{"Account"}}, h.exportAccount)
+	huma.Register(api, huma.Operation{
+		OperationID: "exportAccount",
+		Method:      "GET",
+		Path:        "/api/account/export",
+		Summary:     "Export workspace data",
+		Description: "Streams everything the active workspace owns as a single JSON document — the data-portability " +
+			"half of the GDPR pair whose other half is `DELETE /api/account/data`. Response size grows with the " +
+			"workspace, so treat it as a download, not a synchronous API call.",
+		Tags:   []string{"Account"},
+		Errors: []int{401, 403},
+	}, h.exportAccount)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/account/data", Summary: "Purge Org Data", Tags: []string{"Account"}}, h.purgeAccount)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/account/identities", Summary: "List Linked Identities", Tags: []string{"Account"}}, h.listIdentities)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/account/identities/{id}", Summary: "Unlink Identity", Tags: []string{"Account"}}, h.unlinkIdentity)
@@ -322,8 +457,51 @@ func (h *Handler) Routes() *http.ServeMux {
 		mux.ServeHTTP(w, r)
 	})
 
+	// The Error schema is registered by the first huma.Register above; fill in
+	// the closed code registry now that it exists.
+	documentErrorCodes(api.OpenAPI())
+
 	return mux
 }
+
+// apiDescription is the spec's front matter. It is the first thing an
+// integrator reads in the reference explorer, so it states the two things that
+// decide whether their code survives our next release: what the base path is,
+// and what an error looks like.
+const apiDescription = `The Octarq REST API.
+
+This document is generated from the Go handlers themselves — every path,
+parameter and response below is registered code, not a hand-maintained
+description of it. If it is not here, it is not served.
+
+## Base path
+
+All endpoints live under ` + "`/api/`" + `. ` + "`/api/v1/…`" + ` is accepted as an alias for
+` + "`/api/…`" + `, but it is only a rewrite: it does not pin a frozen surface and
+carries no compatibility guarantee the unversioned path does not. Prefer
+` + "`/api/…`" + `.
+
+## Authentication
+
+Either the ` + "`octarq_session`" + ` cookie (dashboard, browser) or a bearer token
+(` + "`Authorization: Bearer …`" + `, machine clients — see the Tokens endpoints).
+Cookie-authenticated writes must also echo the CSRF token in ` + "`X-CSRF-Token`" + `.
+
+## Errors
+
+Every error, from every endpoint and every layer, is the same envelope:
+
+    {"code": "validation_failed", "message": "…", "details": [...], "request_id": "…"}
+
+Branch on ` + "`code`" + ` — it is a closed, documented set (see the Error schema).
+Never match on ` + "`message`" + `: it is prose for humans and changes without notice.
+Quote ` + "`request_id`" + ` to support and the request can be traced on our side.
+
+## Deprecation
+
+A deprecated operation is flagged ` + "`deprecated: true`" + ` here, carries an
+` + "`x-sunset`" + ` date when one is announced, and emits ` + "`Deprecation`" + ` and
+` + "`Sunset`" + ` response headers at runtime. Nothing is removed without that runway.`
 
 // --- helpers ---
 
@@ -349,6 +527,10 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	json.NewEncoder(w).Encode(v)
 }
 
-func writeErr(w http.ResponseWriter, status int, msg string) {
-	writeJSON(w, status, map[string]string{"error": msg})
+// writeErr emits the one error envelope from a plain net/http handler — the
+// paths that run outside huma (the CSRF guard, the MCP transports). Callers
+// that have a more specific discriminator than the status pass it as code;
+// passing "" takes the default for the status.
+func writeErr(w http.ResponseWriter, r *http.Request, status int, code, msg string) {
+	apierror.Write(w, r, status, code, msg)
 }
