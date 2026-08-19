@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, OrgMember } from "../../api";
-import { Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog } from "../../ui";
+import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog } from "../../ui";
 import { Users } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../shell/role";
@@ -19,11 +19,6 @@ export function OrgMembersManager() {
   const [role, setRole] = useState("member");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  // Set when the invited address had no account yet and the server minted an
-  // accept link. Shown rather than discarded: the email carrying it is
-  // best-effort server-side, so on an instance with no mail plugin this dialog
-  // is the only copy anyone ever sees.
-  const [inviteLink, setInviteLink] = useState("");
 
   async function load() {
     setLoading(true);
@@ -52,8 +47,8 @@ export function OrgMembersManager() {
     setErr("");
     try {
       const res = await api.addOrgMember({ email, role });
-      if (res?.inviteUrl) {
-        setInviteLink(`${window.location.origin}${res.inviteUrl}`);
+      if (res?.emailSent === false) {
+        setErr(t("settings.inviteNoMail", "Invite created but email could not be sent — configure an SMTP sender first."));
       }
       setEmail("");
       setRole("member");
@@ -195,33 +190,6 @@ export function OrgMembersManager() {
         </div>
       )}
     </GlassCard>
-
-    {inviteLink && (
-      <Modal title={t("settings.inviteCreatedTitle")} onClose={() => setInviteLink("")}>
-        <div className="space-y-4">
-          <p className="text-xs text-foreground/60">{t("settings.inviteCreatedDesc")}</p>
-          <div className="flex items-center gap-2">
-            <input
-              readOnly
-              className="input w-full cursor-text bg-well font-mono text-xs text-foreground/80"
-              value={inviteLink}
-              onFocus={(e) => e.currentTarget.select()}
-            />
-            <Button
-              variant="primary"
-              className="shrink-0 text-xs"
-              onClick={() => {
-                navigator.clipboard.writeText(inviteLink);
-                toast.success(t("settings.inviteCopied"));
-              }}
-            >
-              {t("settings.copy")}
-            </Button>
-          </div>
-          <p className="text-xs text-foreground/50">{t("settings.inviteExpiry")}</p>
-        </div>
-      </Modal>
-    )}
     </div>
   );
 }

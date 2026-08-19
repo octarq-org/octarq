@@ -823,6 +823,15 @@ func (a *App) Run(ctx context.Context) error {
 	if err := services.Err(); err != nil {
 		return err
 	}
+	// Propagate cfg.TrustProxy to plugins that extract client IPs.
+	// The seams were provided at mount time; this is the assembly-layer
+	// wiring that was previously missing — see links/plugin.go:182.
+	if fn, ok := plugin.LookupServiceAs[func(bool)](services.Lookup, "links.trust_proxy"); ok {
+		fn(a.cfg.TrustProxy)
+	}
+	if fn, ok := plugin.LookupServiceAs[func(bool)](services.Lookup, "dns.trust_proxy"); ok {
+		fn(a.cfg.TrustProxy)
+	}
 	// Launch Starters only after EVERY plugin has mounted (and Provided): this
 	// is the ordering guarantee that makes Start-time Lookup of another
 	// plugin's services safe regardless of registration order.

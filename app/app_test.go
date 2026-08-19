@@ -130,3 +130,51 @@ func TestGatedMuxExtra(t *testing.T) {
 		t.Errorf("disabled request expected 404, got %d", rec2.Code)
 	}
 }
+
+type trustProxyPlugin struct {
+	name        string
+	serviceName string
+	got         bool
+}
+
+func (p *trustProxyPlugin) Name() string             { return p.name }
+func (p *trustProxyPlugin) Describe() plugin.Info    { return plugin.Info{Title: p.name} }
+func (p *trustProxyPlugin) Models() []any            { return nil }
+func (p *trustProxyPlugin) Menus() []plugin.MenuItem { return nil }
+func (p *trustProxyPlugin) Actions() []plugin.Action { return nil }
+func (p *trustProxyPlugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
+	if ctx.Provide != nil {
+		ctx.Provide(p.serviceName, func(v bool) {
+			p.got = v
+		})
+	}
+}
+
+func TestTrustProxyWiring(t *testing.T) {
+	linksP := &trustProxyPlugin{name: "links", serviceName: "links.trust_proxy"}
+	dnsP := &trustProxyPlugin{name: "dns", serviceName: "dns.trust_proxy"}
+
+	services := plugin.NewRegistry()
+	pctx := &plugin.Context{
+		Provide: services.Provide,
+		Lookup:  services.Lookup,
+	}
+
+	linksP.Mount(nil, pctx)
+	dnsP.Mount(nil, pctx)
+
+	cfgTrustProxy := true
+	if fn, ok := plugin.LookupServiceAs[func(bool)](services.Lookup, "links.trust_proxy"); ok {
+		fn(cfgTrustProxy)
+	}
+	if fn, ok := plugin.LookupServiceAs[func(bool)](services.Lookup, "dns.trust_proxy"); ok {
+		fn(cfgTrustProxy)
+	}
+
+	if !linksP.got {
+		t.Errorf("links plugin did not receive TrustProxy setting")
+	}
+	if !dnsP.got {
+		t.Errorf("dns plugin did not receive TrustProxy setting")
+	}
+}

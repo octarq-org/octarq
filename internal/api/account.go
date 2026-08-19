@@ -270,7 +270,7 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 		return nil
 	})
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to purge account data: " + err.Error())
+		return nil, huma.Error500InternalServerError("failed to purge account data")
 	}
 
 	// Deliberately NOT h.audit: that writes an org-scoped AuditLog row, and writing
@@ -388,7 +388,7 @@ func (h *Handler) deleteAccount(ctx context.Context, input *DeleteAccountInput) 
 		return nil
 	})
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to delete account: " + err.Error())
+		return nil, huma.Error500InternalServerError("failed to delete account")
 	}
 
 	// Unlike purgeAccount, the org survives this deletion, so h.audit is safe
