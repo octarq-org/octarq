@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -803,7 +804,8 @@ func (h *Handler) downloadBackup(ctx context.Context, input *DownloadBackupInput
 
 	tmpFile := filepath.Join(os.TempDir(), fmt.Sprintf("tmp-%s-%s", uuid.NewString(), db.DefaultBackupFilename(backupCfg.DBDriver, time.Now())))
 	if err := db.Backup(&backupCfg, tmpFile); err != nil {
-		return nil, huma.Error500InternalServerError(fmt.Sprintf("backup failed: %v", err))
+		slog.Error("backup failed", "err", err)
+		return nil, huma.Error500InternalServerError("backup failed")
 	}
 
 	f, err := os.Open(tmpFile)

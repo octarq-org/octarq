@@ -99,7 +99,7 @@ func (p *Plugin) createProviderAccount(ctx context.Context, input *CreateProvide
 		Config: enc,
 	}
 	if err := p.db.Create(&acc).Error; err != nil {
-		return nil, huma.Error500InternalServerError(err.Error())
+		return nil, huma.Error500InternalServerError("provider operation failed")
 	}
 	p.audit(r, "provider.create", "provider", acc.ID, map[string]any{"name": acc.Name, "type": acc.Type})
 	acc.HasCredentials = acc.Config != ""

@@ -483,13 +483,13 @@ export const api = {
   updateOrgSlug: (slug: string) => req<OrgSlug>("PUT", "/api/org/slug", { slug }),
   switchOrg: (orgId: number) => req<{ ok: boolean }>("POST", "/api/auth/switch-org", { orgId }),
   orgMembers: () => req<OrgMember[]>("GET", "/api/org/members"),
-  // inviteUrl/inviteToken come back only when the address had no account yet.
-  // Delivery of that link by email is best-effort on the server (it needs the
-  // mail plugin mounted and an SMTP sender configured, and failures are logged,
-  // not returned), so the caller has to surface the link — otherwise on an
-  // instance without mail the invite exists and nobody can reach it.
+  // The invite accept link is delivered by email only; it is never returned in
+  // the response (returning it handed the inviter a working credential for an
+  // address they do not control — see tenant_menu.go). emailSent reports
+  // whether delivery actually happened, so the UI can warn when no mail plugin
+  // is configured.
   addOrgMember: (d: { email: string; role: string }) =>
-    req<{ ok: boolean; inviteToken?: string; inviteUrl?: string }>("POST", "/api/org/members", d),
+    req<{ ok: boolean; emailSent?: boolean }>("POST", "/api/org/members", d),
   updateOrgMemberRole: (userId: number, role: string) =>
     req<{ ok: boolean }>("PATCH", `/api/org/members/${userId}`, { role }),
   deleteOrgMember: (userId: number) => req<void>("DELETE", `/api/org/members/${userId}`),

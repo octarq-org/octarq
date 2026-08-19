@@ -40,6 +40,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"gorm.io/gorm"
 )
 
@@ -151,6 +153,17 @@ func (s *Store) Middleware(orgOf OrgFunc) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			s.serve(w, r, orgOf, next)
 		})
+	}
+}
+
+// HumaMiddleware adapts an http.Handler idempotency middleware into a huma.Middleware
+// so huma operations (such as POST /api/emails/send) can adopt idempotency.
+func HumaMiddleware(idem func(http.Handler) http.Handler) func(ctx huma.Context, next func(huma.Context)) {
+	return func(ctx huma.Context, next func(huma.Context)) {
+		r, w := humago.Unwrap(ctx)
+		idem(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next(ctx)
+		})).ServeHTTP(w, r)
 	}
 }
 

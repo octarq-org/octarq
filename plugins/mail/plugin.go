@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/octarq-org/octarq/idempotency"
 	"github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/internal/usagemetric"
 	"github.com/octarq-org/octarq/plugin"
@@ -177,7 +178,16 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails/{id}/raw", Summary: "Get Raw Email EML", Tags: []string{"Emails"}}, p.rawEmail)
 		huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/emails/{id}", Summary: "Update Email State", Tags: []string{"Emails"}}, p.updateEmail)
 		huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/emails/{id}", Summary: "Delete Email", Tags: []string{"Emails"}}, p.deleteEmail)
-		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/emails/send", Summary: "Send Email", Tags: []string{"Emails"}}, p.sendEmail)
+		var sendEmailMws huma.Middlewares
+		if ctx.Lookup != nil {
+			if idem, ok := plugin.LookupServiceAs[func(http.Handler) http.Handler](ctx.Lookup, idempotency.ServiceName); ok {
+				sendEmailMws = append(sendEmailMws, idempotency.HumaMiddleware(idem))
+			}
+		}
+		huma.Register(api, huma.Operation{
+			Method: "POST", Path: "/api/emails/send", Summary: "Send Email", Tags: []string{"Emails"},
+			Middlewares: sendEmailMws,
+		}, p.sendEmail)
 
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/mail/suppressions", Summary: "List Mail Suppressions", Tags: []string{"Emails"}}, p.listSuppressions)
 		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/mail/suppressions", Summary: "Create Mail Suppression", Tags: []string{"Emails"}, DefaultStatus: 201}, p.createSuppression)

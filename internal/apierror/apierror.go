@@ -22,6 +22,7 @@ package apierror
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"sort"
 
@@ -172,6 +173,13 @@ func New(status int, code, message string, errs ...error) *Error {
 	e := &Error{Code: code, Message: message, status: status}
 	for _, err := range errs {
 		if err == nil {
+			continue
+		}
+		// 5xx errors must never leak internal details to the client.
+		// Log the real error server-side; send only the human message.
+		if status >= 500 {
+			slog.Error("internal error detail suppressed from response",
+				"status", status, "message", message, "err", err)
 			continue
 		}
 		e.Add(err)
