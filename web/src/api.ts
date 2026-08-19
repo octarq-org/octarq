@@ -241,9 +241,14 @@ export async function req<T>(method: string, path: string, body?: unknown, lang?
     let parsed: any;
     try {
       parsed = await res.json();
-      // `error` is our own shape; `detail` is huma's RFC7807 field. Prefer
-      // whichever the endpoint used rather than falling back to statusText.
-      if (parsed?.error) msg = parsed.error;
+      // `message` is the octarq error envelope (internal/apierror), which every
+      // endpoint answers with. `error` and `detail` are the shapes that
+      // predated it — our own ad-hoc one and huma's RFC 7807 field — and are
+      // still read so an endpoint that has not been converted, or a cached
+      // build talking to an older server, keeps showing a real message instead
+      // of falling through to statusText.
+      if (parsed?.message) msg = parsed.message;
+      else if (parsed?.error) msg = parsed.error;
       else if (parsed?.detail) msg = parsed.detail;
     } catch {
       /* not JSON — keep statusText */
@@ -509,7 +514,8 @@ export const api = {
       let msg = res.statusText;
       try {
         const parsed = await res.json();
-        if (parsed?.error) msg = parsed.error;
+        if (parsed?.message) msg = parsed.message;
+        else if (parsed?.error) msg = parsed.error;
         else if (parsed?.detail) msg = parsed.detail;
       } catch {
         /* not JSON — keep statusText */
