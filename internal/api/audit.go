@@ -7,6 +7,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/plugin"
 )
 
 type ListAuditLogsInput struct {
@@ -51,14 +52,8 @@ func (h *Handler) listAuditLogs(ctx context.Context, input *ListAuditLogsInput) 
 	if input.TargetType != "" {
 		q = q.Where("target_type = ?", input.TargetType)
 	}
-	limit := 50
-	if input.Limit > 0 && input.Limit <= 500 {
-		limit = input.Limit
-	}
-	offset := 0
-	if input.Offset > 0 {
-		offset = input.Offset
-	}
+	limit := plugin.PageLimit(input.Limit, 50, 500)
+	offset := plugin.PageOffset(input.Offset)
 	var logs []models.AuditLog
 	q.Limit(limit).Offset(offset).Find(&logs)
 	return &ListAuditLogsOutput{Body: logs}, nil

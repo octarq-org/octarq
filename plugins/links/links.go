@@ -93,14 +93,8 @@ func (p *Plugin) listLinks(ctx context.Context, input *ListLinksInput) (*ListLin
 	if input.Host != "" {
 		q = q.Where("host = ?", input.Host)
 	}
-	limit := 50
-	if input.Limit > 0 && input.Limit <= 500 {
-		limit = input.Limit
-	}
-	offset := 0
-	if input.Offset > 0 {
-		offset = input.Offset
-	}
+	limit := plugin.PageLimit(input.Limit, 50, 500)
+	offset := plugin.PageOffset(input.Offset)
 	q = q.Limit(limit).Offset(offset)
 	q.Find(&links)
 	out := make([]linkView, len(links))

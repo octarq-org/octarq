@@ -223,14 +223,8 @@ func (p *Plugin) listEmails(ctx context.Context, input *ListEmailsInput) (*ListE
 		like := "%" + input.Q + "%"
 		q = q.Where("subject LIKE ? OR from_addr LIKE ? OR text LIKE ? OR note LIKE ?", like, like, like, like)
 	}
-	limit := 50
-	if input.Limit > 0 && input.Limit <= 500 {
-		limit = input.Limit
-	}
-	offset := 0
-	if input.Offset > 0 {
-		offset = input.Offset
-	}
+	limit := plugin.PageLimit(input.Limit, 50, 500)
+	offset := plugin.PageOffset(input.Offset)
 	q = q.Limit(limit).Offset(offset)
 	var emails []Email
 	q.Find(&emails)

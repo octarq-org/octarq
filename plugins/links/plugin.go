@@ -179,6 +179,22 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		ctx.Provide("links.create", plugin.LinkCreator(p))
 		ctx.Provide(plugin.CleanupServiceName("links"), plugin.CleanupFunc(p.cleanupEvents))
 		ctx.Provide(plugin.MCPExportServiceName("links"), plugin.MCPExporter(p.mcpExportLinks))
+		// The trust-proxy seam. NOT dead, but currently UNWIRED: nothing in
+		// this repository (or in octarq-pro) resolves this name, and nothing
+		// else calls SetTrustProxy outside tests — so this package's trustProxy
+		// stays false even on an instance that sets OCTARQ_TRUST_PROXY. Core's
+		// own globals (internal/auth, internal/api, internal/server) are
+		// assigned from cfg.TrustProxy directly; the plugins were never given
+		// the same wiring. Redirect analytics therefore attribute clicks to the
+		// reverse proxy's address rather than the client's on every
+		// proxied deployment that opted in.
+		//
+		// Do not delete this as unused: it is the host-side seam the fix needs.
+		// The fix belongs in the app assembly layer (resolve this at startup and
+		// call it with cfg.TrustProxy), and it should land together with a named
+		// contract type for the service — converting to one now, while no
+		// consumer exists, would only break an out-of-tree consumer resolving
+		// the current bare func(bool).
 		ctx.Provide("links.trust_proxy", SetTrustProxy)
 	}
 	if ctx.RegisterTask != nil {

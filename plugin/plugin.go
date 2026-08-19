@@ -60,6 +60,53 @@
 // consumer shape.
 //
 // # Context evolution policy
+//
+// Context is a struct of exported fields, most of them funcs the host fills in.
+// Plugins compile against it from a separate module, so what may change and how
+// is part of the contract, not an implementation detail.
+//
+// Additive and safe — no plugin has to change:
+//
+//   - Adding a new field (func or data). Existing plugins keep compiling; they
+//     simply never touch it. This is how the seam is meant to grow.
+//   - Adding a new optional interface a Plugin may implement (see the section
+//     above). Plugins that do not implement it are unaffected.
+//   - Adding a new well-known service name and its named contract type in
+//     services.go. Nothing resolves a name it does not know.
+//
+// Breaking — every plugin in every build must change together:
+//
+//   - Changing the signature of any of the ~40 exported func fields, including
+//     "compatible-looking" edits: adding a parameter, widening a return to a
+//     (T, error) pair, or renaming the field. A plugin in another module fails
+//     to build, which is the intended outcome — this is the one class of change
+//     the compiler still catches across the seam.
+//   - Removing a field, or changing what a value MEANS while keeping its type
+//     (e.g. making OrgRole return the raw membership instead of the effective
+//     role). The second kind is worse: nothing fails to build and every gate
+//     written against the old meaning quietly decides differently.
+//
+// Because of that second kind, a semantic change to a field is treated as a
+// breaking change even when the signature is untouched: it needs a new field
+// (or a new name) rather than a redefinition in place.
+//
+// Nil fields and older hosts. A plugin may be mounted by a host older than the
+// field it wants — a Pro plugin pinned ahead of the core it runs against, or a
+// third-party plugin built against a newer release. The host leaves such a
+// field nil, so every field added after the initial contract is documented with
+// the marker phrase "nil on hosts that predate it", and a plugin MUST nil-check
+// those before calling and degrade gracefully rather than panic. Fields without
+// that marker are wired by every supported host. When you add a field, add the
+// marker to its doc comment in the same commit; it is the only signal a plugin
+// author has.
+//
+// Support window: the mechanism is the marker phrase plus the nil check — a
+// field never becomes non-optional by fiat, it becomes non-optional when every
+// host still in support wires it, at which point the marker is dropped. How
+// long a host release stays in support is a product decision.
+//
+// TODO(maintainer): state the supported-host window (e.g. "the current minor
+// and the one before it") so "hosts that predate it" has a defined end.
 package plugin
 
 import (
@@ -94,10 +141,26 @@ var ErrLoginRegistrationDisabled = errors.New("registration disabled")
 // settings (Context.BindIdentity).
 var ErrAccountLinkRequired = errors.New("account link required")
 
-// ServiceDNSManager is the well-known service name under which the DNS manager is provided.
+// ServiceDNSManager is the well-known service name under which the DNS manager
+// is provided (contract type DNSManager). This is the single declaration of the
+// name: the dns plugin re-exports it rather than declaring a second constant
+// with the same literal, so editing it here moves both halves of the wiring.
+//
+// Providers MUST convert at the Provide call site —
+// ctx.Provide(plugin.ServiceDNSManager, plugin.DNSManager(mgr)) — and consumers
+// MUST resolve it with LookupAs[plugin.DNSManager] rather than a hand-rolled
+// type assertion, so there is one assertion implementation.
 const ServiceDNSManager = "dns.manager"
 
-// ServiceMailStorageProvider is the well-known service name under which the raw email storage provider is registered.
+// ServiceMailStorageProvider is the well-known service name under which the raw
+// email storage provider is registered (contract type StorageProvider).
+//
+// Providers MUST convert at the Provide call site —
+// ctx.Provide(plugin.ServiceMailStorageProvider, plugin.StorageProvider(prov))
+// — and consumers MUST resolve it with LookupAs[plugin.StorageProvider].
+// Providing the concrete type unconverted compiles even after the concrete type
+// stops satisfying StorageProvider; the failure then surfaces as raw email
+// silently falling back to database storage at runtime.
 const ServiceMailStorageProvider = "mail.storage_provider"
 
 // ErrStorageNotFound is returned when a storage object does not exist.
@@ -112,9 +175,18 @@ type StorageProvider interface {
 }
 
 // ServiceQuotaChecker is the well-known service name under which a per-org
-// quota checker is registered. Only the hosted (Cloud) build provides one;
-// a self-hosted install has no quota concept at all and every call site
-// simply finds nothing here and proceeds.
+// quota checker is registered (contract type QuotaChecker). Only the hosted
+// (Cloud) build provides one; a self-hosted install has no quota concept at all
+// and every call site simply finds nothing here and proceeds.
+//
+// Providers MUST convert at the Provide call site —
+// ctx.Provide(plugin.ServiceQuotaChecker, plugin.QuotaChecker(p)) — and
+// consumers MUST resolve it with LookupAs[plugin.QuotaChecker] (CheckQuota does
+// exactly that). Providing the concrete plugin value unconverted compiles fine
+// the day the concrete type stops satisfying QuotaChecker, and the only symptom
+// is that every quota stops being enforced: "service absent" and "service
+// present but wrong type" are indistinguishable to the consumer, and both read
+// as "self-hosted, no quotas".
 const ServiceQuotaChecker = "quota.checker"
 
 // QuotaChecker decides whether an org may consume n more of a metered
@@ -243,10 +315,23 @@ type Context struct {
 	// OrgID extracts the authenticated org ID from the request session (0 if unauthed).
 	OrgID func(*http.Request) uint
 	// OrgRole returns the role the caller holds in their ACTIVE org — "owner",
-	// "admin", "member", or "" when unauthenticated, not a member, or
-	// authenticated by API bearer token (which carries no user identity). Use it
-	// to gate workspace-level administration: a plugin writing org-scoped config
+	// "admin", "member", or "" when unauthenticated or not a member. Use it to
+	// gate workspace-level administration: a plugin writing org-scoped config
 	// should require owner/admin rather than merely "logged in".
+	//
+	// It answers for BOTH credentials, and a plugin must not special-case them.
+	// An API bearer token acts as the person who minted it — the core stamps
+	// that user id on the request — so the ordinary membership lookup answers
+	// for a token request exactly as it does for a session request, and the
+	// membership is read live (removing someone from the workspace revokes
+	// their tokens with them). The token's own role then only NARROWS that: the
+	// value returned is min(the holder's membership, the token's cap), so a
+	// member-capped token minted by an owner reads as "member" here.
+	//
+	// Consequence: bearer-token requests ARE role-gatable, and gating them is
+	// mandatory. Writing "tokens carry no role, so skip the check" leaves the
+	// endpoint open to every token on the instance; writing a special case for
+	// them re-implements the cap and will get it wrong.
 	//
 	// Authorization for a WORKSPACE-scoped resource. For instance-wide state use
 	// IsInstanceAdmin instead — org role says nothing about instance privilege,
