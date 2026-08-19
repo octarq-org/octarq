@@ -7,7 +7,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/internal/safehttp"
+	"github.com/octarq-org/octarq/plugin/safehttp"
 )
 
 func isRestrictedSMTPHostIP(ip net.IP) bool {

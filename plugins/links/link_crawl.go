@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/safehttp"
+	"github.com/octarq-org/octarq/plugin/safehttp"
 )
 
 var (

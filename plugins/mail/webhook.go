@@ -12,7 +12,7 @@ import (
 	"crypto/subtle"
 
 	"github.com/octarq-org/octarq/internal/safego"
-	"github.com/octarq-org/octarq/internal/safehttp"
+	"github.com/octarq-org/octarq/plugin/safehttp"
 
 	"time"
 
@@ -28,6 +28,12 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+// snsConfirmClient fetches the attacker-influenced SNS SubscribeURL. The host
+// allowlist below runs before it, but a hostname check alone can be rebound
+// between the check and the dial - this client re-validates the resolved IP at
+// dial time.
+var snsConfirmClient = safehttp.NewClient(10 * time.Second)
 
 // --- inbound webhook (Cloudflare Email Routing -> Worker -> here) ---
 //
@@ -467,15 +473,15 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 			if snsType == "SubscriptionConfirmation" {
 				if subURL, ok := snsWrap["SubscribeURL"].(string); ok && subURL != "" {
 					// SSRF guard: only auto-confirm to a genuine AWS SNS endpoint
-					// over https, and fetch through the SSRF-safe client (blocks
-					// private/loopback/metadata IPs). SubscribeURL is attacker-
-					// influenced, so it must never be fetched blindly.
+					// over https, and fetch through snsConfirmClient (blocks
+					// private/loopback/metadata IPs at dial time). SubscribeURL
+					// is attacker-influenced, so it must never be fetched blindly.
 					if !isAWSSNSURL(subURL) {
 						log.Printf("bounce: refusing SNS SubscribeURL with non-AWS host: %s", subURL)
 						return nil, huma.Error400BadRequest("invalid SubscribeURL")
 					}
 					safego.Go("mail.sns-confirm", func() {
-						resp, err := safehttp.Get(context.Background(), http.DefaultClient, subURL, "")
+						resp, err := safehttp.Get(context.Background(), snsConfirmClient, subURL, "")
 						if err == nil {
 							resp.Body.Close()
 							log.Printf("AWS SNS subscription confirmed successfully")

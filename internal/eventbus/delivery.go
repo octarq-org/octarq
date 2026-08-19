@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/octarq-org/octarq/internal/safehttp"
+	"github.com/octarq-org/octarq/plugin/safehttp"
 	"gorm.io/gorm"
 )
 

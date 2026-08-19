@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/safehttp"
+	"github.com/octarq-org/octarq/plugin/safehttp"
 	"gorm.io/gorm"
 )
 

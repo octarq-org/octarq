@@ -5,6 +5,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -152,7 +154,10 @@ func TestGetDisallowedScheme(t *testing.T) {
 	client := NewClient(5 * time.Second)
 	_, err := Get(context.Background(), client, "file:///etc/passwd", "")
 	if err == nil {
-		t.Errorf("Get file:///etc/passwd should be blocked by scheme validation")
+		t.Fatalf("Get file:///etc/passwd should be blocked by scheme validation")
+	}
+	if !strings.Contains(err.Error(), "disallowed scheme") {
+		t.Fatalf("expected the scheme allowlist to reject file://, got %v", err)
 	}
 }
 
@@ -180,11 +185,91 @@ func TestGetWebhookAllowed(t *testing.T) {
 	}
 }
 
-func TestFetchPageMetaLoopbackBlocked(t *testing.T) {
+func TestGetInvalidSchemeAndBadURL(t *testing.T) {
 	t.Parallel()
 
-	title, desc := FetchPageMeta(context.Background(), "http://127.0.0.1/test")
-	if title != "" || desc != "" {
-		t.Errorf("FetchPageMeta on loopback target should be blocked by SSRF guard, got title=%q desc=%q", title, desc)
+	client := NewClient(5 * time.Second)
+	if _, err := Get(context.Background(), client, "ftp://example.com", "UA"); err == nil || !strings.Contains(err.Error(), "disallowed scheme") {
+		t.Errorf("expected the scheme allowlist to reject ftp, got %v", err)
+	}
+	if _, err := Get(context.Background(), client, "http://\x7f/bad", "UA"); err == nil {
+		t.Error("expected error for malformed URL, got nil")
+	}
+}
+
+// TestClientBlocksLoopbackAtDial is the load-bearing test: the URL is
+// well-formed http with a hostname the caller never gets to inspect, and the
+// server is real and listening. Only the dial-time Control hook can stop it.
+func TestClientBlocksLoopbackAtDial(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("secret"))
+	}))
+	defer srv.Close()
+
+	_, err := Get(context.Background(), NewClient(5*time.Second), srv.URL, "")
+	if err == nil {
+		t.Fatal("client reached a loopback server - SSRF guard failed")
+	}
+	if !strings.Contains(err.Error(), "non-public address") {
+		t.Fatalf("expected the dial guard to reject, got %v", err)
+	}
+}
+
+// TestClientBlocksRedirectToBlockedTarget proves the guard is per-hop, not
+// per-URL. The first hop is deliberately let through (a public origin can not
+// be simulated locally); the redirect target - the cloud metadata service - is
+// checked by the same Control on its own dial.
+func TestClientBlocksRedirectToBlockedTarget(t *testing.T) {
+	t.Parallel()
+
+	const metadata = "http://169.254.169.254/latest/meta-data/"
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, metadata, http.StatusFound)
+	}))
+	defer srv.Close()
+
+	var dialed []string
+	client := newClient(5*time.Second, func(network, address string, rc syscall.RawConn) error {
+		dialed = append(dialed, address)
+		if host, _, err := net.SplitHostPort(address); err == nil {
+			if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+				return nil // stand in for a public origin
+			}
+		}
+		return Control(network, address, rc)
+	})
+
+	_, err := Get(context.Background(), client, srv.URL, "")
+	if err == nil {
+		t.Fatal("redirect to the metadata service was followed - SSRF guard failed")
+	}
+	if !strings.Contains(err.Error(), "non-public address") {
+		t.Fatalf("expected the redirect hop to be rejected at dial, got %v", err)
+	}
+	if len(dialed) < 2 {
+		t.Fatalf("expected the redirect hop to be dialed and checked, dials: %v", dialed)
+	}
+}
+
+// TestClientBlocksRedirectToNonHTTPScheme covers the hop the dialer never sees:
+// a scheme with no TCP dial of its own.
+func TestClientBlocksRedirectToNonHTTPScheme(t *testing.T) {
+	SetAllowPrivateWebhooks(true)
+	t.Cleanup(func() { SetAllowPrivateWebhooks(false) })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "file:///etc/passwd", http.StatusFound)
+	}))
+	defer srv.Close()
+
+	_, err := Get(context.Background(), NewWebhookClient(5*time.Second), srv.URL, "")
+	if err == nil {
+		t.Fatal("redirect to file:// was followed")
+	}
+	if !strings.Contains(err.Error(), "disallowed redirect scheme") {
+		t.Fatalf("expected CheckRedirect to reject the scheme, got %v", err)
 	}
 }

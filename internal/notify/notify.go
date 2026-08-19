@@ -16,7 +16,7 @@ import (
 
 	"github.com/nikoksr/notify"
 	"github.com/nikoksr/notify/service/telegram"
-	"github.com/octarq-org/octarq/internal/safehttp"
+	"github.com/octarq-org/octarq/plugin/safehttp"
 )
 
 // Provider delivers a notification for one channel type. cfgJSON is the

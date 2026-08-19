@@ -288,6 +288,14 @@ ecosystem: the operator chooses which plugins to build in, and you review what y
 ship. It is **not** a sandbox for untrusted third-party code; untrusted plugins
 would need process/WASM isolation.
 
+Full network access is part of that trust, so **outbound requests to a URL your
+users supply are your responsibility**. Any fetch whose destination comes from a
+tenant, an org admin, a webhook payload or an OIDC discovery document must go
+through `plugin/safehttp` — `safehttp.NewClient(timeout)` and
+`safehttp.Get(ctx, client, url, ua)`. It validates at **dial time**, so it also
+catches DNS rebinding and redirects into `169.254.169.254`; checking the URL
+before you send it does not. See the package documentation for the details.
+
 ---
 
 ## 10. Distribution
@@ -306,6 +314,7 @@ For publishing the SDK itself, see [Publishing the SDK](/guides/publishing/).
 - [ ] A compile-time `var _ plugin.X = Plugin{}` assert for **every** interface (Plugin + each optional one).
 - [ ] Backend `/api` routes live under `/api/x/<name>/`; write endpoints accept `Idempotency-Key`.
 - [ ] Backend routes registered on the passed `Mux`; secrets via `ctx.Encrypt`; cross-plugin services via `ctx.Provide` / lazy `plugin.LookupAs`.
+- [ ] Every outbound fetch of a user-supplied URL goes through `plugin/safehttp`, not a bare `http.Client`.
 - [ ] Paid/tiered routes return **402** when unlicensed; rely on the host's auto-**404** for the disabled-feature case.
 - [ ] Pages are `React.lazy`; UI built from `@octarq/plugin-sdk`; 402/404 handled.
 - [ ] i18n keys live under your `name` namespace.

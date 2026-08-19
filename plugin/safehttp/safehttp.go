@@ -1,13 +1,55 @@
-// Package safehttp provides an HTTP client hardened against SSRF for any
-// server-side fetch or POST of a user-supplied URL (link previews, outbound
-// webhooks, notification channels, SNS confirmations).
+// Package safehttp provides an HTTP client hardened against SSRF.
+//
+// # When to use it
+//
+// Use it for every outbound request whose URL — host, port, or path — is
+// influenced by anyone other than the operator of the binary: a tenant, an org
+// admin, a webhook payload, an identity provider's discovery document, a
+// link-preview target, an imported config. If the destination is a constant or
+// comes from process configuration, plain net/http is fine.
+//
+// Concretely, in-tree consumers are link previews, outbound webhooks,
+// notification channels, SNS subscription confirmations and SMTP delivery;
+// out-of-tree plugins should reach for it whenever they fetch a URL a user
+// typed into a form.
+//
+// # Why dial-time
 //
 // The guard runs at the dialer level via net.Dialer.Control, which fires with
-// the final, already-resolved IP right before the socket connects. Checking
-// there (rather than parsing the hostname) closes two holes a naive check
-// leaves open: DNS rebinding (a hostname that resolves public on the first
-// lookup and private on connect) and redirect-based SSRF (every hop dials
-// through the same Control, so a 302 to http://169.254.169.254 is blocked too).
+// the final, already-resolved IP right before the socket connects.
+//
+// A pre-flight check of the URL is NOT equivalent and must not be treated as a
+// substitute. Resolving the hostname yourself and comparing the result against
+// a blocklist leaves two holes open:
+//
+//   - DNS rebinding / TOCTOU: the name resolves public when you check it and
+//     private when the transport actually dials. Only the Control hook sees the
+//     IP the kernel will connect to.
+//   - Redirects: a public URL can 302 to http://169.254.169.254. Every hop
+//     dials through the same Control, so each one is re-checked; a check that
+//     runs once on the URL the user supplied sees only the first hop.
+//
+// Parsing the URL up front still has a job — rejecting file://, gopher:// and
+// friends before a request exists (see ValidateScheme) — but it is defence in
+// depth layered on top of the dialer, never in place of it.
+//
+// # Policy
+//
+// The blocked-address set (loopback, unspecified, link-local, multicast,
+// RFC1918, IPv6 ULA, CGNAT) and the http/https scheme allowlist are fixed on
+// purpose and deliberately not configurable per call. A guard whose policy each
+// consumer can widen is a guard that stops guarding somewhere, quietly. The
+// only relaxations are the two instance-wide opt-outs below
+// (SetAllowPrivateWebhooks, SetAllowPrivateSMTP), which exist for self-hosted
+// operators pointing a webhook or SMTP relay at their own LAN, are off by
+// default, and are meant to be set once at startup from configuration — not
+// toggled around individual requests.
+//
+// # Caveats
+//
+// The client caps connect, TLS-handshake and response-header time and enforces
+// the overall timeout the caller passes, but it does not limit response size.
+// Wrap the body in an io.LimitReader before reading it.
 package safehttp
 
 import (

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/octarq-org/octarq/internal/crypto"
-	"github.com/octarq-org/octarq/internal/safehttp"
+	"github.com/octarq-org/octarq/plugin/safehttp"
 	mailmodels "github.com/octarq-org/octarq/plugins/mail"
 )
 
