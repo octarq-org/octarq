@@ -126,26 +126,38 @@ func TestTwoFactorEnrollmentAndLogin(t *testing.T) {
 	}
 }
 
-func TestAddOrgMemberWithoutSMTPStillReturnsLink(t *testing.T) {
+// TestAddOrgMemberWithoutSMTPStillSucceeds: a missing mail sender must not fail
+// the invite — the member row and the pending invite are still created.
+//
+// This test used to also demand the accept link back in the response. It no
+// longer may: the link is a credential for someone else's mailbox (see
+// TestInviteResponseNeverCarriesTheToken). What the response reports instead is
+// emailSent=false, pinned by TestInviteResponseOmitsTokenWhenMailUnconfigured.
+func TestAddOrgMemberWithoutSMTPStillSucceeds(t *testing.T) {
 	srv, db := newTestHandler(t)
 	const orgID = uint(1)
 	adminUID := seedOrgMember(t, db, orgID, "owner@example.com", "owner")
 	adminSession := sessionCookies(t, adminUID, orgID)
 
-	// No SMTPSender is configured for this org — the invite must still succeed
-	// and return the link.
+	email := t.Name() + "+invitee@example.com"
 	rec := do(srv, "POST", "/api/org/members", adminSession,
-		`{"email":"`+t.Name()+`+invitee@example.com","role":"member"}`)
+		`{"email":"`+email+`","role":"member"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("addOrgMember: got %d (%s)", rec.Code, rec.Body.String())
 	}
 	var res struct {
-		Ok        bool   `json:"ok"`
-		InviteURL string `json:"inviteUrl"`
+		Ok bool `json:"ok"`
 	}
 	json.Unmarshal(rec.Body.Bytes(), &res)
-	if !res.Ok || res.InviteURL == "" {
-		t.Fatalf("expected ok+inviteUrl, got %s", rec.Body.String())
+	if !res.Ok {
+		t.Fatalf("expected ok, got %s", rec.Body.String())
+	}
+	var user models.User
+	if err := db.Where("email = ?", email).First(&user).Error; err != nil {
+		t.Fatalf("invited user not created without a mail sender: %v", err)
+	}
+	if user.InviteTokenHash == "" {
+		t.Fatal("no pending invite stored for the invited user")
 	}
 }
 

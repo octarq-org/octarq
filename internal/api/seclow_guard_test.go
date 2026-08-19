@@ -6,7 +6,6 @@ package api
 // trace.
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -19,24 +18,16 @@ import (
 // its SHA-256 hash — yet the raw token shown to the operator must still redeem
 // the invite.
 func TestInviteTokenStoredHashedAndRawStillAccepts(t *testing.T) {
-	srv, db := newTestHandler(t)
+	h, srv, db := newTestHandlerRaw(t)
 	const orgID = uint(1)
 	adminUID := seedOrgMember(t, db, orgID, "invitemgr@example.com", "owner")
 	adminSession := sessionCookies(t, adminUID, orgID)
+	sent := captureInviteMail(t, h)
 
 	email := t.Name() + "+guest@example.com"
-	rec := do(srv, "POST", "/api/org/members", adminSession, fmt.Sprintf(`{"email":%q,"role":"member"}`, email))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("addOrgMember: got %d (%s)", rec.Code, rec.Body.String())
-	}
-	var res struct {
-		InviteToken string `json:"inviteToken"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
-		t.Fatalf("decode invite response: %v", err)
-	}
-	if res.InviteToken == "" {
-		t.Fatal("expected a raw invite token in the response")
+	rawToken := inviteAndReadToken(t, srv, sent, adminSession, email)
+	if rawToken == "" {
+		t.Fatal("expected a raw invite token in the mailed link")
 	}
 
 	var user models.User
@@ -46,15 +37,15 @@ func TestInviteTokenStoredHashedAndRawStillAccepts(t *testing.T) {
 	if user.InviteTokenHash == "" {
 		t.Fatal("no invite token hash stored in the DB")
 	}
-	if user.InviteTokenHash == res.InviteToken {
+	if user.InviteTokenHash == rawToken {
 		t.Fatal("invite token stored in plaintext: DB value equals the raw token")
 	}
-	if user.InviteTokenHash != hashToken(res.InviteToken) {
+	if user.InviteTokenHash != hashToken(rawToken) {
 		t.Fatalf("stored hash %q is not the SHA-256 of the raw token", user.InviteTokenHash)
 	}
 
-	// The raw token from the response must still redeem the invite.
-	rec = do(srv, "POST", "/api/auth/invite/accept", nil, fmt.Sprintf(`{"token":%q,"password":"teampass123"}`, res.InviteToken))
+	// The raw token from the mailed link must still redeem the invite.
+	rec := do(srv, "POST", "/api/auth/invite/accept", nil, fmt.Sprintf(`{"token":%q,"password":"teampass123"}`, rawToken))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("accept with raw token: got %d (%s), want 200", rec.Code, rec.Body.String())
 	}

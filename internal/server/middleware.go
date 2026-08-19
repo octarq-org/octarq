@@ -172,6 +172,32 @@ func (rl *rateLimiter) allow(t tier, ip string, now time.Time) (bool, time.Durat
 	return true, 0
 }
 
+// budget reports the current window's state for one ip/tier without consuming
+// any of it: the tier's limit, how many requests remain, and when the window
+// resets. Read-only on purpose — allow() stays the only mutator, so its
+// signature (and its callers) are untouched by rate-limit headers existing.
+//
+// A limit of 0 means the tier is disabled; the caller then emits no headers,
+// which is honest — "unlimited" has no number to report.
+func (rl *rateLimiter) budget(t tier, ip string, now time.Time) (limit, remaining int, resetAt time.Time) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	limit = rl.limits[t]
+	if limit <= 0 {
+		return 0, 0, time.Time{}
+	}
+	c := rl.counters[strconv.Itoa(int(t))+"|"+ip]
+	if c == nil || now.After(c.resetAt) {
+		return limit, limit, now.Add(rl.window)
+	}
+	remaining = limit - c.count
+	if remaining < 0 {
+		remaining = 0
+	}
+	return limit, remaining, c.resetAt
+}
+
 // sweepLocked drops expired counters so the map can't grow without bound. It is
 // throttled to run at most once per window. Caller must hold rl.mu.
 func (rl *rateLimiter) sweepLocked(now time.Time) {
@@ -536,13 +562,15 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 
 	// 3. Rate limit by tier.
 	t := tierFor(r)
-	if ok, retry := mw.limiter.allow(t, ip, start); !ok {
+	ok, retry := mw.limiter.allow(t, ip, start)
+	mw.setRateLimitHeaders(w, t, ip, start)
+	if !ok {
 		secs := int(retry.Seconds())
 		if secs < 1 {
 			secs = 1
 		}
 		w.Header().Set("Retry-After", strconv.Itoa(secs))
-		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+		writeRateLimited(w, secs)
 		mw.finish(r, ip, rid, http.StatusTooManyRequests, start)
 		return
 	}
@@ -557,11 +585,77 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 	mw.finish(r, ip, rid, sr.status, start)
 }
 
+// redactPathSecrets returns a path safe to write to the access log.
+//
+// The inbound-mail webhook carries the org's secret as the LAST path segment —
+// POST /api/webhook/{orgSlug}/email/inbound/{token} and its siblings. Putting
+// the secret in the URL is deliberate and argued at plugins/mail/webhook.go:
+// SendGrid Inbound Parse and Mailgun routes let you configure a URL and nothing
+// else, so a custom auth header is not on the table, and the token rotates from
+// Mail settings. Logging it verbatim was not deliberate: it left every tenant's
+// inbound-mail credential in plaintext in the access log, readable by anyone
+// with log access and shipped onward to whatever aggregator collects them.
+//
+// OPERATOR CAVEAT: this only redacts octarq's own log line. Any reverse proxy,
+// CDN, or load balancer in front of octarq logs the full request URI and will
+// still record the token. Suppress the path (or the whole webhook route) in the
+// proxy's access-log config too, and rotate the token if those logs leaked.
+func redactPathSecrets(path string) string {
+	p := path
+	if strings.HasPrefix(p, "/api/v1/") {
+		p = "/api/" + strings.TrimPrefix(p, "/api/v1/")
+	}
+	if !strings.HasPrefix(p, "/api/webhook/") {
+		return path
+	}
+	i := strings.LastIndex(path, "/")
+	if i < 0 || i == len(path)-1 {
+		return path
+	}
+	return path[:i+1] + "[redacted]"
+}
+
+// setRateLimitHeaders publishes the caller's remaining budget on every response
+// the limiter governs, allowed or refused. Enforcing a limit without telling
+// anyone what it is makes every integrator discover it by tripping it: the
+// headers are what let a client pace itself instead of backing off blindly.
+//
+// X-RateLimit-Reset is a Unix timestamp in seconds — the widespread convention
+// (GitHub, Stripe). Retry-After, set only on a 429, stays delta-seconds per RFC 9110.
+func (mw *middleware) setRateLimitHeaders(w http.ResponseWriter, t tier, ip string, now time.Time) {
+	limit, remaining, resetAt := mw.limiter.budget(t, ip, now)
+	if limit <= 0 {
+		return
+	}
+	h := w.Header()
+	h.Set("X-RateLimit-Limit", strconv.Itoa(limit))
+	h.Set("X-RateLimit-Remaining", strconv.Itoa(remaining))
+	h.Set("X-RateLimit-Reset", strconv.FormatInt(resetAt.Unix(), 10))
+}
+
+// writeRateLimited emits the 429 in the same RFC 7807 shape huma gives every
+// other API error, instead of the text/plain line http.Error produces. A client
+// that parses error bodies should not need a special case for the one error
+// this middleware raises before the API handlers are ever reached.
+//
+// The body is written here rather than borrowed from internal/api: server must
+// not import api (api imports server), and duplicating four fields beats an
+// import cycle.
+func writeRateLimited(w http.ResponseWriter, retryAfterSecs int) {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(http.StatusTooManyRequests)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"title":  "Too Many Requests",
+		"status": http.StatusTooManyRequests,
+		"detail": "rate limit exceeded; retry in " + strconv.Itoa(retryAfterSecs) + "s",
+	})
+}
+
 // finish emits the edge access-log line.
 func (mw *middleware) finish(r *http.Request, ip, rid string, status int, start time.Time) {
 	slog.Info("request",
 		"method", r.Method,
-		"path", r.URL.Path,
+		"path", redactPathSecrets(r.URL.Path),
 		"status", status,
 		"duration_ms", time.Since(start).Milliseconds(),
 		"request_id", rid,

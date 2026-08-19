@@ -133,6 +133,25 @@ func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput
 		return out, nil
 	}
 
+	// An empty hash means the account has no password of its own: it signs in
+	// through an identity provider (or is the env-configured bootstrap admin, or
+	// is still holding an unredeemed invite). changePassword and changeEmail both
+	// already refuse this account for the same reason, and the emailed reset had
+	// to as well — it was the one door that let a local password be minted for an
+	// account the IdP is supposed to be the sole authority for, routing around
+	// whatever sign-in policy (MFA, device trust, deprovisioning) that IdP
+	// enforces. Invited users have their own redemption path, /api/auth/invite/accept.
+	//
+	// The refusal is silent by construction: the same 200 {ok:true} as every
+	// other outcome. Those two endpoints can say WHY because they answer an
+	// already-authenticated caller about their own account; this one is public,
+	// so a distinguishable response would turn it into an oracle for "which of
+	// these addresses is an SSO account" — and, since unknown addresses also
+	// return 200 here, for which addresses exist at all.
+	if user.PasswordHash == "" {
+		return out, nil
+	}
+
 	rawToken, tokenHash, err := generateSecureToken()
 	if err != nil {
 		return nil, huma.Error500InternalServerError("failed to generate token")

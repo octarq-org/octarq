@@ -13,6 +13,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/internal/auth"
 	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/models"
@@ -81,6 +82,25 @@ func (h *Handler) switchOrg(ctx context.Context, input *SwitchOrgInput) (*Switch
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	// A bearer token must never leave here holding a session cookie. This is the
+	// only endpoint that both accepts a token AND mints a session (every other
+	// SetSessionFromRequest call site sits behind a fresh credential: password,
+	// OAuth callback, verified external identity, or registration), and minting
+	// one here laundered a capped token into an uncapped credential:
+	//
+	//   - effectiveRole only applies the token's role ceiling while
+	//     TokenIDFromContext != 0 (see helpers.go). A session carries no token
+	//     ID, so a session minted by a member-capped token came back with the
+	//     holder's full owner authority.
+	//   - the minted session also outlives the token: revoking or deleting the
+	//     token does not touch the sessions table.
+	//
+	// CSRF is no obstacle either — a cookie-less bearer request is waved through
+	// the guard by design. So the refusal has to live here.
+	if auth.TokenIDFromContext(r.Context()) != 0 {
+		return nil, huma.Error403Forbidden("api tokens cannot switch the active workspace; scope the token to the workspace instead")
 	}
 
 	uid := h.auth.UserID(r)
@@ -460,19 +480,27 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 	eventbus.Publish(orgID, "member.invite", map[string]any{"userId": user.ID, "email": user.Email, "role": role, "pending": user.InviteTokenHash != ""})
 
 	if isNew {
-		// Best-effort: email the invite link via the org's SMTP sender. A missing
-		// sender (or a send error) must not fail the invite — the link is still
-		// returned so the operator can deliver it out-of-band.
+		// The invite link goes to the invited mailbox and NOWHERE else. It used
+		// to come back in this response too, "so the operator can deliver it
+		// out-of-band" — but redeeming it sets a password AND marks the address
+		// verified (acceptInvite, auth.go), so the response handed the inviter a
+		// working credential for an address they do not control. On Cloud, where
+		// every self-serve signup is an org admin, that is account takeover by
+		// invitation: invite ceo@victim-corp.com, keep the token, claim the
+		// account, and the real owner is left with a 409 on registration and a
+		// dead-ended SSO login.
+		//
+		// emailSent reports whether delivery actually happened, so the UI can say
+		// "configure mail before inviting" instead of silently dropping invites.
 		acceptURL := "/admin/invite/accept?token=" + rawInviteToken
 		if base := h.origin(r); base != "" {
 			acceptURL = base + acceptURL
 		}
-		h.sendInviteEmail(email, acceptURL)
+		sent := h.sendInviteEmail(email, acceptURL)
 		return &AddOrgMemberOutput{
 			Body: map[string]any{
-				"ok":          true,
-				"inviteToken": rawInviteToken,
-				"inviteUrl":   "/admin/invite/accept?token=" + rawInviteToken,
+				"ok":        true,
+				"emailSent": sent,
 			},
 		}, nil
 	}
@@ -482,20 +510,23 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 }
 
 // sendInviteEmail best-effort delivers the invite accept link to the invited
-// address through the instance's system sender. It never returns an error: a
-// missing sender or a send failure is logged and swallowed so the invite
-// itself still succeeds.
-func (h *Handler) sendInviteEmail(to, acceptURL string) {
+// address through the instance's system sender, reporting whether it went out.
+// It never returns an error: a missing sender or a send failure is logged and
+// swallowed so the invite itself still succeeds. The caller surfaces the false
+// case as emailSent, because the link is no longer recoverable any other way.
+func (h *Handler) sendInviteEmail(to, acceptURL string) bool {
 	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
 		text := fmt.Sprintf("You've been invited to join a workspace on octarq.\n\n"+
 			"Accept your invite and set a password here:\n%s\n\n"+
 			"This link expires in 24 hours.", acceptURL)
 		if err := fn(to, "You've been invited to octarq", "", text); err != nil {
 			log.Printf("invite email to %s failed: %v", to, err)
+			return false
 		}
-		return
+		return true
 	}
 	log.Printf("invite email skipped for %s: mail plugin not mounted", to)
+	return false
 }
 
 type UpdateOrgMemberInputBody struct {
