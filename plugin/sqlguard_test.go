@@ -78,6 +78,61 @@ func (d dummyPlugin) Menus() []MenuItem   { return nil }
 func (d dummyPlugin) Actions() []Action   { return nil }
 func (d dummyPlugin) Mount(Mux, *Context) {}
 
+func TestValidateReadOnlyQueryAccepts(t *testing.T) {
+	t.Parallel()
+
+	cases := []string{
+		"SELECT * FROM links",
+		"select count(*) from emails",
+		"WITH t AS (SELECT id FROM links) SELECT * FROM t",
+		"SELECT * FROM links;", // trailing semicolon stripped
+	}
+	for _, q := range cases {
+		if _, err := ValidateReadOnlyQuery(q); err != nil {
+			t.Errorf("expected accept for %q, got %v", q, err)
+		}
+	}
+}
+
+func TestValidateReadOnlyQueryRejects(t *testing.T) {
+	t.Parallel()
+
+	cases := []string{
+		"",
+		"DELETE FROM links",
+		"UPDATE links SET clicks = 0",
+		"INSERT INTO links (slug) VALUES ('x')",
+		"DROP TABLE links",
+		"PRAGMA table_info(links)",
+		"ATTACH DATABASE 'x.db' AS y",
+		"SELECT * FROM links; DROP TABLE links", // multi-statement
+		"SELECT 1; SELECT 2",                    // multi-statement
+		"VACUUM",
+		"SELECT * FROM users",                    // secret-bearing table
+		"SELECT * FROM tokens",                   // token hashes
+		"SELECT config FROM provider_accounts",   // encrypted credentials
+		"SELECT password_hash AS x FROM users",   // alias bypass of redaction
+		"SELECT * FROM emails JOIN users ON 1=1", // secret table via join
+	}
+	for _, q := range cases {
+		if _, err := ValidateReadOnlyQuery(q); err == nil {
+			t.Errorf("expected reject for %q, got nil error", q)
+		}
+	}
+}
+
+func TestContainsWordBoundary(t *testing.T) {
+	t.Parallel()
+
+	// "created" contains "create" as a substring but not as a word.
+	if ContainsWord("select created_at from links", "create") {
+		t.Error("containsWord matched 'create' inside 'created_at'")
+	}
+	if !ContainsWord("drop table x", "drop") {
+		t.Error("containsWord missed standalone 'drop'")
+	}
+}
+
 // The identifiers below were reachable before this guard existed: `email_ais`
 // (a Pro table) and its `otp` column let a raw SELECT dump other tenants' one-
 // time codes, and `subject`/`text` returned other tenants' plaintext mail.
@@ -102,15 +157,18 @@ func TestValidateReadOnlyQueryBlocksMailAndOTPIdentifiers(t *testing.T) {
 func TestRedactRowRedactsMessageContentAndOTP(t *testing.T) {
 	t.Parallel()
 
-	cols := []string{"id", "subject", "text", "otp"}
-	row := map[string]any{"id": 1, "subject": "Your code", "text": "code is 123456", "otp": "123456"}
+	cols := []string{"id", "email", "password_hash", "raw", "subject", "text", "otp"}
+	row := map[string]any{"id": 1, "email": "a@b.c", "password_hash": "deadbeef", "raw": "rfc822...", "subject": "Your code", "text": "code is 123456", "otp": "123456"}
 	RedactRow(cols, row)
-	for _, c := range []string{"subject", "text", "otp"} {
+	for _, c := range []string{"password_hash", "raw", "subject", "text", "otp"} {
 		if row[c] != RedactedValue {
 			t.Errorf("column %q not redacted: %v", c, row[c])
 		}
 	}
 	if row["id"] != 1 {
 		t.Errorf("non-sensitive column altered: %v", row["id"])
+	}
+	if row["email"] != "a@b.c" {
+		t.Errorf("non-sensitive column altered: %v", row["email"])
 	}
 }

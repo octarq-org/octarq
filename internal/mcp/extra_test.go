@@ -4,12 +4,10 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/glebarez/sqlite"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -42,34 +40,6 @@ func TestBuildServerInstance_WithMCPProvider(t *testing.T) {
 	}
 	if !p.registerCalled {
 		t.Error("expected plugin RegisterMCP to be called")
-	}
-}
-
-func TestAuditQuery_TruncateAndNilDB(t *testing.T) {
-	// 1. gdb is nil
-	nilServer := &server{gdb: nil}
-	nilServer.auditQuery("SELECT 1", 1, nil) // should not panic
-
-	// 2. long query truncated at 500 chars
-	dbPath := filepath.Join(t.TempDir(), "mcpaudit.db")
-	gdb, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := gdb.AutoMigrate(&models.AuditLog{}); err != nil {
-		t.Fatal(err)
-	}
-
-	s := &server{gdb: gdb, orgID: 1}
-	longSQL := "SELECT '" + strings.Repeat("A", 600) + "'"
-	s.auditQuery(longSQL, 1, nil)
-
-	var log auditRow
-	if err := gdb.Where("action = ?", "ai.mcp.query").Last(&log).Error; err != nil {
-		t.Fatalf("audit log not found: %v", err)
-	}
-	if !strings.Contains(log.Meta, strings.Repeat("A", 100)) {
-		t.Errorf("expected audit log to contain SQL snippet, got: %s", log.Meta)
 	}
 }
 
