@@ -137,9 +137,9 @@ type trustProxyPlugin struct {
 	got         bool
 }
 
-func (p *trustProxyPlugin) Name() string          { return p.name }
-func (p *trustProxyPlugin) Describe() plugin.Info { return plugin.Info{Title: p.name} }
-func (p *trustProxyPlugin) Models() []any         { return nil }
+func (p *trustProxyPlugin) Name() string             { return p.name }
+func (p *trustProxyPlugin) Describe() plugin.Info    { return plugin.Info{Title: p.name} }
+func (p *trustProxyPlugin) Models() []any            { return nil }
 func (p *trustProxyPlugin) Menus() []plugin.MenuItem { return nil }
 func (p *trustProxyPlugin) Actions() []plugin.Action { return nil }
 func (p *trustProxyPlugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
@@ -178,4 +178,3 @@ func TestTrustProxyWiring(t *testing.T) {
 		t.Errorf("dns plugin did not receive TrustProxy setting")
 	}
 }
-

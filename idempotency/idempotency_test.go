@@ -411,22 +411,22 @@ func TestHumaMiddlewareIdempotency(t *testing.T) {
 	api := humago.New(mux, huma.DefaultConfig("test", "1.0.0"))
 
 	type SendMailInput struct {
-		Ctx huma.Context
+		Ctx  huma.Context
 		Body struct {
 			To []string `json:"to"`
 		}
 	}
 	type SendMailOutput struct {
 		Body struct {
-			Sent bool `json:"sent"`
-			Count int `json:"count"`
+			Sent  bool `json:"sent"`
+			Count int  `json:"count"`
 		}
 	}
 
 	idemMw := HumaMiddleware(s.Middleware(org7))
 	huma.Register(api, huma.Operation{
-		Method: http.MethodPost,
-		Path: "/api/emails/send",
+		Method:      http.MethodPost,
+		Path:        "/api/emails/send",
 		Middlewares: huma.Middlewares{idemMw},
 	}, func(ctx context.Context, input *SendMailInput) (*SendMailOutput, error) {
 		cnt := int(calls.Add(1))
