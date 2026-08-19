@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -231,6 +232,28 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 		// the key shape ever changes.
 		if err := tx.Where("key LIKE ?", fmt.Sprintf("org_%d.%%", org)).
 			Delete(&models.Setting{}).Error; err != nil {
+			return err
+		}
+
+		// Retire the org's active slug before deleting the Org row so that all
+		// addresses ever used by this org (current and rename history) are
+		// consistently retired to prevent takeover/squatting. OrgID is intentionally
+		// retained as the deleted org's ID (not zeroed) so CheckOrgSlugAvailable
+		// evaluates history.OrgID == targetOrgID correctly and treats the slug as
+		// SlugTaken for any other org or new registration.
+		var orgRow models.Org
+		if err := tx.First(&orgRow, org).Error; err == nil {
+			if orgRow.Slug != "" {
+				history := models.OrgSlugHistory{
+					Slug:      orgRow.Slug,
+					OrgID:     org,
+					RetiredAt: time.Now(),
+				}
+				if err := tx.Save(&history).Error; err != nil {
+					return err
+				}
+			}
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
 
