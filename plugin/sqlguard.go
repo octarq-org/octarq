@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// MaxRows caps how many rows query_db_readonly returns.
+// MaxRows caps how many rows a read-only query returns.
 const MaxRows = 200
 
 // SensitiveColumns are result column names whose values are always redacted.
@@ -21,6 +21,9 @@ var SensitiveColumns = map[string]bool{
 	"access_token":  true,
 	"refresh_token": true,
 	"private_key":   true,
+	"otp":           true,
+	"subject":       true,
+	"text":          true,
 }
 
 // RedactedValue is what a sensitive column's value is replaced with.
@@ -43,16 +46,27 @@ var BannedIdentifiers = []string{
 	// secret-bearing / cross-tenant tables
 	"users", "user_sessions", "tokens", "provider_accounts", "settings",
 	"workspace_settings", "org_members", "orgs", "product_keys",
-	"issued_licenses", "license_devices", "webhooks",
+	"issued_licenses", "license_devices", "webhooks", "email_ais",
 	// secret-bearing columns (in case a JOIN or view exposes them)
 	"password", "password_hash", "passwordhash", "hash", "secret",
 	"private_key", "privatekey", "private_key_enc", "token",
 	"access_token", "refresh_token", "totp_secret", "recovery_codes",
-	"inbound_token", "invite_token",
+	"inbound_token", "invite_token", "otp",
 }
 
 // ValidateReadOnlyQuery checks a user-supplied SQL string against the guardrails
 // and returns a normalized, LIMIT-bounded query ready to execute, or an error.
+//
+// It is a CONTENT filter, NOT an authorization boundary. It rejects writes and
+// references to secret-bearing identifiers; it does not and cannot confine a
+// query to one tenant. A passing query still reaches whole tables across every
+// tenant in the database — several of them (emails, for one) have no owner_id
+// column to scope by even in principle. Never treat a nil error as permission to
+// run the query on behalf of a specific caller: a caller who supplies SQL must
+// already be entitled to the entire database. This is why octarq's own MCP
+// server no longer exposes a raw-SQL tool on any transport. It stays exported
+// only for out-of-tree plugins that operate under that same whole-database
+// premise.
 func ValidateReadOnlyQuery(query string) (string, error) {
 	q := strings.TrimSpace(query)
 	q = strings.TrimSuffix(q, ";")

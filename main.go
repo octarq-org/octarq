@@ -10,9 +10,9 @@
 //
 //	octarq          run the HTTP server (default)
 //	octarq mcp      run the Model Context Protocol server over stdio, exposing
-//	             read-only short-link / email / domain tools (plus a guarded
-//	             read-only SQL tool) to AI clients such as Claude Code, Claude
-//	             Desktop and Cursor. See internal/mcp.
+//	             workspace-scoped read-only short-link / email / domain tools to
+//	             AI clients such as Claude Code, Claude Desktop and Cursor.
+//	             See internal/mcp.
 package main
 
 import (

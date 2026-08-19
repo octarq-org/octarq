@@ -73,7 +73,7 @@ const faqs = [
   },
   {
     q: "Does the MCP server allow writes?",
-    a: "The built-in tools read and export. The SQL tool is guarded to SELECT/WITH, row-capped, secrets redacted. A plugin can expose its own write tools via MCPProvider if it chooses to.",
+    a: "The built-in tools read and export, and each one is scoped to the caller's own workspace. There is no raw-SQL tool: an arbitrary query can't be confined to one workspace, so it isn't offered. A plugin can expose its own write tools via MCPProvider if it chooses to.",
   },
   {
     q: "Is this a PocketBase / Dub / n8n fork?",
@@ -249,8 +249,8 @@ docker compose up -d</code></pre>
             <p class="oct-body">
               Octarq ships a built-in MCP server (<code>octarq mcp</code>, over
               stdio and SSE) so assistants like Claude Code can read and query your
-              instance, plus a guarded read-only SQL tool — SELECT/WITH only,
-              row-capped, secrets redacted.
+              instance. Every tool is read-only and scoped to the caller's own
+              workspace.
             </p>
             <p class="oct-body">
               A plugin implementing the optional <code>MCPProvider</code> interface

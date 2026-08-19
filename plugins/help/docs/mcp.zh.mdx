@@ -9,8 +9,10 @@ Octarq 内置模型上下文协议（MCP）服务器，允许桌面 AI 客户端
 
 ## 通道与安全控制
 
-- **本地 stdio 通道**：通过启动 `octarq mcp` 本地子进程供 Claude Desktop 或 Cursor 等桌面应用使用。包含 `query_db_readonly` 工具，支持只读 SQL 查询，并会自动脱敏密码哈希与令牌密钥。
-- **HTTP / SSE 通道**：端点位于 `/api/mcp/sse`，面向远程 Agent 接入。使用 [API 令牌](/help/api-tokens)（`Authorization: Bearer oct_...`）进行鉴权，所有工具调用均严格限制在请求方所属的工作区内。出于租户安全考虑，SSE 通道不开放原始 SQL 查询工具。
+- **本地 stdio 通道**：通过启动 `octarq mcp` 本地子进程供 Claude Desktop 或 Cursor 等桌面应用使用，工具调用限制在你所属的工作区内。
+- **HTTP / SSE 通道**：端点位于 `/api/mcp/sse`，面向远程 Agent 接入。使用 [API 令牌](/help/api-tokens)（`Authorization: Bearer oct_...`）进行鉴权，所有工具调用均严格限制在请求方所属的工作区内。
+
+所有工具都是限定工作区的只读数据视图 —— 短链、邮箱、邮件、域名以及完整数据导出。任何通道都不提供原始 SQL 工具：任意 SQL 无法被约束在单个工作区内，因此该能力是直接不提供，而不是加以限制。
 
 ## 配置本地 stdio 通道 (Claude Desktop)
 

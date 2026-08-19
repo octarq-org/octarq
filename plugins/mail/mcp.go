@@ -49,7 +49,7 @@ func (p *Plugin) RegisterMCP(srv *mcp.Server) {
 
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "list_emails",
-		Description: "List recently received emails (subject, from, to, date) — optionally for one mailbox. Bodies are not returned; use query_db_readonly for more, or get the full message via the dashboard.",
+		Description: "List recently received emails (subject, from, to, date) — optionally for one mailbox. Bodies are not returned; open the full message in the dashboard.",
 	}, p.mcpListEmails)
 }
 
