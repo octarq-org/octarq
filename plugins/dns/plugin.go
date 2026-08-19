@@ -27,7 +27,12 @@ import (
 // ServiceDNSManager is the registry name under which this plugin provides the
 // plugin.DNSManager seam. The app wires ctx.DNS to resolve it, so Pro plugins
 // (infra, ai MCP tools) reach live DNS without importing this package.
-const ServiceDNSManager = "dns.manager"
+//
+// It is an alias of plugin.ServiceDNSManager, not a second spelling of the same
+// literal: the name is one coordinate shared by this provider and every
+// consumer, so it gets one declaration. Two constants holding "dns.manager"
+// compile fine after either is edited, and the wiring silently stops resolving.
+const ServiceDNSManager = plugin.ServiceDNSManager
 
 var errNotFound = errors.New("not found")
 

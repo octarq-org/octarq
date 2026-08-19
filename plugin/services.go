@@ -37,6 +37,30 @@ const ServiceMailDispatcher = "mail.dispatcher"
 // usage reporter is provided (contract type UsageMeter).
 const ServiceCloudUsage = "cloud.usage"
 
+// ServiceCloudTier is the well-known service name under which the hosted
+// (Cloud) build provides the per-org subscription-tier resolver (contract type
+// TierResolver). Plugins that must know an org's plan but cannot import the
+// cloud module — the AI budget resolver reads aiCallsPerMonth for the tier —
+// resolve it here. Nothing provides it on a self-hosted build.
+const ServiceCloudTier = "cloud.tier"
+
+// ServiceCloudQuota is the well-known service name under which the hosted
+// (Cloud) build provides the plan/quota catalog backing per-org limits. Unlike
+// the other names here the contract type is NOT declared in this package: the
+// catalog interface (Limits/MeteredMetrics/PriceCents/…) is a commercial
+// billing concept owned by octarq-pro's pkg/quota.Source, and duplicating it
+// here would create a second definition that can drift silently — Go asserts
+// interfaces structurally, so a drifted copy fails the lookup at runtime with
+// no compile error anywhere.
+//
+// The name lives here because it is the shared coordinate: the cloud module
+// provides it and the ai and product modules consume it, and a string literal
+// repeated across three modules is the thing that goes wrong when it changes.
+// Providers MUST still convert at the Provide call site — with the Pro-owned
+// type: ctx.Provide(plugin.ServiceCloudQuota, quota.Source(p.quotaSrc)) — and
+// consumers MUST resolve it with LookupAs[quota.Source].
+const ServiceCloudQuota = "cloud.quota"
+
 // ServiceLinkResolve is the well-known service name under which the links
 // plugin provides slug resolution for the public abuse-report form (contract
 // type LinkResolver).
@@ -128,6 +152,24 @@ type EmailDispatcher func(handler func(EmailEvent))
 // sites simply find nothing and proceed. Changing this signature breaks the
 // contract: the Pro provider and every consumer must change together.
 type UsageMeter func(orgID uint, metric string, n int64)
+
+// TierResolver is the cross-plugin contract for resolving an org's
+// subscription tier ("", "solo", "team", …; "" means Free — an org with no
+// subscription row is a Free org, not an error). The provider lives in the Pro
+// cloud module (octarq-pro, not this repository) and registers it under
+// ServiceCloudTier; this OSS side owns the contract so both halves name the
+// same type. On self-hosted builds nothing provides the service and consumers
+// simply find nothing and fall back to their own defaults.
+//
+// A signature drift fails silently and expensively: the lookup misses, the AI
+// budget falls back to the embedded catalog, and a paying org is metered at
+// free-plan limits with nothing in the logs. Providers MUST convert at the
+// Provide call site — ctx.Provide(plugin.ServiceCloudTier,
+// plugin.TierResolver(p.planForOrg)) — and consumers MUST resolve it with
+// LookupServiceAs[plugin.TierResolver] / LookupAs[plugin.TierResolver], so the
+// drift is a compile error where the provider is written rather than a runtime
+// assertion failure nobody sees.
+type TierResolver func(orgID uint) string
 
 // CleanupFunc is the cross-plugin contract for a plugin's retention cleanup,
 // run by the app's sweeper with the configured data-retention window. The
