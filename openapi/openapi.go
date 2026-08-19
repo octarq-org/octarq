@@ -26,6 +26,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/app"
 	"github.com/octarq-org/octarq/plugin"
+	"gorm.io/gorm/logger"
 )
 
 // Generate boots the composition root with the given plugins, captures the
@@ -60,7 +61,22 @@ func Document(plugins []plugin.Plugin) (*huma.OpenAPI, error) {
 	defer os.RemoveAll(tmp)
 
 	// Defaults only — never an override. Generating the spec must not depend on
-	// (or disturb) a real deployment's configuration.
+	// (or disturb) a real deployment's configuration. Restore any environment
+	// variables we temporarily set when done.
+	origDriver, hadDriver := os.LookupEnv("OCTARQ_DB_DRIVER")
+	origDSN, hadDSN := os.LookupEnv("OCTARQ_DB_DSN")
+	origSecret, hadSecret := os.LookupEnv("OCTARQ_SECRET_KEY")
+	origAdmin, hadAdmin := os.LookupEnv("OCTARQ_ADMIN_PASSWORD")
+	origListen, hadListen := os.LookupEnv("OCTARQ_LISTEN")
+
+	defer func() {
+		restoreEnv("OCTARQ_DB_DRIVER", origDriver, hadDriver)
+		restoreEnv("OCTARQ_DB_DSN", origDSN, hadDSN)
+		restoreEnv("OCTARQ_SECRET_KEY", origSecret, hadSecret)
+		restoreEnv("OCTARQ_ADMIN_PASSWORD", origAdmin, hadAdmin)
+		restoreEnv("OCTARQ_LISTEN", origListen, hadListen)
+	}()
+
 	setIfUnset("OCTARQ_DB_DRIVER", "sqlite")
 	setIfUnset("OCTARQ_DB_DSN", filepath.Join(tmp, "openapi.db"))
 	setIfUnset("OCTARQ_SECRET_KEY", "openapi-spec-generation-key-not-a-secret")
@@ -73,6 +89,10 @@ func Document(plugins []plugin.Plugin) (*huma.OpenAPI, error) {
 	if err != nil {
 		return nil, fmt.Errorf("boot for spec generation: %w", err)
 	}
+	// Silence GORM's default logger during spec generation. The default
+	// logger writes "record not found" warnings to os.Stdout (not stderr),
+	// which corrupts the JSON spec output when piped to a file.
+	a.DB().Logger = logger.Discard
 	for _, p := range plugins {
 		a.Use(p)
 	}
@@ -100,6 +120,9 @@ func Document(plugins []plugin.Plugin) (*huma.OpenAPI, error) {
 // consumers half-understand is worth less than one they fully do. A running
 // instance serves both (/openapi.json is 3.1, /openapi-3.0.json is this).
 func Marshal(doc *huma.OpenAPI, plugins []plugin.Plugin) ([]byte, error) {
+	if doc == nil {
+		return nil, fmt.Errorf("marshal: nil OpenAPI document")
+	}
 	raw, err := doc.Downgrade()
 	if err != nil {
 		return nil, err
@@ -179,6 +202,14 @@ func componentSchemas(m map[string]any) map[string]any {
 func setIfUnset(key, value string) {
 	if os.Getenv(key) == "" {
 		_ = os.Setenv(key, value)
+	}
+}
+
+func restoreEnv(key, orig string, had bool) {
+	if had {
+		_ = os.Setenv(key, orig)
+	} else {
+		_ = os.Unsetenv(key)
 	}
 }
 

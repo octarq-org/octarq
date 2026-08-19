@@ -5,7 +5,10 @@ package db
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/config"
@@ -30,8 +33,17 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("unsupported driver %q", cfg.DBDriver)
 	}
 
+	dbLogger := logger.New(
+		log.New(os.Stderr, "\r\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             200 * time.Millisecond,
+			LogLevel:                  logger.Warn,
+			IgnoreRecordNotFoundError: false,
+			Colorful:                  false,
+		},
+	)
 	gdb, err := gorm.Open(dial, &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Warn),
+		Logger: dbLogger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)

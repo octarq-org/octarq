@@ -23,7 +23,7 @@ import (
 
 func main() {
 	if err := openapi.Generate(os.Stdout, builtin.Default()); err != nil {
-		fmt.Fprintf(os.Stderr, "Error generating spec: %v\\n", err)
+		fmt.Fprintf(os.Stderr, "Error generating spec: %v\n", err)
 		os.Exit(1)
 	}
 }
