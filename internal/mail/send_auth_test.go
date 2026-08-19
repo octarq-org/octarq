@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/safehttp"
+	"github.com/octarq-org/octarq/plugin/safehttp"
 )
 
 // fakeSMTPServer speaks just enough ESMTP to complete the greeting and EHLO,

@@ -41,10 +41,10 @@ import (
 	"github.com/octarq-org/octarq/internal/mcp"
 	"github.com/octarq-org/octarq/internal/notify"
 	"github.com/octarq-org/octarq/internal/queue"
-	"github.com/octarq-org/octarq/internal/safehttp"
 	"github.com/octarq-org/octarq/internal/server"
 	"github.com/octarq-org/octarq/origin"
 	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/plugin/safehttp"
 	"github.com/octarq-org/octarq/webembed"
 	"gorm.io/gorm"
 )

@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/safehttp"
+	"github.com/octarq-org/octarq/plugin/safehttp"
 )
 
 func TestMain(m *testing.M) {

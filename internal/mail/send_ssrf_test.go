@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/safehttp"
+	"github.com/octarq-org/octarq/plugin/safehttp"
 )
 
 func TestSendBlocksNonPublicRelayAtDial(t *testing.T) {

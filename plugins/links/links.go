@@ -16,7 +16,6 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/safehttp"
 	"github.com/octarq-org/octarq/plugin"
 	qrcode "github.com/skip2/go-qrcode"
 	"golang.org/x/net/publicsuffix"
@@ -140,7 +139,7 @@ func (p *Plugin) linkMetadata(ctx context.Context, input *LinkMetadataInput) (*L
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
 		return nil, huma.Error400BadRequest("invalid url")
 	}
-	title, desc := safehttp.FetchPageMeta(r.Context(), raw)
+	title, desc := fetchPageMeta(r.Context(), raw)
 	favicon := u.Scheme + "://" + u.Host + "/favicon.ico"
 	return &LinkMetadataOutput{
 		Body: map[string]any{
