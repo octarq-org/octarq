@@ -2,8 +2,6 @@ package mcp
 
 import "github.com/octarq-org/octarq/plugin"
 
-const maxRows = plugin.MaxRows
-
 func validateReadOnlyQuery(query string) (string, error) {
 	return plugin.ValidateReadOnlyQuery(query)
 }
