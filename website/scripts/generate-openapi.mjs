@@ -1,22 +1,20 @@
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
+console.log("[website] Generating public/openapi.json from Go handlers...");
 try {
-  console.log("[website] Generating openapi.json from Go handlers...");
   execSync("go run ../cmd/openapi-gen > public/openapi.json", {
     cwd: root,
     stdio: ["ignore", "pipe", "inherit"],
   });
   console.log("[website] Successfully generated public/openapi.json");
-} catch (e) {
-  if (existsSync(join(root, "public", "openapi.json"))) {
-    console.warn("[website] Warning: go toolchain unavailable or error generating spec, using existing public/openapi.json fallback");
-  } else {
-    console.error("[website] Error: failed to generate openapi.json and no fallback exists");
-    throw e;
-  }
+} catch (err) {
+  console.error(
+    "[website] ERROR: Failed to generate public/openapi.json from Go handlers.\n" +
+    "[website] Go toolchain is required to build the website documentation. Aborting."
+  );
+  process.exit(1);
 }

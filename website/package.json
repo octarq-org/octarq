@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node scripts/generate-openapi.mjs",
     "dev": "astro dev",
     "prebuild": "node scripts/generate-openapi.mjs",
     "build": "astro build",
