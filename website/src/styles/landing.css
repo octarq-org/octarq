@@ -1,0 +1,724 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Landing page palette and layout.
+   Astro ships a page's styles only with that page, so re-pointing the Nimbus
+   tokens here restyles the shared Header and nothing else on the site. The
+   values are the design doc's Nocturne system; the light column is the same
+   hues inverted, because the site's theme toggle still has to work here.
+   ══════════════════════════════════════════════════════════════════════ */
+:root:has(.oct-page) {
+  --oct-accent: #5d5294;
+  --oct-accent-2: #7972a9;
+  --oct-section: #2b2f68;
+  --oct-section-glow: #454c95;
+  --oct-section-text: #f3f5fe;
+
+  --nb-background: #fbfbfe;
+  --nb-card: #ffffff;
+  --nb-border: color-mix(in srgb, #161826 12%, transparent);
+  --nb-border-strong: color-mix(in srgb, #161826 22%, transparent);
+}
+
+:root[data-mode="dark"]:has(.oct-page) {
+  --oct-accent: #9184d9;
+  --oct-accent-2: #a7a1db;
+  --oct-section: #262a60;
+  --oct-section-glow: #353b80;
+  --oct-section-text: #e9e9ed;
+
+  --nb-background: #161826;
+  --nb-card: #232532;
+  --nb-border: color-mix(in srgb, #e9e9ed 16%, transparent);
+  --nb-border-strong: color-mix(in srgb, #e9e9ed 28%, transparent);
+}
+
+.oct-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  /* The design's off-axis bloom, anchored to the top-right of the page. */
+  background:
+    radial-gradient(
+      1100px 640px at 78% -120px,
+      color-mix(in srgb, var(--oct-accent) 22%, transparent),
+      transparent 60%
+    ),
+    var(--nb-background);
+}
+.oct-main {
+  flex: 1;
+  width: 100%;
+}
+.oct-shell {
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding-inline: clamp(20px, 4vw, 64px);
+}
+/* Sections host absolutely-positioned motion; content rides above it. */
+.oct-layer {
+  position: relative;
+  z-index: 1;
+}
+
+/* The accent glint crossing the header's bottom edge. The in-page nav bar
+   this used to sit on is gone (its anchors moved into the shared header),
+   so the sweep now stands alone as a strip right under the header. */
+.oct-sweep {
+  position: relative;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* The header's one primary CTA shares the row with search, Pricing, GitHub
+   and the theme toggle; on narrow screens that doesn't fit at full padding,
+   so tighten it rather than hiding it. */
+@media (max-width: 640px) {
+  .oct-header-cta {
+    padding-inline: 8px;
+  }
+}
+.oct-sweep::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -30%;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--oct-accent),
+    var(--oct-accent-2),
+    transparent
+  );
+  animation: oct-sweep 5s linear infinite;
+}
+@keyframes oct-sweep {
+  from {
+    left: -30%;
+  }
+  to {
+    left: 100%;
+  }
+}
+
+/* — sections — */
+.oct-sec {
+  position: relative;
+  overflow: hidden;
+  padding-block: 64px;
+}
+.oct-sec--rule::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: var(--nb-border);
+}
+.oct-sec--hero {
+  padding-block: clamp(64px, 9vw, 104px) 76px;
+}
+.oct-sec--cta {
+  padding-block: 40px 24px;
+}
+
+.oct-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(36px);
+  pointer-events: none;
+  animation: oct-drift 13s ease-in-out infinite;
+}
+.oct-glow--hero {
+  top: -160px;
+  right: -100px;
+  width: 460px;
+  height: 460px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--oct-accent) 28%, transparent),
+    transparent 70%
+  );
+}
+.oct-glow--cta {
+  top: -120px;
+  right: -60px;
+  width: 340px;
+  height: 340px;
+  filter: blur(20px);
+  animation-duration: 10s;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--oct-section-glow) 80%, transparent),
+    transparent 70%
+  );
+}
+@keyframes oct-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-30px, 20px) scale(1.08);
+  }
+}
+
+/* — type — */
+.oct-h1 {
+  margin: 0 0 0 -0.06em;
+  font-size: clamp(38px, 5.6vw, 72px);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+.oct-h1 span {
+  display: block;
+}
+.oct-h2 {
+  margin: 0;
+  font-size: clamp(24px, 2.6vw, 30px);
+  line-height: 1.22;
+  letter-spacing: -0.012em;
+  font-weight: 600;
+}
+.oct-lede {
+  max-width: 58ch;
+  margin: 32px 0 0;
+  font-size: 17px;
+  line-height: 28px;
+}
+.oct-lede strong {
+  font-weight: 600;
+}
+.oct-body {
+  max-width: 46ch;
+  margin: 18px 0 0;
+  font-size: 15.5px;
+  line-height: 26px;
+  color: color-mix(in srgb, var(--nb-foreground) 78%, transparent);
+}
+.oct-body--wide {
+  max-width: 64ch;
+}
+.oct-kicker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--oct-accent);
+}
+.oct-kicker span {
+  width: 44px;
+  height: 1px;
+  background: var(--oct-accent);
+}
+.oct-page code {
+  font-family: var(--nb-font-mono);
+  font-size: 0.92em;
+}
+
+/* — buttons — */
+.oct-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 26px;
+}
+.oct-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: none;
+  color: var(--oct-accent);
+  transition: background-color 0.15s ease;
+}
+.oct-btn--primary {
+  border-color: var(--oct-accent);
+}
+.oct-btn--primary:hover {
+  background: color-mix(in srgb, var(--oct-accent) 12%, transparent);
+}
+.oct-btn--ghost:hover {
+  background: color-mix(in srgb, var(--oct-accent) 10%, transparent);
+}
+
+/* — terminal — */
+.oct-term {
+  max-width: 620px;
+  margin-top: 40px;
+  border: 1px solid var(--nb-border);
+  border-radius: 14px;
+  background: var(--nb-card);
+  overflow: hidden;
+}
+.oct-term__bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--nb-border);
+}
+.oct-term__bar span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--nb-border-strong);
+}
+.oct-term__bar em {
+  margin-left: 8px;
+  font-style: normal;
+  font-size: 12px;
+  color: var(--nb-muted-foreground);
+}
+.oct-term__body {
+  margin: 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-family: var(--nb-font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* — two-column sections — */
+.oct-split {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 28px clamp(24px, 4vw, 72px);
+  align-items: center;
+}
+.oct-split--wide {
+  gap: 28px clamp(24px, 5vw, 80px);
+}
+@media (max-width: 900px) {
+  .oct-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* — convergence diagram — */
+.oct-converge {
+  padding-top: 8px;
+}
+.oct-converge__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 520px;
+  margin: 0 auto;
+}
+.oct-chip {
+  flex: 1 1 0;
+  padding: 12px;
+  border: 1px solid var(--nb-border);
+  border-radius: 8px;
+  background: var(--nb-card);
+  text-align: center;
+}
+.oct-chip--accent {
+  flex: none;
+  max-width: 220px;
+  margin: 0 auto;
+  padding: 14px;
+  border-color: var(--oct-accent);
+  background: var(--nb-background);
+}
+.oct-chip__name {
+  font-size: 14px;
+  font-weight: 600;
+}
+.oct-chip__note {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--nb-muted-foreground);
+}
+
+/* The wires converge onto a bus and drop into Octarq; each tick pulses in
+   turn, so the eye reads left → right → down. */
+.oct-converge__wires {
+  position: relative;
+  max-width: 520px;
+  height: 36px;
+  margin: 0 auto;
+}
+.oct-wire {
+  position: absolute;
+  background: var(--oct-accent);
+  animation: oct-pulse 2.6s ease-in-out infinite;
+}
+.oct-wire--bus {
+  top: 0;
+  left: 16%;
+  right: 16%;
+  height: 1px;
+  /* Solid, not the border token: at 1px the border grey disappears against
+     both grounds and the three drops read as unconnected stubs. */
+  background: color-mix(in srgb, var(--oct-accent) 55%, transparent);
+  animation: none;
+}
+.oct-wire--left {
+  top: 0;
+  left: 16%;
+  width: 1px;
+  height: 16px;
+}
+.oct-wire--mid {
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 16px;
+  animation-delay: 0.3s;
+}
+.oct-wire--right {
+  top: 0;
+  right: 16%;
+  width: 1px;
+  height: 16px;
+  animation-delay: 0.6s;
+}
+.oct-wire--drop {
+  top: 16px;
+  left: 50%;
+  width: 1px;
+  height: 20px;
+  animation-delay: 0.9s;
+}
+@keyframes oct-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* — numbered plugin rows — */
+.oct-rows {
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.oct-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(56px, 110px) minmax(0, 300px) minmax(0, 1fr);
+  gap: 12px clamp(20px, 4vw, 64px);
+  align-items: baseline;
+  padding: 32px 0;
+}
+@media (max-width: 760px) {
+  .oct-row {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+  .oct-row__blurb {
+    grid-column: 2;
+  }
+}
+/* Rules fade at both ends — the design system's signature — and carry a
+   glint that crosses them on a stagger. */
+.oct-row__rule {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  overflow: hidden;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--nb-border-strong) 48px,
+    var(--nb-border-strong) calc(100% - 48px),
+    transparent
+  );
+}
+.oct-row__spark {
+  position: absolute;
+  top: 0;
+  left: -30%;
+  width: 30%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--oct-accent),
+    transparent
+  );
+  animation: oct-sweep 6s linear infinite;
+}
+.oct-row:nth-child(2) .oct-row__spark {
+  animation-delay: 1.5s;
+}
+.oct-row:nth-child(3) .oct-row__spark {
+  animation-delay: 3s;
+}
+.oct-row:nth-child(4) .oct-row__spark {
+  animation-delay: 4.5s;
+}
+.oct-row__n {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--oct-accent);
+}
+.oct-row__name {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.oct-row__name a {
+  color: inherit;
+  text-decoration: none;
+}
+.oct-row__name a:hover {
+  color: var(--oct-accent);
+}
+.oct-row__blurb {
+  margin: 0;
+  font-size: 15px;
+  line-height: 26px;
+  color: color-mix(in srgb, var(--nb-foreground) 78%, transparent);
+}
+
+/* — MCP stack — */
+.oct-stack {
+  padding: 26px;
+  border: 1px solid var(--nb-border);
+  border-radius: 14px;
+  background: var(--nb-card);
+}
+.oct-node {
+  padding: 12px 16px;
+  border: 1px solid var(--nb-border);
+  border-radius: 8px;
+  background: var(--nb-background);
+  text-align: center;
+}
+.oct-node--accent {
+  border-color: var(--oct-accent);
+  text-align: left;
+}
+.oct-node--flat {
+  padding: 10px 12px;
+  font-size: 13px;
+  text-align: left;
+}
+.oct-node--base {
+  text-align: center;
+  color: var(--nb-muted-foreground);
+}
+.oct-node__name {
+  font-size: 14px;
+  font-weight: 600;
+}
+.oct-node__note {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--nb-muted-foreground);
+}
+.oct-grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* A packet running down the wire — the diagram's own particle. */
+.oct-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+}
+.oct-link__wire {
+  position: relative;
+  width: 1px;
+  height: 20px;
+  background: color-mix(in srgb, var(--oct-accent) 45%, transparent);
+  overflow: visible;
+}
+.oct-link__wire--muted {
+  background: var(--nb-border-strong);
+  height: 14px;
+}
+.oct-link__packet {
+  position: absolute;
+  left: -1.5px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--oct-accent);
+  animation: oct-packet 2.6s ease-in-out infinite;
+}
+.oct-link__label {
+  font-size: 11px;
+  color: var(--nb-muted-foreground);
+}
+@keyframes oct-packet {
+  0% {
+    top: -4px;
+    opacity: 0;
+  }
+  20%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    top: 20px;
+    opacity: 0;
+  }
+}
+
+.oct-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.oct-tag {
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  background: color-mix(in srgb, var(--oct-accent) 22%, transparent);
+  color: var(--nb-foreground);
+}
+.oct-tag--outline {
+  background: transparent;
+  border-color: var(--oct-accent);
+  color: var(--oct-accent);
+}
+
+/* — FAQ — */
+.oct-faq {
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.oct-faq__item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 300px) minmax(0, 1fr);
+  gap: 12px clamp(20px, 3vw, 56px);
+  padding: 26px 0;
+}
+.oct-faq__item + .oct-faq__item::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--nb-border) 48px,
+    var(--nb-border) calc(100% - 48px),
+    transparent
+  );
+}
+@media (max-width: 760px) {
+  .oct-faq__item {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+  .oct-faq__a {
+    grid-column: 2;
+  }
+}
+.oct-faq__mark {
+  font-size: 15px;
+  color: var(--oct-accent);
+  animation: oct-pulse 3s ease-in-out infinite;
+}
+.oct-faq__q {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.oct-faq__a {
+  margin: 0;
+  max-width: 56ch;
+  font-size: 15px;
+  line-height: 26px;
+  color: color-mix(in srgb, var(--nb-foreground) 78%, transparent);
+}
+
+/* — closing call — */
+.oct-cta {
+  position: relative;
+  overflow: hidden;
+  padding: 44px clamp(24px, 4vw, 40px);
+  border-radius: 14px;
+  background: var(--oct-section);
+  color: var(--oct-section-text);
+}
+.oct-cta .oct-body {
+  color: color-mix(in srgb, var(--oct-section-text) 84%, transparent);
+}
+.oct-cta .oct-btn {
+  color: var(--oct-section-text);
+}
+.oct-cta .oct-btn--primary {
+  border-color: color-mix(in srgb, var(--oct-section-text) 55%, transparent);
+}
+.oct-cta .oct-btn:hover {
+  background: color-mix(in srgb, var(--oct-section-text) 12%, transparent);
+}
+.oct-h2--cta {
+  font-size: 26px;
+}
+.oct-sweep--cta {
+  top: 0;
+  bottom: auto;
+}
+.oct-sweep--cta::after {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--oct-section-glow),
+    transparent
+  );
+}
+/* Inside the CTA the waves ride the section fill, not the page ground. */
+.oct-cta .oct-wave--back {
+  fill: color-mix(in srgb, var(--oct-section-glow) 55%, transparent);
+}
+.oct-cta .oct-wave--mid {
+  fill: color-mix(in srgb, var(--oct-section-glow) 38%, transparent);
+}
+.oct-cta .oct-wave--front {
+  fill: color-mix(in srgb, var(--oct-section-glow) 26%, transparent);
+}
+
+/* — footer — */
+.oct-footer {
+  border-top: 1px solid var(--nb-border);
+}
+.oct-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding-block: 28px 48px;
+  font-size: 13px;
+}
+.oct-footer a {
+  color: var(--nb-muted-foreground);
+  text-decoration: none;
+}
+.oct-footer a:hover {
+  color: var(--nb-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oct-page *,
+  .oct-page *::after,
+  .oct-page *::before {
+    animation: none !important;
+  }
+}

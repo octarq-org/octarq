@@ -1,0 +1,65 @@
+---
+import SectionMotion from "./SectionMotion.astro";
+
+const bundled = [
+  {
+    n: "01",
+    name: "Links",
+    href: "/core/short-links/",
+    blurb:
+      "Custom and random slugs, geo/device/OS/language routing, expiry and click limits, time-series analytics with bot detection, UTM builder, QR codes.",
+  },
+  {
+    n: "02",
+    name: "Mail",
+    href: "/core/mailboxes/",
+    blurb:
+      "Inbound mail over Cloudflare Email Routing — no port 25, no spam daemons. Catch-all provisioning, a full read/reply/send client, raw .eml export.",
+  },
+  {
+    n: "03",
+    name: "DNS",
+    href: "/core/dns/",
+    blurb:
+      "Cloudflare and DNSPod CRUD, subdomain presets for short-link and email auth (MX/SPF/DKIM), native comment mapping.",
+  },
+  {
+    n: "04",
+    name: "Workspaces & RBAC",
+    blurb:
+      "Isolated multi-tenant orgs, server-enforced roles, invites and onboarding, hashed bearer API tokens.",
+  },
+];
+---
+
+<section class="oct-sec oct-sec--rule" id="plugins">
+  <SectionMotion variant="particles" count={7} intensity={0.55} />
+  <div class="oct-shell oct-layer">
+    <p class="oct-kicker"><span aria-hidden="true"></span>Bundled plugins</p>
+    <h2 class="oct-h2">Useful on minute one</h2>
+    <p class="oct-body oct-body--wide">
+      Each one is a <code>plugin.Plugin</code> + <code>UIPlugin</code> — the
+      exact seam your own plugins use, so the bundled features double as
+      reference implementations.
+    </p>
+
+    <ul class="oct-rows">
+      {
+        bundled.map((p, i) => (
+          <li class="oct-row">
+            {i > 0 && (
+              <span class="oct-row__rule" aria-hidden="true">
+                <span class="oct-row__spark" />
+              </span>
+            )}
+            <p class="oct-row__n">{p.n}</p>
+            <h3 class="oct-row__name">
+              {p.href ? <a href={p.href}>{p.name}</a> : p.name}
+            </h3>
+            <p class="oct-row__blurb">{p.blurb}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
