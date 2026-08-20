@@ -107,7 +107,18 @@ jobs:
           name: website-dist
           path: website/dist
 
+      - name: Check Cloudflare credentials
+        id: check_creds
+        run: |
+          if [ -n "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "has_creds=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_creds=false" >> $GITHUB_OUTPUT
+            echo "::notice::CLOUDFLARE_API_TOKEN is not configured in the 'preview' environment or repository secrets. Skipping preview deployment."
+          fi
+
       - name: Deploy to Cloudflare Preview
+        if: steps.check_creds.outputs.has_creds == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
