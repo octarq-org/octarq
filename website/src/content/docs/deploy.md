@@ -1,18 +1,19 @@
 ---
 title: Deploying Octarq
-description: Production deployment guide for Octarq using Docker, binary releases, or cloud providers.
+description: Production deployment guide for Octarq using Docker, binary releases, or cloud providers with SQLite or PostgreSQL.
 sidebar:
   order: 5
   group:
     label: "Start"
 ---
 
+Octarq is a single Go binary with an embedded frontend dashboard and support for both embedded SQLite and external PostgreSQL databases.
 
-Octarq is a single Go binary with an embedded SQLite database and frontend dashboard.
+## 1. Docker Compose Deployments
 
-## 1. Docker Compose (Recommended)
+### Option A: Standard Deployment (SQLite)
 
-The fastest way to deploy Octarq in production is with Docker Compose:
+The fastest way to deploy Octarq for single-node setups:
 
 ```yaml
 version: '3.8'
@@ -28,11 +29,67 @@ services:
       - OCTARQ_SECRET_KEY=change-this-to-a-random-32-byte-string
       - OCTARQ_ADMIN_PASSWORD=change-this-admin-password
       - OCTARQ_LISTEN=:8080
+      - OCTARQ_DB_DRIVER=sqlite
     volumes:
       - ./data:/data
 ```
 
-Start the container:
+### Option B: Scalable Production Deployment (PostgreSQL + Redis)
+
+For enterprise high availability, clustered setups, and high-concurrency workloads:
+
+```yaml
+version: '3.8'
+
+services:
+  octarq:
+    image: ghcr.io/octarq-org/octarq:latest
+    container_name: octarq
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      - OCTARQ_SECRET_KEY=change-this-to-a-random-32-byte-string
+      - OCTARQ_ADMIN_PASSWORD=change-this-admin-password
+      - OCTARQ_LISTEN=:8080
+      - OCTARQ_DB_DRIVER=postgres
+      - OCTARQ_DB_DSN=postgres://octarq:securepassword@postgres:5432/octarq?sslmode=disable
+      - OCTARQ_REDIS_URL=redis://redis:6379
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: octarq
+      POSTGRES_PASSWORD: securepassword
+      POSTGRES_DB: octarq
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U octarq -d octarq"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+```
+
+Start the stack:
 
 ```bash
 docker compose up -d
@@ -63,6 +120,9 @@ ExecStart=/opt/octarq/octarq
 Restart=always
 Environment=OCTARQ_SECRET_KEY=your-secret-key
 Environment=OCTARQ_ADMIN_PASSWORD=your-admin-password
+# Optional: Use PostgreSQL instead of SQLite
+# Environment=OCTARQ_DB_DRIVER=postgres
+# Environment=OCTARQ_DB_DSN=postgres://user:password@localhost:5432/octarq?sslmode=disable
 
 [Install]
 WantedBy=multi-user.target
@@ -107,14 +167,13 @@ server {
 | `OCTARQ_SECRET_KEY` | Yes | 32-byte secret key for token hashing & encryption |
 | `OCTARQ_ADMIN_PASSWORD` | Yes | Initial administrator account password |
 | `OCTARQ_LISTEN` | No | Listen address (default: `:8080`) |
+| `OCTARQ_DB_DRIVER` | No | `sqlite` (default) or `postgres` |
+| `OCTARQ_DB_DSN` | No | DSN when using PostgreSQL (e.g. `postgres://user:pass@host:5432/db`) |
+| `OCTARQ_REDIS_URL` | No | Redis connection URL for distributed rate limiting & caching |
 | `OCTARQ_MAXMIND_LICENSE_KEY` | No | MaxMind GeoIP license key for auto-downloading GeoIP DB |
 
 ---
 
 ## 5. Backup & Restore
 
-Octarq ships `octarq backup` and `octarq restore` subcommands for the database,
-plus on-demand backups from the dashboard (Settings → Instance). Two things are
-easy to get wrong in production — the auto-generated key files that live next to
-the database, and the fact that Postgres backup needs host-side `pg_dump` — so
-read the full walkthrough before relying on it: **[Backup & Restore](/backup-restore/)**.
+Octarq ships `octarq backup` and `octarq restore` subcommands supporting both SQLite and PostgreSQL, plus on-demand backups from the dashboard (Settings → Instance). Read the full walkthrough: **[Backup & Restore](/backup-restore/)**.
