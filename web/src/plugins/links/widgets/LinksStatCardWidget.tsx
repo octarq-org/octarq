@@ -23,7 +23,6 @@ export default function LinksStatCardWidget() {
           label={t("overview.totalClicks")}
           value={(o.totalClicks ?? 0).toLocaleString()}
           delta={t("overview.clicks7d", { count: o.clicks7d ?? 0 })}
-          positive={true}
           icon={<MousePointerClick className="h-4 w-4" />}
           onClick={() => nav("/links")}
           index={0}
@@ -34,7 +33,6 @@ export default function LinksStatCardWidget() {
           label={t("overview.shortLinks")}
           value={(o.links ?? 0).toLocaleString()}
           delta={t("overview.activeLinks", { count: o.activeLinks ?? 0 })}
-          positive={true}
           icon={<Link2 className="h-4 w-4" />}
           onClick={() => nav("/links")}
           index={1}

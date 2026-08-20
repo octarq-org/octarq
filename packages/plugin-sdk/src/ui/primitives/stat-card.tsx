@@ -8,7 +8,7 @@ export function StatCard({
   label,
   value,
   delta,
-  positive = true,
+  positive,
   icon,
   index = 0,
   onClick,
@@ -58,7 +58,12 @@ export function StatCard({
         </span>
         {delta && (
           <span
-            className={`mb-1 text-[12px] font-medium ${positive ? "text-success-fg" : "text-danger-fg"}`}
+            className={cn(
+              "mb-1 text-[12px] font-medium",
+              positive === true && "text-success-fg",
+              positive === false && "text-danger-fg",
+              positive === undefined && "text-muted-foreground",
+            )}
           >
             {delta}
           </span>
