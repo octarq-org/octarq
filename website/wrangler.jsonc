@@ -22,5 +22,11 @@
       "pattern": "docs.octarq.org",
       "custom_domain": true
     }
-  ]
+  ],
+  "env": {
+    "preview": {
+      "workers_dev": true,
+      "routes": []
+    }
+  }
 }
