@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
+    "prebuild": "node scripts/generate-openapi.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "typecheck": "astro check",
+    "gen:openapi": "node scripts/generate-openapi.mjs",
     "check:api-reference": "node scripts/check-api-reference.mjs",
     "lint:docs": "nimbus-docs lint",
     "lint:docs:fix": "nimbus-docs lint --fix",
