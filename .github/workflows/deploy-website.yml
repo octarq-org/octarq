@@ -6,6 +6,7 @@ name: Deploy website
 # never sees the dashboard's dependency tree.
 on:
   push:
+    tags: ["v*"]
     branches: [main]
     paths:
       - "website/**"
@@ -20,11 +21,11 @@ on:
 permissions:
   contents: read
 
-# Deploys are not interchangeable: never cancel an in-flight main deploy, or the
+# Deploys are not interchangeable: never cancel an in-flight main/tag deploy, or the
 # live site can be left mid-upload. PR builds are only a check, so they cancel.
 concurrency:
   group: deploy-website-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/v') }}
 
 jobs:
   build:
@@ -45,6 +46,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.4 # same pin as ci.yml; pnpm 10+ breaks on esbuild's build script
@@ -60,6 +66,8 @@ jobs:
       - name: Type-check
         run: pnpm typecheck
 
+      # Prebuild automatically generates public/openapi.json from the Go handlers
+      # of the current release tag / commit before invoking astro build.
       - name: Build
         run: pnpm build
 
@@ -69,22 +77,11 @@ jobs:
       - name: Check API reference build
         run: node scripts/check-api-reference.mjs
 
-      # `pnpm lint:docs` is deliberately NOT run here. The nimbus-docs CLI the
-      # lockfile installs only walks `.mdx`, and every page under
-      # src/content/docs is `.md`, so on a clean checkout it exits 1 with "No
-      # .mdx files found" without having linted anything. A working copy whose
-      # node_modules predates the lockfile has a different 0.8.2 build that does
-      # walk `.md` — which is why it passes locally and cannot pass here.
-      #
-      # Adding it back means either moving the content to `.mdx` or pinning a
-      # CLI that reads `.md`. Until one of those happens, a step that always
-      # fails is worse than no step, and a step made to pass with
-      # `|| true` is worse than both.
-
-      # Only main publishes. A PR run stops after the build above, which is the
-      # part that can actually be wrong.
+      # Production deploys are triggered exclusively on release tags (v*) or
+      # manual workflow_dispatch. Pushes to main and PRs run type-check, build,
+      # and check-api-reference to verify the site builds without publishing.
       - name: Deploy to Cloudflare
-        if: github.event_name != 'pull_request'
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
