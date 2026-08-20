@@ -62,12 +62,12 @@ you offer social login on must be registered with the provider as
 
 ## Database
 
-octarq defaults to pure-Go SQLite (no cgo). Flip to Postgres with two env vars:
+octarq defaults to pure-Go SQLite (no cgo). Switch to PostgreSQL or MySQL 8 with two environment variables:
 
 | Variable | Purpose |
 | --- | --- |
-| `OCTARQ_DB_DRIVER` | `sqlite` (default) or `postgres`. |
-| `OCTARQ_DB_DSN` | Connection string when using Postgres. |
+| `OCTARQ_DB_DRIVER` | `sqlite` (default), `postgres`, or `mysql`. |
+| `OCTARQ_DB_DSN` | Connection string when using Postgres (e.g. `postgres://user:pass@localhost:5432/octarq?sslmode=disable`) or MySQL 8 (e.g. `user:pass@tcp(localhost:3306)/octarq?charset=utf8mb4&parseTime=True&loc=Local`). |
 | `OCTARQ_REDIS_URL` | Optional Redis connection (e.g. `redis://localhost:6379`) for rate limiting / caching. Empty = those features fall back to DB / in-memory. |
 
 ## Email inbound

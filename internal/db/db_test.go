@@ -33,6 +33,13 @@ func TestDBOpenAndMigrate(t *testing.T) {
 		t.Error("expected error for unsupported driver, got nil")
 	}
 
+	// 2b. Open MySQL driver (verifies dialctor creation)
+	mysqlCfg := &config.Config{
+		DBDriver: "mysql",
+		DBDSN:    "user:password@tcp(127.0.0.1:1)/nonexistent?timeout=100ms",
+	}
+	_, _ = Open(mysqlCfg)
+
 	// 3. Migrate with legacy data
 	// Seed legacy setting
 	gdb.AutoMigrate(&models.Setting{}, &models.WorkspaceSetting{}, &models.OrgMember{}, &models.User{}, &models.Session{})
@@ -190,13 +197,18 @@ func TestBackupAndRestoreEdgeCases(t *testing.T) {
 		t.Errorf("expected .sql extension for postgres backup, got %q", fnPg)
 	}
 
+	fnMy := DefaultBackupFilename("mysql", time.Now())
+	if filepath.Ext(fnMy) != ".sql" {
+		t.Errorf("expected .sql extension for mysql backup, got %q", fnMy)
+	}
+
 	fnLite := DefaultBackupFilename("sqlite", time.Now())
 	if filepath.Ext(fnLite) != ".db" {
 		t.Errorf("expected .db extension for sqlite backup, got %q", fnLite)
 	}
 
 	// Backup unsupported driver
-	badCfg := &config.Config{DBDriver: "mysql"}
+	badCfg := &config.Config{DBDriver: "unsupported"}
 	if err := Backup(badCfg, "out.db"); err == nil {
 		t.Error("expected Backup error for unsupported driver")
 	}

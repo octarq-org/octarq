@@ -317,7 +317,7 @@ func TestRestoreMoreEdgeCases(t *testing.T) {
 	if err := os.WriteFile(existing, []byte("data"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	err := Restore(&config.Config{DBDriver: "mysql"}, existing)
+	err := Restore(&config.Config{DBDriver: "invalid"}, existing)
 	if err == nil || !strings.Contains(err.Error(), "unsupported driver") {
 		t.Fatalf("expected unsupported-driver error, got %v", err)
 	}

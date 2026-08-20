@@ -26,8 +26,8 @@ var DefaultAppName = "octarq"
 type Config struct {
 	Listen string // e.g. ":8080"
 
-	DBDriver string // "sqlite" | "postgres"
-	DBDSN    string // sqlite: file path; postgres: connection string
+	DBDriver string // "sqlite" | "postgres" | "mysql"
+	DBDSN    string // sqlite: file path; postgres/mysql: connection string
 
 	// SecretKey seeds both the session-cookie HMAC and the AES-GCM used to
 	// encrypt provider credentials at rest. Must be stable across restarts.
@@ -217,8 +217,8 @@ func Load() (*Config, error) {
 
 		LogLevel: normalizeLogLevel(env("OCTARQ_LOG_LEVEL", "info")),
 	}
-	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" {
-		return nil, fmt.Errorf("OCTARQ_DB_DRIVER must be sqlite or postgres, got %q", c.DBDriver)
+	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" && c.DBDriver != "mysql" {
+		return nil, fmt.Errorf("OCTARQ_DB_DRIVER must be sqlite, postgres, or mysql, got %q", c.DBDriver)
 	}
 	if c.LogLevel != "info" && !validLogLevels[c.LogLevel] {
 		return nil, fmt.Errorf("OCTARQ_LOG_LEVEL must be debug, info, warn or error, got %q", c.LogLevel)
@@ -249,7 +249,7 @@ func Load() (*Config, error) {
 }
 
 // Provisioned reports whether this instance is pointed at infrastructure
-// somebody stood up on purpose: an external Postgres, or an external Redis.
+// somebody stood up on purpose: an external Postgres, an external MySQL, or an external Redis.
 //
 // It replaces the old IsProduction, which keyed on an https OCTARQ_BASE_URL or
 // a set OCTARQ_ADMIN_HOST — both gone, now that absolute URLs come from the
@@ -269,11 +269,11 @@ func Load() (*Config, error) {
 // Redis is treated as development and only gets a warning at config load time
 // (unless a domain is registered, in which case app.enforceSecretKeyFloor
 // enforces the secret-key floor at boot time), where an https OCTARQ_BASE_URL
-// used to make it fatal. Nobody reaches Postgres or Redis by accident, though,
+// used to make it fatal. Nobody reaches Postgres, MySQL or Redis by accident, though,
 // whereas a laptop reaches sqlite by default — so the signal no longer fires
 // on the setup it must not break.
 func (c *Config) Provisioned() bool {
-	return c.DBDriver == "postgres" || strings.TrimSpace(c.RedisURL) != ""
+	return c.DBDriver == "postgres" || c.DBDriver == "mysql" || strings.TrimSpace(c.RedisURL) != ""
 }
 
 // provisionedBecause names the signal that made Provisioned true, so the
@@ -281,6 +281,9 @@ func (c *Config) Provisioned() bool {
 func (c *Config) provisionedBecause() string {
 	if c.DBDriver == "postgres" {
 		return "OCTARQ_DB_DRIVER=postgres"
+	}
+	if c.DBDriver == "mysql" {
+		return "OCTARQ_DB_DRIVER=mysql"
 	}
 	return "OCTARQ_REDIS_URL is set"
 }
