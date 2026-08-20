@@ -21,7 +21,6 @@ export default function DNSStatCardWidget() {
       label={t("overview.domains")}
       value={(o.domains ?? 0).toLocaleString()}
       delta={t("overview.domainsDelta", { link: o.linkDomains ?? 0, mail: o.mailDomains ?? 0 })}
-      positive={true}
       icon={<Globe className="h-4 w-4" />}
       onClick={() => nav("/domains")}
       index={3}

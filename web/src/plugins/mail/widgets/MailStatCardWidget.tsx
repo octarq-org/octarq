@@ -21,7 +21,6 @@ export default function MailStatCardWidget() {
       label={t("overview.mailboxes")}
       value={(o.mailboxes ?? 0).toLocaleString()}
       delta={t("overview.unread", { count: o.unread ?? 0 })}
-      positive={false}
       icon={<Mail className="h-4 w-4" />}
       onClick={() => nav("/mail")}
       index={2}
