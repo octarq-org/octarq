@@ -167,8 +167,8 @@ server {
 | `OCTARQ_SECRET_KEY` | Yes | 32-byte secret key for token hashing & encryption |
 | `OCTARQ_ADMIN_PASSWORD` | Yes | Initial administrator account password |
 | `OCTARQ_LISTEN` | No | Listen address (default: `:8080`) |
-| `OCTARQ_DB_DRIVER` | No | `sqlite` (default) or `postgres` |
-| `OCTARQ_DB_DSN` | No | DSN when using PostgreSQL (e.g. `postgres://user:pass@host:5432/db`) |
+| `OCTARQ_DB_DRIVER` | No | `sqlite` (default), `postgres`, or `mysql` |
+| `OCTARQ_DB_DSN` | No | DSN when using PostgreSQL (e.g. `postgres://user:pass@host:5432/db`) or MySQL 8 (e.g. `user:pass@tcp(host:3306)/db?charset=utf8mb4&parseTime=True&loc=Local`) |
 | `OCTARQ_REDIS_URL` | No | Redis connection URL for distributed rate limiting & caching |
 | `OCTARQ_MAXMIND_LICENSE_KEY` | No | MaxMind GeoIP license key for auto-downloading GeoIP DB |
 
@@ -176,4 +176,4 @@ server {
 
 ## 5. Backup & Restore
 
-Octarq ships `octarq backup` and `octarq restore` subcommands supporting both SQLite and PostgreSQL, plus on-demand backups from the dashboard (Settings → Instance). Read the full walkthrough: **[Backup & Restore](/backup-restore/)**.
+Octarq ships `octarq backup` and `octarq restore` subcommands supporting SQLite, PostgreSQL, and MySQL 8, plus on-demand backups from the dashboard (Settings → Instance). Read the full walkthrough: **[Backup & Restore](/backup-restore/)**.

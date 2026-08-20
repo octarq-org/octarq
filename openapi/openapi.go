@@ -82,8 +82,8 @@ func Document(plugins []plugin.Plugin) (*huma.OpenAPI, error) {
 	setIfUnset("OCTARQ_SECRET_KEY", "openapi-spec-generation-key-not-a-secret")
 	setIfUnset("OCTARQ_ADMIN_PASSWORD", "openapi-spec-generation-password")
 	// Port 0 so a generation run can never collide with a server already
-	// listening on the default port.
-	setIfUnset("OCTARQ_LISTEN", "127.0.0.1:0")
+	// listening on the default or .env-configured port.
+	os.Setenv("OCTARQ_LISTEN", "127.0.0.1:0")
 
 	a, err := app.New()
 	if err != nil {

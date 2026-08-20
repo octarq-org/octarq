@@ -36,6 +36,7 @@ func TestOpenAPICommandStdoutIsParseableJSON(t *testing.T) {
 
 	cmd := exec.Command(bin, "openapi")
 	cmd.Dir = "." // the repo dir, whose database is what triggered the logging
+	cmd.Env = append(os.Environ(), "OCTARQ_LISTEN=127.0.0.1:0")
 	cmd.Stderr = os.NewFile(0, os.DevNull)
 	out, err := cmd.Output()
 	if err != nil {

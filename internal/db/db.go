@@ -13,6 +13,7 @@ import (
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/models"
+	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -29,6 +30,8 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 		dial = sqlite.Open(cfg.DBDSN)
 	case "postgres":
 		dial = postgres.Open(cfg.DBDSN)
+	case "mysql":
+		dial = mysql.Open(cfg.DBDSN)
 	default:
 		return nil, fmt.Errorf("unsupported driver %q", cfg.DBDriver)
 	}

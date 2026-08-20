@@ -86,9 +86,26 @@ func TestLoadEnvSecretsWin(t *testing.T) {
 func TestLoadRejectsBadDriver(t *testing.T) {
 	t.Setenv("OCTARQ_SECRET_KEY", "s")
 	t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
-	t.Setenv("OCTARQ_DB_DRIVER", "mysql")
+	t.Setenv("OCTARQ_DB_DRIVER", "invalid_driver")
 	if _, err := Load(); err == nil {
 		t.Fatal("expected error for unsupported driver")
+	}
+}
+
+func TestLoadAcceptsMySQLDriver(t *testing.T) {
+	t.Setenv("OCTARQ_SECRET_KEY", "32-bytes-very-long-secret-key-for-test!!")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "pw")
+	t.Setenv("OCTARQ_DB_DRIVER", "mysql")
+	t.Setenv("OCTARQ_DB_DSN", "root:secret@tcp(127.0.0.1:3306)/octarq")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("unexpected error for mysql driver: %v", err)
+	}
+	if cfg.DBDriver != "mysql" {
+		t.Errorf("DBDriver = %q, want mysql", cfg.DBDriver)
+	}
+	if !cfg.Provisioned() {
+		t.Error("expected Provisioned() to be true for mysql driver")
 	}
 }
 

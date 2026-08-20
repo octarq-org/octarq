@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
@@ -23,6 +24,117 @@ type PostgresConfig struct {
 	Password string
 	DBName   string
 	SSLMode  string
+}
+
+// MySQLConfig holds parsed connection parameters from a MySQL DSN.
+type MySQLConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	DBName   string
+	Protocol string
+	Socket   string
+}
+
+// ParseMySQLDSN parses a MySQL DSN string in either URL format
+// (mysql://user:pass@host:port/dbname) or Go DSN format
+// (user:pass@tcp(host:port)/dbname?charset=utf8mb4&parseTime=True&loc=Local).
+func ParseMySQLDSN(dsn string) (MySQLConfig, error) {
+	dsn = strings.TrimSpace(dsn)
+	if dsn == "" {
+		return MySQLConfig{}, fmt.Errorf("empty DSN")
+	}
+
+	if strings.HasPrefix(dsn, "mysql://") {
+		u, err := url.Parse(dsn)
+		if err != nil {
+			return MySQLConfig{}, fmt.Errorf("parse mysql URL: %w", err)
+		}
+		host := u.Hostname()
+		if host == "" {
+			host = "127.0.0.1"
+		}
+		port := u.Port()
+		if port == "" {
+			port = "3306"
+		}
+		pass, _ := u.User.Password()
+		dbname := strings.TrimPrefix(u.Path, "/")
+		if dbname == "" {
+			return MySQLConfig{}, fmt.Errorf("missing dbname in DSN")
+		}
+
+		return MySQLConfig{
+			Host:     host,
+			Port:     port,
+			User:     u.User.Username(),
+			Password: pass,
+			DBName:   dbname,
+			Protocol: "tcp",
+		}, nil
+	}
+
+	// Standard Go MySQL DSN: [user[:password]@][protocol[(address)]]/dbname[?param1=value1&...]
+	withoutParams := dsn
+	if idx := strings.Index(withoutParams, "?"); idx != -1 {
+		withoutParams = withoutParams[:idx]
+	}
+
+	slashIdx := strings.LastIndex(withoutParams, "/")
+	if slashIdx == -1 || slashIdx == len(withoutParams)-1 {
+		return MySQLConfig{}, fmt.Errorf("missing dbname in DSN")
+	}
+	dbname := withoutParams[slashIdx+1:]
+	prefix := withoutParams[:slashIdx]
+
+	var user, pass, protoAddr string
+	if atIdx := strings.LastIndex(prefix, "@"); atIdx != -1 {
+		userInfo := prefix[:atIdx]
+		protoAddr = prefix[atIdx+1:]
+		user, pass, _ = strings.Cut(userInfo, ":")
+	} else {
+		protoAddr = prefix
+	}
+
+	cfg := MySQLConfig{
+		User:     user,
+		Password: pass,
+		DBName:   dbname,
+		Host:     "127.0.0.1",
+		Port:     "3306",
+		Protocol: "tcp",
+	}
+
+	if strings.HasPrefix(protoAddr, "unix(") && strings.HasSuffix(protoAddr, ")") {
+		cfg.Protocol = "unix"
+		cfg.Socket = protoAddr[5 : len(protoAddr)-1]
+		cfg.Host = ""
+		cfg.Port = ""
+		return cfg, nil
+	}
+
+	if strings.HasPrefix(protoAddr, "tcp(") && strings.HasSuffix(protoAddr, ")") {
+		addr := protoAddr[4 : len(protoAddr)-1]
+		if h, p, err := net.SplitHostPort(addr); err == nil {
+			cfg.Host = h
+			cfg.Port = p
+		} else if addr != "" {
+			cfg.Host = addr
+		}
+		return cfg, nil
+	}
+
+	if protoAddr != "" && protoAddr != "tcp" {
+		if h, p, err := net.SplitHostPort(protoAddr); err == nil {
+			cfg.Host = h
+			cfg.Port = p
+		} else {
+			cfg.Host = protoAddr
+		}
+	}
+
+	return cfg, nil
 }
 
 // ParsePostgresDSN parses a Postgres DSN string in either URL format
@@ -96,13 +208,13 @@ func ParsePostgresDSN(dsn string) (PostgresConfig, error) {
 // DefaultBackupFilename returns a timestamped backup filename for the given driver.
 func DefaultBackupFilename(driver string, now time.Time) string {
 	ts := now.Format("20060102-150405")
-	if driver == "postgres" {
+	if driver == "postgres" || driver == "mysql" {
 		return fmt.Sprintf("octarq-backup-%s.sql", ts)
 	}
 	return fmt.Sprintf("octarq-backup-%s.db", ts)
 }
 
-// Backup performs an online, non-locking backup for SQLite or Postgres.
+// Backup performs an online, non-locking backup for SQLite, Postgres, or MySQL.
 func Backup(cfg *config.Config, outputPath string) error {
 	if outputPath == "" {
 		outputPath = DefaultBackupFilename(cfg.DBDriver, time.Now())
@@ -113,6 +225,8 @@ func Backup(cfg *config.Config, outputPath string) error {
 		return backupSQLite(cfg.DBDSN, outputPath)
 	case "postgres":
 		return backupPostgres(cfg.DBDSN, outputPath)
+	case "mysql":
+		return backupMySQL(cfg.DBDSN, outputPath)
 	default:
 		return fmt.Errorf("unsupported driver %q", cfg.DBDriver)
 	}
@@ -189,6 +303,59 @@ func backupPostgres(dsn, outputPath string) error {
 	return nil
 }
 
+func backupMySQL(dsn, outputPath string) error {
+	myCfg, err := ParseMySQLDSN(dsn)
+	if err != nil {
+		return fmt.Errorf("invalid mysql DSN: %w", err)
+	}
+
+	dumpPath, err := exec.LookPath("mysqldump")
+	if err != nil {
+		return fmt.Errorf("mysqldump command not found in PATH; please install mysql-client / default-mysql-client / mariadb-client")
+	}
+
+	dir := filepath.Dir(outputPath)
+	if dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("create backup directory: %w", err)
+		}
+	}
+
+	args := []string{
+		"--single-transaction",
+		"--quick",
+		"--routines",
+		"--triggers",
+	}
+	if myCfg.Protocol == "unix" && myCfg.Socket != "" {
+		args = append(args, "--socket", myCfg.Socket)
+	} else {
+		if myCfg.Host != "" {
+			args = append(args, "-h", myCfg.Host)
+		}
+		if myCfg.Port != "" {
+			args = append(args, "-P", myCfg.Port)
+		}
+	}
+	if myCfg.User != "" {
+		args = append(args, "-u", myCfg.User)
+	}
+	args = append(args, "--result-file="+outputPath, myCfg.DBName)
+
+	cmd := exec.Command(dumpPath, args...)
+	env := os.Environ()
+	if myCfg.Password != "" {
+		env = append(env, "MYSQL_PWD="+myCfg.Password)
+	}
+	cmd.Env = env
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("mysqldump failed (%w): %s", err, string(output))
+	}
+	return nil
+}
+
 // VerifySQLiteIntegrity opens a SQLite database file and executes PRAGMA integrity_check.
 func VerifySQLiteIntegrity(dbPath string) error {
 	info, err := os.Stat(dbPath)
@@ -220,7 +387,7 @@ func VerifySQLiteIntegrity(dbPath string) error {
 	return nil
 }
 
-// Restore restores a database from the specified input file for SQLite or Postgres.
+// Restore restores a database from the specified input file for SQLite, Postgres, or MySQL.
 func Restore(cfg *config.Config, inputPath string) error {
 	info, err := os.Stat(inputPath)
 	if err != nil {
@@ -235,6 +402,8 @@ func Restore(cfg *config.Config, inputPath string) error {
 		return restoreSQLite(cfg.DBDSN, inputPath)
 	case "postgres":
 		return restorePostgres(cfg.DBDSN, inputPath)
+	case "mysql":
+		return restoreMySQL(cfg.DBDSN, inputPath)
 	default:
 		return fmt.Errorf("unsupported driver %q", cfg.DBDriver)
 	}
@@ -322,6 +491,54 @@ func restorePostgres(dsn, inputPath string) error {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s restore failed (%w): %s", toolName, err, string(output))
+	}
+	return nil
+}
+
+func restoreMySQL(dsn, inputPath string) error {
+	myCfg, err := ParseMySQLDSN(dsn)
+	if err != nil {
+		return fmt.Errorf("invalid mysql DSN: %w", err)
+	}
+
+	mysqlClientPath, err := exec.LookPath("mysql")
+	if err != nil {
+		return fmt.Errorf("mysql command not found in PATH; please install mysql-client / default-mysql-client / mariadb-client")
+	}
+
+	in, err := os.Open(inputPath)
+	if err != nil {
+		return fmt.Errorf("open backup file: %w", err)
+	}
+	defer in.Close()
+
+	var args []string
+	if myCfg.Protocol == "unix" && myCfg.Socket != "" {
+		args = append(args, "--socket", myCfg.Socket)
+	} else {
+		if myCfg.Host != "" {
+			args = append(args, "-h", myCfg.Host)
+		}
+		if myCfg.Port != "" {
+			args = append(args, "-P", myCfg.Port)
+		}
+	}
+	if myCfg.User != "" {
+		args = append(args, "-u", myCfg.User)
+	}
+	args = append(args, myCfg.DBName)
+
+	cmd := exec.Command(mysqlClientPath, args...)
+	cmd.Stdin = in
+	env := os.Environ()
+	if myCfg.Password != "" {
+		env = append(env, "MYSQL_PWD="+myCfg.Password)
+	}
+	cmd.Env = env
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("mysql restore failed (%w): %s", err, string(output))
 	}
 	return nil
 }
