@@ -1,0 +1,53 @@
+---
+import SectionMotion from "./SectionMotion.astro";
+
+const neighbours = [
+  { name: "PocketBase", note: "single-binary DX" },
+  { name: "Dub", note: "links · domains · email" },
+  { name: "n8n", note: "plugin ecosystem" },
+];
+---
+
+<section class="oct-sec oct-sec--rule" id="positioning">
+  <SectionMotion variant="waves" intensity={0.9} />
+  <div class="oct-shell oct-layer">
+    <p class="oct-kicker"><span aria-hidden="true"></span>Why Octarq</p>
+    <div class="oct-split">
+      <div>
+        <h2 class="oct-h2">
+          The intersection of three tools you already run.
+        </h2>
+        <p class="oct-body">
+          PocketBase's single-binary developer experience. Dub's real link,
+          domain and email infrastructure. n8n's plugin ecosystem for
+          connectors. Octarq sits where those three ideas meet, with every
+          capability agent-native over MCP.
+        </p>
+      </div>
+
+      <div class="oct-converge">
+        <div class="oct-converge__row">
+          {
+            neighbours.map((t) => (
+              <div class="oct-chip">
+                <div class="oct-chip__name">{t.name}</div>
+                <div class="oct-chip__note">{t.note}</div>
+              </div>
+            ))
+          }
+        </div>
+        <div class="oct-converge__wires" aria-hidden="true">
+          <span class="oct-wire oct-wire--bus"></span>
+          <span class="oct-wire oct-wire--left"></span>
+          <span class="oct-wire oct-wire--mid"></span>
+          <span class="oct-wire oct-wire--right"></span>
+          <span class="oct-wire oct-wire--drop"></span>
+        </div>
+        <div class="oct-chip oct-chip--accent">
+          <div class="oct-chip__name">Octarq</div>
+          <div class="oct-chip__note">one plugin seam, agent-native</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

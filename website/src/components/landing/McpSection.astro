@@ -1,0 +1,77 @@
+---
+import SectionMotion from "./SectionMotion.astro";
+---
+
+<section class="oct-sec oct-sec--rule" id="mcp">
+  <SectionMotion variant="waves" edge="top" intensity={0.7} />
+  <div class="oct-shell oct-layer oct-split oct-split--wide">
+    <div>
+      <p class="oct-kicker">
+        <span aria-hidden="true"></span>Agent-native over MCP
+      </p>
+      <h2 class="oct-h2">Every capability, one MCP server away.</h2>
+      <p class="oct-body">
+        Octarq ships a built-in MCP server (<code>octarq mcp</code>, over
+        stdio and SSE) so assistants like Claude Code can read and query your
+        instance. Every tool is read-only and scoped to the caller's own
+        workspace.
+      </p>
+      <p class="oct-body">
+        A plugin implementing the optional <code>MCPProvider</code> interface
+        exposes its own tools to every connected agent. Write a plugin, and
+        your agent can drive it.
+      </p>
+      <div class="oct-actions">
+        <a class="oct-btn oct-btn--ghost" href="/core/mcp/">
+          How the MCP server works
+        </a>
+      </div>
+    </div>
+
+    <div class="oct-stack">
+      <div class="oct-node">
+        <div class="oct-node__name">Your agent</div>
+        <div class="oct-node__note">Claude Code, or any MCP client</div>
+      </div>
+
+      <div class="oct-link" aria-hidden="true">
+        <span class="oct-link__wire"><i class="oct-link__packet"></i></span>
+        <span class="oct-link__label">stdio / SSE</span>
+      </div>
+
+      <div class="oct-node oct-node--accent">
+        <div class="oct-node__name">MCP server</div>
+        <div class="oct-tags">
+          <span class="oct-tag">list_links</span>
+          <span class="oct-tag">list_mailboxes</span>
+          <span class="oct-tag">list_domains</span>
+          <span class="oct-tag">export_data</span>
+          <span class="oct-tag oct-tag--outline">sql (read-only)</span>
+        </div>
+      </div>
+
+      <div class="oct-link" aria-hidden="true">
+        <span class="oct-link__wire"
+          ><i class="oct-link__packet" style="animation-delay:.9s"></i></span
+        >
+        <span class="oct-link__label">plugin.Plugin + UIPlugin</span>
+      </div>
+
+      <div class="oct-grid2">
+        <div class="oct-node oct-node--flat">Links</div>
+        <div class="oct-node oct-node--flat">Mail</div>
+        <div class="oct-node oct-node--flat">DNS</div>
+        <div class="oct-node oct-node--flat">Workspaces &amp; RBAC</div>
+      </div>
+
+      <div class="oct-link" aria-hidden="true">
+        <span class="oct-link__wire oct-link__wire--muted"></span>
+        <span class="oct-link__label">composition root</span>
+      </div>
+
+      <div class="oct-node oct-node--flat oct-node--base">
+        SQLite · single binary
+      </div>
+    </div>
+  </div>
+</section>

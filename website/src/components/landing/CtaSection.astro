@@ -1,0 +1,26 @@
+---
+import SectionMotion from "./SectionMotion.astro";
+---
+
+<section class="oct-sec oct-sec--cta">
+  <div class="oct-shell">
+    <div class="oct-cta">
+      <span class="oct-glow oct-glow--cta" aria-hidden="true"></span>
+      <span class="oct-sweep oct-sweep--cta" aria-hidden="true"></span>
+      <SectionMotion variant="waves" intensity={0.8} />
+      <div class="oct-layer">
+        <h2 class="oct-h2 oct-h2--cta">Run it in an afternoon.</h2>
+        <p class="oct-body">
+          Clone it, set two environment variables, and it's up. Extend it
+          whenever you're ready.
+        </p>
+        <div class="oct-actions">
+          <a class="oct-btn oct-btn--primary" href="/quickstart/">Get started</a>
+          <a class="oct-btn oct-btn--ghost" href="https://app.octarq.org">
+            Try Octarq Cloud
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

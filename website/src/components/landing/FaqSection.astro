@@ -1,0 +1,65 @@
+---
+import SectionMotion from "./SectionMotion.astro";
+
+const faqs = [
+  {
+    q: "What is Octarq, exactly?",
+    a: "A self-hosted operations backend: short links, custom-domain email, DNS and multi-tenant workspaces, each shipped as a first-class plugin behind the same seam you'd use to add your own.",
+  },
+  {
+    q: 'What does "single Go binary" mean in practice?',
+    a: "No CGO, SQLite by default, the dashboard is go:embed'd into the binary. Docker Compose or a bare binary — either way, one process to run and one to back up.",
+  },
+  {
+    q: "How do I write a plugin?",
+    a: "Implement plugin.Plugin on the Go side and, if it needs a dashboard page, UIPlugin with a React page — the exact seam the bundled plugins use.",
+    href: "/writing-a-plugin/",
+  },
+  {
+    q: "Does the MCP server allow writes?",
+    a: "The built-in tools read and export, and each one is scoped to the caller's own workspace. There is no raw-SQL tool: an arbitrary query can't be confined to one workspace, so it isn't offered. A plugin can expose its own write tools via MCPProvider if it chooses to.",
+  },
+  {
+    q: "Is this a PocketBase / Dub / n8n fork?",
+    a: "No. It sits at the intersection of what those three do well — single-binary DX, real link/domain/email infrastructure, a plugin ecosystem — but the codebase and plugin seam are Octarq's own.",
+  },
+  {
+    q: "Self-hosted vs Octarq Cloud — what costs what?",
+    a: "Core is MIT-licensed and free forever, including everything you need to run self-hosted. Pro and Elite are closed-source paid plugins layered on top: Pro is a one-time $99, Elite is $149 a year. Cloud is the same software hosted for you, billed monthly; self-hosting keeps the code, the data and the binary on infrastructure you control.",
+  },
+];
+---
+
+<section class="oct-sec oct-sec--rule" id="faq">
+  <SectionMotion variant="waves" intensity={0.55} />
+  <div class="oct-shell oct-layer">
+    <p class="oct-kicker"><span aria-hidden="true"></span>FAQ</p>
+    <h2 class="oct-h2">Answers, dev to dev</h2>
+
+    <ul class="oct-faq">
+      {
+        faqs.map((f, i) => (
+          <li class="oct-faq__item">
+            <span
+              class="oct-faq__mark"
+              aria-hidden="true"
+              style={`animation-delay:${(i * 0.4).toFixed(1)}s`}
+            >
+              +
+            </span>
+            <h3 class="oct-faq__q">{f.q}</h3>
+            <p class="oct-faq__a">
+              {f.a}
+              {f.href && (
+                <>
+                  {" "}
+                  <a href={f.href}>Read the guide →</a>
+                </>
+              )}
+            </p>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>

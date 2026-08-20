@@ -15,19 +15,15 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/idempotency"
 	"github.com/octarq-org/octarq/internal/api"
@@ -49,190 +45,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// pluginGate builds the per-workspace feature check the gated mux and adapter
-// share. Non-core plugin routes answer 404 when the caller's workspace has the
-// feature disabled.
-//
-// The org-0 case returns scoped=false, i.e. "not a workspace-scoped request, do
-// not gate it" — the route is then served. That is deliberate and load-bearing:
-// public plugin routes (payment webhooks, the buyer portal, license activation)
-// carry no session, so there is no workspace whose toggle could be consulted.
-// Returning scoped=true here to look "fail-closed" would 404 every incoming
-// Stripe webhook and every buyer — payments would stop, quietly, and the failure
-// would surface as missing revenue rather than as an error.
-//
-// What makes it safe is that those routes authenticate themselves (webhook
-// signature, customer session cookie). That is an implicit contract with every
-// public plugin route, so it is pinned by TestPluginGateDoesNotGateAnonymous.
-func (a *App) pluginGate(apiHandler interface{ PluginEnabled(uint, string) bool }) func(*http.Request, string) (allowed, scoped bool) {
-	return func(r *http.Request, featureKey string) (allowed, scoped bool) {
-		oid := a.auth.OrgID(r)
-		if oid == 0 {
-			return false, false // no workspace in session (webhooks, portal) → not gated
-		}
-		return apiHandler.PluginEnabled(oid, featureKey), true
-	}
-}
-
-// recoverWriter wraps http.ResponseWriter to track whether response headers
-// have already been written. This lets the panic-recovery path avoid a
-// superfluous WriteHeader call (and the warning log it would produce) when a
-// handler panics after partially writing the response.
-type recoverWriter struct {
-	http.ResponseWriter
-	wroteHeader bool
-}
-
-func (rw *recoverWriter) WriteHeader(code int) {
-	rw.wroteHeader = true
-	rw.ResponseWriter.WriteHeader(code)
-}
-
-func (rw *recoverWriter) Write(b []byte) (int, error) {
-	if !rw.wroteHeader {
-		rw.wroteHeader = true
-	}
-	return rw.ResponseWriter.Write(b)
-}
-
-// Flush forwards to the underlying ResponseWriter if it implements
-// http.Flusher, keeping SSE / streaming responses working.
-func (rw *recoverWriter) Flush() {
-	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
-		f.Flush()
-	}
-}
-
-// gatedMux wraps the shared API mux so every route a plugin registers is guarded
-// by a per-workspace "plugin enabled" check. It satisfies plugin.Mux; when the
-// caller's workspace has the plugin disabled, the wrapped handler answers 404
-// before running. Requests with no workspace in session (public plugin routes
-// such as payment webhooks and the customer portal) pass through unchanged —
-// they aren't workspace-scoped and can't be org-gated here.
-type gatedMux struct {
-	real    muxSink
-	plugin  string
-	enabled func(r *http.Request, plugin string) (allowed, scoped bool)
-}
-
-func (g *gatedMux) Handle(pattern string, h http.Handler) {
-	g.real.Handle(pattern, g.wrap(h))
-}
-
-func (g *gatedMux) HandleFunc(pattern string, h func(http.ResponseWriter, *http.Request)) {
-	g.real.Handle(pattern, g.wrap(http.HandlerFunc(h)))
-}
-
-func (g *gatedMux) wrap(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if allowed, scoped := g.enabled(r, g.plugin); scoped && !allowed {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte(`{"error":"plugin not enabled for this workspace"}`))
-			return
-		}
-		rw := &recoverWriter{ResponseWriter: w}
-		defer func() {
-			if rec := recover(); rec != nil {
-				if rec == http.ErrAbortHandler {
-					panic(rec)
-				}
-				slog.Error("plugin handler panic",
-					"plugin", g.plugin,
-					"path", r.URL.Path,
-					"panic", rec,
-					"stack", string(debug.Stack()),
-				)
-				if !rw.wroteHeader {
-					rw.ResponseWriter.Header().Set("Content-Type", "application/json")
-					rw.ResponseWriter.WriteHeader(http.StatusInternalServerError)
-					_, _ = rw.ResponseWriter.Write([]byte(`{"error":"internal server error"}`))
-				}
-			}
-		}()
-		h.ServeHTTP(rw, r)
-	})
-}
-
-type gatedAPI struct {
-	huma.API
-	gAdapter huma.Adapter
-}
-
-func (g *gatedAPI) Adapter() huma.Adapter {
-	return g.gAdapter
-}
-
-// recordingAPI wraps the shared huma API for a CORE plugin: core routes are not
-// feature-gated, but they still have to be checked for collisions — a core
-// plugin and a Pro module claiming the same path panics exactly the same way.
-type recordingAPI struct {
-	huma.API
-	rAdapter huma.Adapter
-}
-
-func (r *recordingAPI) Adapter() huma.Adapter { return r.rAdapter }
-
-type recordingAdapter struct {
-	huma.Adapter
-	routes *routeRegistry
-	owner  string
-}
-
-func (r *recordingAdapter) Handle(op *huma.Operation, handler func(ctx huma.Context)) {
-	if r.routes != nil && !r.routes.claim(r.owner, op.Method+" "+op.Path, false) {
-		return
-	}
-	r.Adapter.Handle(op, handler)
-}
-
-type gatedAdapter struct {
-	huma.Adapter
-	plugin  string
-	enabled func(r *http.Request, plugin string) (allowed, scoped bool)
-	// routes is the same collision guard the mux wrapper uses: huma routes end
-	// up on the same ServeMux and panic on a duplicate just the same.
-	routes     *routeRegistry
-	owner      string
-	thirdParty bool
-}
-
-func (g *gatedAdapter) Handle(op *huma.Operation, handler func(ctx huma.Context)) {
-	if g.routes != nil && !g.routes.claim(g.owner, op.Method+" "+op.Path, g.thirdParty) {
-		return
-	}
-	g.Adapter.Handle(op, func(ctx huma.Context) {
-		r, w := humago.Unwrap(ctx)
-		if allowed, scoped := g.enabled(r, g.plugin); scoped && !allowed {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte(`{"error":"plugin not enabled for this workspace"}`))
-			return
-		}
-		defer func() {
-			if rec := recover(); rec != nil {
-				if rec == http.ErrAbortHandler {
-					panic(rec)
-				}
-				slog.Error("plugin huma handler panic",
-					"plugin", g.plugin,
-					"path", r.URL.Path,
-					"panic", rec,
-					"stack", string(debug.Stack()),
-				)
-				// Best-effort 500 response. If the handler already wrote
-				// headers through the huma context, WriteHeader is a no-op
-				// with a harmless "superfluous" log — acceptable on a panic
-				// path that is already exceptional.
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusInternalServerError)
-				_, _ = w.Write([]byte(`{"error":"internal server error"}`))
-			}
-		}()
-		handler(ctx)
-	})
-}
-
 // App holds the wired core dependencies and any registered plugins.
 type App struct {
 	cfg      *config.Config
@@ -244,13 +56,6 @@ type App struct {
 	services *plugin.Registry
 	webFS    fs.FS // overrides the embedded OSS dashboard when set (see WithWebFS)
 }
-
-// WithWebFS overrides the embedded open-source dashboard with a caller-supplied
-// filesystem. The commercial build (octarq-pro) uses this to serve a dashboard
-// built with its plugin pages injected (VITE_OCTARQ_PLUGINS=pro) instead of the
-// core's OSS bundle, whose empty plugin registry 404-degrades those pages. Pass
-// an fs.FS rooted where the core's webembed.FS() would be (index.html at root).
-func (a *App) WithWebFS(f fs.FS) *App { a.webFS = f; return a }
 
 // New loads configuration and opens the database (without migrating). Call
 // Use to register plugins, then Run.
@@ -311,108 +116,6 @@ func New() (*App, error) {
 	// a.Use. The OSS default set is plugins/builtin.Default(); see
 	// website/src/content/docs/architecture/overview.md.
 	return a, nil
-}
-
-// DB exposes the shared database handle (useful for plugin construction).
-func (a *App) DB() *gorm.DB { return a.gdb }
-
-// loginByEmail backs plugin.Context.LoginByEmail. It delegates to the auth
-// manager and translates the internal registration-disabled sentinel into the
-// plugin-package one so identity plugins can errors.Is against it without
-// importing internal/auth.
-func (a *App) loginByEmail(w http.ResponseWriter, r *http.Request, email string) (uint, error) {
-	uid, err := a.auth.LoginByEmail(w, r, email)
-	if errors.Is(err, auth.ErrRegistrationDisabled) {
-		return uid, plugin.ErrLoginRegistrationDisabled
-	}
-	return uid, err
-}
-
-// loginByIdentity backs plugin.Context.LoginByIdentity, translating the
-// internal sentinels into the plugin-package ones the same way loginByEmail
-// does. The two refusals are deliberately distinct: "this instance won't create
-// accounts" is something an admin can change, while "that email already has an
-// account" tells the visitor to sign in the way they already can and link SSO
-// afterwards.
-func (a *App) loginByIdentity(w http.ResponseWriter, r *http.Request, id plugin.ExternalIdentity) (uint, error) {
-	uid, err := a.auth.LoginByIdentity(w, r, id)
-	switch {
-	case errors.Is(err, auth.ErrRegistrationDisabled):
-		return uid, plugin.ErrLoginRegistrationDisabled
-	case errors.Is(err, auth.ErrAccountLinkRequired):
-		return uid, plugin.ErrAccountLinkRequired
-	}
-	return uid, err
-}
-
-// Notify delivers a notification via a configured channel type ("telegram", "webhook").
-func (a *App) Notify(ctx context.Context, typ, cfgJSON, text string) error {
-	return notify.Send(ctx, typ, cfgJSON, text)
-}
-
-// sendMail is the implementation behind plugin.Context.SendMail. It delegates
-// to the mail plugin's "mail.send" service, which resolves the org's first
-// configured SMTP sender, decrypts its password, and relays the message —
-// mirroring internal/api.Handler.sendEmail so plugins can send transactional
-// mail without importing octarq's internal packages.
-func (a *App) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
-	if a.services != nil {
-		if fn, ok := plugin.LookupServiceAs[plugin.MailSender](a.services.Lookup, plugin.ServiceMailSend); ok {
-			return fn(orgID, to, subject, htmlBody, textBody)
-		}
-	}
-	return fmt.Errorf("no mail plugin mounted to send email for org %d", orgID)
-}
-
-// Use registers a plugin. All plugins must be registered before Run so their
-// models are migrated and their routes mounted.
-func (a *App) Use(p plugin.Plugin) { a.plugins = append(a.plugins, p) }
-
-// lazyDNSManager resolves the plugin.DNSManager provided by the dns Core plugin
-// under plugin.ServiceDNSManager on each call. Resolution happens at request
-// time, after all plugins have mounted.
-type lazyDNSManager struct {
-	lookup func(name string) (any, bool)
-}
-
-var _ plugin.DNSManager = (*lazyDNSManager)(nil)
-
-func (l *lazyDNSManager) resolve() (plugin.DNSManager, error) {
-	if v, ok := l.lookup(plugin.ServiceDNSManager); ok {
-		if m, ok := v.(plugin.DNSManager); ok {
-			return m, nil
-		}
-	}
-	return nil, errors.New("dns manager unavailable: the dns plugin is not mounted")
-}
-
-func (l *lazyDNSManager) List(ctx context.Context, orgID, domainID uint) ([]plugin.DNSRecord, error) {
-	m, err := l.resolve()
-	if err != nil {
-		return nil, err
-	}
-	return m.List(ctx, orgID, domainID)
-}
-
-func (l *lazyDNSManager) Set(ctx context.Context, orgID, domainID uint, r plugin.DNSRecord) (plugin.DNSRecord, error) {
-	m, err := l.resolve()
-	if err != nil {
-		return plugin.DNSRecord{}, err
-	}
-	return m.Set(ctx, orgID, domainID, r)
-}
-
-func (l *lazyDNSManager) Delete(ctx context.Context, orgID, domainID uint, recordID string) error {
-	m, err := l.resolve()
-	if err != nil {
-		return err
-	}
-	return m.Delete(ctx, orgID, domainID, recordID)
-}
-
-// Plugins returns the registered plugins.
-func (a *App) Plugins() []plugin.Plugin {
-	return a.plugins
 }
 
 // RunMCP runs the MCP server with the registered plugins over stdio. It mounts
@@ -766,13 +469,6 @@ func (a *App) Run(ctx context.Context) error {
 	// caller's workspace has the feature disabled, the app answers 404 before the
 	// handler runs. Core plumbing (license activation) mounts ungated — it must
 	// always work.
-	//
-	// That is not what keeps public routes alive, and the two are easy to
-	// conflate. Payment webhooks and the buyer portal reach the same gate, but
-	// they survive because they carry no session: pluginGate reports org 0 as
-	// "not workspace-scoped" and the route is served whether or not its plugin
-	// is core. So a buyer-facing feature does not need Core to stay reachable —
-	// see pluginGate for the org-0 contract and the test that pins it.
 	enabled := a.pluginGate(apiHandler)
 	// Route ownership guard: see routeRegistry. Declared before the mount loop
 	// because every plugin registers through it.
@@ -854,18 +550,7 @@ func (a *App) Run(ctx context.Context) error {
 	// Tell the operator, once and before anything is served, which capabilities
 	// this instance actually has. Several of them fail silently otherwise — see
 	// readinessReport.
-	//
-	// This has to run HERE, after the mount loop: "can this instance send mail"
-	// is a lookup of the mail.ready service in the plugin registry, and a plugin
-	// only Provides it when it mounts. Asking earlier (in New, or before the
-	// loop) would report "no mail" for every instance, including the ones that
-	// have it — an answer that is wrong rather than merely early.
 	domainsRegistered := origin.AnyRegistered(a.gdb)
-	// "Can this instance send mail" is no longer answered by the mail.send
-	// service existing — a mounted plugin with no SMTP sender configured
-	// delivers nothing. Ask the mail.ready service for the real state; absent
-	// that service, report not ready (fail closed, exactly what a fresh
-	// instance is until a sender exists).
 	mailReady := false
 	if fn, ok := plugin.LookupServiceAs[plugin.MailReady](services.Lookup, plugin.ServiceMailReady); ok {
 		mailReady = fn()
@@ -891,12 +576,8 @@ func (a *App) Run(ctx context.Context) error {
 	srv, err := server.New(a.cfg, a.gdb, api.CSRFGuard(a.cfg.SecretKey, mux), rootHandler, webFS, staticMounts, server.RuntimeSettings{
 		MetricsToken: apiHandler.MetricsToken,
 		RateLimits:   apiHandler.RateLimits,
-		// PublicGET must be derived AFTER the plugin mount loop above, so the
-		// storefront routes out-of-tree plugins register are in the OpenAPI doc
-		// it reads. Built from PublicOperations, it is exact per path — a new
-		// endpoint can't inherit cross-origin access by sharing a prefix.
-		PublicGET:   api.PublicGETMatcher(apiHandler.Huma()),
-		CORSOrigins: apiHandler.CORSOrigins,
+		PublicGET:    api.PublicGETMatcher(apiHandler.Huma()),
+		CORSOrigins:  apiHandler.CORSOrigins,
 	})
 	if err != nil {
 		return err

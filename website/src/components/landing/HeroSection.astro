@@ -1,0 +1,40 @@
+---
+import SectionMotion from "./SectionMotion.astro";
+---
+
+<section class="oct-sec oct-sec--hero">
+  <span class="oct-glow oct-glow--hero" aria-hidden="true"></span>
+  <SectionMotion variant="particles" count={12} />
+  <div class="oct-shell oct-layer">
+    <h1 class="oct-h1">
+      <span>The back office you own,</span>
+      <span>and extend in an afternoon.</span>
+    </h1>
+
+    <p class="oct-lede">
+      Octarq is a self-hosted operations backend for indie hackers,
+      one-person companies and small AI-native teams. Short links,
+      custom-domain email and DNS ship as first-class plugins — then you add
+      your own the same way the core is built. Every capability is drivable
+      by your AI agent over <strong>MCP</strong>.
+    </p>
+
+    <div class="oct-actions">
+      <a class="oct-btn oct-btn--primary" href="/quickstart/">Get started</a>
+      <a class="oct-btn oct-btn--ghost" href="/what-is-octarq/">Read the docs</a>
+      <a class="oct-btn oct-btn--ghost" href="https://app.octarq.org">
+        Try Octarq Cloud
+      </a>
+    </div>
+
+    <div class="oct-term">
+      <div class="oct-term__bar">
+        <span></span><span></span><span></span>
+        <em>your server</em>
+      </div>
+      <pre class="oct-term__body"><code>git clone https://github.com/octarq-org/octarq.git && cd octarq
+cp .env.example .env          # set OCTARQ_SECRET_KEY and OCTARQ_ADMIN_PASSWORD
+docker compose up -d</code></pre>
+    </div>
+  </div>
+</section>
