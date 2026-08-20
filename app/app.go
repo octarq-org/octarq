@@ -616,11 +616,5 @@ func (a *App) Run(ctx context.Context) error {
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	slog.Info("shutting down")
-	err = httpSrv.Shutdown(shutCtx)
-	if a.gdb != nil {
-		if sqlDB, dbErr := a.gdb.DB(); dbErr == nil {
-			_ = sqlDB.Close()
-		}
-	}
-	return err
+	return httpSrv.Shutdown(shutCtx)
 }

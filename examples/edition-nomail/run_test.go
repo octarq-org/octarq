@@ -49,7 +49,7 @@ func TestRunFailureAfterBoot(t *testing.T) {
 // migrates, and shuts down promptly instead of blocking the suite.
 func TestRunBootsAndShutsDown(t *testing.T) {
 	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
-	t.Setenv("OCTARQ_DB_DSN", filepath.Join(t.TempDir(), "edition.db"))
+	t.Setenv("OCTARQ_DB_DSN", "file:edition_test?mode=memory&cache=shared")
 	t.Setenv("OCTARQ_SECRET_KEY", "edition-nomail-secret-key-32-bytes!!!")
 	t.Setenv("OCTARQ_ADMIN_PASSWORD", "edition-nomail-admin-pass")
 	t.Setenv("OCTARQ_LISTEN", "127.0.0.1:0")
