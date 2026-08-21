@@ -55,27 +55,26 @@ func (p *Plugin) mcpListLinks(ctx context.Context, _ *mcp.CallToolRequest, in li
 		limit = 200
 	}
 	q := p.db.WithContext(ctx).Model(&Link{}).
-		Where("owner_id = ?", orgID).
-		Order("clicks DESC").
-		Limit(limit)
+		Where("owner_id = ?", orgID)
 	if in.Host != "" {
 		q = q.Where("host = ?", in.Host)
 	}
+	if in.Tag != "" {
+		q = filterByTag(q, in.Tag)
+	}
+	q = q.Order("clicks DESC").Limit(limit)
 	var links []Link
 	if err := q.Find(&links).Error; err != nil {
 		return nil, nil, err
 	}
 
-	out := make([]linkOut, 0, len(links))
-	for _, l := range links {
-		if !tagsContain(l.Tags, in.Tag) {
-			continue
-		}
-		out = append(out, linkOut{
+	out := make([]linkOut, len(links))
+	for i, l := range links {
+		out[i] = linkOut{
 			ID: l.ID, Host: l.Host, Slug: l.Slug, Target: l.Target,
 			Title: l.Title, Tags: l.Tags, Clicks: l.Clicks,
 			Enabled: l.Enabled, Archived: l.Archived, CreatedAt: l.CreatedAt,
-		})
+		}
 	}
 	return jsonResult(out)
 }

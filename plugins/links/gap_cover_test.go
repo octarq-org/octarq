@@ -355,6 +355,36 @@ func TestTagsContain(t *testing.T) {
 	}
 }
 
+func TestTagBoundaryFilter(t *testing.T) {
+	gdb := testDB(t)
+	gdb.AutoMigrate(&Link{})
+	links := []Link{
+		{OrgID: 1, Slug: "exact", Tags: "test"},
+		{OrgID: 1, Slug: "start", Tags: "test,beta"},
+		{OrgID: 1, Slug: "end", Tags: "alpha,test"},
+		{OrgID: 1, Slug: "mid", Tags: "alpha, test, beta"},
+		{OrgID: 1, Slug: "false_prefix", Tags: "testing,beta"},
+		{OrgID: 1, Slug: "false_suffix", Tags: "alpha,attest"},
+		{OrgID: 1, Slug: "false_mid", Tags: "alpha,detest,beta"},
+	}
+	for _, l := range links {
+		gdb.Create(&l)
+	}
+
+	var matched []Link
+	filterByTag(gdb.Model(&Link{}).Where("owner_id = ?", 1), "test").Order("id ASC").Find(&matched)
+
+	if len(matched) != 4 {
+		t.Fatalf("expected 4 matched links, got %d", len(matched))
+	}
+	expectedSlugs := map[string]bool{"exact": true, "start": true, "end": true, "mid": true}
+	for _, m := range matched {
+		if !expectedSlugs[m.Slug] {
+			t.Errorf("unexpected matched slug %q", m.Slug)
+		}
+	}
+}
+
 func TestSortStatKVOrdersByCountThenKey(t *testing.T) {
 	rows := []models.StatKV{
 		{Key: "b", Count: 2},
