@@ -27,7 +27,15 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 	var dial gorm.Dialector
 	switch cfg.DBDriver {
 	case "sqlite":
-		dial = sqlite.Open(cfg.DBDSN)
+		dsn := cfg.DBDSN
+		if !strings.Contains(dsn, "_busy_timeout") && !strings.Contains(dsn, "_pragma") {
+			sep := "?"
+			if strings.Contains(dsn, "?") {
+				sep = "&"
+			}
+			dsn = fmt.Sprintf("%s%s_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)", dsn, sep)
+		}
+		dial = sqlite.Open(dsn)
 	case "postgres":
 		dial = postgres.Open(cfg.DBDSN)
 	case "mysql":
@@ -51,6 +59,16 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
+
+	if sqlDB, err := gdb.DB(); err == nil {
+		if cfg.DBDriver == "sqlite" {
+			// For SQLite with WAL mode, pool connections safely with timeout
+			sqlDB.SetMaxOpenConns(50)
+			sqlDB.SetMaxIdleConns(10)
+			sqlDB.SetConnMaxLifetime(time.Hour)
+		}
+	}
+
 	return gdb, nil
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
+	"gorm.io/gorm"
 )
 
 // linkDTO is the create/update payload.
@@ -83,7 +84,7 @@ func (p *Plugin) listLinks(ctx context.Context, input *ListLinksInput) (*ListLin
 		q = q.Where("slug LIKE ? OR target LIKE ? OR note LIKE ? OR title LIKE ? OR tags LIKE ?", like, like, like, like, like)
 	}
 	if input.Tag != "" {
-		q = q.Where("tags LIKE ?", "%"+input.Tag+"%")
+		q = filterByTag(q, input.Tag)
 	}
 	if input.Host != "" {
 		q = q.Where("host = ?", input.Host)
@@ -575,4 +576,25 @@ func (p *Plugin) checkQuota(ctx context.Context, orgID uint, metric string, n in
 		return huma.Error429TooManyRequests(metric + " quota exceeded for this workspace")
 	}
 	return nil
+}
+
+// filterByTag applies exact tag-boundary filtering to query q.
+// It matches exact "tag", prefix "tag,...", suffix "...,tag", and interior "...,tag,...",
+// absorbing optional whitespace after commas.
+func filterByTag(q *gorm.DB, tag string) *gorm.DB {
+	tag = strings.TrimSpace(tag)
+	if tag == "" {
+		return q
+	}
+	return q.Where("(tags = ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?)",
+		tag,
+		tag+",%",
+		tag+", %",
+		"%,"+tag,
+		"%, "+tag,
+		"%,"+tag+",%",
+		"%, "+tag+",%",
+		"%,"+tag+", %",
+		"%, "+tag+", %",
+	)
 }
