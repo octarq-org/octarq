@@ -102,6 +102,25 @@ OCTARQ_SECRET_KEY=… OCTARQ_ADMIN_PASSWORD=… ./octarq        # 监听 :8080
 
 ---
 
+## 版本与选型（开源核心 vs. 商业套件）
+
+Octarq 采用透明的 Open-Core 模型。MIT 开源核心是功能完整的独立产品，承诺 **0 遥测、0 人为限制、无任何平台锁定**。
+
+| 维度 / 模块 | **Octarq Core (开源核心)** | **Octarq Pro / Elite (自托管商业版)** | **Octarq Cloud (全托管云平台)** |
+| :--- | :--- | :--- | :--- |
+| **目标群体** | 极客、自托管爱好者与独立开发者 | 销售独立软件的一人公司与商业创客 | 追求零运维、30 秒开箱即用的创客 |
+| **许可模式** | **MIT 协议**（永久免费） | 一次性买断 ($99) 或 年度订阅 ($149/年) | $15 / 月起 |
+| **交付形态** | 单一 Go 二进制、SQLite、Docker | 单一 Go 二进制、SQLite / Postgres | 多租户全托管云服务 |
+| **短链接与统计** | ✅ 无限制、防刷量、地理设备分流 | ✅ 完整支持 | ✅ 包含在套餐额度中 |
+| **域名邮箱与 DNS** | ✅ Serverless 接收、SMTP 发信、DNS 自动化 | ✅ 完整支持 | ✅ 托管邮件与域名服务 |
+| **MCP 与 AI Agent** | ✅ 只读 MCP 服务、按需单封 AI 摘要 | ✅ 包含 MCP + Telegram 24小时值班助理与验证码提取 | ✅ 托管 AI 自动化通道 |
+| **数字商品与授权发卡** | 🔌 支持编写社区插件扩展 | ✅ **Stripe 结算、Ed25519 离线激活码签发、客户自助门户 (0% 抽成)** | ⚡ 托管多租户计费与发票 |
+| **服务器运维终端** | - | ✅ **VPS 存活监控、SSH 凭据库与 Web 终端、SSL 自动签发** | ⚡ 平台全托管无须管理服务器 |
+
+*准备售卖你的独立软件并建立完整商业闭环？访问 [Octarq 自托管商业授权](https://octarq.org/zh/pricing/self-hosted/) 或直接体验 [Octarq Cloud](https://octarq.org/zh/)。*
+
+---
+
 ## Agent-Native：你的插件即 MCP 工具
 
 Octarq 内置了 **MCP 服务器**（`octarq mcp` 走 stdio；服务器自身在 `/api/mcp/sse` 与 `/api/mcp/stream` 提供 SSE 与 Streamable HTTP），AI 助手（如 Claude Code）可以直接读取并查询你的实例能力 —— `list_links`、`list_mailboxes`、`list_domains`、`export_data`。所有工具均为只读，且严格限定在调用方自己的工作区内。
