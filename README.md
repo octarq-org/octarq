@@ -102,6 +102,25 @@ Everything else — auth, orgs, audit log, notifications, job queue, webhooks, b
 
 ---
 
+## Editions: Open Source vs. Commercial
+
+Octarq follows a transparent Open-Core model. The MIT Core is a complete, self-contained product with **0 telemetry, 0 seat limits, and 0 vendor lock-in**.
+
+| Dimension | **Octarq Core (Open Source)** | **Octarq Pro / Elite (Self-Hosted)** | **Octarq Cloud (Managed SaaS)** |
+| :--- | :--- | :--- | :--- |
+| **Target Audience** | Indie hackers, self-hosters & geeks | Solo founders & software creators | Teams wanting 0 DevOps / 30s setup |
+| **Licensing** | **MIT License** (Free forever) | Perpetual ($99) or Annual ($149/yr) | From $15 / month |
+| **Infrastructure** | Single Go binary, SQLite, Docker | Single Go binary, SQLite / Postgres | Multi-tenant managed cloud |
+| **Short Links & Analytics** | ✅ Unlimited, bot-filtered, geo-routed | ✅ Unlimited | ✅ Included in plan |
+| **Email & DNS** | ✅ Inbound routing, SMTP send, DNS CRUD | ✅ Included | ✅ Managed email infrastructure |
+| **AI Agent via MCP** | ✅ Read-only MCP server, on-demand AI | ✅ MCP + Telegram 24/7 AI inbox triage | ✅ Hosted AI automation |
+| **Storefront & Licensing** | 🔌 Community plugin extensible | ✅ **Stripe checkout, Ed25519 offline license issuing, customer portal** | ⚡ Managed subscription billing |
+| **Server Operations** | - | ✅ **VPS uptime probes, SSH vault & web terminal, auto SSL** | ⚡ Platform handles all servers |
+
+*Ready to monetize your own software with 0% platform cuts? See [Octarq Pro & Self-Hosted Licences](https://octarq.org/pricing/self-hosted/) or launch on [Octarq Cloud](https://octarq.org).*
+
+---
+
 ## Agent-native: your plugin is an MCP tool
 
 Octarq ships a built-in **MCP server** (`octarq mcp` over stdio; SSE and Streamable HTTP on the server at `/api/mcp/sse` and `/api/mcp/stream`) so assistants like Claude Code can read and query your instance — `list_links`, `list_mailboxes`, `list_domains`, `export_data`. Every tool is read-only and scoped to the caller's own workspace.
