@@ -83,8 +83,8 @@ func (p *Plugin) listLinks(ctx context.Context, input *ListLinksInput) (*ListLin
 		like := "%" + input.Q + "%"
 		q = q.Where("slug LIKE ? OR target LIKE ? OR note LIKE ? OR title LIKE ? OR tags LIKE ?", like, like, like, like, like)
 	}
-	if input.Tag != "" {
-		q = filterByTag(q, input.Tag)
+	if tag := strings.TrimSpace(input.Tag); tag != "" {
+		q = filterByTag(q, tag)
 	}
 	if input.Host != "" {
 		q = q.Where("host = ?", input.Host)
@@ -92,7 +92,9 @@ func (p *Plugin) listLinks(ctx context.Context, input *ListLinksInput) (*ListLin
 	limit := plugin.PageLimit(input.Limit, 50, 500)
 	offset := plugin.PageOffset(input.Offset)
 	q = q.Limit(limit).Offset(offset)
-	q.Find(&links)
+	if err := q.Find(&links).Error; err != nil {
+		return nil, huma.Error500InternalServerError("failed to list links")
+	}
 	out := make([]linkView, len(links))
 	for i, l := range links {
 		out[i] = view(l)
@@ -578,23 +580,30 @@ func (p *Plugin) checkQuota(ctx context.Context, orgID uint, metric string, n in
 	return nil
 }
 
-// filterByTag applies exact tag-boundary filtering to query q.
-// It matches exact "tag", prefix "tag,...", suffix "...,tag", and interior "...,tag,...",
-// absorbing optional whitespace after commas.
+// escapeLike escapes LIKE metacharacters so a user tag of `_` or `100%`
+// cannot match extra rows. '!' is the ESCAPE character (portable, unlike '\').
+func escapeLike(s string) string {
+	r := strings.NewReplacer("!", "!!", "%", "!%", "_", "!_")
+	return r.Replace(s)
+}
+
+// filterByTag is the SQL counterpart of tagsContain: case-insensitive, comma
+// token match, surrounding spaces ignored. Spaces are stripped rather than
+// enumerated as LIKE arms so Postgres (case-sensitive LIKE) and ", b ,"
+// whitespace stay in lockstep with the Go helper.
 func filterByTag(q *gorm.DB, tag string) *gorm.DB {
 	tag = strings.TrimSpace(tag)
 	if tag == "" {
 		return q
 	}
-	return q.Where("(tags = ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?)",
-		tag,
-		tag+",%",
-		tag+", %",
-		"%,"+tag,
-		"%, "+tag,
-		"%,"+tag+",%",
-		"%, "+tag+",%",
-		"%,"+tag+", %",
-		"%, "+tag+", %",
+	folded := strings.ToLower(strings.ReplaceAll(tag, " ", ""))
+	esc := escapeLike(folded)
+	norm := "LOWER(REPLACE(tags, ' ', ''))"
+	return q.Where(
+		norm+" = ? OR "+norm+" LIKE ? ESCAPE '!' OR "+norm+" LIKE ? ESCAPE '!' OR "+norm+" LIKE ? ESCAPE '!'",
+		folded,
+		esc+",%",
+		"%,"+esc,
+		"%,"+esc+",%",
 	)
 }

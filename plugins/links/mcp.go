@@ -59,8 +59,8 @@ func (p *Plugin) mcpListLinks(ctx context.Context, _ *mcp.CallToolRequest, in li
 	if in.Host != "" {
 		q = q.Where("host = ?", in.Host)
 	}
-	if in.Tag != "" {
-		q = filterByTag(q, in.Tag)
+	if tag := strings.TrimSpace(in.Tag); tag != "" {
+		q = filterByTag(q, tag)
 	}
 	q = q.Order("clicks DESC").Limit(limit)
 	var links []Link
