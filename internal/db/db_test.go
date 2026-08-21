@@ -3,6 +3,7 @@ package db
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +12,39 @@ import (
 	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 )
+
+func TestOpenSQLiteAppliesWALAndSingleConnPool(t *testing.T) {
+	dir := t.TempDir()
+
+	openAndCheck := func(t *testing.T, dsn string) {
+		t.Helper()
+		gdb, err := Open(&config.Config{DBDriver: "sqlite", DBDSN: dsn})
+		if err != nil {
+			t.Fatalf("Open: %v", err)
+		}
+		sqlDB, err := gdb.DB()
+		if err != nil {
+			t.Fatalf("DB(): %v", err)
+		}
+		if got := sqlDB.Stats().MaxOpenConnections; got != 1 {
+			t.Fatalf("MaxOpenConnections = %d, want 1", got)
+		}
+		var mode string
+		if err := sqlDB.QueryRow("PRAGMA journal_mode").Scan(&mode); err != nil {
+			t.Fatalf("journal_mode: %v", err)
+		}
+		if strings.ToLower(mode) != "wal" {
+			t.Fatalf("journal_mode = %q, want wal", mode)
+		}
+	}
+
+	t.Run("plain path", func(t *testing.T) {
+		openAndCheck(t, filepath.Join(dir, "plain.db"))
+	})
+	t.Run("existing pragma in DSN still gets WAL", func(t *testing.T) {
+		openAndCheck(t, filepath.Join(dir, "pragma.db")+"?_pragma=busy_timeout(5000)")
+	})
+}
 
 func TestDBOpenAndMigrate(t *testing.T) {
 	t.Parallel()

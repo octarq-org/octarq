@@ -27,15 +27,7 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 	var dial gorm.Dialector
 	switch cfg.DBDriver {
 	case "sqlite":
-		dsn := cfg.DBDSN
-		if !strings.Contains(dsn, "_busy_timeout") && !strings.Contains(dsn, "_pragma") {
-			sep := "?"
-			if strings.Contains(dsn, "?") {
-				sep = "&"
-			}
-			dsn = fmt.Sprintf("%s%s_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)", dsn, sep)
-		}
-		dial = sqlite.Open(dsn)
+		dial = sqlite.Open(cfg.DBDSN)
 	case "postgres":
 		dial = postgres.Open(cfg.DBDSN)
 	case "mysql":
@@ -60,13 +52,22 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
 
-	if sqlDB, err := gdb.DB(); err == nil {
-		if cfg.DBDriver == "sqlite" {
-			// For SQLite with WAL mode, pool connections safely with timeout
-			sqlDB.SetMaxOpenConns(50)
-			sqlDB.SetMaxIdleConns(10)
-			sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB, err := gdb.DB()
+	if err != nil {
+		return nil, fmt.Errorf("sql db: %w", err)
+	}
+	if cfg.DBDriver == "sqlite" {
+		// Apply on the live connection so a user DSN that already has
+		// `_pragma=...` still gets WAL. One connection: SQLite serializes
+		// writers even in WAL, and a large pool just surfaces SQLITE_BUSY.
+		if _, err := sqlDB.Exec("PRAGMA busy_timeout = 5000"); err != nil {
+			return nil, fmt.Errorf("sqlite busy_timeout: %w", err)
 		}
+		if _, err := sqlDB.Exec("PRAGMA journal_mode = WAL"); err != nil {
+			return nil, fmt.Errorf("sqlite journal_mode: %w", err)
+		}
+		sqlDB.SetMaxOpenConns(1)
+		sqlDB.SetMaxIdleConns(1)
 	}
 
 	return gdb, nil

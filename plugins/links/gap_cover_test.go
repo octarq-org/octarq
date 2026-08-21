@@ -363,6 +363,10 @@ func TestTagBoundaryFilter(t *testing.T) {
 		{OrgID: 1, Slug: "start", Tags: "test,beta"},
 		{OrgID: 1, Slug: "end", Tags: "alpha,test"},
 		{OrgID: 1, Slug: "mid", Tags: "alpha, test, beta"},
+		{OrgID: 1, Slug: "spaces", Tags: "a,b , c"},
+		{OrgID: 1, Slug: "case", Tags: "Promo"},
+		{OrgID: 1, Slug: "wildcard_like", Tags: "te_t"},
+		{OrgID: 1, Slug: "percent", Tags: "100%"},
 		{OrgID: 1, Slug: "false_prefix", Tags: "testing,beta"},
 		{OrgID: 1, Slug: "false_suffix", Tags: "alpha,attest"},
 		{OrgID: 1, Slug: "false_mid", Tags: "alpha,detest,beta"},
@@ -371,18 +375,42 @@ func TestTagBoundaryFilter(t *testing.T) {
 		gdb.Create(&l)
 	}
 
-	var matched []Link
-	filterByTag(gdb.Model(&Link{}).Where("owner_id = ?", 1), "test").Order("id ASC").Find(&matched)
-
-	if len(matched) != 4 {
-		t.Fatalf("expected 4 matched links, got %d", len(matched))
-	}
-	expectedSlugs := map[string]bool{"exact": true, "start": true, "end": true, "mid": true}
-	for _, m := range matched {
-		if !expectedSlugs[m.Slug] {
-			t.Errorf("unexpected matched slug %q", m.Slug)
+	mustMatch := func(tag string, want ...string) {
+		t.Helper()
+		var matched []Link
+		if err := filterByTag(gdb.Model(&Link{}).Where("owner_id = ?", 1), tag).Order("id ASC").Find(&matched).Error; err != nil {
+			t.Fatalf("filterByTag(%q): %v", tag, err)
+		}
+		got := map[string]bool{}
+		for _, m := range matched {
+			got[m.Slug] = true
+		}
+		if len(matched) != len(want) {
+			t.Fatalf("filterByTag(%q) matched %d %v, want %v", tag, len(matched), keys(got), want)
+		}
+		for _, slug := range want {
+			if !got[slug] {
+				t.Errorf("filterByTag(%q) missing %q (got %v)", tag, slug, keys(got))
+			}
 		}
 	}
+
+	mustMatch("test", "exact", "start", "end", "mid")
+	mustMatch("TEST", "exact", "start", "end", "mid")
+	mustMatch("b", "spaces")
+	mustMatch("promo", "case")
+	mustMatch("te_t", "wildcard_like")
+	mustMatch("100%", "percent")
+	mustMatch("_") // LIKE '_' must not match te_t
+	mustMatch("%") // LIKE '%' must not match 100%
+}
+
+func keys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
 }
 
 func TestSortStatKVOrdersByCountThenKey(t *testing.T) {
