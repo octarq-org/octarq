@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -341,5 +342,21 @@ func TestPurgeDeletesExternalProviderBlobs(t *testing.T) {
 	db.Model(&Mailbox{}).Where("owner_id = ?", 1).Count(&mailboxes)
 	if mailboxes != 0 {
 		t.Errorf("expected mailboxes purged, got %d", mailboxes)
+	}
+}
+
+// TestMailRawBlobSchemaIsPortableToPostgres ensures MailRawBlob.Data does not carry
+// an explicit gorm:"type:blob" tag, which causes PostgreSQL migrations to fail with
+// ERROR: type "blob" does not exist (SQLSTATE 42704).
+func TestMailRawBlobSchemaIsPortableToPostgres(t *testing.T) {
+	db := setupTestDB(t)
+	stmt := &gorm.Statement{DB: db}
+	if err := stmt.Parse(&MailRawBlob{}); err != nil {
+		t.Fatalf("parse MailRawBlob schema: %v", err)
+	}
+	for _, f := range stmt.Schema.Fields {
+		if strings.EqualFold(string(f.DataType), "blob") {
+			t.Errorf("field %s has explicit blob data type; GORM must use default []byte mapping so Postgres migrates as bytea", f.Name)
+		}
 	}
 }
