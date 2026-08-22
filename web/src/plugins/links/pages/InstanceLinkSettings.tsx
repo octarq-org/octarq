@@ -8,7 +8,7 @@
 // place here.
 import { useEffect, useState } from "react";
 import { api } from "../../../api";
-import { Field, Button, PageHeader, GlassCard } from "../../../ui";
+import { Field, Button, PageHeader, GlassCard, toast } from "../../../ui";
 import { useTranslation } from "../../../i18n";
 import { SavedBadge } from "../../../pages/settings/shared";
 
@@ -39,6 +39,8 @@ export function InstanceLinkSettings() {
       await api.updateInstanceSettings({ reservedSlugs });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    } catch (err: any) {
+      toast.error(err?.message || t("settings.saveFailed", "Failed to save settings"));
     } finally {
       setBusy(false);
     }

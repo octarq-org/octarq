@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { api } from "../../api";
-import { Field, Toggle, PageHeader, GlassCard, Button, confirmDialog } from "../../ui";
+import { Field, Toggle, PageHeader, GlassCard, Button, confirmDialog, toast } from "../../ui";
 import { Mail, ChevronDown, Check } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useInstanceSettings } from "./shared";
@@ -106,8 +106,9 @@ export function AuthenticationSettings() {
     try {
       await api.updateInstanceSettings({ allowRegistration: next });
       reload();
-    } catch {
+    } catch (err: any) {
       setAllowReg(!next);
+      toast.error(err?.message || t("settings.saveFailed", "Failed to save settings"));
     }
   }
 
@@ -116,8 +117,9 @@ export function AuthenticationSettings() {
     try {
       await api.updateInstanceSettings({ requireEmailVerification: next });
       reload();
-    } catch {
+    } catch (err: any) {
       setRequireVerify(!next);
+      toast.error(err?.message || t("settings.saveFailed", "Failed to save settings"));
     }
   }
 
@@ -131,6 +133,8 @@ export function AuthenticationSettings() {
       setSaved(which);
       setTimeout(() => setSaved(""), 2000);
       reload();
+    } catch (err: any) {
+      toast.error(err?.message || t("settings.saveFailed", "Failed to save settings"));
     } finally {
       setSaving("");
     }
@@ -138,8 +142,12 @@ export function AuthenticationSettings() {
 
   async function clearSecret(field: "googleClientSecret" | "githubClientSecret", confirmKey: string) {
     if (!(await confirmDialog(t(confirmKey)))) return;
-    await api.updateInstanceSettings({ [field]: "" } as Record<string, string>);
-    reload();
+    try {
+      await api.updateInstanceSettings({ [field]: "" } as Record<string, string>);
+      reload();
+    } catch (err: any) {
+      toast.error(err?.message || t("settings.saveFailed", "Failed to save settings"));
+    }
   }
 
   if (!settings) {

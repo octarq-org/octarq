@@ -247,8 +247,24 @@ export async function req<T>(method: string, path: string, body?: unknown, lang?
       // still read so an endpoint that has not been converted, or a cached
       // build talking to an older server, keeps showing a real message instead
       // of falling through to statusText.
-      if (parsed?.message) msg = parsed.message;
-      else if (parsed?.error) msg = parsed.error;
+      if (parsed?.message) {
+        msg = parsed.message;
+        if (parsed.details && Array.isArray(parsed.details) && parsed.details.length > 0) {
+          const detailMsgs = parsed.details
+            .map((d: any) => {
+              if (typeof d === "string") return d;
+              if (d?.message) {
+                const loc = d.location ? `${d.location.replace(/^body\./, "")}: ` : "";
+                return `${loc}${d.message}`;
+              }
+              return "";
+            })
+            .filter(Boolean);
+          if (detailMsgs.length > 0) {
+            msg = `${parsed.message}: ${detailMsgs.join(", ")}`;
+          }
+        }
+      } else if (parsed?.error) msg = parsed.error;
       else if (parsed?.detail) msg = parsed.detail;
     } catch {
       /* not JSON — keep statusText */
@@ -302,7 +318,6 @@ export interface InstanceSettings {
   requireEmailVerification?: boolean;
   appName: string;
   baseDomain: string;
-  sharedHosts?: string;
   metricsTokenSet: boolean;
   ratelimitAuthRpm: number;
   ratelimitApiRpm: number;
@@ -354,7 +369,6 @@ export const api = {
     requireEmailVerification?: boolean;
     appName?: string;
     baseDomain?: string;
-    sharedHosts?: string;
     metricsToken?: string;
     ratelimitAuthRpm?: number;
     ratelimitApiRpm?: number;

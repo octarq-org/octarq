@@ -13,7 +13,6 @@ export function InstanceSettings() {
 
   const [appName, setAppName] = useState("");
   const [baseDomain, setBaseDomain] = useState("");
-  const [sharedHosts, setSharedHosts] = useState("");
   const [retention, setRetention] = useState(90);
   const [rlAuth, setRlAuth] = useState(60);
   const [rlApi, setRlApi] = useState(600);
@@ -34,7 +33,6 @@ export function InstanceSettings() {
     if (settings) {
       setAppName(settings.appName ?? "");
       setBaseDomain(settings.baseDomain ?? "");
-      setSharedHosts(settings.sharedHosts ?? "");
       setRetention(settings.dataRetentionDays ?? 90);
       setRlAuth(settings.ratelimitAuthRpm ?? 60);
       setRlApi(settings.ratelimitApiRpm ?? 600);
@@ -49,7 +47,6 @@ export function InstanceSettings() {
       const payload: Parameters<typeof api.updateInstanceSettings>[0] = {
         appName,
         baseDomain,
-        sharedHosts,
         dataRetentionDays: retention,
         ratelimitAuthRpm: rlAuth,
         ratelimitApiRpm: rlApi,
@@ -62,6 +59,8 @@ export function InstanceSettings() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       reload();
+    } catch (err: any) {
+      toast.error(err?.message || t("settings.saveFailed", "Failed to save settings"));
     } finally {
       setBusy(false);
     }
@@ -127,14 +126,6 @@ export function InstanceSettings() {
               placeholder="e.g. app.example.com"
             />
           </Field>
-          <Field label={t("settings.instanceSharedHosts")} hint={t("settings.instanceSharedHostsHint")}>
-            <input
-              className="input w-full font-mono text-sm"
-              value={sharedHosts}
-              onChange={(e) => setSharedHosts(e.target.value)}
-              placeholder="e.g. app.example.com, octarq.example.com"
-            />
-          </Field>
           <Field label={t("settings.retentionLabel")} hint={t("settings.retentionHint")}>
             <input
               type="number"
@@ -164,8 +155,12 @@ export function InstanceSettings() {
                 className="shrink-0 text-xs text-danger-fg hover:text-danger-fg"
                 onClick={async () => {
                   if (await confirmDialog(t("settings.clearMetricsToken"))) {
-                    await api.updateInstanceSettings({ metricsToken: "" });
-                    reload();
+                    try {
+                      await api.updateInstanceSettings({ metricsToken: "" });
+                      reload();
+                    } catch (err: any) {
+                      toast.error(err?.message || t("settings.saveFailed", "Failed to save settings"));
+                    }
                   }
                 }}
                 disabled={busy}
