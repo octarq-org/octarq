@@ -120,7 +120,6 @@ export function GeneralSettings() {
   const { t } = useTranslation();
   const [workspaceName, setWorkspaceName] = useState("");
   const [workspaceBusy, setWorkspaceBusy] = useState(false);
-  const [workspaceSaved, setWorkspaceSaved] = useState(false);
   const [role, setRole] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [purging, setPurging] = useState(false);
@@ -143,8 +142,7 @@ export function GeneralSettings() {
     setWorkspaceBusy(true);
     try {
       await api.updateOrg({ name: workspaceName });
-      setWorkspaceSaved(true);
-      toast.success(t("settings.renameSaved", "Workspace name updated"));
+      toast.success(t("settings.saved"));
       // Tell the shell to refresh the workspace list/switcher in place instead
       // of a full-page reload.
       window.dispatchEvent(new Event("octarq:orgs-changed"));
@@ -201,7 +199,6 @@ export function GeneralSettings() {
       <GlassCard className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-foreground">{t("settings.workspaceProfile")}</h2>
-          {workspaceSaved && <Badge tone="green">{t("settings.updated")}</Badge>}
         </div>
         <form onSubmit={renameWorkspace} className="max-w-md">
           <Field label={t("settings.workspaceNameLabel")} hint={t("settings.workspaceNameHint")}>

@@ -90,7 +90,6 @@ export function AuthenticationSettings() {
   const [githubId, setGithubId] = useState("");
   const [githubSecret, setGithubSecret] = useState("");
   const [saving, setSaving] = useState<"" | "google" | "github">("");
-  const [saved, setSaved] = useState<"" | "google" | "github">("");
 
   useEffect(() => {
     if (settings) {
@@ -105,6 +104,7 @@ export function AuthenticationSettings() {
     setAllowReg(next);
     try {
       await api.updateInstanceSettings({ allowRegistration: next });
+      toast.success(t("settings.saved"));
       reload();
     } catch (err: any) {
       setAllowReg(!next);
@@ -116,6 +116,7 @@ export function AuthenticationSettings() {
     setRequireVerify(next);
     try {
       await api.updateInstanceSettings({ requireEmailVerification: next });
+      toast.success(t("settings.saved"));
       reload();
     } catch (err: any) {
       setRequireVerify(!next);
@@ -130,8 +131,7 @@ export function AuthenticationSettings() {
       await api.updateInstanceSettings(body);
       if (which === "google") setGoogleSecret("");
       else setGithubSecret("");
-      setSaved(which);
-      setTimeout(() => setSaved(""), 2000);
+      toast.success(t("settings.saved"));
       reload();
     } catch (err: any) {
       toast.error(err?.message || t("settings.saveFailed", "Failed to save settings"));
@@ -144,6 +144,7 @@ export function AuthenticationSettings() {
     if (!(await confirmDialog(t(confirmKey)))) return;
     try {
       await api.updateInstanceSettings({ [field]: "" } as Record<string, string>);
+      toast.success(t("settings.saved"));
       reload();
     } catch (err: any) {
       toast.error(err?.message || t("settings.saveFailed", "Failed to save settings"));
@@ -249,11 +250,6 @@ export function AuthenticationSettings() {
               >
                 {saving === "google" ? t("settings.savingDots") : t("settings.save")}
               </Button>
-              {saved === "google" && (
-                <span className="flex items-center gap-1 text-xs text-success-fg">
-                  <Check className="h-3.5 w-3.5" /> {t("settings.saved")}
-                </span>
-              )}
             </div>
           </ProviderRow>
 
@@ -295,11 +291,6 @@ export function AuthenticationSettings() {
               >
                 {saving === "github" ? t("settings.savingDots") : t("settings.save")}
               </Button>
-              {saved === "github" && (
-                <span className="flex items-center gap-1 text-xs text-success-fg">
-                  <Check className="h-3.5 w-3.5" /> {t("settings.saved")}
-                </span>
-              )}
             </div>
           </ProviderRow>
 

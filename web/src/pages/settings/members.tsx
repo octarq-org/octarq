@@ -18,7 +18,6 @@ export function OrgMembersManager() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
 
   async function load() {
     setLoading(true);
@@ -44,17 +43,18 @@ export function OrgMembersManager() {
     e.preventDefault();
     if (!email) return;
     setBusy(true);
-    setErr("");
     try {
       const res = await api.addOrgMember({ email, role });
       if (res?.emailSent === false) {
-        setErr(t("settings.inviteNoMail", "Invite created but email could not be sent — configure an SMTP sender first."));
+        toast.warning(t("settings.inviteNoMail", "Invite created but email could not be sent — configure an SMTP sender first."));
+      } else {
+        toast.success(t("settings.saved"));
       }
       setEmail("");
       setRole("member");
       load();
     } catch (e: any) {
-      setErr(e.message || t("settings.failedAddMember"));
+      toast.error(e.message || t("settings.failedAddMember"));
     } finally {
       setBusy(false);
     }
@@ -67,7 +67,6 @@ export function OrgMembersManager() {
 
   async function handleRoleChange(m: OrgMember, role: string) {
     if (role === m.role) return;
-    setErr("");
     // Optimistic: the row is a Select, and leaving it showing the old role until
     // a refetch lands reads as "that didn't work".
     setMembers((list) => list.map((x) => (x.userId === m.userId ? { ...x, role } : x)));
@@ -84,6 +83,7 @@ export function OrgMembersManager() {
     if (!(await confirmDialog(t("settings.confirmRemoveMember")))) return;
     try {
       await api.deleteOrgMember(userId);
+      toast.success(t("settings.saved"));
       load();
     } catch (e: any) {
       toast.error(e.message || t("settings.failedRemoveMember"));
@@ -105,16 +105,18 @@ export function OrgMembersManager() {
       <GlassCard className="p-6 space-y-6">
 
       {canManage && (
-      <form onSubmit={handleAdd} className="bg-well p-4 rounded-xl border border-foreground/[0.05] flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
-        <div className="w-full sm:flex-1 sm:min-w-[200px]">
-          <label className="label text-xs">{t("settings.inviteByEmail")}</label>
-          <input
-            className="input w-full text-sm mt-1"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="colleague@example.com"
-            required
-          />
+      <form onSubmit={handleAdd} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end p-4 rounded-xl border border-foreground/[0.05] bg-well">
+        <div className="flex-1">
+          <Field label={t("settings.inviteByEmail")}>
+            <input
+              type="email"
+              className="input w-full text-xs"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="colleague@example.com"
+              required
+            />
+          </Field>
         </div>
         <div className="w-full sm:w-32">
           <label className="label text-xs">{t("settings.accessRole")}</label>
@@ -134,7 +136,6 @@ export function OrgMembersManager() {
         </Button>
       </form>
       )}
-      {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
 
       {loading ? (
         <div className="text-foreground/40 text-sm py-4 text-center">{t("settings.loadingMembers")}</div>

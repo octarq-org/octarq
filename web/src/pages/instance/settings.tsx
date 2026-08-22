@@ -4,7 +4,6 @@ import { Field, PageHeader, GlassCard, Button, toast, confirmDialog } from "../.
 import { Server, Sliders, DatabaseBackup, Cpu } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useInstanceSettings } from "./shared";
-import { SavedBadge } from "../settings/shared";
 import { ExtensionSlot } from "../../plugin-sdk";
 
 export function InstanceSettings() {
@@ -13,6 +12,7 @@ export function InstanceSettings() {
 
   const [appName, setAppName] = useState("");
   const [baseDomain, setBaseDomain] = useState("");
+  const [sharedHosts, setSharedHosts] = useState("");
   const [retention, setRetention] = useState(90);
   const [rlAuth, setRlAuth] = useState(60);
   const [rlApi, setRlApi] = useState(600);
@@ -21,7 +21,6 @@ export function InstanceSettings() {
   const [metricsTokenSet, setMetricsTokenSet] = useState(false);
 
   const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
   const [build, setBuild] = useState<{ version: string; commit: string; builtAt: string } | null>(null);
 
@@ -33,6 +32,7 @@ export function InstanceSettings() {
     if (settings) {
       setAppName(settings.appName ?? "");
       setBaseDomain(settings.baseDomain ?? "");
+      setSharedHosts(settings.sharedHosts ?? "");
       setRetention(settings.dataRetentionDays ?? 90);
       setRlAuth(settings.ratelimitAuthRpm ?? 60);
       setRlApi(settings.ratelimitApiRpm ?? 600);
@@ -47,6 +47,7 @@ export function InstanceSettings() {
       const payload: Parameters<typeof api.updateInstanceSettings>[0] = {
         appName,
         baseDomain,
+        sharedHosts,
         dataRetentionDays: retention,
         ratelimitAuthRpm: rlAuth,
         ratelimitApiRpm: rlApi,
@@ -56,8 +57,7 @@ export function InstanceSettings() {
       const v = await api.updateInstanceSettings(payload);
       setMetricsTokenSet(v.metricsTokenSet);
       setMetricsToken("");
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      toast.success(t("settings.saved"));
       reload();
     } catch (err: any) {
       toast.error(err?.message || t("settings.saveFailed", "Failed to save settings"));
@@ -107,7 +107,6 @@ export function InstanceSettings() {
             <Server className="h-5 w-5 text-accent-fg" />
             <h2 className="text-base font-bold text-foreground">{t("settings.generalInfo")}</h2>
           </div>
-          <SavedBadge on={saved} />
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <Field label={t("settings.instanceAppName")} hint={t("settings.instanceAppNameHint")}>
@@ -124,6 +123,14 @@ export function InstanceSettings() {
               value={baseDomain}
               onChange={(e) => setBaseDomain(e.target.value)}
               placeholder="e.g. app.example.com"
+            />
+          </Field>
+          <Field label={t("settings.instanceSharedHosts")} hint={t("settings.instanceSharedHostsHint")}>
+            <input
+              className="input w-full font-mono text-sm"
+              value={sharedHosts}
+              onChange={(e) => setSharedHosts(e.target.value)}
+              placeholder={t("settings.instanceSharedHostsPlaceholder")}
             />
           </Field>
           <Field label={t("settings.retentionLabel")} hint={t("settings.retentionHint")}>
@@ -157,6 +164,7 @@ export function InstanceSettings() {
                   if (await confirmDialog(t("settings.clearMetricsToken"))) {
                     try {
                       await api.updateInstanceSettings({ metricsToken: "" });
+                      toast.success(t("settings.saved"));
                       reload();
                     } catch (err: any) {
                       toast.error(err?.message || t("settings.saveFailed", "Failed to save settings"));
@@ -184,8 +192,9 @@ export function InstanceSettings() {
           <Sliders className="h-5 w-5 text-accent-fg" />
           <h2 className="text-base font-bold text-foreground">{t("settings.rateLimiting")}</h2>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl">
-          <Field label={t("settings.instanceRlAuth")} hint={t("settings.instanceRlHint")}>
+        <p className="text-xs text-foreground/50">{t("settings.instanceRlHint")}</p>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+          <Field label={t("settings.instanceRlAuth")}>
             <input
               type="number"
               min={0}
@@ -234,7 +243,9 @@ export function InstanceSettings() {
               <div className="font-mono text-sm text-foreground/80">{build.version}</div>
             </Field>
             <Field label={t("settings.buildCommit")}>
-              <div className="font-mono text-sm text-foreground/80">{build.commit}</div>
+              <div className="font-mono text-sm text-foreground/80">
+                {build.commit ? (build.commit.length > 8 ? build.commit.slice(0, 8) : build.commit) : "unknown"}
+              </div>
             </Field>
             <Field label={t("settings.buildBuiltAt")}>
               <div className="font-mono tnum text-sm text-foreground/80">{build.builtAt}</div>
