@@ -26,6 +26,7 @@ import (
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/cache"
 	"github.com/octarq-org/octarq/internal/db"
+	"github.com/octarq-org/octarq/internal/endpoint"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -86,15 +87,17 @@ func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin) *mcp.S
 // buildServerInstance is the single chokepoint that constructs an MCP server.
 func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookup func(string) (any, bool), mountPlugins bool) *mcp.Server {
 	lookupFn := lookup
+	endpointEngine := endpoint.NewEngine()
 	if mountPlugins {
 		reg := plugin.NewRegistry()
 		cacheBackend := cache.New("")
 		pctx := &plugin.Context{
-			DB:      gdb,
-			OrgID:   func(_ *http.Request) uint { return orgID },
-			Provide: reg.Provide,
-			Lookup:  reg.Lookup,
-			Cache:   cache.NewScoped(cacheBackend, "mcp"),
+			DB:               gdb,
+			OrgID:            func(_ *http.Request) uint { return orgID },
+			Provide:          reg.Provide,
+			Lookup:           reg.Lookup,
+			Cache:            cache.NewScoped(cacheBackend, "mcp"),
+			RegisterEndpoint: endpointEngine.Register,
 			// RequirePerm is intentionally left nil: MCP requests do not carry per-request HTTP user identity.
 			// Authorization is handled by the MCP layer itself; plugin callers using HasPerm must tolerate nil.
 		}
@@ -118,6 +121,7 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 	}
 	srv := mcp.NewServer(impl, opts)
 	s.registerTools(srv)
+	_ = endpointEngine.MountMCP(srv)
 
 	for _, p := range plugins {
 		if mp, ok := p.(plugin.MCPProvider); ok {

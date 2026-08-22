@@ -24,6 +24,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/idempotency"
 	"github.com/octarq-org/octarq/internal/api"
@@ -33,6 +34,7 @@ import (
 	"github.com/octarq-org/octarq/internal/cleanup"
 	"github.com/octarq-org/octarq/internal/crypto"
 	"github.com/octarq-org/octarq/internal/db"
+	"github.com/octarq-org/octarq/internal/endpoint"
 	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/geo"
 	"github.com/octarq-org/octarq/internal/mcp"
@@ -257,6 +259,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 		StartSpan: func(ctx context.Context, tracerName, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 			return telemetry.StartSpan(ctx, tracerName, spanName, opts...)
 		},
+		RegisterEndpoint: endpoint.NewEngine().Register,
 	}
 	// Same idempotency seam as the HTTP path — a plugin that resolves it in
 	// Mount must find it in both compositions.
@@ -377,6 +380,7 @@ func (a *App) Run(ctx context.Context) error {
 	var staticMounts []server.StaticMount
 	var runEmailMu sync.Mutex
 	var runDeferredOnEmail []func(plugin.EmailEvent)
+	endpointEngine := endpoint.NewEngine()
 	pctx := &plugin.Context{
 		Huma:   apiHandler.Huma(),
 		DB:     a.gdb,
@@ -492,6 +496,7 @@ func (a *App) Run(ctx context.Context) error {
 		StartSpan: func(ctx context.Context, tracerName, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 			return telemetry.StartSpan(ctx, tracerName, spanName, opts...)
 		},
+		RegisterEndpoint: endpointEngine.Register,
 	}
 	// Idempotency-Key support is offered to plugin routes through the service
 	// registry rather than a new plugin.Context field, so a plugin adopts it
@@ -545,6 +550,18 @@ func (a *App) Run(ctx context.Context) error {
 		}
 		slog.Info("plugin mounted", "name", p.Name())
 	}
+	_ = endpointEngine.MountHTTP(apiHandler.Huma(), endpoint.HTTPOptions{
+		RequireAuth: func(ctx context.Context) (uint, error) {
+			orgID := plugin.OrgIDFromContext(ctx)
+			if orgID == 0 {
+				return 0, huma.Error401Unauthorized("unauthorized")
+			}
+			return orgID, nil
+		},
+		RequireRole: func(ctx context.Context, roles []string) error {
+			return nil
+		},
+	})
 	// Two plugins claiming the same route, or the same service name, is a wiring
 	// bug — refuse to serve, same as a table collision. Routes first: that one
 	// would otherwise have been a ServeMux panic.
