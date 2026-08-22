@@ -3,7 +3,6 @@ package links
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 	"time"
 
@@ -15,7 +14,13 @@ import (
 // Every transport supplies one — the networked ones from the caller's API token,
 // the stdio CLI from its entry point — so an absent org means something is wrong,
 // and defaulting it to a tenant would hand that tenant's data to whoever asked.
-var errNoOrgInContext = errors.New("no workspace in this request")
+var errNoOrgInContext = plugin.NewAgentError(
+	401,
+	"UNAUTHORIZED_NO_WORKSPACE",
+	"no workspace in this request",
+	"Every tool execution requires a valid workspace/tenant context. Ensure a valid API token or session is provided.",
+	false,
+)
 
 type listLinksInput struct {
 	Host  string `json:"host,omitempty"`

@@ -459,6 +459,11 @@ type Context struct {
 	CacheSet func(ctx context.Context, key string, val any, ttl time.Duration) error
 	// DeleteCache removes a key from the global cache.
 	DeleteCache func(ctx context.Context, key string) error
+	// Cache provides plugin-scoped caching with automatic namespace isolation.
+	// In standalone/single-binary builds, it uses in-memory LRU caching; when Redis
+	// is configured, it transparently uses Redis.
+	// nil on hosts that predate it.
+	Cache ScopedCache
 	// GeoLookup resolves an IP address to country, region, city.
 	GeoLookup func(ip string) (country, region, city string)
 	// ParseUA parses a User-Agent string to device, browser, os.

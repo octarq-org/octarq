@@ -214,6 +214,7 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	p.present("CacheGet", ctx.CacheGet != nil)
 	p.present("CacheSet", ctx.CacheSet != nil)
 	p.present("DeleteCache", ctx.DeleteCache != nil)
+	p.present("Cache", ctx.Cache != nil)
 	p.present("ParseUA", ctx.ParseUA != nil)
 	p.present("RegisterAuthMethod", ctx.RegisterAuthMethod != nil)
 	p.present("RegisterWebhookEvent", ctx.RegisterWebhookEvent != nil)
@@ -292,6 +293,21 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	var after string
 	if ctx.CacheGet(context.Background(), ck, &after) {
 		t.Errorf("CacheGet after delete = %q, want a miss", after)
+	}
+
+	// ScopedCache round-trip.
+	if err := ctx.Cache.Set(context.Background(), "scoped_k", "scoped_v", time.Minute); err != nil {
+		t.Fatalf("ScopedCache Set: %v", err)
+	}
+	var scopedVal string
+	if found, err := ctx.Cache.Get(context.Background(), "scoped_k", &scopedVal); !found || err != nil || scopedVal != "scoped_v" {
+		t.Errorf("ScopedCache Get got found=%v, err=%v, val=%q", found, err, scopedVal)
+	}
+	if err := ctx.Cache.Delete(context.Background(), "scoped_k"); err != nil {
+		t.Fatalf("ScopedCache Delete: %v", err)
+	}
+	if found, _ := ctx.Cache.Get(context.Background(), "scoped_k", &scopedVal); found {
+		t.Errorf("ScopedCache Get after delete returned found=true")
 	}
 
 	// Guard admits only an authenticated request. The identity rows are built
