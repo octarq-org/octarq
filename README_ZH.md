@@ -14,7 +14,6 @@
   <a href="https://github.com/octarq-org/octarq/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/coverage-≥90%25-brightgreen.svg" alt="Coverage: ≥90%"></a>
   <a href="go.mod"><img src="https://img.shields.io/github/go-mod/go-version/octarq-org/octarq?logo=go&label=Go" alt="Go version"></a>
   <a href="https://pkg.go.dev/github.com/octarq-org/octarq"><img src="https://pkg.go.dev/badge/github.com/octarq-org/octarq.svg" alt="Go Reference"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-enabled-8b5cf6.svg" alt="MCP enabled"></a>
 </p>
 
@@ -191,4 +190,4 @@ go test ./... -race
 
 ## 开源协议
 
-基于 [MIT 协议](LICENSE) 开源。框架永远保持宽松许可；商业版是构建在同一套公开接口之上的另一组插件。
+基于 [MIT 协议](LICENSE) 开源。
