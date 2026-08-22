@@ -14,7 +14,6 @@
   <a href="https://github.com/octarq-org/octarq/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/coverage-≥90%25-brightgreen.svg" alt="Coverage: ≥90%"></a>
   <a href="go.mod"><img src="https://img.shields.io/github/go-mod/go-version/octarq-org/octarq?logo=go&label=Go" alt="Go version"></a>
   <a href="https://pkg.go.dev/github.com/octarq-org/octarq"><img src="https://pkg.go.dev/badge/github.com/octarq-org/octarq.svg" alt="Go Reference"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-enabled-8b5cf6.svg" alt="MCP enabled"></a>
 </p>
 
@@ -191,4 +190,4 @@ Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-[MIT](LICENSE). The framework stays permissive; the commercial edition is a separate set of plugins built on the same public interface.
+[MIT](LICENSE).
