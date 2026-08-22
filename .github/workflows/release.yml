@@ -2,10 +2,7 @@ name: Release image
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
-    paths-ignore:
-      - CHANGELOG.md   # avoid rebuilding on the auto-committed changelog
 
 permissions:
   contents: write   # create GitHub release + commit CHANGELOG.md
