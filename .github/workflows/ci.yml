@@ -99,6 +99,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.11.4 # keep at or above the Go version in go.mod
+          verify: false
 
   web:
     name: Frontend build
