@@ -46,8 +46,11 @@ export const instance = {
       },
       "secret-key": {
         configured: "configured",
+        degraded: "configured but shorter than 32 bytes when a domain is registered: instance will refuse to boot. Set OCTARQ_SECRET_KEY to at least 32 bytes",
+        dev: "configured but shorter than 32 bytes, which is accepted only in development. Set OCTARQ_SECRET_KEY to at least 32 bytes before production",
       },
       hardening: {
+        ok: "running on the default sqlite file with no Redis, which is treated as development: the secret-key length floor warns instead of refusing to start only when no domain is registered. Registering any domain enforces it",
         dev: "running on the default sqlite file with no Redis, which is treated as development: the secret-key length floor warns instead of refusing to start only when no domain is registered. Registering any domain enforces it",
       },
     },
@@ -97,8 +100,11 @@ export const instance = {
       },
       "secret-key": {
         configured: "已配置且符合安全长度规范。",
+        degraded: "已配置但长度不足 32 字节。由于已注册域名，实例启动将受阻。请在环境变量中设置 OCTARQ_SECRET_KEY 为至少 32 字节的强随机字符串。",
+        dev: "已配置但长度不足 32 字节（当前处于开发模式）。请在生产环境上线前将 OCTARQ_SECRET_KEY 设置为至少 32 字节。",
       },
       hardening: {
+        ok: "当前运行在默认 SQLite 文件上且未配置 Redis，被视为开发模式：仅当未注册任何域名时，密钥长度不足只会警告而非拒绝启动。一旦注册域名将强制校验。",
         dev: "当前运行在默认 SQLite 文件上且未配置 Redis，被视为开发模式：仅当未注册任何域名时，密钥长度不足只会警告而非拒绝启动。一旦注册域名将强制校验。",
       },
     },
@@ -148,8 +154,11 @@ export const instance = {
       },
       "secret-key": {
         configured: "configurada",
+        degraded: "configurada pero tiene menos de 32 bytes cuando se registra un dominio: la instancia no se iniciará",
+        dev: "configurada pero tiene menos de 32 bytes, lo cual solo se acepta en desarrollo",
       },
       hardening: {
+        ok: "ejecutándose en el archivo sqlite predeterminado sin Redis, lo que se considera desarrollo",
         dev: "ejecutándose en el archivo sqlite predeterminado sin Redis, lo que se considera desarrollo",
       },
     },
@@ -199,8 +208,11 @@ export const instance = {
       },
       "secret-key": {
         configured: "configurada",
+        degraded: "configurada, mas com menos de 32 bytes quando um domínio está registrado: a instância recusará a inicialização",
+        dev: "configurada, mas com menos de 32 bytes, o que só é aceito em desenvolvimento",
       },
       hardening: {
+        ok: "executando no arquivo sqlite padrão sem Redis, o que é tratado como desenvolvimento",
         dev: "executando no arquivo sqlite padrão sem Redis, o que é tratado como desenvolvimento",
       },
     },
@@ -250,8 +262,11 @@ export const instance = {
       },
       "secret-key": {
         configured: "設定済み",
+        degraded: "設定されていますが、ドメイン登録時に32バイト未満です: インスタンスは起動を拒否します",
+        dev: "設定されていますが32バイト未満です。これは開発環境でのみ受け入れられます",
       },
       hardening: {
+        ok: "Redisなしのデフォルトsqliteファイルで実行されており、開発環境として扱われます",
         dev: "Redisなしのデフォルトsqliteファイルで実行されており、開発環境として扱われます",
       },
     },

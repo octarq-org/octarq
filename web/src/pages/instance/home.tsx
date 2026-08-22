@@ -98,8 +98,19 @@ export function ConsoleHome({ checks, onRefresh }: { checks: ReadinessCheck[]; o
                         }
                         return t("instance.checkDetail.registration.ok", check.detail);
                       }
-                      if (check.id === "secret-key" && check.detail === "configured") {
-                        return t("instance.checkDetail.secret-key.configured", check.detail);
+                      if (check.id === "secret-key") {
+                        if (check.detail === "configured") {
+                          return t("instance.checkDetail.secret-key.configured", check.detail);
+                        }
+                        if (check.detail.includes("refuse to boot") || check.status === "degraded") {
+                          return t("instance.checkDetail.secret-key.degraded", check.detail);
+                        }
+                        if (check.detail.includes("shorter than")) {
+                          return t("instance.checkDetail.secret-key.dev", check.detail);
+                        }
+                      }
+                      if (check.id === "hardening") {
+                        return t("instance.checkDetail.hardening.ok", t("instance.checkDetail.hardening.dev", check.detail));
                       }
                       return t(`instance.checkDetail.${check.id}.${check.status}`, check.detail);
                     })()}
