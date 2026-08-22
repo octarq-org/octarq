@@ -55,6 +55,7 @@ func (h *Handler) getInstanceSettings(ctx context.Context, input *GetInstanceSet
 			"requireEmailVerification": h.requireEmailVerification(),
 			"appName":                  h.getSetting(keyAppName), // raw value; empty = default
 			"baseDomain":               models.BaseDomain(h.db),  // effective value incl. the OCTARQ_BASE_DOMAIN bootstrap fallback
+			"sharedHosts":              h.sharedHostsSetting(),
 			"metricsTokenSet":          h.getSetting(keyMetricsToken) != "",
 			"ratelimitAuthRpm":         h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
 			"ratelimitApiRpm":          h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
@@ -77,6 +78,7 @@ type UpdateInstanceSettingsInputBody struct {
 	RequireEmailVerification *bool   `json:"requireEmailVerification,omitempty"`
 	AppName                  *string `json:"appName,omitempty"`
 	BaseDomain               *string `json:"baseDomain,omitempty"`
+	SharedHosts              *string `json:"sharedHosts,omitempty"`
 	MetricsToken             *string `json:"metricsToken,omitempty"`
 	RatelimitAuthRpm         *int    `json:"ratelimitAuthRpm,omitempty"`
 	RatelimitApiRpm          *int    `json:"ratelimitApiRpm,omitempty"`
@@ -170,6 +172,10 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 		// drop the whole namespace.
 		origin.ClearBaseDomainCache(h.db)
 	}
+	if input.Body.SharedHosts != nil {
+		h.setSetting(keySharedHosts, strings.Join(splitList(*input.Body.SharedHosts), "\n"))
+		origin.ClearSharedHostsCache(h.db)
+	}
 	if input.Body.MetricsToken != nil {
 		if *input.Body.MetricsToken == "" {
 			h.setSetting(keyMetricsToken, "")
@@ -225,6 +231,9 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 	if input.Body.BaseDomain != nil {
 		meta["baseDomain"] = *input.Body.BaseDomain
 	}
+	if input.Body.SharedHosts != nil {
+		meta["sharedHosts"] = *input.Body.SharedHosts
+	}
 	if input.Body.MetricsToken != nil {
 		meta["metricsToken"] = "[REDACTED]"
 	}
@@ -263,6 +272,7 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 			"allowRegistration":     h.registrationEnabled(),
 			"appName":               h.getSetting(keyAppName),
 			"baseDomain":            models.BaseDomain(h.db),
+			"sharedHosts":           h.sharedHostsSetting(),
 			"metricsTokenSet":       h.getSetting(keyMetricsToken) != "",
 			"ratelimitAuthRpm":      h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
 			"ratelimitApiRpm":       h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
@@ -272,4 +282,11 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 		},
 	}
 	return out, nil
+}
+
+func (h *Handler) sharedHostsSetting() string {
+	if v := h.getSetting(keySharedHosts); v != "" {
+		return v
+	}
+	return strings.Join(models.SharedHosts(h.db), "\n")
 }

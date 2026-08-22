@@ -13,6 +13,7 @@ export function InstanceSettings() {
 
   const [appName, setAppName] = useState("");
   const [baseDomain, setBaseDomain] = useState("");
+  const [sharedHosts, setSharedHosts] = useState("");
   const [retention, setRetention] = useState(90);
   const [rlAuth, setRlAuth] = useState(60);
   const [rlApi, setRlApi] = useState(600);
@@ -33,6 +34,7 @@ export function InstanceSettings() {
     if (settings) {
       setAppName(settings.appName ?? "");
       setBaseDomain(settings.baseDomain ?? "");
+      setSharedHosts(settings.sharedHosts ?? "");
       setRetention(settings.dataRetentionDays ?? 90);
       setRlAuth(settings.ratelimitAuthRpm ?? 60);
       setRlApi(settings.ratelimitApiRpm ?? 600);
@@ -47,6 +49,7 @@ export function InstanceSettings() {
       const payload: Parameters<typeof api.updateInstanceSettings>[0] = {
         appName,
         baseDomain,
+        sharedHosts,
         dataRetentionDays: retention,
         ratelimitAuthRpm: rlAuth,
         ratelimitApiRpm: rlApi,
@@ -122,6 +125,14 @@ export function InstanceSettings() {
               value={baseDomain}
               onChange={(e) => setBaseDomain(e.target.value)}
               placeholder="e.g. app.example.com"
+            />
+          </Field>
+          <Field label={t("settings.instanceSharedHosts")} hint={t("settings.instanceSharedHostsHint")}>
+            <input
+              className="input w-full font-mono text-sm"
+              value={sharedHosts}
+              onChange={(e) => setSharedHosts(e.target.value)}
+              placeholder="e.g. app.example.com, octarq.example.com"
             />
           </Field>
           <Field label={t("settings.retentionLabel")} hint={t("settings.retentionHint")}>

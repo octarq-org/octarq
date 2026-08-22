@@ -48,7 +48,6 @@ package origin
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -231,9 +230,15 @@ func OwnedHost(db *gorm.DB, orgID uint, r *http.Request) (string, bool) {
 }
 
 // SharedHost reports whether r arrived on a hostname that is explicitly declared
-// as an instance-wide shared host in the OCTARQ_SHARED_HOSTS environment variable.
+// as an instance-wide shared host in the settings table or OCTARQ_SHARED_HOSTS environment variable.
 // It returns the normalised hostname if it is a declared shared host.
 func SharedHost(r *http.Request) (string, bool) {
+	return SharedHostWithDB(nil, r)
+}
+
+// SharedHostWithDB reports whether r arrived on a hostname that is declared
+// as an instance-wide shared host in db settings or the environment.
+func SharedHostWithDB(db *gorm.DB, r *http.Request) (string, bool) {
 	if r == nil {
 		return "", false
 	}
@@ -241,11 +246,9 @@ func SharedHost(r *http.Request) (string, bool) {
 	if host == "" {
 		return "", false
 	}
-	if v := os.Getenv("OCTARQ_SHARED_HOSTS"); v != "" {
-		for _, h := range strings.Split(v, ",") {
-			if host == NormalizeHost(h) {
-				return host, true
-			}
+	for _, h := range cachedSharedHosts(db) {
+		if host == NormalizeHost(h) {
+			return host, true
 		}
 	}
 	return "", false
@@ -554,6 +557,48 @@ func ClearBaseDomainCache(db *gorm.DB) {
 	}
 }
 
+// sharedHostsKey is the cache key for a database's instance-wide shared hosts.
+func sharedHostsKey(db *gorm.DB) string {
+	return namespace(db) + "shared_hosts|"
+}
+
+// cachedSharedHosts returns the shared hosts for db, cached per database.
+func cachedSharedHosts(db *gorm.DB) []string {
+	key := sharedHostsKey(db)
+	globalCacheMu.RLock()
+	e, hit := globalCache[key]
+	globalCacheMu.RUnlock()
+	if hit && time.Now().Before(e.expiry) {
+		return e.list
+	}
+	hosts := models.SharedHosts(db)
+	globalCacheMu.Lock()
+	if len(globalCache) > 1024 {
+		globalCache = make(map[string]entry)
+	}
+	globalCache[key] = entry{ok: true, list: hosts, expiry: time.Now().Add(ttl)}
+	globalCacheMu.Unlock()
+	return hosts
+}
+
+// ClearSharedHostsCache drops every cached shared hosts answer for db.
+// Call it when the shared_hosts setting is written.
+func ClearSharedHostsCache(db *gorm.DB) {
+	ns := namespace(db)
+	globalCacheMu.Lock()
+	defer globalCacheMu.Unlock()
+	for k := range globalCache {
+		if strings.HasPrefix(k, ns) {
+			delete(globalCache, k)
+		}
+	}
+}
+
+// HasSharedHosts reports whether any shared hosts are configured for db.
+func HasSharedHosts(db *gorm.DB) bool {
+	return len(cachedSharedHosts(db)) > 0
+}
+
 // clearAllCache is for tests.
 func clearAllCache() {
 	globalCacheMu.Lock()
@@ -564,7 +609,8 @@ func clearAllCache() {
 type entry struct {
 	ok     bool
 	org    uint
-	name   string // cachedBaseDomain's value
+	name   string   // cachedBaseDomain's value
+	list   []string // cachedSharedHosts's value
 	expiry time.Time
 }
 
@@ -669,7 +715,7 @@ func (rv *Resolver) SharedHost(r *http.Request) (string, bool) {
 		return "", false
 	}
 	if rv.cached("shared:"+host, func() bool {
-		_, ok := SharedHost(r)
+		_, ok := SharedHostWithDB(rv.db, r)
 		return ok
 	}) {
 		return host, true
@@ -696,15 +742,15 @@ func (rv *Resolver) Absolute(orgID uint, r *http.Request, secure bool) string {
 	}
 	if host, ok := rv.SharedHost(r); ok {
 		// A shared host is explicitly declared by the operator in the instance
-		// configuration (OCTARQ_SHARED_HOSTS), meaning it is safe to use. It is
-		// not inferred from the request, so a forged Host cannot match here.
+		// configuration (settings table or OCTARQ_SHARED_HOSTS), meaning it is
+		// safe to use. It is not inferred from the request, so a forged Host cannot match here.
 		return "https://" + host
 	}
 	// The Host is not one this instance owns, nor is it a shared host. If ANY
-	// domain is registered there is a whitelist and this host failed it — a
-	// forged Host lands here, and honouring it would be the account-takeover
-	// in the package comment.
-	if rv.AnyRegistered() {
+	// domain is registered or shared hosts are configured, there is a whitelist
+	// and this host failed it — a forged Host lands here, and honouring it would
+	// be the account-takeover in the package comment.
+	if rv.AnyRegistered() || len(cachedSharedHosts(rv.db)) > 0 {
 		return ""
 	}
 	// No whitelist exists at all: nothing to check against. See the package

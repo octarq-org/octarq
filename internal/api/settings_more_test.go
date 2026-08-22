@@ -209,6 +209,7 @@ func TestUpdateInstanceSettingsAllFields(t *testing.T) {
 		"requireEmailVerification": true,
 		"appName": "Octarq Cloud",
 		"baseDomain": "octarq.io",
+		"sharedHosts": "app.octarq.io, console.octarq.io",
 		"metricsToken": "metrics-bearer-secret",
 		"ratelimitAuthRpm": 80,
 		"ratelimitApiRpm": 500,
@@ -232,6 +233,9 @@ func TestUpdateInstanceSettingsAllFields(t *testing.T) {
 	}
 	if res["appName"] != "Octarq Cloud" {
 		t.Errorf("appName = %v, want Octarq Cloud", res["appName"])
+	}
+	if res["sharedHosts"] != "app.octarq.io\nconsole.octarq.io" {
+		t.Errorf("sharedHosts = %v, want app.octarq.io\\nconsole.octarq.io", res["sharedHosts"])
 	}
 	if res["allowRegistration"] != false {
 		t.Errorf("allowRegistration = %v, want false", res["allowRegistration"])

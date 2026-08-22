@@ -271,8 +271,7 @@ func Load() (*Config, error) {
 // Provisioned reports whether this instance is pointed at infrastructure
 // somebody stood up on purpose: an external Postgres, an external MySQL, or an external Redis.
 //
-// It replaces the old IsProduction, which keyed on an https OCTARQ_BASE_URL or
-// a set OCTARQ_ADMIN_HOST — both gone, now that absolute URLs come from the
+// It replaces the old IsProduction check, now that absolute URLs come from the
 // request (origin) and the dashboard host comes from the domains
 // table. It is the SINGLE strictness predicate in this package: the secret-key
 // floor is the only rule that uses it, and a second notion of "is this

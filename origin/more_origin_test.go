@@ -209,3 +209,36 @@ func TestNamespaceNilDB(t *testing.T) {
 		t.Errorf("namespace(nil) = %q, want nodb|", ns)
 	}
 }
+
+func TestClearSharedHostsCacheAndResolver(t *testing.T) {
+	db := testDB(t)
+	if err := db.AutoMigrate(&models.Setting{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	s := models.Setting{Key: models.SharedHostsSetting, Value: "shared1.example.com"}
+	if err := db.Create(&s).Error; err != nil {
+		t.Fatalf("create setting: %v", err)
+	}
+
+	rv := NewResolver(db)
+	r1 := httptest.NewRequest(http.MethodGet, "http://shared1.example.com/", nil)
+	if h, ok := rv.SharedHost(r1); !ok || h != "shared1.example.com" {
+		t.Fatalf("expected SharedHost to match shared1.example.com, got %q %v", h, ok)
+	}
+	if !HasSharedHosts(db) {
+		t.Fatal("expected HasSharedHosts(db) to be true")
+	}
+
+	// Update setting in DB and clear cache
+	db.Model(&s).Update("value", "shared2.example.com")
+	ClearSharedHostsCache(db)
+
+	if h, ok := rv.SharedHost(r1); ok {
+		t.Fatalf("expected old shared host to fail, got %q", h)
+	}
+	r2 := httptest.NewRequest(http.MethodGet, "http://shared2.example.com/", nil)
+	if h, ok := rv.SharedHost(r2); !ok || h != "shared2.example.com" {
+		t.Fatalf("expected new shared host to match shared2.example.com, got %q %v", h, ok)
+	}
+}

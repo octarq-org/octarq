@@ -268,11 +268,8 @@ func isSpecPath(path string) bool {
 // visitors have no reason to see one. Every other hostname serves the
 // dashboard.
 //
-// This is the rule OCTARQ_ADMIN_HOST's documentation always claimed ("empty =
-// serve dashboard on any non-link host") but never implemented — unset, it
-// served the dashboard everywhere. The domains table is the better source
-// anyway: an instance legitimately answers on several hostnames for different
-// purposes, which one admin host could not express.
+// The domains table is the source of truth: an instance legitimately answers on
+// several hostnames for different purposes, which a single host constant could not express.
 func (s *Server) dashboardAllowed(host string) bool {
 	return !s.origins.ServesTraffic(host)
 }
