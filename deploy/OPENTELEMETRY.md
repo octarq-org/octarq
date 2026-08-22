@@ -42,7 +42,7 @@ All standard OpenTelemetry environment variables are supported:
 
 | Environment Variable | Default | Description |
 |---|---|---|
-| `OCTARQ_OTEL_ENABLED` | `true` (auto) | Enable or disable OpenTelemetry SDK |
+| `OCTARQ_OTEL_ENABLED` | `false` | Enable OpenTelemetry SDK (must be explicitly set to `true`) |
 | `OTEL_SERVICE_NAME` | `octarq` (or `octarq-pro`) | Logical name of the service |
 | `OTEL_SERVICE_VERSION` | `dev` / build version | Version of the service |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `""` | Target OTLP collector endpoint (e.g. `http://localhost:4318` or `localhost:4317`) |

@@ -52,6 +52,7 @@ func ConfigFromEnv(defaultServiceName, defaultVersion string) Config {
 	}
 
 	// OCTARQ_OTEL_ENABLED / OTEL_SDK_DISABLED handling
+	// OpenTelemetry is disabled by default unless explicitly enabled via OCTARQ_OTEL_ENABLED=true.
 	if sdkDisabled := parseBool(os.Getenv("OTEL_SDK_DISABLED"), false); sdkDisabled {
 		cfg.Enabled = false
 		return cfg
@@ -60,10 +61,8 @@ func ConfigFromEnv(defaultServiceName, defaultVersion string) Config {
 	if val, exists := os.LookupEnv("OCTARQ_OTEL_ENABLED"); exists {
 		cfg.Enabled = parseBool(val, false)
 	} else {
-		// Enabled by default if an endpoint or explicit exporter is configured,
-		// or if prometheus metrics exporter is active.
-		cfg.Enabled = cfg.Endpoint != "" || cfg.TracesEndpoint != "" || cfg.MetricsEndpoint != "" ||
-			cfg.TracesExporter == "stdout" || cfg.MetricsExporter == "prometheus"
+		// Disabled by default
+		cfg.Enabled = false
 	}
 
 	return cfg

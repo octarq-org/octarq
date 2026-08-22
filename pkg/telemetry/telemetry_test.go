@@ -143,3 +143,10 @@ func TestDisabledTelemetry(t *testing.T) {
 
 	tel.Metrics.RecordHTTPRequest(ctx, "GET", "/test", 200, time.Millisecond, 100)
 }
+
+func TestConfigFromEnvDefaultDisabled(t *testing.T) {
+	cfg := ConfigFromEnv("test-service", "v1.0.0")
+	if cfg.Enabled {
+		t.Error("expected telemetry to be disabled by default")
+	}
+}
