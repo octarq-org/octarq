@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { api, Domain, effectiveLinkHosts } from "../../../api";
-import { linksApi, Link, LinkStats } from "../api";
-import { Empty, Field, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, StatCard, Select, FormError } from "../../../ui";
-import { Link2, Copy, Archive, Trash2, QrCode, Download, Eye, ExternalLink, Calendar, Search, Tag, Globe, Settings, Sparkles } from "lucide-react";
+import { api } from "../../../api";
+import { linksApi, Link } from "../api";
+import { Field, Toggle, Button, Select, FormError, Input, Textarea } from "../../../ui";
+import { Sparkles, Trash2 } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 
 export function LinkEditorForm({
@@ -104,11 +104,11 @@ export function LinkEditorForm({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0">
       <Field label={t("links.destinationTargetUrl")}>
-        <div className="flex gap-2 items-start">
-          <textarea
-            className="input w-full font-mono text-sm resize-y"
+        <div className="flex gap-2 items-start min-w-0">
+          <Textarea
+            className="w-full font-mono text-sm min-w-0"
             rows={3}
             value={target}
             onChange={(e) => setTarget(e.target.value)}
@@ -122,10 +122,10 @@ export function LinkEditorForm({
       </Field>
       {showUtm && <UtmBuilder target={target} onApply={setTarget} />}
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
         <Field label={t("links.shortSlug")} hint={t("links.shortSlugHint")}>
-          <div className="flex gap-2">
-            <input className="input w-full font-mono" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. promo2026" />
+          <div className="flex gap-2 min-w-0">
+            <Input className="w-full font-mono min-w-0" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. promo2026" />
             {aiEnabled && (
               <Button variant="subtle" className="shrink-0 text-xs py-1 gap-1" type="button" onClick={suggestSlugs} disabled={aiBusy || !target}>
                 <Sparkles className="h-3.5 w-3.5" />
@@ -134,13 +134,13 @@ export function LinkEditorForm({
             )}
           </div>
           {aiSlugs.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-2 flex flex-wrap gap-1.5 min-w-0">
               {aiSlugs.map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => setSlug(s)}
-                  className="rounded-lg bg-info-bg border border-info-border px-2.5 py-1 text-xs font-mono text-info-fg hover:bg-info-fg/10"
+                  className="rounded-lg bg-info-bg border border-info-border px-2.5 py-1 text-xs font-mono text-info-fg hover:bg-info-fg/10 truncate max-w-full"
                 >
                   {s}
                 </button>
@@ -165,8 +165,8 @@ export function LinkEditorForm({
       </div>
 
       <Field label={t("links.metadataPageTitle")}>
-        <div className="flex gap-2">
-          <input className="input w-full text-sm" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("links.metadataPlaceholder")} />
+        <div className="flex gap-2 min-w-0">
+          <Input className="w-full text-sm min-w-0" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("links.metadataPlaceholder")} />
           <Button variant="subtle" className="shrink-0 text-xs py-1" type="button" onClick={fetchTitle} disabled={fetching}>
             {fetching ? t("links.fetching") : t("links.fetch")}
           </Button>
@@ -174,38 +174,38 @@ export function LinkEditorForm({
       </Field>
 
       <Field label={t("links.tags")} hint={t("links.tagsHint")}>
-        <input className="input w-full text-sm" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. q3-ads, product-hunt" />
+        <Input className="w-full text-sm min-w-0" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. q3-ads, product-hunt" />
       </Field>
 
       <Field label={t("links.internalAdminNote")}>
-        <textarea className="input w-full text-sm" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("links.notePlaceholder")} />
+        <Textarea className="w-full text-sm min-w-0" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("links.notePlaceholder")} />
       </Field>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
         <Field label={t("links.accessProtectionPassword")} hint={link?.hasPassword ? t("links.passwordSetHint") : t("links.passwordOptionalHint")}>
-          <input className="input w-full font-mono text-sm" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+          <Input className="w-full font-mono text-sm min-w-0" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
         </Field>
         <Field label={t("links.totalClickLimitation")} hint={t("links.clickLimitHint")}>
-          <input
+          <Input
             type="number"
             min={0}
-            className="input w-full font-mono"
+            className="w-full font-mono min-w-0"
             value={clickLimit}
             onChange={(e) => setClickLimit(Number(e.target.value))}
           />
         </Field>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
         <Field label={t("links.automaticExpiryDate")}>
-          <input type="datetime-local" className="input w-full text-sm" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+          <Input type="datetime-local" className="w-full text-sm min-w-0" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
         </Field>
         <Field label={t("links.redirectUrlAfterExpiry")} hint={t("links.redirectUrlHint")}>
-          <input className="input w-full text-sm font-mono" value={expiredUrl} onChange={(e) => setExpiredUrl(e.target.value)} placeholder="e.g. https://my-site.com/expired" />
+          <Input className="w-full text-sm font-mono min-w-0" value={expiredUrl} onChange={(e) => setExpiredUrl(e.target.value)} placeholder="e.g. https://my-site.com/expired" />
         </Field>
       </div>
 
-      <div className="flex items-center gap-3 pt-2">
+      <div className="flex items-center gap-3 pt-2 min-w-0">
         <Toggle on={enabled} onChange={setEnabled} />
         <span className="text-sm text-foreground/60 select-none">{t("links.linkRoutingActive")}</span>
       </div>
@@ -216,7 +216,7 @@ export function LinkEditorForm({
 
       {err && <FormError err={err} />}
 
-      <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
+      <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06] min-w-0">
         <Button variant="ghost" onClick={onCancel}>
           {t("links.cancel")}
         </Button>
@@ -262,11 +262,11 @@ function UtmBuilder({ target, onApply }: { target: string; onApply: (url: string
     ["content", "content"],
   ];
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 p-4 bg-well border border-foreground/[0.05] rounded-xl">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 p-4 bg-well border border-foreground/[0.05] rounded-xl min-w-0">
       {fields.map(([k, label]) => (
-        <input
+        <Input
           key={k}
-          className="input w-full text-xs h-8"
+          className="w-full text-xs h-8 min-w-0"
           placeholder={`utm_${label}`}
           value={utm[k]}
           onChange={(e) => setUtm({ ...utm, [k]: e.target.value })}
@@ -293,12 +293,12 @@ function RoutingRulesEditor({ rules, onChange }: { rules: any[]; onChange: (r: a
   const splitRem = Math.max(0, 100 - splitTotal);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 min-w-0">
       {rules.map((rule, i) => (
-        <div key={i} className="flex gap-2 items-start bg-well p-3 rounded-lg border border-foreground/[0.05]">
-          <div className="flex-1 space-y-2">
-            <div className="flex gap-2">
-              <div className="w-1/3 min-w-[100px]">
+        <div key={i} className="flex gap-2 items-start bg-well p-3 rounded-lg border border-foreground/[0.05] min-w-0">
+          <div className="flex-1 space-y-2 min-w-0">
+            <div className="flex gap-2 min-w-0">
+              <div className="w-1/3 min-w-[100px] shrink-0">
                 <Select
                   value={rule.type}
                   onValueChange={(v) => {
@@ -316,13 +316,13 @@ function RoutingRulesEditor({ rules, onChange }: { rules: any[]; onChange: (r: a
                   options={types}
                 />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 {rule.type === "split" ? (
-                  <input
+                  <Input
                     type="number"
-                    min="0"
-                    max="100"
-                    className="input w-full text-sm font-mono"
+                    min={0}
+                    max={100}
+                    className="w-full text-sm font-mono min-w-0"
                     placeholder={t("links.ruleWeight")}
                     value={rule.weight ?? ""}
                     onChange={(e) => {
@@ -332,8 +332,8 @@ function RoutingRulesEditor({ rules, onChange }: { rules: any[]; onChange: (r: a
                     }}
                   />
                 ) : (
-                  <input
-                    className="input w-full text-sm font-mono"
+                  <Input
+                    className="w-full text-sm font-mono min-w-0"
                     placeholder={t("links.ruleMatch")}
                     value={rule.match ?? ""}
                     onChange={(e) => {
@@ -345,8 +345,8 @@ function RoutingRulesEditor({ rules, onChange }: { rules: any[]; onChange: (r: a
                 )}
               </div>
             </div>
-            <input
-              className="input w-full text-sm font-mono"
+            <Input
+              className="w-full text-sm font-mono min-w-0"
               placeholder={t("links.ruleTarget")}
               value={rule.target ?? ""}
               onChange={(e) => {
@@ -366,7 +366,7 @@ function RoutingRulesEditor({ rules, onChange }: { rules: any[]; onChange: (r: a
         </div>
       ))}
       
-      <div className="flex items-center justify-between mt-2">
+      <div className="flex items-center justify-between mt-2 flex-wrap gap-2 min-w-0">
         <Button variant="subtle" className="text-xs py-1.5" onClick={() => onChange([...rules, { type: "split", weight: 50, target: "" }])}>
           + {t("links.addRule")}
         </Button>
