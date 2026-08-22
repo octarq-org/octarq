@@ -2,11 +2,16 @@ package queue
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/hibiken/asynq"
+	"github.com/octarq-org/octarq/pkg/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler represents a task worker function.
@@ -17,6 +22,73 @@ type Queue interface {
 	Register(taskType string, h Handler)
 	Start(ctx context.Context) error
 	Enqueue(ctx context.Context, taskType string, payload []byte) error
+}
+
+type taskEnvelope struct {
+	Carrier map[string]string `json:"_trace,omitempty"`
+	Payload []byte            `json:"payload"`
+}
+
+func wrapPayload(ctx context.Context, payload []byte) []byte {
+	carrier := make(map[string]string)
+	telemetry.InjectMap(ctx, carrier)
+	if len(carrier) == 0 {
+		carrier = nil
+	}
+	env := taskEnvelope{
+		Carrier: carrier,
+		Payload: payload,
+	}
+	b, err := json.Marshal(env)
+	if err != nil {
+		return payload
+	}
+	return b
+}
+
+func runHandlerWithTelemetry(taskType string, h Handler, raw []byte) error {
+	var env taskEnvelope
+	var ctx context.Context
+	var payload []byte
+
+	if err := json.Unmarshal(raw, &env); err == nil && (len(env.Carrier) > 0 || len(env.Payload) > 0) {
+		ctx = telemetry.ExtractMap(context.Background(), env.Carrier)
+		payload = env.Payload
+	} else {
+		ctx = context.Background()
+		payload = raw
+	}
+
+	ctx, span := telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/queue", "queue.process "+taskType,
+		trace.WithSpanKind(trace.SpanKindConsumer),
+		trace.WithAttributes(
+			attribute.String("task.type", taskType),
+		),
+	)
+	defer span.End()
+
+	tel := telemetry.Global()
+	if tel.Metrics != nil && tel.Metrics.QueueTasksInFlight != nil {
+		tel.Metrics.QueueTasksInFlight.Add(ctx, 1)
+		defer tel.Metrics.QueueTasksInFlight.Add(ctx, -1)
+	}
+
+	start := time.Now()
+	err := h(ctx, payload)
+	duration := time.Since(start)
+
+	if err != nil {
+		telemetry.RecordError(span, err)
+		if tel.Metrics != nil {
+			tel.Metrics.RecordQueueTask(ctx, taskType, "error", duration)
+		}
+	} else {
+		telemetry.SetOK(span)
+		if tel.Metrics != nil {
+			tel.Metrics.RecordQueueTask(ctx, taskType, "success", duration)
+		}
+	}
+	return err
 }
 
 // New returns a Queue implementation. If redisURL is empty or fails to parse,
@@ -53,7 +125,6 @@ type InMemoryQueue struct {
 	wg       sync.WaitGroup
 }
 
-// handler returns the registered handler for a task type under a read lock.
 func (q *InMemoryQueue) handler(taskType string) (Handler, bool) {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
@@ -90,7 +161,7 @@ func (q *InMemoryQueue) Start(ctx context.Context) error {
 						log.Printf("queue: no handler registered for task type %q", t.Type)
 						continue
 					}
-					if err := h(ctx, t.Payload); err != nil {
+					if err := runHandlerWithTelemetry(t.Type, h, t.Payload); err != nil {
 						log.Printf("queue: task %q failed: %v", t.Type, err)
 					}
 				case <-ctx.Done():
@@ -103,8 +174,9 @@ func (q *InMemoryQueue) Start(ctx context.Context) error {
 }
 
 func (q *InMemoryQueue) Enqueue(ctx context.Context, taskType string, payload []byte) error {
+	wrapped := wrapPayload(ctx, payload)
 	select {
-	case q.ch <- task{Type: taskType, Payload: payload}:
+	case q.ch <- task{Type: taskType, Payload: wrapped}:
 		return nil
 	default:
 		// Queue full, fallback to instant goroutine execution
@@ -113,7 +185,7 @@ func (q *InMemoryQueue) Enqueue(ctx context.Context, taskType string, payload []
 			return fmt.Errorf("queue: full and no handler registered for %q", taskType)
 		}
 		go func() {
-			if err := h(context.Background(), payload); err != nil {
+			if err := runHandlerWithTelemetry(taskType, h, wrapped); err != nil {
 				log.Printf("queue: fallback instant execution of %q failed: %v", taskType, err)
 			}
 		}()
@@ -136,7 +208,8 @@ func (q *AsynqQueue) Register(taskType string, h Handler) {
 }
 
 func (q *AsynqQueue) Enqueue(ctx context.Context, taskType string, payload []byte) error {
-	t := asynq.NewTask(taskType, payload)
+	wrapped := wrapPayload(ctx, payload)
+	t := asynq.NewTask(taskType, wrapped)
 	_, err := q.client.EnqueueContext(ctx, t)
 	if err != nil {
 		log.Printf("queue: asynq Enqueue failed: %v. Falling back to instant execution.", err)
@@ -146,7 +219,7 @@ func (q *AsynqQueue) Enqueue(ctx context.Context, taskType string, payload []byt
 		q.mu.Unlock()
 		if exists {
 			go func() {
-				if err := h(context.Background(), payload); err != nil {
+				if err := runHandlerWithTelemetry(taskType, h, wrapped); err != nil {
 					log.Printf("queue: fallback instant execution of %q failed: %v", taskType, err)
 				}
 			}()
@@ -169,8 +242,9 @@ func (q *AsynqQueue) Start(ctx context.Context) error {
 	mux := asynq.NewServeMux()
 	for taskType, h := range q.handlers {
 		handler := h // capture loop variable
+		tType := taskType
 		mux.HandleFunc(taskType, func(ctx context.Context, t *asynq.Task) error {
-			return handler(ctx, t.Payload())
+			return runHandlerWithTelemetry(tType, handler, t.Payload())
 		})
 	}
 

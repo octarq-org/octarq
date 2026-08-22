@@ -61,6 +61,8 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // allowPrivateWebhooks, when set, lets the webhook/notification client reach
@@ -149,17 +151,18 @@ func NewWebhookClient(timeout time.Duration) *http.Client {
 }
 
 func newClient(timeout time.Duration, control func(string, string, syscall.RawConn) error) *http.Client {
+	baseTransport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout: 5 * time.Second,
+			Control: control,
+		}).DialContext,
+		TLSHandshakeTimeout:   5 * time.Second,
+		ResponseHeaderTimeout: timeout,
+		DisableKeepAlives:     true,
+	}
 	return &http.Client{
-		Timeout: timeout,
-		Transport: &http.Transport{
-			DialContext: (&net.Dialer{
-				Timeout: 5 * time.Second,
-				Control: control,
-			}).DialContext,
-			TLSHandshakeTimeout:   5 * time.Second,
-			ResponseHeaderTimeout: timeout,
-			DisableKeepAlives:     true,
-		},
+		Timeout:   timeout,
+		Transport: otelhttp.NewTransport(baseTransport),
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 5 {
 				return errors.New("ssrf guard: too many redirects")

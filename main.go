@@ -28,6 +28,7 @@ import (
 	"github.com/octarq-org/octarq/internal/buildinfo"
 	"github.com/octarq-org/octarq/internal/mcp"
 	"github.com/octarq-org/octarq/openapi"
+	"github.com/octarq-org/octarq/pkg/telemetry"
 	"github.com/octarq-org/octarq/plugins/builtin"
 )
 
@@ -40,7 +41,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
+	baseHandler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: level})
+	slog.SetDefault(slog.New(&telemetry.TraceLogHandler{Handler: baseHandler}))
 
 	os.Exit(run(context.Background(), os.Args[1:], os.Stdout, os.Stderr))
 }

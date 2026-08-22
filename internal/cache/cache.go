@@ -6,6 +6,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/octarq-org/octarq/pkg/telemetry"
+	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -32,6 +34,9 @@ func New(redisURL string) Cache {
 	}
 
 	client := redis.NewClient(opts)
+	_ = redisotel.InstrumentTracing(client)
+	_ = redisotel.InstrumentMetrics(client)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := client.Ping(ctx).Err(); err != nil {
@@ -66,15 +71,18 @@ func (rc *RedisCache) IsRedis() bool { return true }
 func (rc *RedisCache) Get(ctx context.Context, key string, dst any) bool {
 	val, err := rc.client.Get(ctx, key).Result()
 	if err != nil {
+		telemetry.Global().Metrics.RecordCacheMiss(ctx, "redis")
 		if err != redis.Nil {
 			log.Printf("cache: redis Get error on key %q (falling back to DB): %v", key, err)
 		}
 		return false
 	}
 	if err := json.Unmarshal([]byte(val), dst); err != nil {
+		telemetry.Global().Metrics.RecordCacheMiss(ctx, "redis")
 		log.Printf("cache: unmarshal error on key %q: %v", key, err)
 		return false
 	}
+	telemetry.Global().Metrics.RecordCacheHit(ctx, "redis")
 	return true
 }
 

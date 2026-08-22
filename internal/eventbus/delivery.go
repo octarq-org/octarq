@@ -16,7 +16,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/octarq-org/octarq/pkg/telemetry"
 	"github.com/octarq-org/octarq/plugin/safehttp"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 )
 
@@ -209,6 +212,17 @@ var errPermanent = errors.New("permanent")
 // deliverWithRetry runs the attempt/backoff loop for one delivery and keeps the
 // persisted log in step with it.
 func deliverWithRetry(ctx context.Context, d delivery) {
+	ctx, span := telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/eventbus", "eventbus.deliver_webhook",
+		trace.WithAttributes(
+			attribute.String("webhook.event", d.Event),
+			attribute.String("webhook.delivery_id", d.DeliveryID),
+			attribute.Int("webhook.id", int(d.WebhookID)),
+			attribute.Int("org.id", int(d.OrgID)),
+		),
+	)
+	defer span.End()
+
+	start := time.Now()
 	logRow := recordPending(d)
 
 	var last attemptResult
@@ -218,10 +232,14 @@ func deliverWithRetry(ctx context.Context, d delivery) {
 		cancel()
 
 		if last.Err == nil {
+			telemetry.SetOK(span)
+			telemetry.Global().Metrics.RecordWebhookDelivery(ctx, d.Event, last.StatusCode, time.Since(start))
 			recordResult(logRow, n, StatusDelivered, last)
 			return
 		}
 		if errors.Is(last.Err, errPermanent) {
+			telemetry.RecordError(span, last.Err)
+			telemetry.Global().Metrics.RecordWebhookDelivery(ctx, d.Event, last.StatusCode, time.Since(start))
 			log.Printf("eventbus: delivery %s to %s permanently failed: %v", d.DeliveryID, d.URL, last.Err)
 			recordResult(logRow, n, StatusFailed, last)
 			return
@@ -232,6 +250,8 @@ func deliverWithRetry(ctx context.Context, d delivery) {
 		}
 		select {
 		case <-ctx.Done():
+			telemetry.RecordError(span, ctx.Err())
+			telemetry.Global().Metrics.RecordWebhookDelivery(ctx, d.Event, last.StatusCode, time.Since(start))
 			recordResult(logRow, n, StatusFailed, attemptResult{StatusCode: last.StatusCode, Err: ctx.Err()})
 			return
 		default:
@@ -239,6 +259,8 @@ func deliverWithRetry(ctx context.Context, d delivery) {
 		sleepFn(ctx, backoffFor(n))
 	}
 
+	telemetry.RecordError(span, last.Err)
+	telemetry.Global().Metrics.RecordWebhookDelivery(ctx, d.Event, last.StatusCode, time.Since(start))
 	log.Printf("eventbus: delivery %s to %s dead-lettered after %d attempts: %v", d.DeliveryID, d.URL, maxAttempts, last.Err)
 	recordResult(logRow, maxAttempts, StatusFailed, last)
 }

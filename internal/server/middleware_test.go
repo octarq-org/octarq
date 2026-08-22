@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"io/fs"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/octarq-org/octarq/pkg/telemetry"
 	"github.com/octarq-org/octarq/webembed"
 )
 
@@ -175,6 +177,28 @@ func TestMetricsGating(t *testing.T) {
 	mwToken.handle(recGood, reqGood, okHandler)
 	if recGood.Code != http.StatusOK {
 		t.Fatalf("correct token /metrics: want 200 got %d", recGood.Code)
+	}
+}
+
+// TestOpenTelemetryTracingInMiddleware checks that incoming requests get traced
+// and response carries the X-Trace-Id header.
+func TestOpenTelemetryTracingInMiddleware(t *testing.T) {
+	_, _ = telemetry.Init(context.Background(), telemetry.Config{
+		Enabled:         true,
+		ServiceName:     "test-server",
+		TracesExporter:  "stdout",
+		MetricsExporter: "prometheus",
+	})
+	mw := newMiddleware(RuntimeSettings{})
+	req := httptest.NewRequest("GET", "/api/test", nil)
+	rec := httptest.NewRecorder()
+	mw.handle(rec, req, okHandler)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("want 200, got %d", rec.Code)
+	}
+	if traceID := rec.Header().Get("X-Trace-Id"); traceID == "" {
+		t.Fatal("expected X-Trace-Id header in response")
 	}
 }
 

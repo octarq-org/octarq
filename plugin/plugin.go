@@ -121,6 +121,9 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/octarq-org/octarq/llmprovider"
+	"github.com/octarq-org/octarq/pkg/telemetry"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
 	"gopkg.in/yaml.v3"
 	"gorm.io/gorm"
 )
@@ -488,6 +491,13 @@ type Context struct {
 	PluginActive func(orgID uint, p Plugin) bool
 	// ActivePlugins returns the currently registered plugins.
 	ActivePlugins func() []Plugin
+
+	// Tracer returns an OpenTelemetry Tracer for the plugin. nil on hosts that predate it.
+	Tracer func(name string) trace.Tracer
+	// Meter returns an OpenTelemetry Meter for the plugin. nil on hosts that predate it.
+	Meter func(name string) metric.Meter
+	// StartSpan starts an OpenTelemetry span for the plugin. nil on hosts that predate it.
+	StartSpan func(ctx context.Context, tracerName, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span)
 }
 
 // AuthMethod is a provider-agnostic auth method definition, mirroring the fields
@@ -1015,4 +1025,9 @@ func FeatureIsCore(plugins []Plugin, key string) bool {
 		}
 	}
 	return false
+}
+
+// StartSpan starts an OpenTelemetry span for a plugin operation.
+func StartSpan(ctx context.Context, pluginName, opName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+	return telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/plugin/"+pluginName, opName, opts...)
 }
