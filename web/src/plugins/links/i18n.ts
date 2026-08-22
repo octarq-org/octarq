@@ -112,6 +112,9 @@ export const linksI18n = {
     metricMode: "Metric: {{mode}}",
     emptyDash: "—",
     daysWindowUnit: "{{days}}d",
+    tabDetails: "Details",
+    tabAnalytics: "Analytics",
+    tabQr: "QR Code",
   },
   zh: {
     _shared: { settings: { pluginDesc: { links: "短链生成、自定义域名路由与点击数据分析。" } } },
@@ -223,6 +226,9 @@ export const linksI18n = {
     metricMode: "统计口径：{{mode}}",
     emptyDash: "—",
     daysWindowUnit: "{{days}}天",
+    tabDetails: "详情与设置",
+    tabAnalytics: "数据分析",
+    tabQr: "二维码",
   },
   es: {
     _shared: { settings: { pluginDesc: { links: "Creación de enlaces cortos, enrutamiento de dominio personalizado y análisis de clics." } } },
@@ -334,6 +340,9 @@ export const linksI18n = {
     metricMode: "Métrica: {{mode}}",
     emptyDash: "—",
     daysWindowUnit: "{{days}}d",
+    tabDetails: "Detalles",
+    tabAnalytics: "Análisis",
+    tabQr: "Código QR",
   },
   pt: {
     _shared: { settings: { pluginDesc: { links: "Criação de links curtos, roteamento de domínio personalizado e análise de cliques." } } },
@@ -445,6 +454,9 @@ export const linksI18n = {
     metricMode: "Métrica: {{mode}}",
     emptyDash: "—",
     daysWindowUnit: "{{days}}d",
+    tabDetails: "Detalhes",
+    tabAnalytics: "Análise",
+    tabQr: "Código QR",
   },
   ja: {
     _shared: { settings: { pluginDesc: { links: "短縮リンクの作成、カスタムドメインルーティング、クリック分析。" } } },
@@ -556,5 +568,8 @@ export const linksI18n = {
     metricMode: "集計指標: {{mode}}",
     emptyDash: "—",
     daysWindowUnit: "{{days}}日",
+    tabDetails: "詳細",
+    tabAnalytics: "分析",
+    tabQr: "QRコード",
   },
 };
