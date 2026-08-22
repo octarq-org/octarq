@@ -18,7 +18,7 @@ export function ShellFooter() {
       <p className="font-mono tnum text-[11px] text-foreground/35">
         {t("app.shellBuildFooter", {
           version: build.version,
-          commit: build.commit,
+          commit: build.commit ? (build.commit.length > 8 ? build.commit.slice(0, 8) : build.commit) : "unknown",
           builtAt: build.builtAt,
         })}
       </p>

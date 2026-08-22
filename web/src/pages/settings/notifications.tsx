@@ -187,11 +187,9 @@ function EditChannelModal({
     setConfig((prev) => ({ ...prev, [key]: value }));
 
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
 
   async function save() {
     setBusy(true);
-    setError("");
     const configStr = JSON.stringify(config);
     try {
       if (channel?.id) {
@@ -209,9 +207,10 @@ function EditChannelModal({
           enabled,
         });
       }
+      toast.success(t("settings.saved"));
       onSaved();
     } catch (err: any) {
-      setError(err.message || t("settings.failedToSave"));
+      toast.error(err.message || t("settings.failedToSave"));
     } finally {
       setBusy(false);
     }
@@ -243,8 +242,6 @@ function EditChannelModal({
         <NotificationChannelFormContext.Provider value={{ config, setConfig, updateConfig }}>
           <ExtensionSlot name={`settings-notification-channel:${initialType}`} />
         </NotificationChannelFormContext.Provider>
-
-        {error && <div className="text-danger-fg text-xs font-semibold">{error}</div>}
 
         <div className="flex items-center gap-3 pt-2">
           <Toggle on={enabled} onChange={setEnabled} />

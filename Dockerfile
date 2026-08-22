@@ -27,7 +27,13 @@ RUN go mod download
 COPY . .
 # Bring in the freshly built dashboard so go:embed picks it up.
 COPY --from=web /app/webembed/dist ./webembed/dist
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /octarq .
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_TIME=unknown
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w \
+  -X github.com/octarq-org/octarq/internal/buildinfo.Version=${VERSION} \
+  -X github.com/octarq-org/octarq/internal/buildinfo.Commit=${COMMIT} \
+  -X github.com/octarq-org/octarq/internal/buildinfo.BuiltAt=${BUILD_TIME}" -o /octarq .
 # Runtime data dir, owned by the container UID 65532. Created in this
 # shell-capable stage — the distroless runtime has no shell — then copied into
 # the final image (below) so a Docker-created volume over /data inherits the

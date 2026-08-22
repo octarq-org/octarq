@@ -4,7 +4,7 @@ import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInf
 import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog, FormError } from "../../../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../../i18n";
-import { useSettingsData, SavedBadge } from "../../../pages/settings/shared";
+import { useSettingsData } from "../../../pages/settings/shared";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 
 export function ProviderAccounts({ embed }: { embed?: boolean }) {
@@ -129,9 +129,11 @@ function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onC
       } else {
         await api.createProviderAccount({ name, type, config: cfgObj });
       }
+      toast.success(t("settings.saved"));
       onSaved();
     } catch (e: any) {
       setErr(e);
+      toast.error(e?.message || t("settings.saveFailed", "Failed to save settings"));
     } finally {
       setBusy(false);
     }

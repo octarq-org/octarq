@@ -33,8 +33,27 @@ export function WebhooksSettings() {
     setSelected((prev) => { const next = new Set(prev); for (const e of g.events) { if (on) next.add(e.key); else next.delete(e.key); } return next; });
   }
 
-  async function del(id: number) { if (!(await confirmDialog(t("settings.confirmDeleteWebhook")))) return; await api.deleteWebhook(id); setWebhooks((w) => w.filter((h) => h.id !== id)); }
-  async function toggle(h: any) { const u = await api.updateWebhook(h.id, { enabled: !h.enabled }); setWebhooks((w) => w.map((x) => x.id === h.id ? u : x)); }
+  async function del(id: number) {
+    if (!(await confirmDialog(t("settings.confirmDeleteWebhook")))) return;
+    try {
+      await api.deleteWebhook(id);
+      setWebhooks((w) => w.filter((h) => h.id !== id));
+      toast.success(t("settings.saved"));
+    } catch (err: any) {
+      toast.error(err.message || t("settings.failed"));
+    }
+  }
+
+  async function toggle(h: any) {
+    try {
+      const u = await api.updateWebhook(h.id, { enabled: !h.enabled });
+      setWebhooks((w) => w.map((x) => x.id === h.id ? u : x));
+      toast.success(t("settings.saved"));
+    } catch (err: any) {
+      toast.error(err.message || t("settings.failed"));
+    }
+  }
+
   async function create(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !url.trim()) return;
@@ -42,8 +61,17 @@ export function WebhooksSettings() {
     try {
       const events = all || selected.size === 0 ? "*" : Array.from(selected).join(",");
       const created = await api.createWebhook({ name: name.trim(), url: url.trim(), secret: secret.trim() || undefined, events, enabled: true } as any);
-      setWebhooks((w) => [created, ...w]); setShow(false); setName(""); setUrl(""); setSecret("");
-    } catch (err: any) { toast.error(err.message || t("settings.createFailed")); } finally { setBusy(false); }
+      setWebhooks((w) => [created, ...w]);
+      setShow(false);
+      setName("");
+      setUrl("");
+      setSecret("");
+      toast.success(t("settings.saved"));
+    } catch (err: any) {
+      toast.error(err.message || t("settings.createFailed"));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

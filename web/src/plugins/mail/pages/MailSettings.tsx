@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../../api";
-import { Field, Toggle, Button, FormError } from "../../../ui";
+import { Field, Toggle, Button, toast } from "../../../ui";
 import { useTranslation } from "../../../i18n";
-import { useSettingsData, SavedBadge } from "../../../pages/settings/shared";
+import { useSettingsData } from "../../../pages/settings/shared";
 
 const MASK = "••••••••";
 
@@ -17,8 +17,6 @@ export function MailSettings() {
   const [catchAll, setCatchAll] = useState(false);
   const [autoWrap, setAutoWrap] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [err, setErr] = useState<{ message?: string; status?: number; requestId?: string } | null>(null);
 
   const adminView = s?.inboundTokenSet !== undefined;
 
@@ -42,7 +40,6 @@ export function MailSettings() {
 
   async function save() {
     setBusy(true);
-    setErr(null);
     try {
       await api.updateSettings({
         reservedMailboxes,
@@ -50,8 +47,7 @@ export function MailSettings() {
         catchAll,
         autoWrapLinks: autoWrap,
       });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      toast.success(t("settings.saved"));
       if (tokenLoaded) {
         // A save may have rotated the token (clearing it mints a fresh one);
         // refresh so the displayed value and URL stay accurate.
@@ -59,7 +55,7 @@ export function MailSettings() {
         setInboundToken(r.inboundToken);
       }
     } catch (e: any) {
-      setErr({ message: e?.message, status: e?.status, requestId: e?.requestId });
+      toast.error(e?.message || t("settings.saveFailed", "Failed to save settings"));
     } finally { setBusy(false); }
   }
 
@@ -84,7 +80,6 @@ export function MailSettings() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground/90">{t("settings.inboundMailboxesSettings")}</h2>
-        <SavedBadge on={saved} />
       </div>
       <Field label={t("settings.reservedMailboxesLabel")} hint={t("settings.reservedMailboxesHint")}>
         <textarea className="input w-full font-mono text-xs" rows={2} value={reservedMailboxes} onChange={(e) => setReservedMailboxes(e.target.value)} placeholder="admin&#10;postmaster" />
@@ -135,11 +130,6 @@ export function MailSettings() {
       <div className="border-t border-foreground/[0.06] pt-4 flex justify-end">
         <Button variant="primary" className="text-xs" onClick={save} disabled={busy}>{busy ? t("settings.saving") : t("settings.saveSettings")}</Button>
       </div>
-      {err && (
-        <div className="pt-2">
-          <FormError err={err} />
-        </div>
-      )}
     </div>
   );
 }
