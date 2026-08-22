@@ -59,6 +59,7 @@ function SessionsList() {
       if (r.self) {
         window.location.href = "/";
       } else {
+        toast.success(t("settings.saved"));
         load();
       }
     } catch (e: any) {
@@ -136,6 +137,7 @@ function LinkedIdentities() {
     setBusy(id.id);
     try {
       await api.unlinkIdentity(id.id);
+      toast.success(t("settings.saved"));
       load();
     } catch (e) {
       // 409 is the server refusing to leave the account with no way in.
@@ -231,8 +233,10 @@ export function SecuritySettings() {
     setBusy(true);
     try {
       setSetup(await api.twoFASetup(password));
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : t("settings.failedStartSetup"));
+    } catch (e: any) {
+      const msg = e instanceof ApiError ? e.message : t("settings.failedStartSetup");
+      setErr(msg);
+      toast.error(msg);
     } finally { setBusy(false); }
   }
 
@@ -242,9 +246,12 @@ export function SecuritySettings() {
       const res = await api.twoFAEnable(enrollCode.trim());
       setRecoveryCodes(res.recoveryCodes);
       setSetup(null); setEnrollCode("");
+      toast.success(t("settings.saved"));
       await load();
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : t("settings.invalidCode"));
+    } catch (e: any) {
+      const msg = e instanceof ApiError ? e.message : t("settings.invalidCode");
+      setErr(msg);
+      toast.error(msg);
     } finally { setBusy(false); }
   }
 
@@ -260,9 +267,12 @@ export function SecuritySettings() {
       await api.twoFADisable({ code: disableCode.trim(), password });
       setDisableCode("");
       setMsg(t("settings.twoFADisabledMsg"));
+      toast.success(t("settings.twoFADisabledMsg"));
       await load();
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : t("settings.verificationFailed"));
+    } catch (e: any) {
+      const msg = e instanceof ApiError ? e.message : t("settings.verificationFailed");
+      setErr(msg);
+      toast.error(msg);
     } finally { setBusy(false); }
   }
 
@@ -273,8 +283,10 @@ export function SecuritySettings() {
       await api.logoutAll();
       // The current session cookie is now revoked; bounce to the login screen.
       window.location.href = "/";
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : t("settings.failed"));
+    } catch (e: any) {
+      const msg = e instanceof ApiError ? e.message : t("settings.failed");
+      setErr(msg);
+      toast.error(msg);
       setBusy(false);
     }
   }

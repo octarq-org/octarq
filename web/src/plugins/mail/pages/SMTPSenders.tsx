@@ -4,7 +4,7 @@ import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInf
 import { Empty, Field, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast, confirmDialog, FormError } from "../../../ui";
 import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
 import { useTranslation } from "../../../i18n";
-import { useSettingsData, SavedBadge } from "../../../pages/settings/shared";
+import { useSettingsData } from "../../../pages/settings/shared";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 
 export function SMTPSenders() {
@@ -122,9 +122,11 @@ function SMTPSenderModal({ sender, onClose, onSaved }: { sender: any; onClose: (
       } else {
         await api.createSMTPSender(payload);
       }
+      toast.success(t("settings.saved"));
       onSaved();
     } catch (e: any) {
       setErr(e);
+      toast.error(e?.message || t("settings.saveFailed", "Failed to save settings"));
     } finally {
       setBusy(false);
     }

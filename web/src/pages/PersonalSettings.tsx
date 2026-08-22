@@ -13,15 +13,11 @@ export function ProfileSettings() {
   const [newEmail, setNewEmail] = useState("");
   const [changingEmail, setChangingEmail] = useState(false);
   const [emailBusy, setEmailBusy] = useState(false);
-  const [emailSuccessMsg, setEmailSuccessMsg] = useState("");
-  const [emailError, setEmailError] = useState("");
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
   const { t } = useTranslation();
   const reloadUser = () => {
     api.me().then((u) => setEmail(u.email || u.username || ""));
@@ -39,8 +35,6 @@ export function ProfileSettings() {
   async function handleEmailUpdate(e: React.FormEvent) {
     e.preventDefault();
     if (!newEmail) return;
-    setEmailError("");
-    setEmailSuccessMsg("");
     const currentPassword = await confirmPassword({
       message: t("personal.emailChangeConfirmMessage", { email: newEmail }),
       confirmLabel: t("personal.updateEmail"),
@@ -53,22 +47,22 @@ export function ProfileSettings() {
       setNewEmail("");
       setChangingEmail(false);
       if (res.verificationSent) {
-        setEmailSuccessMsg(t("personal.emailVerificationSent", { email: res.email }));
+        toast.success(t("personal.emailVerificationSent", { email: res.email }));
       } else {
-        setEmailSuccessMsg(t("personal.emailUpdated"));
+        toast.success(t("personal.emailUpdated"));
       }
       await reloadUser();
     } catch (err: any) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
-          setEmailError(t("personal.emailAlreadyExists"));
+          toast.error(t("personal.emailAlreadyExists"));
         } else if (err.status === 400 && err.message?.includes("external identity provider")) {
-          setEmailError(t("personal.ssoEmailChangeForbidden"));
+          toast.error(t("personal.ssoEmailChangeForbidden"));
         } else {
-          setEmailError(err.message || t("personal.updateFailed"));
+          toast.error(err.message || t("personal.updateFailed"));
         }
       } else {
-        setEmailError(err?.message || t("personal.updateFailed"));
+        toast.error(err?.message || t("personal.updateFailed"));
       }
     } finally {
       setEmailBusy(false);
@@ -79,24 +73,22 @@ export function ProfileSettings() {
     e.preventDefault();
     if (!password) return;
     if (password.length < 8) {
-      setError(t("personal.passwordTooShort"));
+      toast.error(t("personal.passwordTooShort"));
       return;
     }
     if (password !== repeatPassword) {
-      setError(t("personal.passwordsMismatch"));
+      toast.error(t("personal.passwordsMismatch"));
       return;
     }
     setBusy(true);
-    setError("");
-    setSaved(false);
     try {
       await api.changePassword(currentPassword, password);
-      setSaved(true);
+      toast.success(t("personal.passwordUpdated"));
       setCurrentPassword("");
       setPassword("");
       setRepeatPassword("");
     } catch (e: any) {
-      setError(e.message || t("personal.updateFailed"));
+      toast.error(e.message || t("personal.updateFailed"));
     } finally {
       setBusy(false);
     }
@@ -123,8 +115,6 @@ export function ProfileSettings() {
               variant="secondary"
               className="shrink-0 text-xs"
               onClick={() => {
-                setEmailError("");
-                setEmailSuccessMsg("");
                 setChangingEmail(true);
               }}
             >
@@ -148,8 +138,6 @@ export function ProfileSettings() {
               />
             </Field>
 
-            {emailError && <p className="text-xs text-danger-fg font-semibold">{emailError}</p>}
-
             <div className="flex justify-end gap-2">
               <Button
                 type="button"
@@ -157,7 +145,6 @@ export function ProfileSettings() {
                 onClick={() => {
                   setChangingEmail(false);
                   setNewEmail("");
-                  setEmailError("");
                 }}
               >
                 {t("personal.cancel")}
@@ -168,8 +155,6 @@ export function ProfileSettings() {
             </div>
           </form>
         )}
-
-        {emailSuccessMsg && <p className="text-xs text-success-fg font-semibold">{emailSuccessMsg}</p>}
       </GlassCard>
 
       <GlassCard className="p-6 max-w-xl">
@@ -209,9 +194,6 @@ export function ProfileSettings() {
               required
             />
           </Field>
-
-          {error && <p className="text-xs text-danger-fg font-semibold">{error}</p>}
-          {saved && <p className="text-xs text-success-fg font-semibold flex items-center gap-1">{t("personal.passwordUpdated")}</p>}
 
           <div className="pt-2 border-t border-foreground/[0.04] flex justify-end">
             <Button type="submit" variant="primary" disabled={busy || !password || !currentPassword}>
@@ -405,7 +387,6 @@ function CreateTokenModal({
   // without thinking about scope should not be a workspace-wide one.
   const [role, setRole] = useState<"member" | "admin" | "owner">("member");
   const [expiresInDays, setExpiresInDays] = useState<number>(0);
-  const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const { t } = useTranslation();
   const { role: myRole, isInstanceAdmin } = useCurrentRole();
@@ -421,12 +402,12 @@ function CreateTokenModal({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setErr("");
     try {
       const res = await api.createToken({ name, note, role, expiresInDays });
+      toast.success(t("personal.tokenGeneratedTitle"));
       onCreated(res.token);
     } catch (e: any) {
-      setErr(e instanceof ApiError ? e.message : t("personal.failed"));
+      toast.error(e instanceof ApiError ? e.message : t("personal.failed"));
     } finally {
       setBusy(false);
     }
@@ -464,7 +445,6 @@ function CreateTokenModal({
         <Field label={t("personal.tokenRemarksLabel")} hint={t("personal.tokenRemarksHint")}>
           <input className="input w-full text-sm" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("personal.tokenRemarksPlaceholder")} />
         </Field>
-        {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
         <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
           <Button type="button" variant="ghost" onClick={onClose}>{t("personal.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={busy || !name.trim()}>
@@ -491,7 +471,6 @@ function EditTokenModal({
     (token.role || "member") as "member" | "admin" | "owner",
   );
   const [expiryOption, setExpiryOption] = useState<string>("keep");
-  const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const { t } = useTranslation();
   const { role: myRole, isInstanceAdmin } = useCurrentRole();
@@ -503,7 +482,6 @@ function EditTokenModal({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setErr("");
     try {
       const d: { name?: string; note?: string; role?: "member" | "admin" | "owner"; expiresInDays?: number } = {};
       if (name.trim() !== token.name) d.name = name.trim();
@@ -513,9 +491,10 @@ function EditTokenModal({
         d.expiresInDays = Number(expiryOption);
       }
       await api.updateToken(token.id, d);
+      toast.success(t("settings.saved"));
       onUpdated();
     } catch (e: any) {
-      setErr(e instanceof ApiError ? e.message : t("personal.failed"));
+      toast.error(e instanceof ApiError ? e.message : t("personal.failed"));
     } finally {
       setBusy(false);
     }
@@ -557,7 +536,6 @@ function EditTokenModal({
         <Field label={t("personal.tokenRemarksLabel")} hint={t("personal.tokenRemarksHint")}>
           <input className="input w-full text-sm" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("personal.tokenRemarksPlaceholder")} />
         </Field>
-        {err && <p className="text-sm text-danger-fg font-medium">{err}</p>}
         <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
           <Button type="button" variant="ghost" onClick={onClose}>{t("personal.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={busy || !name.trim()}>

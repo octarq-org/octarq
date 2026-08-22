@@ -10,7 +10,6 @@ import { useEffect, useState } from "react";
 import { api } from "../../../api";
 import { Field, Button, PageHeader, GlassCard, toast } from "../../../ui";
 import { useTranslation } from "../../../i18n";
-import { SavedBadge } from "../../../pages/settings/shared";
 
 export function InstanceLinkSettings() {
   const { t } = useTranslation();
@@ -18,7 +17,6 @@ export function InstanceLinkSettings() {
   const [builtinReserved, setBuiltinReserved] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     api
@@ -37,8 +35,7 @@ export function InstanceLinkSettings() {
     setBusy(true);
     try {
       await api.updateInstanceSettings({ reservedSlugs });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      toast.success(t("settings.saved"));
     } catch (err: any) {
       toast.error(err?.message || t("settings.saveFailed", "Failed to save settings"));
     } finally {
@@ -54,9 +51,6 @@ export function InstanceLinkSettings() {
         <GlassCard className="p-8 text-sm text-center text-foreground/50">{t("settings.loadingLower")}</GlassCard>
       ) : (
         <GlassCard className="p-6 space-y-6">
-          <div className="flex justify-end">
-            <SavedBadge on={saved} />
-          </div>
           <Field label={t("settings.reservedSlugsLabel")} hint={t("settings.reservedSlugsHint", { list: builtinReserved.join(", ") })}>
             <textarea
               className="input w-full font-mono text-xs"
