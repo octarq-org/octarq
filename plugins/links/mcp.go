@@ -3,7 +3,6 @@ package links
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
@@ -103,28 +102,6 @@ func tagsContain(field, tag string) bool {
 		}
 	}
 	return false
-}
-
-func errorResult(err error) *mcp.CallToolResult {
-	if ae, ok := plugin.AsAgentError(err); ok {
-		msg := fmt.Sprintf("Error [%s]: %s", ae.Code, ae.Message)
-		if ae.AgentGuidance != "" {
-			msg += fmt.Sprintf("\n\n[Agent Action Guidance]: %s", ae.AgentGuidance)
-		}
-		if ae.Retryable {
-			msg += "\n[Retryable]: true"
-		} else {
-			msg += "\n[Retryable]: false"
-		}
-		return &mcp.CallToolResult{
-			IsError: true,
-			Content: []mcp.Content{&mcp.TextContent{Text: msg}},
-		}
-	}
-	return &mcp.CallToolResult{
-		IsError: true,
-		Content: []mcp.Content{&mcp.TextContent{Text: err.Error()}},
-	}
 }
 
 func jsonResult[T any](v T) (*mcp.CallToolResult, any, error) {
