@@ -90,7 +90,20 @@ export function ConsoleHome({ checks, onRefresh }: { checks: ReadinessCheck[]; o
                     </span>
                     <Badge tone={badge.tone}>{t(badge.key)}</Badge>
                   </div>
-                  <p className="mt-0.5 text-xs leading-relaxed text-foreground/55">{check.detail}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-foreground/55">
+                    {(() => {
+                      if (check.id === "registration" && check.status === "ok") {
+                        if (check.detail.includes("disabled")) {
+                          return t("instance.checkDetail.registration.disabled", check.detail);
+                        }
+                        return t("instance.checkDetail.registration.ok", check.detail);
+                      }
+                      if (check.id === "secret-key" && check.detail === "configured") {
+                        return t("instance.checkDetail.secret-key.configured", check.detail);
+                      }
+                      return t(`instance.checkDetail.${check.id}.${check.status}`, check.detail);
+                    })()}
+                  </p>
                 </div>
                 {state !== "ok" && check.fixPath && (
                   <a
