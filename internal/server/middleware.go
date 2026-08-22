@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"expvar"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -14,6 +15,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/octarq-org/octarq/pkg/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ctxKey is an unexported type for context keys defined in this package, so
@@ -537,18 +543,40 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 	mw.refreshConfig(start)
 	setSecurityHeaders(w, r)
 
+	// 0. OpenTelemetry incoming trace context extraction & server span
+	ctx := telemetry.ExtractHTTP(r.Context(), r.Header)
+	spanName := fmt.Sprintf("HTTP %s %s", r.Method, r.URL.Path)
+	ctx, span := telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/http", spanName,
+		trace.WithSpanKind(trace.SpanKindServer),
+		trace.WithAttributes(
+			attribute.String("http.method", r.Method),
+			attribute.String("http.path", r.URL.Path),
+			attribute.String("http.route", r.URL.Path),
+			attribute.String("http.host", r.Host),
+			attribute.String("client.ip", ip),
+			attribute.String("user_agent", r.UserAgent()),
+		),
+	)
+	defer span.End()
+
+	if sc := span.SpanContext(); sc.IsValid() {
+		w.Header().Set("X-Trace-Id", sc.TraceID().String())
+	}
+
 	// 1. Request ID: reuse a sane inbound one, else generate.
 	rid := sanitizeRequestID(r.Header.Get("X-Request-Id"))
 	if rid == "" {
 		rid = newRequestID()
 	}
 	w.Header().Set("X-Request-Id", rid)
-	r = r.WithContext(context.WithValue(r.Context(), RequestIDKey, rid))
+	span.SetAttributes(attribute.String("octarq.request_id", rid))
+	r = r.WithContext(context.WithValue(ctx, RequestIDKey, rid))
 
 	// 1.5. Cross-origin reads of public GET endpoints. An approved preflight
 	// short-circuits here (before rate limiting — preflights are cheap and
 	// browsers batch them); everything else falls through to normal routing.
 	if mw.applyCORS(w, r) {
+		telemetry.SetOK(span)
 		mw.finish(r, ip, rid, http.StatusNoContent, start)
 		return
 	}
@@ -556,6 +584,7 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 	// 2. Gated metrics endpoint.
 	if r.Method == http.MethodGet && r.URL.Path == "/metrics" {
 		mw.serveMetrics(w, r)
+		telemetry.SetOK(span)
 		mw.finish(r, ip, rid, http.StatusOK, start)
 		return
 	}
@@ -571,17 +600,35 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 		}
 		w.Header().Set("Retry-After", strconv.Itoa(secs))
 		writeRateLimited(w, secs)
+		telemetry.RecordError(span, fmt.Errorf("rate limit exceeded"))
+		span.SetAttributes(attribute.Int("http.status_code", http.StatusTooManyRequests))
 		mw.finish(r, ip, rid, http.StatusTooManyRequests, start)
 		return
 	}
 
 	// 4. Dispatch with status capture + in-flight gauge.
 	mw.metrics.inFlight.Add(1)
+	tel := telemetry.Global()
+	if tel.Metrics != nil && tel.Metrics.HTTPRequestsInFlight != nil {
+		tel.Metrics.HTTPRequestsInFlight.Add(ctx, 1)
+		defer tel.Metrics.HTTPRequestsInFlight.Add(ctx, -1)
+	}
+
 	sr := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 	next(sr, r)
 	mw.metrics.inFlight.Add(-1)
 
+	span.SetAttributes(attribute.Int("http.status_code", sr.status))
+	if sr.status >= 500 {
+		span.SetStatus(codes.Error, fmt.Sprintf("HTTP %d", sr.status))
+	} else {
+		span.SetStatus(codes.Ok, "")
+	}
+
 	mw.metrics.record(sr.status)
+	if tel.Metrics != nil {
+		tel.Metrics.RecordHTTPRequest(ctx, r.Method, r.URL.Path, sr.status, time.Since(start), 0)
+	}
 	mw.finish(r, ip, rid, sr.status, start)
 }
 
@@ -653,23 +700,31 @@ func writeRateLimited(w http.ResponseWriter, retryAfterSecs int) {
 
 // finish emits the edge access-log line.
 func (mw *middleware) finish(r *http.Request, ip, rid string, status int, start time.Time) {
-	slog.Info("request",
+	attrs := []any{
 		"method", r.Method,
 		"path", redactPathSecrets(r.URL.Path),
 		"status", status,
 		"duration_ms", time.Since(start).Milliseconds(),
 		"request_id", rid,
 		"client_ip", ip,
-	)
+	}
+	if traceID := telemetry.TraceID(r.Context()); traceID != "" {
+		attrs = append(attrs, "trace_id", traceID, "span_id", telemetry.SpanID(r.Context()))
+	}
+	slog.InfoContext(r.Context(), "request", attrs...)
 }
 
-// serveMetrics gates and serves the expvar snapshot as JSON. It is closed by
-// default: allowed only when the caller presents the metrics-token bearer
-// (Settings → the metrics_token setting), or (when no token is configured)
-// originates from loopback.
+// serveMetrics gates and serves metrics. When OpenTelemetry Prometheus exporter
+// is active and the client does not explicitly ask for ?format=json, it serves
+// standard Prometheus metrics; otherwise it returns the JSON expvar snapshot.
 func (mw *middleware) serveMetrics(w http.ResponseWriter, r *http.Request) {
 	if !mw.metricsAllowed(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	tel := telemetry.Global()
+	if tel != nil && tel.PrometheusExporter != nil && r.URL.Query().Get("format") != "json" {
+		tel.PrometheusHandler().ServeHTTP(w, r)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

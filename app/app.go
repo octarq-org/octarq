@@ -28,6 +28,7 @@ import (
 	"github.com/octarq-org/octarq/idempotency"
 	"github.com/octarq-org/octarq/internal/api"
 	"github.com/octarq-org/octarq/internal/auth"
+	"github.com/octarq-org/octarq/internal/buildinfo"
 	"github.com/octarq-org/octarq/internal/cache"
 	"github.com/octarq-org/octarq/internal/cleanup"
 	"github.com/octarq-org/octarq/internal/crypto"
@@ -39,22 +40,27 @@ import (
 	"github.com/octarq-org/octarq/internal/queue"
 	"github.com/octarq-org/octarq/internal/server"
 	"github.com/octarq-org/octarq/origin"
+	"github.com/octarq-org/octarq/pkg/telemetry"
 	"github.com/octarq-org/octarq/plugin"
 	"github.com/octarq-org/octarq/plugin/safehttp"
 	"github.com/octarq-org/octarq/webembed"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 )
 
 // App holds the wired core dependencies and any registered plugins.
 type App struct {
-	cfg      *config.Config
-	gdb      *gorm.DB
-	cipher   *crypto.Cipher
-	auth     *auth.Manager
-	geo      *geo.Resolver
-	plugins  []plugin.Plugin
-	services *plugin.Registry
-	webFS    fs.FS // overrides the embedded OSS dashboard when set (see WithWebFS)
+	cfg       *config.Config
+	gdb       *gorm.DB
+	cipher    *crypto.Cipher
+	auth      *auth.Manager
+	geo       *geo.Resolver
+	plugins   []plugin.Plugin
+	services  *plugin.Registry
+	webFS     fs.FS // overrides the embedded OSS dashboard when set (see WithWebFS)
+	telemetry *telemetry.Telemetry
 }
 
 // New loads configuration and opens the database (without migrating). Call
@@ -103,12 +109,19 @@ func New() (*App, error) {
 		geoResolver, _ = geo.Open("")
 	}
 
+	telCfg := telemetry.ConfigFromEnv(config.DefaultAppName, buildinfo.Get().Version)
+	tel, err := telemetry.Init(context.Background(), telCfg)
+	if err != nil {
+		slog.Warn("telemetry init failed", "err", err)
+	}
+
 	a := &App{
-		cfg:    cfg,
-		gdb:    gdb,
-		cipher: cipher,
-		auth:   authMgr,
-		geo:    geoResolver,
+		cfg:       cfg,
+		gdb:       gdb,
+		cipher:    cipher,
+		auth:      authMgr,
+		geo:       geoResolver,
+		telemetry: tel,
 	}
 	// Composition is the caller's job: New() mounts no feature plugins. Each
 	// entry point (octarq/main.go, octarq-pro's main, a trimmed edition) Uses the
@@ -234,6 +247,15 @@ func (a *App) RunMCP(ctx context.Context) error {
 		HandleStatic: func(prefix string, fsys fs.FS) { /* unused in MCP */ },
 		Provide:      services.Provide,
 		Lookup:       services.Lookup,
+		Tracer: func(name string) trace.Tracer {
+			return telemetry.Tracer(name)
+		},
+		Meter: func(name string) metric.Meter {
+			return otel.GetMeterProvider().Meter(name)
+		},
+		StartSpan: func(ctx context.Context, tracerName, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+			return telemetry.StartSpan(ctx, tracerName, spanName, opts...)
+		},
 	}
 	// Same idempotency seam as the HTTP path — a plugin that resolves it in
 	// Mount must find it in both compositions.
@@ -458,6 +480,15 @@ func (a *App) Run(ctx context.Context) error {
 		},
 		Provide: services.Provide,
 		Lookup:  services.Lookup,
+		Tracer: func(name string) trace.Tracer {
+			return telemetry.Tracer(name)
+		},
+		Meter: func(name string) metric.Meter {
+			return otel.GetMeterProvider().Meter(name)
+		},
+		StartSpan: func(ctx context.Context, tracerName, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+			return telemetry.StartSpan(ctx, tracerName, spanName, opts...)
+		},
 	}
 	// Idempotency-Key support is offered to plugin routes through the service
 	// registry rather than a new plugin.Context field, so a plugin adopts it
@@ -616,5 +647,8 @@ func (a *App) Run(ctx context.Context) error {
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	slog.Info("shutting down")
+	if a.telemetry != nil {
+		_ = a.telemetry.Shutdown(shutCtx)
+	}
 	return httpSrv.Shutdown(shutCtx)
 }

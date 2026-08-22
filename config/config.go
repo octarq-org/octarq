@@ -85,6 +85,17 @@ type Config struct {
 	// never a silent fallback — a typo that downgrades to info would quietly
 	// silence ops debugging. Empty means "info".
 	LogLevel string
+
+	// OpenTelemetry configuration.
+	OTelEnabled         bool
+	OTelEndpoint        string
+	OTelServiceName     string
+	OTelTracesExporter  string
+	OTelMetricsExporter string
+	OTelSampler         string
+	OTelSampleRatio     float64
+	OTelInsecure        bool
+	OTelHeaders         string
 }
 
 // validLogLevels is the vocabulary OCTARQ_LOG_LEVEL accepts. Keeping the list
@@ -216,6 +227,15 @@ func Load() (*Config, error) {
 		PublicCORSOrigins: env("OCTARQ_CORS_ORIGINS", ""),
 
 		LogLevel: normalizeLogLevel(env("OCTARQ_LOG_LEVEL", "info")),
+
+		OTelEnabled:         strings.EqualFold(strings.TrimSpace(env("OCTARQ_OTEL_ENABLED", "")), "true") || strings.TrimSpace(env("OCTARQ_OTEL_ENABLED", "")) == "1",
+		OTelEndpoint:        env("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+		OTelServiceName:     env("OTEL_SERVICE_NAME", DefaultAppName),
+		OTelTracesExporter:  env("OTEL_TRACES_EXPORTER", "otlp"),
+		OTelMetricsExporter: env("OTEL_METRICS_EXPORTER", "prometheus"),
+		OTelSampler:         env("OTEL_TRACES_SAMPLER", "parentbased_always_on"),
+		OTelInsecure:        strings.EqualFold(strings.TrimSpace(env("OTEL_EXPORTER_OTLP_INSECURE", "")), "true") || strings.TrimSpace(env("OTEL_EXPORTER_OTLP_INSECURE", "")) == "1",
+		OTelHeaders:         env("OTEL_EXPORTER_OTLP_HEADERS", ""),
 	}
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" && c.DBDriver != "mysql" {
 		return nil, fmt.Errorf("OCTARQ_DB_DRIVER must be sqlite, postgres, or mysql, got %q", c.DBDriver)

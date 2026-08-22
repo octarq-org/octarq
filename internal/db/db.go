@@ -13,10 +13,13 @@ import (
 	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/pkg/telemetry"
+	"go.opentelemetry.io/otel"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"gorm.io/plugin/opentelemetry/tracing"
 )
 
 // Open connects to the database WITHOUT migrating. Migration is deferred to
@@ -56,6 +59,11 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sql db: %w", err)
 	}
+
+	// Instrument GORM with OpenTelemetry tracing and pool metrics
+	_ = gdb.Use(tracing.NewPlugin(tracing.WithoutQueryVariables()))
+	_ = telemetry.RegisterDBStatsMetrics(otel.GetMeterProvider().Meter("github.com/octarq-org/octarq/db"), sqlDB)
+
 	if cfg.DBDriver == "sqlite" {
 		// Apply on the live connection so a user DSN that already has
 		// `_pragma=...` still gets WAL. One connection: SQLite serializes
