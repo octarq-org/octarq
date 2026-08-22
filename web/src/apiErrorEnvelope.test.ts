@@ -50,4 +50,18 @@ describe("API error envelope", () => {
     respondWith({ code: "unauthorized", message: "invalid credentials" });
     await expect(req("POST", "/api/auth/login")).rejects.toBeInstanceOf(ApiError);
   });
+
+  it("formats validation details into error message when present", async () => {
+    respondWith({
+      code: "validation_failed",
+      message: "validation failed",
+      details: [
+        { location: "body.appName", message: "cannot be empty" },
+        { location: "body.dataRetentionDays", message: "expected integer >= 1" },
+      ],
+    });
+    await expect(req("PUT", "/api/instance-settings")).rejects.toThrow(
+      "validation failed: appName: cannot be empty, dataRetentionDays: expected integer >= 1",
+    );
+  });
 });
