@@ -495,6 +495,7 @@ type Context struct {
 	// given workspace. Core plugins are always active.
 	PluginActive func(orgID uint, p Plugin) bool
 	// ActivePlugins returns the currently registered plugins.
+	ActivePlugins func() []Plugin
 	// Tracer returns an OpenTelemetry Tracer for the plugin. nil on hosts that predate it.
 	Tracer func(name string) trace.Tracer
 	// Meter returns an OpenTelemetry Meter for the plugin. nil on hosts that predate it.
