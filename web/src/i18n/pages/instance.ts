@@ -30,6 +30,27 @@ export const instance = {
       "secret-key": "Secret key",
       hardening: "Hardening",
     },
+    checkDetail: {
+      "public-origin": {
+        ok: "password-reset, verification and invite links are built from the request host, accepted only when it matches a registered domain",
+        degraded: "no domain is registered, so links are built from the request host as sent, with nothing to validate it against. Add the domain this instance is served on (Domains → Add domain) to have octarq reject hostnames it does not own",
+      },
+      "outbound-mail": {
+        ok: "the system sender is available; password reset, email verification and invites can be delivered",
+        degraded: "no SMTP sender is configured, so the system sender is unavailable — password-reset, verification and invite messages will NOT be delivered and a locked-out user cannot recover their account. Configure an SMTP sender (Mail → SMTP senders), or mount a plugin providing mail.send",
+      },
+      registration: {
+        blocked: "registration is currently broken: new users will be stuck at the verification-email step, because the instance requires a verified email but no SMTP sender is configured. Configure a system sender (Mail → SMTP senders), or disable email verification (Instance settings)",
+        ok: "email verification is enabled and the system sender is available; new users can complete sign-up",
+        disabled: "email verification is disabled, so sign-up does not depend on the system sender",
+      },
+      "secret-key": {
+        configured: "configured",
+      },
+      hardening: {
+        dev: "running on the default sqlite file with no Redis, which is treated as development: the secret-key length floor warns instead of refusing to start only when no domain is registered. Registering any domain enforces it",
+      },
+    },
   },
   zh: {
     title: "实例运维台",
@@ -59,6 +80,27 @@ export const instance = {
       database: "数据库",
       "secret-key": "密钥",
       hardening: "安全加固",
+    },
+    checkDetail: {
+      "public-origin": {
+        ok: "密码重置、验证和邀请链接基于请求主机名生成，且仅当匹配已注册域名时才会被接受。",
+        degraded: "未注册任何域名，因此链接直接根据收到的请求 Host 头生成，无法进行有效性校验。请在（域名管理 → 添加域名）中添加此实例提供服务的域名，以便 octarq 拒绝未授权的主机名。",
+      },
+      "outbound-mail": {
+        ok: "系统发信服务可用；密码重置、邮箱验证和邀请邮件可以正常送达。",
+        degraded: "未配置 SMTP 发件人，系统发件服务不可用 —— 密码重置、邮箱验证和邀请邮件将无法发送，被锁定的用户将无法找回账户。请配置 SMTP 发件人（邮件 → SMTP 发件人）或启用提供 mail.send 的插件。",
+      },
+      registration: {
+        blocked: "用户注册流程当前受阻：新用户会卡在验证邮件步骤，因为实例启用了邮箱验证但未配置 SMTP 发件人。请配置系统发信服务（邮件 → SMTP 发件人），或在实例设置中关闭邮箱验证。",
+        ok: "邮箱验证已启用且系统发信服务可用；新用户可以正常完成注册流程。",
+        disabled: "邮箱验证已禁用，用户注册无需依赖系统发件服务。",
+      },
+      "secret-key": {
+        configured: "已配置且符合安全长度规范。",
+      },
+      hardening: {
+        dev: "当前运行在默认 SQLite 文件上且未配置 Redis，被视为开发模式：仅当未注册任何域名时，密钥长度不足只会警告而非拒绝启动。一旦注册域名将强制校验。",
+      },
     },
   },
   es: {
@@ -90,6 +132,27 @@ export const instance = {
       "secret-key": "Clave secreta",
       hardening: "Endurecimiento",
     },
+    checkDetail: {
+      "public-origin": {
+        ok: "los enlaces de restablecimiento de contraseña, verificación e invitación se basan en el host de la solicitud, aceptados solo cuando coincide con un dominio registrado",
+        degraded: "no hay ningún dominio registrado, por lo que los enlaces se crean a partir del host de la solicitud tal como se envió, sin nada con qué validarlo. Agregue el dominio en el que se sirve esta instancia (Dominios → Agregar dominio) para que octarq rechace los nombres de host que no posee",
+      },
+      "outbound-mail": {
+        ok: "el remitente del sistema está disponible; se pueden entregar el restablecimiento de contraseña, la verificación de correo electrónico y las invitaciones",
+        degraded: "no hay ningún remitente SMTP configurado, por lo que el remitente del sistema no está disponible: los mensajes de restablecimiento de contraseña, verificación e invitación NO se entregarán y un usuario bloqueado no podrá recuperar su cuenta. Configure un remitente SMTP (Correo → Remitentes SMTP) o monte un complemento que proporcione mail.send",
+      },
+      registration: {
+        blocked: "el registro está actualmente bloqueado: los nuevos usuarios se quedarán atascados en el paso de correo de verificación porque la instancia requiere un correo verificado pero no hay ningún remitente SMTP configurado. Configure un remitente del sistema (Correo → Remitentes SMTP) o deshabilite la verificación por correo electrónico (Configuración de la instancia)",
+        ok: "la verificación de correo electrónico está habilitada y el remitente del sistema está disponible; los nuevos usuarios pueden completar el registro",
+        disabled: "la verificación por correo electrónico está deshabilitada, por lo que el registro no depende del remitente del sistema",
+      },
+      "secret-key": {
+        configured: "configurada",
+      },
+      hardening: {
+        dev: "ejecutándose en el archivo sqlite predeterminado sin Redis, lo que se considera desarrollo",
+      },
+    },
   },
   pt: {
     title: "Console da instância",
@@ -120,6 +183,27 @@ export const instance = {
       "secret-key": "Chave secreta",
       hardening: "Endurecimento",
     },
+    checkDetail: {
+      "public-origin": {
+        ok: "os links de redefinição de senha, verificação e convite são construídos a partir do host da solicitação, aceitos apenas quando correspondem a um domínio registrado",
+        degraded: "nenhum domínio está registrado, então os links são construídos a partir do host da solicitação como enviado, sem nada para validar. Adicione o domínio em que esta instância é servida (Domínios → Adicionar domínio) para que o octarq rejeite nomes de host que não possui",
+      },
+      "outbound-mail": {
+        ok: "o remetente do sistema está disponível; redefinição de senha, verificação de e-mail e convites podem ser entregues",
+        degraded: "nenhum remetente SMTP está configurado, então o remetente do sistema está indisponível — mensagens de redefinição de senha, verificação e convite NÃO serão entregues e um usuário bloqueado não poderá recuperar sua conta. Configure um remetente SMTP (Correio → Remetentes SMTP) ou monte um plugin fornecendo mail.send",
+      },
+      registration: {
+        blocked: "o registro está atualmente bloqueado: novos usuários ficarão travados na etapa de e-mail de verificação, pois a instância requer um e-mail verificado, mas nenhum remetente SMTP está configurado. Configure um remetente do sistema (Correio → Remetentes SMTP) ou desative a verificação de e-mail (Configurações da instância)",
+        ok: "a verificação de e-mail está ativada e o remetente do sistema está disponível; novos usuários podem concluir o cadastro",
+        disabled: "a verificação de e-mail está desativada, portanto o cadastro não depende do remetente do sistema",
+      },
+      "secret-key": {
+        configured: "configurada",
+      },
+      hardening: {
+        dev: "executando no arquivo sqlite padrão sem Redis, o que é tratado como desenvolvimento",
+      },
+    },
   },
   ja: {
     title: "インスタンスコンソール",
@@ -149,6 +233,27 @@ export const instance = {
       database: "データベース",
       "secret-key": "シークレットキー",
       hardening: "ハードニング",
+    },
+    checkDetail: {
+      "public-origin": {
+        ok: "パスワード再設定、確認、招待リンクはリクエストホストから作成され、登録済みドメインと一致する場合にのみ受け入れられます",
+        degraded: "ドメインが登録されていないため、リンクは送信されたリクエストホストからそのまま作成され、検証手段がありません。octarqが所有していないホスト名を拒否できるように、このインスタンスが提供されているドメインを追加してください（ドメイン → ドメイン追加）",
+      },
+      "outbound-mail": {
+        ok: "システム送信者が利用可能です。パスワード再設定、メール確認、招待メールを配信できます",
+        degraded: "SMTP送信者が設定されていないため、システム送信者は利用できません。パスワード再設定、確認、招待メッセージは配信されず、ロックアウトされたユーザーはアカウントを復元できません。SMTP送信者を設定するか（メール → SMTP送信者）、mail.sendを提供するプラグインをマウントしてください",
+      },
+      registration: {
+        blocked: "登録は現在ブロックされています。インスタンスは確認済みメールを必要としますが、SMTP送信者が設定されていないため、新しいユーザーは確認メールのステップで停止します。システム送信者を設定するか（メール → SMTP送信者）、メール確認を無効にしてください（インスタンス設定）",
+        ok: "メール確認が有効でシステム送信者が利用可能です。新しいユーザーはサインアップを完了できます",
+        disabled: "メール確認が無効になっているため、サインアップはシステム送信者に依存しません",
+      },
+      "secret-key": {
+        configured: "設定済み",
+      },
+      hardening: {
+        dev: "Redisなしのデフォルトsqliteファイルで実行されており、開発環境として扱われます",
+      },
     },
   },
 };
