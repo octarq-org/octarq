@@ -23,6 +23,13 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths:
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".changeset/**"
+      - ".github/workflows/publish-sdk.yml"
     tags: ["sdk-v*"]
 
 # Top-level: least privilege. The changesets job widens this locally.

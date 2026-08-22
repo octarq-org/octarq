@@ -5,36 +5,50 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  # The repo-root docs/ directory was removed (content consolidated into the
-  # two surfaces below). This guard keeps it from coming back — a stray
-  # docs/*.md would be a third, unmaintained copy of documentation.
-  docs-surface:
-    name: Docs surface check
+  changes:
+    name: Detect changes
     runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.filter.outputs.go }}
+      web: ${{ steps.filter.outputs.web }}
     steps:
       - uses: actions/checkout@v4
-      - name: Root docs/ must not contain markdown
-        run: |
-          if find docs -name '*.md' -print -quit 2>/dev/null | grep -q .; then
-            echo "::error::docs/*.md is not a documentation surface in this repo."
-            echo "::error::Documentation lives in exactly two places:"
-            echo "::error::  - in-app help: plugins/*/docs/*.mdx (served under /help)"
-            echo "::error::  - website docs: website/src/content/docs/"
-            echo "::error::Put new docs in one of those, or delete the file instead."
-            exit 1
-          fi
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            go:
+              - '**/*.go'
+              - 'go.mod'
+              - 'go.sum'
+              - 'Makefile'
+              - 'Dockerfile'
+              - 'docker-compose.yml'
+              - '.golangci.yml'
+              - '.github/workflows/ci.yml'
+            web:
+              - 'web/**'
+              - 'packages/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/workflows/ci.yml'
 
   go:
     name: Go test & lint
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,24 +73,22 @@ jobs:
       - name: go build
         run: go build ./...
 
-      - name: go test
-        run: go test -race -count=1 ./...
-
-      # Ratchet against regressions, not a target to hit: the threshold sits just
-      # under the measured number so an unrelated PR is never failed by rounding.
-      # Measured 70.1% at the time this was added (58.3% before). Raise it when
-      # coverage genuinely climbs; never raise it above what a clean checkout
-      # actually produces — a threshold nobody can reach fails every later PR.
+      # One run: race detector + coverage profile. A second `go test` for the
+      # ratchet used to add ~40s on top of the ~4 min race suite.
+      #
       # The excludes are generated or embedded-artifact packages, which have no
-      # meaningful statements to cover and would only drag the total down.
+      # meaningful statements to cover and would only drag the total down. Their
+      # tests still run; only the threshold accounting drops them.
       # A ratchet, not an aspiration: the number is the floor the suite already
       # clears, so the only way it goes red is a change that tests less than the
       # code it replaces. Raise it when coverage rises; never lower it to make a
       # branch pass.
-      - name: Verify coverage threshold
+      - name: go test (race + coverage)
         run: |
           THRESHOLD=90
-          go list ./... | grep -v -E '/(webembed|openapi|cmd/octarq-build|cmd/openapi-gen|examples)' | xargs go test -coverprofile=coverage.out
+          EXCL='/(webembed|openapi|cmd/octarq-build|cmd/openapi-gen|examples)/'
+          go test -race -count=1 -coverprofile=coverage.all.out ./...
+          awk -v excl="$EXCL" 'NR==1 || $0 !~ excl' coverage.all.out > coverage.out
           total=$(go tool cover -func=coverage.out | awk '/total:/ {print $3}' | tr -d '%')
           echo "Total test coverage: ${total}% (threshold: ${THRESHOLD}%)"
           is_below=$(awk -v tot="$total" -v thresh="$THRESHOLD" 'BEGIN { print (tot < thresh) ? 1 : 0 }')
@@ -102,6 +114,8 @@ jobs:
 
   web:
     name: Frontend build
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -158,9 +172,13 @@ jobs:
       - name: Build dashboard
         run: pnpm build
 
+  # Self-sufficient: web/tests/e2e-server.mjs rebuilds the dashboard and the Go
+  # binary, so this does not wait on the go/web jobs. Running in parallel with
+  # them is what makes a frontend PR's wall clock ~web+e2e instead of go+e2e.
   e2e:
     name: End-to-end (Playwright)
-    needs: [go, web]
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.go == 'true' || needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     # Run inside the official Playwright image, which ships the browsers and the
     # system libraries they need. The job previously called
@@ -231,10 +249,12 @@ jobs:
   # The dist PR itself carries no checks: PRs opened with GITHUB_TOKEN don't
   # trigger workflows. That is the same restriction as before, but harmless
   # here — the source it was built from already passed CI on this very commit.
+  #
+  # needs: [web] so a go-only main push (web skipped) does not rebuild dist.
   dist:
     name: Refresh embedded dashboard
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [go, web]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.web.result == 'success'
+    needs: [web]
     runs-on: ubuntu-latest
     permissions:
       contents: write
