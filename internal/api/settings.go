@@ -53,6 +53,7 @@ const (
 	keyRatelimitRedirRPM        = "ratelimit_redirect_rpm"
 	keyRequireEmailVerification = "require_email_verification" // "false" disables the email-verification requirement; default on
 	keyBaseDomain               = models.BaseDomainSetting     // shared tenant-subdomain base; empty = feature off
+	keySharedHosts              = models.SharedHostsSetting    // instance-wide shared hostnames; comma/newline-separated
 	keyPublicCORSOrigins        = "public_cors_origins"        // comma/newline-separated exact origins allowed to read public GET endpoints
 	keySystemSenderID           = "mail_system_sender_id"      // SMTPSender id used for instance-level system mail; empty = lowest-id sender
 )

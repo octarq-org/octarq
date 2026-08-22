@@ -602,7 +602,7 @@ func (a *App) Run(ctx context.Context) error {
 	// Tell the operator, once and before anything is served, which capabilities
 	// this instance actually has. Several of them fail silently otherwise — see
 	// readinessReport.
-	domainsRegistered := origin.AnyRegistered(a.gdb)
+	domainsRegistered := origin.AnyRegistered(a.gdb) || origin.HasSharedHosts(a.gdb)
 	mailReady := false
 	if fn, ok := plugin.LookupServiceAs[plugin.MailReady](services.Lookup, plugin.ServiceMailReady); ok {
 		mailReady = fn()

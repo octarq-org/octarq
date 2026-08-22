@@ -302,6 +302,7 @@ export interface InstanceSettings {
   requireEmailVerification?: boolean;
   appName: string;
   baseDomain: string;
+  sharedHosts?: string;
   metricsTokenSet: boolean;
   ratelimitAuthRpm: number;
   ratelimitApiRpm: number;
@@ -353,6 +354,7 @@ export const api = {
     requireEmailVerification?: boolean;
     appName?: string;
     baseDomain?: string;
+    sharedHosts?: string;
     metricsToken?: string;
     ratelimitAuthRpm?: number;
     ratelimitApiRpm?: number;
