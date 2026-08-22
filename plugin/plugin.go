@@ -496,13 +496,15 @@ type Context struct {
 	PluginActive func(orgID uint, p Plugin) bool
 	// ActivePlugins returns the currently registered plugins.
 	ActivePlugins func() []Plugin
-
 	// Tracer returns an OpenTelemetry Tracer for the plugin. nil on hosts that predate it.
 	Tracer func(name string) trace.Tracer
 	// Meter returns an OpenTelemetry Meter for the plugin. nil on hosts that predate it.
 	Meter func(name string) metric.Meter
 	// StartSpan starts an OpenTelemetry span for the plugin. nil on hosts that predate it.
 	StartSpan func(ctx context.Context, tracerName, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span)
+	// RegisterEndpoint registers a declarative dual endpoint (HTTP + MCP).
+	// nil on hosts that predate it.
+	RegisterEndpoint func(spec any) error
 }
 
 // AuthMethod is a provider-agnostic auth method definition, mirroring the fields

@@ -171,6 +171,16 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}/qr", Summary: "Link QR", Tags: []string{"Links"}}, p.linkQR)
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/export.csv", Summary: "Export Links", Tags: []string{"Links"}}, p.exportLinksCSV)
 	}
+	_ = plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[DeclarativeLinkInput, DeclarativeLinkOutput]{
+		Name:        "create_shortlink",
+		Method:      "POST",
+		Path:        "/api/links/declarative",
+		Summary:     "Create Short Link Declarative",
+		Description: "Create a new short link via the declarative dual endpoint specification",
+		RequireAuth: true,
+		ExposeMCP:   true,
+		Handler:     p.createDeclarativeLink,
+	})
 	if ctx.Provide != nil {
 		ctx.Provide(plugin.OverviewServiceName("links"), plugin.OverviewFunc(p.overview))
 		ctx.Provide(plugin.PurgeServiceName("links"), plugin.PurgeFunc(p.purge))
