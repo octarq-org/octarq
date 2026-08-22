@@ -7,59 +7,149 @@ import (
 	"net"
 	"net/textproto"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
-func TestNew_Noop(t *testing.T) {
+func TestNew_MemoryDefault(t *testing.T) {
 	c := New("")
 	if c.IsRedis() {
-		t.Errorf("expected NoopCache to return false for IsRedis")
+		t.Errorf("expected MemoryCache to return false for IsRedis")
 	}
 
+	ctx := context.Background()
 	var dst string
-	if c.Get(context.Background(), "key", &dst) {
-		t.Errorf("NoopCache.Get expected false")
+	if c.Get(ctx, "key", &dst) {
+		t.Errorf("expected Get missing key to return false")
 	}
 
-	if err := c.Set(context.Background(), "key", "val", 0); err != nil {
-		t.Errorf("NoopCache.Set expected nil, got %v", err)
+	if err := c.Set(ctx, "key", "val", 0); err != nil {
+		t.Errorf("expected Set to succeed, got %v", err)
 	}
 
-	if err := c.Delete(context.Background(), "key"); err != nil {
-		t.Errorf("NoopCache.Delete expected nil, got %v", err)
+	if !c.Get(ctx, "key", &dst) || dst != "val" {
+		t.Errorf("expected Get to find 'val', got %v, %q", c.Get(ctx, "key", &dst), dst)
+	}
+
+	if err := c.Delete(ctx, "key"); err != nil {
+		t.Errorf("expected Delete to succeed, got %v", err)
+	}
+
+	if c.Get(ctx, "key", &dst) {
+		t.Errorf("expected key to be deleted")
 	}
 }
 
 func TestNew_InvalidURL(t *testing.T) {
 	c := New("::invalid-url::")
 	if c.IsRedis() {
-		t.Errorf("expected fallback NoopCache to return false for IsRedis")
+		t.Errorf("expected fallback MemoryCache to return false for IsRedis")
 	}
+}
+
+func TestMemoryCache_TTL(t *testing.T) {
+	c := NewMemoryCache(100)
+	ctx := context.Background()
+
+	_ = c.Set(ctx, "short", "temp", 50*time.Millisecond)
+	var dst string
+	if !c.Get(ctx, "short", &dst) || dst != "temp" {
+		t.Fatalf("expected to get unexpired key")
+	}
+
+	time.Sleep(70 * time.Millisecond)
+	if c.Get(ctx, "short", &dst) {
+		t.Fatalf("expected key to be expired")
+	}
+}
+
+func TestMemoryCache_Capacity(t *testing.T) {
+	c := NewMemoryCache(3)
+	ctx := context.Background()
+
+	_ = c.Set(ctx, "k1", "v1", 0)
+	_ = c.Set(ctx, "k2", "v2", 0)
+	_ = c.Set(ctx, "k3", "v3", 0)
+	_ = c.Set(ctx, "k4", "v4", 0) // Should evict one
+
+	var dst string
+	count := 0
+	for _, k := range []string{"k1", "k2", "k3", "k4"} {
+		if c.Get(ctx, k, &dst) {
+			count++
+		}
+	}
+	if count > 3 {
+		t.Errorf("expected at most 3 keys, found %d", count)
+	}
+}
+
+func TestScopedCache_PrefixIsolation(t *testing.T) {
+	backend := NewMemoryCache(100)
+	ctx := context.Background()
+
+	linksCache := NewScoped(backend, "links")
+	mailCache := NewScoped(backend, "mail")
+
+	_ = linksCache.Set(ctx, "item", "links_data", 0)
+	_ = mailCache.Set(ctx, "item", "mail_data", 0)
+
+	var linksVal, mailVal string
+	found, err := linksCache.Get(ctx, "item", &linksVal)
+	if !found || err != nil || linksVal != "links_data" {
+		t.Errorf("linksCache got %v, %v, %q", found, err, linksVal)
+	}
+
+	found, err = mailCache.Get(ctx, "item", &mailVal)
+	if !found || err != nil || mailVal != "mail_data" {
+		t.Errorf("mailCache got %v, %v, %q", found, err, mailVal)
+	}
+
+	_ = linksCache.Delete(ctx, "item")
+	found, _ = linksCache.Get(ctx, "item", &linksVal)
+	if found {
+		t.Errorf("expected linksCache item to be deleted")
+	}
+
+	found, _ = mailCache.Get(ctx, "item", &mailVal)
+	if !found || mailVal != "mail_data" {
+		t.Errorf("mailCache item should not have been affected by linksCache delete")
+	}
+}
+
+func TestScopedCache_Concurrency(t *testing.T) {
+	backend := NewMemoryCache(1000)
+	sc := NewScoped(backend, "test")
+	ctx := context.Background()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			key := fmt.Sprintf("k%d", id%5)
+			_ = sc.Set(ctx, key, id, time.Minute)
+			var v int
+			_, _ = sc.Get(ctx, key, &v)
+			if id%3 == 0 {
+				_ = sc.Delete(ctx, key)
+			}
+		}(i)
+	}
+	wg.Wait()
 }
 
 func TestRedisCache_Unreachable(t *testing.T) {
 	c := New("redis://127.0.0.1:58999/0")
-	if !c.IsRedis() {
-		t.Fatalf("expected RedisCache")
+	// Since connection fails, it falls back to memory cache
+	if c.IsRedis() {
+		t.Fatalf("expected fallback to MemoryCache when unreachable")
 	}
 
 	var dst string
 	if c.Get(context.Background(), "k", &dst) {
-		t.Errorf("Get on unreachable redis expected false")
-	}
-
-	if err := c.Set(context.Background(), "k", "v", time.Second); err == nil {
-		t.Errorf("Set on unreachable redis expected error")
-	}
-
-	if err := c.Delete(context.Background(), "k"); err == nil {
-		t.Errorf("Delete on unreachable redis expected error")
-	}
-
-	// JSON marshal error
-	if err := c.Set(context.Background(), "k", make(chan int), time.Second); err == nil {
-		t.Errorf("Set with unmarshalable value expected error")
+		t.Errorf("Get on empty cache expected false")
 	}
 }
 
@@ -100,13 +190,12 @@ func handleFakeRedisConn(conn net.Conn) {
 			return
 		}
 		if strings.HasPrefix(line, "*") {
-			// Array header in RESP, read line by line
 			var numElements int
 			_, _ = fmt.Sscanf(line, "*%d", &numElements)
 			cmd := ""
 			var args []string
 			for i := 0; i < numElements; i++ {
-				_, _ = r.ReadLine() // length header $N
+				_, _ = r.ReadLine()
 				arg, _ := r.ReadLine()
 				if i == 0 {
 					cmd = strings.ToUpper(arg)
@@ -125,13 +214,10 @@ func handleFakeRedisConn(conn net.Conn) {
 				_ = w.PrintfLine(":1")
 			case "GET":
 				if len(args) > 0 && args[0] == "badjson" {
-					// Return non-JSON string
 					_ = w.PrintfLine("$7\r\nnotjson")
 				} else if len(args) > 0 && args[0] == "goodjson" {
-					// Return JSON string `"hello"`
 					_ = w.PrintfLine("$7\r\n\"hello\"")
 				} else {
-					// Key not found
 					_ = w.PrintfLine("$-1")
 				}
 			default:
@@ -152,28 +238,23 @@ func TestRedisCache_WithFakeServer(t *testing.T) {
 
 	ctx := context.Background()
 
-	// 1. Get non-existent key
 	var val string
 	if c.Get(ctx, "missing", &val) {
 		t.Errorf("Get missing key expected false")
 	}
 
-	// 2. Set key
 	if err := c.Set(ctx, "k", "hello", time.Minute); err != nil {
 		t.Errorf("Set expected nil, got %v", err)
 	}
 
-	// 3. Get good json
 	if !c.Get(ctx, "goodjson", &val) || val != "hello" {
 		t.Errorf("Get goodjson expected true and 'hello', got %v, %q", c.Get(ctx, "goodjson", &val), val)
 	}
 
-	// 4. Get bad json (should fail unmarshal)
 	if c.Get(ctx, "badjson", &val) {
 		t.Errorf("Get badjson expected false due to unmarshal error")
 	}
 
-	// 5. Delete key
 	if err := c.Delete(ctx, "k"); err != nil {
 		t.Errorf("Delete expected nil, got %v", err)
 	}

@@ -11,7 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Cache defines the operations for our optional caching layer.
+// Cache defines the operations for our caching layer.
 type Cache interface {
 	Get(ctx context.Context, key string, dst any) bool
 	Set(ctx context.Context, key string, val any, ttl time.Duration) error
@@ -19,18 +19,17 @@ type Cache interface {
 	IsRedis() bool
 }
 
-// New returns a Cache implementation. If redisURL is empty, it returns a NoopCache.
-// If redisURL is set but connection fails initially, it logs the error but still
-// returns a valid RedisCache that gracefully falls back to noop-like behavior on failure.
+// New returns a Cache implementation. If redisURL is empty, it returns an in-memory Cache.
+// If redisURL is set but connection fails initially, it logs the error and falls back to MemoryCache.
 func New(redisURL string) Cache {
 	if redisURL == "" {
-		return &NoopCache{}
+		return NewMemoryCache(10000)
 	}
 
 	opts, err := redis.ParseURL(redisURL)
 	if err != nil {
-		log.Printf("cache: failed to parse redis URL %q: %v. Falling back to DB-only cache.", redisURL, err)
-		return &NoopCache{}
+		log.Printf("cache: failed to parse redis URL %q: %v. Falling back to memory cache.", redisURL, err)
+		return NewMemoryCache(10000)
 	}
 
 	client := redis.NewClient(opts)
@@ -40,10 +39,10 @@ func New(redisURL string) Cache {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := client.Ping(ctx).Err(); err != nil {
-		log.Printf("cache: redis connection failed to %q: %v. Cache operations will fall back to DB.", redisURL, err)
-	} else {
-		log.Printf("cache: connected to Redis at %s", opts.Addr)
+		log.Printf("cache: redis connection failed to %q: %v. Falling back to memory cache.", redisURL, err)
+		return NewMemoryCache(10000)
 	}
+	log.Printf("cache: connected to Redis at %s", opts.Addr)
 
 	return &RedisCache{client: client}
 }

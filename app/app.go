@@ -238,6 +238,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 		CacheGet:    a.auth.Cache().Get,
 		CacheSet:    a.auth.Cache().Set,
 		DeleteCache: a.auth.Cache().Delete,
+		Cache:       cache.NewScoped(a.auth.Cache(), "core"),
 		GeoLookup:   a.geo.Locate,
 		ParseUA: func(ua string) (string, string, string) {
 			info := geo.ParseUA(ua)
@@ -270,6 +271,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 		pctxCopy := *pctx
 		pInfo := plugin.Describe(p)
 		pName := p.Name()
+		pctxCopy.Cache = cache.NewScoped(a.auth.Cache(), pName)
 		pctxCopy.RegisterNotifier = func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
 			notify.RegisterWithDescriptor(notify.Descriptor{
 				Type:        typ,
@@ -444,6 +446,7 @@ func (a *App) Run(ctx context.Context) error {
 		CacheGet:    a.auth.Cache().Get,
 		CacheSet:    a.auth.Cache().Set,
 		DeleteCache: a.auth.Cache().Delete,
+		Cache:       cache.NewScoped(a.auth.Cache(), "core"),
 		GeoLookup:   a.geo.Locate,
 		ParseUA: func(ua string) (string, string, string) {
 			info := geo.ParseUA(ua)
@@ -508,6 +511,7 @@ func (a *App) Run(ctx context.Context) error {
 		pctxCopy := *pctx
 		pInfo := plugin.Describe(p)
 		pName := p.Name()
+		pctxCopy.Cache = cache.NewScoped(a.auth.Cache(), pName)
 		pctxCopy.RegisterNotifier = func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
 			notify.RegisterWithDescriptor(notify.Descriptor{
 				Type:        typ,

@@ -3,7 +3,7 @@ package links
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -15,7 +15,13 @@ import (
 // Every transport supplies one — the networked ones from the caller's API token,
 // the stdio CLI from its entry point — so an absent org means something is wrong,
 // and defaulting it to a tenant would hand that tenant's data to whoever asked.
-var errNoOrgInContext = errors.New("no workspace in this request")
+var errNoOrgInContext = plugin.NewAgentError(
+	401,
+	"UNAUTHORIZED_NO_WORKSPACE",
+	"no workspace in this request",
+	"Every tool execution requires a valid workspace/tenant context. Ensure a valid API token or session is provided.",
+	false,
+)
 
 type listLinksInput struct {
 	Host  string `json:"host,omitempty"`
@@ -97,6 +103,28 @@ func tagsContain(field, tag string) bool {
 		}
 	}
 	return false
+}
+
+func errorResult(err error) *mcp.CallToolResult {
+	if ae, ok := plugin.AsAgentError(err); ok {
+		msg := fmt.Sprintf("Error [%s]: %s", ae.Code, ae.Message)
+		if ae.AgentGuidance != "" {
+			msg += fmt.Sprintf("\n\n[Agent Action Guidance]: %s", ae.AgentGuidance)
+		}
+		if ae.Retryable {
+			msg += "\n[Retryable]: true"
+		} else {
+			msg += "\n[Retryable]: false"
+		}
+		return &mcp.CallToolResult{
+			IsError: true,
+			Content: []mcp.Content{&mcp.TextContent{Text: msg}},
+		}
+	}
+	return &mcp.CallToolResult{
+		IsError: true,
+		Content: []mcp.Content{&mcp.TextContent{Text: err.Error()}},
+	}
 }
 
 func jsonResult[T any](v T) (*mcp.CallToolResult, any, error) {

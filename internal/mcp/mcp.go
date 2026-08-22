@@ -24,6 +24,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/internal/cache"
 	"github.com/octarq-org/octarq/internal/db"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
@@ -87,16 +88,20 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 	lookupFn := lookup
 	if mountPlugins {
 		reg := plugin.NewRegistry()
+		cacheBackend := cache.New("")
 		pctx := &plugin.Context{
 			DB:      gdb,
 			OrgID:   func(_ *http.Request) uint { return orgID },
 			Provide: reg.Provide,
 			Lookup:  reg.Lookup,
+			Cache:   cache.NewScoped(cacheBackend, "mcp"),
 			// RequirePerm is intentionally left nil: MCP requests do not carry per-request HTTP user identity.
 			// Authorization is handled by the MCP layer itself; plugin callers using HasPerm must tolerate nil.
 		}
 		for _, p := range plugins {
-			p.Mount(nil, pctx)
+			pctxCopy := *pctx
+			pctxCopy.Cache = cache.NewScoped(cacheBackend, p.Name())
+			p.Mount(nil, &pctxCopy)
 		}
 		if lookupFn == nil {
 			lookupFn = reg.Lookup
