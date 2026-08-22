@@ -223,22 +223,6 @@ const hasPagination = Astro.slots.has("pagination");
                 )}
               </div>
               {hasPagination ? <slot name="pagination" /> : <Pagination prevNext={prevNext} />}
-
-              {/* The landing page has a footer; doc pages had none, which left
-                  21 of the 22 pages running analytics with no route to the
-                  privacy notice. The policy itself lives on octarq.org — one
-                  document covering both hosts, rather than a second copy here
-                  that would drift. */}
-              <div class="mt-10 border-t border-border pt-4 text-xs text-muted-foreground">
-                <a
-                  href="https://octarq.org/legal/privacy/"
-                  class="text-muted-foreground hover:text-foreground transition-colors no-underline"
-                  target="_blank"
-                  rel="noopener"
-                >
-                  Privacy
-                </a>
-              </div>
             </div>
           </main>
 
