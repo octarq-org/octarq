@@ -4,10 +4,35 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 )
+
+// isNonWorkspaceRoute reports whether a path represents an instance-level administration
+// route or a public/entrypoint route that is not scoped to a specific workspace's plugin toggle.
+func isNonWorkspaceRoute(path string) bool {
+	if strings.Contains(path, "/instance/") || strings.Contains(path, "/storage-instance/") || strings.HasPrefix(path, "/api/instance/") || strings.HasPrefix(path, "/instance/") {
+		return true
+	}
+	if strings.HasPrefix(path, "/api/sso/") {
+		if path == "/api/sso/login" || strings.HasSuffix(path, "/login") || strings.HasSuffix(path, "/callback") {
+			return true
+		}
+	}
+	if strings.HasPrefix(path, "/api/customer/") ||
+		strings.HasPrefix(path, "/api/portal/") ||
+		strings.HasPrefix(path, "/api/storefront") ||
+		strings.HasPrefix(path, "/api/delivery/") ||
+		strings.HasPrefix(path, "/api/updates/") ||
+		strings.HasPrefix(path, "/api/webhook/") ||
+		strings.HasPrefix(path, "/api/license") ||
+		strings.HasPrefix(path, "/api/update/") {
+		return true
+	}
+	return false
+}
 
 // pluginGate builds the per-workspace feature check the gated mux and adapter
 // share. Non-core plugin routes answer 404 when the caller's workspace has the
@@ -21,11 +46,17 @@ import (
 // Stripe webhook and every buyer — payments would stop, quietly, and the failure
 // would surface as missing revenue rather than as an error.
 //
-// What makes it safe is that those routes authenticate themselves (webhook
-// signature, customer session cookie). That is an implicit contract with every
-// public plugin route, so it is pinned by TestPluginGateDoesNotGateAnonymous.
+// Instance-level administration routes (e.g. /api/sso/instance/*) and public
+// entrypoints also return scoped=false because they are deployment-wide or
+// host trust decisions rather than properties of the caller's current workspace.
 func (a *App) pluginGate(apiHandler interface{ PluginEnabled(uint, string) bool }) func(*http.Request, string) (allowed, scoped bool) {
 	return func(r *http.Request, featureKey string) (allowed, scoped bool) {
+		if r == nil {
+			return false, false
+		}
+		if isNonWorkspaceRoute(r.URL.Path) {
+			return false, false
+		}
 		oid := a.auth.OrgID(r)
 		if oid == 0 {
 			return false, false // no workspace in session (webhooks, portal) → not gated

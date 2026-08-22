@@ -52,9 +52,54 @@ func TestPluginGateDoesNotGateAnonymous(t *testing.T) {
 	}
 }
 
+// TestPluginGateDoesNotGateInstanceOrPublicRoutes pins that instance-level
+// administration routes and public entrypoints are not gated by whichever workspace
+// the caller's session happens to be parked on.
+func TestPluginGateDoesNotGateInstanceOrPublicRoutes(t *testing.T) {
+	a := &App{auth: auth.New(&config.Config{}, &crypto.Cipher{})}
+	stub := &stubPluginEnabled{answer: false} // workspace toggle is OFF
+	gate := a.pluginGate(stub)
+
+	paths := []string{
+		"/api/sso/instance/approvals",
+		"/api/sso/instance/approvals/2",
+		"/api/infra/storage-instance/1",
+		"/api/infra/storage-instance/1/objects",
+		"/api/instance/menus",
+		"/api/sso/login",
+		"/api/sso/acme/login",
+		"/api/sso/acme/callback",
+		"/api/customer/me",
+		"/api/portal/licenses",
+		"/api/storefront",
+		"/api/storefront/pro",
+		"/api/delivery/pkg",
+		"/api/updates/app/latest",
+		"/api/webhook/cloud/stripe",
+		"/api/license",
+		"/api/update/status",
+	}
+
+	for _, path := range paths {
+		stub.askedOK = false
+		r := httptest.NewRequest(http.MethodGet, path, nil)
+		r = r.WithContext(auth.WithOrgID(r.Context(), 7)) // session org is 7
+
+		allowed, scoped := gate(r, "sso")
+		if scoped {
+			t.Errorf("path %s reported as workspace-scoped: instance/public routes must not 404 based on session workspace", path)
+		}
+		if allowed {
+			t.Errorf("path %s reported allowed=true; non-scoped should express 'not scoped'", path)
+		}
+		if stub.askedOK {
+			t.Errorf("path %s consulted per-workspace toggle", path)
+		}
+	}
+}
+
 // TestPluginGateGatesWorkspaceRequests is the other half: once a workspace IS
-// resolved, the toggle decides. Without this, a gate that returned
-// (false, false) unconditionally would satisfy the test above.
+// resolved for a workspace-scoped route, the toggle decides.
 func TestPluginGateGatesWorkspaceRequests(t *testing.T) {
 	a := &App{auth: auth.New(&config.Config{}, &crypto.Cipher{})}
 
