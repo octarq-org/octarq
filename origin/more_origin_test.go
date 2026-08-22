@@ -242,4 +242,3 @@ func TestClearSharedHostsCacheAndResolver(t *testing.T) {
 		t.Fatalf("expected new shared host to match shared2.example.com, got %q %v", h, ok)
 	}
 }
-
