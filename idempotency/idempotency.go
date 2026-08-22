@@ -65,8 +65,8 @@ type Record struct {
 	// could not be captured" (too large, or streamed). Replaying an
 	// uncaptured response as an empty body would hand the client a wrong
 	// answer, so that case is reported instead — see replay.
-	BodyStored   bool   `gorm:"not null;default:0"`
-	ResponseBody []byte `gorm:"type:blob"`
+	BodyStored   bool `gorm:"not null;default:0"`
+	ResponseBody []byte
 	CreatedAt    time.Time
 	ExpiresAt    time.Time `gorm:"index;not null"`
 }

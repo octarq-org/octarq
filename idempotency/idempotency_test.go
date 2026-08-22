@@ -467,3 +467,19 @@ func TestHumaMiddlewareIdempotency(t *testing.T) {
 		t.Errorf("expected %s header = true, got %q", HeaderReplayed, w2.Header().Get(HeaderReplayed))
 	}
 }
+
+// TestRecordSchemaIsPortableToPostgres ensures ResponseBody does not carry an explicit
+// gorm:"type:blob" tag, which causes PostgreSQL migrations to fail with
+// ERROR: type "blob" does not exist (SQLSTATE 42704).
+func TestRecordSchemaIsPortableToPostgres(t *testing.T) {
+	_, gdb := newStore(t)
+	stmt := &gorm.Statement{DB: gdb}
+	if err := stmt.Parse(&Record{}); err != nil {
+		t.Fatalf("parse Record schema: %v", err)
+	}
+	for _, f := range stmt.Schema.Fields {
+		if strings.EqualFold(string(f.DataType), "blob") {
+			t.Errorf("field %s has explicit blob data type; GORM must use default []byte mapping so Postgres migrates as bytea", f.Name)
+		}
+	}
+}

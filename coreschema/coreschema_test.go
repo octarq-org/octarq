@@ -59,6 +59,21 @@ func TestModelsMigrate(t *testing.T) {
 	}
 }
 
+func TestModelsPortableToPostgres(t *testing.T) {
+	db := migrated(t)
+	for _, model := range coreschema.Models() {
+		stmt := &gorm.Statement{DB: db}
+		if err := stmt.Parse(model); err != nil {
+			t.Fatalf("parse model %T: %v", model, err)
+		}
+		for _, f := range stmt.Schema.Fields {
+			if strings.EqualFold(string(f.DataType), "blob") {
+				t.Errorf("model %s field %s has explicit blob data type; GORM must use default []byte mapping so Postgres migrates as bytea", stmt.Schema.Name, f.Name)
+			}
+		}
+	}
+}
+
 func TestCheckMirrorAcceptsSubset(t *testing.T) {
 	if err := coreschema.CheckMirror(migrated(t), goodMirror{}); err != nil {
 		t.Fatalf("a mirror declaring a subset of real columns should pass: %v", err)

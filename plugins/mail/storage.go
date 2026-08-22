@@ -13,7 +13,7 @@ import (
 // MailRawBlob stores raw email RFC822 blobs in the database when using DB storage.
 type MailRawBlob struct {
 	Key       string    `gorm:"primaryKey;size:255" json:"key"`
-	Data      []byte    `gorm:"type:blob" json:"-"`
+	Data      []byte    `json:"-"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
