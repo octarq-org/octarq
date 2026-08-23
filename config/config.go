@@ -148,11 +148,17 @@ func env(key, def string) string {
 	return def
 }
 
-// loadDotEnv reads KEY=VALUE pairs from a .env file (if present) into the
-// process environment. Existing environment variables always win, so explicit
-// env overrides the file. Missing file is not an error. Supports blank lines,
+// LoadDotEnv reads KEY=VALUE pairs from a .env file into the process
+// environment. Existing environment variables always win, so explicit env
+// overrides the file. A missing file is not an error. Supports blank lines,
 // "#" comments (whole-line and trailing on unquoted values), an optional
 // "export " prefix, and single/double quoted values.
+//
+// Downstream binaries that need env vars (license keys, vendor URLs) before
+// config.Load() — which runs inside app.New() — should call this first.
+func LoadDotEnv(path string) error { return loadDotEnv(path) }
+
+// loadDotEnv is the implementation behind LoadDotEnv.
 func loadDotEnv(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
