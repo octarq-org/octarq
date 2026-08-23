@@ -221,8 +221,8 @@ KEY4=value4 # another comment
 	os.Unsetenv("KEY3")
 	os.Unsetenv("KEY4")
 
-	if err := loadDotEnv(tmpfile.Name()); err != nil {
-		t.Fatalf("loadDotEnv: %v", err)
+	if err := LoadDotEnv(tmpfile.Name()); err != nil {
+		t.Fatalf("LoadDotEnv: %v", err)
 	}
 
 	if os.Getenv("KEY1") != "value1" {
