@@ -104,10 +104,14 @@ export default function DomainsPage() {
 
   async function toggleService(domain: Domain, field: "forLink" | "forMail") {
     const current = field === "forLink" ? domain.forLink : domain.forMail;
-    await dnsApi.updateDomain(domain.id, { [field]: !current });
-    loadMore(true);
-    if (active && active !== "new" && active.id === domain.id) {
-      setActive({ ...active, [field]: !current });
+    try {
+      const res = await dnsApi.updateDomain(domain.id, { [field]: !current });
+      loadMore(true);
+      if (active && active !== "new" && active.id === domain.id) {
+        setActive(res || { ...active, [field]: !current });
+      }
+    } catch (e: any) {
+      toast.error(e.message || t("domains.updateFailed"));
     }
   }
 
@@ -294,11 +298,19 @@ export default function DomainsPage() {
                 <h3 className="mb-4 text-sm font-semibold text-foreground/80 uppercase tracking-wider">{t("domains.managedHosts")}</h3>
                 <DomainHostManager
                   domain={active}
-                  onReload={async () => {
+                  onReload={async (updatedDomain?: Domain) => {
                     loadMore(true);
-                    const res = await api.domains({ q: active.name, limit: 1, offset: 0 });
-                    const updated = res.find(d => d.id === active.id);
-                    if (updated) setActive(updated);
+                    if (updatedDomain) {
+                      setActive(updatedDomain);
+                    } else {
+                      try {
+                        const res = await api.domains({ q: active.name, limit: 50, offset: 0 });
+                        const updated = res.find(d => d.id === active.id);
+                        if (updated) setActive(updated);
+                      } catch {
+                        /* ignore background reload error */
+                      }
+                    }
                   }}
                 />
               </GlassCard>
