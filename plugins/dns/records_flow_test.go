@@ -166,7 +166,7 @@ func TestRecordsScopedToCallersOrg(t *testing.T) {
 	ctx := context.Background()
 	admin := mkCtx("admin")
 
-	// Org 1 reaching org 2's domain id: every record operation is refused and
+	// Org 1 reaching org 2's domain id: every record operation is refused with 404 Not Found and
 	// the fake provider is never touched.
 	for name, f := range map[string]func() error{
 		"list": func() error { _, err := p.listRecords(ctx, &ListRecordsInput{Ctx: admin, ID: other.ID}); return err },
@@ -183,8 +183,11 @@ func TestRecordsScopedToCallersOrg(t *testing.T) {
 			return err
 		},
 	} {
-		if err := f(); err == nil {
+		err := f()
+		if err == nil {
 			t.Errorf("%s on another org's domain succeeded", name)
+		} else if st := statusOf(t, err); st != http.StatusNotFound {
+			t.Errorf("%s on another org's domain returned status %d, want 404", name, st)
 		}
 	}
 	if len(fake.created)+len(fake.updated)+len(fake.deleted) != 0 {
@@ -193,12 +196,25 @@ func TestRecordsScopedToCallersOrg(t *testing.T) {
 	_ = myDom
 
 	// A domain with no zone id is refused before touching the provider.
-	noZone := Domain{OrgID: 1, Name: "nozone.example.com", ProviderAccountID: 0}
+	noZoneAcc := ProviderAccount{OrgID: 1, Name: "nozone-acc", Type: provName, Config: "{}"}
+	if err := p.db.Create(&noZoneAcc).Error; err != nil {
+		t.Fatal(err)
+	}
+	noZone := Domain{OrgID: 1, Name: "nozone.example.com", ProviderAccountID: noZoneAcc.ID, ZoneID: ""}
 	if err := p.db.Create(&noZone).Error; err != nil {
 		t.Fatal(err)
 	}
-	if _, err := p.createRecord(ctx, &CreateRecordInput{Ctx: admin, ID: noZone.ID, Body: dnsprovider.Record{Type: "A", Name: "x", Content: "1.1.1.1"}}); err == nil {
-		t.Error("createRecord on a domain with no zone id must be refused")
+	if _, err := p.listRecords(ctx, &ListRecordsInput{Ctx: admin, ID: noZone.ID}); statusOf(t, err) != http.StatusBadRequest {
+		t.Errorf("listRecords on a domain with no zone id must return 400, got %v", err)
+	}
+	if _, err := p.createRecord(ctx, &CreateRecordInput{Ctx: admin, ID: noZone.ID, Body: dnsprovider.Record{Type: "A", Name: "x", Content: "1.1.1.1"}}); statusOf(t, err) != http.StatusBadRequest {
+		t.Errorf("createRecord on a domain with no zone id must return 400, got %v", err)
+	}
+	if _, err := p.updateRecord(ctx, &UpdateRecordInput{Ctx: admin, ID: noZone.ID, RID: "r", Body: dnsprovider.Record{Type: "A", Name: "x", Content: "1.1.1.1"}}); statusOf(t, err) != http.StatusBadRequest {
+		t.Errorf("updateRecord on a domain with no zone id must return 400, got %v", err)
+	}
+	if _, err := p.deleteRecord(ctx, &DeleteRecordInput{Ctx: admin, ID: noZone.ID, RID: "r"}); statusOf(t, err) != http.StatusBadRequest {
+		t.Errorf("deleteRecord on a domain with no zone id must return 400, got %v", err)
 	}
 }
 

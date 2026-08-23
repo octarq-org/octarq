@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -63,7 +64,13 @@ func (p *Plugin) listRecords(ctx context.Context, input *ListRecordsInput) (*Lis
 	}
 	prov, dom, err := p.recordsProvider(r, input.ID)
 	if err != nil {
+		if errors.Is(err, errNotFound) {
+			return nil, huma.Error404NotFound("domain not found")
+		}
 		return nil, huma.Error400BadRequest(err.Error())
+	}
+	if dom.ZoneID == "" {
+		return nil, huma.Error400BadRequest("this domain has no Zone ID — sync from Cloudflare or set it in the domain settings")
 	}
 	recs, err := prov.ListRecords(r.Context(), dom.ZoneID)
 	if err != nil {
@@ -100,6 +107,9 @@ func (p *Plugin) createRecord(ctx context.Context, input *CreateRecordInput) (*C
 	}
 	prov, dom, err := p.recordsProvider(r, input.ID)
 	if err != nil {
+		if errors.Is(err, errNotFound) {
+			return nil, huma.Error404NotFound("domain not found")
+		}
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 	if dom.ZoneID == "" {
@@ -144,7 +154,13 @@ func (p *Plugin) updateRecord(ctx context.Context, input *UpdateRecordInput) (*U
 	}
 	prov, dom, err := p.recordsProvider(r, input.ID)
 	if err != nil {
+		if errors.Is(err, errNotFound) {
+			return nil, huma.Error404NotFound("domain not found")
+		}
 		return nil, huma.Error400BadRequest(err.Error())
+	}
+	if dom.ZoneID == "" {
+		return nil, huma.Error400BadRequest("this domain has no Zone ID — sync from Cloudflare or set it in the domain settings")
 	}
 	rec := input.Body
 	rec.ID = input.RID
@@ -186,7 +202,13 @@ func (p *Plugin) deleteRecord(ctx context.Context, input *DeleteRecordInput) (*D
 	}
 	prov, dom, err := p.recordsProvider(r, input.ID)
 	if err != nil {
+		if errors.Is(err, errNotFound) {
+			return nil, huma.Error404NotFound("domain not found")
+		}
 		return nil, huma.Error400BadRequest(err.Error())
+	}
+	if dom.ZoneID == "" {
+		return nil, huma.Error400BadRequest("this domain has no Zone ID — sync from Cloudflare or set it in the domain settings")
 	}
 	if err := prov.DeleteRecord(r.Context(), dom.ZoneID, input.RID); err != nil {
 		return nil, p.providerErr("delete record", err)
