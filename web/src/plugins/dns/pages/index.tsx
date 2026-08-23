@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { api, Domain, HostEntry, ProviderAccount } from "../../../api";
 import { dnsApi, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus } from "../api";
 import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast, confirmDialog } from "../../../ui";
-import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
+import { Globe, RefreshCw, Plus, Trash2, ArrowLeft, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud, Settings, Layers, ListChecks, Server } from "lucide-react";
 import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
 import { DnsHostRow, LinkHostRow, LinkHostGuide } from "./dnsStatus";
@@ -16,6 +16,8 @@ import { usePluginGate } from "../../PluginGate";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 import { ListSkeleton } from "../../../components/ListSkeleton";
 
+type DomainSubTab = "records" | "routing" | "verification" | "settings";
+
 export default function DomainsPage() {
   const { role, isInstanceAdmin } = useCurrentRole();
   const canDeleteDomain = roleSatisfies("admin", role, isInstanceAdmin);
@@ -23,9 +25,10 @@ export default function DomainsPage() {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [accounts, setAccounts] = useState<ProviderAccount[]>([]);
   const [active, setActive] = useState<Domain | "new" | null>(null);
+  const [activeSubTab, setActiveSubTab] = useState<DomainSubTab>("records");
   const [syncing, setSyncing] = useState(false);
   const [q, setQ] = useState("");
-  const [tab, setTab] = useState<'domains' | 'ddns' | 'settings'>('domains');
+  const [tab, setTab] = useState<"domains" | "ddns" | "settings">("domains");
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
@@ -50,11 +53,12 @@ export default function DomainsPage() {
     setDnsStatus(null);
   }, [active]);
 
-  async function verifyDns() {
-    if (!active || active === "new") return;
+  async function verifyDns(targetDomain?: Domain) {
+    const dom = targetDomain || (typeof active === "object" && active !== null ? active : null);
+    if (!dom) return;
     setVerifying(true);
     try {
-      const res = await dnsApi.verifyDNS(active.id);
+      const res = await dnsApi.verifyDNS(dom.id);
       setDnsStatus(res);
     } catch (e: any) {
       toast.error(e.message || t("domains.verifyFailed"));
@@ -77,6 +81,11 @@ export default function DomainsPage() {
 
       setDomains(prev => reset ? res : [...prev, ...res]);
       setPage(reset ? 1 : page + 1);
+
+      if (active && active !== "new") {
+        const refreshed = res.find(d => d.id === active.id);
+        if (refreshed) setActive(refreshed);
+      }
     } catch (e: any) {
       if (e.status === 404 || e.status === 402) {
         pluginGate.degrade(e.status);
@@ -87,28 +96,36 @@ export default function DomainsPage() {
   }
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       loadMore(true);
     }, 200);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [q]);
 
   useEffect(() => {
     api.providerAccounts().then(setAccounts).catch(() => setAccounts([]));
   }, []);
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop <= e.currentTarget.clientHeight + 100;
-    if (bottom) loadMore();
-  };
-
   async function toggleService(domain: Domain, field: "forLink" | "forMail") {
     const current = field === "forLink" ? domain.forLink : domain.forMail;
-    await dnsApi.updateDomain(domain.id, { [field]: !current });
-    loadMore(true);
-    if (active && active !== "new" && active.id === domain.id) {
-      setActive({ ...active, [field]: !current });
+    try {
+      const res = await dnsApi.updateDomain(domain.id, { [field]: !current });
+      loadMore(true);
+      if (active && active !== "new" && active.id === domain.id) {
+        setActive(res || { ...active, [field]: !current });
+      }
+    } catch (e: any) {
+      toast.error(e.message || t("domains.updateFailed"));
     }
+  }
+
+  const linkCount = useMemo(() => domains.filter(d => d.forLink).length, [domains]);
+  const mailCount = useMemo(() => domains.filter(d => d.forMail).length, [domains]);
+
+  function getProviderName(dom: Domain) {
+    if (!dom.providerAccountId) return t("domains.providerManual");
+    const acc = accounts.find(a => a.id === dom.providerAccountId);
+    return acc ? `${acc.name} (${acc.type})` : t("domains.provider");
   }
 
   return (
@@ -122,7 +139,7 @@ export default function DomainsPage() {
               <RefreshCw className="h-3.5 w-3.5" />
               {t("domains.syncCloudflare")}
             </Button>
-            <Button variant="primary" onClick={() => setActive("new")} className="gap-1.5 py-1.5 text-xs">
+            <Button variant="primary" onClick={() => { setActive("new"); }} className="gap-1.5 py-1.5 text-xs">
               <Plus className="h-3.5 w-3.5" />
               {t("domains.addDomain")}
             </Button>
@@ -132,134 +149,90 @@ export default function DomainsPage() {
 
       <div className="flex gap-0 border-b border-foreground/[0.06] mb-6 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <button
-          onClick={() => setTab('domains')}
+          onClick={() => { setTab("domains"); }}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap ${
-            tab === 'domains'
-              ? 'border-primary text-foreground'
-              : 'border-transparent text-foreground/45 hover:text-foreground/70'
+            tab === "domains"
+              ? "border-primary text-foreground"
+              : "border-transparent text-foreground/45 hover:text-foreground/70"
           }`}
         >
           {t("domains.tabDns")}
         </button>
         <button
-          onClick={() => setTab('ddns')}
+          onClick={() => { setTab("ddns"); }}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-            tab === 'ddns'
-              ? 'border-primary text-foreground'
-              : 'border-transparent text-foreground/45 hover:text-foreground/70'
+            tab === "ddns"
+              ? "border-primary text-foreground"
+              : "border-transparent text-foreground/45 hover:text-foreground/70"
           }`}
         >
           {t("domains.tabDdns")}
         </button>
         <button
-          onClick={() => setTab('settings')}
+          onClick={() => { setTab("settings"); }}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
-            tab === 'settings'
-              ? 'border-primary text-foreground'
-              : 'border-transparent text-foreground/45 hover:text-foreground/70'
+            tab === "settings"
+              ? "border-primary text-foreground"
+              : "border-transparent text-foreground/45 hover:text-foreground/70"
           }`}
         >
           {t("domains.tabSettings")}
         </button>
       </div>
 
-      {tab === 'domains' && (
-
-      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 min-h-0 items-start">
-        {/* Left list column */}
-        <div className="flex flex-col min-h-0 w-full">
-          <div className="mb-3">
-            <input
-              className="input w-full"
-              placeholder={t("domains.searchDomains")}
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-          </div>
-          <GlassCard className="overflow-hidden">
-            {domains.length === 0 && loading ? (
-              <ListSkeleton rows={7} ariaLabel={t("domains.loading")} />
-            ) : (
-            <div className="overflow-y-auto max-h-[600px] divide-y divide-foreground/[0.04]" onScroll={handleScroll}>
-              {domains.length === 0 ? (
-                q ? (
-                  <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
-                    <p className="text-sm text-foreground/60">
-                      {t("domains.emptyFilteredReason")} <span className="font-mono text-foreground/80">{`“${q}”`}</span>
-                    </p>
-                    <Button variant="ghost" className="text-xs py-1.5" onClick={() => setQ("")}>
-                      {t("domains.emptyFilteredAction")}
-                    </Button>
-                  </div>
-                ) : (
-                  null // no-domains empty state lives in the right column's guide card
-                )
-              ) : (
-                <>
-                  {domains.map((d) => (
-                    <div
-                      key={d.id}
-                      className={`flex w-full flex-col p-4 text-left hover:bg-foreground/[0.03] transition-colors cursor-pointer ${
-                        active !== "new" && active?.id === d.id ? "bg-foreground/[0.05]" : ""
-                      }`}
-                      onClick={() => setActive(d)}
-                    >
-                      <div className="flex items-center justify-between w-full gap-2">
-                        <span className="font-mono font-semibold text-sm truncate flex-1 text-foreground">{d.name}</span>
-                        <div className="flex gap-2 shrink-0">
-                          <button
-                            className="p-1 hover:bg-foreground/10 rounded transition-colors"
-                            title={t("domains.toggleLinkRouting")}
-                            onClick={(e) => { e.stopPropagation(); toggleService(d, "forLink"); }}
-                          >
-                            <LinkIcon className={`h-3.5 w-3.5 ${d.forLink ? "text-accent-fg" : "text-foreground/20"}`} />
-                          </button>
-                          <button
-                            className="p-1 hover:bg-foreground/10 rounded transition-colors"
-                            title={t("domains.toggleMailRouting")}
-                            onClick={(e) => { e.stopPropagation(); toggleService(d, "forMail"); }}
-                          >
-                            <Mail className={`h-3.5 w-3.5 ${d.forMail ? "text-success-fg" : "text-foreground/20"}`} />
-                          </button>
-                        </div>
-                      </div>
-                      {d.note && <div className="truncate text-[11px] text-warning-fg/70 mt-1.5 font-medium">📝 {d.note}</div>}
-                    </div>
-                  ))}
-                  {loading && <div className="p-3 text-center text-xs text-foreground/40">{t("domains.loading")}</div>}
-                </>
-              )}
-            </div>
-            )}
-          </GlassCard>
-        </div>
-
-        {/* Right content column */}
-        <div className="w-full space-y-5">
+      {tab === "domains" && (
+        <>
           {active === "new" ? (
-            <GlassCard className="p-5">
-              <h2 className="mb-4 text-lg font-bold text-foreground flex items-center gap-2">
-                <Globe className="h-5 w-5 text-accent-fg" />
-                {t("domains.addDomainZone")}
-              </h2>
-              <DomainEditorForm
-                domain={null}
-                accounts={accounts}
-                onCancel={() => setActive(null)}
-                onSaved={(savedDomain) => {
-                  loadMore(true);
-                  setActive(savedDomain || null);
-                }}
-              />
-            </GlassCard>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" className="gap-1.5 text-xs py-1.5" onClick={() => setActive(null)}>
+                  <ArrowLeft className="h-4 w-4" />
+                  {t("domains.backToDomains")}
+                </Button>
+              </div>
+              <GlassCard className="p-6">
+                <h2 className="mb-4 text-lg font-bold text-foreground flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-accent-fg" />
+                  {t("domains.addDomainZone")}
+                </h2>
+                <DomainEditorForm
+                  domain={null}
+                  accounts={accounts}
+                  onCancel={() => setActive(null)}
+                  onSaved={(savedDomain) => {
+                    loadMore(true);
+                    setActive(savedDomain || null);
+                    setActiveSubTab("records");
+                  }}
+                />
+              </GlassCard>
+            </div>
           ) : active ? (
+            /* Dedicated Domain Detail Workspace */
             <div className="space-y-6">
-              <GlassCard className="p-5">
-                <div className="flex justify-between items-center mb-5 border-b border-foreground/[0.06] pb-4">
-                  <h2 className="font-mono text-xl font-bold text-foreground flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-foreground/[0.06]">
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="subtle"
+                    className="gap-1.5 text-xs py-1.5 px-3"
+                    onClick={() => {
+                      setActive(null);
+                      setDnsStatus(null);
+                    }}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    {t("domains.backToDomains")}
+                  </Button>
+                  <div className="flex items-center gap-2">
                     <Globe className="h-5 w-5 text-accent-fg" />
-                    {active.name}
-                  </h2>
+                    <h2 className="font-mono text-xl font-bold text-foreground">{active.name}</h2>
+                    <Badge tone="neutral" className="text-xs font-mono ml-1">
+                      {getProviderName(active)}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
                   {canDeleteDomain && (
                     <Button
                       variant="danger"
@@ -270,93 +243,184 @@ export default function DomainsPage() {
                           loadMore(true);
                         }
                       }}
-                      className="py-1 px-2.5 text-xs border-0"
+                      className="py-1 px-3 text-xs"
                     >
                       <Trash2 className="h-3.5 w-3.5 mr-1" />
                       {t("domains.delete")}
                     </Button>
                   )}
                 </div>
-                
-                <DomainEditorForm
-                  key={active.id}
-                  domain={active}
-                  accounts={accounts}
-                  onCancel={() => setActive(null)}
-                  onSaved={(d) => {
-                    if (d) setActive(d);
-                    loadMore(true);
-                  }}
-                />
-              </GlassCard>
-              
-              <GlassCard className="p-5">
-                <h3 className="mb-4 text-sm font-semibold text-foreground/80 uppercase tracking-wider">{t("domains.managedHosts")}</h3>
-                <DomainHostManager
-                  domain={active}
-                  onReload={async () => {
-                    loadMore(true);
-                    const res = await api.domains({ q: active.name, limit: 1, offset: 0 });
-                    const updated = res.find(d => d.id === active.id);
-                    if (updated) setActive(updated);
-                  }}
-                />
-              </GlassCard>
+              </div>
 
-              <GlassCard className="p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-foreground/80 uppercase tracking-wider">{t("domains.dnsSetupVerification")}</h3>
-                  <Button 
-                    variant="subtle" 
-                    onClick={verifyDns}
-                    disabled={verifying}
-                    className="text-xs py-1 px-2.5"
-                  >
-                    {verifying ? t("domains.verifying") : t("domains.verifyDnsSetup")}
-                  </Button>
-                </div>
-                <p className="text-xs text-foreground/50 leading-relaxed">
-                  {t("domains.verificationHint")}
-                </p>
-                {dnsStatus === null ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                    {(["SPF", "DKIM", "DMARC"] as const).map((label) => (
-                      <div key={label} className="flex flex-col items-center p-3.5 rounded-xl bg-foreground/[0.02] border border-foreground/[0.04]">
-                        <span className="text-[10px] uppercase font-bold text-foreground/40 tracking-wider">{t("domains.statusLabel", { label })}</span>
-                        <div className="mt-2"><Badge tone="neutral">{t("domains.unknown")}</Badge></div>
-                      </div>
-                    ))}
+              {/* Sub Navigation Tabs */}
+              <div className="flex gap-2 border-b border-foreground/[0.06] overflow-x-auto [scrollbar-width:none]">
+                <button
+                  type="button"
+                  onClick={() => setActiveSubTab("records")}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                    activeSubTab === "records"
+                      ? "border-primary text-foreground font-semibold"
+                      : "border-transparent text-foreground/50 hover:text-foreground/80"
+                  }`}
+                >
+                  <Layers className="h-4 w-4 text-accent-fg" />
+                  {t("domains.domainRecords")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveSubTab("routing")}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                    activeSubTab === "routing"
+                      ? "border-primary text-foreground font-semibold"
+                      : "border-transparent text-foreground/50 hover:text-foreground/80"
+                  }`}
+                >
+                  <LinkIcon className="h-4 w-4 text-accent-fg" />
+                  {t("domains.domainRouting")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveSubTab("verification")}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                    activeSubTab === "verification"
+                      ? "border-primary text-foreground font-semibold"
+                      : "border-transparent text-foreground/50 hover:text-foreground/80"
+                  }`}
+                >
+                  <ShieldCheck className="h-4 w-4 text-success-fg" />
+                  {t("domains.domainHealth")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveSubTab("settings")}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                    activeSubTab === "settings"
+                      ? "border-primary text-foreground font-semibold"
+                      : "border-transparent text-foreground/50 hover:text-foreground/80"
+                  }`}
+                >
+                  <Settings className="h-4 w-4 text-foreground/60" />
+                  {t("domains.domainSettings")}
+                </button>
+              </div>
+
+              {/* Sub-tab 1: DNS Records */}
+              {activeSubTab === "records" && (
+                <GlassCard className="p-6">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-semibold text-foreground">{t("domains.dnsRecords")}</h3>
+                      <p className="text-xs text-foreground/50">{t("domains.pageDescription")}</p>
+                    </div>
                   </div>
-                ) : (
-                  <div className="space-y-4 pt-2">
-                    <div className="space-y-3">
-                      <span className="text-[10px] uppercase font-bold text-foreground/50 tracking-wider">{t("domains.mailHosts")}</span>
-                      {(dnsStatus.hosts?.length
-                        ? dnsStatus.hosts
-                        : [{ host: active.name, spf: dnsStatus.spf, dmarc: dnsStatus.dmarc, dkim: dnsStatus.dkim }]
-                      ).map((host) => (
-                        <DnsHostRow key={host.host} host={host} />
+                  <RecordsView domain={active} />
+                </GlassCard>
+              )}
+
+              {/* Sub-tab 2: Subdomain Routing */}
+              {activeSubTab === "routing" && (
+                <GlassCard className="p-6 space-y-5">
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground">{t("domains.managedHosts")}</h3>
+                    <p className="text-xs text-foreground/50 mt-1">
+                      {t("domains.syncToggleHint")}
+                    </p>
+                  </div>
+                  <DomainHostManager
+                    domain={active}
+                    onReload={async (updatedDomain?: Domain) => {
+                      loadMore(true);
+                      if (updatedDomain) {
+                        setActive(updatedDomain);
+                      } else {
+                        try {
+                          const res = await api.domains({ q: active.name, limit: 50, offset: 0 });
+                          const updated = res.find(d => d.id === active.id);
+                          if (updated) setActive(updated);
+                        } catch {
+                          /* ignore reload error */
+                        }
+                      }
+                    }}
+                  />
+                </GlassCard>
+              )}
+
+              {/* Sub-tab 3: Health & Verification */}
+              {activeSubTab === "verification" && (
+                <GlassCard className="p-6 space-y-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-foreground">{t("domains.dnsSetupVerification")}</h3>
+                      <p className="text-xs text-foreground/50 mt-1 leading-relaxed">
+                        {t("domains.verificationHint")}
+                      </p>
+                    </div>
+                    <Button
+                      variant="primary"
+                      onClick={() => verifyDns(active)}
+                      disabled={verifying}
+                      className="text-xs py-1.5 px-3.5 gap-1.5"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${verifying ? "animate-spin" : ""}`} />
+                      {verifying ? t("domains.verifying") : t("domains.verifyDnsSetup")}
+                    </Button>
+                  </div>
+
+                  {dnsStatus === null ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                      {(["SPF", "DKIM", "DMARC"] as const).map((label) => (
+                        <div key={label} className="flex flex-col items-center p-4 rounded-xl bg-well border border-foreground/[0.05]">
+                          <span className="text-xs uppercase font-bold text-foreground/45 tracking-wider">{t("domains.statusLabel", { label })}</span>
+                          <div className="mt-2"><Badge tone="neutral">{t("domains.unknown")}</Badge></div>
+                        </div>
                       ))}
                     </div>
-                    {!!dnsStatus.links?.length && (
-                      <div className="space-y-2">
-                        <span className="text-[10px] uppercase font-bold text-foreground/50 tracking-wider">{t("domains.shortLinkHosts")}</span>
-                        {dnsStatus.links.map((lh) => (
-                          <LinkHostRow key={lh.host} link={lh} />
+                  ) : (
+                    <div className="space-y-5 pt-2">
+                      <div className="space-y-3">
+                        <span className="text-xs uppercase font-bold text-foreground/50 tracking-wider">{t("domains.mailHosts")}</span>
+                        {(dnsStatus.hosts?.length
+                          ? dnsStatus.hosts
+                          : [{ host: active.name, spf: dnsStatus.spf, dmarc: dnsStatus.dmarc, dkim: dnsStatus.dkim }]
+                        ).map((host) => (
+                          <DnsHostRow key={host.host} host={host} />
                         ))}
                       </div>
-                    )}
-                  </div>
-                )}
-                <LinkHostGuide apex={active.name} />
-              </GlassCard>
+                      {!!dnsStatus.links?.length && (
+                        <div className="space-y-3">
+                          <span className="text-xs uppercase font-bold text-foreground/50 tracking-wider">{t("domains.shortLinkHosts")}</span>
+                          {dnsStatus.links.map((lh) => (
+                            <LinkHostRow key={lh.host} link={lh} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <LinkHostGuide apex={active.name} />
+                </GlassCard>
+              )}
 
-              <GlassCard className="p-5">
-                <h3 className="mb-4 text-sm font-semibold text-foreground/80 uppercase tracking-wider">{t("domains.dnsRecords")}</h3>
-                <RecordsView domain={active} />
-              </GlassCard>
+              {/* Sub-tab 4: Domain Settings */}
+              {activeSubTab === "settings" && (
+                <GlassCard className="p-6">
+                  <h3 className="text-base font-semibold text-foreground mb-4">{t("domains.domainSettings")}</h3>
+                  <DomainEditorForm
+                    key={active.id}
+                    domain={active}
+                    accounts={accounts}
+                    onCancel={() => setActive(null)}
+                    onSaved={(d) => {
+                      if (d) setActive(d);
+                      loadMore(true);
+                      toast.success(t("domains.saveBasicInfo"));
+                    }}
+                  />
+                </GlassCard>
+              )}
             </div>
           ) : domains.length === 0 && !loading ? (
+            /* Empty state (shared Empty component) */
             <Empty
               reason={t("domains.addFirstDomain")}
               detail={
@@ -379,14 +443,14 @@ export default function DomainsPage() {
                       {t("domains.syncFrom", { name: accounts.length === 1 ? accounts[0].name : t("domains.provider") })}
                     </Button>
                   ) : (
-                    <Button variant="primary" onClick={() => setTab('settings')} className="gap-1.5">
+                    <Button variant="primary" onClick={() => setTab("settings")} className="gap-1.5">
                       <Plus className="h-4 w-4" />
                       {t("domains.connectProvider")}
                     </Button>
                   )}
                   <button
                     onClick={() => setActive("new")}
-                    className="text-xs text-foreground/45 hover:text-foreground/70 underline underline-offset-2 transition-colors"
+                    className="text-xs text-foreground/45 hover:text-foreground/70 underline underline-offset-2 transition-colors cursor-pointer"
                   >
                     {t("domains.orAddManually")}
                   </button>
@@ -398,19 +462,168 @@ export default function DomainsPage() {
               </div>
             </Empty>
           ) : (
-            <GlassCard className="flex flex-col items-center justify-center py-10 px-6 text-center text-foreground/40 border border-foreground/[0.04]/40">
-              <Globe className="h-10 w-10 mb-2 opacity-50 text-accent-fg" />
-              <p className="text-sm">{t("domains.selectDomainHint")}</p>
-            </GlassCard>
-          )}
-        </div>
-      </div>
-      
-      )
-      }
-      {tab === 'ddns' && <DDNSView domains={domains} />}
+            /* Primary Domain Hub (List / Grid View) */
+            <div className="space-y-4">
+              {/* Filter bar and quick stats */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-1 max-w-md">
+                  <input
+                    className="input w-full text-sm"
+                    placeholder={t("domains.searchDomains")}
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                  />
+                  {q && (
+                    <Button variant="ghost" className="text-xs py-1.5" onClick={() => setQ("")}>
+                      {t("domains.emptyFilteredAction")}
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-xs text-foreground/60 font-medium">
+                  <span className="bg-well px-2.5 py-1 rounded-lg border border-foreground/[0.06]">
+                    {t("domains.allDomainsCount", { count: domains.length })}
+                  </span>
+                  <span className="bg-well px-2.5 py-1 rounded-lg border border-foreground/[0.06] text-accent-fg flex items-center gap-1">
+                    <LinkIcon className="h-3 w-3" />
+                    <span>{t("domains.linkEnabledCount", { count: linkCount })}</span>
+                  </span>
+                  <span className="bg-well px-2.5 py-1 rounded-lg border border-foreground/[0.06] text-success-fg flex items-center gap-1">
+                    <Mail className="h-3 w-3" />
+                    <span>{t("domains.mailEnabledCount", { count: mailCount })}</span>
+                  </span>
+                </div>
+              </div>
 
-      {tab === 'settings' && (
+              {loading && domains.length === 0 ? (
+                <ListSkeleton rows={6} ariaLabel={t("domains.loading")} />
+              ) : domains.length === 0 && q ? (
+                <GlassCard className="flex flex-col items-center gap-3 p-8 text-center">
+                  <p className="text-sm text-foreground/60">
+                    {t("domains.emptyFilteredReason")} <span className="font-mono text-foreground/80">{`“${q}”`}</span>
+                  </p>
+                  <Button variant="ghost" className="text-xs py-1.5" onClick={() => setQ("")}>
+                    {t("domains.emptyFilteredAction")}
+                  </Button>
+                </GlassCard>
+              ) : (
+                <div className="grid grid-cols-1 gap-3">
+                  {domains.map((d) => (
+                    <div
+                      key={d.id}
+                      className="glass p-4 rounded-2xl border border-foreground/[0.06] hover:border-foreground/20 transition-all cursor-pointer group"
+                      onClick={() => {
+                        setActive(d);
+                        setActiveSubTab("records");
+                      }}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-10 w-10 rounded-xl bg-accent-soft flex items-center justify-center text-accent-fg shrink-0 group-hover:scale-105 transition-transform">
+                            <Globe className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-base text-foreground truncate">{d.name}</span>
+                              <Badge tone="neutral" className="text-[11px] font-mono shrink-0">
+                                {getProviderName(d)}
+                              </Badge>
+                            </div>
+                            {d.note && (
+                              <div className="truncate text-xs text-foreground/50 mt-1">{d.note}</div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          {/* Service Toggles */}
+                          <div className="flex items-center gap-2 bg-well px-3 py-1.5 rounded-xl border border-foreground/[0.05]">
+                            <button
+                              type="button"
+                              className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
+                                d.forLink
+                                  ? "bg-accent text-accent-fg font-medium"
+                                  : "text-foreground/40 hover:text-foreground/70"
+                              }`}
+                              title={t("domains.toggleLinkRouting")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleService(d, "forLink");
+                              }}
+                            >
+                              <LinkIcon className="h-3 w-3" />
+                              <span>{t("domains.thLink")}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
+                                d.forMail
+                                  ? "bg-success-bg text-success-fg border border-success-border font-medium"
+                                  : "text-foreground/40 hover:text-foreground/70"
+                              }`}
+                              title={t("domains.toggleMailRouting")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleService(d, "forMail");
+                              }}
+                            >
+                              <Mail className="h-3 w-3" />
+                              <span>{t("domains.thMail")}</span>
+                            </button>
+                          </div>
+
+                          {/* Quick Actions */}
+                          <Button
+                            variant="primary"
+                            className="text-xs py-1.5 px-3 gap-1.5"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActive(d);
+                              setActiveSubTab("records");
+                            }}
+                          >
+                            <Layers className="h-3.5 w-3.5" />
+                            {t("domains.manageZone")}
+                          </Button>
+                          <Button
+                            variant="subtle"
+                            className="text-xs py-1.5 px-2.5"
+                            title={t("domains.domainHealth")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActive(d);
+                              setActiveSubTab("verification");
+                              verifyDns(d);
+                            }}
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="subtle"
+                            className="text-xs py-1.5 px-2.5"
+                            title={t("domains.domainSettings")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActive(d);
+                              setActiveSubTab("settings");
+                            }}
+                          >
+                            <Settings className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {loading && <div className="p-3 text-center text-xs text-foreground/40">{t("domains.loading")}</div>}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === "ddns" && <DDNSView domains={domains} />}
+
+      {tab === "settings" && (
         <GlassCard className="p-6">
           <ProviderAccounts />
         </GlassCard>
@@ -429,4 +642,3 @@ export default function DomainsPage() {
     </ScreenWrap>
   );
 }
-

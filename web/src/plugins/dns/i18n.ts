@@ -133,6 +133,9 @@ export const domainsI18n = {
     addShort: "+ add",
     removeHost: "Delete host",
     remove: "Delete",
+    updateFailed: "Failed to update domain",
+    addHostFailed: "Failed to add host",
+    removeHostFailed: "Failed to remove host",
 
     // AddHostRow
     hostDraftPlaceholder: "e.g. blog or cname",
@@ -194,6 +197,18 @@ export const domainsI18n = {
     hintTxt: "text value",
     hintMx: "mail server hostname",
     hintNs: "nameserver hostname",
+
+    // Navigation & Workspace Layout
+    backToDomains: "Back to Domains",
+    domainRecords: "DNS Records",
+    domainRouting: "Routing & Subdomains",
+    domainHealth: "Health & Verification",
+    domainSettings: "Domain Settings",
+    manageZone: "Manage Zone",
+    allDomainsCount: "{{count}} domains",
+    linkEnabledCount: "{{count}} link enabled",
+    mailEnabledCount: "{{count}} mail enabled",
+    providerManual: "Manual / Other",
   },
   zh: {
     _shared: { settings: { pluginDesc: { dns: "跨 Cloudflare 和 DNSPod 管理域名生命周期与 DNS 记录。" } } },
@@ -325,6 +340,9 @@ export const domainsI18n = {
     addShort: "+ 添加",
     removeHost: "删除主机",
     remove: "删除",
+    updateFailed: "更新域名配置失败",
+    addHostFailed: "添加主机失败",
+    removeHostFailed: "删除主机失败",
 
     // AddHostRow
     hostDraftPlaceholder: "例如 blog 或 cname",
@@ -386,6 +404,18 @@ export const domainsI18n = {
     hintTxt: "文本值",
     hintMx: "邮件服务器主机名",
     hintNs: "名称服务器主机名",
+
+    // Navigation & Workspace Layout
+    backToDomains: "返回域名列表",
+    domainRecords: "DNS 记录",
+    domainRouting: "子域名路由",
+    domainHealth: "健康与配置校验",
+    domainSettings: "域名设置",
+    manageZone: "管理区域",
+    allDomainsCount: "{{count}} 个域名",
+    linkEnabledCount: "{{count}} 个短链路由",
+    mailEnabledCount: "{{count}} 个邮件路由",
+    providerManual: "手动 / 其他",
   },
   es: {
     _shared: { settings: { pluginDesc: { dns: "Gestión del ciclo de vida del dominio y registros DNS en Cloudflare y DNSPod." } } },
@@ -493,6 +523,9 @@ export const domainsI18n = {
     addShort: "+ agregar",
     removeHost: "Eliminar host",
     remove: "Eliminar",
+    updateFailed: "Error al actualizar el dominio",
+    addHostFailed: "Error al agregar el host",
+    removeHostFailed: "Error al eliminar el host",
     hostDraftPlaceholder: "ej. blog o cname",
     addHostButton: "+ Agregar host",
     syncDnsZones: "Sincronizar zonas DNS",
@@ -544,6 +577,18 @@ export const domainsI18n = {
     hintTxt: "valor de texto",
     hintMx: "nombre de host del servidor de correo",
     hintNs: "nombre de host del servidor de nombres",
+
+    // Navigation & Workspace Layout
+    backToDomains: "Volver a dominios",
+    domainRecords: "Registros DNS",
+    domainRouting: "Enrutamiento de subdominios",
+    domainHealth: "Salud y verificación",
+    domainSettings: "Configuración de dominio",
+    manageZone: "Gestionar zona",
+    allDomainsCount: "{{count}} dominios",
+    linkEnabledCount: "{{count}} con enlaces",
+    mailEnabledCount: "{{count}} con correo",
+    providerManual: "Manual / Otro",
   },
   pt: {
     _shared: { settings: { pluginDesc: { dns: "Gerenciamento do ciclo de vida do domínio e registros DNS no Cloudflare e DNSPod." } } },
@@ -651,6 +696,9 @@ export const domainsI18n = {
     addShort: "+ adicionar",
     removeHost: "Excluir host",
     remove: "Excluir",
+    updateFailed: "Falha ao atualizar o domínio",
+    addHostFailed: "Falha ao adicionar o host",
+    removeHostFailed: "Falha ao excluir o host",
     hostDraftPlaceholder: "ex: blog ou cname",
     addHostButton: "+ Adicionar host",
     syncDnsZones: "Sincronizar zonas DNS",
@@ -702,6 +750,18 @@ export const domainsI18n = {
     hintTxt: "valor de texto",
     hintMx: "nome de host do servidor de e-mail",
     hintNs: "nome de host do servidor de nomes",
+
+    // Navigation & Workspace Layout
+    backToDomains: "Voltar para domínios",
+    domainRecords: "Registros DNS",
+    domainRouting: "Roteamento de subdomínios",
+    domainHealth: "Saúde e verificação",
+    domainSettings: "Configurações de domínio",
+    manageZone: "Gerenciar zona",
+    allDomainsCount: "{{count}} domínios",
+    linkEnabledCount: "{{count}} com links",
+    mailEnabledCount: "{{count}} com e-mail",
+    providerManual: "Manual / Outro",
   },
   ja: {
     _shared: { settings: { pluginDesc: { dns: "CloudflareおよびDNSPod全体のドメインライフサイクルとDNS管理。" } } },
@@ -809,6 +869,9 @@ export const domainsI18n = {
     addShort: "+ 追加",
     removeHost: "ホストを削除",
     remove: "削除",
+    updateFailed: "ドメインの更新に失敗しました",
+    addHostFailed: "ホストの追加に失敗しました",
+    removeHostFailed: "ホストの削除に失敗しました",
     hostDraftPlaceholder: "例: blog または cname",
     addHostButton: "+ ホストを追加",
     syncDnsZones: "DNS ゾーンを同期",
@@ -860,5 +923,17 @@ export const domainsI18n = {
     hintTxt: "テキスト値",
     hintMx: "メール サーバー ホスト名",
     hintNs: "ネーム サーバー ホスト名",
+
+    // Navigation & Workspace Layout
+    backToDomains: "ドメイン一覧に戻る",
+    domainRecords: "DNS レコード",
+    domainRouting: "サブドメインルーティング",
+    domainHealth: "ヘルスチェックと検証",
+    domainSettings: "ドメイン設定",
+    manageZone: "ゾーンを管理",
+    allDomainsCount: "{{count}} ドメイン",
+    linkEnabledCount: "{{count}} リンク",
+    mailEnabledCount: "{{count}} メール",
+    providerManual: "手動 / その他",
   },
 };
