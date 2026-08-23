@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, Domain, HostEntry, ProviderAccount } from "../../../api";
 import { dnsApi, DNSRecord, DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus } from "../api";
-import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Table, THead, TBody, TR, TH, TD } from "../../../ui";
+import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Table, THead, TBody, TR, TH, TD, toast } from "../../../ui";
 import { Globe, RefreshCw, Plus, Trash2, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud } from "lucide-react";
 import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
 import { mergeHosts } from "./shared";
 
-export function DomainHostManager({ domain, onReload }: { domain: Domain; onReload: () => void }) {
+export function DomainHostManager({ domain, onReload }: { domain: Domain; onReload: (updated?: Domain) => void }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState<string | null>(null);
   const hosts = useMemo(() => mergeHosts(domain), [domain]);
@@ -21,8 +21,10 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
       h.host === hostName ? { ...h, enabled: !currentEnabled } : h,
     );
     try {
-      await dnsApi.updateDomain(domain.id, { [service]: updated });
-      await onReload();
+      const res = await dnsApi.updateDomain(domain.id, { [service]: updated });
+      await onReload(res);
+    } catch (e: any) {
+      toast.error(e.message || t("domains.updateFailed"));
     } finally {
       setBusy(null);
     }
@@ -41,8 +43,10 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
       payload.mailHosts = [...mailHosts, { host: hostName, enabled: true }];
     }
     try {
-      await dnsApi.updateDomain(domain.id, payload);
-      await onReload();
+      const res = await dnsApi.updateDomain(domain.id, payload);
+      await onReload(res);
+    } catch (e: any) {
+      toast.error(e.message || t("domains.addHostFailed"));
     } finally {
       setBusy(null);
     }
@@ -51,11 +55,13 @@ export function DomainHostManager({ domain, onReload }: { domain: Domain; onRelo
   async function removeHost(hostName: string) {
     setBusy(`remove:${hostName}`);
     try {
-      await dnsApi.updateDomain(domain.id, {
+      const res = await dnsApi.updateDomain(domain.id, {
         linkHosts: (domain.linkHosts ?? []).filter((h) => h.host !== hostName),
         mailHosts: (domain.mailHosts ?? []).filter((h) => h.host !== hostName),
       });
-      await onReload();
+      await onReload(res);
+    } catch (e: any) {
+      toast.error(e.message || t("domains.removeHostFailed"));
     } finally {
       setBusy(null);
     }

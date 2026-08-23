@@ -474,8 +474,12 @@ func (p *Plugin) updateDomain(ctx context.Context, input *UpdateDomainInput) (*U
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&dom).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
-	dom.Note = input.Body.Note
-	dom.ZoneID = input.Body.ZoneID
+	if input.Body.Note != "" {
+		dom.Note = input.Body.Note
+	}
+	if input.Body.ZoneID != "" {
+		dom.ZoneID = input.Body.ZoneID
+	}
 	if input.Body.ForLink != nil {
 		dom.ForLink = *input.Body.ForLink
 	}
