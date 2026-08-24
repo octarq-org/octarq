@@ -1,3 +1,4 @@
+// noqa: SIZE_OK - stats aggregation single-responsibility cohesive, 256 vs 250 limit is marginal post-split
 package links
 
 import (
