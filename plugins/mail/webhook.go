@@ -1,3 +1,4 @@
+// debt: oversized 522 → 需拆 parser/verifier/handler
 package mail
 
 import (
@@ -155,27 +156,36 @@ func (p *Plugin) recordInboundAuthFailure(r *http.Request, orgID uint, route str
 	})
 }
 
+func findMultipartField(r *http.Request, names []string) []byte {
+	if r.MultipartForm == nil {
+		return nil
+	}
+	for _, name := range names {
+		if files, ok := r.MultipartForm.File[name]; ok && len(files) > 0 {
+			f, err := files[0].Open()
+			if err == nil {
+				b, readErr := io.ReadAll(io.LimitReader(f, 25<<20))
+				_ = f.Close()
+				if readErr == nil && len(b) > 0 {
+					return b
+				}
+			}
+		}
+	}
+	for _, name := range names {
+		if vals, ok := r.MultipartForm.Value[name]; ok && len(vals) > 0 && vals[0] != "" {
+			return []byte(vals[0])
+		}
+	}
+	return nil
+}
+
 func extractRawEmail(r *http.Request) ([]byte, error) {
 	ct := r.Header.Get("Content-Type")
 	if strings.HasPrefix(strings.ToLower(ct), "multipart/form-data") {
-		if err := r.ParseMultipartForm(25 << 20); err == nil && r.MultipartForm != nil {
-			fieldNames := []string{"email", "raw", "body-mime", "message", "eml", "body"}
-			for _, name := range fieldNames {
-				if files, ok := r.MultipartForm.File[name]; ok && len(files) > 0 {
-					f, err := files[0].Open()
-					if err == nil {
-						b, err := io.ReadAll(io.LimitReader(f, 25<<20))
-						_ = f.Close()
-						if err == nil && len(b) > 0 {
-							return b, nil
-						}
-					}
-				}
-			}
-			for _, name := range fieldNames {
-				if vals, ok := r.MultipartForm.Value[name]; ok && len(vals) > 0 && vals[0] != "" {
-					return []byte(vals[0]), nil
-				}
+		if err := r.ParseMultipartForm(25 << 20); err == nil {
+			if b := findMultipartField(r, []string{"email", "raw", "body-mime", "message", "eml", "body"}); len(b) > 0 {
+				return b, nil
 			}
 		}
 	}

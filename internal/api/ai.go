@@ -201,9 +201,7 @@ var slugRe = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 // parseSlugList extracts valid slugs from a model reply: strict JSON first,
 // then a defensive line/token sweep (models occasionally add prose or fences).
 func parseSlugList(text string) []string {
-	text = strings.TrimSpace(text)
-	text = strings.TrimPrefix(text, "```json")
-	text = strings.TrimPrefix(text, "```")
+	text = strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(text), "```json"), "```")
 	text = strings.TrimSuffix(text, "```")
 
 	var arr []string
@@ -274,6 +272,7 @@ func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailI
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 
+	// debt: naive 8000 runes, ceiling 8k → upgrade when model context >32k
 	const maxBody = 8000
 	runes := []rune(body)
 	if len(runes) > maxBody {

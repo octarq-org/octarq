@@ -1,3 +1,4 @@
+// debt: oversized 453 → 需拆 lifecycle/storage/purge
 package mail
 
 import (
@@ -227,22 +228,23 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 }
 
 func (p *Plugin) getStorageProvider() (plugin.StorageProvider, error) {
+	var sp plugin.StorageProvider
+	if p.ctx != nil {
+		if found, ok := plugin.LookupAs[plugin.StorageProvider](p.ctx, plugin.ServiceMailStorageProvider); ok && found != nil {
+			sp = found
+		}
+	}
+
 	backend := p.getBackendConfig()
 	if backend != "" && backend != "database" && backend != "db" {
-		if p.ctx != nil {
-			if sp, ok := plugin.LookupAs[plugin.StorageProvider](p.ctx, plugin.ServiceMailStorageProvider); ok && sp != nil {
-				if _, isDB := sp.(*DBStorageProvider); !isDB {
-					return sp, nil
-				}
-			}
+		if _, isDB := sp.(*DBStorageProvider); sp != nil && !isDB {
+			return sp, nil
 		}
 		return nil, fmt.Errorf("mail storage provider %q requires Pro edition", backend)
 	}
 
-	if p.ctx != nil {
-		if sp, ok := plugin.LookupAs[plugin.StorageProvider](p.ctx, plugin.ServiceMailStorageProvider); ok && sp != nil {
-			return sp, nil
-		}
+	if sp != nil {
+		return sp, nil
 	}
 	return NewDBStorageProvider(p.db), nil
 }
@@ -321,7 +323,6 @@ func (p *Plugin) purge(orgID uint) error {
 		}
 	}
 
-	p.db.Where("mailbox_id IN (?)", mailboxIDs).Delete(&Email{})
 	p.db.Where("owner_id = ?", orgID).Delete(&Mailbox{})
 	p.db.Where("owner_id = ?", orgID).Delete(&SMTPSender{})
 	p.db.Where("owner_id = ?", orgID).Delete(&MailSuppression{})

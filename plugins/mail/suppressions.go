@@ -54,6 +54,8 @@ type CreateSuppressionOutput struct {
 	Body MailSuppression
 }
 
+const suppressionManual = "manual"
+
 func (p *Plugin) createSuppression(ctx context.Context, input *CreateSuppressionInput) (*CreateSuppressionOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
@@ -71,21 +73,22 @@ func (p *Plugin) createSuppression(ctx context.Context, input *CreateSuppression
 		return nil, huma.Error400BadRequest("address must be a full email")
 	}
 
+	now := time.Now()
 	item := MailSuppression{
 		OrgID:     orgID,
 		Address:   addr,
-		Reason:    "manual",
-		Source:    "manual",
+		Reason:    suppressionManual,
+		Source:    suppressionManual,
 		Count:     1,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 	err := p.db.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "owner_id"}, {Name: "address"}},
 		DoUpdates: clause.Assignments(map[string]any{
-			"reason":     "manual",
-			"source":     "manual",
-			"updated_at": time.Now(),
+			"reason":     suppressionManual,
+			"source":     suppressionManual,
+			"updated_at": now,
 		}),
 	}).Create(&item).Error
 	if err != nil {
@@ -93,7 +96,7 @@ func (p *Plugin) createSuppression(ctx context.Context, input *CreateSuppression
 	}
 
 	if p.audit != nil {
-		p.audit(r, "suppression.create", "suppression", item.ID, map[string]any{"address": item.Address, "reason": "manual"})
+		p.audit(r, "suppression.create", "suppression", item.ID, map[string]any{"address": item.Address, "reason": suppressionManual})
 	}
 	return &CreateSuppressionOutput{Body: item}, nil
 }

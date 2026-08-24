@@ -1,3 +1,4 @@
+// debt: oversized 728 → 需拆 engine/redirect/click
 // Package links resolves slugs to targets, records click events
 // asynchronously, and renders the password gate when a link is protected.
 package links
@@ -303,6 +304,9 @@ func (e *Engine) flushBatch(batch []clickItem) {
 	}
 }
 
+// clickLimitCacheTTL: clickLimit 生效需 5s 过期，防超发
+const clickLimitCacheTTL = 5 * time.Second
+
 // Lookup finds an enabled, non-archived link for (host, slug), preferring an
 // exact host match and falling back to a host-agnostic link. Expiry and click
 // limits are evaluated in Handle so an expired link can still honor ExpiredURL.
@@ -347,7 +351,7 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 	if e.ctx != nil && e.ctx.CacheSet != nil {
 		ttl := time.Hour
 		if link.ClickLimit > 0 {
-			ttl = 5 * time.Second
+			ttl = clickLimitCacheTTL
 		}
 		_ = e.ctx.CacheSet(ctx, cacheKey, &link, ttl)
 	}
