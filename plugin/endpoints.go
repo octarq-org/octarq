@@ -3,7 +3,9 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -82,6 +84,18 @@ func (s EndpointSpec[In, Out]) EndpointRequireRole() []string { return s.Require
 func (s EndpointSpec[In, Out]) EndpointExposeMCP() bool       { return s.ExposeMCP }
 func (s EndpointSpec[In, Out]) Spec() any                     { return s }
 
+// Validate verifies the declarative contract for the endpoint.
+// It checks that Name is non-empty and Path starts with "/api".
+func (s EndpointSpec[In, Out]) Validate() error {
+	if s.Name == "" {
+		return errors.New("endpoint name cannot be empty")
+	}
+	if !strings.HasPrefix(s.Path, "/api") {
+		return errors.New("endpoint path must start with /api")
+	}
+	return nil
+}
+
 func (s EndpointSpec[In, Out]) Execute(ctx context.Context, input any) (any, error) {
 	if s.Handler == nil {
 		return nil, fmt.Errorf("no handler configured for endpoint %q", s.Name)
@@ -111,6 +125,9 @@ type httpBodyOutput[T any] struct {
 func (s EndpointSpec[In, Out]) RegisterHTTP(api huma.API, opts HTTPOptions) error {
 	if api == nil {
 		return nil
+	}
+	if err := s.Validate(); err != nil {
+		return err
 	}
 	op := huma.Operation{
 		Method:      s.EndpointMethod(),

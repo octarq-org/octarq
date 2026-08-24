@@ -3,8 +3,11 @@ package plugin_test
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/plugin"
 )
 
@@ -112,5 +115,83 @@ func TestRegisterEndpoint_NilContext(t *testing.T) {
 	}
 	if registered == nil {
 		t.Errorf("expected spec to be passed to RegisterEndpoint")
+	}
+}
+
+func TestEndpointSpec_Validate(t *testing.T) {
+	// 1. Valid /api/links
+	specValid := plugin.EndpointSpec[echoIn, echoOut]{
+		Name: "valid_endpoint",
+		Path: "/api/links",
+	}
+	if err := specValid.Validate(); err != nil {
+		t.Errorf("expected valid for /api/links, got: %v", err)
+	}
+
+	// 2. Valid /api (bare prefix boundary)
+	specBare := plugin.EndpointSpec[echoIn, echoOut]{
+		Name: "bare_api",
+		Path: "/api",
+	}
+	if err := specBare.Validate(); err != nil {
+		t.Errorf("expected valid for /api, got: %v", err)
+	}
+
+	// 3. Empty Name
+	specEmptyName := plugin.EndpointSpec[echoIn, echoOut]{
+		Name: "",
+		Path: "/api/links",
+	}
+	if err := specEmptyName.Validate(); err == nil {
+		t.Errorf("expected error for empty name, got nil")
+	}
+
+	// 4. Invalid Path /foo
+	specInvalidPath := plugin.EndpointSpec[echoIn, echoOut]{
+		Name: "invalid_path",
+		Path: "/foo",
+	}
+	if err := specInvalidPath.Validate(); err == nil {
+		t.Errorf("expected error for path /foo, got nil")
+	}
+}
+
+func TestEndpointSpec_RegisterHTTP_RejectsInvalid(t *testing.T) {
+	// When api == nil, RegisterHTTP returns nil without checking Validate
+	specInvalid := plugin.EndpointSpec[echoIn, echoOut]{
+		Name: "invalid",
+		Path: "/foo",
+	}
+	if err := specInvalid.RegisterHTTP(nil, plugin.HTTPOptions{}); err != nil {
+		t.Errorf("expected nil error when api is nil, got: %v", err)
+	}
+
+	router := http.NewServeMux()
+	api := humago.New(router, huma.DefaultConfig("Test API", "1.0.0"))
+
+	// Invalid Path: must fail and not register
+	if err := specInvalid.RegisterHTTP(api, plugin.HTTPOptions{}); err == nil {
+		t.Error("expected error when registering endpoint with invalid path /foo, got nil")
+	}
+
+	// Empty Name: must fail and not register
+	specEmptyName := plugin.EndpointSpec[echoIn, echoOut]{
+		Name: "",
+		Path: "/api/test",
+	}
+	if err := specEmptyName.RegisterHTTP(api, plugin.HTTPOptions{}); err == nil {
+		t.Error("expected error when registering endpoint with empty name, got nil")
+	}
+
+	// Valid endpoint: succeeds
+	specValid := plugin.EndpointSpec[echoIn, echoOut]{
+		Name: "valid",
+		Path: "/api/test-valid",
+		Handler: func(ctx context.Context, input echoIn) (*echoOut, error) {
+			return &echoOut{Reply: "ok"}, nil
+		},
+	}
+	if err := specValid.RegisterHTTP(api, plugin.HTTPOptions{}); err != nil {
+		t.Errorf("expected nil error for valid endpoint registration, got: %v", err)
 	}
 }
