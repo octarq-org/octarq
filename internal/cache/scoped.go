@@ -29,6 +29,11 @@ func NewScoped(backend Cache, prefix string) plugin.ScopedCache {
 	}
 }
 
+// NewMemoryScoped creates an in-memory ScopedCache.
+func NewMemoryScoped() plugin.ScopedCache {
+	return NewScoped(NewMemoryCache(10000), "")
+}
+
 func (s *ScopedCache) fullKey(key string) string {
 	return s.prefix + key
 }

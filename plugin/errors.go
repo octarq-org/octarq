@@ -30,6 +30,41 @@ func (e *AgentError) Error() string {
 	return e.Message
 }
 
+// HTTPStatus returns the target HTTP status code for the AgentError.
+func (e *AgentError) HTTPStatus() int {
+	if e == nil {
+		return 0
+	}
+	return e.HTTPCode
+}
+
+// Problem represents an RFC 7807 Problem Details object with Agent-Native extensions.
+type Problem struct {
+	Type      string `json:"type"`
+	Title     string `json:"title"`
+	Detail    string `json:"detail"`
+	Status    int    `json:"status"`
+	Code      string `json:"code"`
+	Guidance  string `json:"agent_guidance"`
+	Retryable bool   `json:"retryable"`
+}
+
+// ToProblem maps the AgentError to an RFC 7807 Problem Details object.
+func (e *AgentError) ToProblem(instance string) *Problem {
+	if e == nil {
+		return nil
+	}
+	return &Problem{
+		Type:      instance,
+		Title:     e.Code,
+		Detail:    e.Message,
+		Status:    e.HTTPCode,
+		Code:      e.Code,
+		Guidance:  e.AgentGuidance,
+		Retryable: e.Retryable,
+	}
+}
+
 // NewAgentError constructs a new AgentError.
 func NewAgentError(httpCode int, code, message, guidance string, retryable bool) *AgentError {
 	return &AgentError{
