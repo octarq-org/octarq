@@ -1,3 +1,4 @@
+// debt: oversized 684 → 需拆 CRUD/handlers
 package links
 
 import (
@@ -563,6 +564,16 @@ func (p *Plugin) deleteLink(ctx context.Context, input *DeleteLinkInput) (*Delet
 	return &DeleteLinkOutput{Body: map[string]bool{"ok": true}}, nil
 }
 
+func quotaErrorToHTTP(err error, metric string) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, plugin.ErrQuotaUnavailable) {
+		return huma.Error402PaymentRequired(metric + " is not included in this plan")
+	}
+	return huma.Error429TooManyRequests(metric + " quota exceeded for this workspace")
+}
+
 // checkQuota asks the (hosted-only) quota checker whether the org may consume
 // n more of a metered resource, and maps a refusal to the HTTP error a client
 // should see. An exhausted allowance is a 429; a capability the plan simply
@@ -572,10 +583,7 @@ func (p *Plugin) deleteLink(ctx context.Context, input *DeleteLinkInput) (*Delet
 // point.
 func (p *Plugin) checkQuota(ctx context.Context, orgID uint, metric string, n int64) error {
 	if err := plugin.CheckQuota(p.ctx, ctx, orgID, metric, n); err != nil {
-		if errors.Is(err, plugin.ErrQuotaUnavailable) {
-			return huma.Error402PaymentRequired(metric + " is not included in this plan")
-		}
-		return huma.Error429TooManyRequests(metric + " quota exceeded for this workspace")
+		return quotaErrorToHTTP(err, metric)
 	}
 	return nil
 }

@@ -26,6 +26,32 @@ func isAWSSNSURL(u string) bool {
 	return strings.HasPrefix(host, "sns.") && strings.HasSuffix(host, ".amazonaws.com")
 }
 
+func normalizeBounceType(rawType, details string) string {
+	switch {
+	case strings.EqualFold(rawType, "permanent"):
+		return "Permanent"
+	case strings.EqualFold(rawType, "transient"), strings.EqualFold(rawType, "temporary"):
+		return "Transient"
+	case rawType != "" && !strings.EqualFold(rawType, "bounce"):
+		return rawType
+	}
+	if strings.HasPrefix(details, "5.") || strings.Contains(details, "550") {
+		return "Permanent"
+	}
+	return rawType
+}
+
+func normalizeEvent(rawEvent string) string {
+	ev := strings.ToLower(strings.TrimSpace(rawEvent))
+	if strings.Contains(ev, "bounce") || ev == "dropped" || ev == "failed" {
+		return "bounce"
+	}
+	if strings.Contains(ev, "complain") || ev == "spamreport" {
+		return "complaint"
+	}
+	return ""
+}
+
 func extractBounceEvents(body []byte) []bounceEvent {
 	var events []bounceEvent
 
@@ -91,35 +117,22 @@ func extractBounceEvents(body []byte) []bounceEvent {
 					details = msg
 				}
 			}
-			if ev == "failed" || ev == "complained" {
-				var finalEv string
-				if ev == "failed" {
-					finalEv = "bounce"
-				} else {
-					finalEv = "complaint"
-				}
-				var bType string
-				if sev, ok := edVal["severity"].(string); ok {
-					if strings.EqualFold(sev, "permanent") {
-						bType = "Permanent"
-					} else if strings.EqualFold(sev, "temporary") {
-						bType = "Transient"
-					}
-				}
-				if recipient != "" {
-					results = append(results, bounceEvent{
-						Email:      recipient,
-						Event:      finalEv,
-						BounceType: bType,
-						Details:    details,
-					})
-					return results
-				}
+			finalEv := normalizeEvent(ev)
+			if finalEv != "" && recipient != "" {
+				sev, _ := edVal["severity"].(string)
+				bType := normalizeBounceType(sev, details)
+				results = append(results, bounceEvent{
+					Email:      recipient,
+					Event:      finalEv,
+					BounceType: bType,
+					Details:    details,
+				})
+				return results
 			}
 		}
 
 		// 3. SendGrid / Generic Format
-		var email, event, details, bType string
+		var email, rawEvent, details, rawType string
 		for _, key := range []string{"email", "recipient", "address", "rcpt"} {
 			if eVal, ok := m[key].(string); ok && eVal != "" {
 				email = eVal
@@ -128,7 +141,7 @@ func extractBounceEvents(body []byte) []bounceEvent {
 		}
 		for _, key := range []string{"event", "eventType"} {
 			if eVal, ok := m[key].(string); ok && eVal != "" {
-				event = eVal
+				rawEvent = eVal
 				break
 			}
 		}
@@ -140,25 +153,12 @@ func extractBounceEvents(body []byte) []bounceEvent {
 		}
 		for _, key := range []string{"bounceType", "bounce_type", "type", "severity"} {
 			if btVal, ok := m[key].(string); ok && btVal != "" {
-				if strings.EqualFold(btVal, "permanent") {
-					bType = "Permanent"
-				} else if strings.EqualFold(btVal, "transient") || strings.EqualFold(btVal, "temporary") {
-					bType = "Transient"
-				} else {
-					bType = btVal
-				}
+				rawType = btVal
 				break
 			}
 		}
-		if (bType == "" || strings.EqualFold(bType, "bounce")) && (strings.HasPrefix(details, "5.") || strings.Contains(details, "550")) {
-			bType = "Permanent"
-		}
-		event = strings.ToLower(event)
-		if strings.Contains(event, "bounce") || event == "dropped" || event == "failed" {
-			event = "bounce"
-		} else if strings.Contains(event, "complaint") || event == "spamreport" {
-			event = "complaint"
-		}
+		bType := normalizeBounceType(rawType, details)
+		event := normalizeEvent(rawEvent)
 
 		if email != "" && event != "" {
 			results = append(results, bounceEvent{

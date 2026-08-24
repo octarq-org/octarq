@@ -32,10 +32,19 @@ func forgetOrigin(names ...string) {
 	}
 }
 
+func isAuthError(lower string) bool {
+	for _, term := range []string{"token", "auth", "credential", "permission", "unauthorized", "401", "403"} {
+		if strings.Contains(lower, term) {
+			return true
+		}
+	}
+	return false
+}
+
 func cleanProviderError(errStr string) string {
 	lower := strings.ToLower(errStr)
 	switch {
-	case strings.Contains(lower, "token"), strings.Contains(lower, "auth"), strings.Contains(lower, "credential"), strings.Contains(lower, "permission"), strings.Contains(lower, "unauthorized"), strings.Contains(lower, "401"), strings.Contains(lower, "403"):
+	case isAuthError(lower):
 		return "authentication failed — check your API token or credentials"
 	// Absence is matched before existence: "does not exist" contains "exist",
 	// so a bare "exist" test would report a missing record as a duplicate.

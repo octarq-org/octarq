@@ -1,3 +1,4 @@
+// debt: oversized 557 → 需拆 mailbox/email/storage
 package mail
 
 import (
@@ -14,6 +15,11 @@ import (
 	"github.com/emersion/go-message/mail"
 	"github.com/octarq-org/octarq/plugin"
 )
+
+type cntRow struct {
+	MailboxID uint
+	Cnt       int64
+}
 
 type ListMailboxesInput struct {
 	Ctx huma.Context `hidden:"true"`
@@ -42,10 +48,6 @@ func (p *Plugin) listMailboxes(ctx context.Context, input *ListMailboxesInput) (
 		ids := make([]uint, 0, len(boxes))
 		for _, b := range boxes {
 			ids = append(ids, b.ID)
-		}
-		type cntRow struct {
-			MailboxID uint
-			Cnt       int64
 		}
 		var rows []cntRow
 		p.db.Model(&Email{}).Select("mailbox_id, count(*) as cnt").Where("mailbox_id IN ? AND read = ?", ids, false).Group("mailbox_id").Find(&rows)
@@ -185,12 +187,12 @@ func (p *Plugin) deleteMailbox(ctx context.Context, input *DeleteMailboxInput) (
 	if !p.hasRole(r, "admin") {
 		return nil, huma.Error403Forbidden("forbidden: admin role required to delete mailbox")
 	}
+	var emails []Email
+	p.db.Where("mailbox_id = ?", input.ID).Find(&emails)
 	res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&Mailbox{})
 	if res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}
-	var emails []Email
-	p.db.Where("mailbox_id = ?", input.ID).Find(&emails)
 	ctx = plugin.WithOrgID(ctx, p.orgID(r))
 	storageProv, _ := p.getStorageProvider()
 	dbProv := NewDBStorageProvider(p.db)
@@ -372,6 +374,28 @@ func (i *RawEmailInput) Resolve(ctx huma.Context) []error {
 	return nil
 }
 
+func (p *Plugin) loadRawEmail(ctx context.Context, e *Email) []byte {
+	if len(e.Raw) > 0 {
+		return e.Raw
+	}
+	key := e.StorageKey
+	if key == "" {
+		var mb Mailbox
+		_ = p.db.First(&mb, e.MailboxID).Error
+		key = fmt.Sprintf("mail/%d/%d.eml", mb.OrgID, e.ID)
+	}
+	if storageProv, err := p.getStorageProvider(); err == nil {
+		if data, getErr := storageProv.Get(ctx, key); getErr == nil {
+			return data
+		}
+	}
+	dbProv := NewDBStorageProvider(p.db)
+	if data, getErr := dbProv.Get(ctx, key); getErr == nil {
+		return data
+	}
+	return nil
+}
+
 // rawEmail streams the original RFC822 message as a downloadable .eml file.
 func (p *Plugin) rawEmail(ctx context.Context, input *RawEmailInput) (*struct{}, error) {
 	if input.Ctx == nil {
@@ -388,26 +412,7 @@ func (p *Plugin) rawEmail(ctx context.Context, input *RawEmailInput) (*struct{},
 		return nil, huma.Error404NotFound("not found")
 	}
 
-	rawBytes := e.Raw
-	if len(rawBytes) == 0 {
-		key := e.StorageKey
-		if key == "" {
-			var mb Mailbox
-			_ = p.db.First(&mb, e.MailboxID).Error
-			key = fmt.Sprintf("mail/%d/%d.eml", mb.OrgID, e.ID)
-		}
-		if storageProv, err := p.getStorageProvider(); err == nil {
-			if data, getErr := storageProv.Get(ctx, key); getErr == nil {
-				rawBytes = data
-			}
-		}
-		if len(rawBytes) == 0 {
-			dbProv := NewDBStorageProvider(p.db)
-			if data, getErr := dbProv.Get(ctx, key); getErr == nil {
-				rawBytes = data
-			}
-		}
-	}
+	rawBytes := p.loadRawEmail(ctx, &e)
 
 	w.Header().Set("Content-Type", "message/rfc822")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"email-%d.eml\"", e.ID))
@@ -452,26 +457,7 @@ func (p *Plugin) getAttachment(ctx context.Context, input *GetAttachmentInput) (
 		return nil, huma.Error404NotFound("attachment not found")
 	}
 	meta := atts[input.Index]
-	rawBytes := e.Raw
-	if len(rawBytes) == 0 {
-		key := e.StorageKey
-		if key == "" {
-			var mb Mailbox
-			_ = p.db.First(&mb, e.MailboxID).Error
-			key = fmt.Sprintf("mail/%d/%d.eml", mb.OrgID, e.ID)
-		}
-		if storageProv, err := p.getStorageProvider(); err == nil {
-			if data, getErr := storageProv.Get(ctx, key); getErr == nil {
-				rawBytes = data
-			}
-		}
-		if len(rawBytes) == 0 {
-			dbProv := NewDBStorageProvider(p.db)
-			if data, getErr := dbProv.Get(ctx, key); getErr == nil {
-				rawBytes = data
-			}
-		}
-	}
+	rawBytes := p.loadRawEmail(ctx, &e)
 	if len(rawBytes) > 0 {
 		if data, fname, ctype, err := extractAttachment(rawBytes, input.Index); err == nil && data != nil {
 			if fname != "" {
