@@ -37,6 +37,11 @@ func NewMemoryCache(maxEntries int) *MemoryCache {
 	}
 }
 
+// NewMemory creates a default in-memory Cache.
+func NewMemory() Cache {
+	return NewMemoryCache(10000)
+}
+
 func (m *MemoryCache) IsRedis() bool {
 	return false
 }
