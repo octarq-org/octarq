@@ -2,9 +2,8 @@
 //
 // The document is generated from the live handler registrations (see package
 // openapi), so it describes exactly what the binary serves. This tool composes
-// the open-source Core plugin set only — the authoritative published spec for a
-// commercial deployment is produced by `octarq-pro openapi`, which composes the
-// Pro plugins on top.
+// the open-source Core plugin set only — a distribution composing extra plugins
+// can generate its spec via that distribution's openapi command.
 //
 // CI regenerates website/public/openapi.json with `go run . openapi` and fails
 // the build when the committed artifact differs, so this is also the command to

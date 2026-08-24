@@ -29,7 +29,7 @@ func canonicalSet() map[string]bool {
 }
 
 // TestCanonicalMetricNames pins the constants to the metric names the quota
-// side (octarq-pro pkg/quota metricNames) enforces: clicks, mailOut, mailIn,
+// side (downstream quota metricNames) enforces: clicks, mailOut, mailIn,
 // plus mail.raw_bytes which has no quota consumer yet. Changing a constant's
 // value so it no longer matches this set is a regression.
 func TestCanonicalMetricNames(t *testing.T) {

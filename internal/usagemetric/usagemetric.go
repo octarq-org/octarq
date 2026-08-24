@@ -3,7 +3,7 @@
 // these constants, never a hand-written literal.
 //
 // The other half of the equation is the quota side, which decides which
-// metrics are actually enforced. It lives in octarq-pro's pkg/quota
+// metrics are actually enforced. It lives in downstream quota packages
 // (metricNames) and maps quota keys to the same strings:
 //
 //	clicksPerMonth  -> "clicks"

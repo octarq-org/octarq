@@ -1,8 +1,8 @@
 package api
 
 // Member-removal hook tests. Removing a member must notify registered plugins
-// so they can clean their own per-member state (e.g. octarq-pro's
-// OrgMemberRole rows) instead of letting it silently survive a re-invite.
+// so they can clean their own per-member state (e.g. downstream
+// member role rows) instead of letting it silently survive a re-invite.
 // The notification is best-effort and must never affect the removal request:
 // a hook failure or panic cannot turn a successful removal into an error.
 

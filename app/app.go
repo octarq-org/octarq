@@ -1,11 +1,11 @@
 // Package app is the public composition root for octarq. It wires config, the
 // database, auth, the core API, the short-link redirector and the embedded
-// dashboard into one HTTP server — and lets external (Pro) modules extend it
+// dashboard into one HTTP server — and lets external modules extend it
 // through the plugin package without forking.
 //
 // This is the importable seam of the Core-as-Library split: the open-core
-// binary (cmd in this repo) calls New().Run() with no plugins; the private
-// octarq-core consumer calls Use() for each Pro plugin before Run().
+// binary (cmd in this repo) calls New().Run() with no plugins; a downstream
+// distribution calls Use() for each extra plugin before Run().
 //
 // AutoMigrate timing: New() opens the database but does NOT migrate. Run()
 // collects core models plus every registered plugin's Models() and migrates
@@ -126,8 +126,8 @@ func New() (*App, error) {
 		telemetry: tel,
 	}
 	// Composition is the caller's job: New() mounts no feature plugins. Each
-	// entry point (octarq/main.go, octarq-pro's main, a trimmed edition) Uses the
-	// plugins it wants — Core plugins the same way Pro plugins are added, via
+	// entry point (octarq/main.go, a downstream distribution's main, a trimmed edition) Uses the
+	// plugins it wants — Core plugins the same way extra plugins are added, via
 	// a.Use. The OSS default set is plugins/builtin.Default(); see
 	// website/src/content/docs/architecture/overview.md.
 	return a, nil

@@ -39,8 +39,8 @@ func TestLoadHelpDocsFrontmatterOverridesSlug(t *testing.T) {
 	}
 }
 
-// A page with no frontmatter at all is the shape most of octarq-pro's module
-// docs shipped in, so it must degrade to something serveable rather than an
+// A page with no frontmatter at all is a shape that can occur in downstream
+// module docs, so it must degrade to something serveable rather than an
 // untitled ghost entry.
 func TestLoadHelpDocsBareMarkdownFallsBackToFileName(t *testing.T) {
 	docs := docsFor(t, fstest.MapFS{
@@ -87,7 +87,7 @@ func TestLoadHelpDocsDottedNameIsNotATranslation(t *testing.T) {
 }
 
 // Subdirectories organise files without appearing in any URL, and .md/.mdx are
-// interchangeable — octarq-pro writes .md, the OSS plugins write .mdx.
+// interchangeable — downstream plugins can write .md, while core plugins write .mdx.
 func TestLoadHelpDocsWalksSubdirectoriesAndBothExtensions(t *testing.T) {
 	docs := docsFor(t, fstest.MapFS{
 		"docs/top.mdx":              {Data: []byte("---\ntitle: Top\n---\na")},

@@ -220,9 +220,9 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 			return err
 		}
 		// Per-workspace rows that plugins keep in the shared `settings` table,
-		// namespaced "org_<id>." — Pro's billing, ai and finance all store the
+		// namespaced "org_<id>." — downstream billing, ai and finance all store the
 		// workspace's payment and LLM credentials there (the key templates live in
-		// octarq-pro's pkg/pay). Nothing else in this transaction reaches them:
+		// downstream packages). Nothing else in this transaction reaches them:
 		// they are neither WorkspaceSetting nor owned by any plugin table, so a
 		// purged workspace left its Stripe secret, webhook secret and LLM keys
 		// behind, and a recycled org id would inherit them.

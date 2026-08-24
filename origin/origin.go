@@ -21,7 +21,7 @@
 // own — rows in the domains table, which the dns plugin only writes after the
 // operator has attached the zone to a provider account they hold credentials
 // for. An unrecognised Host selects nothing. This mirrors, and is the shared
-// implementation for, octarq-pro's pkg/baseurl: exact hostname matching against
+// implementation for, downstream baseurl resolution: exact hostname matching against
 // registered names and parsed host lists, never a substring scan over the raw
 // JSON column, where one org's hostname can appear inside another's.
 //

@@ -431,13 +431,13 @@ func (m *docsFSPlugin) Models() []any                             { return nil }
 func (m *docsFSPlugin) Mount(mux plugin.Mux, ctx *plugin.Context) {}
 func (m *docsFSPlugin) HelpDocsFS() fs.FS                         { return m.fsys }
 
-// TestSameNamedPluginsKeepTheirOwnDocs covers the case that broke the Pro build:
-// two mounted plugins answering the same Name(). That is deliberate there — the
-// OSS help plugin and octarq-pro's help module are two halves of one feature and
-// share a feature key so one toggle governs both — so the docs cache must not
-// treat the name as an identity. When it did, the second half read back the
-// first half's pages: every OSS doc was served twice (the duplicate shadow-
-// renamed to help-<slug> by the slug dedup) and the Pro-only page vanished.
+// TestSameNamedPluginsKeepTheirOwnDocs covers the case of two mounted plugins
+// answering the same Name(). That is deliberate — the core help plugin and a
+// downstream help module can be two halves of one feature and share a feature
+// key so one toggle governs both — so the docs cache must not treat the name as
+// an identity. When it did, the second half read back the first half's pages:
+// every core doc was served twice (the duplicate shadow-renamed to help-<slug> by
+// the slug dedup) and the downstream-only page vanished.
 func TestSameNamedPluginsKeepTheirOwnDocs(t *testing.T) {
 	page := func(slug, title string) *fstest.MapFile {
 		return &fstest.MapFile{Data: []byte("---\ntitle: " + title + "\n---\n\nbody\n")}

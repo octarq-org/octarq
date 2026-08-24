@@ -14,8 +14,8 @@ import (
 )
 
 // WithWebFS overrides the embedded open-source dashboard with a caller-supplied
-// filesystem. The commercial build (octarq-pro) uses this to serve a dashboard
-// built with its plugin pages injected (VITE_OCTARQ_PLUGINS=pro) instead of the
+// filesystem. A distribution composing extra plugins uses this to serve a dashboard
+// built with those pages injected (VITE_OCTARQ_PLUGINS=...) instead of the
 // core's OSS bundle, whose empty plugin registry 404-degrades those pages. Pass
 // an fs.FS rooted where the core's webembed.FS() would be (index.html at root).
 func (a *App) WithWebFS(f fs.FS) *App { a.webFS = f; return a }

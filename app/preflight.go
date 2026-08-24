@@ -144,13 +144,13 @@ func preflightDependencies(plugins []plugin.Plugin) error {
 
 // thirdPartyNamespace is the path prefix reserved for out-of-tree plugins:
 // /api/x/{plugin}/…  Everything under it belongs to the named plugin and can
-// never collide with a core or Pro route, which is the point — an in-tree
+// never collide with an in-tree route, which is the point — an in-tree
 // module is free to claim a new bare noun later without breaking somebody's
 // third-party build.
 const thirdPartyNamespace = "/api/x/"
 
 // firstPartyModulePrefix identifies plugins shipped by the project itself
-// (octarq core plugins and octarq-pro modules) by their Go package path. Only
+// (octarq core plugins and official modules) by their Go package path. Only
 // plugins from outside it are held to the namespace convention: the in-tree
 // paths (/api/domains, /api/emails, /api/products …) predate the rule and are
 // deliberately left alone.

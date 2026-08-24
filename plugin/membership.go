@@ -19,7 +19,7 @@ import (
 // event, and a hook is free to do nothing). A plugin MUST NOT base an
 // authorization decision on having — or not having — received this hook.
 // Authorization must live-read org_members on every request, exactly like
-// the resolver in octarq-pro#305 does; this hook is for cleaning up state,
+// the membership resolver in downstream distributions does; this hook is for cleaning up state,
 // never for deciding who may act.
 type MemberRemovedHook func(orgID, userID uint)
 

@@ -63,7 +63,7 @@ func TestHasPermFailClosedWhenNil(t *testing.T) {
 }
 
 // TestPermSerializesTheNamesTheMatrixReads pins the exact JSON tag names expected
-// by the Pro roles matrix UI.
+// by downstream roles matrix UI.
 func TestPermSerializesTheNamesTheMatrixReads(t *testing.T) {
 	p := plugin.Perm{
 		Key:      "dns.records.delete",

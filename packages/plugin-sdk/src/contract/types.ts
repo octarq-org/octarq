@@ -1,5 +1,5 @@
 // The frontend plugin contract — the UI analog of the Go `plugin.Plugin`
-// interface. A commercial or third-party plugin ships a module conforming to
+// interface. A downstream or third-party plugin ships a module conforming to
 // `UIPlugin`; the app composes it into the route/menu/i18n registry AT BUILD
 // TIME (the app's main.tsx imports its always-on core plugins from
 // plugins/core, then the `#octarq-plugins` module generated from the plugin
@@ -130,8 +130,8 @@ export interface UIPlugin {
   i18n?: PluginI18n;
   lockedFallback?: LockedFallback;
   // Names of other UIPlugins this plugin replaces — the plugin-market
-  // "enhanced edition" seam: a commercial plugin supersedes the OSS/vanilla
-  // plugin that delivers the same feature under a different name (e.g. a Pro
+  // "enhanced edition" seam: a downstream plugin supersedes the default
+  // plugin that delivers the same feature under a different name (e.g. an enhanced
   // audit page with filtering, pagination, and CSV export replacing core's
   // basic audit page). Each named plugin is excluded WHOLESALE from the
   // composed app: its routes, widgets, areas, and i18n ALL stop applying —
