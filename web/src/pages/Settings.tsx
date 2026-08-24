@@ -30,6 +30,7 @@ export default function SettingsPage() {
             basename (R4) — old paths redirect with a full page navigation. */}
         <Route path="/instance/*" element={<InstanceExitRedirect />} />
         <Route path="/auth" element={<InstanceExitRedirect to="/instance/auth" />} />
+        <Route path="/link-settings" element={<InstanceExitRedirect to="/instance/link-settings" />} />
         {/* Account panels (per-user) — same /settings space, no separate /personal tree. */}
         <Route path="/profile" element={<ProfileSettings />} />
         <Route path="/security" element={<SecuritySettings />} />

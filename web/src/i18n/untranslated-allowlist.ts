@@ -43,6 +43,7 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "uiCommon.pluginId", // Loanword standard in PT (Plugin)
 
   // Words with identical spelling in the target language
+  "groups.Personal", // Identical spelling in Spanish (Personal)
   "nav.general", // Identical spelling in Spanish (General)
   "settings.generalTitle", // Identical spelling in Spanish (General)
   "audit.colActor", // Identical spelling in Spanish (Actor)

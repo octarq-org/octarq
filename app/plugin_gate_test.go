@@ -66,6 +66,8 @@ func TestPluginGateDoesNotGateInstanceOrPublicRoutes(t *testing.T) {
 		"/api/infra/storage-instance/1",
 		"/api/infra/storage-instance/1/objects",
 		"/api/instance/menus",
+		"/api/instance-settings",
+		"/api/instance/link-settings",
 		"/api/sso/login",
 		"/api/sso/acme/login",
 		"/api/sso/acme/callback",

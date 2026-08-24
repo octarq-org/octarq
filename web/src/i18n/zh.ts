@@ -108,6 +108,7 @@ export const zh: Resources = {
     Security: "安全",
     System: "系统",
     Account: "账户",
+    Personal: "个人",
     Instance: "实例",
   },
   nav: {

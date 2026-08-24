@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/octarq-org/octarq/plugin"
+	links "github.com/octarq-org/octarq/plugins/links"
 )
 
 // tenantMenuPlugin announces ordinary tenant-scoped sidebar entries, the shape
@@ -87,7 +88,17 @@ func TestTenantMenusNeverExposeInstancePaths(t *testing.T) {
 // member rung is already covered (instance_readiness_test.go:248); the owner
 // rung was not.
 func TestInstanceSettingsRefuseOrgOwner(t *testing.T) {
-	_, srv, db := newTestHandlerWithInstance(t)
+	h, srv, db := newTestHandlerWithInstance(t)
+	linksPlugin := links.New()
+	h.SetPlugins([]plugin.Plugin{linksPlugin})
+	linksPlugin.Mount(nil, &plugin.Context{
+		DB:               db,
+		Huma:             h.Huma(),
+		IsInstanceAdmin:  h.IsInstanceAdmin,
+		RequireRole:      h.RequireRole,
+		GetGlobalSetting: h.GetGlobalSetting,
+		SetGlobalSetting: h.SetGlobalSetting,
+	})
 
 	const org = uint(904)
 	ownerUID := seedOrgMember(t, db, org, "owner@x.com", "owner")
@@ -97,15 +108,24 @@ func TestInstanceSettingsRefuseOrgOwner(t *testing.T) {
 	if rec := do(srv, "GET", "/api/instance-settings", owner, ""); rec.Code != http.StatusForbidden {
 		t.Errorf("org owner GET /api/instance-settings: got %d, want 403", rec.Code)
 	}
+	if rec := do(srv, "GET", "/api/instance/link-settings", owner, ""); rec.Code != http.StatusForbidden {
+		t.Errorf("org owner GET /api/instance/link-settings: got %d, want 403", rec.Code)
+	}
 
 	// PUT: an org owner must not mutate deployment-wide settings.
 	if rec := do(srv, "PUT", "/api/instance-settings", owner, `{"appName":"pwned"}`); rec.Code != http.StatusForbidden {
 		t.Errorf("org owner PUT /api/instance-settings: got %d, want 403", rec.Code)
+	}
+	if rec := do(srv, "PUT", "/api/instance/link-settings", owner, `{"reservedSlugs":"pwned"}`); rec.Code != http.StatusForbidden {
+		t.Errorf("org owner PUT /api/instance/link-settings: got %d, want 403", rec.Code)
 	}
 
 	// The configured instance admin still can: the gate is bound to the
 	// instance-admin flag, not to org membership or role.
 	if rec := do(srv, "GET", "/api/instance-settings", loginCookies(t, srv), ""); rec.Code != http.StatusOK {
 		t.Errorf("instance admin GET /api/instance-settings: got %d, want 200", rec.Code)
+	}
+	if rec := do(srv, "GET", "/api/instance/link-settings", loginCookies(t, srv), ""); rec.Code != http.StatusOK {
+		t.Errorf("instance admin GET /api/instance/link-settings: got %d, want 200", rec.Code)
 	}
 }

@@ -359,6 +359,9 @@ export const api = {
   }) => req<Settings>("PUT", "/api/settings", s),
 
   instanceSettings: () => req<InstanceSettings>("GET", "/api/instance-settings"),
+  instanceLinkSettings: () => req<{ reservedSlugs: string; builtinReserved: string[] }>("GET", "/api/instance/link-settings"),
+  updateInstanceLinkSettings: (s: { reservedSlugs?: string }) =>
+    req<{ reservedSlugs: string; builtinReserved: string[] }>("PUT", "/api/instance/link-settings", s),
   updateInstanceSettings: (s: {
     reservedSlugs?: string;
     googleClientId?: string;

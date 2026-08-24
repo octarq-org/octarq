@@ -114,6 +114,7 @@ export const en = {
     Security: "Security",
     System: "System",
     Account: "Account",
+    Personal: "Personal",
     Instance: "Instance",
   },
   // Core carries only what THIS build declares: the static area/group shells in

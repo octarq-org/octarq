@@ -114,6 +114,18 @@ export const SETTINGS_AREA: Area = {
   Icon: Settings,
   groups: [
     {
+      label: "Instance",
+      items: [
+        {
+          id: "instance-console",
+          label: "Instance Management",
+          Icon: Server,
+          path: "/instance",
+          external: true,
+        },
+      ],
+    },
+    {
       label: "Workspace",
       items: [
         { id: "general",       label: "General",     Icon: Settings,    path: "/settings/general" },
@@ -124,30 +136,12 @@ export const SETTINGS_AREA: Area = {
       ],
     },
     {
-      label: "Account",
+      label: "Personal",
       items: [
         { id: "profile",  label: "My Profile", Icon: User,      path: "/settings/profile" },
         { id: "security", label: "Security",   Icon: Shield,    path: "/settings/security" },
         { id: "tokens",   label: "API Tokens", Icon: KeyRound,  path: "/settings/tokens" },
         { id: "appearance", label: "Appearance", Icon: Palette, path: "/settings/appearance" },
-      ],
-    },
-    // The instance console (/instance) is a separate entry with its own
-    // basename — the three instance pages (settings/auth/plugins) moved there.
-    // This single item is the exit from the tenant shell; everything else
-    // instance-level lives behind it. Plugins with category "Instance" (e.g.
-    // the Pro licensing plugin) still land here — mergeAreas recreates the
-    // group dynamically from their menu entry.
-    {
-      label: "Instance",
-      items: [
-        {
-          id: "instance-console",
-          label: "Instance Management",
-          Icon: Server,
-          path: "/instance",
-          external: true,
-        },
       ],
     },
   ],
@@ -182,7 +176,7 @@ export function areaForCategory(cat?: string, pluginAreas: UIArea[] = []): AreaI
   // Settings holds what the org configures about octarq and itself; the areas
   // below hold what the org runs FOR its own customers. Keep them apart:
   // octarq's own license → Settings, the org issuing licenses → Commerce.
-  if (c === "settings" || c === "instance" || c === "account") return "settings";
+  if (c === "settings" || c === "instance" || c === "account" || c === "personal") return "settings";
 
   // Category matches a plugin area by id or by one of its declared group
   // labels — never by title. Title is what the sidebar renders and what

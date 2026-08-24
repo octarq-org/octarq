@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 )
 
 // Record is a provider-agnostic DNS record.
@@ -45,14 +46,23 @@ type Provider interface {
 // Factory builds a Provider from a decrypted JSON credentials blob.
 type Factory func(credsJSON []byte) (Provider, error)
 
-var registry = map[string]Factory{}
+var (
+	registryMu sync.RWMutex
+	registry   = map[string]Factory{}
+)
 
 // Register makes a provider available by name.
-func Register(name string, f Factory) { registry[name] = f }
+func Register(name string, f Factory) {
+	registryMu.Lock()
+	defer registryMu.Unlock()
+	registry[name] = f
+}
 
 // New constructs a provider by name from its credentials JSON.
 func New(name string, credsJSON []byte) (Provider, error) {
+	registryMu.RLock()
 	f, ok := registry[name]
+	registryMu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("unknown dns provider %q", name)
 	}
@@ -61,6 +71,8 @@ func New(name string, credsJSON []byte) (Provider, error) {
 
 // Names returns the registered provider names.
 func Names() []string {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
 	out := make([]string, 0, len(registry))
 	for k := range registry {
 		out = append(out, k)
