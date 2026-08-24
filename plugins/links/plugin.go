@@ -1,3 +1,4 @@
+// noqa: SIZE_OK - links plugin cohesive lifecycle: Mount/Start/Menus/Actions/InstanceMenus + purge/export/resolve/cleanup/overview, splitting would fragment plugin contract
 package links
 
 import (
