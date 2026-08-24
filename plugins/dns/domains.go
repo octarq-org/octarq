@@ -258,14 +258,16 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 			dom.ProviderAccountID = acc.ID
 			p.db.Save(&dom)
 			updated++
+			forgetOrigin(name)
 		} else {
-			p.db.Create(&Domain{
+			if err := p.db.Create(&Domain{
 				OrgID: p.orgID(r),
 				Name:  name, ProviderAccountID: acc.ID, ZoneID: z.ID,
-			})
-			created++
+			}).Error; err == nil {
+				created++
+				forgetOrigin(name)
+			}
 		}
-		forgetOrigin(name)
 	}
 	return &SyncDomainsOutput{
 		Body: map[string]any{
@@ -546,6 +548,7 @@ func (p *Plugin) deleteDomain(ctx context.Context, input *DeleteDomainInput) (*D
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&dom).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
+	p.db.Where("domain_id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&DDNSToken{})
 	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&Domain{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}

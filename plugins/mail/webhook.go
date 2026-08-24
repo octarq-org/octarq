@@ -196,8 +196,7 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 
 	mb, ok := p.resolveMailbox(orgID, to)
 	if !ok {
-		// Unknown recipient and catch-all disabled: accept silently so the
-		// Worker/MTA doesn't bounce, but drop.
+		log.Printf("inbound: dropped message for unmanaged recipient %q in org %d", to, orgID)
 		return &InboundOutput{Body: map[string]any{"ok": true, "stored": false}}, nil
 	}
 
@@ -226,6 +225,13 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 		spf = parsed.Auth.SPF
 		dkim = parsed.Auth.DKIM
 		dmarc = parsed.Auth.DMARC
+	}
+
+	if msgID != "" {
+		var existing Email
+		if p.db.Where("mailbox_id = ? AND message_id = ?", mb.ID, msgID).First(&existing).Error == nil {
+			return &InboundOutput{Body: map[string]any{"ok": true, "stored": true, "id": existing.ID, "duplicate": true}}, nil
+		}
 	}
 
 	e := Email{

@@ -63,6 +63,9 @@ func (p *Plugin) createSuppression(ctx context.Context, input *CreateSuppression
 	if orgID == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to manage suppression list")
+	}
 	addr := strings.ToLower(strings.TrimSpace(input.Body.Address))
 	if !strings.Contains(addr, "@") {
 		return nil, huma.Error400BadRequest("address must be a full email")
@@ -117,6 +120,9 @@ func (p *Plugin) deleteSuppression(ctx context.Context, input *DeleteSuppression
 	orgID := p.orgID(r)
 	if orgID == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to manage suppression list")
 	}
 
 	var item MailSuppression

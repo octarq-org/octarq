@@ -21,6 +21,9 @@ func (p *Plugin) CreateLink(ctx context.Context, orgID uint, targetURL string) (
 	if !ok {
 		return "", fmt.Errorf("target must be an http(s) URL")
 	}
+	if err := p.checkQuota(ctx, orgID, "links", 1); err != nil {
+		return "", fmt.Errorf("quota exceeded: %w", err)
+	}
 	l := Link{OrgID: orgID, Slug: models.RandomSlug(6), Target: normalized, Enabled: true}
 	if err := validateRedirectTargets(&l); err != nil {
 		return "", err
