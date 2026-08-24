@@ -1,11 +1,11 @@
 // Package app is the public composition root for octarq. It wires config, the
 // database, auth, the core API, the short-link redirector and the embedded
-// dashboard into one HTTP server — and lets external (Pro) modules extend it
+// dashboard into one HTTP server — and lets external modules extend it
 // through the plugin package without forking.
 //
 // This is the importable seam of the Core-as-Library split: the open-core
-// binary (cmd in this repo) calls New().Run() with no plugins; the private
-// octarq-core consumer calls Use() for each Pro plugin before Run().
+// binary (cmd in this repo) calls New().Run() with no plugins; a downstream
+// distribution calls Use() for each extra plugin before Run().
 //
 // AutoMigrate timing: New() opens the database but does NOT migrate. Run()
 // collects core models plus every registered plugin's Models() and migrates
