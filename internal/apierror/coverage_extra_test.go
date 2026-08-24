@@ -60,7 +60,7 @@ func TestErrorMethods(t *testing.T) {
 	if e.Error() != "bad" {
 		t.Error("Error()")
 	}
-	_ = e.WithRequestID(nil)
+	_ = e.WithRequestID(context.TODO())
 	_ = e.WithRequestID(context.Background())
 	ctx := context.WithValue(context.Background(), server.RequestIDKey, "req-123")
 	e2 := New(http.StatusBadRequest, CodeBadRequest, "x").WithRequestID(ctx)

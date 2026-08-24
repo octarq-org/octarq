@@ -9,6 +9,9 @@ import (
 	"regexp"
 	"strings"
 	"text/template"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 var nameRegex = regexp.MustCompile("^[a-z][a-z0-9-]*$")
@@ -119,7 +122,7 @@ func Scaffold(root, name, desc string) error {
 	}
 
 	packageName := strings.ReplaceAll(name, "-", "")
-	title := strings.Title(strings.ReplaceAll(name, "-", " "))
+	title := cases.Title(language.English).String(strings.ReplaceAll(name, "-", " "))
 	if desc == "" {
 		desc = fmt.Sprintf("%s plugin for Octarq", title)
 	}
