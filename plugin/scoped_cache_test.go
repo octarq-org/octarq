@@ -174,3 +174,21 @@ func TestScopedCache_InvalidateTag(t *testing.T) {
 		t.Fatalf("InvalidateTag failed: %v", err)
 	}
 }
+
+func TestTieredCache_KeyAndPrefix(t *testing.T) {
+	l1 := cache.NewMemoryScoped()
+	c := plugin.NewScopedCache("myplugin", l1, nil)
+	if got := c.Prefix(); got != "myplugin" {
+		t.Errorf("Prefix = %q want myplugin", got)
+	}
+	if got := c.Key("foo"); got != "myplugin:foo" {
+		t.Errorf("Key = %q want myplugin:foo", got)
+	}
+	empty := plugin.NewScopedCache("", l1, nil)
+	if got := empty.Key("bar"); got != "bar" {
+		t.Errorf("empty prefix Key = %q want bar", got)
+	}
+	if got := empty.Prefix(); got != "" {
+		t.Errorf("empty Prefix = %q want empty", got)
+	}
+}
