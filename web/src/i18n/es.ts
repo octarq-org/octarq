@@ -107,6 +107,7 @@ export const es = {
     Security: "Seguridad",
     System: "Sistema",
     Account: "Cuenta",
+    Personal: "Personal",
     Instance: "Instancia",
   },
   nav: {

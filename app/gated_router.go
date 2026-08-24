@@ -13,6 +13,9 @@ import (
 // isNonWorkspaceRoute reports whether a path represents an instance-level administration
 // route or a public/entrypoint route that is not scoped to a specific workspace's plugin toggle.
 func isNonWorkspaceRoute(path string) bool {
+	if path == "/api/instance-settings" || path == "/api/instance/link-settings" || path == "/instance/link-settings" {
+		return true
+	}
 	if strings.Contains(path, "/instance/") || strings.Contains(path, "/storage-instance/") || strings.HasPrefix(path, "/api/instance/") || strings.HasPrefix(path, "/instance/") {
 		return true
 	}

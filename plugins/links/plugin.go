@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -28,6 +29,7 @@ type Plugin struct {
 	deleteCache         func(ctx context.Context, key string) error
 	publishEvent        func(orgID uint, event string, data any)
 	requireRole         func(r *http.Request, min string) bool
+	isInstanceAdmin     func(r *http.Request) bool
 	ctx                 *plugin.Context
 }
 
@@ -154,6 +156,9 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	if ctx.RequireRole != nil {
 		p.requireRole = ctx.RequireRole
 	}
+	if ctx.IsInstanceAdmin != nil {
+		p.isInstanceAdmin = ctx.IsInstanceAdmin
+	}
 	if ctx.RegisterWebhookEvent != nil {
 		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "link.create", Group: "Links", Title: "Link Created", Description: "A short link was created"})
 		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "link.click", Group: "Links", Title: "Link Clicked", Description: "A tracked short link was visited"})
@@ -171,6 +176,8 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}/stats", Summary: "Link Stats", Tags: []string{"Links"}}, p.linkStats)
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/{id}/qr", Summary: "Link QR", Tags: []string{"Links"}}, p.linkQR)
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/links/export.csv", Summary: "Export Links", Tags: []string{"Links"}}, p.exportLinksCSV)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/instance/link-settings", Summary: "Get Instance Link Settings", Tags: []string{"Settings"}}, p.getInstanceLinkSettings)
+		huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/instance/link-settings", Summary: "Update Instance Link Settings", Tags: []string{"Settings"}}, p.updateInstanceLinkSettings)
 	}
 	_ = plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[DeclarativeLinkInput, DeclarativeLinkOutput]{
 		Name:        "create_shortlink",
@@ -430,4 +437,99 @@ func (p *Plugin) hasRole(r *http.Request, min string) bool {
 		return false
 	}
 	return p.requireRole(r, min)
+}
+
+func (p *Plugin) isInstanceAdminUser(r *http.Request) bool {
+	if p.isInstanceAdmin == nil {
+		return false
+	}
+	return p.isInstanceAdmin(r)
+}
+
+type GetInstanceLinkSettingsInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *GetInstanceLinkSettingsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type InstanceLinkSettingsBody struct {
+	ReservedSlugs   string   `json:"reservedSlugs"`
+	BuiltinReserved []string `json:"builtinReserved"`
+}
+
+type GetInstanceLinkSettingsOutput struct {
+	Body InstanceLinkSettingsBody
+}
+
+func (p *Plugin) getInstanceLinkSettings(ctx context.Context, input *GetInstanceLinkSettingsInput) (*GetInstanceLinkSettingsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	if !p.isInstanceAdminUser(r) {
+		return nil, huma.Error403Forbidden("instance admin required")
+	}
+	var reserved string
+	if p.getGlobalSetting != nil {
+		reserved = p.getGlobalSetting("reserved_slugs")
+	}
+	out := &GetInstanceLinkSettingsOutput{
+		Body: InstanceLinkSettingsBody{
+			ReservedSlugs:   reserved,
+			BuiltinReserved: []string{"admin", "api", "assets", "portal"},
+		},
+	}
+	return out, nil
+}
+
+type UpdateInstanceLinkSettingsInputBody struct {
+	ReservedSlugs *string `json:"reservedSlugs,omitempty"`
+}
+
+type UpdateInstanceLinkSettingsInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body UpdateInstanceLinkSettingsInputBody
+}
+
+func (i *UpdateInstanceLinkSettingsInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type UpdateInstanceLinkSettingsOutput struct {
+	Body InstanceLinkSettingsBody
+}
+
+func (p *Plugin) updateInstanceLinkSettings(ctx context.Context, input *UpdateInstanceLinkSettingsInput) (*UpdateInstanceLinkSettingsOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	if !p.isInstanceAdminUser(r) {
+		return nil, huma.Error403Forbidden("instance admin required")
+	}
+	if input.Body.ReservedSlugs != nil {
+		if p.ctx != nil && p.ctx.SetGlobalSetting != nil {
+			_ = p.ctx.SetGlobalSetting("reserved_slugs", strings.Join(splitList(*input.Body.ReservedSlugs), "\n"))
+		}
+		if p.audit != nil {
+			p.audit(r, "instance_settings.update", "settings", 0, map[string]any{
+				"reservedSlugs": *input.Body.ReservedSlugs,
+			})
+		}
+	}
+	var reserved string
+	if p.getGlobalSetting != nil {
+		reserved = p.getGlobalSetting("reserved_slugs")
+	}
+	out := &UpdateInstanceLinkSettingsOutput{
+		Body: InstanceLinkSettingsBody{
+			ReservedSlugs:   reserved,
+			BuiltinReserved: []string{"admin", "api", "assets", "portal"},
+		},
+	}
+	return out, nil
 }

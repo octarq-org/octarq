@@ -107,6 +107,7 @@ export const ja = {
     Security: "セキュリティ",
     System: "システム",
     Account: "アカウント",
+    Personal: "個人",
     Instance: "インスタンス",
   },
   nav: {

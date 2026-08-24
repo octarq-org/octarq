@@ -647,7 +647,8 @@ function Shell({
           {/* The Pro license is instance state, so its page lives in the
               /instance console. Crossing basenames needs a full page load —
               a router <Navigate> would resolve to /admin/instance. */}
-          <Route path="/license"    element={<InstanceExitRedirect to="/instance/license" />} />
+          <Route path="/license"       element={<InstanceExitRedirect to="/instance/license" />} />
+          <Route path="/link-settings" element={<InstanceExitRedirect to="/instance/link-settings" />} />
           <Route path="/overview"   element={<OverviewPage />} />
           <Route path="/settings/*" element={<SettingsPage />} />
           <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
