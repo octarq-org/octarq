@@ -4,7 +4,7 @@ import "testing"
 
 // TestServiceNamesAreStableWireStrings pins the registry names. They are not
 // internal identifiers: providers and consumers live in DIFFERENT MODULES
-// (octarq-pro pins this one by commit), so a rename here is not caught by any
+// (downstream distributions pin this one by commit), so a rename here is not caught by any
 // compiler — the lookup just stops resolving and the capability silently turns
 // off. Changing a value in this list is a breaking change to out-of-tree
 // plugins and has to be done deliberately, on both sides.
@@ -29,8 +29,8 @@ func TestServiceNamesAreStableWireStrings(t *testing.T) {
 	}
 }
 
-// TestTierResolverRoundTripsThroughTheRegistry is the shape the octarq-pro
-// follow-up must produce: convert at the Provide call site, resolve with the
+// TestTierResolverRoundTripsThroughTheRegistry is the shape downstream modules
+// must follow: convert at the Provide call site, resolve with the
 // same named type.
 func TestTierResolverRoundTripsThroughTheRegistry(t *testing.T) {
 	reg := NewRegistry()
@@ -52,8 +52,8 @@ func TestTierResolverRoundTripsThroughTheRegistry(t *testing.T) {
 	}
 }
 
-// TestTierResolverIsNotInterchangeableWithABareFunc documents WHY the octarq-pro
-// follow-up has to change the provider and the consumer in the SAME commit.
+// TestTierResolverIsNotInterchangeableWithABareFunc documents why downstream modules
+// have to change the provider and the consumer in the SAME commit.
 //
 // Go type-asserts named func types exactly, so a bare `func(uint) string` in the
 // registry is not a TierResolver and vice versa. That is the whole point — it
@@ -70,7 +70,7 @@ func TestTierResolverIsNotInterchangeableWithABareFunc(t *testing.T) {
 	named := NewRegistry()
 	named.Provide(ServiceCloudTier, TierResolver(func(orgID uint) string { return "team" }))
 	if _, ok := LookupServiceAs[func(uint) string](named.Lookup, ServiceCloudTier); ok {
-		t.Error("a TierResolver resolved as a bare func(uint) string; the old Pro consumer would keep working and the conversion would be cosmetic")
+		t.Error("a TierResolver resolved as a bare func(uint) string; the old consumer would keep working and the conversion would be cosmetic")
 	}
 }
 

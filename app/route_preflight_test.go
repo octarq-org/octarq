@@ -147,7 +147,7 @@ func TestIsThirdPartyPkg(t *testing.T) {
 		want bool
 	}{
 		{"github.com/octarq-org/octarq/plugins/links", false},
-		{"github.com/octarq-org/octarq-pro/modules/commerce", false},
+		{"github.com/octarq-org/octarq-extra/modules/commerce", false},
 		{"github.com/acme/octarq-shop", true},
 		{"example.com/internal/plugin", true},
 		{"", false}, // unknown provenance: do not impose the rule

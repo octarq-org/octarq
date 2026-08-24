@@ -265,8 +265,8 @@ func TestMCPAuthStampsTokenIdentity(t *testing.T) {
 // OrgRole is what plugins gate workspace administration on
 // (plugin.Context.OrgRole). It is a separate surface from RequireRole, and it
 // is the one with no compiler or test pressure behind it from this repo — the
-// callers live in octarq-pro. Returning the holder's raw membership here would
-// let every Pro gate ignore the token's cap while core's own gates honoured it,
+// callers live downstream. Returning the holder's raw membership here would
+// let downstream gates ignore the token's cap while core's own gates honoured it,
 // which is the kind of split that stays invisible until someone reports that a
 // read-only CI token deleted something.
 func TestOrgRoleReportsTheCappedRoleNotTheHolders(t *testing.T) {

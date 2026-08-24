@@ -1,10 +1,10 @@
 // Package plugin defines the public, importable contract that anyone implements to
 // extend octarq without forking it.
 //
-// Octarq's own core features (links, mail, domains) and the commercial Pro
+// Octarq's own core features (links, mail, domains) and the Pro
 // edition are built on this exact same seam — a community plugin can do
 // everything an official plugin can do. The open-core binary depends only on
-// this package and app; custom binaries and commercial builds register plugins
+// this package and app; custom binaries and downstream distributions register plugins
 // through it.
 //
 // AutoMigrate timing: a plugin contributes its GORM models via Models(). The
@@ -91,7 +91,7 @@
 // (or a new name) rather than a redefinition in place.
 //
 // Nil fields and older hosts. A plugin may be mounted by a host older than the
-// field it wants — a Pro plugin pinned ahead of the core it runs against, or a
+// field it wants — a downstream plugin pinned ahead of the core it runs against, or a
 // third-party plugin built against a newer release. The host leaves such a
 // field nil, so every field added after the initial contract is documented with
 // the marker phrase "nil on hosts that predate it", and a plugin MUST nil-check
@@ -351,8 +351,8 @@ type Context struct {
 	// account (User.IsInstanceAdmin, set deterministically for the configured
 	// OCTARQ_ADMIN_* identity at first login — never derived from org ordering).
 	//
-	// This is the ONLY correct gate for instance-wide state: SSO/OIDC config, the
-	// Pro license, instance branding defaults, anything one tenant must not be
+	// This is the ONLY correct gate for instance-wide state: SSO/OIDC config,
+	// license keys, instance branding defaults, anything one tenant must not be
 	// able to change for every other tenant. "Is logged in" is NOT a substitute —
 	// on a multi-tenant host every tenant is logged in.
 	IsInstanceAdmin func(*http.Request) bool
@@ -415,7 +415,7 @@ type Context struct {
 	SendMail func(orgID uint, to, subject, htmlBody, textBody string) error
 	// SetLLMResolver replaces the LLM backend behind the core's single-step AI
 	// assists (/api/ai/assist/*). The core's default resolver reads the OCTARQ_LLM_*
-	// environment; the Pro ai plugin injects its DB-backed (dashboard-configured)
+	// environment; a downstream ai plugin injects its DB-backed (dashboard-configured)
 	// provider here so the assists follow the exact same configuration as Inbox
 	// AI. The resolver runs on every assist request and must therefore be cheap —
 	// cache internally and return an error describing how to configure when no
@@ -579,7 +579,7 @@ type Mux interface {
 	HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request))
 }
 
-// Plugin is a unit of Pro functionality mounted onto the core app.
+// Plugin is a unit of functionality mounted onto the core app.
 type Plugin interface {
 	// Name is a short, stable identifier used in logs, the plugin registry, and
 	// the per-workspace enable/disable setting (e.g. "ai", "infra", "billing").
@@ -1019,7 +1019,7 @@ func FeatureKey(p Plugin) string {
 // plumbing within the given plugin set.
 //
 // Core-ness belongs to the feature, not to a single member. Several plugins can
-// share one feature key — an OSS half that serves the routes and a Pro half that
+// share one feature key — a core half that serves the routes and a downstream half that
 // only contributes content, say — and if either declares Core the feature as a
 // whole is never gated. Deciding per plugin instead lets the halves disagree:
 // the manager offers a toggle that the Core half ignores, so turning the feature

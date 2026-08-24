@@ -2,8 +2,8 @@
 // service (link · email · domain). It serves an embedded React dashboard,
 // a JSON API, and a short-link redirector from one process.
 //
-// This is the open-core binary: it runs the app with no Pro plugins. The
-// commercial build (private octarq-core module) reuses the same app package and
+// This is the open-core binary: it runs the app with no extra plugins. A
+// downstream distribution reuses the same app package and
 // registers additional plugins before Run — see the plugin package.
 //
 // Subcommands:

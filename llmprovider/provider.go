@@ -1,5 +1,5 @@
 // Package llmprovider abstracts large-language-model backends behind one small
-// interface. It lives outside internal/ on purpose: octarq-pro's AI plugins
+// interface. It lives outside internal/ on purpose: external and downstream plugins
 // import it as github.com/octarq-org/octarq/llmprovider, so moving it under
 // internal/ would break them.
 //
@@ -146,7 +146,7 @@ func New(o Options) (Provider, error) {
 }
 
 // FromEnv builds a Provider from environment variables, so the OSS `octarq mcp`
-// command and the octarq-pro AI plugin share one configuration path:
+// command and downstream AI plugins share one configuration path:
 //
 //	OCTARQ_LLM_PROVIDER     backend name (default "claude")
 //	OCTARQ_LLM_API_KEY      cloud API key; falls back to ANTHROPIC_API_KEY

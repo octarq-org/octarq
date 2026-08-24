@@ -14,7 +14,7 @@ import (
 // Metadata["public"] = true skips the core dashboard-auth middleware, while an
 // otherwise identical operation without it still 401s when unauthenticated.
 //
-// A second agent wires octarq-pro buyer routes to this exact contract — the
+// Downstream buyer routes follow this exact contract — the
 // "public" boolean metadata key on huma.Operation.
 func TestPublicMetadataBypassesAuth(t *testing.T) {
 	h, _ := newHandlerForAdminTest(t)

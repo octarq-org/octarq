@@ -2,8 +2,8 @@
 // composition root's worth of plugins — the backend analog of the frontend's
 // web/octarq.plugins.json default manifest.
 //
-// Composition is opt-in and uniform with Pro plugins: nothing auto-mounts inside
-// app.New(); each entry point (octarq/main.go, octarq-pro's main, or a trimmed
+// Composition is opt-in and uniform with all plugins: nothing auto-mounts inside
+// app.New(); each entry point (octarq/main.go, a downstream distribution's main, or a trimmed
 // edition's own main) calls a.Use(...) for the plugins it wants. A trimmed
 // edition builds a composition root that Uses a subset and simply does not import
 // the excluded plugin packages — Go's linker then drops them from the binary, so

@@ -134,7 +134,7 @@ func TestContainsWordBoundary(t *testing.T) {
 }
 
 // The identifiers below were reachable before this guard existed: `email_ais`
-// (a Pro table) and its `otp` column let a raw SELECT dump other tenants' one-
+// (a downstream table) and its `otp` column let a raw SELECT dump other tenants' one-
 // time codes, and `subject`/`text` returned other tenants' plaintext mail.
 // ValidateReadOnlyQuery is only a content filter, but out-of-tree plugins call
 // it, so these must stay closed.

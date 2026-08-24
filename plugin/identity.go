@@ -9,7 +9,7 @@ const ProviderOIDC = "oidc"
 // handed to Context.LoginByIdentity or Context.BindIdentity.
 //
 // It is a struct rather than a parameter list because it crosses a Go module
-// boundary: octarq-pro consumes octarq as a module, so widening the contract
+// boundary: downstream distributions consume octarq as a module, so widening the contract
 // (group claims, role mapping) must not be a breaking change for every plugin
 // that already calls it.
 //

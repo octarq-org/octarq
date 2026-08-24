@@ -189,12 +189,12 @@ func (p *Plugin) getDoc(ctx context.Context, input *GetDocInput) (*GetDocOutput,
 // request would be pure waste. Plugins that implement HelpProvider do their own
 // caching (sync.OnceValue), which is why only the FS half is cached here.
 //
-// The key is the plugin VALUE, not its name. Names are not unique: a Pro build
-// mounts both the OSS help plugin and octarq-pro's help module, and both answer
+// The key is the plugin VALUE, not its name. Names are not unique: a distribution
+// can mount both the core help plugin and a downstream help module, and both answer
 // Name() == "help" on purpose, so that the two halves of the help feature share
 // one feature key and one toggle. Keying this cache by name made the second half
-// read back the first half's docs — every OSS page served twice (once under its
-// own slug, once shadow-renamed to help-<slug>) and the Pro page missing
+// read back the first half's docs — every core page served twice (once under its
+// own slug, once shadow-renamed to help-<slug>) and the downstream page missing
 // entirely. Plugins are long-lived singletons, so the interface value is a
 // stable identity.
 var docsFSCache sync.Map // plugin.Plugin -> []plugin.HelpDoc

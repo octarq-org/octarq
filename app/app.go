@@ -126,8 +126,8 @@ func New() (*App, error) {
 		telemetry: tel,
 	}
 	// Composition is the caller's job: New() mounts no feature plugins. Each
-	// entry point (octarq/main.go, octarq-pro's main, a trimmed edition) Uses the
-	// plugins it wants — Core plugins the same way Pro plugins are added, via
+	// entry point (octarq/main.go, a downstream distribution's main, a trimmed edition) Uses the
+	// plugins it wants — Core plugins the same way extra plugins are added, via
 	// a.Use. The OSS default set is plugins/builtin.Default(); see
 	// website/src/content/docs/architecture/overview.md.
 	return a, nil

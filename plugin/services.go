@@ -47,8 +47,8 @@ const ServiceCloudTier = "cloud.tier"
 // ServiceCloudQuota is the well-known service name under which the hosted
 // (Cloud) build provides the plan/quota catalog backing per-org limits. Unlike
 // the other names here the contract type is NOT declared in this package: the
-// catalog interface (Limits/MeteredMetrics/PriceCents/…) is a commercial
-// billing concept owned by octarq-pro's pkg/quota.Source, and duplicating it
+// catalog interface (Limits/MeteredMetrics/PriceCents/…) is a downstream
+// billing concept owned by the quota provider (e.g. pkg/quota.Source), and duplicating it
 // here would create a second definition that can drift silently — Go asserts
 // interfaces structurally, so a drifted copy fails the lookup at runtime with
 // no compile error anywhere.
@@ -56,7 +56,7 @@ const ServiceCloudTier = "cloud.tier"
 // The name lives here because it is the shared coordinate: the cloud module
 // provides it and the ai and product modules consume it, and a string literal
 // repeated across three modules is the thing that goes wrong when it changes.
-// Providers MUST still convert at the Provide call site — with the Pro-owned
+// Providers MUST still convert at the Provide call site — with the provider-owned
 // type: ctx.Provide(plugin.ServiceCloudQuota, quota.Source(p.quotaSrc)) — and
 // consumers MUST resolve it with LookupAs[quota.Source].
 const ServiceCloudQuota = "cloud.quota"
@@ -146,17 +146,17 @@ type EmailDispatcher func(handler func(EmailEvent))
 
 // UsageMeter is the cross-plugin contract for reporting metered tenant
 // consumption (a link redirect, an email send) to the billing backend. The
-// provider lives in the Pro cloud module (octarq-pro, not this repository) and
+// provider lives in a downstream cloud module and
 // registers it under ServiceCloudUsage; this OSS side defines the contract and
 // consumes it. On self-hosted builds nothing provides the service and call
 // sites simply find nothing and proceed. Changing this signature breaks the
-// contract: the Pro provider and every consumer must change together.
+// contract: the provider and every consumer must change together.
 type UsageMeter func(orgID uint, metric string, n int64)
 
 // TierResolver is the cross-plugin contract for resolving an org's
 // subscription tier ("", "solo", "team", …; "" means Free — an org with no
-// subscription row is a Free org, not an error). The provider lives in the Pro
-// cloud module (octarq-pro, not this repository) and registers it under
+// subscription row is a Free org, not an error). The provider lives in a
+// downstream cloud module and registers it under
 // ServiceCloudTier; this OSS side owns the contract so both halves name the
 // same type. On self-hosted builds nothing provides the service and consumers
 // simply find nothing and fall back to their own defaults.
@@ -181,8 +181,8 @@ type CleanupFunc func(ctx context.Context, retentionDays int)
 // org account export (GET /api/account/export): the plugin returns a
 // flat map of key/value pairs that the app merges into the export body, one
 // entry per key. Any plugin holding tenant data worth exporting provides it
-// under ExportServiceName(pluginName) — the OSS plugins here, and several of
-// the Pro modules in octarq-pro. Providing it is optional; a plugin that does
+// under ExportServiceName(pluginName) — the OSS plugins here, and several
+// downstream modules. Providing it is optional; a plugin that does
 // not is simply skipped.
 //
 // A signature drift fails silently in production: the plugin's data is simply
@@ -194,8 +194,8 @@ type ExportFunc func(orgID uint) map[string]any
 // PurgeFunc is the cross-plugin contract for a plugin's tenant-data erasure,
 // run by the app before the org row itself is deleted (DELETE
 // /api/account/data). Every plugin that stores tenant rows provides it under
-// PurgeServiceName(pluginName) — the OSS plugins here, and every Pro module in
-// octarq-pro.
+// PurgeServiceName(pluginName) — the OSS plugins here, and downstream
+// modules.
 //
 // A signature drift fails silently in production: the plugin's tenant data
 // survives the deletion and the operator believes the workspace was erased — a
@@ -208,7 +208,7 @@ type PurgeFunc func(orgID uint) error
 // the overview endpoint: the plugin returns a flat map of statistics the app
 // merges into the overview body, warning on a key collision. It is provided
 // under OverviewServiceName(pluginName) by the OSS plugins (links, mail, dns);
-// no Pro module currently provides one. Changing this signature breaks the
+// no downstream module currently provides one. Changing this signature breaks the
 // contract: every provider and the app must change together.
 type OverviewFunc func(orgID uint, includeBot bool) map[string]any
 

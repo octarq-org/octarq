@@ -20,7 +20,7 @@ import (
 // short-link slug, summarize one email on demand. Configuration is BYO key via
 // the OCTARQ_LLM_* environment (llmprovider.FromEnv) — no key, no AI, and the
 // endpoints say so instead of erroring. Unattended AI automation (per-email
-// pipelines, briefings) lives in the commercial plugins, not here.
+// pipelines, briefings) lives in downstream plugins, not here.
 
 const aiTimeout = 60 * time.Second
 
@@ -31,7 +31,7 @@ var errLLMNotConfigured = errors.New("AI is not configured: set OCTARQ_LLM_API_K
 
 // envLLMResolver is the core's default LLM resolver: OCTARQ_LLM_* environment,
 // built at most once (env doesn't change at runtime). It ignores orgID because
-// OCTARQ_LLM_* environment variables are instance-wide configuration. The Pro ai
+// OCTARQ_LLM_* environment variables are instance-wide configuration. A downstream ai
 // plugin replaces it via SetLLMResolverForOrg with its DB-backed provider so the
 // assists follow the dashboard configuration.
 func envLLMResolver() func(uint) (llmprovider.Provider, error) {
