@@ -6,10 +6,13 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/plugin/safehttp"
 )
 
@@ -51,6 +54,51 @@ func parsePageMeta(body []byte) (title, desc string) {
 		desc = strings.TrimSpace(html.UnescapeString(string(m[1])))
 	}
 	return title, desc
+}
+
+type LinkMetadataInput struct {
+	Ctx huma.Context `hidden:"true"`
+	URL string       `query:"url"`
+}
+
+func (i *LinkMetadataInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type LinkMetadataOutput struct {
+	Body map[string]any
+}
+
+// linkMetadata fetches the target page's <title>, description, and favicon so
+// the dashboard can prefill a link's title (dub-style). Best-effort.
+func (p *Plugin) linkMetadata(ctx context.Context, input *LinkMetadataInput) (*LinkMetadataOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r = r.WithContext(ctx)
+	if p.orgID(r) == 0 {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	raw := strings.TrimSpace(input.URL)
+	if raw == "" {
+		return nil, huma.Error400BadRequest("url required")
+	}
+	if !strings.Contains(raw, "://") {
+		raw = "https://" + raw
+	}
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return nil, huma.Error400BadRequest("invalid url")
+	}
+	title, desc := fetchPageMeta(r.Context(), raw)
+	favicon := u.Scheme + "://" + u.Host + "/favicon.ico"
+	return &LinkMetadataOutput{
+		Body: map[string]any{
+			"title": title, "description": desc, "favicon": favicon,
+		},
+	}, nil
 }
 
 func (p *Plugin) handleLinkCrawl(ctx context.Context, payload []byte) error {
