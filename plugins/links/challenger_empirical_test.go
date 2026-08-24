@@ -228,9 +228,10 @@ func TestFinding7_ClickLimitCacheDelay(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/limited-link", nil)
 	eng.Handle(rec, req, l2)
 
-	if rec.Code == http.StatusNotFound {
+	switch rec.Code {
+	case http.StatusNotFound:
 		t.Errorf("Handle blocked link (expected bug: Handle redirects because cached clicks=0)")
-	} else if rec.Code == http.StatusFound {
+	case http.StatusFound:
 		t.Logf("[CONFIRMED Finding 7] Handle redirected (302 Found) despite DB clicks=100 > ClickLimit=2 due to 1-hour cache TTL")
 	}
 }
