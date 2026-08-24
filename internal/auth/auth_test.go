@@ -152,6 +152,74 @@ func TestStatefulSessionExpiryAndInvalidation(t *testing.T) {
 	}
 }
 
+func TestRoleChangeInvalidatesSessions(t *testing.T) {
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
+
+	const (
+		uid  = uint(55)
+		orgA = uint(101)
+		orgB = uint(102)
+	)
+
+	// Issue sessions for orgA and orgB
+	recA := httptest.NewRecorder()
+	m.SetSession(recA, httptest.NewRequest(http.MethodGet, "/", nil), uid, orgA)
+	var tokA *http.Cookie
+	for _, c := range recA.Result().Cookies() {
+		if c.Name == cookieName {
+			tokA = c
+		}
+	}
+
+	recB := httptest.NewRecorder()
+	m.SetSession(recB, httptest.NewRequest(http.MethodGet, "/", nil), uid, orgB)
+	var tokB *http.Cookie
+	for _, c := range recB.Result().Cookies() {
+		if c.Name == cookieName {
+			tokB = c
+		}
+	}
+
+	reqA := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
+	reqA.AddCookie(tokA)
+	if !m.Authed(reqA) {
+		t.Fatal("session A should be authed before revocation")
+	}
+
+	reqB := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
+	reqB.AddCookie(tokB)
+	if !m.Authed(reqB) {
+		t.Fatal("session B should be authed before revocation")
+	}
+
+	// Invalidate sessions for orgA
+	revoked := m.RevokeUserOrgSessions(uid, orgA)
+	if revoked == 0 {
+		t.Fatalf("RevokeUserOrgSessions revoked %d sessions, want >0", revoked)
+	}
+
+	// Session A must be unauthed now
+	if m.Authed(reqA) {
+		t.Fatal("session A should be unauthed after RevokeUserOrgSessions")
+	}
+
+	// Session B must still be authed (multi-org isolation)
+	if !m.Authed(reqB) {
+		t.Fatal("session B should remain authed after orgA revocation")
+	}
+
+	var countA, countB int64
+	db.Model(&models.Session{}).Where("user_id = ? AND org_id = ?", uid, orgA).Count(&countA)
+	db.Model(&models.Session{}).Where("user_id = ? AND org_id = ?", uid, orgB).Count(&countB)
+	if countA != 0 {
+		t.Errorf("user_sessions count for orgA = %d, want 0", countA)
+	}
+	if countB == 0 {
+		t.Errorf("user_sessions count for orgB = %d, want >0", countB)
+	}
+}
+
 func TestAuthedReadsCookie(t *testing.T) {
 	db := testDB(t)
 	m := testManager(t).WithDB(db)

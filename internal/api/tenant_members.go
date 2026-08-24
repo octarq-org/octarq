@@ -1,3 +1,8 @@
+// Package api provides member management handlers.
+//
+// Invariant: Changing a member's role (promote/demote) or removing a member must
+// immediately invalidate all stateful sessions (user_sessions) for that user in
+// that org (org_id), preventing stale sessions from continuing to act on previous roles.
 package api
 
 import (
@@ -15,6 +20,7 @@ import (
 	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
+	"gorm.io/gorm"
 )
 
 type ListOrgMembersInput struct {
@@ -186,10 +192,37 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 				return nil, err
 			}
 		}
-		if err := h.db.Model(&models.OrgMember{}).
-			Where("org_id = ? AND user_id = ?", orgID, user.ID).
-			Update("role", role).Error; err != nil {
-			return nil, huma.Error500InternalServerError("failed to update member role")
+		if existing.Role != role {
+			if err := h.db.Transaction(func(tx *gorm.DB) error {
+				if err := tx.Model(&models.OrgMember{}).
+					Where("org_id = ? AND user_id = ?", orgID, user.ID).
+					Update("role", role).Error; err != nil {
+					return err
+				}
+				var sessions []models.Session
+				if err := tx.Where("user_id = ? AND org_id = ?", user.ID, orgID).Find(&sessions).Error; err != nil {
+					return err
+				}
+				ctx := context.Background()
+				for _, s := range sessions {
+					_ = h.auth.Cache().Delete(ctx, "session:"+s.Token)
+				}
+				if err := tx.Where("user_id = ? AND org_id = ?", user.ID, orgID).Delete(&models.Session{}).Error; err != nil {
+					return err
+				}
+				return nil
+			}); err != nil {
+				return nil, huma.Error500InternalServerError("failed to update member role")
+			}
+			h.audit(r, "member.role", "user", user.ID, map[string]any{
+				"from":    existing.Role,
+				"to":      role,
+				"oldRole": existing.Role,
+				"newRole": role,
+				"actor":   h.auth.UserID(r),
+				"target":  user.ID,
+			})
+			eventbus.Publish(orgID, "member.role", map[string]any{"userId": user.ID, "role": role})
 		}
 	} else {
 		mem := models.OrgMember{OrgID: orgID, UserID: user.ID, Role: role}
@@ -321,14 +354,36 @@ func (h *Handler) updateOrgMember(ctx context.Context, input *UpdateOrgMemberInp
 		}
 	}
 
-	if err := h.db.Model(&models.OrgMember{}).
-		Where("org_id = ? AND user_id = ?", orgID, input.UserID).
-		Update("role", string(role)).Error; err != nil {
+	if err := h.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&models.OrgMember{}).
+			Where("org_id = ? AND user_id = ?", orgID, input.UserID).
+			Update("role", string(role)).Error; err != nil {
+			return err
+		}
+		var sessions []models.Session
+		if err := tx.Where("user_id = ? AND org_id = ?", input.UserID, orgID).Find(&sessions).Error; err != nil {
+			return err
+		}
+		ctx := context.Background()
+		for _, s := range sessions {
+			_ = h.auth.Cache().Delete(ctx, "session:"+s.Token)
+		}
+		if err := tx.Where("user_id = ? AND org_id = ?", input.UserID, orgID).Delete(&models.Session{}).Error; err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
 		return nil, huma.Error500InternalServerError("failed to update member role")
 	}
 
-	h.auth.RevokeUserOrgSessions(input.UserID, orgID)
-	h.audit(r, "member.role", "user", input.UserID, map[string]any{"from": target.Role, "to": string(role)})
+	h.audit(r, "member.role", "user", input.UserID, map[string]any{
+		"from":    target.Role,
+		"to":      string(role),
+		"oldRole": target.Role,
+		"newRole": string(role),
+		"actor":   h.auth.UserID(r),
+		"target":  input.UserID,
+	})
 	eventbus.Publish(orgID, "member.role", map[string]any{"userId": input.UserID, "role": string(role)})
 
 	out := &UpdateOrgMemberOutput{}

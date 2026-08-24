@@ -81,6 +81,15 @@ will serve the old dashboard.** For local verification run the frontend live —
   new top-level areas via `UIPlugin.areas`; icons are string keys resolved by
   the single `PLUGIN_ICONS` table in `shell/areas.tsx`.
 
+## Security invariants
+
+- **Session invalidation on role change**: Changing a member's role (promote/demote)
+  or removing a member must immediately invalidate all stateful sessions
+  (`user_sessions`) for that user in that workspace (`org_id`), evicting them from
+  cache. Sessions in other workspaces are unaffected. Audit log must record
+  `actor`, `target`, `oldRole`, and `newRole`.
+
+
 ## Sandbox note
 
 If a Vite build fails with "service was stopped", point `ESBUILD_BINARY_PATH` at the
