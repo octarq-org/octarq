@@ -626,6 +626,18 @@ func (p *Plugin) createDeclarativeLink(ctx context.Context, in DeclarativeLinkIn
 	if orgID == 0 {
 		return nil, plugin.NewAgentError(401, "UNAUTHORIZED", "unauthorized: missing workspace", "Ensure an authenticated session or API token is provided.", false)
 	}
+	if p.linkHostRequired(orgID) {
+		return nil, plugin.NewAgentError(400, "HOST_REQUIRED", "host is required in multi-tenant mode", "Please configure a custom link host first.", false)
+	}
+	if err := p.checkQuota(ctx, orgID, "links", 1); err != nil {
+		code := 429
+		errCode := "QUOTA_EXCEEDED"
+		if se, ok := err.(huma.StatusError); ok && se.GetStatus() == http.StatusPaymentRequired {
+			code = 402
+			errCode = "FEATURE_UNAVAILABLE"
+		}
+		return nil, plugin.NewAgentError(code, errCode, err.Error(), "Upgrade plan to create more links.", false)
+	}
 	dest := strings.TrimSpace(in.Destination)
 	if dest == "" {
 		return nil, plugin.NewAgentError(400, "MISSING_DESTINATION", "destination is required", "Please provide a valid destination URL.", false)
@@ -652,6 +664,12 @@ func (p *Plugin) createDeclarativeLink(ctx context.Context, in DeclarativeLinkIn
 	}
 	if err := p.db.WithContext(ctx).Create(&l).Error; err != nil {
 		return nil, plugin.NewAgentError(409, "SLUG_ALREADY_EXISTS", "slug already exists on this host", "The slug is already taken. Please choose another slug or leave it blank.", false)
+	}
+	if p.audit != nil {
+		p.audit(nil, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target, "source": "declarative"})
+	}
+	if p.publishEvent != nil {
+		p.publishEvent(l.OrgID, "link.create", map[string]any{"id": l.ID, "slug": l.Slug, "host": l.Host, "target": l.Target})
 	}
 	if p.deleteCache != nil {
 		_ = p.deleteCache(ctx, "link:redirect:"+l.Host+":"+l.Slug)

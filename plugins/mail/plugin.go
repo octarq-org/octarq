@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	netmail "net/mail"
 	"regexp"
 	"strconv"
 	"strings"
@@ -176,6 +177,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/emails/read-all", Summary: "Mark All Emails Read", Tags: []string{"Emails"}}, p.readAllEmails)
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails/{id}", Summary: "Get Email", Tags: []string{"Emails"}}, p.getEmail)
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails/{id}/raw", Summary: "Get Raw Email EML", Tags: []string{"Emails"}}, p.rawEmail)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/emails/{id}/attachments/{index}", Summary: "Download Email Attachment", Tags: []string{"Emails"}}, p.getAttachment)
 		huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/emails/{id}", Summary: "Update Email State", Tags: []string{"Emails"}}, p.updateEmail)
 		huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/emails/{id}", Summary: "Delete Email", Tags: []string{"Emails"}}, p.deleteEmail)
 		var sendEmailMws huma.Middlewares
@@ -263,6 +265,9 @@ func (p *Plugin) isSuppressed(orgID uint, addr string) bool {
 		return false
 	}
 	normAddr := strings.ToLower(strings.TrimSpace(addr))
+	if parsed, err := netmail.ParseAddress(normAddr); err == nil && parsed.Address != "" {
+		normAddr = strings.ToLower(parsed.Address)
+	}
 	var count int64
 	p.db.Model(&MailSuppression{}).Where("owner_id = ? AND address = ?", orgID, normAddr).Count(&count)
 	return count > 0

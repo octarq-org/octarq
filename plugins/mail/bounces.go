@@ -150,6 +150,9 @@ func extractBounceEvents(body []byte) []bounceEvent {
 				break
 			}
 		}
+		if (bType == "" || strings.EqualFold(bType, "bounce")) && (strings.HasPrefix(details, "5.") || strings.Contains(details, "550")) {
+			bType = "Permanent"
+		}
 		event = strings.ToLower(event)
 		if strings.Contains(event, "bounce") || event == "dropped" || event == "failed" {
 			event = "bounce"

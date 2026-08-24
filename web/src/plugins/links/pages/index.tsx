@@ -3,6 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { api, Domain, effectiveLinkHosts } from "../../../api";
 import { linksApi, Link } from "../api";
 import { Empty, ScreenWrap, PageHeader, GlassCard, Badge, Button, Input, Modal, Table, THead, TBody, TR, TH, TD, confirmDialog } from "../../../ui";
+import { buttonVariants } from "../../../components/ui/Button";
+import { cn } from "../../../lib/utils";
 import { Link2, Copy, Check, Archive, Trash2, QrCode, Download, Eye, Search, Settings, ExternalLink, Lock, Bot, Clock, Tag, Plus, BarChart3, Edit3 } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
@@ -451,14 +453,14 @@ export default function LinksPage() {
                 {copiedId === qrLink.id ? <Check className="h-3.5 w-3.5 text-success-fg" /> : <Copy className="h-3.5 w-3.5" />}
                 {copiedId === qrLink.id ? t("links.copied") : t("links.copyLink")}
               </Button>
-              <Button
-                variant="primary"
-                className="text-xs py-1.5 px-4 gap-1.5"
-                onClick={() => window.open(`/api/links/${qrLink.id}/qr`)}
+              <a
+                href={`/api/links/${qrLink.id}/qr`}
+                download={`qr-${qrLink.slug}.png`}
+                className={cn(buttonVariants({ variant: "primary" }), "text-xs py-1.5 px-4 gap-1.5")}
               >
                 <Download className="h-3.5 w-3.5" />
                 {t("links.downloadQrCode")}
-              </Button>
+              </a>
             </div>
           </div>
         </Modal>

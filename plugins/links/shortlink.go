@@ -345,7 +345,11 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 	}
 
 	if e.ctx != nil && e.ctx.CacheSet != nil {
-		_ = e.ctx.CacheSet(ctx, cacheKey, &link, time.Hour)
+		ttl := time.Hour
+		if link.ClickLimit > 0 {
+			ttl = 5 * time.Second
+		}
+		_ = e.ctx.CacheSet(ctx, cacheKey, &link, ttl)
 	}
 	return &link, true
 }
@@ -436,6 +440,7 @@ func expired(link *Link) bool {
 func (e *Engine) Handle(w http.ResponseWriter, r *http.Request, link *Link) {
 	if expired(link) {
 		if link.ExpiredURL != "" {
+			w.Header().Set("Referrer-Policy", "no-referrer")
 			http.Redirect(w, r, link.ExpiredURL, http.StatusFound)
 			return
 		}
@@ -443,7 +448,11 @@ func (e *Engine) Handle(w http.ResponseWriter, r *http.Request, link *Link) {
 		return
 	}
 	if link.Password != "" {
-		if subtle.ConstantTimeCompare([]byte(r.URL.Query().Get("pw")), []byte(link.Password)) != 1 {
+		provided := r.FormValue("pw")
+		if provided == "" {
+			provided = r.URL.Query().Get("pw")
+		}
+		if subtle.ConstantTimeCompare([]byte(provided), []byte(link.Password)) != 1 {
 			renderPasswordGate(w, r.URL.Path)
 			return
 		}
@@ -493,11 +502,13 @@ func (e *Engine) Handle(w http.ResponseWriter, r *http.Request, link *Link) {
 	}
 
 	if e.rateLimiter != nil && !e.rateLimiter.Allow(ip) {
+		w.Header().Set("Referrer-Policy", "no-referrer")
 		http.Redirect(w, r, target, http.StatusFound)
 		return
 	}
 
 	e.record(r, link.OrgID, link.Slug, link.ID, ip, country, region, city, ua, device, browser, osStr, bot, variant)
+	w.Header().Set("Referrer-Policy", "no-referrer")
 	http.Redirect(w, r, target, http.StatusFound)
 }
 
@@ -700,15 +711,16 @@ func stripPort(host string) string {
 
 func renderPasswordGate(w http.ResponseWriter, path string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.WriteHeader(http.StatusUnauthorized)
-	w.Write([]byte(`<!doctype html><html><head><meta charset="utf-8">
+	w.Write([]byte(`<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Protected link</title>
 <style>body{font-family:system-ui;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;background:#0b0b0f;color:#fff}
 form{background:#16161d;padding:2rem;border-radius:12px;width:300px}
 input{width:100%;padding:.6rem;margin:.5rem 0;border-radius:8px;border:1px solid #333;background:#0b0b0f;color:#fff;box-sizing:border-box}
 button{width:100%;padding:.6rem;border:0;border-radius:8px;background:#6366f1;color:#fff;font-weight:600;cursor:pointer}</style></head>
-<body><form method="get" action="` + html.EscapeString(path) + `">
+<body><form method="post" action="` + html.EscapeString(path) + `">
 <h3>🔒 This link is protected</h3>
 <input type="password" name="pw" placeholder="Password" autofocus>
 <button type="submit">Continue</button></form></body></html>`))

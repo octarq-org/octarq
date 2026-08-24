@@ -275,8 +275,9 @@ func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailI
 	}
 
 	const maxBody = 8000
-	if len(body) > maxBody {
-		body = body[:maxBody]
+	runes := []rune(body)
+	if len(runes) > maxBody {
+		body = string(runes[:maxBody])
 	}
 	content := "From: " + fromAddr + "\nSubject: " + subject + "\n\n" + body
 
