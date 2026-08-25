@@ -22,6 +22,22 @@ import (
 	"gorm.io/plugin/opentelemetry/tracing"
 )
 
+// dbLoggerConfig returns the GORM logger configuration for a deployment
+// posture. Development (default SQLite, no Redis) keeps today's verbosity —
+// including record-not-found lines, which are ordinary control flow and useful
+// while debugging. Provisioned infrastructure silences exactly those lines:
+// shipped production logs should not carry per-statement schema/query-pattern
+// leakage for what is usually an expected empty result, while genuine SQL
+// errors and slow-query warnings still flow.
+func dbLoggerConfig(provisioned bool) logger.Config {
+	return logger.Config{
+		SlowThreshold:             200 * time.Millisecond,
+		LogLevel:                  logger.Warn,
+		IgnoreRecordNotFoundError: provisioned,
+		Colorful:                  false,
+	}
+}
+
 // Open connects to the database WITHOUT migrating. Migration is deferred to
 // Migrate so that plugin-contributed models (registered after Open) are
 // migrated together with the core schema in a single pass — see the plugin
@@ -41,12 +57,7 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 
 	dbLogger := logger.New(
 		log.New(os.Stderr, "\r\n", log.LstdFlags),
-		logger.Config{
-			SlowThreshold:             200 * time.Millisecond,
-			LogLevel:                  logger.Warn,
-			IgnoreRecordNotFoundError: false,
-			Colorful:                  false,
-		},
+		dbLoggerConfig(cfg.Provisioned()),
 	)
 	gdb, err := gorm.Open(dial, &gorm.Config{
 		Logger: dbLogger,
