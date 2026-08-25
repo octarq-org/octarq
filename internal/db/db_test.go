@@ -20,8 +20,40 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	gormschema "gorm.io/gorm/schema"
 )
+
+// The GORM logger must stay chatty in development (default SQLite, no Redis):
+// a record-not-found line is ordinary control flow there and useful while
+// debugging. On provisioned infrastructure (external Postgres/MySQL/Redis —
+// the production posture) the same lines are noise plus schema/query-pattern
+// leakage into shipped logs, so ErrRecordNotFound is silenced there while
+// genuine SQL errors and slow-query warnings keep flowing.
+func TestDBLoggerConfig(t *testing.T) {
+	t.Run("development keeps record-not-found logging", func(t *testing.T) {
+		cfg := dbLoggerConfig(false)
+		if cfg.LogLevel != logger.Warn {
+			t.Errorf("LogLevel = %v, want Warn", cfg.LogLevel)
+		}
+		if cfg.IgnoreRecordNotFoundError {
+			t.Error("IgnoreRecordNotFoundError = true, want false in development")
+		}
+	})
+
+	t.Run("production silences record-not-found, keeps errors and slow queries", func(t *testing.T) {
+		cfg := dbLoggerConfig(true)
+		if cfg.LogLevel != logger.Warn {
+			t.Errorf("LogLevel = %v, want Warn (slow queries stay surfaced)", cfg.LogLevel)
+		}
+		if !cfg.IgnoreRecordNotFoundError {
+			t.Error("IgnoreRecordNotFoundError = false, want true in production")
+		}
+		if cfg.SlowThreshold != 200*time.Millisecond {
+			t.Errorf("SlowThreshold = %v, want 200ms", cfg.SlowThreshold)
+		}
+	})
+}
 
 func TestOpenSQLiteAppliesWALAndSingleConnPool(t *testing.T) {
 	dir := t.TempDir()
