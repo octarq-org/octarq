@@ -40,6 +40,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # dockers_v2 emits one multi-platform `docker buildx build` command,
+      # which needs a containerd-backed builder (the default docker driver
+      # rejects multi-platform). Creates and selects one; the selection
+      # persists for the goreleaser step below.
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Generate release notes (git-cliff)
         uses: orhun/git-cliff-action@v4
         with:
