@@ -1,35 +1,70 @@
-name: Release image
+name: Release
 
 on:
   push:
     tags: ["v*"]
 
 permissions:
-  contents: write   # create GitHub release + commit CHANGELOG.md
-  packages: write
+  contents: write   # create GitHub release + upload assets + commit CHANGELOG.md
+  packages: write   # push to GHCR
 
 env:
   IMAGE: ghcr.io/octarq-org/octarq
 
 jobs:
-  # ── Generate CHANGELOG.md + GitHub release notes on tags ─────────────────
-  changelog:
-    name: Changelog & release notes
-    if: startsWith(github.ref, 'refs/tags/')
+  # ── goreleaser: binaries + GitHub release + GHCR images ──────────────────
+  # One run cross-compiles linux/{amd64,arm64} natively, attaches binaries +
+  # checksums to the GitHub release, and pushes multi-arch images assembled
+  # from those SAME binaries via Dockerfile.release — Go compiles once per
+  # arch instead of again inside every per-arch Docker build.
+  #
+  # Release notes stay git-cliff-generated with the exact flags the old
+  # softprops flow used (--latest --strip header). The notes file lives in
+  # $RUNNER_TEMP, outside the worktree, so goreleaser's dirty-tree check
+  # never sees it.
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0   # goreleaser + git-cliff need full history and tags
 
-      - name: Generate release notes (this tag)
-        id: notes
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate release notes (git-cliff)
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
           args: --latest --strip header
         env:
+          OUTPUT: ${{ runner.temp }}/release-notes.md
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean --release-notes=${{ runner.temp }}/release-notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Regenerate CHANGELOG.md and commit it back to main ───────────────────
+  changelog:
+    name: Commit CHANGELOG.md
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Regenerate full CHANGELOG.md
         uses: orhun/git-cliff-action@v4
@@ -40,69 +75,9 @@ jobs:
           OUTPUT: CHANGELOG.md
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
-        with:
-          body: ${{ steps.notes.outputs.content }}
-
       - name: Commit CHANGELOG.md back to main
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore(release): update CHANGELOG for ${{ github.ref_name }}"
           file_pattern: CHANGELOG.md
           branch: main
-
-  docker:
-    name: Build & push multi-arch image
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE }}
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,format=short
-            type=raw,value=latest
-
-      - name: Prepare build metadata
-        id: build_meta
-        run: |
-          echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
-          sha="${{ github.sha }}"
-          echo "short_sha=${sha:0:8}" >> "$GITHUB_OUTPUT"
-
-      - name: Build & push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VERSION=${{ github.ref_name }}
-            COMMIT=${{ steps.build_meta.outputs.short_sha }}
-            BUILD_TIME=${{ steps.build_meta.outputs.build_time }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max

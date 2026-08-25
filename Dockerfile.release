@@ -1,0 +1,25 @@
+# Runtime-only image used by goreleaser (see .goreleaser.yaml dockers_v2).
+# goreleaser injects the cross-compiled binary for each target platform into
+# the build context at <goos>/<goarch>/octarq, so this file must stay a plain
+# COPY selected by $TARGETPLATFORM — no compilation happens here, which is
+# what makes multi-arch releases fast.
+#
+# Source builds keep using ./Dockerfile (multi-stage; builds the dashboard
+# from web/). Keep this file's runtime semantics in sync with it.
+
+# Distroless has no shell to mkdir/chown. Seed a uid-65532-owned /data with a
+# placeholder file so the directory materialises with correct ownership when
+# Docker creates the VOLUME on first boot (COPY of an empty dir leaves that
+# to BuildKit whims).
+FROM alpine:3.21 AS data
+RUN mkdir -p /data && touch /data/.keep && chown -R 65532:65532 /data
+
+FROM gcr.io/distroless/static-debian12
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/octarq /octarq
+COPY --from=data --chown=65532:65532 /data /data
+EXPOSE 8080
+VOLUME ["/data"]
+ENV OCTARQ_DB_DSN=/data/octarq.db
+USER 65532:65532
+ENTRYPOINT ["/octarq"]

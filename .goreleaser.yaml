@@ -1,0 +1,74 @@
+# GoReleaser — binaries + GitHub release + GHCR images in one run.
+#
+# Design notes:
+# - linux/{amd64,arm64} only, matching the Docker platforms we publish. The
+#   cross-compile is native-speed (no QEMU): each `dockers` entry reuses the
+#   matching goreleaser-built binary via its build context, so Go compiles
+#   exactly once per architecture — the old flow compiled again inside every
+#   Docker build.
+# - Release notes are NOT generated here: CI pre-renders them with git-cliff
+#   (same cliff.toml, same `--latest --strip header` flags as before) and
+#   passes the file via `goreleaser release --release-notes=...`, keeping the
+#   published format byte-identical to the previous softprops-based flow.
+# - The multi-stage ./Dockerfile remains the source-build path (it builds the
+#   dashboard from web/); Dockerfile.release is the runtime-only image that
+#   COPYs the binary goreleaser injects.
+version: 2
+
+project_name: octarq
+
+builds:
+  - id: octarq
+    main: .
+    binary: octarq
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      # Same injection set as the Makefile's LDFLAGS / old Dockerfile build.
+      - -X github.com/octarq-org/octarq/internal/buildinfo.Version={{ .Version }}
+      - -X github.com/octarq-org/octarq/internal/buildinfo.Commit={{ .ShortCommit }}
+      - -X github.com/octarq-org/octarq/internal/buildinfo.BuiltAt={{ .Date }}
+
+# Upload raw binaries instead of archives, named like the assets this project
+# already publishes elsewhere: octarq-linux-amd64 / octarq-linux-arm64.
+archives:
+  - formats: [binary]
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+# One entry, both platforms: buildx produces a single multi-arch image index
+# (manifest list) carrying every tag below — no separate docker_manifests.
+# The binary for each platform is injected at <goos>/<goarch>/octarq inside
+# the build context; Dockerfile.release copies it via $TARGETPLATFORM.
+dockers_v2:
+  - images:
+      - ghcr.io/octarq-org/octarq
+    dockerfile: Dockerfile.release
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    tags:
+      - "{{ .Version }}"
+      - "{{ .Major }}.{{ .Minor }}"
+      - "{{ .ShortCommit }}"
+      - latest
+    # Parity with the old docker/metadata-action surface; no SBOM today.
+    sbom: false
+    labels:
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.source: https://github.com/octarq-org/octarq
+
+release:
+  prerelease: auto
