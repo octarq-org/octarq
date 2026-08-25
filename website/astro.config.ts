@@ -29,6 +29,11 @@ const nimbusConfig = defineNimbusConfig({
           "quickstart",
           "configuration",
           "deploy",
+          // Both carry only frontmatter sidebar blocks today, which nothing
+          // reads — without an entry here they were unreachable from the
+          // sidebar (backup-restore since #323).
+          "backup-restore",
+          "pre-launch",
         ],
       },
       {
