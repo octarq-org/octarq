@@ -60,9 +60,12 @@ dockers_v2:
       - linux/arm64
     tags:
       - "{{ .Version }}"
-      - "{{ .Major }}.{{ .Minor }}"
+      # Moving pointers stay put on prereleases (v0.4.7-rc.1 must not steal
+      # the 0.4 or latest slots): .Prerelease is the semver suffix (rc.1),
+      # empty on stable tags, and dockers_v2 ignores empty rendered tags.
+      - "{{ if not .Prerelease }}{{ .Major }}.{{ .Minor }}{{ end }}"
       - "{{ .ShortCommit }}"
-      - latest
+      - "{{ if not .Prerelease }}latest{{ end }}"
     # Parity with the old docker/metadata-action surface; no SBOM today.
     sbom: false
     labels:
