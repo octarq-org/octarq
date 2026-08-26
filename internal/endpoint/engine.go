@@ -42,6 +42,21 @@ func (e *Engine) Endpoints() []plugin.Endpoint {
 	return out
 }
 
+// Lookup returns the endpoint with the given name, or false if not found.
+// Endpoint count is small (<100), so linear scan is sufficient.
+//
+// P3 前 API 易变.
+func (e *Engine) Lookup(name string) (plugin.Endpoint, bool) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	for _, ep := range e.endpoints {
+		if ep.EndpointName() == name {
+			return ep, true
+		}
+	}
+	return nil, false
+}
+
 // HTTPOptions provides authentication and role checking hooks for HTTP endpoint execution.
 type HTTPOptions struct {
 	RequireAuth func(ctx context.Context) (uint, error)
