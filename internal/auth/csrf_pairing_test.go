@@ -35,23 +35,17 @@ func TestSetCookieIssuesBothHalves(t *testing.T) {
 			token = c
 		}
 	}
-	if session == nil {
-		t.Fatal("no session cookie")
+	if session == nil || !session.HttpOnly {
+		t.Error("no session cookie, or session cookie lost HttpOnly")
 	}
-	if token == nil {
-		t.Fatalf("no %s cookie beside the session", csrf.CookieName)
+	if token == nil || token.HttpOnly {
+		t.Errorf("no %s cookie beside the session, or it is HttpOnly — the frontend cannot read it, so it can never be echoed back", csrf.CookieName)
 	}
-	if token.HttpOnly {
-		t.Error("token cookie is HttpOnly — the frontend cannot read it, so it can never be echoed back")
+	if token == nil || token.Secure != session.Secure {
+		t.Errorf("Secure mismatch: session %v, token %v", session != nil, token != nil)
 	}
-	if !session.HttpOnly {
-		t.Error("session cookie lost HttpOnly")
-	}
-	if token.Secure != session.Secure {
-		t.Errorf("Secure mismatch: session %v, token %v", session.Secure, token.Secure)
-	}
-	if got, want := token.Value, csrf.GenerateToken(m.cfg.SecretKey, "tok"); got != want {
-		t.Errorf("token = %q, want the HMAC of the session token (%q)", got, want)
+	if token == nil || token.Value != csrf.GenerateToken(m.cfg.SecretKey, "tok") {
+		t.Errorf("no token cookie, or token %v is not the HMAC of the session token", token)
 	}
 }
 

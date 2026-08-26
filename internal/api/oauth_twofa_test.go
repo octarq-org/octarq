@@ -151,12 +151,11 @@ func TestOAuthCallbackRequiresTwoFactorForTOTPUsers(t *testing.T) {
 	// The challenge arrives in an HttpOnly cookie with a Max-Age matching the
 	// 10-minute TTL, not in the redirect URL.
 	challenge := challengeCookie(cb.Result().Cookies())
-	if challenge == nil {
-		t.Fatal("OAuth callback set no 2FA challenge cookie")
+	if challenge == nil || !challenge.HttpOnly {
+		t.Fatalf("OAuth callback set no 2FA challenge cookie, or it is not HttpOnly: %+v", challenge)
 	}
-	if !challenge.HttpOnly || challenge.MaxAge != int((10*time.Minute).Seconds()) {
-		t.Fatalf("challenge cookie HttpOnly=%v MaxAge=%d, want HttpOnly with MaxAge %d (10-minute TTL)",
-			challenge.HttpOnly, challenge.MaxAge, int((10 * time.Minute).Seconds()))
+	if challenge.MaxAge != int((10 * time.Minute).Seconds()) {
+		t.Fatalf("challenge cookie MaxAge = %d, want %d (10-minute TTL)", challenge.MaxAge, int((10 * time.Minute).Seconds()))
 	}
 	// Guard (this fix): the challenge value must never appear in the redirect
 	// Location — the URL is what proxy access logs and browser history record.

@@ -154,3 +154,7 @@ require (
 	modernc.org/memory v1.5.0 // indirect
 	modernc.org/sqlite v1.23.1 // indirect
 )
+
+// golangci-lint action cache bust 2026-08-26: restored lint artifacts replayed
+// fossilized SA5011 diagnostics computed before the t.Fatal-aware staticcheck
+// update; forcing a fresh analysis key clears them.
