@@ -10,16 +10,14 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/octarq-org/octarq/plugin/safehttp"
 )
 
 // startTestSMPListener serves one minimal SMTP conversation on loopback so
-// testSMTPSender's delivery can be observed end to end.
+// testSMTPSender's delivery can be observed end to end. Loopback dials are
+// already permitted package-wide by TestMain — do not touch the global here:
+// a cleanup that flips it off mid-run kills parallel tests' in-flight dials.
 func startTestSMPListener(t *testing.T) (port string, received func() []string) {
 	t.Helper()
-	safehttp.SetAllowPrivateSMTP(true)
-	t.Cleanup(func() { safehttp.SetAllowPrivateSMTP(false) })
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
