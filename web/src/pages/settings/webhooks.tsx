@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, WebhookEventGroup } from "../../api";
 import { Field, Modal, Toggle, PageHeader, GlassCard, Button, toast, confirmDialog } from "../../ui";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Send } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../shell/role";
 
@@ -18,6 +18,7 @@ export function WebhooksSettings() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [eventGroups, setEventGroups] = useState<WebhookEventGroup[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [testingId, setTestingId] = useState<number | null>(null);
 
   function load() { api.webhooks().then(setWebhooks).catch(() => {}); }
   useEffect(load, []);
@@ -51,6 +52,18 @@ export function WebhooksSettings() {
       toast.success(t("settings.saved"));
     } catch (err: any) {
       toast.error(err.message || t("settings.failed"));
+    }
+  }
+
+  async function test(h: any) {
+    setTestingId(h.id);
+    try {
+      await api.testWebhook(h.id);
+      toast.success(t("settings.webhookTestSent", { name: h.name }));
+    } catch (err: any) {
+      toast.error(t("settings.testFailed", { msg: err.message || "unknown error" }));
+    } finally {
+      setTestingId(null);
     }
   }
 
@@ -114,6 +127,14 @@ export function WebhooksSettings() {
                 {canManage && (
                   <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">
                     <Toggle on={w.enabled} onChange={() => toggle(w)} />
+                    <Button
+                      variant="ghost"
+                      onClick={() => test(w)}
+                      disabled={testingId === w.id}
+                      className="flex items-center gap-1 px-3 sm:px-2.5 py-2 sm:py-1 text-xs min-h-[44px] sm:min-h-0"
+                    >
+                      <Send className="h-3 w-3" /> {testingId === w.id ? t("settings.testing") : t("settings.test")}
+                    </Button>
                     <Button variant="danger" onClick={() => del(w.id)} className="flex items-center gap-1 px-3 sm:px-2.5 py-2 sm:py-1 text-xs min-h-[44px] sm:min-h-0"><Trash2 className="h-3 w-3" /> {t("settings.delete")}</Button>
                   </div>
                 )}
