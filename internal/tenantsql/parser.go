@@ -135,8 +135,7 @@ func (p *parserImpl) Validate(sql string) (err error) {
 	}
 
 	// Stage 4 & Stage 5: Walk AST extracting table names and function calls
-	var walkErr error
-	walkErr = sqlparser.Walk(func(node sqlparser.SQLNode) (bool, error) {
+	walkErr := sqlparser.Walk(func(node sqlparser.SQLNode) (bool, error) {
 		if node == nil {
 			return true, nil
 		}
