@@ -75,6 +75,7 @@ type Endpoint interface {
 	EndpointExposeMCP() bool
 	EndpointRequireApproval() bool
 	Execute(ctx context.Context, input any) (any, error)
+	ExecuteAgentJSON(ctx context.Context, argsJSON string) (any, error)
 	Spec() any
 }
 
@@ -153,6 +154,30 @@ func (s EndpointSpec[In, Out]) Execute(ctx context.Context, input any) (any, err
 		return nil, fmt.Errorf("endpoint %q expected input type %T, got %T", s.Name, *new(In), input)
 	}
 	return s.Handler(ctx, typed)
+}
+
+// ExecuteAgentJSON bridges raw JSON strings to the typed Handler, allowing
+// callers (e.g. ToolExecutor) that only have a JSON blob to invoke the
+// endpoint without knowing the concrete In type.
+//
+// P3 前 API 易变.
+func (s EndpointSpec[In, Out]) ExecuteAgentJSON(ctx context.Context, argsJSON string) (any, error) {
+	if s.Handler == nil {
+		return nil, fmt.Errorf("no handler configured for endpoint %q", s.Name)
+	}
+	var in In
+	if argsJSON != "" && argsJSON != "null" {
+		if err := json.Unmarshal([]byte(argsJSON), &in); err != nil {
+			return nil, NewAgentError(
+				400,
+				"INVALID_TOOL_ARGS",
+				err.Error(),
+				"修正参数后重试",
+				false,
+			)
+		}
+	}
+	return s.Handler(ctx, in)
 }
 
 type httpBodyInput[T any] struct {
