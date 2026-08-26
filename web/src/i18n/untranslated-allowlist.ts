@@ -26,6 +26,7 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "abuse.reasonMalware", // Standard cybersecurity term (Malware)
   "personal.tokenScopeAdmin", // Scope identifier token (admin)
   "status.statusNa", // Standard universal abbreviation (N/A)
+  "command.chat.tokens", // Standard technical unit (tokens)
 
   // Example inputs & placeholders
   "app.emailPlaceholder", // Example email placeholder (you@domain.com)
