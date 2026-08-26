@@ -115,6 +115,7 @@ func TestSpine_BackpressureDropOldestPerEntityKey(t *testing.T) {
 
 	got := make([]int, 0, bufSize)
 	drain := time.After(500 * time.Millisecond)
+drainLoop:
 	for len(got) < bufSize {
 		select {
 		case env := <-ch:
@@ -123,7 +124,7 @@ func TestSpine_BackpressureDropOldestPerEntityKey(t *testing.T) {
 				got = append(got, m["seq"])
 			}
 		case <-drain:
-			break
+			break drainLoop
 		}
 	}
 	found := map[int]bool{}
@@ -173,6 +174,7 @@ func TestSpine_BackpressureFallbackDropHead(t *testing.T) {
 	// Drain and verify seq 0 is gone and seq 99 is present.
 	got := make([]int, 0, bufSize)
 	drain := time.After(500 * time.Millisecond)
+drainLoop:
 	for len(got) < bufSize {
 		select {
 		case env := <-ch:
@@ -181,7 +183,7 @@ func TestSpine_BackpressureFallbackDropHead(t *testing.T) {
 				got = append(got, m["seq"])
 			}
 		case <-drain:
-			break
+			break drainLoop
 		}
 	}
 	for _, seq := range got {
