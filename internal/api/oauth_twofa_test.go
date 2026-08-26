@@ -154,11 +154,9 @@ func TestOAuthCallbackRequiresTwoFactorForTOTPUsers(t *testing.T) {
 	if challenge == nil {
 		t.Fatal("OAuth callback set no 2FA challenge cookie")
 	}
-	if !challenge.HttpOnly {
-		t.Fatal("2FA challenge cookie is not HttpOnly")
-	}
-	if challenge.MaxAge != int((10 * time.Minute).Seconds()) {
-		t.Fatalf("challenge cookie MaxAge = %d, want %d (10-minute TTL)", challenge.MaxAge, int((10 * time.Minute).Seconds()))
+	if !challenge.HttpOnly || challenge.MaxAge != int((10*time.Minute).Seconds()) {
+		t.Fatalf("challenge cookie HttpOnly=%v MaxAge=%d, want HttpOnly with MaxAge %d (10-minute TTL)",
+			challenge.HttpOnly, challenge.MaxAge, int((10 * time.Minute).Seconds()))
 	}
 	// Guard (this fix): the challenge value must never appear in the redirect
 	// Location — the URL is what proxy access logs and browser history record.
@@ -202,11 +200,8 @@ func TestOAuthCallbackRequiresTwoFactorForTOTPUsers(t *testing.T) {
 	}
 	// Guard: the spent challenge cookie is cleared in the same response.
 	c := challengeCookie(rec.Result().Cookies())
-	if c == nil {
-		t.Fatal("spent challenge cookie was not cleared after successful verify")
-	}
-	if c.MaxAge >= 0 {
-		t.Fatalf("spent challenge cookie MaxAge = %d, want < 0 (expired)", c.MaxAge)
+	if c == nil || c.MaxAge >= 0 {
+		t.Fatalf("spent challenge cookie was not cleared after successful verify: got %+v", c)
 	}
 	if rec := do(srv, "GET", "/api/overview", []*http.Cookie{sess}, ""); rec.Code != http.StatusOK {
 		t.Fatalf("session from challenge+code is not usable: got %d", rec.Code)
