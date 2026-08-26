@@ -35,7 +35,7 @@ func statusOf(t *testing.T, err error) int {
 	t.Helper()
 	if err == nil {
 		t.Fatal("expected an error, got nil")
-		return
+		return 0
 	}
 	se, ok := err.(huma.StatusError)
 	if !ok {
