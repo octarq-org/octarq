@@ -87,30 +87,32 @@ func TestSpine_BackpressureDropOldestPerEntityKey(t *testing.T) {
 	ch, cancel := Subscribe(SubscribeOpts{BufferSize: bufSize})
 	defer cancel()
 
-	// Fill the buffer completely with entity "link:1".
-	for i := 0; i < bufSize; i++ {
+	// Fill the buffer with a foreign entity occupying the global head so that
+	// per-entity drop and overall head-drop are observably different:
+	// seq0 = "other" (global head), seq1..3 = "link:1".
+	// (An all-same-entity buffer cannot distinguish the two semantics — both
+	// drop seq0 — which is why this scenario must stay mixed.)
+	publish := func(seq int, entity string) {
 		PublishEnvelope(Envelope{
 			OrgID:     1,
 			Key:       "link.click",
-			EntityKey: "link:1",
-			Payload:   json.RawMessage(`{"seq":` + itoa(i) + `}`),
+			EntityKey: entity,
+			Payload:   json.RawMessage(`{"seq":` + itoa(seq) + `}`),
 		})
 	}
-	// Channel is now full with seq 0,1,2,3.
+	publish(0, "other")
+	for i := 1; i < bufSize; i++ {
+		publish(i, "link:1")
+	}
 
-	// Publish one more for entity "link:1" — should drop seq 0 (oldest same entity).
+	// Overflow with entity "link:1" — must drop seq 1 (oldest same entity),
+	// NOT seq 0 (global head belongs to another entity).
 	beforeDrop := DroppedTotal()
-	PublishEnvelope(Envelope{
-		OrgID:     1,
-		Key:       "link.click",
-		EntityKey: "link:1",
-		Payload:   json.RawMessage(`{"seq":4}`),
-	})
+	publish(4, "link:1")
 	if DroppedTotal() <= beforeDrop {
 		t.Errorf("expected droppedCnt to increase, still %d", DroppedTotal())
 	}
 
-	// Drain channel and verify seq 0 was dropped (seq 1,2,3,4 remain).
 	got := make([]int, 0, bufSize)
 	drain := time.After(500 * time.Millisecond)
 	for len(got) < bufSize {
@@ -124,19 +126,18 @@ func TestSpine_BackpressureDropOldestPerEntityKey(t *testing.T) {
 			break
 		}
 	}
+	found := map[int]bool{}
 	for _, seq := range got {
-		if seq == 0 {
-			t.Errorf("seq 0 should have been dropped (oldest same EntityKey)")
+		if seq == 1 {
+			t.Errorf("seq 1 (oldest same EntityKey) should have been dropped, got %v", got)
 		}
+		found[seq] = true
 	}
-	found4 := false
-	for _, seq := range got {
-		if seq == 4 {
-			found4 = true
-		}
+	if !found[0] {
+		t.Errorf("seq 0 (different entity, global head) must be retained under per-entity drop, got %v", got)
 	}
-	if !found4 {
-		t.Errorf("newest envelope (seq 4) should be in channel, got %v", got)
+	if !found[4] {
+		t.Errorf("newest envelope (seq 4) should be delivered, got %v", got)
 	}
 }
 
