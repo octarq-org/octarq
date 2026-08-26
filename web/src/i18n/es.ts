@@ -127,6 +127,8 @@ export const es = {
     members: "Miembros",
     webhooks: "Webhooks",
     notifications: "Alertas",
+    "checkout-orders": "Pedidos",
+    "checkout-promos": "Códigos promocionales",
     profile: "Mi Perfil",
     security: "Seguridad",
     tokens: "Tokens de API",

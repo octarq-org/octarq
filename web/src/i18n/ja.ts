@@ -127,6 +127,8 @@ export const ja = {
     members: "メンバー",
     webhooks: "Webhooks",
     notifications: "アラート",
+    "checkout-orders": "注文",
+    "checkout-promos": "プロモコード",
     profile: "マイプロファイル",
     security: "セキュリティ",
     tokens: "APIトークン",
