@@ -13,6 +13,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/agent/harness"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/apierror"
 	"github.com/octarq-org/octarq/internal/auth"
@@ -67,8 +68,9 @@ type Handler struct {
 	// plugin.LookupServiceAs), and is what export/purge/overview and the AI
 	// assists reach through when a plugin is absent from this build. Registered
 	// by the app via SetServiceLookup.
-	lookupService func(name string) (any, bool)
-	humaAPI       huma.API
+	lookupService  func(name string) (any, bool)
+	endpointSource harness.EndpointSource
+	humaAPI        huma.API
 
 	// hostOrgs caches Host→org resolution for per-workspace branding on the
 	// public, pre-auth config endpoint. See host_org.go.
@@ -302,6 +304,9 @@ func (h *Handler) Routes() *http.ServeMux {
 	// MCP SSE and Streamable HTTP endpoints.
 	mux.Handle("/api/mcp/sse", h.mcpSSEHandler())
 	mux.Handle("/api/mcp/stream", h.mcpStreamHandler())
+
+	// AI Chat Stream endpoint (SSE).
+	mux.HandleFunc("POST /api/ai/chat/stream", h.aiChatStream)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "overview",

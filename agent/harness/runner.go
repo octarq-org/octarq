@@ -39,6 +39,15 @@ type Runner interface {
 	Run(ctx context.Context, s *Session, t *Turn) error
 }
 
+// StreamRunner is an optional interface implemented by runners that support
+// streaming LLM outputs to a StreamHandler.
+//
+// P3 前 API 易变.
+type StreamRunner interface {
+	Runner
+	Stream(ctx context.Context, s *Session, t *Turn, h llmprovider.StreamHandler) error
+}
+
 // toolCall is an internal representation of a tool invocation parsed from
 // LLM output.
 type toolCall struct {
@@ -178,57 +187,32 @@ func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
 		}
 
 		// Execute each tool call.
-		for _, tc := range calls {
-			stepID := fmt.Sprintf("%s-step-%d-%s", s.ID, step, tc.Name)
-			r.tracer.StepStart(ctx, stepID)
+		if err := r.executeSteps(ctx, s, t, step, calls, remaining); err != nil {
+			t.Status = TurnStatusFailed
+			return err
+		}
+	}
+}
 
-			st := Step{
-				ToolName: tc.Name,
-				ArgsJSON: tc.ArgsJSON,
-			}
+// executeSteps executes parsed tool calls with guard checks and tracing,
+// appending results to history.
+func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, step int, calls []toolCall, remaining string) error {
+	for _, tc := range calls {
+		stepID := fmt.Sprintf("%s-step-%d-%s", s.ID, step, tc.Name)
+		r.tracer.StepStart(ctx, stepID)
 
-			// Guard check.
-			if guardErr := r.guard.Allow(ctx, s.OrgID, tc.Name); guardErr != nil {
-				st.Err = guardErr
-				st.OutputFenced = wrapUntrustedFence(guardErr.Error())
-				t.Steps = append(t.Steps, st)
-				r.tracer.StepEnd(ctx, stepID, guardErr)
-				// Append the guard rejection into history so the LLM knows.
-				s.History = append(s.History, Message{
-					Role:    "assistant",
-					Content: remaining,
-				})
-				s.History = append(s.History, Message{
-					Role:    "tool",
-					Content: st.OutputFenced,
-				})
-				continue
-			}
+		st := Step{
+			ToolName: tc.Name,
+			ArgsJSON: tc.ArgsJSON,
+		}
 
-			// Execute tool.
-			start := time.Now()
-			output, execErr := r.executor.Execute(ctx, s.OrgID, tc.Name, tc.ArgsJSON)
-			st.DurationMS = time.Since(start).Milliseconds()
-
-			if execErr != nil {
-				// Preserve AgentError.AgentGuidance through the Step.
-				var ae *plugin.AgentError
-				if errors.As(execErr, &ae) {
-					st.Err = ae // keep the full AgentError
-				} else {
-					st.Err = execErr
-				}
-				// Use the error message as fenced output so the LLM sees it.
-				st.OutputFenced = wrapUntrustedFence(execErr.Error())
-			} else {
-				st.OutputFenced = wrapUntrustedFence(output)
-			}
-
+		// Guard check.
+		if guardErr := r.guard.Allow(ctx, s.OrgID, tc.Name); guardErr != nil {
+			st.Err = guardErr
+			st.OutputFenced = wrapUntrustedFence(guardErr.Error())
 			t.Steps = append(t.Steps, st)
-			r.tracer.StepEnd(ctx, stepID, st.Err)
-
-			// Append the assistant's tool-call intent and tool output into
-			// history so the LLM can reason about results.
+			r.tracer.StepEnd(ctx, stepID, guardErr)
+			// Append the guard rejection into history so the LLM knows.
 			s.History = append(s.History, Message{
 				Role:    "assistant",
 				Content: remaining,
@@ -237,8 +221,52 @@ func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
 				Role:    "tool",
 				Content: st.OutputFenced,
 			})
+			continue
 		}
+
+		// Execute tool.
+		start := time.Now()
+		output, execErr := r.executor.Execute(ctx, s.OrgID, tc.Name, tc.ArgsJSON)
+		st.DurationMS = time.Since(start).Milliseconds()
+
+		if execErr != nil {
+			// Preserve AgentError.AgentGuidance through the Step.
+			var ae *plugin.AgentError
+			if errors.As(execErr, &ae) {
+				st.Err = ae // keep the full AgentError
+			} else {
+				st.Err = execErr
+			}
+			// Use the error message as fenced output so the LLM sees it.
+			st.OutputFenced = wrapUntrustedFence(execErr.Error())
+		} else {
+			st.OutputFenced = wrapUntrustedFence(output)
+		}
+
+		t.Steps = append(t.Steps, st)
+		r.tracer.StepEnd(ctx, stepID, st.Err)
+
+		// Append the assistant's tool-call intent and tool output into
+		// history so the LLM can reason about results.
+		s.History = append(s.History, Message{
+			Role:    "assistant",
+			Content: remaining,
+		})
+		s.History = append(s.History, Message{
+			Role:    "tool",
+			Content: st.OutputFenced,
+		})
 	}
+	return nil
+}
+
+// toProviderMessages converts harness Messages to llmprovider Messages.
+func toProviderMessages(messages []Message) []llmprovider.Message {
+	msgs := make([]llmprovider.Message, len(messages))
+	for i, m := range messages {
+		msgs[i] = llmprovider.Message{Role: m.Role, Content: m.Content}
+	}
+	return msgs
 }
 
 // CompleterAdapter adapts llmprovider.Provider to the narrow Completer
@@ -250,10 +278,7 @@ type CompleterAdapter struct {
 // Complete calls the real llmprovider.Provider.Complete with a properly
 // constructed Request.
 func (a *CompleterAdapter) Complete(ctx context.Context, model string, system string, messages []Message) (string, error) {
-	msgs := make([]llmprovider.Message, len(messages))
-	for i, m := range messages {
-		msgs[i] = llmprovider.Message{Role: m.Role, Content: m.Content}
-	}
+	msgs := toProviderMessages(messages)
 	resp, err := a.Provider.Complete(ctx, llmprovider.Request{
 		Model:    model,
 		System:   system,
@@ -263,4 +288,13 @@ func (a *CompleterAdapter) Complete(ctx context.Context, model string, system st
 		return "", err
 	}
 	return resp.Text, nil
+}
+
+// StreamComplete implements llmprovider.StreamProvider by delegating to the underlying
+// Provider if it supports streaming.
+func (a *CompleterAdapter) StreamComplete(ctx context.Context, req llmprovider.Request, h llmprovider.StreamHandler) (llmprovider.Response, error) {
+	if sp, ok := a.Provider.(llmprovider.StreamProvider); ok {
+		return sp.StreamComplete(ctx, req, h)
+	}
+	return llmprovider.Response{}, fmt.Errorf("llmprovider: underlying provider %T does not support streaming", a.Provider)
 }

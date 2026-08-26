@@ -172,6 +172,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 	apiHandler.SetServiceLookup(services.Lookup)
 	var emailMu sync.Mutex
 	var deferredOnEmail []func(plugin.EmailEvent)
+	endpointEngine := endpoint.NewEngine()
 	pctx := &plugin.Context{
 		Huma:   apiHandler.Huma(),
 		DB:     a.gdb,
@@ -260,11 +261,12 @@ func (a *App) RunMCP(ctx context.Context) error {
 		StartSpan: func(ctx context.Context, tracerName, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 			return telemetry.StartSpan(ctx, tracerName, spanName, opts...)
 		},
-		RegisterEndpoint: endpoint.NewEngine().Register,
+		RegisterEndpoint: endpointEngine.Register,
 		RegisterTenantView: func(view plugin.TenantView) {
 			_ = tenantsql.DefaultRegistry().Register(view)
 		},
 	}
+	apiHandler.SetEndpointSource(endpointEngine)
 	// Same idempotency seam as the HTTP path — a plugin that resolves it in
 	// Mount must find it in both compositions.
 	services.Provide(idempotency.ServiceName, idempotency.New(a.gdb).Middleware(func(r *http.Request) uint {
@@ -505,6 +507,7 @@ func (a *App) Run(ctx context.Context) error {
 			_ = tenantsql.DefaultRegistry().Register(view)
 		},
 	}
+	apiHandler.SetEndpointSource(endpointEngine)
 	// Idempotency-Key support is offered to plugin routes through the service
 	// registry rather than a new plugin.Context field, so a plugin adopts it
 	// per route (see idempotency.ServiceName) without every route paying for it.

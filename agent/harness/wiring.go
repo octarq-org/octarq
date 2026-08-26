@@ -42,6 +42,15 @@ func NewRegistryExecutor(src EndpointSource) ToolExecutor {
 
 // Execute implements ToolExecutor.
 func (r *RegistryExecutor) Execute(ctx context.Context, orgID uint, name string, argsJSON string) (string, error) {
+	if r.src == nil {
+		return "", plugin.NewAgentError(
+			404,
+			"UNKNOWN_TOOL",
+			fmt.Sprintf("tool %q not found", name),
+			"Use only tools listed in the system prompt. Call the tool-listing endpoint to see available tools.",
+			false,
+		)
+	}
 	ep, ok := r.src.Lookup(name)
 	if !ok {
 		return "", plugin.NewAgentError(
@@ -88,6 +97,15 @@ func NewRiskGuard(src EndpointSource) Guard {
 
 // Allow implements Guard.
 func (g *riskGuard) Allow(_ context.Context, _ uint, tool string) error {
+	if g.src == nil {
+		return plugin.NewAgentError(
+			404,
+			"UNKNOWN_TOOL",
+			fmt.Sprintf("tool %q not found", tool),
+			"Use only tools listed in the system prompt. Call the tool-listing endpoint to see available tools.",
+			false,
+		)
+	}
 	ep, ok := g.src.Lookup(tool)
 	if !ok {
 		return plugin.NewAgentError(
