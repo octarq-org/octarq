@@ -341,6 +341,7 @@ func (h *Handler) Routes() *http.ServeMux {
 		Errors:        []int{400, 401, 403},
 	}, h.createWebhook)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/webhooks/{id}", Summary: "Update Webhook", Tags: []string{"Webhooks"}}, h.updateWebhook)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/webhooks/{id}/test", Summary: "Test Webhook", Tags: []string{"Webhooks"}}, h.testWebhook)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/webhooks/{id}", Summary: "Delete Webhook", Tags: []string{"Webhooks"}}, h.deleteWebhook)
 
 	// DNS providers, provider-accounts, domains, and DNS records are served by the
