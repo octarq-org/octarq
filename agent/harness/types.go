@@ -44,7 +44,11 @@ type Step struct {
 
 // Turn is one "input → reasoning → tool calls → output" cycle.
 type Turn struct {
-	Input  string
-	Steps  []Step
-	Status TurnStatus
+	Input           string
+	Steps           []Step
+	Status          TurnStatus
+	Thinking        bool
+	InputTokens     int
+	OutputTokens    int
+	ReasoningTokens int
 }

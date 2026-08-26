@@ -30,13 +30,15 @@ type StreamProvider interface {
 	StreamComplete(ctx context.Context, req Request, h StreamHandler) (Response, error)
 }
 
-// streamOrderGuard enforces the legal event sequence:
+// StreamOrderGuard enforces the legal event sequence:
 // Thinking* -> (Text* | ToolCallChunk*) -> End.
 // Once non-empty text or tool-call content has been emitted, receiving a thinking
 // delta violates the protocol and fails closed.
-type streamOrderGuard struct {
+type StreamOrderGuard struct {
 	sawContent bool
 }
+
+type streamOrderGuard = StreamOrderGuard
 
 // OnThinking checks whether a thinking delta is allowed at the current point in
 // the stream. If content has already been seen, it returns an error wrapping ErrStreamOrder.
