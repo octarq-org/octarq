@@ -62,6 +62,16 @@ type EventPayload struct {
 // and persisted log row. Fan-out is bounded by deliverySem: a tenant with a
 // long hook list queues rather than spawning a goroutine per hook.
 func Publish(orgID uint, event string, data any) {
+	// Mirror to the in-process event spine so in-process subscribers receive
+	// the event even when no webhooks are registered. This is the only allowed
+	// touch to this function (spec §3.9, additive-only).
+	if raw, err := json.Marshal(data); err == nil {
+		PublishEnvelope(Envelope{
+			OrgID:   orgID,
+			Key:     event,
+			Payload: json.RawMessage(raw),
+		})
+	}
 	if db == nil {
 		return
 	}
