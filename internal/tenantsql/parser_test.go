@@ -3,6 +3,8 @@ package tenantsql
 import (
 	"strings"
 	"testing"
+
+	"github.com/xwb1989/sqlparser"
 )
 
 func TestParser_ValidQueries(t *testing.T) {
@@ -304,5 +306,98 @@ func TestParser_NoErrorRawSQLLeak(t *testing.T) {
 	}
 	if !strings.Contains(errMsg, "emails") {
 		t.Fatalf("error message should pinpoint offending table token: %s", errMsg)
+	}
+}
+
+// ⑥ 默认函数白名单下，特殊表达式（group_concat/substr/convert/match/限定函数）全部拒绝。
+func TestParser_SpecialFunctionsRejectedByDefault(t *testing.T) {
+	p := NewParser()
+	cases := []string{
+		`SELECT group_concat(name) FROM tenant_links`,
+		`SELECT substr(name, 1, 3) FROM tenant_links`,
+		`SELECT substring(name FROM 1 FOR 3) FROM tenant_links`,
+		`SELECT CONVERT(name, CHAR) FROM tenant_links`,
+		`SELECT CONVERT(name USING utf8) FROM tenant_links`,
+		`SELECT MATCH(title) AGAINST('x') FROM tenant_links`,
+		`SELECT db.count(id) FROM tenant_links`,
+	}
+	for _, sql := range cases {
+		if err := p.Validate(sql); err == nil {
+			t.Errorf("expected rejection for %q", sql)
+		}
+	}
+}
+
+// ⑦ 显式扩白后同一批查询放行。
+func TestParser_AllowedSpecialFunctionsViaOptions(t *testing.T) {
+	p := NewParser(WithAllowedFunctions([]string{
+		"count", "group_concat", "substr", "substring", "convert", "cast",
+	}))
+	cases := []string{
+		`SELECT group_concat(name) FROM tenant_links`,
+		`SELECT substr(name, 1, 3) FROM tenant_links`,
+		`SELECT substring(name FROM 1 FOR 3) FROM tenant_links`,
+		`SELECT CONVERT(name, CHAR) FROM tenant_links`,
+		`SELECT CONVERT(name USING utf8) FROM tenant_links`,
+	}
+	for _, sql := range cases {
+		if err := p.Validate(sql); err != nil {
+			t.Errorf("expected %q to pass with extended whitelist, got %v", sql, err)
+		}
+	}
+}
+
+// ⑧ 非 SELECT 语句类型的拒绝文案覆盖各语句标签。
+func TestParser_StatementTypeLabels(t *testing.T) {
+	p := NewParser()
+	cases := map[string]string{
+		"SET @x = 1":                   "SET",
+		"SHOW TABLES":                  "SHOW",
+		"USE otherdb":                  "USE",
+		"CREATE DATABASE foo":          "DBDDL",
+		"CREATE TABLE t_copy (id int)": "DDL",
+		"(SELECT 1) UNION (SELECT 2)":  "UNION",
+	}
+	for sql, label := range cases {
+		err := p.Validate(sql)
+		if err == nil {
+			t.Errorf("expected rejection for %q", sql)
+			continue
+		}
+		if !strings.Contains(err.Error(), label) {
+			t.Errorf("expected label %q in error for %q, got: %v", label, sql, err)
+		}
+	}
+}
+
+// ⑨ 三段式列限定名（db.tbl.col）按跨库引用拒绝。
+func TestParser_QualifiedColumnRejected(t *testing.T) {
+	p := NewParser()
+	err := p.Validate("SELECT mydb.tenant_users.id FROM tenant_users")
+	if err == nil || !strings.Contains(err.Error(), "cross-database") {
+		t.Fatalf("expected cross-database rejection, got %v", err)
+	}
+}
+
+// ⑩ 尾随内容拒绝。
+func TestParser_TrailingContentRejected(t *testing.T) {
+	p := NewParser()
+	if err := p.Validate("SELECT id FROM tenant_users WHERE 1=1 extra_here"); err == nil {
+		t.Error("expected rejection for trailing content after statement")
+	}
+}
+
+// ⑪ 注入必崩解析器，证明 recover 路径把 panic 转为普通解析失败。
+func TestParseSafely_RecoversPanic(t *testing.T) {
+	old := parseFunc
+	parseFunc = func(string) (sqlparser.Statement, error) {
+		panic("boom: injected parser failure")
+	}
+	defer func() { parseFunc = old }()
+
+	p := NewParser()
+	err := p.Validate("SELECT id FROM tenant_users")
+	if err == nil || !strings.Contains(err.Error(), "sql parsing failed") {
+		t.Fatalf("expected panic converted to parse failure, got %v", err)
 	}
 }

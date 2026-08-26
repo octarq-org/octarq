@@ -237,13 +237,17 @@ func (p *parserImpl) Validate(sql string) (err error) {
 	return nil
 }
 
+// parseFunc is indirected solely so tests can inject a panicking parser and
+// prove the recovery path; production always uses sqlparser.Parse.
+var parseFunc = sqlparser.Parse
+
 func parseSafely(sql string) (stmt sqlparser.Statement, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("parser panic: %v", r)
 		}
 	}()
-	return sqlparser.Parse(sql)
+	return parseFunc(sql)
 }
 
 func checkSingleStatement(sql string) error {
