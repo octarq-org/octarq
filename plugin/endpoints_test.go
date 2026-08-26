@@ -90,6 +90,7 @@ func TestEndpointSpec_Execute(t *testing.T) {
 	_, err = spec.Execute(context.Background(), 12345)
 	if err == nil {
 		t.Fatalf("expected error for incompatible input type")
+		return
 	}
 }
 
@@ -472,6 +473,7 @@ func TestEndpointSpec_RegisterMCP_RiskSuffix(t *testing.T) {
 			}
 			if foundTool == nil { //nolint:staticcheck // SA5011 false positive: t.Fatalf above is noreturn
 				t.Fatalf("tool %q not registered", tc.spec.Name)
+				return
 			}
 			if foundTool.Description != tc.expectedDesc { //nolint:staticcheck // SA5011 false positive: t.Fatalf above is noreturn
 				t.Errorf("tool description = %q, expected %q", foundTool.Description, tc.expectedDesc)

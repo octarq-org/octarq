@@ -43,6 +43,7 @@ func TestGenericInboundAuth(t *testing.T) {
 		_, err := p.inboundGeneric(ctx, input)
 		if err == nil {
 			t.Fatal("expected 401 error for missing token, got nil")
+			return
 		}
 	}
 
@@ -57,6 +58,7 @@ func TestGenericInboundAuth(t *testing.T) {
 		_, err := p.inboundGeneric(ctx, input)
 		if err == nil {
 			t.Fatal("expected 401 error for wrong token, got nil")
+			return
 		}
 	}
 
@@ -71,6 +73,7 @@ func TestGenericInboundAuth(t *testing.T) {
 		_, err := p.inboundGeneric(ctx, input)
 		if err == nil {
 			t.Fatal("expected 401 error for unknown org, got nil")
+			return
 		}
 	}
 

@@ -167,6 +167,7 @@ func TestDeleteLinkCleansOnlyOwnOrgEvents(t *testing.T) {
 	delCross.Header.Set("X-Role", "admin")
 	if _, err := p.deleteLink(ctx, &DeleteLinkInput{Ctx: mkCtx(delCross), ID: out1.Body.ID}); err == nil {
 		t.Fatal("expected error when org2 deletes org1's link")
+		return
 	}
 	var org1Events int64
 	p.db.Model(&LinkEvent{}).Where("link_id = ?", out1.Body.ID).Count(&org1Events)

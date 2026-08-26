@@ -16,6 +16,7 @@ func TestValidateRedirectTargetsRoutingRules(t *testing.T) {
 	}
 	if err := validateRedirectTargets(bad); err == nil {
 		t.Fatal("expected javascript: routing-rule target to be rejected")
+		return
 	}
 
 	good := &Link{

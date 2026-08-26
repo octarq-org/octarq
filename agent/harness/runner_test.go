@@ -217,6 +217,7 @@ func TestRunner_GuardDeniesExecution(t *testing.T) {
 	}
 	if turn.Steps[0].Err == nil {
 		t.Fatal("expected non-nil Err on denied step")
+		return
 	}
 	if !strings.Contains(turn.Steps[0].Err.Error(), "denied by policy") {
 		t.Fatalf("unexpected denial message: %v", turn.Steps[0].Err)

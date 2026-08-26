@@ -11,6 +11,7 @@ import (
 func TestNewUnknownProvider(t *testing.T) {
 	if _, err := New(Options{Provider: "nope"}); err == nil {
 		t.Fatal("expected error for unknown provider")
+		return
 	}
 }
 
@@ -33,6 +34,7 @@ func TestNewDefaultsToClaude(t *testing.T) {
 func TestClaudeRequiresAPIKey(t *testing.T) {
 	if _, err := New(Options{Provider: "claude"}); err == nil {
 		t.Fatal("expected error when API key missing")
+		return
 	}
 }
 

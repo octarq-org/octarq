@@ -34,6 +34,7 @@ func TestBuildServerInstance_WithMCPProvider(t *testing.T) {
 	srv := NewServerInstance(gdb, 1, []plugin.Plugin{p})
 	if srv == nil {
 		t.Fatal("expected non-nil server")
+		return
 	}
 	if !p.mountCalled {
 		t.Error("expected plugin Mount to be called")

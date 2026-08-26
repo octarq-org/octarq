@@ -12,6 +12,7 @@ func TestNew_InMemory(t *testing.T) {
 	q := New("")
 	if q == nil {
 		t.Fatal("expected non-nil Queue")
+		return
 	}
 	_, ok := q.(*InMemoryQueue)
 	if !ok {
@@ -23,6 +24,7 @@ func TestNew_InvalidRedisURL(t *testing.T) {
 	q := New("::invalid-url::")
 	if q == nil {
 		t.Fatal("expected non-nil Queue")
+		return
 	}
 	_, ok := q.(*InMemoryQueue)
 	if !ok {

@@ -34,12 +34,15 @@ func TestTelemetryInitAndShutdown(t *testing.T) {
 
 	if tel.TracerProvider == nil {
 		t.Fatal("expected TracerProvider to be non-nil")
+		return
 	}
 	if tel.MeterProvider == nil {
 		t.Fatal("expected MeterProvider to be non-nil")
+		return
 	}
 	if tel.Metrics == nil {
 		t.Fatal("expected Metrics to be non-nil")
+		return
 	}
 
 	// Test StartSpan and TraceID

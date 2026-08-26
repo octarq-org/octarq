@@ -45,6 +45,7 @@ func TestSafeGetBlocksLoopback(t *testing.T) {
 
 	if _, err := safeGet(context.Background(), srv.URL); err == nil {
 		t.Fatal("safeGet reached a loopback server — SSRF guard failed")
+		return
 	}
 }
 

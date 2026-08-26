@@ -29,6 +29,7 @@ func TestMailboxRoleGate_CreateMailbox_ForbiddenForMember(t *testing.T) {
 	_, err := p.createMailbox(ctx, in)
 	if err == nil {
 		t.Fatal("expected 403 error for member createMailbox, got nil")
+		return
 	}
 	stErr, ok := err.(huma.StatusError)
 	if !ok || stErr.GetStatus() != http.StatusForbidden {
@@ -52,6 +53,7 @@ func TestMailboxRoleGate_CreateMailbox_ForbiddenForMember(t *testing.T) {
 	_, errBad := p.createMailbox(ctx, inBad)
 	if errBad == nil {
 		t.Fatal("expected 403 error for member createMailbox with bad input, got nil")
+		return
 	}
 	stErrBad, okBad := errBad.(huma.StatusError)
 	if !okBad || stErrBad.GetStatus() != http.StatusForbidden {
@@ -104,6 +106,7 @@ func TestMailboxRoleGate_UpdateMailbox_ForbiddenForMember(t *testing.T) {
 	_, err := p.updateMailbox(ctx, in)
 	if err == nil {
 		t.Fatal("expected 403 error for member updateMailbox, got nil")
+		return
 	}
 	stErr, ok := err.(huma.StatusError)
 	if !ok || stErr.GetStatus() != http.StatusForbidden {

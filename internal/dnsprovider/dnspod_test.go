@@ -102,6 +102,7 @@ func TestDNSPodErrorStatus(t *testing.T) {
 	})
 	if _, err := d.ListRecords(context.Background(), "42"); err == nil {
 		t.Fatal("expected error for error response")
+		return
 	}
 }
 
@@ -148,14 +149,17 @@ func TestDNSPodFactoryRegistered(t *testing.T) {
 	}
 	if p == nil {
 		t.Fatal("nil provider")
+		return
 	}
 	// Missing creds fails.
 	if _, err := New("dnspod", []byte(`{}`)); err == nil {
 		t.Fatal("expected error for empty creds")
+		return
 	}
 	// Malformed JSON fails the factory.
 	if _, err := New("dnspod", []byte("not json")); err == nil {
 		t.Fatal("expected error for malformed credentials JSON")
+		return
 	}
 }
 

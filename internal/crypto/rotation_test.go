@@ -12,6 +12,7 @@ func TestDecryptBeforeEnvelopeFails(t *testing.T) {
 	c := New("test-secret")
 	if _, err := c.Decrypt("some-ciphertext"); err == nil {
 		t.Fatal("Decrypt should fail before EnableEnvelope")
+		return
 	}
 }
 

@@ -87,6 +87,7 @@ func TestMountWiresEverythingAndServesRoot(t *testing.T) {
 	// Root handler: empty path 404s, unknown slug 404s, a real slug redirects.
 	if root == nil {
 		t.Fatal("root handler was not registered")
+		return
 	}
 	rec4 := httptest.NewRecorder()
 	root.ServeHTTP(rec4, httptest.NewRequest(http.MethodGet, "/", nil))

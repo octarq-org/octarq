@@ -274,6 +274,7 @@ func TestBindIdentityRequiresASession(t *testing.T) {
 
 	if err := m.BindIdentity(req, oidcID("https://idp.acme.com", "sub-1", "a@b.c")); err == nil {
 		t.Fatal("BindIdentity accepted an unauthenticated request")
+		return
 	}
 	var n int64
 	db.Model(&models.UserIdentity{}).Count(&n)

@@ -36,6 +36,7 @@ func TestDuplicateRouteIsRefusedNotPanicked(t *testing.T) {
 	err := routes.Err()
 	if err == nil {
 		t.Fatal("expected a startup error for the duplicate route, got nil")
+		return
 	}
 	for _, want := range []string{"/api/products", "commerce", "acme-shop"} {
 		if !strings.Contains(err.Error(), want) {
@@ -97,6 +98,7 @@ func TestThirdPartyMustUseReservedNamespace(t *testing.T) {
 	err := routes.Err()
 	if err == nil {
 		t.Fatal("third-party plugin claimed a bare /api noun without being refused")
+		return
 	}
 	if !strings.Contains(err.Error(), "/api/x/acme") {
 		t.Errorf("error %q does not tell the author which namespace to use", err)

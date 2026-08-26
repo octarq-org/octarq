@@ -82,6 +82,7 @@ func TestSendFailsClosedWhenServerDropsAUTH(t *testing.T) {
 	err := NewCustomSender("127.0.0.1", port, "user", "pass", "a@example.com").Send(msg)
 	if err == nil {
 		t.Fatal("sending with credentials to a server offering no AUTH was allowed")
+		return
 	}
 	if !strings.Contains(err.Error(), "doesn't support AUTH") {
 		t.Errorf("expected a fail-closed AUTH error, got %v", err)

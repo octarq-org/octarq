@@ -74,6 +74,7 @@ func TestStreamOrderGuard(t *testing.T) {
 		err := g.OnThinking("late thinking")
 		if err == nil {
 			t.Fatal("expected ErrStreamOrder when thinking arrives after text")
+			return
 		}
 		if !errors.Is(err, ErrStreamOrder) {
 			t.Fatalf("expected errors.Is(err, ErrStreamOrder), got %v", err)
@@ -86,6 +87,7 @@ func TestStreamOrderGuard(t *testing.T) {
 		err := g.OnThinking("late thinking after tool")
 		if err == nil {
 			t.Fatal("expected ErrStreamOrder when thinking arrives after tool call")
+			return
 		}
 		if !errors.Is(err, ErrStreamOrder) {
 			t.Fatalf("expected errors.Is(err, ErrStreamOrder), got %v", err)
@@ -294,6 +296,7 @@ func TestClaudeStreamOrderViolation(t *testing.T) {
 	}, h)
 	if err == nil {
 		t.Fatal("expected error on out-of-order stream, got nil")
+		return
 	}
 	if !errors.Is(err, ErrStreamOrder) {
 		t.Fatalf("expected errors.Is(err, ErrStreamOrder), got %v", err)
@@ -474,6 +477,7 @@ func TestLangchainStreamComplete(t *testing.T) {
 		}, &captureHandler{})
 		if err == nil {
 			t.Fatal("expected error when tools passed to langchain StreamComplete")
+			return
 		}
 		if !strings.Contains(err.Error(), "tool streaming not supported by langchaingo adapter") {
 			t.Errorf("error = %q, want 'tool streaming not supported by langchaingo adapter'", err.Error())
@@ -570,6 +574,7 @@ func TestLangchainStreamComplete(t *testing.T) {
 		}, h)
 		if err == nil {
 			t.Fatal("expected ErrStreamOrder when langchain streaming delivers out of order")
+			return
 		}
 		if !errors.Is(err, ErrStreamOrder) {
 			t.Fatalf("expected errors.Is(err, ErrStreamOrder), got %v", err)

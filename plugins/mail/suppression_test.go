@@ -186,6 +186,7 @@ func TestSendInterceptionForSuppressedAddress(t *testing.T) {
 	err := p.sendMail(1, "blocked@example.com", "Subject", "HTML", "Text")
 	if err == nil {
 		t.Fatal("expected sendMail to fail for suppressed address, but it succeeded")
+		return
 	}
 
 	// Test sendEmail HTTP handler
@@ -204,6 +205,7 @@ func TestSendInterceptionForSuppressedAddress(t *testing.T) {
 	_, sendErr := p.sendEmail(context.Background(), input)
 	if sendErr == nil {
 		t.Fatal("expected sendEmail to fail for suppressed address, but it succeeded")
+		return
 	}
 }
 

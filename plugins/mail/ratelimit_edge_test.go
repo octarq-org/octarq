@@ -12,6 +12,7 @@ func TestRateLimiterFallsBackToMemoryOnBadRedisURL(t *testing.T) {
 	rl := newRateLimiter("not-a-url://", "send", 100, time.Hour)
 	if rl.store == nil {
 		t.Fatal("store must not be nil")
+		return
 	}
 	rl.recordFailure("key")
 	if !rl.allow("key-for-first") {

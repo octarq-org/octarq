@@ -155,6 +155,7 @@ func TestSendEmailPublishesFailureEvent(t *testing.T) {
 	}
 	if _, err := p.sendEmail(ctx, input); err == nil {
 		t.Fatal("send to an unreachable relay must fail")
+		return
 	}
 	if failed != 1 {
 		t.Errorf("email.send_failed events = %d, want 1", failed)

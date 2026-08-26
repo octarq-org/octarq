@@ -73,6 +73,7 @@ func TestUpsertUserByEmailRejectsEmpty(t *testing.T) {
 	db := testDB(t)
 	if _, _, err := UpsertUserByEmail(db, "   ", true); err == nil {
 		t.Fatal("expected error for empty email")
+		return
 	}
 }
 

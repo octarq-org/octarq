@@ -140,6 +140,7 @@ func TestMailboxScopeAndDomainValidation(t *testing.T) {
 		_, err := p.createMailbox(ctx, input)
 		if err == nil {
 			t.Fatal("expected 403 error when Org A creates mailbox on Org B's domain, got nil")
+			return
 		}
 	}
 }

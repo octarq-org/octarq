@@ -220,6 +220,7 @@ func TestHelpDocsCategorySortingAndTranslation(t *testing.T) {
 	}
 	if matchedService == nil { //nolint:staticcheck // SA5011 false positive: t.Fatalf above is noreturn
 		t.Fatalf("service-doc not found in zh-CN query")
+		return
 	}
 	if matchedService.Title != "服务文档" { //nolint:staticcheck // SA5011 false positive: t.Fatalf above is noreturn
 		t.Errorf("expected translated title '服务文档', got %q", matchedService.Title)
