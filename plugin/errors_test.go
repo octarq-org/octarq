@@ -75,7 +75,7 @@ func TestAgentError_ToProblem(t *testing.T) {
 	if prob409 == nil {
 		t.Fatalf("expected non-nil Problem for 409 error")
 	}
-	if prob409.Type != "/api/links/my-slug" {
+	if prob409.Type != "/api/links/my-slug" { //nolint:staticcheck // SA5011 false positive: t.Fatalf above is noreturn
 		t.Errorf("expected Type '/api/links/my-slug', got '%s'", prob409.Type)
 	}
 	if prob409.Title != "SLUG_EXISTS" {
@@ -123,7 +123,7 @@ func TestAgentError_ToProblem(t *testing.T) {
 	if prob429 == nil {
 		t.Fatalf("expected non-nil Problem for 429 error")
 	}
-	if prob429.Type != "" {
+	if prob429.Type != "" { //nolint:staticcheck // SA5011 false positive: t.Fatalf above is noreturn
 		t.Errorf("expected empty Type for empty instance, got '%s'", prob429.Type)
 	}
 	if prob429.Title != "RATE_LIMIT_EXCEEDED" {
