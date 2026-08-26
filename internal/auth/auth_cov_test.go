@@ -296,13 +296,10 @@ func TestTwoFAChallengeCookies(t *testing.T) {
 			found = c
 		}
 	}
-	if found == nil {
-		t.Fatal("no challenge cookie set")
+	if found == nil || found.Value != "challenge-value" {
+		t.Errorf("challenge cookie missing or wrong value: %v, want challenge-value", found)
 	}
-	if found.Value != "challenge-value" {
-		t.Errorf("challenge cookie = %q, want challenge-value", found.Value)
-	}
-	if found.Path != twofaChallengePath {
+	if found != nil && found.Path != twofaChallengePath {
 		t.Errorf("challenge cookie path = %q, want %q", found.Path, twofaChallengePath)
 	}
 

@@ -6,9 +6,6 @@ import (
 
 func TestNewRootCmd(t *testing.T) {
 	cmd := newRootCmd()
-	if cmd == nil {
-		t.Fatal("newRootCmd returned nil")
-	}
 	if cmd.Use != "plugin-gen" {
 		t.Errorf("Use = %q, want plugin-gen", cmd.Use)
 	}

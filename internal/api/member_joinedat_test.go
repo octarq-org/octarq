@@ -45,12 +45,9 @@ func TestListOrgMembersReportsMembershipDateNotAccountDate(t *testing.T) {
 		t.Fatal("no members returned")
 	}
 	got := items[0].JoinedAt
-	if got == nil {
-		t.Fatal("joinedAt is nil for a membership row that has a timestamp")
-	}
-	if d := got.Sub(joined); d > time.Minute || d < -time.Minute {
-		t.Errorf("joinedAt = %s, want the membership date %s (account was created %s)",
-			got.Format(time.RFC3339), joined.Format(time.RFC3339), accountCreated.Format(time.RFC3339))
+	if got == nil || got.Sub(joined) > time.Minute || got.Sub(joined) < -time.Minute {
+		t.Errorf("joinedAt = %v, want the membership date %s (account was created %s)",
+			got, joined.Format(time.RFC3339), accountCreated.Format(time.RFC3339))
 	}
 }
 
