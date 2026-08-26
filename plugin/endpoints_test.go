@@ -470,10 +470,10 @@ func TestEndpointSpec_RegisterMCP_RiskSuffix(t *testing.T) {
 					break
 				}
 			}
-			if foundTool == nil {
+			if foundTool == nil { //nolint:staticcheck // SA5011 false positive: t.Fatalf above is noreturn
 				t.Fatalf("tool %q not registered", tc.spec.Name)
 			}
-			if foundTool.Description != tc.expectedDesc {
+			if foundTool.Description != tc.expectedDesc { //nolint:staticcheck // SA5011 false positive: t.Fatalf above is noreturn
 				t.Errorf("tool description = %q, expected %q", foundTool.Description, tc.expectedDesc)
 			}
 		})

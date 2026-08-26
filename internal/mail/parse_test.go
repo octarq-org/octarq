@@ -119,7 +119,7 @@ func TestParseUnparseableDoesNotPanic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse returned error for garbage input: %v", err)
 	}
-	if p == nil {
+	if p == nil { //nolint:staticcheck // SA5011 false positive: t.Fatal above is noreturn
 		t.Fatal("Parse returned nil for garbage input")
 	}
 	if len(p.Raw) == 0 { //nolint:staticcheck // SA5011 false positive: t.Fatal above is noreturn
