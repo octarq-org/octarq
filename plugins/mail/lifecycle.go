@@ -154,6 +154,8 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "email.send_failed", Group: "Email", Title: "Email Send Failed", Description: "An outbound email failed to send through the configured SMTP sender"})
 	}
 
+	RegisterViews(ctx)
+
 	api := ctx.Huma
 	if api != nil {
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/smtp-senders", Summary: "List SMTP Senders", Tags: []string{"SMTP"}}, p.listSMTPSenders)

@@ -17,7 +17,7 @@ func TestBuiltinDefaultSet(t *testing.T) {
 	for i, p := range got {
 		names[i] = p.Name()
 	}
-	want := []string{"dns", "links", "mail", "help"}
+	want := []string{"dns", "links", "mail", "help", "tenantquery"}
 	if len(names) != len(want) {
 		t.Fatalf("Default() = %v, want %v", names, want)
 	}

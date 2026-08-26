@@ -505,6 +505,9 @@ type Context struct {
 	// RegisterEndpoint registers a declarative dual endpoint (HTTP + MCP).
 	// nil on hosts that predate it.
 	RegisterEndpoint func(spec any) error
+	// RegisterTenantView registers a tenant-isolated SQL view.
+	// Call it during Mount. nil on hosts that predate it.
+	RegisterTenantView func(view TenantView)
 }
 
 // AuthMethod is a provider-agnostic auth method definition, mirroring the fields

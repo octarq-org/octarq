@@ -46,6 +46,14 @@ func WithUserID(ctx context.Context, uid uint) context.Context {
 	return context.WithValue(ctx, userIDKey, uid)
 }
 
+// UserIDFromContext extracts the authenticated user ID from ctx, returning 0 if absent.
+func UserIDFromContext(ctx context.Context) uint {
+	if v, ok := ctx.Value(userIDKey).(uint); ok {
+		return v
+	}
+	return 0
+}
+
 // WithTokenID returns a new context containing the API bearer token ID.
 func WithTokenID(ctx context.Context, id uint) context.Context {
 	return context.WithValue(ctx, tokenIDKey, id)

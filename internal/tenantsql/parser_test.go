@@ -357,12 +357,16 @@ func TestParser_AllowedSpecialFunctionsViaOptions(t *testing.T) {
 func TestParser_StatementTypeLabels(t *testing.T) {
 	p := NewParser()
 	cases := map[string]string{
-		"SET @x = 1":                   "SET",
-		"SHOW TABLES":                  "SHOW",
-		"USE otherdb":                  "USE",
-		"CREATE DATABASE foo":          "DBDDL",
-		"CREATE TABLE t_copy (id int)": "DDL",
-		"(SELECT 1) UNION (SELECT 2)":  "UNION",
+		"INSERT INTO tenant_users VALUES (1)": "INSERT",
+		"UPDATE tenant_users SET id = 1":      "UPDATE",
+		"DELETE FROM tenant_users":            "DELETE",
+		"SET @x = 1":                          "SET",
+		"SHOW TABLES":                         "SHOW",
+		"USE otherdb":                         "USE",
+		"CREATE DATABASE foo":                 "DBDDL",
+		"CREATE TABLE t_copy (id int)":        "DDL",
+		"DESCRIBE tenant_users":               "OTHER_READ",
+		"(SELECT 1) UNION (SELECT 2)":         "UNION",
 	}
 	for sql, label := range cases {
 		err := p.Validate(sql)
@@ -405,5 +409,37 @@ func TestParseSafely_RecoversPanic(t *testing.T) {
 	err := p.Validate("SELECT id FROM tenant_users")
 	if err == nil || !strings.Contains(err.Error(), "sql parsing failed") {
 		t.Fatalf("expected panic converted to parse failure, got %v", err)
+	}
+
+	_, err = ExtractReferencedViews("SELECT id FROM tenant_users")
+	if err == nil || !strings.Contains(err.Error(), "sql parsing failed") {
+		t.Fatalf("expected ExtractReferencedViews panic converted to error, got %v", err)
+	}
+}
+
+func TestParser_WithAllowedViews(t *testing.T) {
+	p := NewParser(WithAllowedViews([]string{"tenant_allowed"}))
+	if err := p.Validate("SELECT * FROM tenant_allowed"); err != nil {
+		t.Fatalf("expected tenant_allowed to pass, got %v", err)
+	}
+	if err := p.Validate("SELECT * FROM tenant_disallowed"); err == nil {
+		t.Fatal("expected tenant_disallowed to fail with whitelist error")
+		return
+	}
+}
+
+func TestParser_SpecialFunctionsAndStatements(t *testing.T) {
+	// Test match function allowed
+	p := NewParser(WithAllowedFunctions([]string{"match"}))
+	if err := p.Validate("SELECT MATCH(title) AGAINST('test') FROM tenant_links"); err != nil {
+		t.Errorf("expected MATCH to pass when allowed, got %v", err)
+	}
+
+	// Test nil statement type name
+	if name := statementTypeName(nil); name != "unknown" {
+		t.Errorf("expected unknown for nil statement, got %s", name)
+	}
+	if name := statementTypeName(&sqlparser.OtherAdmin{}); name != "OTHER_ADMIN" {
+		t.Errorf("expected OTHER_ADMIN, got %s", name)
 	}
 }

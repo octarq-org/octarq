@@ -27,6 +27,7 @@ import (
 	"github.com/octarq-org/octarq/internal/cache"
 	"github.com/octarq-org/octarq/internal/db"
 	"github.com/octarq-org/octarq/internal/endpoint"
+	"github.com/octarq-org/octarq/internal/tenantsql"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
 )
@@ -98,6 +99,9 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 			Lookup:           reg.Lookup,
 			Cache:            cache.NewScoped(cacheBackend, "mcp"),
 			RegisterEndpoint: endpointEngine.Register,
+			RegisterTenantView: func(view plugin.TenantView) {
+				_ = tenantsql.DefaultRegistry().Register(view)
+			},
 			// RequirePerm is intentionally left nil: MCP requests do not carry per-request HTTP user identity.
 			// Authorization is handled by the MCP layer itself; plugin callers using HasPerm must tolerate nil.
 		}
