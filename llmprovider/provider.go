@@ -12,6 +12,7 @@ package llmprovider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -47,6 +48,13 @@ type Message struct {
 	Content string
 }
 
+// ToolDef defines a tool/function that the model can invoke.
+type ToolDef struct {
+	Name        string
+	Description string
+	Schema      json.RawMessage // JSON Schema 对象
+}
+
 // Request is a single completion request. The zero value is invalid (Messages
 // must be non-empty); Model and MaxTokens fall back to provider defaults when
 // left zero.
@@ -66,15 +74,20 @@ type Request struct {
 	// is a hint: backends that can't enforce it should still steer via the
 	// prompt, and callers must tolerate non-JSON and parse defensively.
 	JSON bool
+	// Thinking enables extended thinking / reasoning on backends that support it.
+	Thinking bool
+	// Tools defines functions the model may call during generation.
+	Tools []ToolDef
 }
 
 // Response is a completed generation plus token accounting for cost tracking.
 type Response struct {
-	Text         string
-	Model        string
-	InputTokens  int
-	OutputTokens int
-	StopReason   string
+	Text            string
+	Model           string
+	InputTokens     int
+	OutputTokens    int
+	ReasoningTokens int
+	StopReason      string
 }
 
 // Provider is the LLM backend contract. Implementations must be safe for

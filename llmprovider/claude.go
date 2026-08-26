@@ -6,13 +6,13 @@
 // `temperature`/`top_p`/`top_k` sampling parameters with a 400, and the SDK
 // omits them unless you set them — so the roadmap's default reasoning model
 // (claude-opus-4-8) works out of the box. We deliberately do NOT set sampling
-// params or thinking: these are short classification/summary/briefing calls,
-// where adaptive thinking's latency isn't wanted and sampling params would
-// break Opus.
+// params: adaptive thinking is controlled explicitly via Request.Thinking and
+// sampling params would break Opus.
 package llmprovider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -55,10 +55,9 @@ func (c *Claude) Name() string         { return "claude" }
 func (c *Claude) DefaultModel() string { return c.model }
 func (c *Claude) CheapModel() string   { return c.cheap }
 
-// Complete runs one Messages API request to completion (no streaming).
-func (c *Claude) Complete(ctx context.Context, req Request) (Response, error) {
+func (c *Claude) buildParams(req Request) (anthropic.MessageNewParams, string, error) {
 	if len(req.Messages) == 0 {
-		return Response{}, fmt.Errorf("llmprovider/claude: at least one message is required")
+		return anthropic.MessageNewParams{}, "", fmt.Errorf("llmprovider/claude: at least one message is required")
 	}
 
 	model := orDefault(req.Model, c.model)
@@ -80,10 +79,25 @@ func (c *Claude) Complete(ctx context.Context, req Request) (Response, error) {
 		}
 	}
 
+	var thinking anthropic.ThinkingConfigParamUnion
+	if req.Thinking {
+		budget := maxTokens / 2
+		if budget < 1024 {
+			budget = 1024
+		}
+		if budget >= maxTokens {
+			maxTokens = budget + 1024
+		}
+		thinking = anthropic.ThinkingConfigParamOfEnabled(int64(budget))
+	}
+
 	params := anthropic.MessageNewParams{
 		Model:     anthropic.Model(model),
 		MaxTokens: int64(maxTokens),
 		Messages:  make([]anthropic.MessageParam, 0, len(req.Messages)),
+	}
+	if req.Thinking {
+		params.Thinking = thinking
 	}
 	if strings.TrimSpace(system) != "" {
 		params.System = []anthropic.TextBlockParam{{Text: system}}
@@ -95,6 +109,36 @@ func (c *Claude) Complete(ctx context.Context, req Request) (Response, error) {
 		} else {
 			params.Messages = append(params.Messages, anthropic.NewUserMessage(block))
 		}
+	}
+
+	if len(req.Tools) > 0 {
+		params.Tools = make([]anthropic.ToolUnionParam, 0, len(req.Tools))
+		for _, t := range req.Tools {
+			var schema anthropic.ToolInputSchemaParam
+			if len(t.Schema) > 0 {
+				if err := json.Unmarshal(t.Schema, &schema); err != nil {
+					return anthropic.MessageNewParams{}, "", fmt.Errorf("llmprovider/claude: unmarshal tool schema %q: %w", t.Name, err)
+				}
+			}
+			tool := anthropic.ToolParam{
+				Name:        t.Name,
+				InputSchema: schema,
+			}
+			if t.Description != "" {
+				tool.Description = anthropic.String(t.Description)
+			}
+			params.Tools = append(params.Tools, anthropic.ToolUnionParam{OfTool: &tool})
+		}
+	}
+
+	return params, model, nil
+}
+
+// Complete runs one Messages API request to completion (no streaming).
+func (c *Claude) Complete(ctx context.Context, req Request) (Response, error) {
+	params, model, err := c.buildParams(req)
+	if err != nil {
+		return Response{}, err
 	}
 
 	resp, err := c.client.Messages.New(ctx, params)
@@ -110,10 +154,94 @@ func (c *Claude) Complete(ctx context.Context, req Request) (Response, error) {
 	}
 
 	return Response{
-		Text:         text.String(),
-		Model:        orDefault(string(resp.Model), model),
-		InputTokens:  int(resp.Usage.InputTokens),
-		OutputTokens: int(resp.Usage.OutputTokens),
-		StopReason:   string(resp.StopReason),
+		Text:            text.String(),
+		Model:           orDefault(string(resp.Model), model),
+		InputTokens:     int(resp.Usage.InputTokens),
+		OutputTokens:    int(resp.Usage.OutputTokens),
+		ReasoningTokens: 0,
+		StopReason:      string(resp.StopReason),
+	}, nil
+}
+
+type toolBlockInfo struct {
+	id   string
+	name string
+}
+
+// StreamComplete runs one Messages API request in streaming mode.
+func (c *Claude) StreamComplete(ctx context.Context, req Request, h StreamHandler) (Response, error) {
+	params, model, err := c.buildParams(req)
+	if err != nil {
+		return Response{}, err
+	}
+
+	stream := c.client.Messages.NewStreaming(ctx, params)
+	defer stream.Close()
+
+	var text strings.Builder
+	modelName := model
+	var inputTokens, outputTokens int
+	var stopReason string
+	toolsByIndex := make(map[int64]toolBlockInfo)
+	var guard streamOrderGuard
+
+	for stream.Next() {
+		event := stream.Current()
+		switch ev := event.AsAny().(type) {
+		case anthropic.MessageStartEvent:
+			if ev.Message.Model != "" {
+				modelName = string(ev.Message.Model)
+			}
+			inputTokens = int(ev.Message.Usage.InputTokens)
+		case anthropic.ContentBlockStartEvent:
+			if tu, ok := ev.ContentBlock.AsAny().(anthropic.ToolUseBlock); ok {
+				toolsByIndex[ev.Index] = toolBlockInfo{id: tu.ID, name: tu.Name}
+			}
+		case anthropic.ContentBlockDeltaEvent:
+			switch delta := ev.Delta.AsAny().(type) {
+			case anthropic.ThinkingDelta:
+				if err := guard.OnThinking(delta.Thinking); err != nil {
+					return Response{}, err
+				}
+				if h != nil && delta.Thinking != "" {
+					h.OnThinking(delta.Thinking)
+				}
+			case anthropic.TextDelta:
+				guard.OnText(delta.Text)
+				text.WriteString(delta.Text)
+				if h != nil && delta.Text != "" {
+					h.OnText(delta.Text)
+				}
+			case anthropic.InputJSONDelta:
+				tool := toolsByIndex[ev.Index]
+				chunk := ToolCallChunk{
+					Index:    int(ev.Index),
+					ID:       tool.id,
+					Name:     tool.name,
+					ArgsJSON: delta.PartialJSON,
+				}
+				guard.OnToolCall(chunk)
+				if h != nil {
+					h.OnToolCall(chunk)
+				}
+			}
+		case anthropic.MessageDeltaEvent:
+			outputTokens = int(ev.Usage.OutputTokens)
+			if ev.Delta.StopReason != "" {
+				stopReason = string(ev.Delta.StopReason)
+			}
+		}
+	}
+	if err := stream.Err(); err != nil {
+		return Response{}, fmt.Errorf("llmprovider/claude: %w", err)
+	}
+
+	return Response{
+		Text:            text.String(),
+		Model:           orDefault(modelName, model),
+		InputTokens:     inputTokens,
+		OutputTokens:    outputTokens,
+		ReasoningTokens: 0, // Anthropic API rolls thinking tokens into output_tokens without a separate count.
+		StopReason:      stopReason,
 	}, nil
 }
