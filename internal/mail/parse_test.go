@@ -121,6 +121,7 @@ func TestParseUnparseableDoesNotPanic(t *testing.T) {
 	}
 	if p == nil { //nolint:staticcheck // SA5011 false positive: t.Fatal above is noreturn
 		t.Fatal("Parse returned nil for garbage input")
+		return
 	}
 	if len(p.Raw) == 0 { //nolint:staticcheck // SA5011 false positive: t.Fatal above is noreturn
 		t.Error("expected raw bytes preserved on unparseable input")

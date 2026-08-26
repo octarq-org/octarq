@@ -141,6 +141,7 @@ func TestOAuthCallbackTOTPRedirectsToSecondFactor(t *testing.T) {
 	}
 	if challenge == nil { //nolint:staticcheck // SA5011 false positive: t.Fatal above is noreturn
 		t.Fatal("no twofa challenge cookie set")
+		return
 	}
 	if uid := h.auth.VerifyTwoFAChallenge(challenge.Value); uid != u.ID { //nolint:staticcheck // SA5011 false positive: t.Fatal above is noreturn
 		t.Errorf("challenge names user %d, want %d", uid, u.ID)
