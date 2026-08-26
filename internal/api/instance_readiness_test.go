@@ -80,11 +80,8 @@ func TestInstanceReadinessBlockedWithoutSystemSender(t *testing.T) {
 		t.Fatalf("admin readiness: got %d, want 200", code)
 	}
 	reg := findCheck(checks, "registration")
-	if reg == nil {
-		t.Fatalf("readiness omits the registration check: %+v", checks)
-	}
-	if reg.Status != "blocked" {
-		t.Fatalf("registration check = %q, want blocked", reg.Status)
+	if reg == nil || reg.Status != "blocked" {
+		t.Fatalf("readiness omits the registration check or it is not blocked: %+v", checks)
 	}
 	if !strings.Contains(reg.Detail, "verification") {
 		t.Fatalf("blocked detail does not explain the verification dead end: %s", reg.Detail)
