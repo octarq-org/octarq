@@ -84,6 +84,7 @@ func TestCheckMirrorRejectsDrift(t *testing.T) {
 	err := coreschema.CheckMirror(migrated(t), driftedMirror{})
 	if err == nil {
 		t.Fatal("a mirror naming a column the table does not have must fail")
+		return
 	}
 	// The message has to name the offending column: "schema drift" alone sends
 	// the reader back to diffing two structs by eye.
@@ -96,6 +97,7 @@ func TestCheckMirrorRejectsMissingTable(t *testing.T) {
 	err := coreschema.CheckMirror(migrated(t), goneMirror{})
 	if err == nil {
 		t.Fatal("a mirror naming a table that does not exist must fail")
+		return
 	}
 	if !strings.Contains(err.Error(), "table_that_never_existed") {
 		t.Errorf("error should name the missing table, got: %v", err)
@@ -105,6 +107,7 @@ func TestCheckMirrorRejectsMissingTable(t *testing.T) {
 func TestCheckMirrorRejectsNilDB(t *testing.T) {
 	if err := coreschema.CheckMirror(nil, goodMirror{}); err == nil {
 		t.Fatal("nil db must be an error, not a silent pass")
+		return
 	}
 }
 
@@ -131,6 +134,7 @@ func TestCheckMirrorEmptyTableName(t *testing.T) {
 	err := coreschema.CheckMirror(migrated(t), emptyTableMirror{})
 	if err == nil {
 		t.Fatal("mirror with empty table name must fail")
+		return
 	}
 	if !strings.Contains(err.Error(), "resolves to an empty table name") {
 		t.Errorf("expected empty table error, got: %v", err)
@@ -141,6 +145,7 @@ func TestCheckMirrorInvalidType(t *testing.T) {
 	err := coreschema.CheckMirror(migrated(t), 12345)
 	if err == nil {
 		t.Fatal("mirror with invalid non-struct type must fail")
+		return
 	}
 	if !strings.Contains(err.Error(), "parse mirror") {
 		t.Errorf("expected parse mirror error, got: %v", err)

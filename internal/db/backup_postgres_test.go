@@ -294,6 +294,7 @@ func TestRestoreSQLiteCopyFailure(t *testing.T) {
 	err = Restore(&config.Config{DBDriver: "sqlite", DBDSN: filepath.Join(blocker, "t.db")}, backupPath)
 	if err == nil {
 		t.Fatal("expected copy failure, got nil")
+		return
 	}
 }
 
@@ -364,6 +365,7 @@ func TestVerifySQLiteIntegrityOnDirectory(t *testing.T) {
 	err := VerifySQLiteIntegrity(t.TempDir())
 	if err == nil {
 		t.Fatal("VerifySQLiteIntegrity on a directory must error")
+		return
 	}
 }
 

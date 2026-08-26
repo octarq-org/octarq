@@ -282,6 +282,7 @@ func TestSendSystemMailFailurePublishesEvent(t *testing.T) {
 	db.Create(&SMTPSender{OrgID: 1, Name: "dead", Host: "127.0.0.1", Port: 1, User: "u", Pass: "p", FromEmail: "noreply@example.com"})
 	if err := p.sendSystemMail("to@example.com", "subj", "", "body"); err == nil {
 		t.Fatal("sendSystemMail to an unreachable relay must fail")
+		return
 	}
 	if failed == nil {
 		t.Error("email.send_failed event not published on send failure")

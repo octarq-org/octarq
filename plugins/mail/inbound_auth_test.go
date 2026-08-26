@@ -86,6 +86,7 @@ func TestGenericInboundRejectsHeaderToken(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("a correct token in a header must not authenticate — the path segment is the credential")
+		return
 	}
 }
 
@@ -93,6 +94,7 @@ func TestGenericInboundRejectsWrongPathToken(t *testing.T) {
 	p, _, slug, _ := inboundAuthFixture(t)
 	if _, err := p.inboundGeneric(context.Background(), genericInput(slug, "wrong-token")); err == nil {
 		t.Fatal("wrong path token must be rejected")
+		return
 	}
 }
 
@@ -104,6 +106,7 @@ func TestInboundAuthFailureIsAudited(t *testing.T) {
 
 	if _, err := p.inboundGeneric(context.Background(), genericInput(slug, "wrong-token")); err == nil {
 		t.Fatal("expected rejection")
+		return
 	}
 
 	if len(*seen) != 1 {
@@ -141,6 +144,7 @@ func TestPathTokenRouteAuthFailureIsAudited(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected rejection")
+		return
 	}
 	if len(*seen) != 1 || (*seen)[0].action != "email.inbound.auth_failed" {
 		t.Fatalf("expected an auth-failure audit entry, got %+v", *seen)

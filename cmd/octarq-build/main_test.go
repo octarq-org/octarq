@@ -86,6 +86,7 @@ func TestRunBackendManifestFailsGoGet(t *testing.T) {
 		err := run()
 		if err == nil {
 			t.Fatal("run succeeded despite an unresolvable backend module")
+			return
 		}
 		if !strings.Contains(err.Error(), "go get") {
 			t.Errorf("error = %v, want it to wrap the go get failure", err)
@@ -121,6 +122,7 @@ func TestRunWriteFailures(t *testing.T) {
 		t.Setenv("OCTARQ_PLUGINS", `[{"npm":"@x/y"}]`)
 		if err := run(); err == nil {
 			t.Fatal("run succeeded despite an unwritable backend file")
+			return
 		}
 
 		// Frontend write fails on an empty manifest.
@@ -131,6 +133,7 @@ func TestRunWriteFailures(t *testing.T) {
 		t.Setenv("OCTARQ_PLUGINS", "[]")
 		if err := run(); err == nil {
 			t.Fatal("run succeeded despite an unwritable frontend manifest")
+			return
 		}
 	})
 }

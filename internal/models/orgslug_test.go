@@ -84,6 +84,7 @@ func TestAllocateOrgSlugSkipsTaken(t *testing.T) {
 	}
 	if got, err := AllocateOrgSlug(db); err == nil {
 		t.Fatalf("allocated %q from an exhausted space, want an error", got)
+		return
 	}
 }
 
@@ -124,6 +125,7 @@ func TestAllocateOrgSlugSkipsHistory(t *testing.T) {
 
 	if got, err := AllocateOrgSlug(db); err == nil {
 		t.Fatalf("allocated %q from a space occupied by active orgs and retired history, want an error", got)
+		return
 	}
 }
 
@@ -131,6 +133,7 @@ func TestAllocateOrgSlugNilDB(t *testing.T) {
 	_, err := AllocateOrgSlug(nil)
 	if err == nil {
 		t.Fatal("expected error when db is nil")
+		return
 	}
 }
 

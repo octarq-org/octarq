@@ -65,6 +65,7 @@ func TestProviderErrUnit(t *testing.T) {
 	err := p.providerErr("create domain", errors.New("upstream timeout"))
 	if err == nil {
 		t.Fatal("expected non-nil error")
+		return
 	}
 	raw := "upstream timeout"
 	if msg := err.Error(); msg == "create domain: "+raw {
@@ -79,6 +80,7 @@ func TestProviderErrUnit(t *testing.T) {
 	errAuth := p.providerErr("list zones", errors.New("401 Unauthorized: invalid token xyz-secret-abc"))
 	if errAuth == nil {
 		t.Fatal("expected non-nil error for auth failure")
+		return
 	}
 	if msg := errAuth.Error(); msg != "list zones: authentication failed — check your API token or credentials" {
 		t.Errorf("unexpected auth error message: %v", msg)

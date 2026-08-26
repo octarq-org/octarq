@@ -22,6 +22,7 @@ func TestExportRefusesWithoutOrgInContext(t *testing.T) {
 	_, _, err := s.exportData(context.Background(), nil, exportInput{Resource: "links"})
 	if err == nil {
 		t.Fatal("exportData served a request with no org in context; it must refuse rather than pick a tenant")
+		return
 	}
 	if !strings.Contains(err.Error(), "workspace") {
 		t.Fatalf("unexpected error %q", err)

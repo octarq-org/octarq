@@ -74,6 +74,7 @@ func TestStatefulSessionRoundtrip(t *testing.T) {
 	}
 	if tokCookie == nil {
 		t.Fatalf("expected session cookie")
+		return
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/links", nil)

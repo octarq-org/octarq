@@ -47,6 +47,7 @@ func TestNotifyReceivesStoredConfigVerbatim(t *testing.T) {
 
 	if p.notify == nil {
 		t.Fatal("Mount did not wire the notify hook")
+		return
 	}
 	if err := p.notify(context.Background(), "telegram", stored, "hello"); err != nil {
 		t.Fatalf("notify: %v", err)

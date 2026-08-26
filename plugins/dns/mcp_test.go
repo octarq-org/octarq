@@ -65,5 +65,6 @@ func TestJSONResultMarshalError(t *testing.T) {
 	_, _, err := jsonResult(make(chan int))
 	if err == nil {
 		t.Fatal("jsonResult of an unsupported value must error")
+		return
 	}
 }

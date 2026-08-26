@@ -36,6 +36,7 @@ func TestChangeEmailSuccess(t *testing.T) {
 	var oldUser models.User
 	if err := db.Where("email = ?", "user1@example.com").First(&oldUser).Error; err == nil {
 		t.Fatal("old email still exists in DB")
+		return
 	}
 }
 

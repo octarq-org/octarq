@@ -74,6 +74,7 @@ func TestCreateRecordRoleGate(t *testing.T) {
 	_, err := p.createRecord(context.Background(), in)
 	if err == nil {
 		t.Fatal("createRecord: expected 403 for member, got nil error")
+		return
 	}
 	if he, ok := err.(huma.StatusError); !ok || he.GetStatus() != 403 {
 		t.Fatalf("createRecord: expected 403, got %v", err)
@@ -85,6 +86,7 @@ func TestCreateRecordRoleGate(t *testing.T) {
 	// We expect a provider-level error (e.g. no creds), NOT a 403
 	if err == nil {
 		t.Fatal("createRecord: expected provider error for admin with bad creds, got nil")
+		return
 	}
 	if he, ok := err.(huma.StatusError); ok && he.GetStatus() == 403 {
 		t.Fatalf("createRecord: admin must not be refused with 403, got %v", err)
@@ -112,6 +114,7 @@ func TestUpdateRecordRoleGate(t *testing.T) {
 	_, err := p.updateRecord(context.Background(), in)
 	if err == nil {
 		t.Fatal("updateRecord: expected 403 for member, got nil error")
+		return
 	}
 	if he, ok := err.(huma.StatusError); !ok || he.GetStatus() != 403 {
 		t.Fatalf("updateRecord: expected 403, got %v", err)
@@ -122,6 +125,7 @@ func TestUpdateRecordRoleGate(t *testing.T) {
 	_, err = p.updateRecord(context.Background(), in)
 	if err == nil {
 		t.Fatal("updateRecord: expected provider error for admin with bad creds, got nil")
+		return
 	}
 	if he, ok := err.(huma.StatusError); ok && he.GetStatus() == 403 {
 		t.Fatalf("updateRecord: admin must not be refused with 403, got %v", err)

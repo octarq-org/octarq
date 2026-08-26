@@ -126,14 +126,17 @@ func TestCloudflareFactoryRegistered(t *testing.T) {
 	}
 	if p == nil {
 		t.Fatal("nil provider")
+		return
 	}
 
 	if _, err := New("cloudflare", []byte(`{}`)); err == nil {
 		t.Fatal("expected error for empty token")
+		return
 	}
 	// Unparseable credentials JSON fails the factory, not a later call.
 	if _, err := New("cloudflare", []byte("not json")); err == nil {
 		t.Fatal("expected error for malformed credentials JSON")
+		return
 	}
 }
 

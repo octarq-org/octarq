@@ -52,6 +52,7 @@ func TestArchPathCopiesAreInSync(t *testing.T) {
 	m := archPathRe.FindSubmatch(b)
 	if m == nil {
 		t.Fatalf("no ARCH_PATH constant in %s — did the glyph move? every copy below is now unguarded", src)
+		return
 	}
 	canonical := string(m[1])
 

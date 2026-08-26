@@ -87,6 +87,7 @@ func TestTenantQuery_DescribeTenantSchema(t *testing.T) {
 
 	if describeEP == nil {
 		t.Fatal("describe_tenant_schema endpoint not registered")
+		return
 	}
 
 	if !describeEP.EndpointExposeMCP() {
@@ -105,6 +106,7 @@ func TestTenantQuery_DescribeTenantSchema(t *testing.T) {
 	out, ok := res.(*tenantquery.DescribeTenantSchemaOutput)
 	if !ok || out == nil {
 		t.Fatalf("unexpected output type: %T", res)
+		return
 	}
 
 	if len(out.Views) < 3 {
@@ -158,6 +160,7 @@ func TestTenantQuery_QueryTenantSQL(t *testing.T) {
 
 	if queryEP == nil {
 		t.Fatal("query_tenant_sql endpoint not registered")
+		return
 	}
 
 	if !queryEP.EndpointExposeMCP() {
@@ -179,6 +182,7 @@ func TestTenantQuery_QueryTenantSQL(t *testing.T) {
 	out, ok := res.(*tenantquery.QueryTenantSQLOutput)
 	if !ok || out == nil {
 		t.Fatalf("unexpected output type: %T", res)
+		return
 	}
 
 	if out.RowCount != 1 || len(out.Rows) != 1 {
@@ -209,6 +213,7 @@ func TestTenantQuery_QueryTenantSQL(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error on invalid SQL query")
+		return
 	}
 	if !strings.Contains(err.Error(), "available views:") {
 		t.Errorf("expected error message to contain self-correction 'available views:', got: %v", err)

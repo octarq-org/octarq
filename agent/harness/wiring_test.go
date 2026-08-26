@@ -91,6 +91,7 @@ func TestRegistryExecutor_UnknownTool(t *testing.T) {
 	_, err := exec.Execute(context.Background(), 1, "nonexistent", "")
 	if err == nil {
 		t.Fatal("expected error for unknown tool")
+		return
 	}
 	var ae *plugin.AgentError
 	if !errors.As(err, &ae) {
@@ -109,6 +110,7 @@ func TestRiskGuard_UnknownTool(t *testing.T) {
 	err := g.Allow(context.Background(), 1, "does_not_exist")
 	if err == nil {
 		t.Fatal("expected error for unknown tool")
+		return
 	}
 	var ae *plugin.AgentError
 	if !errors.As(err, &ae) {
@@ -190,6 +192,7 @@ func TestRegistryExecutor_BadJSON(t *testing.T) {
 	_, err := exec.Execute(context.Background(), 1, "echo_tool", "{bad json")
 	if err == nil {
 		t.Fatal("expected error for bad JSON")
+		return
 	}
 	var ae *plugin.AgentError
 	if !errors.As(err, &ae) {
@@ -208,6 +211,7 @@ func TestRiskGuard_RequireApproval(t *testing.T) {
 	err := g.Allow(context.Background(), 1, "delete_everything")
 	if err == nil {
 		t.Fatal("expected error for RequireApproval tool")
+		return
 	}
 	if !errors.Is(err, harness.ErrApprovalRequired) {
 		t.Errorf("expected ErrApprovalRequired, got: %v", err)

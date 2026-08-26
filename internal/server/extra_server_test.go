@@ -125,6 +125,7 @@ func TestServerNewErrorMissingIndex(t *testing.T) {
 	_, err := New(&config.Config{}, nil, mockAPI{}, nil, emptyFS, nil, RuntimeSettings{})
 	if err == nil {
 		t.Fatal("expected error when webFS lacks index.html")
+		return
 	}
 
 	validWebFS := fstest.MapFS{
@@ -136,6 +137,7 @@ func TestServerNewErrorMissingIndex(t *testing.T) {
 	_, err = New(&config.Config{}, nil, mockAPI{}, nil, validWebFS, badMount, RuntimeSettings{})
 	if err == nil {
 		t.Fatal("expected error when mount FS lacks index.html")
+		return
 	}
 }
 

@@ -167,6 +167,7 @@ func TestLoadOrCreateReadError(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error when reading directory as file")
+		return
 	}
 }
 
@@ -183,6 +184,7 @@ func TestEnsureAutoSecretsError(t *testing.T) {
 	}
 	if err := cfg.ensureAutoSecrets(); err == nil {
 		t.Fatal("expected ensureAutoSecrets to fail when secret file is a directory")
+		return
 	}
 
 	// Now test admin password failure
@@ -197,6 +199,7 @@ func TestEnsureAutoSecretsError(t *testing.T) {
 	}
 	if err := cfg2.ensureAutoSecrets(); err == nil {
 		t.Fatal("expected ensureAutoSecrets to fail when admin password file is a directory")
+		return
 	}
 }
 
@@ -219,5 +222,6 @@ func TestLoadOrCreateGenError(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error when generator fails")
+		return
 	}
 }

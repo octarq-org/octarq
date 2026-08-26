@@ -213,6 +213,7 @@ func TestSendErrors(t *testing.T) {
 		err := sender.Send(Message{To: []string{"bob@example.com"}, Subject: "s", Text: "t"})
 		if err == nil {
 			t.Fatal("expected auth error, got nil")
+			return
 		}
 	})
 
@@ -222,6 +223,7 @@ func TestSendErrors(t *testing.T) {
 		err := sender.Send(Message{To: []string{"bob@example.com"}, Subject: "s", Text: "t"})
 		if err == nil {
 			t.Fatal("expected mail from rejection error, got nil")
+			return
 		}
 	})
 
@@ -231,6 +233,7 @@ func TestSendErrors(t *testing.T) {
 		err := sender.Send(Message{To: []string{"bad@example.com"}, Subject: "s", Text: "t"})
 		if err == nil {
 			t.Fatal("expected rcpt rejection error, got nil")
+			return
 		}
 	})
 
@@ -240,6 +243,7 @@ func TestSendErrors(t *testing.T) {
 		err := sender.Send(Message{To: []string{"bob@example.com"}, Subject: "s", Text: "t"})
 		if err == nil {
 			t.Fatal("expected data rejection error, got nil")
+			return
 		}
 	})
 }

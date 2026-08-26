@@ -119,6 +119,7 @@ func TestGetAttachment_NotFound(t *testing.T) {
 	_, err := p.getAttachment(ctx, &GetAttachmentInput{Ctx: humaCtx, ID: email.ID, Index: 5})
 	if err == nil {
 		t.Fatal("expected 404 for out-of-range index")
+		return
 	}
 
 	// Negative index -> 404
@@ -129,12 +130,14 @@ func TestGetAttachment_NotFound(t *testing.T) {
 	_, err = p.getAttachment(ctx, &GetAttachmentInput{Ctx: humaCtx2, ID: email.ID, Index: -1})
 	if err == nil {
 		t.Fatal("expected 404 for negative index")
+		return
 	}
 
 	// Nil context -> 500
 	_, err = p.getAttachment(ctx, &GetAttachmentInput{Ctx: nil, ID: email.ID, Index: 0})
 	if err == nil {
 		t.Fatal("expected error for nil context")
+		return
 	}
 
 	// Non-existent email -> 404
@@ -145,6 +148,7 @@ func TestGetAttachment_NotFound(t *testing.T) {
 	_, err = p.getAttachment(ctx, &GetAttachmentInput{Ctx: humaCtx4, ID: 9999, Index: 0})
 	if err == nil {
 		t.Fatal("expected 404 for missing email")
+		return
 	}
 }
 
@@ -236,16 +240,19 @@ func TestExtractAttachment(t *testing.T) {
 	_, _, _, err = extractAttachment([]byte(rawInlineAndAttachment), 5)
 	if err == nil {
 		t.Fatal("expected error for out-of-range index")
+		return
 	}
 
 	_, _, _, err = extractAttachment([]byte("not a mime message"), 0)
 	if err == nil {
 		t.Fatal("expected error for invalid raw")
+		return
 	}
 
 	_, _, _, err = extractAttachment([]byte{}, 0)
 	if err == nil {
 		t.Fatal("expected error for empty raw")
+		return
 	}
 }
 

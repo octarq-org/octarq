@@ -202,6 +202,7 @@ func TestFinding7_ClickLimitCacheDelay(t *testing.T) {
 	l1, ok := eng.Lookup("h", "limited-link")
 	if !ok || l1 == nil {
 		t.Fatal("expected Lookup to succeed")
+		return
 	}
 
 	// 2. Simulate 100 clicks accumulated in database
@@ -217,6 +218,7 @@ func TestFinding7_ClickLimitCacheDelay(t *testing.T) {
 	l2, ok2 := eng.Lookup("h", "limited-link")
 	if !ok2 || l2 == nil {
 		t.Fatal("expected Lookup to hit cache")
+		return
 	}
 
 	if l2.Clicks != 0 {

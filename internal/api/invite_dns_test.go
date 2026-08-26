@@ -90,6 +90,7 @@ func TestInviteFlow(t *testing.T) {
 	}
 	if user.InviteExpiresAt == nil {
 		t.Fatal("db invite expires at is nil")
+		return
 	}
 	if user.InviteExpiresAt.Before(time.Now()) {
 		t.Fatal("db invite expires at is in the past")

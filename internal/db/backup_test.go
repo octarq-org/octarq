@@ -69,6 +69,7 @@ func TestParsePostgresDSN(t *testing.T) {
 		_, err := ParsePostgresDSN(dsn)
 		if err == nil {
 			t.Fatal("expected error for missing dbname, got nil")
+			return
 		}
 	})
 }
@@ -155,6 +156,7 @@ func TestVerifySQLiteIntegrity_Errors(t *testing.T) {
 		err := VerifySQLiteIntegrity(filepath.Join(tempDir, "missing.db"))
 		if err == nil {
 			t.Fatal("expected error for non-existent file")
+			return
 		}
 	})
 
@@ -164,6 +166,7 @@ func TestVerifySQLiteIntegrity_Errors(t *testing.T) {
 		err := VerifySQLiteIntegrity(emptyPath)
 		if err == nil {
 			t.Fatal("expected error for 0-byte file")
+			return
 		}
 	})
 }

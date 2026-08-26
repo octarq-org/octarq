@@ -64,6 +64,7 @@ func TestPreflightRejectsTwoPluginsOwningSameTable(t *testing.T) {
 	err := preflightTableCollisions(nil, []plugin.Plugin{a, b})
 	if err == nil {
 		t.Fatal("expected a collision error, got nil")
+		return
 	}
 	for _, want := range []string{`"widgets"`, `"alpha"`, `"beta"`, "widgetA", "widgetB"} {
 		if !strings.Contains(err.Error(), want) {
@@ -76,6 +77,7 @@ func TestPreflightRejectsOnePluginDeclaringSameTableTwice(t *testing.T) {
 	p := fakePlugin{name: "alpha", models: []any{&widgetA{}, &widgetB{}}}
 	if err := preflightTableCollisions(nil, []plugin.Plugin{p}); err == nil {
 		t.Fatal("two different model types on one table within one plugin must fail")
+		return
 	}
 }
 
@@ -122,6 +124,7 @@ func TestPreflightDependenciesMissing(t *testing.T) {
 	err := preflightDependencies([]plugin.Plugin{links, mail})
 	if err == nil {
 		t.Fatal("missing dns dependency must fail")
+		return
 	}
 	if !strings.Contains(err.Error(), `"links" requires plugin "dns"`) && !strings.Contains(err.Error(), `"mail" requires plugin "dns"`) {
 		t.Errorf("error should explain missing requirement; got: %v", err)
@@ -136,6 +139,7 @@ func TestPreflightRejectsDuplicatePluginNames(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected an error for two plugins named \"help\"")
+		return
 	}
 	if !strings.Contains(err.Error(), `"help"`) {
 		t.Errorf("error should name the colliding plugin, got: %v", err)

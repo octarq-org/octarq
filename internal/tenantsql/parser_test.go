@@ -195,6 +195,7 @@ func TestParser_RejectedQueries(t *testing.T) {
 			err := p.Validate(tt.sql)
 			if err == nil {
 				t.Fatalf("expected rejection for SQL %q, but got nil error", tt.sql)
+				return
 			}
 			if !strings.Contains(err.Error(), tt.errContains) {
 				t.Fatalf("expected error containing %q, got: %q", tt.errContains, err.Error())
@@ -237,6 +238,7 @@ func TestParser_PanicIsolation(t *testing.T) {
 			// CTEs unsupported by xwb1989 must be safely rejected with an error without crashing
 			if err == nil {
 				t.Fatalf("expected error for unsupported complex CTE %q, got nil", tc.sql)
+				return
 			}
 		})
 	}
@@ -254,6 +256,7 @@ func TestParser_ConfigurableOptions(t *testing.T) {
 		// Disallowed with old prefix
 		if err := p.Validate("SELECT * FROM tenant_users"); err == nil {
 			t.Fatalf("expected error for tenant_users when prefix is v_tenant_")
+			return
 		}
 	})
 
@@ -268,6 +271,7 @@ func TestParser_ConfigurableOptions(t *testing.T) {
 		// Disallowed function
 		if err := p.Validate("SELECT avg(val) FROM tenant_users"); err == nil {
 			t.Fatalf("expected error for avg() when only count/sum are allowed")
+			return
 		}
 	})
 
@@ -282,6 +286,7 @@ func TestParser_ConfigurableOptions(t *testing.T) {
 		// Queries with any function should fail
 		if err := p.Validate("SELECT count(id) FROM tenant_users"); err == nil {
 			t.Fatalf("expected error for count() when function whitelist is empty")
+			return
 		}
 	})
 }
@@ -295,6 +300,7 @@ func TestParser_NoErrorRawSQLLeak(t *testing.T) {
 	err := p.Validate(sql)
 	if err == nil {
 		t.Fatalf("expected error for emails query")
+		return
 	}
 
 	errMsg := err.Error()
@@ -418,6 +424,7 @@ func TestParser_WithAllowedViews(t *testing.T) {
 	}
 	if err := p.Validate("SELECT * FROM tenant_disallowed"); err == nil {
 		t.Fatal("expected tenant_disallowed to fail with whitelist error")
+		return
 	}
 }
 

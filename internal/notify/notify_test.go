@@ -22,6 +22,7 @@ func TestSendUnknownType(t *testing.T) {
 	setPassthroughDecryptor(t)
 	if err := Send(context.Background(), "carrierpigeon", "{}", "x"); err == nil {
 		t.Fatal("expected error for unknown channel type")
+		return
 	}
 }
 
@@ -42,6 +43,7 @@ func TestRegisterProvider(t *testing.T) {
 	// A built-in type still resolves to its handler, not the registry.
 	if err := Send(context.Background(), "webhook", `{}`, "x"); err == nil {
 		t.Fatal("expected error: webhook with empty url")
+		return
 	}
 }
 
@@ -49,6 +51,7 @@ func TestSendTelegramMissingCreds(t *testing.T) {
 	setPassthroughDecryptor(t)
 	if err := Send(context.Background(), "telegram", `{}`, "x"); err == nil {
 		t.Fatal("expected error when telegram credentials are missing")
+		return
 	}
 }
 
@@ -79,6 +82,7 @@ func TestSendWebhookMissingURL(t *testing.T) {
 	setPassthroughDecryptor(t)
 	if err := Send(context.Background(), "webhook", `{}`, "x"); err == nil {
 		t.Fatal("expected error when webhook url is missing")
+		return
 	}
 }
 
@@ -92,6 +96,7 @@ func TestSendWebhookErrorsOnBadStatus(t *testing.T) {
 	cfgJSON, _ := json.Marshal(map[string]string{"url": srv.URL})
 	if err := Send(context.Background(), "webhook", string(cfgJSON), "x"); err == nil {
 		t.Fatal("expected error on non-2xx webhook response")
+		return
 	}
 }
 
@@ -108,8 +113,10 @@ func TestSendInvalidJSON(t *testing.T) {
 	setPassthroughDecryptor(t)
 	if err := Send(context.Background(), "telegram", `invalid-json`, "x"); err == nil {
 		t.Fatal("expected error for malformed telegram config JSON")
+		return
 	}
 	if err := Send(context.Background(), "webhook", `invalid-json`, "x"); err == nil {
 		t.Fatal("expected error for malformed webhook config JSON")
+		return
 	}
 }

@@ -125,6 +125,7 @@ func TestClientCheckRedirect(t *testing.T) {
 	client := NewClient(5 * time.Second)
 	if client.CheckRedirect == nil {
 		t.Fatal("expected CheckRedirect to be non-nil")
+		return
 	}
 
 	req, _ := http.NewRequest("GET", "ftp://example.com", nil)
@@ -155,6 +156,7 @@ func TestGetDisallowedScheme(t *testing.T) {
 	_, err := Get(context.Background(), client, "file:///etc/passwd", "")
 	if err == nil {
 		t.Fatalf("Get file:///etc/passwd should be blocked by scheme validation")
+		return
 	}
 	if !strings.Contains(err.Error(), "disallowed scheme") {
 		t.Fatalf("expected the scheme allowlist to reject file://, got %v", err)
@@ -211,6 +213,7 @@ func TestClientBlocksLoopbackAtDial(t *testing.T) {
 	_, err := Get(context.Background(), NewClient(5*time.Second), srv.URL, "")
 	if err == nil {
 		t.Fatal("client reached a loopback server - SSRF guard failed")
+		return
 	}
 	if !strings.Contains(err.Error(), "non-public address") {
 		t.Fatalf("expected the dial guard to reject, got %v", err)
@@ -245,6 +248,7 @@ func TestClientBlocksRedirectToBlockedTarget(t *testing.T) {
 	_, err := Get(context.Background(), client, srv.URL, "")
 	if err == nil {
 		t.Fatal("redirect to the metadata service was followed - SSRF guard failed")
+		return
 	}
 	if !strings.Contains(err.Error(), "non-public address") {
 		t.Fatalf("expected the redirect hop to be rejected at dial, got %v", err)
@@ -268,6 +272,7 @@ func TestClientBlocksRedirectToNonHTTPScheme(t *testing.T) {
 	_, err := Get(context.Background(), NewWebhookClient(5*time.Second), srv.URL, "")
 	if err == nil {
 		t.Fatal("redirect to file:// was followed")
+		return
 	}
 	if !strings.Contains(err.Error(), "disallowed redirect scheme") {
 		t.Fatalf("expected CheckRedirect to reject the scheme, got %v", err)

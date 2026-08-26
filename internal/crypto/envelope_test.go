@@ -73,5 +73,6 @@ func TestWrongMasterFailsToUnwrap(t *testing.T) {
 	// A different master cannot unwrap the DEK.
 	if err := New("wrong").EnableEnvelope(store); err == nil {
 		t.Fatal("expected EnableEnvelope to fail unwrapping the DEK with the wrong master")
+		return
 	}
 }

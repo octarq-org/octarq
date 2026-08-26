@@ -83,6 +83,7 @@ func TestDuplicateProvideFailsLoudly(t *testing.T) {
 	err := reg.Err()
 	if err == nil {
 		t.Fatal("Err() = nil after duplicate Provide, want error")
+		return
 	}
 	if !strings.Contains(err.Error(), `"hello.greeter"`) {
 		t.Fatalf("Err() = %v, want it to name the colliding service", err)
@@ -134,6 +135,7 @@ func TestLookupAsMatchesLookupServiceAs(t *testing.T) {
 
 	if fn, ok := LookupAs[MailSender](ctx, ServiceMailSend); !ok || fn == nil {
 		t.Fatal("LookupAs[MailSender] failed for a MailSender-provided service")
+		return
 	}
 	if fn, ok := LookupAs[MailSender](ctx, ServiceMailDispatcher); ok || fn != nil {
 		t.Fatalf("LookupAs for absent service = (%v, %v), want (nil, false)", fn, ok)

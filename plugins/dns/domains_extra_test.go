@@ -278,6 +278,7 @@ func TestProviderForErrors(t *testing.T) {
 	}
 	if _, err := p.providerFor(Domain{OrgID: 1, Name: "x.com", ProviderAccountID: acc2.ID}); err == nil {
 		t.Fatal("decrypt failure must propagate")
+		return
 	}
 
 	// Unknown provider type.
@@ -288,6 +289,7 @@ func TestProviderForErrors(t *testing.T) {
 	}
 	if _, err := p.providerFor(Domain{OrgID: 1, Name: "x.com", ProviderAccountID: acc3.ID}); err == nil {
 		t.Fatal("unknown provider type must error")
+		return
 	}
 }
 

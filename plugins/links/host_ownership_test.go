@@ -89,6 +89,7 @@ func TestHostOwnershipEnforcement(t *testing.T) {
 		_, err := p.createLink(ctx, input)
 		if err == nil {
 			t.Fatal("expected 403 when Org A creates link on Org B's linkHost, got nil error")
+			return
 		}
 	}
 
@@ -126,6 +127,7 @@ func TestHostOwnershipEnforcement(t *testing.T) {
 		_, err = p.updateLink(ctx, inputUp)
 		if err == nil {
 			t.Fatal("expected 403 when Org A updates link host to Org B's linkHost, got nil error")
+			return
 		}
 	}
 

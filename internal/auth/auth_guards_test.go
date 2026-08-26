@@ -56,6 +56,7 @@ func TestBindIdentityNormalizeError(t *testing.T) {
 	user := mustUser(t, db, "a@acme.com")
 	if err := bindIdentity(db, user.ID, plugin.ExternalIdentity{Provider: "oidc"}); err == nil {
 		t.Fatal("bindIdentity accepted an identity missing issuer/subject")
+		return
 	}
 	var n int64
 	db.Model(&models.UserIdentity{}).Count(&n)
@@ -107,6 +108,7 @@ func TestUpsertUserByEmailEmpty(t *testing.T) {
 	db := identityDB(t)
 	if _, _, err := UpsertUserByEmail(db, "   ", true); err == nil {
 		t.Fatal("UpsertUserByEmail accepted an empty address")
+		return
 	}
 }
 
