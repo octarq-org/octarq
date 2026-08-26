@@ -41,6 +41,7 @@ import (
 	"github.com/octarq-org/octarq/internal/notify"
 	"github.com/octarq-org/octarq/internal/queue"
 	"github.com/octarq-org/octarq/internal/server"
+	"github.com/octarq-org/octarq/internal/tenantsql"
 	"github.com/octarq-org/octarq/origin"
 	"github.com/octarq-org/octarq/pkg/telemetry"
 	"github.com/octarq-org/octarq/plugin"
@@ -260,6 +261,9 @@ func (a *App) RunMCP(ctx context.Context) error {
 			return telemetry.StartSpan(ctx, tracerName, spanName, opts...)
 		},
 		RegisterEndpoint: endpoint.NewEngine().Register,
+		RegisterTenantView: func(view plugin.TenantView) {
+			_ = tenantsql.DefaultRegistry().Register(view)
+		},
 	}
 	// Same idempotency seam as the HTTP path — a plugin that resolves it in
 	// Mount must find it in both compositions.
@@ -497,6 +501,9 @@ func (a *App) Run(ctx context.Context) error {
 			return telemetry.StartSpan(ctx, tracerName, spanName, opts...)
 		},
 		RegisterEndpoint: endpointEngine.Register,
+		RegisterTenantView: func(view plugin.TenantView) {
+			_ = tenantsql.DefaultRegistry().Register(view)
+		},
 	}
 	// Idempotency-Key support is offered to plugin routes through the service
 	// registry rather than a new plugin.Context field, so a plugin adopts it

@@ -16,10 +16,11 @@ import (
 	"github.com/octarq-org/octarq/plugins/help"
 	"github.com/octarq-org/octarq/plugins/links"
 	"github.com/octarq-org/octarq/plugins/mail"
+	"github.com/octarq-org/octarq/plugins/tenantquery"
 )
 
 // Default returns the OSS Core feature plugins in dependency order (dns before
 // links before mail, matching their Requires). Callers mount them via a.Use.
 func Default() []plugin.Plugin {
-	return []plugin.Plugin{dns.New(), links.New(), mail.New(), help.New()}
+	return []plugin.Plugin{dns.New(), links.New(), mail.New(), help.New(), tenantquery.New()}
 }

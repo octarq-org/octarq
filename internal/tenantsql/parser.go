@@ -48,6 +48,7 @@ type Option func(*parserOptions)
 type parserOptions struct {
 	viewPrefix       string
 	allowedFunctions map[string]bool
+	allowedViews     map[string]bool
 }
 
 // WithViewPrefix sets the required view/table prefix (default: "tenant_").
@@ -73,9 +74,24 @@ func WithAllowedFunctions(names []string) Option {
 	}
 }
 
+// WithAllowedViews sets the allowed view/table names whitelist.
+// If set with a non-empty slice, any referenced view not in this list will fail validation.
+func WithAllowedViews(names []string) Option {
+	return func(opts *parserOptions) {
+		opts.allowedViews = make(map[string]bool, len(names))
+		for _, name := range names {
+			trimmed := strings.ToLower(strings.TrimSpace(name))
+			if trimmed != "" {
+				opts.allowedViews[trimmed] = true
+			}
+		}
+	}
+}
+
 type parserImpl struct {
 	viewPrefix       string
 	allowedFunctions map[string]bool
+	allowedViews     map[string]bool
 }
 
 // NewParser creates a new Parser with the provided options.
@@ -100,6 +116,7 @@ func NewParser(opts ...Option) Parser {
 	return &parserImpl{
 		viewPrefix:       pOpts.viewPrefix,
 		allowedFunctions: pOpts.allowedFunctions,
+		allowedViews:     pOpts.allowedViews,
 	}
 }
 
@@ -155,6 +172,9 @@ func (p *parserImpl) Validate(sql string) (err error) {
 				}
 				if !strings.HasPrefix(strings.ToLower(name), strings.ToLower(p.viewPrefix)) {
 					return false, fmt.Errorf("disallowed table %q: table name must start with %q", name, p.viewPrefix)
+				}
+				if len(p.allowedViews) > 0 && !p.allowedViews[strings.ToLower(name)] {
+					return false, fmt.Errorf("unknown view %q: view is not in the allowed views whitelist", name)
 				}
 			}
 		case *sqlparser.ColName:
@@ -308,4 +328,54 @@ func statementTypeName(stmt sqlparser.Statement) string {
 	default:
 		return fmt.Sprintf("%T", stmt)
 	}
+}
+
+// ExtractReferencedViews extracts all unique table/view names referenced in a SELECT query.
+// It uses parseSafely to recover from parser panics and returns lowercased view names in appearance order.
+func ExtractReferencedViews(sql string) (views []string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("sql parsing failed: %v", r)
+		}
+	}()
+
+	trimmed := strings.TrimSpace(sql)
+	if trimmed == "" {
+		return nil, errors.New("sql statement cannot be empty")
+	}
+	if len(sql) > MaxSQLLength {
+		return nil, fmt.Errorf("sql statement exceeds maximum allowed length of %d bytes", MaxSQLLength)
+	}
+
+	stmt, parseErr := parseSafely(sql)
+	if parseErr != nil {
+		return nil, fmt.Errorf("sql parsing failed: %v", parseErr)
+	}
+
+	selectStmt, ok := stmt.(*sqlparser.Select)
+	if !ok {
+		return nil, fmt.Errorf("disallowed statement type %s: only SELECT statements are permitted", statementTypeName(stmt))
+	}
+
+	seen := make(map[string]bool)
+	walkErr := sqlparser.Walk(func(node sqlparser.SQLNode) (bool, error) {
+		if node == nil {
+			return true, nil
+		}
+		if ate, ok := node.(*sqlparser.AliasedTableExpr); ok && ate != nil {
+			if tn, ok := ate.Expr.(sqlparser.TableName); ok {
+				name := strings.ToLower(tn.Name.String())
+				if name != "" && name != "dual" && !seen[name] {
+					seen[name] = true
+					views = append(views, name)
+				}
+			}
+		}
+		return true, nil
+	}, selectStmt)
+
+	if walkErr != nil {
+		return nil, walkErr
+	}
+	return views, nil
 }

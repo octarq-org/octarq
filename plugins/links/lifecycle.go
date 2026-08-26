@@ -56,6 +56,8 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "link.delete", Group: "Links", Title: "Link Deleted", Description: "A short link was deleted"})
 	}
 
+	RegisterViews(ctx)
+
 	p.registerRoutes(ctx)
 
 	if ctx.Provide != nil {
