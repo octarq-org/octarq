@@ -46,6 +46,7 @@ func TestOrgIDNoDefaultAndFailClosed(t *testing.T) {
 	orgID, err := h.requireOrg(req)
 	if orgID != 0 || err == nil {
 		t.Fatalf("requireOrg(req) = (%d, %v), want (0, error)", orgID, err)
+		return
 	}
 
 	// 4. Requesting a requireOrg endpoint without session returns 401

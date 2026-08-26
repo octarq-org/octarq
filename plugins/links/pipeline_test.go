@@ -217,6 +217,7 @@ func TestQuickCreateLinkHostOwnership(t *testing.T) {
 	_, errA := p.quickCreateLink(context.Background(), inputA)
 	if errA == nil {
 		t.Fatalf("unowned host creation: expected 403 error, got nil")
+		return
 	}
 	if statusErr, ok := errA.(huma.StatusError); !ok || statusErr.GetStatus() != http.StatusForbidden {
 		t.Errorf("unowned host creation: expected 403 Forbidden, got %v", errA)

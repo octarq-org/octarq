@@ -54,6 +54,7 @@ func TestHandleLinkCrawl(t *testing.T) {
 
 	if err := p.handleLinkCrawl(context.Background(), []byte("{not-json")); err == nil {
 		t.Fatal("expected an error for malformed payload")
+		return
 	}
 
 	if err := p.db.Create(&Link{OrgID: 1, Slug: "crawl-me", Target: "https://example.com"}).Error; err != nil {
@@ -298,6 +299,7 @@ func TestMCPListLinks(t *testing.T) {
 	// No org in context is refused.
 	if _, _, err := p.mcpListLinks(context.Background(), nil, listLinksInput{}); err == nil {
 		t.Fatal("expected errNoOrgInContext without a workspace in context")
+		return
 	}
 
 	result, out, err := p.mcpListLinks(ctx, nil, listLinksInput{})

@@ -16,6 +16,7 @@ func TestPlugin_CreateDeclarativeLink(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("expected error for unauthenticated call")
+		return
 	}
 	ae, ok := plugin.AsAgentError(err)
 	if !ok || ae.Code != "UNAUTHORIZED" {
@@ -29,6 +30,7 @@ func TestPlugin_CreateDeclarativeLink(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("expected error for empty destination")
+		return
 	}
 	ae, ok = plugin.AsAgentError(err)
 	if !ok || ae.Code != "MISSING_DESTINATION" {
@@ -41,6 +43,7 @@ func TestPlugin_CreateDeclarativeLink(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("expected error for invalid destination scheme")
+		return
 	}
 	ae, ok = plugin.AsAgentError(err)
 	if !ok || ae.Code != "INVALID_DESTINATION" {
@@ -54,6 +57,7 @@ func TestPlugin_CreateDeclarativeLink(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("expected error for reserved slug")
+		return
 	}
 	ae, ok = plugin.AsAgentError(err)
 	if !ok || ae.Code != "SLUG_RESERVED" {
@@ -80,6 +84,7 @@ func TestPlugin_CreateDeclarativeLink(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("expected error for duplicate slug")
+		return
 	}
 	ae, ok = plugin.AsAgentError(err)
 	if !ok || ae.Code != "SLUG_ALREADY_EXISTS" {
@@ -102,6 +107,7 @@ func TestPlugin_MountRegistersDeclarativeEndpoint(t *testing.T) {
 
 	if registeredSpec == nil {
 		t.Fatalf("expected RegisterEndpoint to be called during Mount")
+		return
 	}
 
 	ep, ok := registeredSpec.(plugin.Endpoint)

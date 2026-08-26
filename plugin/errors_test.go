@@ -31,6 +31,7 @@ func TestAgentError_FormatAndUnwrap(t *testing.T) {
 	unwrapped, ok := AsAgentError(wrapped)
 	if !ok || unwrapped == nil {
 		t.Fatalf("expected AsAgentError to succeed on wrapped error")
+		return
 	}
 	if unwrapped.Code != "SLUG_ALREADY_EXISTS" {
 		t.Errorf("expected unwrapped Code SLUG_ALREADY_EXISTS, got %s", unwrapped.Code)
@@ -74,6 +75,7 @@ func TestAgentError_ToProblem(t *testing.T) {
 	prob409 := ae409.ToProblem("/api/links/my-slug")
 	if prob409 == nil { //nolint:staticcheck // SA5011 false positive: t.Fatalf above is noreturn
 		t.Fatalf("expected non-nil Problem for 409 error")
+		return
 	}
 	if prob409.Type != "/api/links/my-slug" { //nolint:staticcheck // SA5011 false positive: t.Fatalf above is noreturn
 		t.Errorf("expected Type '/api/links/my-slug', got '%s'", prob409.Type)
@@ -122,6 +124,7 @@ func TestAgentError_ToProblem(t *testing.T) {
 	prob429 := ae429.ToProblem("")
 	if prob429 == nil { //nolint:staticcheck // SA5011 false positive: t.Fatalf above is noreturn
 		t.Fatalf("expected non-nil Problem for 429 error")
+		return
 	}
 	if prob429.Type != "" { //nolint:staticcheck // SA5011 false positive: t.Fatalf above is noreturn
 		t.Errorf("expected empty Type for empty instance, got '%s'", prob429.Type)

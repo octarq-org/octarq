@@ -68,9 +68,9 @@ func (p *langchainProvider) Name() string         { return p.name }
 func (p *langchainProvider) DefaultModel() string { return p.def }
 func (p *langchainProvider) CheapModel() string   { return p.cheap }
 
-func (p *langchainProvider) Complete(ctx context.Context, req Request) (Response, error) {
+func (p *langchainProvider) buildMessages(req Request) ([]llms.MessageContent, error) {
 	if len(req.Messages) == 0 {
-		return Response{}, fmt.Errorf("llmprovider/%s: at least one message is required", p.name)
+		return nil, fmt.Errorf("llmprovider/%s: at least one message is required", p.name)
 	}
 
 	msgs := make([]llms.MessageContent, 0, len(req.Messages)+1)
@@ -83,6 +83,14 @@ func (p *langchainProvider) Complete(ctx context.Context, req Request) (Response
 			role = llms.ChatMessageTypeAI
 		}
 		msgs = append(msgs, llms.TextParts(role, m.Content))
+	}
+	return msgs, nil
+}
+
+func (p *langchainProvider) Complete(ctx context.Context, req Request) (Response, error) {
+	msgs, err := p.buildMessages(req)
+	if err != nil {
+		return Response{}, err
 	}
 
 	model := orDefault(req.Model, p.def)
@@ -103,12 +111,87 @@ func (p *langchainProvider) Complete(ctx context.Context, req Request) (Response
 	}
 	c := resp.Choices[0]
 	in, out := tokensFromInfo(c.GenerationInfo)
+	reasoning := reasoningTokensFromInfo(c.GenerationInfo)
 	return Response{
-		Text:         c.Content,
-		Model:        model,
-		InputTokens:  in,
-		OutputTokens: out,
-		StopReason:   c.StopReason,
+		Text:            c.Content,
+		Model:           model,
+		InputTokens:     in,
+		OutputTokens:    out,
+		ReasoningTokens: reasoning,
+		StopReason:      c.StopReason,
+	}, nil
+}
+
+func (p *langchainProvider) StreamComplete(ctx context.Context, req Request, h StreamHandler) (Response, error) {
+	if len(req.Tools) > 0 {
+		return Response{}, fmt.Errorf("llmprovider/%s: tool streaming not supported by langchaingo adapter", p.name)
+	}
+
+	msgs, err := p.buildMessages(req)
+	if err != nil {
+		return Response{}, err
+	}
+
+	model := orDefault(req.Model, p.def)
+	callOpts := []llms.CallOption{llms.WithModel(model)}
+	if req.MaxTokens > 0 {
+		callOpts = append(callOpts, llms.WithMaxTokens(req.MaxTokens))
+	}
+	if req.JSON {
+		callOpts = append(callOpts, llms.WithJSONMode())
+	}
+
+	var guard streamOrderGuard
+	if req.Thinking {
+		callOpts = append(callOpts, llms.WithStreamingReasoningFunc(func(ctx context.Context, reasoningChunk, chunk []byte) error {
+			if len(reasoningChunk) > 0 {
+				rStr := string(reasoningChunk)
+				if err := guard.OnThinking(rStr); err != nil {
+					return err
+				}
+				if h != nil {
+					h.OnThinking(rStr)
+				}
+			}
+			if len(chunk) > 0 {
+				cStr := string(chunk)
+				guard.OnText(cStr)
+				if h != nil {
+					h.OnText(cStr)
+				}
+			}
+			return nil
+		}))
+	} else {
+		callOpts = append(callOpts, llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
+			if len(chunk) > 0 {
+				cStr := string(chunk)
+				guard.OnText(cStr)
+				if h != nil {
+					h.OnText(cStr)
+				}
+			}
+			return nil
+		}))
+	}
+
+	resp, err := p.model.GenerateContent(ctx, msgs, callOpts...)
+	if err != nil {
+		return Response{}, fmt.Errorf("llmprovider/%s: %w", p.name, err)
+	}
+	if len(resp.Choices) == 0 {
+		return Response{}, fmt.Errorf("llmprovider/%s: empty response", p.name)
+	}
+	c := resp.Choices[0]
+	in, out := tokensFromInfo(c.GenerationInfo)
+	reasoning := reasoningTokensFromInfo(c.GenerationInfo)
+	return Response{
+		Text:            c.Content,
+		Model:           model,
+		InputTokens:     in,
+		OutputTokens:    out,
+		ReasoningTokens: reasoning,
+		StopReason:      c.StopReason,
 	}, nil
 }
 
@@ -133,6 +216,26 @@ func tokensFromInfo(info map[string]any) (in, out int) {
 	in = pick("InputTokens", "PromptTokens", "input_tokens", "prompt_tokens")
 	out = pick("OutputTokens", "CompletionTokens", "output_tokens", "completion_tokens")
 	return in, out
+}
+
+// reasoningTokensFromInfo extracts reasoning/thinking token usage if reported.
+func reasoningTokensFromInfo(info map[string]any) int {
+	pick := func(keys ...string) int {
+		for _, k := range keys {
+			if v, ok := info[k]; ok {
+				switch n := v.(type) {
+				case int:
+					return n
+				case int64:
+					return int(n)
+				case float64:
+					return int(n)
+				}
+			}
+		}
+		return 0
+	}
+	return pick("ReasoningTokens", "reasoning_tokens", "ReasoningTokenCount", "reasoning_token_count")
 }
 
 // --- per-vendor factories ---

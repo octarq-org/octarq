@@ -32,6 +32,7 @@ func TestRateLimiterRedisFallback(t *testing.T) {
 	rl := newRateLimiter("redis://127.0.0.1:58999/0", "test", 5, time.Second)
 	if rl == nil || rl.store == nil {
 		t.Fatal("expected non-nil rateLimiter fallback to memory store")
+		return
 	}
 	if !rl.allow("1.2.3.4") {
 		t.Errorf("expected allow to be true")

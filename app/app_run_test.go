@@ -640,6 +640,7 @@ func TestMCPRemountUsesMinimalContext(t *testing.T) {
 	}
 	if minimal.DB == nil || minimal.OrgID == nil || minimal.Provide == nil || minimal.Lookup == nil {
 		t.Fatal("minimal remount context lost its wired subset")
+		return
 	}
 	for _, name := range []string{
 		"Guard", "UserID", "OrgRole", "RequirePerm", "Notify", "RegisterNotifier",
@@ -667,6 +668,7 @@ func TestRunEnableEnvelopeFailure(t *testing.T) {
 	err := a.Run(context.Background())
 	if err == nil {
 		t.Fatal("Run succeeded with a corrupted DEK")
+		return
 	}
 	if !strings.Contains(err.Error(), "cannot unwrap DEK") {
 		t.Fatalf("Run = %v, want the DEK unwrap refusal", err)
@@ -713,6 +715,7 @@ func TestRunPreflightFailures(t *testing.T) {
 			tc.add(a)
 			if err := a.Run(context.Background()); err == nil {
 				t.Fatal("Run succeeded, want preflight failure")
+				return
 			} else if !strings.Contains(err.Error(), tc.wantSub) {
 				t.Fatalf("Run error %q does not contain %q", err, tc.wantSub)
 			}
@@ -755,6 +758,7 @@ func TestRunMCPPreflightFailures(t *testing.T) {
 			tc.add(a)
 			if err := a.RunMCP(ctx); err == nil {
 				t.Fatal("RunMCP succeeded, want preflight failure")
+				return
 			} else if !strings.Contains(err.Error(), tc.wantSub) {
 				t.Fatalf("RunMCP error %q does not contain %q", err, tc.wantSub)
 			}
@@ -770,6 +774,7 @@ func TestNewErrorPaths(t *testing.T) {
 		t.Setenv("OCTARQ_DB_DRIVER", "invalid-driver")
 		if _, err := New(); err == nil {
 			t.Fatal("New succeeded with an invalid DB driver")
+			return
 		}
 	})
 
@@ -780,6 +785,7 @@ func TestNewErrorPaths(t *testing.T) {
 		t.Setenv("OCTARQ_ADMIN_PASSWORD", "new-err-admin-pass")
 		if _, err := New(); err == nil {
 			t.Fatal("New succeeded with an unopenable database path")
+			return
 		}
 	})
 
@@ -828,6 +834,7 @@ func TestRunSecretKeyFloor(t *testing.T) {
 	a.Use(dns.New())
 	if err := a.Run(context.Background()); err == nil {
 		t.Fatal("Run succeeded, want secret-key floor refusal")
+		return
 	} else if !strings.Contains(err.Error(), "OCTARQ_SECRET_KEY must be at least") {
 		t.Fatalf("Run error %q does not name the secret-key floor", err)
 	}
@@ -1103,6 +1110,7 @@ func TestAppNotify(t *testing.T) {
 
 	if err := a.Notify(ctx, "apptest-nosuch", "{}", "hi"); err == nil {
 		t.Fatal("Notify accepted an unregistered channel type")
+		return
 	}
 
 	var gotText string

@@ -43,6 +43,7 @@ func TestDecryptRejectsTamperedCiphertext(t *testing.T) {
 	}
 	if _, err := c.Decrypt(string(b)); err == nil {
 		t.Fatal("expected error decrypting tampered ciphertext, got nil")
+		return
 	}
 }
 
@@ -50,6 +51,7 @@ func TestEncryptBeforeEnvelopeFails(t *testing.T) {
 	c := New("test-secret")
 	if _, err := c.Encrypt([]byte("x")); err == nil {
 		t.Fatal("Encrypt should fail before EnableEnvelope")
+		return
 	}
 }
 

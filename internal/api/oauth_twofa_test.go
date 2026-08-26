@@ -196,6 +196,7 @@ func TestOAuthCallbackRequiresTwoFactorForTOTPUsers(t *testing.T) {
 	sess := sessionCookie(rec.Result().Cookies())
 	if sess == nil {
 		t.Fatal("2fa verify via challenge set no session cookie")
+		return
 	}
 	// Guard: the spent challenge cookie is cleared in the same response.
 	c := challengeCookie(rec.Result().Cookies())
@@ -229,6 +230,7 @@ func TestOAuthCallbackWithoutTwoFactorStillSignsIn(t *testing.T) {
 	sess := sessionCookie(cb.Result().Cookies())
 	if sess == nil {
 		t.Fatal("OAuth callback set no session cookie for a non-TOTP user")
+		return
 	}
 	if rec := do(srv, "GET", "/api/overview", []*http.Cookie{sess}, ""); rec.Code != http.StatusOK {
 		t.Fatalf("OAuth session is not usable: got %d", rec.Code)

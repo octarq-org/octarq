@@ -191,6 +191,7 @@ func TestDDNSUpdateEndpoint(t *testing.T) {
 	db.First(&tok, createResp.ID)
 	if tok.LastIP != "1.2.3.4" || tok.LastSeenAt == nil {
 		t.Fatalf("token DB state not updated: %+v", tok)
+		return
 	}
 
 	// C. Second Update: No change (nochg 1.2.3.4)

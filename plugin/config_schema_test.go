@@ -97,6 +97,7 @@ func TestConfigSchema_Validate_Required(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("expected error for missing required field, got nil")
+		return
 	}
 	if !strings.Contains(err.Error(), "serviceUrl") {
 		t.Fatalf("expected error to mention 'serviceUrl', got: %v", err)
@@ -108,6 +109,7 @@ func TestConfigSchema_Validate_Required(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("expected error for empty required field, got nil")
+		return
 	}
 	if !strings.Contains(err.Error(), "serviceUrl") {
 		t.Fatalf("expected error to mention 'serviceUrl', got: %v", err)
@@ -140,6 +142,7 @@ func TestConfigSchema_Validate_Range(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("expected error for port 99999 exceeding Max, got nil")
+		return
 	}
 	if !strings.Contains(err.Error(), "port") {
 		t.Fatalf("expected error to mention 'port', got: %v", err)
@@ -151,6 +154,7 @@ func TestConfigSchema_Validate_Range(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("expected error for port 80 below Min, got nil")
+		return
 	}
 	if !strings.Contains(err.Error(), "port") {
 		t.Fatalf("expected error to mention 'port', got: %v", err)
@@ -190,6 +194,7 @@ func TestConfigSchema_Validate_Enum(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("expected error for invalid enum 'trace', got nil")
+		return
 	}
 	if !strings.Contains(err.Error(), "logLevel") {
 		t.Fatalf("expected error to mention 'logLevel', got: %v", err)

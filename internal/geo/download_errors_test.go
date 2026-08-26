@@ -142,6 +142,7 @@ func TestDownloadArchiveErrors(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected connection error from closed server")
+		return
 	}
 
 	// Gzip garbage in the archive stream.
@@ -176,6 +177,7 @@ func TestDownloadArchiveErrors(t *testing.T) {
 	_, err = downloadFrom(t, newGeoHandler(truncated, hashOf(truncated)))
 	if err == nil {
 		t.Fatal("expected error from truncated archive")
+		return
 	}
 }
 
@@ -290,5 +292,6 @@ func TestFetchRejectsMalformedURL(t *testing.T) {
 	_, err := fetch(context.Background(), client, "http://bad host name", "key", "tar.gz")
 	if err == nil {
 		t.Fatal("expected url-construction error from malformed base URL")
+		return
 	}
 }

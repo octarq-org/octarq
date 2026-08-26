@@ -55,6 +55,7 @@ func TestSendTelegramInvalidChatID(t *testing.T) {
 	err := Send(context.Background(), "telegram", cfgJSON, "hello")
 	if err == nil {
 		t.Fatal("expected error for non-numeric telegram chatId, got nil")
+		return
 	}
 	if !strings.Contains(err.Error(), "invalid telegram chatId") {
 		t.Errorf("unexpected error message: %v", err)
@@ -67,6 +68,7 @@ func TestSendWebhookInvalidScheme(t *testing.T) {
 	err := Send(context.Background(), "webhook", cfgJSON, "hello")
 	if err == nil {
 		t.Fatal("expected error for unsupported ftp scheme, got nil")
+		return
 	}
 }
 
@@ -76,6 +78,7 @@ func TestSendWebhookBadURL(t *testing.T) {
 	err := Send(context.Background(), "webhook", cfgJSON, "hello")
 	if err == nil {
 		t.Fatal("expected error for invalid URL characters, got nil")
+		return
 	}
 }
 

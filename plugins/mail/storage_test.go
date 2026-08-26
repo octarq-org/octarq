@@ -237,6 +237,7 @@ func TestOSSRejectsProProvider(t *testing.T) {
 	_, err := p.getStorageProvider()
 	if err == nil {
 		t.Fatalf("expected error when mail_storage_backend is s3 in OSS, got nil")
+		return
 	}
 	if !bytes.Contains([]byte(err.Error()), []byte("requires Pro")) {
 		t.Fatalf("expected clear error mentioning Pro, got %v", err)

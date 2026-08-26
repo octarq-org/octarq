@@ -124,6 +124,7 @@ func TestVerification_SEC02_Remediation(t *testing.T) {
 	}, nil, nil)
 	if errHost == nil {
 		t.Fatal("expected error on host required, got nil")
+		return
 	}
 	var agentErr *plugin.AgentError
 	if errors.As(errHost, &agentErr) {
@@ -148,6 +149,7 @@ func TestVerification_SEC02_Remediation(t *testing.T) {
 	}, nil, nil)
 	if err402 == nil {
 		t.Fatal("expected error for 402 quota check")
+		return
 	}
 	if errors.As(err402, &agentErr) {
 		if agentErr.HTTPCode != 402 || agentErr.Code != "FEATURE_UNAVAILABLE" {
@@ -165,6 +167,7 @@ func TestVerification_SEC02_Remediation(t *testing.T) {
 	}, nil, nil)
 	if err429 == nil {
 		t.Fatal("expected error for 429 quota check")
+		return
 	}
 	if errors.As(err429, &agentErr) {
 		if agentErr.HTTPCode != 429 || agentErr.Code != "QUOTA_EXCEEDED" {
@@ -182,6 +185,7 @@ func TestVerification_SEC02_Remediation(t *testing.T) {
 	}, nil, nil)
 	if errGen == nil {
 		t.Fatal("expected error for generic quota check")
+		return
 	}
 	if errors.As(errGen, &agentErr) {
 		if agentErr.HTTPCode != 429 || agentErr.Code != "QUOTA_EXCEEDED" {

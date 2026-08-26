@@ -72,6 +72,7 @@ func TestMailDispatcherProvided(t *testing.T) {
 	svc, ok := reg.Lookup(plugin.ServiceMailDispatcher)
 	if !ok || svc == nil {
 		t.Fatal("mail.dispatcher service was not provided during Mount")
+		return
 	}
 	if _, isDispatcher := svc.(plugin.EmailDispatcher); !isDispatcher {
 		t.Fatalf("mail.dispatcher service has type %T, want plugin.EmailDispatcher", svc)

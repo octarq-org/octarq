@@ -106,15 +106,18 @@ func TestParseMySQLDSN(t *testing.T) {
 	t.Run("Empty DSN error", func(t *testing.T) {
 		if _, err := ParseMySQLDSN(""); err == nil {
 			t.Fatal("expected error for empty DSN, got nil")
+			return
 		}
 	})
 
 	t.Run("Missing dbname error", func(t *testing.T) {
 		if _, err := ParseMySQLDSN("root:secret@tcp(127.0.0.1:3306)/"); err == nil {
 			t.Fatal("expected error for missing dbname, got nil")
+			return
 		}
 		if _, err := ParseMySQLDSN("root:secret@tcp(127.0.0.1:3306)"); err == nil {
 			t.Fatal("expected error for missing slash and dbname, got nil")
+			return
 		}
 	})
 }

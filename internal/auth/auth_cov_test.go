@@ -327,6 +327,7 @@ func TestMintChallengeRequiresSecret(t *testing.T) {
 	m := New(&config.Config{SecretKey: ""}, crypto.New(""))
 	if _, err := m.NewTwoFAChallenge(1); err == nil {
 		t.Fatal("minted a challenge with no secret key")
+		return
 	}
 }
 
@@ -394,6 +395,7 @@ func TestResolveIdentityNoEmailClaim(t *testing.T) {
 	id := oidcID("https://idp.acme.com", "sub-x", "")
 	if _, _, err := resolveIdentity(db, id); err == nil {
 		t.Fatal("resolveIdentity accepted an email-less identity")
+		return
 	}
 }
 

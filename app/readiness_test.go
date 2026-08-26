@@ -187,6 +187,7 @@ func TestEnforceSecretKeyFloor(t *testing.T) {
 		err := enforceSecretKeyFloor(cfg, true)
 		if err == nil {
 			t.Fatal("expected error when domains registered with short key, got nil")
+			return
 		}
 		if strings.Contains(err.Error(), shortKey) {
 			t.Errorf("enforceSecretKeyFloor error leaks secret key value: %v", err)

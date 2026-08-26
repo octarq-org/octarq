@@ -55,6 +55,7 @@ func TestMCPListMailboxes(t *testing.T) {
 
 	if _, _, err := p.mcpListMailboxes(context.Background(), nil, listMailboxesInput{}); err == nil {
 		t.Fatal("no org in context must be refused")
+		return
 	}
 
 	res, out, err := p.mcpListMailboxes(ctx, nil, listMailboxesInput{})
@@ -112,6 +113,7 @@ func TestMCPListEmails(t *testing.T) {
 
 	if _, _, err := p.mcpListEmails(context.Background(), nil, listEmailsInput{}); err == nil {
 		t.Fatal("no org in context must be refused")
+		return
 	}
 
 	_, out, err := p.mcpListEmails(ctx, nil, listEmailsInput{})

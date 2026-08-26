@@ -129,6 +129,7 @@ func TestSendSystemMailNoSenderReturnsClearError(t *testing.T) {
 	err := p.sendSystemMail("user@example.com", "Verify your octarq email", "", "verify me")
 	if err == nil {
 		t.Fatal("sendSystemMail succeeded with no SMTP sender configured")
+		return
 	}
 	if !strings.Contains(err.Error(), "no SMTP sender") {
 		t.Fatalf("sendSystemMail error does not explain the missing sender: %v", err)

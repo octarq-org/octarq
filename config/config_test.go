@@ -89,6 +89,7 @@ func TestLoadRejectsBadDriver(t *testing.T) {
 	t.Setenv("OCTARQ_DB_DRIVER", "invalid_driver")
 	if _, err := Load(); err == nil {
 		t.Fatal("expected error for unsupported driver")
+		return
 	}
 }
 
@@ -291,6 +292,7 @@ func TestLoadRejectsBadLogLevel(t *testing.T) {
 	_, err := Load()
 	if err == nil {
 		t.Fatal("expected a refusal to start for an unsupported log level")
+		return
 	}
 	if !strings.Contains(err.Error(), "OCTARQ_LOG_LEVEL") {
 		t.Errorf("error must name the offending variable, got: %v", err)
@@ -320,6 +322,7 @@ func TestLogLevelFeedsSlogLogger(t *testing.T) {
 	t.Setenv("OCTARQ_LOG_LEVEL", "bogus")
 	if _, lerr := LogLevel(); lerr == nil {
 		t.Fatal("LogLevel() with an unknown value must error, not silently default")
+		return
 	} else if !strings.Contains(lerr.Error(), "OCTARQ_LOG_LEVEL") {
 		t.Errorf("error must name the variable, got: %v", lerr)
 	}

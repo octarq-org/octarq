@@ -55,6 +55,7 @@ func TestEngine_LookupCaching(t *testing.T) {
 	l1, ok := engine.Lookup("", "test-cache")
 	if !ok || l1 == nil {
 		t.Fatalf("expected Lookup to succeed")
+		return
 	}
 	if l1.Target != "https://example.com/target" {
 		t.Errorf("expected target https://example.com/target, got %s", l1.Target)
