@@ -32,11 +32,35 @@ type EndpointSpec[In any, Out any] struct {
 	RequireAuth bool     // Whether authentication is required (default true)
 	RequireRole []string // Required workspace roles (e.g. ["owner", "admin"])
 
+	// Risk & Governance
+	RiskLevel       string // "read" | "write" | "destructive"; empty = inferred from Method
+	RequireApproval bool   // HITL: manual approval required before execution (destructive must be true)
+
 	// Agent-Native options
 	ExposeMCP bool // Whether to expose as MCP Tool (default true)
 
 	// Core business handler
 	Handler HandlerFunc[In, Out]
+}
+
+// Risk level constants.
+const (
+	RiskLevelRead        = "read"
+	RiskLevelWrite       = "write"
+	RiskLevelDestructive = "destructive"
+)
+
+// DefaultRiskLevel returns the inferred risk level based on the HTTP method.
+// GET -> "read", POST/PUT/PATCH/DELETE -> "write".
+func DefaultRiskLevel(method string) string {
+	switch strings.ToUpper(strings.TrimSpace(method)) {
+	case "GET", "HEAD":
+		return RiskLevelRead
+	case "POST", "PUT", "PATCH", "DELETE", "":
+		return RiskLevelWrite
+	default:
+		return RiskLevelWrite
+	}
 }
 
 // Endpoint is the untyped interface implemented by EndpointSpec[In, Out].
@@ -49,6 +73,7 @@ type Endpoint interface {
 	EndpointRequireAuth() bool
 	EndpointRequireRole() []string
 	EndpointExposeMCP() bool
+	EndpointRequireApproval() bool
 	Execute(ctx context.Context, input any) (any, error)
 	Spec() any
 }
@@ -82,7 +107,23 @@ func (s EndpointSpec[In, Out]) EndpointPath() string          { return s.Path }
 func (s EndpointSpec[In, Out]) EndpointRequireAuth() bool     { return s.RequireAuth }
 func (s EndpointSpec[In, Out]) EndpointRequireRole() []string { return s.RequireRole }
 func (s EndpointSpec[In, Out]) EndpointExposeMCP() bool       { return s.ExposeMCP }
+func (s EndpointSpec[In, Out]) EndpointRequireApproval() bool { return s.RequireApproval }
 func (s EndpointSpec[In, Out]) Spec() any                     { return s }
+
+// EffectiveRisk returns the effective risk level of the endpoint.
+// Explicit valid RiskLevel takes precedence; otherwise it is inferred from Method.
+// If an invalid explicit RiskLevel is set, it returns an empty string.
+func (s EndpointSpec[In, Out]) EffectiveRisk() string {
+	if s.RiskLevel != "" {
+		switch s.RiskLevel {
+		case RiskLevelRead, RiskLevelWrite, RiskLevelDestructive:
+			return s.RiskLevel
+		default:
+			return ""
+		}
+	}
+	return DefaultRiskLevel(s.EndpointMethod())
+}
 
 // Validate verifies the declarative contract for the endpoint.
 // It checks that Name is non-empty and Path starts with "/api".
@@ -205,6 +246,15 @@ func (s EndpointSpec[In, Out]) RegisterMCP(srv *mcp.Server) error {
 	if desc == "" {
 		desc = s.EndpointSummary()
 	}
+	riskSuffix := fmt.Sprintf("[risk: %s]", s.EffectiveRisk())
+	if s.RequireApproval {
+		riskSuffix = fmt.Sprintf("[risk: %s, approval required]", s.EffectiveRisk())
+	}
+	if desc != "" {
+		desc = desc + " " + riskSuffix
+	} else {
+		desc = riskSuffix
+	}
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        s.EndpointName(),
 		Description: desc,
@@ -237,6 +287,14 @@ func (s EndpointSpec[In, Out]) RegisterMCP(srv *mcp.Server) error {
 
 // RegisterEndpoint is a type-safe generic helper to register an EndpointSpec onto a Context.
 func RegisterEndpoint[In any, Out any](ctx *Context, spec EndpointSpec[In, Out]) error {
+	if spec.RiskLevel != "" {
+		if spec.RiskLevel != RiskLevelRead && spec.RiskLevel != RiskLevelWrite && spec.RiskLevel != RiskLevelDestructive {
+			return fmt.Errorf("invalid RiskLevel %q: must be %q, %q, or %q", spec.RiskLevel, RiskLevelRead, RiskLevelWrite, RiskLevelDestructive)
+		}
+	}
+	if spec.EffectiveRisk() == RiskLevelDestructive && !spec.RequireApproval {
+		return fmt.Errorf("destructive endpoint %q must have RequireApproval set to true", spec.Name)
+	}
 	if ctx == nil || ctx.RegisterEndpoint == nil {
 		return nil // Backward compatibility on hosts that predate it
 	}
