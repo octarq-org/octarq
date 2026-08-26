@@ -454,6 +454,7 @@ export const api = {
   createSMTPSender: (s: any) => req<SMTPSender>("POST", "/api/smtp-senders", s),
   updateSMTPSender: (id: number, s: any) => req<SMTPSender>("PUT", `/api/smtp-senders/${id}`, s),
   deleteSMTPSender: (id: number) => req("DELETE", `/api/smtp-senders/${id}`),
+  testSMTPSender: (id: number) => req<{ ok: boolean }>("POST", `/api/smtp-senders/${id}/test`),
 
   domains: (q?: { q?: string; limit?: number; offset?: number }) => {
     const params = new URLSearchParams();
@@ -488,6 +489,7 @@ export const api = {
   createWebhook: (d: Partial<Webhook>) => req<Webhook>("POST", "/api/webhooks", d),
   updateWebhook: (id: number, d: Partial<Webhook>) => req<Webhook>("PUT", `/api/webhooks/${id}`, d),
   deleteWebhook: (id: number) => req<void>("DELETE", `/api/webhooks/${id}`),
+  testWebhook: (id: number) => req<{ ok: boolean }>("POST", `/api/webhooks/${id}/test`),
 
   // audit
   auditLogs: () => req<AuditLog[]>("GET", "/api/audit"),

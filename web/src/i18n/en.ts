@@ -144,6 +144,8 @@ export const en = {
     members: "Members",
     webhooks: "Webhooks",
     notifications: "Alerts",
+    "checkout-orders": "Orders",
+    "checkout-promos": "Promo Codes",
     profile: "My Profile",
     security: "Security",
     tokens: "API Tokens",

@@ -15,6 +15,7 @@ export function SMTPSenders() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
+  const [testingId, setTestingId] = useState<number | null>(null);
 
   async function load() {
     setLoading(true);
@@ -33,6 +34,18 @@ export function SMTPSenders() {
       load();
     } catch (e: any) {
       toast.error(e.message || t("settings.failedRemove"));
+    }
+  }
+
+  async function test(id: number, name: string) {
+    setTestingId(id);
+    try {
+      await api.testSMTPSender(id);
+      toast.success(t("settings.smtpTestSent", { to: name }));
+    } catch (e: any) {
+      toast.error(t("settings.testFailed", { msg: e?.message || "unknown error" }));
+    } finally {
+      setTestingId(null);
     }
   }
 
@@ -74,6 +87,14 @@ export function SMTPSenders() {
               </div>
               {canManageSMTP && (
                 <div className="flex items-center gap-2">
+                  <Button
+                    variant="subtle"
+                    onClick={() => test(s.id, s.fromEmail)}
+                    disabled={testingId === s.id}
+                    className="text-xs py-1 px-2.5"
+                  >
+                    {testingId === s.id ? t("settings.testing") : t("settings.test")}
+                  </Button>
                   <Button variant="subtle" onClick={() => setEditing(s)} className="text-xs py-1 px-2.5">
                     {t("settings.editSmtp")}
                   </Button>

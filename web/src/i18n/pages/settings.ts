@@ -274,6 +274,9 @@ export const settings = {
     disable: "Disable",
     enable: "Enable",
     test: "Test",
+    testing: "Testing…",
+    smtpTestSent: "Test email sent to {{to}} — check the inbox.",
+    webhookTestSent: "Test event delivered to {{name}}.",
 
     // EditNotificationChannel
     editAlertChannel: "Edit Alert Channel",
@@ -637,6 +640,9 @@ export const settings = {
     disable: "禁用",
     enable: "启用",
     test: "测试",
+    testing: "测试中…",
+    smtpTestSent: "测试邮件已发送至 {{to}}，请查收。",
+    webhookTestSent: "测试事件已推送到 {{name}}。",
 
     // EditNotificationChannel
     editAlertChannel: "编辑提醒渠道",
@@ -1000,6 +1006,9 @@ export const settings = {
     disable: "Desactivar",
     enable: "Activar",
     test: "Probar",
+    testing: "Probando…",
+    smtpTestSent: "Correo de prueba enviado a {{to}}; revisa la bandeja de entrada.",
+    webhookTestSent: "Evento de prueba entregado a {{name}}.",
 
     // EditNotificationChannel
     editAlertChannel: "Editar Canal de Alertas",
@@ -1363,6 +1372,9 @@ export const settings = {
     disable: "Desativar",
     enable: "Ativar",
     test: "Testar",
+    testing: "Testando…",
+    smtpTestSent: "E-mail de teste enviado para {{to}}; verifique a caixa de entrada.",
+    webhookTestSent: "Evento de teste entregue a {{name}}.",
 
     // EditNotificationChannel
     editAlertChannel: "Editar Canal de Alerta",
@@ -1726,6 +1738,9 @@ export const settings = {
     disable: "無効にする",
     enable: "有効にする",
     test: "テスト",
+    testing: "テスト中…",
+    smtpTestSent: "テストメールを {{to}} に送信しました。受信箱を確認してください。",
+    webhookTestSent: "{{name}} にテストイベントを配信しました。",
 
     // EditNotificationChannel
     editAlertChannel: "アラートチャンネルを編集",

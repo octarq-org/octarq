@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"strings"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -291,6 +292,60 @@ func (h *Handler) deleteWebhook(ctx context.Context, input *DeleteWebhookInput) 
 
 	h.audit(r, "webhook.delete", "webhook", input.ID, nil)
 	return &DeleteWebhookOutput{Body: map[string]bool{"ok": true}}, nil
+}
+
+type TestWebhookInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *TestWebhookInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type TestWebhookOutput struct {
+	Body map[string]bool
+}
+
+// testWebhook fires one synthetic webhook.test event at the stored endpoint.
+// Single attempt on purpose (not deliverWithRetry): a test that needs five
+// retries is a broken endpoint, and the operator wants the first failure's
+// reason, not the loop's dead-letter summary.
+func (h *Handler) testWebhook(ctx context.Context, input *TestWebhookInput) (*TestWebhookOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
+		return nil, err
+	}
+
+	var hook models.Webhook
+	if h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).First(&hook).Error != nil {
+		return nil, huma.Error404NotFound("not found")
+	}
+	if !hook.Enabled {
+		return nil, huma.Error400BadRequest("webhook is disabled; enable it before testing")
+	}
+
+	testCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	if err := eventbus.TestSend(testCtx, orgID, hook.ID, hook.URL, hook.Secret); err != nil {
+		return nil, huma.Error400BadRequest(err.Error())
+	}
+
+	h.audit(r, "webhook.test", "webhook", hook.ID, map[string]any{"url": hook.URL})
+	return &TestWebhookOutput{Body: map[string]bool{"ok": true}}, nil
 }
 
 type ListWebhookEventsInput struct {

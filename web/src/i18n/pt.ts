@@ -127,6 +127,8 @@ export const pt = {
     members: "Membros",
     webhooks: "Webhooks",
     notifications: "Alertas",
+    "checkout-orders": "Pedidos",
+    "checkout-promos": "Códigos promocionais",
     profile: "Meu Perfil",
     security: "Segurança",
     tokens: "Tokens de API",
