@@ -94,16 +94,11 @@ func (p *Plugin) systemSender() (*SMTPSender, error) {
 	return &s, nil
 }
 
-// sendSystemMail delivers an instance-level system message (verification,
-// password reset, invite) through the system sender resolved by systemSender.
-// Unlike sendMail it has no orgID: these flows must work for recipients with
-// no membership yet. Usage and failure events are attributed to the sender's
-// owning workspace so metering and webhooks keep a real org id.
-func (p *Plugin) sendSystemMail(to, subject, htmlBody, textBody string) error {
-	s, err := p.systemSender()
-	if err != nil {
-		return err
-	}
+// deliverVia sends one message through the given sender record, handling
+// password decryption, usage metering and the email.send_failed event. Shared
+// by system mail, org mail and the per-sender connectivity test so the three
+// cannot drift on how a send is metered or reported.
+func (p *Plugin) deliverVia(s *SMTPSender, to, subject, htmlBody, textBody string) error {
 	pass, err := p.decrypt(s.Pass)
 	if err != nil {
 		return err
@@ -121,6 +116,19 @@ func (p *Plugin) sendSystemMail(to, subject, htmlBody, textBody string) error {
 	return nil
 }
 
+// sendSystemMail delivers an instance-level system message (verification,
+// password reset, invite) through the system sender resolved by systemSender.
+// Unlike sendMail it has no orgID: these flows must work for recipients with
+// no membership yet. Usage and failure events are attributed to the sender's
+// owning workspace so metering and webhooks keep a real org id.
+func (p *Plugin) sendSystemMail(to, subject, htmlBody, textBody string) error {
+	s, err := p.systemSender()
+	if err != nil {
+		return err
+	}
+	return p.deliverVia(s, to, subject, htmlBody, textBody)
+}
+
 func (p *Plugin) sendMail(orgID uint, to, subject, htmlBody, textBody string) error {
 	if p.isSuppressed(orgID, to) {
 		return fmt.Errorf("recipient address %s is in suppression list", to)
@@ -129,19 +137,5 @@ func (p *Plugin) sendMail(orgID uint, to, subject, htmlBody, textBody string) er
 	if err := p.db.Where("owner_id = ?", orgID).Order("id").First(&s).Error; err != nil {
 		return fmt.Errorf("no SMTP sender configured for org %d", orgID)
 	}
-	pass, err := p.decrypt(s.Pass)
-	if err != nil {
-		return err
-	}
-	sender := mail.NewCustomSender(s.Host, fmt.Sprint(s.Port), s.User, string(pass), s.FromEmail)
-	if err := sender.Send(mail.Message{From: s.FromEmail, To: []string{to}, Subject: subject, HTML: htmlBody, Text: textBody}); err != nil {
-		if p.publishEvent != nil {
-			p.publishEvent(orgID, "email.send_failed", map[string]any{"to": []string{to}, "subject": subject, "error": err.Error()})
-		}
-		return err
-	}
-	if p.recordUsage != nil {
-		p.recordUsage(orgID, usagemetric.MailOut, 1)
-	}
-	return nil
+	return p.deliverVia(&s, to, subject, htmlBody, textBody)
 }

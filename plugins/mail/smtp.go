@@ -2,6 +2,7 @@ package mail
 
 import (
 	"context"
+	"html"
 	"net"
 	"strings"
 
@@ -263,4 +264,49 @@ func (p *Plugin) deleteSMTPSender(ctx context.Context, input *DeleteSMTPSenderIn
 		p.audit(r, "smtp.delete", "smtp_sender", input.ID, nil)
 	}
 	return &DeleteSMTPSenderOutput{Body: map[string]bool{"ok": true}}, nil
+}
+
+type TestSMTPSenderInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *TestSMTPSenderInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type TestSMTPSenderOutput struct {
+	Body map[string]bool
+}
+
+// testSMTPSender sends a real message from the sender to its own From address.
+// A dial-only probe would miss the failure modes operators actually hit — bad
+// password, relay refused, STARTTLS downgrade — so the test costs one real
+// delivery, addressed to the configured From so no third party is involved.
+func (p *Plugin) testSMTPSender(ctx context.Context, input *TestSMTPSenderInput) (*TestSMTPSenderOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	if p.orgID(r) == 0 {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if !p.hasRole(r, "admin") {
+		return nil, huma.Error403Forbidden("forbidden: admin role required to test SMTP sender")
+	}
+
+	var s SMTPSender
+	if err := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&s).Error; err != nil {
+		return nil, huma.Error404NotFound("not found")
+	}
+	if err := p.deliverVia(&s, s.FromEmail, "SMTP test from octarq",
+		"<p>Your SMTP sender <strong>"+html.EscapeString(s.Name)+"</strong> is working.</p>",
+		"Your SMTP sender '"+s.Name+"' is working."); err != nil {
+		return nil, huma.Error400BadRequest(err.Error())
+	}
+	if p.audit != nil {
+		p.audit(r, "smtp.test", "smtp_sender", s.ID, map[string]any{"to": s.FromEmail})
+	}
+	return &TestSMTPSenderOutput{Body: map[string]bool{"ok": true}}, nil
 }
