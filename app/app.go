@@ -265,6 +265,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 		RegisterTenantView: func(view plugin.TenantView) {
 			_ = tenantsql.DefaultRegistry().Register(view)
 		},
+		RegisterReactor: eventbus.RegisterReactor,
 	}
 	apiHandler.SetEndpointSource(endpointEngine)
 	// Same idempotency seam as the HTTP path — a plugin that resolves it in
@@ -506,6 +507,7 @@ func (a *App) Run(ctx context.Context) error {
 		RegisterTenantView: func(view plugin.TenantView) {
 			_ = tenantsql.DefaultRegistry().Register(view)
 		},
+		RegisterReactor: eventbus.RegisterReactor,
 	}
 	apiHandler.SetEndpointSource(endpointEngine)
 	// Idempotency-Key support is offered to plugin routes through the service
@@ -608,6 +610,7 @@ func (a *App) Run(ctx context.Context) error {
 			go s.Start(ctx)
 		}
 	}
+	eventbus.StartReactors(ctx, 0)
 
 	// Tell the operator, once and before anything is served, which capabilities
 	// this instance actually has. Several of them fail silently otherwise — see

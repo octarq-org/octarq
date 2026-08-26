@@ -3,21 +3,15 @@ package eventbus
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/octarq-org/octarq/plugin"
 )
 
 // Envelope is the typed event carrier for the in-process event spine.
-type Envelope struct {
-	ID         string // unique id (crypto/rand hex)
-	OrgID      uint   // tenant scope, required
-	Key        string // event key e.g. "link.click", must be registered in EventDef
-	EntityKey  string // debounce key e.g. "link:123"; empty = no per-entity drop
-	Payload    json.RawMessage
-	OccurredAt time.Time
-}
+type Envelope = plugin.Envelope
 
 // SubscribeOpts controls the channel buffer and key filter for a subscription.
 type SubscribeOpts struct {

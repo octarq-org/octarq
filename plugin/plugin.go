@@ -508,6 +508,9 @@ type Context struct {
 	// RegisterTenantView registers a tenant-isolated SQL view.
 	// Call it during Mount. nil on hosts that predate it.
 	RegisterTenantView func(view TenantView)
+	// RegisterReactor registers a declarative EventReactor to the event spine.
+	// Call it during Mount. nil on hosts that predate it.
+	RegisterReactor func(r EventReactor) error
 }
 
 // AuthMethod is a provider-agnostic auth method definition, mirroring the fields

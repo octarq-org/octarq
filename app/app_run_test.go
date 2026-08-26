@@ -226,6 +226,7 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	p.present("DB", ctx.DB != nil)
 	p.present("RegisterEndpoint", ctx.RegisterEndpoint != nil)
 	p.present("RegisterTenantView", ctx.RegisterTenantView != nil)
+	p.present("RegisterReactor", ctx.RegisterReactor != nil)
 
 	if p.httpMode {
 		p.present("PluginActive", ctx.PluginActive != nil)
