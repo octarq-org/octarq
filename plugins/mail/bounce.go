@@ -109,9 +109,42 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 	ip := reporterIP(r)
 	processedCount := 0
 
+	var emails []string
 	for _, ev := range events {
-		var mb Mailbox
-		if err := p.db.Where("address = ? AND owner_id = ?", strings.ToLower(ev.Email), org.ID).First(&mb).Error; err != nil {
+		emails = append(emails, strings.ToLower(ev.Email))
+	}
+
+	var mailboxes []Mailbox
+	if err := p.db.Where("address IN ? AND owner_id = ?", emails, org.ID).Find(&mailboxes).Error; err != nil {
+		return nil, huma.Error500InternalServerError("database error querying mailboxes")
+	}
+
+	mbMap := make(map[string]*Mailbox, len(mailboxes))
+	for i := range mailboxes {
+		mbMap[strings.ToLower(mailboxes[i].Address)] = &mailboxes[i]
+	}
+
+	var channels []models.NotificationChannel
+	p.db.Where("owner_id = ? AND enabled = ?", org.ID, true).Find(&channels)
+
+	var auditLogs []models.AuditLog
+
+	type suppressionKey struct {
+		address string
+	}
+	// Address -> count, reason, source
+	type suppressionData struct {
+		count  int
+		reason string
+		source string
+	}
+	suppressions := make(map[suppressionKey]*suppressionData)
+
+	var alertTexts []string
+
+	for _, ev := range events {
+		mb, ok := mbMap[strings.ToLower(ev.Email)]
+		if !ok {
 			continue
 		}
 
@@ -127,7 +160,7 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 			metaJSON = string(b)
 		}
 
-		p.db.Create(&models.AuditLog{
+		auditLogs = append(auditLogs, models.AuditLog{
 			OrgID:      mb.OrgID,
 			ActorID:    0, // System
 			Action:     "email.bounce",
@@ -150,31 +183,57 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 		if shouldSuppress {
 			addr := strings.ToLower(strings.TrimSpace(ev.Email))
 			if addr != "" {
-				item := MailSuppression{
-					OrgID:     org.ID,
-					Address:   addr,
-					Reason:    reason,
-					Source:    ev.Details,
-					Count:     1,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
+				key := suppressionKey{address: addr}
+				if sData, exists := suppressions[key]; exists {
+					sData.count++
+					sData.reason = reason
+					sData.source = ev.Details
+				} else {
+					suppressions[key] = &suppressionData{
+						count:  1,
+						reason: reason,
+						source: ev.Details,
+					}
 				}
-				p.db.Clauses(clause.OnConflict{
-					Columns: []clause.Column{{Name: "owner_id"}, {Name: "address"}},
-					DoUpdates: clause.Assignments(map[string]any{
-						"count":      gorm.Expr("count + 1"),
-						"reason":     reason,
-						"source":     ev.Details,
-						"updated_at": time.Now(),
-					}),
-				}).Create(&item)
 			}
 		}
 
-		alertText := fmt.Sprintf("⚠️ Email reputation event: Mailbox %s experienced a %s event. Details: %s", mb.Address, ev.Event, ev.Details)
-		var channels []models.NotificationChannel
-		p.db.Where("owner_id = ? AND enabled = ?", mb.OrgID, true).Find(&channels)
-		if len(channels) > 0 {
+		alertTexts = append(alertTexts, fmt.Sprintf("⚠️ Email reputation event: Mailbox %s experienced a %s event. Details: %s", mb.Address, ev.Event, ev.Details))
+	}
+
+	if len(auditLogs) > 0 {
+		p.db.Create(&auditLogs)
+	}
+
+	if len(suppressions) > 0 {
+		var supItems []MailSuppression
+		for key, data := range suppressions {
+			supItems = append(supItems, MailSuppression{
+				OrgID:     org.ID,
+				Address:   key.address,
+				Reason:    data.reason,
+				Source:    data.source,
+				Count:     data.count,
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			})
+		}
+
+		p.db.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "owner_id"}, {Name: "address"}},
+			DoUpdates: clause.Assignments(map[string]any{
+				"count":      gorm.Expr("mail_suppressions.count + excluded.count"),
+				"reason":     clause.Column{Table: "excluded", Name: "reason"},
+				"source":     clause.Column{Table: "excluded", Name: "source"},
+				"updated_at": clause.Column{Table: "excluded", Name: "updated_at"},
+			}),
+		}).Create(&supItems)
+	}
+
+	if len(channels) > 0 && len(alertTexts) > 0 {
+		for _, alertText := range alertTexts {
+			// Capture variables for goroutine
+			alertText := alertText
 			safego.Go("mail.bounce-notify", func() {
 				ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
