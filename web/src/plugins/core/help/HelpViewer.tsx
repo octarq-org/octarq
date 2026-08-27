@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { useHref, useLocation, useNavigate } from "react-router-dom";
+import DOMPurify from "dompurify";
 import { api, HelpCategory, HelpDocMeta } from "../../../api";
 import { useTranslation } from "../../../i18n";
 import {
@@ -430,7 +431,7 @@ export default function HelpViewer() {
                   <div
                     ref={contentRef}
                     className="markdown-body"
-                    dangerouslySetInnerHTML={{ __html: content.html }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content.html) }}
                   />
                 </div>
 
