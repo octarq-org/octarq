@@ -337,3 +337,74 @@ func TestExecute_ContextCancellation(t *testing.T) {
 		t.Error("expected error for cancelled context")
 	}
 }
+
+func TestExecute_AliasDoesNotBypassRedaction(t *testing.T) {
+	db, reg := setupTestDB(t)
+
+	rawPassword := "supersecretpassword123"
+	link := links.Link{
+		OrgID:    1,
+		Slug:     "alias-test-slug",
+		Target:   "https://example.com",
+		Password: rawPassword,
+		Title:    "Secret Link",
+	}
+	if err := db.Create(&link).Error; err != nil {
+		t.Fatalf("create link: %v", err)
+	}
+
+	ctx := plugin.WithOrgID(context.Background(), 1)
+	ctx = auth.WithUserID(ctx, 101)
+
+	rows, _, err := tenantsql.Execute(ctx, db, reg, "SELECT password AS p FROM tenant_links")
+	if err != nil {
+		t.Fatalf("execute query: %v", err)
+	}
+
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(rows))
+	}
+
+	got, ok := rows[0]["p"]
+	if !ok {
+		t.Fatalf("expected column 'p' in result: %v", rows[0])
+	}
+	if got != plugin.RedactedValue {
+		t.Errorf("expected rows[0]['p'] to be %q, got %v", plugin.RedactedValue, got)
+	}
+	if got == rawPassword {
+		t.Errorf("raw password leaked through alias: %v", got)
+	}
+
+	// Also verify emails sensitive columns alias redaction (subject, text, html, storage_key)
+	mb := mail.Mailbox{OrgID: 1, Address: "test@example.com"}
+	db.Create(&mb)
+	db.Create(&mail.Email{
+		MailboxID:  mb.ID,
+		MessageID:  "msg-alias-1",
+		Subject:    "Confidential Subject",
+		Text:       "Secret Body",
+		HTML:       "<p>Secret Body</p>",
+		StorageKey: "raw/secrets/msg-1.eml",
+	})
+
+	emailRows, _, err := tenantsql.Execute(ctx, db, reg, "SELECT coalesce(subject, '') AS s, storage_key AS sk, text AS t, html AS h FROM tenant_emails")
+	if err != nil {
+		t.Fatalf("execute email query: %v", err)
+	}
+	if len(emailRows) != 1 {
+		t.Fatalf("expected 1 email row, got %d", len(emailRows))
+	}
+	if emailRows[0]["s"] != plugin.RedactedValue {
+		t.Errorf("expected subject alias to be %q, got %v", plugin.RedactedValue, emailRows[0]["s"])
+	}
+	if emailRows[0]["sk"] != plugin.RedactedValue {
+		t.Errorf("expected storage_key alias to be %q, got %v", plugin.RedactedValue, emailRows[0]["sk"])
+	}
+	if emailRows[0]["t"] != plugin.RedactedValue {
+		t.Errorf("expected text alias to be %q, got %v", plugin.RedactedValue, emailRows[0]["t"])
+	}
+	if emailRows[0]["h"] != plugin.RedactedValue {
+		t.Errorf("expected html alias to be %q, got %v", plugin.RedactedValue, emailRows[0]["h"])
+	}
+}

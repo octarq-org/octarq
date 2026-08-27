@@ -24,6 +24,8 @@ var SensitiveColumns = map[string]bool{
 	"otp":           true,
 	"subject":       true,
 	"text":          true,
+	"storage_key":   true,
+	"fingerprint":   true,
 }
 
 // RedactedValue is what a sensitive column's value is replaced with.

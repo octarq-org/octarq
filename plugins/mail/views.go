@@ -32,7 +32,7 @@ func RegisterViews(ctx *plugin.Context) {
 			{Name: "auth_dmarc", Type: "text", Description: "DMARC authentication verdict"},
 			{Name: "received_at", Type: "datetime", Description: "Timestamp when email was received"},
 		},
-		Sensitive: []string{"subject", "text", "html", "raw"},
+		Sensitive: []string{"subject", "text", "html", "raw", "storage_key"},
 		Definition: func(orgID uint) string {
 			return fmt.Sprintf("SELECT e.id, e.mailbox_id, e.message_id, e.from_addr, e.to_addr, e.subject, e.text, e.html, e.storage_key, e.read, e.note, e.attachments, e.auth_spf, e.auth_dkim, e.auth_dmarc, e.received_at FROM emails e INNER JOIN mailboxes m ON e.mailbox_id = m.id WHERE m.owner_id = %d", orgID)
 		},
