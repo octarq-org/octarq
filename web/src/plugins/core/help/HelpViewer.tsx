@@ -233,8 +233,28 @@ export default function HelpViewer() {
 
       if (type) {
         bq.classList.add("callout", `callout-${type}`);
-        const html = bq.innerHTML.replace(/\[!(TIP|WARNING|CAUTION|IMPORTANT|NOTE)\]/gi, "");
-        bq.innerHTML = `<div class="callout-title">${label}</div><div>${html}</div>`;
+
+        const walker = document.createTreeWalker(bq, NodeFilter.SHOW_TEXT, null);
+        let node = walker.nextNode();
+        while (node) {
+          if (node.nodeValue && /\[!(TIP|WARNING|CAUTION|IMPORTANT|NOTE)\]/i.test(node.nodeValue)) {
+            node.nodeValue = node.nodeValue.replace(/\[!(TIP|WARNING|CAUTION|IMPORTANT|NOTE)\]/gi, "");
+            break;
+          }
+          node = walker.nextNode();
+        }
+
+        const titleDiv = document.createElement("div");
+        titleDiv.className = "callout-title";
+        titleDiv.textContent = label;
+
+        const contentDiv = document.createElement("div");
+        while (bq.firstChild) {
+          contentDiv.appendChild(bq.firstChild);
+        }
+
+        bq.appendChild(titleDiv);
+        bq.appendChild(contentDiv);
       }
     });
   }, [content?.html, t, docs.length, resolveInAppPath, routerBase]);
