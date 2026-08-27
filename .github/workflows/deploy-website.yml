@@ -16,6 +16,8 @@ on:
     paths:
       - "website/**"
       - ".github/workflows/deploy-website.yml"
+  delete:
+    branches: ["**"]
   workflow_dispatch:
 
 permissions:
@@ -156,6 +158,14 @@ jobs:
                 body,
               });
             }
+
+  # Clean up preview when a branch is deleted.
+  cleanup-preview:
+    name: Cleanup preview
+    if: github.event_name == 'delete' && github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Branch ${{ github.event.ref }} deleted — preview at https://octarq-docs-preview.jungley.workers.dev is shared (no per-branch Pages), no per-branch deployment to delete."
 
   # Production deploys run ONLY on merge to main, release tags (v*), or manual dispatch.
   # This isolates the production environment registration to actual production releases.
