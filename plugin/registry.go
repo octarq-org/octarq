@@ -76,18 +76,6 @@ func (r *Registry) Err() error {
 //		ctx.Provide("hello.greeter", Greeter(greeter{}))
 //	}
 //
-//	// Consumer side — keep the Context from Mount, resolve in Start, which
-//	// the app runs only after ALL plugins have mounted:
-//	func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) { p.ctx = ctx }
-//
-//	func (p *Plugin) Start(ctx context.Context) {
-//		g, ok := plugin.LookupAs[hello.Greeter](p.ctx, "hello.greeter")
-//		if !ok {
-//			return // provider not in this build — degrade gracefully
-//		}
-//		_ = g.Greet("world")
-//	}
-//
 //	// Compile-time assertions (see the package doc convention):
 //	var (
 //		_ plugin.Plugin  = (*Plugin)(nil)
