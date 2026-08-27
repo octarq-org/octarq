@@ -571,7 +571,19 @@ func (a *App) Run(ctx context.Context) error {
 			return orgID, nil
 		},
 		RequireRole: func(ctx context.Context, roles []string) error {
-			return nil
+			if len(roles) == 0 {
+				return nil
+			}
+			r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
+			if err != nil {
+				return huma.Error403Forbidden("forbidden: insufficient workspace role privilege")
+			}
+			for _, role := range roles {
+				if apiHandler.RequireRole(r, role) {
+					return nil
+				}
+			}
+			return huma.Error403Forbidden("forbidden: insufficient workspace role privilege")
 		},
 	})
 	// Two plugins claiming the same route, or the same service name, is a wiring

@@ -458,3 +458,68 @@ func TestReactor_DefaultRegistryHelpers(t *testing.T) {
 		t.Errorf("expected 1 event on default registry, got %d", got)
 	}
 }
+
+func TestReactor_ShardQueueFullDrop(t *testing.T) {
+	reg := eventbus.NewReactorRegistry()
+	blockCh := make(chan struct{})
+	startedCh := make(chan struct{}, 1)
+
+	r := &testReactor{
+		events: []string{"queue.overflow"},
+		reactFn: func(ctx context.Context, env plugin.Envelope) error {
+			select {
+			case startedCh <- struct{}{}:
+			default:
+			}
+			<-blockCh
+			return nil
+		},
+	}
+
+	if err := reg.Register(r); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	beforeDropped := eventbus.DroppedTotal()
+	stop := reg.Start(ctx, 1) // 1 worker shard with 256 buffer
+	defer stop()
+
+	// Publish 1st event to block worker 0
+	eventbus.PublishEnvelope(eventbus.Envelope{
+		OrgID:     1,
+		Key:       "queue.overflow",
+		EntityKey: "entity-block",
+	})
+
+	// Wait until worker starts executing the 1st event
+	select {
+	case <-startedCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("worker did not start executing first event in time")
+	}
+
+	// Now worker 0 is blocked. Shard buffer is 256.
+	// Publish 300 more events: 256 should buffer, remaining should drop.
+	const overflowCount = 300
+	for i := 0; i < overflowCount; i++ {
+		eventbus.PublishEnvelope(eventbus.Envelope{
+			OrgID:     1,
+			Key:       "queue.overflow",
+			EntityKey: "entity-block",
+		})
+	}
+
+	// Allow dispatcher to process incoming events from spine and drop overflow
+	time.Sleep(50 * time.Millisecond)
+
+	afterDropped := eventbus.DroppedTotal()
+	if afterDropped <= beforeDropped {
+		t.Errorf("expected DroppedTotal to increase due to full shard queue, before=%d, after=%d", beforeDropped, afterDropped)
+	}
+
+	// Unblock worker to drain remaining tasks
+	close(blockCh)
+}

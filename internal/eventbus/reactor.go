@@ -260,6 +260,8 @@ func (reg *ReactorRegistry) Start(ctx context.Context, concurrency int) func() {
 					case shardQueues[shardID] <- task:
 					case <-runnerCtx.Done():
 						return
+					default:
+						atomic.AddUint64(&droppedCnt, 1)
 					}
 				}
 			}
