@@ -281,11 +281,14 @@ func TestReactor_EntityKeySerialization(t *testing.T) {
 		pubWg.Add(1)
 		go func(idx int) {
 			defer pubWg.Done()
-			key := "entity:A"
-			if idx%3 == 1 {
+			var key string
+			switch idx % 3 {
+			case 1:
 				key = "entity:B"
-			} else if idx%3 == 2 {
+			case 2:
 				key = "entity:C"
+			default:
+				key = "entity:A"
 			}
 			eventbus.PublishEnvelope(eventbus.Envelope{
 				OrgID:     1,

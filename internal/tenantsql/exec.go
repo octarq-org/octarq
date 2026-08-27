@@ -74,7 +74,7 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 	}
 
 	// 2. Database Dialect check
-	dial := db.Dialector.Name()
+	dial := db.Name()
 	if dial != "sqlite" && dial != "postgres" {
 		return nil, meta, fmt.Errorf("dialect not supported: %s", dial)
 	}
