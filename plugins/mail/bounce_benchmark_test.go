@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/internal/models"
 	"github.com/glebarez/sqlite"
+	"github.com/octarq-org/octarq/internal/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
