@@ -20,7 +20,7 @@ func BenchmarkBackfillTenantSubdomainLinkHosts(b *testing.B) {
 	}
 
 	db.AutoMigrate(&models.Org{}, &tenantDomainRow{}, &models.Setting{})
-    db.Create(&models.Setting{Key: "base_domain", Value: "example.com"})
+	db.Create(&models.Setting{Key: "base_domain", Value: "example.com"})
 
 	for i := 0; i < 1000; i++ {
 		org := models.Org{
@@ -40,7 +40,7 @@ func BenchmarkBackfillTenantSubdomainLinkHosts(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		db.Model(&tenantDomainRow{}).Where("for_link = ?", true).Update("for_link", false)
-        db.Model(&tenantDomainRow{}).Where("1=1").Update("link_hosts", "[]")
+		db.Model(&tenantDomainRow{}).Where("1=1").Update("link_hosts", "[]")
 		b.StartTimer()
 		backfillTenantSubdomainLinkHosts(db)
 	}
