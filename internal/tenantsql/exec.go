@@ -2,7 +2,6 @@ package tenantsql
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -129,12 +128,9 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 	// 4. Materialization + Query + Rollback in single transaction
 	start := time.Now()
 
-	var tx *gorm.DB
-	if dial == "postgres" {
-		tx = db.WithContext(ctx).Begin(&sql.TxOptions{ReadOnly: true})
-	} else {
-		tx = db.WithContext(ctx).Begin()
-	}
+	// In PostgreSQL, CREATE TEMP VIEW requires catalog writes in pg_temp and fails in ReadOnly transactions.
+	// Safety is guaranteed by AST validation (only SELECT allowed) and mandatory defer tx.Rollback().
+	tx := db.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return nil, meta, fmt.Errorf("failed to begin transaction: %w", tx.Error)
 	}

@@ -167,6 +167,7 @@ func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
 	for step := 0; ; step++ {
 		if step >= maxSteps {
 			t.Status = TurnStatusFailed
+			r.tracer.TurnEnd(ctx, s.ID, TurnStatusFailed)
 			return ErrMaxStepsExceeded
 		}
 
@@ -174,6 +175,7 @@ func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
 		text, err := r.completer.Complete(ctx, r.model, r.system, s.History)
 		if err != nil {
 			t.Status = TurnStatusFailed
+			r.tracer.TurnEnd(ctx, s.ID, TurnStatusFailed)
 			return fmt.Errorf("harness: completer error: %w", err)
 		}
 
@@ -183,12 +185,14 @@ func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
 			// No tool calls — the turn is done.
 			s.History = append(s.History, Message{Role: "assistant", Content: text})
 			t.Status = TurnStatusDone
+			r.tracer.TurnEnd(ctx, s.ID, TurnStatusDone)
 			return nil
 		}
 
 		// Execute each tool call.
 		if err := r.executeSteps(ctx, s, t, step, calls, remaining); err != nil {
 			t.Status = TurnStatusFailed
+			r.tracer.TurnEnd(ctx, s.ID, TurnStatusFailed)
 			return err
 		}
 	}
@@ -197,6 +201,12 @@ func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
 // executeSteps executes parsed tool calls with guard checks and tracing,
 // appending results to history.
 func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, step int, calls []toolCall, remaining string) error {
+	if remaining != "" {
+		s.History = append(s.History, Message{
+			Role:    "assistant",
+			Content: remaining,
+		})
+	}
 	for _, tc := range calls {
 		stepID := fmt.Sprintf("%s-step-%d-%s", s.ID, step, tc.Name)
 		r.tracer.StepStart(ctx, stepID)
@@ -213,10 +223,6 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 			t.Steps = append(t.Steps, st)
 			r.tracer.StepEnd(ctx, stepID, guardErr)
 			// Append the guard rejection into history so the LLM knows.
-			s.History = append(s.History, Message{
-				Role:    "assistant",
-				Content: remaining,
-			})
 			s.History = append(s.History, Message{
 				Role:    "tool",
 				Content: st.OutputFenced,
@@ -246,12 +252,7 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 		t.Steps = append(t.Steps, st)
 		r.tracer.StepEnd(ctx, stepID, st.Err)
 
-		// Append the assistant's tool-call intent and tool output into
-		// history so the LLM can reason about results.
-		s.History = append(s.History, Message{
-			Role:    "assistant",
-			Content: remaining,
-		})
+		// Append the tool output into history so the LLM can reason about results.
 		s.History = append(s.History, Message{
 			Role:    "tool",
 			Content: st.OutputFenced,

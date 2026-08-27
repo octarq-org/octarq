@@ -50,7 +50,7 @@ func (r *defaultRunner) Stream(ctx context.Context, s *Session, t *Turn, h llmpr
 			Model:    r.model,
 			System:   r.system,
 			Messages: msgs,
-			Thinking: true,
+			Thinking: t.Thinking,
 		}
 
 		collector := newStreamCollector(h)
