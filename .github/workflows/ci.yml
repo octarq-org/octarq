@@ -354,3 +354,23 @@ jobs:
 
             Nothing here is hand-written — merge it as-is, or close it if a
             newer merge is about to supersede it.
+
+  # Aggregator for branch protection: the rule requires a single check named
+  # "CI". Without this, a website-only change skips go/web/e2e and GitHub
+  # never reports a "CI" conclusion, leaving the PR at "Expected — Waiting".
+  # This job always runs and maps skipped → success, failure/cancelled → failure.
+  CI:
+    name: CI
+    if: always()
+    needs: [changes, go, web, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all required jobs
+        run: |
+          for result in "${{ needs.changes.result }}" "${{ needs.go.result }}" "${{ needs.web.result }}" "${{ needs.e2e.result }}"; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "Required job failed: $result"
+              exit 1
+            fi
+          done
+          echo "CI passed (success or skipped)"

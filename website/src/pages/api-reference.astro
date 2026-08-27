@@ -15,23 +15,6 @@ import ApiReferenceExplorer from "../components/api-reference/ApiReferenceExplor
   {/* Reserve the full header height (56px track + 1px border-b = --header-height);
       using 3.5rem alone leaked 1px and scrolled the page. */}
   <main class="flex flex-col h-[calc(100dvh-var(--header-height))]">
-    <details class="bg-muted/50 px-4 py-2 text-sm border-b border-border shrink-0">
-      <summary class="cursor-pointer font-medium text-foreground hover:text-primary transition-colors">
-        About this API Reference
-      </summary>
-      <div class="mt-3 pb-2 space-y-2 text-muted-foreground prose prose-sm dark:prose-invert max-w-none">
-        <p>
-          Octarq exposes a REST API generated from Go backend handlers via Huma OpenAPI v3.
-          Management operations (authentication, workspace settings, short links, mailboxes, and DNS zones) are defined in the OpenAPI 3.0 spec.
-        </p>
-        <p>
-          This specification covers the open-source core of Octarq. Octarq Pro instances expose the same <code>/openapi.json</code> with their plugin endpoints (finance, infrastructure, and AI) included.
-        </p>
-        <p>
-          The canonical OpenAPI JSON specification is downloadable directly: <a href="/openapi.json"><code>/openapi.json</code></a>
-        </p>
-      </div>
-    </details>
     <div class="flex-1 min-h-0">
       <ApiReferenceExplorer />
     </div>
