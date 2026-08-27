@@ -191,6 +191,11 @@ func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
 
 		// Execute each tool call.
 		if err := r.executeSteps(ctx, s, t, step, calls, remaining); err != nil {
+			if errors.Is(err, ErrApprovalRequired) {
+				t.Status = TurnStatusAwaitingApproval
+				r.tracer.TurnEnd(ctx, s.ID, TurnStatusAwaitingApproval)
+				return err
+			}
 			t.Status = TurnStatusFailed
 			r.tracer.TurnEnd(ctx, s.ID, TurnStatusFailed)
 			return err
@@ -222,6 +227,9 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 			st.OutputFenced = wrapUntrustedFence(guardErr.Error())
 			t.Steps = append(t.Steps, st)
 			r.tracer.StepEnd(ctx, stepID, guardErr)
+			if errors.Is(guardErr, ErrApprovalRequired) {
+				return guardErr
+			}
 			// Append the guard rejection into history so the LLM knows.
 			s.History = append(s.History, Message{
 				Role:    "tool",

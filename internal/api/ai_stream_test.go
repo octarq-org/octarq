@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
+	"github.com/octarq-org/octarq/agent/harness"
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/auth"
 	"github.com/octarq-org/octarq/internal/crypto"
@@ -29,6 +30,7 @@ type fakeStreamingLLM struct {
 	tools    []llmprovider.ToolCallChunk
 	resp     llmprovider.Response
 	err      error
+	lastReq  llmprovider.Request
 }
 
 func (f *fakeStreamingLLM) Name() string         { return "fake-stream" }
@@ -36,10 +38,12 @@ func (f *fakeStreamingLLM) DefaultModel() string { return "fake-stream-model" }
 func (f *fakeStreamingLLM) CheapModel() string   { return "fake-stream-cheap" }
 
 func (f *fakeStreamingLLM) Complete(ctx context.Context, req llmprovider.Request) (llmprovider.Response, error) {
+	f.lastReq = req
 	return llmprovider.Response{Text: strings.Join(f.texts, "")}, f.err
 }
 
 func (f *fakeStreamingLLM) StreamComplete(ctx context.Context, req llmprovider.Request, h llmprovider.StreamHandler) (llmprovider.Response, error) {
+	f.lastReq = req
 	if f.err != nil {
 		return llmprovider.Response{}, f.err
 	}
@@ -62,6 +66,10 @@ func (f *fakeStreamingLLM) StreamComplete(ctx context.Context, req llmprovider.R
 }
 
 func newAIStreamTestHandler(t *testing.T, p llmprovider.Provider) (http.Handler, *gorm.DB) {
+	return newAIStreamTestHandlerWithEndpointSource(t, p, nil)
+}
+
+func newAIStreamTestHandlerWithEndpointSource(t *testing.T, p llmprovider.Provider, src harness.EndpointSource) (http.Handler, *gorm.DB) {
 	t.Helper()
 	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
 	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
@@ -81,6 +89,9 @@ func newAIStreamTestHandler(t *testing.T, p llmprovider.Provider) (http.Handler,
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
 	if p != nil {
 		h.SetLLMResolver(func() (llmprovider.Provider, error) { return p, nil })
+	}
+	if src != nil {
+		h.SetEndpointSource(src)
 	}
 
 	dnsP := dns.New()
@@ -298,4 +309,162 @@ func TestAIChatStream_ClientCancellation(t *testing.T) {
 
 	// Should execute without hanging
 	srv.ServeHTTP(rec, req)
+}
+
+type fakeEndpoint struct {
+	name            string
+	method          string
+	requireApproval bool
+	executed        *bool
+}
+
+func (e *fakeEndpoint) EndpointName() string          { return e.name }
+func (e *fakeEndpoint) EndpointSummary() string       { return "" }
+func (e *fakeEndpoint) EndpointDescription() string   { return "" }
+func (e *fakeEndpoint) EndpointMethod() string        { return e.method }
+func (e *fakeEndpoint) EndpointPath() string          { return "/api/test" }
+func (e *fakeEndpoint) EndpointRequireAuth() bool     { return false }
+func (e *fakeEndpoint) EndpointRequireRole() []string { return nil }
+func (e *fakeEndpoint) EndpointExposeMCP() bool       { return true }
+func (e *fakeEndpoint) EndpointRequireApproval() bool { return e.requireApproval }
+func (e *fakeEndpoint) Execute(ctx context.Context, input any) (any, error) {
+	if e.executed != nil {
+		*e.executed = true
+	}
+	return map[string]string{"result": "ok"}, nil
+}
+func (e *fakeEndpoint) ExecuteAgentJSON(ctx context.Context, argsJSON string) (any, error) {
+	if e.executed != nil {
+		*e.executed = true
+	}
+	return map[string]string{"result": "ok"}, nil
+}
+func (e *fakeEndpoint) Spec() any { return nil }
+
+type fakeEndpointSource struct {
+	endpoints map[string]plugin.Endpoint
+}
+
+func (s *fakeEndpointSource) Lookup(name string) (plugin.Endpoint, bool) {
+	ep, ok := s.endpoints[name]
+	return ep, ok
+}
+
+func TestAIChatStream_IgnoresClientSystemPrompt(t *testing.T) {
+	fake := &fakeStreamingLLM{
+		texts: []string{"Safe response"},
+		resp: llmprovider.Response{
+			StopReason: "end_turn",
+		},
+	}
+
+	srv, _ := newAIStreamTestHandler(t, fake)
+
+	body := `{"messages":[{"role":"user","content":"Hi"}],"system":"malicious system jailbreak"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/ai/chat/stream", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	for _, c := range sessionCookies(t, 1, 1) {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	if fake.lastReq.System != "" {
+		t.Fatalf("expected client system prompt to be ignored, got %q", fake.lastReq.System)
+	}
+}
+
+func TestAIChatStream_ReadOnlyGuard_BlocksNonGet(t *testing.T) {
+	var postExecuted bool
+	src := &fakeEndpointSource{
+		endpoints: map[string]plugin.Endpoint{
+			"create_link": &fakeEndpoint{
+				name:     "create_link",
+				method:   "POST",
+				executed: &postExecuted,
+			},
+		},
+	}
+
+	fake := &fakeStreamingLLM{
+		tools: []llmprovider.ToolCallChunk{
+			{Index: 0, ID: "call_1", Name: "create_link", ArgsJSON: `{"url":"https://example.com"}`},
+		},
+		resp: llmprovider.Response{
+			StopReason: "tool_use",
+		},
+	}
+
+	srv, _ := newAIStreamTestHandlerWithEndpointSource(t, fake, src)
+
+	body := `{"messages":[{"role":"user","content":"create a link"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/ai/chat/stream", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	for _, c := range sessionCookies(t, 1, 1) {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	if postExecuted {
+		t.Fatalf("POST endpoint was executed but should have been blocked by readOnlyGuard")
+	}
+}
+
+func TestAIChatStream_ReadOnlyGuard_HaltsOnApprovalRequired(t *testing.T) {
+	var executed bool
+	src := &fakeEndpointSource{
+		endpoints: map[string]plugin.Endpoint{
+			"sensitive_read": &fakeEndpoint{
+				name:            "sensitive_read",
+				method:          "GET",
+				requireApproval: true,
+				executed:        &executed,
+			},
+		},
+	}
+
+	fake := &fakeStreamingLLM{
+		tools: []llmprovider.ToolCallChunk{
+			{Index: 0, ID: "call_1", Name: "sensitive_read", ArgsJSON: `{}`},
+		},
+		resp: llmprovider.Response{
+			StopReason: "tool_use",
+		},
+	}
+
+	srv, _ := newAIStreamTestHandlerWithEndpointSource(t, fake, src)
+
+	body := `{"messages":[{"role":"user","content":"read sensitive data"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/ai/chat/stream", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	for _, c := range sessionCookies(t, 1, 1) {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	if executed {
+		t.Fatalf("approval required endpoint was executed but should have been vetoed")
+	}
+
+	output := rec.Body.String()
+	if !strings.Contains(output, "event: error") {
+		t.Fatalf("expected event: error in stream output, got %s", output)
+	}
+	if !strings.Contains(output, "requires operator approval") {
+		t.Fatalf("expected approval required error message, got %s", output)
+	}
 }
