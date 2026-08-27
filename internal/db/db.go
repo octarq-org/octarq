@@ -200,36 +200,40 @@ func (tenantDomainRow) TableName() string { return "domains" }
 // no link host) keeps it to a single run: once upgraded a row no longer
 // matches the selection.
 func backfillTenantSubdomainLinkHosts(gdb *gorm.DB) {
-	base := models.BaseDomain(gdb)
-	if base == "" || !gdb.Migrator().HasTable("domains") || !gdb.Migrator().HasTable("orgs") {
-		return
-	}
-	var orgs []models.Org
-	if err := gdb.Find(&orgs).Error; err != nil {
-		return
-	}
-	slugByOrg := make(map[uint]string, len(orgs))
-	for _, o := range orgs {
-		slugByOrg[o.ID] = o.Slug
-	}
-	var doms []tenantDomainRow
-	if err := gdb.Where("for_link = ?", false).Find(&doms).Error; err != nil {
-		return
-	}
-	for _, d := range doms {
-		if len(d.LinkHosts) > 0 {
-			continue
+	gdb.Transaction(func(tx *gorm.DB) error {
+		base := models.BaseDomain(tx)
+		if base == "" || !tx.Migrator().HasTable("domains") || !tx.Migrator().HasTable("orgs") {
+			return nil
 		}
-		slug, ok := slugByOrg[d.OrgID]
-		if !ok {
-			continue
+		var orgs []models.Org
+		if err := tx.Find(&orgs).Error; err != nil {
+			return err
 		}
-		if d.Name != strings.ToLower(slug)+"."+base {
-			continue
+		slugByOrg := make(map[uint]string, len(orgs))
+		for _, o := range orgs {
+			slugByOrg[o.ID] = o.Slug
 		}
-		gdb.Model(&tenantDomainRow{}).Where("id = ?", d.ID).Updates(map[string]any{
-			"for_link":   true,
-			"link_hosts": models.HostList{{Host: d.Name, Enabled: true}},
-		})
-	}
+		var doms []tenantDomainRow
+		if err := tx.Where("for_link = ?", false).Find(&doms).Error; err != nil {
+			return err
+		}
+
+		for _, d := range doms {
+			if len(d.LinkHosts) > 0 {
+				continue
+			}
+			slug, ok := slugByOrg[d.OrgID]
+			if !ok {
+				continue
+			}
+			if d.Name != strings.ToLower(slug)+"."+base {
+				continue
+			}
+			tx.Model(&tenantDomainRow{}).Where("id = ?", d.ID).Updates(map[string]any{
+				"for_link":   true,
+				"link_hosts": models.HostList{{Host: d.Name, Enabled: true}},
+			})
+		}
+		return nil
+	})
 }
