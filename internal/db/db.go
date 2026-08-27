@@ -201,20 +201,23 @@ func backfillTenantSubdomainLinkHosts(gdb *gorm.DB) {
 	if err := gdb.Where("for_link = ?", false).Find(&doms).Error; err != nil {
 		return
 	}
-	for _, d := range doms {
-		if len(d.LinkHosts) > 0 {
-			continue
+	gdb.Transaction(func(tx *gorm.DB) error {
+		for _, d := range doms {
+			if len(d.LinkHosts) > 0 {
+				continue
+			}
+			slug, ok := slugByOrg[d.OrgID]
+			if !ok {
+				continue
+			}
+			if d.Name != strings.ToLower(slug)+"."+base {
+				continue
+			}
+			tx.Model(&tenantDomainRow{}).Where("id = ?", d.ID).Updates(map[string]any{
+				"for_link":   true,
+				"link_hosts": models.HostList{{Host: d.Name, Enabled: true}},
+			})
 		}
-		slug, ok := slugByOrg[d.OrgID]
-		if !ok {
-			continue
-		}
-		if d.Name != strings.ToLower(slug)+"."+base {
-			continue
-		}
-		gdb.Model(&tenantDomainRow{}).Where("id = ?", d.ID).Updates(map[string]any{
-			"for_link":   true,
-			"link_hosts": models.HostList{{Host: d.Name, Enabled: true}},
-		})
-	}
+		return nil
+	})
 }
