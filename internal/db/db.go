@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -158,9 +159,12 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 	gdb.Where("org_id = 0").Delete(&models.Session{})
 
 	// Data migration: backfill owner_id = 1 for legacy rows created before multi-tenancy
-	for _, table := range []string{"domains", "provider_accounts", "links", "mailboxes", "ddns_tokens", "dns_ddns_tokens", "tokens", "user_tokens", "webhooks", "notification_channels"} {
-		if gdb.Migrator().HasTable(table) && gdb.Migrator().HasColumn(table, "owner_id") {
-			gdb.Table(table).Where("owner_id = 0 OR owner_id IS NULL").Update("owner_id", 1)
+	m := gdb.Migrator()
+	if tables, err := m.GetTables(); err == nil {
+		for _, table := range []string{"domains", "provider_accounts", "links", "mailboxes", "ddns_tokens", "dns_ddns_tokens", "tokens", "user_tokens", "webhooks", "notification_channels"} {
+			if slices.Contains(tables, table) && m.HasColumn(table, "owner_id") {
+				gdb.Table(table).Where("owner_id = 0 OR owner_id IS NULL").Update("owner_id", 1)
+			}
 		}
 	}
 
