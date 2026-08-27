@@ -55,6 +55,18 @@ func (g *denyGuard) Allow(_ context.Context, _ uint, tool string) error {
 	return nil
 }
 
+// approvalGuard returns ErrApprovalRequired for specified tool.
+type approvalGuard struct {
+	tool string
+}
+
+func (g *approvalGuard) Allow(_ context.Context, _ uint, tool string) error {
+	if g.tool == "" || tool == g.tool {
+		return fmt.Errorf("%w: %s", ErrApprovalRequired, tool)
+	}
+	return nil
+}
+
 // --- helpers ---
 
 // toolCallBlock builds a ```tool_call block for the fake completer.
@@ -250,6 +262,48 @@ func TestRunner_ReactorProfile(t *testing.T) {
 	}
 	if len(turn.Steps) != MaxStepsReactor {
 		t.Fatalf("reactor profile: expected %d steps, got %d", MaxStepsReactor, len(turn.Steps))
+	}
+}
+
+// Test 6: Approval required guard veto halts turn with TurnStatusAwaitingApproval.
+func TestRunner_StopsOnApprovalRequired(t *testing.T) {
+	t.Parallel()
+
+	comp := &fakeCompleter{
+		responses: []string{
+			toolCallBlock("dangerous_tool", "{}"),
+			toolCallBlock("another_tool", "{}"),
+		},
+	}
+	exec := &fakeExecutor{
+		outputs: map[string]string{},
+		errs:    map[string]error{},
+	}
+
+	runner := NewRunner(comp, exec,
+		WithGuard(&approvalGuard{tool: "dangerous_tool"}),
+	)
+	sess := &Session{ID: "s-hitl", OrgID: 1, Channel: "test"}
+	turn := &Turn{Input: "do dangerous operation"}
+
+	err := runner.Run(context.Background(), sess, turn)
+	if !errors.Is(err, ErrApprovalRequired) {
+		t.Fatalf("expected ErrApprovalRequired, got %v", err)
+	}
+	if turn.Status != TurnStatusAwaitingApproval {
+		t.Fatalf("expected TurnStatusAwaitingApproval, got %d", turn.Status)
+	}
+	if len(exec.calls) != 0 {
+		t.Fatalf("expected 0 executor calls, got %d", len(exec.calls))
+	}
+	if comp.callCount != 1 {
+		t.Fatalf("expected completer to be called 1 time, got %d", comp.callCount)
+	}
+	if len(turn.Steps) != 1 {
+		t.Fatalf("expected 1 step recorded, got %d", len(turn.Steps))
+	}
+	if !errors.Is(turn.Steps[0].Err, ErrApprovalRequired) {
+		t.Fatalf("expected step[0].Err to be ErrApprovalRequired, got %v", turn.Steps[0].Err)
 	}
 }
 
@@ -571,6 +625,60 @@ func TestCompleterAdapter_Streaming(t *testing.T) {
 			t.Errorf("status = %d, want done", turn.Status)
 		}
 	})
+}
+
+func TestRunner_Stream_StopsOnApprovalRequired(t *testing.T) {
+	t.Parallel()
+
+	comp := &fakeStreamCompleter{
+		steps: []streamStep{
+			{
+				events: []streamEvent{
+					toolEv(llmprovider.ToolCallChunk{Index: 0, ID: "call_1", Name: "dangerous_tool", ArgsJSON: "{}"}),
+				},
+				resp: llmprovider.Response{
+					StopReason: "tool_use",
+				},
+			},
+			{
+				events: []streamEvent{
+					textEv("should not reach here"),
+				},
+				resp: llmprovider.Response{
+					StopReason: "end_turn",
+				},
+			},
+		},
+	}
+	exec := &fakeExecutor{
+		outputs: map[string]string{},
+		errs:    map[string]error{},
+	}
+
+	runner := NewRunner(comp, exec,
+		WithGuard(&approvalGuard{tool: "dangerous_tool"}),
+	)
+	sr, ok := runner.(StreamRunner)
+	if !ok {
+		t.Fatal("runner should implement StreamRunner")
+	}
+
+	sess := &Session{ID: "s-stream-hitl", OrgID: 1, Channel: "web"}
+	turn := &Turn{Input: "do dangerous stream"}
+
+	err := sr.Stream(context.Background(), sess, turn, nil)
+	if !errors.Is(err, ErrApprovalRequired) {
+		t.Fatalf("expected ErrApprovalRequired, got %v", err)
+	}
+	if turn.Status != TurnStatusAwaitingApproval {
+		t.Fatalf("expected TurnStatusAwaitingApproval, got %d", turn.Status)
+	}
+	if len(exec.calls) != 0 {
+		t.Fatalf("expected 0 executor calls, got %d", len(exec.calls))
+	}
+	if comp.callCount != 1 {
+		t.Fatalf("expected stream completer to be called 1 time, got %d", comp.callCount)
+	}
 }
 
 type fakeProviderAdapter struct {

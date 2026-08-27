@@ -2,6 +2,7 @@ package harness
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -86,6 +87,11 @@ func (r *defaultRunner) Stream(ctx context.Context, s *Session, t *Turn, h llmpr
 
 		// Execute each tool call.
 		if err := r.executeSteps(ctx, s, t, step, calls, remaining); err != nil {
+			if errors.Is(err, ErrApprovalRequired) {
+				t.Status = TurnStatusAwaitingApproval
+				r.tracer.TurnEnd(ctx, s.ID, TurnStatusAwaitingApproval)
+				return err
+			}
 			t.Status = TurnStatusFailed
 			r.tracer.TurnEnd(ctx, s.ID, TurnStatusFailed)
 			return err

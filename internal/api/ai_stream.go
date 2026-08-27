@@ -1,14 +1,48 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/octarq-org/octarq/agent/harness"
 	"github.com/octarq-org/octarq/llmprovider"
 )
+
+// readOnlyGuard wraps a base Guard (e.g. RiskGuard) and rejects any tool
+// whose endpoint HTTP method is not GET or HEAD.
+type readOnlyGuard struct {
+	base harness.Guard
+	src  harness.EndpointSource
+}
+
+func newReadOnlyGuard(src harness.EndpointSource) harness.Guard {
+	return &readOnlyGuard{
+		base: harness.NewRiskGuard(src),
+		src:  src,
+	}
+}
+
+func (g *readOnlyGuard) Allow(ctx context.Context, orgID uint, tool string) error {
+	if err := g.base.Allow(ctx, orgID, tool); err != nil {
+		return err
+	}
+	if g.src == nil {
+		return nil
+	}
+	ep, ok := g.src.Lookup(tool)
+	if !ok {
+		return nil
+	}
+	method := strings.ToUpper(strings.TrimSpace(ep.EndpointMethod()))
+	if method != http.MethodGet && method != http.MethodHead {
+		return fmt.Errorf("tool %q is not read-only (method %s)", tool, method)
+	}
+	return nil
+}
 
 // AIChatStreamMessage is a single message in the chat stream request.
 type AIChatStreamMessage struct {
@@ -110,10 +144,10 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	var guard harness.Guard
 	if h.endpointSource != nil {
 		executor = harness.NewRegistryExecutor(h.endpointSource)
-		guard = harness.NewRiskGuard(h.endpointSource)
+		guard = newReadOnlyGuard(h.endpointSource)
 	} else {
 		executor = harness.NewRegistryExecutor(nil)
-		guard = harness.NewRiskGuard(nil)
+		guard = newReadOnlyGuard(nil)
 	}
 
 	adapter := &harness.CompleterAdapter{Provider: p}
@@ -125,9 +159,6 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	)
 	if req.Model != "" {
 		runnerOpts = append(runnerOpts, harness.WithModel(req.Model))
-	}
-	if req.System != "" {
-		runnerOpts = append(runnerOpts, harness.WithSystem(req.System))
 	}
 
 	runner := harness.NewRunner(adapter, executor, runnerOpts...)
