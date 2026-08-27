@@ -66,9 +66,9 @@ func (s *TieredCache) Get(ctx context.Context, k string, dest any) (bool, error)
 			return false, err
 		}
 		if found {
-			// Backfill L1
+			// Backfill L1 with a safety TTL (1 minute) to avoid permanent stale cache
 			if s.l1 != nil {
-				_ = s.l1.Set(ctx, fullKey, dest, 0)
+				_ = s.l1.Set(ctx, fullKey, dest, time.Minute)
 			}
 			return true, nil
 		}

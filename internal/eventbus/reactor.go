@@ -89,12 +89,22 @@ func ResetReactors() {
 type reactorState struct {
 	mu       sync.Mutex
 	lastFire map[string]time.Time
+	ops      uint64
 }
 
 func (s *reactorState) shouldDebounce(entityKey string, minInterval time.Duration) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now()
+	s.ops++
+	// Amortized eviction sweep every 1,000 operations when map exceeds threshold to avoid O(N) overhead on every call under lock
+	if s.ops%1000 == 0 && len(s.lastFire) > 10000 {
+		for k, t := range s.lastFire {
+			if now.Sub(t) > minInterval*2 {
+				delete(s.lastFire, k)
+			}
+		}
+	}
 	if last, ok := s.lastFire[entityKey]; ok {
 		if now.Sub(last) < minInterval {
 			return true
@@ -266,8 +276,12 @@ func (reg *ReactorRegistry) Start(ctx context.Context, concurrency int) func() {
 	}
 
 	go func() {
-		<-ctx.Done()
-		stop()
+		select {
+		case <-ctx.Done():
+			stop()
+		case <-runnerCtx.Done():
+			return
+		}
 	}()
 
 	return stop
@@ -279,7 +293,9 @@ func executeReactor(ctx context.Context, r plugin.EventReactor, env plugin.Envel
 			log.Printf("eventbus: reactor %T panicked on event %s (entity %s): %v", r, env.Key, entityKey, rec)
 		}
 	}()
-	if err := r.React(ctx, env); err != nil {
+	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	if err := r.React(execCtx, env); err != nil {
 		// Best-effort execution: log error and do not block the event spine.
 		// For guaranteed transactional retries across restarts, background queues (asynq) are used.
 		log.Printf("eventbus: reactor %T failed on event %s (entity %s): %v", r, env.Key, entityKey, err)
