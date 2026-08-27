@@ -102,15 +102,30 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 	}
 
 	// Data migration: move org-level settings from global settings to workspace_settings (for org 1)
-	for _, key := range []string{"catch_all", "auto_wrap_links", "reserved_mailboxes"} {
-		var s models.Setting
-		if err := gdb.Where("key = ?", key).First(&s).Error; err == nil {
-			var count int64
-			gdb.Model(&models.WorkspaceSetting{}).Where("org_id = ? AND key = ?", 1, key).Count(&count)
-			if count == 0 {
-				gdb.Create(&models.WorkspaceSetting{OrgID: 1, Key: key, Value: s.Value})
+	targetKeys := []string{"catch_all", "auto_wrap_links", "reserved_mailboxes"}
+	var settings []models.Setting
+	if err := gdb.Where("key IN ?", targetKeys).Find(&settings).Error; err == nil && len(settings) > 0 {
+		var existingKeys []string
+		gdb.Model(&models.WorkspaceSetting{}).Where("org_id = ? AND key IN ?", 1, targetKeys).Pluck("key", &existingKeys)
+
+		existingMap := make(map[string]bool)
+		for _, k := range existingKeys {
+			existingMap[k] = true
+		}
+
+		var newWS []models.WorkspaceSetting
+
+		for _, s := range settings {
+			if !existingMap[s.Key] {
+				newWS = append(newWS, models.WorkspaceSetting{OrgID: 1, Key: s.Key, Value: s.Value})
 			}
-			gdb.Delete(&s)
+		}
+
+		if len(newWS) > 0 {
+			gdb.Create(&newWS)
+		}
+		if len(settings) > 0 {
+			gdb.Delete(&settings)
 		}
 	}
 
