@@ -32,7 +32,7 @@ func (r *defaultRunner) Stream(ctx context.Context, s *Session, t *Turn, h llmpr
 		return r.Run(ctx, s, t)
 	}
 
-	maxSteps := r.profile.MaxSteps(false) // TODO: pass hasDestructive from caller
+	maxSteps := r.profile.MaxSteps(t.HasDestructive)
 	t.Status = TurnStatusRunning
 
 	// Seed history with the user's input.

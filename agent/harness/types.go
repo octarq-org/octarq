@@ -48,6 +48,7 @@ type Turn struct {
 	Steps           []Step
 	Status          TurnStatus
 	Thinking        bool
+	HasDestructive  bool
 	InputTokens     int
 	OutputTokens    int
 	ReasoningTokens int
