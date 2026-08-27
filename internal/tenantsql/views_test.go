@@ -65,6 +65,15 @@ func TestRegistry_Validation(t *testing.T) {
 		t.Error("expected error on empty view name")
 	}
 
+	// Invalid characters in name
+	err = reg.Register(plugin.TenantView{
+		Name:       "tenant_evil`; DROP TABLE links;",
+		Definition: func(orgID uint) string { return "SELECT 1" },
+	})
+	if err == nil {
+		t.Error("expected error on invalid characters in view name")
+	}
+
 	// Invalid prefix (missing tenant_)
 	err = reg.Register(plugin.TenantView{
 		Name:       "links",

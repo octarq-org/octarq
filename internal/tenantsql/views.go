@@ -3,12 +3,15 @@ package tenantsql
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 
 	"github.com/octarq-org/octarq/plugin"
 )
+
+var validViewNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 
 // Registry manages registered tenant views in memory.
 // It is safe for concurrent use by multiple goroutines.
@@ -44,6 +47,9 @@ func (r *Registry) Register(view plugin.TenantView) error {
 	name := strings.TrimSpace(view.Name)
 	if name == "" {
 		return errors.New("view name cannot be empty")
+	}
+	if !validViewNameRegex.MatchString(name) {
+		return fmt.Errorf("view name %q contains invalid characters (only alphanumeric and underscores are allowed)", view.Name)
 	}
 	if !strings.HasPrefix(strings.ToLower(name), strings.ToLower(DefaultViewPrefix)) {
 		return fmt.Errorf("view name %q must start with required prefix %q", view.Name, DefaultViewPrefix)

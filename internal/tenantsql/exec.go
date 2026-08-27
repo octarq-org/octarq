@@ -139,7 +139,7 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 	// Materialize referenced views
 	for _, view := range referencedViews {
 		viewDef := view.Definition(orgID)
-		createSQL := fmt.Sprintf("CREATE TEMP VIEW %s AS %s", view.Name, viewDef)
+		createSQL := fmt.Sprintf("CREATE TEMP VIEW %s AS %s", tx.Statement.Quote(view.Name), viewDef)
 		if err := tx.Exec(createSQL).Error; err != nil {
 			return nil, meta, fmt.Errorf("failed to materialize view %q: %w", view.Name, err)
 		}
