@@ -323,6 +323,8 @@ export interface InstanceSettings {
   ratelimitAuthRpm: number;
   ratelimitApiRpm: number;
   ratelimitRedirectRpm: number;
+  publicCorsOrigins?: string;
+  systemSenderId?: number;
 }
 
 export const api = {
@@ -378,6 +380,8 @@ export const api = {
     ratelimitAuthRpm?: number;
     ratelimitApiRpm?: number;
     ratelimitRedirectRpm?: number;
+    publicCorsOrigins?: string;
+    systemSenderId?: number;
   }) => req<InstanceSettings>("PUT", "/api/instance-settings", s),
 
   // auth

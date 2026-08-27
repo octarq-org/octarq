@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, InstanceSettings as InstanceSettingsData } from "../../api";
-import { Field, PageHeader, GlassCard, Button, toast, confirmDialog } from "../../ui";
+import { api, type SMTPSender } from "../../api";
+import { Field, PageHeader, GlassCard, Button, Select, toast, confirmDialog } from "../../ui";
 import { Server, Sliders, DatabaseBackup, Cpu } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useInstanceSettings } from "./shared";
@@ -14,6 +14,10 @@ export function InstanceSettings() {
   const [baseDomain, setBaseDomain] = useState("");
   const [sharedHosts, setSharedHosts] = useState("");
   const [retention, setRetention] = useState(90);
+  const [publicCorsOrigins, setPublicCorsOrigins] = useState("");
+  const [reservedSlugs, setReservedSlugs] = useState("");
+  const [systemSenderId, setSystemSenderId] = useState<number>(0);
+  const [senders, setSenders] = useState<SMTPSender[]>([]);
   const [rlAuth, setRlAuth] = useState(60);
   const [rlApi, setRlApi] = useState(600);
   const [rlRedirect, setRlRedirect] = useState(6000);
@@ -25,7 +29,8 @@ export function InstanceSettings() {
   const [build, setBuild] = useState<{ version: string; commit: string; builtAt: string } | null>(null);
 
   useEffect(() => {
-    api.instanceBuild().then(setBuild).catch(() => {});
+    api.instanceBuild?.().then(setBuild).catch(() => {});
+    api.smtpSenders?.().then(setSenders).catch(() => setSenders([]));
   }, []);
 
   useEffect(() => {
@@ -34,6 +39,9 @@ export function InstanceSettings() {
       setBaseDomain(settings.baseDomain ?? "");
       setSharedHosts(settings.sharedHosts ?? "");
       setRetention(settings.dataRetentionDays ?? 90);
+      setPublicCorsOrigins(settings.publicCorsOrigins ?? "");
+      setReservedSlugs(settings.reservedSlugs ?? "");
+      setSystemSenderId(settings.systemSenderId ?? 0);
       setRlAuth(settings.ratelimitAuthRpm ?? 60);
       setRlApi(settings.ratelimitApiRpm ?? 600);
       setRlRedirect(settings.ratelimitRedirectRpm ?? 6000);
@@ -49,6 +57,9 @@ export function InstanceSettings() {
         baseDomain,
         sharedHosts,
         dataRetentionDays: retention,
+        publicCorsOrigins,
+        reservedSlugs,
+        systemSenderId,
         ratelimitAuthRpm: rlAuth,
         ratelimitApiRpm: rlApi,
         ratelimitRedirectRpm: rlRedirect,
@@ -142,6 +153,41 @@ export function InstanceSettings() {
               onChange={(e) => setRetention(Number(e.target.value))}
             />
           </Field>
+          <Field label={t("settings.instancePublicCorsOrigins")} hint={t("settings.instancePublicCorsOriginsHint")}>
+            <input
+              className="input w-full font-mono text-sm"
+              value={publicCorsOrigins}
+              onChange={(e) => setPublicCorsOrigins(e.target.value)}
+              placeholder={t("settings.instancePublicCorsOriginsPlaceholder")}
+            />
+          </Field>
+          <Field label={t("settings.instanceSystemSender")} hint={t("settings.instanceSystemSenderHint")}>
+            <Select
+              className="w-full text-sm"
+              value={String(systemSenderId)}
+              onValueChange={(v) => setSystemSenderId(Number(v))}
+              options={[
+                { value: "0", label: t("settings.instanceSystemSenderDefault") },
+                ...senders.map((s) => ({
+                  value: String(s.id),
+                  label: `${s.name} (${s.fromEmail || s.user || s.host})`,
+                })),
+              ]}
+            />
+          </Field>
+          <div className="md:col-span-2">
+            <Field
+              label={t("settings.reservedSlugsLabel")}
+              hint={t("settings.reservedSlugsHint", { list: (settings.builtinReserved || []).join(", ") })}
+            >
+              <input
+                className="input w-full font-mono text-sm"
+                value={reservedSlugs}
+                onChange={(e) => setReservedSlugs(e.target.value)}
+                placeholder={t("settings.instanceReservedSlugsPlaceholder")}
+              />
+            </Field>
+          </div>
         </div>
 
         <Field
