@@ -158,7 +158,7 @@ func NewRunner(c Completer, exec ToolExecutor, opts ...RunnerOption) Runner {
 // execute tool → fence output → append history → repeat until no tool calls
 // or step limit reached.
 func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
-	maxSteps := r.profile.MaxSteps(false) // TODO: pass hasDestructive from caller
+	maxSteps := r.profile.MaxSteps(t.HasDestructive)
 	t.Status = TurnStatusRunning
 
 	// Seed history with the user's input.

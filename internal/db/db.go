@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -102,15 +103,30 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 	}
 
 	// Data migration: move org-level settings from global settings to workspace_settings (for org 1)
-	for _, key := range []string{"catch_all", "auto_wrap_links", "reserved_mailboxes"} {
-		var s models.Setting
-		if err := gdb.Where("key = ?", key).First(&s).Error; err == nil {
-			var count int64
-			gdb.Model(&models.WorkspaceSetting{}).Where("org_id = ? AND key = ?", 1, key).Count(&count)
-			if count == 0 {
-				gdb.Create(&models.WorkspaceSetting{OrgID: 1, Key: key, Value: s.Value})
+	targetKeys := []string{"catch_all", "auto_wrap_links", "reserved_mailboxes"}
+	var settings []models.Setting
+	if err := gdb.Where("key IN ?", targetKeys).Find(&settings).Error; err == nil && len(settings) > 0 {
+		var existingKeys []string
+		gdb.Model(&models.WorkspaceSetting{}).Where("org_id = ? AND key IN ?", 1, targetKeys).Pluck("key", &existingKeys)
+
+		existingMap := make(map[string]bool)
+		for _, k := range existingKeys {
+			existingMap[k] = true
+		}
+
+		var newWS []models.WorkspaceSetting
+
+		for _, s := range settings {
+			if !existingMap[s.Key] {
+				newWS = append(newWS, models.WorkspaceSetting{OrgID: 1, Key: s.Key, Value: s.Value})
 			}
-			gdb.Delete(&s)
+		}
+
+		if len(newWS) > 0 {
+			gdb.Create(&newWS)
+		}
+		if len(settings) > 0 {
+			gdb.Delete(&settings)
 		}
 	}
 
@@ -143,9 +159,12 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 	gdb.Where("org_id = 0").Delete(&models.Session{})
 
 	// Data migration: backfill owner_id = 1 for legacy rows created before multi-tenancy
-	for _, table := range []string{"domains", "provider_accounts", "links", "mailboxes", "ddns_tokens", "dns_ddns_tokens", "tokens", "user_tokens", "webhooks", "notification_channels"} {
-		if gdb.Migrator().HasTable(table) && gdb.Migrator().HasColumn(table, "owner_id") {
-			gdb.Table(table).Where("owner_id = 0 OR owner_id IS NULL").Update("owner_id", 1)
+	m := gdb.Migrator()
+	if tables, err := m.GetTables(); err == nil {
+		for _, table := range []string{"domains", "provider_accounts", "links", "mailboxes", "ddns_tokens", "dns_ddns_tokens", "tokens", "user_tokens", "webhooks", "notification_channels"} {
+			if slices.Contains(tables, table) && m.HasColumn(table, "owner_id") {
+				gdb.Table(table).Where("owner_id = 0 OR owner_id IS NULL").Update("owner_id", 1)
+			}
 		}
 	}
 
@@ -185,36 +204,40 @@ func (tenantDomainRow) TableName() string { return "domains" }
 // no link host) keeps it to a single run: once upgraded a row no longer
 // matches the selection.
 func backfillTenantSubdomainLinkHosts(gdb *gorm.DB) {
-	base := models.BaseDomain(gdb)
-	if base == "" || !gdb.Migrator().HasTable("domains") || !gdb.Migrator().HasTable("orgs") {
-		return
-	}
-	var orgs []models.Org
-	if err := gdb.Find(&orgs).Error; err != nil {
-		return
-	}
-	slugByOrg := make(map[uint]string, len(orgs))
-	for _, o := range orgs {
-		slugByOrg[o.ID] = o.Slug
-	}
-	var doms []tenantDomainRow
-	if err := gdb.Where("for_link = ?", false).Find(&doms).Error; err != nil {
-		return
-	}
-	for _, d := range doms {
-		if len(d.LinkHosts) > 0 {
-			continue
+	gdb.Transaction(func(tx *gorm.DB) error {
+		base := models.BaseDomain(tx)
+		if base == "" || !tx.Migrator().HasTable("domains") || !tx.Migrator().HasTable("orgs") {
+			return nil
 		}
-		slug, ok := slugByOrg[d.OrgID]
-		if !ok {
-			continue
+		var orgs []models.Org
+		if err := tx.Find(&orgs).Error; err != nil {
+			return err
 		}
-		if d.Name != strings.ToLower(slug)+"."+base {
-			continue
+		slugByOrg := make(map[uint]string, len(orgs))
+		for _, o := range orgs {
+			slugByOrg[o.ID] = o.Slug
 		}
-		gdb.Model(&tenantDomainRow{}).Where("id = ?", d.ID).Updates(map[string]any{
-			"for_link":   true,
-			"link_hosts": models.HostList{{Host: d.Name, Enabled: true}},
-		})
-	}
+		var doms []tenantDomainRow
+		if err := tx.Where("for_link = ?", false).Find(&doms).Error; err != nil {
+			return err
+		}
+
+		for _, d := range doms {
+			if len(d.LinkHosts) > 0 {
+				continue
+			}
+			slug, ok := slugByOrg[d.OrgID]
+			if !ok {
+				continue
+			}
+			if d.Name != strings.ToLower(slug)+"."+base {
+				continue
+			}
+			tx.Model(&tenantDomainRow{}).Where("id = ?", d.ID).Updates(map[string]any{
+				"for_link":   true,
+				"link_hosts": models.HostList{{Host: d.Name, Enabled: true}},
+			})
+		}
+		return nil
+	})
 }

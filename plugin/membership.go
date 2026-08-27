@@ -50,11 +50,11 @@ func RegisterMemberRemovedHook(name string, hook MemberRemovedHook) {
 // NotifyMemberRemoved invokes every registered MemberRemovedHook with the
 // removed member's (orgID, userID).
 //
-// Call it only AFTER the membership row is actually deleted: a hook that fires
-// for a still-present member would wipe state for someone who is still in the
-// workspace. Hooks run in no particular order. Each hook is best-effort — a
-// panic inside one is recovered and logged so it can never take down the
-// removal request.
+// It should be called only AFTER the membership row is actually deleted: a hook
+// that fires for a still-present member would wipe state for someone who is
+// still in the workspace. Hooks run in no particular order. Each hook is
+// best-effort — a panic inside one is recovered and logged so it can never
+// take down the removal request.
 //
 // This is a cleanup notification, not an authorization signal: it can be lost
 // (process restart), so plugins must live-read org_members on every request

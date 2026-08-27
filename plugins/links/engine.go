@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -239,9 +240,23 @@ func (e *Engine) flushBatch(batch []clickItem) {
 				return err
 			}
 		}
-		for linkID, count := range clicksByLink {
-			if err := tx.Model(&Link{}).Where("id = ?", linkID).
-				UpdateColumn("clicks", gorm.Expr("clicks + ?", count)).Error; err != nil {
+		if len(clicksByLink) > 0 {
+			var queryBuilder strings.Builder
+			queryBuilder.WriteString("UPDATE links SET clicks = clicks + CASE id")
+
+			args := make([]interface{}, 0, len(clicksByLink)*2+1)
+			ids := make([]uint, 0, len(clicksByLink))
+
+			for linkID, count := range clicksByLink {
+				queryBuilder.WriteString(" WHEN ? THEN ?")
+				args = append(args, linkID, count)
+				ids = append(ids, linkID)
+			}
+
+			queryBuilder.WriteString(" ELSE 0 END WHERE id IN ?")
+			args = append(args, ids)
+
+			if err := tx.Exec(queryBuilder.String(), args...).Error; err != nil {
 				return err
 			}
 		}

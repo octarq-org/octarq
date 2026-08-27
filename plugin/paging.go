@@ -4,15 +4,9 @@ package plugin
 // of rows to actually fetch: absent or non-positive means def, anything above
 // maxLimit is CLAMPED DOWN to maxLimit, and anything in between is honoured.
 //
-// The clamp is the point. The obvious spelling —
-//
-//	limit := 50
-//	if input.Limit > 0 && input.Limit <= 500 {
-//		limit = input.Limit
-//	}
-//
-// silently falls back to the DEFAULT when the caller asks for more than the
-// maximum, so ?limit=1000 returns 50 rows rather than 500. To a paginating
+// The clamp is the point. The obvious spelling silently falls back to the
+// DEFAULT when the caller asks for more than the maximum, so ?limit=1000
+// returns 50 rows rather than 500. To a paginating
 // client that is indistinguishable from the server having only 50 rows: it
 // reads the short page as the end of the collection and stops, and the
 // remaining rows are simply never seen. Asking for too much must give the

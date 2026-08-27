@@ -7,6 +7,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/dnsprovider"
+	"github.com/octarq-org/octarq/internal/models"
 )
 
 type SyncDomainsInput struct {
@@ -57,17 +58,39 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 	if err != nil {
 		return nil, p.providerErr("list zones", err)
 	}
-	var created, updated int
+	base := models.BaseDomain(p.db)
+
+	var validZones []dnsprovider.Zone
+	var names []string
 	for _, z := range zones {
 		name := strings.ToLower(z.Name)
-		if underBaseZone(p.db, name) {
-			continue
+		if base != "" {
+			normalized := normalizeHost(name)
+			if normalized == base || strings.HasSuffix(normalized, "."+base) {
+				continue
+			}
 		}
-		var dom Domain
-		if p.db.Where("name = ? AND owner_id = ?", name, p.orgID(r)).First(&dom).Error == nil {
+		validZones = append(validZones, z)
+		names = append(names, name)
+	}
+
+	existingMap := make(map[string]*Domain)
+	if len(names) > 0 {
+		var existingDomains []Domain
+		if err := p.db.Where("owner_id = ? AND name IN ?", p.orgID(r), names).Find(&existingDomains).Error; err == nil {
+			for i := range existingDomains {
+				existingMap[existingDomains[i].Name] = &existingDomains[i]
+			}
+		}
+	}
+
+	var created, updated int
+	for _, z := range validZones {
+		name := strings.ToLower(z.Name)
+		if dom, exists := existingMap[name]; exists {
 			dom.ZoneID = z.ID
 			dom.ProviderAccountID = acc.ID
-			p.db.Save(&dom)
+			p.db.Save(dom)
 			updated++
 			forgetOrigin(name)
 		} else {
@@ -80,6 +103,7 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 			}
 		}
 	}
+
 	return &SyncDomainsOutput{
 		Body: map[string]any{
 			"ok": true, "total": len(zones), "created": created, "updated": updated,
