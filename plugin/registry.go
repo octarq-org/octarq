@@ -67,32 +67,7 @@ func (r *Registry) Err() error {
 // LookupAs resolves the named service and type-asserts it to T, returning
 // (zero, false) when the service is absent or has a different type. It is the
 // canonical consumer shape, paired with lazy (Start-time or per-request)
-// resolution:
-//
-//	// Provider side, in Mount — hello owns the Greeter interface:
-//	type Greeter interface{ Greet(who string) string }
-//
-//	func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
-//		ctx.Provide("hello.greeter", Greeter(greeter{}))
-//	}
-//
-//	// Consumer side — keep the Context from Mount, resolve in Start, which
-//	// the app runs only after ALL plugins have mounted:
-//	func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) { p.ctx = ctx }
-//
-//	func (p *Plugin) Start(ctx context.Context) {
-//		g, ok := plugin.LookupAs[hello.Greeter](p.ctx, "hello.greeter")
-//		if !ok {
-//			return // provider not in this build — degrade gracefully
-//		}
-//		_ = g.Greet("world")
-//	}
-//
-//	// Compile-time assertions (see the package doc convention):
-//	var (
-//		_ plugin.Plugin  = (*Plugin)(nil)
-//		_ plugin.Starter = (*Plugin)(nil)
-//	)
+// resolution.
 func LookupAs[T any](ctx *Context, name string) (T, bool) {
 	if ctx == nil || ctx.Lookup == nil {
 		var zero T
