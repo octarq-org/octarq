@@ -138,8 +138,16 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 
 	// Materialize referenced views
 	for _, view := range referencedViews {
+		quotedViewName, err := quoteIdent(view.Name)
+		if err != nil {
+			return nil, meta, fmt.Errorf("invalid view name %q: %w", view.Name, err)
+		}
 		viewDef := view.Definition(orgID)
-		createSQL := fmt.Sprintf("CREATE TEMP VIEW %s AS %s", view.Name, viewDef)
+		wrappedSQL, err := wrapRedactedViewSQL(view, viewDef)
+		if err != nil {
+			return nil, meta, fmt.Errorf("failed to wrap view %q: %w", view.Name, err)
+		}
+		createSQL := fmt.Sprintf("CREATE TEMP VIEW %s AS %s", quotedViewName, wrappedSQL)
 		if err := tx.Exec(createSQL).Error; err != nil {
 			return nil, meta, fmt.Errorf("failed to materialize view %q: %w", view.Name, err)
 		}

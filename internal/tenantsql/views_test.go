@@ -83,6 +83,23 @@ func TestRegistry_Validation(t *testing.T) {
 		t.Error("expected error on nil definition")
 	}
 
+	// Invalid identifier name (SQL injection attempt / illegal characters)
+	err = reg.Register(plugin.TenantView{
+		Name:       "tenant_foo;drop",
+		Definition: func(orgID uint) string { return "SELECT 1" },
+	})
+	if err == nil {
+		t.Error("expected error on invalid view name 'tenant_foo;drop'")
+	}
+
+	err = reg.Register(plugin.TenantView{
+		Name:       "tenant_foo drop",
+		Definition: func(orgID uint) string { return "SELECT 1" },
+	})
+	if err == nil {
+		t.Error("expected error on invalid view name 'tenant_foo drop'")
+	}
+
 	// Duplicate registration
 	valid := plugin.TenantView{
 		Name:       "tenant_dup",
