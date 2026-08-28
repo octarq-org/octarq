@@ -242,15 +242,23 @@ jobs:
             -H "Content-Type: application/json" \
             "$BASE")
 
-          # Cloudflare returns the active deployment as the first entry (index 0).
-          # Retain the active deployment and delete older inactive deployments.
-          deployment_ids=$(echo "$res" | jq -r '
-            (.result.deployments // .result // [])[1:][]?.id // empty
-          ')
+          # Cloudflare returns deployments paginated (default 10 per page) with the active
+          # deployment as the first entry (index 0). Loop and delete until only index 0 remains.
+          while true; do
+            res=$(curl -sSL \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              "$BASE")
 
-          if [ -z "$deployment_ids" ]; then
-            echo "No old deployments to delete."
-          else
+            deployment_ids=$(echo "$res" | jq -r '
+              (.result.deployments // .result // [])[1:][]?.id // empty
+            ')
+
+            if [ -z "$deployment_ids" ]; then
+              echo "No more old deployments to delete (only active deployment remains)."
+              break
+            fi
+
             for deployment_id in $deployment_ids; do
               echo "Deleting old deployment: $deployment_id"
               curl -sSL \
@@ -258,9 +266,8 @@ jobs:
                 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
                 -H "Content-Type: application/json" \
                 "$BASE/$deployment_id" | jq -c . || echo "Failed to delete $deployment_id, continuing..."
-              echo
             done
-          fi
+          done
 
           echo "Cleanup completed."
 
