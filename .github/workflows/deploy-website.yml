@@ -248,3 +248,43 @@ jobs:
           workingDirectory: website
           packageManager: pnpm
           command: deploy
+
+      - name: Cleanup old Cloudflare deployments
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WORKER_NAME: octarq-docs
+        run: |
+          set -euo pipefail
+
+          API="https://api.cloudflare.com/client/v4"
+          BASE="$API/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME/deployments"
+
+          echo "Fetching deployments for $WORKER_NAME..."
+
+          res=$(curl -fsSL \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            "$BASE")
+
+          # Cloudflare returns the active deployment as the first entry (index 0).
+          # Retain the active deployment and delete older inactive deployments.
+          deployment_ids=$(echo "$res" | jq -r '
+            (.result.deployments // .result // [])[1:][]?.id // empty
+          ')
+
+          if [ -z "$deployment_ids" ]; then
+            echo "No old deployments to delete."
+          else
+            for deployment_id in $deployment_ids; do
+              echo "Deleting old deployment: $deployment_id"
+              curl -fsSL \
+                -X DELETE \
+                -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                -H "Content-Type: application/json" \
+                "$BASE/$deployment_id" || echo "Failed to delete $deployment_id, continuing..."
+              echo
+            done
+          fi
+
+          echo "Cleanup completed."
