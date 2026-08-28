@@ -16,8 +16,6 @@ on:
     paths:
       - "website/**"
       - ".github/workflows/deploy-website.yml"
-  delete:
-    branches: ["**"]
   workflow_dispatch:
 
 permissions:
@@ -172,51 +170,8 @@ jobs:
               });
             }
 
-  # When a PR branch is deleted, remove the version alias so the preview URL
-  # stops resolving.  The alias name is deterministic: pr-<number>.
-  # We extract the PR number from the branch name via the GitHub API.
-  cleanup-preview:
-    name: Cleanup preview
-    if: github.event_name == 'delete' && github.event.ref_type == 'branch'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Find PR number for deleted branch
-        id: find_pr
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          branch="${{ github.event.ref }}"
-          pr_number=$(gh api \
-            "repos/${{ github.repository }}/pulls?state=closed&head=${{ github.repository_owner }}:${branch}&per_page=1" \
-            --jq '.[0].number // empty')
-          if [ -z "$pr_number" ]; then
-            echo "::notice::No closed PR found for branch ${branch}; nothing to clean up."
-            echo "pr_number=" >> $GITHUB_OUTPUT
-          else
-            echo "pr_number=${pr_number}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Delete preview version alias
-        if: steps.find_pr.outputs.pr_number != ''
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-}"
-          if [ -z "$ACCOUNT_ID" ]; then
-            ACCOUNT_ID=$(curl -sSL -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts" | jq -r '.result[0].id // empty')
-          fi
-          if [ -z "$ACCOUNT_ID" ]; then
-            echo "::warning::Unable to determine Cloudflare Account ID. Skipping alias cleanup."
-            exit 0
-          fi
-
-          alias="pr-${{ steps.find_pr.outputs.pr_number }}"
-          echo "Deleting preview alias '${alias}' for worker 'octarq-docs' (account: ${ACCOUNT_ID})"
-          curl -s -X DELETE \
-            "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/workers/scripts/octarq-docs/versions/preview-aliases/${alias}" \
-            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H "Content-Type: application/json" | jq . || true
+  # When a PR branch is deleted, no action needed: Cloudflare Workers
+  # version lifecycle and aliases are automatically managed / rotated by Cloudflare.
 
   # Production deploys run ONLY on merge to main, release tags (v*), or manual dispatch.
   # This isolates the production environment registration to actual production releases.
