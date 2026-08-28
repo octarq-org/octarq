@@ -202,12 +202,21 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-}"
+          if [ -z "$ACCOUNT_ID" ]; then
+            ACCOUNT_ID=$(curl -sSL -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts" | jq -r '.result[0].id // empty')
+          fi
+          if [ -z "$ACCOUNT_ID" ]; then
+            echo "::warning::Unable to determine Cloudflare Account ID. Skipping alias cleanup."
+            exit 0
+          fi
+
           alias="pr-${{ steps.find_pr.outputs.pr_number }}"
-          echo "Deleting preview alias '${alias}' for worker 'octarq-docs'"
+          echo "Deleting preview alias '${alias}' for worker 'octarq-docs' (account: ${ACCOUNT_ID})"
           curl -s -X DELETE \
-            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/octarq-docs/versions/preview-aliases/${alias}" \
+            "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/workers/scripts/octarq-docs/versions/preview-aliases/${alias}" \
             -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-            -H "Content-Type: application/json" | jq .
+            -H "Content-Type: application/json" | jq . || true
 
   # Production deploys run ONLY on merge to main, release tags (v*), or manual dispatch.
   # This isolates the production environment registration to actual production releases.
@@ -260,11 +269,20 @@ jobs:
           set -euo pipefail
 
           API="https://api.cloudflare.com/client/v4"
-          BASE="$API/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME/deployments"
+          ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-}"
+          if [ -z "$ACCOUNT_ID" ]; then
+            ACCOUNT_ID=$(curl -sSL -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$API/accounts" | jq -r '.result[0].id // empty')
+          fi
+          if [ -z "$ACCOUNT_ID" ]; then
+            echo "::warning::Unable to determine Cloudflare Account ID. Skipping old deployments cleanup."
+            exit 0
+          fi
 
-          echo "Fetching deployments for $WORKER_NAME..."
+          BASE="$API/accounts/$ACCOUNT_ID/workers/scripts/$WORKER_NAME/deployments"
 
-          res=$(curl -fsSL \
+          echo "Fetching deployments for $WORKER_NAME (account: $ACCOUNT_ID)..."
+
+          res=$(curl -sSL \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             -H "Content-Type: application/json" \
             "$BASE")
@@ -280,13 +298,14 @@ jobs:
           else
             for deployment_id in $deployment_ids; do
               echo "Deleting old deployment: $deployment_id"
-              curl -fsSL \
+              curl -sSL \
                 -X DELETE \
                 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
                 -H "Content-Type: application/json" \
-                "$BASE/$deployment_id" || echo "Failed to delete $deployment_id, continuing..."
+                "$BASE/$deployment_id" | jq -c . || echo "Failed to delete $deployment_id, continuing..."
               echo
             done
           fi
 
           echo "Cleanup completed."
+
