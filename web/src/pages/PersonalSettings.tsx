@@ -4,6 +4,7 @@ import { Empty, Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toa
 import { User, Key, Settings, CheckCircle, Trash2, Eye, ClipboardCopy } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { roleSatisfies, useCurrentRole } from "../shell/role";
+import { McpConnectCard } from "../components/McpConnectCard";
 
 // The per-user Account panels of the unified Settings area. Routing + the
 // ScreenWrap live in SettingsPage — every settings page is served under
@@ -324,6 +325,8 @@ export function ApiTokens() {
           </div>
         )}
       </GlassCard>
+
+      <McpConnectCard tokens={tokens} />
 
       {created && (
         <Modal title={t("personal.tokenGeneratedTitle")} onClose={() => setCreated(null)}>

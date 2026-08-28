@@ -11,12 +11,14 @@ function OverviewChecklistSection({
   dismissed,
   dismiss,
   twoFAEnabled,
+  tokenCount,
   nav,
   t,
 }: {
   dismissed: boolean;
   dismiss: () => void;
   twoFAEnabled: boolean | null;
+  tokenCount: number | null;
   nav: (path: string) => void;
   t: (key: string) => string;
 }) {
@@ -24,10 +26,7 @@ function OverviewChecklistSection({
 
   if (dismissed) return null;
 
-  // twoFAEnabled is null while the request is in flight and stays null when
-  // the status endpoint fails. In both cases the state is unknown: judging it
-  // "not completed" would mark 2FA users as stuck on the step forever and cap
-  // the progress bar below 100%. The step is hidden until the state is known.
+  // twoFAEnabled and tokenCount are null while in flight.
   const steps = [
     ...(twoFAEnabled === null
       ? []
@@ -38,6 +37,17 @@ function OverviewChecklistSection({
             description: t("overview.step2FADesc"),
             completed: twoFAEnabled === true,
             path: "/settings/security",
+          },
+        ]),
+    ...(tokenCount === null
+      ? []
+      : [
+          {
+            id: "mcp",
+            title: t("overview.stepMcpTitle"),
+            description: t("overview.stepMcpDesc"),
+            completed: tokenCount > 0,
+            path: "/settings/tokens",
           },
         ]),
   ];
@@ -101,6 +111,7 @@ function OverviewChecklistSection({
 export default function OverviewPage() {
   const [o, setO] = useState<Overview | null>(null);
   const [twoFAEnabled, setTwoFAEnabled] = useState<boolean | null>(null);
+  const [tokenCount, setTokenCount] = useState<number | null>(null);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem("dismiss_onboarding") === "true");
   const nav = useNavigate();
   const { t } = useTranslation();
@@ -108,6 +119,7 @@ export default function OverviewPage() {
   useEffect(() => {
     fetchOverview().then(setO).catch(() => {});
     api.twoFAStatus().then(r => setTwoFAEnabled(r.enabled)).catch(() => {});
+    api.tokens().then(toks => setTokenCount(toks.length)).catch(() => {});
     api.getUserSettings().then(s => {
       if (s?.onboarding_dismissed === "true") {
         setDismissed(true);
@@ -155,6 +167,7 @@ export default function OverviewPage() {
           dismissed={dismissed}
           dismiss={dismiss}
           twoFAEnabled={twoFAEnabled}
+          tokenCount={tokenCount}
           nav={nav}
           t={t}
         />
