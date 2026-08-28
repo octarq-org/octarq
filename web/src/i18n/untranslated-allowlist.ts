@@ -51,4 +51,9 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
 
   // Protocol acronyms that are universal
   "uiCommon.formErrorStatus", // Technical acronym (HTTP)
+  "personal.mcpTabCursor", // Technical client name (Cursor / VS Code)
+  "personal.mcpTabClaudeDesktop", // Brand product name (Claude Desktop)
+  "personal.mcpTabClaudeCode", // Brand product name (Claude Code CLI)
+  "personal.mcpTabHttp", // Technical protocol acronym (HTTP / SSE)
+  "personal.mcpPlaceholderToken", // Universal token placeholder (<YOUR_API_TOKEN>)
 ]);

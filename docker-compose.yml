@@ -6,8 +6,9 @@ services:
       # Host port is configurable: if 8080 is taken, set OCTARQ_PORT=9000 in .env.
       - "${OCTARQ_PORT:-8080}:8080"
     environment:
-      OCTARQ_SECRET_KEY: ${OCTARQ_SECRET_KEY:?set in .env}
-      OCTARQ_ADMIN_PASSWORD: ${OCTARQ_ADMIN_PASSWORD:?set in .env}
+      # Set in .env (cp .env.example .env) or fallback to local dev defaults
+      OCTARQ_SECRET_KEY: ${OCTARQ_SECRET_KEY:-octarq-dev-secret-key-change-in-production}
+      OCTARQ_ADMIN_PASSWORD: ${OCTARQ_ADMIN_PASSWORD:-admin}
       OCTARQ_ADMIN_USER: ${OCTARQ_ADMIN_USER:-admin}
       # SQLite by default; data persisted in the named volume below.
       OCTARQ_DB_DRIVER: ${OCTARQ_DB_DRIVER:-sqlite}

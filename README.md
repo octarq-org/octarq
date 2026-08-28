@@ -47,10 +47,14 @@ Own a domain? Octarq already gives you **short links with analytics, inbound/out
 Zero config — one command, no `.env`:
 
 ```bash
+# Production zero-config (auto-generates secret key & admin password):
 docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
+
+# Or instant local eval (log in immediately with admin / admin):
+docker run -p 8080:8080 -e OCTARQ_SECRET_KEY=dev -e OCTARQ_ADMIN_PASSWORD=admin -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
 ```
 
-On first boot Octarq generates a secret key and an initial `admin` password (both persisted under `/data`, printed once in the logs) and comes up on SQLite. Open `http://localhost:8080`, grab the password from the container logs, and log in. Mail, DNS and GeoIP are all opt-in — configure them later from **Settings**, nothing is required to start.
+On first boot without environment variables, Octarq generates a secret key and an initial `admin` password (both persisted under `/data`, printed once in the logs) and comes up on SQLite. Open `http://localhost:8080`, grab the password from the container logs (or use `admin` if specified above), and log in. Mail, DNS and GeoIP are all opt-in — configure them later from **Settings**, nothing is required to start.
 
 That's the full stack — dashboard, API, redirector, MCP — in one container.
 

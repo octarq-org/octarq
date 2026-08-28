@@ -47,10 +47,14 @@ Octarq 是**面向独立开发者、一人公司与 AI-native 小团队的自托
 零配置 —— 一条命令，无需 `.env`：
 
 ```bash
+# 生产推荐零配置（自动生成高强度密钥与 admin 密码）：
 docker run -p 8080:8080 -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
+
+# 或极速本地体验（使用 admin / admin 快速登录）：
+docker run -p 8080:8080 -e OCTARQ_SECRET_KEY=dev -e OCTARQ_ADMIN_PASSWORD=admin -v octarq-data:/data ghcr.io/octarq-org/octarq:latest
 ```
 
-首次启动时 Octarq 会自动生成密钥与初始 `admin` 密码（两者都持久化在 `/data`，并在日志里打印一次），默认用 SQLite 起来。打开 `http://localhost:8080`，从容器日志里拿到密码即可登录。邮件、DNS、GeoIP 全部 opt-in —— 之后在 **设置** 里配置，启动时什么都不需要。
+未设置环境变量时，首次启动 Octarq 会自动生成密钥与初始 `admin` 密码（两者都持久化在 `/data`，并在日志里打印一次），默认用 SQLite 起来。打开 `http://localhost:8080`，从容器日志里拿到密码（或使用上述预设的 `admin`）即可登录。邮件、DNS、GeoIP 全部 opt-in —— 之后在 **设置** 里配置，启动时什么都不需要。
 
 这就是完整栈 —— 管理后台、API、重定向器、MCP —— 统一运行在单个容器中。
 
