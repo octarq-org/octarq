@@ -193,7 +193,7 @@ export interface Overview extends Record<string, unknown> {
   botClicks7d?: number;
   botClicks30d?: number;
   series?: StatKV[] | null;
-  topLinks?: { id: number; slug: string; host: string; clicks: number }[] | null;
+  topLinks?: { id: number; slug: string; host: string; title: string; tags: string; clicks: number }[] | null;
   devices?: StatKV[] | null;
   countries?: StatKV[] | null;
   cities?: StatKV[] | null;

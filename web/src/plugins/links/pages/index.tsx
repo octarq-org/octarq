@@ -231,7 +231,7 @@ export default function LinksPage() {
               <Table>
                 <THead className="border-b border-foreground/[0.06] bg-foreground/[0.02]">
                   <TR>
-                    <TH className="min-w-[200px]">{t("links.shortSlug")}</TH>
+                    <TH className="min-w-[200px]">{t("links.pageTitle")}</TH>
                     <TH className="min-w-[240px]">{t("links.targetDestination")}</TH>
                     <TH className="w-24 text-center">{t("links.totalClicks")}</TH>
                     <TH className="w-24 text-center">{t("links.active")}</TH>
@@ -239,143 +239,160 @@ export default function LinksPage() {
                   </TR>
                 </THead>
                 <TBody className="divide-y divide-foreground/[0.04]">
-                  {links.map((l) => (
-                    <TR key={l.id} className="hover:bg-foreground/[0.02] transition-colors group">
-                      {/* Short Slug & Host */}
-                      <TD>
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-sm text-accent-fg truncate max-w-[220px]">
-                              {l.host ? `${l.host}/` : "/"}
-                              <span className="text-foreground">{l.slug}</span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => copy(l)}
-                              title={t("links.copyLink")}
-                              className="p-1 text-foreground/40 hover:text-foreground rounded transition-colors cursor-pointer"
-                            >
-                              {copiedId === l.id ? (
-                                <Check className="h-3.5 w-3.5 text-success-fg" />
-                              ) : (
-                                <Copy className="h-3.5 w-3.5" />
+                  {links.map((l) => {
+                    const tagList = (l.tags || "").split(",").map((t) => t.trim()).filter(Boolean);
+                    const displayTitle = l.title || l.slug;
+                    return (
+                      <TR key={l.id} className="hover:bg-foreground/[0.02] transition-colors group">
+                        {/* Title, Short Slug & Host */}
+                        <TD>
+                          <div className="flex flex-col gap-1">
+                            <div className="text-sm font-medium text-foreground truncate max-w-[260px]" title={displayTitle}>
+                              {displayTitle}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-xs text-foreground/50 truncate max-w-[200px]">
+                                {l.host ? `${l.host}/` : "/"}
+                                <span>{l.slug}</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => copy(l)}
+                                title={t("links.copyLink")}
+                                aria-label={t("links.copyLink")}
+                                className="p-0.5 text-foreground/40 hover:text-foreground rounded transition-colors cursor-pointer"
+                              >
+                                {copiedId === l.id ? (
+                                  <Check className="h-3.5 w-3.5 text-success-fg" />
+                                ) : (
+                                  <Copy className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                              <a
+                                href={linkURL(l)}
+                                target="_blank"
+                                rel="noreferrer"
+                                title={t("links.openLink")}
+                                aria-label={t("links.openLink")}
+                                className="p-0.5 text-foreground/40 hover:text-accent-fg rounded transition-colors"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
+                            </div>
+                            {tagList.length > 0 && (
+                              <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                {tagList.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    title={tag}
+                                    aria-label={tag}
+                                    className="inline-flex items-center gap-0.5 text-[10px] text-foreground/70 bg-foreground/[0.06] px-1.5 py-0.5 rounded font-mono"
+                                  >
+                                    <Tag className="h-2.5 w-2.5 text-foreground/50" />
+                                    <span className="truncate max-w-[120px]">{tag}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </TD>
+
+                        {/* Destination Target URL & Badges */}
+                        <TD>
+                          <div className="flex flex-col gap-1">
+                            <div className="font-mono text-xs text-foreground/75 truncate max-w-[320px]" title={l.target}>
+                              {l.target}
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {l.hasPassword && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] text-warning-fg bg-warning-bg px-1.5 py-0.5 rounded" title={t("links.accessProtectionPassword")}>
+                                  <Lock className="h-2.5 w-2.5" />
+                                </span>
                               )}
-                            </button>
-                            <a
-                              href={linkURL(l)}
-                              target="_blank"
-                              rel="noreferrer"
-                              title={t("links.openLink")}
-                              className="p-1 text-foreground/40 hover:text-accent-fg rounded transition-colors"
-                            >
-                              <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
+                              {l.routingRules?.length ? (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] text-accent-fg bg-accent-soft px-1.5 py-0.5 rounded" title={t("links.routingRules")}>
+                                  <Bot className="h-2.5 w-2.5" />
+                                  {l.routingRules.length}
+                                </span>
+                              ) : null}
+                              {l.expiresAt && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] text-foreground/50 bg-foreground/[0.05] px-1.5 py-0.5 rounded" title={new Date(l.expiresAt).toLocaleString()}>
+                                  <Clock className="h-2.5 w-2.5" />
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          {l.title && <div className="text-xs text-foreground/60 truncate max-w-[280px]">{l.title}</div>}
-                        </div>
-                      </TD>
+                        </TD>
 
-                      {/* Destination Target URL & Tags */}
-                      <TD>
-                        <div className="flex flex-col gap-1">
-                          <div className="font-mono text-xs text-foreground/75 truncate max-w-[320px]" title={l.target}>
-                            {l.target}
-                          </div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            {l.hasPassword && (
-                              <span className="inline-flex items-center gap-0.5 text-[10px] text-warning-fg bg-warning-bg px-1.5 py-0.5 rounded" title={t("links.accessProtectionPassword")}>
-                                <Lock className="h-2.5 w-2.5" />
-                              </span>
-                            )}
-                            {l.routingRules?.length ? (
-                              <span className="inline-flex items-center gap-0.5 text-[10px] text-accent-fg bg-accent-soft px-1.5 py-0.5 rounded" title={t("links.routingRules")}>
-                                <Bot className="h-2.5 w-2.5" />
-                                {l.routingRules.length}
-                              </span>
-                            ) : null}
-                            {l.expiresAt && (
-                              <span className="inline-flex items-center gap-0.5 text-[10px] text-foreground/50 bg-foreground/[0.05] px-1.5 py-0.5 rounded" title={new Date(l.expiresAt).toLocaleString()}>
-                                <Clock className="h-2.5 w-2.5" />
-                              </span>
-                            )}
-                            {l.tags && (
-                              <span className="inline-flex items-center gap-0.5 text-[10px] text-foreground/50 bg-foreground/[0.05] px-1.5 py-0.5 rounded font-mono truncate max-w-[140px]">
-                                <Tag className="h-2.5 w-2.5" />
-                                {l.tags}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </TD>
+                        {/* Clicks */}
+                        <TD className="text-center font-mono">
+                          <Badge tone="neutral" className="text-xs font-semibold">
+                            {l.clicks || 0}
+                          </Badge>
+                        </TD>
 
-                      {/* Clicks */}
-                      <TD className="text-center font-mono">
-                        <Badge tone="neutral" className="text-xs font-semibold">
-                          {l.clicks || 0}
-                        </Badge>
-                      </TD>
+                        {/* Status */}
+                        <TD className="text-center">
+                          <Badge tone={l.archived ? "neutral" : "info"} className="text-[10px]">
+                            {l.archived ? t("links.archived") : t("links.active")}
+                          </Badge>
+                        </TD>
 
-                      {/* Status */}
-                      <TD className="text-center">
-                        <Badge tone={l.archived ? "neutral" : "info"} className="text-[10px]">
-                          {l.archived ? t("links.archived") : t("links.active")}
-                        </Badge>
-                      </TD>
-
-                      {/* Actions */}
-                      <TD className="text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            variant="ghost"
-                            className="p-1.5 text-xs text-foreground/60 hover:text-accent-fg"
-                            title={t("links.tabAnalytics")}
-                            onClick={() => setAnalyticsLink(l)}
-                          >
-                            <BarChart3 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            className="p-1.5 text-xs text-foreground/60 hover:text-foreground"
-                            title={t("links.tabQr")}
-                            onClick={() => setQrLink(l)}
-                          >
-                            <QrCode className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            className="p-1.5 text-xs text-foreground/60 hover:text-foreground"
-                            title={t("links.editLink")}
-                            onClick={() => setEditingLink(l)}
-                          >
-                            <Edit3 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            className="p-1.5 text-xs text-foreground/50 hover:text-foreground"
-                            title={l.archived ? t("links.unarchive") : t("links.archive")}
-                            onClick={() => toggleArchive(l)}
-                          >
-                            <Archive className="h-4 w-4" />
-                          </Button>
-                          {canDeleteLink && (
+                        {/* Actions */}
+                        <TD className="text-right">
+                          <div className="flex items-center justify-end gap-1.5">
                             <Button
                               variant="ghost"
-                              className="p-1.5 text-xs text-danger-fg/70 hover:text-danger-fg"
-                              title={t("links.delete")}
-                              onClick={async () => {
-                                if (await confirmDialog(t("links.confirmDelete", { slug: l.slug }))) {
-                                  await linksApi.deleteLink(l.id);
-                                  loadMore(true);
-                                }
-                              }}
+                              className="p-1.5 text-xs text-foreground/60 hover:text-accent-fg"
+                              title={t("links.tabAnalytics")}
+                              onClick={() => setAnalyticsLink(l)}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <BarChart3 className="h-4 w-4" />
                             </Button>
-                          )}
-                        </div>
-                      </TD>
-                    </TR>
-                  ))}
+                            <Button
+                              variant="ghost"
+                              className="p-1.5 text-xs text-foreground/60 hover:text-foreground"
+                              title={t("links.tabQr")}
+                              onClick={() => setQrLink(l)}
+                            >
+                              <QrCode className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="p-1.5 text-xs text-foreground/60 hover:text-foreground"
+                              title={t("links.editLink")}
+                              onClick={() => setEditingLink(l)}
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="p-1.5 text-xs text-foreground/50 hover:text-foreground"
+                              title={l.archived ? t("links.unarchive") : t("links.archive")}
+                              onClick={() => toggleArchive(l)}
+                            >
+                              <Archive className="h-4 w-4" />
+                            </Button>
+                            {canDeleteLink && (
+                              <Button
+                                variant="ghost"
+                                className="p-1.5 text-xs text-danger-fg/70 hover:text-danger-fg"
+                                title={t("links.delete")}
+                                onClick={async () => {
+                                  if (await confirmDialog(t("links.confirmDelete", { slug: l.slug }))) {
+                                    await linksApi.deleteLink(l.id);
+                                    loadMore(true);
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TD>
+                      </TR>
+                    );
+                  })}
                 </TBody>
               </Table>
               {loading && <div className="p-3 text-center text-xs text-foreground/40">{t("links.loading")}</div>}
@@ -403,7 +420,7 @@ export default function LinksPage() {
 
       {/* Edit Link Modal */}
       {editingLink && (
-        <Modal title={`${t("links.editLink")} /${editingLink.slug}`} onClose={() => setEditingLink(null)}>
+        <Modal title={`${t("links.editLink")} — ${editingLink.title || `/${editingLink.slug}`}`} onClose={() => setEditingLink(null)}>
           <div className="p-1">
             <LinkEditorForm
               key={editingLink.id}
@@ -421,7 +438,7 @@ export default function LinksPage() {
 
       {/* Analytics Modal */}
       {analyticsLink && (
-        <Modal title={`${t("links.clickPerformanceAnalytics")} — /${analyticsLink.slug}`} onClose={() => setAnalyticsLink(null)}>
+        <Modal title={`${t("links.clickPerformanceAnalytics")} — ${analyticsLink.title || `/${analyticsLink.slug}`}`} onClose={() => setAnalyticsLink(null)}>
           <div className="p-2 max-h-[80vh] overflow-y-auto">
             <StatsView link={analyticsLink} />
           </div>
@@ -430,7 +447,7 @@ export default function LinksPage() {
 
       {/* QR Code Modal */}
       {qrLink && (
-        <Modal title={`${t("links.linkQrCode")} — /${qrLink.slug}`} onClose={() => setQrLink(null)}>
+        <Modal title={`${t("links.linkQrCode")} — ${qrLink.title || `/${qrLink.slug}`}`} onClose={() => setQrLink(null)}>
           <div className="flex flex-col items-center gap-5 py-4">
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-foreground/[0.08]">
               <img

@@ -55,3 +55,29 @@ func TestOverviewBotClicksScopedToOrgLinks(t *testing.T) {
 		t.Errorf("botClicks30d = %d, want 2", got)
 	}
 }
+
+func TestOverviewTopLinksIncludesTitleAndTags(t *testing.T) {
+	db := newOverviewDB(t)
+	p := &Plugin{db: db}
+
+	const org = uint(7)
+	link := Link{
+		OrgID: org, Host: "go.example.com", Slug: "a", Target: "https://x",
+		Title: "Promo Link", Tags: "promo, marketing", Enabled: true, Clicks: 42,
+	}
+	if err := db.Create(&link).Error; err != nil {
+		t.Fatalf("create link: %v", err)
+	}
+
+	out := p.overview(org, true)
+	top, ok := out["topLinks"].([]topLink)
+	if !ok || len(top) == 0 {
+		t.Fatalf("topLinks missing or empty: %v", out["topLinks"])
+	}
+	if top[0].Title != "Promo Link" {
+		t.Errorf("top[0].Title = %q, want %q", top[0].Title, "Promo Link")
+	}
+	if top[0].Tags != "promo, marketing" {
+		t.Errorf("top[0].Tags = %q, want %q", top[0].Tags, "promo, marketing")
+	}
+}
