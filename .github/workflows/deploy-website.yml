@@ -129,7 +129,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: website
           packageManager: pnpm
-          command: versions upload --preview-alias pr-${{ github.event.pull_request.number }} --message "PR #${{ github.event.pull_request.number }} — ${{ github.sha }}"
+          command: versions upload --preview-alias pr-${{ github.event.pull_request.number }} --message "PR-${{ github.event.pull_request.number }} (${{ github.sha }})"
 
       - name: Comment preview URL
         if: steps.check_creds.outputs.has_creds == 'true'
