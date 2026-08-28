@@ -79,6 +79,9 @@ jobs:
 
   # Preview deploys run on pull requests to provide a temporary preview URL
   # without triggering a production deployment event in GitHub UI.
+  # Uses `wrangler versions upload --preview-alias pr-N` against the same
+  # `octarq-docs` worker (no separate preview worker name).
+  # The preview URL is parsed directly from wrangler's stdout output.
   preview:
     name: Deploy preview
     needs: [build]
@@ -116,11 +119,11 @@ jobs:
             echo "has_creds=true" >> $GITHUB_OUTPUT
           else
             echo "has_creds=false" >> $GITHUB_OUTPUT
-            echo "::notice::CLOUDFLARE_API_TOKEN is not configured in the 'preview' environment or repository secrets. Skipping preview deployment."
+            echo "::notice::CLOUDFLARE_API_TOKEN is not configured in the 'preview' environment. Skipping preview deployment."
           fi
 
-      - name: Deploy to Cloudflare Preview
-        id: deploy_preview
+      - name: Upload version to Cloudflare (preview)
+        id: upload_preview
         if: steps.check_creds.outputs.has_creds == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
@@ -128,16 +131,23 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: website
           packageManager: pnpm
-          command: deploy --env preview
+          command: versions upload --preview-alias pr-${{ github.event.pull_request.number }} --message "PR #${{ github.event.pull_request.number }} — ${{ github.sha }}"
 
       - name: Comment preview URL
         if: steps.check_creds.outputs.has_creds == 'true'
         uses: actions/github-script@v7
         env:
-          PREVIEW_URL: ${{ steps.deploy_preview.outputs.deployment-url }}
+          CMD_OUTPUT: ${{ steps.upload_preview.outputs.command-output }}
+          DEPLOYMENT_URL: ${{ steps.upload_preview.outputs.deployment-url }}
         with:
           script: |
-            const previewUrl = process.env.PREVIEW_URL;
+            const output = process.env.CMD_OUTPUT || '';
+            const match = output.match(/https:\/\/[^\s]+\.workers\.dev[^\s]*/);
+            const previewUrl = match ? match[0] : (process.env.DEPLOYMENT_URL || '');
+            if (!previewUrl) {
+              console.log('No preview URL found in wrangler output');
+              return;
+            }
             const body = `🚀 Preview deployed to ${previewUrl}\n\nCommit ${context.sha.slice(0, 7)} — [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
             // Upsert: update existing bot comment or create a new one
             const { data: comments } = await github.rest.issues.listComments({
@@ -162,13 +172,42 @@ jobs:
               });
             }
 
-  # Clean up preview when a branch is deleted.
+  # When a PR branch is deleted, remove the version alias so the preview URL
+  # stops resolving.  The alias name is deterministic: pr-<number>.
+  # We extract the PR number from the branch name via the GitHub API.
   cleanup-preview:
     name: Cleanup preview
     if: github.event_name == 'delete' && github.event.ref_type == 'branch'
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Branch ${{ github.event.ref }} deleted — preview at https://octarq-docs-preview.jungley.workers.dev is shared (no per-branch Pages), no per-branch deployment to delete."
+      - name: Find PR number for deleted branch
+        id: find_pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="${{ github.event.ref }}"
+          pr_number=$(gh api \
+            "repos/${{ github.repository }}/pulls?state=closed&head=${{ github.repository_owner }}:${branch}&per_page=1" \
+            --jq '.[0].number // empty')
+          if [ -z "$pr_number" ]; then
+            echo "::notice::No closed PR found for branch ${branch}; nothing to clean up."
+            echo "pr_number=" >> $GITHUB_OUTPUT
+          else
+            echo "pr_number=${pr_number}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Delete preview version alias
+        if: steps.find_pr.outputs.pr_number != ''
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          alias="pr-${{ steps.find_pr.outputs.pr_number }}"
+          echo "Deleting preview alias '${alias}' for worker 'octarq-docs'"
+          curl -s -X DELETE \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/octarq-docs/versions/preview-aliases/${alias}" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" | jq .
 
   # Production deploys run ONLY on merge to main, release tags (v*), or manual dispatch.
   # This isolates the production environment registration to actual production releases.
@@ -211,3 +250,43 @@ jobs:
           workingDirectory: website
           packageManager: pnpm
           command: deploy
+
+      - name: Cleanup old Cloudflare deployments
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WORKER_NAME: octarq-docs
+        run: |
+          set -euo pipefail
+
+          API="https://api.cloudflare.com/client/v4"
+          BASE="$API/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/$WORKER_NAME/deployments"
+
+          echo "Fetching deployments for $WORKER_NAME..."
+
+          res=$(curl -fsSL \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            "$BASE")
+
+          # Cloudflare returns the active deployment as the first entry (index 0).
+          # Retain the active deployment and delete older inactive deployments.
+          deployment_ids=$(echo "$res" | jq -r '
+            (.result.deployments // .result // [])[1:][]?.id // empty
+          ')
+
+          if [ -z "$deployment_ids" ]; then
+            echo "No old deployments to delete."
+          else
+            for deployment_id in $deployment_ids; do
+              echo "Deleting old deployment: $deployment_id"
+              curl -fsSL \
+                -X DELETE \
+                -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+                -H "Content-Type: application/json" \
+                "$BASE/$deployment_id" || echo "Failed to delete $deployment_id, continuing..."
+              echo
+            done
+          fi
+
+          echo "Cleanup completed."

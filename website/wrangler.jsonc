@@ -23,10 +23,9 @@
       "custom_domain": true
     }
   ],
-  "env": {
-    "preview": {
-      "workers_dev": true,
-      "routes": []
-    }
-  }
+  // preview_urls enables per-version preview URLs on workers.dev so that
+  // `wrangler versions upload --preview-alias <alias>` produces a stable
+  // https://<alias>-octarq-docs.<subdomain>.workers.dev URL without
+  // needing a separate worker name or environment.
+  "preview_urls": true
 }
