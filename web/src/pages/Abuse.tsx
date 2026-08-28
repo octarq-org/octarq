@@ -75,6 +75,7 @@ export default function AbusePage() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
+                    {/* AbuseReport model has no title/tags in backend; retain slug display */}
                     <h3 className="font-semibold text-lg text-danger-fg">/{r.slug}</h3>
                     <Badge tone={getReasonTone(r.reason)} className="uppercase tracking-wider">
                       {t("abuse.reason" + r.reason.charAt(0).toUpperCase() + r.reason.slice(1)) || r.reason}

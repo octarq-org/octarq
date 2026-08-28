@@ -146,6 +146,20 @@ func (p *Plugin) cleanupEvents(ctx context.Context, retentionDays int) {
 	}
 }
 
+type statKV struct {
+	Key   string `json:"key" gorm:"column:key"`
+	Count int64  `json:"count" gorm:"column:count"`
+}
+
+type topLink struct {
+	ID     uint   `json:"id"`
+	Slug   string `json:"slug"`
+	Host   string `json:"host"`
+	Title  string `json:"title"`
+	Tags   string `json:"tags"`
+	Clicks int64  `json:"clicks"`
+}
+
 func (p *Plugin) overview(orgID uint, includeBot bool) map[string]any {
 	botFilter := func(q *gorm.DB) *gorm.DB {
 		if includeBot {
@@ -172,10 +186,6 @@ func (p *Plugin) overview(orgID uint, includeBot bool) map[string]any {
 	since30 := now.AddDate(0, 0, -30)
 	since7 := now.AddDate(0, 0, -7)
 
-	type statKV struct {
-		Key   string `json:"key" gorm:"column:key"`
-		Count int64  `json:"count" gorm:"column:count"`
-	}
 	var series []statKV
 	botFilter(p.db.Model(&LinkEvent{}).
 		Where("link_id IN (?) AND created_at >= ?", orgLinks, since30)).
@@ -202,15 +212,9 @@ func (p *Plugin) overview(orgID uint, includeBot bool) map[string]any {
 		return rows
 	}
 
-	type topLink struct {
-		ID     uint   `json:"id"`
-		Slug   string `json:"slug"`
-		Host   string `json:"host"`
-		Clicks int64  `json:"clicks"`
-	}
 	var topLinks []topLink
 	p.db.Model(&Link{}).
-		Select("id, slug, host, clicks").
+		Select("id, slug, host, title, tags, clicks").
 		Where("owner_id = ? AND archived = ?", orgID, false).
 		Order("clicks DESC").Limit(5).Scan(&topLinks)
 
