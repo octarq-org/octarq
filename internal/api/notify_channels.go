@@ -404,7 +404,9 @@ func redactConfigSecrets(cfgJSON string) string {
 func redactMap(m map[string]any) {
 	for k, v := range m {
 		lk := strings.ToLower(k)
-		if strings.Contains(lk, "token") || strings.Contains(lk, "secret") || strings.Contains(lk, "password") {
+		if strings.Contains(lk, "token") || strings.Contains(lk, "secret") || strings.Contains(lk, "password") ||
+			strings.Contains(lk, "key") || strings.Contains(lk, "auth") || strings.Contains(lk, "credential") ||
+			strings.Contains(lk, "bearer") {
 			if s, ok := v.(string); ok && s != "" {
 				m[k] = "[REDACTED]"
 			}
