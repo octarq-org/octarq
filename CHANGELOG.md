@@ -2,6 +2,72 @@
 
 All notable changes to this project are documented here.
 
+## [0.4.1] - 2026-08-29
+
+### 🚀 Features
+
+- **web**: Add post-login 12-screen onboarding questionnaire flow
+- **web**: Add AI agent MCP connection card and polish onboarding DX (#468)
+- **settings**: Add UI for public CORS origins, system SMTP sender, and reserved slugs (#464)
+- **eventbus**: Add declarative EventReactor registry and worker pool (#436)
+- **web**: Add CommandPalette chat mode, thinking chain collapsible, and A2UI container (#434)
+- **harness,api**: Add streaming consumption and SSE chat stream endpoint (#433)
+- **tenantsql**: Implement tenant view layer engine and core views (#431)
+- **llmprovider**: Add StreamProvider interface and streaming support (#430)
+- **webhooks,mail**: Test-verification endpoints for webhook endpoints and SMTP senders (#429)
+- **tenantsql**: Add secure tenant SQL validation layer (#428)
+- **plugin**: Add RiskLevel and RequireApproval to EndpointSpec with MCP metadata (#426)
+- **eventbus**: Add in-process event spine — Envelope, Subscribe, backpressure (#425)
+- **harness**: Add micro-kernel skeleton (types, profile, runner, guard, tracer) (#424)
+
+### 📦 Other
+
+- Consolidated batch (14 PRs) — perf, security & code health (#460)
+
+### 🐛 Bug Fixes
+
+- **e2e**: Only fallback-dismiss onboarding when UI was present (#471)
+- **e2e**: Make onboarding dismiss robust via storage fallback
+- **e2e**: Auto-dismiss post-login onboarding in test helpers
+- **links**: Prioritize title over slug, split tags into badges, and include title/tags in topLinks (#470)
+- **ci**: Resolve cloudflare account id dynamically if secret is unset in cleanup steps
+- **ci**: Use dynamic deployment URL for preview comments (#465)
+- **harness,api**: Halt on ErrApprovalRequired, ignore client system prompt, enforce read-only web chat tools (#442)
+- **auth,eventbus**: Implement HTTP RequireRole check and non-blocking reactor dispatcher (#441)
+- **tenantsql**: Wrap view materialization with redacted values to prevent alias bypass (#440)
+- **core**: Resolve recent review findings (concurrency, cache, postgres tx, tracer) (#438)
+- **lint**: Address QF1003 and QF1008 staticcheck findings (#437)
+- **ci**: Remove go.mod cache-bust comment that broke workflow parsing (#432)
+- **db**: Silence record-not-found SQL logs in production; drop stale landing-page MCP tag (#421)
+- **release**: Set up buildx containerd builder before goreleaser (#420)
+
+### ♻️ Refactor
+
+- **web**: Migrate onboarding to Pro plugin hook (5-screen) (#472)
+
+### 📚 Documentation
+
+- **website**: Publish pre-launch checklist, un-orphan backup-restore (#422)
+
+### ⚙️ CI & Build
+
+- **website**: Remove old deployments cleanup step
+- **website**: Loop-delete all pages of old deployments
+- **website**: Avoid # in wrangler --message to prevent shell comment truncation
+- **website**: Remove redundant cleanup-preview job and delete trigger
+- **website**: Switch preview deploy to wrangler versions upload (#467)
+- **website**: Cleanup preview on branch delete (#463)
+- **release**: Keep latest/major.minor image tags on stable releases only (#419)
+- **release**: Replace hand-rolled release jobs with goreleaser (#418)
+
+### 🧹 Chores
+
+- **web**: Refresh embedded dashboard build [auto] (#469)
+- **web**: Refresh embedded dashboard build [auto] (#466)
+- **web**: Refresh embedded dashboard build [auto] (#461)
+- **web**: Refresh embedded dashboard build [auto] (#435)
+- Remove stale research working notes from repo root (#423)
+
 ## [0.4.0] - 2026-08-24
 
 ### 🔒 Security
