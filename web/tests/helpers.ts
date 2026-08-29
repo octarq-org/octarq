@@ -27,12 +27,15 @@ export async function signIn(page: Page, email: string, password: string) {
 async function dismissOnboardingIfNeeded(page: Page) {
   const startSetup = page.getByRole("button", { name: /Start Setup|开始搭建/i });
   const skip = page.getByRole("button", { name: /^Skip$|^跳过$/i });
+  let dismissedViaUI = false;
   try {
     await startSetup.waitFor({ state: "visible", timeout: 2500 });
     await startSetup.click();
     await skip.waitFor({ state: "visible", timeout: 2500 });
     await skip.click();
+    dismissedViaUI = true;
   } catch {}
+  if (!dismissedViaUI) return;
   try {
     await page.evaluate(() => {
       try {
