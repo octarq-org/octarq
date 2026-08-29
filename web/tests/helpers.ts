@@ -27,12 +27,23 @@ export async function signIn(page: Page, email: string, password: string) {
 async function dismissOnboardingIfNeeded(page: Page) {
   const startSetup = page.getByRole("button", { name: /Start Setup|开始搭建/i });
   const skip = page.getByRole("button", { name: /^Skip$|^跳过$/i });
+  const settings = page.getByRole("button", { name: "Settings" });
+  let dismissedViaUI = false;
   try {
-    await startSetup.waitFor({ state: "visible", timeout: 2500 });
-    await startSetup.click();
-    await skip.waitFor({ state: "visible", timeout: 2500 });
-    await skip.click();
+    await Promise.race([
+      startSetup.waitFor({ state: "visible", timeout: 6000 }),
+      settings.waitFor({ state: "visible", timeout: 6000 }),
+    ]);
+    if (await startSetup.isVisible().catch(() => false)) {
+      await startSetup.click();
+      await skip.waitFor({ state: "visible", timeout: 4000 });
+      await skip.click();
+      dismissedViaUI = true;
+    } else {
+      return;
+    }
   } catch {}
+  if (!dismissedViaUI) return;
   try {
     await page.evaluate(() => {
       try {
@@ -48,11 +59,11 @@ async function dismissOnboardingIfNeeded(page: Page) {
       }).catch(() => {}),
     );
     await page.waitForTimeout(400);
-    const hasSettings = await page.getByRole("button", { name: "Settings" }).isVisible().catch(() => false);
+    const hasSettings = await settings.isVisible().catch(() => false);
     if (!hasSettings) {
       await page.goto("/admin/overview");
     }
-    await page.getByRole("button", { name: "Settings" }).waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
+    await settings.waitFor({ state: "visible", timeout: 8000 }).catch(() => {});
   } catch {}
 }
 
