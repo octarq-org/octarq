@@ -28,6 +28,7 @@ import { uiAreas } from "./plugin-sdk";
 import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
 import { PluginGateContext } from "./plugins/PluginGate";
 import { InstanceExitRedirect } from "./pages/instance/redirect";
+import { OnboardingFlow } from "./onboarding";
 
 
 // Re-exported so existing `import { RouteFallback } from "../App"` call sites
@@ -44,6 +45,19 @@ export default function App() {
   // Advisory org role from /api/auth/me for sidebar and PluginGate gating.
   const [role, setRole] = useState<string | undefined>(undefined);
   const [tableDensity, setTableDensity] = useState<TableDensity>("comfortable");
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(() => {
+    try {
+      if (
+        localStorage.getItem("onboarding_completed") === "true" ||
+        localStorage.getItem("octarq:onboarding:completed") === "true"
+      ) {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
 
   useEffect(() => {
     api.me()
@@ -55,8 +69,19 @@ export default function App() {
         if (s?.table_density === "compact" || s?.table_density === "comfortable") {
           setTableDensity(s.table_density as TableDensity);
         }
+        const isDone = s?.onboarding_completed === "true" || s?.onboarding_dismissed === "true";
+        setOnboardingCompleted(isDone);
+        if (isDone) {
+          try {
+            localStorage.setItem("onboarding_completed", "true");
+          } catch {}
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (onboardingCompleted === null) {
+          setOnboardingCompleted(false);
+        }
+      });
   }, []);
 
   // Persist-and-apply, handed to the preferences UI through the same provider
@@ -73,6 +98,10 @@ export default function App() {
     // Same pattern as /status: the browser is on the console's basename, so
     // the tenant shell must not boot. The console handles its own auth gate.
     content = <Suspense fallback={<RouteFallback />}><InstanceConsole /></Suspense>;
+  } else if (window.location.pathname === "/license") {
+    content = <InstanceExitRedirect to="/instance/license" />;
+  } else if (window.location.pathname === "/link-settings") {
+    content = <InstanceExitRedirect to="/instance/link-settings" />;
   } else if (window.location.pathname === "/admin/invite/accept") {
     content = <InviteAcceptPage />;
   } else if (window.location.pathname === "/admin/reset") {
@@ -93,6 +122,20 @@ export default function App() {
           setUser(u); setActiveOrgId(orgId); setAuthed(true);
           // The login response carries no role — refetch me for it.
           api.me().then((m) => setRole(m.role)).catch(() => {});
+          api.getUserSettings()
+            .then((s) => {
+              const isDone = s?.onboarding_completed === "true" || s?.onboarding_dismissed === "true";
+              setOnboardingCompleted(isDone);
+            })
+            .catch(() => setOnboardingCompleted(false));
+        }}
+      />
+    );
+  } else if (onboardingCompleted === false || window.location.pathname === "/onboarding") {
+    content = (
+      <OnboardingFlow
+        onComplete={() => {
+          setOnboardingCompleted(true);
         }}
       />
     );
@@ -649,6 +692,7 @@ function Shell({
               a router <Navigate> would resolve to /admin/instance. */}
           <Route path="/license"       element={<InstanceExitRedirect to="/instance/license" />} />
           <Route path="/link-settings" element={<InstanceExitRedirect to="/instance/link-settings" />} />
+          <Route path="/onboarding"    element={<Navigate to="/overview" replace />} />
           <Route path="/overview"   element={<OverviewPage />} />
           <Route path="/settings/*" element={<SettingsPage />} />
           <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />

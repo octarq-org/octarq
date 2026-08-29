@@ -11,6 +11,7 @@ import { appearance } from "./appearance";
 import { audit } from "./audit";
 import { invite } from "./invite";
 import { uiCommon } from "./uiCommon";
+import { onboarding } from "./onboarding";
 
 const NS = {
   appearance,
@@ -22,6 +23,7 @@ const NS = {
   audit,
   invite,
   uiCommon,
+  onboarding,
 };
 
 export const pagesEn = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v.en]));
