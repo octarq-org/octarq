@@ -27,17 +27,32 @@ export async function signIn(page: Page, email: string, password: string) {
 async function dismissOnboardingIfNeeded(page: Page) {
   const startSetup = page.getByRole("button", { name: /Start Setup|开始搭建/i });
   const skip = page.getByRole("button", { name: /^Skip$|^跳过$/i });
-  const skipForNow = page.getByRole("button", { name: /Maybe later|稍后再说/i });
   try {
     await startSetup.waitFor({ state: "visible", timeout: 2500 });
     await startSetup.click();
     await skip.waitFor({ state: "visible", timeout: 2500 });
     await skip.click();
-    try {
-      await skipForNow.waitFor({ state: "visible", timeout: 1500 });
-      await skipForNow.click();
-    } catch {}
-    await page.waitForURL(/\/admin\/overview/, { timeout: 5000 }).catch(() => {});
+  } catch {}
+  try {
+    await page.evaluate(() => {
+      try {
+        localStorage.setItem("onboarding_completed", "true");
+        localStorage.setItem("octarq:onboarding:completed", "true");
+      } catch {}
+    });
+    await page.evaluate(() =>
+      fetch("/api/user/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "onboarding_completed", value: "true" }),
+      }).catch(() => {}),
+    );
+    await page.waitForTimeout(400);
+    const hasSettings = await page.getByRole("button", { name: "Settings" }).isVisible().catch(() => false);
+    if (!hasSettings) {
+      await page.goto("/admin/overview");
+    }
+    await page.getByRole("button", { name: "Settings" }).waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
   } catch {}
 }
 
