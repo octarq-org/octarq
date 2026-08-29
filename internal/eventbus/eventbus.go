@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/octarq-org/octarq/internal/models"
@@ -15,7 +16,8 @@ import (
 )
 
 var (
-	db *gorm.DB
+	dbMu sync.RWMutex
+	db   *gorm.DB
 	// SSRF-hardened: webhook URLs are tenant-supplied, so delivery must not reach
 	// internal services or cloud metadata (relaxable for trusted self-hosted
 	// receivers via OCTARQ_ALLOW_PRIVATE_WEBHOOKS).
@@ -23,9 +25,18 @@ var (
 	decryptSecret func(string) (string, bool)
 )
 
+// getDB returns the current DB handle under a read lock.
+func getDB() *gorm.DB {
+	dbMu.RLock()
+	defer dbMu.RUnlock()
+	return db
+}
+
 // Init initializes the eventbus with the shared GORM database connection.
 func Init(gdb *gorm.DB) {
+	dbMu.Lock()
 	db = gdb
+	dbMu.Unlock()
 }
 
 // SetSecretDecryptor registers how a stored (encrypted) webhook secret is
@@ -72,15 +83,19 @@ func Publish(orgID uint, event string, data any) {
 			Payload: json.RawMessage(raw),
 		})
 	}
-	if db == nil {
+	if getDB() == nil {
 		return
 	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
+		gdb := getDB()
+		if gdb == nil {
+			return
+		}
 		var hooks []models.Webhook
-		err := db.WithContext(ctx).Where("owner_id = ? AND enabled = ?", orgID, true).Find(&hooks).Error
+		err := gdb.WithContext(ctx).Where("owner_id = ? AND enabled = ?", orgID, true).Find(&hooks).Error
 		if err != nil {
 			log.Printf("eventbus: failed to query webhooks: %v", err)
 			return
@@ -137,11 +152,12 @@ var deliveryBudget = 15 * time.Minute
 
 // webhookSecret loads the stored (still encrypted) signing secret for a hook.
 func webhookSecret(ctx context.Context, webhookID uint) (string, error) {
-	if db == nil {
+	gdb := getDB()
+	if gdb == nil {
 		return "", errors.New("eventbus: not initialised")
 	}
 	var hook models.Webhook
-	if err := db.WithContext(ctx).Where("id = ?", webhookID).First(&hook).Error; err != nil {
+	if err := gdb.WithContext(ctx).Where("id = ?", webhookID).First(&hook).Error; err != nil {
 		return "", fmt.Errorf("eventbus: webhook %d: %w", webhookID, err)
 	}
 	return hook.Secret, nil
