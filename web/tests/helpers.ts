@@ -21,6 +21,24 @@ export async function signIn(page: Page, email: string, password: string) {
   await page.fill("#login-email", email);
   await page.fill("#login-password", password);
   await page.getByRole("button", { name: "Sign In" }).click();
+  await dismissOnboardingIfNeeded(page);
+}
+
+async function dismissOnboardingIfNeeded(page: Page) {
+  const startSetup = page.getByRole("button", { name: /Start Setup|开始搭建/i });
+  const skip = page.getByRole("button", { name: /^Skip$|^跳过$/i });
+  const skipForNow = page.getByRole("button", { name: /Maybe later|稍后再说/i });
+  try {
+    await startSetup.waitFor({ state: "visible", timeout: 2500 });
+    await startSetup.click();
+    await skip.waitFor({ state: "visible", timeout: 2500 });
+    await skip.click();
+    try {
+      await skipForNow.waitFor({ state: "visible", timeout: 1500 });
+      await skipForNow.click();
+    } catch {}
+    await page.waitForURL(/\/admin\/overview/, { timeout: 5000 }).catch(() => {});
+  } catch {}
 }
 
 // End-to-end backstop for the `/* ui-color-ok */` incident: a JS comment that
