@@ -21,50 +21,6 @@ export async function signIn(page: Page, email: string, password: string) {
   await page.fill("#login-email", email);
   await page.fill("#login-password", password);
   await page.getByRole("button", { name: "Sign In" }).click();
-  await dismissOnboardingIfNeeded(page);
-}
-
-async function dismissOnboardingIfNeeded(page: Page) {
-  const startSetup = page.getByRole("button", { name: /Start Setup|开始搭建/i });
-  const skip = page.getByRole("button", { name: /^Skip$|^跳过$/i });
-  const settings = page.getByRole("button", { name: "Settings" });
-  let dismissedViaUI = false;
-  try {
-    await Promise.race([
-      startSetup.waitFor({ state: "visible", timeout: 6000 }),
-      settings.waitFor({ state: "visible", timeout: 6000 }),
-    ]);
-    if (await startSetup.isVisible().catch(() => false)) {
-      await startSetup.click();
-      await skip.waitFor({ state: "visible", timeout: 4000 });
-      await skip.click();
-      dismissedViaUI = true;
-    } else {
-      return;
-    }
-  } catch {}
-  if (!dismissedViaUI) return;
-  try {
-    await page.evaluate(() => {
-      try {
-        localStorage.setItem("onboarding_completed", "true");
-        localStorage.setItem("octarq:onboarding:completed", "true");
-      } catch {}
-    });
-    await page.evaluate(() =>
-      fetch("/api/user/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "onboarding_completed", value: "true" }),
-      }).catch(() => {}),
-    );
-    await page.waitForTimeout(400);
-    const hasSettings = await settings.isVisible().catch(() => false);
-    if (!hasSettings) {
-      await page.goto("/admin/overview");
-    }
-    await settings.waitFor({ state: "visible", timeout: 8000 }).catch(() => {});
-  } catch {}
 }
 
 // End-to-end backstop for the `/* ui-color-ok */` incident: a JS comment that

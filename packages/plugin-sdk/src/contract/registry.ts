@@ -148,6 +148,14 @@ export function uiWidgets(slot: string): UIWidget[] {
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
+// The first onboarding contribution, if any — obeys `replaces` filtering.
+// The host's App.tsx renders this outside the Shell when `onboarding_completed`
+// is not true; no provider ⇒ the host skips onboarding. Disabled/replaced
+// plugins contribute nothing (same `effectivePlugins` filter as routes).
+export function uiOnboarding(): UIPlugin["onboarding"] | null {
+  return effectivePlugins().find((p) => p.onboarding)?.onboarding ?? null;
+}
+
 // Every NEW top-level area contributed by plugins, flattened and deduped by id
 // (first registration wins, matching registerUIPlugin's idempotence). The app
 // appends these to its static areas and routes menus into them through the

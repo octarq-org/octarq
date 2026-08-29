@@ -24,11 +24,10 @@ import { CommandPalette } from "./shell/CommandPalette";
 import { AreaPanel } from "./shell/AreaPanel";
 import { ShellFooter } from "./shell/ShellFooter";
 import { Login } from "./shell/Login";
-import { uiAreas } from "./plugin-sdk";
+import { uiAreas, uiOnboarding } from "./plugin-sdk";
 import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
 import { PluginGateContext } from "./plugins/PluginGate";
 import { InstanceExitRedirect } from "./pages/instance/redirect";
-import { OnboardingFlow } from "./onboarding";
 
 
 // Re-exported so existing `import { RouteFallback } from "../App"` call sites
@@ -131,13 +130,19 @@ export default function App() {
         }}
       />
     );
-  } else if (onboardingCompleted === false || window.location.pathname === "/onboarding") {
+  } else if (
+    uiOnboarding() &&
+    (onboardingCompleted === false || window.location.pathname === "/onboarding")
+  ) {
+    const OnboardingFlow = uiOnboarding()!.Component;
     content = (
-      <OnboardingFlow
-        onComplete={() => {
-          setOnboardingCompleted(true);
-        }}
-      />
+      <Suspense fallback={<RouteFallback />}>
+        <OnboardingFlow
+          onComplete={() => {
+            setOnboardingCompleted(true);
+          }}
+        />
+      </Suspense>
     );
   } else {
     content = (

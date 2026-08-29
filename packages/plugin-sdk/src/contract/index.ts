@@ -18,6 +18,7 @@ export {
   uiInstanceRoutes,
   uiWidgets,
   uiAreas,
+  uiOnboarding,
   uiPluginI18n,
   uiPluginSharedI18n,
   resetRegistry,
