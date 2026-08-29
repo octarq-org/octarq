@@ -129,6 +129,7 @@ export interface UIPlugin {
   areas?: UIArea[];
   i18n?: PluginI18n;
   lockedFallback?: LockedFallback;
+  onboarding?: { Component: LazyExoticComponent<ComponentType<{ onComplete?: () => void }>> };
   // Names of other UIPlugins this plugin replaces — the plugin-market
   // "enhanced edition" seam: a downstream plugin supersedes the default
   // plugin that delivers the same feature under a different name (e.g. an enhanced
