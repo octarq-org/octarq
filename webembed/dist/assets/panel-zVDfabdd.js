@@ -1,1 +1,0 @@
-import{j as r}from"./vendor-motion--UzACeuh.js";import{G as t}from"./index-CaEB7PQW.js";function n({title:s,children:e}){return r.jsxs(t,{className:"p-5",children:[r.jsx("h3",{className:"mb-3 text-[11px] font-semibold uppercase tracking-wider text-foreground/50",children:s}),e]})}export{n as P};
