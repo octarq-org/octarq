@@ -278,10 +278,11 @@ func recordPending(d delivery) *WebhookDelivery {
 		Status:     StatusPending,
 		SignedAt:   d.SignedAt,
 	}
-	if db == nil {
+	gdb := getDB()
+	if gdb == nil {
 		return row
 	}
-	if err := db.Create(row).Error; err != nil {
+	if err := gdb.Create(row).Error; err != nil {
 		log.Printf("eventbus: could not record delivery %s: %v", d.DeliveryID, err)
 	}
 	return row
@@ -296,10 +297,14 @@ func recordResult(row *WebhookDelivery, attempts int, status string, res attempt
 	} else {
 		row.LastError = ""
 	}
-	if db == nil || row.ID == 0 {
+	if row.ID == 0 {
 		return
 	}
-	err := db.Model(&WebhookDelivery{}).Where("id = ?", row.ID).Updates(map[string]any{
+	gdb := getDB()
+	if gdb == nil {
+		return
+	}
+	err := gdb.Model(&WebhookDelivery{}).Where("id = ?", row.ID).Updates(map[string]any{
 		"attempts":      row.Attempts,
 		"status":        row.Status,
 		"response_code": row.ResponseCode,
@@ -320,13 +325,14 @@ func truncate(s string, n int) string {
 // Deliveries returns this org's delivery log, newest first, for the dashboard.
 // status is optional ("" = all).
 func Deliveries(ctx context.Context, orgID uint, status string, limit int) ([]WebhookDelivery, error) {
-	if db == nil {
+	gdb := getDB()
+	if gdb == nil {
 		return nil, errors.New("eventbus: not initialised")
 	}
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	q := db.WithContext(ctx).Where("owner_id = ?", orgID)
+	q := gdb.WithContext(ctx).Where("owner_id = ?", orgID)
 	if status != "" {
 		q = q.Where("status = ?", status)
 	}
@@ -339,11 +345,12 @@ func Deliveries(ctx context.Context, orgID uint, status string, limit int) ([]We
 // The signing timestamp is refreshed because the receiver's tolerance window
 // would otherwise reject the replay outright.
 func Replay(ctx context.Context, orgID uint, deliveryID string) error {
-	if db == nil {
+	gdb := getDB()
+	if gdb == nil {
 		return errors.New("eventbus: not initialised")
 	}
 	var row WebhookDelivery
-	err := db.WithContext(ctx).Where("owner_id = ? AND delivery_id = ?", orgID, deliveryID).First(&row).Error
+	err := gdb.WithContext(ctx).Where("owner_id = ? AND delivery_id = ?", orgID, deliveryID).First(&row).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("eventbus: delivery %q not found", deliveryID)

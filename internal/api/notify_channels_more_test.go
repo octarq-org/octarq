@@ -67,22 +67,23 @@ func TestRedactConfigSecrets(t *testing.T) {
 		t.Errorf("redactConfigSecrets(not-json) = %q", got)
 	}
 
-	cfg := `{"api_token":"xyz123","webhook_secret":"s3cr3t","smtp_password":"pw","url":"https://example.com","nested":{"sub_token":"abc"}}`
+	cfg := `{"api_token":"xyz123","webhook_secret":"s3cr3t","smtp_password":"pw","apiKey":"sk_live_123","Authorization":"Bearer def456","credentials":"my-secret-creds","url":"https://example.com","nested":{"sub_token":"abc","nested_key":"secret_value"}}`
 	redacted := redactConfigSecrets(cfg)
 
 	var m map[string]any
 	if err := json.Unmarshal([]byte(redacted), &m); err != nil {
 		t.Fatalf("unmarshal redacted: %v", err)
 	}
-	if m["api_token"] != "[REDACTED]" || m["webhook_secret"] != "[REDACTED]" || m["smtp_password"] != "[REDACTED]" {
+	if m["api_token"] != "[REDACTED]" || m["webhook_secret"] != "[REDACTED]" || m["smtp_password"] != "[REDACTED]" ||
+		m["apiKey"] != "[REDACTED]" || m["Authorization"] != "[REDACTED]" || m["credentials"] != "[REDACTED]" {
 		t.Errorf("unredacted secrets: %+v", m)
 	}
 	if m["url"] != "https://example.com" {
 		t.Errorf("url modified: %v", m["url"])
 	}
 	nested := m["nested"].(map[string]any)
-	if nested["sub_token"] != "[REDACTED]" {
-		t.Errorf("nested token not redacted: %+v", nested)
+	if nested["sub_token"] != "[REDACTED]" || nested["nested_key"] != "[REDACTED]" {
+		t.Errorf("nested secret not redacted: %+v", nested)
 	}
 }
 
