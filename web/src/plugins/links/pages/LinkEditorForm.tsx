@@ -26,7 +26,7 @@ export function LinkEditorForm({
   const [title, setTitle] = useState(link?.title ?? "");
   const [note, setNote] = useState(link?.note ?? "");
   const [tags, setTags] = useState(link?.tags ?? "");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState(link?.password ?? "");
   const [expiresAt, setExpiresAt] = useState(link?.expiresAt?.slice(0, 16) ?? "");
   const [expiredUrl, setExpiredUrl] = useState(link?.expiredUrl ?? "");
   const [clickLimit, setClickLimit] = useState(link?.clickLimit ?? 0);
@@ -182,8 +182,8 @@ export function LinkEditorForm({
       </Field>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
-        <Field label={t("links.accessProtectionPassword")} hint={link?.hasPassword ? t("links.passwordSetHint") : t("links.passwordOptionalHint")}>
-          <Input className="w-full font-mono text-sm min-w-0" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+        <Field label={t("links.accessProtectionPassword")} hint={t("links.passwordOptionalHint")}>
+          <Input className="w-full font-mono text-sm min-w-0" type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="e.g. 123456" />
         </Field>
         <Field label={t("links.totalClickLimitation")} hint={t("links.clickLimitHint")}>
           <Input

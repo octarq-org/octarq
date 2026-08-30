@@ -17,6 +17,7 @@ export interface Link {
   archived: boolean;
   enabled: boolean;
   clicks: number;
+  password?: string;
   hasPassword: boolean;
   routingRules?: any[];
   createdAt: string;

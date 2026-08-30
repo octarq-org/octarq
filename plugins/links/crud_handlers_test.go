@@ -191,3 +191,96 @@ func TestDeleteLinkCleansOnlyOwnOrgEvents(t *testing.T) {
 		t.Errorf("org1 events after org2 self-delete: got %d, want 1", org1Events)
 	}
 }
+
+func TestLinkPasswordPreservationAndPlaintext(t *testing.T) {
+	t.Parallel()
+
+	p, mkCtx := setupFullLinksTestDB(t)
+	ctx := context.Background()
+
+	// 1. Create link with password
+	pw := "secret123"
+	reqCreate := httptest.NewRequest(http.MethodPost, "/api/links", nil)
+	createIn := &CreateLinkInput{
+		Ctx: mkCtx(reqCreate),
+		Body: linkDTO{
+			Slug:     "pw-test",
+			Target:   "https://example.com/secret",
+			Password: &pw,
+		},
+	}
+	outCreate, err := p.createLink(ctx, createIn)
+	if err != nil {
+		t.Fatalf("createLink with password: %v", err)
+	}
+	if outCreate.Body.Password != "secret123" {
+		t.Errorf("expected Password %q, got %q", "secret123", outCreate.Body.Password)
+	}
+	if !outCreate.Body.HasPassword {
+		t.Errorf("expected HasPassword true, got false")
+	}
+
+	linkID := outCreate.Body.ID
+
+	// 2. Update other fields without passing Password (Password == nil) -> Password MUST NOT be cleared
+	reqUpdate1 := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/links/%d", linkID), nil)
+	updateIn1 := &UpdateLinkInput{
+		Ctx: mkCtx(reqUpdate1),
+		ID:  linkID,
+		Body: linkDTO{
+			Title: "Updated Title",
+		},
+	}
+	outUpdate1, err := p.updateLink(ctx, updateIn1)
+	if err != nil {
+		t.Fatalf("updateLink with nil password: %v", err)
+	}
+	if outUpdate1.Body.Password != "secret123" {
+		t.Errorf("expected Password to be preserved as %q, got %q", "secret123", outUpdate1.Body.Password)
+	}
+	if !outUpdate1.Body.HasPassword {
+		t.Errorf("expected HasPassword to remain true, got false")
+	}
+
+	// 3. Update password explicitly
+	newPw := "updated456"
+	reqUpdate2 := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/links/%d", linkID), nil)
+	updateIn2 := &UpdateLinkInput{
+		Ctx: mkCtx(reqUpdate2),
+		ID:  linkID,
+		Body: linkDTO{
+			Password: &newPw,
+		},
+	}
+	outUpdate2, err := p.updateLink(ctx, updateIn2)
+	if err != nil {
+		t.Fatalf("updateLink with new password: %v", err)
+	}
+	if outUpdate2.Body.Password != "updated456" {
+		t.Errorf("expected Password %q, got %q", "updated456", outUpdate2.Body.Password)
+	}
+	if !outUpdate2.Body.HasPassword {
+		t.Errorf("expected HasPassword true, got false")
+	}
+
+	// 4. Explicitly clear password with empty string
+	emptyPw := ""
+	reqUpdate3 := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/links/%d", linkID), nil)
+	updateIn3 := &UpdateLinkInput{
+		Ctx: mkCtx(reqUpdate3),
+		ID:  linkID,
+		Body: linkDTO{
+			Password: &emptyPw,
+		},
+	}
+	outUpdate3, err := p.updateLink(ctx, updateIn3)
+	if err != nil {
+		t.Fatalf("updateLink with empty password: %v", err)
+	}
+	if outUpdate3.Body.Password != "" {
+		t.Errorf("expected Password to be cleared to \"\", got %q", outUpdate3.Body.Password)
+	}
+	if outUpdate3.Body.HasPassword {
+		t.Errorf("expected HasPassword false after clear, got true")
+	}
+}

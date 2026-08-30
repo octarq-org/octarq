@@ -192,7 +192,9 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 	l.Note = input.Body.Note
 	l.Title = input.Body.Title
 	l.Tags = input.Body.Tags
-	l.Password = input.Body.Password
+	if input.Body.Password != nil {
+		l.Password = *input.Body.Password
+	}
 	l.ExpiresAt = input.Body.ExpiresAt
 	l.ExpiredURL = input.Body.ExpiredURL
 	l.ClickLimit = input.Body.ClickLimit
