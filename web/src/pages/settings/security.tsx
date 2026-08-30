@@ -215,7 +215,7 @@ export function SecuritySettings() {
     fetch("/api/auth/methods")
       .then((r) => r.json())
       .then((m: { id: string }[]) =>
-        setHasSso(m.some((x) => x.id === "sso" || x.id.startsWith("oidc") || x.id.startsWith("saml"))),
+        setHasSso(m.some((x) => x.id === "sso" || x.id.startsWith("oidc"))),
       )
       .catch(() => {});
   }, []);
