@@ -65,25 +65,35 @@ func TestWebhooksEventsAndCRUD(t *testing.T) {
 	if rec.Code != http.StatusOK && rec.Code != http.StatusCreated {
 		t.Fatalf("admin create webhook: got %d (%s)", rec.Code, rec.Body.String())
 	}
-	var created models.Webhook
+	var created struct {
+		models.Webhook
+		Secret    string `json:"secret"`
+		SecretSet bool   `json:"secretSet"`
+	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
 		t.Fatalf("unmarshal created webhook: %v", err)
 	}
-	if created.Secret == "" || created.Name != "Audit Webhook" {
+	if created.Secret == "" || created.Name != "Audit Webhook" || !created.SecretSet {
 		t.Errorf("created webhook mismatch: %+v", created)
 	}
 
-	// 6. List webhooks -> decrypted secret returned to authenticated caller
+	// 6. List webhooks -> secret is NOT returned in JSON, secretSet is true
 	rec = do(srv, "GET", "/api/webhooks", adminCookies, "")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("list webhooks: got %d", rec.Code)
 	}
-	var hooks []models.Webhook
-	if err := json.Unmarshal(rec.Body.Bytes(), &hooks); err != nil {
-		t.Fatalf("unmarshal webhooks: %v", err)
+	var rawList []map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &rawList); err != nil {
+		t.Fatalf("unmarshal raw webhooks: %v", err)
 	}
-	if len(hooks) != 1 || hooks[0].Secret != created.Secret {
-		t.Errorf("list webhooks secret mismatch: got %+v", hooks)
+	if len(rawList) != 1 {
+		t.Fatalf("expected 1 webhook, got %d", len(rawList))
+	}
+	if sec, ok := rawList[0]["secret"]; ok && sec != nil && sec != "" {
+		t.Errorf("list webhooks must NOT return plaintext secret, got %v", sec)
+	}
+	if set, ok := rawList[0]["secretSet"].(bool); !ok || !set {
+		t.Errorf("list webhooks secretSet expected true, got %v", rawList[0]["secretSet"])
 	}
 
 	// 7. Update Webhook
@@ -115,12 +125,26 @@ func TestWebhooksEventsAndCRUD(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("update webhook: got %d (%s)", rec.Code, rec.Body.String())
 	}
+	var updateRaw map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &updateRaw); err != nil {
+		t.Fatalf("unmarshal update webhook response: %v", err)
+	}
+	if sec, ok := updateRaw["secret"]; ok && sec != nil && sec != "" {
+		t.Errorf("update webhook must NOT return secret, got %v", sec)
+	}
+	if set, ok := updateRaw["secretSet"].(bool); !ok || !set {
+		t.Errorf("update webhook secretSet expected true, got %v", updateRaw["secretSet"])
+	}
 
-	// Verify updated secret in list
+	// Verify updated webhook in list still omits secret
 	rec = do(srv, "GET", "/api/webhooks", adminCookies, "")
-	_ = json.Unmarshal(rec.Body.Bytes(), &hooks)
-	if hooks[0].Secret != "new-custom-secret-hex" || hooks[0].Name != "Renamed Webhook" {
-		t.Errorf("updated webhook mismatch: %+v", hooks[0])
+	rawList = nil
+	_ = json.Unmarshal(rec.Body.Bytes(), &rawList)
+	if len(rawList) != 1 || rawList[0]["name"] != "Renamed Webhook" {
+		t.Errorf("updated webhook mismatch: %+v", rawList)
+	}
+	if sec, ok := rawList[0]["secret"]; ok && sec != nil && sec != "" {
+		t.Errorf("list webhooks after update must NOT return secret, got %v", sec)
 	}
 
 	// 8. Delete Webhook

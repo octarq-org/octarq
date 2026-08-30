@@ -365,7 +365,7 @@ type Webhook struct {
 	OrgID     uint      `gorm:"index;default:1;column:owner_id" json:"-"`
 	Name      string    `gorm:"size:255;not null" json:"name"`
 	URL       string    `gorm:"size:1024;not null;column:url" json:"url"`
-	Secret    string    `gorm:"size:255;not null" json:"secret"`
+	Secret    string    `gorm:"size:255;not null" json:"-"`
 	Events    string    `gorm:"size:1024;not null;default:'*'" json:"events"` // comma-separated subscribed event codes, e.g. "link.click,email.receive"
 	Enabled   bool      `gorm:"default:true" json:"enabled"`
 	CreatedAt time.Time `json:"createdAt"`
