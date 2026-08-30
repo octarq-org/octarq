@@ -570,7 +570,7 @@ All notable changes to this project are documented here.
 - Self-serve registration, unified Pro-lock UI, device fingerprint dedup
 - Optimize overview layout, unify feature gates, update billing page, separate export workspace data, and refactor customer portal forms
 - **billing**: Show org-scoped claim success URL in settings
-- **finance**: Surface pending OCR transactions with confirm action
+- **finance**: Surface pending PDF text extraction transactions with confirm action (Invoice PDF text extraction & AI filing; image/scanned PDFs not yet supported)
 - Migrate Redis task queue backend to hibiken/asynq
 - Integrate optional Redis cache & task queue with memory/DB fallbacks
 - Migrate to stateful DB-backed sessions with per-session revocation
