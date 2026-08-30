@@ -22,11 +22,11 @@ func stripCRLF(s string) string {
 
 // Message is an outbound email.
 type Message struct {
-	From    string
-	To      []string
-	Subject string
-	Text    string
-	HTML    string
+	From    string   `json:"from,omitempty"`
+	To      []string `json:"to"`
+	Subject string   `json:"subject"`
+	Text    string   `json:"text,omitempty"`
+	HTML    string   `json:"html,omitempty"`
 }
 
 // Sender delivers outbound mail. Implemented today by an SMTP relay.

@@ -32,8 +32,8 @@ export function Dialog({
           className={cn(
             "glass-strong modal-card fixed z-50 overflow-y-auto p-5 outline-none",
             "inset-x-0 bottom-0 top-auto w-full max-h-[85vh] rounded-b-none rounded-t-2xl",
-            "sm:inset-auto sm:left-1/2 sm:top-16 sm:bottom-auto sm:-translate-x-1/2 sm:w-[calc(100%-2rem)] sm:rounded-2xl sm:max-h-[calc(100vh-8rem)]",
-            wide ? "sm:max-w-3xl" : "sm:max-w-md",
+            "sm:inset-auto sm:left-1/2 sm:top-16 sm:bottom-auto sm:-translate-x-1/2 sm:rounded-2xl sm:max-h-[calc(100vh-8rem)]",
+            wide ? "sm:w-[80vw] sm:min-w-[60vw] sm:max-w-[80vw]" : "sm:w-[60vw] sm:min-w-[60vw] sm:max-w-[80vw]",
           )}
         >
           <div className="mb-4 flex items-center justify-between">
