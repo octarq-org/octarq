@@ -73,14 +73,14 @@ func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSta
 	p.db.Model(&LinkEvent{}).Where("link_id = ?", input.ID).Count(&total)
 
 	series := make([]models.StatKV, 0)
-	p.db.Model(&LinkEvent{}).
-		Select("strftime('%Y-%m-%d', created_at) as key, count(*) as count").
-		Where("link_id = ? AND created_at >= ?", input.ID, since).
-		Group("key").Order("key ASC").Scan(&series)
-	// Postgres uses to_char; fall back when sqlite strftime yields nothing.
-	if len(series) == 0 && p.db.Name() == "postgres" {
+	if p.db.Name() == "postgres" {
 		p.db.Model(&LinkEvent{}).
 			Select("to_char(created_at, 'YYYY-MM-DD') as key, count(*) as count").
+			Where("link_id = ? AND created_at >= ?", input.ID, since).
+			Group("key").Order("key ASC").Scan(&series)
+	} else {
+		p.db.Model(&LinkEvent{}).
+			Select("strftime('%Y-%m-%d', created_at) as key, count(*) as count").
 			Where("link_id = ? AND created_at >= ?", input.ID, since).
 			Group("key").Order("key ASC").Scan(&series)
 	}
