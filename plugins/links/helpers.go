@@ -83,6 +83,17 @@ func escapeLike(s string) string {
 	return r.Replace(s)
 }
 
+// dialectDayBucket returns the SQL expression that buckets created_at by day
+// for the current DB dialect. Centralising the PG vs sqlite branch here
+// prevents the "strftime on postgres 42883" class of bugs from re-appearing
+// when new time-series queries are added.
+func dialectDayBucket(db *gorm.DB) string {
+	if db != nil && db.Name() == "postgres" {
+		return "to_char(created_at, 'YYYY-MM-DD')"
+	}
+	return "strftime('%Y-%m-%d', created_at)"
+}
+
 // filterByTag is the SQL counterpart of tagsContain: case-insensitive, comma
 // token match, surrounding spaces ignored. Spaces are stripped rather than
 // enumerated as LIKE arms so Postgres (case-sensitive LIKE) and ", b ,"

@@ -187,17 +187,10 @@ func (p *Plugin) overview(orgID uint, includeBot bool) map[string]any {
 	since7 := now.AddDate(0, 0, -7)
 
 	var series []statKV
-	if p.db.Name() == "postgres" {
-		botFilter(p.db.Model(&LinkEvent{}).
-			Where("link_id IN (?) AND created_at >= ?", orgLinks, since30)).
-			Select("to_char(created_at, 'YYYY-MM-DD') as key, count(*) as count").
-			Group("key").Order("key ASC").Scan(&series)
-	} else {
-		botFilter(p.db.Model(&LinkEvent{}).
-			Where("link_id IN (?) AND created_at >= ?", orgLinks, since30)).
-			Select("strftime('%Y-%m-%d', created_at) as key, count(*) as count").
-			Group("key").Order("key ASC").Scan(&series)
-	}
+	botFilter(p.db.Model(&LinkEvent{}).
+		Where("link_id IN (?) AND created_at >= ?", orgLinks, since30)).
+		Select(dialectDayBucket(p.db) + " as key, count(*) as count").
+		Group("key").Order("key ASC").Scan(&series)
 
 	top := func(col string) []statKV {
 		var rows []statKV

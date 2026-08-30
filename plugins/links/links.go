@@ -15,18 +15,19 @@ import (
 
 // linkDTO is the create/update payload.
 type linkDTO struct {
-	Host       string     `json:"host,omitempty"`
-	Slug       string     `json:"slug,omitempty"`
-	Target     string     `json:"target"`
-	Password   string     `json:"password,omitempty"`
-	Note       string     `json:"note,omitempty"`
-	Title      string     `json:"title,omitempty"`
-	Tags       string     `json:"tags,omitempty"`
-	ExpiresAt  *time.Time `json:"expiresAt,omitempty"`
-	ExpiredURL string     `json:"expiredUrl,omitempty"`
-	ClickLimit int64      `json:"clickLimit,omitempty"`
-	Archived   *bool      `json:"archived,omitempty"`
-	Enabled    *bool      `json:"enabled,omitempty"`
+	Host         string       `json:"host,omitempty"`
+	Slug         string       `json:"slug,omitempty"`
+	Target       string       `json:"target"`
+	Password     string       `json:"password,omitempty"`
+	Note         string       `json:"note,omitempty"`
+	Title        string       `json:"title,omitempty"`
+	Tags         string       `json:"tags,omitempty"`
+	ExpiresAt    *time.Time   `json:"expiresAt,omitempty"`
+	ExpiredURL   string       `json:"expiredUrl,omitempty"`
+	ClickLimit   int64        `json:"clickLimit,omitempty"`
+	Archived     *bool        `json:"archived,omitempty"`
+	Enabled      *bool        `json:"enabled,omitempty"`
+	RoutingRules RoutingRules `json:"routingRules,omitempty"`
 }
 
 type linkView struct {
@@ -174,7 +175,8 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 		Host:  strings.TrimSpace(input.Body.Host), Slug: slug, Target: normalized,
 		Password: input.Body.Password, Note: input.Body.Note, Title: input.Body.Title, Tags: input.Body.Tags,
 		ExpiresAt: input.Body.ExpiresAt, ExpiredURL: input.Body.ExpiredURL, ClickLimit: input.Body.ClickLimit,
-		Enabled: enabled,
+		RoutingRules: input.Body.RoutingRules,
+		Enabled:      enabled,
 	}
 	if l.Host != "" && !p.ownsHost(l.OrgID, l.Host) {
 		return nil, huma.Error403Forbidden("host is not a link host of this workspace")

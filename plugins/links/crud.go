@@ -196,6 +196,9 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 	l.ExpiresAt = input.Body.ExpiresAt
 	l.ExpiredURL = input.Body.ExpiredURL
 	l.ClickLimit = input.Body.ClickLimit
+	if input.Body.RoutingRules != nil {
+		l.RoutingRules = input.Body.RoutingRules
+	}
 	if input.Body.Archived != nil {
 		l.Archived = *input.Body.Archived
 	}
