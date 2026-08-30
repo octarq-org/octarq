@@ -50,7 +50,7 @@ type Link struct {
 	Host         string       `gorm:"size:255;index:idx_host_slug,unique" json:"host"` // empty = default/any host
 	Slug         string       `gorm:"size:255;index:idx_host_slug,unique" json:"slug"`
 	Target       string       `gorm:"type:text" json:"target"`
-	Password     string       `gorm:"size:255" json:"-"` // optional; presence exposed via HasPassword
+	Password     string       `gorm:"size:255" json:"password"` // optional passcode
 	Note         string       `gorm:"type:text" json:"note"`
 	Title        string       `gorm:"size:255" json:"title"`
 	Tags         string       `gorm:"size:512" json:"tags"` // comma-separated tags

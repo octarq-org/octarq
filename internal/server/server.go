@@ -125,6 +125,14 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 1.75 Robots.txt: disallow all crawlers and robots across all hosts.
+	if path == "/robots.txt" {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("User-agent: *\nDisallow: /\n"))
+		return
+	}
+
 	// 2. Dashboard SPA under /admin (gated by dashboardAllowed).
 	if path == "/admin" || strings.HasPrefix(path, "/admin/") {
 		if !s.dashboardAllowed(r.Host) {

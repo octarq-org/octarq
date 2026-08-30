@@ -305,8 +305,12 @@ export default function LinksPage() {
                             </div>
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {l.hasPassword && (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] text-warning-fg bg-warning-bg px-1.5 py-0.5 rounded" title={t("links.accessProtectionPassword")}>
+                                <span
+                                  className="inline-flex items-center gap-1 text-[10px] text-warning-fg bg-warning-bg px-1.5 py-0.5 rounded font-mono"
+                                  title={`${t("links.accessProtectionPassword")}${l.password ? `: ${l.password}` : ""}`}
+                                >
                                   <Lock className="h-2.5 w-2.5" />
+                                  {l.password && <span>{l.password}</span>}
                                 </span>
                               )}
                               {l.routingRules?.length ? (
