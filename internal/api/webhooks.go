@@ -33,16 +33,19 @@ func (h *Handler) encryptWebhookSecret(plaintext string) (string, error) {
 	return h.cipher.Encrypt([]byte(plaintext))
 }
 
-// decryptedForResponse returns a copy of the hook with its secret decrypted, so
-// the dashboard (behind auth) can display/copy the signing secret while the
-// value stays encrypted at rest.
-func (h *Handler) decryptedForResponse(hook models.Webhook) (models.Webhook, error) {
-	secret, err := h.webhookSecretPlaintext(hook.Secret)
-	if err != nil {
-		return hook, err
-	}
-	hook.Secret = secret
-	return hook, nil
+// WebhookView is returned on list and update endpoints. Secret is never returned,
+// but SecretSet indicates whether a signing secret has been configured.
+type WebhookView struct {
+	models.Webhook
+	SecretSet bool `json:"secretSet"`
+}
+
+// WebhookCreateView is returned once on webhook creation, carrying the plaintext
+// signing secret to the creator.
+type WebhookCreateView struct {
+	models.Webhook
+	Secret    string `json:"secret"`
+	SecretSet bool   `json:"secretSet"`
 }
 
 type ListWebhooksInput struct {
@@ -55,7 +58,7 @@ func (i *ListWebhooksInput) Resolve(ctx huma.Context) []error {
 }
 
 type ListWebhooksOutput struct {
-	Body []models.Webhook
+	Body []WebhookView
 }
 
 func (h *Handler) listWebhooks(ctx context.Context, input *ListWebhooksInput) (*ListWebhooksOutput, error) {
@@ -72,14 +75,14 @@ func (h *Handler) listWebhooks(ctx context.Context, input *ListWebhooksInput) (*
 	}
 	var hooks []models.Webhook
 	h.orgDB(r).Order("created_at DESC").Find(&hooks)
-	for i := range hooks {
-		hook, err := h.decryptedForResponse(hooks[i])
-		if err != nil {
-			return nil, huma.Error500InternalServerError("failed to decrypt webhook secret")
+	views := make([]WebhookView, len(hooks))
+	for i, hook := range hooks {
+		views[i] = WebhookView{
+			Webhook:   hook,
+			SecretSet: hook.Secret != "",
 		}
-		hooks[i] = hook
 	}
-	return &ListWebhooksOutput{Body: hooks}, nil
+	return &ListWebhooksOutput{Body: views}, nil
 }
 
 type CreateWebhookInputBody struct {
@@ -101,7 +104,7 @@ func (i *CreateWebhookInput) Resolve(ctx huma.Context) []error {
 }
 
 type CreateWebhookOutput struct {
-	Body models.Webhook
+	Body WebhookCreateView
 }
 
 func (h *Handler) createWebhook(ctx context.Context, input *CreateWebhookInput) (*CreateWebhookOutput, error) {
@@ -164,8 +167,13 @@ func (h *Handler) createWebhook(ctx context.Context, input *CreateWebhookInput) 
 	}
 
 	h.audit(r, "webhook.create", "webhook", hook.ID, map[string]any{"name": hook.Name, "url": hook.URL})
-	hook.Secret = secret // return the plaintext secret to the creator
-	return &CreateWebhookOutput{Body: hook}, nil
+	return &CreateWebhookOutput{
+		Body: WebhookCreateView{
+			Webhook:   hook,
+			Secret:    secret,
+			SecretSet: true,
+		},
+	}, nil
 }
 
 type UpdateWebhookInputBody struct {
@@ -188,7 +196,7 @@ func (i *UpdateWebhookInput) Resolve(ctx huma.Context) []error {
 }
 
 type UpdateWebhookOutput struct {
-	Body models.Webhook
+	Body WebhookView
 }
 
 func (h *Handler) updateWebhook(ctx context.Context, input *UpdateWebhookInput) (*UpdateWebhookOutput, error) {
@@ -247,11 +255,12 @@ func (h *Handler) updateWebhook(ctx context.Context, input *UpdateWebhookInput) 
 		meta["secret"] = "[REDACTED]"
 	}
 	h.audit(r, "webhook.update", "webhook", hook.ID, meta)
-	out, err := h.decryptedForResponse(hook)
-	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to decrypt webhook secret")
-	}
-	return &UpdateWebhookOutput{Body: out}, nil
+	return &UpdateWebhookOutput{
+		Body: WebhookView{
+			Webhook:   hook,
+			SecretSet: hook.Secret != "",
+		},
+	}, nil
 }
 
 type DeleteWebhookInput struct {

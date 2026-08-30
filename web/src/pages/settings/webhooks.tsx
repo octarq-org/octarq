@@ -122,7 +122,7 @@ export function WebhooksSettings() {
                     )}
                   </div>
                   <div className="select-all truncate font-mono text-xs text-foreground/45">{w.url}</div>
-                  <div className="select-all font-mono text-[10px] text-zinc-500">{t("settings.secretLabel")} {w.secret}</div>
+                  <div className="select-all font-mono text-[10px] text-zinc-500">{t("settings.secretLabel")} {w.secret || (w.secretSet ? "••••••••" : "—")}</div>
                 </div>
                 {canManage && (
                   <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">

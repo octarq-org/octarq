@@ -663,7 +663,8 @@ export interface Webhook {
   id: number;
   name: string;
   url: string;
-  secret: string;
+  secret?: string;
+  secretSet?: boolean;
   events: string;
   enabled: boolean;
   createdAt: string;
