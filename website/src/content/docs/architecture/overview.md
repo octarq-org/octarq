@@ -105,7 +105,20 @@ The committed pro dist means `go build`/Docker embed it with no cross-repo front
 - Package `publishConfig` → `registry.npmjs.org`, scope `@octarq` (public).
 - Community plugin authors can install it directly without authentication (`pnpm add @octarq/plugin-sdk`). Pro private packages (`@octarq-org/*`) remain on GitHub Packages. See [Publishing Guide](/guides/publishing/).
 
-## 8. File map
+## 8. Data & Execution Boundaries
+
+Octarq enforces clear execution boundaries and trust tiers across its runtime layers:
+
+| Layer | Execution Boundary & Scope | Trust Level | Primary Responsibilities | Data & Network Access | Security Invariants |
+|---|---|---|---|---|---|
+| **Host Core Engine** | System host process (`app.App`) | **Root / Full Authority** | HTTP lifecycle, authentication sessions, CSRF validation, tenant resolution, auto-gate route dispatching, database pool lifecycle, graceful shutdown. | Direct database access (SQLite/Postgres), environment variables, server network sockets. | Immediate session revocation on role changes; centralized rate limiting; zero raw error leakage. |
+| **Plugin Context (`plugin.Context`)** | In-process module sandbox facade | **High (Operator-Curated)** | Business feature logic, plugin route mounting (`Mount`), GORM model definitions (`Models`), inter-plugin services (`ctx.Provide`), embedded help docs. | Scoped database operations (`ctx.DB`), AES-256-GCM encryption (`ctx.Encrypt`), safe outbound HTTP (`safehttp`), workspace settings. | No direct `internal/*` imports; user-influenced outbound URLs must use `safehttp` (blocks SSRF/DNS rebinding); write idempotency. |
+| **Agent / MCP Tool Execution** | Protocol boundary (stdio / SSE) | **Constrained / Capability-Governed** | MCP tool definitions (`plugin.MCPProvider`), structured LLM tool invocation, input schema validation, formatted execution responses. | Strictly restricted to registered tool handler scopes; operates within request tenant context. | Explicit parameter schemas; execution audit logging; no arbitrary process spawning or unvalidated disk access. |
+| **Client Dashboard (React / SDK)** | Browser sandbox | **Zero-Trust Client** | Interactive UI rendering, client-side routing, ephemeral UI state, accessibility (a11y), responsive glass theme design system. | Authenticated JSON HTTP APIs (`/api/...`, `/api/x/...`), session cookies, lazy-loaded chunk assets. | Route-level `PluginGate` degradation (402/403/404); zero access to server secrets or raw DB queries. |
+
+For detailed development rules and architectural constraints, see [Developer Conventions](/developers/conventions/).
+
+## 9. File map
 
 Core (octarq):
 - `plugin/plugin.go` — backend contract + `Context`.

@@ -52,6 +52,12 @@ const nimbusConfig = defineNimbusConfig({
         autogenerate: { directory: "architecture" },
       },
       {
+        label: "Developers",
+        items: [
+          "developers/conventions",
+        ],
+      },
+      {
         label: "Guides",
         autogenerate: { directory: "guides" },
       },

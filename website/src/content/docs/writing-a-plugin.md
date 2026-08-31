@@ -7,26 +7,36 @@ sidebar:
     label: "Build a Plugin"
 ---
 
-
 Octarq is extended by plugins. A plugin consists of:
 
 - A **Go module** implementing `plugin.Plugin`
 - A **JS package** implementing `UIPlugin` (from `@octarq/plugin-sdk`)
 
+> [!NOTE]
+> For comprehensive architectural boundaries, security invariants, route scoping, and i18n glossaries, refer to the [Developer Conventions](/developers/conventions/).
+
 ---
 
-## 1. Directory Structure
+## 1. Directory Structure & Scaffolding
 
-A minimal plugin repository follows this structure:
+You can scaffold a new plugin repository using `octarq plugin new <name>` or create a minimal repository matching this layout:
 
 ```
 your-plugin/
 ├── go.mod                 # Go module (e.g., github.com/you/octarq-plugin-hello)
 ├── hello.go               # Implements plugin.Plugin (+ optional MenuProvider, MCPProvider)
 └── web/
+    ├── package.json       # JS package with @octarq/plugin-sdk peerDependency
     ├── index.ts           # Implements UIPlugin (@octarq/plugin-sdk)
     └── Page.tsx           # React UI page
 ```
+
+<Aside type="tip" title="Success check">
+Verify directory scaffolding:
+- `go.mod` initializes with the correct module path.
+- `web/package.json` declares `@octarq/plugin-sdk` and `react` as `peerDependencies`.
+- The repository houses both the Go backend module and the frontend web package.
+</Aside>
 
 ---
 
@@ -52,8 +62,9 @@ func (Plugin) Models() []any { return nil }
 
 // Mount registers HTTP endpoints on the host router.
 func (Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
-    mux.Handle("GET /api/hello/ping", ctx.Guard(http.HandlerFunc(
+    mux.Handle("GET /api/x/hello/ping", ctx.Guard(http.HandlerFunc(
         func(w http.ResponseWriter, r *http.Request) {
+            w.Header().Set("Content-Type", "application/json")
             w.Write([]byte(`{"message": "pong"}`))
         },
     )))
@@ -62,7 +73,7 @@ func (Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 // Menus defines sidebar entries provided by this plugin.
 func (Plugin) Menus() []plugin.MenuItem {
     return []plugin.MenuItem{
-        {ID: "hello", Label: "Hello", Path: "/hello", Icon: "👋", Category: "Workspace"},
+        {ID: "hello", Label: "Hello", Path: "/hello", Icon: "wave", Category: "Workspace"},
     }
 }
 
@@ -77,9 +88,16 @@ Key backend rules:
 
 - **Every route is auto-gated.** The host wraps your mux so a feature disabled for the caller's workspace answers `404` before your handler runs.
 - **License-gate paid routes with `402`.** Return `402 Payment Required` when the license lacks the tier; the frontend `PluginGate` turns it into an upsell.
-- **Never import `internal/*`.** Everything a plugin needs is on `plugin.Context`: `DB`, `Guard`, `Encrypt`/`Decrypt` (AES-256-GCM), `Audit`, `Notify`, `SendMail`, `OnEmail`, `DNS`, `UserID`/`OrgID`, `GetWorkspaceSetting`/`SetWorkspaceSetting`.
+- **Never import `internal/*`.** Everything a plugin needs is on `plugin.Context`: `DB`, `Guard`, `Encrypt`/`Decrypt` (AES-256-GCM), `Audit`, `Notify`, `SendMail`, `OnEmail`, `DNS`, `UserID`/`OrgID`, `GetWorkspaceSetting`/`SetWorkspaceSetting`. See [Developer Conventions — Package Boundaries](/developers/conventions/#2-package--architecture-boundaries).
 - **Pair every optional interface with a compile-time assertion** (`var _ plugin.MenuProvider = Plugin{}`). Optional capabilities are detected by runtime type assertion, so a typo'd method silently never runs without these.
 - **Own your tables.** Every model (core + plugins) is AutoMigrated once at startup; a preflight fails if two plugin model types claim the same table. Mirror an existing core table with a local struct (`TableName()` override) to read core data without importing `internal/models`.
+
+<Aside type="tip" title="Success check">
+Verify backend implementation:
+- `go build ./...` succeeds without compiler errors.
+- Invoking `GET /api/x/hello/ping` with a valid session token returns `200 OK` with `{"message": "pong"}`.
+- Unauthenticated requests to guarded routes return `401 Unauthorized` automatically.
+</Aside>
 
 ---
 
@@ -111,6 +129,13 @@ Key frontend rules:
 - **A settings page's `Path` is `/settings/<menu id>`.** The last segment is the menu's **`ID`**, not its `Label`. The Go `Path` and frontend `UIRoute.path` must match exactly — `PluginGate` compares them to tell "operator disabled this" apart from "this build doesn't have it".
 - **`requiredRole`/`requiredTier` are advisory UX only.** The host hides menu entries and pre-renders access-denied below `requiredRole` — but the server stays authoritative: enforce with `403`/`402` in your backend.
 - **i18n namespace = your `name`.** `i18n.en`/`i18n.zh` merge under `"<name>"`, so a `pageTitle` key is read as `t("hello.pageTitle")`.
+
+<Aside type="tip" title="Success check">
+Verify frontend registration:
+- Running `pnpm build` generates an isolated asynchronous rollup chunk for `./Page` (e.g., `dist/assets/Page-[hash].js`).
+- The sidebar dynamically renders the `Hello` menu under the specified `Workspace` category.
+- Clicking the menu navigates to `/admin/hello` and renders the lazy component without hydration or runtime React errors.
+</Aside>
 
 ---
 
@@ -278,6 +303,13 @@ OCTARQ_PLUGINS='[{"go":"github.com/you/octarq-plugin-hello","npm":"@you/octarq-p
 - **Routes Auto-Gate**: Endpoints return `404` when disabled in workspace settings.
 - **AutoMigrate Preflight**: Database tables are resolved and migrated at startup.
 
+<Aside type="tip" title="Success check">
+Verify composite binary build:
+- The build process produces a single unified executable (`bin/octarq`).
+- Starting the binary logs plugin registration: `[plugin] registered hello`.
+- The frontend assets for your plugin are bundled into the binary's embedded web distribution.
+</Aside>
+
 ---
 
 ## 9. Trust model
@@ -319,5 +351,5 @@ For publishing the SDK itself, see [Publishing the SDK](/guides/publishing/).
 - [ ] Pages are `React.lazy`; UI built from `@octarq/plugin-sdk`; 402/404 handled.
 - [ ] i18n keys live under your `name` namespace.
 - [ ] Help pages live in `docs/<slug>.mdx` with a `<slug>.zh.mdx` translation; title/category/order are frontmatter.
+- [ ] Conforms to all rules in [Developer Conventions](/developers/conventions/).
 - [ ] `go build ./...` and `pnpm build` are green; `go:embed` produces one binary.
-
