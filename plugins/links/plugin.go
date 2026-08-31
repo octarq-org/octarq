@@ -87,10 +87,11 @@ func (p *Plugin) orgID(r *http.Request) uint {
 }
 
 var builtinReservedSlugs = map[string]bool{
-	"admin":  true,
-	"api":    true,
-	"assets": true,
-	"portal": true,
+	"admin":      true,
+	"api":        true,
+	"assets":     true,
+	"portal":     true,
+	"robots.txt": true,
 }
 
 func (p *Plugin) isReservedSlug(slug string) bool {
