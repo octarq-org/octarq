@@ -309,7 +309,7 @@ describe("LinkEditorForm", () => {
     });
 
     // Fill password
-    fireEvent.change(screen.getByPlaceholderText("••••••••"), {
+    fireEvent.change(screen.getByPlaceholderText("e.g. 123456"), {
       target: { value: "supersecret" },
     });
 
@@ -382,8 +382,8 @@ describe("LinkEditorForm", () => {
     const tagsInput = screen.getByPlaceholderText("e.g. q3-ads, product-hunt") as HTMLInputElement;
     expect(tagsInput.value).toBe("promo, spring, sale");
 
-    // Password hint for link with password
-    expect(screen.getByText("Key set. Fill to overwrite, blank to keep")).toBeDefined();
+    expect(screen.getByPlaceholderText("e.g. 123456")).toBeDefined();
+    expect(screen.getByText("Optional password check")).toBeDefined();
 
     // Modify title and submit
     fireEvent.change(titleInput, { target: { value: "Updated Spring Promo 2026" } });
