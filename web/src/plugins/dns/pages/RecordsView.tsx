@@ -8,6 +8,7 @@ import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 import { parseDnsFilter, buildDnsFilterQuery } from "../filters";
+import { EmailBlueprintPanel } from "./EmailBlueprintPanel";
 
 const RECORD_TYPES = ["A", "AAAA", "CNAME", "TXT", "MX", "NS", "CAA"];
 
@@ -18,6 +19,7 @@ export function RecordsView({ domain }: { domain: Domain }) {
   const [records, setRecords] = useState<DNSRecord[] | null>(null);
   const [err, setErr] = useState<string | { message?: string; status?: number; requestId?: string }>("");
   const [editing, setEditing] = useState<DNSRecord | "new" | "subdomain" | null>(null);
+  const [showBlueprint, setShowBlueprint] = useState(false);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const { type: typeFilter, q: search } = useMemo(() => parseDnsFilter(searchParams), [searchParams]);
@@ -70,6 +72,10 @@ export function RecordsView({ domain }: { domain: Domain }) {
           />
         </div>
         <input className="input flex-1 min-w-0 sm:min-w-[140px] text-xs py-1" placeholder={t("domains.filterPlaceholder")} value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
+        <Button variant="subtle" onClick={() => setShowBlueprint(true)} className="py-1 px-3 text-xs gap-1.5">
+          <Mail className="h-3 w-3 text-success-fg" />
+          {t("domains.emailSetupButton")}
+        </Button>
         <Button variant="subtle" onClick={() => setEditing("subdomain")} className="py-1 px-3 text-xs">{t("domains.presetButton")}</Button>
         <Button variant="primary" onClick={() => setEditing("new")} className="py-1 px-3 text-xs">{t("domains.customButton")}</Button>
       </div>
@@ -130,6 +136,14 @@ export function RecordsView({ domain }: { domain: Domain }) {
           subdomain={editing === "subdomain"}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); load(); }}
+        />
+      )}
+      {showBlueprint && (
+        <EmailBlueprintPanel
+          domainId={domain.id}
+          hasProvider={!!domain.providerAccountId}
+          onClose={() => setShowBlueprint(false)}
+          onApplied={() => load()}
         />
       )}
     </div>

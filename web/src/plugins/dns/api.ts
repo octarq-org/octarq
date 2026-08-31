@@ -76,6 +76,23 @@ export interface CreateDDNSTokenResult {
   createdAt: string;
 }
 
+export type BlueprintStatus = "ok" | "missing" | "mismatch";
+
+export interface EmailBlueprintRecord {
+  type: string;
+  name: string;
+  content: string;
+  ttl: number;
+  priority?: number | null;
+  status: BlueprintStatus;
+}
+
+export interface ApplyBlueprintResult {
+  ok: boolean;
+  applied: number;
+  skipped: number;
+}
+
 export const dnsApi = {
   syncDomains: (providerAccountId: number) =>
     req<{ ok: boolean; total: number; created: number; updated: number }>(
@@ -97,4 +114,6 @@ export const dnsApi = {
   createDDNSToken: (data: { domainId: number; recordName: string; recordType: string; label: string }) =>
     req<CreateDDNSTokenResult>("POST", "/api/dns/ddns", data),
   deleteDDNSToken: (id: number) => req("DELETE", `/api/dns/ddns/${id}`),
+  emailBlueprint: (id: number) => req<EmailBlueprintRecord[]>("GET", `/api/domains/${id}/email-blueprint`),
+  applyEmailBlueprint: (id: number) => req<ApplyBlueprintResult>("POST", `/api/domains/${id}/apply-email-blueprint`),
 };

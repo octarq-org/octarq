@@ -173,6 +173,8 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/domains/{id}/records", Summary: "Create DNS Record", Tags: []string{"Domains"}, DefaultStatus: 201}, p.createRecord)
 		huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/domains/{id}/records/{rid}", Summary: "Update DNS Record", Tags: []string{"Domains"}}, p.updateRecord)
 		huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/domains/{id}/records/{rid}", Summary: "Delete DNS Record", Tags: []string{"Domains"}}, p.deleteRecord)
+		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/domains/{id}/email-blueprint", Summary: "Email DNS Blueprint", Tags: []string{"Domains"}}, p.emailBlueprint)
+		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/domains/{id}/apply-email-blueprint", Summary: "Apply Email DNS Blueprint", Tags: []string{"Domains"}, DefaultStatus: 200}, p.applyEmailBlueprint)
 
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/dns/ddns", Summary: "List DDNS Tokens", Tags: []string{"DDNS"}}, p.listDDNSTokens)
 		huma.Register(api, huma.Operation{Method: "POST", Path: "/api/dns/ddns", Summary: "Create DDNS Token", Tags: []string{"DDNS"}, DefaultStatus: 201}, p.createDDNSToken)
