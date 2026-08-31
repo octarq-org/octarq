@@ -160,6 +160,24 @@ func TestServer(t *testing.T) {
 			t.Errorf("GET %s on disallowed host: got %d, want 404", path, rec.Code)
 		}
 	}
+
+	// 9. Robots.txt returns 200 and disallows all robots across any host
+	for _, host := range []string{"admin.example.com", "links.example.com", "anydomain.com"} {
+		reqRobots := httptest.NewRequest("GET", "/robots.txt", nil)
+		reqRobots.Host = host
+		recRobots := httptest.NewRecorder()
+		srv.ServeHTTP(recRobots, reqRobots)
+		if recRobots.Code != http.StatusOK {
+			t.Errorf("GET /robots.txt on host %s: got %d, want 200", host, recRobots.Code)
+		}
+		if ct := recRobots.Header().Get("Content-Type"); !strings.Contains(ct, "text/plain") {
+			t.Errorf("GET /robots.txt content-type: got %q, want text/plain", ct)
+		}
+		expectedBody := "User-agent: *\nDisallow: /\n"
+		if recRobots.Body.String() != expectedBody {
+			t.Errorf("GET /robots.txt body: got %q, want %q", recRobots.Body.String(), expectedBody)
+		}
+	}
 }
 
 // TestMarketingEntryForwardsQueryString verifies campaign params on /signup and

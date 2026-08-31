@@ -332,9 +332,10 @@ func TestUpdateLinkEdgeBranches(t *testing.T) {
 
 	exp := time.Now().Add(24 * time.Hour)
 	enabled := false
+	pw := "pw"
 	out, err := p.updateLink(ctx, &UpdateLinkInput{Ctx: mkCtx(req), ID: linkID, Body: linkDTO{
 		Slug: "u1-renamed", Target: "https://b.example", Note: "n", Title: "t", Tags: "x",
-		Password: "pw", ExpiresAt: &exp, ExpiredURL: "old.example", ClickLimit: 9, Archived: &enabled, Enabled: &enabled,
+		Password: &pw, ExpiresAt: &exp, ExpiredURL: "old.example", ClickLimit: 9, Archived: &enabled, Enabled: &enabled,
 	}})
 	if err != nil {
 		t.Fatalf("update: %v", err)

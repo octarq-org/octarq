@@ -18,7 +18,7 @@ type linkDTO struct {
 	Host         string       `json:"host,omitempty"`
 	Slug         string       `json:"slug,omitempty"`
 	Target       string       `json:"target"`
-	Password     string       `json:"password,omitempty"`
+	Password     *string      `json:"password,omitempty"`
 	Note         string       `json:"note,omitempty"`
 	Title        string       `json:"title,omitempty"`
 	Tags         string       `json:"tags,omitempty"`
@@ -170,10 +170,14 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 	if input.Body.Enabled != nil {
 		enabled = *input.Body.Enabled
 	}
+	var pw string
+	if input.Body.Password != nil {
+		pw = *input.Body.Password
+	}
 	l := Link{
 		OrgID: p.orgID(r),
 		Host:  strings.TrimSpace(input.Body.Host), Slug: slug, Target: normalized,
-		Password: input.Body.Password, Note: input.Body.Note, Title: input.Body.Title, Tags: input.Body.Tags,
+		Password: pw, Note: input.Body.Note, Title: input.Body.Title, Tags: input.Body.Tags,
 		ExpiresAt: input.Body.ExpiresAt, ExpiredURL: input.Body.ExpiredURL, ClickLimit: input.Body.ClickLimit,
 		RoutingRules: input.Body.RoutingRules,
 		Enabled:      enabled,
