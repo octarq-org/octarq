@@ -28,6 +28,8 @@ export interface Email {
   subject: string;
   text: string;
   html: string;
+  folder?: string;
+  unsubscribeUrl?: string;
   read: boolean;
   note: string;
   attachments: string; // JSON string of Attachment[]
@@ -35,6 +37,16 @@ export interface Email {
   authDkim: string;  // pass|fail|none|""
   authDmarc: string; // pass|fail|none|""
   receivedAt: string;
+}
+
+export interface MailContact {
+  id: number;
+  address: string;
+  name: string;
+  interactionCount: number;
+  lastSeenAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface MailSuppression {
@@ -52,9 +64,10 @@ export const mailApi = {
   createMailbox: (m: Partial<Mailbox>) => req<Mailbox>("POST", "/api/mailboxes", m),
   updateMailbox: (id: number, m: Partial<Mailbox>) => req<Mailbox>("PUT", `/api/mailboxes/${id}`, m),
   deleteMailbox: (id: number) => req("DELETE", `/api/mailboxes/${id}`),
-  emails: (mailboxId?: number, params?: { q?: string; limit?: number; offset?: number }) => {
+  emails: (mailboxId?: number, params?: { q?: string; folder?: string; limit?: number; offset?: number }) => {
     const sp = new URLSearchParams();
     if (mailboxId) sp.set("mailbox", mailboxId.toString());
+    if (params?.folder) sp.set("folder", params.folder);
     if (params?.q) sp.set("q", params.q);
     if (params?.limit) sp.set("limit", params.limit.toString());
     if (params?.offset) sp.set("offset", params.offset.toString());
@@ -64,6 +77,8 @@ export const mailApi = {
   email: (id: number) => req<Email>("GET", `/api/emails/${id}`),
   updateEmail: (id: number, e: { read?: boolean; note?: string }) =>
     req<Email>("PUT", `/api/emails/${id}`, e),
+  updateEmailFolder: (id: number, folder: string) =>
+    req<Email>("PUT", `/api/mail/emails/${id}/folder`, { folder }),
   deleteEmail: (id: number) => req("DELETE", `/api/emails/${id}`),
   readAllEmails: (mailbox?: number) =>
     req<{ ok: boolean; updated: number }>(
@@ -73,6 +88,18 @@ export const mailApi = {
   rawEmailUrl: (id: number) => `/api/emails/${id}/raw`,
   sendEmail: (m: { from?: string; to: string[]; subject: string; text?: string; html?: string; smtpSenderId?: number; trackLinks?: boolean }) =>
     req("POST", "/api/emails/send", m),
+  contacts: (params?: { query?: string; q?: string; limit?: number; offset?: number }) => {
+    const sp = new URLSearchParams();
+    const q = params?.query ?? params?.q;
+    if (q) sp.set("q", q);
+    if (params?.limit) sp.set("limit", params.limit.toString());
+    if (params?.offset) sp.set("offset", params.offset.toString());
+    const qs = sp.toString();
+    return req<MailContact[]>("GET", `/api/mail/contacts${qs ? "?" + qs : ""}`);
+  },
+  saveDraft: (d: { id?: number; mailboxId?: number; to: string; subject: string; text: string; html?: string }) =>
+    req<Email>("POST", "/api/mail/drafts", d),
+  deleteDraft: (id: number) => req<{ ok: boolean }>("DELETE", `/api/mail/drafts/${id}`),
   suppressions: () => req<MailSuppression[]>("GET", "/api/mail/suppressions"),
   createSuppression: (address: string) => req<MailSuppression>("POST", "/api/mail/suppressions", { address }),
   deleteSuppression: (id: number) => req("DELETE", `/api/mail/suppressions/${id}`),

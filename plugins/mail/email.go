@@ -12,6 +12,7 @@ import (
 type ListEmailsInput struct {
 	Ctx     huma.Context `hidden:"true"`
 	Mailbox string       `query:"mailbox"`
+	Folder  string       `query:"folder"`
 	Q       string       `query:"q"`
 	Limit   int          `query:"limit"`
 	Offset  int          `query:"offset"`
@@ -38,6 +39,9 @@ func (p *Plugin) listEmails(ctx context.Context, input *ListEmailsInput) (*ListE
 	q := p.db.Where("mailbox_id IN (?)", orgMailboxes).Order("received_at DESC").Omit("Raw", "HTML")
 	if input.Mailbox != "" {
 		q = q.Where("mailbox_id = ?", input.Mailbox)
+	}
+	if input.Folder != "" {
+		q = q.Where("folder = ?", input.Folder)
 	}
 	if input.Q != "" {
 		like := "%" + input.Q + "%"

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"strings"
 	"time"
 
@@ -61,55 +60,6 @@ func (p *Plugin) inbound(ctx context.Context, input *InboundInput) (*InboundOutp
 	return p.processInboundMail(ctx, org.ID, overrideTo, raw)
 }
 
-type InboundGenericInput struct {
-	Ctx     huma.Context `hidden:"true"`
-	OrgSlug string       `path:"orgSlug"`
-	Token   string       `path:"token"`
-}
-
-func (i *InboundGenericInput) Resolve(ctx huma.Context) []error {
-	i.Ctx = ctx
-	return nil
-}
-
-func (p *Plugin) inboundGeneric(ctx context.Context, input *InboundGenericInput) (*InboundOutput, error) {
-	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
-	}
-	r, _ := humago.Unwrap(input.Ctx)
-
-	// Auth & Tenant check: look up org by slug, but return generic 401 for unknown org
-	// so no org existence is leaked in HTTP responses.
-	var org models.Org
-	if p.db.Where("slug = ?", input.OrgSlug).First(&org).Error != nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
-	}
-
-	// Auth is the org token, in the path. This endpoint exists for providers
-	// where the only thing you can configure is a URL — SendGrid Inbound Parse,
-	// Mailgun routes — so demanding a custom header would defeat its purpose.
-	// It is the same shape n8n and every other webhook receiver uses, and it
-	// rotates from Mail settings (an empty inboundToken there mints a fresh
-	// UUID), which is what makes a URL-borne secret workable: if it leaks, you
-	// change it and repaste one URL.
-	if org.InboundToken == "" || subtle.ConstantTimeCompare([]byte(input.Token), []byte(org.InboundToken)) != 1 {
-		p.recordInboundAuthFailure(r, org.ID, "generic")
-		return nil, huma.Error401Unauthorized("unauthorized")
-	}
-
-	raw, err := extractRawEmail(r)
-	if err != nil || len(raw) == 0 {
-		return nil, huma.Error400BadRequest("read body")
-	}
-
-	overrideTo := r.Header.Get("X-Octarq-To")
-	if overrideTo == "" {
-		overrideTo = r.Header.Get("X-Inbound-To")
-	}
-
-	return p.processInboundMail(ctx, org.ID, overrideTo, raw)
-}
-
 // recordInboundAuthFailure leaves a trace when someone presents the wrong
 // inbound token.
 //
@@ -124,53 +74,6 @@ func (p *Plugin) inboundGeneric(ctx context.Context, input *InboundGenericInput)
 // The token itself is never recorded, in any form. An audit trail that stores
 // attempted credentials becomes a credential store the moment someone
 // mistypes their real token into the wrong tenant's URL.
-func (p *Plugin) recordInboundAuthFailure(r *http.Request, orgID uint, route string) {
-	ip := reporterIP(r)
-	log.Printf("inbound: rejected bad token for org %d via %s from %s", orgID, route, ip)
-	if p.audit == nil || r == nil {
-		return
-	}
-	p.audit(r, "email.inbound.auth_failed", "org", orgID, map[string]any{
-		"route": route,
-		"ip":    ip,
-	})
-}
-
-func findMultipartField(r *http.Request, names []string) []byte {
-	if r.MultipartForm == nil {
-		return nil
-	}
-	for _, name := range names {
-		if files, ok := r.MultipartForm.File[name]; ok && len(files) > 0 {
-			f, err := files[0].Open()
-			if err == nil {
-				b, readErr := io.ReadAll(io.LimitReader(f, 25<<20))
-				_ = f.Close()
-				if readErr == nil && len(b) > 0 {
-					return b
-				}
-			}
-		}
-	}
-	for _, name := range names {
-		if vals, ok := r.MultipartForm.Value[name]; ok && len(vals) > 0 && vals[0] != "" {
-			return []byte(vals[0])
-		}
-	}
-	return nil
-}
-
-func extractRawEmail(r *http.Request) ([]byte, error) {
-	ct := r.Header.Get("Content-Type")
-	if strings.HasPrefix(strings.ToLower(ct), "multipart/form-data") {
-		if err := r.ParseMultipartForm(25 << 20); err == nil {
-			if b := findMultipartField(r, []string{"email", "raw", "body-mime", "message", "eml", "body"}); len(b) > 0 {
-				return b, nil
-			}
-		}
-	}
-	return io.ReadAll(io.LimitReader(r.Body, 25<<20))
-}
 
 func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo string, raw []byte) (*InboundOutput, error) {
 	ctx = plugin.WithOrgID(ctx, orgID)
@@ -224,12 +127,24 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 		}
 	}
 
+	unsubURL := ExtractUnsubscribeURL(raw)
+	p.upsertContact(mb.OrgID, from)
+
 	e := Email{
-		MailboxID: mb.ID, MessageID: msgID,
-		FromAddr: from, ToAddr: to, Subject: subject,
-		Text: textBody, HTML: htmlBody,
-		Attachments: att, ReceivedAt: receivedAt,
-		AuthSPF: spf, AuthDKIM: dkim, AuthDMARC: dmarc,
+		MailboxID:      mb.ID,
+		MessageID:      msgID,
+		FromAddr:       from,
+		ToAddr:         to,
+		Subject:        subject,
+		Text:           textBody,
+		HTML:           htmlBody,
+		Folder:         "inbox",
+		UnsubscribeURL: unsubURL,
+		Attachments:    att,
+		ReceivedAt:     receivedAt,
+		AuthSPF:        spf,
+		AuthDKIM:       dkim,
+		AuthDMARC:      dmarc,
 	}
 	if err := p.db.Create(&e).Error; err != nil {
 		log.Printf("inbound: failed to store email: %v", err)

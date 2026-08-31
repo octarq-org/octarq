@@ -110,6 +110,10 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 	if p.recordUsage != nil {
 		p.recordUsage(p.orgID(r), usagemetric.MailOut, int64(len(msg.To)))
 	}
+	for _, rec := range input.Body.To {
+		p.upsertContact(orgID, rec)
+	}
+	p.recordSentEmail(orgID, s.FromEmail, strings.Join(input.Body.To, ", "), msg.Subject, msg.Text, msg.HTML)
 	p.sendLimiter.recordFailure(orgKey) // count this send against the per-org cap
 	return &SendEmailOutput{Body: map[string]bool{"ok": true}}, nil
 }

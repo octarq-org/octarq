@@ -5,6 +5,7 @@ import (
 	netmail "net/mail"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/octarq-org/octarq/internal/mail"
 	"github.com/octarq-org/octarq/internal/usagemetric"
@@ -138,4 +139,28 @@ func (p *Plugin) sendMail(orgID uint, to, subject, htmlBody, textBody string) er
 		return fmt.Errorf("no SMTP sender configured for org %d", orgID)
 	}
 	return p.deliverVia(&s, to, subject, htmlBody, textBody)
+}
+
+func (p *Plugin) recordSentEmail(orgID uint, from, to, subject, text, html string) {
+	var mb Mailbox
+	if err := p.db.Where("owner_id = ? AND address = ?", orgID, from).First(&mb).Error; err != nil {
+		if err := p.db.Where("owner_id = ?", orgID).First(&mb).Error; err != nil {
+			mb = Mailbox{OrgID: orgID, Address: from, Enabled: true, Note: "outbound"}
+			_ = p.db.Create(&mb).Error
+		}
+	}
+	if mb.ID != 0 {
+		sentEmail := Email{
+			MailboxID:  mb.ID,
+			FromAddr:   from,
+			ToAddr:     to,
+			Subject:    subject,
+			Text:       text,
+			HTML:       html,
+			Folder:     "sent",
+			Read:       true,
+			ReceivedAt: time.Now(),
+		}
+		_ = p.db.Create(&sentEmail).Error
+	}
 }

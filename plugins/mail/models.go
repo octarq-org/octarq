@@ -32,11 +32,14 @@ type Email struct {
 	Note        string `gorm:"type:text" json:"note"`
 	Attachments string `gorm:"type:text" json:"attachments"` // JSON array of {filename,contentType,size}
 	// Email authentication results from the receiving MTA (RFC 8601).
-	AuthSPF    string    `gorm:"size:16" json:"authSpf"`   // pass|fail|softfail|neutral|none
-	AuthDKIM   string    `gorm:"size:16" json:"authDkim"`  // pass|fail|none
-	AuthDMARC  string    `gorm:"size:16" json:"authDmarc"` // pass|fail|none
-	ReceivedAt time.Time `gorm:"index" json:"receivedAt"`
+	AuthSPF        string    `gorm:"size:16" json:"authSpf"`                      // pass|fail|softfail|neutral|none
+	AuthDKIM       string    `gorm:"size:16" json:"authDkim"`                     // pass|fail|none
+	AuthDMARC      string    `gorm:"size:16" json:"authDmarc"`                    // pass|fail|none
+	Folder         string    `gorm:"size:32;index;default:'inbox'" json:"folder"` // inbox, sent, drafts, trash, spam
+	UnsubscribeURL string    `gorm:"size:1024" json:"unsubscribeUrl"`
+	ReceivedAt     time.Time `gorm:"index" json:"receivedAt"`
 }
+
 type SMTPSender struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
 	OrgID     uint      `gorm:"column:owner_id;index" json:"-"`
@@ -64,4 +67,16 @@ type MailSuppression struct {
 	Count     int       `gorm:"default:1" json:"count"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// MailContact tracks address interaction history for auto-completion and index.
+type MailContact struct {
+	ID               uint      `gorm:"primaryKey" json:"id"`
+	OrgID            uint      `gorm:"column:owner_id;index:idx_contact_org_addr,unique;default:1" json:"-"`
+	Address          string    `gorm:"size:320;index:idx_contact_org_addr,unique" json:"address"`
+	Name             string    `gorm:"size:255" json:"name"`
+	InteractionCount int       `gorm:"default:1" json:"interactionCount"`
+	LastSeenAt       time.Time `gorm:"index" json:"lastSeenAt"`
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
 }
