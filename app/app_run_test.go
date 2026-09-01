@@ -46,6 +46,21 @@ func bootApp(t *testing.T) *App {
 	return a
 }
 
+type echoIn struct {
+	Message string `json:"message"`
+}
+
+type echoOut struct {
+	Reply string `json:"reply"`
+}
+
+type appTestReactor struct{}
+
+func (appTestReactor) Events() []string { return []string{"test.event"} }
+func (appTestReactor) React(ctx context.Context, env plugin.Envelope) error {
+	return nil
+}
+
 // providingPlugin is a stub plugin whose Mount Provides a fixed service name;
 // two of them providing the same name must make the shared registry refuse boot.
 type providingPlugin struct {
@@ -437,6 +452,39 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	ctx.Provide(svc, "svcval")
 	if v, ok := ctx.Lookup(svc); !ok || v != "svcval" {
 		t.Errorf("Lookup after Provide = %v (ok=%v), want svcval", v, ok)
+	}
+
+	// Exercise Tracer, Meter, GeoLookup, Enqueue, RegisterTask, RegisterReactor, RegisterTenantView, RegisterEndpoint
+	if ctx.Tracer != nil {
+		_ = ctx.Tracer("test-tracer")
+	}
+	if ctx.Meter != nil {
+		_ = ctx.Meter("test-meter")
+	}
+	if ctx.GeoLookup != nil {
+		_, _, _ = ctx.GeoLookup("1.1.1.1")
+	}
+	if ctx.RegisterTask != nil {
+		ctx.RegisterTask("test-task-"+p.name, func(ctx context.Context, payload []byte) error { return nil })
+	}
+	if ctx.Enqueue != nil {
+		_ = ctx.Enqueue(context.Background(), "test-task-"+p.name, []byte("payload"))
+	}
+	if ctx.RegisterReactor != nil {
+		_ = plugin.RegisterReactor(ctx, appTestReactor{})
+	}
+	if ctx.RegisterTenantView != nil {
+		ctx.RegisterTenantView(plugin.TenantView{Name: "tenant_test_" + p.name})
+	}
+	if ctx.RegisterEndpoint != nil {
+		_ = plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[echoIn, echoOut]{
+			Name:   "ep_" + p.name,
+			Method: "POST",
+			Path:   "/api/ep-" + p.name,
+			Handler: func(ctx context.Context, in echoIn) (*echoOut, error) {
+				return &echoOut{Reply: in.Message}, nil
+			},
+		})
 	}
 
 	// HTTP-only enablement behavior.

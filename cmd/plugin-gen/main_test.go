@@ -38,3 +38,19 @@ func TestNewRootCmd_ExecuteHelp(t *testing.T) {
 		t.Errorf("Execute gen --help failed: %v", err)
 	}
 }
+
+func TestNewRootCmd_ExecuteGen(t *testing.T) {
+	tmpDir := t.TempDir()
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"gen", "sample-plugin", "--dir", tmpDir, "--desc", "Sample plugin"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("Execute gen failed: %v", err)
+	}
+
+	// Error case with invalid name
+	cmdErr := newRootCmd()
+	cmdErr.SetArgs([]string{"gen", "invalid_name", "--dir", tmpDir})
+	if err := cmdErr.Execute(); err == nil {
+		t.Errorf("expected error executing gen with invalid name")
+	}
+}

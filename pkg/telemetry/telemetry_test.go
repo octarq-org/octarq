@@ -11,7 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/glebarez/sqlite"
 	"go.opentelemetry.io/otel/trace"
+	"gorm.io/gorm"
 )
 
 func TestTelemetryInitAndShutdown(t *testing.T) {
@@ -378,5 +380,150 @@ func TestOTLPExportersCreation(t *testing.T) {
 	}
 	if mExpGRPC != nil {
 		_ = mExpGRPC.Shutdown(ctx)
+	}
+}
+
+type dummyFlusher struct {
+	http.ResponseWriter
+	flushed bool
+}
+
+func (d *dummyFlusher) Flush() {
+	d.flushed = true
+}
+
+func TestResponseWriter_Flush_And_ImplicitHeader(t *testing.T) {
+	rec := httptest.NewRecorder()
+	df := &dummyFlusher{ResponseWriter: rec}
+	rw := &responseWriter{ResponseWriter: df}
+
+	// Write without WriteHeader
+	n, err := rw.Write([]byte("hello world"))
+	if err != nil || n != 11 {
+		t.Errorf("Write error: %v, n=%d", err, n)
+	}
+	if rw.status != http.StatusOK || rw.bytes != 11 {
+		t.Errorf("status=%d, bytes=%d", rw.status, rw.bytes)
+	}
+
+	rw.Flush()
+	if !df.flushed {
+		t.Errorf("expected dummyFlusher.Flush to be called")
+	}
+}
+
+func TestRegisterDBStatsMetrics(t *testing.T) {
+	// Nil checks
+	if err := RegisterDBStatsMetrics(nil, nil); err != nil {
+		t.Errorf("expected nil error for nil args, got %v", err)
+	}
+
+	ctx := context.Background()
+	cfg := Config{
+		Enabled:         true,
+		ServiceName:     "test-db",
+		MetricsExporter: "prometheus",
+	}
+	tel, err := Init(ctx, cfg)
+	if err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	defer tel.Shutdown(ctx)
+
+	meter := tel.MeterProvider.Meter("test-db-meter")
+	if err := RegisterDBStatsMetrics(meter, nil); err != nil {
+		t.Errorf("expected nil error for nil db, got %v", err)
+	}
+
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("failed to open sqlite: %v", err)
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("failed to get sql.DB: %v", err)
+	}
+	defer sqlDB.Close()
+
+	if err := RegisterDBStatsMetrics(meter, sqlDB); err != nil {
+		t.Fatalf("RegisterDBStatsMetrics failed: %v", err)
+	}
+
+	// Trigger metrics scrape so callbacks are called
+	promHandler := tel.PrometheusHandler()
+	rec := httptest.NewRecorder()
+	promReq := httptest.NewRequest("GET", "/metrics", nil)
+	promHandler.ServeHTTP(rec, promReq)
+	if rec.Code != http.StatusOK {
+		t.Errorf("metrics scrape failed: %d", rec.Code)
+	}
+}
+
+func TestNoopMetrics(t *testing.T) {
+	nm := NewNoopMetrics()
+	ctx := context.Background()
+	nm.RecordHTTPRequest(ctx, "GET", "/test", 200, time.Second, 100)
+	nm.RecordCacheHit(ctx, "redis")
+	nm.RecordCacheMiss(ctx, "redis")
+	nm.RecordQueueTask(ctx, "task", "ok", time.Second)
+	nm.RecordWebhookDelivery(ctx, "wh", 200, time.Second)
+}
+
+func TestTelemetry_ExtraBranches(t *testing.T) {
+	ctx := context.Background()
+
+	// Tracer with empty name
+	tr := Tracer("")
+	if tr == nil {
+		t.Error("expected non-nil default tracer")
+	}
+
+	// Telemetry without prometheus exporter -> PrometheusHandler returns 404
+	telNone := &Telemetry{}
+	h := telNone.PrometheusHandler()
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("GET", "/metrics", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("expected 404 from PrometheusHandler when exporter is nil, got %d", rec.Code)
+	}
+
+	// Init with MetricsExporter="none" and TracesExporter="none"
+	cfgNone := Config{
+		Enabled:         true,
+		ServiceName:     "test-none",
+		TracesExporter:  "none",
+		MetricsExporter: "none",
+	}
+	telN, err := Init(ctx, cfgNone)
+	if err != nil {
+		t.Fatalf("Init with none exporters failed: %v", err)
+	}
+	_ = telN.Shutdown(ctx)
+
+	// Init with MetricsExporter="otlp" and TracesExporter="otlp"
+	cfgOTLP := Config{
+		Enabled:         true,
+		ServiceName:     "test-otlp",
+		Endpoint:        "http://localhost:4318",
+		Protocol:        "http/protobuf",
+		TracesExporter:  "otlp",
+		MetricsExporter: "otlp",
+		Insecure:        true,
+	}
+	telO, err := Init(ctx, cfgOTLP)
+	if err != nil {
+		t.Fatalf("Init with otlp exporters failed: %v", err)
+	}
+	_ = telO.Shutdown(ctx)
+}
+
+func TestConfigFromEnv_EmptyDefaultsAndDisabled(t *testing.T) {
+	t.Setenv("OTEL_SDK_DISABLED", "true")
+	cfg := ConfigFromEnv("", "")
+	if cfg.Enabled {
+		t.Error("expected disabled when OTEL_SDK_DISABLED=true")
+	}
+	if cfg.ServiceName != "octarq" || cfg.ServiceVersion != "dev" {
+		t.Errorf("expected default octarq/dev, got %s/%s", cfg.ServiceName, cfg.ServiceVersion)
 	}
 }

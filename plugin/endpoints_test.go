@@ -1,9 +1,12 @@
 package plugin_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -501,5 +504,237 @@ func TestEndpointSpec_EndpointRequireApproval(t *testing.T) {
 	var ep plugin.Endpoint = specTrue
 	if !ep.EndpointRequireApproval() {
 		t.Errorf("expected Endpoint interface to return true for EndpointRequireApproval")
+	}
+}
+
+func TestEndpointSpec_SpecAndExecuteAgentJSON(t *testing.T) {
+	spec := plugin.EndpointSpec[echoIn, echoOut]{
+		Name: "agent_echo",
+		Handler: func(ctx context.Context, input echoIn) (*echoOut, error) {
+			if input.Message == "err" {
+				return nil, errors.New("echo failure")
+			}
+			return &echoOut{Reply: "echo:" + input.Message}, nil
+		},
+	}
+
+	if spec.Spec() == nil {
+		t.Errorf("expected non-nil Spec")
+	}
+
+	ctx := context.Background()
+
+	// Valid JSON
+	res, err := spec.ExecuteAgentJSON(ctx, `{"message":"agent"}`)
+	if err != nil || res.(*echoOut).Reply != "echo:agent" {
+		t.Fatalf("ExecuteAgentJSON failed: %v, res=%v", err, res)
+	}
+
+	// Empty string & null
+	resEmpty, errEmpty := spec.ExecuteAgentJSON(ctx, "")
+	if errEmpty != nil || resEmpty.(*echoOut).Reply != "echo:" {
+		t.Fatalf("ExecuteAgentJSON empty failed: %v, res=%v", errEmpty, resEmpty)
+	}
+	resNull, errNull := spec.ExecuteAgentJSON(ctx, "null")
+	if errNull != nil || resNull.(*echoOut).Reply != "echo:" {
+		t.Fatalf("ExecuteAgentJSON null failed: %v, res=%v", errNull, resNull)
+	}
+
+	// Invalid JSON
+	_, errBadJSON := spec.ExecuteAgentJSON(ctx, "{invalid-json")
+	if errBadJSON == nil {
+		t.Fatalf("expected error on invalid JSON")
+	}
+	if ae, ok := plugin.AsAgentError(errBadJSON); !ok || ae.Code != "INVALID_TOOL_ARGS" {
+		t.Errorf("expected INVALID_TOOL_ARGS AgentError, got %v", errBadJSON)
+	}
+
+	// Nil handler
+	nilHandlerSpec := plugin.EndpointSpec[echoIn, echoOut]{Name: "nil_handler"}
+	if _, err := nilHandlerSpec.ExecuteAgentJSON(ctx, `{}`); err == nil {
+		t.Errorf("expected error on nil handler in ExecuteAgentJSON")
+	}
+	if _, err := nilHandlerSpec.Execute(ctx, nil); err == nil {
+		t.Errorf("expected error on nil handler in Execute")
+	}
+
+	// Execute with nil input
+	resNilInput, errNilInput := spec.Execute(ctx, nil)
+	if errNilInput != nil || resNilInput.(*echoOut).Reply != "echo:" {
+		t.Errorf("Execute with nil input failed: %v", errNilInput)
+	}
+}
+
+func TestRegisterTenantView(t *testing.T) {
+	// Nil context
+	plugin.RegisterTenantView(nil, plugin.TenantView{Name: "tenant_links"})
+
+	// Context with nil callback
+	ctx := &plugin.Context{}
+	plugin.RegisterTenantView(ctx, plugin.TenantView{Name: "tenant_links"})
+
+	// Context with callback
+	var registered plugin.TenantView
+	ctx.RegisterTenantView = func(v plugin.TenantView) {
+		registered = v
+	}
+	plugin.RegisterTenantView(ctx, plugin.TenantView{Name: "tenant_links"})
+	if registered.Name != "tenant_links" {
+		t.Errorf("expected tenant_links, got %s", registered.Name)
+	}
+}
+
+func TestPlugin_StartSpan(t *testing.T) {
+	ctx, span := plugin.StartSpan(context.Background(), "test-plugin", "test-op")
+	if span == nil || ctx == nil {
+		t.Errorf("expected valid ctx and span from StartSpan")
+	}
+	span.End()
+}
+
+func TestEndpointSpec_RegisterHTTP_And_MCP_Execution(t *testing.T) {
+	// POST endpoint
+	specPost := plugin.EndpointSpec[echoIn, echoOut]{
+		Name:        "post_echo",
+		Method:      "POST",
+		Path:        "/api/post-echo",
+		RequireAuth: true,
+		RequireRole: []string{"admin"},
+		ExposeMCP:   true,
+		Handler: func(ctx context.Context, input echoIn) (*echoOut, error) {
+			if input.Message == "ae" {
+				return nil, plugin.NewAgentError(400, "BAD_MSG", "bad msg", "fix it", false)
+			}
+			if input.Message == "err" {
+				return nil, errors.New("internal err")
+			}
+			if input.Message == "nil" {
+				return nil, nil
+			}
+			return &echoOut{Reply: "post:" + input.Message}, nil
+		},
+	}
+
+	type queryIn struct {
+		Message string `query:"message" json:"message"`
+	}
+
+	// GET endpoint
+	specGet := plugin.EndpointSpec[queryIn, echoOut]{
+		Name:        "get_echo",
+		Method:      "GET",
+		Path:        "/api/get-echo",
+		RequireAuth: true,
+		RequireRole: []string{"admin"},
+		ExposeMCP:   true,
+		Handler: func(ctx context.Context, input queryIn) (*echoOut, error) {
+			if input.Message == "ae" {
+				return nil, plugin.NewAgentError(403, "FORBIDDEN_GET", "forbidden", "", false)
+			}
+			if input.Message == "err" {
+				return nil, errors.New("get err")
+			}
+			if input.Message == "nil" {
+				return nil, nil
+			}
+			return &echoOut{Reply: "get:" + input.Message}, nil
+		},
+	}
+
+	router := http.NewServeMux()
+	api := humago.New(router, huma.DefaultConfig("Test API", "1.0.0"))
+
+	opts := plugin.HTTPOptions{
+		RequireAuth: func(ctx context.Context) (uint, error) {
+			return 1, nil
+		},
+		RequireRole: func(ctx context.Context, roles []string) error {
+			return nil
+		},
+	}
+
+	if err := specPost.RegisterHTTP(api, opts); err != nil {
+		t.Fatalf("RegisterHTTP POST failed: %v", err)
+	}
+	if err := specGet.RegisterHTTP(api, opts); err != nil {
+		t.Fatalf("RegisterHTTP GET failed: %v", err)
+	}
+
+	// Test POST success
+	body, _ := json.Marshal(map[string]any{"message": "hello"})
+	req := httptest.NewRequest("POST", "/api/post-echo", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Errorf("POST expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Test POST AgentError
+	bodyAE, _ := json.Marshal(map[string]any{"message": "ae"})
+	reqAE := httptest.NewRequest("POST", "/api/post-echo", bytes.NewReader(bodyAE))
+	reqAE.Header.Set("Content-Type", "application/json")
+	wAE := httptest.NewRecorder()
+	router.ServeHTTP(wAE, reqAE)
+	if wAE.Code != http.StatusBadRequest {
+		t.Errorf("POST expected 400 for AgentError, got %d", wAE.Code)
+	}
+
+	// Test POST nil output
+	bodyNil, _ := json.Marshal(map[string]any{"message": "nil"})
+	reqNil := httptest.NewRequest("POST", "/api/post-echo", bytes.NewReader(bodyNil))
+	reqNil.Header.Set("Content-Type", "application/json")
+	wNil := httptest.NewRecorder()
+	router.ServeHTTP(wNil, reqNil)
+	if wNil.Code != http.StatusOK {
+		t.Errorf("POST nil output expected 200, got %d", wNil.Code)
+	}
+
+	// Test GET success
+	reqGet := httptest.NewRequest("GET", "/api/get-echo?message=hello", nil)
+	wGet := httptest.NewRecorder()
+	router.ServeHTTP(wGet, reqGet)
+	if wGet.Code != http.StatusOK {
+		t.Errorf("GET expected 200, got %d: %s", wGet.Code, wGet.Body.String())
+	}
+
+	// Test GET AgentError
+	reqGetAE := httptest.NewRequest("GET", "/api/get-echo?message=ae", nil)
+	wGetAE := httptest.NewRecorder()
+	router.ServeHTTP(wGetAE, reqGetAE)
+	if wGetAE.Code != http.StatusForbidden {
+		t.Errorf("GET expected 403 for AgentError, got %d", wGetAE.Code)
+	}
+
+	// Test GET nil output
+	reqGetNil := httptest.NewRequest("GET", "/api/get-echo?message=nil", nil)
+	wGetNil := httptest.NewRecorder()
+	router.ServeHTTP(wGetNil, reqGetNil)
+	if wGetNil.Code != http.StatusOK {
+		t.Errorf("GET nil output expected 200, got %d", wGetNil.Code)
+	}
+
+	// Test MCP tool invocation via client
+	ctx := context.Background()
+	mcpSrv := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	if err := specPost.RegisterMCP(mcpSrv); err != nil {
+		t.Fatalf("RegisterMCP failed: %v", err)
+	}
+	mcpCli := mcp.NewClient(&mcp.Implementation{Name: "client", Version: "1.0"}, nil)
+	sT, cT := mcp.NewInMemoryTransports()
+	sSes, _ := mcpSrv.Connect(ctx, sT, nil)
+	defer sSes.Close()
+	cSes, _ := mcpCli.Connect(ctx, cT, nil)
+	defer cSes.Close()
+
+	callRes, err := cSes.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "post_echo",
+		Arguments: map[string]any{"message": "mcp-msg"},
+	})
+	if err != nil {
+		t.Fatalf("CallTool failed: %v", err)
+	}
+	if len(callRes.Content) == 0 {
+		t.Fatalf("CallTool returned empty content")
 	}
 }

@@ -91,3 +91,27 @@ func TestScaffold_InvalidName(t *testing.T) {
 		}
 	}
 }
+
+func TestScaffold_EmptyRootAndDesc(t *testing.T) {
+	tmpDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
+
+	if err := Scaffold("", "auto-desc", ""); err != nil {
+		t.Fatalf("Scaffold with empty root and desc failed: %v", err)
+	}
+
+	readme, err := os.ReadFile("auto-desc/README.md")
+	if err != nil {
+		t.Fatalf("failed to read README.md: %v", err)
+	}
+	if !strings.Contains(string(readme), "Auto Desc plugin for Octarq") {
+		t.Errorf("expected auto description in README.md, got: %s", string(readme))
+	}
+
+	// Test mkdir failure
+	if err := Scaffold("/dev/null/impossible", "sub-plugin", ""); err == nil {
+		t.Errorf("expected error when target directory cannot be created")
+	}
+}

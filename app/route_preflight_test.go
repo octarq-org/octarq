@@ -174,11 +174,18 @@ func TestPatternPath(t *testing.T) {
 		"/api/products":           "/api/products",
 		"example.com/api/x/a/b":   "/api/x/a/b",
 		"GET example.com/api/foo": "/api/foo",
+		"nopath":                  "nopath",
 	}
 	for in, want := range cases {
 		if got := patternPath(in); got != want {
 			t.Errorf("patternPath(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestPluginIsThirdParty_Nil(t *testing.T) {
+	if pluginIsThirdParty(nil) {
+		t.Errorf("expected false for nil plugin")
 	}
 }
 

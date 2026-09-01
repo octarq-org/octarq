@@ -258,4 +258,119 @@ func TestRedisCache_WithFakeServer(t *testing.T) {
 	if err := c.Delete(ctx, "k"); err != nil {
 		t.Errorf("Delete expected nil, got %v", err)
 	}
+
+	unmarshallable := make(chan int)
+	if err := c.Set(ctx, "chan", unmarshallable, time.Minute); err == nil {
+		t.Errorf("expected Set with unmarshallable value on RedisCache to error")
+	}
+}
+
+func TestNoopCache(t *testing.T) {
+	t.Parallel()
+	var nc NoopCache
+	ctx := context.Background()
+	if nc.IsRedis() {
+		t.Errorf("expected NoopCache.IsRedis to be false")
+	}
+	var dst string
+	if nc.Get(ctx, "any", &dst) {
+		t.Errorf("expected NoopCache.Get to be false")
+	}
+	if err := nc.Set(ctx, "any", "val", time.Hour); err != nil {
+		t.Errorf("expected NoopCache.Set to be nil, got %v", err)
+	}
+	if err := nc.Delete(ctx, "any"); err != nil {
+		t.Errorf("expected NoopCache.Delete to be nil, got %v", err)
+	}
+}
+
+func TestNewMemory_And_NewMemoryScoped(t *testing.T) {
+	t.Parallel()
+	mem := NewMemory()
+	if mem == nil || mem.IsRedis() {
+		t.Errorf("expected valid non-redis MemoryCache")
+	}
+
+	scoped := NewMemoryScoped()
+	if scoped == nil {
+		t.Fatalf("expected valid ScopedCache")
+	}
+
+	ctx := context.Background()
+	_ = scoped.Set(ctx, "item", "val", time.Minute)
+	var dst string
+	ok, err := scoped.Get(ctx, "item", &dst)
+	if !ok || err != nil || dst != "val" {
+		t.Errorf("expected item=val, got ok=%v, err=%v, dst=%q", ok, err, dst)
+	}
+}
+
+func TestScopedCache_InvalidateTag_And_NilBackend(t *testing.T) {
+	t.Parallel()
+	backend := NewMemoryCache(100)
+	sc := NewScoped(backend, "test-scope")
+	ctx := context.Background()
+
+	// Tag invalidation when no tags registered
+	if err := sc.InvalidateTag(ctx, "nonexistent"); err != nil {
+		t.Errorf("expected nil error on nonexistent tag, got %v", err)
+	}
+
+	// Tag invalidation with populated tag
+	if concrete, ok := sc.(*ScopedCache); ok {
+		concrete.mu.Lock()
+		concrete.tags["my-tag"] = map[string]struct{}{"test-scope:key1": {}, "test-scope:key2": {}}
+		concrete.mu.Unlock()
+		_ = backend.Set(ctx, "test-scope:key1", "val1", time.Minute)
+		_ = backend.Set(ctx, "test-scope:key2", "val2", time.Minute)
+
+		if err := sc.InvalidateTag(ctx, "my-tag"); err != nil {
+			t.Errorf("expected InvalidateTag to succeed, got %v", err)
+		}
+		var dst string
+		if backend.Get(ctx, "test-scope:key1", &dst) || backend.Get(ctx, "test-scope:key2", &dst) {
+			t.Errorf("expected tagged keys to be invalidated")
+		}
+	}
+
+	// Nil backend checks
+	nilScoped := NewScoped(nil, "nil-scope")
+	var dst string
+	ok, err := nilScoped.Get(ctx, "k", &dst)
+	if ok || err != nil {
+		t.Errorf("nil backend Get expected false, nil; got %v, %v", ok, err)
+	}
+	if err := nilScoped.Set(ctx, "k", "v", time.Minute); err != nil {
+		t.Errorf("nil backend Set expected nil, got %v", err)
+	}
+	if err := nilScoped.Delete(ctx, "k"); err != nil {
+		t.Errorf("nil backend Delete expected nil, got %v", err)
+	}
+	if err := nilScoped.InvalidateTag(ctx, "tag1"); err != nil {
+		t.Errorf("nil backend InvalidateTag expected nil, got %v", err)
+	}
+}
+
+func TestMemoryCache_EdgeCases(t *testing.T) {
+	t.Parallel()
+	mc := NewMemoryCache(0) // should fallback to 10000
+	ctx := context.Background()
+
+	// Test dst == nil
+	_ = mc.Set(ctx, "key1", "val1", time.Minute)
+	if !mc.Get(ctx, "key1", nil) {
+		t.Errorf("expected Get with dst=nil to return true for existing key")
+	}
+
+	// Test unmarshal failure
+	var intDst int
+	if mc.Get(ctx, "key1", &intDst) {
+		t.Errorf("expected unmarshal failure to return false")
+	}
+
+	// Test Set marshal error
+	unmarshallable := make(chan int)
+	if err := mc.Set(ctx, "chan", unmarshallable, time.Minute); err == nil {
+		t.Errorf("expected Set with unmarshallable value to return error")
+	}
 }
