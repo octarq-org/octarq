@@ -703,3 +703,156 @@ func (f *fakeNonStreamProvider) CheapModel() string   { return "fake-cheap" }
 func (f *fakeNonStreamProvider) Complete(_ context.Context, _ llmprovider.Request) (llmprovider.Response, error) {
 	return llmprovider.Response{Text: f.text}, nil
 }
+
+type recordingTracer struct {
+	starts []string
+	ends   []string
+	turns  []string
+}
+
+func (r *recordingTracer) StepStart(_ context.Context, stepID string) {
+	r.starts = append(r.starts, stepID)
+}
+
+func (r *recordingTracer) StepEnd(_ context.Context, stepID string, _ error) {
+	r.ends = append(r.ends, stepID)
+}
+
+func (r *recordingTracer) TurnEnd(_ context.Context, turnID string, _ TurnStatus) {
+	r.turns = append(r.turns, turnID)
+}
+
+func TestNopTracer(t *testing.T) {
+	t.Parallel()
+	var tr NopTracer
+	ctx := context.Background()
+	tr.StepStart(ctx, "s1")
+	tr.StepEnd(ctx, "s1", nil)
+	tr.TurnEnd(ctx, "t1", TurnStatusDone)
+}
+
+func TestProfile_MaxSteps(t *testing.T) {
+	t.Parallel()
+	if got := ProfileNormal.MaxSteps(false); got != MaxStepsNormal {
+		t.Errorf("ProfileNormal false = %d, want %d", got, MaxStepsNormal)
+	}
+	if got := ProfileNormal.MaxSteps(true); got != MaxStepsNormal {
+		t.Errorf("ProfileNormal true = %d, want %d", got, MaxStepsNormal)
+	}
+	if got := ProfileReactor.MaxSteps(false); got != MaxStepsReactor {
+		t.Errorf("ProfileReactor false = %d, want %d", got, MaxStepsReactor)
+	}
+	if got := ProfileReactor.MaxSteps(true); got != MaxStepsReactor {
+		t.Errorf("ProfileReactor true = %d, want %d", got, MaxStepsReactor)
+	}
+	if got := ProfileReactorReadOnly.MaxSteps(false); got != MaxStepsReadOnly {
+		t.Errorf("ProfileReactorReadOnly false = %d, want %d", got, MaxStepsReadOnly)
+	}
+	if got := ProfileReactorReadOnly.MaxSteps(true); got != MaxStepsReactor {
+		t.Errorf("ProfileReactorReadOnly true = %d, want %d", got, MaxStepsReactor)
+	}
+	if got := Profile(999).MaxSteps(false); got != MaxStepsNormal {
+		t.Errorf("Profile(999) = %d, want %d", got, MaxStepsNormal)
+	}
+}
+
+func TestRunner_WithTracerAndOptions(t *testing.T) {
+	t.Parallel()
+	tr := &recordingTracer{}
+	comp := &fakeCompleter{
+		responses: []string{
+			"Thinking before call\n" + toolCallBlock("lookup", `{"id":"1"}`) + "\nThinking after call",
+			"done final answer",
+		},
+	}
+	exec := &fakeExecutor{
+		outputs: map[string]string{"lookup": "result-1"},
+		errs:    map[string]error{},
+	}
+
+	runner := NewRunner(comp, exec,
+		WithTracer(tr),
+		WithModel("test-model-4"),
+		WithSystem("You are a helpful assistant"),
+	)
+	sess := &Session{ID: "sess-tr", OrgID: 10}
+	turn := &Turn{Input: "hi"}
+
+	if err := runner.Run(context.Background(), sess, turn); err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+	if len(tr.starts) != 1 || len(tr.ends) != 1 || len(tr.turns) != 1 {
+		t.Errorf("tracer mismatch: starts=%v, ends=%v, turns=%v", tr.starts, tr.ends, tr.turns)
+	}
+	if turn.Status != TurnStatusDone {
+		t.Errorf("turn status = %d, want %d", turn.Status, TurnStatusDone)
+	}
+}
+
+func TestRunner_CompleterError(t *testing.T) {
+	t.Parallel()
+	errComp := &errorCompleter{err: errors.New("provider timeout")}
+	runner := NewRunner(errComp, &fakeExecutor{})
+	sess := &Session{ID: "sess-err", OrgID: 1}
+	turn := &Turn{Input: "hello"}
+
+	err := runner.Run(context.Background(), sess, turn)
+	if err == nil || !strings.Contains(err.Error(), "provider timeout") {
+		t.Fatalf("expected provider timeout error, got %v", err)
+	}
+	if turn.Status != TurnStatusFailed {
+		t.Errorf("turn status = %d, want %d", turn.Status, TurnStatusFailed)
+	}
+}
+
+type errorCompleter struct {
+	err error
+}
+
+func (e *errorCompleter) Complete(_ context.Context, _ string, _ string, _ []Message) (string, error) {
+	return "", e.err
+}
+
+func TestRunner_GenericToolError(t *testing.T) {
+	t.Parallel()
+	comp := &fakeCompleter{
+		responses: []string{
+			toolCallBlock("fail_tool", "{}"),
+			"handled generic error",
+		},
+	}
+	exec := &fakeExecutor{
+		outputs: map[string]string{},
+		errs:    map[string]error{"fail_tool": errors.New("network disconnect")},
+	}
+
+	runner := NewRunner(comp, exec)
+	sess := &Session{ID: "sess-gen-err", OrgID: 1}
+	turn := &Turn{Input: "run failing tool"}
+
+	if err := runner.Run(context.Background(), sess, turn); err != nil {
+		t.Fatalf("unexpected runner error: %v", err)
+	}
+	if len(turn.Steps) != 1 {
+		t.Fatalf("expected 1 step, got %d", len(turn.Steps))
+	}
+	if turn.Steps[0].Err == nil || turn.Steps[0].Err.Error() != "network disconnect" {
+		t.Errorf("expected network disconnect error in Step.Err, got %v", turn.Steps[0].Err)
+	}
+}
+
+func TestParseToolCalls_EdgeCases(t *testing.T) {
+	t.Parallel()
+
+	// Missing end marker
+	calls, rem := parseToolCalls("```tool_call\n{\"name\":\"foo\"}")
+	if len(calls) != 0 || !strings.Contains(rem, "```tool_call") {
+		t.Errorf("missing end marker: calls=%v, rem=%q", calls, rem)
+	}
+
+	// Bad json line inside block
+	calls, rem = parseToolCalls("```tool_call\ninvalid json\n{\"name\":\"valid\",\"args\":\"{}\"}\n\n```")
+	if len(calls) != 1 || calls[0].Name != "valid" {
+		t.Errorf("invalid json line handling: calls=%v, rem=%q", calls, rem)
+	}
+}

@@ -179,7 +179,8 @@ func TestUpdateEmailFolder(t *testing.T) {
 	}
 
 	// Move to trash
-	upIn := &UpdateEmailFolderInput{Ctx: mkCtx(asOrg("1")), ID: email.ID}
+	upIn := &UpdateEmailFolderInput{ID: email.ID}
+	_ = upIn.Resolve(mkCtx(asOrg("1")))
 	upIn.Body.Folder = "trash"
 	upOut, err := p.updateEmailFolder(ctx, upIn)
 	if err != nil || upOut.Body.Folder != "trash" {

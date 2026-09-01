@@ -202,3 +202,24 @@ func TestEngine_NonEndpointRegistration(t *testing.T) {
 		t.Errorf("expected error for non-endpoint registration, got %v", err)
 	}
 }
+
+func TestEngine_Lookup(t *testing.T) {
+	eng := endpoint.NewEngine()
+	spec := plugin.EndpointSpec[createItemIn, createItemOut]{
+		Name: "test_lookup",
+		Handler: func(ctx context.Context, in createItemIn) (*createItemOut, error) {
+			return &createItemOut{ID: "1"}, nil
+		},
+	}
+	_ = eng.Register(spec)
+
+	ep, ok := eng.Lookup("test_lookup")
+	if !ok || ep == nil || ep.EndpointName() != "test_lookup" {
+		t.Errorf("expected to find test_lookup, got ok=%v, ep=%v", ok, ep)
+	}
+
+	epMissing, okMissing := eng.Lookup("missing")
+	if okMissing || epMissing != nil {
+		t.Errorf("expected not found for missing endpoint, got ok=%v, ep=%v", okMissing, epMissing)
+	}
+}

@@ -101,3 +101,88 @@ func TestGatedAPI(t *testing.T) {
 		})
 	}
 }
+
+func TestRecordingAPI_And_Collisions(t *testing.T) {
+	realMux := http.NewServeMux()
+	config := huma.DefaultConfig("Test API", "1.0.0")
+	realAPI := humago.New(realMux, config)
+	routes := newRouteRegistry()
+
+	recAPI := &recordingAPI{
+		API: realAPI,
+		rAdapter: &recordingAdapter{
+			Adapter: realAPI.Adapter(),
+			routes:  routes,
+			owner:   "core-plugin",
+		},
+	}
+
+	type TestInput struct{}
+	type TestOutput struct {
+		Body struct {
+			Message string `json:"message"`
+		}
+	}
+
+	huma.Register(recAPI, huma.Operation{
+		Method: "GET",
+		Path:   "/api/core-huma",
+	}, func(ctx context.Context, input *TestInput) (*TestOutput, error) {
+		return &TestOutput{}, nil
+	})
+
+	// Duplicate route on recordingAPI should be caught by routes
+	huma.Register(recAPI, huma.Operation{
+		Method: "GET",
+		Path:   "/api/core-huma",
+	}, func(ctx context.Context, input *TestInput) (*TestOutput, error) {
+		return &TestOutput{}, nil
+	})
+
+	if routes.Err() == nil {
+		t.Errorf("expected collision error on recordingAdapter duplicate register")
+	}
+
+	// Test collision on gatedAdapter
+	gRoutes := newRouteRegistry()
+	gAPI := &gatedAPI{
+		API: realAPI,
+		gAdapter: &gatedAdapter{
+			Adapter: realAPI.Adapter(),
+			plugin:  "gated1",
+			routes:  gRoutes,
+			owner:   "gated1",
+			enabled: func(r *http.Request, p string) (bool, bool) { return true, true },
+		},
+	}
+	huma.Register(gAPI, huma.Operation{
+		Method: "POST",
+		Path:   "/api/gated-dup",
+	}, func(ctx context.Context, input *TestInput) (*TestOutput, error) {
+		return &TestOutput{}, nil
+	})
+	huma.Register(gAPI, huma.Operation{
+		Method: "POST",
+		Path:   "/api/gated-dup",
+	}, func(ctx context.Context, input *TestInput) (*TestOutput, error) {
+		return &TestOutput{}, nil
+	})
+	if gRoutes.Err() == nil {
+		t.Errorf("expected collision error on gatedAdapter duplicate register")
+	}
+}
+
+func TestIsNonWorkspaceRoute(t *testing.T) {
+	if !isNonWorkspaceRoute("/api/instance-settings") {
+		t.Errorf("expected /api/instance-settings to be non-workspace route")
+	}
+	if !isNonWorkspaceRoute("/api/sso/login") {
+		t.Errorf("expected /api/sso/login to be non-workspace route")
+	}
+	if !isNonWorkspaceRoute("/api/customer/info") {
+		t.Errorf("expected /api/customer/info to be non-workspace route")
+	}
+	if isNonWorkspaceRoute("/api/links") {
+		t.Errorf("expected /api/links to NOT be non-workspace route")
+	}
+}

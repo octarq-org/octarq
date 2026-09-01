@@ -138,7 +138,9 @@ func TestSMTPSenderTest_DeliversThroughSender(t *testing.T) {
 	id := seedTestSender(t, p, uint(hostNum), "127.0.0.1", mustAtoi(t, port))
 
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
-	out, err := p.testSMTPSender(ctx, &TestSMTPSenderInput{Ctx: mkCtx(req), ID: id})
+	input := &TestSMTPSenderInput{ID: id}
+	_ = input.Resolve(mkCtx(req))
+	out, err := p.testSMTPSender(ctx, input)
 	if err != nil {
 		t.Fatalf("testSMTPSender against live mock relay: %v", err)
 	}

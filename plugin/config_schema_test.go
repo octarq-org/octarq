@@ -229,3 +229,53 @@ func TestConfigSchema_Validate_NilMinMax(t *testing.T) {
 		t.Fatalf("expected nil Min/Max to pass, got: %v", err)
 	}
 }
+
+func TestConfigSchema_Validate_AllNumericTypes(t *testing.T) {
+	schema := plugin.ConfigSchema{
+		Fields: []plugin.ConfigField{
+			{
+				Name: "count",
+				Type: plugin.FieldTypeInt,
+				Min:  intPtr(5),
+				Max:  intPtr(20),
+			},
+			{
+				Name: "flag",
+				Type: plugin.FieldTypeBool,
+			},
+		},
+	}
+
+	types := []any{
+		int8(10), int16(10), int32(10), int64(10),
+		uint(10), uint8(10), uint16(10), uint32(10), uint64(10),
+		float32(10), float64(10),
+		json.Number("10"),
+	}
+
+	for _, v := range types {
+		if err := schema.Validate(map[string]any{"count": v, "flag": true}); err != nil {
+			t.Errorf("type %T (%v) failed validation: %v", v, v, err)
+		}
+	}
+
+	// Invalid non-integer float
+	if err := schema.Validate(map[string]any{"count": 10.5}); err == nil {
+		t.Errorf("expected error for non-integer float 10.5")
+	}
+
+	// Invalid non-integer json.Number
+	if err := schema.Validate(map[string]any{"count": json.Number("invalid")}); err == nil {
+		t.Errorf("expected error for invalid json.Number")
+	}
+
+	// Invalid type (string for int field)
+	if err := schema.Validate(map[string]any{"count": "not-an-int"}); err == nil {
+		t.Errorf("expected error for string in int field")
+	}
+
+	// Invalid boolean
+	if err := schema.Validate(map[string]any{"flag": "not-a-bool"}); err == nil {
+		t.Errorf("expected error for invalid boolean")
+	}
+}

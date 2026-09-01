@@ -44,6 +44,24 @@ func TestAgentError_FormatAndUnwrap(t *testing.T) {
 	if !testing.Short() {
 		t.Logf("Formatted MCP Error:\n%s", mcpMsg)
 	}
+
+	// Test Error() without guidance
+	aeNoGuidance := NewAgentError(400, "BAD_REQUEST", "Bad request occurred", "", false)
+	if aeNoGuidance.Error() != "[BAD_REQUEST] Bad request occurred" {
+		t.Errorf("expected [BAD_REQUEST] Bad request occurred, got %s", aeNoGuidance.Error())
+	}
+
+	// Test Error() without code and guidance
+	aeMsgOnly := &AgentError{Message: "Only message"}
+	if aeMsgOnly.Error() != "Only message" {
+		t.Errorf("expected 'Only message', got %s", aeMsgOnly.Error())
+	}
+
+	// Test Error() on nil
+	var nilErr *AgentError
+	if nilErr.Error() != "" {
+		t.Errorf("expected empty string for nil AgentError.Error(), got %s", nilErr.Error())
+	}
 }
 
 func TestAgentError_NilAndPlain(t *testing.T) {
