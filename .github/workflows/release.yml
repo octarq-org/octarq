@@ -72,6 +72,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.PAT_GITHUB || secrets.GITHUB_TOKEN }}
 
       - name: Regenerate full CHANGELOG.md
         uses: orhun/git-cliff-action@v4
@@ -80,7 +81,7 @@ jobs:
           args: --verbose
         env:
           OUTPUT: CHANGELOG.md
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB || secrets.GITHUB_TOKEN }}
 
       - name: Commit CHANGELOG.md back to main
         uses: stefanzweifel/git-auto-commit-action@v5
