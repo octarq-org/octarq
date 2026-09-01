@@ -97,3 +97,63 @@ func TestChangeEmailUnauthenticated(t *testing.T) {
 		t.Fatalf("expected 401 unauthenticated, got %d (%s)", rec.Code, rec.Body.String())
 	}
 }
+
+func TestChangeEmailInstanceAdminSuccess(t *testing.T) {
+	h, srv, db := newTestHandlerRaw(t)
+	adminUser := models.User{
+		Email:           "admin",
+		PasswordHash:    "",
+		IsInstanceAdmin: true,
+		EmailVerified:   true,
+	}
+	if err := db.Create(&adminUser).Error; err != nil {
+		t.Fatalf("failed to create admin user: %v", err)
+	}
+
+	org := models.Org{Name: "admin-org", Slug: "admin-org"}
+	db.Create(&org)
+	db.Create(&models.OrgMember{OrgID: org.ID, UserID: adminUser.ID, Role: "owner"})
+
+	rec := httptest.NewRecorder()
+	h.auth.SetSession(rec, httptest.NewRequest(http.MethodGet, "/", nil), adminUser.ID, org.ID)
+	cookies := rec.Result().Cookies()
+
+	res := do(srv, "PUT", "/api/auth/email", cookies, `{"newEmail":"admin-new@example.com","currentPassword":"pw"}`)
+	if res.Code != http.StatusOK {
+		t.Fatalf("change email for instance admin: got %d (%s)", res.Code, res.Body.String())
+	}
+
+	var user models.User
+	if err := db.Where("email = ?", "admin-new@example.com").First(&user).Error; err != nil {
+		t.Fatalf("new admin email not found in DB: %v", err)
+	}
+	if user.ID != adminUser.ID {
+		t.Fatalf("user ID mismatch: got %d, want %d", user.ID, adminUser.ID)
+	}
+}
+
+func TestChangeEmailInstanceAdminWrongPassword(t *testing.T) {
+	h, srv, db := newTestHandlerRaw(t)
+	adminUser := models.User{
+		Email:           "admin",
+		PasswordHash:    "",
+		IsInstanceAdmin: true,
+		EmailVerified:   true,
+	}
+	if err := db.Create(&adminUser).Error; err != nil {
+		t.Fatalf("failed to create admin user: %v", err)
+	}
+
+	org := models.Org{Name: "admin-org", Slug: "admin-org"}
+	db.Create(&org)
+	db.Create(&models.OrgMember{OrgID: org.ID, UserID: adminUser.ID, Role: "owner"})
+
+	rec := httptest.NewRecorder()
+	h.auth.SetSession(rec, httptest.NewRequest(http.MethodGet, "/", nil), adminUser.ID, org.ID)
+	cookies := rec.Result().Cookies()
+
+	res := do(srv, "PUT", "/api/auth/email", cookies, `{"newEmail":"admin-new@example.com","currentPassword":"wrongpassword"}`)
+	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "current password is incorrect") {
+		t.Fatalf("expected 400 for wrong password, got %d (%s)", res.Code, res.Body.String())
+	}
+}

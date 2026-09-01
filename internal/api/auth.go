@@ -68,6 +68,11 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 		return nil, huma.Error401Unauthorized("invalid credentials")
 	}
 
+	if user.IsInstanceAdmin && !user.EmailVerified {
+		h.db.Model(&user).Update("email_verified", true)
+		user.EmailVerified = true
+	}
+
 	if h.requireEmailVerification() && !user.EmailVerified && !user.IsInstanceAdmin {
 		return nil, huma.NewError(http.StatusForbidden, "email verification required")
 	}
@@ -102,9 +107,19 @@ func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 		h.db.Create(&user)
 	} else if err != nil {
 		return 0
-	} else if !user.IsInstanceAdmin {
-		// Backfill for accounts created before this column existed.
-		h.db.Model(&user).Update("is_instance_admin", true)
+	} else {
+		updates := map[string]any{}
+		if !user.IsInstanceAdmin {
+			updates["is_instance_admin"] = true
+			user.IsInstanceAdmin = true
+		}
+		if !user.EmailVerified {
+			updates["email_verified"] = true
+			user.EmailVerified = true
+		}
+		if len(updates) > 0 {
+			h.db.Model(&user).Updates(updates)
+		}
 	}
 	// Link to the bootstrap org as owner. Unconditional, because bootstrapOrgID
 	// now finds the admin's org *through* this membership: leave an admin user

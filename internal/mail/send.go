@@ -76,6 +76,7 @@ func (s *SMTPSender) Send(m Message) error {
 	if err != nil {
 		return err
 	}
+	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
 	c, err := smtp.NewClient(conn, s.host)
 	if err != nil {
 		conn.Close()

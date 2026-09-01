@@ -246,4 +246,30 @@ func TestSendErrors(t *testing.T) {
 			return
 		}
 	})
+
+	t.Run("hung server deadline timeout", func(t *testing.T) {
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatalf("listen: %v", err)
+		}
+		defer ln.Close()
+
+		go func() {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			defer conn.Close()
+			// Accept connection but do not write SMTP banner; sleep to simulate hang
+			buf := make([]byte, 1024)
+			_, _ = conn.Read(buf)
+		}()
+
+		_, port, _ := net.SplitHostPort(ln.Addr().String())
+		sender := NewCustomSender("127.0.0.1", port, "", "", "default@example.com")
+		err = sender.Send(Message{To: []string{"bob@example.com"}, Subject: "s", Text: "t"})
+		if err == nil {
+			t.Fatal("expected error on hung connection, got nil")
+		}
+	})
 }
