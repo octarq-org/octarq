@@ -164,4 +164,55 @@ describe("InstanceSettings suite", () => {
       expect(toastSpy).toHaveBeenCalled();
     });
   });
+
+  it("opens test mail modal, sends test email successfully, and closes modal", async () => {
+    vi.spyOn(api, "instanceSettings").mockResolvedValue(makeSettings());
+    vi.spyOn(api, "smtpSenders").mockResolvedValue([
+      { id: 1, name: "Resend", host: "smtp.resend.com", port: 587, user: "resend", fromEmail: "noreply@octarq.io", passSet: true, createdAt: "2026-01-01" },
+    ]);
+    vi.spyOn(api, "instanceBuild").mockResolvedValue({ version: "dev", commit: "", builtAt: "" });
+    const testMailSpy = vi.spyOn(api, "testInstanceMail").mockResolvedValue({ ok: true });
+    const toastSpy = vi.spyOn(ui.toast, "success");
+
+    renderInstanceSettings();
+
+    const testBtn = await screen.findByRole("button", { name: /test send/i });
+    fireEvent.click(testBtn);
+
+    expect(await screen.findByText(/test system mail delivery/i)).toBeTruthy();
+
+    const input = screen.getByPlaceholderText("e.g. operator@example.com");
+    fireEvent.change(input, { target: { value: "operator@example.com" } });
+
+    const submitBtn = screen.getByRole("button", { name: /send test email/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(testMailSpy).toHaveBeenCalledWith("operator@example.com");
+      expect(toastSpy).toHaveBeenCalled();
+    });
+  });
+
+  it("shows error toast when test mail delivery fails", async () => {
+    vi.spyOn(api, "instanceSettings").mockResolvedValue(makeSettings());
+    vi.spyOn(api, "smtpSenders").mockResolvedValue([]);
+    vi.spyOn(api, "instanceBuild").mockResolvedValue({ version: "dev", commit: "", builtAt: "" });
+    vi.spyOn(api, "testInstanceMail").mockRejectedValue(new Error("SMTP connection timeout"));
+    const errorSpy = vi.spyOn(ui.toast, "error");
+
+    renderInstanceSettings();
+
+    const testBtn = await screen.findByRole("button", { name: /test send/i });
+    fireEvent.click(testBtn);
+
+    const input = await screen.findByPlaceholderText("e.g. operator@example.com");
+    fireEvent.change(input, { target: { value: "invalid@example.com" } });
+
+    const submitBtn = screen.getByRole("button", { name: /send test email/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith("SMTP connection timeout");
+    });
+  });
 });
