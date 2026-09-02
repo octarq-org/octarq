@@ -539,11 +539,19 @@ function Shell({
         })
         .catch(() => {});
     };
+    const refreshAuth = () => {
+      api.me().then((m) => {
+        setRole(m.role);
+        setEmailVerified(m.emailVerified);
+      }).catch(() => {});
+    };
     window.addEventListener("octarq:orgs-changed", refreshOrgs);
     window.addEventListener("octarq:plugins-changed", refreshPlugins);
+    window.addEventListener("octarq:auth-changed", refreshAuth);
     return () => {
       window.removeEventListener("octarq:orgs-changed", refreshOrgs);
       window.removeEventListener("octarq:plugins-changed", refreshPlugins);
+      window.removeEventListener("octarq:auth-changed", refreshAuth);
     };
   }, []);
 

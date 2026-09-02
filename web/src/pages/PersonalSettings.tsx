@@ -53,6 +53,7 @@ export function ProfileSettings() {
         toast.success(t("personal.emailUpdated"));
       }
       await reloadUser();
+      window.dispatchEvent(new CustomEvent("octarq:auth-changed"));
     } catch (err: any) {
       if (err instanceof ApiError) {
         if (err.status === 409) {

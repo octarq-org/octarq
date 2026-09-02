@@ -383,6 +383,8 @@ export const api = {
     publicCorsOrigins?: string;
     systemSenderId?: number;
   }) => req<InstanceSettings>("PUT", "/api/instance-settings", s),
+  testInstanceMail: (to: string) =>
+    req<{ ok: boolean }>("POST", "/api/instance/mail/test", { to }),
 
   // auth
   authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean; appName: string; logoUrl: string; brandColor: string; brandColor2: string }>("GET", "/api/auth/config"),

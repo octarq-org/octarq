@@ -44,6 +44,7 @@ describe("ProfileSettings suite", () => {
       email: "new@octarq.local",
     });
     const toastSpy = vi.spyOn(ui.toast, "success");
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
 
     render(
       <I18nProvider>
@@ -64,6 +65,7 @@ describe("ProfileSettings suite", () => {
       expect(confirmPassSpy).toHaveBeenCalled();
       expect(changeEmailSpy).toHaveBeenCalledWith("new@octarq.local", "secret123");
       expect(toastSpy).toHaveBeenCalled();
+      expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: "octarq:auth-changed" }));
     });
   });
 

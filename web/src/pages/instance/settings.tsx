@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type SMTPSender } from "../../api";
-import { Field, PageHeader, GlassCard, Button, Select, toast, confirmDialog } from "../../ui";
-import { Server, Sliders, DatabaseBackup, Cpu } from "lucide-react";
+import { Field, PageHeader, GlassCard, Button, Select, Modal, toast, confirmDialog } from "../../ui";
+import { Server, Sliders, DatabaseBackup, Cpu, Send } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useInstanceSettings } from "./shared";
 import { ExtensionSlot } from "../../plugin-sdk";
@@ -25,6 +25,7 @@ export function InstanceSettings() {
   const [metricsTokenSet, setMetricsTokenSet] = useState(false);
 
   const [busy, setBusy] = useState(false);
+  const [testingMail, setTestingMail] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
   const [build, setBuild] = useState<{ version: string; commit: string; builtAt: string } | null>(null);
 
@@ -162,18 +163,29 @@ export function InstanceSettings() {
             />
           </Field>
           <Field label={t("settings.instanceSystemSender")} hint={t("settings.instanceSystemSenderHint")}>
-            <Select
-              className="w-full text-sm"
-              value={String(systemSenderId)}
-              onValueChange={(v) => setSystemSenderId(Number(v))}
-              options={[
-                { value: "0", label: t("settings.instanceSystemSenderDefault") },
-                ...senders.map((s) => ({
-                  value: String(s.id),
-                  label: `${s.name} (${s.fromEmail || s.user || s.host})`,
-                })),
-              ]}
-            />
+            <div className="flex gap-2">
+              <Select
+                className="w-full text-sm"
+                value={String(systemSenderId)}
+                onValueChange={(v) => setSystemSenderId(Number(v))}
+                options={[
+                  { value: "0", label: t("settings.instanceSystemSenderDefault") },
+                  ...senders.map((s) => ({
+                    value: String(s.id),
+                    label: `${s.name} (${s.fromEmail || s.user || s.host})`,
+                  })),
+                ]}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0 text-xs gap-1.5"
+                onClick={() => setTestingMail(true)}
+              >
+                <Send className="h-3.5 w-3.5" />
+                {t("settings.instanceTestMailBtn")}
+              </Button>
+            </div>
           </Field>
           <div className="md:col-span-2">
             <Field
@@ -329,6 +341,61 @@ export function InstanceSettings() {
         </h3>
         <ExtensionSlot name="settings-infra" />
       </div>
+
+      {testingMail && (
+        <TestInstanceMailModal onClose={() => setTestingMail(false)} />
+      )}
     </div>
+  );
+}
+
+function TestInstanceMailModal({ onClose }: { onClose: () => void }) {
+  const [to, setTo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { t } = useTranslation();
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const recipient = to.trim();
+    if (!recipient) return;
+    setBusy(true);
+    try {
+      await api.testInstanceMail(recipient);
+      toast.success(t("settings.instanceTestMailSuccess", { to: recipient }));
+      onClose();
+    } catch (err: any) {
+      toast.error(err?.message || t("settings.instanceTestMailFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title={t("settings.instanceTestMailTitle")} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <p className="text-xs text-foreground/60 leading-relaxed">
+          {t("settings.instanceTestMailDesc")}
+        </p>
+        <Field label={t("settings.instanceTestMailRecipient")} hint={t("settings.instanceTestMailRecipientHint")}>
+          <input
+            type="email"
+            className="input w-full text-sm"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            placeholder={t("settings.instanceTestMailRecipientPlaceholder")}
+            autoFocus
+            required
+          />
+        </Field>
+        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
+          <Button type="button" variant="ghost" onClick={onClose}>
+            {t("settings.cancel")}
+          </Button>
+          <Button type="submit" variant="primary" disabled={busy || !to.trim()}>
+            {busy ? t("settings.instanceTestMailSending") : t("settings.instanceTestMailSubmit")}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
