@@ -109,6 +109,10 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 		}
 		meta = map[string]any{"email": loginUser}
 	}
+	if user.IsInstanceAdmin && !user.EmailVerified {
+		h.db.Model(&user).Update("email_verified", true)
+		user.EmailVerified = true
+	}
 	if h.requireEmailVerification() && !user.EmailVerified && !user.IsInstanceAdmin {
 		return nil, huma.NewError(http.StatusForbidden, "email verification required")
 	}

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -145,5 +146,49 @@ func TestInstanceAdminEnvHasVerifiedEmail(t *testing.T) {
 	}
 	if !user.EmailVerified {
 		t.Fatal("env created instance admin must have EmailVerified = true")
+	}
+}
+
+func TestInstanceAdminEmailVerifiedCorrectionOnBootstrapAndLogin(t *testing.T) {
+	h, srv, db := newTestHandlerRaw(t)
+
+	// Case 1: Existing instance admin in DB with EmailVerified = false
+	adminUser := models.User{
+		Email:           "admin",
+		PasswordHash:    "",
+		IsInstanceAdmin: true,
+		EmailVerified:   false,
+	}
+	if err := db.Create(&adminUser).Error; err != nil {
+		t.Fatalf("create unverified admin: %v", err)
+	}
+
+	// Calling bootstrapUserID auto-corrects EmailVerified to true
+	uid := h.bootstrapUserID("admin", 1)
+	if uid != adminUser.ID {
+		t.Fatalf("expected admin UID %d, got %d", adminUser.ID, uid)
+	}
+
+	var user models.User
+	if err := db.First(&user, adminUser.ID).Error; err != nil {
+		t.Fatalf("find user: %v", err)
+	}
+	if !user.EmailVerified {
+		t.Fatal("bootstrapUserID should have auto-corrected EmailVerified to true")
+	}
+
+	// Case 2: Reset EmailVerified to false and test login auto-correction
+	db.Model(&user).Update("email_verified", false)
+
+	rec := do(srv, "POST", "/api/auth/login", nil, `{"email":"admin","password":"pw"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("admin login failed: got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	if err := db.First(&user, adminUser.ID).Error; err != nil {
+		t.Fatalf("find user after login: %v", err)
+	}
+	if !user.EmailVerified {
+		t.Fatal("login should have auto-corrected EmailVerified to true for instance admin")
 	}
 }

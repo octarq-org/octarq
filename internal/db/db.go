@@ -144,10 +144,13 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 				Order("user_id ASC").
 				Limit(1).
 				Pluck("user_id", &ownerID).Error; err == nil && ownerID != 0 {
-				gdb.Model(&models.User{}).Where("id = ?", ownerID).Update("is_instance_admin", true)
+				gdb.Model(&models.User{}).Where("id = ?", ownerID).Updates(map[string]any{"is_instance_admin": true, "email_verified": true})
 			}
 		}
 	}
+
+	// Data migration: ensure all instance admin accounts have EmailVerified = true.
+	gdb.Model(&models.User{}).Where("is_instance_admin = ? AND email_verified = ?", true, false).Update("email_verified", true)
 
 	// Data migration: drop sessions that carry no org.
 	//

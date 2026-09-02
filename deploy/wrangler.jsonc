@@ -1,0 +1,16 @@
+{
+  "name": "octarq-email",
+  "main": "cloudflare-email-worker.js",
+  "compatibility_date": "2026-08-29",
+  "preview_urls": false,
+  "vars": {
+    "OCTARQ_ENDPOINT": "https://app.octarq.org/api/v1/webhook/octarq/email/inbound/832ba5b6-5b3c-4f41-8073-4172f252e5b9"
+  },
+  "observability": {
+    "redact_query_string": false,
+    "enabled": false,
+    "logs": {
+      "enabled": true
+    }
+  }
+}

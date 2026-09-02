@@ -328,6 +328,7 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/instance/menus", Summary: "List Instance Menus", Tags: []string{"Settings"}}, h.listInstanceMenus)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/instance/build", Summary: "Get Instance Build Info", Tags: []string{"Settings"}}, h.instanceBuild)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/instance/readiness", Summary: "Get Instance Readiness", Tags: []string{"Settings"}}, h.instanceReadiness)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/instance/mail/test", Summary: "Test Instance System Mail", Tags: []string{"Settings"}}, h.testInstanceMail)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/admin/backup", Summary: "Download Database Backup", Tags: []string{"Settings"}}, h.downloadBackup)
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/webhooks", Summary: "List Webhooks", Tags: []string{"Webhooks"}}, h.listWebhooks)

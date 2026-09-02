@@ -138,11 +138,14 @@ func TestDBOpenAndMigrate(t *testing.T) {
 		t.Errorf("expected catch_all setting migrated to workspace 1, got error: %v", err)
 	}
 
-	// Verify user 42 is flagged as instance admin
+	// Verify user 42 is flagged as instance admin and email verified
 	var user models.User
 	if err := gdb.Where("id = ?", 42).First(&user).Error; err == nil {
 		if !user.IsInstanceAdmin {
 			t.Errorf("expected user 42 to be flagged as instance admin")
+		}
+		if !user.EmailVerified {
+			t.Errorf("expected user 42 to have EmailVerified = true")
 		}
 	}
 
