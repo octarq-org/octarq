@@ -103,8 +103,12 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 	var user models.User
 	if err := h.db.Where("email = ?", username).First(&user).Error; errors.Is(err, gorm.ErrRecordNotFound) {
-		user = models.User{Email: username, PasswordHash: "", IsInstanceAdmin: true, EmailVerified: true}
-		h.db.Create(&user)
+		if adminErr := h.db.Where("is_instance_admin = ?", true).First(&user).Error; errors.Is(adminErr, gorm.ErrRecordNotFound) {
+			user = models.User{Email: username, PasswordHash: "", IsInstanceAdmin: true, EmailVerified: true}
+			h.db.Create(&user)
+		} else if adminErr != nil {
+			return 0
+		}
 	} else if err != nil {
 		return 0
 	} else {
@@ -143,11 +147,16 @@ func (h *Handler) bootstrapUserID(username string, orgID uint) uint {
 // owner membership were created alongside that org.
 func (h *Handler) bootstrapOrgID() uint {
 	var user models.User
-	if err := h.db.Where("email = ?", h.cfg.AdminUser).First(&user).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err := h.db.Where("email = ?", h.cfg.AdminUser).First(&user).Error; err == nil {
+		var member models.OrgMember
+		if err := h.db.Where("user_id = ?", user.ID).Order("org_id").First(&member).Error; err == nil {
+			return member.OrgID
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return 0
 		}
-	} else {
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0
+	} else if err := h.db.Where("is_instance_admin = ?", true).First(&user).Error; err == nil {
 		var member models.OrgMember
 		if err := h.db.Where("user_id = ?", user.ID).Order("org_id").First(&member).Error; err == nil {
 			return member.OrgID
@@ -268,15 +277,22 @@ func (h *Handler) authenticate(username, password string) (uid, orgID uint, ok b
 	if h.db.Where("LOWER(email) = ?", email).First(&user).Error != nil {
 		return 0, 0, false
 	}
-	if user.PasswordHash == "" {
-		return 0, 0, false
-	}
-	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) != nil {
+	if user.PasswordHash != "" {
+		if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) != nil {
+			return 0, 0, false
+		}
+	} else if user.IsInstanceAdmin {
+		if !h.auth.CheckAdminPassword(password) {
+			return 0, 0, false
+		}
+	} else {
 		return 0, 0, false
 	}
 	var member models.OrgMember
-	if h.db.Where("user_id = ?", user.ID).First(&member).Error != nil {
-		return 0, 0, false
+	if h.db.Where("user_id = ?", user.ID).Order("org_id").First(&member).Error != nil {
+		orgID = h.bootstrapOrgID()
+		h.db.Create(&models.OrgMember{OrgID: orgID, UserID: user.ID, Role: "owner"})
+		return user.ID, orgID, true
 	}
 	return user.ID, member.OrgID, true
 }

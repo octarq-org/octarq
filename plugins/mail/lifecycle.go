@@ -22,6 +22,7 @@ type Plugin struct {
 	getWorkspaceSetting func(orgID uint, key string) string
 	getGlobalSetting    func(key string) string
 	sendLimiter         *rateLimiter
+	testLimiter         *rateLimiter
 	emailMu             sync.RWMutex
 	emailHandlers       []func(plugin.EmailEvent)
 	// notify takes the stored config JSON directly. Configs are encrypted at rest
@@ -61,6 +62,7 @@ var (
 func New() *Plugin {
 	return &Plugin{
 		sendLimiter: newRateLimiter("", "send", 100, time.Hour),
+		testLimiter: newRateLimiter("", "smtp_test", 10, time.Minute),
 	}
 }
 

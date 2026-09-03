@@ -157,3 +157,59 @@ func TestChangeEmailInstanceAdminWrongPassword(t *testing.T) {
 		t.Fatalf("expected 400 for wrong password, got %d (%s)", res.Code, res.Body.String())
 	}
 }
+
+func TestChangeEmailInstanceAdminLifecycle(t *testing.T) {
+	srv, db := newTestHandler(t)
+	disableEmailVerification(t, db)
+
+	// 1. Initial admin login
+	rec := do(srv, "POST", "/api/auth/login", nil, `{"email":"admin","password":"pw"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("admin login: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	cookies := rec.Result().Cookies()
+
+	var adminUser models.User
+	if err := db.Where("email = ?", "admin").First(&adminUser).Error; err != nil {
+		t.Fatalf("admin user not found in DB: %v", err)
+	}
+	if !adminUser.IsInstanceAdmin {
+		t.Fatal("expected IsInstanceAdmin to be true")
+	}
+
+	// 2. Change admin email first time
+	rec = do(srv, "PUT", "/api/auth/email", cookies, `{"newEmail":"admin-v1@example.com","currentPassword":"pw"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("first change email: got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	// 3. Change admin email second time (verifies CheckAdminPassword does not bind to AdminUser)
+	rec = do(srv, "PUT", "/api/auth/email", cookies, `{"newEmail":"admin-v2@example.com","currentPassword":"pw"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("second change email: got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	// 4. Change email with wrong password
+	rec = do(srv, "PUT", "/api/auth/email", cookies, `{"newEmail":"admin-v3@example.com","currentPassword":"wrongpassword"}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for wrong admin password, got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	// 5. Login using new email + admin password
+	rec = do(srv, "POST", "/api/auth/login", nil, `{"email":"admin-v2@example.com","password":"pw"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("login with updated admin email failed: got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	// 6. Login using original config username + admin password (must not create duplicate user)
+	rec = do(srv, "POST", "/api/auth/login", nil, `{"email":"admin","password":"pw"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("login with original admin username failed: got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	var adminCount int64
+	db.Model(&models.User{}).Where("is_instance_admin = ?", true).Count(&adminCount)
+	if adminCount != 1 {
+		t.Fatalf("expected exactly 1 instance admin user, got %d (account split detected)", adminCount)
+	}
+}

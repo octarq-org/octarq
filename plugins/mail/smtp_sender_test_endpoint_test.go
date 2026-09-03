@@ -191,3 +191,28 @@ func closedPort(t *testing.T) int {
 	_ = ln.Close()
 	return port
 }
+
+func TestSMTPSenderTest_RateLimit(t *testing.T) {
+	t.Parallel()
+	p, mkCtx := setupFullMailTestDB(t)
+	wipeMailTables(t, p)
+	ctx := context.Background()
+
+	id := seedTestSender(t, p, 1, "127.0.0.1", closedPort(t))
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+
+	// Consume the 10 allowed attempts
+	for i := 0; i < 10; i++ {
+		// Even when delivery fails (closed port), the rate limiter records the attempt
+		_, _ = p.testSMTPSender(ctx, &TestSMTPSenderInput{Ctx: mkCtx(req), ID: id})
+	}
+
+	// 11th attempt must be rejected with 429 rate limit error
+	_, err := p.testSMTPSender(ctx, &TestSMTPSenderInput{Ctx: mkCtx(req), ID: id})
+	if err == nil {
+		t.Fatal("expected rate limit error, got nil")
+	}
+	if !strings.Contains(err.Error(), "too many test attempts") {
+		t.Fatalf("expected too many test attempts error, got: %v", err)
+	}
+}
