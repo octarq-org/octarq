@@ -88,6 +88,12 @@ func TestManagerTokenAndAdmin(t *testing.T) {
 	if m.Check("admin", "wrong") || m.Check("nobody", "pw") {
 		t.Error("Check accepted a wrong credential")
 	}
+	if !m.CheckAdminPassword("pw") {
+		t.Error("CheckAdminPassword rejected the configured admin password")
+	}
+	if m.CheckAdminPassword("wrong") {
+		t.Error("CheckAdminPassword accepted a wrong password")
+	}
 }
 
 // TestTokenByRequestExpired validates that an expired bearer token row is not

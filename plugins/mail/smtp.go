@@ -2,6 +2,7 @@ package mail
 
 import (
 	"context"
+	"fmt"
 	"html"
 	"net"
 	"strings"
@@ -294,6 +295,14 @@ func (p *Plugin) testSMTPSender(ctx context.Context, input *TestSMTPSenderInput)
 	}
 	if !p.hasRole(r, "admin") {
 		return nil, huma.Error403Forbidden("forbidden: admin role required to test SMTP sender")
+	}
+
+	orgKey := fmt.Sprintf("org:%d", p.orgID(r))
+	if p.testLimiter != nil {
+		if !p.testLimiter.allow(orgKey) {
+			return nil, huma.Error429TooManyRequests("too many test attempts; please wait before retrying")
+		}
+		p.testLimiter.recordFailure(orgKey)
 	}
 
 	var s SMTPSender
