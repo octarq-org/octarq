@@ -2,6 +2,56 @@
 
 All notable changes to this project are documented here.
 
+## [0.4.3] - 2026-09-03
+
+### 🚀 Features
+
+- **web**: Add instance system mail test modal and optimize personal settings auth state sync (#489)
+- **core**: Support admin email change, email verified correction, instance mail test API, and SMTP deadline (#488)
+
+### 🐛 Bug Fixes
+
+- **auth,mail**: Decouple admin password verification for email change and add test rate limiting (#491)
+- **ci**: Use PAT_GITHUB for changelog push to bypass branch protection (#487)
+
+## [0.4.2] - 2026-09-01
+
+### 🚀 Features
+
+- **mail**: Folders, contacts auto-complete, drafts, and 1-click unsubscribe
+- **dns**: Email DNS blueprint & one-click apply
+
+### 🐛 Bug Fixes
+
+- **links,server**: Support plaintext link password and direct robots.txt access (#481)
+- **links**: Accept routingRules in create/update DTO (#479)
+- **mail,links,ui**: Postgres strftime error, reply html validation, modal 60-80vw (#477)
+- **webhook**: Desensitize webhook secret in model and API responses (#475)
+- **api**: Expand notify channel config secret redaction keywords (#473)
+
+### ♻️ Refactor
+
+- **links**: Centralize PG vs sqlite day bucket to prevent 42883 (#480)
+
+### 📚 Documentation
+
+- Streamline AGENTS.md and CLAUDE.md to index authoritative docs
+- Add developer conventions and enhance quickstart, plugin guide, and architecture
+- **audit**: Fix claims around SAML and invoice PDF extraction (#474)
+
+### 🧪 Testing
+
+- Boost coverage across core packages to exceed 90% ratchet (#486)
+- **web**: Add unit and interaction tests for auth and settings forms (#484)
+- **web**: Add unit and interaction tests for core resource forms (#483)
+
+### 🧹 Chores
+
+- **web**: Refresh embedded dashboard build [auto] (#485)
+- **web**: Refresh embedded dashboard build [auto] (#482)
+- **web**: Refresh embedded dashboard build [auto] (#478)
+- **web**: Refresh embedded dashboard build [auto] (#476)
+
 ## [0.4.1] - 2026-08-29
 
 ### 🚀 Features
@@ -570,7 +620,7 @@ All notable changes to this project are documented here.
 - Self-serve registration, unified Pro-lock UI, device fingerprint dedup
 - Optimize overview layout, unify feature gates, update billing page, separate export workspace data, and refactor customer portal forms
 - **billing**: Show org-scoped claim success URL in settings
-- **finance**: Surface pending PDF text extraction transactions with confirm action (Invoice PDF text extraction & AI filing; image/scanned PDFs not yet supported)
+- **finance**: Surface pending OCR transactions with confirm action
 - Migrate Redis task queue backend to hibiken/asynq
 - Integrate optional Redis cache & task queue with memory/DB fallbacks
 - Migrate to stateful DB-backed sessions with per-session revocation
