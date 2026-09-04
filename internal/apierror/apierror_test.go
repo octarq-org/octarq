@@ -54,3 +54,21 @@ func TestCodeForStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestKnown(t *testing.T) {
+	tests := []struct {
+		code string
+		want bool
+	}{
+		{CodeNotFound, true},
+		{CodeBadRequest, true},
+		{"random_code", false},
+		{"", false},
+	}
+
+	for _, tc := range tests {
+		if got := Known(tc.code); got != tc.want {
+			t.Errorf("Known(%q) = %v, want %v", tc.code, got, tc.want)
+		}
+	}
+}
