@@ -1,8 +1,51 @@
 package dnsprovider
 
 import (
+	"errors"
 	"testing"
 )
+
+type dummyProvider struct{ Provider }
+
+func TestRegisterAndNew(t *testing.T) {
+	// Not using t.Parallel() because Register modifies global state (registry)
+
+	dummyName := "test_dummy_provider"
+
+	Register(dummyName, func(credsJSON []byte) (Provider, error) {
+		if string(credsJSON) == "error" {
+			return nil, errors.New("simulated error")
+		}
+		return &dummyProvider{}, nil
+	})
+
+	// Test successful creation
+	p, err := New(dummyName, []byte("valid"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := p.(*dummyProvider); !ok {
+		t.Fatalf("expected provider to be of type *dummyProvider, got %T", p)
+	}
+
+	// Test factory returning error
+	p, err = New(dummyName, []byte("error"))
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if err.Error() != "simulated error" {
+		t.Fatalf("expected simulated error, got: %v", err)
+	}
+
+	// Test unknown provider error
+	p, err = New("non_existent_provider_xyz123", nil)
+	if err == nil {
+		t.Fatal("expected error for unknown provider, got nil")
+	}
+	if p != nil {
+		t.Fatalf("expected nil provider, got %T", p)
+	}
+}
 
 func TestProviderRegistryAndConstructors(t *testing.T) {
 	t.Parallel()
