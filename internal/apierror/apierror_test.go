@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"testing"
 )
 
@@ -51,6 +52,21 @@ func TestCodeForStatus(t *testing.T) {
 	for _, tc := range tests {
 		if got := CodeForStatus(tc.status); got != tc.want {
 			t.Errorf("CodeForStatus(%d) = %q, want %q", tc.status, got, tc.want)
+		}
+	}
+}
+
+func TestCodes(t *testing.T) {
+	got := Codes()
+	if len(got) == 0 {
+		t.Fatal("Codes() returned empty slice")
+	}
+	if !sort.StringsAreSorted(got) {
+		t.Errorf("Codes() is not sorted: %v", got)
+	}
+	for _, code := range got {
+		if !Known(code) {
+			t.Errorf("Codes() returned unknown code: %q", code)
 		}
 	}
 }
