@@ -54,3 +54,10 @@ func TestCodeForStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestGetStatus(t *testing.T) {
+	e := New(http.StatusTeapot, "", "I am a teapot")
+	if got := e.GetStatus(); got != http.StatusTeapot {
+		t.Errorf("GetStatus() = %d, want %d", got, http.StatusTeapot)
+	}
+}
