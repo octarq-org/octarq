@@ -164,11 +164,14 @@ func Migrate(gdb *gorm.DB, extraModels ...any) error {
 	// Data migration: backfill owner_id = 1 for legacy rows created before multi-tenancy
 	m := gdb.Migrator()
 	if tables, err := m.GetTables(); err == nil {
-		for _, table := range []string{"domains", "provider_accounts", "links", "mailboxes", "ddns_tokens", "dns_ddns_tokens", "tokens", "user_tokens", "webhooks", "notification_channels"} {
-			if slices.Contains(tables, table) && m.HasColumn(table, "owner_id") {
-				gdb.Table(table).Where("owner_id = 0 OR owner_id IS NULL").Update("owner_id", 1)
+		gdb.Transaction(func(tx *gorm.DB) error {
+			for _, table := range []string{"domains", "provider_accounts", "links", "mailboxes", "ddns_tokens", "dns_ddns_tokens", "tokens", "user_tokens", "webhooks", "notification_channels"} {
+				if slices.Contains(tables, table) && tx.Migrator().HasColumn(table, "owner_id") {
+					tx.Table(table).Where("owner_id = 0 OR owner_id IS NULL").Update("owner_id", 1)
+				}
 			}
-		}
+			return nil
+		})
 	}
 
 	// Data migration: make existing tenant subdomains usable link hosts.
