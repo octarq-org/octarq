@@ -56,9 +56,12 @@ func TestCodeForStatus(t *testing.T) {
 	}
 }
 
-func TestWithRequestID_Nil(t *testing.T) {
+func TestWithRequestID_NilContextInterface(t *testing.T) {
+	// SA1012 checks for passing `nil` directly as an argument to functions that accept `context.Context`.
+	// We can bypass it using an untyped var that is a context.Context.
+	var nilCtx context.Context
+
 	var e *Error
-    var nilCtx context.Context
 	if got := e.WithRequestID(nilCtx); got != nil {
 		t.Errorf("expected nil when called on nil Error, got %v", got)
 	}
