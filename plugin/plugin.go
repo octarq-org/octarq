@@ -102,11 +102,8 @@
 //
 // Support window: the mechanism is the marker phrase plus the nil check — a
 // field never becomes non-optional by fiat, it becomes non-optional when every
-// host still in support wires it, at which point the marker is dropped. How
-// long a host release stays in support is a product decision.
-//
-// TODO(maintainer): state the supported-host window (e.g. "the current minor
-// and the one before it") so "hosts that predate it" has a defined end.
+// host still in support wires it, at which point the marker is dropped. The
+// supported-host window is the current minor and the one before it.
 package plugin
 
 import (
