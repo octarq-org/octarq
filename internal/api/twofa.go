@@ -346,15 +346,23 @@ func (h *Handler) verifyTOTPOrRecovery(user *models.User, code string) bool {
 		return false
 	}
 	normalized := strings.ToLower(strings.ReplaceAll(code, "-", ""))
+	normalizedBytes := []byte(normalized)
+	matchedIndex := -1
+
 	for i, hh := range hashes {
-		if bcrypt.CompareHashAndPassword([]byte(hh), []byte(normalized)) == nil {
-			// Consume this one-time code.
-			remaining := append(append([]string{}, hashes[:i]...), hashes[i+1:]...)
-			b, _ := json.Marshal(remaining)
-			h.db.Model(user).Update("recovery_codes", string(b))
-			user.RecoveryCodes = string(b)
-			return true
+		if bcrypt.CompareHashAndPassword([]byte(hh), normalizedBytes) == nil {
+			matchedIndex = i
+			break
 		}
+	}
+
+	if matchedIndex != -1 {
+		// Consume this one-time code.
+		remaining := append(append([]string{}, hashes[:matchedIndex]...), hashes[matchedIndex+1:]...)
+		b, _ := json.Marshal(remaining)
+		h.db.Model(user).Update("recovery_codes", string(b))
+		user.RecoveryCodes = string(b)
+		return true
 	}
 	return false
 }
