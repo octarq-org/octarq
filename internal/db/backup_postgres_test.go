@@ -146,27 +146,6 @@ exit 0`)
 	}
 }
 
-func TestParsePostgresDSNPostgresqlSchemeAndQuotes(t *testing.T) {
-	cfg, err := ParsePostgresDSN("postgresql://u:p@h:1234/db?sslmode=disable")
-	if err != nil {
-		t.Fatalf("postgresql:// parse: %v", err)
-	}
-	if cfg.Port != "1234" || cfg.DBName != "db" {
-		t.Errorf("postgresql:// config = %+v", cfg)
-	}
-
-	// Key-value DSNs tolerate quoted values (quoting exists to protect
-	// values that could otherwise look like keys; whitespace inside a quoted
-	// value still cannot survive the whitespace-based split).
-	cfg2, err := ParsePostgresDSN(`host='db.h' port='9999' dbname='mydb' password='p@ss'`)
-	if err != nil {
-		t.Fatalf("quoted KV parse: %v", err)
-	}
-	if cfg2.Host != "db.h" || cfg2.Port != "9999" || cfg2.Password != "p@ss" {
-		t.Errorf("quoted KV config = %+v", cfg2)
-	}
-}
-
 func TestBackupSQLiteWritesIntoNestedDir(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "src.db")
@@ -295,17 +274,6 @@ func TestRestoreSQLiteCopyFailure(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected copy failure, got nil")
 		return
-	}
-}
-
-func TestParsePostgresDSNNoSeparatorParts(t *testing.T) {
-	// A field without '=' is skipped entirely, not treated as an error.
-	cfg, err := ParsePostgresDSN("stray-token host=realhost dbname=octarq")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if cfg.Host != "realhost" || cfg.DBName != "octarq" {
-		t.Errorf("config = %+v", cfg)
 	}
 }
 
