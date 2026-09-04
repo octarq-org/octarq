@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 )
+
+var snsHostRegex = regexp.MustCompile(`^sns\.[a-z0-9-]+\.amazonaws\.com$`)
 
 type bounceEvent struct {
 	Email      string
@@ -23,7 +26,7 @@ func isAWSSNSURL(u string) bool {
 		return false
 	}
 	host := strings.ToLower(parsed.Hostname())
-	return strings.HasPrefix(host, "sns.") && strings.HasSuffix(host, ".amazonaws.com")
+	return snsHostRegex.MatchString(host)
 }
 
 func normalizeBounceType(rawType, details string) string {

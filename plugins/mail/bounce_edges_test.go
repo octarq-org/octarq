@@ -31,6 +31,9 @@ func TestIsAWSSNSURL(t *testing.T) {
 		"https://evil.com/x",                   // not AWS
 		"https://sns.example.com/x",            // wrong suffix
 		"https://sns.us-east-1.aws-not.com/x",
+		"https://sns.example.com.amazonaws.com/x",
+		"https://sns.example.s3.amazonaws.com/x",
+		"https://sns..amazonaws.com/x",
 		"://bad",
 		"",
 	}
