@@ -29,7 +29,7 @@ func TestRegisterAndNew(t *testing.T) {
 	}
 
 	// Test factory returning error
-	p, err = New(dummyName, []byte("error"))
+	_, err = New(dummyName, []byte("error"))
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -38,12 +38,12 @@ func TestRegisterAndNew(t *testing.T) {
 	}
 
 	// Test unknown provider error
-	p, err = New("non_existent_provider_xyz123", nil)
+	p2, err := New("non_existent_provider_xyz123", nil)
 	if err == nil {
 		t.Fatal("expected error for unknown provider, got nil")
 	}
-	if p != nil {
-		t.Fatalf("expected nil provider, got %T", p)
+	if p2 != nil {
+		t.Fatalf("expected nil provider, got %T", p2)
 	}
 }
 
