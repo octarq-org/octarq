@@ -236,38 +236,6 @@ func TestBackfillSkipsWithoutBase(t *testing.T) {
 	assertDomainRow(t, gdb, "acme9x.app.example.com", false, "")
 }
 
-func TestParsePostgresDSNEdgeCases(t *testing.T) {
-	t.Parallel()
-
-	// Empty
-	if _, err := ParsePostgresDSN(""); err == nil {
-		t.Error("expected error for empty DSN")
-	}
-
-	// URL format
-	cfg, err := ParsePostgresDSN("postgres://usr:pwd@dbhost:5433/octarq_db?sslmode=disable")
-	if err != nil {
-		t.Fatalf("unexpected error parsing URL DSN: %v", err)
-	}
-	if cfg.Host != "dbhost" || cfg.Port != "5433" || cfg.User != "usr" || cfg.Password != "pwd" || cfg.DBName != "octarq_db" || cfg.SSLMode != "disable" {
-		t.Errorf("parsed URL config mismatch: %+v", cfg)
-	}
-
-	// Key-value format
-	cfg2, err := ParsePostgresDSN("host=localhost port=5432 user=myuser password=mypass dbname=mydb sslmode=require")
-	if err != nil {
-		t.Fatalf("unexpected error parsing KV DSN: %v", err)
-	}
-	if cfg2.Host != "localhost" || cfg2.User != "myuser" || cfg2.DBName != "mydb" || cfg2.SSLMode != "require" {
-		t.Errorf("parsed KV config mismatch: %+v", cfg2)
-	}
-
-	// Missing dbname
-	if _, err := ParsePostgresDSN("host=localhost port=5432"); err == nil {
-		t.Error("expected error for KV DSN missing dbname")
-	}
-}
-
 func TestBackupAndRestoreEdgeCases(t *testing.T) {
 	t.Parallel()
 

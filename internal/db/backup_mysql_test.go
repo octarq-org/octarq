@@ -103,6 +103,210 @@ func TestParseMySQLDSN(t *testing.T) {
 		}
 	})
 
+	t.Run("URL format parse error", func(t *testing.T) {
+		if _, err := ParseMySQLDSN("mysql://%zz"); err == nil {
+			t.Fatal("expected parse error for invalid URL, got nil")
+		}
+	})
+
+	t.Run("URL format missing dbname error", func(t *testing.T) {
+		if _, err := ParseMySQLDSN("mysql://127.0.0.1/"); err == nil {
+			t.Fatal("expected error for missing dbname in URL, got nil")
+		}
+	})
+
+	t.Run("URL format empty host defaults to 127.0.0.1", func(t *testing.T) {
+		cfg, err := ParseMySQLDSN("mysql:///dbname")
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		if cfg.Host != "127.0.0.1" {
+			t.Errorf("expected host 127.0.0.1, got %q", cfg.Host)
+		}
+		if cfg.Port != "3306" {
+			t.Errorf("expected default port 3306, got %q", cfg.Port)
+		}
+	})
+
+	t.Run("Standard Go DSN with tcp() and no port", func(t *testing.T) {
+		dsn := "user:pass@tcp(192.168.1.1)/dbname"
+		cfg, err := ParseMySQLDSN(dsn)
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		if cfg.Host != "192.168.1.1" {
+			t.Errorf("expected host 192.168.1.1, got %q", cfg.Host)
+		}
+		if cfg.Port != "3306" {
+			t.Errorf("expected port 3306, got %q", cfg.Port)
+		}
+	})
+
+	t.Run("Standard Go DSN with explicit tcp string no parenthesis", func(t *testing.T) {
+		dsn := "tcp/dbname"
+		cfg, err := ParseMySQLDSN(dsn)
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		if cfg.Host != "127.0.0.1" {
+			t.Errorf("expected host 127.0.0.1, got %q", cfg.Host)
+		}
+		if cfg.Port != "3306" {
+			t.Errorf("expected port 3306, got %q", cfg.Port)
+		}
+	})
+
+	t.Run("Standard Go DSN with empty tcp()", func(t *testing.T) {
+		dsn := "user:pass@tcp()/dbname"
+		cfg, err := ParseMySQLDSN(dsn)
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		if cfg.Host != "127.0.0.1" {
+			t.Errorf("expected host 127.0.0.1, got %q", cfg.Host)
+		}
+		if cfg.Port != "3306" {
+			t.Errorf("expected port 3306, got %q", cfg.Port)
+		}
+	})
+
+	t.Run("Standard Go DSN with implicit protocol host and port", func(t *testing.T) {
+		dsn := "user:pass@192.168.1.1:3306/dbname"
+		cfg, err := ParseMySQLDSN(dsn)
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		if cfg.Host != "192.168.1.1" {
+			t.Errorf("expected host 192.168.1.1, got %q", cfg.Host)
+		}
+		if cfg.Port != "3306" {
+			t.Errorf("expected port 3306, got %q", cfg.Port)
+		}
+	})
+
+	t.Run("Standard Go DSN with implicit protocol host no port", func(t *testing.T) {
+		dsn := "user:pass@192.168.1.1/dbname"
+		cfg, err := ParseMySQLDSN(dsn)
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		if cfg.Host != "192.168.1.1" {
+			t.Errorf("expected host 192.168.1.1, got %q", cfg.Host)
+		}
+		if cfg.Port != "3306" {
+			t.Errorf("expected port 3306, got %q", cfg.Port)
+		}
+	})
+
+	t.Run("Standard Go DSN with implicit protocol and port", func(t *testing.T) {
+		dsn := "user:pass@192.168.1.1:3307/dbname"
+		cfg, err := ParseMySQLDSN(dsn)
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		if cfg.Host != "192.168.1.1" {
+			t.Errorf("expected host 192.168.1.1, got %q", cfg.Host)
+		}
+		if cfg.Port != "3307" {
+			t.Errorf("expected port 3307, got %q", cfg.Port)
+		}
+	})
+
+	t.Run("Standard Go DSN with explicit tcp port", func(t *testing.T) {
+		dsn := "user:pass@tcp(192.168.1.1:3308)/dbname"
+		cfg, err := ParseMySQLDSN(dsn)
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		if cfg.Host != "192.168.1.1" {
+			t.Errorf("expected host 192.168.1.1, got %q", cfg.Host)
+		}
+		if cfg.Port != "3308" {
+			t.Errorf("expected port 3308, got %q", cfg.Port)
+		}
+	})
+
+	t.Run("Standard Go DSN with implicit protocol and invalid port format", func(t *testing.T) {
+		dsn := "user:pass@192.168.1.1:abc/dbname"
+		cfg, err := ParseMySQLDSN(dsn)
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		if cfg.Host != "192.168.1.1" {
+			t.Errorf("expected host 192.168.1.1, got %q", cfg.Host)
+		}
+		if cfg.Port != "abc" {
+			t.Errorf("expected port abc, got %q", cfg.Port)
+		}
+	})
+
+	t.Run("Standard Go DSN with tcp() and host without port", func(t *testing.T) {
+		dsn := "user:pass@tcp(localhost)/dbname"
+		cfg, err := ParseMySQLDSN(dsn)
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		if cfg.Host != "localhost" {
+			t.Errorf("expected host localhost, got %q", cfg.Host)
+		}
+		if cfg.Port != "3306" {
+			t.Errorf("expected port 3306, got %q", cfg.Port)
+		}
+	})
+
+	t.Run("Standard Go DSN with tcp() and invalid port format", func(t *testing.T) {
+		dsn := "user:pass@tcp(192.168.1.1:abc)/dbname"
+		cfg, err := ParseMySQLDSN(dsn)
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		if cfg.Host != "192.168.1.1" {
+			t.Errorf("expected host 192.168.1.1, got %q", cfg.Host)
+		}
+		if cfg.Port != "abc" {
+			t.Errorf("expected port abc, got %q", cfg.Port)
+		}
+	})
+
+	t.Run("Standard Go DSN with query parameters", func(t *testing.T) {
+		dsn := "user:pass@/dbname?param1=value1"
+		cfg, err := ParseMySQLDSN(dsn)
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		if cfg.DBName != "dbname" {
+			t.Errorf("expected dbname dbname, got %q", cfg.DBName)
+		}
+	})
+
+	t.Run("Standard Go DSN without user info", func(t *testing.T) {
+		dsn := "tcp(192.168.1.1:3306)/dbname"
+		cfg, err := ParseMySQLDSN(dsn)
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		if cfg.Host != "192.168.1.1" {
+			t.Errorf("expected host 192.168.1.1, got %q", cfg.Host)
+		}
+		if cfg.User != "" {
+			t.Errorf("expected empty user, got %q", cfg.User)
+		}
+	})
+
+	t.Run("Standard Go DSN with just host no port", func(t *testing.T) {
+		dsn := "localhost/dbname"
+		cfg, err := ParseMySQLDSN(dsn)
+		if err != nil {
+			t.Fatalf("unexpected parse error: %v", err)
+		}
+		if cfg.Host != "localhost" {
+			t.Errorf("expected host localhost, got %q", cfg.Host)
+		}
+		if cfg.Port != "3306" {
+			t.Errorf("expected port 3306, got %q", cfg.Port)
+		}
+	})
+
 	t.Run("Empty DSN error", func(t *testing.T) {
 		if _, err := ParseMySQLDSN(""); err == nil {
 			t.Fatal("expected error for empty DSN, got nil")
@@ -117,6 +321,10 @@ func TestParseMySQLDSN(t *testing.T) {
 		}
 		if _, err := ParseMySQLDSN("root:secret@tcp(127.0.0.1:3306)"); err == nil {
 			t.Fatal("expected error for missing slash and dbname, got nil")
+			return
+		}
+		if _, err := ParseMySQLDSN("user:pass@/"); err == nil {
+			t.Fatal("expected error for missing dbname with just slash, got nil")
 			return
 		}
 	})

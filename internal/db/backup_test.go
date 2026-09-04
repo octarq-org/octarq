@@ -3,6 +3,7 @@ package db
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,66 +13,121 @@ import (
 )
 
 func TestParsePostgresDSN(t *testing.T) {
-	t.Run("URL format", func(t *testing.T) {
-		dsn := "postgres://admin:secret123@db.example.com:5433/octarq_prod?sslmode=require"
-		cfg, err := ParsePostgresDSN(dsn)
-		if err != nil {
-			t.Fatalf("unexpected parse error: %v", err)
-		}
-		if cfg.Host != "db.example.com" {
-			t.Errorf("expected host db.example.com, got %q", cfg.Host)
-		}
-		if cfg.Port != "5433" {
-			t.Errorf("expected port 5433, got %q", cfg.Port)
-		}
-		if cfg.User != "admin" {
-			t.Errorf("expected user admin, got %q", cfg.User)
-		}
-		if cfg.Password != "secret123" {
-			t.Errorf("expected password secret123, got %q", cfg.Password)
-		}
-		if cfg.DBName != "octarq_prod" {
-			t.Errorf("expected dbname octarq_prod, got %q", cfg.DBName)
-		}
-		if cfg.SSLMode != "require" {
-			t.Errorf("expected sslmode require, got %q", cfg.SSLMode)
-		}
-	})
+	tests := []struct {
+		name      string
+		dsn       string
+		want      PostgresConfig
+		wantErr   bool
+		errString string
+	}{
+		{
+			name: "URL format",
+			dsn:  "postgres://admin:secret123@db.example.com:5433/octarq_prod?sslmode=require",
+			want: PostgresConfig{
+				Host:     "db.example.com",
+				Port:     "5433",
+				User:     "admin",
+				Password: "secret123",
+				DBName:   "octarq_prod",
+				SSLMode:  "require",
+			},
+		},
+		{
+			name: "URL format with postgresql scheme",
+			dsn:  "postgresql://u:p@h:1234/db?sslmode=disable",
+			want: PostgresConfig{
+				Host:     "h",
+				Port:     "1234",
+				User:     "u",
+				Password: "p",
+				DBName:   "db",
+				SSLMode:  "disable",
+			},
+		},
+		{
+			name: "URL format missing host and port",
+			dsn:  "postgres://user:pass@/dbname",
+			want: PostgresConfig{
+				Host:     "localhost",
+				Port:     "5432",
+				User:     "user",
+				Password: "pass",
+				DBName:   "dbname",
+			},
+		},
+		{
+			name: "Key-Value format",
+			dsn:  "host=localhost port=5432 user=postgres password=mysecret dbname=octarq_db sslmode=disable",
+			want: PostgresConfig{
+				Host:     "localhost",
+				Port:     "5432",
+				User:     "postgres",
+				Password: "mysecret",
+				DBName:   "octarq_db",
+				SSLMode:  "disable",
+			},
+		},
+		{
+			name: "Key-Value format with quotes",
+			dsn:  `host='db.h' port='9999' dbname='mydb' password='p@ss'`,
+			want: PostgresConfig{
+				Host:     "db.h",
+				Port:     "9999",
+				User:     "",
+				Password: "p@ss",
+				DBName:   "mydb",
+				SSLMode:  "",
+			},
+		},
+		{
+			name: "Key-Value format with stray tokens",
+			dsn:  "stray-token host=realhost dbname=octarq",
+			want: PostgresConfig{
+				Host:     "realhost",
+				Port:     "5432",
+				User:     "",
+				Password: "",
+				DBName:   "octarq",
+				SSLMode:  "",
+			},
+		},
+		{
+			name:      "Empty string",
+			dsn:       "",
+			wantErr:   true,
+			errString: "empty DSN",
+		},
+		{
+			name:      "Missing dbname error",
+			dsn:       "host=localhost user=postgres",
+			wantErr:   true,
+			errString: "missing dbname in DSN",
+		},
+		{
+			name:      "Invalid URL",
+			dsn:       "postgres://:invalid-url/%zz",
+			wantErr:   true,
+			errString: "parse postgres URL",
+		},
+	}
 
-	t.Run("Key-Value format", func(t *testing.T) {
-		dsn := "host=localhost port=5432 user=postgres password=mysecret dbname=octarq_db sslmode=disable"
-		cfg, err := ParsePostgresDSN(dsn)
-		if err != nil {
-			t.Fatalf("unexpected parse error: %v", err)
-		}
-		if cfg.Host != "localhost" {
-			t.Errorf("expected host localhost, got %q", cfg.Host)
-		}
-		if cfg.Port != "5432" {
-			t.Errorf("expected port 5432, got %q", cfg.Port)
-		}
-		if cfg.User != "postgres" {
-			t.Errorf("expected user postgres, got %q", cfg.User)
-		}
-		if cfg.Password != "mysecret" {
-			t.Errorf("expected password mysecret, got %q", cfg.Password)
-		}
-		if cfg.DBName != "octarq_db" {
-			t.Errorf("expected dbname octarq_db, got %q", cfg.DBName)
-		}
-		if cfg.SSLMode != "disable" {
-			t.Errorf("expected sslmode disable, got %q", cfg.SSLMode)
-		}
-	})
-
-	t.Run("Missing dbname error", func(t *testing.T) {
-		dsn := "host=localhost user=postgres"
-		_, err := ParsePostgresDSN(dsn)
-		if err == nil {
-			t.Fatal("expected error for missing dbname, got nil")
-			return
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParsePostgresDSN(tt.dsn)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ParsePostgresDSN() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr {
+				if !strings.Contains(err.Error(), tt.errString) {
+					t.Errorf("ParsePostgresDSN() error = %v, want errString %v", err, tt.errString)
+				}
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ParsePostgresDSN() = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
 }
 
 func TestSQLiteBackupAndRestore(t *testing.T) {
