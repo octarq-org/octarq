@@ -53,6 +53,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.PAT_GITHUB || secrets.GITHUB_TOKEN }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -76,7 +77,7 @@ jobs:
           version: pnpm run version-packages
           publish: pnpm run release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB || secrets.GITHUB_TOKEN }}
           # setup-node wrote ~/.npmrc; changeset publish -> pnpm publish reads
           # NODE_AUTH_TOKEN for //npm.pkg.github.com/:_authToken.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
