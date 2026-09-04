@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -52,5 +53,30 @@ func TestCodeForStatus(t *testing.T) {
 		if got := CodeForStatus(tc.status); got != tc.want {
 			t.Errorf("CodeForStatus(%d) = %q, want %q", tc.status, got, tc.want)
 		}
+	}
+}
+
+func TestWrite(t *testing.T) {
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/", nil)
+	Write(w, r, http.StatusNotFound, CodeNotFound, "not found")
+
+	res := w.Result()
+	if res.StatusCode != http.StatusNotFound {
+		t.Errorf("expected status %d, got %d", http.StatusNotFound, res.StatusCode)
+	}
+	if got := res.Header.Get("Content-Type"); got != "application/json" {
+		t.Errorf("expected Content-Type application/json, got %q", got)
+	}
+
+	var e Error
+	if err := json.NewDecoder(res.Body).Decode(&e); err != nil {
+		t.Fatalf("failed to decode response body: %v", err)
+	}
+	if e.Code != CodeNotFound {
+		t.Errorf("expected code %q, got %q", CodeNotFound, e.Code)
+	}
+	if e.Message != "not found" {
+		t.Errorf("expected message %q, got %q", "not found", e.Message)
 	}
 }
