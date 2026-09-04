@@ -349,18 +349,18 @@ func (h *Handler) changeEmail(ctx context.Context, input *ChangeEmailInput) (*Ch
 		return out, nil
 	}
 
-	if user.PasswordHash == "" {
-		if user.IsInstanceAdmin {
-			if input.Body.CurrentPassword == "" || !h.auth.Check(user.Email, input.Body.CurrentPassword) {
-				h.loginLimiter.recordFailure(ip)
-				return nil, huma.Error400BadRequest("current password is incorrect")
-			}
-		} else {
-			return nil, huma.Error400BadRequest("this account is managed by an external identity provider; please update your email with your provider")
+	if user.PasswordHash != "" {
+		if input.Body.CurrentPassword == "" || bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Body.CurrentPassword)) != nil {
+			h.loginLimiter.recordFailure(ip)
+			return nil, huma.Error400BadRequest("current password is incorrect")
 		}
-	} else if input.Body.CurrentPassword == "" || bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Body.CurrentPassword)) != nil {
-		h.loginLimiter.recordFailure(ip)
-		return nil, huma.Error400BadRequest("current password is incorrect")
+	} else if user.IsInstanceAdmin {
+		if input.Body.CurrentPassword == "" || !h.auth.CheckAdminPassword(input.Body.CurrentPassword) {
+			h.loginLimiter.recordFailure(ip)
+			return nil, huma.Error400BadRequest("current password is incorrect")
+		}
+	} else {
+		return nil, huma.Error400BadRequest("this account is managed by an external identity provider; please update your email with your provider")
 	}
 
 	var existing models.User

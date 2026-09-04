@@ -184,6 +184,11 @@ func (m *Manager) Check(user, pass string) bool {
 	return userOK && passOK
 }
 
+// CheckAdminPassword verifies the instance admin password using constant-time comparison.
+func (m *Manager) CheckAdminPassword(pass string) bool {
+	return subtle.ConstantTimeCompare([]byte(pass), []byte(m.cfg.AdminPassword)) == 1
+}
+
 // generateToken returns a random 64-char hex string suitable for use as a
 // session token. Panics only if the OS random source fails.
 func generateToken() string {
