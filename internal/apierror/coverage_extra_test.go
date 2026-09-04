@@ -24,34 +24,6 @@ func TestCodesAndKnown(t *testing.T) {
 	}
 }
 
-func TestCodeForStatus_All(t *testing.T) {
-	cases := []struct {
-		s    int
-		want string
-	}{
-		{http.StatusBadRequest, CodeBadRequest},
-		{http.StatusUnauthorized, CodeUnauthorized},
-		{http.StatusForbidden, CodeForbidden},
-		{http.StatusNotFound, CodeNotFound},
-		{http.StatusMethodNotAllowed, CodeMethodNotAllowed},
-		{http.StatusConflict, CodeConflict},
-		{http.StatusUnsupportedMediaType, CodeUnsupportedMedia},
-		{http.StatusUnprocessableEntity, CodeUnprocessableEntity},
-		{http.StatusTooManyRequests, CodeRateLimitExceeded},
-		{http.StatusInternalServerError, CodeInternalError},
-		{http.StatusNotImplemented, CodeNotImplemented},
-		{http.StatusServiceUnavailable, CodeServiceUnavailable},
-		{http.StatusGatewayTimeout, CodeGatewayTimeout},
-		{http.StatusBadGateway, CodeInternalError},
-		{http.StatusTeapot, CodeBadRequest},
-	}
-	for _, c := range cases {
-		if got := CodeForStatus(c.s); got != c.want {
-			t.Errorf("CodeForStatus %d = %q want %q", c.s, got, c.want)
-		}
-	}
-}
-
 func TestErrorMethods(t *testing.T) {
 	e := New(http.StatusBadRequest, "", "bad")
 	if e.GetStatus() != http.StatusBadRequest {

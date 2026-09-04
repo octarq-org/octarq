@@ -44,9 +44,17 @@ func TestCodeForStatus(t *testing.T) {
 		{http.StatusUnauthorized, CodeUnauthorized},
 		{http.StatusForbidden, CodeForbidden},
 		{http.StatusNotFound, CodeNotFound},
+		{http.StatusMethodNotAllowed, CodeMethodNotAllowed},
 		{http.StatusConflict, CodeConflict},
+		{http.StatusUnsupportedMediaType, CodeUnsupportedMedia},
+		{http.StatusUnprocessableEntity, CodeUnprocessableEntity},
+		{http.StatusTooManyRequests, CodeRateLimitExceeded},
 		{http.StatusInternalServerError, CodeInternalError},
+		{http.StatusNotImplemented, CodeNotImplemented},
+		{http.StatusServiceUnavailable, CodeServiceUnavailable},
+		{http.StatusGatewayTimeout, CodeGatewayTimeout},
 		{http.StatusBadGateway, CodeInternalError},
+		{http.StatusTeapot, CodeBadRequest},
 	}
 	for _, tc := range tests {
 		if got := CodeForStatus(tc.status); got != tc.want {
