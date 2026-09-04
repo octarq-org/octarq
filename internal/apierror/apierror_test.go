@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+
+	"github.com/danielgtaylor/huma/v2"
 )
 
 func TestNewSuppresses5xxDetails(t *testing.T) {
@@ -53,4 +55,34 @@ func TestCodeForStatus(t *testing.T) {
 			t.Errorf("CodeForStatus(%d) = %q, want %q", tc.status, got, tc.want)
 		}
 	}
+}
+
+func TestAdd(t *testing.T) {
+	e := &Error{}
+	e.Add(errors.New("test error"))
+	if len(e.Details) != 1 {
+		t.Fatalf("expected 1 error in slice, got %d", len(e.Details))
+	}
+	if e.Details[0].Message != "test error" {
+		t.Errorf("expected 'test error', got %q", e.Details[0].Message)
+	}
+
+	// Test huma.ErrorDetailer implementation
+	detailErr := &mockDetailer{msg: "detail message"}
+	e.Add(detailErr)
+	if len(e.Details) != 2 {
+		t.Fatalf("expected 2 errors in slice, got %d", len(e.Details))
+	}
+	if e.Details[1].Message != "detail message" {
+		t.Errorf("expected 'detail message', got %q", e.Details[1].Message)
+	}
+}
+
+type mockDetailer struct {
+	msg string
+}
+
+func (m *mockDetailer) Error() string { return m.msg }
+func (m *mockDetailer) ErrorDetail() *huma.ErrorDetail {
+	return &huma.ErrorDetail{Message: m.msg}
 }
