@@ -54,3 +54,14 @@ func TestCodeForStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestWithRequestID_Nil(t *testing.T) {
+	var e *Error
+	if got := e.WithRequestID(nil); got != nil {
+		t.Errorf("expected nil when called on nil Error, got %v", got)
+	}
+	e2 := New(http.StatusBadRequest, "", "test")
+	if got := e2.WithRequestID(nil); got != e2 {
+		t.Errorf("expected original error when ctx is nil, got %v", got)
+	}
+}
