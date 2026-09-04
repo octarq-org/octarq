@@ -2,6 +2,7 @@ package dnsprovider
 
 import (
 	"errors"
+	"sort"
 	"testing"
 )
 
@@ -91,5 +92,36 @@ func TestProviderRegistryAndConstructors(t *testing.T) {
 	b, err := MarshalCreds(map[string]string{"apiToken": "xyz"})
 	if err != nil || len(b) == 0 {
 		t.Fatalf("MarshalCreds error: %v", err)
+	}
+}
+
+func TestNames(t *testing.T) {
+	// Not using t.Parallel() because Register modifies global state (registry)
+
+	// Register some mock providers out of order
+	Register("mock_c", func([]byte) (Provider, error) { return nil, nil })
+	Register("mock_a", func([]byte) (Provider, error) { return nil, nil })
+	Register("mock_b", func([]byte) (Provider, error) { return nil, nil })
+
+	names := Names()
+
+	// Ensure the returned names are sorted
+	if !sort.StringsAreSorted(names) {
+		t.Errorf("expected Names() to return a sorted slice, got %v", names)
+	}
+
+	// Check that our registered mock providers exist in the list
+	expectedMocks := []string{"mock_a", "mock_b", "mock_c"}
+	for _, mock := range expectedMocks {
+		found := false
+		for _, name := range names {
+			if name == mock {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected Names() to contain %q, but it was missing", mock)
+		}
 	}
 }
