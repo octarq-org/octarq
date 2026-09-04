@@ -54,3 +54,17 @@ func TestCodeForStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestJSON(t *testing.T) {
+	got := JSON(http.StatusTeapot, "custom_error", "I'm a teapot")
+	want := `{"code":"custom_error","message":"I'm a teapot"}`
+	if string(got) != want {
+		t.Errorf("JSON() = %q, want %q", string(got), want)
+	}
+
+	got = JSON(http.StatusNotFound, "", "Resource missing")
+	want = `{"code":"not_found","message":"Resource missing"}`
+	if string(got) != want {
+		t.Errorf("JSON() = %q, want %q", string(got), want)
+	}
+}
