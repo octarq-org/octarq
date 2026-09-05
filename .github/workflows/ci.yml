@@ -332,6 +332,7 @@ jobs:
         if: steps.tip_after_build.outputs.current == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
+          token: ${{ secrets.PAT_GITHUB || secrets.GITHUB_TOKEN }}
           add-paths: webembed/dist
           branch: chore/refresh-embedded-dashboard
           # Tidy up the reused branch once main has the dist — otherwise it
