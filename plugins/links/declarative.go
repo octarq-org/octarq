@@ -2,11 +2,9 @@ package links
 
 import (
 	"context"
-	"net/http"
 	"strings"
 	"time"
 
-	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/plugin"
 )
@@ -33,13 +31,7 @@ func (p *Plugin) createDeclarativeLink(ctx context.Context, in DeclarativeLinkIn
 		return nil, plugin.NewAgentError(400, "HOST_REQUIRED", "host is required in multi-tenant mode", "Please configure a custom link host first.", false)
 	}
 	if err := p.checkQuota(ctx, orgID, "links", 1); err != nil {
-		code := 429
-		errCode := "QUOTA_EXCEEDED"
-		if se, ok := err.(huma.StatusError); ok && se.GetStatus() == http.StatusPaymentRequired {
-			code = 402
-			errCode = "FEATURE_UNAVAILABLE"
-		}
-		return nil, plugin.NewAgentError(code, errCode, err.Error(), "Upgrade plan to create more links.", false)
+		return nil, err
 	}
 	dest := strings.TrimSpace(in.Destination)
 	if dest == "" {
