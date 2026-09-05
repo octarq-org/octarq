@@ -22,6 +22,7 @@ type Resolver struct {
 	db     *geoip2.Reader
 	closed bool
 	cancel context.CancelFunc // stops a pending background download, if any
+	wg     sync.WaitGroup     // tracks background goroutines
 }
 
 // Open builds the resolver for the given OCTARQ_GEOIP_DB value.
@@ -89,7 +90,11 @@ func openAuto(dataDir, licenseKey string) (*Resolver, error) {
 		slog.Info("geoip: auto-downloading GeoLite2-City in the background", "mode", "auto-download", "dest", cached)
 		ctx, cancel := context.WithCancel(context.Background())
 		r.cancel = cancel
-		go r.autoDownload(ctx, dataDir, licenseKey)
+		r.wg.Add(1)
+		go func() {
+			defer r.wg.Done()
+			r.autoDownload(ctx, dataDir, licenseKey)
+		}()
 	default:
 		slog.Info("geoip disabled: set OCTARQ_GEOIP_DB to an mmdb path, or set OCTARQ_MAXMIND_LICENSE_KEY to auto-download GeoLite2-City", "mode", "disabled")
 	}
@@ -183,7 +188,6 @@ func (r *Resolver) Close() {
 		return
 	}
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	r.closed = true
 	if r.cancel != nil {
 		r.cancel()
@@ -192,6 +196,8 @@ func (r *Resolver) Close() {
 		_ = r.db.Close()
 		r.db = nil
 	}
+	r.mu.Unlock()
+	r.wg.Wait()
 }
 
 // UAInfo is the parsed device/browser/os breakdown.
