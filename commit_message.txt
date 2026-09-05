@@ -1,0 +1,5 @@
+🧪 [testing improvement] add missing test file for tenant_menu.go
+
+🎯 What: Added internal/api/tenant_menu_test.go to test endpoints in tenant_menu.go
+📊 Coverage: Tested SwitchOrg, ListOrgs, CreateOrg, UpdateOrg, GetUpdateUserSettings, ListMenus, and ListActions endpoints including happy paths and some error/unauthenticated states. Test coverage on tenant_menu.go is significantly improved.
+✨ Result: Codebase test reliability is increased for multi-tenant endpoint interactions.
