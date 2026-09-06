@@ -170,6 +170,9 @@ func (a *App) RunMCP(ctx context.Context) error {
 	services := plugin.NewRegistry()
 	a.services = services
 	apiHandler.SetServiceLookup(services.Lookup)
+	if apiHandler.Storage() != nil {
+		services.Provide(plugin.ServiceStorage, plugin.StorageService(apiHandler.Storage()))
+	}
 	var emailMu sync.Mutex
 	var deferredOnEmail []func(plugin.EmailEvent)
 	endpointEngine := endpoint.NewEngine()
@@ -383,6 +386,9 @@ func (a *App) Run(ctx context.Context) error {
 	services := plugin.NewRegistry()
 	a.services = services
 	apiHandler.SetServiceLookup(services.Lookup)
+	if apiHandler.Storage() != nil {
+		services.Provide(plugin.ServiceStorage, plugin.StorageService(apiHandler.Storage()))
+	}
 	var rootHandler http.Handler
 	var staticMounts []server.StaticMount
 	var runEmailMu sync.Mutex

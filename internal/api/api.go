@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -75,6 +77,15 @@ type Handler struct {
 	// hostOrgs caches Host→org resolution for per-workspace branding on the
 	// public, pre-auth config endpoint. See host_org.go.
 	hostOrgs hostOrgCache
+	storage  *plugin.LocalStorageService
+}
+
+func (h *Handler) Storage() *plugin.LocalStorageService {
+	return h.storage
+}
+
+func (h *Handler) SetStorage(s *plugin.LocalStorageService) {
+	h.storage = s
 }
 
 func (h *Handler) SetPlugins(plugins []plugin.Plugin) {
@@ -118,6 +129,16 @@ func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *
 	}
 	h.oauth = auth.NewOAuthHandler(db, a, c)
 	h.registerQueueHandlers(q)
+
+	storageDir := cfg.StorageDir
+	if storageDir == "" {
+		storageDir = filepath.Join(os.TempDir(), "octarq-storage")
+	}
+	localStorage, err := plugin.NewLocalStorageService(storageDir, []byte(cfg.SecretKey), "")
+	if err == nil {
+		h.storage = localStorage
+	}
+
 	return h
 }
 
@@ -452,6 +473,37 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/plugins/{name}", Summary: "Toggle Plugin", Tags: []string{"UI Settings"}}, h.updatePlugin)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/user/settings", Summary: "Get User Settings", Tags: []string{"UI Settings"}}, h.getUserSettings)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/user/settings", Summary: "Update User Settings", Tags: []string{"UI Settings"}}, h.updateUserSettings)
+
+	// File storage & management routes
+	huma.Register(api, huma.Operation{
+		OperationID: "uploadFile",
+		Method:      "POST",
+		Path:        "/api/files/upload",
+		Summary:     "Upload a file with MD5 precheck and deduplication",
+		Tags:        []string{"Files"},
+	}, h.uploadFile)
+	huma.Register(api, huma.Operation{
+		OperationID: "downloadFile",
+		Method:      "GET",
+		Path:        "/api/files/{id}/download",
+		Summary:     "Download file using temporary token or session",
+		Tags:        []string{"Files"},
+		Metadata:    map[string]any{"public": true},
+	}, h.downloadFile)
+	huma.Register(api, huma.Operation{
+		OperationID: "createTempToken",
+		Method:      "POST",
+		Path:        "/api/files/temp-token",
+		Summary:     "Generate temporary download token for a file",
+		Tags:        []string{"Files"},
+	}, h.createTempToken)
+	huma.Register(api, huma.Operation{
+		OperationID: "getFile",
+		Method:      "GET",
+		Path:        "/api/files/{id}",
+		Summary:     "Get file metadata",
+		Tags:        []string{"Files"},
+	}, h.getFile)
 
 	// /api/v1/x is a published alias for /api/x: the docs, the billing webhook
 	// URLs and the inbound-mail webhook URLs all hand out the v1 form. Dispatch
