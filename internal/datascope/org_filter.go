@@ -163,7 +163,7 @@ func scanSQLClauses(sql string) (hasWhere bool, trailingPos int) {
 		// Handle block comments: /* ... */
 		if b == '/' && i+1 < n && sql[i+1] == '*' {
 			i += 2
-			for i+1 < n && !(sql[i] == '*' && sql[i+1] == '/') {
+			for i+1 < n && (sql[i] != '*' || sql[i+1] != '/') {
 				i++
 			}
 			i += 2
