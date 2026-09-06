@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -38,6 +39,7 @@ import (
 	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/geo"
 	"github.com/octarq-org/octarq/internal/mcp"
+	"github.com/octarq-org/octarq/internal/monitor"
 	"github.com/octarq-org/octarq/internal/notify"
 	"github.com/octarq-org/octarq/internal/queue"
 	"github.com/octarq-org/octarq/internal/server"
@@ -55,15 +57,21 @@ import (
 
 // App holds the wired core dependencies and any registered plugins.
 type App struct {
-	cfg       *config.Config
-	gdb       *gorm.DB
-	cipher    *crypto.Cipher
-	auth      *auth.Manager
-	geo       *geo.Resolver
-	plugins   []plugin.Plugin
-	services  *plugin.Registry
-	webFS     fs.FS // overrides the embedded OSS dashboard when set (see WithWebFS)
-	telemetry *telemetry.Telemetry
+	cfg             *config.Config
+	gdb             *gorm.DB
+	cipher          *crypto.Cipher
+	auth            *auth.Manager
+	geo             *geo.Resolver
+	plugins         []plugin.Plugin
+	services        *plugin.Registry
+	healthCollector atomic.Pointer[monitor.Collector]
+	webFS           fs.FS // overrides the embedded OSS dashboard when set (see WithWebFS)
+	telemetry       *telemetry.Telemetry
+}
+
+// HealthCollector returns the system health collector instance.
+func (a *App) HealthCollector() *monitor.Collector {
+	return a.healthCollector.Load()
 }
 
 // New loads configuration and opens the database (without migrating). Call
@@ -516,6 +524,16 @@ func (a *App) Run(ctx context.Context) error {
 	services.Provide(idempotency.ServiceName, idempotency.New(a.gdb).Middleware(func(r *http.Request) uint {
 		return a.auth.OrgID(r)
 	}))
+	healthCollector := monitor.NewCollector(30*time.Second,
+		monitor.NewRuntimeProvider(),
+		monitor.NewDBProvider(a.gdb),
+		monitor.NewDiskProvider(""),
+	)
+	healthCollector.SetProviderSource(func() []plugin.HealthProvider {
+		return services.HealthProviders()
+	})
+	a.healthCollector.Store(healthCollector)
+	monitor.RegisterRoutes(apiHandler.Huma(), healthCollector)
 	// Non-core plugin routes are gated by a per-workspace feature toggle: when the
 	// caller's workspace has the feature disabled, the app answers 404 before the
 	// handler runs. Core plumbing (license activation) mounts ungated — it must
@@ -674,6 +692,8 @@ func (a *App) Run(ctx context.Context) error {
 	}
 	go cleanup.Start(ctx, apiHandler.DataRetentionDays, cleanups...)
 	go cleanup.StartSessionCleanup(ctx, a.gdb, apiHandler.DataRetentionDays)
+	healthCollector.Start(ctx)
+	defer healthCollector.Stop()
 
 	go func() {
 		slog.Info("octarq listening", "addr", a.cfg.Listen, "db", a.cfg.DBDriver)
