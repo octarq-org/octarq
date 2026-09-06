@@ -277,7 +277,7 @@ func (h *Handler) listRegisteredChannels(ctx context.Context, input *ListRegiste
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	r, ok := h.auth.AuthenticateRequest(r)
+	_, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}

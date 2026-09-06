@@ -82,12 +82,13 @@ func ResolveChannels(ctx context.Context, db *gorm.DB, userID, eventType string)
 		if !MatchEventPattern(p.EventPattern, eventType) {
 			continue
 		}
-		score := 0
-		if p.EventPattern == eventType {
+		var score int
+		switch p.EventPattern {
+		case eventType:
 			score = 1000 + len(p.EventPattern)
-		} else if p.EventPattern == "*" {
+		case "*":
 			score = 1
-		} else {
+		default:
 			score = 100 + len(p.EventPattern)
 		}
 		matches = append(matches, scoredMatch{
