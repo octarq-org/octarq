@@ -22,6 +22,7 @@ func TestServiceNamesAreStableWireStrings(t *testing.T) {
 		{ServiceLinkResolve, "links.resolve"},
 		{ServiceQuotaChecker, "quota.checker"},
 		{ServiceDNSManager, "dns.manager"},
+		{ServiceDataScope, "datascope.filter"},
 	} {
 		if c.got != c.want {
 			t.Errorf("service name = %q, want %q", c.got, c.want)
@@ -84,6 +85,10 @@ func TestInterfaceContractsResolveWhenConvertedAtProvide(t *testing.T) {
 	if _, ok := LookupServiceAs[QuotaChecker](reg.Lookup, ServiceQuotaChecker); !ok {
 		t.Fatal("QuotaChecker did not resolve under ServiceQuotaChecker")
 	}
+	reg.Provide(ServiceDataScope, DataScopeFilter(&mockDataScopeFilter{}))
+	if _, ok := LookupServiceAs[DataScopeFilter](reg.Lookup, ServiceDataScope); !ok {
+		t.Fatal("DataScopeFilter did not resolve under ServiceDataScope")
+	}
 
 	// A value that does NOT satisfy the contract must not resolve — this is the
 	// runtime symptom the Provide-site conversion is meant to make impossible,
@@ -92,5 +97,9 @@ func TestInterfaceContractsResolveWhenConvertedAtProvide(t *testing.T) {
 	other.Provide(ServiceQuotaChecker, struct{}{})
 	if _, ok := LookupServiceAs[QuotaChecker](other.Lookup, ServiceQuotaChecker); ok {
 		t.Fatal("a value that does not implement QuotaChecker resolved as one")
+	}
+	other.Provide(ServiceDataScope, struct{}{})
+	if _, ok := LookupServiceAs[DataScopeFilter](other.Lookup, ServiceDataScope); ok {
+		t.Fatal("a value that does not implement DataScopeFilter resolved as one")
 	}
 }
