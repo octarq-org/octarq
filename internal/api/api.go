@@ -406,6 +406,14 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/notification-channels/{id}", Summary: "Delete Notification Channel", Tags: []string{"Notification Channels"}}, h.deleteNotificationChannel)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/notification-channels/{id}/test", Summary: "Test Notification Channel", Tags: []string{"Notification Channels"}}, h.testNotificationChannel)
 
+	// Core In-App Notifications & User Routing Preferences
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notifications", Summary: "List Notifications", Tags: []string{"Notifications"}}, h.listNotifications)
+	huma.Register(api, huma.Operation{Method: "PATCH", Path: "/api/notifications/{id}/read", Summary: "Mark Notification Read", Tags: []string{"Notifications"}}, h.markNotificationRead)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/notifications/{id}", Summary: "Delete Notification", Tags: []string{"Notifications"}}, h.deleteNotification)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notification-preferences", Summary: "Get Notification Preferences", Tags: []string{"Notification Preferences"}}, h.getNotificationPreferences)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/notification-preferences", Summary: "Update Notification Preferences", Tags: []string{"Notification Preferences"}}, h.updateNotificationPreferences)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notification-preferences/channels", Summary: "List Registered Notification Channels", Tags: []string{"Notification Preferences"}}, h.listRegisteredChannels)
+
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/abuse", Summary: "List Abuse Reports", Tags: []string{"Abuse"}}, h.listAbuseReports)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/abuse/{id}", Summary: "Update Abuse Report", Tags: []string{"Abuse"}}, h.updateAbuseReport)
 

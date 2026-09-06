@@ -10,15 +10,17 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/authz"
 	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/internal/notification"
 	"github.com/octarq-org/octarq/internal/notify"
 	"github.com/octarq-org/octarq/plugin"
 )
 
 type NotificationChannelType struct {
-	Type        string `json:"type"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Icon        string `json:"icon"`
+	Type         string          `json:"type"`
+	Title        string          `json:"title"`
+	Description  string          `json:"description"`
+	Icon         string          `json:"icon"`
+	ConfigSchema json.RawMessage `json:"configSchema,omitempty"`
 }
 
 // channelConfigPlaintext returns the usable config JSON for a notification
@@ -84,6 +86,35 @@ func (h *Handler) listNotificationChannelTypes(ctx context.Context, input *ListN
 			Icon:        d.Icon,
 		})
 	}
+
+	// Merge SPI registered channels
+	spiChannels := notification.DefaultRouter().ListChannels()
+	existingTypes := make(map[string]bool)
+	for i := range result {
+		existingTypes[result[i].Type] = true
+		for _, sp := range spiChannels {
+			if sp.Name() == result[i].Type {
+				result[i].ConfigSchema = sp.ConfigSchema()
+				break
+			}
+		}
+	}
+	for _, sp := range spiChannels {
+		if !existingTypes[sp.Name()] {
+			icon := "bell"
+			if sp.Name() == "email" {
+				icon = "mail"
+			}
+			result = append(result, NotificationChannelType{
+				Type:         sp.Name(),
+				Title:        sp.DisplayName(),
+				Description:  sp.DisplayName(),
+				Icon:         icon,
+				ConfigSchema: sp.ConfigSchema(),
+			})
+		}
+	}
+
 	return &ListNotificationChannelTypesOutput{Body: result}, nil
 }
 
@@ -97,7 +128,10 @@ func (h *Handler) findPlugin(name string) plugin.Plugin {
 }
 
 type ListNotificationChannelsInput struct {
-	Ctx huma.Context `hidden:"true"`
+	Ctx        huma.Context `hidden:"true"`
+	Registered bool         `query:"registered" doc:"Return all registered SPI notification channels with Schemas"`
+	Types      bool         `query:"types" doc:"Alias for registered"`
+	Schema     bool         `query:"schema" doc:"Alias for registered"`
 }
 
 func (i *ListNotificationChannelsInput) Resolve(ctx huma.Context) []error {
@@ -118,6 +152,21 @@ func (h *Handler) listNotificationChannels(ctx context.Context, input *ListNotif
 	if !ok {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+
+	spiChannels := notification.DefaultRouter().ListChannels()
+	if input.Registered || input.Types || input.Schema {
+		var res []models.NotificationChannel
+		for _, sp := range spiChannels {
+			res = append(res, models.NotificationChannel{
+				Name:         sp.DisplayName(),
+				Type:         sp.Name(),
+				ConfigSchema: sp.ConfigSchema(),
+				Enabled:      true,
+			})
+		}
+		return &ListNotificationChannelsOutput{Body: res}, nil
+	}
+
 	var channels []models.NotificationChannel
 	h.orgDB(r).Order("created_at DESC").Find(&channels)
 	for i := range channels {
@@ -126,6 +175,12 @@ func (h *Handler) listNotificationChannels(ctx context.Context, input *ListNotif
 			return nil, huma.Error500InternalServerError("failed to decrypt channel config")
 		}
 		channels[i].Config = redactConfigSecrets(plain)
+		for _, sp := range spiChannels {
+			if sp.Name() == channels[i].Type {
+				channels[i].ConfigSchema = sp.ConfigSchema()
+				break
+			}
+		}
 	}
 	return &ListNotificationChannelsOutput{Body: channels}, nil
 }
