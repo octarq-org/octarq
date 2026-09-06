@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"context"
-	"database/sql"
 	"testing"
 
 	"github.com/glebarez/sqlite"
@@ -142,8 +141,4 @@ func TestDBProvider_GDBExtractFails(t *testing.T) {
 	if res.Status != plugin.HealthError {
 		t.Errorf("expected HealthError with canceled context, got %q", res.Status)
 	}
-}
-
-type fakeBadDB struct {
-	*sql.DB
 }
