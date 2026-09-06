@@ -71,6 +71,10 @@ const ServiceLinkResolve = "links.resolve"
 // EmailGetter).
 const ServiceMailEmailGet = "mail.email.get"
 
+// ServiceStorage is the well-known service name under which the storage
+// service SPI is provided (contract type StorageService).
+const ServiceStorage = "storage.service"
+
 // CleanupServiceName returns the well-known "<pluginName>.cleanup" service name
 // under which a plugin provides its retention cleanup (contract type
 // CleanupFunc). The app looks every registered plugin's cleanup service up

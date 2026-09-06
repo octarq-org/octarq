@@ -308,6 +308,9 @@ func (h *Handler) Routes() *http.ServeMux {
 	// AI Chat Stream endpoint (SSE).
 	mux.HandleFunc("POST /api/ai/chat/stream", h.aiChatStream)
 
+	// Real-time Event Stream endpoint (SSE).
+	mux.HandleFunc("GET /api/realtime/stream", h.realtimeStream)
+
 	huma.Register(api, huma.Operation{
 		OperationID: "overview",
 		Method:      "GET",
