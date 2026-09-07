@@ -76,8 +76,9 @@ type Handler struct {
 
 	// hostOrgs caches Host→org resolution for per-workspace branding on the
 	// public, pre-auth config endpoint. See host_org.go.
-	hostOrgs hostOrgCache
-	storage  *plugin.LocalStorageService
+	hostOrgs    hostOrgCache
+	storage     *plugin.LocalStorageService
+	cronService plugin.CronService
 }
 
 func (h *Handler) Storage() *plugin.LocalStorageService {
@@ -94,6 +95,10 @@ func (h *Handler) SetPlugins(plugins []plugin.Plugin) {
 
 func (h *Handler) SetServiceLookup(lookup func(name string) (any, bool)) {
 	h.lookupService = lookup
+}
+
+func (h *Handler) SetCronService(cs plugin.CronService) {
+	h.cronService = cs
 }
 
 func (h *Handler) LookupService(name string) (any, bool) {
@@ -354,6 +359,16 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/instance/readiness", Summary: "Get Instance Readiness", Tags: []string{"Settings"}}, h.instanceReadiness)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/instance/mail/test", Summary: "Test Instance System Mail", Tags: []string{"Settings"}}, h.testInstanceMail)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/admin/backup", Summary: "Download Database Backup", Tags: []string{"Settings"}}, h.downloadBackup)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "listCronJobs",
+		Method:      "GET",
+		Path:        "/api/cron/jobs",
+		Summary:     "List Cron Jobs",
+		Description: "List all registered cron jobs and their current execution status.",
+		Tags:        []string{"Cron"},
+		Errors:      []int{401},
+	}, h.listCronJobs)
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/webhooks", Summary: "List Webhooks", Tags: []string{"Webhooks"}}, h.listWebhooks)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/webhooks/events", Summary: "List Webhook Event Types", Tags: []string{"Webhooks"}}, h.listWebhookEvents)

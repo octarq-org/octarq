@@ -75,6 +75,10 @@ const ServiceMailEmailGet = "mail.email.get"
 // service SPI is provided (contract type StorageService).
 const ServiceStorage = "storage.service"
 
+// ServiceCron is the well-known service name under which the cron engine
+// is provided (contract type CronService).
+const ServiceCron = "cron.service"
+
 // CleanupServiceName returns the well-known "<pluginName>.cleanup" service name
 // under which a plugin provides its retention cleanup (contract type
 // CleanupFunc). The app looks every registered plugin's cleanup service up
