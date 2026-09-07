@@ -11,12 +11,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// pruneAuditLogs deletes audit_log rows older than the data_retention_days
+// PruneAuditLogs deletes audit_log rows older than the data_retention_days
 // retention window. Rows are deleted in small batches to avoid holding a long
 // lock on a potentially large table. A window of 0 or negative disables pruning.
-func pruneAuditLogs(db *gorm.DB, days int) {
-	if days <= 0 {
-		return
+func PruneAuditLogs(db *gorm.DB, days int) (int64, error) {
+	if db == nil || days <= 0 {
+		return 0, nil
 	}
 	cutoff := time.Now().AddDate(0, 0, -days)
 	totalPurged := int64(0)
@@ -24,7 +24,7 @@ func pruneAuditLogs(db *gorm.DB, days int) {
 		var ids []uint
 		if err := db.Model(&models.AuditLog{}).Where("created_at < ?", cutoff).Limit(2000).Pluck("id", &ids).Error; err != nil {
 			log.Printf("cleanup: prune audit logs: %v", err)
-			return
+			return totalPurged, err
 		}
 		if len(ids) == 0 {
 			break
@@ -32,7 +32,7 @@ func pruneAuditLogs(db *gorm.DB, days int) {
 		res := db.Delete(&models.AuditLog{}, ids)
 		if res.Error != nil {
 			log.Printf("cleanup: prune audit logs: %v", res.Error)
-			return
+			return totalPurged, res.Error
 		}
 		totalPurged += res.RowsAffected
 		time.Sleep(50 * time.Millisecond)
@@ -40,6 +40,11 @@ func pruneAuditLogs(db *gorm.DB, days int) {
 	if totalPurged > 0 {
 		log.Printf("cleanup: purged %d audit log rows older than %d days", totalPurged, days)
 	}
+	return totalPurged, nil
+}
+
+func pruneAuditLogs(db *gorm.DB, days int) {
+	_, _ = PruneAuditLogs(db, days)
 }
 
 // Start runs provided plugin cleanup functions (e.g. purging LinkEvents)
