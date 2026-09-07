@@ -508,6 +508,12 @@ type Context struct {
 	// RegisterReactor registers a declarative EventReactor to the event spine.
 	// Call it during Mount. nil on hosts that predate it.
 	RegisterReactor func(r EventReactor) error
+	// RegisterCron registers a scheduled cron task.
+	// nil on hosts that predate it.
+	RegisterCron func(name string, spec string, handler func(ctx context.Context) error) error
+	// Cron provides the CronService SPI for registering and listing cron tasks.
+	// nil on hosts that predate it.
+	Cron CronService
 }
 
 // AuthMethod is a provider-agnostic auth method definition, mirroring the fields

@@ -33,12 +33,14 @@ import (
 	"github.com/octarq-org/octarq/internal/buildinfo"
 	"github.com/octarq-org/octarq/internal/cache"
 	"github.com/octarq-org/octarq/internal/cleanup"
+	"github.com/octarq-org/octarq/internal/cron"
 	"github.com/octarq-org/octarq/internal/crypto"
 	"github.com/octarq-org/octarq/internal/db"
 	"github.com/octarq-org/octarq/internal/endpoint"
 	"github.com/octarq-org/octarq/internal/eventbus"
 	"github.com/octarq-org/octarq/internal/geo"
 	"github.com/octarq-org/octarq/internal/mcp"
+	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/monitor"
 	"github.com/octarq-org/octarq/internal/notify"
 	"github.com/octarq-org/octarq/internal/queue"
@@ -178,6 +180,9 @@ func (a *App) RunMCP(ctx context.Context) error {
 	services := plugin.NewRegistry()
 	a.services = services
 	apiHandler.SetServiceLookup(services.Lookup)
+	cronEngine := cron.New(a.cfg.RedisURL)
+	apiHandler.SetCronService(cronEngine)
+	services.Provide(plugin.ServiceCron, plugin.CronService(cronEngine))
 	var emailMu sync.Mutex
 	var deferredOnEmail []func(plugin.EmailEvent)
 	endpointEngine := endpoint.NewEngine()
@@ -274,6 +279,8 @@ func (a *App) RunMCP(ctx context.Context) error {
 			_ = tenantsql.DefaultRegistry().Register(view)
 		},
 		RegisterReactor: eventbus.RegisterReactor,
+		RegisterCron:    cronEngine.Register,
+		Cron:            cronEngine,
 	}
 	apiHandler.SetEndpointSource(endpointEngine)
 	// Same idempotency seam as the HTTP path — a plugin that resolves it in
@@ -391,6 +398,9 @@ func (a *App) Run(ctx context.Context) error {
 	services := plugin.NewRegistry()
 	a.services = services
 	apiHandler.SetServiceLookup(services.Lookup)
+	cronEngine := cron.New(a.cfg.RedisURL)
+	apiHandler.SetCronService(cronEngine)
+	services.Provide(plugin.ServiceCron, plugin.CronService(cronEngine))
 	var rootHandler http.Handler
 	var staticMounts []server.StaticMount
 	var runEmailMu sync.Mutex
@@ -516,7 +526,10 @@ func (a *App) Run(ctx context.Context) error {
 			_ = tenantsql.DefaultRegistry().Register(view)
 		},
 		RegisterReactor: eventbus.RegisterReactor,
+		RegisterCron:    cronEngine.Register,
+		Cron:            cronEngine,
 	}
+	a.setupBuiltinCron(pctx, apiHandler)
 	apiHandler.SetEndpointSource(endpointEngine)
 	// Idempotency-Key support is offered to plugin routes through the service
 	// registry rather than a new plugin.Context field, so a plugin adopts it
@@ -641,6 +654,11 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 	eventbus.StartReactors(ctx, 0)
+	go func() {
+		if err := cronEngine.Start(ctx); err != nil {
+			slog.Error("cron start failed", "err", err)
+		}
+	}()
 
 	// Tell the operator, once and before anything is served, which capabilities
 	// this instance actually has. Several of them fail silently otherwise — see
@@ -713,8 +731,44 @@ func (a *App) Run(ctx context.Context) error {
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	slog.Info("shutting down")
+	if err := cronEngine.Stop(shutCtx); err != nil {
+		slog.Warn("cron shutdown failed", "err", err)
+	}
 	if a.telemetry != nil {
 		_ = a.telemetry.Shutdown(shutCtx)
 	}
 	return httpSrv.Shutdown(shutCtx)
+}
+
+// Setup sets up built-in background services, including cron jobs.
+func (a *App) Setup(pctx *plugin.Context, apiHandler *api.Handler) {
+	a.setupBuiltinCron(pctx, apiHandler)
+}
+
+func (a *App) setupBuiltinCron(pctx *plugin.Context, apiHandler *api.Handler) {
+	if pctx == nil || pctx.RegisterCron == nil {
+		return
+	}
+	_ = pctx.RegisterCron("session_cleanup", "0 * * * *", func(ctx context.Context) error {
+		now := time.Now()
+		if err := a.gdb.WithContext(ctx).Where("expires_at < ?", now).Delete(&models.Session{}).Error; err != nil {
+			return err
+		}
+		if err := a.gdb.WithContext(ctx).Where("expires_at IS NOT NULL AND expires_at < ?", now).Delete(&models.Token{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+
+	_ = pctx.RegisterCron("log_rotation", "0 0 * * *", func(ctx context.Context) error {
+		if apiHandler == nil {
+			return nil
+		}
+		days := apiHandler.DataRetentionDays()
+		if days <= 0 {
+			return nil
+		}
+		_, err := cleanup.PruneAuditLogs(a.gdb, days)
+		return err
+	})
 }
