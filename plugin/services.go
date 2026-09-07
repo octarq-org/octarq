@@ -79,6 +79,20 @@ const ServiceStorage = "storage.service"
 // is provided (contract type CronService).
 const ServiceCron = "cron.service"
 
+// ServiceHealthProvider is the well-known service name under which a health
+// provider is registered (contract type HealthProvider).
+const ServiceHealthProvider = "health.provider"
+
+// ServiceHealthProvidersAll is the service name under which all registered
+// health providers are resolved as []HealthProvider.
+const ServiceHealthProvidersAll = "health.providers.all"
+
+// HealthProviderServiceName returns the well-known service name under which
+// a specific named health provider is registered (e.g. "health.provider.runtime").
+func HealthProviderServiceName(name string) string {
+	return "health.provider." + name
+}
+
 // CleanupServiceName returns the well-known "<pluginName>.cleanup" service name
 // under which a plugin provides its retention cleanup (contract type
 // CleanupFunc). The app looks every registered plugin's cleanup service up
