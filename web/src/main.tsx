@@ -16,6 +16,8 @@ import { I18nProvider } from "./i18n";
 import { BrandBridge } from "./brand";
 import { ToastProvider } from "./ui";
 import { ConfirmBridge } from "./ConfirmBridge";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/queryClient";
 import "./styles.css";
 
 // The dashboard normally lives under /admin (Vite base + BrowserRouter
@@ -36,19 +38,21 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     {/* Honor the OS "reduce motion" setting for every framer-motion animation
         (StatCard/ScreenWrap enter, dropdowns, …) — a11y baseline. */}
     <MotionConfig reducedMotion="user">
-      {/* I18nProvider + BrandBridge feed the SDK's i18n/brand context, which the
-          shared UI and plugin packages read. */}
-      <I18nProvider>
-        <BrandBridge>
-          <ToastProvider>
-            <ConfirmBridge>
-              <BrowserRouter basename={routerBasename}>
-                <App />
-              </BrowserRouter>
-            </ConfirmBridge>
-          </ToastProvider>
-        </BrandBridge>
-      </I18nProvider>
+      <QueryClientProvider client={queryClient}>
+        {/* I18nProvider + BrandBridge feed the SDK's i18n/brand context, which the
+            shared UI and plugin packages read. */}
+        <I18nProvider>
+          <BrandBridge>
+            <ToastProvider>
+              <ConfirmBridge>
+                <BrowserRouter basename={routerBasename}>
+                  <App />
+                </BrowserRouter>
+              </ConfirmBridge>
+            </ToastProvider>
+          </BrandBridge>
+        </I18nProvider>
+      </QueryClientProvider>
     </MotionConfig>
   </React.StrictMode>,
 );
