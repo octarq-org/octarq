@@ -100,6 +100,13 @@ export interface AuditLog {
   createdAt: string;
 }
 
+export interface ListAuditLogsParams {
+  action?: string;
+  targetType?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export interface AbuseReport {
   id: number;
   slug: string;
@@ -498,7 +505,15 @@ export const api = {
   testWebhook: (id: number) => req<{ ok: boolean }>("POST", `/api/webhooks/${id}/test`),
 
   // audit
-  auditLogs: () => req<AuditLog[]>("GET", "/api/audit"),
+  auditLogs: (q?: ListAuditLogsParams) => {
+    const params = new URLSearchParams();
+    if (q?.action) params.set("action", q.action);
+    if (q?.targetType) params.set("targetType", q.targetType);
+    if (q?.limit !== undefined) params.set("limit", q.limit.toString());
+    if (q?.offset !== undefined) params.set("offset", q.offset.toString());
+    const query = params.toString();
+    return req<AuditLog[]>("GET", `/api/audit${query ? "?" + query : ""}`);
+  },
 
   // abuse
   abuseReports: (status?: string) => req<AbuseReport[]>("GET", `/api/abuse${status ? `?status=${status}` : ''}`),

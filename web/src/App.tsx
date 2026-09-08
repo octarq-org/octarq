@@ -35,6 +35,9 @@ import { InstanceExitRedirect } from "./pages/instance/redirect";
 export { RouteFallback } from "./components/ui/RouteFallback";
 
 
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/queryClient";
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -163,9 +166,11 @@ export default function App() {
   }
 
   return (
-    <TableDensityProvider density={tableDensity} onDensityChange={changeTableDensity}>
-      {content}
-    </TableDensityProvider>
+    <QueryClientProvider client={queryClient}>
+      <TableDensityProvider density={tableDensity} onDensityChange={changeTableDensity}>
+        {content}
+      </TableDensityProvider>
+    </QueryClientProvider>
   );
 }
 
