@@ -63,6 +63,17 @@ func (p *DBStorageProvider) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
+func (p *DBStorageProvider) DeleteBatch(ctx context.Context, keys []string) error {
+	if p.db == nil {
+		return errors.New("database connection is nil")
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	p.db.WithContext(ctx).Where("key IN ?", keys).Delete(&MailRawBlob{})
+	return nil
+}
+
 // Stat asks the database for the byte count instead of loading the blob and
 // measuring it: this is the call the storage meter makes, and a multi-megabyte
 // original does not need to travel to the process to have its length taken.

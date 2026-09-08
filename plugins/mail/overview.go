@@ -35,19 +35,33 @@ func (p *Plugin) purge(orgID uint) error {
 			break
 		}
 
+		var keys []string
 		for _, e := range emails {
 			key := e.StorageKey
 			if key == "" {
 				key = fmt.Sprintf("mail/%d/%d.eml", orgID, e.ID)
 			}
-			if storageProv != nil {
-				if err := storageProv.Delete(delCtx, key); err != nil {
-					log.Printf("mail purge: failed to delete storage blob %q: %v", key, err)
+			keys = append(keys, key)
+		}
+
+		if storageProv != nil {
+			if bd, ok := storageProv.(interface {
+				DeleteBatch(context.Context, []string) error
+			}); ok {
+				if err := bd.DeleteBatch(delCtx, keys); err != nil {
+					log.Printf("mail purge: failed to batch delete storage blobs: %v", err)
+				}
+			} else {
+				for _, key := range keys {
+					if err := storageProv.Delete(delCtx, key); err != nil {
+						log.Printf("mail purge: failed to delete storage blob %q: %v", key, err)
+					}
 				}
 			}
-			if err := dbProv.Delete(delCtx, key); err != nil {
-				log.Printf("mail purge: failed to delete database blob %q: %v", key, err)
-			}
+		}
+
+		if err := dbProv.DeleteBatch(delCtx, keys); err != nil {
+			log.Printf("mail purge: failed to batch delete database blobs: %v", err)
 		}
 
 		var ids []uint
