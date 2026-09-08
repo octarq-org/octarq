@@ -58,6 +58,9 @@ var registeredPublicEndpoints = map[string]string{
 	"POST /api/webhook/{orgSlug}/email/inbound/{token}":     "org inbound token in path, constant-time compared",
 	"POST /api/webhook/{orgSlug}/email/inbound/raw/{token}": "org inbound token in path, constant-time compared",
 	"POST /api/webhook/{orgSlug}/email/bounce/{token}":      "org inbound token in path; SNS SubscribeURL host validated",
+
+	// File download with optional temporary signed token
+	"GET /api/files/{id}/download": "session or HMAC-SHA256 signed temporary download token",
 }
 
 // TestPublicEndpointRegistry fails when the set of routes reachable without a

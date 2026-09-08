@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -16,9 +17,10 @@ import (
 // is not raced in practice, but the registry locks anyway; Lookup takes a
 // read lock and is safe from any goroutine (Start, request handlers).
 type Registry struct {
-	mu   sync.RWMutex
-	svcs map[string]any
-	errs []error
+	mu              sync.RWMutex
+	svcs            map[string]any
+	healthProviders []HealthProvider
+	errs            []error
 }
 
 // NewRegistry returns an empty registry.
@@ -33,6 +35,60 @@ func NewRegistry() *Registry {
 func (r *Registry) Provide(name string, svc any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	// Special handling for HealthProvider to allow multiple plugins to register health checks
+	if name == ServiceHealthProvider {
+		if hp, ok := svc.(HealthProvider); ok {
+			for _, existing := range r.healthProviders {
+				if existing.Name() == hp.Name() {
+					r.errs = append(r.errs, fmt.Errorf("plugin service %q provided twice for provider %q", name, hp.Name()))
+					return
+				}
+			}
+			r.healthProviders = append(r.healthProviders, hp)
+			r.svcs[HealthProviderServiceName(hp.Name())] = hp
+			if _, exists := r.svcs[ServiceHealthProvider]; !exists {
+				r.svcs[ServiceHealthProvider] = hp
+			}
+			return
+		}
+		if hps, ok := svc.([]HealthProvider); ok {
+			for _, hp := range hps {
+				for _, existing := range r.healthProviders {
+					if existing.Name() == hp.Name() {
+						r.errs = append(r.errs, fmt.Errorf("plugin service %q provided twice for provider %q", name, hp.Name()))
+						return
+					}
+				}
+				r.healthProviders = append(r.healthProviders, hp)
+				r.svcs[HealthProviderServiceName(hp.Name())] = hp
+			}
+			if len(hps) > 0 {
+				if _, exists := r.svcs[ServiceHealthProvider]; !exists {
+					r.svcs[ServiceHealthProvider] = hps[0]
+				}
+			}
+			return
+		}
+	}
+
+	if strings.HasPrefix(name, "health.provider.") {
+		if hp, ok := svc.(HealthProvider); ok {
+			for _, existing := range r.healthProviders {
+				if existing.Name() == hp.Name() {
+					r.errs = append(r.errs, fmt.Errorf("plugin service %q provided twice", name))
+					return
+				}
+			}
+			r.healthProviders = append(r.healthProviders, hp)
+			r.svcs[name] = hp
+			if _, exists := r.svcs[ServiceHealthProvider]; !exists {
+				r.svcs[ServiceHealthProvider] = hp
+			}
+			return
+		}
+	}
+
 	if _, dup := r.svcs[name]; dup {
 		r.errs = append(r.errs, fmt.Errorf("plugin service %q provided twice", name))
 		return
@@ -44,8 +100,22 @@ func (r *Registry) Provide(name string, svc any) {
 func (r *Registry) Lookup(name string) (any, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+	if name == ServiceHealthProvidersAll {
+		res := make([]HealthProvider, len(r.healthProviders))
+		copy(res, r.healthProviders)
+		return res, len(res) > 0
+	}
 	svc, ok := r.svcs[name]
 	return svc, ok
+}
+
+// HealthProviders returns a copy of all registered HealthProviders.
+func (r *Registry) HealthProviders() []HealthProvider {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	res := make([]HealthProvider, len(r.healthProviders))
+	copy(res, r.healthProviders)
+	return res
 }
 
 // Err reports any duplicate-Provide collisions recorded so far (nil if none).

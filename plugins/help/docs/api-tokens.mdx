@@ -1,51 +1,80 @@
 ---
 title: API Tokens
-description: Generate bearer tokens with oct_ prefix to authenticate REST API requests.
+description: Issue scoped bearer tokens with oct_ prefix to authenticate REST API requests, CI/CD automation, and remote MCP agents.
 category: settings
 order: 20
 ---
 
-API tokens grant non-interactive access to Octarq REST endpoints for scripts, CI/CD pipelines, and external services.
+Octarq API tokens provide non-interactive, cryptographically secure authentication for automation scripts, CI/CD deployment pipelines, scheduled cron tasks, and remote AI agents. Every token acts as a scoped bearer credential bound to a specific workspace and member identity.
 
-## Overview
+## Token Specifications and Cryptographic Security
 
-- **Token Format**: Tokens begin with an `oct_` prefix followed by 24 cryptographically random bytes (such as `oct_AbC123...`).
-- **Storage**: Tokens are stored as SHA-256 hashes. The plain text is shown only once when generated.
-- **Expiration**: Tokens can be set to expire after a specified number of days, or set to remain active until manually revoked.
-- **Scope & Ownership**: Tokens act with the creator's permissions. Each user manages their own tokens under account settings. Removing a member from a workspace revokes all tokens created by that member.
+- **Prefix & Entropy**: All tokens begin with the prefix `oct_` followed by 24 cryptographically secure random bytes (base62 encoded, e.g. `oct_AbC123...`).
+- **One-Way Storage**: Raw token strings are never stored in plain text. The database saves only a one-way SHA-256 hash (`token_hash`). The plain token is revealed exactly once upon generation.
+- **Header Standard**: Authenticate requests by passing the token in the standard HTTP `Authorization` header:
+  ```http
+  Authorization: Bearer oct_your_secret_api_token
+  ```
+
+## Role Scoping and Anti-Privilege Escalation
+
+API tokens enforce strict role-based access control (RBAC) within your workspace:
+
+### Role Narrowing (`callerHoldsRole`)
+
+When generating a token, you can assign an explicit role scope:
+- **`member`**: Standard operational privileges (manage short links, mailboxes, and view domain records).
+- **`admin`**: Operational privileges plus administrative settings, DNS provider management, webhooks, and alerts.
+- **`owner`**: Full workspace authority, including billing, membership changes, and workspace deletion.
+
+To prevent privilege escalation, Octarq enforces compile-time and runtime **Role Narrowing**:
+- A member cannot mint a token with a role higher than their own personal workspace role.
+- An `Admin` can mint `member` or `admin` tokens, but is blocked from minting `owner` tokens with HTTP 403 Forbidden (*"cannot mint a token above your own role"*).
+- **Least Privilege Default**: If the `role` field is omitted during creation, Octarq automatically defaults to `member`.
 
 ## Generate an API Token
 
 1. Go to **Settings → Account → API Tokens** (or press `⌘K` / `Ctrl+K` and search "API Tokens").
 2. Click **+ New Token**.
-3. Enter a **Name** (such as `GitHub Actions` or `Deployment Script`).
-4. (Optional) Set a **Note** and an **Expiration (in days)**.
-5. Click **Create**.
-6. Copy the token immediately. It will not be shown again.
+3. Configure token properties:
+   - **Name**: A descriptive label (such as `GitHub Actions Deployment` or `Terraform Provider`).
+   - **Role Scope**: Select `Member`, `Admin`, or `Owner` (bounded by your workspace role).
+   - **Expiration (in days)**: Choose 7, 30, 90 days, or leave empty for a non-expiring token.
+   - **Note**: Optional contextual metadata describing the token's intended purpose.
+4. Click **Create Token**.
+5. Copy the displayed secret token immediately.
 
-## Use a Token in Requests
+## Example API Requests
 
-Pass the token in the HTTP `Authorization` header as a Bearer token:
+### 1. List Domains in Workspace
 
 ```bash
-curl -X GET "https://your-octarq-domain.com/api/domains" \
-  -H "Authorization: Bearer oct_your_secret_api_token"
+curl -s -X GET "https://your-octarq-host.com/api/domains" \
+  -H "Authorization: Bearer oct_your_secret_api_token" \
+  -H "Accept: application/json"
 ```
 
-Example request to create a DNS record:
+### 2. Create a Short Link Declaratively
 
 ```bash
-curl -X POST "https://your-octarq-domain.com/api/domains/1/records" \
+curl -s -X POST "https://your-octarq-host.com/api/links" \
   -H "Authorization: Bearer oct_your_secret_api_token" \
   -H "Content-Type: application/json" \
-  -d '{"type":"A","name":"sub","content":"1.2.3.4","ttl":300}'
+  -d '{
+    "target": "https://example.com/docs",
+    "slug": "docs",
+    "host": "go.example.com"
+  }'
 ```
 
-## Revoke a Token
+## Token Revocation and Lifecycle Security
 
-Go to **Settings → Account → API Tokens**, locate the token, and click **Revoke**. Requests using a revoked token receive an HTTP 401 response immediately.
+- **Manual Revocation**: Go to **Settings → Account → API Tokens**, locate the token, and click **Revoke**. The token hash is deleted immediately, and any subsequent API request using it receives an instant HTTP 401 Unauthorized response.
+- **Cascade Revocation on Member Removal**: Tokens are strictly scoped to the tuple of `(org_id, user_id)`. When an administrator removes a team member from an organization, all API tokens minted by that user within the workspace are permanently cascade-deleted, preventing orphaned credentials from lingering in automated systems.
 
-## Related Links
+## Related Guides
 
 - [Model Context Protocol (MCP)](/help/mcp)
-- [Outbound Webhooks](/help/webhooks)
+- [Webhooks](/help/webhooks)
+- [Alerts](/help/notifications)
+- [Organizations & Workspace RBAC](/help/multi-org)
