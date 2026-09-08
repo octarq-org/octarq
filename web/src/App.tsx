@@ -19,6 +19,8 @@ import { Modal, Button, toast, cn, Alert, TableDensityProvider, TableDensity } f
 import { useTranslation } from "./i18n";
 import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
 import { RoleProvider, roleSatisfies } from "./shell/role";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/queryClient";
 import { TopBar } from "./shell/TopBar";
 import { CommandPalette } from "./shell/CommandPalette";
 import { AreaPanel } from "./shell/AreaPanel";
@@ -35,8 +37,7 @@ import { InstanceExitRedirect } from "./pages/instance/redirect";
 export { RouteFallback } from "./components/ui/RouteFallback";
 
 
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./lib/queryClient";
+
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
