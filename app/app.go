@@ -42,6 +42,7 @@ import (
 	"github.com/octarq-org/octarq/internal/mcp"
 	"github.com/octarq-org/octarq/internal/models"
 	"github.com/octarq-org/octarq/internal/monitor"
+	"github.com/octarq-org/octarq/internal/notification"
 	"github.com/octarq-org/octarq/internal/notify"
 	"github.com/octarq-org/octarq/internal/queue"
 	"github.com/octarq-org/octarq/internal/server"
@@ -189,11 +190,19 @@ func (a *App) RunMCP(ctx context.Context) error {
 	var emailMu sync.Mutex
 	var deferredOnEmail []func(plugin.EmailEvent)
 	endpointEngine := endpoint.NewEngine()
+	notifRouter := notification.NewRouter(a.gdb)
+	_ = notifRouter.RegisterChannel(notification.NewEmailChannel(a.gdb, func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
+		return a.sendMail(orgID, to, subject, htmlBody, textBody)
+	}))
+	notification.SetDefaultRouter(notifRouter)
 	pctx := &plugin.Context{
 		Huma:   apiHandler.Huma(),
 		DB:     a.gdb,
 		Guard:  a.auth.Require,
 		Notify: notify.Send,
+		RegisterNotificationChannel: func(ch plugin.NotificationChannel) {
+			_ = notifRouter.RegisterChannel(ch)
+		},
 		RegisterNotifier: func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
 			notify.Register(typ, send)
 		},
@@ -291,6 +300,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 	services.Provide(idempotency.ServiceName, idempotency.New(a.gdb).Middleware(func(r *http.Request) uint {
 		return a.auth.OrgID(r)
 	}))
+	services.Provide(plugin.ServiceNotificationRouter, notifRouter)
 	enabled := a.pluginGate(apiHandler)
 	// Route ownership guard: see routeRegistry. Declared before the mount loop
 	// because every plugin registers through it.
@@ -412,11 +422,19 @@ func (a *App) Run(ctx context.Context) error {
 	var runEmailMu sync.Mutex
 	var runDeferredOnEmail []func(plugin.EmailEvent)
 	endpointEngine := endpoint.NewEngine()
+	notifRouter := notification.NewRouter(a.gdb)
+	_ = notifRouter.RegisterChannel(notification.NewEmailChannel(a.gdb, func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
+		return a.sendMail(orgID, to, subject, htmlBody, textBody)
+	}))
+	notification.SetDefaultRouter(notifRouter)
 	pctx := &plugin.Context{
 		Huma:   apiHandler.Huma(),
 		DB:     a.gdb,
 		Guard:  a.auth.Require,
 		Notify: notify.Send,
+		RegisterNotificationChannel: func(ch plugin.NotificationChannel) {
+			_ = notifRouter.RegisterChannel(ch)
+		},
 		RegisterNotifier: func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
 			notify.Register(typ, send)
 		},
@@ -543,6 +561,7 @@ func (a *App) Run(ctx context.Context) error {
 	services.Provide(idempotency.ServiceName, idempotency.New(a.gdb).Middleware(func(r *http.Request) uint {
 		return a.auth.OrgID(r)
 	}))
+	services.Provide(plugin.ServiceNotificationRouter, notifRouter)
 	healthCollector := monitor.NewCollector(30*time.Second,
 		monitor.NewRuntimeProvider(),
 		monitor.NewDBProvider(a.gdb),

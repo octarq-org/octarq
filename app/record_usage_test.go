@@ -146,3 +146,53 @@ func TestBothPctxConstructorsSetLLMResolverForOrg(t *testing.T) {
 		t.Fatalf("found %d plugin.Context initializations, but only %d set SetLLMResolverForOrg", pctxCount, llmResolverForOrgCount)
 	}
 }
+
+func TestBothPctxConstructorsSetRegisterNotificationChannel(t *testing.T) {
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("failed to get caller path")
+	}
+	appGoPath := filepath.Join(filepath.Dir(currentFile), "app.go")
+
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, appGoPath, nil, parser.ParseComments)
+	if err != nil {
+		t.Fatalf("failed to parse app.go: %v", err)
+	}
+
+	pctxCount := 0
+	registerNotifCount := 0
+
+	ast.Inspect(node, func(n ast.Node) bool {
+		compLit, ok := n.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+
+		isPluginContext := false
+		if sel, ok := compLit.Type.(*ast.SelectorExpr); ok {
+			if ident, ok := sel.X.(*ast.Ident); ok && ident.Name == "plugin" && sel.Sel.Name == "Context" {
+				isPluginContext = true
+			}
+		}
+
+		if isPluginContext {
+			pctxCount++
+			for _, elt := range compLit.Elts {
+				if kv, ok := elt.(*ast.KeyValueExpr); ok {
+					if keyIdent, ok := kv.Key.(*ast.Ident); ok && keyIdent.Name == "RegisterNotificationChannel" {
+						registerNotifCount++
+					}
+				}
+			}
+		}
+		return true
+	})
+
+	if pctxCount < 2 {
+		t.Fatalf("expected at least 2 plugin.Context initializations in app.go, found %d", pctxCount)
+	}
+	if registerNotifCount != pctxCount {
+		t.Fatalf("found %d plugin.Context initializations, but only %d set RegisterNotificationChannel", pctxCount, registerNotifCount)
+	}
+}

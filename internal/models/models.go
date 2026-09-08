@@ -301,14 +301,15 @@ type WorkspaceSetting struct {
 }
 
 type NotificationChannel struct {
-	ID        uint      `json:"id" gorm:"primaryKey"`
-	OrgID     uint      `gorm:"column:owner_id;index" json:"-"`
-	Name      string    `json:"name"`
-	Type      string    `json:"type"`                    // e.g. "telegram", "webhook"
-	Config    string    `json:"config" gorm:"type:text"` // AES-GCM encrypted JSON object at rest; readers MUST decrypt with failure fallback to raw string
-	Enabled   bool      `json:"enabled" gorm:"default:true"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID           uint            `json:"id" gorm:"primaryKey"`
+	OrgID        uint            `gorm:"column:owner_id;index" json:"-"`
+	Name         string          `json:"name"`
+	Type         string          `json:"type"`                    // e.g. "telegram", "webhook"
+	Config       string          `json:"config" gorm:"type:text"` // AES-GCM encrypted JSON object at rest; readers MUST decrypt with failure fallback to raw string
+	ConfigSchema json.RawMessage `json:"configSchema,omitempty" gorm:"-"`
+	Enabled      bool            `json:"enabled" gorm:"default:true"`
+	CreatedAt    time.Time       `json:"createdAt"`
+	UpdatedAt    time.Time       `json:"updatedAt"`
 }
 
 // AuditLog records admin actions for traceability.
@@ -372,12 +373,46 @@ type Webhook struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// Notification represents an in-app notification record.
+// Design points: id, user_id, org_id, event_type, title, body, read_at, created_at
+type Notification struct {
+	ID        uint       `gorm:"primaryKey" json:"id"`
+	UserID    string     `gorm:"size:64;index;not null" json:"userId"`
+	OrgID     string     `gorm:"size:64;index;not null" json:"orgId"`
+	EventType string     `gorm:"size:128;not null" json:"eventType"`
+	Title     string     `gorm:"size:255;not null" json:"title"`
+	Body      string     `gorm:"type:text;not null" json:"body"`
+	Data      string     `gorm:"type:text" json:"data,omitempty"`
+	Priority  string     `gorm:"size:32;default:'normal'" json:"priority"`
+	ReadAt    *time.Time `gorm:"index" json:"readAt,omitempty"`
+	CreatedAt time.Time  `gorm:"index" json:"createdAt"`
+}
+
+func (Notification) TableName() string {
+	return "notifications"
+}
+
+// NotificationPreference represents a user's notification channel routing preferences.
+// Design points: user_id, event_pattern, channels[]
+type NotificationPreference struct {
+	ID           uint       `gorm:"primaryKey" json:"id"`
+	UserID       string     `gorm:"size:64;index:idx_notif_pref_user_pattern,unique;not null" json:"userId"`
+	EventPattern string     `gorm:"size:128;index:idx_notif_pref_user_pattern,unique;not null" json:"eventPattern"`
+	Channels     StringList `gorm:"type:text;not null" json:"channels"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
+}
+
+func (NotificationPreference) TableName() string {
+	return "notification_preferences"
+}
+
 // AllModels lists every model for AutoMigrate.
 func AllModels() []any {
 	return []any{
 		&Org{}, &User{}, &OrgMember{}, &UserIdentity{}, &UserSetting{}, &PluginSetting{},
 		&Token{}, &Setting{}, &WorkspaceSetting{}, &NotificationChannel{},
 		&AbuseReport{}, &AuditLog{}, &Webhook{}, &Session{}, &OrgSlugHistory{},
-		&File{},
+		&Notification{}, &NotificationPreference{}, &File{},
 	}
 }

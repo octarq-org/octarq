@@ -238,3 +238,62 @@ func TestAllModelsAndOrgDataIsolation(t *testing.T) {
 		t.Errorf("Org 1 audit log isolation failed: got %+v", org1Audit)
 	}
 }
+
+func TestNotificationModels(t *testing.T) {
+	t.Parallel()
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(AllModels()...); err != nil {
+		t.Fatalf("automigrate: %v", err)
+	}
+
+	// Test Notification CRUD
+	n := Notification{
+		UserID:    "user_123",
+		OrgID:     "org_456",
+		EventType: "cron.job_failed",
+		Title:     "Daily Backup Failed",
+		Body:      "Disk space low",
+		Data:      `{"job_id":"backup"}`,
+		Priority:  "high",
+		CreatedAt: time.Now(),
+	}
+	if err := db.Create(&n).Error; err != nil {
+		t.Fatalf("create notification: %v", err)
+	}
+	if n.ID == 0 {
+		t.Error("expected non-zero ID")
+	}
+	if n.TableName() != "notifications" {
+		t.Errorf("unexpected table name: %s", n.TableName())
+	}
+
+	// Test NotificationPreference CRUD
+	pref := NotificationPreference{
+		UserID:       "user_123",
+		EventPattern: "cron.*",
+		Channels:     StringList{"in_app", "email"},
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+	if err := db.Create(&pref).Error; err != nil {
+		t.Fatalf("create preference: %v", err)
+	}
+	if pref.ID == 0 {
+		t.Error("expected non-zero ID")
+	}
+	if pref.TableName() != "notification_preferences" {
+		t.Errorf("unexpected table name: %s", pref.TableName())
+	}
+
+	// Query preference back
+	var loaded NotificationPreference
+	if err := db.First(&loaded, pref.ID).Error; err != nil {
+		t.Fatalf("load preference: %v", err)
+	}
+	if loaded.EventPattern != "cron.*" || len(loaded.Channels) != 2 {
+		t.Errorf("unexpected loaded preference: %+v", loaded)
+	}
+}

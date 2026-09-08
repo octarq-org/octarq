@@ -508,6 +508,9 @@ type Context struct {
 	// RegisterReactor registers a declarative EventReactor to the event spine.
 	// Call it during Mount. nil on hosts that predate it.
 	RegisterReactor func(r EventReactor) error
+	// RegisterNotificationChannel registers a notification channel SPI driver.
+	// Call it during Mount. nil on hosts that predate it.
+	RegisterNotificationChannel func(ch NotificationChannel)
 	// RegisterCron registers a scheduled cron task.
 	// nil on hosts that predate it.
 	RegisterCron func(name string, spec string, handler func(ctx context.Context) error) error

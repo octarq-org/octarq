@@ -75,6 +75,10 @@ const ServiceMailEmailGet = "mail.email.get"
 // service SPI is provided (contract type StorageService).
 const ServiceStorage = "storage.service"
 
+// ServiceNotificationRouter is the well-known service name under which the
+// notification router SPI is provided.
+const ServiceNotificationRouter = "notification.router"
+
 // ServiceCron is the well-known service name under which the cron engine
 // is provided (contract type CronService).
 const ServiceCron = "cron.service"
