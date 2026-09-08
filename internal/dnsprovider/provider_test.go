@@ -7,6 +7,26 @@ import (
 
 type dummyProvider struct{ Provider }
 
+func TestRegister(t *testing.T) {
+	dummyName := "test_register_provider"
+	mockFactory := func(credsJSON []byte) (Provider, error) {
+		return &dummyProvider{}, nil
+	}
+
+	Register(dummyName, mockFactory)
+
+	registryMu.RLock()
+	f, ok := registry[dummyName]
+	registryMu.RUnlock()
+
+	if !ok {
+		t.Fatalf("expected provider %q to be registered", dummyName)
+	}
+	if f == nil {
+		t.Fatal("expected non-nil factory to be registered")
+	}
+}
+
 func TestRegisterAndNew(t *testing.T) {
 	// Not using t.Parallel() because Register modifies global state (registry)
 
