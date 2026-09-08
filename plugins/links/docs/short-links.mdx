@@ -1,41 +1,93 @@
 ---
 title: Links
+description: Create branded short URLs, configure conditional attribute and sticky A/B split routing, set password gates and click limits, and analyze visitor attribution.
 category: operations
 order: 10
 ---
 
-Create branded short URLs, set up conditional targeting rules by location, device, or language, and configure link passwords or expiration limits.
+Octarq Links provides a high-throughput redirection and link management engine. It enables marketing and operations teams to create branded vanity URLs, route traffic conditionally based on visitor attributes, execute deterministic A/B split tests, safeguard destinations with passwords or click limits, and gather privacy-preserving attribution analytics.
 
 ## Create a Short Link
 
 1. Go to **Operations → Marketing → Links** (or press `⌘K` / `Ctrl+K` and search "Links").
 2. Click **New Link**.
-3. Enter the destination **Target URL** (such as `https://example.com/page`).
-4. (Optional) Select a custom domain and enter a custom slug.
-5. Click **Create**.
+3. Enter the destination **Target URL** (such as `https://example.com/landing-page`).
+4. (Optional) Configure advanced parameters:
+   - **Host**: Select an owned vanity domain (such as `go.example.com`). If unassigned, the link uses your instance's default short domain.
+   - **Custom Slug**: Enter a custom path alias (for example, `summer-sale`). If omitted, Octarq generates a cryptographically secure 6-character alphanumeric slug.
+5. Click **Create Link**.
 
-## Conditional Targeting Rules
+### Custom Slugs and Reserved Keyword Validation
 
-When creating or editing a short link, click **Add Rule** to set conditional redirects:
+When choosing a custom slug, Octarq enforces strict namespace safety:
 
-- **GeoIP Location**: Route visitors by country code (for example, send `US` traffic to a US landing page).
-- **Device & OS**: Route mobile users (iOS or Android) directly to app store links.
-- **Browser Language**: Match accept-language headers (for example, `zh-CN` to a Chinese page).
+- **System Reserved Prefixes**: Built-in paths including `/admin`, `/api`, `/assets`, `/portal`, `robots.txt`, and `favicon.ico` are blocked to prevent collision with platform endpoints.
+- **Instance Reserved Slugs**: Deployment-wide reserved keywords configured under **Instance Console → Link Settings** are rejected with HTTP 409 Conflict.
+- **Slug Uniqueness**: Slugs must be unique per domain host. If a slug already exists on the selected host, the creation request returns HTTP 409 Conflict.
 
-## Passwords and Limits
+## Vanity Domain Routing and Multi-Tenant Isolation
 
-- **Password Protection**: Visitors must enter a passcode before redirecting.
-- **Expiration and Click Limits**: Set an expiration date or total click limit. Once reached, visitors redirect to an **Expired URL**.
+Branded domains boost click-through rates and maintain corporate identity:
 
-> [!CAUTION]
-> System prefixes (`/admin`, `/api`, `/assets`, `/portal`) are reserved and cannot be used as short link slugs.
-> Additional reserved slugs are configured deployment-wide in the **Instance console → Short Link Settings**.
+1. Connect and verify your domain in [DNS Management](/help/dns).
+2. When creating or editing a link, pick your domain from the **Host** dropdown.
+3. **Multi-Tenant Protection**: Octarq strictly isolates custom hosts by organization. If a domain host is claimed or contested across multiple tenants, the lookup engine fails closed with HTTP 404 Not Found, preventing cross-tenant traffic hijacking.
 
-## Enable Auto-Wrapping in Outgoing Mail
+## Conditional Attribute Routing
 
-To automatically wrap external URLs in outbound emails, go to **Operations → Messaging → Mail**, open the **Settings** tab, and turn on **Auto-wrap links in outgoing mail** under **Inbound Configuration**.
+Click **Add Rule** on any short link to route visitors dynamically without altering the public link URL:
+
+- **GeoIP Location**: Redirect visitors based on ISO 3166-1 alpha-2 country codes (for example, send `US` traffic to a USD store, and `DE` traffic to an EU store).
+- **Device Type**: Differentiate between `mobile`, `tablet`, and `desktop` visitors.
+- **Operating System**: Detect visitor platforms (`ios`, `android`, `windows`, `macos`, `linux`) to route directly to the Apple App Store, Google Play Store, or desktop installers.
+- **Browser Language**: Match incoming `Accept-Language` headers (for example, routing `zh-CN` or `ja-JP` visitors to localized pages).
+
+If an incoming visitor does not match any conditional rule, Octarq redirects to the default **Target URL**.
+
+## Sticky A/B Split Routing (`splitAssign`)
+
+Octarq includes a built-in, cookie-free A/B testing engine that distributes traffic deterministically among multiple destination variants:
+
+1. Add a rule with type **Split**.
+2. Define variant destination URLs and their corresponding percentage **Weights** (1–100).
+3. **Deterministic Assignment**: The routing engine hashes the visitor's anonymized fingerprint together with the link ID:
+   ```
+   bucket = sha256(fingerprint + "\n" + linkID) % 100
+   ```
+4. **Sticky Consistency**: A visitor repeatedly clicking the link lands consistently on the same variant without requiring third-party cookies or client-side JavaScript.
+5. **Residual Allocation**: If total weights sum to less than 100% (for example, Variant A at 30% and Variant B at 30%), the remaining 40% residual traffic automatically falls back to the primary **Target URL** (the control group). If cumulative weights exceed 100%, execution truncates safely at 100% without error.
+
+## Passwords, Expiration, and Click Limits
+
+Protect sensitive links or launch time-limited promotional campaigns:
+
+- **Password Gate**: Set a secret passphrase. Unauthenticated visitors are presented with an HTML passcode gate. Submissions are verified using constant-time comparison (`subtle.ConstantTimeCompare`) to eliminate timing side-channel attacks. A sliding-window IP rate limiter (300 requests/minute) blocks brute-force attempts.
+- **Expiration Timestamp**: Specify a future date and time (`ExpiresAt`). Once elapsed, visitors are redirected to a customizable **Expired URL** (or receive HTTP 404 if unconfigured).
+- **Click Ceiling**: Specify a maximum allowed total click count (`ClickLimit`).
+- **Cache Optimization**: Links configured with a click limit automatically utilize a reduced cache TTL (5 seconds) across edge nodes, preventing traffic over-delivery past the ceiling.
+- **Quota Safety**: If an organization reaches its monthly quota limit, the batch counter logs the threshold while the redirect handler continues serving redirects uninterrupted.
+
+## Privacy-Preserving Analytics and UTM Attribution
+
+Every redirect processed by Octarq generates real-time event telemetry without compromising visitor privacy:
+
+- **IP Anonymization**: Visitor IP addresses are truncated at ingest (IPv4 masked to `/24`, IPv6 zeroed last 80 bits). Raw IP addresses are never written to database tables.
+- **Automated UTM Attribution**: Incoming query parameters (`utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`) are recorded into analytics and preserved when forwarding to the target destination.
+- **PV vs UV Insights**: Toggle between total Page Views (PV) and Unique Visitors (UV), computed using a daily salted fingerprint.
+- **Dimensional Breakdowns**: View interactive charts for daily/hourly traffic series, top referrers, traffic channels (Direct, Search, Social, Email, Referral), top countries/regions, operating systems, and browsers.
+
+## QR Codes and CSV Data Export
+
+- **High-Resolution QR Codes**: Download a vector SVG or raster PNG QR code directly from the link details drawer or via the endpoint `GET /api/links/{id}/qr?size=512`.
+- **Bulk CSV Export**: Export all workspace link records, destination targets, tags, and cumulative click metrics via **Export CSV** (or endpoint `GET /api/links/export.csv`) for reporting and business intelligence pipelines.
+
+## Outbound Email Link Tracking
+
+To automatically wrap hyperlinks in outgoing marketing or transactional emails with short tracking links, go to **Operations → Messaging → Mail**, open the **Settings** tab, and toggle **Auto-wrap links in outgoing mail**. Internal links and `mailto:` links are automatically bypassed.
 
 ## Related Guides
 
 - [DNS Management](/help/dns)
 - [Mailboxes](/help/mailboxes)
+- [API Tokens](/help/api-tokens)
+- [Model Context Protocol (MCP)](/help/mcp)

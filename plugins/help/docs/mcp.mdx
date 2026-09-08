@@ -1,22 +1,80 @@
 ---
 title: MCP
-description: Connect Claude, Cursor, and other AI clients to your Octarq workspace via MCP.
+description: Connect Claude Desktop, Cursor, and remote AI agents to your Octarq workspace via the Model Context Protocol.
 category: settings
 order: 50
 ---
 
-Octarq provides a Model Context Protocol (MCP) server that lets AI desktop clients and remote agents query short links, emails, DNS records, and system data.
+Octarq includes an embedded Model Context Protocol (MCP) server that empowers Large Language Models (LLMs), IDE coding agents, and autonomous AI pipelines to interact seamlessly with your operational data, short links, mailboxes, and DNS records.
 
-## Transports and Security
+## Dual Transports and Security Architecture
 
-- **Local stdio Transport**: Runs `octarq mcp` as a local subprocess for desktop tools like Claude Desktop or Cursor. Tools are scoped to your workspace.
-- **HTTP / SSE Transport**: Accepts remote connections at `/api/mcp/sse`. Authenticates callers using standard [API Tokens](/help/api-tokens) (`Authorization: Bearer oct_...`) and scopes all tool calls to the caller's active workspace.
+Octarq provides two transport mechanisms suited for local desktop tools and distributed cloud infrastructure:
 
-Every tool is a read-only, workspace-scoped projection over your data — short links, mailboxes, emails, domains, and a full data export. There is no raw-SQL tool on any transport: an arbitrary query cannot be confined to a single workspace, so the capability is not offered rather than merely restricted.
+### 1. Local stdio Transport
 
-## Local stdio Setup (Claude Desktop)
+The local stdio transport runs as a subprocess communicating over standard input/output. It is the primary transport for local desktop assistants like Claude Desktop and Cursor:
 
-Add the Octarq binary to your `claude_desktop_config.json`:
+- **Execution Command**: `octarq mcp`
+- **Configuration**: Uses local database DSN (`OCTARQ_DB_DSN`).
+- **Security Boundary**: Runs with the system privileges of the local process.
+
+### 2. Remote HTTP / SSE Transport
+
+For remote AI agents, cloud workers, and centralized orchestration platforms:
+
+- **Endpoint**: `https://your-octarq-host.com/api/mcp/sse`
+- **Authentication**: Authenticates incoming Server-Sent Events (SSE) connections using standard [API Tokens](/help/api-tokens) (`Authorization: Bearer oct_...`).
+- **Tenant Isolation**: Every session is scoped strictly to the organization associated with the API token. Tool invocations cannot view or alter resources belonging to other tenants.
+
+:::note Strict Exclusion of Raw SQL
+The Octarq MCP server deliberately does **not** provide a raw SQL query tool. Arbitrary SQL queries cannot be safely confined to a single workspace tenant in multi-tenant databases. Rather than attempting error-prone SQL parsing or superficial blacklists, Octarq excludes raw database execution entirely. All capabilities are exposed exclusively through structured, audited tool contracts.
+:::
+
+## Complete Tool Catalog
+
+The MCP server exposes the following validated tools across both stdio and SSE transports:
+
+### 1. `create_shortlink`
+Declaratively creates a new short link with routing and security constraints:
+- **Inputs**:
+  - `destination` (String, required): The target redirection URL.
+  - `slug` (String, optional): Custom path alias.
+  - `host` (String, optional): Domain host to bind the link to.
+  - `password` (String, optional): Passcode gate for the short link.
+  - `expiresAt` (String, optional): ISO-8601 expiration timestamp.
+- **Outputs**: Resolved URL, generated slug, and creation status.
+
+### 2. `list_links`
+Lists existing short links in the active workspace with query filters:
+- **Inputs**: `limit` (int, 1–100), `search` (string).
+- **Outputs**: Array of link objects with slugs, targets, click counts, and status.
+
+### 3. `list_domains`
+Queries registered domain zones and their verification state:
+- **Inputs**: None.
+- **Outputs**: Array of domain objects with provider type, zone status, and verification badges (SPF/DKIM/DMARC).
+
+### 4. `list_mailboxes`
+Inspects active mailboxes and catch-all routing rules:
+- **Inputs**: None.
+- **Outputs**: List of mailboxes with email addresses, creation timestamps, and unread counts.
+
+### 5. `list_emails`
+Retrieves transactional incoming emails stored in the workspace:
+- **Inputs**: `mailbox_id` (optional), `limit` (int, 1–50).
+- **Outputs**: Array of email summaries with sender, recipient, subject, received time, and snippet.
+
+### 6. `export_data`
+Generates a complete, tenant-isolated data export for backup or analysis:
+- **Inputs**: None.
+- **Outputs**: Comprehensive JSON projection containing all links, domains, and mailboxes belonging to the tenant.
+
+## Client Configuration Examples
+
+### Claude Desktop Configuration
+
+Add the `octarq` server entry to your Claude Desktop configuration file (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS or `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
 
 ```json
 {
@@ -25,32 +83,41 @@ Add the Octarq binary to your `claude_desktop_config.json`:
       "command": "/usr/local/bin/octarq",
       "args": ["mcp"],
       "env": {
-        "OCTARQ_DB_DSN": "/path/to/octarq.db"
+        "OCTARQ_DB_DSN": "/var/lib/octarq/data.db"
       }
     }
   }
 }
 ```
 
-## Remote SSE Setup
+### Cursor IDE Configuration
 
-To connect remote AI tools or web clients:
+In your project workspace, create or edit `.cursor/mcp.json`:
 
-1. Generate an [API Token](/help/api-tokens) in **Settings → Account → API Tokens**.
-2. Configure your client to connect to:
-   - **SSE Endpoint**: `https://your-octarq-domain.com/api/mcp/sse`
-   - **HTTP Header**: `Authorization: Bearer oct_your_secret_api_token`
+```json
+{
+  "mcpServers": {
+    "octarq-remote": {
+      "url": "https://your-octarq-host.com/api/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer oct_your_secret_api_token"
+      }
+    }
+  }
+}
+```
 
-## Example Queries
+## Example Natural Language Prompts
 
-Once connected, you can ask your AI client:
+Once configured, your AI assistant can execute multi-step operations using conversational prompts:
 
-- "List unread emails received today."
-- "Show click statistics for short links created this month."
-- "Check for failing DNS verification records across my domains."
+- *"Create a short link pointing to https://github.com/my-org/repo with slug github-repo on my domain go.example.com"*
+- *"List all domains in my workspace and check if their SPF and DMARC records are properly verified"*
+- *"Check the last 5 emails received in my support mailbox and summarize their requests"*
 
-## Related Links
+## Related Guides
 
 - [API Tokens](/help/api-tokens)
 - [Short Links](/help/short-links)
 - [Mailboxes](/help/mailboxes)
+- [DNS Management](/help/dns)

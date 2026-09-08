@@ -1,47 +1,70 @@
 ---
 title: Quickstart
-description: Deploy Octarq with Docker, create an admin account, bind domains, and toggle workspace features.
+description: Deploy Octarq using Docker, initialize an admin account, configure custom domains, and enable core workspace features in minutes.
 category: start
 order: 20
 ---
 
-Deploy and set up an Octarq instance using Docker.
+Get an Octarq instance running with Docker in less than five minutes. Octarq ships as a unified, single-binary container bundling an embedded SQLite database, front-end assets, and background workers.
 
-## 1. Run Container
+## Step 1: Launch the Docker Container
 
-Launch the Octarq single-binary container with persistent volume storage:
+Run the following command on your server or local environment:
 
 ```bash
 docker run -d \
   --name octarq \
   -p 8080:8080 \
   -v octarq_data:/app/data \
-  -e OCTARQ_APP_NAME="My Studio" \
+  -e OCTARQ_APP_NAME="Production Studio" \
+  --restart unless-stopped \
   ghcr.io/octarq-org/octarq:latest
 ```
 
-Open `http://localhost:8080` in your browser to access the setup wizard.
+### Environment Variables
 
-## 2. Register Admin Account and Workspace
+| Variable | Default | Description |
+|---|---|---|
+| `OCTARQ_PORT` | `8080` | HTTP port the server listens on inside the container. |
+| `OCTARQ_DATA_DIR` | `/app/data` | Path to persistent storage volume housing the database and uploads. |
+| `OCTARQ_APP_NAME` | `Octarq` | Brand name displayed on the login page and navigation header. |
+| `OCTARQ_BASE_DOMAIN` | *(optional)* | Base domain used for automatic multi-tenant subdomain routing. |
 
-1. Complete the setup wizard to register your **Instance Admin** account.
-2. Enter a name to create your first **Organization** (workspace).
-3. Additional team members can be invited under **Settings → Workspace → Members**.
+Open `http://localhost:8080` (or `http://your-server-ip:8080`) in your browser to access the setup wizard.
 
-## 3. Add a Domain Zone
+## Step 2: Register Instance Admin and Workspace
 
-1. Configure an A or CNAME record in your DNS provider pointing your hostname to your Octarq server IP.
-2. In Octarq, go to **Infrastructure → Network → DNS**.
-3. Click **+ Add Domain Zone** (or click **Sync Domains** if you connected a Cloudflare/DNSPod provider account).
+1. **Initial Admin Setup**:
+   - The first user to register on a fresh instance becomes the **Instance Admin**.
+   - Enter your email address and a strong password.
+2. **First Workspace**:
+   - Enter your organization or project name (e.g. `Acme Corp`).
+   - Octarq provisions your first workspace with you designated as the **Owner**.
+3. Team members can be invited later under **Settings → Workspace → Members**.
 
-## 4. Enable Features
+## Step 3: Connect and Bind Custom Domains
 
-1. Go to **Settings → Workspace → Features**.
-2. Toggle on the features (such as Links, Mail, or DNS) needed for the workspace.
-3. Sidebar navigation menus update immediately when features are toggled on or off.
+To use branded short links or receive domain email, connect your DNS zone:
+
+1. Configure an `A` record (or `CNAME` record) in your public DNS provider pointing your domain or subdomain to your Octarq server IP.
+2. In Octarq, navigate to **Infrastructure → Network → DNS** (refer to [DNS Management](/help/dns)).
+3. Click **+ Add Domain Zone** to register your domain manually, or click the **Provider Accounts** tab to bind a Cloudflare or DNSPod API token and click **Sync Domains** for automated synchronization.
+
+## Step 4: Toggle Workspace Features
+
+Customize the active workspace interface:
+
+1. Navigate to **Settings → Workspace → Features** (or use the command palette `⌘K` and search "Features").
+2. Toggle on the capabilities your team intends to use:
+   - **Links**: Create branded short links, conditional routing, and A/B split testing.
+   - **Mail**: Ingest incoming email webhooks and dispatch transactional notifications.
+   - **DNS**: Orchestrate resource records and dynamic DNS tokens.
+3. Left-hand navigation menus adapt dynamically to your active feature set.
 
 ## Next Steps
 
-- [Short Links](/help/short-links)
-- [Mailboxes](/help/mailboxes)
-- [API Tokens](/help/api-tokens)
+- Explore the layout and command palette in the [Console Overview](/help/getting-started).
+- Create your first short link with conditional rules in [Short Links](/help/short-links).
+- Set up inbound mail webhooks in [Mailboxes](/help/mailboxes).
+- Generate non-interactive bearer tokens for CI/CD in [API Tokens](/help/api-tokens).
+- Review workspace role permissions in [Organizations & Workspace RBAC](/help/multi-org)
