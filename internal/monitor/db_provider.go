@@ -99,6 +99,7 @@ func (p *DBProvider) Check(ctx context.Context) plugin.HealthResult {
 	pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
+	pingStart := time.Now()
 	if err := sqlDB.PingContext(pingCtx); err != nil {
 		return plugin.HealthResult{
 			Status:  plugin.HealthError,
@@ -108,6 +109,7 @@ func (p *DBProvider) Check(ctx context.Context) plugin.HealthResult {
 			},
 		}
 	}
+	pingLatencyMs := time.Since(pingStart).Milliseconds()
 
 	stats := sqlDB.Stats()
 	sq := p.slowQueries.Load()
@@ -122,6 +124,7 @@ func (p *DBProvider) Check(ctx context.Context) plugin.HealthResult {
 		"max_idle_closed":      stats.MaxIdleClosed,
 		"max_lifetime_closed":  stats.MaxLifetimeClosed,
 		"slow_queries":         sq,
+		"ping_latency_ms":      pingLatencyMs,
 	}
 
 	if sq > 0 {

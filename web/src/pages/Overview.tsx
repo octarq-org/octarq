@@ -6,6 +6,7 @@ import { ExtensionSlot } from "../plugin-sdk";
 import { ScreenWrap, PageHeader, GlassCard, Skeleton } from "../ui";
 import { SetupStep, SetupChecklistProvider, useSetupChecklist } from "../components/SetupStep";
 import { Sparkles, X } from "lucide-react";
+import { HealthOverview } from "./dashboard/components/HealthOverview";
 
 function OverviewChecklistSection({
   dismissed,
@@ -172,6 +173,8 @@ export default function OverviewPage() {
           t={t}
         />
       </SetupChecklistProvider>
+
+      <HealthOverview />
 
       <ExtensionSlot
         name="home-overview"

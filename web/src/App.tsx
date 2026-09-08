@@ -19,6 +19,8 @@ import { Modal, Button, toast, cn, Alert, TableDensityProvider, TableDensity } f
 import { useTranslation } from "./i18n";
 import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
 import { RoleProvider, roleSatisfies } from "./shell/role";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/queryClient";
 import { TopBar } from "./shell/TopBar";
 import { CommandPalette } from "./shell/CommandPalette";
 import { AreaPanel } from "./shell/AreaPanel";
@@ -163,9 +165,11 @@ export default function App() {
   }
 
   return (
-    <TableDensityProvider density={tableDensity} onDensityChange={changeTableDensity}>
-      {content}
-    </TableDensityProvider>
+    <QueryClientProvider client={queryClient}>
+      <TableDensityProvider density={tableDensity} onDensityChange={changeTableDensity}>
+        {content}
+      </TableDensityProvider>
+    </QueryClientProvider>
   );
 }
 
