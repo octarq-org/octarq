@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"gorm.io/gorm/clause"
+
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/dnsprovider"
@@ -84,7 +86,8 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 		}
 	}
 
-	var created, updated int
+	var updated int
+	var toCreate []Domain
 	for _, z := range validZones {
 		name := strings.ToLower(z.Name)
 		if dom, exists := existingMap[name]; exists {
@@ -94,13 +97,19 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 			updated++
 			forgetOrigin(name)
 		} else {
-			if err := p.db.Create(&Domain{
+			toCreate = append(toCreate, Domain{
 				OrgID: p.orgID(r),
 				Name:  name, ProviderAccountID: acc.ID, ZoneID: z.ID,
-			}).Error; err == nil {
-				created++
-				forgetOrigin(name)
-			}
+			})
+		}
+	}
+
+	var created int
+	if len(toCreate) > 0 {
+		res := p.db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(&toCreate, 100)
+		created = int(res.RowsAffected)
+		for _, d := range toCreate {
+			forgetOrigin(d.Name)
 		}
 	}
 
