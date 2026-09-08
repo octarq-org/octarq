@@ -14,6 +14,7 @@ import { Area, AreaId, menuIcon } from "./areas";
 import { translateAreaTitle, translateGroupLabel, translateNavItemLabel } from "./navI18n";
 import { RESOURCES } from "./resources";
 import { MENU_ITEM, MENU_POPUP } from "./menuStyles";
+import { NotificationBell, InboxDrawer } from "../pages/notifications";
 
 function GithubIcon({ className }: { className?: string }) {
   return (
@@ -237,6 +238,9 @@ export function TopBar({
         </Menu.Portal>
       </Menu.Root>
 
+      {/* Notifications bell icon */}
+      <NotificationBell />
+
       {/* Settings */}
       <button
         onClick={onOpenSettings}
@@ -294,6 +298,9 @@ export function TopBar({
           </Menu.Positioner>
         </Menu.Portal>
       </Menu.Root>
+
+      {/* In-app Notification Inbox Drawer */}
+      <InboxDrawer />
     </header>
   );
 }

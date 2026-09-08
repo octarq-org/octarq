@@ -8,6 +8,7 @@ const PluginsSettings = lazy(() => import("./settings/plugins").then((m) => ({ d
 const GeneralSettings = lazy(() => import("./settings/general").then((m) => ({ default: m.GeneralSettings })));
 const WebhooksSettings = lazy(() => import("./settings/webhooks").then((m) => ({ default: m.WebhooksSettings })));
 const NotificationChannels = lazy(() => import("./settings/notifications").then((m) => ({ default: m.NotificationChannels })));
+const PreferencesPage = lazy(() => import("./notifications").then((m) => ({ default: m.PreferencesPage })));
 const OrgMembersManager = lazy(() => import("./settings/members").then((m) => ({ default: m.OrgMembersManager })));
 // Account panels — every settings page is served under /settings (one URL space).
 const SecuritySettings = lazy(() => import("./settings/security").then((m) => ({ default: m.SecuritySettings })));
@@ -25,6 +26,7 @@ export default function SettingsPage() {
         <Route path="/plugins" element={<PluginsSettings />} />
         <Route path="/webhooks" element={<WebhooksSettings />} />
         <Route path="/notifications" element={<NotificationChannels />} />
+        <Route path="/notifications/preferences" element={<PreferencesPage />} />
         <Route path="/members" element={<OrgMembersManager />} />
         {/* The instance console moved out of /settings into its own /instance
             basename (R4) — old paths redirect with a full page navigation. */}

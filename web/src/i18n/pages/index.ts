@@ -11,6 +11,7 @@ import { appearance } from "./appearance";
 import { audit } from "./audit";
 import { invite } from "./invite";
 import { uiCommon } from "./uiCommon";
+import { notifications } from "./notifications";
 import { proTable } from "./proTable";
 
 const NS = {
@@ -23,6 +24,7 @@ const NS = {
   audit,
   invite,
   uiCommon,
+  notifications,
   proTable,
 };
 

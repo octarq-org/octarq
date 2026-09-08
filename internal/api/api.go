@@ -444,11 +444,22 @@ func (h *Handler) Routes() *http.ServeMux {
 
 	// Core In-App Notifications & User Routing Preferences
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notifications", Summary: "List Notifications", Tags: []string{"Notifications"}}, h.listNotifications)
+	huma.Register(api, huma.Operation{Method: "PATCH", Path: "/api/notifications/read-all", Summary: "Mark All Notifications Read", Tags: []string{"Notifications"}}, h.markAllNotificationsRead)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/notifications/read-all", Summary: "Mark All Notifications Read (POST)", Tags: []string{"Notifications"}}, h.markAllNotificationsRead)
 	huma.Register(api, huma.Operation{Method: "PATCH", Path: "/api/notifications/{id}/read", Summary: "Mark Notification Read", Tags: []string{"Notifications"}}, h.markNotificationRead)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/notifications/{id}", Summary: "Delete Notification", Tags: []string{"Notifications"}}, h.deleteNotification)
+
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notification-preferences", Summary: "Get Notification Preferences", Tags: []string{"Notification Preferences"}}, h.getNotificationPreferences)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/notification-preferences", Summary: "Update Notification Preferences", Tags: []string{"Notification Preferences"}}, h.updateNotificationPreferences)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/notification-preferences/reset", Summary: "Reset Notification Preferences", Tags: []string{"Notification Preferences"}}, h.resetNotificationPreferences)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/notification-preferences", Summary: "Delete/Reset Notification Preferences", Tags: []string{"Notification Preferences"}}, h.resetNotificationPreferences)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notification-preferences/channels", Summary: "List Registered Notification Channels", Tags: []string{"Notification Preferences"}}, h.listRegisteredChannels)
+
+	// Routes aliases matching issue specification (/api/notifications/routes)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/notifications/routes", Summary: "Get Notification Preferences Routes", Tags: []string{"Notification Preferences"}}, h.getNotificationPreferences)
+	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/notifications/routes", Summary: "Update Notification Preferences Routes", Tags: []string{"Notification Preferences"}}, h.updateNotificationPreferences)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/notifications/routes/reset", Summary: "Reset Notification Preferences Routes", Tags: []string{"Notification Preferences"}}, h.resetNotificationPreferences)
+	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/notifications/routes", Summary: "Delete/Reset Notification Preferences Routes", Tags: []string{"Notification Preferences"}}, h.resetNotificationPreferences)
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/abuse", Summary: "List Abuse Reports", Tags: []string{"Abuse"}}, h.listAbuseReports)
 	huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/abuse/{id}", Summary: "Update Abuse Report", Tags: []string{"Abuse"}}, h.updateAbuseReport)
