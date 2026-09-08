@@ -14,14 +14,13 @@ const InviteAcceptPage = lazy(() => import("./pages/InviteAccept"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"));
 const StatusPage = lazy(() => import("./pages/Status"));
 // The instance console (own /instance basename) — its own shell, no tenant
-// chrome. Lazy so a /admin-only session never pays for the chunk.
 const InstanceConsole = lazy(() => import("./pages/instance/console"));
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./lib/queryClient";
 import { Modal, Button, toast, cn, Alert, TableDensityProvider, TableDensity } from "./ui";
 import { useTranslation } from "./i18n";
 import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
 import { RoleProvider, roleSatisfies } from "./shell/role";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/queryClient";
 import { TopBar } from "./shell/TopBar";
 import { CommandPalette } from "./shell/CommandPalette";
 import { AreaPanel } from "./shell/AreaPanel";
@@ -36,6 +35,8 @@ import { InstanceExitRedirect } from "./pages/instance/redirect";
 // Re-exported so existing `import { RouteFallback } from "../App"` call sites
 // (Settings.tsx) keep working now that it lives in ./components/ui/RouteFallback.
 export { RouteFallback } from "./components/ui/RouteFallback";
+
+
 
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -166,9 +167,11 @@ export default function App() {
   }
 
   return (
-    <TableDensityProvider density={tableDensity} onDensityChange={changeTableDensity}>
-      {content}
-    </TableDensityProvider>
+    <QueryClientProvider client={queryClient}>
+      <TableDensityProvider density={tableDensity} onDensityChange={changeTableDensity}>
+        {content}
+      </TableDensityProvider>
+    </QueryClientProvider>
   );
 }
 

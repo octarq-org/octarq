@@ -38,21 +38,21 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     {/* Honor the OS "reduce motion" setting for every framer-motion animation
         (StatCard/ScreenWrap enter, dropdowns, …) — a11y baseline. */}
     <MotionConfig reducedMotion="user">
-      {/* I18nProvider + BrandBridge feed the SDK's i18n/brand context, which the
-          shared UI and plugin packages read. */}
-      <I18nProvider>
-        <BrandBridge>
-          <ToastProvider>
-            <ConfirmBridge>
-              <BrowserRouter basename={routerBasename}>
-                <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        {/* I18nProvider + BrandBridge feed the SDK's i18n/brand context, which the
+            shared UI and plugin packages read. */}
+        <I18nProvider>
+          <BrandBridge>
+            <ToastProvider>
+              <ConfirmBridge>
+                <BrowserRouter basename={routerBasename}>
                   <App />
-                </QueryClientProvider>
-              </BrowserRouter>
-            </ConfirmBridge>
-          </ToastProvider>
-        </BrandBridge>
-      </I18nProvider>
+                </BrowserRouter>
+              </ConfirmBridge>
+            </ToastProvider>
+          </BrandBridge>
+        </I18nProvider>
+      </QueryClientProvider>
     </MotionConfig>
   </React.StrictMode>,
 );

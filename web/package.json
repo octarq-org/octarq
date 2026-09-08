@@ -19,6 +19,7 @@
     "@base-ui/react": "^1.6.0",
     "@octarq/plugin-sdk": "workspace:*",
     "@tanstack/react-query": "^5.102.8",
+    "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dompurify": "^3.4.14",

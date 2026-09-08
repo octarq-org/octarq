@@ -1,9 +1,9 @@
-import { z } from "zod";
+import { type z } from "zod";
 
 /**
- * Validates untrusted/external data against a Zod schema.
- * If validation fails, logs a warning and returns the fallback value.
- * Guarantees type safety at network boundaries without bare type assertions.
+ * Validates untrusted/external data against a Zod schema with a safe fallback value.
+ * Strictly adheres to Octarq network boundary type safety conventions (no bare `as T`).
+ * If validation fails, calls optional onError callback or logs a warning, and returns the fallback value.
  */
 export function parseWithFallback<T>(
   schema: z.ZodType<T>,

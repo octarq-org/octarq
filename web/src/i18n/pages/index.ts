@@ -12,6 +12,7 @@ import { audit } from "./audit";
 import { invite } from "./invite";
 import { uiCommon } from "./uiCommon";
 import { notifications } from "./notifications";
+import { proTable } from "./proTable";
 
 const NS = {
   appearance,
@@ -24,6 +25,7 @@ const NS = {
   invite,
   uiCommon,
   notifications,
+  proTable,
 };
 
 export const pagesEn = Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v.en]));
