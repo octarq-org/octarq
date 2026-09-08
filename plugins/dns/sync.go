@@ -8,6 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/dnsprovider"
 	"github.com/octarq-org/octarq/internal/models"
+	"gorm.io/gorm/clause"
 )
 
 type SyncDomainsInput struct {
@@ -85,21 +86,48 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 	}
 
 	var created, updated int
+	var toUpdate []Domain
+	var toCreate []Domain
+
 	for _, z := range validZones {
 		name := strings.ToLower(z.Name)
 		if dom, exists := existingMap[name]; exists {
 			dom.ZoneID = z.ID
 			dom.ProviderAccountID = acc.ID
-			p.db.Save(dom)
+			toUpdate = append(toUpdate, *dom)
 			updated++
-			forgetOrigin(name)
 		} else {
-			if err := p.db.Create(&Domain{
-				OrgID: p.orgID(r),
-				Name:  name, ProviderAccountID: acc.ID, ZoneID: z.ID,
-			}).Error; err == nil {
-				created++
-				forgetOrigin(name)
+			toCreate = append(toCreate, Domain{
+				OrgID:             p.orgID(r),
+				Name:              name,
+				ProviderAccountID: acc.ID,
+				ZoneID:            z.ID,
+			})
+		}
+	}
+
+	if len(toUpdate) > 0 {
+		p.db.Save(&toUpdate)
+		for _, d := range toUpdate {
+			forgetOrigin(d.Name)
+		}
+	}
+	if len(toCreate) > 0 {
+		res := p.db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(&toCreate, 100)
+		created = int(res.RowsAffected)
+		if created == len(toCreate) {
+			for _, d := range toCreate {
+				forgetOrigin(d.Name)
+			}
+		} else if created > 0 {
+			toCreateNames := make([]string, len(toCreate))
+			for i, d := range toCreate {
+				toCreateNames[i] = d.Name
+			}
+			var insertedNames []string
+			p.db.Model(&Domain{}).Where("owner_id = ? AND name IN ?", p.orgID(r), toCreateNames).Pluck("name", &insertedNames)
+			for _, n := range insertedNames {
+				forgetOrigin(n)
 			}
 		}
 	}
