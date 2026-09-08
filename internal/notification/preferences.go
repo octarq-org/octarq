@@ -173,3 +173,14 @@ func SavePreferences(ctx context.Context, db *gorm.DB, userID string, items []Pr
 		return nil
 	})
 }
+
+// ResetPreferences deletes all custom preferences for a user, reverting to system defaults.
+func ResetPreferences(ctx context.Context, db *gorm.DB, userID string) error {
+	if db == nil {
+		return errors.New("notification: nil db")
+	}
+	if strings.TrimSpace(userID) == "" {
+		return errors.New("notification: empty user ID")
+	}
+	return db.WithContext(ctx).Where("user_id = ?", userID).Delete(&models.NotificationPreference{}).Error
+}

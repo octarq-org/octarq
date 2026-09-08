@@ -9,12 +9,15 @@ import { RouteFallback } from "./components/ui/RouteFallback";
 // Lazy-loaded route components.
 const OverviewPage = lazy(() => import("./pages/Overview"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
+const NotificationsPage = lazy(() => import("./pages/notifications"));
 const InviteAcceptPage = lazy(() => import("./pages/InviteAccept"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"));
 const StatusPage = lazy(() => import("./pages/Status"));
 // The instance console (own /instance basename) — its own shell, no tenant
 // chrome. Lazy so a /admin-only session never pays for the chunk.
 const InstanceConsole = lazy(() => import("./pages/instance/console"));
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/queryClient";
 import { Modal, Button, toast, cn, Alert, TableDensityProvider, TableDensity } from "./ui";
 import { useTranslation } from "./i18n";
 import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
@@ -707,6 +710,7 @@ function Shell({
           <Route path="/link-settings" element={<InstanceExitRedirect to="/instance/link-settings" />} />
           <Route path="/onboarding"    element={<Navigate to="/overview" replace />} />
           <Route path="/overview"   element={<OverviewPage />} />
+          <Route path="/notifications/*" element={<NotificationsPage />} />
           <Route path="/settings/*" element={<SettingsPage />} />
           <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
           <Route path="/admin/reset" element={<ResetPasswordPage />} />
@@ -718,8 +722,9 @@ function Shell({
   );
 
   return (
-    <RoleProvider value={roleCtx}>
-    <div className="octarq-aurora flex h-screen w-full flex-col overflow-hidden text-foreground">
+    <QueryClientProvider client={queryClient}>
+      <RoleProvider value={roleCtx}>
+      <div className="octarq-aurora flex h-screen w-full flex-col overflow-hidden text-foreground">
       {/* Keyboard skip link — first focusable element, visually hidden until
           focused, jumps past the nav chrome straight to page content. */}
       <a
@@ -872,6 +877,7 @@ function Shell({
         </Modal>
       )}
     </div>
-    </RoleProvider>
+      </RoleProvider>
+    </QueryClientProvider>
   );
 }

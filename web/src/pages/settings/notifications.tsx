@@ -1,7 +1,8 @@
 import { ReactNode, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api, NotificationChannelType, NotificationChannel } from "../../api";
 import { PageHeader, GlassCard, Button, Field, Toggle, Modal, toast, confirmDialog } from "../../ui";
-import { Bell, ChevronDown, Plus, Trash2, Send, Pencil } from "lucide-react";
+import { Bell, ChevronDown, Plus, Trash2, Send, Pencil, Sliders } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { ExtensionSlot, NotificationChannelFormContext } from "../../plugin-sdk";
 import { roleSatisfies, useCurrentRole } from "../../shell/role";
@@ -266,6 +267,7 @@ function EditChannelModal({
 // ---------------------------------------------------------------------------
 export function NotificationChannels() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [types, setTypes] = useState<NotificationChannelType[]>([]);
   const [channels, setChannels] = useState<NotificationChannel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -319,6 +321,17 @@ export function NotificationChannels() {
       <PageHeader
         title={t("settings.alertsTitle")}
         description={t("settings.alertsDescription")}
+        action={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/notifications/preferences")}
+            className="flex items-center gap-1.5 text-xs"
+          >
+            <Sliders className="h-3.5 w-3.5" />
+            <span>{t("notifications.preferencesTitle", "路由偏好设置")}</span>
+          </Button>
+        }
       />
 
       <div>

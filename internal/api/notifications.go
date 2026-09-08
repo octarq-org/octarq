@@ -111,6 +111,45 @@ func (h *Handler) markNotificationRead(ctx context.Context, input *MarkNotificat
 	return &MarkNotificationReadOutput{Body: SimpleOKOutputBody{OK: true}}, nil
 }
 
+type MarkAllNotificationsReadInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *MarkAllNotificationsReadInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type MarkAllNotificationsReadOutput struct {
+	Body SimpleOKOutputBody
+}
+
+func (h *Handler) markAllNotificationsRead(ctx context.Context, input *MarkAllNotificationsReadInput) (*MarkAllNotificationsReadOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	uid := h.auth.UserID(r)
+	if uid == 0 {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	uidStr := strconv.FormatUint(uint64(uid), 10)
+	now := time.Now()
+	if err := h.db.WithContext(ctx).Model(&models.Notification{}).
+		Where("user_id = ? AND read_at IS NULL", uidStr).
+		Update("read_at", &now).Error; err != nil {
+		return nil, huma.Error500InternalServerError("failed to mark all notifications as read")
+	}
+
+	return &MarkAllNotificationsReadOutput{Body: SimpleOKOutputBody{OK: true}}, nil
+}
+
 type DeleteNotificationInput struct {
 	Ctx huma.Context `hidden:"true"`
 	ID  uint         `path:"id" doc:"Notification ID to delete"`
@@ -249,6 +288,42 @@ func (h *Handler) updateNotificationPreferences(ctx context.Context, input *Upda
 	}
 
 	return &UpdateNotificationPreferencesOutput{Body: prefs}, nil
+}
+
+type ResetNotificationPreferencesInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *ResetNotificationPreferencesInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ResetNotificationPreferencesOutput struct {
+	Body SimpleOKOutputBody
+}
+
+func (h *Handler) resetNotificationPreferences(ctx context.Context, input *ResetNotificationPreferencesInput) (*ResetNotificationPreferencesOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	uid := h.auth.UserID(r)
+	if uid == 0 {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	uidStr := strconv.FormatUint(uint64(uid), 10)
+	if err := notification.ResetPreferences(ctx, h.db, uidStr); err != nil {
+		return nil, huma.Error500InternalServerError("failed to reset preferences")
+	}
+
+	return &ResetNotificationPreferencesOutput{Body: SimpleOKOutputBody{OK: true}}, nil
 }
 
 // --- Registered Notification Channels API ---

@@ -1,5 +1,15 @@
 // Thin fetch wrapper around the octarq JSON API.
 import { useEffect, useState } from "react";
+import { parseWithFallback } from "./lib/parseWithFallback";
+import {
+  NotificationsListSchema,
+  NotificationPreferencesListSchema,
+  RegisteredChannelsListSchema,
+  SimpleOKSchema,
+  type NotificationItem,
+  type NotificationPreferenceItem,
+  type RegisteredChannel,
+} from "./pages/notifications/schemas";
 
 export interface StatKV {
   key: string;
@@ -58,6 +68,8 @@ export interface NotificationChannelType {
   description: string;
   icon: string;
 }
+
+export type { NotificationItem, NotificationPreferenceItem, RegisteredChannel };
 
 export interface SessionRecord {
   id: number;
@@ -488,6 +500,49 @@ export const api = {
   updateNotificationChannel: (id: number, d: any) => req<NotificationChannel>("PUT", `/api/notification-channels/${id}`, d),
   deleteNotificationChannel: (id: number) => req<void>("DELETE", `/api/notification-channels/${id}`),
   testNotificationChannel: (id: number) => req<void>("POST", `/api/notification-channels/${id}/test`),
+
+  // In-App Notifications
+  notifications: async (opts?: { unreadOnly?: boolean; limit?: number; offset?: number }): Promise<NotificationItem[]> => {
+    const params = new URLSearchParams();
+    if (opts?.unreadOnly) params.set("unread_only", "true");
+    if (opts?.limit) params.set("limit", String(opts.limit));
+    if (opts?.offset) params.set("offset", String(opts.offset));
+    const q = params.toString();
+    const raw = await req<unknown>("GET", `/api/notifications${q ? `?${q}` : ""}`);
+    return parseWithFallback(NotificationsListSchema, raw, []);
+  },
+  markNotificationRead: async (id: number): Promise<{ ok: boolean }> => {
+    const raw = await req<unknown>("PATCH", `/api/notifications/${id}/read`);
+    return parseWithFallback(SimpleOKSchema, raw, { ok: true });
+  },
+  markAllNotificationsRead: async (): Promise<{ ok: boolean }> => {
+    const raw = await req<unknown>("POST", "/api/notifications/read-all");
+    return parseWithFallback(SimpleOKSchema, raw, { ok: true });
+  },
+  deleteNotification: async (id: number): Promise<{ ok: boolean }> => {
+    const raw = await req<unknown>("DELETE", `/api/notifications/${id}`);
+    return parseWithFallback(SimpleOKSchema, raw, { ok: true });
+  },
+
+  // Notification Preferences & Routing Matrix
+  notificationPreferences: async (): Promise<NotificationPreferenceItem[]> => {
+    const raw = await req<unknown>("GET", "/api/notifications/routes");
+    return parseWithFallback(NotificationPreferencesListSchema, raw, []);
+  },
+  updateNotificationPreferences: async (
+    preferences: { eventPattern: string; channels: string[] }[],
+  ): Promise<NotificationPreferenceItem[]> => {
+    const raw = await req<unknown>("PUT", "/api/notifications/routes", { preferences });
+    return parseWithFallback(NotificationPreferencesListSchema, raw, []);
+  },
+  resetNotificationPreferences: async (): Promise<{ ok: boolean }> => {
+    const raw = await req<unknown>("POST", "/api/notifications/routes/reset");
+    return parseWithFallback(SimpleOKSchema, raw, { ok: true });
+  },
+  registeredNotificationChannels: async (): Promise<RegisteredChannel[]> => {
+    const raw = await req<unknown>("GET", "/api/notification-preferences/channels");
+    return parseWithFallback(RegisteredChannelsListSchema, raw, []);
+  },
 
   // webhooks
   webhooks: () => req<Webhook[]>("GET", "/api/webhooks"),

@@ -387,4 +387,83 @@ func TestNotificationsDirectHandlerErrors(t *testing.T) {
 	if _, err := h.listRegisteredChannels(ctx, &ListRegisteredChannelsInput{}); err == nil {
 		t.Errorf("expected error for missing context")
 	}
+
+	// Missing huma context on markAllNotificationsRead
+	if _, err := h.markAllNotificationsRead(ctx, &MarkAllNotificationsReadInput{}); err == nil {
+		t.Errorf("expected error for missing context")
+	}
+
+	// Missing huma context on resetNotificationPreferences
+	if _, err := h.resetNotificationPreferences(ctx, &ResetNotificationPreferencesInput{}); err == nil {
+		t.Errorf("expected error for missing context")
+	}
+}
+
+func TestNotificationsReadAllAndRoutesReset(t *testing.T) {
+	_, srv, db := newTestHandlerWithInstance(t)
+	user1Cookies := sessionCookies(t, 1, 1)
+
+	// Seed unread notifications
+	db.Create(&models.Notification{
+		UserID:    "1",
+		OrgID:     "1",
+		EventType: "system.upgrade",
+		Title:     "System Update",
+		Body:      "New version available",
+		CreatedAt: time.Now(),
+	})
+	db.Create(&models.Notification{
+		UserID:    "1",
+		OrgID:     "1",
+		EventType: "security.alert",
+		Title:     "Security Warning",
+		Body:      "Suspicious activity",
+		CreatedAt: time.Now(),
+	})
+
+	// 1. Test POST /api/notifications/read-all
+	recReadAll := do(srv, http.MethodPost, "/api/notifications/read-all", user1Cookies, "")
+	if recReadAll.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", recReadAll.Code, recReadAll.Body.String())
+	}
+	var unreadCount int64
+	db.Model(&models.Notification{}).Where("user_id = ? AND read_at IS NULL", "1").Count(&unreadCount)
+	if unreadCount != 0 {
+		t.Errorf("expected 0 unread notifications after read-all, got %d", unreadCount)
+	}
+
+	// 2. Test GET & PUT via /api/notifications/routes
+	routesPutBody := `{
+		"preferences": [
+			{"eventPattern": "system.*", "channels": ["in_app"]},
+			{"eventPattern": "security.*", "channels": ["email"]}
+		]
+	}`
+	recPutRoutes := do(srv, http.MethodPut, "/api/notifications/routes", user1Cookies, routesPutBody)
+	if recPutRoutes.Code != http.StatusOK {
+		t.Fatalf("expected 200 on PUT /api/notifications/routes, got %d", recPutRoutes.Code)
+	}
+
+	recGetRoutes := do(srv, http.MethodGet, "/api/notifications/routes", user1Cookies, "")
+	if recGetRoutes.Code != http.StatusOK {
+		t.Fatalf("expected 200 on GET /api/notifications/routes, got %d", recGetRoutes.Code)
+	}
+	var routes []models.NotificationPreference
+	json.Unmarshal(recGetRoutes.Body.Bytes(), &routes)
+	if len(routes) != 2 {
+		t.Fatalf("expected 2 routes, got %d", len(routes))
+	}
+
+	// 3. Test POST /api/notifications/routes/reset
+	recReset := do(srv, http.MethodPost, "/api/notifications/routes/reset", user1Cookies, "")
+	if recReset.Code != http.StatusOK {
+		t.Fatalf("expected 200 on reset routes, got %d", recReset.Code)
+	}
+
+	recGetAfterReset := do(srv, http.MethodGet, "/api/notifications/routes", user1Cookies, "")
+	var routesAfter []models.NotificationPreference
+	json.Unmarshal(recGetAfterReset.Body.Bytes(), &routesAfter)
+	if len(routesAfter) != 0 {
+		t.Errorf("expected 0 routes after reset, got %d", len(routesAfter))
+	}
 }
