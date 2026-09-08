@@ -36,6 +36,10 @@ type Config struct {
 	AdminUser     string
 	AdminPassword string
 
+	// StorageDir configures the directory path for local file storage.
+	// Defaults to "./data/storage" when unset.
+	StorageDir string
+
 	// TrustProxy controls whether proxy-supplied headers are honoured:
 	// X-Forwarded-For / X-Real-IP when determining the client IP (rate limiting
 	// and abuse throttling), and X-Forwarded-Proto when deciding whether the
@@ -219,6 +223,7 @@ func Load() (*Config, error) {
 		SecretKey:     env("OCTARQ_SECRET_KEY", ""),
 		AdminUser:     env("OCTARQ_ADMIN_USER", "admin"),
 		AdminPassword: env("OCTARQ_ADMIN_PASSWORD", ""),
+		StorageDir:    env("OCTARQ_STORAGE_DIR", "./data/storage"),
 
 		TrustProxy: strings.EqualFold(strings.TrimSpace(env("OCTARQ_TRUST_PROXY", "")), "true") || strings.TrimSpace(env("OCTARQ_TRUST_PROXY", "")) == "1",
 

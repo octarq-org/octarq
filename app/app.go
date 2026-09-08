@@ -180,6 +180,9 @@ func (a *App) RunMCP(ctx context.Context) error {
 	services := plugin.NewRegistry()
 	a.services = services
 	apiHandler.SetServiceLookup(services.Lookup)
+	if apiHandler.Storage() != nil {
+		services.Provide(plugin.ServiceStorage, plugin.StorageService(apiHandler.Storage()))
+	}
 	cronEngine := cron.New(a.cfg.RedisURL)
 	apiHandler.SetCronService(cronEngine)
 	services.Provide(plugin.ServiceCron, plugin.CronService(cronEngine))
@@ -398,6 +401,9 @@ func (a *App) Run(ctx context.Context) error {
 	services := plugin.NewRegistry()
 	a.services = services
 	apiHandler.SetServiceLookup(services.Lookup)
+	if apiHandler.Storage() != nil {
+		services.Provide(plugin.ServiceStorage, plugin.StorageService(apiHandler.Storage()))
+	}
 	cronEngine := cron.New(a.cfg.RedisURL)
 	apiHandler.SetCronService(cronEngine)
 	services.Provide(plugin.ServiceCron, plugin.CronService(cronEngine))
