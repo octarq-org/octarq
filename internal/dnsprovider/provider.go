@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"sync"
 )
 
@@ -69,7 +70,7 @@ func New(name string, credsJSON []byte) (Provider, error) {
 	return f(credsJSON)
 }
 
-// Names returns the registered provider names.
+// Names returns a sorted list of registered provider names.
 func Names() []string {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
@@ -77,6 +78,7 @@ func Names() []string {
 	for k := range registry {
 		out = append(out, k)
 	}
+	sort.Strings(out)
 	return out
 }
 
