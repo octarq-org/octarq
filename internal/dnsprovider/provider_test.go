@@ -82,14 +82,40 @@ func TestProviderRegistryAndConstructors(t *testing.T) {
 		t.Errorf("dnspod secretId/secretKey constructor failed: %v", err)
 	}
 
-	// 7. MarshalCreds & Names
+	// 7. Names
 	names := Names()
 	if len(names) < 2 {
 		t.Errorf("expected at least 2 registered providers, got %v", names)
 	}
+}
 
+func TestMarshalCreds(t *testing.T) {
+	t.Parallel()
+
+	// 1. Valid map
 	b, err := MarshalCreds(map[string]string{"apiToken": "xyz"})
 	if err != nil || len(b) == 0 {
 		t.Fatalf("MarshalCreds error: %v", err)
+	}
+	if string(b) != `{"apiToken":"xyz"}` {
+		t.Errorf("unexpected marshaled result: %s", string(b))
+	}
+
+	// 2. Valid struct
+	type creds struct {
+		Secret string `json:"secret"`
+	}
+	b2, err := MarshalCreds(creds{Secret: "foo"})
+	if err != nil || len(b2) == 0 {
+		t.Fatalf("MarshalCreds struct error: %v", err)
+	}
+	if string(b2) != `{"secret":"foo"}` {
+		t.Errorf("unexpected marshaled result: %s", string(b2))
+	}
+
+	// 3. Error path (e.g. unsupported type like channel)
+	_, err = MarshalCreds(make(chan int))
+	if err == nil {
+		t.Error("expected error marshaling channel")
 	}
 }
