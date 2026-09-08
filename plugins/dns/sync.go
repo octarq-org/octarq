@@ -8,6 +8,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/internal/dnsprovider"
 	"github.com/octarq-org/octarq/internal/models"
+	"gorm.io/gorm/clause"
 )
 
 type SyncDomainsInput struct {
@@ -85,23 +86,34 @@ func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*Syn
 	}
 
 	var created, updated int
+	var toUpdate []Domain
+	var toCreate []Domain
+
 	for _, z := range validZones {
 		name := strings.ToLower(z.Name)
 		if dom, exists := existingMap[name]; exists {
 			dom.ZoneID = z.ID
 			dom.ProviderAccountID = acc.ID
-			p.db.Save(dom)
+			toUpdate = append(toUpdate, *dom)
 			updated++
 			forgetOrigin(name)
 		} else {
-			if err := p.db.Create(&Domain{
-				OrgID: p.orgID(r),
-				Name:  name, ProviderAccountID: acc.ID, ZoneID: z.ID,
-			}).Error; err == nil {
-				created++
-				forgetOrigin(name)
-			}
+			toCreate = append(toCreate, Domain{
+				OrgID:             p.orgID(r),
+				Name:              name,
+				ProviderAccountID: acc.ID,
+				ZoneID:            z.ID,
+			})
+			forgetOrigin(name)
 		}
+	}
+
+	if len(toUpdate) > 0 {
+		p.db.Save(&toUpdate)
+	}
+	if len(toCreate) > 0 {
+		res := p.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&toCreate)
+		created = int(res.RowsAffected)
 	}
 
 	return &SyncDomainsOutput{
