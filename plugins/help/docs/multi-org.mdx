@@ -1,44 +1,74 @@
 ---
 title: Organizations & Workspace RBAC
-description: Manage multi-tenant organizations, team invitations, and workspace role permissions.
+description: Manage multi-tenant organization workspaces, team member invitations, and role-based access control.
 category: start
 order: 30
 ---
 
-Octarq isolates resources into independent organizations (workspaces). Each workspace maintains its own domains, mailboxes, short links, API tokens, and member permissions.
+Octarq is architected around strict multi-tenancy. Every domain, mailbox, short link, API token, webhook endpoint, and audit record is scoped to an **Organization** (workspace). Workspaces provide administrative and data boundaries, enabling agencies, enterprises, and independent projects to co-exist securely on a single Octarq deployment.
 
-## Role Permissions
+## Workspace Isolation Boundary
 
-- **Owner**: Full management privileges, including billing, workspace deletion, member role assignment, and owner transfer.
-- **Admin**: Configures workspace settings, domain zones, mailboxes, short links, and member invitations.
-- **Member**: Accesses operational features and views without access to administrative workspace settings.
+- **Data Partitioning**: Resources created within a workspace are accessible exclusively to authorized members of that organization. Switching workspaces filters all dashboard consoles and API calls to the active tenant.
+- **Dedicated Subdomains**: Organizations can utilize custom automatic subdomains while being protected from platform base-domain squatting.
+- **Zero Cross-Tenant Leakage**: Background jobs, webhook deliveries, and MCP tool sessions operate strictly within tenant-scoped database projections.
 
-## Switch Workspaces
+## Role Permissions Matrix
 
-1. Click the **Workspace Selector** at the top of the left sidebar.
-2. Select any organization from the list to switch active workspaces.
+Octarq defines three standard workspace roles with distinct privileges:
 
-## Create a New Workspace
+| Capability / Action | Member | Admin | Owner |
+|---|---|---|---|
+| View short links, analytics, mailboxes, and DNS records | ✅ | ✅ | ✅ |
+| Create and modify short links, mailboxes, and DNS records | ✅ | ✅ | ✅ |
+| Export analytics and CSV data | ✅ | ✅ | ✅ |
+| Manage outbound SMTP senders and suppressions | ❌ | ✅ | ✅ |
+| Configure Webhooks and Alert notification channels | ❌ | ✅ | ✅ |
+| Connect DNS provider accounts (Cloudflare, DNSPod) | ❌ | ✅ | ✅ |
+| Invite team members and manage Member roles | ❌ | ✅ | ✅ |
+| Promote/demote Admin members | ❌ | ❌ | ✅ |
+| Manage billing, subscriptions, and custom whitelabeling | ❌ | ❌ | ✅ |
+| Transfer workspace ownership or delete workspace | ❌ | ❌ | ✅ |
 
-1. Open the **Workspace Selector** at the top of the left sidebar.
+## Switching and Creating Workspaces
+
+### Switch Active Workspace
+
+1. Click the **Workspace Switcher** located at the top of the left sidebar.
+2. Select any personal or organization workspace from the dropdown list.
+3. The dashboard reloads its data projections immediately to match the selected workspace.
+
+### Create a New Organization
+
+1. Open the **Workspace Switcher** dropdown.
 2. Click **+ Create Workspace**.
-3. Enter a workspace name (such as `Acme Corp`).
-4. Click **Create & Switch**.
+3. Enter an **Organization Name** (such as `Acme Global`).
+4. Click **Create & Switch**. You are automatically designated as the **Owner** of the new workspace.
 
-## Invite Team Members
+## Team Member Invitations (24-Hour Token Lifecycle)
 
-1. Go to **Settings → Workspace → Members**.
+1. Go to **Settings → Workspace → Members** (or press `⌘K` / `Ctrl+K` and search "Members").
 2. Click **Invite Member**.
-3. Enter the invitee's email address and assign a role (**Member**, **Admin**, or **Owner**).
-4. Click **Send Invite**. An email containing an activation link valid for 24 hours will be sent.
+3. Enter the invitee's email address and select their initial role (**Member**, **Admin**, or **Owner**).
+4. Click **Send Invite**.
+5. **Cryptographic Token Lifespan**: Octarq generates a cryptographically signed invitation token sent via email. The invitation link (`https://your-octarq-host.com/invite/{token}`) remains valid for **24 hours**. If an invite expires before being accepted, an admin must click **Resend Invite** to issue a fresh token.
 
-## Modify Member Roles or Remove Access
+## Last-Owner Demotion and Removal Safeguards
 
-Go to **Settings → Workspace → Members**:
+To prevent accidental workspace abandonment or administrative lockouts:
 
-- **Change Role**: Select a new role from the dropdown next to the member. Only an Owner can assign or remove the Owner role. The last remaining Owner cannot be demoted or removed until another member is promoted to Owner.
-- **Remove Member**: Click **Remove** next to a member to revoke their access to the workspace immediately.
+- **Sole Owner Lock**: Every organization must retain at least one active **Owner**.
+- If an organization has only one Owner, any attempt to demote that user to Admin/Member or remove them from the organization is rejected with HTTP 400 Bad Request (*"cannot remove or demote the last owner"*).
+- **Ownership Transfer**: To transfer ownership, the current Owner must first invite or promote another member to the `Owner` role. Once multiple Owners exist, the original Owner may be demoted or removed safely.
 
-## Related Links
+## Cascade Revocation on Member Departure
 
+When an administrator removes a user from a workspace:
+- The user loses access to all workspace views and resources immediately.
+- All [API Tokens](/help/api-tokens) generated by that user within the organization are permanently cascade-deleted, preventing lingering script access.
+
+## Related Guides
+
+- [Console Overview](/help/getting-started)
 - [Authentication](/help/authentication)
+- [API Tokens](/help/api-tokens)

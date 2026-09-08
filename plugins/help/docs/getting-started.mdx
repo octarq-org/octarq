@@ -1,41 +1,54 @@
 ---
-slug: getting-started
 title: Console Overview
+description: Tour the Octarq management console, master command palette keyboard shortcuts, navigate operational modules, and configure workspace features.
 category: start
 order: 1
 ---
 
-Learn how workspace switching, command palette navigation, and feature controls work inside the Octarq dashboard.
+The Octarq management console provides an integrated, developer-first interface for orchestrating short links, transactional emails, DNS zones, API credentials, and team collaboration. This guide introduces the core layout, keyboard shortcuts, navigation patterns, and feature controls.
 
-## Workspaces and Data Scope
+## Workspace Layout and Navigation
 
-- **Workspace Switcher**: Use the dropdown at the top of the left sidebar to switch between personal and organization workspaces.
-- **Resource Isolation**: All domains, short links, mailboxes, webhooks, and audit logs belong to the active workspace. Switching workspaces filters all data views to match the selected workspace.
+The dashboard layout is divided into three primary functional areas:
 
-## Command Palette (`⌘K` / `Ctrl+K`)
+1. **Header & Workspace Selector**:
+   - Located at the top of the left sidebar.
+   - Displays your currently active organization. Click to switch instantly between personal and team workspaces, or to create a new workspace.
+2. **Modular Sidebar Navigation**:
+   - **Operations**: Day-to-day marketing and communication tools, including [Short Links](/help/short-links) and [Mailboxes](/help/mailboxes).
+   - **Infrastructure**: Network orchestration, including [DNS Management](/help/dns) and [Dynamic DNS (DDNS)](/help/ddns).
+   - **Settings**: Organization preferences, [API Tokens](/help/api-tokens), [Alerts](/help/notifications), and [Outbound Webhooks](/help/webhooks).
+3. **Primary Content Viewport**:
+   - Displays high-density data tables, real-time analytics graphs, configuration drawers, and inline documentation.
 
-Press **`⌘K`** (macOS) or **`Ctrl+K`** (Windows/Linux) anywhere in the dashboard to open the command palette.
+## Global Command Palette (`⌘K` / `Ctrl+K`)
 
-Use the search bar to jump directly to any page, settings panel, or documentation guide. Note that the command palette navigates pages and does not run creation or deletion commands directly.
+Accelerate your workflow using the built-in keyboard command palette:
 
-## Workspace Roles
+- **Open Palette**: Press **`⌘K`** on macOS or **`Ctrl+K`** on Windows/Linux from any screen in the dashboard.
+- **Instant Search**: Type to search across all operational modules, settings panels, and help guides (such as typing "DNS", "Tokens", or "Export").
+- **Navigation Safety**: The command palette is optimized for rapid navigation; it never executes destructive actions or mutates data without explicit secondary confirmation modals.
+- **Close Palette**: Press `Esc` to return to your previous view.
 
-Workspace permissions are split into three roles:
+## Multi-Tenant Data Boundaries
 
-- **Owner**: Full workspace management, member role assignments, and workspace deletion.
-- **Admin**: Configures workspace features, domains, mailboxes, short links, and member invites.
-- **Member**: Uses active workspace features without access to workspace administrative settings.
+Octarq strictly enforces organizational boundaries:
+- Switching the active workspace instantly scopes all visible short links, mailboxes, domain records, and audit events to the selected tenant.
+- Team members without explicit permissions in a workspace cannot view its records or enumerate resource IDs.
+- For detailed information on member invitations, role matrices, and ownership transfer, refer to the [Organizations & Workspace RBAC](/help/multi-org) guide.
 
-To manage team members and roles, go to **Settings → Workspace → Members**.
+## Dynamic Feature Toggles per Workspace
 
-## Toggle Features per Workspace
+Octarq allows administrators to tailor the dashboard to match each organization's exact operational needs:
 
-Go to **Settings → Workspace → Features** (`/settings/plugins`) to turn individual plugins (such as Links, Mail, or DNS) on or off for your workspace. Unused features can be toggled off to clean up sidebar menu items.
+1. Go to **Settings → Workspace → Features** (or navigate directly to `/settings/plugins`).
+2. Toggle on the capabilities required for the workspace (e.g. Links, Mail, DNS).
+3. Unused features can be switched off to reduce cognitive load; their corresponding sidebar menu items disappear immediately without affecting underlying database records.
 
-## Related Guides
+## Next Steps
 
-- [Quickstart](/help/quickstart)
-- [DNS Management](/help/dns)
-- [Short Links](/help/short-links)
-- [Mailboxes](/help/mailboxes)
-- [API Tokens](/help/api-tokens)
+- Follow the [Quickstart Guide](/help/quickstart) to initialize your first deployment.
+- Configure branded short links in [Short Links](/help/short-links).
+- Set up custom domain email handling in [Mailboxes](/help/mailboxes).
+- Connect cloud providers in [DNS Management](/help/dns).
+- Generate developer credentials in [API Tokens](/help/api-tokens).

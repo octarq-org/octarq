@@ -30,6 +30,10 @@ Run these and make sure they pass — don't claim a change works on inspection a
 
 ## Architecture & Code Conventions
 
+- **Three-Tier Documentation Model (Scheme B)**:
+  - **Tier 1 (User Help Docs)**: Embedded in `plugins/*/docs/` via `plugin.HelpDocsFS` (`//go:embed docs`). Must have bilingual `.zh.mdx` translations, strictly covering user-facing workflows and UI usage.
+  - **Tier 2 (Module Living Spec)**: `plugins/<name>/SPEC.md` co-located in each plugin. **Strictly NOT embedded in binary**. Serves as the technical truth for state machines, internal event flows, database models, and error states.
+  - **Tier 3 (Executable Contracts)**: Pure Go interfaces, route-derived OpenAPI specs, and contract tests (`*_test.go`).
 - **Single source of truth — derive, don't duplicate**: Derive mappings dynamically (e.g., `areaForPath` in `web/src/shell/areas.tsx`). Collapse parallel hardcoded tables.
 - **Sidebar & Routes**: Sidebar menus come strictly from the Go backend (`MenuProvider` / `/api/menus`). Frontend plugins register routes (`registerUIPlugin` → `uiRoutes()`) and UI components, never static menus.
 - **Graceful degradation**: Optional/Pro feature pages must handle **402** (show upsell `LockedFeature`) and **404** (neutral note) gracefully.

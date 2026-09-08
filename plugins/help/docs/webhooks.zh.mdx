@@ -1,54 +1,199 @@
 ---
-title: Webhook
-description: 使用 HMAC 签名将系统事件实时推送到外部 HTTP 端点。
+title: 出站 Webhook
+description: 使用 V1/V2 HMAC-SHA256 签名机制与防重放攻击防护，将工作区业务事件实时推送到外部 HTTP 服务端点。
 category: settings
 order: 40
 ---
 
-出站 Webhook 在工作区发生特定事件时，向外部服务器发送 HTTP `POST` 请求。
+Octarq 出站 Webhook 在当前工作区发生关键业务事件时，主动向外部业务系统或云函数发送经过签名认证的 HTTP `POST` JSON 载荷，便于无缝对接内部 CRM、自动化工单、审计告警及无服务器函数。
 
-## 功能说明
+## 事件订阅主题列表
 
-- **事件通知**：在收到邮件（`email.receive`）、邮件发送失败（`email.send_failed`）或接收到滥用举报时触发 HTTP 回调。
-- **HMAC 签名防篡改**：每个请求包含 `X-Octarq-Signature` 请求头，接收端使用签名密钥与原始 Body 重新计算摘要即可完成来源校验。
-- **精细订阅**：可订阅指定的单项事件，或使用通配符 `*` 接收全部工作区事件。
+创建 Webhook 时，可选择订阅具体的单项事件主题，或使用通配符 `*` 接收当前工作区的全部事件：
 
-## 注册 Webhook 端点
+- `email.receive`：收到外部入站邮件并完成流式解析落库时触发。
+- `email.send_failed`：出站邮件投递失败或遭遇网络退信时触发。
+- `domain.verify_failed`：DNS 自动化状态探测发现 SPF、DMARC 或 DKIM 记录配置异常或失效时触发。
+- `link.click_limit`：短链访问达到设定点击上限阈值时触发。
+- `abuse.report`：收到针对短链或邮箱的滥用行为举报时触发。
 
-1. 进入 **设置 → 工作区 → Webhook**（或按 `⌘K` / `Ctrl+K` 搜索“Webhook”）。
-2. 点击 **添加 Webhook 端点**。
-3. 填写 **端点名称** 与目标 **Endpoint URL**（例如 `https://api.example.com/hooks/octarq`）。
-4. （可选）设置 **签名密钥**；留空时系统将自动生成随机密钥。
-5. 选择 **订阅事件**（可选择 **全部事件 (*)** 或勾选具体事件）。
-6. 点击 **添加 Webhook 端点**。
+## 请求头规范与防重放架构
 
-## 校验 Webhook 签名
+系统推送的 HTTP 请求附带标准的交付上下文请求头，用于身份验签与幂等去重：
 
-接收服务器通过计算原始请求 Body 的 HMAC-SHA256 签名，并与 `X-Octarq-Signature` 请求头进行比对：
+| 请求头字段 | 含义说明 | 示例 |
+|---|---|---|
+| `Content-Type` | 消息报文格式 | `application/json` |
+| `User-Agent` | 发起客户端标识 | `Octarq-Webhook/1.0` |
+| `X-Octarq-Delivery` | 单次投递尝试的全局唯一 UUID | `7b8f9e12-4c3a-4e89-a123-d8e7f6a5b4c3` |
+| `X-Octarq-Timestamp` | 消息触发推送的 Unix 时间戳（秒） | `1725801600` |
+| `X-Octarq-Attempt` | 当前重试投递递增计数 | `1` |
+| `X-Octarq-Signature` | V1 传统 HMAC 签名（仅针对 Raw Body 计算） | `sha256=a1b2c3d4e5...` |
+| `X-Octarq-Signature-V2` | V2 强化版 HMAC 签名（绑定时间戳与 Delivery ID） | `v2=f6e5d4c3b2...` |
+
+### V2 签名机制与防重放攻击
+
+V1 签名仅能证明报文未被篡改。为防范抓包嗅探重放攻击，Octarq 推出了 **V2 HMAC-SHA256 签名机制**。
+
+V2 签名将投递时间戳、投递 UUID 及原始 JSON 正文完整拼接作为验签物料：
+```
+signed_material = <X-Octarq-Timestamp> + "." + <X-Octarq-Delivery> + "." + <raw_json_body>
+```
+
+使用 Webhook 端点配置的私钥计算 HMAC 摘要：
+```
+X-Octarq-Signature-V2: v2 = hex(hmac_sha256(secret, signed_material))
+```
+
+### 接收端验签规则
+
+1. **时钟漂移容差校验**：读取 `X-Octarq-Timestamp`，校验与当前系统时间的偏差是否在 **5 分钟容差窗口** 内（`|now - ts| <= 300` 秒）。超时请求应直接丢弃。
+2. **幂等去重**：将 `X-Octarq-Delivery` 的 UUID 存入 Redis 或内存缓存，若已处理过则直接返回 HTTP 200，避免重复消费。
+3. **常量时间比对**：计算预期的 HMAC 摘要并采用常量时间比对函数比对，杜绝时序侧信道攻击。
+
+## 生产级验签代码示例
+
+### Node.js (Express 中间件)
 
 ```javascript
 const crypto = require('crypto');
 
 function verifyOctarqWebhook(req, res, next) {
-  const signature = req.headers['x-octarq-signature'];
-  const expected = crypto
-    .createHmac('sha256', process.env.OCTARQ_WEBHOOK_SECRET)
-    .update(req.rawBody)
-    .digest('hex');
+  const timestamp = req.headers['x-octarq-timestamp'];
+  const deliveryId = req.headers['x-octarq-delivery'];
+  const sigHeader = req.headers['x-octarq-signature-v2'];
+  const secret = process.env.OCTARQ_WEBHOOK_SECRET;
 
-  if (signature === expected) {
-    next();
-  } else {
-    res.status(401).send('Invalid signature');
+  if (!timestamp || !deliveryId || !sigHeader) {
+    return res.status(401).send('缺少必要的验签请求头');
   }
+
+  // 1. 校验 5 分钟防重放容差窗口
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - parseInt(timestamp, 10)) > 300) {
+    return res.status(401).send('请求时间戳已超出容差范围');
+  }
+
+  // 2. 计算 V2 HMAC 签名摘要
+  const signedMaterial = `${timestamp}.${deliveryId}.${req.rawBody}`;
+  const expectedHash = crypto
+    .createHmac('sha256', secret)
+    .update(signedMaterial)
+    .digest('hex');
+  const expectedSignature = `v2=${expectedHash}`;
+
+  // 3. 常量时间安全比对
+  const trusted = Buffer.from(expectedSignature, 'utf8');
+  const untrusted = Buffer.from(sigHeader, 'utf8');
+  if (trusted.length === untrusted.length && crypto.timingSafeEqual(trusted, untrusted)) {
+    return next();
+  }
+
+  return res.status(401).send('Webhook 签名验证不匹配');
 }
 ```
 
-## 管理端点
+### Python (FastAPI 端点)
 
-在 **设置 → 工作区 → Webhook** 中，可随时查看端点密钥或删除停用的 Webhook。
+```python
+import hmac
+import hashlib
+import time
+from fastapi import FastAPI, Header, HTTPException, Request
 
-## 相关文档
+app = FastAPI()
+WEBHOOK_SECRET = "your_signing_secret"
 
-- [通知渠道](/help/notifications)
+@app.post("/webhook/octarq")
+async def handle_webhook(
+    request: Request,
+    x_octarq_timestamp: str = Header(...),
+    x_octarq_delivery: str = Header(...),
+    x_octarq_signature_v2: str = Header(...)
+):
+    body = await request.body()
+    
+    # 1. 校验 5 分钟防重放容差窗口
+    now = int(time.time())
+    if abs(now - int(x_octarq_timestamp)) > 300:
+        raise HTTPException(status_code=401, detail="请求时间戳已失效")
+        
+    # 2. 计算 V2 HMAC 签名摘要
+    signed_material = f"{x_octarq_timestamp}.{x_octarq_delivery}.".encode('utf-8') + body
+    expected_hash = hmac.new(
+        WEBHOOK_SECRET.encode('utf-8'),
+        signed_material,
+        hashlib.sha256
+    ).hexdigest()
+    expected_sig = f"v2={expected_hash}"
+    
+    # 3. 常量时间对比
+    if not hmac.compare_digest(expected_sig, x_octarq_signature_v2):
+        raise HTTPException(status_code=401, detail="签名比对失败")
+        
+    payload = await request.json()
+    return {"status": "ok"}
+```
+
+### Go (`net/http` 处理器)
+
+```go
+package main
+
+import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
+	"fmt"
+	"io"
+	"math"
+	"net/http"
+	"strconv"
+	"time"
+)
+
+func verifyWebhook(w http.ResponseWriter, r *http.Request, secret []byte) ([]byte, error) {
+	tsStr := r.Header.Get("X-Octarq-Timestamp")
+	deliveryID := r.Header.Get("X-Octarq-Delivery")
+	sigHeader := r.Header.Get("X-Octarq-Signature-V2")
+
+	ts, err := strconv.ParseInt(tsStr, 10, 64)
+	if err != nil || math.Abs(float64(time.Now().Unix()-ts)) > 300 {
+		return nil, fmt.Errorf("时间戳异常或已超时")
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte(tsStr + "." + deliveryID + "."))
+	mac.Write(body)
+	expectedSig := "v2=" + hex.EncodeToString(mac.Sum(nil))
+
+	if subtle.ConstantTimeCompare([]byte(expectedSig), []byte(sigHeader)) != 1 {
+		return nil, fmt.Errorf("签名摘要校验失败")
+	}
+	return body, nil
+}
+```
+
+## 注册出站 Webhook 端点
+
+1. 前往 **设置 → 工作区 → Webhook**（或按 `⌘K` / `Ctrl+K` 搜索“Webhook”）。
+2. 点击 **添加 Webhook 端点**。
+3. 填入以下配置：
+   - **端点名称**：输入描述性标识（如 `生产环境事件总线`）。
+   - **Endpoint URL**：公网可达的 HTTPS 端点地址（例如 `https://api.yourdomain.com/webhooks/octarq`）。
+   - **签名密钥**：自定义高强度密钥，或留空由系统自动生成。
+   - **事件订阅**：勾选特定事件主题或订阅全部 `*`。
+4. 点击 **保存端点**。
+
+## 相关指南
+
+- [告警通知渠道](/help/notifications)
 - [API 令牌](/help/api-tokens)
+- [邮箱与邮件路由](/help/mailboxes)
+- [短链](/help/short-links)

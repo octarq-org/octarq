@@ -1,22 +1,80 @@
 ---
-title: MCP
-description: 将 Claude、Cursor 等 AI 客户端通过 MCP 连接至 Octarq 工作区。
+title: 模型上下文协议 (MCP)
+description: 通过模型上下文协议 (MCP) 将 Claude Desktop、Cursor 及远程 AI Agent 无缝连接到 Octarq 工作区。
 category: settings
 order: 50
 ---
 
-Octarq 内置模型上下文协议（MCP）服务器，允许桌面 AI 客户端及远程 Agent 查询短链、邮件、DNS 记录与系统数据。
+Octarq 内置标准模型上下文协议 (Model Context Protocol, MCP) 服务端，允许主流大语言模型 (LLM)、IDE 智能编码助手及自主 AI Agent 以结构化工具形式安全查询与操作工作区内的短链、邮件、DNS 解析记录及系统数据。
 
-## 通道与安全控制
+## 双传输通道与安全架构
 
-- **本地 stdio 通道**：通过启动 `octarq mcp` 本地子进程供 Claude Desktop 或 Cursor 等桌面应用使用，工具调用限制在你所属的工作区内。
-- **HTTP / SSE 通道**：端点位于 `/api/mcp/sse`，面向远程 Agent 接入。使用 [API 令牌](/help/api-tokens)（`Authorization: Bearer oct_...`）进行鉴权，所有工具调用均严格限制在请求方所属的工作区内。
+Octarq 针对本地桌面客户端与分布式云端服务提供了两种标准传输通道：
 
-所有工具都是限定工作区的只读数据视图 —— 短链、邮箱、邮件、域名以及完整数据导出。任何通道都不提供原始 SQL 工具：任意 SQL 无法被约束在单个工作区内，因此该能力是直接不提供，而不是加以限制。
+### 1. 本地 stdio 传输通道
 
-## 配置本地 stdio 通道 (Claude Desktop)
+本地 stdio 通道以子进程标准输入输出（stdin/stdout）方式交互，专门面向运行在本地的桌面端应用（如 Claude Desktop 与 Cursor）：
 
-在 `claude_desktop_config.json` 中配置 Octarq 可执行文件路径：
+- **执行指令**：`octarq mcp`
+- **运行配置**：读取本地数据库连接（`OCTARQ_DB_DSN`）。
+- **运行权限**：遵循当前操作系统本地用户的进程权限。
+
+### 2. 远程 HTTP / SSE 传输通道
+
+面向远程 AI 智能体、自动化云端 Worker 及企业 Agent 编排流水线：
+
+- **端点地址**：`https://your-octarq-host.com/api/mcp/sse`
+- **身份认证**：通过标准 HTTP 请求头传递 [API 令牌](/help/api-tokens)（`Authorization: Bearer oct_...`）建立 Server-Sent Events (SSE) 长连接。
+- **租户严格隔离**：整个会话与调用的权限严格收敛于该 API 令牌所归属的单个组织，杜绝任何跨租户越权访问。
+
+:::note 绝对杜绝原始 SQL 工具
+Octarq MCP 服务端**严禁**提供任何形式的原始 SQL 执行工具。在多租户数据库架构中，任意 SQL 无法在解析层被绝对安全地限定在单租户范围内。比起脆弱易错的 SQL 黑名单过滤，Octarq 采用更加稳健的架构设计——直接排除底层 SQL 执行能力，所有操作必须通过经过审计的结构化领域工具完成。
+:::
+
+## 完整工具目录清单
+
+无论是 stdio 还是 SSE 通道，MCP 服务端均向 AI 模型开放以下标准工具：
+
+### 1. `create_shortlink`
+声明式创建包含路由和安全保护的短链接：
+- **输入参数**：
+  - `destination`（字符串，必填）：重定向目标落地页 URL。
+  - `slug`（字符串，可选）：自定义路径别名。
+  - `host`（字符串，可选）：绑定的自定义域名。
+  - `password`（字符串，可选）：访问验证密码。
+  - `expiresAt`（字符串，可选）：ISO-8601 标准过期时间戳。
+- **输出结果**：解析后的完整短链 URL、分配的 Slug 及创建状态。
+
+### 2. `list_links`
+分页查询当前工作区下的短链接列表并支持关键字搜索：
+- **输入参数**：`limit`（整数，1–100）、`search`（字符串）。
+- **输出结果**：短链对象数组，包含 Slug、目标地址、累计点击量及状态。
+
+### 3. `list_domains`
+查询已托管的域名 Zone 列表及解析健康状态：
+- **输入参数**：无。
+- **输出结果**：域名列表，包含托管服务商、解析状态及 SPF/DKIM/DMARC 验证指标。
+
+### 4. `list_mailboxes`
+查询当前工作区配置的邮箱账号及 Catch-All 路由状态：
+- **输入参数**：无。
+- **输出结果**：邮箱列表，包含邮箱地址、创建时间及未读邮件计数。
+
+### 5. `list_emails`
+获取工作区收到的事务性入站邮件摘要：
+- **输入参数**：`mailbox_id`（可选）、`limit`（整数，1–50）。
+- **输出结果**：邮件对象数组，包含发件人、收件人、邮件主题、接收时间戳及文本摘要。
+
+### 6. `export_data`
+导出当前租户全部业务数据的结构化备份：
+- **输入参数**：无。
+- **输出结果**：完整的 JSON 投影数据，包含该租户下的所有短链、域名及邮箱配置。
+
+## 客户端配置示例
+
+### Claude Desktop 配置文件
+
+在 Claude Desktop 配置文件中（macOS 位于 `~/Library/Application Support/Claude/claude_desktop_config.json`，Windows 位于 `%APPDATA%\Claude\claude_desktop_config.json`）添加 `octarq` 项：
 
 ```json
 {
@@ -25,32 +83,41 @@ Octarq 内置模型上下文协议（MCP）服务器，允许桌面 AI 客户端
       "command": "/usr/local/bin/octarq",
       "args": ["mcp"],
       "env": {
-        "OCTARQ_DB_DSN": "/path/to/octarq.db"
+        "OCTARQ_DB_DSN": "/var/lib/octarq/data.db"
       }
     }
   }
 }
 ```
 
-## 配置远程 SSE 通道
+### Cursor IDE 配置文件
 
-面向远程 AI 工具或网页版客户端：
+在项目根目录创建或编辑 `.cursor/mcp.json`：
 
-1. 前往 **设置 → 账户 → API 令牌** 生成一个 [API 令牌](/help/api-tokens)。
-2. 在客户端中配置以下连接参数：
-   - **SSE 端点**：`https://your-octarq-domain.com/api/mcp/sse`
-   - **HTTP 请求头**：`Authorization: Bearer oct_your_secret_api_token`
+```json
+{
+  "mcpServers": {
+    "octarq-remote": {
+      "url": "https://your-octarq-host.com/api/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer oct_your_secret_api_token"
+      }
+    }
+  }
+}
+```
 
-## 查询示例
+## 自然语言交互示例
 
-连接成功后，可通过自然语言向 AI 提问：
+配置完成后，您可以直接在 AI 聊天框中用自然语言发出指令：
 
-- “汇总今天收到的未读邮件。”
-- “统计本月点击量最高的短链。”
-- “检查是否存在验证失败的 DNS 记录。”
+- *“帮我在域名 go.example.com 上创建一个指向 https://github.com/my-org/repo 的短链，别名设为 github-repo”*
+- *“列出我工作区的所有域名，检查是否存在 SPF 或 DMARC 验证失败的情况”*
+- *“查看最近收件箱里的前 5 封邮件，总结它们的主要诉求”*
 
-## 相关文档
+## 相关指南
 
 - [API 令牌](/help/api-tokens)
-- [短链接](/help/short-links)
+- [短链](/help/short-links)
 - [邮箱与邮件路由](/help/mailboxes)
+- [DNS 域名解析](/help/dns)

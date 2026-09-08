@@ -1,54 +1,199 @@
 ---
 title: Webhooks
-description: Stream system events in real time to external HTTP endpoints with HMAC signing.
+description: Stream workspace events in real time to external HTTP endpoints with V1/V2 HMAC-SHA256 signatures and replay defense.
 category: settings
 order: 40
 ---
 
-Outbound Webhooks send HTTP `POST` notifications to external servers when events occur in your workspace.
+Octarq Outbound Webhooks stream real-time JSON event payloads to your external application servers whenever activities occur in your workspace. This enables seamless automation for CRM pipelines, custom alert handlers, event logging, and serverless edge functions.
 
-## Key Capabilities
+## Event Subscriptions
 
-- **Event Notification**: Receive HTTP requests for events such as `email.receive`, `email.send_failed`, and abuse reports.
-- **HMAC Signatures**: Each request includes an `X-Octarq-Signature` header calculated using your signing secret and the raw request body.
-- **Event Filtering**: Subscribe to specific event topics or use the wildcard `*` to receive all workspace events.
+When registering a webhook endpoint, you can subscribe to specific topics or use the wildcard `*` to receive all workspace events:
 
-## Register a Webhook Endpoint
+- `email.receive`: Dispatched when an inbound transactional email is successfully parsed and stored.
+- `email.send_failed`: Dispatched when an outbound email encounters a relay failure or bounce.
+- `domain.verify_failed`: Dispatched when automated DNS posture verification detects a broken SPF, DMARC, or DKIM record.
+- `link.click_limit`: Dispatched when a short link reaches its assigned click ceiling.
+- `abuse.report`: Dispatched when an abuse complaint is filed against a link or mailbox.
 
-1. Go to **Settings → Workspace → Webhooks** (or press `⌘K` / `Ctrl+K` and search "Webhooks").
-2. Click **Add Webhook Endpoint**.
-3. Enter an **Endpoint Name** and the target **Endpoint URL** (such as `https://api.example.com/hooks/octarq`).
-4. (Optional) Provide a **Signing Secret**, or leave empty to auto-generate a secret key.
-5. Select **Event Subscriptions** (choose **All Events (*)** or check specific topics).
-6. Click **Add Webhook Endpoint**.
+## Delivery Headers and Anti-Replay Architecture
 
-## Verify Webhook Signatures
+Octarq dispatches HTTP `POST` requests with JSON payloads containing standardized delivery headers designed for security and idempotency:
 
-Verify incoming requests on your server by computing the HMAC-SHA256 signature of the raw request body using your secret key and comparing it against the `X-Octarq-Signature` header value:
+| Header Name | Description | Example |
+|---|---|---|
+| `Content-Type` | MIME payload format | `application/json` |
+| `User-Agent` | Platform user agent identifier | `Octarq-Webhook/1.0` |
+| `X-Octarq-Delivery` | Globally unique UUID for this delivery attempt | `7b8f9e12-4c3a-4e89-a123-d8e7f6a5b4c3` |
+| `X-Octarq-Timestamp` | Unix timestamp in seconds when the event was dispatched | `1725801600` |
+| `X-Octarq-Attempt` | Monotonic counter indicating transmission attempts | `1` |
+| `X-Octarq-Signature` | Legacy V1 HMAC-SHA256 signature calculated over the raw body | `sha256=a1b2c3d4e5...` |
+| `X-Octarq-Signature-V2` | Hardened V2 HMAC-SHA256 signature binding timestamp and ID | `v2=f6e5d4c3b2...` |
+
+### V2 Signature Construction and Replay Protection
+
+V1 signatures verify that the request body has not been tampered with. However, to eliminate packet capture and replay attacks, Octarq implements **V2 HMAC-SHA256 signatures**.
+
+The signed string for V2 binds the delivery timestamp, delivery UUID, and raw JSON body:
+```
+signed_material = <X-Octarq-Timestamp> + "." + <X-Octarq-Delivery> + "." + <raw_json_body>
+```
+
+The signature is computed using your endpoint's signing secret as the HMAC key:
+```
+X-Octarq-Signature-V2: v2 = hex(hmac_sha256(secret, signed_material))
+```
+
+### Verification Rules on the Receiver
+
+1. **Check Drift Window**: Extract `X-Octarq-Timestamp` and confirm it is within a **5-minute tolerance window** (`|current_time - timestamp| <= 300` seconds). Reject expired requests.
+2. **Deduplicate ID**: Record `X-Octarq-Delivery` in Redis or database cache. If the UUID was already processed, treat it as an idempotent retry.
+3. **Compute and Compare**: Calculate the expected HMAC hex digest and verify it using constant-time string comparison.
+
+## Verified Signature Verification Snippets
+
+### Node.js (Express)
 
 ```javascript
 const crypto = require('crypto');
 
 function verifyOctarqWebhook(req, res, next) {
-  const signature = req.headers['x-octarq-signature'];
-  const expected = crypto
-    .createHmac('sha256', process.env.OCTARQ_WEBHOOK_SECRET)
-    .update(req.rawBody)
-    .digest('hex');
+  const timestamp = req.headers['x-octarq-timestamp'];
+  const deliveryId = req.headers['x-octarq-delivery'];
+  const sigHeader = req.headers['x-octarq-signature-v2'];
+  const secret = process.env.OCTARQ_WEBHOOK_SECRET;
 
-  if (signature === expected) {
-    next();
-  } else {
-    res.status(401).send('Invalid signature');
+  if (!timestamp || !deliveryId || !sigHeader) {
+    return res.status(401).send('Missing webhook signature headers');
   }
+
+  // 1. Verify 5-minute replay tolerance window
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - parseInt(timestamp, 10)) > 300) {
+    return res.status(401).send('Timestamp out of tolerance window');
+  }
+
+  // 2. Compute expected V2 HMAC
+  const signedMaterial = `${timestamp}.${deliveryId}.${req.rawBody}`;
+  const expectedHash = crypto
+    .createHmac('sha256', secret)
+    .update(signedMaterial)
+    .digest('hex');
+  const expectedSignature = `v2=${expectedHash}`;
+
+  // 3. Constant-time equality check
+  const trusted = Buffer.from(expectedSignature, 'utf8');
+  const untrusted = Buffer.from(sigHeader, 'utf8');
+  if (trusted.length === untrusted.length && crypto.timingSafeEqual(trusted, untrusted)) {
+    return next();
+  }
+
+  return res.status(401).send('Invalid signature');
 }
 ```
 
-## Manage Endpoints
+### Python (FastAPI)
 
-Go to **Settings → Workspace → Webhooks** to inspect signing secrets or delete obsolete endpoints.
+```python
+import hmac
+import hashlib
+import time
+from fastapi import FastAPI, Header, HTTPException, Request
 
-## Related Links
+app = FastAPI()
+WEBHOOK_SECRET = "your_signing_secret"
 
-- [Notification Channels](/help/notifications)
+@app.post("/webhook/octarq")
+async def handle_webhook(
+    request: Request,
+    x_octarq_timestamp: str = Header(...),
+    x_octarq_delivery: str = Header(...),
+    x_octarq_signature_v2: str = Header(...)
+):
+    body = await request.body()
+    
+    # 1. Verify 5-minute replay tolerance window
+    now = int(time.time())
+    if abs(now - int(x_octarq_timestamp)) > 300:
+        raise HTTPException(status_code=401, detail="Timestamp expired")
+        
+    # 2. Compute expected V2 HMAC
+    signed_material = f"{x_octarq_timestamp}.{x_octarq_delivery}.".encode('utf-8') + body
+    expected_hash = hmac.new(
+        WEBHOOK_SECRET.encode('utf-8'),
+        signed_material,
+        hashlib.sha256
+    ).hexdigest()
+    expected_sig = f"v2={expected_hash}"
+    
+    # 3. Constant-time comparison
+    if not hmac.compare_digest(expected_sig, x_octarq_signature_v2):
+        raise HTTPException(status_code=401, detail="Signature mismatch")
+        
+    payload = await request.json()
+    return {"status": "ok"}
+```
+
+### Go (`net/http`)
+
+```go
+package main
+
+import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
+	"fmt"
+	"io"
+	"math"
+	"net/http"
+	"strconv"
+	"time"
+)
+
+func verifyWebhook(w http.ResponseWriter, r *http.Request, secret []byte) ([]byte, error) {
+	tsStr := r.Header.Get("X-Octarq-Timestamp")
+	deliveryID := r.Header.Get("X-Octarq-Delivery")
+	sigHeader := r.Header.Get("X-Octarq-Signature-V2")
+
+	ts, err := strconv.ParseInt(tsStr, 10, 64)
+	if err != nil || math.Abs(float64(time.Now().Unix()-ts)) > 300 {
+		return nil, fmt.Errorf("invalid or expired timestamp")
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte(tsStr + "." + deliveryID + "."))
+	mac.Write(body)
+	expectedSig := "v2=" + hex.EncodeToString(mac.Sum(nil))
+
+	if subtle.ConstantTimeCompare([]byte(expectedSig), []byte(sigHeader)) != 1 {
+		return nil, fmt.Errorf("signature verification failed")
+	}
+	return body, nil
+}
+```
+
+## Register a Webhook Endpoint
+
+1. Go to **Settings → Workspace → Webhooks** (or press `⌘K` / `Ctrl+K` and search "Webhooks").
+2. Click **Add Webhook Endpoint**.
+3. Fill in:
+   - **Endpoint Name**: A memorable identifier (such as `Production Event Consumer`).
+   - **Endpoint URL**: The HTTPS target destination (e.g. `https://api.yourdomain.com/webhooks/octarq`).
+   - **Signing Secret**: Provide a custom secret string or leave blank to let Octarq generate a high-entropy secret.
+   - **Event Subscriptions**: Select specific event topics or subscribe to `*`.
+4. Click **Create Endpoint**.
+
+## Related Guides
+
+- [Alerts](/help/notifications)
 - [API Tokens](/help/api-tokens)
+- [Mailboxes](/help/mailboxes)
+- [Short Links](/help/short-links)

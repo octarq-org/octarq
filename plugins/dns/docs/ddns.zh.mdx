@@ -1,48 +1,126 @@
 ---
 title: 动态 DNS
+description: 通过标准的 Dyndns2 协议端点，自动将家庭宽带、办公网络及家庭实验室动态公网 IP 同步至 DNS 记录。
 category: infrastructure
 order: 20
 ---
 
-通过标准的 Dyndns2 协议，自动将路由器、NAS 或内网服务器的动态 IPv4 (A) 或 IPv6 (AAAA) 地址同步到 Octarq 托管的 DNS 记录中。
+Octarq 动态 DNS (DDNS) 允许路由器、群晖/威联通 NAS、智能网关及边缘服务器，自动将其动态变化的公网出口 IPv4 (A) 与 IPv6 (AAAA) 地址同步到已托管的 DNS 记录中。系统完整兼容行业通用的 Dyndns2 HTTP 更新协议，可直接平替传统商业动态域名解析服务。
 
-## 创建 DDNS Token
+## 创建 DDNS 密钥 Token
 
 1. 进入 **基础设施 → 网络 → DNS**，切换到 **动态 DNS (DDNS)** 标签页。
 2. 点击 **新建 DDNS Token**。
-3. 选择目标域名，填写记录名称（例如 `home`），并指定记录类型（`A` 或 `AAAA`）。
-4. 点击 **生成 Token**。
-5. 立即复制生成的 Secret Token 与更新 URL。明文令牌仅在创建成功时展示一次。
+3. 从下拉列表中选择已托管的目标域名。
+4. 输入待解析的子域名称（例如 `home` 或 `nas`）。
+5. 选择记录解析类型：
+   - **A 记录**：针对传统 IPv4 地址。
+   - **AAAA 记录**：针对原生 IPv6 地址。
+6. 点击 **生成 Token**。
+7. **立即保存明文密钥**：系统将在弹窗中展示生成的 Secret Token 密钥与完整更新 URL。
 
-> [!CAUTION]
-> 数据库仅保存 Token 的 SHA-256 哈希。如果丢失 Token，需要撤销并重新生成。
+:::caution 密钥仅展示一次
+基于加密安全要求，Octarq 数据库仅保存该 Token 的 SHA-256 哈希散列（`token_hash`）。关闭弹窗后，明文密钥无法再次解密或读取。若密钥不慎泄露或丢失，需直接在列表中吊销并重新生成。
+:::
 
-## 客户端配置示例
+## Dyndns2 协议端点规范
 
-### 使用 `curl` 设置定时任务
+更新接口支持通过 HTTP `GET` 或 `POST` 方式提交 Dyndns2 标准参数：
 
-在 Linux 服务器或路由器中添加定时任务，自动检测外网出口 IP 并提交更新：
+`https://your-octarq-host.com/api/dns/ddns/update?hostname={hostname}&key={token}`
+
+### 请求查询参数
+
+| 参数名 | 类型 | 是否必选 | 描述说明 |
+|---|---|---|---|
+| `hostname` | String | 是 | 需要更新的完整域名（例如 `home.example.com`）。 |
+| `key` | String | 是 | 生成的 DDNS Secret Token 密钥（亦支持放置于 HTTP Basic Auth 密码中）。 |
+| `ip` | String | 可选 | 显式指定的目标 IPv4 或 IPv6 地址。留空时系统将自动提取客户端出口公网 IP。 |
+
+### 响应状态码对照表
+
+Octarq 严格返回符合 Dyndns2 行业标准的纯文本状态：
+
+- `good <ip>`：DNS 记录已成功更新为新获取的 IP 地址。
+- `nochg <ip>`：当前提交的 IP 与现有 DNS 记录一致，跳过解析商 API 调用，防止触发上游配额限流。
+- `badauth`：鉴权失败，Token 不存在、已吊销或密钥不匹配。
+- `notfqdn`：请求未包含有效的 `hostname` 域名参数。
+- `nohost`：指定的主机名未在当前工作区的 DDNS Token 或域名 Zone 中登记。
+- `dnserr`：与上游 DNS 解析服务商通信发生错误或网络超时。
+
+## 常用客户端配置指南
+
+### 1. 使用 `curl` 设置系统 Crontab 任务
+
+在 Linux 服务器或工控机中添加定时任务，每 10 分钟自动提交一次 IP 探测与同步：
 
 ```bash
-curl -s "https://your-octarq-domain.com/api/dns/ddns/update?hostname=home.example.com&key=YOUR_SECRET_TOKEN"
+*/10 * * * * curl -s "https://your-octarq-host.com/api/dns/ddns/update?hostname=home.example.com&key=YOUR_SECRET_TOKEN" >> /var/log/ddns.log 2>&1
 ```
 
-### 路由器与 NAS 填报参数
+如需显式同步纯 IPv6 地址，可搭配 `curl -6` 参数：
 
-在 OpenWrt、群晖 NAS 或 `ddclient` 等客户端中设置以下参数：
+```bash
+*/10 * * * * curl -6 -s "https://your-octarq-host.com/api/dns/ddns/update?hostname=home-v6.example.com&key=YOUR_SECRET_TOKEN"
+```
 
-- **服务提供商**: `Dyndns2` 或 `Custom`
-- **服务器**: `your-octarq-domain.com`
-- **更新 URL / 路径**: `/api/dns/ddns/update?hostname=[DOMAIN]&key=[PASSWORD]`
-- **主机名 / 用户名**: `home.example.com`
-- **密码**: 生成的 Secret Token
+### 2. OpenWrt 路由器 (`ddns-scripts`)
 
-## 撤销密钥与手动指定 IP
+登录 OpenWrt 的 LuCI 管理界面：
 
-- **撤销 Token**：若设备遗失或密钥泄露，在 DDNS 列表中点击 **撤销 Token** 即可阻止后续更新。
-- **手动指定 IP**：在更新 URL 末尾追加 `&ip=1.2.3.4` 或 `&ip=2001:db8::1` 即可显式指定目标 IP。
+1. 进入 **服务 → 动态 DNS (Dynamic DNS)**。
+2. 添加新的 DDNS 规则配置：
+   - **查询主机名 (Lookup host)**：`home.example.com`
+   - **DDNS 服务提供商**：选择 `-- 自定义 --`
+   - **自定义更新 URL**：`https://your-octarq-host.com/api/dns/ddns/update?hostname=[DOMAIN]&key=[PASSWORD]&ip=[IP]`
+   - **域名 (Domain)**：`home.example.com`
+   - **用户名**：填入 `none`（或主机名）
+   - **密码**：填入生成的 Secret Token
+   - **IP 地址来源**：选择 `网络接口` 或 `网络访问`（如 `http://checkip.dyndns.com`）
+3. 点击 **保存并应用**。
+
+### 3. 群晖 Synology NAS (DSM)
+
+在群晖 DSM 控制面板中：
+
+1. 进入 **控制面板 → 外部访问 → DDNS**。
+2. 点击 **自定义** 登记新的服务供应商：
+   - **服务供应商**：`Octarq`
+   - **Query URL**：`https://your-octarq-host.com/api/dns/ddns/update?hostname=__HOSTNAME__&key=__PASSWORD__&ip=__MYIP__`
+3. 点击 **新增** 激活同步：
+   - **服务供应商**：选择刚才添加的 `Octarq`
+   - **主机名称**：`home.example.com`
+   - **使用者名称/电子邮件**：`token`
+   - **密码/密钥**：填入 Secret Token
+4. 点击 **测试联机**，确认状态显示为 `正常` 即可。
+
+### 4. Linux `ddclient` 客户端配置
+
+编辑 `/etc/ddclient.conf` 配置文件：
+
+```ini
+daemon=300
+syslog=yes
+ssl=yes
+protocol=dyndns2
+use=web, web=checkip.dyndns.com
+server=your-octarq-host.com
+login=token
+password=YOUR_SECRET_TOKEN
+home.example.com
+```
+
+重启 `ddclient` 服务即可在后台持续自动检测并同步公网 IP。
+
+## 密钥吊销与生命周期安全
+
+当边缘网关淘汰换新或密钥不慎泄漏时：
+
+1. 进入 **基础设施 → 网络 → DNS → 动态 DNS**。
+2. 在列表中找到对应的 Token 记录，点击 **吊销**。
+3. 吊销操作即时生效，后续所有使用旧密钥发起的更新请求均会被直接拦截并返回 `badauth`。
 
 ## 相关指南
 
-- [DNS 管理](/help/dns)
+- [DNS 域名解析](/help/dns)
 - [快速开始](/help/quickstart)

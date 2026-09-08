@@ -1,40 +1,71 @@
 ---
 title: DNS
+description: Connect Cloudflare and DNSPod provider accounts, manage DNS records, run live SPF/DKIM posture checks, and apply one-click email setup blueprints.
 category: infrastructure
 order: 10
 ---
 
-Link Cloudflare or DNSPod provider tokens, sync domain zones, edit DNS records, and check email and short link DNS configurations.
+Octarq DNS provides comprehensive domain zone synchronization and DNS record orchestration. It integrates with DNS providers like Cloudflare and DNSPod, enables direct management of resource records, performs live posture verifications for mail and link services, automates email DNS record provisioning through blueprints, and enforces multi-tenant anti-hijacking safeguards.
 
-## Add Provider Accounts
+## Provider Account Integration
+
+To manage DNS records directly from Octarq:
 
 1. Go to **Infrastructure → Network → DNS** and click the **Provider Accounts** tab.
-2. Click **Add Provider Account** and select `Cloudflare` or `DNSPod`.
-3. Enter your API token and save. Credentials are encrypted at rest using AES-GCM.
-
-> [!CAUTION]
-> Cloudflare API tokens must include `Zone - Zone:Read` and `Zone - DNS:Edit` permissions.
+2. Click **Add Provider Account** and select **Cloudflare** or **DNSPod**.
+3. Enter your API credentials:
+   - **Cloudflare**: Provide an API Token with `Zone - Zone:Read` and `Zone - DNS:Edit` permissions.
+   - **DNSPod**: Enter your API ID and Token pair.
+4. Click **Save**. All credentials are encrypted at rest using AES-GCM.
+5. **Anti-Enumeration Defense**: When deleting provider accounts, Octarq verifies organization ownership before inspecting referencing domains. Requests for non-owned accounts return HTTP 404 rather than HTTP 409, preventing cross-tenant account enumeration.
 
 ## Sync Domains and Manage Records
 
-1. Click **Sync Domains** on the DNS page to fetch active zones from connected provider accounts.
-2. Select a domain from the left list to view and manage its A, AAAA, CNAME, TXT, MX, and NS records.
-3. Toggle the **Proxied** switch on Cloudflare records to turn CDN proxying and SSL protection on or off.
+1. Click **Sync Domains** on the DNS page to discover and import active zones from connected provider accounts.
+2. Select any domain from the left list to view its resource records.
+3. Supported record types include:
+   - **A** (IPv4 Address) and **AAAA** (IPv6 Address)
+   - **CNAME** (Canonical Name Alias)
+   - **TXT** (Text records for SPF, DKIM, and site verification)
+   - **MX** (Mail Exchange with priority integers)
+   - **NS** (Name Server delegation)
+4. **Cloudflare Proxy Toggle**: On Cloudflare-backed domains, switch the **Proxied** toggle (orange cloud) on or off per record to control whether traffic traverses Cloudflare's CDN and DDoS proxy or routes directly to the origin.
 
-## Run DNS Verification
+## Automated DNS Posture Verification
 
-1. Select a domain and click **Verify DNS**.
-2. Octarq performs DNS queries for:
-   - **SPF**: Checks for valid `v=spf1` TXT records.
-   - **DMARC**: Checks `_dmarc` policy TXT records.
-   - **DKIM**: Inspects configured DKIM selectors.
-   - **Link CNAME**: Resolves short link subdomain CNAME targets.
+Misconfigured DNS records are the leading cause of deliverability issues and broken short links. Octarq provides automated live posture diagnostics:
 
-> [!WARNING]
-> When a short link subdomain has Cloudflare proxying (orange cloud) enabled, Cloudflare flattens CNAME responses to IP addresses. The status might show "Unverified", but short link redirects continue to work.
+1. Select a domain and click **Verify DNS** (endpoint `POST /api/domains/{id}/verify`).
+2. Octarq performs direct DNS queries against public recursive resolvers to inspect:
+   - **SPF**: Checks the domain apex for valid `v=spf1` TXT records.
+   - **DMARC**: Queries `_dmarc.{domain}` for policy TXT records (such as `v=DMARC1; p=none;`).
+   - **DKIM Selectors**: Probes standard industry DKIM selectors (`default`, `octarq`, `google`, `mail`, `k1`, `sig1`) to confirm public key presence.
+   - **Link CNAMEs**: Resolves designated vanity short link subdomains to confirm they point to your Octarq instance address.
+3. **Cloudflare CNAME Flattening Note**: When a short link subdomain has Cloudflare proxying enabled, Cloudflare flattens CNAME responses to edge IPs. The verification badge may indicate "Unverified", but short link redirection continues to function normally.
+
+## Email Setup Blueprint Automation
+
+Octarq includes an automated Email DNS Blueprint engine (`email_blueprint.go`) that simplifies setting up custom domain mail routing:
+
+1. Select your domain and click **Email Blueprint**.
+2. **Status Diff Computation**: Octarq compares your current zone records against the standard Cloudflare Email Routing and transactional mail requirements:
+   - Three MX records (`route1.mx.cloudflare.net` priority 13, `route2.mx.cloudflare.net` priority 45, `route3.mx.cloudflare.net` priority 99).
+   - SPF TXT record: `v=spf1 include:_spf.mx.cloudflare.net ~all`.
+   - DMARC TXT record: `v=DMARC1; p=none; sp=none;`.
+3. The modal highlights the status of each record as **OK**, **Missing**, or **Mismatch**.
+4. Click **Apply Blueprint** (`POST /api/domains/{id}/apply-email-blueprint`). Octarq idempotently provisions all missing and mismatched records in your provider account without duplicating existing healthy records.
+
+## Reserved Base Zone Anti-Hijacking Protection
+
+To ensure platform security in multi-tenant environments:
+
+- Instances configured with a shared base domain (`OCTARQ_BASE_DOMAIN`) enforce a strict triple-gate validation (`underBaseZone`, `reservedInHostLists`, `syncZones`).
+- Tenants are strictly blocked from registering or modifying domain apexes or subdomains that collide with the instance base domain.
+- Any attempt to claim reserved system subdomains or fellow tenant routes is rejected with HTTP 400 Bad Request: *"that hostname is reserved for automatic tenant subdomains"*.
 
 ## Related Guides
 
 - [Dynamic DNS (DDNS)](/help/ddns)
 - [Short Links](/help/short-links)
 - [Mailboxes](/help/mailboxes)
+- [Quickstart](/help/quickstart)
