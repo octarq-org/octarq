@@ -308,6 +308,43 @@ func TestInAppChannel(t *testing.T) {
 	}
 }
 
+func TestNewEmailChannel(t *testing.T) {
+	db := setupTestDB(t)
+
+	var called1, called2 bool
+	mockSender1 := func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
+		called1 = true
+		return nil
+	}
+
+	mockSender2 := func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
+		called2 = true
+		return nil
+	}
+
+	ch := NewEmailChannel(db, mockSender1)
+
+	if ch.db != db {
+		t.Errorf("expected db to be assigned correctly, got %v", ch.db)
+	}
+
+	if ch.sender != nil {
+		_ = ch.sender(context.Background(), 1, "to", "sub", "html", "text")
+	}
+	if !called1 {
+		t.Errorf("expected sender to be initialized to mockSender1")
+	}
+
+	ch.SetSender(mockSender2)
+
+	if ch.sender != nil {
+		_ = ch.sender(context.Background(), 1, "to", "sub", "html", "text")
+	}
+	if !called2 {
+		t.Errorf("expected sender to be updated to mockSender2")
+	}
+}
+
 func TestEmailChannel(t *testing.T) {
 	db := setupTestDB(t)
 
