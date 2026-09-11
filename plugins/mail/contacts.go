@@ -10,6 +10,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/plugin"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // upsertContact maintains address interaction history for auto-completion and tracking.
@@ -100,4 +101,64 @@ func (p *Plugin) listContacts(ctx context.Context, input *ListContactsInput) (*L
 		return nil, huma.Error500InternalServerError("failed to query contacts")
 	}
 	return &ListContactsOutput{Body: contacts}, nil
+}
+
+// upsertContacts maintains address interaction history for auto-completion and tracking in batch.
+func (p *Plugin) upsertContacts(orgID uint, rawAddrs []string) {
+	if orgID == 0 || len(rawAddrs) == 0 {
+		return
+	}
+
+	var contacts []MailContact
+	now := time.Now()
+
+	// Deduplicate incoming addresses
+	seen := make(map[string]bool)
+
+	for _, rawAddr := range rawAddrs {
+		if rawAddr == "" {
+			continue
+		}
+		parsed, err := netmail.ParseAddress(rawAddr)
+		var addr, name string
+		if err == nil && parsed.Address != "" {
+			addr = strings.ToLower(strings.TrimSpace(parsed.Address))
+			name = strings.TrimSpace(parsed.Name)
+		} else {
+			addr = strings.ToLower(strings.TrimSpace(rawAddr))
+			addr = strings.Trim(addr, "<>")
+		}
+		if addr == "" || !strings.Contains(addr, "@") {
+			continue
+		}
+
+		if seen[addr] {
+			continue
+		}
+		seen[addr] = true
+
+		contacts = append(contacts, MailContact{
+			OrgID:            orgID,
+			Address:          addr,
+			Name:             name,
+			InteractionCount: 1,
+			LastSeenAt:       now,
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		})
+	}
+
+	if len(contacts) == 0 {
+		return
+	}
+
+	// Batch upsert
+	p.db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "owner_id"}, {Name: "address"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"interaction_count": gorm.Expr("interaction_count + 1"),
+			"last_seen_at":      now,
+			"updated_at":        now,
+		}),
+	}).Create(&contacts)
 }
