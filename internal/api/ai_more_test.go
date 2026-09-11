@@ -94,13 +94,13 @@ func TestAISummarizeEmailAndSuggestSlugFlows(t *testing.T) {
 	}))
 	h, _, _ := newTestHandlerRaw(t)
 	h.SetServiceLookup(reg.Lookup)
-	h.SetLLMResolver(func() (llmprovider.Provider, error) {
+	h.SetLLMResolverForOrg(func(_ uint) (llmprovider.Provider, error) {
 		return dummyLLM{reply: "Invoice for services due in 30 days."}, nil
 	})
 
 	// 5. Test failing LLM resolver
 	hFail, _, _ := newTestHandlerRaw(t)
-	hFail.SetLLMResolver(func() (llmprovider.Provider, error) {
+	hFail.SetLLMResolverForOrg(func(_ uint) (llmprovider.Provider, error) {
 		return failingLLM{}, nil
 	})
 

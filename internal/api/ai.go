@@ -51,17 +51,6 @@ func envLLMResolver() func(uint) (llmprovider.Provider, error) {
 	}
 }
 
-// SetLLMResolver swaps the resolver behind the AI assists using a non-org
-// resolver. It backs plugin.Context.SetLLMResolver by wrapping the non-org callback.
-func (h *Handler) SetLLMResolver(f func() (llmprovider.Provider, error)) {
-	if f == nil {
-		return
-	}
-	h.SetLLMResolverForOrg(func(_ uint) (llmprovider.Provider, error) {
-		return f()
-	})
-}
-
 // SetLLMResolverForOrg swaps the resolver behind the AI assists using an org-aware
 // resolver. It backs plugin.Context.SetLLMResolverForOrg; registration happens during
 // plugin Mount (startup) while reads happen per request, hence the lock.

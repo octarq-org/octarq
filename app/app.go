@@ -242,7 +242,6 @@ func (a *App) RunMCP(ctx context.Context) error {
 		},
 		DNS:                  &lazyDNSManager{lookup: services.Lookup},
 		SendMail:             a.sendMail,
-		SetLLMResolver:       apiHandler.SetLLMResolver,
 		SetLLMResolverForOrg: apiHandler.SetLLMResolverForOrg,
 		RecordUsage: func(orgID uint, metric string, n int64) {
 			// Lazily resolved on every call: the provider (Pro's cloud module) may
@@ -474,7 +473,6 @@ func (a *App) Run(ctx context.Context) error {
 		},
 		DNS:                  &lazyDNSManager{lookup: services.Lookup},
 		SendMail:             a.sendMail,
-		SetLLMResolver:       apiHandler.SetLLMResolver,
 		SetLLMResolverForOrg: apiHandler.SetLLMResolverForOrg,
 		RecordUsage: func(orgID uint, metric string, n int64) {
 			// Lazily resolved on every call: the provider (Pro's cloud module) may

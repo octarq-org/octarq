@@ -57,7 +57,7 @@ func newAITestHandler(t *testing.T, reply string) (http.Handler, *gorm.DB) {
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
 	if reply != "" {
-		h.SetLLMResolver(func() (llmprovider.Provider, error) { return fakeLLM{reply: reply}, nil })
+		h.SetLLMResolverForOrg(func(_ uint) (llmprovider.Provider, error) { return fakeLLM{reply: reply}, nil })
 	}
 
 	dnsP := dns.New()
@@ -193,23 +193,6 @@ func TestParseSlugList(t *testing.T) {
 		if !reflect.DeepEqual(got, c.want) {
 			t.Errorf("parseSlugList(%q) = %v, want %v", c.in, got, c.want)
 		}
-	}
-}
-
-func TestSetLLMResolver(t *testing.T) {
-	h := &Handler{}
-	h.SetLLMResolver(func() (llmprovider.Provider, error) {
-		return fakeLLM{reply: "legacy"}, nil
-	})
-
-	p7, err7 := h.llmFor(7)
-	if err7 != nil || p7 == nil || p7.Name() != "fake" {
-		t.Fatalf("llmFor(7) with legacy resolver failed: p=%v, err=%v", p7, err7)
-	}
-
-	p42, err42 := h.llmFor(42)
-	if err42 != nil || p42 == nil || p42.Name() != "fake" {
-		t.Fatalf("llmFor(42) with legacy resolver failed: p=%v, err=%v", p42, err42)
 	}
 }
 
