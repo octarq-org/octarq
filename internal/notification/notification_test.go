@@ -626,3 +626,29 @@ func TestPreferences_SaveEmptyPatternAndFallback(t *testing.T) {
 		t.Errorf("expected fallback to default channels, got %v", ch)
 	}
 }
+
+func TestWithDispatcher(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Verify default dispatcher is set when no options are provided
+	rDefault := NewRouter(db)
+	if rDefault.Dispatcher() == nil {
+		t.Error("NewRouter should initialize a default dispatcher")
+	}
+
+	// Verify WithDispatcher correctly overwrites the dispatcher
+	customDispatcher := NewDispatcher()
+	rCustom := NewRouter(db, WithDispatcher(customDispatcher))
+	if rCustom.Dispatcher() != customDispatcher {
+		t.Error("WithDispatcher should set the custom dispatcher")
+	}
+
+	// Verify WithDispatcher(nil) does not overwrite an existing dispatcher
+	rNil := NewRouter(db, WithDispatcher(customDispatcher), WithDispatcher(nil))
+	if rNil.Dispatcher() != customDispatcher {
+		t.Error("WithDispatcher(nil) should not overwrite an existing dispatcher")
+	}
+	if rNil.Dispatcher() == nil {
+		t.Error("dispatcher should not be nil")
+	}
+}
