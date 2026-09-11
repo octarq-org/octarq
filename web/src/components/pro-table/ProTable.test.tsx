@@ -65,14 +65,31 @@ describe("ProTable Utils", () => {
   });
 
   it("parseWithFallback falls back on schema failure", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fallback: TestRow = { id: 0, name: "Fallback", role: "none", count: 0 };
     const invalid = { id: "not-a-number", name: 123 };
     const parsed = parseWithFallback(testSchema, invalid, fallback);
     expect(parsed).toEqual(fallback);
+    expect(warnSpy).toHaveBeenCalledWith("[ProTable Zod Schema Error]:", expect.any(Array));
 
     const valid = { id: 1, name: "Admin", role: "admin", count: 5 };
     const validParsed = parseWithFallback(testSchema, valid, fallback);
     expect(validParsed).toEqual(valid);
+    warnSpy.mockRestore();
+  });
+
+  it("parseWithFallback calls onError when provided and skips warning", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const onError = vi.fn();
+    const fallback: TestRow = { id: 0, name: "Fallback", role: "none", count: 0 };
+    const invalid = { id: "not-a-number", name: 123 };
+
+    const parsed = parseWithFallback(testSchema, invalid, fallback, onError);
+
+    expect(parsed).toEqual(fallback);
+    expect(onError).toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 
   it("parseArrayWithFallback filters invalid array items", () => {
