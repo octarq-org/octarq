@@ -49,6 +49,15 @@ func TestMatchEventPattern(t *testing.T) {
 		{"*.job_failed", "cron.job_failed", true},
 		{"*.job_failed", "backup.job_failed", true},
 		{"*.job_failed", "backup.success", false},
+		// Edge cases that fall through path.Match (due to slashes or malformed patterns)
+		{"security.*", "security", true},
+		{"security.*", "security.auth/failed", true},
+		{"*.job_failed", "job_failed", true},
+		{"*.job_failed", "cron/backup.job_failed", true},
+		{"sec[urity.*", "sec[urity.failed", true},
+		{"*.fa[iled", "job.fa[iled", true},
+		// Whitespace trimming
+		{"  security.*  ", "  security.login_failed  ", true},
 	}
 
 	for _, tt := range tests {
