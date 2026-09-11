@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"log"
-	"math/rand/v2"
+	"math/big"
 	"net/http"
 	"strconv"
 	"time"
@@ -118,7 +119,11 @@ func backoffFor(attempt int) time.Duration {
 	if half <= 0 {
 		return d
 	}
-	return half + time.Duration(rand.Int64N(int64(half)+1))
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(half)+1))
+	if err != nil {
+		return d
+	}
+	return half + time.Duration(n.Int64())
 }
 
 // signature computes the HMAC-SHA256 of material under secret, hex-encoded.
