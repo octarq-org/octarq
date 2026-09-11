@@ -159,6 +159,20 @@ func (m *mockChannel) Send(ctx context.Context, recipient plugin.NotificationRec
 	return nil
 }
 
+func TestNewDispatcher(t *testing.T) {
+	d := NewDispatcher()
+
+	if d.maxRetries != 3 {
+		t.Errorf("expected maxRetries to be 3, got %d", d.maxRetries)
+	}
+	if d.baseBackoff != 50*time.Millisecond {
+		t.Errorf("expected baseBackoff to be 50ms, got %v", d.baseBackoff)
+	}
+	if d.sleepFunc == nil {
+		t.Errorf("expected sleepFunc to be set, got nil")
+	}
+}
+
 func TestDispatcher_RetryAndBackoff(t *testing.T) {
 	d := NewDispatcher()
 	d.SetBaseBackoff(1 * time.Millisecond) // fast for testing
