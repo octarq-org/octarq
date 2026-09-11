@@ -6,7 +6,16 @@ import { Code, Empty, Field, Guide, HostList, Modal, Toggle, timeAgo, ScreenWrap
 import { Globe, RefreshCw, Plus, Trash2, ArrowLeft, ArrowRight, ShieldCheck, Mail, Link as LinkIcon, Cloud, Settings, Layers, ListChecks, Server } from "lucide-react";
 import { ProviderAccounts } from "./ProviderAccounts";
 import { useTranslation } from "../../../i18n";
-import { DnsHostRow, LinkHostRow, LinkHostGuide } from "./dnsStatus";
+import {
+  DnsHostRow,
+  LinkHostRow,
+  LinkHostGuide,
+  calculateReputationScore,
+  DnsReputationScoreCard,
+  DnsFixAlertBanner,
+  DnsTroubleshootingGuide,
+} from "./dnsStatus";
+import { EmailBlueprintPanel } from "./EmailBlueprintPanel";
 import { DomainEditorForm } from "./DomainEditorForm";
 import { DomainHostManager } from "./DomainHostManager";
 import { SyncModal } from "./SyncModal";
@@ -48,6 +57,8 @@ export default function DomainsPage() {
 
   const [dnsStatus, setDnsStatus] = useState<DNSVerifyResult | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [fixing, setFixing] = useState(false);
+  const [showBlueprintModal, setShowBlueprintModal] = useState(false);
 
   useEffect(() => {
     setDnsStatus(null);
@@ -64,6 +75,34 @@ export default function DomainsPage() {
       toast.error(e.message || t("domains.verifyFailed"));
     } finally {
       setVerifying(false);
+    }
+  }
+
+  // Automatically trigger DNS health verification when entering the verification sub-tab
+  useEffect(() => {
+    if (
+      activeSubTab === "verification" &&
+      active &&
+      typeof active === "object" &&
+      dnsStatus === null &&
+      !verifying
+    ) {
+      verifyDns(active);
+    }
+  }, [activeSubTab, active, dnsStatus, verifying]);
+
+  async function handleOneClickFix(targetDomain?: Domain) {
+    const dom = targetDomain || (typeof active === "object" && active !== null ? active : null);
+    if (!dom) return;
+    setFixing(true);
+    try {
+      const res = await dnsApi.applyEmailBlueprint(dom.id);
+      toast.success(t("domains.fixSuccessToast", { applied: res.applied, skipped: res.skipped }));
+      await verifyDns(dom);
+    } catch (e: any) {
+      toast.error(e.message || t("domains.fixFailedToast"));
+    } finally {
+      setFixing(false);
     }
   }
 
@@ -347,59 +386,89 @@ export default function DomainsPage() {
               )}
 
               {/* Sub-tab 3: Health & Verification */}
-              {activeSubTab === "verification" && (
-                <GlassCard className="p-6 space-y-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-base font-semibold text-foreground">{t("domains.dnsSetupVerification")}</h3>
-                      <p className="text-xs text-foreground/50 mt-1 leading-relaxed">
-                        {t("domains.verificationHint")}
-                      </p>
+              {activeSubTab === "verification" && (() => {
+                const repScore = dnsStatus ? calculateReputationScore(dnsStatus, active.name) : null;
+                return (
+                  <GlassCard className="p-6 space-y-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-foreground">{t("domains.dnsSetupVerification")}</h3>
+                        <p className="text-xs text-foreground/50 mt-1 leading-relaxed">
+                          {t("domains.verificationHint")}
+                        </p>
+                      </div>
+                      <Button
+                        variant="primary"
+                        onClick={() => verifyDns(active)}
+                        disabled={verifying}
+                        className="text-xs py-1.5 px-3.5 gap-1.5"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${verifying ? "animate-spin" : ""}`} />
+                        {verifying ? t("domains.verifying") : t("domains.verifyDnsSetup")}
+                      </Button>
                     </div>
-                    <Button
-                      variant="primary"
-                      onClick={() => verifyDns(active)}
-                      disabled={verifying}
-                      className="text-xs py-1.5 px-3.5 gap-1.5"
-                    >
-                      <RefreshCw className={`h-3.5 w-3.5 ${verifying ? "animate-spin" : ""}`} />
-                      {verifying ? t("domains.verifying") : t("domains.verifyDnsSetup")}
-                    </Button>
-                  </div>
 
-                  {dnsStatus === null ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-                      {(["SPF", "DKIM", "DMARC"] as const).map((label) => (
-                        <div key={label} className="flex flex-col items-center p-4 rounded-xl bg-well border border-foreground/[0.05]">
-                          <span className="text-xs uppercase font-bold text-foreground/45 tracking-wider">{t("domains.statusLabel", { label })}</span>
-                          <div className="mt-2"><Badge tone="neutral">{t("domains.unknown")}</Badge></div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="space-y-5 pt-2">
-                      <div className="space-y-3">
-                        <span className="text-xs uppercase font-bold text-foreground/50 tracking-wider">{t("domains.mailHosts")}</span>
-                        {(dnsStatus.hosts?.length
-                          ? dnsStatus.hosts
-                          : [{ host: active.name, spf: dnsStatus.spf, dmarc: dnsStatus.dmarc, dkim: dnsStatus.dkim }]
-                        ).map((host) => (
-                          <DnsHostRow key={host.host} host={host} />
+                    {verifying && dnsStatus === null ? (
+                      <div className="flex flex-col items-center justify-center p-10 rounded-2xl bg-foreground/[0.02] border border-foreground/[0.05] space-y-3">
+                        <RefreshCw className="h-6 w-6 text-accent-fg animate-spin" />
+                        <span className="text-xs text-foreground/60">{t("domains.verifying")}</span>
+                      </div>
+                    ) : dnsStatus === null ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                        {(["SPF", "DKIM", "DMARC"] as const).map((label) => (
+                          <div key={label} className="flex flex-col items-center p-4 rounded-xl bg-well border border-foreground/[0.05]">
+                            <span className="text-xs uppercase font-bold text-foreground/45 tracking-wider">{t("domains.statusLabel", { label })}</span>
+                            <div className="mt-2"><Badge tone="neutral">{t("domains.unknown")}</Badge></div>
+                          </div>
                         ))}
                       </div>
-                      {!!dnsStatus.links?.length && (
+                    ) : (
+                      <div className="space-y-6 pt-2">
+                        {/* 1. Deliverability & Reputation Score Card */}
+                        {repScore && <DnsReputationScoreCard repScore={repScore} />}
+
+                        {/* 2. Visual Guidance & One-Click Auto-Fix Action Banner */}
+                        {repScore && (
+                          <DnsFixAlertBanner
+                            repScore={repScore}
+                            hasProvider={Boolean(active.providerAccountId)}
+                            fixing={fixing}
+                            onOneClickFix={() => handleOneClickFix(active)}
+                            onOpenDetails={() => setShowBlueprintModal(true)}
+                          />
+                        )}
+
+                        {/* 3. Mail hosts posture list */}
                         <div className="space-y-3">
-                          <span className="text-xs uppercase font-bold text-foreground/50 tracking-wider">{t("domains.shortLinkHosts")}</span>
-                          {dnsStatus.links.map((lh) => (
-                            <LinkHostRow key={lh.host} link={lh} />
+                          <span className="text-xs uppercase font-bold text-foreground/50 tracking-wider">{t("domains.mailHosts")}</span>
+                          {(dnsStatus.hosts?.length
+                            ? dnsStatus.hosts
+                            : [{ host: active.name, spf: dnsStatus.spf, dmarc: dnsStatus.dmarc, dkim: dnsStatus.dkim }]
+                          ).map((host) => (
+                            <DnsHostRow key={host.host} host={host} />
                           ))}
                         </div>
-                      )}
-                    </div>
-                  )}
-                  <LinkHostGuide apex={active.name} />
-                </GlassCard>
-              )}
+
+                        {/* 4. Actionable diagnostic troubleshooting suggestions */}
+                        {repScore && repScore.issues.length > 0 && (
+                          <DnsTroubleshootingGuide issues={repScore.issues} />
+                        )}
+
+                        {/* 5. Short link hosts */}
+                        {!!dnsStatus.links?.length && (
+                          <div className="space-y-3">
+                            <span className="text-xs uppercase font-bold text-foreground/50 tracking-wider">{t("domains.shortLinkHosts")}</span>
+                            {dnsStatus.links.map((lh) => (
+                              <LinkHostRow key={lh.host} link={lh} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <LinkHostGuide apex={active.name} />
+                  </GlassCard>
+                );
+              })()}
 
               {/* Sub-tab 4: Domain Settings */}
               {activeSubTab === "settings" && (
@@ -636,6 +705,17 @@ export default function DomainsPage() {
           onSynced={() => {
             setSyncing(false);
             loadMore(true);
+          }}
+        />
+      )}
+
+      {showBlueprintModal && active && typeof active === "object" && (
+        <EmailBlueprintPanel
+          domainId={active.id}
+          hasProvider={Boolean(active.providerAccountId)}
+          onClose={() => setShowBlueprintModal(false)}
+          onApplied={() => {
+            verifyDns(active);
           }}
         />
       )}
