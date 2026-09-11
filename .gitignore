@@ -44,3 +44,4 @@ examples/*/web/node_modules
 # dir, created and deleted by playwright.config.ts / global-teardown.ts)
 playwright-report/
 test-results/
+web/coverage/

@@ -64,6 +64,31 @@ describe("ProTable Utils", () => {
     });
   });
 
+  it("cleanParams handles null and undefined root object gracefully", () => {
+    expect(cleanParams(null as any)).toEqual({});
+    expect(cleanParams(undefined as any)).toEqual({});
+  });
+
+  it("cleanParams iterates over object and handles edge cases correctly", () => {
+    const mixed = {
+      a: "keep",
+      b: "",
+      c: null,
+      d: "   ",
+      e: undefined,
+      f: 123,
+      g: false,
+      h: { nested: true }
+    };
+    const cleaned = cleanParams(mixed);
+    expect(cleaned).toEqual({
+      a: "keep",
+      f: 123,
+      g: false,
+      h: { nested: true }
+    });
+  });
+
   it("parseWithFallback falls back on schema failure", () => {
     const fallback: TestRow = { id: 0, name: "Fallback", role: "none", count: 0 };
     const invalid = { id: "not-a-number", name: 123 };
