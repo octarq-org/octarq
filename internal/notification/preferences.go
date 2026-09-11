@@ -131,47 +131,62 @@ func SavePreferences(ctx context.Context, db *gorm.DB, userID string, items []Pr
 		return errors.New("notification: empty user ID")
 	}
 
-	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		for _, item := range items {
-			pattern := strings.TrimSpace(item.EventPattern)
-			if pattern == "" {
-				continue
-			}
-			channels := item.Channels
-			if channels == nil {
-				channels = []string{}
-			}
-			pref := models.NotificationPreference{
-				UserID:       userID,
-				EventPattern: pattern,
-				Channels:     models.StringList(channels),
-				UpdatedAt:    time.Now(),
-			}
-			// Upsert based on (user_id, event_pattern)
-			err := tx.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "user_id"}, {Name: "event_pattern"}},
-				DoUpdates: clause.AssignmentColumns([]string{"channels", "updated_at"}),
-			}).Create(&pref).Error
-			if err != nil {
-				// Fallback if clause.OnConflict unsupported
+	if len(items) == 0 {
+		return nil
+	}
+
+	var prefs []models.NotificationPreference
+	now := time.Now()
+	for _, item := range items {
+		pattern := strings.TrimSpace(item.EventPattern)
+		if pattern == "" {
+			continue
+		}
+		channels := item.Channels
+		if channels == nil {
+			channels = []string{}
+		}
+		prefs = append(prefs, models.NotificationPreference{
+			UserID:       userID,
+			EventPattern: pattern,
+			Channels:     models.StringList(channels),
+			UpdatedAt:    now,
+			CreatedAt:    now,
+		})
+	}
+
+	if len(prefs) == 0 {
+		return nil
+	}
+
+	err := db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "user_id"}, {Name: "event_pattern"}},
+		DoUpdates: clause.AssignmentColumns([]string{"channels", "updated_at"}),
+	}).Create(&prefs).Error
+
+	if err != nil {
+		// Fallback if clause.OnConflict unsupported
+		return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			for _, pref := range prefs {
 				var existing models.NotificationPreference
-				if findErr := tx.Where("user_id = ? AND event_pattern = ?", userID, pattern).First(&existing).Error; findErr == nil {
+				if findErr := tx.Where("user_id = ? AND event_pattern = ?", pref.UserID, pref.EventPattern).First(&existing).Error; findErr == nil {
 					if updateErr := tx.Model(&existing).Updates(map[string]any{
-						"channels":   models.StringList(channels),
-						"updated_at": time.Now(),
+						"channels":   pref.Channels,
+						"updated_at": pref.UpdatedAt,
 					}).Error; updateErr != nil {
 						return updateErr
 					}
 				} else {
-					pref.CreatedAt = time.Now()
 					if createErr := tx.Create(&pref).Error; createErr != nil {
 						return createErr
 					}
 				}
 			}
-		}
-		return nil
-	})
+			return nil
+		})
+	}
+
+	return nil
 }
 
 // ResetPreferences deletes all custom preferences for a user, reverting to system defaults.
