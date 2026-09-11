@@ -240,6 +240,25 @@ func TestDispatcher_RetryAndBackoff(t *testing.T) {
 	}
 }
 
+func TestNewInAppChannel(t *testing.T) {
+	db := setupTestDB(t)
+	ch := NewInAppChannel(db)
+	if ch == nil {
+		t.Fatal("expected non-nil InAppChannel")
+	}
+	if ch.db != db {
+		t.Errorf("expected db field to be %v, got %v", db, ch.db)
+	}
+
+	nilDBCh := NewInAppChannel(nil)
+	if nilDBCh == nil {
+		t.Fatal("expected non-nil InAppChannel")
+	}
+	if nilDBCh.db != nil {
+		t.Errorf("expected db field to be nil, got %v", nilDBCh.db)
+	}
+}
+
 func TestInAppChannel(t *testing.T) {
 	db := setupTestDB(t)
 	ch := NewInAppChannel(db)
