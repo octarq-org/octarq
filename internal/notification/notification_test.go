@@ -626,3 +626,39 @@ func TestPreferences_SaveEmptyPatternAndFallback(t *testing.T) {
 		t.Errorf("expected fallback to default channels, got %v", ch)
 	}
 }
+
+func TestNewRouter(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Test default initialization
+	r := NewRouter(db)
+	if r == nil {
+		t.Fatal("NewRouter returned nil")
+	}
+
+	// Verify built-in channels are registered
+	if _, ok := r.GetChannel("in_app"); !ok {
+		t.Error("expected in_app channel to be registered by default")
+	}
+	if _, ok := r.GetChannel("email"); !ok {
+		t.Error("expected email channel to be registered by default")
+	}
+
+	// Verify default dispatcher is set
+	if r.Dispatcher() == nil {
+		t.Error("expected default dispatcher to be initialized")
+	}
+
+	// Test initialization with custom dispatcher option
+	customDisp := NewDispatcher()
+	rCustom := NewRouter(db, WithDispatcher(customDisp))
+	if rCustom.Dispatcher() != customDisp {
+		t.Error("expected custom dispatcher to be set via WithDispatcher option")
+	}
+
+	// Test WithDispatcher with nil dispatcher (should not override default)
+	rNilDisp := NewRouter(db, WithDispatcher(nil))
+	if rNilDisp.Dispatcher() == nil {
+		t.Error("expected dispatcher not to be nil when WithDispatcher(nil) is passed")
+	}
+}
