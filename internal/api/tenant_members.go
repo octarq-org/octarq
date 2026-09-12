@@ -473,6 +473,10 @@ func (h *Handler) removeOrgMember(ctx context.Context, input *RemoveOrgMemberInp
 	tokensRevoked := h.auth.RevokeUserOrgTokens(input.UserID, orgID)
 	plugin.NotifyMemberRemoved(orgID, input.UserID)
 	h.audit(r, "member.remove", "user", input.UserID, map[string]any{
+		"actor":           h.auth.UserID(r),
+		"target":          input.UserID,
+		"oldRole":         target.Role,
+		"newRole":         "none",
 		"role":            target.Role,
 		"sessionsRevoked": revoked,
 		"tokensRevoked":   tokensRevoked,
