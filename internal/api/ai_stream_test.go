@@ -88,7 +88,7 @@ func newAIStreamTestHandlerWithEndpointSource(t *testing.T, p llmprovider.Provid
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
 	if p != nil {
-		h.SetLLMResolver(func() (llmprovider.Provider, error) { return p, nil })
+		h.SetLLMResolverForOrg(func(_ uint) (llmprovider.Provider, error) { return p, nil })
 	}
 	if src != nil {
 		h.SetEndpointSource(src)

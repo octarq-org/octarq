@@ -410,21 +410,15 @@ type Context struct {
 	// org has no sender configured. Plugins use it for verification / password
 	// reset without importing octarq's internal packages.
 	SendMail func(orgID uint, to, subject, htmlBody, textBody string) error
-	// SetLLMResolver replaces the LLM backend behind the core's single-step AI
-	// assists (/api/ai/assist/*). The core's default resolver reads the OCTARQ_LLM_*
-	// environment; a downstream ai plugin injects its DB-backed (dashboard-configured)
-	// provider here so the assists follow the exact same configuration as Inbox
-	// AI. The resolver runs on every assist request and must therefore be cheap —
-	// cache internally and return an error describing how to configure when no
-	// backend is usable.
-	// Deprecated: SetLLMResolver cannot express tenancy because its callback has no
-	// orgID parameter. Plugins built against newer cores should prefer SetLLMResolverForOrg.
-	SetLLMResolver func(resolver func() (llmprovider.Provider, error))
-	// SetLLMResolverForOrg replaces the LLM backend behind the core's AI assists
-	// with an org-aware resolver. A hosted instance serves many tenants from one
-	// process, so the backend (and its API key) must be selected per request
-	// rather than once per process. Prefer this over SetLLMResolver, which cannot
-	// express tenancy and remains only for plugins built against older cores.
+	// SetLLMResolverForOrg replaces the LLM backend behind the core's single-step AI
+	// assists (/api/ai/assist/*) with an org-aware resolver. A hosted instance serves
+	// many tenants from one process, so the backend (and its API key) must be selected
+	// per request rather than once per process. The core's default resolver reads the
+	// OCTARQ_LLM_* environment; a downstream ai plugin injects its DB-backed
+	// (dashboard-configured) provider here so the assists follow the exact same
+	// configuration as Inbox AI. The resolver runs on every assist request and must
+	// therefore be cheap — cache internally and return an error describing how to
+	// configure when no backend is usable.
 	SetLLMResolverForOrg func(resolver func(orgID uint) (llmprovider.Provider, error))
 	// Provide registers a service for other plugins to Lookup, under a stable
 	// name following the "<pluginName>.<service>" convention. Call it only
