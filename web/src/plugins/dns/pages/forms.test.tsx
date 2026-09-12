@@ -323,7 +323,7 @@ describe("DNS Forms", () => {
       fireEvent.change(searchInput, { target: { value: "" } });
 
       // Open custom record modal
-      const customBtn = screen.getByRole("button", { name: "+ Custom" });
+      const customBtn = screen.getByRole("button", { name: "Custom" });
       fireEvent.click(customBtn);
 
       expect(screen.getByText("Create Record")).toBeDefined();
@@ -355,7 +355,7 @@ describe("DNS Forms", () => {
       });
 
       // Open preset modal
-      const presetBtn = screen.getByRole("button", { name: "+ Preset" });
+      const presetBtn = screen.getByRole("button", { name: "Preset" });
       fireEvent.click(presetBtn);
 
       expect(screen.getByText("Preset Configurator")).toBeDefined();
@@ -485,7 +485,7 @@ describe("DNS Forms", () => {
       });
 
       // Open Add Provider modal
-      const addBtn = screen.getByRole("button", { name: "+ Add Provider" });
+      const addBtn = screen.getByRole("button", { name: "Add Provider" });
       fireEvent.click(addBtn);
 
       expect(screen.getByText("Add DNS Provider")).toBeDefined();

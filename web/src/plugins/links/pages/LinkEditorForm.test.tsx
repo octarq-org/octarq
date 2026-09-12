@@ -234,7 +234,7 @@ describe("LinkEditorForm", () => {
     );
 
     // Add rule
-    const addRuleBtn = screen.getByRole("button", { name: "+ Add Rule" });
+    const addRuleBtn = screen.getByRole("button", { name: "Add Rule" });
     fireEvent.click(addRuleBtn);
 
     // Initial added rule is split with weight 50

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../../api";
 import { linksApi, Link } from "../api";
 import { Field, Toggle, Button, Select, FormError, Input, Textarea } from "../../../ui";
-import { Sparkles, Trash2 } from "lucide-react";
+import { Sparkles, Trash2, Plus } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 
 export function LinkEditorForm({
@@ -367,8 +367,9 @@ function RoutingRulesEditor({ rules, onChange }: { rules: any[]; onChange: (r: a
       ))}
       
       <div className="flex items-center justify-between mt-2 flex-wrap gap-2 min-w-0">
-        <Button variant="subtle" className="text-xs py-1.5" onClick={() => onChange([...rules, { type: "split", weight: 50, target: "" }])}>
-          + {t("links.addRule")}
+        <Button variant="subtle" className="text-xs py-1.5 gap-1" onClick={() => onChange([...rules, { type: "split", weight: 50, target: "" }])}>
+          <Plus className="h-3.5 w-3.5" />
+          {t("links.addRule")}
         </Button>
         
         {rules.some((r) => r.type === "split") && (
