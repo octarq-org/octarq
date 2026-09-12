@@ -77,3 +77,17 @@ func TestConvertAsidesKeepsCustomTitle(t *testing.T) {
 		t.Errorf("custom title lost:\n%s", got)
 	}
 }
+
+// Writers also frequently write space-separated titles like ":::note 架构说明".
+// Ensure the tag is correctly detected and title preserved rather than dropped.
+func TestConvertAsidesKeepsSpaceSeparatedTitle(t *testing.T) {
+	got := convertAsides(":::note 架构说明\nbody\n:::\n")
+	if !strings.Contains(got, "> [!NOTE]") || !strings.Contains(got, "**架构说明**") {
+		t.Errorf("space-separated title lost or tag corrupted:\n%s", got)
+	}
+
+	gotCaution := convertAsides(":::caution 本功能为 Pro 专属功能\nbody\n:::\n")
+	if !strings.Contains(gotCaution, "> [!WARNING]") || !strings.Contains(gotCaution, "**本功能为 Pro 专属功能**") {
+		t.Errorf("space-separated caution title lost or tag corrupted:\n%s", gotCaution)
+	}
+}
