@@ -182,9 +182,13 @@ func (p *Plugin) deleteMailbox(ctx context.Context, input *DeleteMailboxInput) (
 	if !p.hasRole(r, "admin") {
 		return nil, huma.Error403Forbidden("forbidden: admin role required to delete mailbox")
 	}
+	var mb Mailbox
+	if err := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&mb).Error; err != nil {
+		return nil, huma.Error404NotFound("not found")
+	}
 	var emails []Email
-	p.db.Where("mailbox_id = ?", input.ID).Find(&emails)
-	res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&Mailbox{})
+	p.db.Where("mailbox_id = ?", mb.ID).Find(&emails)
+	res := p.db.Where("id = ? AND owner_id = ?", mb.ID, p.orgID(r)).Delete(&Mailbox{})
 	if res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}

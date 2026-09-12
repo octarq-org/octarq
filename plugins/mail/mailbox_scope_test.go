@@ -181,3 +181,82 @@ func TestCatchAllOnlyCreatesOnOwnedMailHosts(t *testing.T) {
 		t.Fatal("catch-all must not create a mailbox on a domain the workspace does not own")
 	}
 }
+
+func TestDeleteMailboxTenantIsolation(t *testing.T) {
+	db, p := setupMailboxTestDB(t)
+	ctx := context.Background()
+
+	// Org B (orgID=2) owns a mailbox with an email
+	mbOrg2 := Mailbox{
+		OrgID:   2,
+		Address: "secret@victim.example",
+		Enabled: true,
+	}
+	if err := db.Create(&mbOrg2).Error; err != nil {
+		t.Fatalf("create mbOrg2: %v", err)
+	}
+	emailOrg2 := Email{
+		MailboxID:  mbOrg2.ID,
+		MessageID:  "msg-secret",
+		Subject:    "Confidential",
+		StorageKey: "mail/2/confidential.eml",
+	}
+	if err := db.Create(&emailOrg2).Error; err != nil {
+		t.Fatalf("create emailOrg2: %v", err)
+	}
+
+	var emailQueryIntercepted bool
+	_ = db.Callback().Query().Before("gorm:query").Register("test_intercept_email_query", func(d *gorm.DB) {
+		if d.Statement.Table == "emails" || (d.Statement.Schema != nil && d.Statement.Schema.Table == "emails") {
+			emailQueryIntercepted = true
+		}
+	})
+
+	// 1. Org A (orgID=1) attempts to delete Org B's mailbox -> must fail with 404
+	req1 := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/mailboxes/%d", mbOrg2.ID), nil)
+	req1.Header.Set("X-Org-ID", "1")
+	input1 := &DeleteMailboxInput{
+		Ctx: humago.NewContext(nil, req1, httptest.NewRecorder()),
+		ID:  mbOrg2.ID,
+	}
+	_, err := p.deleteMailbox(ctx, input1)
+	if err == nil {
+		t.Fatal("expected error when Org 1 deletes Org 2 mailbox, got nil")
+	}
+	if emailQueryIntercepted {
+		t.Fatal("emails table was queried before verifying mailbox tenant ownership")
+	}
+
+	// Mailbox and email must remain intact
+	var mbCount int64
+	db.Model(&Mailbox{}).Where("id = ?", mbOrg2.ID).Count(&mbCount)
+	if mbCount == 0 {
+		t.Fatal("Org 2 mailbox was deleted by Org 1")
+	}
+	var emailCount int64
+	db.Model(&Email{}).Where("mailbox_id = ?", mbOrg2.ID).Count(&emailCount)
+	if emailCount == 0 {
+		t.Fatal("Org 2 email was deleted by Org 1")
+	}
+
+	// 2. Org B (orgID=2) deletes its own mailbox -> must succeed
+	req2 := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/mailboxes/%d", mbOrg2.ID), nil)
+	req2.Header.Set("X-Org-ID", "2")
+	input2 := &DeleteMailboxInput{
+		Ctx: humago.NewContext(nil, req2, httptest.NewRecorder()),
+		ID:  mbOrg2.ID,
+	}
+	_, err = p.deleteMailbox(ctx, input2)
+	if err != nil {
+		t.Fatalf("expected Org 2 to delete own mailbox, got error: %v", err)
+	}
+
+	db.Model(&Mailbox{}).Where("id = ?", mbOrg2.ID).Count(&mbCount)
+	if mbCount != 0 {
+		t.Fatalf("Org 2 mailbox should have been deleted, count = %d", mbCount)
+	}
+	db.Model(&Email{}).Where("mailbox_id = ?", mbOrg2.ID).Count(&emailCount)
+	if emailCount != 0 {
+		t.Fatalf("Org 2 emails should have been cascaded, count = %d", emailCount)
+	}
+}
