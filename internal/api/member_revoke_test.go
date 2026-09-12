@@ -11,9 +11,11 @@ package api
 // the part that matters.
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/octarq-org/octarq/config"
 	"github.com/octarq-org/octarq/internal/auth"
@@ -71,6 +73,43 @@ func TestRemovedMemberLosesAccessImmediately(t *testing.T) {
 
 	if rec := do(srv, "GET", "/api/links", memberSession, ""); rec.Code != http.StatusUnauthorized {
 		t.Errorf("removed member read after removal: got %d, want 401", rec.Code)
+	}
+
+	// Verify audit log records actor, target, oldRole, and newRole
+	var foundRemovalLog bool
+	for attempt := 0; attempt < 20; attempt++ {
+		var auditLogs []models.AuditLog
+		db.Where("org_id = ? AND target_id = ? AND action = ?", org, memberUID, "member.remove").
+			Order("id desc").
+			Find(&auditLogs)
+		for _, l := range auditLogs {
+			var meta map[string]any
+			if err := json.Unmarshal([]byte(l.Meta), &meta); err == nil {
+				if meta["oldRole"] == "member" && meta["newRole"] == "none" {
+					foundRemovalLog = true
+					if l.ActorID != ownerUID {
+						t.Errorf("audit log ActorID = %d, want %d", l.ActorID, ownerUID)
+					}
+					if l.TargetID != memberUID {
+						t.Errorf("audit log TargetID = %d, want %d", l.TargetID, memberUID)
+					}
+					if meta["actor"] != float64(ownerUID) && meta["actor"] != ownerUID {
+						t.Errorf("audit meta missing actor: %+v", meta)
+					}
+					if meta["target"] != float64(memberUID) && meta["target"] != memberUID {
+						t.Errorf("audit meta missing target: %+v", meta)
+					}
+					break
+				}
+			}
+		}
+		if foundRemovalLog {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !foundRemovalLog {
+		t.Fatalf("expected audit log for member removal with actor, target, oldRole, and newRole; none found")
 	}
 }
 
