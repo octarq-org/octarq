@@ -60,6 +60,38 @@ func (p *Plugin) isSuppressed(orgID uint, addr string) bool {
 	return count > 0
 }
 
+func (p *Plugin) anySuppressed(orgID uint, addrs []string) (string, error) {
+	if len(addrs) == 0 || orgID == 0 {
+		return "", nil
+	}
+	normAddrs := make([]string, 0, len(addrs))
+
+	for _, addr := range addrs {
+		normAddr := strings.ToLower(strings.TrimSpace(addr))
+		if parsed, err := netmail.ParseAddress(normAddr); err == nil && parsed.Address != "" {
+			normAddr = strings.ToLower(parsed.Address)
+		}
+		if normAddr != "" {
+			normAddrs = append(normAddrs, normAddr)
+		}
+	}
+
+	if len(normAddrs) == 0 {
+		return "", nil
+	}
+
+	var suppressed []string
+	err := p.db.Model(&MailSuppression{}).Where("owner_id = ? AND address IN ?", orgID, normAddrs).Pluck("address", &suppressed).Error
+	if err != nil {
+		return "", err
+	}
+
+	if len(suppressed) > 0 {
+		return suppressed[0], nil
+	}
+	return "", nil
+}
+
 // mailReady reports whether the instance's SYSTEM sender is available: at
 // least one SMTP sender exists somewhere on the instance, which is exactly
 // when sendSystemMail (via the mail.send.system service) can deliver.

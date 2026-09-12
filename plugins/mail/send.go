@@ -49,10 +49,12 @@ func (p *Plugin) sendEmail(ctx context.Context, input *SendEmailInput) (*SendEma
 		return nil, huma.Error400BadRequest("to is required")
 	}
 	orgID := p.orgID(r)
-	for _, rec := range input.Body.To {
-		if p.isSuppressed(orgID, rec) {
-			return nil, huma.Error400BadRequest(fmt.Sprintf("recipient address %s is in suppression list", rec))
-		}
+	suppressedAddr, err := p.anySuppressed(orgID, input.Body.To)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("failed to check suppression list")
+	}
+	if suppressedAddr != "" {
+		return nil, huma.Error400BadRequest(fmt.Sprintf("recipient address %s is in suppression list", suppressedAddr))
 	}
 
 	// Rate-limit outbound mail per org so a leaked API token or a runaway client
