@@ -49,6 +49,15 @@ func TestMatchEventPattern(t *testing.T) {
 		{"*.job_failed", "cron.job_failed", true},
 		{"*.job_failed", "backup.job_failed", true},
 		{"*.job_failed", "backup.success", false},
+		// Edge cases that fall through path.Match (due to slashes or malformed patterns)
+		{"security.*", "security", true},
+		{"security.*", "security.auth/failed", true},
+		{"*.job_failed", "job_failed", true},
+		{"*.job_failed", "cron/backup.job_failed", true},
+		{"sec[urity.*", "sec[urity.failed", true},
+		{"*.fa[iled", "job.fa[iled", true},
+		// Whitespace trimming
+		{"  security.*  ", "  security.login_failed  ", true},
 	}
 
 	for _, tt := range tests {
@@ -159,6 +168,20 @@ func (m *mockChannel) Send(ctx context.Context, recipient plugin.NotificationRec
 	return nil
 }
 
+func TestNewDispatcher(t *testing.T) {
+	d := NewDispatcher()
+
+	if d.maxRetries != 3 {
+		t.Errorf("expected maxRetries to be 3, got %d", d.maxRetries)
+	}
+	if d.baseBackoff != 50*time.Millisecond {
+		t.Errorf("expected baseBackoff to be 50ms, got %v", d.baseBackoff)
+	}
+	if d.sleepFunc == nil {
+		t.Errorf("expected sleepFunc to be set, got nil")
+	}
+}
+
 func TestDispatcher_RetryAndBackoff(t *testing.T) {
 	d := NewDispatcher()
 	d.SetBaseBackoff(1 * time.Millisecond) // fast for testing
@@ -240,6 +263,25 @@ func TestDispatcher_RetryAndBackoff(t *testing.T) {
 	}
 }
 
+func TestNewInAppChannel(t *testing.T) {
+	db := setupTestDB(t)
+	ch := NewInAppChannel(db)
+	if ch == nil {
+		t.Fatal("expected non-nil InAppChannel")
+	}
+	if ch.db != db {
+		t.Errorf("expected db field to be %v, got %v", db, ch.db)
+	}
+
+	nilDBCh := NewInAppChannel(nil)
+	if nilDBCh == nil {
+		t.Fatal("expected non-nil InAppChannel")
+	}
+	if nilDBCh.db != nil {
+		t.Errorf("expected db field to be nil, got %v", nilDBCh.db)
+	}
+}
+
 func TestInAppChannel(t *testing.T) {
 	db := setupTestDB(t)
 	ch := NewInAppChannel(db)
@@ -305,6 +347,43 @@ func TestInAppChannel(t *testing.T) {
 	nilDBCh := NewInAppChannel(nil)
 	if err := nilDBCh.Send(context.Background(), rec, payload); err == nil {
 		t.Error("expected error with nil db")
+	}
+}
+
+func TestNewEmailChannel(t *testing.T) {
+	db := setupTestDB(t)
+
+	var called1, called2 bool
+	mockSender1 := func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
+		called1 = true
+		return nil
+	}
+
+	mockSender2 := func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
+		called2 = true
+		return nil
+	}
+
+	ch := NewEmailChannel(db, mockSender1)
+
+	if ch.db != db {
+		t.Errorf("expected db to be assigned correctly, got %v", ch.db)
+	}
+
+	if ch.sender != nil {
+		_ = ch.sender(context.Background(), 1, "to", "sub", "html", "text")
+	}
+	if !called1 {
+		t.Errorf("expected sender to be initialized to mockSender1")
+	}
+
+	ch.SetSender(mockSender2)
+
+	if ch.sender != nil {
+		_ = ch.sender(context.Background(), 1, "to", "sub", "html", "text")
+	}
+	if !called2 {
+		t.Errorf("expected sender to be updated to mockSender2")
 	}
 }
 
@@ -624,5 +703,67 @@ func TestPreferences_SaveEmptyPatternAndFallback(t *testing.T) {
 	ch, err := ResolveChannels(ctx, db, "123", "valid.foo")
 	if err != nil || len(ch) != 2 || ch[0] != "in_app" || ch[1] != "email" {
 		t.Errorf("expected fallback to default channels, got %v", ch)
+	}
+}
+
+func TestNewRouter(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Test default initialization
+	r := NewRouter(db)
+	if r == nil {
+		t.Fatal("NewRouter returned nil")
+	}
+
+	// Verify built-in channels are registered
+	if _, ok := r.GetChannel("in_app"); !ok {
+		t.Error("expected in_app channel to be registered by default")
+	}
+	if _, ok := r.GetChannel("email"); !ok {
+		t.Error("expected email channel to be registered by default")
+	}
+
+	// Verify default dispatcher is set
+	if r.Dispatcher() == nil {
+		t.Error("expected default dispatcher to be initialized")
+	}
+
+	// Test initialization with custom dispatcher option
+	customDisp := NewDispatcher()
+	rCustom := NewRouter(db, WithDispatcher(customDisp))
+	if rCustom.Dispatcher() != customDisp {
+		t.Error("expected custom dispatcher to be set via WithDispatcher option")
+	}
+
+	// Test WithDispatcher with nil dispatcher (should not override default)
+	rNilDisp := NewRouter(db, WithDispatcher(nil))
+	if rNilDisp.Dispatcher() == nil {
+		t.Error("expected dispatcher not to be nil when WithDispatcher(nil) is passed")
+	}
+}
+
+func TestWithDispatcher(t *testing.T) {
+	db := setupTestDB(t)
+
+	// Verify default dispatcher is set when no options are provided
+	rDefault := NewRouter(db)
+	if rDefault.Dispatcher() == nil {
+		t.Error("NewRouter should initialize a default dispatcher")
+	}
+
+	// Verify WithDispatcher correctly overwrites the dispatcher
+	customDispatcher := NewDispatcher()
+	rCustom := NewRouter(db, WithDispatcher(customDispatcher))
+	if rCustom.Dispatcher() != customDispatcher {
+		t.Error("WithDispatcher should set the custom dispatcher")
+	}
+
+	// Verify WithDispatcher(nil) does not overwrite an existing dispatcher
+	rNil := NewRouter(db, WithDispatcher(customDispatcher), WithDispatcher(nil))
+	if rNil.Dispatcher() != customDispatcher {
+		t.Error("WithDispatcher(nil) should not overwrite an existing dispatcher")
+	}
+	if rNil.Dispatcher() == nil {
+		t.Error("dispatcher should not be nil")
 	}
 }
