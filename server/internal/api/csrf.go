@@ -6,9 +6,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/octarq-org/octarq/internal/apierror"
-	"github.com/octarq-org/octarq/internal/csrf"
-	"github.com/octarq-org/octarq/origin"
+	"github.com/octarq-org/octarq/server/internal/apierror"
+	"github.com/octarq-org/octarq/server/internal/csrf"
+	"github.com/octarq-org/octarq/server/origin"
 )
 
 // sessionCookieName is the dashboard session cookie (mirrors auth.cookieName).

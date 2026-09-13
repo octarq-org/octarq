@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/octarq-org/octarq/plugin"
-	"github.com/octarq-org/octarq/plugins/dns"
+	"github.com/octarq-org/octarq/server/plugin"
+	"github.com/octarq-org/octarq/server/plugins/dns"
 )
 
 func reporterIP(r *http.Request) string {

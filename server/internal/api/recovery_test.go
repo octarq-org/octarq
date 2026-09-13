@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/models"
-	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+	"github.com/octarq-org/octarq/server/internal/models"
+	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
 	"gorm.io/gorm"
 )
 

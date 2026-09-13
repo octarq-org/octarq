@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/csrf"
+	"github.com/octarq-org/octarq/server/internal/csrf"
 )
 
 // TestCSRFCookieTTLMatchesSessionTTL pins the one duplicated constant in the

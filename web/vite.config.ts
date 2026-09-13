@@ -97,7 +97,7 @@ export default defineConfig({
     // OCTARQ_WEBEMBED_OUT lets a downstream build redirect the
     // output elsewhere while reusing this exact build; defaults to the core's
     // embedded dist.
-    outDir: process.env.OCTARQ_WEBEMBED_OUT || "../webembed/dist",
+    outDir: process.env.OCTARQ_WEBEMBED_OUT || "../server/webembed/dist",
     emptyOutDir: true,
     rollupOptions: {
       output: {

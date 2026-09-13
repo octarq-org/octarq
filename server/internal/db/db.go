@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/pkg/telemetry"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/pkg/telemetry"
 	"go.opentelemetry.io/otel"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
@@ -74,7 +74,7 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 
 	// Instrument GORM with OpenTelemetry tracing and pool metrics
 	_ = gdb.Use(tracing.NewPlugin(tracing.WithoutQueryVariables()))
-	_ = telemetry.RegisterDBStatsMetrics(otel.GetMeterProvider().Meter("github.com/octarq-org/octarq/db"), sqlDB)
+	_ = telemetry.RegisterDBStatsMetrics(otel.GetMeterProvider().Meter("github.com/octarq-org/octarq/server/db"), sqlDB)
 
 	if cfg.DBDriver == "sqlite" {
 		// Apply on the live connection so a user DSN that already has

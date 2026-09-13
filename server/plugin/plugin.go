@@ -117,8 +117,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/octarq-org/octarq/llmprovider"
-	"github.com/octarq-org/octarq/pkg/telemetry"
+	"github.com/octarq-org/octarq/server/llmprovider"
+	"github.com/octarq-org/octarq/server/pkg/telemetry"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	"gopkg.in/yaml.v3"
@@ -1042,5 +1042,5 @@ func FeatureIsCore(plugins []Plugin, key string) bool {
 
 // StartSpan starts an OpenTelemetry span for a plugin operation.
 func StartSpan(ctx context.Context, pluginName, opName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
-	return telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/plugin/"+pluginName, opName, opts...)
+	return telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/server/plugin/"+pluginName, opName, opts...)
 }

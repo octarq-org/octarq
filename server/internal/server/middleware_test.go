@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/pkg/telemetry"
-	"github.com/octarq-org/octarq/webembed"
+	"github.com/octarq-org/octarq/server/pkg/telemetry"
+	"github.com/octarq-org/octarq/server/webembed"
 )
 
 func okHandler(w http.ResponseWriter, r *http.Request) {

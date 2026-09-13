@@ -8,13 +8,13 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/auth"
-	"github.com/octarq-org/octarq/internal/crypto"
-	"github.com/octarq-org/octarq/internal/geo"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/queue"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/auth"
+	"github.com/octarq-org/octarq/server/internal/crypto"
+	"github.com/octarq-org/octarq/server/internal/geo"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/queue"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
 

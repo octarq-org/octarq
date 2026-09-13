@@ -49,7 +49,7 @@ func (rw *responseWriter) Flush() {
 // HTTPMiddleware creates a middleware that instruments incoming HTTP requests with tracing & metrics.
 func HTTPMiddleware(tracerName string) func(http.Handler) http.Handler {
 	if tracerName == "" {
-		tracerName = "github.com/octarq-org/octarq/http"
+		tracerName = "github.com/octarq-org/octarq/server/http"
 	}
 	tr := Tracer(tracerName)
 

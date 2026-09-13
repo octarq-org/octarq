@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // captureInviteMail installs a system mail sender on h that records the text

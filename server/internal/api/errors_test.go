@@ -3,7 +3,7 @@ package api
 import (
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/apierror"
+	"github.com/octarq-org/octarq/server/internal/apierror"
 )
 
 func TestErrorCodes(t *testing.T) {

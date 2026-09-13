@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // ReactorRegistry manages declarative EventReactor registration and lifecycle.

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // errNoOrgInContext refuses a tool call that arrives without a tenant scope.

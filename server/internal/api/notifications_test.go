@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/notification"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/notification"
 )
 
 func TestNotificationsAPI(t *testing.T) {

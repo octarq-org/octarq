@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/octarq/llmprovider"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/llmprovider"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // ErrMaxStepsExceeded is returned when the agent loop reaches the step ceiling.

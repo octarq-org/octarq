@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/csrf"
+	"github.com/octarq-org/octarq/server/internal/csrf"
 )
 
 // TestCSRFGuard exercises both halves of the guard over one matrix: the

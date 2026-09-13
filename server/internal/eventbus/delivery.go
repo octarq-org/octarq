@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/octarq-org/octarq/pkg/telemetry"
-	"github.com/octarq-org/octarq/plugin/safehttp"
+	"github.com/octarq-org/octarq/server/pkg/telemetry"
+	"github.com/octarq-org/octarq/server/plugin/safehttp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
@@ -217,7 +217,7 @@ var errPermanent = errors.New("permanent")
 // deliverWithRetry runs the attempt/backoff loop for one delivery and keeps the
 // persisted log in step with it.
 func deliverWithRetry(ctx context.Context, d delivery) {
-	ctx, span := telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/eventbus", "eventbus.deliver_webhook",
+	ctx, span := telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/server/eventbus", "eventbus.deliver_webhook",
 		trace.WithAttributes(
 			attribute.String("webhook.event", d.Event),
 			attribute.String("webhook.delivery_id", d.DeliveryID),

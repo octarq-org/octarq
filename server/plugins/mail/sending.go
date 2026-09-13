@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/mail"
-	"github.com/octarq-org/octarq/internal/usagemetric"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/mail"
+	"github.com/octarq-org/octarq/server/internal/usagemetric"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func (p *Plugin) getStorageProvider() (plugin.StorageProvider, error) {

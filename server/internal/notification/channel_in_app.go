@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/eventbus"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/eventbus"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
 

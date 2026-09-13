@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/markbates/goth/gothic"
-	"github.com/octarq-org/octarq/internal/auth"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/plugins/dns"
+	"github.com/octarq-org/octarq/server/internal/auth"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugins/dns"
 	"github.com/pquerna/otp/totp"
 	"gorm.io/gorm"
 )

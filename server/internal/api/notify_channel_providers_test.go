@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/notify"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/notify"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // mockPlugin implements plugin.Plugin & plugin.Describer for testing plugin-contributed notification channel types.

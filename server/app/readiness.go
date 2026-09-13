@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/readiness"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/readiness"
 )
 
 // Log-side status vocabulary. These alias the shared readiness statuses so the

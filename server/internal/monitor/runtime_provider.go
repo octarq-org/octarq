@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // RuntimeProvider monitors process runtime metrics including goroutines, memory, GC, and Go version.

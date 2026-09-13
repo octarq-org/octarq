@@ -16,13 +16,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/cache"
-	"github.com/octarq-org/octarq/internal/crypto"
-	"github.com/octarq-org/octarq/internal/csrf"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/origin"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/cache"
+	"github.com/octarq-org/octarq/server/internal/crypto"
+	"github.com/octarq-org/octarq/server/internal/csrf"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/origin"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
 

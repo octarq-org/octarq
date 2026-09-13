@@ -27,7 +27,7 @@ import (
 	"sort"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/octarq-org/octarq/internal/server"
+	"github.com/octarq-org/octarq/server/internal/server"
 )
 
 // The closed set of machine-readable error codes. These are API surface: a

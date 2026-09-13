@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@acme/octarq-plugin-hello':
         specifier: workspace:*
-        version: link:../examples/plugin-hello/web
+        version: link:../server/examples/plugin-hello/web
       '@base-ui/react':
         specifier: ^1.6.0
         version: 1.6.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -106,19 +106,6 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@26.1.2)(happy-dom@20.11.1)(jsdom@26.1.0)(lightningcss@1.32.0)
 
-  ../examples/plugin-hello/web:
-    dependencies:
-      react:
-        specifier: ^18.3.1
-        version: 18.3.1
-      react-dom:
-        specifier: ^18.3.1
-        version: 18.3.1(react@18.3.1)
-    devDependencies:
-      '@octarq/plugin-sdk':
-        specifier: workspace:*
-        version: link:../../../packages/plugin-sdk
-
   ../packages/plugin-sdk:
     dependencies:
       '@base-ui/react':
@@ -170,6 +157,19 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@26.1.2)(happy-dom@20.11.1)(jsdom@26.1.0)(lightningcss@1.32.0)
+
+  ../server/examples/plugin-hello/web:
+    dependencies:
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+    devDependencies:
+      '@octarq/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../../../packages/plugin-sdk
 
 packages:
 

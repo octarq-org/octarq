@@ -18,7 +18,7 @@ const MinSecretKeyLen = 16
 
 // DefaultAppName is the fallback product name shown in the UI when the
 // `app_name` runtime setting (Settings → General) is empty. Downstream
-// distributions override via -ldflags -X github.com/octarq-org/octarq/config.DefaultAppName=...
+// distributions override via -ldflags -X github.com/octarq-org/octarq/server/config.DefaultAppName=...
 var DefaultAppName = "octarq"
 
 // Config holds all runtime configuration for octarq.

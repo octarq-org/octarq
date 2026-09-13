@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // perOrgQuotaChecker is a QuotaChecker that refuses only the orgs listed in

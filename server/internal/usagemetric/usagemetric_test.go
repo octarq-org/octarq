@@ -61,7 +61,7 @@ func TestCanonicalMetricNames(t *testing.T) {
 func TestRecordUsageCallSitesUseCanonicalMetrics(t *testing.T) {
 	canon := canonicalSet()
 
-	root, err := filepath.Abs(filepath.Join("..", ".."))
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
 	if err != nil {
 		t.Fatalf("module root: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestRecordUsageCallSitesUseCanonicalMetrics(t *testing.T) {
 			return err
 		}
 		if d.IsDir() {
-			if d.Name() == ".git" || d.Name() == "webembed" {
+			if d.Name() == ".git" || d.Name() == "webembed" || d.Name() == "node_modules" {
 				return filepath.SkipDir
 			}
 			return nil

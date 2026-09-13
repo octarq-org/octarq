@@ -9,7 +9,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	internalmail "github.com/octarq-org/octarq/internal/mail"
+	internalmail "github.com/octarq-org/octarq/server/internal/mail"
 )
 
 func seededMailbox(t *testing.T, p *Plugin) uint {

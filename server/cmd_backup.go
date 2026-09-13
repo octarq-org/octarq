@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/db"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/db"
 )
 
 func runBackupCommand(args []string) int {

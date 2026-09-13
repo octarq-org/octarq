@@ -6,7 +6,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/internal/dnsprovider"
+	"github.com/octarq-org/octarq/server/internal/dnsprovider"
 )
 
 // BlueprintStatus represents how a recommended email DNS record compares to the

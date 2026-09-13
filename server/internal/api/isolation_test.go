@@ -14,14 +14,14 @@ import (
 	"strings"
 	"testing"
 
-	dnsmodels "github.com/octarq-org/octarq/plugins/dns"
-	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+	dnsmodels "github.com/octarq-org/octarq/server/plugins/dns"
+	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/auth"
-	"github.com/octarq-org/octarq/internal/crypto"
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/auth"
+	"github.com/octarq-org/octarq/server/internal/crypto"
+	"github.com/octarq-org/octarq/server/internal/models"
 	"gorm.io/gorm"
 )
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func TestRuntimeProvider(t *testing.T) {

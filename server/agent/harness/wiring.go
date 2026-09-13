@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // ErrApprovalRequired is returned by RiskGuard when the tool's endpoint has

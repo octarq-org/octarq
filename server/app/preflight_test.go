@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // fakePlugin is a minimal plugin.Plugin carrying only a name and models.

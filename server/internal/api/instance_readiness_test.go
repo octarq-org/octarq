@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/models"
-	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/models"
+	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
 )
 
 // instanceReadinessBody is the decoded wire shape of GET /api/instance/readiness.

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func TestDiskProvider_DefaultsAndRealStat(t *testing.T) {

@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/octarq-org/octarq/openapi"
-	"github.com/octarq-org/octarq/plugin"
-	"github.com/octarq-org/octarq/plugins/builtin"
+	"github.com/octarq-org/octarq/server/openapi"
+	"github.com/octarq-org/octarq/server/plugin"
+	"github.com/octarq-org/octarq/server/plugins/builtin"
 )
 
 // TestGenerateValidSpec boots the real composition root, generates the spec,

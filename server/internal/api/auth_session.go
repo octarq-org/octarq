@@ -10,8 +10,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/internal/eventbus"
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/eventbus"
+	"github.com/octarq-org/octarq/server/internal/models"
 	"golang.org/x/crypto/bcrypt"
 )
 

@@ -3,8 +3,8 @@ package dns
 import (
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/dnsprovider"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/dnsprovider"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func TestValidateRecord(t *testing.T) {

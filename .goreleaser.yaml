@@ -19,6 +19,7 @@ project_name: octarq
 
 builds:
   - id: octarq
+    dir: server
     main: .
     binary: octarq
     env:
@@ -31,9 +32,9 @@ builds:
     ldflags:
       - -s -w
       # Same injection set as the Makefile's LDFLAGS / old Dockerfile build.
-      - -X github.com/octarq-org/octarq/internal/buildinfo.Version={{ .Version }}
-      - -X github.com/octarq-org/octarq/internal/buildinfo.Commit={{ .ShortCommit }}
-      - -X github.com/octarq-org/octarq/internal/buildinfo.BuiltAt={{ .Date }}
+      - -X github.com/octarq-org/octarq/server/internal/buildinfo.Version={{ .Version }}
+      - -X github.com/octarq-org/octarq/server/internal/buildinfo.Commit={{ .ShortCommit }}
+      - -X github.com/octarq-org/octarq/server/internal/buildinfo.BuiltAt={{ .Date }}
 
 # Upload raw binaries instead of archives, named like the assets this project
 # already publishes elsewhere: octarq-linux-amd64 / octarq-linux-arm64.

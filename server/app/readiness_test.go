@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/server/config"
 )
 
 // loadReadinessConfig builds a Config through the real config.Load so the

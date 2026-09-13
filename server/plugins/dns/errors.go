@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/octarq-org/octarq/origin"
+	"github.com/octarq-org/octarq/server/origin"
 )
 
 func forgetOrigin(names ...string) {

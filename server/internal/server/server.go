@@ -16,8 +16,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/origin"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/origin"
 	"gorm.io/gorm"
 )
 

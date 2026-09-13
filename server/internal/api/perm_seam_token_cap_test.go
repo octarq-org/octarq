@@ -15,8 +15,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // alwaysAllowResolver is the fake plugin resolver every test here shares: it

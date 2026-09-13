@@ -17,11 +17,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/auth"
-	"github.com/octarq-org/octarq/internal/crypto"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/plugins/links"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/auth"
+	"github.com/octarq-org/octarq/server/internal/crypto"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugins/links"
 	"gorm.io/gorm"
 )
 

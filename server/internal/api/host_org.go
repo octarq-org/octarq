@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/octarq-org/octarq/origin"
+	"github.com/octarq-org/octarq/server/origin"
 )
 
 // Resolving a workspace from the request Host.

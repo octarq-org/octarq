@@ -23,13 +23,13 @@ import (
 	"net/http"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/cache"
-	"github.com/octarq-org/octarq/internal/db"
-	"github.com/octarq-org/octarq/internal/endpoint"
-	"github.com/octarq-org/octarq/internal/eventbus"
-	"github.com/octarq-org/octarq/internal/tenantsql"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/cache"
+	"github.com/octarq-org/octarq/server/internal/db"
+	"github.com/octarq-org/octarq/server/internal/endpoint"
+	"github.com/octarq-org/octarq/server/internal/eventbus"
+	"github.com/octarq-org/octarq/server/internal/tenantsql"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
 

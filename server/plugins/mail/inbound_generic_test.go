@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	intmail "github.com/octarq-org/octarq/internal/mail"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/plugins/dns"
+	intmail "github.com/octarq-org/octarq/server/internal/mail"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugins/dns"
 )
 
 // 1. Guard Test: Auth

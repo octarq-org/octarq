@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/octarq-org/octarq/llmprovider"
+	"github.com/octarq-org/octarq/server/llmprovider"
 )
 
 // extractStreamProvider attempts to retrieve an llmprovider.StreamProvider

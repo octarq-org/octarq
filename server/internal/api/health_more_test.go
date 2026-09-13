@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/plugins/mail"
+	"github.com/octarq-org/octarq/server/plugins/mail"
 )
 
 func TestHealthAndSubsystems(t *testing.T) {

@@ -11,12 +11,12 @@
 package builtin
 
 import (
-	"github.com/octarq-org/octarq/plugin"
-	"github.com/octarq-org/octarq/plugins/dns"
-	"github.com/octarq-org/octarq/plugins/help"
-	"github.com/octarq-org/octarq/plugins/links"
-	"github.com/octarq-org/octarq/plugins/mail"
-	"github.com/octarq-org/octarq/plugins/tenantquery"
+	"github.com/octarq-org/octarq/server/plugin"
+	"github.com/octarq-org/octarq/server/plugins/dns"
+	"github.com/octarq-org/octarq/server/plugins/help"
+	"github.com/octarq-org/octarq/server/plugins/links"
+	"github.com/octarq-org/octarq/server/plugins/mail"
+	"github.com/octarq-org/octarq/server/plugins/tenantquery"
 )
 
 // Default returns the OSS Core feature plugins in dependency order (dns before

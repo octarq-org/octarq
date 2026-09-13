@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 
-	dns "github.com/octarq-org/octarq/plugins/dns"
+	dns "github.com/octarq-org/octarq/server/plugins/dns"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"

@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/auth"
+	"github.com/octarq-org/octarq/server/internal/auth"
 )
 
 func TestAuthMethodsPublicEndpoint(t *testing.T) {

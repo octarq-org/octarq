@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func okHandler() http.Handler {
@@ -148,7 +148,7 @@ func TestIsThirdPartyPkg(t *testing.T) {
 		pkg  string
 		want bool
 	}{
-		{"github.com/octarq-org/octarq/plugins/links", false},
+		{"github.com/octarq-org/octarq/server/plugins/links", false},
 		{"github.com/octarq-org/octarq-extra/modules/commerce", false},
 		{"github.com/acme/octarq-shop", true},
 		{"example.com/internal/plugin", true},

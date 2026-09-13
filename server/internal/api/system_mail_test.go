@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/crypto"
-	"github.com/octarq-org/octarq/plugin/safehttp"
-	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+	"github.com/octarq-org/octarq/server/internal/crypto"
+	"github.com/octarq-org/octarq/server/plugin/safehttp"
+	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
 )
 
 // captureSMTP speaks just enough ESMTP to complete a send and returns the DATA

@@ -9,9 +9,9 @@ import (
 
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/crypto"
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/crypto"
+	"github.com/octarq-org/octarq/server/internal/models"
 	"gorm.io/gorm"
 )
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/eventbus"
+	"github.com/octarq-org/octarq/server/internal/eventbus"
 )
 
 // realtimePingInterval is the duration between keep-alive SSE ping comments.

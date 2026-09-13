@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/octarq-org/octarq/internal/dnsprovider"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/dnsprovider"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // dnsManager adapts the plugin's per-domain DNS provider to the stable

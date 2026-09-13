@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/server/config"
 )
 
 func check(t *testing.T, checks []Check, id string) Check {

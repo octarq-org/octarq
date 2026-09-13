@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // Dispatcher manages asynchronous delivery to notification channels with exponential backoff retries.

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/monitor"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/monitor"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 type healthTestPlugin struct {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/plugin/safehttp"
+	"github.com/octarq-org/octarq/server/plugin/safehttp"
 )
 
 type mockSMTPOptions struct {

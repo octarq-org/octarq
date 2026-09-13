@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/octarq-org/octarq/pkg/telemetry"
+	"github.com/octarq-org/octarq/server/pkg/telemetry"
 	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 )

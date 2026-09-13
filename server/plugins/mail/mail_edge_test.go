@@ -11,10 +11,10 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	internalmail "github.com/octarq-org/octarq/internal/mail"
-	"github.com/octarq-org/octarq/internal/usagemetric"
-	"github.com/octarq-org/octarq/plugin"
-	"github.com/octarq-org/octarq/plugins/links"
+	internalmail "github.com/octarq-org/octarq/server/internal/mail"
+	"github.com/octarq-org/octarq/server/internal/usagemetric"
+	"github.com/octarq-org/octarq/server/plugin"
+	"github.com/octarq-org/octarq/server/plugins/links"
 )
 
 func TestListMailboxesComputesUnread(t *testing.T) {

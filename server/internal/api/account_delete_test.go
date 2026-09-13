@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 func TestDeleteAccount_NoMembershipsCascades(t *testing.T) {

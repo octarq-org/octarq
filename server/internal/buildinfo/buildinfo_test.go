@@ -3,7 +3,7 @@ package buildinfo_test
 import (
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/buildinfo"
+	"github.com/octarq-org/octarq/server/internal/buildinfo"
 )
 
 func TestGet(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/plugins/dns"
+	"github.com/octarq-org/octarq/server/plugins/dns"
 )
 
 func setupFullMailTestDB(t *testing.T) (*Plugin, func(req *http.Request) huma.Context) {

@@ -14,10 +14,10 @@ import (
 
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/glebarez/sqlite"
-	internalmail "github.com/octarq-org/octarq/internal/mail"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/usagemetric"
-	"github.com/octarq-org/octarq/plugin"
+	internalmail "github.com/octarq-org/octarq/server/internal/mail"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/usagemetric"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
 

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/octarq-org/octarq/internal/tenantsql"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/tenantsql"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // ColumnSchema describes a column in a tenant view for describe_tenant_schema output.

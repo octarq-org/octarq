@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/octarq-org/octarq/idempotency"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/idempotency"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func registerAPIRoutes(p *Plugin, api huma.API, ctx *plugin.Context) {

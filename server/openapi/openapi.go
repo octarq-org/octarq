@@ -24,8 +24,8 @@ import (
 	"path/filepath"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/octarq-org/octarq/app"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/app"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm/logger"
 )
 

@@ -10,7 +10,7 @@ import { oauthBeginPath, oauthCallbackPath } from "./oauthRoutes";
 //
 // So the assertion reads the Go route table instead of restating the paths,
 // which would just be the same copy that drifted the first time.
-const GO_ROUTES = import.meta.glob("../../../internal/api/api.go", {
+const GO_ROUTES = import.meta.glob("../../../server/internal/api/api.go", {
   query: "?raw",
   import: "default",
   eager: true,

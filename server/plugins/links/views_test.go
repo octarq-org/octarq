@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/plugin"
-	"github.com/octarq-org/octarq/plugins/links"
+	"github.com/octarq-org/octarq/server/plugin"
+	"github.com/octarq-org/octarq/server/plugins/links"
 )
 
 func TestRegisterViews(t *testing.T) {

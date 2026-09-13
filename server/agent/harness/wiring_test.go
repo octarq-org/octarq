@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/octarq-org/octarq/agent/harness"
-	"github.com/octarq-org/octarq/internal/endpoint"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/agent/harness"
+	"github.com/octarq-org/octarq/server/internal/endpoint"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // ---------- test types (mirrors plugin/endpoints_test.go echo pattern) ----------

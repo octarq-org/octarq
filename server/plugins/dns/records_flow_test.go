@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/dnsprovider"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/dnsprovider"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // fakeDNSProvider is a fully in-memory dnsprovider.Provider whose behavior

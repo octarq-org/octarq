@@ -9,8 +9,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/internal/authz"
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/authz"
+	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 // The token body is URL-safe base64 (without padding) so it is copy/paste friendly.

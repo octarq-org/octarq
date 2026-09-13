@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/octarq-org/octarq/internal/server"
+	"github.com/octarq-org/octarq/server/internal/server"
 )
 
 func TestNewSuppresses5xxDetails(t *testing.T) {

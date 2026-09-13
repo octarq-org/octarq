@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/server/config"
 )
 
 // Status is the state of one capability check.

@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/crypto"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/origin"
-	"github.com/octarq-org/octarq/plugins/dns"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/crypto"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/origin"
+	"github.com/octarq-org/octarq/server/plugins/dns"
 )
 
 // TestOAuthCallbackURLComesFromTheRequest covers the behaviour change operators

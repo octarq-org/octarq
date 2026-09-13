@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/cache"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/cache"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func TestScopedCache_Isolation(t *testing.T) {

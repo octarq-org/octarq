@@ -3,8 +3,8 @@ package links
 import (
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/plugins/dns"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugins/dns"
 )
 
 // The abuse-report handler consumes links.resolve through a bare type

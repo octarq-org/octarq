@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 func TestTokenUpdate(t *testing.T) {

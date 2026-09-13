@@ -22,14 +22,14 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/octarq-org/octarq/app"
-	"github.com/octarq-org/octarq/config"
-	hello "github.com/octarq-org/octarq/examples/plugin-hello"
-	"github.com/octarq-org/octarq/internal/buildinfo"
-	"github.com/octarq-org/octarq/internal/mcp"
-	"github.com/octarq-org/octarq/openapi"
-	"github.com/octarq-org/octarq/pkg/telemetry"
-	"github.com/octarq-org/octarq/plugins/builtin"
+	"github.com/octarq-org/octarq/server/app"
+	"github.com/octarq-org/octarq/server/config"
+	hello "github.com/octarq-org/octarq/server/examples/plugin-hello"
+	"github.com/octarq-org/octarq/server/internal/buildinfo"
+	"github.com/octarq-org/octarq/server/internal/mcp"
+	"github.com/octarq-org/octarq/server/openapi"
+	"github.com/octarq-org/octarq/server/pkg/telemetry"
+	"github.com/octarq-org/octarq/server/plugins/builtin"
 )
 
 func main() {

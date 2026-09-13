@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
 

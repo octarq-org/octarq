@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/octarq-org/octarq/plugin/safehttp"
+	"github.com/octarq-org/octarq/server/plugin/safehttp"
 )
 
 func TestDisallowedIP(t *testing.T) {

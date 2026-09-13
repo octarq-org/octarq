@@ -9,7 +9,7 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/server/config"
 )
 
 type flusherRecorder struct {

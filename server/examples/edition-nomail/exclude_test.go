@@ -9,14 +9,14 @@ import (
 
 // TestMailExcludedFromBinary proves the opt-in composition model excludes a
 // feature from the binary with no build tags: this edition imports only dns+links,
-// so the Go linker must drop github.com/octarq-org/octarq/plugins/mail entirely.
+// so the Go linker must drop github.com/octarq-org/octarq/server/plugins/mail entirely.
 // It is the standing regression guard for Phase 4
 // (website/src/content/docs/architecture/overview.md), run by the normal `go test ./...`.
 func TestMailExcludedFromBinary(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go toolchain not available")
 	}
-	const pkg = "github.com/octarq-org/octarq/examples/edition-nomail"
+	const pkg = "github.com/octarq-org/octarq/server/examples/edition-nomail"
 	bin := filepath.Join(t.TempDir(), "edition-nomail")
 
 	if out, err := exec.Command("go", "build", "-o", bin, pkg).CombinedOutput(); err != nil {

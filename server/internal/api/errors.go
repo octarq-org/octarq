@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/octarq-org/octarq/internal/apierror"
+	"github.com/octarq-org/octarq/server/internal/apierror"
 )
 
 // init installs octarq's single error envelope into huma, exactly once, for the

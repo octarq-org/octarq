@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"testing"
 
-	links "github.com/octarq-org/octarq/plugins/links"
-	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+	links "github.com/octarq-org/octarq/server/plugins/links"
+	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
 
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 func TestAccountExportAndPurge(t *testing.T) {

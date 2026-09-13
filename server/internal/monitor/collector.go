@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // DefaultInterval is the default polling interval for the health collector (30 seconds).

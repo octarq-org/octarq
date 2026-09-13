@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/octarq-org/octarq/pkg/telemetry"
+	"github.com/octarq-org/octarq/server/pkg/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -546,7 +546,7 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 	// 0. OpenTelemetry incoming trace context extraction & server span
 	ctx := telemetry.ExtractHTTP(r.Context(), r.Header)
 	spanName := fmt.Sprintf("HTTP %s %s", r.Method, r.URL.Path)
-	ctx, span := telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/http", spanName,
+	ctx, span := telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/server/http", spanName,
 		trace.WithSpanKind(trace.SpanKindServer),
 		trace.WithAttributes(
 			attribute.String("http.method", r.Method),

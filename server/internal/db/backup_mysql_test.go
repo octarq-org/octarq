@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/server/config"
 )
 
 func mysqlCfg(dsn string) *config.Config {

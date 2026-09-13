@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/internal/dnsprovider"
+	"github.com/octarq-org/octarq/server/internal/dnsprovider"
 )
 
 // setupBlueprintPlugin creates a fresh plugin wired for blueprint tests.

@@ -1,6 +1,6 @@
 package main
 
-import "github.com/octarq-org/octarq/plugin"
+import "github.com/octarq-org/octarq/server/plugin"
 
 // customPlugins returns extra third-party backend plugins composed into this
 // build, on top of the OSS core. The committed default is empty so a plain

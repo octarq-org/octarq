@@ -7,9 +7,9 @@ import (
 	"io/fs"
 	"net/http"
 
-	"github.com/octarq-org/octarq/internal/auth"
-	"github.com/octarq-org/octarq/internal/notify"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/auth"
+	"github.com/octarq-org/octarq/server/internal/notify"
+	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
 

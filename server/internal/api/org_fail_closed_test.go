@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/db"
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/db"
+	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 // P2-9: orgID must return 0 when unauthenticated/no org in request,

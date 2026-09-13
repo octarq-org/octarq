@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func (p *Plugin) purge(orgID uint) error {

@@ -12,9 +12,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/safego"
-	"github.com/octarq-org/octarq/plugin/safehttp"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/safego"
+	"github.com/octarq-org/octarq/server/plugin/safehttp"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

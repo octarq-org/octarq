@@ -22,8 +22,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/plugin"
-	links "github.com/octarq-org/octarq/plugins/links"
+	"github.com/octarq-org/octarq/server/plugin"
+	links "github.com/octarq-org/octarq/server/plugins/links"
 )
 
 // tenantMenuPlugin announces ordinary tenant-scoped sidebar entries, the shape

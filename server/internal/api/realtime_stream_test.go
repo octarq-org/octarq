@@ -13,13 +13,13 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/auth"
-	"github.com/octarq-org/octarq/internal/crypto"
-	"github.com/octarq-org/octarq/internal/eventbus"
-	"github.com/octarq-org/octarq/internal/geo"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/queue"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/auth"
+	"github.com/octarq-org/octarq/server/internal/crypto"
+	"github.com/octarq-org/octarq/server/internal/eventbus"
+	"github.com/octarq-org/octarq/server/internal/geo"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/queue"
 	"gorm.io/gorm"
 )
 

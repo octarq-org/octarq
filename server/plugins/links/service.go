@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // CreateLink implements plugin.LinkCreator: it creates an enabled short link for

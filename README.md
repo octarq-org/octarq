@@ -183,9 +183,10 @@ export const helloPlugin: UIPlugin = {
 ## Development
 
 ```bash
-OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .   # backend :8080
-make dev                                                  # Vite frontend, proxies /api
-go test ./... -race
+make dev                                                  # backend (Air hot reload) + Vite frontend
+# or run individually:
+(cd server && OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .)
+(cd server && go test ./... -race)
 ```
 
 Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).

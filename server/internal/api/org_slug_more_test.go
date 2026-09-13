@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 func TestOrgSlugMore(t *testing.T) {

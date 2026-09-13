@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/api"
-	"github.com/octarq-org/octarq/openapi"
+	"github.com/octarq-org/octarq/server/internal/api"
+	"github.com/octarq-org/octarq/server/openapi"
 )
 
 // These tests pin the published auth shapes to the structs they describe.

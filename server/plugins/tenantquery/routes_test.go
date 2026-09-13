@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/internal/endpoint"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/tenantsql"
-	"github.com/octarq-org/octarq/plugin"
-	"github.com/octarq-org/octarq/plugins/links"
-	"github.com/octarq-org/octarq/plugins/mail"
-	"github.com/octarq-org/octarq/plugins/tenantquery"
+	"github.com/octarq-org/octarq/server/internal/endpoint"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/tenantsql"
+	"github.com/octarq-org/octarq/server/plugin"
+	"github.com/octarq-org/octarq/server/plugins/links"
+	"github.com/octarq-org/octarq/server/plugins/mail"
+	"github.com/octarq-org/octarq/server/plugins/tenantquery"
 	"gorm.io/gorm"
 )
 

@@ -9,8 +9,8 @@ import (
 
 	"fmt"
 
-	"github.com/octarq-org/octarq/internal/usagemetric"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/usagemetric"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func TestGetEmailForSummarize(t *testing.T) {

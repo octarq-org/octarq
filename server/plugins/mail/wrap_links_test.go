@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	dns "github.com/octarq-org/octarq/plugins/dns"
-	links "github.com/octarq-org/octarq/plugins/links"
+	dns "github.com/octarq-org/octarq/server/plugins/dns"
+	links "github.com/octarq-org/octarq/server/plugins/links"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/internal/mail"
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/mail"
+	"github.com/octarq-org/octarq/server/internal/models"
 	"gorm.io/gorm"
 )
 

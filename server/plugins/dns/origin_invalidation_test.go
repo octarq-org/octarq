@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/octarq-org/octarq/origin"
+	"github.com/octarq-org/octarq/server/origin"
 )
 
 // TestDomainWritesInvalidateOriginCache pins that the domains table and

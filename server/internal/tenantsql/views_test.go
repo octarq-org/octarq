@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/tenantsql"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/tenantsql"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func TestRegistry_RegisterAndLookup(t *testing.T) {

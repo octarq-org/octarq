@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/notify"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/notify"
 )
 
 func TestNotificationChannelConfigEncryptedInDB(t *testing.T) {

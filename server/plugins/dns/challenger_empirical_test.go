@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/dnsprovider"
+	"github.com/octarq-org/octarq/server/internal/dnsprovider"
 )
 
 // TestFinding4_SyncDomainsIgnoresDBCreateConflict demonstrates that when

@@ -24,7 +24,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 // bearerJSON fires a JSON request authenticated by a bearer token only. No

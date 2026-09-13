@@ -3,7 +3,7 @@ package links
 import (
 	"fmt"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // RegisterViews registers the core tenant views for short links and link events.

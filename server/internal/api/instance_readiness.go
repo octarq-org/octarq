@@ -5,8 +5,8 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/internal/readiness"
-	"github.com/octarq-org/octarq/origin"
+	"github.com/octarq-org/octarq/server/internal/readiness"
+	"github.com/octarq-org/octarq/server/origin"
 )
 
 type InstanceReadinessInput struct {

@@ -3,7 +3,7 @@ package dns
 import (
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 func TestEffectiveHosts(t *testing.T) {

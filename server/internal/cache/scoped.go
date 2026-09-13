@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // ScopedCache wraps a Cache instance and prefixes all keys with a plugin namespace.

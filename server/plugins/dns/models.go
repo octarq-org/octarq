@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 // ProviderAccount represents a DNS provider configuration (e.g. Cloudflare)

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // roleGatedPlugin's menu entry is admin-only, the shape a plugin uses when

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/dnsprovider"
+	"github.com/octarq-org/octarq/server/internal/dnsprovider"
 )
 
 type mockDDNSProvider struct {

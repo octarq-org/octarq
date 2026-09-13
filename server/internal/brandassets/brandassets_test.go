@@ -34,7 +34,7 @@ var copies = []string{
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
-	root, err := filepath.Abs("../..")
+	root, err := filepath.Abs("../../..")
 	if err != nil {
 		t.Fatalf("resolve repo root: %v", err)
 	}

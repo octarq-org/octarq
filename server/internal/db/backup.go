@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/config"
+	"github.com/octarq-org/octarq/server/config"
 	"gorm.io/gorm"
 )
 

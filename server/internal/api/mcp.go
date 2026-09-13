@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/octarq-org/octarq/internal/auth"
-	mcp_internal "github.com/octarq-org/octarq/internal/mcp"
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/auth"
+	mcp_internal "github.com/octarq-org/octarq/server/internal/mcp"
+	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 // mcpAuth is a middleware that authenticates MCP requests. An authenticated

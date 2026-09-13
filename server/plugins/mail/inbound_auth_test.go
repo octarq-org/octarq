@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 // The generic inbound endpoint authenticates on a token in the URL path, the

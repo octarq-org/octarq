@@ -142,10 +142,10 @@ func TestRunWriteFailures(t *testing.T) {
 // producing per-plugin aliases and &Plugin{} constructor lines.
 func TestWriteBackendEntries(t *testing.T) {
 	have := writeBackendEntries(t, []entry{
-		{Go: "github.com/octarq-org/octarq/examples/plugin-hello"},
+		{Go: "github.com/octarq-org/octarq/server/examples/plugin-hello"},
 		{Go: "github.com/example/foo", GoMod: "github.com/example/foo@v1.0.0", NPM: "@example/foo"},
 	})
-	if !strings.Contains(have, `p0 "github.com/octarq-org/octarq/examples/plugin-hello"`) {
+	if !strings.Contains(have, `p0 "github.com/octarq-org/octarq/server/examples/plugin-hello"`) {
 		t.Errorf("missing p0 aliased import:\n%s", have)
 	}
 	if !strings.Contains(have, `&p1.Plugin{}`) {

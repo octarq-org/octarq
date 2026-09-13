@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/plugins/links"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugins/links"
 )
 
 func seedOrgFullData(t *testing.T, h *Handler, orgID, userID uint, webhookSecret string) {

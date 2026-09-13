@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/coreschema"
+	"github.com/octarq-org/octarq/server/coreschema"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

@@ -47,7 +47,9 @@ function getDottedKey(obj: unknown, path: string): unknown {
 // Parsing the Go source keeps the assertion pointed at the real declarations
 // instead of a list in the test that would drift from them, which is the exact
 // failure this file exists to catch.
-const GO_MENU_SOURCES = import.meta.glob("../../../{plugins/*/plugin.go,plugins/*/*.go,internal/api/tenant_menu.go}", {
+const GO_MENU_SOURCES = import.meta.glob(
+  "../../../server/{plugins/*/plugin.go,plugins/*/*.go,internal/api/tenant_menu.go}",
+  {
   query: "?raw",
   import: "default",
   eager: true,

@@ -14,7 +14,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 // switchTo performs the real workspace switch and returns the re-issued cookies.

@@ -2,7 +2,7 @@
 // composes only the dns and links Core plugins (no mail) by building its own
 // composition root instead of using plugins/builtin.Default().
 //
-// Because this main never imports github.com/octarq-org/octarq/plugins/mail, the
+// Because this main never imports github.com/octarq-org/octarq/server/plugins/mail, the
 // Go linker drops that package entirely — the mail feature is excluded from the
 // binary with no build tags. CI proves this with `go tool nm` (see ci.yml).
 //
@@ -15,9 +15,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/octarq-org/octarq/app"
-	"github.com/octarq-org/octarq/plugins/dns"
-	"github.com/octarq-org/octarq/plugins/links"
+	"github.com/octarq-org/octarq/server/app"
+	"github.com/octarq-org/octarq/server/plugins/dns"
+	"github.com/octarq-org/octarq/server/plugins/links"
 )
 
 func main() {

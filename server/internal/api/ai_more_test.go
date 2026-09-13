@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/llmprovider"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/llmprovider"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 type dummyLLM struct{ reply string }

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/hibiken/asynq"
-	"github.com/octarq-org/octarq/pkg/telemetry"
+	"github.com/octarq-org/octarq/server/pkg/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -59,7 +59,7 @@ func runHandlerWithTelemetry(taskType string, h Handler, raw []byte) error {
 		payload = raw
 	}
 
-	ctx, span := telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/queue", "queue.process "+taskType,
+	ctx, span := telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/server/queue", "queue.process "+taskType,
 		trace.WithSpanKind(trace.SpanKindConsumer),
 		trace.WithAttributes(
 			attribute.String("task.type", taskType),

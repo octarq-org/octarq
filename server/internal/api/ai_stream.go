@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/octarq/agent/harness"
-	"github.com/octarq-org/octarq/llmprovider"
+	"github.com/octarq-org/octarq/server/agent/harness"
+	"github.com/octarq-org/octarq/server/llmprovider"
 )
 
 // readOnlyGuard wraps a base Guard (e.g. RiskGuard) and rejects any tool

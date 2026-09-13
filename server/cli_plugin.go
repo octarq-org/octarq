@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/octarq-org/octarq/internal/scaffold"
+	"github.com/octarq-org/octarq/server/internal/scaffold"
 )
 
 // runPluginCommand handles `octarq plugin <subcommand>`. Today the only

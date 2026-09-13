@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/models"
 )
 
 // Guard test 3: SSO (LoginByIdentity) admits a TOTP-enabled account — the IdP

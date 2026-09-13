@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"testing"
 
-	dnsmodels "github.com/octarq-org/octarq/plugins/dns"
+	dnsmodels "github.com/octarq-org/octarq/server/plugins/dns"
 
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/tenancy"
-	"github.com/octarq-org/octarq/origin"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/tenancy"
+	"github.com/octarq-org/octarq/server/origin"
 	"gorm.io/gorm"
 )
 

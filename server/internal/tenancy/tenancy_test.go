@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/origin"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/origin"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

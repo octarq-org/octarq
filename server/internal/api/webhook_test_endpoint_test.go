@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/eventbus"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/plugin/safehttp"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/eventbus"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin/safehttp"
 )
 
 // wireEventbusForTest mirrors app.Run's eventbus wiring (db + secret

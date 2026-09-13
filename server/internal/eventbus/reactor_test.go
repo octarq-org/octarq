@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/eventbus"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/eventbus"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 type testReactor struct {

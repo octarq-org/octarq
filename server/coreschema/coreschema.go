@@ -33,7 +33,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/models"
 	"gorm.io/gorm"
 	gormschema "gorm.io/gorm/schema"
 )

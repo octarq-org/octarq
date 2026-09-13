@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/octarq/origin"
+	"github.com/octarq-org/octarq/server/origin"
 )
 
 // twofaChallengeTTL bounds how long a login may sit between the proof that

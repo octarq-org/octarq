@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // DiskProvider monitors data directory disk usage, available space, and capacity utilization.

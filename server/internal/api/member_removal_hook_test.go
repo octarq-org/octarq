@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // registerRemovedHook registers a member-removed hook keyed by the test name

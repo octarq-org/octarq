@@ -1,6 +1,6 @@
 // Package llmprovider abstracts large-language-model backends behind one small
 // interface. It lives outside internal/ on purpose: external and downstream plugins
-// import it as github.com/octarq-org/octarq/llmprovider, so moving it under
+// import it as github.com/octarq-org/octarq/server/llmprovider, so moving it under
 // internal/ would break them.
 //
 // Most backends (OpenAI and OpenAI-compatible endpoints, Gemini, Mistral,

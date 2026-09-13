@@ -12,7 +12,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/google/uuid"
-	"github.com/octarq-org/octarq/internal/db"
+	"github.com/octarq-org/octarq/server/internal/db"
 )
 
 type DownloadBackupInput struct {

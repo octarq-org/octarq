@@ -8,11 +8,11 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
-	"github.com/octarq-org/octarq/internal/authz"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/internal/notification"
-	"github.com/octarq-org/octarq/internal/notify"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/authz"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/notification"
+	"github.com/octarq-org/octarq/server/internal/notify"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 type NotificationChannelType struct {

@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func TestBothPctxConstructorsSetRecordUsage(t *testing.T) {

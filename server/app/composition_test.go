@@ -3,10 +3,10 @@ package app_test
 import (
 	"testing"
 
-	"github.com/octarq-org/octarq/plugin"
-	"github.com/octarq-org/octarq/plugins/builtin"
-	"github.com/octarq-org/octarq/plugins/dns"
-	"github.com/octarq-org/octarq/plugins/links"
+	"github.com/octarq-org/octarq/server/plugin"
+	"github.com/octarq-org/octarq/server/plugins/builtin"
+	"github.com/octarq-org/octarq/server/plugins/dns"
+	"github.com/octarq-org/octarq/server/plugins/links"
 )
 
 // TestBuiltinDefaultSet checks the OSS default composition lists the three Core

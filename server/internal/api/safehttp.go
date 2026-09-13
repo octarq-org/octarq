@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/octarq-org/octarq/plugin/safehttp"
+	"github.com/octarq-org/octarq/server/plugin/safehttp"
 )
 
 // safePreviewClient is the shared client for fetching user-supplied URLs. It

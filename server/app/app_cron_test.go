@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/internal/cron"
-	"github.com/octarq-org/octarq/internal/models"
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/internal/cron"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func TestAppCronSetupAndExecution(t *testing.T) {

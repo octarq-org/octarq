@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 var validIdentPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)

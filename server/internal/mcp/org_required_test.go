@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // No MCP tool may fall back to a default tenant when the context carries no org.

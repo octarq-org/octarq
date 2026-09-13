@@ -16,8 +16,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/octarq-org/octarq/openapi"
-	"github.com/octarq-org/octarq/plugins/builtin"
+	"github.com/octarq-org/octarq/server/openapi"
+	"github.com/octarq-org/octarq/server/plugins/builtin"
 )
 
 func main() {

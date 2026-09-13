@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/internal/models"
 	"golang.org/x/net/publicsuffix"
 )
 

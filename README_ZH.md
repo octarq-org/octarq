@@ -183,9 +183,10 @@ export const helloPlugin: UIPlugin = {
 ## 本地开发
 
 ```bash
-OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .   # 后端 API :8080
-make dev                                                  # Vite 前端开发服务 (代理 /api)
-go test ./... -race
+make dev                                                  # 后端 (Air 热重载) + Vite 前端开发服务
+# 或分别单独启动:
+(cd server && OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .)
+(cd server && go test ./... -race)
 ```
 
 欢迎贡献代码 —— 参见 [CONTRIBUTING.md](CONTRIBUTING.md)。

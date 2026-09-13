@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/internal/db"
+	"github.com/octarq-org/octarq/server/internal/db"
 	"gorm.io/gorm"
 )
 

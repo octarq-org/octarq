@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/octarq-org/octarq/plugin"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // fakePlugin mimics every real plugin: it caches ctx.OrgID into a field at

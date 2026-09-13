@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/octarq/plugin/safehttp"
+	"github.com/octarq-org/octarq/server/plugin/safehttp"
 )
 
 // stripCRLF removes CR/LF (and NUL) from a header value to prevent SMTP header

@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	dns "github.com/octarq-org/octarq/plugins/dns"
-	links "github.com/octarq-org/octarq/plugins/links"
-	mailmodels "github.com/octarq-org/octarq/plugins/mail"
+	dns "github.com/octarq-org/octarq/server/plugins/dns"
+	links "github.com/octarq-org/octarq/server/plugins/links"
+	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
 
 	"github.com/glebarez/sqlite"
-	"github.com/octarq-org/octarq/config"
-	"github.com/octarq-org/octarq/internal/crypto"
-	"github.com/octarq-org/octarq/internal/models"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/crypto"
+	"github.com/octarq-org/octarq/server/internal/models"
 	"gorm.io/gorm"
 )
 
