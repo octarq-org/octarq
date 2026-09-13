@@ -176,7 +176,7 @@ describe("ApiTokens suite", () => {
     );
 
     expect(await screen.findByText(/no api tokens configured yet/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /\+ new token/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /new token/i })).toBeTruthy();
   });
 
   it("renders existing tokens and handles revoke action", async () => {
@@ -244,7 +244,7 @@ describe("ApiTokens suite", () => {
       </I18nProvider>,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: /\+ new token/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /new token/i }));
     expect(screen.getByText("Generate API Token")).toBeTruthy();
 
     const nameInput = screen.getByPlaceholderText("e.g. cli-tool");

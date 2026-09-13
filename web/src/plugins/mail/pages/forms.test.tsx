@@ -391,8 +391,8 @@ describe("Mail Forms", () => {
         expect(screen.getByRole("button", { name: "Test" })).toBeDefined();
       });
 
-      // Click + Add SMTP
-      const addBtn = screen.getByRole("button", { name: "+ Add SMTP" });
+      // Click Add SMTP
+      const addBtn = screen.getByRole("button", { name: "Add SMTP" });
       fireEvent.click(addBtn);
 
       await waitFor(() => {
