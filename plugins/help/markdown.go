@@ -92,8 +92,8 @@ func convertAsides(src string) string {
 	return strings.Join(out, "\n")
 }
 
-// parseAsideOpener recognises ":::type" and ":::type[Title]" and returns the GFM
-// alert tag to open with. A bare ":::" is a closer, never an opener.
+// parseAsideOpener recognises ":::type", ":::type[Title]", and ":::type Title",
+// returning the GFM alert tag to open with. A bare ":::" is a closer, never an opener.
 func parseAsideOpener(trimmed string) (kind, title string, ok bool) {
 	if !strings.HasPrefix(trimmed, ":::") {
 		return "", "", false
@@ -104,6 +104,9 @@ func parseAsideOpener(trimmed string) (kind, title string, ok bool) {
 	}
 	if i := strings.Index(rest, "["); i >= 0 && strings.HasSuffix(rest, "]") {
 		title = rest[i+1 : len(rest)-1]
+		rest = rest[:i]
+	} else if i := strings.IndexAny(rest, " \t"); i >= 0 {
+		title = strings.TrimSpace(rest[i+1:])
 		rest = rest[:i]
 	}
 	tag, known := asideTag[strings.ToLower(strings.TrimSpace(rest))]
