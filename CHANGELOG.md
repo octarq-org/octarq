@@ -2,6 +2,62 @@
 
 All notable changes to this project are documented here.
 
+## [0.4.4] - 2026-09-13
+
+### 🚀 Features
+
+- **dns**: Email reputation health score dashboard and one-click DNS auto-fix (PD-30) (#535)
+- **web**: Notification preferences matrix and in-app inbox (PD-26) (#532)
+- **web**: Dashboard health monitor cards consuming /api/monitor/health (PD-25) (#531)
+- **web**: PD-24 implement ProTable component and useProTable hook with TanStack Query (#530)
+- **core**: PD-20 unified notification router engine and SPI (#525)
+- **storage**: Implement MD5 deduplication and temporary signed download tokens (PD-17) (#524)
+- **core**: Pluggable health monitoring framework and HealthProvider SPI (PD-19) (#523)
+- **cron**: PD-18 in-process cron engine and plugin.CronService SPI (#522)
+- **core**: Implement DataScope SPI contract and default org_id filter (PD-16) (#521)
+- **core**: Implement SSE realtime stream and plugin StorageService SPI with local fallback (#520)
+
+### 🐛 Bug Fixes
+
+- **help**: Support space-separated titles in aside container directives (#559)
+- **web**: Remove redundant '+' prefixes from button texts and i18n labels (#558)
+- **core**: Align member removal audit metadata and enforce tenant check in mailbox deletion (SEC-04, SEC-05) (#557)
+- **geo**: Manage background autoDownload goroutine lifecycle in geo resolver (#513)
+- Address quota bypass in createDeclarativeLink (#519)
+- **ci**: Use PAT_GITHUB to automatically trigger CI on automated PRs (#510)
+
+### ⚡ Performance
+
+- Fix N+1 query in mail send endpoint for contact upserts (#554)
+- Optimize mail suppression check to prevent N+1 query (#553)
+- **dns**: Batch domain creates and updates in syncDomains (#534)
+- Batch mail storage deletions during purge (#529)
+- Optimize data migration loop to eliminate N+1 autocommits (#506)
+
+### 📚 Documentation
+
+- Implement Three-Tier living specs and enrich doc-plugin (#526)
+- **plugin**: Document supported host window (#493)
+
+### 🧪 Testing
+
+- **notification**: Add unit test coverage for dispatcher, channels, and router (#556)
+- Add test suite for TableError component (#542)
+- Add tests for cleanParams utility in pro-table (#537)
+- **api**: Add endpoint test coverage for tenant menu and organizations (#518)
+- Add tests for VerifySQLiteIntegrity (#515)
+- **dnsprovider**: Add dedicated test for MarshalCreds (#509)
+- **db**: Table-driven test suite for MySQL and PostgreSQL DSN parsers (#508)
+- **apierror**: Consolidate unit test suite and clean up coverage extra (#507)
+- **dnsprovider**: Add tests for Register and New (#500)
+
+### 🧹 Chores
+
+- **web**: Refresh embedded dashboard build [auto] (#560)
+- **web**: Refresh embedded dashboard build [auto] (#536)
+- **web**: Refresh embedded dashboard build [auto] (#533)
+- **web**: Refresh embedded dashboard build [auto] (#490)
+
 ## [0.4.3] - 2026-09-03
 
 ### 🚀 Features
