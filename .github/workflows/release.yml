@@ -64,6 +64,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Tag and push Go server module
+        run: |
+          SERVER_TAG="server/${{ github.ref_name }}"
+          echo "Tagging server module: $SERVER_TAG"
+          git tag "$SERVER_TAG"
+          git push origin "$SERVER_TAG" || echo "Tag $SERVER_TAG already exists or push failed"
+
   # ── Regenerate CHANGELOG.md and commit it back to main ───────────────────
   changelog:
     name: Commit CHANGELOG.md

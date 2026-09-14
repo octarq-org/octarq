@@ -49,7 +49,7 @@ package hello
 
 import (
     "net/http"
-    "github.com/octarq-org/octarq/plugin"
+    "github.com/octarq-org/octarq/server/plugin"
 )
 
 type Plugin struct{}
@@ -144,12 +144,12 @@ Verify frontend registration:
 Octarq runs at two scopes, and a plugin page belongs to exactly one of them:
 
 - **Tenant scope** — one per workspace. The UI lives in the `/admin` shell; the
-  sidebar entry comes from `plugin.MenuProvider` (`plugin/plugin.go`), is served
+  sidebar entry comes from `plugin.MenuProvider` (`server/plugin/plugin.go`), is served
   by `GET /api/menus`, and is gated per workspace: a workspace that disables the
   feature stops seeing it. The frontend page is a `UIPlugin.routes` entry.
 - **Instance scope** — one per deployment. The UI lives in the `/instance`
   console; the rail entry comes from `plugin.InstanceMenuProvider`
-  (`plugin/plugin.go`), is served by the instance-admin-gated
+  (`server/plugin/plugin.go`), is served by the instance-admin-gated
   `GET /api/instance/menus` endpoint, and has no per-workspace toggle — the
   entry is announced by the deployment or it isn't. The frontend page is a
   `UIPlugin.instanceRoutes` entry.
@@ -225,7 +225,7 @@ The host provides the mechanism through the service registry; resolve it
 lazily and wrap the handlers that need it:
 
 ```go
-import "github.com/octarq-org/octarq/idempotency"
+import "github.com/octarq-org/octarq/server/idempotency"
 
 type middleware = func(http.Handler) http.Handler
 
@@ -335,7 +335,7 @@ before you send it does not. See the package documentation for the details.
 A plugin is **one repo** with the two halves: the Go module is `go get`-able, and
 the `web/` package publishes to npm with `@octarq/plugin-sdk` and `react` as
 **peer** dependencies. The working reference is
-[`examples/plugin-hello`](https://github.com/octarq-org/octarq/tree/main/examples/plugin-hello).
+[`examples/plugin-hello`](https://github.com/octarq-org/octarq/tree/main/server/examples/plugin-hello).
 For publishing the SDK itself, see [Publishing the SDK](/guides/publishing/).
 
 ---
@@ -346,7 +346,7 @@ For publishing the SDK itself, see [Publishing the SDK](/guides/publishing/).
 - [ ] A compile-time `var _ plugin.X = Plugin{}` assert for **every** interface (Plugin + each optional one).
 - [ ] Backend `/api` routes live under `/api/x/<name>/`; write endpoints accept `Idempotency-Key`.
 - [ ] Backend routes registered on the passed `Mux`; secrets via `ctx.Encrypt`; cross-plugin services via `ctx.Provide` / lazy `plugin.LookupAs`.
-- [ ] Every outbound fetch of a user-supplied URL goes through `plugin/safehttp`, not a bare `http.Client`.
+- [ ] Every outbound fetch of a user-supplied URL goes through `server/plugin/safehttp`, not a bare `http.Client`.
 - [ ] Paid/tiered routes return **402** when unlicensed; rely on the host's auto-**404** for the disabled-feature case.
 - [ ] Pages are `React.lazy`; UI built from `@octarq/plugin-sdk`; 402/404 handled.
 - [ ] i18n keys live under your `name` namespace.

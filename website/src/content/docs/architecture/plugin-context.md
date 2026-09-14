@@ -58,9 +58,9 @@ Trimmed editions are defined at the compilation root (typically in `main.go`). I
 package main
 
 import (
-    "github.com/octarq-org/octarq/app"
-    "github.com/octarq-org/octarq/plugins/dns"
-    "github.com/octarq-org/octarq/plugins/links"
+    "github.com/octarq-org/octarq/server/app"
+    "github.com/octarq-org/octarq/server/plugins/dns"
+    "github.com/octarq-org/octarq/server/plugins/links"
 )
 
 func main() {

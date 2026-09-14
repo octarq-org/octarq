@@ -22,7 +22,7 @@ A feature is a **plugin** with two mirror halves composed into the core, never a
 
 Both are composed **at build time** (not runtime): compile-time Go interface implementation + build-time frontend registry injection. One binary, `go:embed`. The OSS build ships plugin page shells that degrade when unconfigured; the commercial build injects the actual pages.
 
-## 2. Backend contract (`plugin/plugin.go`)
+## 2. Backend contract (`server/plugin/plugin.go`)
 
 ```go
 type Plugin interface {
@@ -36,11 +36,11 @@ type Starter interface { Start(ctx context.Context) }   // runs after ALL Mounts
 // plus MCPProvider, OpenAPIContributor, Describer
 ```
 
-- The host calls `app.Use(p)` before `app.Run()`. Every plugin route is **auto-gated** by `gatedMux` (app/app.go): if the feature is disabled for the caller's workspace it answers **404** before the handler runs.
+- The host calls `app.Use(p)` before `app.Run()`. Every plugin route is **auto-gated** by `gatedMux` (server/app/app.go): if the feature is disabled for the caller's workspace it answers **404** before the handler runs.
 - Pro routes **license-gate** with **402** (`lic.HasTier(...)`) so the frontend shows an upsell.
 - Plugins never import `internal/*`; everything they need is on `plugin.Context` (DB, Guard, Encrypt/Decrypt, Audit, Notify, SendMail, OnEmail, DNS, Get/SetWorkspaceSetting, …). Context evolves **additive-only**.
 - **Inter-plugin services**: a provider calls `ctx.Provide("<plugin>.<service>", svc)` during Mount; consumers resolve lazily (in `Start` or per-request) with `plugin.LookupAs[T]` and degrade when absent. Duplicate names fail startup.
-- **AutoMigrate preflight** (app/preflight.go): all models migrate once, after every registration; two different plugin model types claiming the same non-core table fail startup (mirroring a core table is the allowed convention).
+- **AutoMigrate preflight** (server/app/preflight.go): all models migrate once, after every registration; two different plugin model types claiming the same non-core table fail startup (mirroring a core table is the allowed convention).
 
 ## 3. Frontend contract & build-time composition
 
@@ -83,7 +83,7 @@ The SDK re-exports the shared component library plugins build against, so a plug
 
 The core's binary embeds `webembed/dist` (OSS dashboard, empty registry). The commercial build overrides it:
 
-1. **`app.WithWebFS(fs.FS)`** (core `app/app.go`) — injection point; defaults to the embedded OSS FS when unset.
+1. **`app.WithWebFS(fs.FS)`** (core `server/app/app.go`) — injection point; defaults to the embedded OSS FS when unset.
 2. **`OCTARQ_WEBEMBED_OUT`** (core `web/vite.config.ts` + build script) — makes the dashboard build outDir overridable so the commercial build reuses the exact same build; default unchanged. (The buyer portal is no longer a core Vite entry — it moved to octarq-pro behind `plugin.Context.HandleStatic`; see [Core Decoupling Audit](/architecture/core-plugins/) §2.5.)
 3. **octarq-pro `webembed/`** — its own package embedding a dashboard built against octarq-pro's plugin manifest into `octarq-pro/webembed/dist` (via `make web`, which runs `OCTARQ_WEBEMBED_OUT=$(CURDIR)/webembed/dist OCTARQ_PLUGINS_MANIFEST=$(CURDIR)/octarq.plugins.json pnpm build` against `../octarq/web`). `main.go` calls `a.WithWebFS(webembed.FS())`. CI's `dashboard.yml` builds and commits this dist with a Packages token so the private plugin packages resolve.
 
@@ -121,8 +121,8 @@ For detailed development rules and architectural constraints, see [Developer Con
 ## 9. File map
 
 Core (octarq):
-- `plugin/plugin.go` — backend contract + `Context`.
-- `app/app.go` — `Use`, `gatedMux`, `WithWebFS`, CSRF wrap, server wiring.
+- `server/plugin/plugin.go` — backend contract + `Context`.
+- `server/app/app.go` — `Use`, `gatedMux`, `WithWebFS`, CSRF wrap, server wiring.
 - `packages/plugin-sdk/` — the SDK package (contract + shadcn UI).
 - `web/src/plugin-sdk/` — app-side facade re-exporting the package.
 - `web/octarq.plugins.json` — the plugin manifest (OSS default edition).
@@ -130,8 +130,8 @@ Core (octarq):
 - `web/src/plugins/PluginRoutes.tsx` / `PluginGate.tsx` — route renderer + the centralized 402/403/404 degrade boundary.
 - `web/src/plugins/core/` — octarq's own core-feature UIPlugins (always composed from `main.tsx`).
 - `web/vite.config.ts` — `octarqPlugins()`, `OCTARQ_WEBEMBED_OUT`.
-- `examples/plugin-hello/web/` — the example plugin, packaged as `@acme/octarq-plugin-hello` (OSS default).
-- `plugins/*/docs/` — in-app help pages, served under `/help/<slug>`.
+- `server/examples/plugin-hello/web/` — the example plugin, packaged as `@acme/octarq-plugin-hello` (OSS default).
+- `server/plugins/*/docs/` — in-app help pages, served under `/help/<slug>`.
 - `website/src/content/docs/` — this documentation site.
 
 octarq-pro:

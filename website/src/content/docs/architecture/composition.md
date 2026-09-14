@@ -24,8 +24,8 @@ In the default open-source entry point (`main.go`), plugins are explicitly impor
 package main
 
 import (
-    "github.com/octarq-org/octarq/app"
-    "github.com/octarq-org/octarq/plugins/builtin"
+    "github.com/octarq-org/octarq/server/app"
+    "github.com/octarq-org/octarq/server/plugins/builtin"
 )
 
 func main() {
@@ -45,10 +45,10 @@ The `builtin.Default()` helper returns the standard set of core plugins in their
 package builtin
 
 import (
-    "github.com/octarq-org/octarq/plugin"
-    "github.com/octarq-org/octarq/plugins/dns"
-    "github.com/octarq-org/octarq/plugins/links"
-    "github.com/octarq-org/octarq/plugins/mail"
+    "github.com/octarq-org/octarq/server/plugin"
+    "github.com/octarq-org/octarq/server/plugins/dns"
+    "github.com/octarq-org/octarq/server/plugins/links"
+    "github.com/octarq-org/octarq/server/plugins/mail"
 )
 
 func Default() []plugin.Plugin {
@@ -64,8 +64,8 @@ The commercial edition (`octarq-pro`) utilizes the exact same mechanism. It moun
 package main
 
 import (
-    "github.com/octarq-org/octarq/app"
-    "github.com/octarq-org/octarq/plugins/builtin"
+    "github.com/octarq-org/octarq/server/app"
+    "github.com/octarq-org/octarq/server/plugins/builtin"
     "github.com/octarq-org/octarq-pro/plugins/billing"
     "github.com/octarq-org/octarq-pro/plugins/issuer"
 )
