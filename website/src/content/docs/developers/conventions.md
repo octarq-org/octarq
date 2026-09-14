@@ -54,7 +54,7 @@ package hello
 import (
     "context"
     "net/http"
-    "github.com/octarq-org/octarq/plugin"
+    "github.com/octarq-org/octarq/server/plugin"
 )
 
 type Plugin struct{}
@@ -173,7 +173,7 @@ All endpoints that create resources, process payments, or trigger external mutat
 Use the host idempotency middleware via the service registry:
 
 ```go
-import "github.com/octarq-org/octarq/idempotency"
+import "github.com/octarq-org/octarq/server/idempotency"
 
 type middleware = func(http.Handler) http.Handler
 
@@ -203,7 +203,7 @@ When a user's role is changed, their permissions are modified, or they are remov
 Any outbound HTTP request where the destination URL is supplied or influenced by users, tenants, webhooks, or external OIDC discovery **must** use `plugin/safehttp`:
 
 ```go
-import "github.com/octarq-org/octarq/plugin/safehttp"
+import "github.com/octarq-org/octarq/server/plugin/safehttp"
 
 client := safehttp.NewClient(10 * time.Second)
 resp, err := safehttp.Get(ctx, client, targetURL, "Octarq-Bot/1.0")

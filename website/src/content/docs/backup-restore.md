@@ -33,7 +33,7 @@ secret manager instead and must be backed up there.
 ### 2. Postgres backup/restore needs host tools — it cannot run inside the container
 
 The Postgres path shells out to `pg_dump` / `pg_restore` / `psql` from the
-PostgreSQL client tools ([`internal/db/backup.go`](https://github.com/octarq-org/octarq/blob/main/internal/db/backup.go)).
+PostgreSQL client tools ([`server/internal/db/backup.go`](https://github.com/octarq-org/octarq/blob/main/server/internal/db/backup.go)).
 The published Octarq images (scratch / distroless) are minimal and do **not**
 contain those binaries, so `octarq backup` / `octarq restore` against Postgres
 fail inside a stock container with a "pg_dump command not found" error. Run the
