@@ -702,9 +702,15 @@ func (a *App) Run(ctx context.Context) error {
 	if webFS == nil {
 		embedded, err := webembed.FS()
 		if err != nil {
-			return err
+			if a.cfg.DevWebProxy == "" {
+				return err
+			}
+		} else {
+			webFS = embedded
 		}
-		webFS = embedded
+	}
+	if a.cfg.DevWebProxy != "" {
+		slog.Info("dev web proxy enabled", "target", a.cfg.DevWebProxy)
 	}
 	// CSRFGuard wraps the fully-assembled mux (core + plugin routes) to block
 	// cross-site state-changing requests and validate double-submit tokens.

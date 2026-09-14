@@ -29,18 +29,18 @@ jobs:
         with:
           filters: |
             go:
-              - '**/*.go'
               - 'server/**'
-              - 'server/go.mod'
-              - 'server/go.sum'
+              - '!server/**/*.md'
               - 'Makefile'
               - 'Dockerfile'
+              - 'Dockerfile.release'
               - 'docker-compose.yml'
-              - 'server/.golangci.yml'
               - '.github/workflows/ci.yml'
             web:
               - 'web/**'
+              - '!web/**/*.md'
               - 'packages/**'
+              - '!packages/**/*.md'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'

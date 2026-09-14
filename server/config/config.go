@@ -89,6 +89,12 @@ type Config struct {
 	// silence ops debugging. Empty means "info".
 	LogLevel string
 
+	// DevWebProxy configures an optional development reverse-proxy target URL
+	// (e.g. "http://localhost:5173"). When configured, non-API frontend and SPA
+	// requests are reverse-proxied to this dev server (with HMR support)
+	// instead of serving embedded static files from webFS.
+	DevWebProxy string
+
 	// OpenTelemetry configuration.
 	OTelEnabled         bool
 	OTelEndpoint        string
@@ -235,6 +241,8 @@ func Load() (*Config, error) {
 		RedisURL: env("OCTARQ_REDIS_URL", ""),
 
 		PublicCORSOrigins: env("OCTARQ_CORS_ORIGINS", ""),
+
+		DevWebProxy: env("OCTARQ_DEV_WEB_PROXY", ""),
 
 		LogLevel: normalizeLogLevel(env("OCTARQ_LOG_LEVEL", "info")),
 
