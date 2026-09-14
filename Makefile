@@ -32,9 +32,10 @@ run: build
 	./$(BINARY)
 
 # Hot-reload dev mode:
-#   - air     → watches *.go, rebuilds & restarts the API
-#   - vite    → serves the frontend on :5173 with HMR, proxies /api → backend
-# Open http://localhost:5173/admin/
+#   - air     → watches *.go, rebuilds & restarts the API (listening on :8680)
+#   - vite    → serves the frontend on :5173 with HMR
+#   - backend → transparently proxies /admin & SPA requests to :5173 (OCTARQ_DEV_WEB_PROXY)
+# Open http://localhost:8680/admin/ (or http://localhost:5173/admin/)
 # Override port:  OCTARQ_PORT=9000 make dev
 # Ctrl-C kills both processes.
 #
@@ -48,6 +49,7 @@ dev:
 	@echo "Starting backend (air) + frontend (vite) with hot reload..."
 	@export OCTARQ_PORT=$${OCTARQ_PORT:-8680}; \
 	  export OCTARQ_LISTEN=":$$OCTARQ_PORT"; \
+	  export OCTARQ_DEV_WEB_PROXY="http://localhost:5173"; \
 	  trap 'kill 0' INT; \
 	  (cd server && $(AIR)) & \
 	  (cd web && OCTARQ_PORT=$$OCTARQ_PORT pnpm dev) & \

@@ -327,3 +327,20 @@ func TestLogLevelFeedsSlogLogger(t *testing.T) {
 		t.Errorf("error must name the variable, got: %v", lerr)
 	}
 }
+
+func TestDevWebProxyConfig(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("OCTARQ_SECRET_KEY", "1234567890123456")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "secret")
+	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
+	t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
+	t.Setenv("OCTARQ_DEV_WEB_PROXY", "http://localhost:5173")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.DevWebProxy != "http://localhost:5173" {
+		t.Errorf("DevWebProxy = %q, want http://localhost:5173", cfg.DevWebProxy)
+	}
+}

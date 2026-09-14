@@ -11,9 +11,13 @@
 package server
 
 import (
+	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"strings"
 
 	"github.com/octarq-org/octarq/server/config"
@@ -48,6 +52,7 @@ type Server struct {
 	static       http.Handler
 	spaIdx       []byte
 	assets       fs.FS
+	devProxy     *httputil.ReverseProxy
 	mounts       []preparedMount
 	mw           *middleware
 	origins      *origin.Resolver
@@ -60,18 +65,54 @@ type Server struct {
 // settings for the edge middleware (rate limits, metrics token); zero value =
 // built-in defaults.
 func New(cfg *config.Config, db *gorm.DB, apiHandler http.Handler, rootFallback http.Handler, webFS fs.FS, mounts []StaticMount, rs RuntimeSettings) (*Server, error) {
-	idx, err := fs.ReadFile(webFS, "index.html")
-	if err != nil {
-		return nil, err
+	var devProxy *httputil.ReverseProxy
+	if cfg != nil && cfg.DevWebProxy != "" {
+		target, err := url.Parse(cfg.DevWebProxy)
+		if err != nil || target.Scheme == "" || target.Host == "" {
+			return nil, fmt.Errorf("invalid OCTARQ_DEV_WEB_PROXY URL %q: scheme and host required", cfg.DevWebProxy)
+		}
+		devProxy = httputil.NewSingleHostReverseProxy(target)
+		origDirector := devProxy.Director
+		devProxy.Director = func(req *http.Request) {
+			origDirector(req)
+			req.Host = target.Host
+		}
+		devProxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+			slog.Warn("dev web proxy connection error", "target", target.String(), "path", r.URL.Path, "err", err)
+			http.Error(w, fmt.Sprintf("OCTARQ_DEV_WEB_PROXY failed to connect to frontend dev server (%s): %v\nMake sure your frontend dev server is running (e.g. 'cd web && pnpm dev')", target.String(), err), http.StatusBadGateway)
+		}
 	}
-	trustProxy = cfg.TrustProxy
+
+	var idx []byte
+	if devProxy == nil {
+		if webFS == nil {
+			return nil, fmt.Errorf("webFS is nil")
+		}
+		var err error
+		idx, err = fs.ReadFile(webFS, "index.html")
+		if err != nil {
+			return nil, err
+		}
+	} else if webFS != nil {
+		idx, _ = fs.ReadFile(webFS, "index.html")
+	}
+
+	var staticHandler http.Handler
+	if webFS != nil {
+		staticHandler = http.StripPrefix("/admin/", http.FileServer(http.FS(webFS)))
+	}
+
+	if cfg != nil {
+		trustProxy = cfg.TrustProxy
+	}
 	s := &Server{
 		cfg:          cfg,
 		api:          apiHandler,
 		rootFallback: rootFallback,
-		static:       http.StripPrefix("/admin/", http.FileServer(http.FS(webFS))),
+		static:       staticHandler,
 		spaIdx:       idx,
 		assets:       webFS,
+		devProxy:     devProxy,
 		mw:           newMiddleware(rs),
 		origins:      origin.NewResolver(db),
 	}
@@ -139,6 +180,10 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 			return
 		}
+		if s.devProxy != nil {
+			s.devProxy.ServeHTTP(w, r)
+			return
+		}
 		rest := strings.TrimPrefix(strings.TrimPrefix(path, "/admin"), "/")
 		if rest != "" && s.assetExists(rest) {
 			s.static.ServeHTTP(w, r)
@@ -159,6 +204,10 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 			return
 		}
+		if s.devProxy != nil {
+			s.devProxy.ServeHTTP(w, r)
+			return
+		}
 		s.serveIndex(w)
 		return
 	}
@@ -174,6 +223,10 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 	if path == "/instance" || strings.HasPrefix(path, "/instance/") {
 		if !s.dashboardAllowed(r.Host) {
 			http.NotFound(w, r)
+			return
+		}
+		if s.devProxy != nil {
+			s.devProxy.ServeHTTP(w, r)
 			return
 		}
 		s.serveIndex(w)
@@ -283,6 +336,9 @@ func (s *Server) dashboardAllowed(host string) bool {
 }
 
 func (s *Server) assetExists(name string) bool {
+	if s.assets == nil {
+		return false
+	}
 	f, err := s.assets.Open(name)
 	if err != nil {
 		return false
