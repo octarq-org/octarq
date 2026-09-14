@@ -1,13 +1,14 @@
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
+const serverDir = join(root, "..", "server");
 
 console.log("[website] Generating public/openapi.json from Go handlers...");
 try {
-  execSync("go run ../cmd/openapi-gen > public/openapi.json", {
-    cwd: root,
+  execSync("go run cmd/openapi-gen/main.go > " + join(root, "public", "openapi.json"), {
+    cwd: serverDir,
     stdio: ["ignore", "pipe", "inherit"],
   });
   console.log("[website] Successfully generated public/openapi.json");

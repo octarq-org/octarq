@@ -498,7 +498,7 @@ function checkKeyResolution() {
   // examples/ is in scope because it is the plugin authors copy: its dictionary
   // has to satisfy the same rules the audit enforces everywhere else, or the
   // reference implementation teaches the gap.
-  const roots = [path.join(webDir, "src"), path.join(repoDir, "packages"), path.join(repoDir, "examples")];
+  const roots = [path.join(webDir, "src"), path.join(repoDir, "packages"), path.join(repoDir, "server", "examples")];
   if (fs.existsSync(path.join(proDir, "packages"))) roots.push(path.join(proDir, "packages"));
 
   const files = roots.flatMap(getSourceFiles);
@@ -565,7 +565,7 @@ function checkKeyResolution() {
 // scan above, so it can see both sides whenever both are checked out.
 
 const GO_MENU_ROOTS = [
-  [repoDir, ["internal/api", "plugins", "examples"]],
+  [repoDir, ["server/internal/api", "server/plugins", "server/examples"]],
   [proDir, ["modules"]],
 ];
 

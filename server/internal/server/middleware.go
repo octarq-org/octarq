@@ -1,0 +1,742 @@
+package server
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/hex"
+	"encoding/json"
+	"expvar"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/octarq-org/octarq/server/pkg/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+)
+
+// ctxKey is an unexported type for context keys defined in this package, so
+// they can never collide with keys defined elsewhere.
+type ctxKey int
+
+// RequestIDKey is the context key under which the per-request ID is stored.
+// Future handlers can read it with r.Context().Value(server.RequestIDKey).
+const RequestIDKey ctxKey = iota
+
+// RequestID returns the request ID carried on the context, or "" if absent.
+func RequestID(ctx context.Context) string {
+	if v, ok := ctx.Value(RequestIDKey).(string); ok {
+		return v
+	}
+	return ""
+}
+
+// Metrics (stdlib expvar)
+
+// metrics holds the operational counters exposed at /metrics. They are backed
+// by expvar so they are safe for concurrent updates without extra locking.
+type metrics struct {
+	startedAt time.Time
+	requests  *expvar.Int
+	status2xx *expvar.Int
+	status3xx *expvar.Int
+	status4xx *expvar.Int
+	status5xx *expvar.Int
+	inFlight  *expvar.Int
+}
+
+// newMetrics builds the counters. expvar's global registry panics on duplicate
+// names, so we look up existing vars first (handy across test re-runs) and fall
+// back to publishing fresh ones.
+func newMetrics() *metrics {
+	return &metrics{
+		startedAt: time.Now(),
+		requests:  getOrNewInt("octarq_requests_total"),
+		status2xx: getOrNewInt("octarq_responses_2xx"),
+		status3xx: getOrNewInt("octarq_responses_3xx"),
+		status4xx: getOrNewInt("octarq_responses_4xx"),
+		status5xx: getOrNewInt("octarq_responses_5xx"),
+		inFlight:  getOrNewInt("octarq_requests_in_flight"),
+	}
+}
+
+func getOrNewInt(name string) *expvar.Int {
+	if v := expvar.Get(name); v != nil {
+		if iv, ok := v.(*expvar.Int); ok {
+			return iv
+		}
+	}
+	return expvar.NewInt(name)
+}
+
+// record updates the counters for one completed request.
+func (m *metrics) record(status int) {
+	m.requests.Add(1)
+	switch {
+	case status >= 500:
+		m.status5xx.Add(1)
+	case status >= 400:
+		m.status4xx.Add(1)
+	case status >= 300:
+		m.status3xx.Add(1)
+	default:
+		m.status2xx.Add(1)
+	}
+}
+
+// snapshot renders the current metrics as a JSON-serialisable map.
+func (m *metrics) snapshot() map[string]any {
+	return map[string]any{
+		"uptime_seconds":     int64(time.Since(m.startedAt).Seconds()),
+		"requests_total":     m.requests.Value(),
+		"responses_2xx":      m.status2xx.Value(),
+		"responses_3xx":      m.status3xx.Value(),
+		"responses_4xx":      m.status4xx.Value(),
+		"responses_5xx":      m.status5xx.Value(),
+		"requests_in_flight": m.inFlight.Value(),
+	}
+}
+
+// Rate limiter (fixed-window, in-memory, IP-keyed)
+
+// tier identifies which threshold applies to a request.
+type tier int
+
+const (
+	tierAuth     tier = iota // auth-sensitive: strict
+	tierAPI                  // general API: generous
+	tierRedirect             // short-link hot path: very loose
+)
+
+// rlCounter is one IP's request count within the current fixed window.
+type rlCounter struct {
+	count   int
+	resetAt time.Time
+}
+
+// rateLimiter is a fixed-window per-IP limiter shared across tiers. The map key
+// is "tier|ip" so the same IP gets an independent budget per tier.
+type rateLimiter struct {
+	window    time.Duration
+	limits    map[tier]int
+	mu        sync.Mutex
+	counters  map[string]*rlCounter
+	lastSweep time.Time
+}
+
+func newRateLimiter() *rateLimiter {
+	return &rateLimiter{
+		window: time.Minute,
+		limits: map[tier]int{
+			tierAuth:     defaultAuthRPM,
+			tierAPI:      defaultAPIRPM,
+			tierRedirect: defaultRedirectRPM,
+		},
+		counters:  make(map[string]*rlCounter),
+		lastSweep: time.Now(),
+	}
+}
+
+// setLimits replaces the per-tier budgets (from the runtime settings refresh).
+func (rl *rateLimiter) setLimits(authRPM, apiRPM, redirectRPM int) {
+	rl.mu.Lock()
+	rl.limits = map[tier]int{tierAuth: authRPM, tierAPI: apiRPM, tierRedirect: redirectRPM}
+	rl.mu.Unlock()
+}
+
+// allow reports whether a request from ip in the given tier may proceed. When
+// denied it also returns the Retry-After duration until the window resets. A
+// non-positive limit disables the tier (always allowed).
+func (rl *rateLimiter) allow(t tier, ip string, now time.Time) (bool, time.Duration) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	limit := rl.limits[t]
+	if limit <= 0 {
+		return true, 0
+	}
+
+	rl.sweepLocked(now)
+
+	key := strconv.Itoa(int(t)) + "|" + ip
+	c := rl.counters[key]
+	if c == nil || now.After(c.resetAt) {
+		rl.counters[key] = &rlCounter{count: 1, resetAt: now.Add(rl.window)}
+		return true, 0
+	}
+	if c.count >= limit {
+		return false, time.Until(c.resetAt)
+	}
+	c.count++
+	return true, 0
+}
+
+// budget reports the current window's state for one ip/tier without consuming
+// any of it: the tier's limit, how many requests remain, and when the window
+// resets. Read-only on purpose — allow() stays the only mutator, so its
+// signature (and its callers) are untouched by rate-limit headers existing.
+//
+// A limit of 0 means the tier is disabled; the caller then emits no headers,
+// which is honest — "unlimited" has no number to report.
+func (rl *rateLimiter) budget(t tier, ip string, now time.Time) (limit, remaining int, resetAt time.Time) {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	limit = rl.limits[t]
+	if limit <= 0 {
+		return 0, 0, time.Time{}
+	}
+	c := rl.counters[strconv.Itoa(int(t))+"|"+ip]
+	if c == nil || now.After(c.resetAt) {
+		return limit, limit, now.Add(rl.window)
+	}
+	remaining = limit - c.count
+	if remaining < 0 {
+		remaining = 0
+	}
+	return limit, remaining, c.resetAt
+}
+
+// sweepLocked drops expired counters so the map can't grow without bound. It is
+// throttled to run at most once per window. Caller must hold rl.mu.
+func (rl *rateLimiter) sweepLocked(now time.Time) {
+	if now.Sub(rl.lastSweep) < rl.window {
+		return
+	}
+	rl.lastSweep = now
+	for k, c := range rl.counters {
+		if now.After(c.resetAt) {
+			delete(rl.counters, k)
+		}
+	}
+}
+
+// tierFor classifies a request into a rate-limit tier by path/method.
+func tierFor(r *http.Request) tier {
+	p := r.URL.Path
+	// /api/v1/x is an alias the mux rewrites to /api/x, but this middleware runs
+	// before the mux and still sees the v1 form. Normalize before classifying,
+	// or /api/v1/auth/login lands in the generous API tier instead of the strict
+	// auth tier — a rate-limit bypass for password brute force.
+	if strings.HasPrefix(p, "/api/v1/") {
+		p = "/api/" + strings.TrimPrefix(p, "/api/v1/")
+	}
+	switch {
+	case strings.HasPrefix(p, "/api/auth/"), strings.HasPrefix(p, "/api/webhook/"):
+		return tierAuth
+	case r.Method == http.MethodPost && p == "/abuse":
+		return tierAuth
+	case strings.HasPrefix(p, "/api/"):
+		return tierAPI
+	case p == "/admin" || strings.HasPrefix(p, "/admin/"),
+		p == "/portal" || strings.HasPrefix(p, "/portal/"),
+		p == "/instance" || strings.HasPrefix(p, "/instance/"),
+		p == "/status" || p == "/status/",
+		p == "/", p == "/metrics":
+		// Dashboard/portal/root: treat as general API budget, not the loose
+		// redirect budget (these are not the redirect hot path).
+		return tierAPI
+	default:
+		// Root-namespace short-link redirects — the product hot path.
+		return tierRedirect
+	}
+}
+
+// Client IP
+
+// trustProxy gates whether proxy-supplied client-IP headers are honoured. Set
+// once from config at server construction; when false, X-Forwarded-For /
+// X-Real-IP are ignored so clients can't spoof their IP to evade rate limits.
+var trustProxy bool
+
+// clientIP returns the best-guess client IP. When trustProxy is enabled it
+// honours the first hop of X-Forwarded-For then X-Real-IP, falling back to
+// RemoteAddr; otherwise it always uses RemoteAddr.
+func clientIP(r *http.Request) string {
+	if trustProxy {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			if first := strings.TrimSpace(strings.Split(xff, ",")[0]); first != "" {
+				return first
+			}
+		}
+		if rip := strings.TrimSpace(r.Header.Get("X-Real-IP")); rip != "" {
+			return rip
+		}
+	}
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
+}
+
+// isLoopback reports whether the direct peer (RemoteAddr, ignoring proxy
+// headers) is a loopback address. Used to bind /metrics to localhost when no
+// token is configured.
+func isLoopback(r *http.Request) bool {
+	host := r.RemoteAddr
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	if host == "" {
+		return false
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsLoopback()
+	}
+	return host == "localhost"
+}
+
+// Request ID
+
+// newRequestID returns a random 16-hex-char (8-byte) request ID.
+func newRequestID() string {
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return strconv.FormatInt(time.Now().UnixNano(), 16)
+	}
+	return hex.EncodeToString(b[:])
+}
+
+// sanitizeRequestID accepts an inbound X-Request-Id only if it's short and made
+// of safe characters, otherwise returns "" so we generate a fresh one.
+func sanitizeRequestID(v string) string {
+	v = strings.TrimSpace(v)
+	if v == "" || len(v) > 128 {
+		return ""
+	}
+	for _, c := range v {
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '-' && c != '_' && c != '.' {
+			return ""
+		}
+	}
+	return v
+}
+
+// ResponseWriter wrapper (capture status + byte count)
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+	wrote  bool
+}
+
+func (sr *statusRecorder) WriteHeader(code int) {
+	if !sr.wrote {
+		sr.status = code
+		sr.wrote = true
+	}
+	sr.ResponseWriter.WriteHeader(code)
+}
+
+func (sr *statusRecorder) Write(b []byte) (int, error) {
+	if !sr.wrote {
+		sr.status = http.StatusOK
+		sr.wrote = true
+	}
+	return sr.ResponseWriter.Write(b)
+}
+
+// Flush lets the wrapper stay transparent to streaming handlers.
+func (sr *statusRecorder) Flush() {
+	if f, ok := sr.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// Middleware
+
+// Rate-limit defaults (requests per minute per IP), used until the first
+// settings refresh and when a setting is absent. Kept in sync with the API
+// layer's defaults for the same settings keys.
+const (
+	defaultAuthRPM     = 60
+	defaultAPIRPM      = 600
+	defaultRedirectRPM = 6000
+)
+
+// settingsRefreshInterval bounds how often the edge middleware re-reads its
+// DB-backed runtime settings (rate limits, metrics token). The redirect hot
+// path must never query the settings table per request.
+const settingsRefreshInterval = 30 * time.Second
+
+// RuntimeSettings supplies the DB-backed runtime configuration the edge
+// middleware needs. All funcs are optional (nil = built-in defaults); they are
+// polled at most once per settingsRefreshInterval.
+type RuntimeSettings struct {
+	// MetricsToken returns the /metrics bearer token; empty = loopback-only.
+	MetricsToken func() string
+	// RateLimits returns the per-IP RPM budgets for the auth/api/redirect tiers.
+	RateLimits func() (authRPM, apiRPM, redirectRPM int)
+	// CORSOrigins returns the exact origins allowed to read public GET API
+	// endpoints cross-origin. nil/empty = CORS disabled (no headers ever sent).
+	CORSOrigins func() []string
+	// PublicGET reports whether a path hosts a public GET endpoint — the only
+	// routes CORS is ever granted to. nil disables CORS.
+	PublicGET func(path string) bool
+}
+
+// middleware bundles the edge concerns (request IDs, rate limiting, metrics,
+// access logging) wrapped around the router.
+type middleware struct {
+	limiter  *rateLimiter
+	metrics  *metrics
+	settings RuntimeSettings
+
+	confMu       sync.Mutex
+	confAt       time.Time
+	metricsToken string
+	corsOrigins  []string
+}
+
+func newMiddleware(rs RuntimeSettings) *middleware {
+	return &middleware{
+		limiter:  newRateLimiter(),
+		metrics:  newMetrics(),
+		settings: rs,
+	}
+}
+
+// refreshConfig re-reads the DB-backed runtime settings at most once per
+// settingsRefreshInterval, so setting changes apply without a restart while the
+// hot path stays off the database.
+func (mw *middleware) refreshConfig(now time.Time) {
+	mw.confMu.Lock()
+	defer mw.confMu.Unlock()
+	if now.Sub(mw.confAt) < settingsRefreshInterval && !mw.confAt.IsZero() {
+		return
+	}
+	mw.confAt = now
+	if mw.settings.MetricsToken != nil {
+		mw.metricsToken = strings.TrimSpace(mw.settings.MetricsToken())
+	}
+	if mw.settings.RateLimits != nil {
+		mw.limiter.setLimits(mw.settings.RateLimits())
+	}
+	if mw.settings.CORSOrigins != nil {
+		mw.corsOrigins = mw.settings.CORSOrigins()
+	}
+}
+
+// currentMetricsToken returns the cached metrics token.
+func (mw *middleware) currentMetricsToken() string {
+	mw.confMu.Lock()
+	defer mw.confMu.Unlock()
+	return mw.metricsToken
+}
+
+// currentCORSOrigins returns the cached cross-origin allowlist.
+func (mw *middleware) currentCORSOrigins() []string {
+	mw.confMu.Lock()
+	defer mw.confMu.Unlock()
+	return mw.corsOrigins
+}
+
+// originAllowed reports whether origin is an EXACT member of allow. Prefix and
+// substring matches are deliberately rejected: "https://octarq.org.evil.com"
+// must never pass because it merely contains "octarq.org".
+func originAllowed(origin string, allow []string) bool {
+	for _, a := range allow {
+		if origin == a {
+			return true
+		}
+	}
+	return false
+}
+
+// applyCORS writes cross-origin headers for requests to public GET endpoints
+// whose Origin is in the configured allowlist, and short-circuits an approved
+// preflight. It returns true only when the request was a preflight that this
+// middleware already answered (204) and the router must not see.
+//
+// The security contract is deliberate and non-negotiable:
+//   - only GET endpoints the auth gate lets through unauthenticated;
+//   - the Origin must match the allowlist exactly;
+//   - Access-Control-Allow-Credentials is never set. These endpoints are public
+//     data; once credentials are allowed, any whitelisted origin that is ever
+//     compromised can act as the user against every API on the instance.
+func (mw *middleware) applyCORS(w http.ResponseWriter, r *http.Request) bool {
+	if mw.settings.PublicGET == nil {
+		return false
+	}
+	if !mw.settings.PublicGET(r.URL.Path) {
+		return false
+	}
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		// No Origin header: same-origin or non-browser client, no CORS needed.
+		return false
+	}
+
+	if r.Method == http.MethodOptions {
+		// Preflight. Only a GET read is ever on offer; a preflight asking for
+		// anything else is not answered (the browser will block the follow-up).
+		if !strings.EqualFold(r.Header.Get("Access-Control-Request-Method"), http.MethodGet) {
+			return false
+		}
+		if !originAllowed(origin, mw.currentCORSOrigins()) {
+			return false
+		}
+		h := w.Header()
+		h.Set("Access-Control-Allow-Origin", origin)
+		h.Set("Access-Control-Allow-Methods", http.MethodGet)
+		if reqHeaders := r.Header.Get("Access-Control-Request-Headers"); reqHeaders != "" {
+			h.Set("Access-Control-Allow-Headers", reqHeaders)
+		}
+		h.Set("Access-Control-Max-Age", "600")
+		h.Add("Vary", "Origin")
+		h.Add("Vary", "Access-Control-Request-Method")
+		h.Add("Vary", "Access-Control-Request-Headers")
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	}
+
+	if r.Method != http.MethodGet {
+		return false
+	}
+	// Vary on Origin whenever the response is origin-dependent, so a shared
+	// cache never serves a non-CORS copy to an allowed origin or vice versa.
+	if originAllowed(origin, mw.currentCORSOrigins()) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	}
+	w.Header().Add("Vary", "Origin")
+	return false
+}
+
+// contentSecurityPolicy is the baseline CSP applied to every response.
+//
+// script-src deliberately has NO 'unsafe-inline': without it, an XSS that finds
+// a single injection point cannot execute arbitrary inline scripts — CSP is a
+// real mitigation layer. The two inline scripts the dashboard genuinely ships
+// (the synchronous theme toggle and the campaign-forwarding snippet in
+// index.html) are allow-listed by their exact build-time SHA-256 hashes instead.
+// Rebuilding index.html changes those hashes; the hash values here must be
+// regenerated from the served index.html (see setSecurityHeaders' guard test,
+// which recomputes them from the embedded dist and fails if they drift).
+//
+// style-src KEEPS 'unsafe-inline': Tailwind injects its styles at runtime and
+// removing it would blank the whole dashboard.
+const contentSecurityPolicy = "default-src 'self'; script-src 'self' 'sha256-XOdMZOShyEmv5lOxX1JVnl4Ve1llBlA5kNEaund+AXQ=' 'sha256-0la+svl4yiuBleyZsFu+6aWjFtuvmwtPoqXKtkLO42Q='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'"
+
+// setSecurityHeaders applies baseline hardening headers to every response.
+func setSecurityHeaders(w http.ResponseWriter, r *http.Request) {
+	h := w.Header()
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("X-Frame-Options", "SAMEORIGIN")
+	h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	h.Set("Content-Security-Policy", contentSecurityPolicy)
+	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+		h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+	}
+}
+
+// handle applies the edge middleware and then dispatches to next.
+func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+	start := time.Now()
+	ip := clientIP(r)
+	mw.refreshConfig(start)
+	setSecurityHeaders(w, r)
+
+	// 0. OpenTelemetry incoming trace context extraction & server span
+	ctx := telemetry.ExtractHTTP(r.Context(), r.Header)
+	spanName := fmt.Sprintf("HTTP %s %s", r.Method, r.URL.Path)
+	ctx, span := telemetry.StartSpan(ctx, "github.com/octarq-org/octarq/server/http", spanName,
+		trace.WithSpanKind(trace.SpanKindServer),
+		trace.WithAttributes(
+			attribute.String("http.method", r.Method),
+			attribute.String("http.path", r.URL.Path),
+			attribute.String("http.route", r.URL.Path),
+			attribute.String("http.host", r.Host),
+			attribute.String("client.ip", ip),
+			attribute.String("user_agent", r.UserAgent()),
+		),
+	)
+	defer span.End()
+
+	if sc := span.SpanContext(); sc.IsValid() {
+		w.Header().Set("X-Trace-Id", sc.TraceID().String())
+	}
+
+	// 1. Request ID: reuse a sane inbound one, else generate.
+	rid := sanitizeRequestID(r.Header.Get("X-Request-Id"))
+	if rid == "" {
+		rid = newRequestID()
+	}
+	w.Header().Set("X-Request-Id", rid)
+	span.SetAttributes(attribute.String("octarq.request_id", rid))
+	r = r.WithContext(context.WithValue(ctx, RequestIDKey, rid))
+
+	// 1.5. Cross-origin reads of public GET endpoints. An approved preflight
+	// short-circuits here (before rate limiting — preflights are cheap and
+	// browsers batch them); everything else falls through to normal routing.
+	if mw.applyCORS(w, r) {
+		telemetry.SetOK(span)
+		mw.finish(r, ip, rid, http.StatusNoContent, start)
+		return
+	}
+
+	// 2. Gated metrics endpoint.
+	if r.Method == http.MethodGet && r.URL.Path == "/metrics" {
+		mw.serveMetrics(w, r)
+		telemetry.SetOK(span)
+		mw.finish(r, ip, rid, http.StatusOK, start)
+		return
+	}
+
+	// 3. Rate limit by tier.
+	t := tierFor(r)
+	ok, retry := mw.limiter.allow(t, ip, start)
+	mw.setRateLimitHeaders(w, t, ip, start)
+	if !ok {
+		secs := int(retry.Seconds())
+		if secs < 1 {
+			secs = 1
+		}
+		w.Header().Set("Retry-After", strconv.Itoa(secs))
+		writeRateLimited(w, secs)
+		telemetry.RecordError(span, fmt.Errorf("rate limit exceeded"))
+		span.SetAttributes(attribute.Int("http.status_code", http.StatusTooManyRequests))
+		mw.finish(r, ip, rid, http.StatusTooManyRequests, start)
+		return
+	}
+
+	// 4. Dispatch with status capture + in-flight gauge.
+	mw.metrics.inFlight.Add(1)
+	tel := telemetry.Global()
+	if tel.Metrics != nil && tel.Metrics.HTTPRequestsInFlight != nil {
+		tel.Metrics.HTTPRequestsInFlight.Add(ctx, 1)
+		defer tel.Metrics.HTTPRequestsInFlight.Add(ctx, -1)
+	}
+
+	sr := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+	next(sr, r)
+	mw.metrics.inFlight.Add(-1)
+
+	span.SetAttributes(attribute.Int("http.status_code", sr.status))
+	if sr.status >= 500 {
+		span.SetStatus(codes.Error, fmt.Sprintf("HTTP %d", sr.status))
+	} else {
+		span.SetStatus(codes.Ok, "")
+	}
+
+	mw.metrics.record(sr.status)
+	if tel.Metrics != nil {
+		tel.Metrics.RecordHTTPRequest(ctx, r.Method, r.URL.Path, sr.status, time.Since(start), 0)
+	}
+	mw.finish(r, ip, rid, sr.status, start)
+}
+
+// redactPathSecrets returns a path safe to write to the access log.
+//
+// The inbound-mail webhook carries the org's secret as the LAST path segment —
+// POST /api/webhook/{orgSlug}/email/inbound/{token} and its siblings. Putting
+// the secret in the URL is deliberate and argued at plugins/mail/webhook.go:
+// SendGrid Inbound Parse and Mailgun routes let you configure a URL and nothing
+// else, so a custom auth header is not on the table, and the token rotates from
+// Mail settings. Logging it verbatim was not deliberate: it left every tenant's
+// inbound-mail credential in plaintext in the access log, readable by anyone
+// with log access and shipped onward to whatever aggregator collects them.
+//
+// OPERATOR CAVEAT: this only redacts octarq's own log line. Any reverse proxy,
+// CDN, or load balancer in front of octarq logs the full request URI and will
+// still record the token. Suppress the path (or the whole webhook route) in the
+// proxy's access-log config too, and rotate the token if those logs leaked.
+func redactPathSecrets(path string) string {
+	p := path
+	if strings.HasPrefix(p, "/api/v1/") {
+		p = "/api/" + strings.TrimPrefix(p, "/api/v1/")
+	}
+	if !strings.HasPrefix(p, "/api/webhook/") {
+		return path
+	}
+	i := strings.LastIndex(path, "/")
+	if i < 0 || i == len(path)-1 {
+		return path
+	}
+	return path[:i+1] + "[redacted]"
+}
+
+// setRateLimitHeaders publishes the caller's remaining budget on every response
+// the limiter governs, allowed or refused. Enforcing a limit without telling
+// anyone what it is makes every integrator discover it by tripping it: the
+// headers are what let a client pace itself instead of backing off blindly.
+//
+// X-RateLimit-Reset is a Unix timestamp in seconds — the widespread convention
+// (GitHub, Stripe). Retry-After, set only on a 429, stays delta-seconds per RFC 9110.
+func (mw *middleware) setRateLimitHeaders(w http.ResponseWriter, t tier, ip string, now time.Time) {
+	limit, remaining, resetAt := mw.limiter.budget(t, ip, now)
+	if limit <= 0 {
+		return
+	}
+	h := w.Header()
+	h.Set("X-RateLimit-Limit", strconv.Itoa(limit))
+	h.Set("X-RateLimit-Remaining", strconv.Itoa(remaining))
+	h.Set("X-RateLimit-Reset", strconv.FormatInt(resetAt.Unix(), 10))
+}
+
+// writeRateLimited emits the 429 in the same RFC 7807 shape huma gives every
+// other API error, instead of the text/plain line http.Error produces. A client
+// that parses error bodies should not need a special case for the one error
+// this middleware raises before the API handlers are ever reached.
+//
+// The body is written here rather than borrowed from internal/api: server must
+// not import api (api imports server), and duplicating four fields beats an
+// import cycle.
+func writeRateLimited(w http.ResponseWriter, retryAfterSecs int) {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(http.StatusTooManyRequests)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"title":  "Too Many Requests",
+		"status": http.StatusTooManyRequests,
+		"detail": "rate limit exceeded; retry in " + strconv.Itoa(retryAfterSecs) + "s",
+	})
+}
+
+// finish emits the edge access-log line.
+func (mw *middleware) finish(r *http.Request, ip, rid string, status int, start time.Time) {
+	attrs := []any{
+		"method", r.Method,
+		"path", redactPathSecrets(r.URL.Path),
+		"status", status,
+		"duration_ms", time.Since(start).Milliseconds(),
+		"request_id", rid,
+		"client_ip", ip,
+	}
+	if traceID := telemetry.TraceID(r.Context()); traceID != "" {
+		attrs = append(attrs, "trace_id", traceID, "span_id", telemetry.SpanID(r.Context()))
+	}
+	slog.InfoContext(r.Context(), "request", attrs...)
+}
+
+// serveMetrics gates and serves metrics. When OpenTelemetry Prometheus exporter
+// is active and the client does not explicitly ask for ?format=json, it serves
+// standard Prometheus metrics; otherwise it returns the JSON expvar snapshot.
+func (mw *middleware) serveMetrics(w http.ResponseWriter, r *http.Request) {
+	if !mw.metricsAllowed(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	tel := telemetry.Global()
+	if tel != nil && tel.PrometheusExporter != nil && r.URL.Query().Get("format") != "json" {
+		tel.PrometheusHandler().ServeHTTP(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(mw.metrics.snapshot())
+}
+
+func (mw *middleware) metricsAllowed(r *http.Request) bool {
+	if token := mw.currentMetricsToken(); token != "" {
+		got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		got = strings.TrimSpace(got)
+		return got != "" && subtle.ConstantTimeCompare([]byte(got), []byte(token)) == 1
+	}
+	// No token configured: bind to loopback only.
+	return isLoopback(r)
+}

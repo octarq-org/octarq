@@ -6,9 +6,12 @@
 
 FROM golang:1.25 AS build
 WORKDIR /src
-COPY go.mod go.sum ./
+COPY server/go.mod server/go.sum ./server/
+WORKDIR /src/server
 RUN go mod download
+WORKDIR /src
 COPY . .
+WORKDIR /src/server
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /octarq .
 
 FROM scratch

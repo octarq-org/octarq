@@ -1,7 +1,7 @@
 # ---- Stage 1: build the React dashboard ----
 # The dashboard's pnpm workspace (web/pnpm-workspace.yaml) includes the sibling
 # @octarq/plugin-sdk at ../packages/* and the example plugin
-# @acme/octarq-plugin-hello at ../examples/plugin-hello/web (the OSS default
+# @acme/octarq-plugin-hello at ../server/examples/plugin-hello/web (the OSS default
 # manifest composes it), so all three trees must be present for the workspace
 # dependencies to resolve. Manifests first for layer caching.
 FROM node:22-alpine AS web
@@ -9,12 +9,12 @@ RUN corepack enable
 WORKDIR /app
 COPY web/package.json web/pnpm-lock.yaml* web/pnpm-workspace.yaml ./web/
 COPY packages/plugin-sdk/package.json ./packages/plugin-sdk/
-COPY examples/plugin-hello/web/package.json ./examples/plugin-hello/web/
+COPY server/examples/plugin-hello/web/package.json ./server/examples/plugin-hello/web/
 WORKDIR /app/web
 RUN pnpm install --frozen-lockfile || pnpm install
 WORKDIR /app
 COPY packages/ ./packages/
-COPY examples/ ./examples/
+COPY server/examples/ ./server/examples/
 COPY web/ ./web/
 WORKDIR /app/web
 RUN pnpm build
@@ -22,18 +22,21 @@ RUN pnpm build
 # ---- Stage 2: build the Go binary (embeds the dashboard) ----
 FROM golang:1.25-alpine AS build
 WORKDIR /src
-COPY go.mod go.sum ./
+COPY server/go.mod server/go.sum ./server/
+WORKDIR /src/server
 RUN go mod download
+WORKDIR /src
 COPY . .
 # Bring in the freshly built dashboard so go:embed picks it up.
-COPY --from=web /app/webembed/dist ./webembed/dist
+COPY --from=web /app/server/webembed/dist ./server/webembed/dist
 ARG VERSION=dev
 ARG COMMIT=unknown
 ARG BUILD_TIME=unknown
+WORKDIR /src/server
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w \
-  -X github.com/octarq-org/octarq/internal/buildinfo.Version=${VERSION} \
-  -X github.com/octarq-org/octarq/internal/buildinfo.Commit=${COMMIT} \
-  -X github.com/octarq-org/octarq/internal/buildinfo.BuiltAt=${BUILD_TIME}" -o /octarq .
+  -X github.com/octarq-org/octarq/server/internal/buildinfo.Version=${VERSION} \
+  -X github.com/octarq-org/octarq/server/internal/buildinfo.Commit=${COMMIT} \
+  -X github.com/octarq-org/octarq/server/internal/buildinfo.BuiltAt=${BUILD_TIME}" -o /octarq .
 # Runtime data dir, owned by the container UID 65532. Created in this
 # shell-capable stage — the distroless runtime has no shell — then copied into
 # the final image (below) so a Docker-created volume over /data inherits the

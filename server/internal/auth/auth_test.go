@@ -1,0 +1,479 @@
+package auth
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	dns "github.com/octarq-org/octarq/server/plugins/dns"
+	links "github.com/octarq-org/octarq/server/plugins/links"
+	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
+
+	"github.com/glebarez/sqlite"
+	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/crypto"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"gorm.io/gorm"
+)
+
+// testEnvStore backs crypto.EnableEnvelope with the test DB's settings table.
+type testEnvStore struct{ db *gorm.DB }
+
+func (s testEnvStore) Get(key string) (string, bool) {
+	var row models.Setting
+	if s.db.First(&row, "key = ?", key).Error != nil {
+		return "", false
+	}
+	return row.Value, true
+}
+
+func (s testEnvStore) Set(key, val string) error {
+	return s.db.Save(&models.Setting{Key: key, Value: val}).Error
+}
+
+func testManager(t *testing.T) *Manager {
+	t.Helper()
+	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
+	return New(cfg, crypto.New(cfg.SecretKey))
+}
+
+func testDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	// One process-wide database on purpose. Opening a *per-test* one means a
+	// *sql.DB per test, and origin's cache namespace is keyed on that pointer —
+	// Go reuses the address after a closed DB is collected, so the next test
+	// reads back a dead one's "no domain is registered here" and honours a
+	// forged Host. See origin.namespace.
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mailmodels.Mailbox{}, &mailmodels.Email{}, &mailmodels.SMTPSender{})...); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	return db
+}
+
+func TestStatefulSessionRoundtrip(t *testing.T) {
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
+
+	rec := httptest.NewRecorder()
+	m.SetSession(rec, httptest.NewRequest(http.MethodGet, "/", nil), 1, 42)
+
+	cookies := rec.Result().Cookies()
+	var tokCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == cookieName {
+			tokCookie = c
+		}
+	}
+	if tokCookie == nil {
+		t.Fatalf("expected session cookie")
+		return
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	req.AddCookie(tokCookie)
+
+	if !m.Authed(req) {
+		t.Fatal("expected request to be authenticated")
+	}
+
+	if uid := m.UserID(req); uid != 1 {
+		t.Errorf("UserID = %d, want 1", uid)
+	}
+
+	if orgID := m.OrgID(req); orgID != 42 {
+		t.Errorf("OrgID = %d, want 42", orgID)
+	}
+}
+
+func TestStatefulSessionExpiryAndInvalidation(t *testing.T) {
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
+
+	rec := httptest.NewRecorder()
+	m.SetSession(rec, httptest.NewRequest(http.MethodGet, "/", nil), 1, 42)
+	var tokCookie *http.Cookie
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == cookieName {
+			tokCookie = c
+		}
+	}
+
+	// 1. Invalid token
+	reqBad := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	reqBad.AddCookie(&http.Cookie{Name: cookieName, Value: "garbage_token"})
+	if m.Authed(reqBad) {
+		t.Fatal("expected invalid token to be rejected")
+	}
+
+	// 2. Expired session (the DB stores only the SHA-256 hash of the cookie).
+	var s models.Session
+	if err := db.Where("token = ?", models.HashToken(tokCookie.Value)).First(&s).Error; err != nil {
+		t.Fatalf("failed to find session: %v", err)
+	}
+	s.ExpiresAt = time.Now().Add(-time.Hour)
+	if err := db.Save(&s).Error; err != nil {
+		t.Fatalf("failed to save expired session: %v", err)
+	}
+
+	reqExp := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	reqExp.AddCookie(tokCookie)
+	if m.Authed(reqExp) {
+		t.Fatal("expected expired session to be rejected")
+	}
+
+	// 3. Clear session
+	rec2 := httptest.NewRecorder()
+	m.SetSession(rec2, httptest.NewRequest(http.MethodGet, "/", nil), 2, 42)
+	var tokCookie2 *http.Cookie
+	for _, c := range rec2.Result().Cookies() {
+		if c.Name == cookieName {
+			tokCookie2 = c
+		}
+	}
+	reqClear := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	reqClear.AddCookie(tokCookie2)
+
+	if !m.Authed(reqClear) {
+		t.Fatal("session should be authed before clear")
+	}
+
+	recClear := httptest.NewRecorder()
+	m.Clear(reqClear, recClear)
+
+	if m.Authed(reqClear) {
+		t.Fatal("session should be unauthed after clear")
+	}
+}
+
+func TestRoleChangeInvalidatesSessions(t *testing.T) {
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
+
+	const (
+		uid  = uint(55)
+		orgA = uint(101)
+		orgB = uint(102)
+	)
+
+	// Issue sessions for orgA and orgB
+	recA := httptest.NewRecorder()
+	m.SetSession(recA, httptest.NewRequest(http.MethodGet, "/", nil), uid, orgA)
+	var tokA *http.Cookie
+	for _, c := range recA.Result().Cookies() {
+		if c.Name == cookieName {
+			tokA = c
+		}
+	}
+
+	recB := httptest.NewRecorder()
+	m.SetSession(recB, httptest.NewRequest(http.MethodGet, "/", nil), uid, orgB)
+	var tokB *http.Cookie
+	for _, c := range recB.Result().Cookies() {
+		if c.Name == cookieName {
+			tokB = c
+		}
+	}
+
+	reqA := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
+	reqA.AddCookie(tokA)
+	if !m.Authed(reqA) {
+		t.Fatal("session A should be authed before revocation")
+	}
+
+	reqB := httptest.NewRequest(http.MethodGet, "/api/settings", nil)
+	reqB.AddCookie(tokB)
+	if !m.Authed(reqB) {
+		t.Fatal("session B should be authed before revocation")
+	}
+
+	// Invalidate sessions for orgA
+	revoked := m.RevokeUserOrgSessions(uid, orgA)
+	if revoked == 0 {
+		t.Fatalf("RevokeUserOrgSessions revoked %d sessions, want >0", revoked)
+	}
+
+	// Session A must be unauthed now
+	if m.Authed(reqA) {
+		t.Fatal("session A should be unauthed after RevokeUserOrgSessions")
+	}
+
+	// Session B must still be authed (multi-org isolation)
+	if !m.Authed(reqB) {
+		t.Fatal("session B should remain authed after orgA revocation")
+	}
+
+	var countA, countB int64
+	db.Model(&models.Session{}).Where("user_id = ? AND org_id = ?", uid, orgA).Count(&countA)
+	db.Model(&models.Session{}).Where("user_id = ? AND org_id = ?", uid, orgB).Count(&countB)
+	if countA != 0 {
+		t.Errorf("user_sessions count for orgA = %d, want 0", countA)
+	}
+	if countB == 0 {
+		t.Errorf("user_sessions count for orgB = %d, want >0", countB)
+	}
+}
+
+func TestAuthedReadsCookie(t *testing.T) {
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
+	rec := httptest.NewRecorder()
+	m.SetSession(rec, httptest.NewRequest(http.MethodGet, "/", nil), 1, 1)
+	req := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	for _, c := range rec.Result().Cookies() {
+		req.AddCookie(c)
+	}
+	if !m.Authed(req) {
+		t.Fatal("Authed rejected a freshly issued session cookie")
+	}
+}
+
+func TestOrgIDExtractedFromCookie(t *testing.T) {
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
+	rec := httptest.NewRecorder()
+	m.SetSession(rec, httptest.NewRequest(http.MethodGet, "/", nil), 7, 99)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	for _, c := range rec.Result().Cookies() {
+		req.AddCookie(c)
+	}
+	if got := m.UserID(req); got != 7 {
+		t.Errorf("UserID = %d, want 7", got)
+	}
+	if got := m.OrgID(req); got != 99 {
+		t.Errorf("OrgID = %d, want 99", got)
+	}
+}
+
+func TestOrgIDZeroWhenUnauthenticated(t *testing.T) {
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	if got := m.OrgID(req); got != 0 {
+		t.Errorf("OrgID on unauthed request = %d, want 0", got)
+	}
+	if got := m.UserID(req); got != 0 {
+		t.Errorf("UserID on unauthed request = %d, want 0", got)
+	}
+}
+
+func TestBearerTokenAuth(t *testing.T) {
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
+
+	raw := "oct_validtoken123456789012345678901234"
+	tok := models.Token{Name: "ci", Hash: models.HashToken(raw), Prefix: raw[:8]}
+	if err := db.Create(&tok).Error; err != nil {
+		t.Fatalf("create token: %v", err)
+	}
+
+	good := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	good.Header.Set("Authorization", "Bearer "+raw)
+	if !m.APIAuthed(good) {
+		t.Fatal("APIAuthed rejected a valid bearer token")
+	}
+
+	bad := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	bad.Header.Set("Authorization", "Bearer oct_unknowntoken000000000000000000000")
+	if m.APIAuthed(bad) {
+		t.Fatal("APIAuthed accepted an unknown bearer token")
+	}
+
+	none := httptest.NewRequest(http.MethodGet, "/api/links", nil)
+	if m.APIAuthed(none) {
+		t.Fatal("APIAuthed accepted a request with no credentials")
+	}
+}
+
+func TestRequireMiddleware(t *testing.T) {
+	db := testDB(t)
+	m := testManager(t).WithDB(db)
+
+	handler := m.Require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		uid := m.UserID(r)
+		orgID := m.OrgID(r)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "uid=%d,orgID=%d", uid, orgID)
+	}))
+
+	// Case 1: Unauthorized (no cookie, no bearer token)
+	req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rec.Code)
+	}
+
+	// Case 2: Authorized via Session Cookie
+	recCookie := httptest.NewRecorder()
+	m.SetSession(recCookie, httptest.NewRequest(http.MethodGet, "/", nil), 42, 99)
+	reqCookie := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	for _, c := range recCookie.Result().Cookies() {
+		reqCookie.AddCookie(c)
+	}
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, reqCookie)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+	if rec.Body.String() != "uid=42,orgID=99" {
+		t.Errorf("expected 'uid=42,orgID=99', got '%s'", rec.Body.String())
+	}
+
+	// Case 3: Authorized via Bearer Token
+	raw := "oct_testtoken_require_middleware_9999"
+	tok := models.Token{
+		OrgID:  88,
+		Name:   "test-token",
+		Hash:   models.HashToken(raw),
+		Prefix: raw[:8],
+	}
+	if err := db.Create(&tok).Error; err != nil {
+		t.Fatalf("create token: %v", err)
+	}
+
+	reqBearer := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	reqBearer.Header.Set("Authorization", "Bearer "+raw)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, reqBearer)
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rec.Code)
+	}
+	if rec.Body.String() != "uid=0,orgID=88" {
+		t.Errorf("expected 'uid=0,orgID=88', got '%s'", rec.Body.String())
+	}
+}
+
+func TestOAuthLoadProviderConcurrency(t *testing.T) {
+	db := testDB(t)
+	cfg := &config.Config{SecretKey: "secret"}
+	cipher := crypto.New("secret")
+	if err := cipher.EnableEnvelope(testEnvStore{db}); err != nil {
+		t.Fatalf("EnableEnvelope: %v", err)
+	}
+	m := New(cfg, cipher).WithDB(db)
+
+	encSecret, err := cipher.Encrypt([]byte("google-secret"))
+	if err != nil {
+		t.Fatalf("encrypt secret: %v", err)
+	}
+
+	db.Create(&models.Setting{Key: "oauth.google.client_id", Value: "google-id"})
+	db.Create(&models.Setting{Key: "oauth.google.client_secret", Value: encSecret})
+
+	handler := NewOAuthHandler(db, m, cipher)
+
+	const workers = 10
+	done := make(chan bool, workers)
+	for i := 0; i < workers; i++ {
+		go func() {
+			ok := handler.loadProvider("google", "google@http://localhost", "http://localhost")
+			if !ok {
+				t.Errorf("expected loadProvider to succeed")
+			}
+			done <- true
+		}()
+	}
+
+	for i := 0; i < workers; i++ {
+		<-done
+	}
+}
+
+func TestOAuthHandlerUpsertUser(t *testing.T) {
+	db := testDB(t)
+	cfg := &config.Config{SecretKey: "secret"}
+	m := New(cfg, crypto.New("secret")).WithDB(db)
+	handler := NewOAuthHandler(db, m, crypto.New("secret"))
+
+	InitGothStore("secret")
+
+	reqBegin := httptest.NewRequest(http.MethodGet, "/auth/begin/unconfigured", nil)
+	reqBegin.SetPathValue("provider", "unconfigured")
+	recBegin := httptest.NewRecorder()
+	handler.Begin(recBegin, reqBegin)
+	if recBegin.Code != http.StatusServiceUnavailable {
+		t.Errorf("expected 503 for unconfigured provider, got %d", recBegin.Code)
+	}
+
+	reqCallback := httptest.NewRequest(http.MethodGet, "/auth/callback/unconfigured", nil)
+	reqCallback.SetPathValue("provider", "unconfigured")
+	recCallback := httptest.NewRecorder()
+	handler.Callback(recCallback, reqCallback)
+	if recCallback.Code != http.StatusServiceUnavailable {
+		t.Errorf("expected 503 for unconfigured provider, got %d", recCallback.Code)
+	}
+
+	u, o, err := handler.upsertUser("alice@example.com")
+	if err != nil {
+		t.Fatalf("upsertUser failed: %v", err)
+	}
+	if u.Email != "alice@example.com" {
+		t.Errorf("user email = %q, want alice@example.com", u.Email)
+	}
+	if o.Name != "alice@example.com" {
+		t.Errorf("org mismatch: %+v", o)
+	}
+	// The slug is allocated at random, never derived: it lands in public URLs
+	// (the billing webhook path), so it must not spell out the founder's address.
+	if o.Slug == "" || strings.Contains(o.Slug, "alice") || strings.Contains(o.Slug, "example") {
+		t.Errorf("org slug %q leaks the founder's email", o.Slug)
+	}
+
+	u2, o2, err := handler.upsertUser("alice@example.com")
+	if err != nil {
+		t.Fatalf("upsertUser existing failed: %v", err)
+	}
+	if u2.ID != u.ID || o2.ID != o.ID {
+		t.Errorf("upsertUser existing did not return same user/org")
+	}
+}
+
+// TestOAuthUpsertRespectsRegistrationGate verifies OAuth can't provision a
+// brand-new account when public registration is disabled, but still lets an
+// already-provisioned user sign in.
+func TestOAuthUpsertRespectsRegistrationGate(t *testing.T) {
+	db := testDB(t)
+	cfg := &config.Config{SecretKey: "secret"}
+	m := New(cfg, crypto.New("secret")).WithDB(db)
+	handler := NewOAuthHandler(db, m, crypto.New("secret"))
+
+	// Turn registration off (invite-only instance).
+	if err := db.Create(&models.Setting{Key: "allow_registration", Value: "false"}).Error; err != nil {
+		t.Fatalf("seed setting: %v", err)
+	}
+
+	// Unknown email → refused with the sentinel error, no account created.
+	if _, _, err := handler.upsertUser("stranger@example.com"); !errors.Is(err, ErrRegistrationDisabled) {
+		t.Fatalf("expected ErrRegistrationDisabled for unknown email, got %v", err)
+	}
+	var count int64
+	db.Model(&models.User{}).Where("email = ?", "stranger@example.com").Count(&count)
+	if count != 0 {
+		t.Errorf("stranger account should not have been created, found %d", count)
+	}
+
+	// A pre-existing user still resolves even while registration is off.
+	existing := models.User{Email: "member@example.com"}
+	if err := db.Create(&existing).Error; err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	org := models.Org{Name: "member@example.com", Slug: "member-example-com", InboundToken: "tok"}
+	db.Create(&org)
+	db.Create(&models.OrgMember{OrgID: org.ID, UserID: existing.ID, Role: "owner"})
+
+	u, _, err := handler.upsertUser("member@example.com")
+	if err != nil {
+		t.Fatalf("existing user should sign in despite gate: %v", err)
+	}
+	if u.ID != existing.ID {
+		t.Errorf("resolved wrong user: got %d want %d", u.ID, existing.ID)
+	}
+}

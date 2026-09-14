@@ -1,0 +1,370 @@
+package api
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"strings"
+	"time"
+
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/server/internal/authz"
+	"github.com/octarq-org/octarq/server/internal/models"
+)
+
+// The token body is URL-safe base64 (without padding) so it is copy/paste friendly.
+func newRawToken() string {
+	b := make([]byte, 24) // 24 bytes -> 32 url-safe chars
+	rand.Read(b)
+	return "oct_" + base64.RawURLEncoding.EncodeToString(b)
+}
+
+// tokenPrefix is the short, non-secret identifier shown in the list.
+func tokenPrefix(raw string) string {
+	if len(raw) <= 8 {
+		return raw
+	}
+	return raw[:8]
+}
+
+type ListTokensInput struct {
+	Ctx huma.Context `hidden:"true"`
+}
+
+func (i *ListTokensInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ListTokensOutput struct {
+	Body []models.Token
+}
+
+// listTokens returns the caller's own tokens. Everyone's, including an admin's,
+// stops at their own row.
+//
+// A token is a personal credential: it acts as the person who minted it and
+// carries at most their role (models.Token.UserID). Requiring an admin to issue
+// one meant a member automating their own work had to be handed a credential
+// that answered as somebody else — worse for audit and for blast radius than
+// the thing the gate was guarding. Scoping by owner is what replaces it, and it
+// is not an admin-shaped scope: a workspace admin has no more business reading
+// (or renaming, or re-scoping) a colleague's credential than anyone else. What
+// they keep is member removal, which revokes that person's tokens with them.
+func (h *Handler) listTokens(ctx context.Context, input *ListTokensInput) (*ListTokensOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if _, err := h.requireOrg(r); err != nil {
+		return nil, err
+	}
+	var toks []models.Token
+	h.orgDB(r).Where("user_id = ?", h.auth.UserID(r)).
+		Order("created_at DESC").Find(&toks)
+	return &ListTokensOutput{Body: toks}, nil
+}
+
+type CreateTokenInputBody struct {
+	Name          string `json:"name"`
+	Note          string `json:"note,omitempty"`
+	ExpiresInDays int    `json:"expiresInDays,omitempty"`
+	// Role narrows the token below its holder; it can never widen it. Omitted
+	// means "member" — the least privilege that still works — so a caller who
+	// does not think about it gets a narrow token rather than a copy of their
+	// own account.
+	Role string `json:"role,omitempty"`
+}
+
+type CreateTokenInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	Body CreateTokenInputBody
+}
+
+func (i *CreateTokenInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type CreateTokenOutput struct {
+	Body map[string]any
+}
+
+func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*CreateTokenOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	name := strings.TrimSpace(input.Body.Name)
+	if name == "" {
+		return nil, huma.Error400BadRequest("name is required")
+	}
+	if input.Body.ExpiresInDays < 0 {
+		return nil, huma.Error400BadRequest("expiresInDays must be zero (never) or positive")
+	}
+	var expiresAt *time.Time
+	if input.Body.ExpiresInDays > 0 {
+		t := time.Now().AddDate(0, 0, input.Body.ExpiresInDays)
+		expiresAt = &t
+	}
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+	// No admin gate: any member may mint a token for themselves. The cap below
+	// is what keeps that safe — the token can never out-rank the person minting
+	// it, so a member's token is a member's token.
+	role := authz.Role(strings.TrimSpace(input.Body.Role))
+	if role == "" {
+		role = authz.RoleMember
+	}
+	if !validTokenRole(role) {
+		return nil, huma.Error400BadRequest("role must be one of member, admin, owner")
+	}
+	// A token must not out-rank the caller minting it, or an admin could mint an
+	// owner token and use it to walk straight past the gate that just checked them.
+	if !h.callerHoldsRole(r, role) {
+		return nil, huma.Error403Forbidden("forbidden: cannot mint a token above your own role")
+	}
+	// The token acts as this person from here on. Minting it while
+	// unattributable would be the one way to create authority that outlives the
+	// account it came from.
+	uid := h.auth.UserID(r)
+	if uid == 0 {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	raw := newRawToken()
+	tok := models.Token{
+		OrgID:     orgID,
+		UserID:    uid,
+		Name:      name,
+		Hash:      models.HashToken(raw),
+		Prefix:    tokenPrefix(raw),
+		Note:      input.Body.Note,
+		Role:      string(role),
+		ExpiresAt: expiresAt,
+	}
+	if err := h.db.Create(&tok).Error; err != nil {
+		return nil, huma.Error500InternalServerError("create token")
+	}
+	h.audit(r, "token.create", "token", tok.ID, map[string]any{"name": tok.Name, "prefix": tok.Prefix, "role": tok.Role})
+	// The raw token is returned ONLY here; it is never stored or shown again.
+	return &CreateTokenOutput{
+		Body: map[string]any{
+			"id":        tok.ID,
+			"name":      tok.Name,
+			"note":      tok.Note,
+			"prefix":    tok.Prefix,
+			"role":      tok.Role,
+			"expiresAt": tok.ExpiresAt,
+			"createdAt": tok.CreatedAt,
+			"token":     raw,
+		},
+	}, nil
+}
+
+type DeleteTokenInput struct {
+	Ctx huma.Context `hidden:"true"`
+	ID  uint         `path:"id"`
+}
+
+func (i *DeleteTokenInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type DeleteTokenOutputBody struct {
+	OK bool `json:"ok"`
+}
+
+type DeleteTokenOutput struct {
+	Body DeleteTokenOutputBody
+}
+
+func (h *Handler) deleteToken(ctx context.Context, input *DeleteTokenInput) (*DeleteTokenOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+	q := h.db.Where("id = ? AND owner_id = ? AND user_id = ?", input.ID, orgID, h.auth.UserID(r))
+	if res := q.Delete(&models.Token{}); res.RowsAffected == 0 {
+		return nil, huma.Error404NotFound("not found")
+	}
+	h.audit(r, "token.delete", "token", input.ID, nil)
+	out := &DeleteTokenOutput{}
+	out.Body.OK = true
+	return out, nil
+}
+
+type UpdateTokenInputBody struct {
+	Name          *string `json:"name,omitempty"`
+	Note          *string `json:"note,omitempty"`
+	Role          *string `json:"role,omitempty"`
+	ExpiresInDays *int    `json:"expiresInDays,omitempty"`
+}
+
+type UpdateTokenInput struct {
+	Ctx  huma.Context `hidden:"true"`
+	ID   uint         `path:"id"`
+	Body UpdateTokenInputBody
+}
+
+func (i *UpdateTokenInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type UpdateTokenOutput struct {
+	Body map[string]any
+}
+
+func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*UpdateTokenOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+	// Someone else's token is not yours to rename, re-scope or extend — it does
+	// not exist as far as this endpoint is concerned, which is why this is a 404
+	// and not a 403: a 403 would confirm the id.
+	var tok models.Token
+	if err := h.db.Where("id = ? AND owner_id = ? AND user_id = ?", input.ID, orgID, h.auth.UserID(r)).
+		First(&tok).Error; err != nil {
+		return nil, huma.Error404NotFound("not found")
+	}
+
+	oldName := tok.Name
+	oldNote := tok.Note
+	oldRole := tok.Role
+	oldExpiresAt := tok.ExpiresAt
+
+	meta := map[string]any{
+		"prefix": tok.Prefix,
+	}
+	changed := false
+
+	if input.Body.Name != nil {
+		name := strings.TrimSpace(*input.Body.Name)
+		if name == "" {
+			return nil, huma.Error400BadRequest("name is required")
+		}
+		if name != oldName {
+			tok.Name = name
+			meta["nameFrom"] = oldName
+			meta["nameTo"] = name
+			changed = true
+		}
+	}
+
+	if input.Body.Note != nil {
+		note := *input.Body.Note
+		if note != oldNote {
+			tok.Note = note
+			meta["noteFrom"] = oldNote
+			meta["noteTo"] = note
+			changed = true
+		}
+	}
+
+	if input.Body.Role != nil {
+		role := authz.Role(strings.TrimSpace(*input.Body.Role))
+		if !validTokenRole(role) {
+			return nil, huma.Error400BadRequest("role must be one of member, admin, owner")
+		}
+		if !h.callerHoldsRole(r, role) {
+			return nil, huma.Error403Forbidden("forbidden: cannot mint a token above your own role")
+		}
+		if string(role) != oldRole {
+			tok.Role = string(role)
+			meta["roleFrom"] = oldRole
+			meta["roleTo"] = string(role)
+			changed = true
+		}
+	}
+
+	if input.Body.ExpiresInDays != nil {
+		days := *input.Body.ExpiresInDays
+		if days < 0 {
+			return nil, huma.Error400BadRequest("expiresInDays must be zero (never) or positive")
+		}
+		var newExpiresAt *time.Time
+		if days > 0 {
+			t := time.Now().AddDate(0, 0, days)
+			newExpiresAt = &t
+		}
+		expiresChanged := false
+		if oldExpiresAt == nil && newExpiresAt != nil {
+			expiresChanged = true
+		} else if oldExpiresAt != nil && newExpiresAt == nil {
+			expiresChanged = true
+		} else if oldExpiresAt != nil && newExpiresAt != nil && !oldExpiresAt.Equal(*newExpiresAt) {
+			expiresChanged = true
+		}
+
+		if expiresChanged {
+			tok.ExpiresAt = newExpiresAt
+			meta["expiresAtFrom"] = oldExpiresAt
+			meta["expiresAtTo"] = newExpiresAt
+			changed = true
+		}
+	}
+
+	if changed {
+		if err := h.db.Model(&tok).Updates(map[string]any{
+			"name":       tok.Name,
+			"note":       tok.Note,
+			"role":       tok.Role,
+			"expires_at": tok.ExpiresAt,
+		}).Error; err != nil {
+			return nil, huma.Error500InternalServerError("update token")
+		}
+		h.audit(r, "token.update", "token", tok.ID, meta)
+	}
+
+	return &UpdateTokenOutput{
+		Body: map[string]any{
+			"id":        tok.ID,
+			"name":      tok.Name,
+			"note":      tok.Note,
+			"prefix":    tok.Prefix,
+			"role":      tok.Role,
+			"expiresAt": tok.ExpiresAt,
+			"createdAt": tok.CreatedAt,
+		},
+	}, nil
+}
+
+// validTokenRole reports whether role is one a token may be minted with.
+// It deliberately rejects "" — an empty role is never minted, so the switch
+// covers every mintable value.
+func validTokenRole(role authz.Role) bool {
+	switch role {
+	case authz.RoleMember, authz.RoleAdmin, authz.RoleOwner:
+		return true
+	}
+	return false
+}

@@ -17,9 +17,10 @@ import path from "node:path";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const webDir = path.join(repoRoot, "web");
+const serverDir = path.join(repoRoot, "server");
 const binary = path.join(repoRoot, "octarq");
 
-console.log("[e2e] building the dashboard (webembed/dist)…");
+console.log("[e2e] building the dashboard (server/webembed/dist)…");
 execFileSync("pnpm", ["build"], { cwd: webDir, stdio: "inherit" });
 
 // -buildvcs=false: this is a throwaway test server, so the VCS stamp buys
@@ -29,7 +30,7 @@ execFileSync("pnpm", ["build"], { cwd: webDir, stdio: "inherit" });
 // `error obtaining VCS status: exit status 128`, before a single test runs.
 console.log("[e2e] building the octarq binary…");
 execFileSync("go", ["build", "-buildvcs=false", "-o", binary, "."], {
-  cwd: repoRoot,
+  cwd: serverDir,
   stdio: "inherit",
   env: { ...process.env, CGO_ENABLED: "0" },
 });

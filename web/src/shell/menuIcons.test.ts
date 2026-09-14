@@ -11,7 +11,7 @@ import { menuIcon } from "./areas";
 // parse as navI18n.test.ts, and the same reason: assert against the real
 // declarations, not a list in the test that would drift from them.
 const GO_SOURCES = import.meta.glob(
-  "../../../{plugins/**/*.go,internal/**/*.go,examples/**/*.go}",
+  "../../../server/{plugins/**/*.go,internal/**/*.go,examples/**/*.go}",
   { query: "?raw", import: "default", eager: true },
 ) as Record<string, string>;
 

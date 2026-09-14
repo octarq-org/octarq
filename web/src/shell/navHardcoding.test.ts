@@ -16,7 +16,7 @@ import { describe, it, expect } from "vitest";
 // This reads the real declarations on both sides rather than a list here, for
 // the same reason menuIcons.test.ts does: a list would drift from what it guards.
 const GO_SOURCES = import.meta.glob(
-  "../../../{plugins/**/*.go,internal/**/*.go,app/**/*.go}",
+  "../../../server/{plugins/**/*.go,internal/**/*.go,app/**/*.go}",
   { query: "?raw", import: "default", eager: true },
 ) as Record<string, string>;
 

@@ -30,12 +30,13 @@ jobs:
           filters: |
             go:
               - '**/*.go'
-              - 'go.mod'
-              - 'go.sum'
+              - 'server/**'
+              - 'server/go.mod'
+              - 'server/go.sum'
               - 'Makefile'
               - 'Dockerfile'
               - 'docker-compose.yml'
-              - '.golangci.yml'
+              - 'server/.golangci.yml'
               - '.github/workflows/ci.yml'
             web:
               - 'web/**'
@@ -50,12 +51,15 @@ jobs:
     needs: changes
     if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: server/go.mod
           cache: true
 
       - name: gofmt
@@ -112,6 +116,7 @@ jobs:
         with:
           version: v2.11.4 # keep at or above the Go version in go.mod
           verify: false
+          working-directory: server
 
   web:
     name: Frontend build
@@ -209,7 +214,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: server/go.mod
           cache: true
 
       - run: pnpm install --no-frozen-lockfile
@@ -333,7 +338,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.PAT_GITHUB || secrets.GITHUB_TOKEN }}
-          add-paths: webembed/dist
+          add-paths: server/webembed/dist
           branch: chore/refresh-embedded-dashboard
           # Tidy up the reused branch once main has the dist — otherwise it
           # outlives every merge and sits there looking like pending work. Only
@@ -346,7 +351,7 @@ jobs:
           commit-message: "chore(web): refresh embedded dashboard build [auto]"
           title: "chore(web): refresh embedded dashboard build"
           body: |
-            The dashboard bundle in `webembed/dist` no longer matches `web/`.
+            The dashboard bundle in `server/webembed/dist` no longer matches `web/`.
 
             octarq-pro consumes octarq as a Go module and gets the embedded
             dashboard from the module zip, so dist has to stay committed and

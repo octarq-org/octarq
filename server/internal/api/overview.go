@@ -1,0 +1,82 @@
+package api
+
+import (
+	"context"
+	"log"
+
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/plugin"
+)
+
+type OverviewInput struct {
+	Ctx        huma.Context `hidden:"true"`
+	IncludeBot bool         `query:"includeBot"`
+}
+
+func (i *OverviewInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type OverviewOutput struct {
+	Body map[string]any
+}
+
+// overview returns aggregate dashboard statistics for the home page.
+// Query param: includeBot=true — when present, bot clicks are counted alongside
+// human clicks so the caller can compare bot vs human traffic.
+func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*OverviewOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	go h.auth.TouchSession(r)
+	org, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+	includeBot := input.IncludeBot
+
+	count := func(model any, conds ...any) int64 {
+		var n int64
+		q := h.db.Model(model).Where("owner_id = ?", org)
+		if len(conds) > 0 {
+			q = q.Where(conds[0], conds[1:]...)
+		}
+		q.Count(&n)
+		return n
+	}
+
+	outMap := map[string]any{
+		"tokens":     count(&models.Token{}),
+		"includeBot": includeBot,
+	}
+
+	// Plugin statistics merge flat into outMap; a duplicate key is overwritten
+	// by the later registration (warned, not refused — the flat protocol is kept
+	// for compatibility).
+	for _, p := range h.plugins {
+		if !h.pluginActive(org, p) {
+			continue
+		}
+		// Plugins that don't provide an overview service are skipped; the
+		// rest flat-merge their statistics. See plugin.OverviewFunc.
+		if fn, ok := plugin.LookupServiceAs[plugin.OverviewFunc](h.LookupService, plugin.OverviewServiceName(p.Name())); ok {
+			for k, val := range fn(org, includeBot) {
+				if _, exists := outMap[k]; exists {
+					log.Printf("[overview] warning: plugin %s overwrites existing overview key %q", p.Name(), k)
+				}
+				outMap[k] = val
+			}
+		}
+	}
+
+	return &OverviewOutput{Body: outMap}, nil
+}

@@ -12,27 +12,28 @@ Conventions for how changes are made here. Core open-source library and single-b
 ## Running & Dev Servers
 
 - **Always start dev servers with `--host`**: `cd web && pnpm dev --host`.
-- Backend: `OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .` (serves `:8080`).
-- Full release build: `make release`.
+- Backend: `cd server && OCTARQ_SECRET_KEY=dev OCTARQ_ADMIN_PASSWORD=dev go run .` (serves `:8080`).
+- From repo root: `make dev` runs both backend (Air hot reload) and frontend (Vite).
+- Full release build: `make release` (or `make build`).
 
 ## Verify before saying "done"
 
 Run these and make sure they pass — don't claim a change works on inspection alone:
-- `go build ./...`
-- `go test ./... -race`
-- `gofmt -w .`
-- In `web/`: `npx tsc --noEmit`
+- From root: `make build` (or in `server/`: `go build ./...`)
+- In `server/`: `go test ./... -race`
+- In `server/`: `gofmt -w .`
+- In `web/`: `pnpm typecheck` and `pnpm test`
 
-## Embedded Dashboard (`webembed/dist`) — Critical Rule
+## Embedded Dashboard (`server/webembed/dist`) — Critical Rule
 
-- **Never build or commit `webembed/dist` manually.** It is tracked in git for downstream consumption (e.g. `octarq-pro`), but refreshed automatically by CI post-merge via a `chore(web): refresh embedded dashboard build` PR.
-- On any branch touching `web/`, committed `webembed/dist` is stale until merged. Test frontend live via `cd web && pnpm dev --host` against the Go backend.
+- **Never build or commit `server/webembed/dist` manually.** It is tracked in git for downstream consumption (e.g. `octarq-pro`), but refreshed automatically by CI post-merge via a `chore(web): refresh embedded dashboard build` PR.
+- On any branch touching `web/`, committed `server/webembed/dist` is stale until merged. Test frontend live via `cd web && pnpm dev --host` against the Go backend.
 
 ## Architecture & Code Conventions
 
 - **Three-Tier Documentation Model (Scheme B)**:
-  - **Tier 1 (User Help Docs)**: Embedded in `plugins/*/docs/` via `plugin.HelpDocsFS` (`//go:embed docs`). Must have bilingual `.zh.mdx` translations, strictly covering user-facing workflows and UI usage.
-  - **Tier 2 (Module Living Spec)**: `plugins/<name>/SPEC.md` co-located in each plugin. **Strictly NOT embedded in binary**. Serves as the technical truth for state machines, internal event flows, database models, and error states.
+  - **Tier 1 (User Help Docs)**: Embedded in `server/plugins/*/docs/` via `plugin.HelpDocsFS` (`//go:embed docs`). Must have bilingual `.zh.mdx` translations, strictly covering user-facing workflows and UI usage.
+  - **Tier 2 (Module Living Spec)**: `server/plugins/<name>/SPEC.md` co-located in each plugin. **Strictly NOT embedded in binary**. Serves as the technical truth for state machines, internal event flows, database models, and error states.
   - **Tier 3 (Executable Contracts)**: Pure Go interfaces, route-derived OpenAPI specs, and contract tests (`*_test.go`).
 - **Single source of truth — derive, don't duplicate**: Derive mappings dynamically (e.g., `areaForPath` in `web/src/shell/areas.tsx`). Collapse parallel hardcoded tables.
 - **Sidebar & Routes**: Sidebar menus come strictly from the Go backend (`MenuProvider` / `/api/menus`). Frontend plugins register routes (`registerUIPlugin` → `uiRoutes()`) and UI components, never static menus.

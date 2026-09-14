@@ -1,0 +1,26 @@
+// Package builtin is the OSS edition's default Core feature set. It is one
+// composition root's worth of plugins — the backend analog of the frontend's
+// web/octarq.plugins.json default manifest.
+//
+// Composition is opt-in and uniform with all plugins: nothing auto-mounts inside
+// app.New(); each entry point (octarq/main.go, a downstream distribution's main, or a trimmed
+// edition's own main) calls a.Use(...) for the plugins it wants. A trimmed
+// edition builds a composition root that Uses a subset and simply does not import
+// the excluded plugin packages — Go's linker then drops them from the binary, so
+// no build tags are needed to exclude a feature.
+package builtin
+
+import (
+	"github.com/octarq-org/octarq/server/plugin"
+	"github.com/octarq-org/octarq/server/plugins/dns"
+	"github.com/octarq-org/octarq/server/plugins/help"
+	"github.com/octarq-org/octarq/server/plugins/links"
+	"github.com/octarq-org/octarq/server/plugins/mail"
+	"github.com/octarq-org/octarq/server/plugins/tenantquery"
+)
+
+// Default returns the OSS Core feature plugins in dependency order (dns before
+// links before mail, matching their Requires). Callers mount them via a.Use.
+func Default() []plugin.Plugin {
+	return []plugin.Plugin{dns.New(), links.New(), mail.New(), help.New(), tenantquery.New()}
+}

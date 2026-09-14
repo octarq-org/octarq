@@ -6,4 +6,4 @@ packages:
   - "../packages/*"
   # The example plugin, packaged so the OSS default build composes it by name
   # through the plugin manifest (web/octarq.plugins.json).
-  - "../examples/plugin-hello/web"
+  - "../server/examples/plugin-hello/web"
