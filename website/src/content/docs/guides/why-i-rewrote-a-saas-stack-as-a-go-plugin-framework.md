@@ -27,7 +27,7 @@ By building on **Go** and pure-Go **SQLite** (with Postgres driver support), Oct
 
 ## 2. Decoupled Seams & `plugin.Context`
 
-Rather than hardcoding backoffice features into a monolithic app struct, Octarq core provides a strict, decoupled seam system. Every module — whether built-in or loaded as a Pro plugin — mounts via `plugin.Context`:
+Rather than hardcoding backoffice features into a monolithic app struct, Octarq core provides a strict, decoupled seam system. Every module — whether built-in or loaded as a custom plugin — mounts via `plugin.Context`:
 
 ```go
 type Plugin interface {
@@ -46,7 +46,7 @@ The `*plugin.Context` provides safe, isolated primitives:
 
 ### Plugin Registration Example
 
-Because core features (like `links`, `mail`, and `dns`) use the exact same seam interfaces as Pro extensions (`sso`, `audit`, `slack`, `whitelabel`), there are no "hidden internal APIs". A plugin can register custom notification handlers, custom role permissions, or custom UI menus:
+Because core features (like `links`, `mail`, and `dns`) use the exact same seam interfaces as custom extensions (`telegram`, `webhook`, `audit`), there are no "hidden internal APIs". A plugin can register custom notification handlers, custom role permissions, or custom UI menus:
 
 ```go
 // Registering a Slack notification provider from a plugin
@@ -89,14 +89,12 @@ Security in a multi-tenant backoffice requires active defenses, not just passwor
 
 ---
 
-## 5. OSS Purity + Pro Business Model
-
-Open-source projects often struggle when commercial features taint the open codebase with upsell prompts or incomplete stubs.
-
-Octarq maintains strict **OSS Purity**:
-- The open-source `octarq` repository contains zero pricing code, commercial copy, or license verification logic.
-- Pro extensions (`octarq-pro`) live in clean, decoupled Go modules.
-- Upgrades work by swapping or compiling in Pro plugin packages — without modifying core Go source code.
+## 5. Architectural Decoupling & Pure Open Source
+ 
+Octarq maintains strict codebase purity:
+- The core repository contains zero telemetry trackers, hidden upsells, or proprietary locks.
+- All capabilities adhere to decoupled Go modules and React UI packages.
+- Custom extensions compile directly against public plugin interfaces — without modifying core source code.
 
 ---
 

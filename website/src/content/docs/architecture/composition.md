@@ -8,7 +8,7 @@ sidebar:
 ---
 
 
-Octarq uses an opt-in composition model across both open-source (OSS) and commercial (Pro) editions. Both backend and frontend follow the same design pattern.
+Octarq uses an opt-in composition model across its backend and frontend architecture. Both follow the same design pattern.
 
 ## 1. Backend Composition
 
@@ -56,9 +56,9 @@ func Default() []plugin.Plugin {
 }
 ```
 
-### Pro/Commercial Composition
+### Custom Plugin Composition
 
-The commercial edition (`octarq-pro`) utilizes the exact same mechanism. It mounts the core plugins, followed by Pro-specific plugins:
+Custom out-of-tree plugins utilize the exact same mechanism. You mount the core plugins, followed by your custom plugins:
 
 ```go
 package main
@@ -66,8 +66,7 @@ package main
 import (
     "github.com/octarq-org/octarq/server/app"
     "github.com/octarq-org/octarq/server/plugins/builtin"
-    "github.com/octarq-org/octarq-pro/plugins/billing"
-    "github.com/octarq-org/octarq-pro/plugins/issuer"
+    "github.com/your-org/octarq-plugin-analytics"
 )
 
 func main() {
@@ -78,9 +77,8 @@ func main() {
         a.Use(p)
     }
 
-    // 2. Mount Pro plugins
-    a.Use(billing.New())
-    a.Use(issuer.New())
+    // 2. Mount custom plugins
+    a.Use(analytics.New())
 
     a.Run()
 }

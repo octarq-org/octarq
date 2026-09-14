@@ -20,12 +20,12 @@ const faqs = [
     a: "The built-in tools read and export, and each one is scoped to the caller's own workspace. There is no raw-SQL tool: an arbitrary query can't be confined to one workspace, so it isn't offered. A plugin can expose its own write tools via MCPProvider if it chooses to.",
   },
   {
-    q: "Is this a PocketBase / Dub / n8n fork?",
-    a: "No. It sits at the intersection of what those three do well — single-binary DX, real link/domain/email infrastructure, a plugin ecosystem — but the codebase and plugin seam are Octarq's own.",
+    q: "How is Octarq architected?",
+    a: "Octarq is an original, modular Go codebase designed from scratch for operational autonomy. Every core feature (links, domains, email, tenancy) implements the same public plugin seam that you use to write custom extensions.",
   },
   {
-    q: "Self-hosted vs Octarq Cloud — what costs what?",
-    a: "Core is MIT-licensed and free forever, including everything you need to run self-hosted. Pro and Elite are closed-source paid plugins layered on top: Pro is a one-time $99, Elite is $149 a year. Cloud is the same software hosted for you, billed monthly; self-hosting keeps the code, the data and the binary on infrastructure you control.",
+    q: "Is Octarq free and open source?",
+    a: "Yes. Octarq Core is licensed under MIT and free forever. Everything you need to deploy, operate, and extend a self-hosted instance is included in the open-source repository, with no hidden telemetry or proprietary lock-in.",
   },
 ];
 ---

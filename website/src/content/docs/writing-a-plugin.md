@@ -87,7 +87,7 @@ var (
 Key backend rules:
 
 - **Every route is auto-gated.** The host wraps your mux so a feature disabled for the caller's workspace answers `404` before your handler runs.
-- **License-gate paid routes with `402`.** Return `402 Payment Required` when the license lacks the tier; the frontend `PluginGate` turns it into an upsell.
+- **Feature-gate tiered routes with `402`.** Return `402 Payment Required` when an organization lacks the required tier or entitlement; the frontend `PluginGate` turns it into an upgrade or feature prompt.
 - **Never import `internal/*`.** Everything a plugin needs is on `plugin.Context`: `DB`, `Guard`, `Encrypt`/`Decrypt` (AES-256-GCM), `Audit`, `Notify`, `SendMail`, `OnEmail`, `DNS`, `UserID`/`OrgID`, `GetWorkspaceSetting`/`SetWorkspaceSetting`. See [Developer Conventions — Package Boundaries](/developers/conventions/#2-package--architecture-boundaries).
 - **Pair every optional interface with a compile-time assertion** (`var _ plugin.MenuProvider = Plugin{}`). Optional capabilities are detected by runtime type assertion, so a typo'd method silently never runs without these.
 - **Own your tables.** Every model (core + plugins) is AutoMigrated once at startup; a preflight fails if two plugin model types claim the same table. Mirror an existing core table with a local struct (`TableName()` override) to read core data without importing `internal/models`.
@@ -194,14 +194,14 @@ sidebar merge in `web/src/App.tsx`). The rail ignores `Category` and
 `http.ServeMux` **panics** on a duplicate pattern, so two plugins claiming the
 same path is a boot crash. Octarq catches that before the mux does and refuses
 to start with an error naming both plugins — but the only way to be sure your
-routes never collide with a future core or Pro route is to stay inside the
+routes never collide with a future core route is to stay inside the
 namespace reserved for out-of-tree plugins:
 
 ```
 /api/x/{your-plugin-name}/...
 ```
 
-This is **enforced** for third-party plugins: an out-of-tree plugin that
+This is **enforced** for external plugins: an out-of-tree plugin that
 registers an `/api/...` route outside `/api/x/{name}/` is refused at startup.
 In-tree paths that predate the rule (`/api/domains`, `/api/emails`,
 `/api/products`) are deliberately left alone; the bare top-level nouns are
@@ -347,7 +347,7 @@ For publishing the SDK itself, see [Publishing the SDK](/guides/publishing/).
 - [ ] Backend `/api` routes live under `/api/x/<name>/`; write endpoints accept `Idempotency-Key`.
 - [ ] Backend routes registered on the passed `Mux`; secrets via `ctx.Encrypt`; cross-plugin services via `ctx.Provide` / lazy `plugin.LookupAs`.
 - [ ] Every outbound fetch of a user-supplied URL goes through `server/plugin/safehttp`, not a bare `http.Client`.
-- [ ] Paid/tiered routes return **402** when unlicensed; rely on the host's auto-**404** for the disabled-feature case.
+- [ ] Tiered routes return **402** when gated; rely on the host's auto-**404** for the disabled-feature case.
 - [ ] Pages are `React.lazy`; UI built from `@octarq/plugin-sdk`; 402/404 handled.
 - [ ] i18n keys live under your `name` namespace.
 - [ ] Help pages live in `docs/<slug>.mdx` with a `<slug>.zh.mdx` translation; title/category/order are frontmatter.

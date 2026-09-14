@@ -54,11 +54,11 @@ The application calls `Menus()` on all active plugins to build the sidebar navig
 Plugin translation catalogs (`UIPlugin.i18n`) are registered dynamically under the plugin's namespace. Special top-level keys like `nav` and `settings.pluginDesc` are deep-merged back into the shared global namespace at startup to support translating navigation labels and settings pages without hardcoding terms in the core.
 
 ### Static Asset Hosting (`Context.HandleStatic`)
-For plugins that need to serve independent single-page apps (SPAs) or static pages (such as the customer portal in Pro), the core provides a generic prefix-based static router seam:
+For plugins that need to serve independent single-page apps (SPAs) or static assets under a specific path prefix, the core provides a generic prefix-based static router seam:
 ```go
 ctx.HandleStatic("/portal", portalDistFS)
 ```
-In the OSS build, requests to `/portal` return a 404, while in Pro builds the portal is served dynamically by the active plugin.
+Requests under the mounted path prefix are automatically served directly from the provided filesystem, with client-side SPA routing fallback enabled.
 
 ---
 
