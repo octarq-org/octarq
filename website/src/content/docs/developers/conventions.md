@@ -160,7 +160,7 @@ Never bubble uncaught errors or raw HTTP status codes to users. Route components
 
 | HTTP Status | Trigger / Scenario | Expected UI Behavior |
 |---|---|---|
-| **402 Payment Required** | Route or feature requires an upgraded tier / license. | Render `<LockedFeature />` or open the tier upsell modal. |
+| **402 Payment Required** | Route or feature requires an upgraded tier or entitlement. | Render `<LockedFeature />` or entitlement notice. |
 | **403 Forbidden** | User lacks required tenant role (e.g., Member vs Admin). | Render access-denied state with clear remediation. |
 | **404 Not Found** | Plugin is disabled by workspace settings or unmounted. | Render neutral "Feature not available in this build" state. |
 

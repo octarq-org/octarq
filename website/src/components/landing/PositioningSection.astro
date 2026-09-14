@@ -1,10 +1,10 @@
 ---
 import SectionMotion from "./SectionMotion.astro";
 
-const neighbours = [
-  { name: "PocketBase", note: "single-binary DX" },
-  { name: "Dub", note: "links · domains · email" },
-  { name: "n8n", note: "plugin ecosystem" },
+const pillars = [
+  { name: "Single-Binary", note: "Go + SQLite + Embedded UI" },
+  { name: "Ops Infrastructure", note: "Links · Domains · Email" },
+  { name: "Extensible Core", note: "Plugin Seam + Native MCP" },
 ];
 ---
 
@@ -15,20 +15,17 @@ const neighbours = [
     <div class="oct-split">
       <div>
         <h2 class="oct-h2">
-          The intersection of three tools you already run.
+          Everything your operations stack needs, under one binary.
         </h2>
         <p class="oct-body">
-          PocketBase's single-binary developer experience. Dub's real link,
-          domain and email infrastructure. n8n's plugin ecosystem for
-          connectors. Octarq sits where those three ideas meet, with every
-          capability agent-native over MCP.
+          Zero external daemon sprawl. Production short links, custom-domain email, and DNS automation built on a modular Go plugin architecture. Every capability is accessible through the browser dashboard and agent-native over MCP.
         </p>
       </div>
 
       <div class="oct-converge">
         <div class="oct-converge__row">
           {
-            neighbours.map((t) => (
+            pillars.map((t) => (
               <div class="oct-chip">
                 <div class="oct-chip__name">{t.name}</div>
                 <div class="oct-chip__note">{t.note}</div>
@@ -45,7 +42,7 @@ const neighbours = [
         </div>
         <div class="oct-chip oct-chip--accent">
           <div class="oct-chip__name">Octarq</div>
-          <div class="oct-chip__note">one plugin seam, agent-native</div>
+          <div class="oct-chip__note">unified runtime · full control</div>
         </div>
       </div>
     </div>

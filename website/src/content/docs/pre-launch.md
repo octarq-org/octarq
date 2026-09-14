@@ -15,8 +15,7 @@ backing up. That is why this is a checklist rather than a section of the README.
 Work through it once before you point real users at an instance. Each item says
 what actually happens if you skip it, so you can decide what applies to you.
 
-Cloud/multi-tenant operators: this list applies to you too, plus the extra
-steps in `octarq-pro`'s `deploy/cloud/PRE-LAUNCH.md`.
+Cloud and self-hosted multi-tenant operators: ensure each of these steps is verified before opening traffic to production users.
 
 ---
 

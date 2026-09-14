@@ -8,132 +8,87 @@ sidebar:
 ---
 
 
-Reference for how Octarq's plugin system is built and how the commercial build (octarq-pro) composes on top of the open-source core without forking. For a plugin *author's* guide, see [Writing a Plugin](/writing-a-plugin/); this document details the architecture and design.
-
-- **octarq** — the open-source core (`github.com/octarq-org/octarq`), MIT.
-- **octarq-pro** — the private commercial build; consumes octarq as a Go module and mounts Pro features as plugins. `go.work` wires `.` + `../octarq` locally.
+Reference for how Octarq's symmetric plugin system is designed and composed at build time. For a step-by-step developer tutorial on creating a plugin, see [Writing a Plugin](/writing-a-plugin/).
 
 ## 1. Principle: symmetric, no-fork plugins
 
-A feature is a **plugin** with two mirror halves composed into the core, never a fork:
+Every platform capability is structured as a **plugin** with two corresponding halves:
 
 - **Backend** — a Go module implementing `plugin.Plugin`.
-- **Frontend** — a JS package implementing `UIPlugin` (from the shared SDK).
+- **Frontend** — a React package implementing `UIPlugin` (from `@octarq/plugin-sdk`).
 
-Both are composed **at build time** (not runtime): compile-time Go interface implementation + build-time frontend registry injection. One binary, `go:embed`. The OSS build ships plugin page shells that degrade when unconfigured; the commercial build injects the actual pages.
+Both halves compose **at build time**: compile-time Go interface implementations + build-time frontend manifest injection. The resulting single binary embeds the frontend assets via Go's standard `go:embed`.
 
 ## 2. Backend contract (`server/plugin/plugin.go`)
 
 ```go
 type Plugin interface {
-    Name() string                 // stable id; matches the UIPlugin.name
+    Name() string                 // stable identifier; matches UIPlugin.name
     Models() []any                // GORM models (migrated for the plugin)
     Mount(mux Mux, ctx *Context)  // register HTTP routes
 }
-// optional (each paired with a compile-time `var _ plugin.X = Plugin{}` assert):
+
+// Optional interfaces (paired with compile-time assertions):
 type MenuProvider interface { Menus() []MenuItem }
-type Starter interface { Start(ctx context.Context) }   // runs after ALL Mounts
-// plus MCPProvider, OpenAPIContributor, Describer
+type Starter interface { Start(ctx context.Context) }   // executes after all plugins are mounted
+type MCPProvider interface { Tools() []mcp.Tool }
 ```
 
-- The host calls `app.Use(p)` before `app.Run()`. Every plugin route is **auto-gated** by `gatedMux` (server/app/app.go): if the feature is disabled for the caller's workspace it answers **404** before the handler runs.
-- Pro routes **license-gate** with **402** (`lic.HasTier(...)`) so the frontend shows an upsell.
-- Plugins never import `internal/*`; everything they need is on `plugin.Context` (DB, Guard, Encrypt/Decrypt, Audit, Notify, SendMail, OnEmail, DNS, Get/SetWorkspaceSetting, …). Context evolves **additive-only**.
-- **Inter-plugin services**: a provider calls `ctx.Provide("<plugin>.<service>", svc)` during Mount; consumers resolve lazily (in `Start` or per-request) with `plugin.LookupAs[T]` and degrade when absent. Duplicate names fail startup.
-- **AutoMigrate preflight** (server/app/preflight.go): all models migrate once, after every registration; two different plugin model types claiming the same non-core table fail startup (mirroring a core table is the allowed convention).
+- **Auto-gating**: The host registers each plugin through `app.Use(p)`. Plugin routes are automatically gated by `gatedMux` (`server/app/app.go`): if a feature is toggled off for a workspace, the server immediately returns **404** before the handler executes.
+- **Strict isolation**: Plugins never import `internal/*`. All necessary capabilities are provided through `plugin.Context` (`DB`, `Guard`, `Encrypt`/`Decrypt`, `Audit`, `Notify`, `SendMail`, `OnEmail`, `DNS`, `GetWorkspaceSetting`/`SetWorkspaceSetting`).
+- **Inter-plugin services**: A provider registers a service via `ctx.Provide("<plugin>.<service>", svc)` during `Mount`; consumers resolve dependencies lazily using `plugin.LookupAs[T]`.
+- **Preflight migration**: All plugin database models are inspected and migrated on startup (`server/app/preflight.go`), preventing conflicting table definitions across plugins.
 
 ## 3. Frontend contract & build-time composition
 
-`packages/plugin-sdk/` (published as **`@octarq/plugin-sdk`**) owns:
+The `@octarq/plugin-sdk` package defines the UI contract:
 
 ```ts
 interface UIPlugin {
   name: string                 // matches Go Plugin.Name()
-  routes: { path; Component: LazyPage; requiredTier?; requiredRole? }[]  // React.lazy pages
-  menu?: PluginMenuItem[]       // same shape as backend MenuItem → areaForCategory
-  widgets?: UIWidget[]          // ExtensionSlot widgets (Overview renders "home-overview")
-  areas?: UIArea[]              // NEW top-level sidebar areas (string AreaId space)
-  i18n?: { en; zh }             // merged under the plugin's `name` namespace
-  lockedFallback?: Component<{ status: number }>   // 402/404 degrade
+  routes: { path: string; Component: LazyPage; requiredRole?: string }[]
+  menu?: PluginMenuItem[]
+  widgets?: UIWidget[]
+  areas?: UIArea[]
+  i18n?: { en: Record<string, string>; zh: Record<string, string> }
 }
-registerUIPlugin(p); uiRoutes(); uiWidgets(slot); uiAreas(); uiPluginI18n()
 ```
 
-**Core pages are UIPlugins too**: links/mail/domains/abuse/audit/assets live in `web/src/plugins/core/`, always composed (imported from `main.tsx` **before** the `#octarq-plugins` manifest module). The shell (`App.tsx`) owns only auth, settings, org handling, Overview and the plugin pipeline; `STATIC_AREAS` holds only area/group shells, a menu's `category` equals its group label, and icons are string keys resolved by the single `PLUGIN_ICONS` table (`shell/areas.tsx`).
-
-**The injection seam is a manifest** (in the core `web/`) — WHICH plugins a build ships is *data*, not code:
-
-- `web/octarq.plugins.json` — the plugin **manifest**: a list of the UI plugins composed into this build. Each entry is a package specifier (its default export is the UIPlugin) or `{ from, import }` for a named/local export. The committed file is the **OSS default edition**: it lists the example plugin (`@acme/octarq-plugin-hello`), so the plugin system works out of the box.
-- `web/plugins-manifest.ts` — a Vite plugin that serves the `#octarq-plugins` virtual module, generated from the active manifest (`import` + `registerUIPlugin` for each entry). `web/src/main.tsx` imports `#octarq-plugins` for its side effects. This replaces the old two-file seam (`index.ts` / `index.pro.ts`) and the `VITE_OCTARQ_PLUGINS` switch.
-- **Choosing an edition** = pointing at a different manifest, highest precedence first: `OCTARQ_PLUGINS` env (inline JSON array — **dynamic CI injection**, no file to edit) › `OCTARQ_PLUGINS_MANIFEST` env (path to a manifest file — a commercial build ships its own; octarq-pro points here) › the committed `web/octarq.plugins.json`.
-- Result: a build never references a plugin its manifest doesn't name (verified: the licenses page markers `LicensesPage`/`getApiIssued`/`No licenses issued` are **absent** from the OSS/example build, **present** only when a manifest composes `@octarq-org/plugin-issuer`).
-
-`web/src/App.tsx` renders `pluginRouteElements()` (every element wrapped in **`PluginGate`** — 402 → upsell, 403 → access denied, 404/chunk failure → neutral note) and folds the backend `/api/menus` answer into the sidebar through the single `mergeAreas` pipeline (`areaForCategory` placement + advisory `requiredRole` filtering, member < admin < owner with instance-admin bypass, role from `/api/auth/me`); a route with no registered plugin 404-degrades (neutral note). Licenses is the reference plugin, now published as the standalone package `@octarq-org/plugin-issuer` (octarq-pro `packages/`).
+- **Manifest-driven registration**: The active UI plugins are declared in `web/octarq.plugins.json`.
+- **Vite virtual module**: At build time, `web/plugins-manifest.ts` generates the `#octarq-plugins` virtual module, importing each active plugin and registering it with the app shell.
+- **Degradation boundaries**: Routes are wrapped in `PluginGate`. If a plugin chunk fails to load or a route is disabled, the shell renders a clean fallback state rather than crashing the interface.
 
 ## 4. Shared UI (`@octarq/plugin-sdk`)
 
-The SDK re-exports the shared component library plugins build against, so a plugin page matches the app and gets accessibility for free:
+The SDK provides a consistent design system built on top of modern web standards:
 
-- Backed by **shadcn/ui + Base UI** (`@base-ui/react`) with the dark "glass" theme (chosen for Tailwind-4 support, single-binary embed, MIT, AI-codegen).
-- `cn()` (clsx + tailwind-merge); Button/Badge via `class-variance-authority`; Modal→Base UI Dialog, Toggle→Base UI Switch (a11y/focus-trap/scroll-lock); plus Input/Textarea/Select/Tabs/Tooltip/Table/Skeleton.
-- **Dependency inversion:** the app consumes the package via a facade (`web/src/plugin-sdk/`) that re-exports it; i18n-coupled bits (`Code`, `LockedFeature`) stay in the app facade. ~50 `../ui` importers unchanged.
-- For AI/LLM UIs (Inbox AI) the recommended layer is **assistant-ui** (same shadcn/Tailwind DNA) — not yet adopted.
+- Built with **Tailwind CSS** and **Base UI** primitives for accessible, robust components (dialogs, toggles, tooltips, dropdowns).
+- Re-exports core layout components, icons, and styling utilities (`cn`).
+- Decoupled from backend state: UI plugins communicate exclusively through typed API endpoints and standard fetch facades.
 
-## 5. Commercial embedding — how octarq-pro serves Pro pages
-
-The core's binary embeds `webembed/dist` (OSS dashboard, empty registry). The commercial build overrides it:
-
-1. **`app.WithWebFS(fs.FS)`** (core `server/app/app.go`) — injection point; defaults to the embedded OSS FS when unset.
-2. **`OCTARQ_WEBEMBED_OUT`** (core `web/vite.config.ts` + build script) — makes the dashboard build outDir overridable so the commercial build reuses the exact same build; default unchanged. (The buyer portal is no longer a core Vite entry — it moved to octarq-pro behind `plugin.Context.HandleStatic`; see [Core Decoupling Audit](/architecture/core-plugins/) §2.5.)
-3. **octarq-pro `webembed/`** — its own package embedding a dashboard built against octarq-pro's plugin manifest into `octarq-pro/webembed/dist` (via `make web`, which runs `OCTARQ_WEBEMBED_OUT=$(CURDIR)/webembed/dist OCTARQ_PLUGINS_MANIFEST=$(CURDIR)/octarq.plugins.json pnpm build` against `../octarq/web`). `main.go` calls `a.WithWebFS(webembed.FS())`. CI's `dashboard.yml` builds and commits this dist with a Packages token so the private plugin packages resolve.
-
-The committed pro dist means `go build`/Docker embed it with no cross-repo frontend build; `make web` (or `dashboard.yml`) regenerates it when the core dashboard or the plugin set changes.
-
-**Proven end-to-end:** OSS dashboard has no Pro pages (404-degrade); octarq-pro's embedded dashboard renders the real licenses page.
-
-## 6. A Pro feature's journey (end to end)
-
-1. Backend plugin (`plugin.Plugin`) mounts routes, 402-gates on tier — lives in octarq-pro (or core for a community plugin).
-2. Frontend page (`UIPlugin`) built from `@octarq/plugin-sdk`, handles 402/404 (with `PluginGate` as the safety net). It ships as a standalone package (`octarq-pro/packages/plugin-<feat>/`, consuming the SDK + `@octarq-org/api-client`) named in the Pro manifest.
-3. OSS build: manifest omits it → page 404-degrades (or shows upsell on 402).
-4. Commercial build: octarq-pro's manifest names it → composed into the dist; octarq-pro embeds that dist via `WithWebFS`; the licensed backend serves it.
-
-## 7. Publishing the SDK
-
-`@octarq/plugin-sdk` → **npmjs** via changesets:
-- Root `pnpm-workspace.yaml` (`packages/*`), `.changeset/`, `.github/workflows/publish-sdk.yml`.
-- Package `publishConfig` → `registry.npmjs.org`, scope `@octarq` (public).
-- Community plugin authors can install it directly without authentication (`pnpm add @octarq/plugin-sdk`). Pro private packages (`@octarq-org/*`) remain on GitHub Packages. See [Publishing Guide](/guides/publishing/).
-
-## 8. Data & Execution Boundaries
+## 5. Data & Execution Boundaries
 
 Octarq enforces clear execution boundaries and trust tiers across its runtime layers:
 
 | Layer | Execution Boundary & Scope | Trust Level | Primary Responsibilities | Data & Network Access | Security Invariants |
 |---|---|---|---|---|---|
-| **Host Core Engine** | System host process (`app.App`) | **Root / Full Authority** | HTTP lifecycle, authentication sessions, CSRF validation, tenant resolution, auto-gate route dispatching, database pool lifecycle, graceful shutdown. | Direct database access (SQLite/Postgres), environment variables, server network sockets. | Immediate session revocation on role changes; centralized rate limiting; zero raw error leakage. |
+| **Host Core Engine** | System host process (`app.App`) | **Root / Full Authority** | HTTP lifecycle, authentication sessions, CSRF validation, tenant resolution, route dispatching, database connection pool, graceful shutdown. | Direct database access (SQLite/Postgres), environment variables, server network sockets. | Immediate session revocation on role changes; centralized rate limiting; zero raw error leakage. |
 | **Plugin Context (`plugin.Context`)** | In-process module sandbox facade | **High (Operator-Curated)** | Business feature logic, plugin route mounting (`Mount`), GORM model definitions (`Models`), inter-plugin services (`ctx.Provide`), embedded help docs. | Scoped database operations (`ctx.DB`), AES-256-GCM encryption (`ctx.Encrypt`), safe outbound HTTP (`safehttp`), workspace settings. | No direct `internal/*` imports; user-influenced outbound URLs must use `safehttp` (blocks SSRF/DNS rebinding); write idempotency. |
 | **Agent / MCP Tool Execution** | Protocol boundary (stdio / SSE) | **Constrained / Capability-Governed** | MCP tool definitions (`plugin.MCPProvider`), structured LLM tool invocation, input schema validation, formatted execution responses. | Strictly restricted to registered tool handler scopes; operates within request tenant context. | Explicit parameter schemas; execution audit logging; no arbitrary process spawning or unvalidated disk access. |
-| **Client Dashboard (React / SDK)** | Browser sandbox | **Zero-Trust Client** | Interactive UI rendering, client-side routing, ephemeral UI state, accessibility (a11y), responsive glass theme design system. | Authenticated JSON HTTP APIs (`/api/...`, `/api/x/...`), session cookies, lazy-loaded chunk assets. | Route-level `PluginGate` degradation (402/403/404); zero access to server secrets or raw DB queries. |
+| **Client Dashboard (React / SDK)** | Browser sandbox | **Zero-Trust Client** | Interactive UI rendering, client-side routing, ephemeral UI state, accessibility (a11y), responsive glass theme design system. | Authenticated JSON HTTP APIs (`/api/...`, `/api/x/...`), session cookies, lazy-loaded chunk assets. | Route-level `PluginGate` degradation (403/404); zero access to server secrets or raw DB queries. |
 
-For detailed development rules and architectural constraints, see [Developer Conventions](/developers/conventions/).
+For development conventions and architectural rules, see [Developer Conventions](/developers/conventions/).
 
-## 9. File map
+## 6. File Map
 
-Core (octarq):
-- `server/plugin/plugin.go` — backend contract + `Context`.
-- `server/app/app.go` — `Use`, `gatedMux`, `WithWebFS`, CSRF wrap, server wiring.
-- `packages/plugin-sdk/` — the SDK package (contract + shadcn UI).
-- `web/src/plugin-sdk/` — app-side facade re-exporting the package.
-- `web/octarq.plugins.json` — the plugin manifest (OSS default edition).
-- `web/plugins-manifest.ts` — Vite plugin generating the `#octarq-plugins` virtual module from the manifest.
-- `web/src/plugins/PluginRoutes.tsx` / `PluginGate.tsx` — route renderer + the centralized 402/403/404 degrade boundary.
-- `web/src/plugins/core/` — octarq's own core-feature UIPlugins (always composed from `main.tsx`).
-- `web/vite.config.ts` — `octarqPlugins()`, `OCTARQ_WEBEMBED_OUT`.
-- `server/examples/plugin-hello/web/` — the example plugin, packaged as `@acme/octarq-plugin-hello` (OSS default).
-- `server/plugins/*/docs/` — in-app help pages, served under `/help/<slug>`.
-- `website/src/content/docs/` — this documentation site.
-
-octarq-pro:
-- `main.go` — `app.New().WithWebFS(webembed.FS()).Use(...)`.
-- `webembed/` — embeds the Pro-injected dashboard; `make web` rebuilds.
+Core codebase layout:
+- `server/plugin/plugin.go` — Backend plugin contract & `Context`.
+- `server/app/app.go` — Server wiring, `Use()`, middleware, and HTTP listeners.
+- `packages/plugin-sdk/` — Public frontend SDK package (contracts + UI components).
+- `web/src/plugin-sdk/` — Dashboard facade re-exporting the SDK.
+- `web/octarq.plugins.json` — Frontend plugin composition manifest.
+- `web/plugins-manifest.ts` — Vite plugin generating `#octarq-plugins`.
+- `web/src/plugins/PluginRoutes.tsx` — Route renderer & degradation boundary.
+- `web/src/plugins/core/` — Built-in core feature UI plugins.
+- `server/examples/plugin-hello/` — Reference plugin implementation.
+- `website/src/content/docs/` — Documentation site source.

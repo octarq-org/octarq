@@ -86,26 +86,9 @@ pnpm add @octarq/plugin-sdk
 
 ---
 
-## Pro Private Packages (GitHub Packages)
-
-Internal commercial packages (such as `@octarq-org/plugin-issuer` and `@octarq-org/api-client`) are published to **GitHub Packages** under the `@octarq-org` scope.
-
-Consumer projects that depend on Pro private packages require a `.npmrc` file:
-
-```ini
-@octarq-org:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
-
-- The first line routes `@octarq-org/*` packages to GitHub Packages.
-- The second line provides authentication via `GITHUB_TOKEN`.
-
----
-
 ## Secrets & permissions needed to publish
 
-- **npmjs (`@octarq/plugin-sdk`)**: uses the `NPM_TOKEN` repo secret, wired to `NODE_AUTH_TOKEN` in `.github/workflows/publish-sdk.yml`.
-- **GitHub Packages (`@octarq-org/*` Pro packages)**: uses built-in `${{ secrets.GITHUB_TOKEN }}` with `permissions: packages: write`.
+- **npmjs (`@octarq/plugin-sdk`)**: uses the `NPM_TOKEN` repository secret, configured via `NODE_AUTH_TOKEN` in `.github/workflows/publish-sdk.yml`.
 - **Version PR**: the `release` job needs `pull-requests: write` and `contents: write`.
 
 
