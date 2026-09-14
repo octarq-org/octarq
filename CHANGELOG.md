@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented here.
 
+## [0.5.0] - 2026-09-14
+
+### 🚀 Features
+
+- **server**: Add OCTARQ_DEV_WEB_PROXY support and optimize CI path filters (#563)
+
+### 🐛 Bug Fixes
+
+- **deps**: Upgrade clickhouse-go and ch-go to resolve GO-2025-3603 (#565)
+
+### ♻️ Refactor
+
+- Relocate Go backend into server/ directory and update module path (#561)
+
+### 📚 Documentation
+
+- **website**: Refine copy, align tone, and purge commercial references (#564)
+- Update website documentation, scaffold templates, and release workflow for server/ directory (#562)
+
 ## [0.4.4] - 2026-09-13
 
 ### 🚀 Features
