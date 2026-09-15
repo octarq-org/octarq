@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -136,9 +137,27 @@ func (h *Handler) MetricsToken() string {
 // redirect tiers) from settings, with defaults for unset/invalid values.
 // A stored 0 or negative disables that tier's limiting.
 func (h *Handler) RateLimits() (authRPM, apiRPM, redirectRPM int) {
-	return h.settingInt(keyRatelimitAuthRPM, defaultAuthRPM),
-		h.settingInt(keyRatelimitAPIRPM, defaultAPIRPM),
-		h.settingInt(keyRatelimitRedirRPM, defaultRedirectRPM)
+	defAuth := defaultAuthRPM
+	if v := os.Getenv("OCTARQ_RATELIMIT_AUTH_RPM"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			defAuth = n
+		}
+	}
+	defAPI := defaultAPIRPM
+	if v := os.Getenv("OCTARQ_RATELIMIT_API_RPM"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			defAPI = n
+		}
+	}
+	defRedir := defaultRedirectRPM
+	if v := os.Getenv("OCTARQ_RATELIMIT_REDIRECT_RPM"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			defRedir = n
+		}
+	}
+	return h.settingInt(keyRatelimitAuthRPM, defAuth),
+		h.settingInt(keyRatelimitAPIRPM, defAPI),
+		h.settingInt(keyRatelimitRedirRPM, defRedir)
 }
 
 func (h *Handler) settingInt(key string, def int) int {
