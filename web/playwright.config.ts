@@ -25,6 +25,9 @@ process.env.OCTARQ_LISTEN = `:${e2ePort}`;
 process.env.OCTARQ_DB_DRIVER = "sqlite";
 process.env.OCTARQ_DB_DSN = path.join(process.env.OCTARQ_E2E_TMPDIR, "octarq-e2e.db");
 process.env.OCTARQ_SECRET_KEY = "octarq-e2e-secret-key-not-for-real-use";
+process.env.OCTARQ_RATELIMIT_AUTH_RPM = "3000";
+process.env.OCTARQ_RATELIMIT_API_RPM = "3000";
+
 
 export default defineConfig({
   testDir: "./tests",
