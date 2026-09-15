@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"strings"
 	"time"
 
@@ -432,6 +433,42 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 	}
 	ctxTimeout, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
+
+	if sp, ok := notification.DefaultRouter().GetChannel(ch.Type); ok {
+		var cfgMap map[string]any
+		plain, _ := h.channelConfigPlaintext(ch.Config)
+		if plain != "" {
+			_ = json.Unmarshal([]byte(plain), &cfgMap)
+		}
+		if cfgMap == nil {
+			cfgMap = make(map[string]any)
+		}
+		if ch.Type == "email" {
+			if emailVal, _ := cfgMap["email"].(string); strings.TrimSpace(emailVal) == "" {
+				var u models.User
+				if err := h.db.First(&u, h.auth.UserID(r)).Error; err == nil && u.Email != "" {
+					cfgMap["email"] = u.Email
+				}
+			}
+		}
+		err := sp.Send(ctxTimeout, plugin.NotificationRecipient{
+			UserID: strconv.FormatUint(uint64(h.auth.UserID(r)), 10),
+			OrgID:  strconv.FormatUint(uint64(orgID), 10),
+			Config: cfgMap,
+		}, plugin.NotificationPayload{
+			Title:     "🔔 Test notification from octarq!",
+			Body:      "This is a test notification confirming your channel is configured properly.",
+			EventType: "test",
+			Priority:  "normal",
+		})
+		if err != nil {
+			return nil, huma.Error400BadRequest(err.Error())
+		}
+		out := &TestNotificationChannelOutput{}
+		out.Body.OK = true
+		return out, nil
+	}
+
 	if err := notify.Send(ctxTimeout, ch.Type, ch.Config, "🔔 Test notification from octarq!"); err != nil {
 		return nil, huma.Error400BadRequest(err.Error())
 	}

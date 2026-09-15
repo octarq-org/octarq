@@ -14,12 +14,14 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -195,6 +197,33 @@ func (a *App) RunMCP(ctx context.Context) error {
 		return a.sendMail(orgID, to, subject, htmlBody, textBody)
 	}))
 	notification.SetDefaultRouter(notifRouter)
+	notify.RegisterWithDescriptor(notify.Descriptor{
+		Type:        "email",
+		Title:       "Email",
+		Description: "Deliver notifications via transactional email",
+		Icon:        "mail",
+	}, func(ctx context.Context, cfgJSON, text string) error {
+		var cfg struct {
+			Email string `json:"email"`
+			To    string `json:"to"`
+			OrgID uint   `json:"orgId"`
+		}
+		if cfgJSON != "" {
+			_ = json.Unmarshal([]byte(cfgJSON), &cfg)
+		}
+		target := strings.TrimSpace(cfg.Email)
+		if target == "" {
+			target = strings.TrimSpace(cfg.To)
+		}
+		if target == "" {
+			return errors.New("notification: missing recipient email address in config")
+		}
+		orgID := cfg.OrgID
+		if orgID == 0 {
+			orgID = 1
+		}
+		return a.sendMail(orgID, target, "🔔 octarq notification", "<p>"+text+"</p>", text)
+	})
 	pctx := &plugin.Context{
 		Huma:   apiHandler.Huma(),
 		DB:     a.gdb,
@@ -426,6 +455,33 @@ func (a *App) Run(ctx context.Context) error {
 		return a.sendMail(orgID, to, subject, htmlBody, textBody)
 	}))
 	notification.SetDefaultRouter(notifRouter)
+	notify.RegisterWithDescriptor(notify.Descriptor{
+		Type:        "email",
+		Title:       "Email",
+		Description: "Deliver notifications via transactional email",
+		Icon:        "mail",
+	}, func(ctx context.Context, cfgJSON, text string) error {
+		var cfg struct {
+			Email string `json:"email"`
+			To    string `json:"to"`
+			OrgID uint   `json:"orgId"`
+		}
+		if cfgJSON != "" {
+			_ = json.Unmarshal([]byte(cfgJSON), &cfg)
+		}
+		target := strings.TrimSpace(cfg.Email)
+		if target == "" {
+			target = strings.TrimSpace(cfg.To)
+		}
+		if target == "" {
+			return errors.New("notification: missing recipient email address in config")
+		}
+		orgID := cfg.OrgID
+		if orgID == 0 {
+			orgID = 1
+		}
+		return a.sendMail(orgID, target, "🔔 octarq notification", "<p>"+text+"</p>", text)
+	})
 	pctx := &plugin.Context{
 		Huma:   apiHandler.Huma(),
 		DB:     a.gdb,

@@ -142,6 +142,7 @@ export const zh: Resources = {
     links: "短链",
     "links-instance-settings": "短链设置",
     mail: "邮件",
+    inbox: "站内信",
     domains: "DNS",
     abuse: "滥用举报",
     audit: "审计日志",

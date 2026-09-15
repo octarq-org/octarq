@@ -335,6 +335,7 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 	// offered.
 	menus := []MenuItem{
 		{ID: "overview", Label: "Overview", Path: "/overview", Icon: "layout-dashboard", Category: "Workspace"},
+		{ID: "inbox", Label: "Inbox", Path: "/notifications", Icon: "bell", Category: "Messaging"},
 
 		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "scroll-text", Category: "System"},
 		{ID: "abuse", Label: "Abuse Reports", Path: "/abuse", Icon: "shield-alert", Category: "Security"},
