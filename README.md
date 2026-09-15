@@ -134,7 +134,7 @@ The point isn't "we added AI." The point is the **framework** wiring: a plugin t
 ```
 </details>
 
-> 💡 **Ready-to-use Agent Workflow?** See the [**Autonomous Solopreneur Blueprint**](blueprints/autonomous-solopreneur/) — turnkey Claude Code (`CLAUDE.md`) and Cursor (`.cursorrules`) templates for automated marketing links, transactional OTP retrieval, and morning operations standups.
+> 🌟 **Autonomous Solopreneur Blueprint**: Explore the official [**Autonomous Solopreneur Blueprint & Runnable Scaffold**](examples/autonomous-solopreneur/) (`examples/autonomous-solopreneur`) — demonstrating how Claude Code & Cursor automate DNS deliverability audits, UTM marketing shortlinks, business mailbox OTP extraction, and offline Ed25519 licensing completely unattended. Also see the [architecture guide and workflow templates](blueprints/autonomous-solopreneur/).
 
 ---
 

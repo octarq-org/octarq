@@ -134,7 +134,7 @@ Octarq 内置了 **MCP 服务器**（`octarq mcp` 走 stdio；服务器自身在
 ```
 </details>
 
-> 💡 **想开箱即用体验自运行智能体？** 请参阅 [**《一人公司自运行智能体》官方样板间**](blueprints/autonomous-solopreneur/README_ZH.md) —— 内含开箱即用的 Claude Code (`CLAUDE.md`) 与 Cursor (`.cursorrules`) 配置模板，助你自动化管理营销短链、邮件验证码提取与每日运营晨报。
+> 🌟 **官方开源样板间**：想要直观体验 AI 智能体如何驱动 Octarq？请查看 [**《一人公司自运行智能体 (Autonomous Solopreneur)》可执行脚手架**](examples/autonomous-solopreneur/) (`examples/autonomous-solopreneur`) —— 完整演示 Claude Code 与 Cursor 如何通过 Remote MCP 自动化接管 DNS 信誉诊断、UTM 营销短链配置、业务邮箱 OTP 拦截与离线 Ed25519 授权签发。另附 [工作流架构设计与操作手册](blueprints/autonomous-solopreneur/README_ZH.md)。
 
 ---
 
