@@ -65,10 +65,39 @@ Octarq MCP 服务端**严禁**提供任何形式的原始 SQL 执行工具。在
 - **输入参数**：`mailbox_id`（可选）、`limit`（整数，1–50）。
 - **输出结果**：邮件对象数组，包含发件人、收件人、邮件主题、接收时间戳及文本摘要。
 
-### 6. `export_data`
+### 6. `get_latest_otp`
+从最近 10 分钟内到达的未读邮件中自动提取一次性验证码 (OTP)：
+- **输入参数**：`mailbox_id`（可选整数）、`mailbox_address`（可选字符串）。
+- **输出结果**：包含 `found` 标识、提取出的 4~8 位验证码 `otp`、对应 `email_id`、`subject`、`from`、`to` 及 `received_at`。
+
+### 7. `get_email_summary`
+获取指定邮件的结构化脱敏摘要并自动识别分类与验证码：
+- **输入参数**：`email_id`（整数，必填）。
+- **输出结果**：邮件概括 `summary`、分类 `category`（如 `otp`、`security_alert`、`billing`、`notification`）、提取的 `otp`（若存在）及邮件元信息。
+
+### 8. `get_email_content`
+获取具备安全脱敏护栏的邮件纯文本正文：
+- **输入参数**：`email_id`（整数，必填）。
+- **输出结果**：清洗后的文本正文 `text`、截断标识 `truncated`。自动过滤密码重置与认证链接中的敏感 Token，移除 Base64 内联图片，并严格限定 4KB 上下文窗口安全上限。
+
+### 9. `export_data`
 导出当前租户全部业务数据的结构化备份：
-- **输入参数**：无。
+- **输入参数**：`resource`（字符串：`links`、`emails`、`domains` 或 `mailboxes`）。
 - **输出结果**：完整的 JSON 投影数据，包含该租户下的所有短链、域名及邮箱配置。
+
+## 标准 MCP 只读 Resources 规范
+
+Octarq 遵循 MCP 规范开放只读 Resource 端点供 Agent 订阅与监测：
+
+### 1. `octarq://metrics/traffic`
+当前工作区的短链重定向与访问流量实时指标：
+- **MIME 类型**：`application/json`
+- **字段**：`total_links`、`active_links`、`total_clicks`、`clicks_7d`、`clicks_30d` 及 `top_links`。
+
+### 2. `octarq://domains/health`
+当前工作区纳管域名的 DNS 配置、验证状态与路由能力：
+- **MIME 类型**：`application/json`
+- **字段**：`total_domains`、`active_mail_domains`、`active_link_domains` 及包含 `status`（`healthy`、`pending_provider`、`pending_zone`）的域名健康列表。
 
 ## 客户端配置示例
 

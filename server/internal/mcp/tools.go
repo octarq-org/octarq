@@ -17,7 +17,7 @@ import (
 )
 
 type exportInput struct {
-	Resource string `json:"resource"` // one of: links, emails, domains, mailboxes
+	Resource string `json:"resource" jsonschema:"Resource type to export: links, emails, domains, or mailboxes"`
 }
 
 func (s *server) exportData(ctx context.Context, _ *mcp.CallToolRequest, in exportInput) (*mcp.CallToolResult, any, error) {
