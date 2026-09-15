@@ -158,6 +158,7 @@ export const en = {
     links: "Links",
     "links-instance-settings": "Short Link Settings",
     mail: "Mail",
+    inbox: "Inbox",
     domains: "DNS",
     abuse: "Abuse Reports",
     audit: "Audit Log",

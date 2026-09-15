@@ -52,6 +52,12 @@ var (
 			Description: "Custom HTTP POST payload to any URL",
 			Icon:        "webhook",
 		},
+		"email": {
+			Type:        "email",
+			Title:       "Email",
+			Description: "Deliver notifications via transactional email",
+			Icon:        "mail",
+		},
 	}
 )
 

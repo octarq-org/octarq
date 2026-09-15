@@ -82,6 +82,7 @@ export const ALLOWLIST_EXACT = new Set([
   // ACME account email placeholder (plugin-infra certificates page) and the S3
   // key-prefix placeholder next to it — both are input examples, not copy.
   "admin@example.com",
+  "alerts@example.com",
   "folder/",
   // Object-key example in the S3 upload dialog. A path is a path in every
   // language; translating "file" here would suggest the key itself is localised.

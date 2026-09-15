@@ -9,6 +9,7 @@ import { registerUIPlugin, resetRegistry, NotificationChannelFormContext } from 
 import notifyPlugin from "./index";
 import TelegramForm from "./TelegramForm";
 import WebhookForm from "./WebhookForm";
+import EmailForm from "./EmailForm";
 import { NotificationChannels } from "../../../pages/settings/notifications";
 import { NotificationChannelType, NotificationChannel } from "../../../api";
 
@@ -162,6 +163,31 @@ describe("Notify & Alerts Forms", () => {
 
       fireEvent.change(urlInput, { target: { value: "https://new-webhook.org/hook" } });
       expect(updateConfig).toHaveBeenCalledWith("url", "https://new-webhook.org/hook");
+    });
+  });
+
+  describe("EmailForm standalone", () => {
+    it("renders Email destination field and updates config", () => {
+      const updateConfig = vi.fn();
+      const setConfig = vi.fn();
+
+      renderWithProviders(
+        <NotificationChannelFormContext.Provider
+          value={{
+            config: { email: "alerts@example.com" },
+            setConfig,
+            updateConfig,
+          }}
+        >
+          <EmailForm />
+        </NotificationChannelFormContext.Provider>
+      );
+
+      const emailInput = screen.getByPlaceholderText("alerts@example.com");
+      expect((emailInput as HTMLInputElement).value).toBe("alerts@example.com");
+
+      fireEvent.change(emailInput, { target: { value: "ops@company.org" } });
+      expect(updateConfig).toHaveBeenCalledWith("email", "ops@company.org");
     });
   });
 

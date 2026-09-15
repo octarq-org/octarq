@@ -141,6 +141,7 @@ export const es = {
     links: "Enlaces",
     "links-instance-settings": "Configuración de enlaces cortos",
     mail: "Correo",
+    inbox: "Bandeja de entrada",
     domains: "DNS",
     abuse: "Reportes de abuso",
     audit: "Registro de auditoría",
