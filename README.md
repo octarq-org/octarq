@@ -21,6 +21,7 @@
   <a href="https://octarq.org">Website</a> ·
   <a href="https://docs.octarq.org">Docs</a> ·
   <a href="#quick-start">Quick start</a> ·
+  <a href="blueprints/autonomous-solopreneur/">Solopreneur Blueprint</a> ·
   <a href="#extend-it-write-a-plugin">Write a plugin</a> ·
   <a href="https://github.com/octarq-org/octarq-plugins">Plugins</a> ·
   <a href="README_ZH.md">简体中文</a>
@@ -132,6 +133,8 @@ The point isn't "we added AI." The point is the **framework** wiring: a plugin t
 }}}
 ```
 </details>
+
+> 💡 **Ready-to-use Agent Workflow?** See the [**Autonomous Solopreneur Blueprint**](blueprints/autonomous-solopreneur/) — turnkey Claude Code (`CLAUDE.md`) and Cursor (`.cursorrules`) templates for automated marketing links, transactional OTP retrieval, and morning operations standups.
 
 ---
 

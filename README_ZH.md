@@ -21,6 +21,7 @@
   <a href="https://octarq.org">官网</a> ·
   <a href="https://docs.octarq.org">文档</a> ·
   <a href="#快速开始">快速开始</a> ·
+  <a href="blueprints/autonomous-solopreneur/README_ZH.md">一人公司样板间</a> ·
   <a href="#插件扩展开发编写一个插件">编写插件</a> ·
   <a href="https://github.com/octarq-org/octarq-plugins">插件仓库</a> ·
   <a href="README.md">English</a>
@@ -132,6 +133,8 @@ Octarq 内置了 **MCP 服务器**（`octarq mcp` 走 stdio；服务器自身在
 }}}
 ```
 </details>
+
+> 💡 **想开箱即用体验自运行智能体？** 请参阅 [**《一人公司自运行智能体》官方样板间**](blueprints/autonomous-solopreneur/README_ZH.md) —— 内含开箱即用的 Claude Code (`CLAUDE.md`) 与 Cursor (`.cursorrules`) 配置模板，助你自动化管理营销短链、邮件验证码提取与每日运营晨报。
 
 ---
 
