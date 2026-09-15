@@ -65,10 +65,39 @@ Retrieves transactional incoming emails stored in the workspace:
 - **Inputs**: `mailbox_id` (optional), `limit` (int, 1–50).
 - **Outputs**: Array of email summaries with sender, recipient, subject, received time, and snippet.
 
-### 6. `export_data`
+### 6. `get_latest_otp`
+Extracts the latest one-time verification code (OTP) from unread emails received in the last 10 minutes:
+- **Inputs**: `mailbox_id` (optional uint), `mailbox_address` (optional string).
+- **Outputs**: Object containing `found` flag, extracted 4–8 character code `otp`, matching `email_id`, `subject`, `from`, `to`, and `received_at`.
+
+### 7. `get_email_summary`
+Retrieves a structured, sanitized summary of an email with automatic category and OTP detection:
+- **Inputs**: `email_id` (uint, required).
+- **Outputs**: Email overview including `summary`, `category` (e.g. `otp`, `security_alert`, `billing`, `notification`), extracted `otp` if present, and headers.
+
+### 8. `get_email_content`
+Retrieves sanitized plain text content of an email with strict security guardrails:
+- **Inputs**: `email_id` (uint, required).
+- **Outputs**: Clean body `text`, `truncated` flag. Automatically redacts sensitive query and path tokens from password reset/magic links, strips inline base64 images, and enforces a 4KB context safety limit.
+
+### 9. `export_data`
 Generates a complete, tenant-isolated data export for backup or analysis:
-- **Inputs**: None.
-- **Outputs**: Comprehensive JSON projection containing all links, domains, and mailboxes belonging to the tenant.
+- **Inputs**: `resource` (string: `links`, `emails`, `domains`, or `mailboxes`).
+- **Outputs**: Comprehensive JSON projection containing all records belonging to the tenant.
+
+## Standard MCP Resources
+
+Octarq exposes read-only MCP resources for operational observability:
+
+### 1. `octarq://metrics/traffic`
+Real-time short-link traffic and redirection metrics for the current workspace:
+- **MIME Type**: `application/json`
+- **Fields**: `total_links`, `active_links`, `total_clicks`, `clicks_7d`, `clicks_30d`, and `top_links`.
+
+### 2. `octarq://domains/health`
+DNS configuration, verification status, and routing capability of managed domains:
+- **MIME Type**: `application/json`
+- **Fields**: `total_domains`, `active_mail_domains`, `active_link_domains`, and list of domain health records with `status` (`healthy`, `pending_provider`, `pending_zone`).
 
 ## Client Configuration Examples
 

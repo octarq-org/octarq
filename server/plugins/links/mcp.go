@@ -23,9 +23,9 @@ var errNoOrgInContext = plugin.NewAgentError(
 )
 
 type listLinksInput struct {
-	Host  string `json:"host,omitempty"`
-	Tag   string `json:"tag,omitempty"`
-	Limit int    `json:"limit,omitempty"`
+	Host  string `json:"host,omitempty" jsonschema:"Optional hostname filter (e.g. go.example.com)"`
+	Tag   string `json:"tag,omitempty" jsonschema:"Optional tag filter (e.g. marketing)"`
+	Limit int    `json:"limit,omitempty" jsonschema:"Maximum number of links to return (default 50, max 200)"`
 }
 
 type linkOut struct {
