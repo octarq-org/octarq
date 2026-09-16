@@ -14,12 +14,12 @@ func TestBothPctxConstructorsSetRequireRole(t *testing.T) {
 	if !ok {
 		t.Fatal("failed to get caller path")
 	}
-	appGoPath := filepath.Join(filepath.Dir(currentFile), "app.go")
+	hostRuntimePath := filepath.Join(filepath.Dir(currentFile), "host_runtime.go")
 
 	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, appGoPath, nil, parser.ParseComments)
+	node, err := parser.ParseFile(fset, hostRuntimePath, nil, parser.ParseComments)
 	if err != nil {
-		t.Fatalf("failed to parse app.go: %v", err)
+		t.Fatalf("failed to parse host_runtime.go: %v", err)
 	}
 
 	pctxCount := 0
