@@ -48,15 +48,11 @@ import (
 	"github.com/octarq-org/octarq/server/internal/notify"
 	"github.com/octarq-org/octarq/server/internal/queue"
 	"github.com/octarq-org/octarq/server/internal/server"
-	"github.com/octarq-org/octarq/server/internal/tenantsql"
 	"github.com/octarq-org/octarq/server/origin"
 	"github.com/octarq-org/octarq/server/pkg/telemetry"
 	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugin/safehttp"
 	"github.com/octarq-org/octarq/server/webembed"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm"
 )
 
@@ -224,104 +220,27 @@ func (a *App) RunMCP(ctx context.Context) error {
 		}
 		return a.sendMail(orgID, target, "🔔 octarq notification", "<p>"+text+"</p>", text)
 	})
-	pctx := &plugin.Context{
-		Huma:   apiHandler.Huma(),
-		DB:     a.gdb,
-		Guard:  a.auth.Require,
-		Notify: notify.Send,
-		RegisterNotificationChannel: func(ch plugin.NotificationChannel) {
-			_ = notifRouter.RegisterChannel(ch)
-		},
-		RegisterNotifier: func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
-			notify.Register(typ, send)
-		},
-		RevokeUserOrgSessions: a.auth.RevokeUserOrgSessions,
-		UserID:                a.auth.UserID,
-		OrgID:                 a.auth.OrgID,
-		OrgRole:               apiHandler.OrgRole,
-		RequireRole:           apiHandler.RequireRole,
-		RequirePerm:           apiHandler.RequirePerm,
-		IsInstanceAdmin:       apiHandler.IsInstanceAdmin,
-		LoginByEmail:          a.loginByEmail,
-		LoginByIdentity:       a.loginByIdentity,
-		BindIdentity:          a.auth.BindIdentity,
-		RegisterAuthMethod: func(m plugin.AuthMethod) {
-			auth.Register(auth.AuthMethod{
-				ID:        m.ID,
-				Label:     m.Label,
-				LoginURL:  m.LoginURL,
-				IconKey:   m.IconKey,
-				Available: m.Available,
-			})
-		},
-		Audit:   apiHandler.Audit,
-		Encrypt: a.cipher.Encrypt,
-		Decrypt: a.cipher.Decrypt,
-		OnEmail: func(handler func(plugin.EmailEvent)) {
-			if handler == nil {
-				return
-			}
-			if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {
-				onEmailService(handler)
-				return
-			}
-			emailMu.Lock()
-			deferredOnEmail = append(deferredOnEmail, handler)
-			emailMu.Unlock()
-		},
-		DNS:                  &lazyDNSManager{lookup: services.Lookup},
-		SendMail:             a.sendMail,
-		SetLLMResolverForOrg: apiHandler.SetLLMResolverForOrg,
-		RecordUsage: func(orgID uint, metric string, n int64) {
-			// Lazily resolved on every call: the provider (Pro's cloud module) may
-			// mount after the plugin that meters, so a Mount-time Lookup would
-			// silently never find it.
-			if fn, ok := plugin.LookupServiceAs[plugin.UsageMeter](services.Lookup, plugin.ServiceCloudUsage); ok {
-				fn(orgID, metric, n)
-			}
-		},
-		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
-		GetGlobalSetting:    apiHandler.GetGlobalSetting,
-		SetGlobalSetting:    apiHandler.SetGlobalSetting,
-		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,
-		Enqueue:             taskQueue.Enqueue,
-		RegisterTask: func(taskType string, h func(ctx context.Context, payload []byte) error) {
-			taskQueue.Register(taskType, h)
-		},
-		PublishEvent: eventbus.Publish,
-		RegisterWebhookEvent: func(d plugin.WebhookEventDef) {
-			eventbus.RegisterEventDef(eventbus.EventDef{Key: d.Key, Group: d.Group, Title: d.Title, Description: d.Description})
-		},
-		CacheGet:    a.auth.Cache().Get,
-		CacheSet:    a.auth.Cache().Set,
-		DeleteCache: a.auth.Cache().Delete,
-		Cache:       cache.NewScoped(a.auth.Cache(), "core"),
-		GeoLookup:   a.geo.Locate,
-		ParseUA: func(ua string) (string, string, string) {
-			info := geo.ParseUA(ua)
-			return info.Device, info.Browser, info.OS
-		},
-		HandleRoot:   func(h http.Handler) { /* unused in MCP */ },
-		HandleStatic: func(prefix string, fsys fs.FS) { /* unused in MCP */ },
-		Provide:      services.Provide,
-		Lookup:       services.Lookup,
-		Tracer: func(name string) trace.Tracer {
-			return telemetry.Tracer(name)
-		},
-		Meter: func(name string) metric.Meter {
-			return otel.GetMeterProvider().Meter(name)
-		},
-		StartSpan: func(ctx context.Context, tracerName, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
-			return telemetry.StartSpan(ctx, tracerName, spanName, opts...)
-		},
-		RegisterEndpoint: endpointEngine.Register,
-		RegisterTenantView: func(view plugin.TenantView) {
-			_ = tenantsql.DefaultRegistry().Register(view)
-		},
-		RegisterReactor: eventbus.RegisterReactor,
-		RegisterCron:    cronEngine.Register,
-		Cron:            cronEngine,
-	}
+	pctx := a.buildPluginContext(pluginContextParams{
+		apiHandler:      apiHandler,
+		gdb:             a.gdb,
+		cipher:          a.cipher,
+		auth:            a.auth,
+		notifRouter:     notifRouter,
+		services:        services,
+		geo:             a.geo,
+		endpointEngine:  endpointEngine,
+		taskQueue:       taskQueue,
+		cronEngine:      cronEngine,
+		sendMail:        a.sendMail,
+		loginByEmail:    a.loginByEmail,
+		loginByIdentity: a.loginByIdentity,
+		onEmailMu:       &emailMu,
+		deferredOnEmail: &deferredOnEmail,
+		handleRoot:      func(h http.Handler) { /* unused in MCP */ },
+		handleStatic:    func(prefix string, fsys fs.FS) { /* unused in MCP */ },
+		httpMode:        false,
+		plugins:         a.plugins,
+	})
 	apiHandler.SetEndpointSource(endpointEngine)
 	// Same idempotency seam as the HTTP path — a plugin that resolves it in
 	// Mount must find it in both compositions.
@@ -482,131 +401,31 @@ func (a *App) Run(ctx context.Context) error {
 		}
 		return a.sendMail(orgID, target, "🔔 octarq notification", "<p>"+text+"</p>", text)
 	})
-	pctx := &plugin.Context{
-		Huma:   apiHandler.Huma(),
-		DB:     a.gdb,
-		Guard:  a.auth.Require,
-		Notify: notify.Send,
-		RegisterNotificationChannel: func(ch plugin.NotificationChannel) {
-			_ = notifRouter.RegisterChannel(ch)
-		},
-		RegisterNotifier: func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
-			notify.Register(typ, send)
-		},
-		RevokeUserOrgSessions: a.auth.RevokeUserOrgSessions,
-		UserID:                a.auth.UserID,
-		OrgID:                 a.auth.OrgID,
-		OrgRole:               apiHandler.OrgRole,
-		RequireRole:           apiHandler.RequireRole,
-		RequirePerm:           apiHandler.RequirePerm,
-		IsInstanceAdmin:       apiHandler.IsInstanceAdmin,
-		LoginByEmail:          a.loginByEmail,
-		LoginByIdentity:       a.loginByIdentity,
-		BindIdentity:          a.auth.BindIdentity,
-		RegisterAuthMethod: func(m plugin.AuthMethod) {
-			auth.Register(auth.AuthMethod{
-				ID:        m.ID,
-				Label:     m.Label,
-				LoginURL:  m.LoginURL,
-				IconKey:   m.IconKey,
-				Available: m.Available,
-			})
-		},
-		Audit:   apiHandler.Audit,
-		Encrypt: a.cipher.Encrypt,
-		Decrypt: a.cipher.Decrypt,
-		OnEmail: func(handler func(plugin.EmailEvent)) {
-			if handler == nil {
-				return
-			}
-			if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {
-				onEmailService(handler)
-				return
-			}
-			runEmailMu.Lock()
-			runDeferredOnEmail = append(runDeferredOnEmail, handler)
-			runEmailMu.Unlock()
-		},
-		DNS:                  &lazyDNSManager{lookup: services.Lookup},
-		SendMail:             a.sendMail,
-		SetLLMResolverForOrg: apiHandler.SetLLMResolverForOrg,
-		RecordUsage: func(orgID uint, metric string, n int64) {
-			// Lazily resolved on every call: the provider (Pro's cloud module) may
-			// mount after the plugin that meters, so a Mount-time Lookup would
-			// silently never find it.
-			if fn, ok := plugin.LookupServiceAs[plugin.UsageMeter](services.Lookup, plugin.ServiceCloudUsage); ok {
-				fn(orgID, metric, n)
-			}
-		},
-		GetWorkspaceSetting: apiHandler.GetWorkspaceSetting,
-		GetGlobalSetting:    apiHandler.GetGlobalSetting,
-		SetGlobalSetting:    apiHandler.SetGlobalSetting,
-		SetWorkspaceSetting: apiHandler.SetWorkspaceSetting,
-		Enqueue:             taskQueue.Enqueue,
-		RegisterTask: func(taskType string, h func(ctx context.Context, payload []byte) error) {
-			taskQueue.Register(taskType, h)
-		},
-		PublishEvent: eventbus.Publish,
-		RegisterWebhookEvent: func(d plugin.WebhookEventDef) {
-			eventbus.RegisterEventDef(eventbus.EventDef{Key: d.Key, Group: d.Group, Title: d.Title, Description: d.Description})
-		},
-		CacheGet:    a.auth.Cache().Get,
-		CacheSet:    a.auth.Cache().Set,
-		DeleteCache: a.auth.Cache().Delete,
-		Cache:       cache.NewScoped(a.auth.Cache(), "core"),
-		GeoLookup:   a.geo.Locate,
-		ParseUA: func(ua string) (string, string, string) {
-			info := geo.ParseUA(ua)
-			return info.Device, info.Browser, info.OS
-		},
-		PluginActive: func(orgID uint, p plugin.Plugin) bool {
-			key := plugin.FeatureKey(p)
-			if plugin.FeatureIsCore(a.plugins, key) {
-				return true
-			}
-			return apiHandler.PluginEnabled(orgID, key)
-		},
-		FeatureActive: func(orgID uint, featureKey string) bool {
-			if plugin.FeatureIsCore(a.plugins, featureKey) {
-				return true
-			}
-			// Unlike the route gate, this answers for content that is listed
-			// before a workspace is chosen (help docs). PluginEnabled fails
-			// closed at orgID 0 by design, so ask for the declared default
-			// instead of inheriting a "disabled" that only means "no org yet".
-			if orgID == 0 {
-				return apiHandler.FeatureDefaultEnabled(featureKey)
-			}
-			return apiHandler.PluginEnabled(orgID, featureKey)
-		},
-		ActivePlugins: func() []plugin.Plugin {
-			return a.plugins
-		},
-		HandleRoot: func(h http.Handler) {
+	pctx := a.buildPluginContext(pluginContextParams{
+		apiHandler:      apiHandler,
+		gdb:             a.gdb,
+		cipher:          a.cipher,
+		auth:            a.auth,
+		notifRouter:     notifRouter,
+		services:        services,
+		geo:             a.geo,
+		endpointEngine:  endpointEngine,
+		taskQueue:       taskQueue,
+		cronEngine:      cronEngine,
+		sendMail:        a.sendMail,
+		loginByEmail:    a.loginByEmail,
+		loginByIdentity: a.loginByIdentity,
+		onEmailMu:       &runEmailMu,
+		deferredOnEmail: &runDeferredOnEmail,
+		handleRoot: func(h http.Handler) {
 			rootHandler = h
 		},
-		HandleStatic: func(prefix string, fsys fs.FS) {
+		handleStatic: func(prefix string, fsys fs.FS) {
 			staticMounts = append(staticMounts, server.StaticMount{Prefix: prefix, FS: fsys})
 		},
-		Provide: services.Provide,
-		Lookup:  services.Lookup,
-		Tracer: func(name string) trace.Tracer {
-			return telemetry.Tracer(name)
-		},
-		Meter: func(name string) metric.Meter {
-			return otel.GetMeterProvider().Meter(name)
-		},
-		StartSpan: func(ctx context.Context, tracerName, spanName string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
-			return telemetry.StartSpan(ctx, tracerName, spanName, opts...)
-		},
-		RegisterEndpoint: endpointEngine.Register,
-		RegisterTenantView: func(view plugin.TenantView) {
-			_ = tenantsql.DefaultRegistry().Register(view)
-		},
-		RegisterReactor: eventbus.RegisterReactor,
-		RegisterCron:    cronEngine.Register,
-		Cron:            cronEngine,
-	}
+		httpMode: true,
+		plugins:  a.plugins,
+	})
 	a.setupBuiltinCron(pctx, apiHandler)
 	apiHandler.SetEndpointSource(endpointEngine)
 	// Idempotency-Key support is offered to plugin routes through the service

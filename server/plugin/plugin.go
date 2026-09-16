@@ -511,6 +511,9 @@ type Context struct {
 	// Cron provides the CronService SPI for registering and listing cron tasks.
 	// nil on hosts that predate it.
 	Cron CronService
+	// Host provides cohesive access to host runtime capabilities (Session, Crypto, Settings, Events).
+	// nil on hosts that predate it.
+	Host Host
 }
 
 // AuthMethod is a provider-agnostic auth method definition, mirroring the fields
