@@ -33,6 +33,11 @@ import {
   Workflow,
 } from "lucide-react";
 import type { UIArea } from "@octarq/plugin-sdk";
+import { NavigationTree, BUILTIN_AREA_GROUPS, BuildNavigationTreeOptions } from "./NavigationTree";
+export { NavigationTree, BUILTIN_AREA_GROUPS };
+export type { BuildNavigationTreeOptions };
+export { useNavigation, clearCachedNav, readCachedNav, writeCachedNav } from "./useNavigation";
+export type { UseNavigationOptions, CachedNav } from "./useNavigation";
 
 // ─── Area definitions ──────────────────────────────────────────────────────
 
@@ -77,35 +82,14 @@ export const STATIC_AREAS: Area[] = [
           { id: "overview", label: "Overview", Icon: LayoutDashboard, path: "/overview" },
         ],
       },
-      // Links → plugin (plugins/links, category "Marketing").
-      { label: "Marketing", items: [] },
-      // Mail → plugin (plugins/mail, category "Messaging").
-      // AI Inbox is a Pro plugin — its menu entry is injected dynamically
-      // (@octarq-org/plugin-ai, category "Messaging") only in a composed build.
-      { label: "Messaging", items: [] },
-      // Abuse Reports → core plugin (plugins/core/abuse.ts, category "Security").
-      { label: "Security", items: [] },
-      // Audit Log → core plugin (plugins/core/audit.ts, category "System").
-      { label: "System", items: [] },
     ],
   },
-  // Pro areas (e.g. Commerce) declare group shells dynamically via UIPlugin.areas.
   {
     id: "assets",
     title: "Infrastructure",
     subtitle: "Servers, network & databases",
     Icon: Boxes,
-    groups: [
-      // DNS → plugin (plugins/dns); Certificates → Pro
-      // infra plugin (@octarq-org/plugin-infra). Both use category "Network".
-      { label: "Network", items: [] },
-      // Servers + SSH Vault are Pro plugins (@octarq-org/plugin-infra,
-      // category "Hosting") — injected dynamically only in a composed build.
-      { label: "Hosting", items: [] },
-      // Databases + Object Storage → Pro plugins (@octarq-org/plugin-infra,
-      // @octarq-org/plugin-databases, category "Storage & Databases").
-      { label: "Storage & Databases", items: [] },
-    ],
+    groups: [],
   },
 ];
 
@@ -166,33 +150,10 @@ export function areaForPath(path: string, areas: Area[] = STATIC_AREAS): AreaId 
 // Placement keyword for sidebar footer items. Not a real Area id.
 export const FOOTER_PLACEMENT = "footer";
 
-// Maps a dynamic menu category to an area. Keep the keywords below in sync with
-// the Category strings plugins set in their Menus() — see
-// website/src/content/docs/writing-a-plugin.md.
+// Maps a dynamic menu category to an area deterministically via NavigationTree.
+// Eliminates keyword substring heuristics in favor of exact matching against area IDs and declared groups.
 export function areaForCategory(cat?: string, pluginAreas: UIArea[] = []): AreaId {
-  const c = (cat ?? "").toLowerCase();
-
-  // Product links categorized as "footer"/"resources" land in the sidebar footer.
-  if (c === FOOTER_PLACEMENT || c === "resources") return FOOTER_PLACEMENT;
-
-  // Settings holds what the org configures about octarq and itself; the areas
-  // below hold what the org runs FOR its own customers. Keep them apart:
-  // octarq's own license → Settings, the org issuing licenses → Commerce.
-  if (c === "settings" || c === "instance" || c === "account" || c === "personal") return "settings";
-
-  // Category matches a plugin area by id or by one of its declared group
-  // labels — never by title. Title is what the sidebar renders and what
-  // translateAreaTitle localizes; routing on it would mean renaming an area
-  // silently relocates every menu that named it. Guarded by areaForCategory.test.ts.
-  const pluginHit = pluginAreas.find(
-    (a) =>
-      a.id.toLowerCase() === c ||
-      (a.groups ?? []).some((g) => g.toLowerCase() === c),
-  );
-  if (pluginHit) return pluginHit.id;
-  if (c.includes("asset") || c.includes("infra") || c.includes("network") || c.includes("compute") || c.includes("hosting") || c.includes("storage") || c.includes("database")) return "assets";
-  if (c.includes("insight") || c.includes("analytic") || c.includes("compliance") || c.includes("governance") || c.includes("audit") || c.includes("abuse") || c.includes("security") || c.includes("system")) return "operations";
-  return "operations";
+  return NavigationTree.resolveCategoryToArea(cat, pluginAreas);
 }
 
 // ─── Plugin-contributed icons & areas ───────────────────────────────────────

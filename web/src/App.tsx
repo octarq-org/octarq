@@ -1,10 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { BookOpen, Bot, Boxes, FileText, Globe, Link2, Mail, Send, Server, Shield, Sparkles } from "lucide-react";
-import { api, HelpCategory, HelpDocMeta, MenuItem, Action, Org, PluginInfo } from "./api";
+import { api, Org } from "./api";
 import { BrandMark } from "./shell/BrandMark";
 import { refreshBrand } from "./brand";
-import { visibleActions } from "./shell/globalActions";
 import { RouteFallback } from "./components/ui/RouteFallback";
 // Lazy-loaded route components.
 const OverviewPage = lazy(() => import("./pages/Overview"));
@@ -17,8 +16,8 @@ const StatusPage = lazy(() => import("./pages/Status"));
 const InstanceConsole = lazy(() => import("./pages/instance/console"));
 import { Modal, Button, toast, cn, Alert, TableDensityProvider, TableDensity } from "./ui";
 import { useTranslation } from "./i18n";
-import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, SETTINGS_AREA, FOOTER_PLACEMENT, areaForPath, areaForCategory, menuIcon, pluginAreaToArea } from "./shell/areas";
-import { RoleProvider, roleSatisfies } from "./shell/role";
+import { AreaId, useNavigation, clearCachedNav } from "./shell/areas";
+import { RoleProvider } from "./shell/role";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { TopBar } from "./shell/TopBar";
@@ -26,7 +25,7 @@ import { CommandPalette } from "./shell/CommandPalette";
 import { AreaPanel } from "./shell/AreaPanel";
 import { ShellFooter } from "./shell/ShellFooter";
 import { Login } from "./shell/Login";
-import { uiAreas, uiOnboarding } from "./plugin-sdk";
+import { uiOnboarding } from "./plugin-sdk";
 import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
 import { PluginGateContext } from "./plugins/PluginGate";
 import { InstanceExitRedirect } from "./pages/instance/redirect";
@@ -175,203 +174,7 @@ export default function App() {
   );
 }
 
-// ─── Nav cache ────────────────────────────────────────────────────────────────
 
-// Cache last api.menus()/api.plugins() response for instant first paint; replaced when live data arrives.
-const NAV_CACHE_KEY = "octarq:nav-cache:v1";
-
-interface CachedNav {
-  menus: MenuItem[];
-  plugins: PluginInfo[];
-  actions?: Action[];
-}
-
-function readCachedNav(): CachedNav {
-  try {
-    const raw = localStorage.getItem(NAV_CACHE_KEY);
-    if (!raw) return { menus: [], plugins: [], actions: [] };
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed?.menus) || !Array.isArray(parsed?.plugins)) {
-      return { menus: [], plugins: [], actions: [] };
-    }
-    return {
-      menus: parsed.menus,
-      plugins: parsed.plugins,
-      actions: Array.isArray(parsed?.actions) ? parsed.actions : [],
-    };
-  } catch {
-    return { menus: [], plugins: [], actions: [] };
-  }
-}
-
-function writeCachedNav(nav: CachedNav) {
-  try {
-    localStorage.setItem(NAV_CACHE_KEY, JSON.stringify(nav));
-  } catch {
-    /* quota or private mode — the cache is optional, the fetch is not */
-  }
-}
-
-function clearCachedNav() {
-  try {
-    localStorage.removeItem(NAV_CACHE_KEY);
-  } catch {
-    /* nothing to do — a stale cache is replaced on the next successful fetch */
-  }
-}
-
-// ─── Sidebar merge ────────────────────────────────────────────────────────────
-
-// Merges STATIC_AREAS, backend menus, and plugin areas into final area list filtered by requiredRole.
-function mergeAreas(
-  backendMenus: MenuItem[],
-  plugins: PluginInfo[],
-  role: string | undefined,
-  isInstanceAdmin: boolean,
-  backendLoaded: boolean,
-): { areas: Area[]; footer: NavItem[] } {
-  // Backend-driven gating: the set of paths the backend vouches for — every
-  // menu it announces in api.menus() (active core + active plugin menus) PLUS
-  // every path owned by a toggleable feature in api.plugins() (so a plugin
-  // that's merely DISABLED, not absent, still counts as backed and is hidden by
-  // disabledPaths below rather than dropped outright).
-  const backendPaths = new Set<string>();
-  for (const m of backendMenus) backendPaths.add(m.path);
-  for (const p of plugins) for (const m of p.menus) backendPaths.add(m.path);
-
-  // The backend is the only menu source. Frontend plugins contribute routes,
-  // widgets and i18n; placement (label/category/icon/order) belongs to the Go
-  // half's MenuProvider, which has to declare the path anyway for the gating
-  // above. Nothing to merge, only to dedupe — a plugin could announce a path
-  // twice across menus and its feature entry.
-  const seenPaths = new Set<string>();
-  const menus = backendMenus.filter((m) => {
-    if (seenPaths.has(m.path)) return false;
-    seenPaths.add(m.path);
-    return true;
-  });
-
-  // Paths owned by a disabled Go plugin are hidden from the sidebar. Dynamic
-  // plugin menus are already filtered server-side; this also drops statically
-  // composed frontend items (core or Pro) whose backend half is toggled off.
-  const disabledPaths = new Set(
-    plugins.filter((p) => !p.enabled).flatMap((p) => p.menus.map((m) => m.path)),
-  );
-
-  // Top-level areas: the static ones plus any NEW areas declared by composed
-  // frontend plugins (UIPlugin.areas → uiAreas()). A plugin area may carry
-  // ordered group shells (UIArea.groups → pluginAreaToArea) — e.g. the Pro
-  // Commerce area's Sales/Billing/Finance — or none, in which case its groups
-  // are synthesized from menus by the category-merge below. Still-empty groups
-  // and areas are dropped by the empty-area filter at the end. "settings" and
-  // ids colliding with a static area can't be redeclared.
-  const pluginAreas = uiAreas().filter(
-    (pa) => pa.id !== "settings" && !STATIC_AREAS.some((sa) => sa.id === pa.id),
-  );
-  // SETTINGS_AREA joins the merge so plugin/backend menus categorized for
-  // settings ("Instance"/"Account"/"Settings" → areaForCategory) land in its
-  // groups — e.g. the Pro licensing plugin's octarq License in the Instance
-  // group. The shell pulls the "settings" area back out of the result (it's the
-  // gear, never a top-level tab) and applies the admin gate on the Instance
-  // group; see `mergedSettingsArea` in Shell.
-  const baseAreas = [...STATIC_AREAS, SETTINGS_AREA, ...pluginAreas.map(pluginAreaToArea)];
-
-  const staticPaths = new Set(baseAreas.flatMap((a) => a.groups.flatMap((g) => g.items.map((i) => i.path))));
-  const extras = menus.filter(
-    (m) =>
-      !staticPaths.has(m.path) &&
-      !disabledPaths.has(m.path) &&
-      roleSatisfies(m.requiredRole, role, isInstanceAdmin),
-  );
-
-  const toNavItem = (m: MenuItem): NavItem & { order: number } => {
-    const KeyIcon = menuIcon(m.icon);
-    return {
-      id: m.id,
-      label: m.label,
-      Icon: KeyIcon ?? Globe,
-      iconStr: KeyIcon ? undefined : m.icon,
-      path: m.path,
-      order: m.order ?? 0,
-    };
-  };
-
-  // Footer-placed items (category "footer"/"resources" → FOOTER_PLACEMENT) are
-  // pulled out of the area merge and returned separately for the rail footer.
-  // They never match a real area id below, so they're naturally excluded there.
-  const footer = extras
-    .filter((m) => areaForCategory(m.category, pluginAreas) === FOOTER_PLACEMENT)
-    .map(toNavItem)
-    .sort((a, b) => a.order - b.order);
-
-  const nextAreas = baseAreas.map((staticArea) => {
-    // Deep copy groups to avoid mutating global STATIC_AREAS; drop items
-    // owned by a plugin the workspace has disabled.
-    const groups = staticArea.groups.map((g) => ({
-      label: g.label,
-      items: g.items.filter((i) => !disabledPaths.has(i.path)),
-    }));
-
-    // A category matching a plugin-declared area (id/title) lands there;
-    // otherwise the built-in keyword routing applies — one pipeline.
-    const areaExtras = extras.filter((m) => areaForCategory(m.category, pluginAreas) === staticArea.id);
-
-    areaExtras.forEach((m) => {
-      // Known icon keys resolve to lucide (single map in shell/areas.tsx);
-      // anything else renders literally as text/emoji via iconStr.
-      const KeyIcon = menuIcon(m.icon);
-      const item = {
-        id: m.id,
-        label: m.label,
-        Icon: KeyIcon ?? Globe,
-        iconStr: KeyIcon ? undefined : m.icon,
-        path: m.path,
-        order: m.order ?? 0,
-      };
-
-      // In the Settings area a generic "settings" category means org workspace
-      // configuration (SSO, white-label, Slack, …) → the Workspace group. ("Workspace"
-      // itself can't be used as the category: it names the top-level operations area.)
-      const effectiveCategory =
-        staticArea.id === "settings" && (m.category || "").toLowerCase() === "settings"
-          ? "Workspace"
-          : (m.category || "");
-
-      // Check if there is an existing group matching the category name (case-insensitive)
-      const matchedGroup = groups.find(
-        (g) => g.label.toLowerCase() === effectiveCategory.toLowerCase()
-      );
-
-      if (matchedGroup) {
-        matchedGroup.items.push(item);
-      } else {
-        const groupName = effectiveCategory || "More";
-        const dynamicGroup = groups.find((g) => g.label === groupName);
-        if (dynamicGroup) {
-          dynamicGroup.items.push(item);
-        } else {
-          groups.push({
-            label: groupName,
-            items: [item],
-          });
-        }
-      }
-    });
-
-    groups.forEach((g) => {
-      g.items.sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
-    });
-
-    return {
-      ...staticArea,
-      groups: groups.filter((g) => g.items.length > 0),
-    };
-  });
-
-  // Drop whole areas (e.g. "Commerce") that have no visible items left —
-  // otherwise a disabled feature still shows an empty top-level section.
-  return { areas: nextAreas.filter((a) => a.groups.length > 0), footer };
-}
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
@@ -399,26 +202,36 @@ function Shell({
   // old full-page window.location.reload().
   const [orgEpoch, setOrgEpoch] = useState(0);
 
-  // Raw nav inputs from the API; `areas` is DERIVED from them (plus the
-  // role/admin flags) so a late-arriving isInstanceAdmin re-runs the same
-  // mergeAreas pipeline instead of a second filtering pass.
-  const [backendNav, setBackendNav] = useState<{ menus: MenuItem[]; plugins: PluginInfo[]; actions?: Action[] }>(
-    readCachedNav,
-  );
-  // False until api.menus()/api.plugins() have answered at least once. Gates the
-  // backend-driven orphan-drop in mergeAreas so the initial empty render doesn't
-  // strip the always-composed core menus before the backend confirms them.
-  const [backendLoaded, setBackendLoaded] = useState(false);
-  const [orgs, setOrgs]   = useState<Org[]>([]);
+  const [orgs, setOrgs] = useState<Org[]>([]);
   const [creatingOrg, setCreatingOrg] = useState(false);
-  const [newOrgName, setNewOrgName]   = useState("");
-  // Multi-workspace is a Pro feature. The OSS binary registers no Pro plugins,
-  // so a non-empty plugin list means this is a Pro build where it's available.
-  const [isProBuild, setIsProBuild] = useState(false);
+  const [newOrgName, setNewOrgName] = useState("");
   const [isInstanceAdmin, setIsInstanceAdmin] = useState(false);
   const [emailVerified, setEmailVerified] = useState<boolean | undefined>(undefined);
   const [dismissedVerifyBanner, setDismissedVerifyBanner] = useState(false);
   const [resendingVerify, setResendingVerify] = useState(false);
+
+  const nav = useNavigation({
+    role,
+    isInstanceAdmin,
+    activeOrgId,
+    lang,
+  });
+
+  const {
+    areas,
+    activeArea,
+    currentArea,
+    currentSettingsArea,
+    footerItems,
+    filteredActions,
+    pluginGateCtxValue,
+    settingsActive,
+    helpActive,
+    isProBuild,
+    selectArea,
+    helpDocsNav,
+    helpArea,
+  } = nav;
 
   // Collapse the second-level area panel to widen the content area. Persisted,
   // and kept in the layout (not AreaPanel) so it survives area switches. On
@@ -461,90 +274,21 @@ function Shell({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const merged = useMemo(
-    () => mergeAreas(backendNav.menus, backendNav.plugins, role, isInstanceAdmin, backendLoaded),
-    [backendNav, role, isInstanceAdmin, backendLoaded],
-  );
-  // The Settings area is reached via the gear, never a top-level tab, so it's
-  // held out of `areas` (tabs / areaForPath / command palette business areas)
-  // and surfaced separately as the second-level rail for /settings.
-  const areas = useMemo(() => merged.areas.filter((a) => a.id !== "settings"), [merged]);
-  const mergedSettingsArea = useMemo(
-    () => merged.areas.find((a) => a.id === "settings") ?? SETTINGS_AREA,
-    [merged],
-  );
-  // Plugin-contributed footer items (e.g. the Pro Help plugin) shown among the
-  // octarq resources in the rail footer.
-  const footerItems = merged.footer;
   // Role inputs for PluginGate requiredRole pre-check.
   const roleCtx = useMemo(() => ({ role, isInstanceAdmin }), [role, isInstanceAdmin]);
 
-  const filteredActions = useMemo(
-    () => visibleActions(backendNav.actions, role, isInstanceAdmin),
-    [backendNav.actions, role, isInstanceAdmin],
-  );
-
-  const pluginGateCtxValue = useMemo(() => {
-    const disabledPlugins = new Set(backendNav.plugins.filter((p) => !p.enabled).map((p) => p.key));
-    const disabledPaths = new Set(backendNav.plugins.filter((p) => !p.enabled).flatMap((p) => p.menus.map((m) => m.path)));
-    return { disabledPlugins, disabledPaths, loaded: backendLoaded };
-  }, [backendNav.plugins, backendLoaded]);
-
-  // Every core settings page lives under /settings (one URL space — no /personal
-  // tree), and so do the official plugin settings pages — `/settings/<menu id>`,
-  // see website/src/content/docs/writing-a-plugin.md. A third-party plugin is
-  // not obliged to: its Category can
-  // route it into the Settings area while its Path stays top-level. settingsPaths
-  // keeps the shell in the settings context for those too; without it, navigating
-  // to one drops the settings rail and orphans the highlight.
-  const settingsPaths = useMemo(
-    () => new Set(mergedSettingsArea.groups.flatMap((g) => g.items.map((i) => i.path))),
-    [mergedSettingsArea],
-  );
-  const helpActive =
-    location.pathname.startsWith("/help") || location.pathname.startsWith("/admin/help");
-  const settingsActive =
-    location.pathname.startsWith("/settings") ||
-    [...settingsPaths].some((p) => location.pathname === p || location.pathname.startsWith(p + "/"));
-  // Resolve against the merged runtime areas (static + plugin areas + dynamic
-  // menu items) so paths owned by plugin-contributed areas highlight correctly.
-  const activeArea: AreaId = helpActive
-    ? "help"
-    : settingsActive
-    ? "settings"
-    : areaForPath(location.pathname, areas);
-
-  // Load orgs + dynamic menus + user settings layout. Also refreshes the org
-  // role here (not just on mount) so switching to a workspace where the user
-  // has a different role re-runs the sidebar/PluginGate role gating.
+  // Load orgs + user settings layout.
   useEffect(() => {
     api.me().then((m) => { setRole(m.role); setEmailVerified(m.emailVerified); }).catch(() => {});
     api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
     api.settings().then((s) => setIsInstanceAdmin(!!s.isInstanceAdmin)).catch(() => {});
-
-    Promise.all([api.menus().catch(() => []), api.plugins().catch(() => []), api.actions().catch(() => [])])
-      .then(([backendMenus, plugins, actions]) => {
-        setIsProBuild(plugins.length > 0);
-        setBackendNav({ menus: backendMenus, plugins, actions });
-        setBackendLoaded(true);
-        writeCachedNav({ menus: backendMenus, plugins, actions });
-      })
-      .catch(() => {});
   }, [activeOrgId]);
 
   // Settings pages that mutate the workspace list (rename) fire this instead of
   // reloading the page; refetch the orgs so the switcher/name update in place.
   useEffect(() => {
     const refreshOrgs = () => api.orgs().catch(() => []).then((os) => setOrgs(os as Org[]));
-    const refreshPlugins = () => {
-      Promise.all([api.menus().catch(() => []), api.plugins().catch(() => []), api.actions().catch(() => [])])
-        .then(([backendMenus, plugins, actions]) => {
-          setIsProBuild(plugins.length > 0);
-          setBackendNav({ menus: backendMenus, plugins, actions });
-          writeCachedNav({ menus: backendMenus, plugins, actions });
-        })
-        .catch(() => {});
-    };
+    const refreshPlugins = () => nav.refreshNav();
     const refreshAuth = () => {
       api.me().then((m) => {
         setRole(m.role);
@@ -559,96 +303,7 @@ function Shell({
       window.removeEventListener("octarq:plugins-changed", refreshPlugins);
       window.removeEventListener("octarq:auth-changed", refreshAuth);
     };
-  }, []);
-
-  // Help docs navigation integration for Shell sidebar & Command Palette
-  const [helpDocsNav, setHelpDocsNav] = useState<HelpDocMeta[]>([]);
-  useEffect(() => {
-    api.helpIndex(lang)
-      .then(setHelpDocsNav)
-      .catch(() => {});
-  }, [activeOrgId, lang]);
-
-  // Help categories fetched from backend (single source of truth for categories & titles & icons)
-  const [helpCategories, setHelpCategories] = useState<HelpCategory[]>([]);
-  useEffect(() => {
-    api.helpCategories().then(setHelpCategories).catch(() => {});
-  }, []);
-
-  const helpArea: Area = useMemo(() => {
-    // Group docs by category (2-tier: Category -> Doc)
-    const catDocsMap = new Map<string, HelpDocMeta[]>();
-
-    helpDocsNav.forEach((d: HelpDocMeta) => {
-      const category = (d.category || "services").toLowerCase();
-      if (!catDocsMap.has(category)) {
-        catDocsMap.set(category, []);
-      }
-      catDocsMap.get(category)!.push(d);
-    });
-
-    const groups: NavGroup[] = [];
-
-    // Order categories by backend order, or fallback to alphabetical
-    const categoriesToRender = helpCategories.length > 0
-      ? helpCategories
-      : Array.from(catDocsMap.keys()).map((k, idx) => ({
-          key: k,
-          order: (idx + 1) * 10,
-          icon: "boxes",
-          labels: { en: k },
-        }));
-
-    categoriesToRender.forEach((cat) => {
-      const docsList = catDocsMap.get(cat.key);
-      if (!docsList || docsList.length === 0) return;
-
-      // Sort docs by order, then title
-      const sortedDocsList = [...docsList].sort((a, b) => {
-        if ((a.order ?? 0) !== (b.order ?? 0)) return (a.order ?? 0) - (b.order ?? 0);
-        return (a.title || "").localeCompare(b.title || "");
-      });
-
-      const catLabel = cat.labels[lang] || cat.labels["en"] || cat.key;
-      const CatIcon = menuIcon(cat.icon) || BookOpen;
-
-      const items: NavItem[] = sortedDocsList.map((doc) => ({
-        id: `help-${doc.slug}`,
-        label: doc.title,
-        Icon: CatIcon,
-        path: `/help/${cat.key}/${doc.slug}`,
-      }));
-
-      groups.push({
-        label: catLabel,
-        items,
-      });
-    });
-
-    return {
-      id: "help",
-      title: t("help.title", "Help & Documentation"),
-      subtitle: t("help.platform_subtitle", "Guides, tutorials and platform reference"),
-      Icon: BookOpen,
-      groups: groups.length > 0 ? groups : [
-        { label: "Help", items: [{ id: "help-root", label: "Help", Icon: BookOpen, path: "/help" }] }
-      ],
-    };
-  }, [helpDocsNav, helpCategories, lang, t]);
-
-  const currentSettingsArea = useMemo(() => {
-    if (isInstanceAdmin) return mergedSettingsArea;
-    return {
-      ...mergedSettingsArea,
-      groups: mergedSettingsArea.groups.filter((g) => g.label !== "Instance"),
-    };
-  }, [mergedSettingsArea, isInstanceAdmin]);
-
-  const currentArea = helpActive
-    ? helpArea
-    : settingsActive
-    ? currentSettingsArea
-    : (areas.find((a) => a.id === activeArea) ?? areas[0]);
+  }, [nav]);
 
   const activeOrgName = orgs.find((o) => o.id === activeOrgId)?.name ?? t("app.personalWorkspace");
 
@@ -679,16 +334,7 @@ function Shell({
       .catch((e) => toast.error(e.message || t("app.createWorkspaceFailed")));
   }
 
-  const selectArea = (id: AreaId) => {
-    if (id === "settings") { navigate("/settings"); return; }
-    if (id === "help") {
-      const firstHelpPath = helpArea.groups[0]?.items[0]?.path ?? "/help";
-      navigate(firstHelpPath);
-      return;
-    }
-    const area = areas.find((a) => a.id === id);
-    navigate(area?.groups[0]?.items[0]?.path ?? "/overview");
-  };
+
 
   // Move focus to the main region after route changes so keyboard and
   // screen-reader users land on the new page rather than being stranded on a
