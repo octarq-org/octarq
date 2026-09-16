@@ -36,3 +36,56 @@ export async function expectNoCommentLeak(page: Page) {
   const text = await page.locator("body").innerText();
   expect(text).not.toMatch(/\/\*|\*\//);
 }
+
+// Runtime backstop for unhandled errors and server 500 responses.
+export interface PageGuard {
+  pageErrors: Error[];
+  consoleErrors: string[];
+  serverErrors: string[];
+  assertClean(): void;
+}
+
+export function attachPageGuards(page: Page): PageGuard {
+  const pageErrors: Error[] = [];
+  const consoleErrors: string[] = [];
+  const serverErrors: string[] = [];
+
+  page.on("pageerror", (err) => {
+    pageErrors.push(err);
+  });
+
+  page.on("console", (msg) => {
+    if (msg.type() === "error") {
+      const text = msg.text();
+      // Ignore browser network status messages and favicon 404s
+      if (!text.includes("favicon.ico") && !text.includes("Failed to load resource")) {
+        consoleErrors.push(text);
+      }
+    }
+  });
+
+  page.on("response", (res) => {
+    if (res.status() >= 500) {
+      serverErrors.push(`${res.status()} ${res.url()}`);
+    }
+  });
+
+  return {
+    pageErrors,
+    consoleErrors,
+    serverErrors,
+    assertClean() {
+      expect(pageErrors, `Uncaught page errors: ${pageErrors.map(e => e.message).join(", ")}`).toHaveLength(0);
+      expect(consoleErrors, `Leaked console.error: ${consoleErrors.join("; ")}`).toHaveLength(0);
+      expect(serverErrors, `Server 5xx errors: ${serverErrors.join("; ")}`).toHaveLength(0);
+    },
+  };
+}
+
+// Runtime backstop for missing translation keys.
+export async function expectNoI18nLeak(page: Page) {
+  await page.waitForLoadState("networkidle");
+  const text = await page.locator("body").innerText();
+  expect(text).not.toMatch(/\[missing\s+"[^"]+"\]/i);
+}
+
