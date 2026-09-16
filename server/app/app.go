@@ -257,14 +257,19 @@ func (a *App) RunMCP(ctx context.Context) error {
 		pInfo := plugin.Describe(p)
 		pName := p.Name()
 		pctxCopy.Cache = cache.NewScoped(a.auth.Cache(), pName)
+		pctxCopy.RegisterNotificationChannel = func(ch plugin.NotificationChannel) {
+			if notifRouter != nil {
+				_ = notifRouter.RegisterChannelWithDescriptor(ch, notification.Descriptor{
+					Type:        ch.Name(),
+					Title:       pInfo.Title,
+					Description: pInfo.Description,
+					Icon:        pInfo.Icon,
+					PluginName:  pName,
+				})
+			}
+		}
 		pctxCopy.RegisterNotifier = func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
-			notify.RegisterWithDescriptor(notify.Descriptor{
-				Type:        typ,
-				Title:       pInfo.Title,
-				Description: pInfo.Description,
-				Icon:        pInfo.Icon,
-				PluginName:  pName,
-			}, send)
+			pctxCopy.RegisterNotificationChannel(notification.NewLegacyNotifierAdapter(typ, pInfo.Title, send))
 		}
 		thirdParty := pluginIsThirdParty(p)
 		recorder := &recordingMux{real: throwaway, routes: routes, plugin: pName, thirdParty: thirdParty}
@@ -458,14 +463,19 @@ func (a *App) Run(ctx context.Context) error {
 		pInfo := plugin.Describe(p)
 		pName := p.Name()
 		pctxCopy.Cache = cache.NewScoped(a.auth.Cache(), pName)
+		pctxCopy.RegisterNotificationChannel = func(ch plugin.NotificationChannel) {
+			if notifRouter != nil {
+				_ = notifRouter.RegisterChannelWithDescriptor(ch, notification.Descriptor{
+					Type:        ch.Name(),
+					Title:       pInfo.Title,
+					Description: pInfo.Description,
+					Icon:        pInfo.Icon,
+					PluginName:  pName,
+				})
+			}
+		}
 		pctxCopy.RegisterNotifier = func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
-			notify.RegisterWithDescriptor(notify.Descriptor{
-				Type:        typ,
-				Title:       pInfo.Title,
-				Description: pInfo.Description,
-				Icon:        pInfo.Icon,
-				PluginName:  pName,
-			}, send)
+			pctxCopy.RegisterNotificationChannel(notification.NewLegacyNotifierAdapter(typ, pInfo.Title, send))
 		}
 		thirdParty := pluginIsThirdParty(p)
 		recorder := &recordingMux{real: mux, routes: routes, plugin: pName, thirdParty: thirdParty}

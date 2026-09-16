@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/server/internal/authz"
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/notification"
 	"github.com/octarq-org/octarq/server/internal/notify"
 	"github.com/octarq-org/octarq/server/plugin"
 )
@@ -119,10 +121,26 @@ func (h *Handler) notifyAbuse(rep models.AbuseReport) {
 	if orgID == 0 {
 		return
 	}
-	var channels []models.NotificationChannel
-	h.db.Where("owner_id = ? AND enabled = ?", orgID, true).Find(&channels)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
+
+	_ = notification.Emit(ctx, plugin.NotificationPayload{
+		EventType: "abuse.report",
+		Title:     fmt.Sprintf("🚨 Abuse Report #%d", rep.ID),
+		Body:      msg,
+		OrgID:     strconv.FormatUint(uint64(orgID), 10),
+		Priority:  "high",
+		Data: map[string]interface{}{
+			"reportId":    rep.ID,
+			"slug":        rep.Slug,
+			"reason":      rep.Reason,
+			"target":      rep.Target,
+			"description": rep.Description,
+		},
+	})
+
+	var channels []models.NotificationChannel
+	h.db.Where("owner_id = ? AND enabled = ?", orgID, true).Find(&channels)
 	for _, ch := range channels {
 		_ = notify.Send(ctx, ch.Type, ch.Config, msg)
 	}
