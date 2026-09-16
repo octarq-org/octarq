@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/octarq-org/octarq/server/config"
@@ -23,8 +24,13 @@ import (
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/origin"
 	"github.com/octarq-org/octarq/server/plugin"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
+
+// BcryptCost is the bcrypt hashing cost used across the application.
+// Defaults to bcrypt.DefaultCost (10), but can be set to bcrypt.MinCost (4) in tests.
+var BcryptCost = bcrypt.DefaultCost
 
 type contextKey string
 
@@ -147,7 +153,7 @@ type Manager struct {
 }
 
 func New(cfg *config.Config, c *crypto.Cipher) *Manager {
-	trustProxy = cfg.TrustProxy
+	trustProxy.Store(cfg.TrustProxy)
 	return &Manager{cfg: cfg, cipher: c, cache: cache.New("")}
 }
 
@@ -155,7 +161,7 @@ func New(cfg *config.Config, c *crypto.Cipher) *Manager {
 // headers when deriving the client IP for rate limiting, and X-Forwarded-Proto
 // when deciding whether a request arrived over TLS (which sets the session
 // cookie's Secure attribute). Set once from config in New.
-var trustProxy bool
+var trustProxy atomic.Bool
 
 // WithDB attaches a database so sessions and API bearer tokens can be
 // validated against persistent state.
@@ -295,7 +301,7 @@ func (m *Manager) SetSession(w http.ResponseWriter, r *http.Request, uid, orgID 
 // following request is a 401. It cannot happen now — over HTTP the flag is off,
 // and the moment the same instance is reached over HTTPS it is on.
 func (m *Manager) setCookie(w http.ResponseWriter, r *http.Request, token string) {
-	secure := origin.Secure(r, trustProxy)
+	secure := origin.Secure(r, trustProxy.Load())
 	http.SetCookie(w, &http.Cookie{
 		Name:     cookieName,
 		Value:    token,
@@ -562,7 +568,7 @@ func (m *Manager) AuthenticateRequest(r *http.Request) (*http.Request, bool) {
 // headers are honoured only when trustProxy is set, otherwise a client could
 // spoof X-Forwarded-For to evade the login rate limiter.
 func reporterIP(r *http.Request) string {
-	if trustProxy {
+	if trustProxy.Load() {
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 			parts := strings.SplitN(xff, ",", 2)
 			return strings.TrimSpace(parts[0])

@@ -12,27 +12,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/eventbus"
 	"github.com/octarq-org/octarq/server/internal/geo"
-	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/queue"
 	"gorm.io/gorm"
 )
 
 func newRealtimeStreamTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 	t.Helper()
-	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
-	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	if err := db.AutoMigrate(models.AllModels()...); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	db := newTestDB(t)
 
 	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
 	cipher := crypto.New(cfg.SecretKey)

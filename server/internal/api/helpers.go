@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync/atomic"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/server/internal/auth"
@@ -17,12 +18,12 @@ import (
 // trustProxy gates whether proxy-supplied client-IP headers are honoured. Set
 // once from config in New; when false, a client cannot spoof X-Forwarded-For
 // to get a fresh abuse-report rate-limit bucket.
-var trustProxy bool
+var trustProxy atomic.Bool
 
 // reporterIP returns the best-guess client IP for rate limiting and abuse reports.
 // We keep the full IP here (unlike analytics) so admins can block repeat abusers.
 func reporterIP(r *http.Request) string {
-	if trustProxy {
+	if trustProxy.Load() {
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 			return strings.TrimSpace(strings.Split(xff, ",")[0])
 		}

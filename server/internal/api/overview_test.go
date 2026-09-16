@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
-	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
@@ -15,7 +13,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/queue"
 	"github.com/octarq-org/octarq/server/plugin"
-	"gorm.io/gorm"
 )
 
 type dummyPlugin struct{}
@@ -29,14 +26,7 @@ var _ plugin.Plugin = dummyPlugin{}
 func TestOverviewPluginAbsent(t *testing.T) {
 	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
 
-	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
-	gdb, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("db.Open failed: %v", err)
-	}
-	if err := gdb.AutoMigrate(models.AllModels()...); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	gdb := newTestDB(t)
 
 	cipher := crypto.New(cfg.SecretKey)
 	if err := cipher.EnableEnvelope(apiEnvStore{gdb}); err != nil {
@@ -91,14 +81,7 @@ func (l linksPlugin) Name() string { return "links" }
 func TestOverviewPluginDisabled(t *testing.T) {
 	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
 
-	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
-	gdb, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("db.Open failed: %v", err)
-	}
-	if err := gdb.AutoMigrate(models.AllModels()...); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	gdb := newTestDB(t)
 
 	cipher := crypto.New(cfg.SecretKey)
 	if err := cipher.EnableEnvelope(apiEnvStore{gdb}); err != nil {

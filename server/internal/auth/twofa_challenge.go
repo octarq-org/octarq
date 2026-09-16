@@ -78,7 +78,7 @@ func (m *Manager) SetTwoFAChallengeCookie(w http.ResponseWriter, r *http.Request
 		Value:    challenge,
 		Path:     twofaChallengePath,
 		HttpOnly: true,
-		Secure:   origin.Secure(r, trustProxy),
+		Secure:   origin.Secure(r, trustProxy.Load()),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(twofaChallengeTTL.Seconds()),
 	})
@@ -104,7 +104,7 @@ func (m *Manager) ClearTwoFAChallengeCookie(w http.ResponseWriter, r *http.Reque
 		Value:    "",
 		Path:     twofaChallengePath,
 		HttpOnly: true,
-		Secure:   origin.Secure(r, trustProxy),
+		Secure:   origin.Secure(r, trustProxy.Load()),
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})

@@ -11,6 +11,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/pquerna/otp/totp"
 	"github.com/skip2/go-qrcode"
@@ -382,7 +383,7 @@ func generateRecoveryCodes(n int) (plain []string, hashed []string, err error) {
 		}
 		// Display as "abcde-fghij"; the stored/verified form strips the dash.
 		display := fmt.Sprintf("%s-%s", raw[:5], raw[5:])
-		hash, herr := bcrypt.GenerateFromPassword(raw, bcrypt.DefaultCost)
+		hash, herr := bcrypt.GenerateFromPassword(raw, auth.BcryptCost)
 		if herr != nil {
 			return nil, nil, herr
 		}

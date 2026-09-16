@@ -5,6 +5,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -81,7 +82,7 @@ func (h *Handler) changePassword(ctx context.Context, input *ChangePasswordInput
 		return nil, huma.Error400BadRequest("current password is incorrect")
 	}
 
-	pwHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	pwHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), auth.BcryptCost)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("failed to hash password")
 	}

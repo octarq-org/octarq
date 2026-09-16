@@ -12,6 +12,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/google/uuid"
+	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/tenancy"
 	"golang.org/x/crypto/bcrypt"
@@ -101,7 +102,7 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 		return nil, huma.NewError(http.StatusConflict, "an account with this email already exists")
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(input.Body.Password), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(input.Body.Password), auth.BcryptCost)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("failed to hash password")
 	}
