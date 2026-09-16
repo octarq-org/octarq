@@ -1,0 +1,34 @@
+{
+  "name": "@octarq/example-autonomous-solopreneur",
+  "version": "1.0.0",
+  "description": "Autonomous Solopreneur Blueprint: Unattended one-person company operations driven by AI agents over Octarq Remote MCP",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/run-all.mjs",
+    "demo": "node scripts/run-all.mjs",
+    "demo:simulate": "node scripts/run-all.mjs --simulate",
+    "demo:live": "node scripts/run-all.mjs --live",
+    "check-dns": "node scripts/step1-check-dns.mjs",
+    "add-link": "node scripts/step2-create-shortlink.mjs",
+    "check-mail": "node scripts/step3-mail-otp-listener.mjs",
+    "issue-license": "node scripts/step4-issue-license.mjs",
+    "test": "node --test tests/solopreneur.test.mjs"
+  },
+  "keywords": [
+    "octarq",
+    "mcp",
+    "ai-agent",
+    "solopreneur",
+    "claude-code",
+    "cursor",
+    "ed25519",
+    "shortlinks",
+    "email-otp"
+  ],
+  "author": "Octarq Community",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

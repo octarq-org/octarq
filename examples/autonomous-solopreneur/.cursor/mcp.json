@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "octarq-remote": {
+      "url": "http://localhost:8080/api/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer oct_your_api_token_here"
+      }
+    }
+  }
+}

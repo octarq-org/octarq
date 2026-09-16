@@ -1,0 +1,49 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schema/mcp-config.json",
+  "description": "Octarq MCP Configuration for Autonomous Solopreneur Blueprint",
+  "configurations": {
+    "cursor": {
+      "path": ".cursor/mcp.json",
+      "example_remote_sse": {
+        "mcpServers": {
+          "octarq": {
+            "url": "https://your-octarq-host.com/api/mcp/sse",
+            "headers": {
+              "Authorization": "Bearer oct_your_secret_api_token"
+            }
+          }
+        }
+      },
+      "example_local_stdio": {
+        "mcpServers": {
+          "octarq": {
+            "command": "/usr/local/bin/octarq",
+            "args": ["mcp"],
+            "env": {
+              "OCTARQ_DB_DSN": "/path/to/data.db"
+            }
+          }
+        }
+      }
+    },
+    "claude_desktop": {
+      "mac_path": "~/Library/Application Support/Claude/claude_desktop_config.json",
+      "win_path": "%APPDATA%\\Claude\\claude_desktop_config.json",
+      "example_local_stdio": {
+        "mcpServers": {
+          "octarq": {
+            "command": "/usr/local/bin/octarq",
+            "args": ["mcp"],
+            "env": {
+              "OCTARQ_DB_DSN": "/path/to/data.db"
+            }
+          }
+        }
+      }
+    },
+    "claude_code": {
+      "cli_command_stdio": "claude mcp add octarq -- /usr/local/bin/octarq mcp",
+      "cli_command_sse": "claude mcp add --transport sse octarq https://your-octarq-host.com/api/mcp/sse --header \"Authorization: Bearer oct_your_secret_api_token\""
+    }
+  }
+}
