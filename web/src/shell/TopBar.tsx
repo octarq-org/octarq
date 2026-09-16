@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Menu } from "@base-ui/react/menu";
@@ -15,6 +15,7 @@ import { translateAreaTitle, translateGroupLabel, translateNavItemLabel } from "
 import { RESOURCES } from "./resources";
 import { MENU_ITEM, MENU_POPUP } from "./menuStyles";
 import { NotificationBell, InboxDrawer } from "../pages/notifications";
+import { CopilotButton, CopilotDrawer, useCopilotStore } from "../copilot";
 
 function GithubIcon({ className }: { className?: string }) {
   return (
@@ -78,6 +79,17 @@ export function TopBar({
     }
     return res;
   }, [actions]);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "j" || e.key === "J")) {
+        e.preventDefault();
+        useCopilotStore.getState().toggleCopilot();
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, []);
 
   return (
     <header className="relative z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-3">
@@ -191,6 +203,9 @@ export function TopBar({
         <kbd className="hidden rounded-md border border-foreground/10 dark:border-white/10 bg-muted/80 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground md:block">⌘K</kbd>
       </button>
 
+      {/* AI Copilot Sidecar Trigger (⌘+J) */}
+      <CopilotButton />
+
       {/* Theme toggle — light is the default (Wise/CF); flips to the frosted dark theme. */}
       <button
         onClick={toggleTheme}
@@ -301,6 +316,9 @@ export function TopBar({
 
       {/* In-app Notification Inbox Drawer */}
       <InboxDrawer />
+
+      {/* AI Copilot Sidecar Drawer */}
+      <CopilotDrawer />
     </header>
   );
 }
