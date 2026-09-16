@@ -102,6 +102,12 @@ func (h *Handler) listNotificationChannelTypes(ctx context.Context, input *ListN
 	}
 	for _, sp := range spiChannels {
 		if !existingTypes[sp.Name()] {
+			if d, ok := notification.DefaultRouter().GetDescriptor(sp.Name()); ok && d.PluginName != "" {
+				p := h.findPlugin(d.PluginName)
+				if p == nil || !h.pluginActive(orgID, p) {
+					continue
+				}
+			}
 			icon := "bell"
 			if sp.Name() == "email" {
 				icon = "mail"

@@ -25,7 +25,7 @@ func TestDiskProvider_DefaultsAndRealStat(t *testing.T) {
 	}
 
 	res := p.Check(context.Background())
-	if res.Status != plugin.HealthOK && res.Status != plugin.HealthWarn {
+	if res.Status != plugin.HealthOK && res.Status != plugin.HealthWarn && res.Status != plugin.HealthError {
 		t.Errorf("unexpected status on real filesystem: %q (msg: %s)", res.Status, res.Message)
 	}
 

@@ -323,7 +323,11 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 			}
 		},
 		RegisterNotifier: func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
-			notify.Register(typ, send)
+			if params.notifRouter != nil {
+				_ = params.notifRouter.RegisterChannel(notification.NewLegacyNotifierAdapter(typ, "", send))
+			} else {
+				notify.Register(typ, send)
+			}
 		},
 		RevokeUserOrgSessions: session.RevokeUserOrgSessions,
 		UserID:                session.UserID,

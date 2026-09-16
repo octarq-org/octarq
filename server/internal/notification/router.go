@@ -2,6 +2,7 @@ package notification
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -14,12 +15,22 @@ import (
 	"gorm.io/gorm"
 )
 
+// Descriptor describes a notification channel type (built-in or plugin-contributed).
+type Descriptor struct {
+	Type        string `json:"type"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Icon        string `json:"icon"`
+	PluginName  string `json:"pluginName,omitempty"`
+}
+
 // Router routes notifications to registered channels based on event type and user preferences.
 type Router struct {
-	db         *gorm.DB
-	channels   map[string]plugin.NotificationChannel
-	chMu       sync.RWMutex
-	dispatcher *Dispatcher
+	db          *gorm.DB
+	channels    map[string]plugin.NotificationChannel
+	descriptors map[string]Descriptor
+	chMu        sync.RWMutex
+	dispatcher  *Dispatcher
 }
 
 // RouterOption configures a Router instance.
@@ -34,21 +45,44 @@ func WithDispatcher(d *Dispatcher) RouterOption {
 	}
 }
 
-// NewRouter constructs a notification Router with built-in in_app and email channels.
+// NewRouter constructs a notification Router with built-in channels (in_app, email, telegram, webhook).
 func NewRouter(db *gorm.DB, opts ...RouterOption) *Router {
 	r := &Router{
-		db:         db,
-		channels:   make(map[string]plugin.NotificationChannel),
-		dispatcher: NewDispatcher(),
+		db:          db,
+		channels:    make(map[string]plugin.NotificationChannel),
+		descriptors: make(map[string]Descriptor),
+		dispatcher:  NewDispatcher(),
 	}
 
 	for _, opt := range opts {
 		opt(r)
 	}
 
-	// Register Core built-in channels
-	_ = r.RegisterChannel(NewInAppChannel(db))
-	_ = r.RegisterChannel(NewEmailChannel(db, nil))
+	// Register Core built-in channels with their metadata descriptors
+	_ = r.RegisterChannelWithDescriptor(NewInAppChannel(db), Descriptor{
+		Type:        "in_app",
+		Title:       "In-App Notification",
+		Description: "Deliver notifications in-app via event spine",
+		Icon:        "bell",
+	})
+	_ = r.RegisterChannelWithDescriptor(NewEmailChannel(db, nil), Descriptor{
+		Type:        "email",
+		Title:       "Email",
+		Description: "Deliver notifications via transactional email",
+		Icon:        "mail",
+	})
+	_ = r.RegisterChannelWithDescriptor(NewTelegramChannel(db), Descriptor{
+		Type:        "telegram",
+		Title:       "Telegram",
+		Description: "Deliver notifications via Telegram bot",
+		Icon:        "send",
+	})
+	_ = r.RegisterChannelWithDescriptor(NewWebhookChannel(db), Descriptor{
+		Type:        "webhook",
+		Title:       "Webhook",
+		Description: "Custom HTTP POST payload to any URL",
+		Icon:        "webhook",
+	})
 
 	return r
 }
@@ -58,14 +92,57 @@ func (r *Router) RegisterChannel(ch plugin.NotificationChannel) error {
 	if ch == nil {
 		return errors.New("notification: nil channel")
 	}
-	name := strings.TrimSpace(ch.Name())
+	name := strings.ToLower(strings.TrimSpace(ch.Name()))
 	if name == "" {
 		return errors.New("notification: empty channel name")
+	}
+
+	title := ch.DisplayName()
+	if title == "" {
+		title = name
+		if len(name) > 0 {
+			title = strings.ToUpper(name[:1]) + name[1:]
+		}
+	}
+
+	desc := Descriptor{
+		Type:        name,
+		Title:       title,
+		Description: fmt.Sprintf("Deliver notifications via %s", title),
+		Icon:        "bell",
+	}
+
+	return r.RegisterChannelWithDescriptor(ch, desc)
+}
+
+// RegisterChannelWithDescriptor registers or replaces a notification channel along with its metadata descriptor.
+func (r *Router) RegisterChannelWithDescriptor(ch plugin.NotificationChannel, desc Descriptor) error {
+	if ch == nil {
+		return errors.New("notification: nil channel")
+	}
+	name := strings.ToLower(strings.TrimSpace(ch.Name()))
+	if name == "" {
+		return errors.New("notification: empty channel name")
+	}
+
+	desc.Type = name
+	if desc.Title == "" {
+		desc.Title = ch.DisplayName()
+	}
+	if desc.Title == "" {
+		desc.Title = strings.ToUpper(name[:1]) + name[1:]
+	}
+	if desc.Icon == "" {
+		desc.Icon = "bell"
+	}
+	if desc.Description == "" {
+		desc.Description = fmt.Sprintf("Deliver notifications via %s", desc.Title)
 	}
 
 	r.chMu.Lock()
 	defer r.chMu.Unlock()
 	r.channels[name] = ch
+	r.descriptors[name] = desc
 	return nil
 }
 
@@ -73,7 +150,7 @@ func (r *Router) RegisterChannel(ch plugin.NotificationChannel) error {
 func (r *Router) GetChannel(name string) (plugin.NotificationChannel, bool) {
 	r.chMu.RLock()
 	defer r.chMu.RUnlock()
-	ch, ok := r.channels[strings.TrimSpace(name)]
+	ch, ok := r.channels[strings.ToLower(strings.TrimSpace(name))]
 	return ch, ok
 }
 
@@ -89,6 +166,60 @@ func (r *Router) ListChannels() []plugin.NotificationChannel {
 		return list[i].Name() < list[j].Name()
 	})
 	return list
+}
+
+// Descriptors returns all registered notification channel type descriptors sorted by type.
+func (r *Router) Descriptors() []Descriptor {
+	r.chMu.RLock()
+	defer r.chMu.RUnlock()
+	list := make([]Descriptor, 0, len(r.descriptors))
+	for _, d := range r.descriptors {
+		list = append(list, d)
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].Type < list[j].Type
+	})
+	return list
+}
+
+// GetDescriptor returns the descriptor for a registered channel type.
+func (r *Router) GetDescriptor(name string) (Descriptor, bool) {
+	r.chMu.RLock()
+	defer r.chMu.RUnlock()
+	d, ok := r.descriptors[strings.ToLower(strings.TrimSpace(name))]
+	return d, ok
+}
+
+// SendDirect delivers a notification directly via a specific channel type.
+func (r *Router) SendDirect(ctx context.Context, typ, cfgJSON, text string) error {
+	typ = strings.ToLower(strings.TrimSpace(typ))
+	ch, ok := r.GetChannel(typ)
+	if !ok {
+		return fmt.Errorf("unknown notification channel type: %s", typ)
+	}
+
+	var cfgMap map[string]interface{}
+	if strings.TrimSpace(cfgJSON) != "" && strings.TrimSpace(cfgJSON) != "{}" {
+		_ = json.Unmarshal([]byte(cfgJSON), &cfgMap)
+	}
+	if cfgMap == nil {
+		cfgMap = make(map[string]interface{})
+	}
+	cfgMap["_raw_config"] = cfgJSON
+
+	rec := plugin.NotificationRecipient{
+		UserID: "1",
+		OrgID:  "1",
+		Config: cfgMap,
+	}
+	payload := plugin.NotificationPayload{
+		EventType: "direct",
+		Title:     text,
+		Body:      text,
+		Priority:  "normal",
+	}
+
+	return ch.Send(ctx, rec, payload)
 }
 
 // Dispatcher returns the underlying delivery dispatcher.
