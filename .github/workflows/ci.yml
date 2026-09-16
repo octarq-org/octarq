@@ -22,15 +22,18 @@ jobs:
     outputs:
       go: ${{ steps.filter.outputs.go }}
       web: ${{ steps.filter.outputs.web }}
+      e2e: ${{ steps.filter.outputs.e2e }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
+          predicate-quantifier: 'some-with-excludes'
           filters: |
             go:
               - 'server/**'
               - '!server/**/*.md'
+              - '!server/**/*.mdx'
               - 'Makefile'
               - 'Dockerfile'
               - 'Dockerfile.release'
@@ -45,11 +48,20 @@ jobs:
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
               - '.github/workflows/ci.yml'
+            e2e:
+              - 'web/**'
+              - '!web/**/*.md'
+              - 'packages/**'
+              - '!packages/**/*.md'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.github/workflows/ci.yml'
 
-  go:
-    name: Go test & lint
+  lint:
+    name: Go lint
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.go == 'true'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -61,6 +73,7 @@ jobs:
         with:
           go-version-file: server/go.mod
           cache: true
+          cache-dependency-path: server/go.sum
 
       - name: gofmt
         run: |
@@ -71,14 +84,41 @@ jobs:
             exit 1
           fi
 
-      - name: go vet
-        run: go vet ./...
+      # v6 of the action installs golangci-lint v1, which cannot read this
+      # repo's `version: "2"` config and refuses outright to lint a module
+      # targeting a newer Go than it was built with ("the Go language version
+      # (go1.24) used to build golangci-lint is lower than the targeted Go
+      # version (1.25.11)"). Locally the v2 binary was already on PATH, so this
+      # step passed everywhere except CI, which is where it had never run.
+      #
+      # `version` is pinned rather than `latest`: the failure mode above is a
+      # linter release drifting out of step with the toolchain, and that is not
+      # something an unrelated PR should discover.
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.11.4 # keep at or above the Go version in go.mod
+          verify: false
+          working-directory: server
 
-      - name: go build
-        run: go build ./...
+  go:
+    name: Go test
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || needs.changes.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
 
-      # One run: race detector + coverage profile. A second `go test` for the
-      # ratchet used to add ~40s on top of the ~4 min race suite.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache: true
+          cache-dependency-path: server/go.sum
+
+      # One run: race detector + coverage profile.
       #
       # The excludes are generated or embedded-artifact packages, which have no
       # meaningful statements to cover and would only drag the total down. Their
@@ -101,27 +141,10 @@ jobs:
             exit 1
           fi
 
-      # v6 of the action installs golangci-lint v1, which cannot read this
-      # repo's `version: "2"` config and refuses outright to lint a module
-      # targeting a newer Go than it was built with ("the Go language version
-      # (go1.24) used to build golangci-lint is lower than the targeted Go
-      # version (1.25.11)"). Locally the v2 binary was already on PATH, so this
-      # step passed everywhere except CI, which is where it had never run.
-      #
-      # `version` is pinned rather than `latest`: the failure mode above is a
-      # linter release drifting out of step with the toolchain, and that is not
-      # something an unrelated PR should discover.
-      - name: Lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.11.4 # keep at or above the Go version in go.mod
-          verify: false
-          working-directory: server
-
   web:
     name: Frontend build
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -184,7 +207,7 @@ jobs:
   e2e:
     name: End-to-end (Playwright)
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.go == 'true' || needs.changes.outputs.web == 'true'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || needs.changes.outputs.e2e == 'true'
     runs-on: ubuntu-latest
     # Run inside the official Playwright image, which ships the browsers and the
     # system libraries they need. The job previously called
@@ -216,6 +239,7 @@ jobs:
         with:
           go-version-file: server/go.mod
           cache: true
+          cache-dependency-path: server/go.sum
 
       - run: pnpm install --no-frozen-lockfile
         working-directory: web
@@ -368,12 +392,12 @@ jobs:
   CI:
     name: CI
     if: always()
-    needs: [changes, go, web, e2e]
+    needs: [changes, lint, go, web, e2e]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all required jobs
         run: |
-          for result in "${{ needs.changes.result }}" "${{ needs.go.result }}" "${{ needs.web.result }}" "${{ needs.e2e.result }}"; do
+          for result in "${{ needs.changes.result }}" "${{ needs.lint.result }}" "${{ needs.go.result }}" "${{ needs.web.result }}" "${{ needs.e2e.result }}"; do
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
               echo "Required job failed: $result"
               exit 1
