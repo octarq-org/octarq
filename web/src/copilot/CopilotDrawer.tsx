@@ -224,8 +224,8 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
                     <span>{aiStatus.provider || t("copilot.ready", "就绪")}</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  <span className="inline-flex items-center gap-1 rounded-full bg-warning-fg/10 px-2 py-0.5 text-[10px] font-semibold text-warning-fg">
+                    <span className="h-1.5 w-1.5 rounded-full bg-warning-fg" />
                     <span>{t("copilot.demoMode", "本地模式")}</span>
                   </span>
                 )}
@@ -327,25 +327,25 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
                     </div>
                     <div className="grid grid-cols-1 gap-2">
                       <PresetPromptCard
-                        icon={<Flame className="h-4 w-4 text-orange-500" />}
+                        icon={<Flame className="h-4 w-4 text-warning-fg" />}
                         title={t("copilot.promptLinks", "汇总本周点击最高的短链")}
                         desc={t("copilot.promptLinksDesc", "统计近 7 天访问趋势与热门重定向排行")}
                         onClick={() => handleSendMessage(t("copilot.promptLinks", "汇总本周点击最高的短链"))}
                       />
                       <PresetPromptCard
-                        icon={<CreditCard className="h-4 w-4 text-emerald-500" />}
+                        icon={<CreditCard className="h-4 w-4 text-success-fg" />}
                         title={t("copilot.promptPayment", "查询最近一笔支付状态")}
                         desc={t("copilot.promptPaymentDesc", "核对 Stripe Webhook 履约与证书签发记录")}
                         onClick={() => handleSendMessage(t("copilot.promptPayment", "查询最近一笔支付状态"))}
                       />
                       <PresetPromptCard
-                        icon={<Globe2 className="h-4 w-4 text-blue-500" />}
+                        icon={<Globe2 className="h-4 w-4 text-accent-fg" />}
                         title={t("copilot.promptDns", "排查 api.octarq.com 的 DNS 异常")}
                         desc={t("copilot.promptDnsDesc", "检查权威解析节点延迟与 A/CNAME 配置一致性")}
                         onClick={() => handleSendMessage(t("copilot.promptDns", "排查 api.octarq.com 的 DNS 异常"))}
                       />
                       <PresetPromptCard
-                        icon={<FileCheck className="h-4 w-4 text-purple-500" />}
+                        icon={<FileCheck className="h-4 w-4 text-accent-fg" />}
                         title={t("copilot.promptDiff", "模拟生成高危操作审批卡片")}
                         desc={t("copilot.promptDiffDesc", "体验智能体发起破坏性变更的可视化审批流")}
                         onClick={() => handleSendMessage(t("copilot.promptDiff", "模拟生成高危操作审批卡片"))}
@@ -512,7 +512,7 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
                   className={cn(
                     "rounded-lg px-2.5 py-1 font-medium transition-colors",
                     approvalsFilter === "pending"
-                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold"
+                      ? "bg-warning-fg/15 text-warning-fg font-semibold"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >

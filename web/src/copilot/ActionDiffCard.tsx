@@ -248,7 +248,7 @@ function RiskBadge({ risk, t }: { risk: RiskLevel; t: (k: string, fb?: string) =
       );
     case "write":
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">
+        <span className="inline-flex items-center gap-1 rounded-full bg-warning-fg/10 border border-warning-fg/20 px-2 py-0.5 text-[11px] font-bold text-warning-fg">
           <ShieldAlert className="h-3 w-3" />
           <span>{t("copilot.riskWrite", "写入变更")}</span>
         </span>
@@ -268,7 +268,7 @@ function StatusBadge({ status, t }: { status: ApprovalStatus; t: (k: string, fb?
   switch (status) {
     case "pending":
       return (
-        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+        <span className="rounded-full bg-warning-fg/15 px-2 py-0.5 text-[11px] font-semibold text-warning-fg">
           {t("copilot.badgePending", "待审批")}
         </span>
       );
