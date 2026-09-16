@@ -56,4 +56,12 @@ describe("areaForCategory", () => {
     expect(areaForCategory("Messaging", [COMMERCE])).toBe("operations");
     expect(areaForCategory(undefined, [COMMERCE])).toBe("operations");
   });
+
+  it("uses deterministic group matching and eliminates fuzzy substring heuristics", () => {
+    // Strings that previously falsely matched keywords via substring (c.includes(...))
+    // must not falsely route to assets or operations unless they match declared groups or IDs.
+    expect(areaForCategory("asset-tracker", [COMMERCE])).toBe("operations");
+    expect(areaForCategory("cloud-compute-nodes", [COMMERCE])).toBe("operations");
+    expect(areaForCategory("security-audit-center", [COMMERCE])).toBe("operations");
+  });
 });

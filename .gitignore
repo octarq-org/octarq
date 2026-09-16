@@ -18,6 +18,7 @@ web/.vite
 packages/*/node_modules
 packages/*/dist
 examples/*/web/node_modules
+server/examples/*/web/node_modules
 
 # geoip
 *.mmdb
