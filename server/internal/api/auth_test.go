@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -13,7 +14,7 @@ func TestLogin(t *testing.T) {
 	_, srv, db := newTestHandlerRaw(t)
 
 	// Create a user in the database
-	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), auth.BcryptCost)
 	user := models.User{
 		Email:         "test@example.com",
 		PasswordHash:  string(hash),

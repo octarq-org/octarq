@@ -266,15 +266,15 @@ func TestTouchSessionUpdatesWithinGap(t *testing.T) {
 
 // TestReporterIP honors proxy headers only when trustProxy is set.
 func TestReporterIP(t *testing.T) {
-	trustProxy = false
+	trustProxy.Store(false)
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("X-Forwarded-For", "1.2.3.4, 5.6.7.8")
 	if got := reporterIP(r); got == "1.2.3.4" {
 		t.Error("reporterIP honored X-Forwarded-For without trustProxy")
 	}
 
-	trustProxy = true
-	t.Cleanup(func() { trustProxy = false })
+	trustProxy.Store(true)
+	t.Cleanup(func() { trustProxy.Store(false) })
 	if got := reporterIP(r); got != "1.2.3.4" {
 		t.Errorf("X-Forwarded-For = %q, want 1.2.3.4", got)
 	}

@@ -59,7 +59,7 @@ func CSRFGuard(secret string, next http.Handler) http.Handler {
 			// before it writes. Never on a write: that would hand the token to the
 			// very request being refused.
 			if sc, err := r.Cookie(sessionCookieName); err == nil && !hasValidToken(r, secret, sc.Value) {
-				http.SetCookie(w, csrf.NewCookie(secret, sc.Value, origin.Secure(r, trustProxy)))
+				http.SetCookie(w, csrf.NewCookie(secret, sc.Value, origin.Secure(r, trustProxy.Load())))
 			}
 			next.ServeHTTP(w, r)
 			return

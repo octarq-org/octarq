@@ -113,7 +113,7 @@ func (h *Handler) Huma() huma.API {
 }
 
 func New(cfg *config.Config, db *gorm.DB, c *crypto.Cipher, a *auth.Manager, g *geo.Resolver, q queue.Queue) *Handler {
-	trustProxy = cfg.TrustProxy
+	trustProxy.Store(cfg.TrustProxy)
 	h := &Handler{
 		cfg:             cfg,
 		db:              db,
@@ -614,7 +614,7 @@ A deprecated operation is flagged ` + "`deprecated: true`" + ` here, carries an
 // instance-wide: password reset starts before anyone is authenticated, so the
 // recipient's workspace is not known when the URL is built.
 func (h *Handler) origin(r *http.Request) string {
-	return h.origins.Absolute(0, r, origin.Secure(r, trustProxy))
+	return h.origins.Absolute(0, r, origin.Secure(r, trustProxy.Load()))
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

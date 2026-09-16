@@ -10,6 +10,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/eventbus"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"golang.org/x/crypto/bcrypt"
@@ -477,7 +478,7 @@ func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*
 		return nil, huma.Error400BadRequest("invite token has expired")
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), auth.BcryptCost)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("failed to hash password")
 	}

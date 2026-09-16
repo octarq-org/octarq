@@ -36,9 +36,9 @@ func TestSessionCookieSecureTrustsProxyOnlyWhenTold(t *testing.T) {
 			m := testManager(t)
 			// trustProxy is package state set from config by New; set it
 			// directly and put it back, so one case cannot leak into the next.
-			previous := trustProxy
-			trustProxy = tc.trustProxy
-			t.Cleanup(func() { trustProxy = previous })
+			previous := trustProxy.Load()
+			trustProxy.Store(tc.trustProxy)
+			t.Cleanup(func() { trustProxy.Store(previous) })
 
 			req := httptest.NewRequest(http.MethodPost, "/api/auth/login", nil)
 			if tc.tls {

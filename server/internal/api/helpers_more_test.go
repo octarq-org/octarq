@@ -14,8 +14,8 @@ func TestHelpersMore(t *testing.T) {
 	h, _, _ := newTestHandlerRaw(t)
 
 	// 1. reporterIP with trustProxy = true
-	trustProxy = true
-	defer func() { trustProxy = false }()
+	trustProxy.Store(true)
+	defer func() { trustProxy.Store(false) }()
 
 	reqXFF := httptest.NewRequest("GET", "http://example.com", nil)
 	reqXFF.Header.Set("X-Forwarded-For", "203.0.113.195, 70.41.3.18, 150.172.238.178")

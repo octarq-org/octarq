@@ -3,14 +3,8 @@ package api
 import (
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
-	dns "github.com/octarq-org/octarq/server/plugins/dns"
-	links "github.com/octarq-org/octarq/server/plugins/links"
-	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
-
-	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
@@ -24,14 +18,7 @@ import (
 // configured admin credentials, returning both the handler and db.
 func newHandlerForAdminTest(t *testing.T) (*Handler, *gorm.DB) {
 	t.Helper()
-	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
-	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mailmodels.Mailbox{}, &mailmodels.Email{}, &mailmodels.SMTPSender{})...); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	db := newTestDB(t)
 	cfg := &config.Config{AdminUser: "operator@example.com", AdminPassword: "pw", SecretKey: "secret"}
 	cipher := crypto.New(cfg.SecretKey)
 	authMgr := auth.New(cfg, cipher).WithDB(db)
@@ -100,14 +87,7 @@ func TestInstanceAdminBoundToConfiguredAdmin_NotOrg1(t *testing.T) {
 // flag for the current org-1 owner on an existing install where nobody is
 // flagged yet — so upgrades don't lose admin.
 func TestInstanceAdminBackfillMigration(t *testing.T) {
-	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
-	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mailmodels.Mailbox{}, &mailmodels.Email{}, &mailmodels.SMTPSender{})...); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	db := newTestDB(t)
 	// Simulate a pre-existing install: org 1 with an owner, nobody flagged.
 	owner := models.User{Email: "legacy-admin@example", PasswordHash: "x"}
 	db.Create(&owner)

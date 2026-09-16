@@ -80,7 +80,7 @@ func (s requestSecureStore) markSecure(r *http.Request, sess *sessions.Session) 
 		opts := *s.Options
 		sess.Options = &opts
 	}
-	sess.Options.Secure = origin.Secure(r, trustProxy)
+	sess.Options.Secure = origin.Secure(r, trustProxy.Load())
 }
 
 // OAuthHandler handles OAuth begin and callback for a given provider.
@@ -114,7 +114,7 @@ func NewOAuthHandler(db *gorm.DB, auth *Manager, cipher *crypto.Cipher) *OAuthHa
 // "google" per request would let one request's callback URL be swapped out from
 // under another request on a different hostname.
 func (h *OAuthHandler) prepare(r *http.Request, provider string) (string, bool) {
-	base := h.origins.Absolute(0, r, origin.Secure(r, trustProxy))
+	base := h.origins.Absolute(0, r, origin.Secure(r, trustProxy.Load()))
 	if base == "" {
 		return "", false
 	}

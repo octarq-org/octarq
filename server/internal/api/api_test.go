@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/glebarez/sqlite"
@@ -20,6 +21,7 @@ import (
 	"github.com/octarq-org/octarq/server/plugins/links"
 	"github.com/octarq-org/octarq/server/plugins/mail"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // mountCoreDNS mounts the built-in dns Core plugin onto the handler's API so the
@@ -78,6 +80,79 @@ func disableEmailVerification(t *testing.T, db *gorm.DB) {
 	}
 }
 
+var (
+	testDBTemplateOnce sync.Once
+	testDBFullDDL      string
+	testDBNoMailDDL    string
+)
+
+func initTestDBTemplates() {
+	testDBTemplateOnce.Do(func() {
+		fullDB, err := gorm.Open(sqlite.Open("file:template_full_init?mode=memory&cache=shared"), &gorm.Config{
+			Logger: logger.Default.LogMode(logger.Silent),
+		})
+		if err != nil {
+			panic("initTestDBTemplates fullDB: " + err.Error())
+		}
+		fullModels := append(models.AllModels(),
+			&links.Link{}, &links.LinkEvent{},
+			&dns.Domain{}, &dns.ProviderAccount{}, &dns.DDNSToken{},
+			&mail.Mailbox{}, &mail.Email{}, &mail.SMTPSender{},
+		)
+		if err := fullDB.AutoMigrate(fullModels...); err != nil {
+			panic("initTestDBTemplates migrate fullDB: " + err.Error())
+		}
+		var fullStmts []string
+		if err := fullDB.Raw("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY type DESC").Scan(&fullStmts).Error; err != nil {
+			panic("initTestDBTemplates read full master: " + err.Error())
+		}
+		ddl := strings.Join(fullStmts, ";\n") + ";"
+		ddl = strings.ReplaceAll(ddl, "CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ")
+		ddl = strings.ReplaceAll(ddl, "CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ")
+		ddl = strings.ReplaceAll(ddl, "CREATE UNIQUE INDEX ", "CREATE UNIQUE INDEX IF NOT EXISTS ")
+		testDBFullDDL = ddl
+
+		noMailDB, err := gorm.Open(sqlite.Open("file:template_nomail_init?mode=memory&cache=shared"), &gorm.Config{
+			Logger: logger.Default.LogMode(logger.Silent),
+		})
+		if err != nil {
+			panic("initTestDBTemplates noMailDB: " + err.Error())
+		}
+		noMailModels := append(models.AllModels(),
+			&links.Link{}, &links.LinkEvent{},
+			&dns.Domain{}, &dns.ProviderAccount{}, &dns.DDNSToken{},
+		)
+		if err := noMailDB.AutoMigrate(noMailModels...); err != nil {
+			panic("initTestDBTemplates migrate noMailDB: " + err.Error())
+		}
+		var noMailStmts []string
+		if err := noMailDB.Raw("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY type DESC").Scan(&noMailStmts).Error; err != nil {
+			panic("initTestDBTemplates read noMail master: " + err.Error())
+		}
+		nmDDL := strings.Join(noMailStmts, ";\n") + ";"
+		nmDDL = strings.ReplaceAll(nmDDL, "CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ")
+		nmDDL = strings.ReplaceAll(nmDDL, "CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ")
+		nmDDL = strings.ReplaceAll(nmDDL, "CREATE UNIQUE INDEX ", "CREATE UNIQUE INDEX IF NOT EXISTS ")
+		testDBNoMailDDL = nmDDL
+	})
+}
+
+func newTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	initTestDBTemplates()
+	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
+	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.Exec(testDBFullDDL).Error; err != nil {
+		t.Fatalf("apply test db template: %v", err)
+	}
+	return db
+}
+
 // newTestHandlerRaw is newTestHandler plus the *Handler itself, for tests that
 // exercise handler methods directly rather than over HTTP.
 func newTestHandlerRaw(t *testing.T) (*Handler, http.Handler, *gorm.DB) {
@@ -90,14 +165,7 @@ func newTestHandlerRaw(t *testing.T) (*Handler, http.Handler, *gorm.DB) {
 // specific driver/DSN the default handler cannot express.
 func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Handler, *gorm.DB) {
 	t.Helper()
-	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
-	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &dns.DDNSToken{}, &mail.Mailbox{}, &mail.Email{}, &mail.SMTPSender{})...); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	db := newTestDB(t)
 	// Isolate from other tests sharing the cache.
 	db.Where("1 = 1").Delete(&models.Token{})
 	db.Where("1 = 1").Delete(&links.Link{})
@@ -106,9 +174,6 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 	if err := cipher.EnableEnvelope(apiEnvStore{db}); err != nil {
 		t.Fatalf("EnableEnvelope: %v", err)
 	}
-	// Mirror the app wiring: the notify dispatch path needs a config decryptor
-	// (see app.Run). Re-registered per handler so a leftover decryptor from a
-	// previous test can never leak a different cipher's output here.
 	notify.SetConfigDecryptor(func(stored string) (string, bool) {
 		b, err := cipher.Decrypt(stored)
 		if err != nil {
@@ -116,7 +181,6 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 		}
 		return string(b), true
 	})
-	t.Cleanup(func() { notify.SetConfigDecryptor(nil) })
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
@@ -160,14 +224,17 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 // (no mail plugin), mirroring the edition-nomail composition.
 func newTestHandlerWithoutMail(t *testing.T) (*Handler, http.Handler, *gorm.DB) {
 	t.Helper()
+	initTestDBTemplates()
 	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
 	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "_nomail?mode=memory&cache=shared"
-	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &dns.DDNSToken{})...); err != nil {
-		t.Fatalf("migrate: %v", err)
+	if err := db.Exec(testDBNoMailDDL).Error; err != nil {
+		t.Fatalf("apply nomail template: %v", err)
 	}
 	db.Where("1 = 1").Delete(&models.Token{})
 	db.Where("1 = 1").Delete(&links.Link{})
@@ -183,7 +250,6 @@ func newTestHandlerWithoutMail(t *testing.T) (*Handler, http.Handler, *gorm.DB) 
 		}
 		return string(b), true
 	})
-	t.Cleanup(func() { notify.SetConfigDecryptor(nil) })
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))

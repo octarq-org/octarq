@@ -3,15 +3,11 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
-	dns "github.com/octarq-org/octarq/server/plugins/dns"
 	links "github.com/octarq-org/octarq/server/plugins/links"
-	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
 
-	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
@@ -24,14 +20,7 @@ import (
 
 func newTestHandlerWithInstance(t *testing.T) (*Handler, http.Handler, *gorm.DB) {
 	t.Helper()
-	dbName := "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
-	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	if err := db.AutoMigrate(append(models.AllModels(), &links.Link{}, &links.LinkEvent{}, &dns.Domain{}, &dns.ProviderAccount{}, &mailmodels.Mailbox{}, &mailmodels.Email{}, &mailmodels.SMTPSender{})...); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	db := newTestDB(t)
 	db.Where("1 = 1").Delete(&models.Token{})
 	db.Where("1 = 1").Delete(&links.Link{})
 
