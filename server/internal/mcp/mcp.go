@@ -127,6 +127,7 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 	}
 	srv := mcp.NewServer(impl, opts)
 	s.registerTools(srv)
+	s.registerResources(srv)
 	_ = endpointEngine.MountMCP(srv)
 
 	for _, p := range plugins {
