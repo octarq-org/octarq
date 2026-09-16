@@ -84,7 +84,6 @@ var (
 	testDBTemplateOnce sync.Once
 	testDBFullDDL      string
 	testDBNoMailDDL    string
-	defaultTestCipher  = crypto.New("secret")
 )
 
 func initTestDBTemplates() {
