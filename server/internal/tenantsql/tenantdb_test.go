@@ -85,7 +85,8 @@ func TestTenantDBFromContext(t *testing.T) {
 	db := setupTestDB(t)
 
 	// Nil context
-	if _, err := TenantDBFromContext(nil, db); !errors.Is(err, ErrMissingTenantContext) {
+	var nilCtx context.Context
+	if _, err := TenantDBFromContext(nilCtx, db); !errors.Is(err, ErrMissingTenantContext) {
 		t.Errorf("expected ErrMissingTenantContext for nil ctx, got %v", err)
 	}
 
