@@ -55,8 +55,12 @@ func (p *Plugin) isSuppressed(orgID uint, addr string) bool {
 	if parsed, err := netmail.ParseAddress(normAddr); err == nil && parsed.Address != "" {
 		normAddr = strings.ToLower(parsed.Address)
 	}
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return false
+	}
 	var count int64
-	p.db.Model(&MailSuppression{}).Where("owner_id = ? AND address = ?", orgID, normAddr).Count(&count)
+	tdb.Model(&MailSuppression{}).Where("address = ?", normAddr).Count(&count)
 	return count > 0
 }
 
@@ -80,8 +84,12 @@ func (p *Plugin) anySuppressed(orgID uint, addrs []string) (string, error) {
 		return "", nil
 	}
 
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return "", nil
+	}
 	var suppressed []string
-	err := p.db.Model(&MailSuppression{}).Where("owner_id = ? AND address IN ?", orgID, normAddrs).Pluck("address", &suppressed).Error
+	err := tdb.Model(&MailSuppression{}).Where("address IN ?", normAddrs).Pluck("address", &suppressed).Error
 	if err != nil {
 		return "", err
 	}
@@ -166,19 +174,27 @@ func (p *Plugin) sendMail(orgID uint, to, subject, htmlBody, textBody string) er
 	if p.isSuppressed(orgID, to) {
 		return fmt.Errorf("recipient address %s is in suppression list", to)
 	}
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return fmt.Errorf("database unavailable for org %d", orgID)
+	}
 	var s SMTPSender
-	if err := p.db.Where("owner_id = ?", orgID).Order("id").First(&s).Error; err != nil {
+	if err := tdb.Order("id").First(&s).Error; err != nil {
 		return fmt.Errorf("no SMTP sender configured for org %d", orgID)
 	}
 	return p.deliverVia(&s, to, subject, htmlBody, textBody)
 }
 
 func (p *Plugin) recordSentEmail(orgID uint, from, to, subject, text, html string) {
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return
+	}
 	var mb Mailbox
-	if err := p.db.Where("owner_id = ? AND address = ?", orgID, from).First(&mb).Error; err != nil {
-		if err := p.db.Where("owner_id = ?", orgID).First(&mb).Error; err != nil {
+	if err := tdb.Where("address = ?", from).First(&mb).Error; err != nil {
+		if err := tdb.First(&mb).Error; err != nil {
 			mb = Mailbox{OrgID: orgID, Address: from, Enabled: true, Note: "outbound"}
-			_ = p.db.Create(&mb).Error
+			_ = tdb.Create(&mb).Error
 		}
 	}
 	if mb.ID != 0 {

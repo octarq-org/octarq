@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var (
@@ -104,7 +104,7 @@ func TenantDBFromContext(ctx context.Context, db *gorm.DB, opts ...TenantDBOptio
 	if ctx == nil {
 		return nil, ErrMissingTenantContext
 	}
-	orgID := plugin.OrgIDFromContext(ctx)
+	orgID := OrgIDFromContext(ctx)
 	if orgID == 0 {
 		return nil, ErrMissingTenantContext
 	}
@@ -244,6 +244,51 @@ func (t *TenantDB) Where(query any, args ...any) *gorm.DB {
 	return t.Scoped().Where(query, args...)
 }
 
+// Select specifies fields that you want when querying, creating, updating.
+func (t *TenantDB) Select(query any, args ...any) *gorm.DB {
+	return t.Scoped().Select(query, args...)
+}
+
+// Order specifies order when retrieving records from database.
+func (t *TenantDB) Order(value any) *gorm.DB {
+	return t.Scoped().Order(value)
+}
+
+// Limit specifies the number of records to be retrieved.
+func (t *TenantDB) Limit(limit int) *gorm.DB {
+	return t.Scoped().Limit(limit)
+}
+
+// Offset specifies the number of records to skip before starting to return the records.
+func (t *TenantDB) Offset(offset int) *gorm.DB {
+	return t.Scoped().Offset(offset)
+}
+
+// Joins specifies Joins conditions.
+func (t *TenantDB) Joins(query string, args ...any) *gorm.DB {
+	return t.Scoped().Joins(query, args...)
+}
+
+// Preload preloads associations with given conditions.
+func (t *TenantDB) Preload(query string, args ...any) *gorm.DB {
+	return t.Scoped().Preload(query, args...)
+}
+
+// Omit specifies fields that you want to ignore when creating, updating and querying.
+func (t *TenantDB) Omit(columns ...string) *gorm.DB {
+	return t.Scoped().Omit(columns...)
+}
+
+// Distinct specifies distinct query.
+func (t *TenantDB) Distinct(args ...any) *gorm.DB {
+	return t.Scoped().Distinct(args...)
+}
+
+// Clauses adds clauses to the query.
+func (t *TenantDB) Clauses(conds ...clause.Expression) *gorm.DB {
+	return t.Scoped().Clauses(conds...)
+}
+
 // Find executes a tenant-scoped Find query into dest.
 func (t *TenantDB) Find(dest any, conds ...any) *gorm.DB {
 	return t.Scoped(dest).Find(dest, conds...)
@@ -304,6 +349,11 @@ func (t *TenantDB) Update(column string, value any) *gorm.DB {
 
 // Updates updates multiple columns on records matching the tenant scope.
 func (t *TenantDB) Updates(values any) *gorm.DB {
+	if err := t.enforceTenantScope(values); err != nil {
+		tx := t.db.Session(&gorm.Session{})
+		tx.AddError(err)
+		return tx
+	}
 	return t.Scoped(values).Updates(values)
 }
 
@@ -329,7 +379,48 @@ func (t *TenantDB) enforceTenantScope(val any) error {
 		return nil
 	}
 
+	if v.Kind() == reflect.Map {
+		iter := v.MapRange()
+		for iter.Next() {
+			k := strings.ToLower(fmt.Sprintf("%v", iter.Key().Interface()))
+			if k == "org_id" || k == "owner_id" || k == "orgid" || k == "ownerid" {
+				valInt := toUint(iter.Value().Interface())
+				if valInt != 0 && valInt != t.orgID {
+					return fmt.Errorf("%w: map key %s is %d, want %d", ErrTenantMismatch, iter.Key().Interface(), valInt, t.orgID)
+				}
+			}
+		}
+		return nil
+	}
+
 	return t.enforceSingleEntityScope(v)
+}
+
+func toUint(val any) uint {
+	switch v := val.(type) {
+	case uint:
+		return v
+	case uint8:
+		return uint(v)
+	case uint16:
+		return uint(v)
+	case uint32:
+		return uint(v)
+	case uint64:
+		return uint(v)
+	case int:
+		return uint(v)
+	case int8:
+		return uint(v)
+	case int16:
+		return uint(v)
+	case int32:
+		return uint(v)
+	case int64:
+		return uint(v)
+	default:
+		return 0
+	}
 }
 
 func (t *TenantDB) enforceSingleEntityScope(v reflect.Value) error {
@@ -390,7 +481,7 @@ func (t *TenantDB) ExecuteSQL(querySQL string, opts ...ExecOption) ([]map[string
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	ctx = plugin.WithOrgID(ctx, t.orgID)
+	ctx = WithOrgID(ctx, t.orgID)
 	return Execute(ctx, t.db, t.registry, querySQL, opts...)
 }
 

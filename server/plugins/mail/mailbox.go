@@ -103,7 +103,11 @@ func (p *Plugin) createMailbox(ctx context.Context, input *CreateMailboxInput) (
 		OrgID:   p.orgID(r),
 		Address: addr, Note: input.Body.Note, Enabled: enabled,
 	}
-	if err := p.db.Create(&mb).Error; err != nil {
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if err := tdb.Create(&mb).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "mailbox already exists")
 	}
 	if p.audit != nil {
@@ -138,15 +142,19 @@ func (p *Plugin) updateMailbox(ctx context.Context, input *UpdateMailboxInput) (
 	if !p.hasRole(r, "admin") {
 		return nil, huma.Error403Forbidden("forbidden: admin role required to update mailbox")
 	}
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	var mb Mailbox
-	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&mb).Error != nil {
+	if tdb.Where("id = ?", input.ID).First(&mb).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	mb.Note = input.Body.Note
 	if input.Body.Enabled != nil {
 		mb.Enabled = *input.Body.Enabled
 	}
-	p.db.Save(&mb)
+	tdb.Save(&mb)
 	meta := map[string]any{
 		"note":    mb.Note,
 		"enabled": mb.Enabled,
@@ -182,13 +190,17 @@ func (p *Plugin) deleteMailbox(ctx context.Context, input *DeleteMailboxInput) (
 	if !p.hasRole(r, "admin") {
 		return nil, huma.Error403Forbidden("forbidden: admin role required to delete mailbox")
 	}
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	var mb Mailbox
-	if err := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&mb).Error; err != nil {
+	if err := tdb.Where("id = ?", input.ID).First(&mb).Error; err != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	var emails []Email
 	p.db.Where("mailbox_id = ?", mb.ID).Find(&emails)
-	res := p.db.Where("id = ? AND owner_id = ?", mb.ID, p.orgID(r)).Delete(&Mailbox{})
+	res := tdb.Where("id = ?", mb.ID).Delete(&Mailbox{})
 	if res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}

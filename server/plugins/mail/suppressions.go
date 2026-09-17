@@ -83,7 +83,11 @@ func (p *Plugin) createSuppression(ctx context.Context, input *CreateSuppression
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	err := p.db.Clauses(clause.OnConflict{
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	err := tdb.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "owner_id"}, {Name: "address"}},
 		DoUpdates: clause.Assignments(map[string]any{
 			"reason":     suppressionManual,
@@ -128,11 +132,15 @@ func (p *Plugin) deleteSuppression(ctx context.Context, input *DeleteSuppression
 		return nil, huma.Error403Forbidden("forbidden: admin role required to manage suppression list")
 	}
 
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	var item MailSuppression
-	if err := p.orgDB(r).First(&item, input.ID).Error; err != nil {
+	if err := tdb.First(&item, input.ID).Error; err != nil {
 		return nil, huma.Error404NotFound("suppression item not found")
 	}
-	if err := p.db.Delete(&item).Error; err != nil {
+	if err := tdb.Delete(&item).Error; err != nil {
 		return nil, huma.Error500InternalServerError("failed to delete suppression")
 	}
 	if p.audit != nil {

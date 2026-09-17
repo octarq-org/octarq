@@ -15,7 +15,11 @@ import (
 func (p *Plugin) purge(orgID uint) error {
 	ctx := context.Background()
 	ctx = plugin.WithOrgID(ctx, orgID)
-	mailboxIDs := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return fmt.Errorf("tenant database unavailable for org %d", orgID)
+	}
+	mailboxIDs := tdb.Model(&Mailbox{}).Select("id")
 
 	storageProv, spErr := p.getStorageProvider()
 	if spErr != nil {
@@ -74,22 +78,26 @@ func (p *Plugin) purge(orgID uint) error {
 		}
 	}
 
-	p.db.Where("owner_id = ?", orgID).Delete(&Mailbox{})
-	p.db.Where("owner_id = ?", orgID).Delete(&SMTPSender{})
-	p.db.Where("owner_id = ?", orgID).Delete(&MailSuppression{})
+	tdb.Where("1 = 1").Delete(&Mailbox{})
+	tdb.Where("1 = 1").Delete(&SMTPSender{})
+	tdb.Where("1 = 1").Delete(&MailSuppression{})
 	return nil
 }
 
 func (p *Plugin) exportData(orgID uint) map[string]any {
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return map[string]any{}
+	}
 	var mailboxes []Mailbox
 	var emails []Email
 	var smtp []SMTPSender
 	var suppressions []MailSuppression
-	p.db.Where("owner_id = ?", orgID).Find(&mailboxes)
-	mailboxIDs := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
+	tdb.Find(&mailboxes)
+	mailboxIDs := tdb.Model(&Mailbox{}).Select("id")
 	p.db.Where("mailbox_id IN (?)", mailboxIDs).Find(&emails)
-	p.db.Where("owner_id = ?", orgID).Find(&smtp)
-	p.db.Where("owner_id = ?", orgID).Find(&suppressions)
+	tdb.Find(&smtp)
+	tdb.Find(&suppressions)
 	return map[string]any{
 		"mailboxes":    mailboxes,
 		"emails":       emails,
@@ -120,10 +128,14 @@ func (p *Plugin) getEmailForSummarize(orgID uint, id uint) (from, subject, body 
 }
 
 func (p *Plugin) overview(orgID uint, includeBot bool) map[string]any {
-	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return map[string]any{}
+	}
+	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 	count := func(model any, conds ...any) int64 {
 		var n int64
-		q := p.db.Model(model).Where("owner_id = ?", orgID)
+		q := tdb.Model(model)
 		if len(conds) > 0 {
 			q = q.Where(conds[0], conds[1:]...)
 		}

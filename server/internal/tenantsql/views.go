@@ -7,23 +7,59 @@ import (
 	"sort"
 	"strings"
 	"sync"
-
-	"github.com/octarq-org/octarq/server/plugin"
 )
 
 var validIdentPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// RedactedValue is what a sensitive column's value is replaced with.
+const RedactedValue = "[redacted]"
+
+// SensitiveColumns are result column names whose values are always redacted.
+var SensitiveColumns = map[string]bool{
+	"password":      true,
+	"password_hash": true,
+	"hash":          true,
+	"config":        true,
+	"raw":           true,
+	"html":          true,
+	"secret":        true,
+	"token":         true,
+	"access_token":  true,
+	"refresh_token": true,
+	"private_key":   true,
+	"otp":           true,
+	"subject":       true,
+	"text":          true,
+	"storage_key":   true,
+	"fingerprint":   true,
+}
+
+// TenantColumn describes a column in a tenant view schema.
+type TenantColumn struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
+}
+
+// TenantView defines a tenant-isolated SQL view.
+type TenantView struct {
+	Name       string                  `json:"name"` // 强制 "tenant_" 前缀
+	Columns    []TenantColumn          `json:"columns"`
+	Sensitive  []string                `json:"sensitive"` // 出参二次脱敏列
+	Definition func(orgID uint) string `json:"-"`
+}
 
 // Registry manages registered tenant views in memory.
 // It is safe for concurrent use by multiple goroutines.
 type Registry struct {
 	mu    sync.RWMutex
-	views map[string]plugin.TenantView
+	views map[string]TenantView
 }
 
 // NewRegistry creates a new empty tenant view registry.
 func NewRegistry() *Registry {
 	return &Registry{
-		views: make(map[string]plugin.TenantView),
+		views: make(map[string]TenantView),
 	}
 }
 
@@ -44,7 +80,7 @@ func DefaultRegistry() *Registry {
 // It validates that the view has a non-empty name starting with DefaultViewPrefix ("tenant_"),
 // matches valid identifier pattern ^[A-Za-z_][A-Za-z0-9_]*$, has a non-nil Definition function,
 // and has not already been registered.
-func (r *Registry) Register(view plugin.TenantView) error {
+func (r *Registry) Register(view TenantView) error {
 	name := strings.TrimSpace(view.Name)
 	if name == "" {
 		return errors.New("view name cannot be empty")
@@ -73,7 +109,7 @@ func (r *Registry) Register(view plugin.TenantView) error {
 }
 
 // Lookup finds a registered view by name (case-insensitive).
-func (r *Registry) Lookup(name string) (plugin.TenantView, bool) {
+func (r *Registry) Lookup(name string) (TenantView, bool) {
 	key := strings.ToLower(strings.TrimSpace(name))
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -83,11 +119,11 @@ func (r *Registry) Lookup(name string) (plugin.TenantView, bool) {
 }
 
 // List returns all registered views, sorted alphabetically by Name.
-func (r *Registry) List() []plugin.TenantView {
+func (r *Registry) List() []TenantView {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	views := make([]plugin.TenantView, 0, len(r.views))
+	views := make([]TenantView, 0, len(r.views))
 	for _, v := range r.views {
 		views = append(views, v)
 	}
@@ -103,7 +139,7 @@ func (r *Registry) List() []plugin.TenantView {
 func (r *Registry) Reset() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.views = make(map[string]plugin.TenantView)
+	r.views = make(map[string]TenantView)
 }
 
 // quoteIdent quotes an SQL identifier with double quotes after validating it
@@ -117,7 +153,7 @@ func quoteIdent(ident string) (string, error) {
 
 // wrapRedactedViewSQL rewrites the view definition query to replace sensitive columns
 // with the redacted literal value, preventing sensitive data from ever reaching TEMP VIEW output columns.
-func wrapRedactedViewSQL(view plugin.TenantView, inner string) (string, error) {
+func wrapRedactedViewSQL(view TenantView, inner string) (string, error) {
 	if len(view.Columns) == 0 {
 		return fmt.Sprintf("SELECT * FROM (%s) AS _octarq_tv", inner), nil
 	}
@@ -139,8 +175,8 @@ func wrapRedactedViewSQL(view plugin.TenantView, inner string) (string, error) {
 		}
 
 		colLower := strings.ToLower(colName)
-		if sensitiveSet[colLower] || plugin.SensitiveColumns[colLower] {
-			selectExprs = append(selectExprs, fmt.Sprintf("'%s' AS %s", plugin.RedactedValue, quotedCol))
+		if sensitiveSet[colLower] || SensitiveColumns[colLower] {
+			selectExprs = append(selectExprs, fmt.Sprintf("'%s' AS %s", RedactedValue, quotedCol))
 		} else {
 			selectExprs = append(selectExprs, quotedCol)
 		}

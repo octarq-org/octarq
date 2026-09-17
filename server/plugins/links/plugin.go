@@ -78,8 +78,28 @@ var docs embed.FS
 
 func (p *Plugin) HelpDocsFS() fs.FS { return docs }
 
+func (p *Plugin) tenantDB(orgID uint) *plugin.TenantDB {
+	if p.ctx != nil && p.ctx.TenantDB != nil {
+		if tdb := p.ctx.TenantDB(orgID); tdb != nil {
+			return tdb
+		}
+	}
+	if p.db != nil && orgID != 0 {
+		tdb, _ := plugin.NewTenantDB(p.db, orgID)
+		return tdb
+	}
+	return nil
+}
+
 func (p *Plugin) orgDB(r *http.Request) *gorm.DB {
-	return p.db.Where("owner_id = ?", p.auth.OrgID(r))
+	orgID := p.orgID(r)
+	if tdb := p.tenantDB(orgID); tdb != nil {
+		return tdb.Scoped(&Link{})
+	}
+	if p.db != nil {
+		return p.db.Where("owner_id = ?", orgID)
+	}
+	return nil
 }
 
 func (p *Plugin) orgID(r *http.Request) uint {

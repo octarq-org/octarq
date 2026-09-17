@@ -45,4 +45,5 @@ type Host interface {
 	Crypto() CryptoVault
 	Settings() SettingsStore
 	Events() EventSpine
+	TenantDB(orgID uint) *TenantDB
 }

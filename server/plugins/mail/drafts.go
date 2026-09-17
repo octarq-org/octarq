@@ -40,7 +40,11 @@ func (p *Plugin) saveDraft(ctx context.Context, input *SaveDraftInput) (*SaveDra
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 
 	if input.Body.ID != 0 {
 		var e Email
@@ -64,17 +68,17 @@ func (p *Plugin) saveDraft(ctx context.Context, input *SaveDraftInput) (*SaveDra
 	mbID := input.Body.MailboxID
 	if mbID == 0 {
 		var mb Mailbox
-		if err := p.db.Where("owner_id = ?", orgID).First(&mb).Error; err == nil {
+		if err := tdb.First(&mb).Error; err == nil {
 			mbID = mb.ID
 		} else {
 			mb = Mailbox{OrgID: orgID, Address: fmt.Sprintf("drafts@org%d.local", orgID), Enabled: true, Note: "drafts"}
-			if err := p.db.Create(&mb).Error; err == nil {
+			if err := tdb.Create(&mb).Error; err == nil {
 				mbID = mb.ID
 			}
 		}
 	} else {
 		var count int64
-		p.db.Model(&Mailbox{}).Where("id = ? AND owner_id = ?", mbID, orgID).Count(&count)
+		tdb.Model(&Mailbox{}).Where("id = ?", mbID).Count(&count)
 		if count == 0 {
 			return nil, huma.Error400BadRequest("invalid mailbox id")
 		}
@@ -120,7 +124,11 @@ func (p *Plugin) deleteDraft(ctx context.Context, input *DeleteDraftInput) (*Del
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", orgID)
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 	var e Email
 	if p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).First(&e).Error != nil {
 		return nil, huma.Error404NotFound("draft not found")

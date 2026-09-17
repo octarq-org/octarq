@@ -22,6 +22,7 @@ import (
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/csrf"
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/tenantsql"
 	"github.com/octarq-org/octarq/server/origin"
 	"github.com/octarq-org/octarq/server/plugin"
 	"golang.org/x/crypto/bcrypt"
@@ -49,15 +50,16 @@ func WithOrgID(ctx context.Context, orgID uint) context.Context {
 // WithUserID returns a new context containing the authenticated user ID, using
 // the same key UserID reads. Mirrors WithOrgID.
 func WithUserID(ctx context.Context, uid uint) context.Context {
-	return context.WithValue(ctx, userIDKey, uid)
+	ctx = context.WithValue(ctx, userIDKey, uid)
+	return tenantsql.WithUserID(ctx, uid)
 }
 
 // UserIDFromContext extracts the authenticated user ID from ctx, returning 0 if absent.
 func UserIDFromContext(ctx context.Context) uint {
-	if v, ok := ctx.Value(userIDKey).(uint); ok {
+	if v, ok := ctx.Value(userIDKey).(uint); ok && v != 0 {
 		return v
 	}
-	return 0
+	return tenantsql.UserIDFromContext(ctx)
 }
 
 // WithTokenID returns a new context containing the API bearer token ID.

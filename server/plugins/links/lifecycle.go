@@ -80,15 +80,21 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 }
 
 func (p *Plugin) purge(orgID uint) error {
-	linkIDs := p.db.Model(&Link{}).Select("id").Where("owner_id = ?", orgID)
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return nil
+	}
+	linkIDs := tdb.Model(&Link{}).Select("id")
 	p.db.Where("link_id IN (?)", linkIDs).Delete(&LinkEvent{})
-	p.db.Where("owner_id = ?", orgID).Delete(&Link{})
+	tdb.Delete(&Link{})
 	return nil
 }
 
 func (p *Plugin) exportData(orgID uint) map[string]any {
 	var l []Link
-	p.db.Where("owner_id = ?", orgID).Find(&l)
+	if tdb := p.tenantDB(orgID); tdb != nil {
+		tdb.Find(&l)
+	}
 	return map[string]any{
 		"links": l,
 	}
@@ -161,6 +167,10 @@ type topLink struct {
 }
 
 func (p *Plugin) overview(orgID uint, includeBot bool) map[string]any {
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return map[string]any{}
+	}
 	botFilter := func(q *gorm.DB) *gorm.DB {
 		if includeBot {
 			return q
@@ -169,7 +179,7 @@ func (p *Plugin) overview(orgID uint, includeBot bool) map[string]any {
 	}
 	count := func(model any, conds ...any) int64 {
 		var n int64
-		q := p.db.Model(model).Where("owner_id = ?", orgID)
+		q := tdb.Model(model)
 		if len(conds) > 0 {
 			q = q.Where(conds[0], conds[1:]...)
 		}
@@ -181,7 +191,7 @@ func (p *Plugin) overview(orgID uint, includeBot bool) map[string]any {
 		Joins("JOIN links ON links.id = link_events.link_id AND links.owner_id = ?", orgID)).
 		Select("COUNT(*)").Scan(&totalClicks)
 
-	orgLinks := p.db.Model(&Link{}).Select("id").Where("owner_id = ?", orgID)
+	orgLinks := tdb.Model(&Link{}).Select("id")
 	now := time.Now()
 	since30 := now.AddDate(0, 0, -30)
 	since7 := now.AddDate(0, 0, -7)
@@ -206,9 +216,9 @@ func (p *Plugin) overview(orgID uint, includeBot bool) map[string]any {
 	}
 
 	var topLinks []topLink
-	p.db.Model(&Link{}).
+	tdb.Model(&Link{}).
 		Select("id, slug, host, title, tags, clicks").
-		Where("owner_id = ? AND archived = ?", orgID, false).
+		Where("archived = ?", false).
 		Order("clicks DESC").Limit(5).Scan(&topLinks)
 
 	clickCount := func(conds ...any) int64 {

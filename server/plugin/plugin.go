@@ -117,6 +117,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/octarq-org/octarq/server/internal/tenantsql"
 	"github.com/octarq-org/octarq/server/llmprovider"
 	"github.com/octarq-org/octarq/server/pkg/telemetry"
 	"go.opentelemetry.io/otel/metric"
@@ -216,21 +217,14 @@ var (
 	ErrQuotaUnavailable = errors.New("capability not included in plan")
 )
 
-type contextKey string
-
-const orgIDKey contextKey = "org_id"
-
 // WithOrgID returns a new context containing the organization ID for MCP / request scopes.
 func WithOrgID(ctx context.Context, orgID uint) context.Context {
-	return context.WithValue(ctx, orgIDKey, orgID)
+	return tenantsql.WithOrgID(ctx, orgID)
 }
 
 // OrgIDFromContext extracts the organization ID from the context (0 if unset).
 func OrgIDFromContext(ctx context.Context) uint {
-	if id, ok := ctx.Value(orgIDKey).(uint); ok {
-		return id
-	}
-	return 0
+	return tenantsql.OrgIDFromContext(ctx)
 }
 
 // EmailEvent is a stable, external snapshot of a freshly received inbound email,
@@ -514,6 +508,17 @@ type Context struct {
 	// Host provides cohesive access to host runtime capabilities (Session, Crypto, Settings, Events).
 	// nil on hosts that predate it.
 	Host Host
+	// TenantDB returns a type-safe, fail-closed database handle strictly scoped to orgID.
+	// Returns nil if DB is not configured or orgID is 0. nil on hosts that predate it.
+	TenantDB func(orgID uint) *TenantDB
+}
+
+// TenantDBFor returns a TenantDB scoped to orgID, or nil if unconfigured or orgID is 0.
+func (c *Context) TenantDBFor(orgID uint) *TenantDB {
+	if c != nil && c.TenantDB != nil {
+		return c.TenantDB(orgID)
+	}
+	return nil
 }
 
 // AuthMethod is a provider-agnostic auth method definition, mirroring the fields

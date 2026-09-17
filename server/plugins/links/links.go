@@ -121,8 +121,12 @@ func (p *Plugin) getLink(ctx context.Context, input *GetLinkInput) (*GetLinkOutp
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	var l Link
-	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
+	if tdb.Where("id = ?", input.ID).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	return &GetLinkOutput{Body: view(l)}, nil
@@ -199,7 +203,11 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 	if err := p.checkQuota(ctx, l.OrgID, "links", 1); err != nil {
 		return nil, err
 	}
-	if err := p.db.Create(&l).Error; err != nil {
+	tdb := p.tenantDB(l.OrgID)
+	if tdb == nil {
+		return nil, huma.Error500InternalServerError("database not available")
+	}
+	if err := tdb.Create(&l).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
 	}
 	if p.audit != nil {
