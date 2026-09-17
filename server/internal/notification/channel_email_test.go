@@ -101,6 +101,9 @@ func TestEmailChannel_DBLookup(t *testing.T) {
 	if err := db.Create(&user).Error; err != nil {
 		t.Fatalf("create user failed: %v", err)
 	}
+	if err := db.Create(&models.OrgMember{UserID: user.ID, OrgID: 1, Role: "member"}).Error; err != nil {
+		t.Fatalf("create org member failed: %v", err)
+	}
 
 	var sentTo string
 	ch := NewEmailChannel(db, func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
@@ -133,10 +136,22 @@ func TestEmailChannel_Errors(t *testing.T) {
 
 	// Nil sender
 	err = ch.Send(context.Background(), plugin.NotificationRecipient{
+		OrgID:  "1",
 		Config: map[string]any{"email": "valid@example.com"},
 	}, plugin.NotificationPayload{})
 	if err == nil || !strings.Contains(err.Error(), "no email sender configured") {
 		t.Errorf("expected no sender error, got: %v", err)
+	}
+
+	// Missing or invalid orgID
+	chWithSender := NewEmailChannel(nil, func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
+		return nil
+	})
+	err = chWithSender.Send(context.Background(), plugin.NotificationRecipient{
+		Config: map[string]any{"email": "valid@example.com"},
+	}, plugin.NotificationPayload{})
+	if err == nil || !strings.Contains(err.Error(), "missing or invalid tenant org context") {
+		t.Errorf("expected missing org context error, got: %v", err)
 	}
 
 	// Sender returned error
@@ -144,6 +159,7 @@ func TestEmailChannel_Errors(t *testing.T) {
 		return errors.New("smtp timeout")
 	})
 	err = ch.Send(context.Background(), plugin.NotificationRecipient{
+		OrgID:  "1",
 		Config: map[string]any{"email": "valid@example.com"},
 	}, plugin.NotificationPayload{})
 	if err == nil || err.Error() != "smtp timeout" {
@@ -168,6 +184,7 @@ func TestEmailChannel_TenantIsolationSpoofGuard(t *testing.T) {
 		name        string
 		recipient   plugin.NotificationRecipient
 		expectedOrg uint
+		expectErr   bool
 	}{
 		{
 			name: "Spoof attempt: legitimate system OrgID must not be overridden by config orgId",
@@ -225,17 +242,17 @@ func TestEmailChannel_TenantIsolationSpoofGuard(t *testing.T) {
 			expectedOrg: 300,
 		},
 		{
-			name: "Fallback: empty OrgID and empty config defaults to org 1",
+			name: "Fail-closed: empty OrgID and empty config returns error",
 			recipient: plugin.NotificationRecipient{
 				OrgID: "",
 				Config: map[string]any{
 					"email": "user@example.com",
 				},
 			},
-			expectedOrg: 1,
+			expectErr: true,
 		},
 		{
-			name: "Fallback: invalid OrgID and invalid config defaults to org 1",
+			name: "Fail-closed: invalid OrgID and invalid config returns error",
 			recipient: plugin.NotificationRecipient{
 				OrgID: "bad_org",
 				Config: map[string]any{
@@ -243,14 +260,21 @@ func TestEmailChannel_TenantIsolationSpoofGuard(t *testing.T) {
 					"orgId": float64(-1),
 				},
 			},
-			expectedOrg: 1,
+			expectErr: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			capturedOrgID = 0
-			if err := ch.Send(ctx, tc.recipient, payload); err != nil {
+			err := ch.Send(ctx, tc.recipient, payload)
+			if tc.expectErr {
+				if err == nil {
+					t.Fatalf("expected fail-closed error, got nil")
+				}
+				return
+			}
+			if err != nil {
 				t.Fatalf("Send failed: %v", err)
 			}
 			if capturedOrgID != tc.expectedOrg {

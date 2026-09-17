@@ -28,6 +28,8 @@ type Plugin struct {
 	// notify takes the stored config JSON directly. Configs are encrypted at rest
 	// and decrypted inside core dispatch (internal/notify.Send), so do not pre-parse.
 	notify       func(ctx context.Context, kind, cfgJSON, message string) error
+	emit         func(ctx context.Context, payload plugin.NotificationPayload) error
+	emitTo       func(ctx context.Context, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error
 	publishEvent func(orgID uint, event string, data any)
 	recordUsage  func(orgID uint, metric string, n int64)
 	requireRole  func(r *http.Request, min string) bool
@@ -152,6 +154,12 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	}
 	if ctx.Notify != nil {
 		p.notify = ctx.Notify
+	}
+	if ctx.Emit != nil {
+		p.emit = ctx.Emit
+	}
+	if ctx.EmitTo != nil {
+		p.emitTo = ctx.EmitTo
 	}
 
 	if ctx.PublishEvent != nil {

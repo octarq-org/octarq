@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/tenantsql"
 	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
@@ -199,6 +200,8 @@ func (r *Router) GetDescriptor(name string) (Descriptor, bool) {
 }
 
 // SendDirect delivers a notification directly via a specific channel type.
+// Tenant and user identities are resolved from ctx (or cfgJSON metadata) rather
+// than assuming a default tenant identity, preventing cross-tenant channel borrowing.
 func (r *Router) SendDirect(ctx context.Context, typ, cfgJSON, text string) error {
 	typ = strings.ToLower(strings.TrimSpace(typ))
 	ch, ok := r.GetChannel(typ)
@@ -215,9 +218,41 @@ func (r *Router) SendDirect(ctx context.Context, typ, cfgJSON, text string) erro
 	}
 	cfgMap["_raw_config"] = cfgJSON
 
+	var orgIDStr, userIDStr string
+	if oid := plugin.OrgIDFromContext(ctx); oid > 0 {
+		orgIDStr = strconv.FormatUint(uint64(oid), 10)
+	}
+	if uid := tenantsql.UserIDFromContext(ctx); uid > 0 {
+		userIDStr = strconv.FormatUint(uint64(uid), 10)
+	}
+
+	// Fallback to explicit config fields if not set in ctx
+	if orgIDStr == "" {
+		if v, ok := cfgMap["orgId"].(float64); ok && v > 0 {
+			orgIDStr = strconv.FormatUint(uint64(v), 10)
+		} else if v, ok := cfgMap["org_id"].(float64); ok && v > 0 {
+			orgIDStr = strconv.FormatUint(uint64(v), 10)
+		} else if v, ok := cfgMap["orgId"].(string); ok && strings.TrimSpace(v) != "" {
+			orgIDStr = strings.TrimSpace(v)
+		} else if v, ok := cfgMap["org_id"].(string); ok && strings.TrimSpace(v) != "" {
+			orgIDStr = strings.TrimSpace(v)
+		}
+	}
+	if userIDStr == "" {
+		if v, ok := cfgMap["userId"].(float64); ok && v > 0 {
+			userIDStr = strconv.FormatUint(uint64(v), 10)
+		} else if v, ok := cfgMap["user_id"].(float64); ok && v > 0 {
+			userIDStr = strconv.FormatUint(uint64(v), 10)
+		} else if v, ok := cfgMap["userId"].(string); ok && strings.TrimSpace(v) != "" {
+			userIDStr = strings.TrimSpace(v)
+		} else if v, ok := cfgMap["user_id"].(string); ok && strings.TrimSpace(v) != "" {
+			userIDStr = strings.TrimSpace(v)
+		}
+	}
+
 	rec := plugin.NotificationRecipient{
-		UserID: "1",
-		OrgID:  "1",
+		UserID: userIDStr,
+		OrgID:  orgIDStr,
 		Config: cfgMap,
 	}
 	payload := plugin.NotificationPayload{
@@ -225,9 +260,32 @@ func (r *Router) SendDirect(ctx context.Context, typ, cfgJSON, text string) erro
 		Title:     text,
 		Body:      text,
 		Priority:  "normal",
+		OrgID:     orgIDStr,
+		UserID:    userIDStr,
 	}
 
 	return ch.Send(ctx, rec, payload)
+}
+
+// SendDirectWithTenant delivers a notification directly via a channel using an explicit tenant org ID.
+func (r *Router) SendDirectWithTenant(ctx context.Context, orgID uint, typ, cfgJSON, text string) error {
+	if orgID > 0 {
+		ctx = plugin.WithOrgID(ctx, orgID)
+	}
+	return r.SendDirect(ctx, typ, cfgJSON, text)
+}
+
+// SendDirectTo delivers a notification directly to an explicit recipient.
+func (r *Router) SendDirectTo(ctx context.Context, typ string, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
+	typ = strings.ToLower(strings.TrimSpace(typ))
+	ch, ok := r.GetChannel(typ)
+	if !ok {
+		return fmt.Errorf("unknown notification channel type: %s", typ)
+	}
+	if payload.EventType == "" {
+		payload.EventType = "direct"
+	}
+	return ch.Send(ctx, recipient, payload)
 }
 
 // Dispatcher returns the underlying delivery dispatcher.
@@ -283,29 +341,41 @@ func (r *Router) Emit(ctx context.Context, payload plugin.NotificationPayload) e
 		return errors.New("notification: eventType cannot be empty")
 	}
 
-	// 1. Direct user target
+	// 1. Resolve Target User
 	targetUser := strings.TrimSpace(payload.UserID)
 	if targetUser == "" && payload.Data != nil {
 		if u, ok := payload.Data["userId"].(string); ok {
 			targetUser = strings.TrimSpace(u)
 		}
 	}
-	if targetUser != "" {
-		rec := plugin.NotificationRecipient{
-			UserID: targetUser,
-			OrgID:  payload.OrgID,
+	if targetUser == "" {
+		if uid := tenantsql.UserIDFromContext(ctx); uid > 0 {
+			targetUser = strconv.FormatUint(uint64(uid), 10)
 		}
-		return r.EmitTo(ctx, rec, payload)
 	}
 
-	// 2. Org-scoped target: notify all workspace members
+	// 2. Resolve Target Org
 	targetOrg := strings.TrimSpace(payload.OrgID)
 	if targetOrg == "" && payload.Data != nil {
 		if o, ok := payload.Data["orgId"].(string); ok {
 			targetOrg = strings.TrimSpace(o)
 		}
 	}
+	if targetOrg == "" {
+		if oid := plugin.OrgIDFromContext(ctx); oid > 0 {
+			targetOrg = strconv.FormatUint(uint64(oid), 10)
+		}
+	}
 
+	if targetUser != "" {
+		rec := plugin.NotificationRecipient{
+			UserID: targetUser,
+			OrgID:  targetOrg,
+		}
+		return r.EmitTo(ctx, rec, payload)
+	}
+
+	// 3. Org-scoped target: notify all workspace members
 	if targetOrg != "" && r.db != nil {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			var members []models.OrgMember
@@ -322,14 +392,14 @@ func (r *Router) Emit(ctx context.Context, payload plugin.NotificationPayload) e
 		}
 	}
 
-	// 3. Fallback: instance admins or default user 1
+	// 4. Fallback: instance admins (preserving targetOrg if set)
 	if r.db != nil {
 		var admins []models.User
 		if err := r.db.WithContext(ctx).Where("is_instance_admin = ?", true).Find(&admins).Error; err == nil && len(admins) > 0 {
 			for _, a := range admins {
 				rec := plugin.NotificationRecipient{
 					UserID: strconv.FormatUint(uint64(a.ID), 10),
-					OrgID:  "1",
+					OrgID:  targetOrg,
 				}
 				_ = r.EmitTo(ctx, rec, payload)
 			}
@@ -337,10 +407,10 @@ func (r *Router) Emit(ctx context.Context, payload plugin.NotificationPayload) e
 		}
 	}
 
-	// Single default recipient fallback
+	// Single default recipient fallback (preserving targetOrg if set)
 	rec := plugin.NotificationRecipient{
 		UserID: "1",
-		OrgID:  "1",
+		OrgID:  targetOrg,
 	}
 	return r.EmitTo(ctx, rec, payload)
 }

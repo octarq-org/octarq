@@ -95,7 +95,7 @@ func (c *EmailChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 	}
 
 	// System recipient.OrgID has top priority to prevent cross-tenant sender hijacking.
-	// Fallback to channel configuration only when recipient.OrgID is empty or invalid.
+	// Fallback to channel configuration or payload only when recipient.OrgID is empty or invalid.
 	var orgID uint
 	if n, err := strconv.ParseUint(strings.TrimSpace(recipient.OrgID), 10, 64); err == nil && n > 0 {
 		orgID = uint(n)
@@ -107,8 +107,21 @@ func (c *EmailChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 			orgID = uint(v)
 		}
 	}
+	if orgID == 0 && strings.TrimSpace(payload.OrgID) != "" {
+		if n, err := strconv.ParseUint(strings.TrimSpace(payload.OrgID), 10, 64); err == nil && n > 0 {
+			orgID = uint(n)
+		}
+	}
+	if orgID == 0 && c.db != nil && strings.TrimSpace(recipient.UserID) != "" {
+		if uid, err := strconv.ParseUint(strings.TrimSpace(recipient.UserID), 10, 64); err == nil && uid > 0 {
+			var member models.OrgMember
+			if err := c.db.WithContext(ctx).Where("user_id = ?", uid).Order("created_at asc").First(&member).Error; err == nil && member.OrgID > 0 {
+				orgID = member.OrgID
+			}
+		}
+	}
 	if orgID == 0 {
-		orgID = 1
+		return errors.New("notification: missing or invalid tenant org context")
 	}
 
 	subject := payload.Title

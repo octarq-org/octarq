@@ -112,9 +112,14 @@ func (c *TelegramChannel) Send(ctx context.Context, recipient plugin.Notificatio
 	botToken = strings.TrimSpace(botToken)
 	chatIDStr = strings.TrimSpace(chatIDStr)
 
+	targetOrg := strings.TrimSpace(recipient.OrgID)
+	if targetOrg == "" {
+		targetOrg = strings.TrimSpace(payload.OrgID)
+	}
+
 	// Fallback to database lookup if org-scoped notification channel is configured
-	if (botToken == "" || chatIDStr == "") && c.db != nil && recipient.OrgID != "" {
-		if orgNum, err := strconv.ParseUint(recipient.OrgID, 10, 64); err == nil && orgNum > 0 {
+	if (botToken == "" || chatIDStr == "") && c.db != nil && targetOrg != "" {
+		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			var ch models.NotificationChannel
 			if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", orgNum, "telegram", true).First(&ch).Error; err == nil && ch.Config != "" {
 				plain, decErr := ConfigPlaintext(ch.Config)

@@ -227,6 +227,16 @@ func OrgIDFromContext(ctx context.Context) uint {
 	return tenantsql.OrgIDFromContext(ctx)
 }
 
+// WithUserID returns a new context containing the authenticated user ID.
+func WithUserID(ctx context.Context, uid uint) context.Context {
+	return tenantsql.WithUserID(ctx, uid)
+}
+
+// UserIDFromContext extracts the authenticated user ID from context (0 if unset).
+func UserIDFromContext(ctx context.Context) uint {
+	return tenantsql.UserIDFromContext(ctx)
+}
+
 // EmailEvent is a stable, external snapshot of a freshly received inbound email,
 // delivered to handlers registered via Context.OnEmail. It mirrors only the
 // fields a plugin needs so plugins never import octarq's internal/models. The full
@@ -294,6 +304,12 @@ type Context struct {
 	// config blob, and text is the message body. It mirrors notify.Send so
 	// plugins never import octarq's internal/notify package directly.
 	Notify func(ctx context.Context, typ, cfgJSON, text string) error
+	// Emit delivers an event-driven notification through the notification router,
+	// routing to recipients with user preferences, audit logging, and retry dispatch.
+	// Preferred over Notify.
+	Emit func(ctx context.Context, payload NotificationPayload) error
+	// EmitTo delivers an event-driven notification directly to a recipient.
+	EmitTo func(ctx context.Context, recipient NotificationRecipient, payload NotificationPayload) error
 	// RegisterNotifier adds a notification channel provider under a type name,
 	// letting a plugin contribute a new channel type (e.g. "slack", "sms") that
 	// core event dispatch, the Notify hook, and the dashboard's channel test all

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -213,18 +214,36 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 
 	// Best-effort notification; never block or fail the webhook.
 	text := fmt.Sprintf("📧 New mail to %s — From: %s — %s", to, from, subject)
-	var channels []models.NotificationChannel
-	p.db.Where("owner_id = ? AND enabled = ?", mb.OrgID, true).Find(&channels)
-	if len(channels) > 0 {
+	if p.emit != nil {
 		safego.Go("mail.inbound-notify", func() {
 			ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
-			for _, ch := range channels {
-				if p.notify != nil {
+			_ = p.emit(ctxCtx, plugin.NotificationPayload{
+				EventType: "mail.inbound",
+				Title:     fmt.Sprintf("New mail to %s", to),
+				Body:      text,
+				OrgID:     strconv.FormatUint(uint64(mb.OrgID), 10),
+				Priority:  "normal",
+				Data: map[string]any{
+					"mailboxId": mb.ID,
+					"to":        to,
+					"from":      from,
+					"subject":   subject,
+				},
+			})
+		})
+	} else if p.notify != nil {
+		var channels []models.NotificationChannel
+		p.db.Where("owner_id = ? AND enabled = ?", mb.OrgID, true).Find(&channels)
+		if len(channels) > 0 {
+			safego.Go("mail.inbound-notify", func() {
+				ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
+				for _, ch := range channels {
 					_ = p.notify(ctxCtx, ch.Type, ch.Config, text)
 				}
-			}
-		})
+			})
+		}
 	}
 
 	return &InboundOutput{Body: map[string]any{"ok": true, "stored": true, "id": e.ID}}, nil
