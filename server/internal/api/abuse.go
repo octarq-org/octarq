@@ -13,7 +13,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/authz"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/notification"
-	"github.com/octarq-org/octarq/server/internal/notify"
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
@@ -138,12 +137,6 @@ func (h *Handler) notifyAbuse(rep models.AbuseReport) {
 			"description": rep.Description,
 		},
 	})
-
-	var channels []models.NotificationChannel
-	h.db.Where("owner_id = ? AND enabled = ?", orgID, true).Find(&channels)
-	for _, ch := range channels {
-		_ = notify.Send(ctx, ch.Type, ch.Config, msg)
-	}
 }
 
 type ListAbuseReportsInput struct {

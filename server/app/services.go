@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"github.com/octarq-org/octarq/server/internal/auth"
-	"github.com/octarq-org/octarq/server/internal/notify"
+	"github.com/octarq-org/octarq/server/internal/notification"
 	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
@@ -54,7 +54,11 @@ func (a *App) loginByIdentity(w http.ResponseWriter, r *http.Request, id plugin.
 
 // Notify delivers a notification via a configured channel type ("telegram", "webhook").
 func (a *App) Notify(ctx context.Context, typ, cfgJSON, text string) error {
-	return notify.Send(ctx, typ, cfgJSON, text)
+	pt, err := notification.ConfigPlaintext(cfgJSON)
+	if err != nil {
+		return err
+	}
+	return notification.DefaultRouter().SendDirect(ctx, typ, pt, text)
 }
 
 // sendMail is the implementation behind plugin.Context.SendMail. It delegates
