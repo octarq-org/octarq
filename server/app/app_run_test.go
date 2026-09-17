@@ -199,9 +199,9 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	// DB/OrgID/Provide/Lookup — see mcp.buildServerInstance). That surface is
 	// pinned by TestMCPRemountUsesMinimalContext; here we just confirm the
 	// remount kept the minimal subset and defer the full assertions.
-	if ctx.SetGlobalSetting == nil {
+	if isNilFunc(ctxField(ctx, "SetGlobalSetting")) {
 		p.present("DB", ctx.DB != nil)
-		p.present("OrgID", ctx.OrgID != nil)
+		p.present("OrgID", !isNilFunc(ctxField(ctx, "OrgID")))
 		p.present("Provide", ctx.Provide != nil)
 		p.present("Lookup", ctx.Lookup != nil)
 		return
@@ -209,31 +209,31 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 
 	// The whole surface must be wired.
 	p.present("Guard", ctx.Guard != nil)
-	p.present("UserID", ctx.UserID != nil)
-	p.present("OrgID", ctx.OrgID != nil)
-	p.present("OrgRole", ctx.OrgRole != nil)
-	p.present("RequireRole", ctx.RequireRole != nil)
-	p.present("RequirePerm", ctx.RequirePerm != nil)
-	p.present("IsInstanceAdmin", ctx.IsInstanceAdmin != nil)
+	p.present("UserID", !isNilFunc(ctxField(ctx, "UserID")))
+	p.present("OrgID", !isNilFunc(ctxField(ctx, "OrgID")))
+	p.present("OrgRole", !isNilFunc(ctxField(ctx, "OrgRole")))
+	p.present("RequireRole", !isNilFunc(ctxField(ctx, "RequireRole")))
+	p.present("RequirePerm", !isNilFunc(ctxField(ctx, "RequirePerm")))
+	p.present("IsInstanceAdmin", !isNilFunc(ctxField(ctx, "IsInstanceAdmin")))
 	p.present("Audit", ctx.Audit != nil)
-	p.present("Encrypt", ctx.Encrypt != nil)
-	p.present("Decrypt", ctx.Decrypt != nil)
+	p.present("Encrypt", !isNilFunc(ctxField(ctx, "Encrypt")))
+	p.present("Decrypt", !isNilFunc(ctxField(ctx, "Decrypt")))
 	p.present("Notify", ctx.Notify != nil)
 	p.present("RegisterNotifier", ctx.RegisterNotifier != nil)
-	p.present("OnEmail", ctx.OnEmail != nil)
+	p.present("OnEmail", !isNilFunc(ctxField(ctx, "OnEmail")))
 	p.present("SendMail", ctx.SendMail != nil)
 	p.present("RecordUsage", ctx.RecordUsage != nil)
-	p.present("GetGlobalSetting", ctx.GetGlobalSetting != nil)
-	p.present("SetGlobalSetting", ctx.SetGlobalSetting != nil)
-	p.present("GetWorkspaceSetting", ctx.GetWorkspaceSetting != nil)
-	p.present("SetWorkspaceSetting", ctx.SetWorkspaceSetting != nil)
+	p.present("GetGlobalSetting", !isNilFunc(ctxField(ctx, "GetGlobalSetting")))
+	p.present("SetGlobalSetting", !isNilFunc(ctxField(ctx, "SetGlobalSetting")))
+	p.present("GetWorkspaceSetting", !isNilFunc(ctxField(ctx, "GetWorkspaceSetting")))
+	p.present("SetWorkspaceSetting", !isNilFunc(ctxField(ctx, "SetWorkspaceSetting")))
 	p.present("CacheGet", ctx.CacheGet != nil)
 	p.present("CacheSet", ctx.CacheSet != nil)
 	p.present("DeleteCache", ctx.DeleteCache != nil)
 	p.present("Cache", ctx.Cache != nil)
 	p.present("ParseUA", ctx.ParseUA != nil)
 	p.present("RegisterAuthMethod", ctx.RegisterAuthMethod != nil)
-	p.present("RegisterWebhookEvent", ctx.RegisterWebhookEvent != nil)
+	p.present("RegisterWebhookEvent", !isNilFunc(ctxField(ctx, "RegisterWebhookEvent")))
 	p.present("LoginByEmail", ctx.LoginByEmail != nil)
 	p.present("LoginByIdentity", ctx.LoginByIdentity != nil)
 	p.present("BindIdentity", ctx.BindIdentity != nil)
@@ -243,6 +243,7 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	p.present("RegisterEndpoint", ctx.RegisterEndpoint != nil)
 	p.present("RegisterTenantView", ctx.RegisterTenantView != nil)
 	p.present("RegisterReactor", ctx.RegisterReactor != nil)
+	p.present("Host", ctx.Host != nil)
 
 	if p.httpMode {
 		p.present("PluginActive", ctx.PluginActive != nil)
@@ -259,10 +260,10 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	}
 
 	// Global setting round-trip.
-	if err := ctx.SetGlobalSetting("cov.g"+p.name, "gv"); err != nil {
+	if err := ctx.Host.Settings().SetGlobalSetting("cov.g"+p.name, "gv"); err != nil {
 		t.Fatalf("SetGlobalSetting: %v", err)
 	}
-	if got := ctx.GetGlobalSetting("cov.g" + p.name); got != "gv" {
+	if got := ctx.Host.Settings().GetGlobalSetting("cov.g" + p.name); got != "gv" {
 		t.Errorf("GetGlobalSetting after Set = %q, want gv", got)
 	}
 
@@ -270,13 +271,13 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	// from the auto-increment range keeps the isolation check unambiguous; the
 	// key is per-probe so the two instances never overwrite each other.
 	wsOrg := uint(4242)
-	if err := ctx.SetWorkspaceSetting(wsOrg, "cov.ws"+p.name, "wv"); err != nil {
+	if err := ctx.Host.Settings().SetWorkspaceSetting(wsOrg, "cov.ws"+p.name, "wv"); err != nil {
 		t.Fatalf("SetWorkspaceSetting: %v", err)
 	}
-	if got := ctx.GetWorkspaceSetting(wsOrg, "cov.ws"+p.name); got != "wv" {
+	if got := ctx.Host.Settings().GetWorkspaceSetting(wsOrg, "cov.ws"+p.name); got != "wv" {
 		t.Errorf("GetWorkspaceSetting after Set = %q, want wv", got)
 	}
-	if got := ctx.GetWorkspaceSetting(wsOrg+1, "cov.ws"+p.name); got != "" {
+	if got := ctx.Host.Settings().GetWorkspaceSetting(wsOrg+1, "cov.ws"+p.name); got != "" {
 		t.Errorf("GetWorkspaceSetting crossed org boundaries: %q", got)
 	}
 
@@ -286,7 +287,7 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 		gotText = text
 		return nil
 	})
-	cfg, err := ctx.Encrypt([]byte(`{}`))
+	cfg, err := ctx.Host.Crypto().Encrypt([]byte(`{}`))
 	if err != nil {
 		t.Fatalf("Encrypt notifier config: %v", err)
 	}
@@ -373,31 +374,31 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	}
 
 	// Identity extraction returns the request's user/org/role.
-	if got := ctx.UserID(authedReq); got != u.ID {
+	if got := ctx.Host.Session().UserID(authedReq); got != u.ID {
 		t.Errorf("UserID = %d, want %d", got, u.ID)
 	}
-	if got := ctx.OrgID(authedReq); got != o.ID {
+	if got := ctx.Host.Session().OrgID(authedReq); got != o.ID {
 		t.Errorf("OrgID = %d, want %d", got, o.ID)
 	}
-	if got := ctx.OrgRole(authedReq); got != "owner" {
+	if got := ctx.Host.Session().OrgRole(authedReq); got != "owner" {
 		t.Errorf("OrgRole = %q, want owner", got)
 	}
-	if ctx.IsInstanceAdmin(authedReq) {
+	if ctx.Host.Session().IsInstanceAdmin(authedReq) {
 		t.Error("a regular user was reported instance admin")
 	}
-	if !ctx.RequireRole(authedReq, "owner") {
+	if !ctx.Host.Session().RequireRole(authedReq, "owner") {
 		t.Error("owner failed RequireRole(owner)")
 	}
-	if !ctx.RequirePerm(authedReq, "cov.perm", "member") {
+	if !ctx.Host.Session().RequirePerm(authedReq, "cov.perm", "member") {
 		t.Error("owner failed RequirePerm(min member)")
 	}
 
 	// Encrypt/Decrypt round-trip.
-	enc, err := ctx.Encrypt([]byte("cov secret"))
+	enc, err := ctx.Host.Crypto().Encrypt([]byte("cov secret"))
 	if err != nil {
 		t.Fatalf("Encrypt: %v", err)
 	}
-	if dec, err := ctx.Decrypt(enc); err != nil || string(dec) != "cov secret" {
+	if dec, err := ctx.Host.Crypto().Decrypt(enc); err != nil || string(dec) != "cov secret" {
 		t.Errorf("Decrypt(Encrypt(x)) = %q, %v; want cov secret", dec, err)
 	}
 
@@ -420,7 +421,7 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	}
 
 	// RegisterWebhookEvent surfaces the event to the eventbus registry.
-	ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "cov.event." + p.name, Group: "cov", Title: "t", Description: "d"})
+	ctx.Host.Events().RegisterWebhookEvent(plugin.WebhookEventDef{Key: "cov.event." + p.name, Group: "cov", Title: "t", Description: "d"})
 	var eventFound bool
 	for _, g := range eventbus.EventGroups() {
 		for _, e := range g.Events {
@@ -450,7 +451,7 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	// OnEmail must hand the handler to the dispatcher (immediate for the probe
 	// mounted after it, deferred-and-flushed for the one before it; the boot
 	// test asserts the captured count).
-	ctx.OnEmail(func(plugin.EmailEvent) {})
+	ctx.Host.Events().OnEmail(func(plugin.EmailEvent) {})
 
 	// Provide/Lookup round-trip.
 	svc := "cov.svc." + p.name
@@ -545,7 +546,7 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	}
 
 	// RevokeUserOrgSessions removes the guard session minted above.
-	if n := ctx.RevokeUserOrgSessions(u.ID, o.ID); n < 1 {
+	if n := ctx.Host.Session().RevokeUserOrgSessions(u.ID, o.ID); n < 1 {
 		t.Errorf("revoked %d session(s), want >= 1", n)
 	}
 	var sessLeft int64
