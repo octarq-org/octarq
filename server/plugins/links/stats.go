@@ -38,9 +38,13 @@ func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSta
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	// Ensure the link belongs to the caller's org before exposing its analytics.
 	var l Link
-	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
+	if tdb.Where("id = ?", input.ID).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	days := 30

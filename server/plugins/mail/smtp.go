@@ -134,7 +134,11 @@ func (p *Plugin) createSMTPSender(ctx context.Context, input *CreateSMTPSenderIn
 		FromEmail: strings.TrimSpace(input.Body.FromEmail),
 	}
 
-	if err := p.db.Create(&sender).Error; err != nil {
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if err := tdb.Create(&sender).Error; err != nil {
 		return nil, huma.Error500InternalServerError("failed to save")
 	}
 	if p.audit != nil {
@@ -178,8 +182,12 @@ func (p *Plugin) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderIn
 		return nil, huma.Error403Forbidden("forbidden: admin role required to update SMTP sender")
 	}
 
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	var sender SMTPSender
-	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&sender).Error != nil {
+	if tdb.Where("id = ?", input.ID).First(&sender).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 
@@ -214,7 +222,7 @@ func (p *Plugin) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderIn
 		sender.Pass = enc
 	}
 
-	p.db.Save(&sender)
+	tdb.Save(&sender)
 	meta := map[string]any{
 		"name":      sender.Name,
 		"host":      sender.Host,
@@ -258,7 +266,11 @@ func (p *Plugin) deleteSMTPSender(ctx context.Context, input *DeleteSMTPSenderIn
 		return nil, huma.Error403Forbidden("forbidden: admin role required to delete SMTP sender")
 	}
 
-	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&SMTPSender{}); res.RowsAffected == 0 {
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	if res := tdb.Where("id = ?", input.ID).Delete(&SMTPSender{}); res.RowsAffected == 0 {
 		return nil, huma.Error404NotFound("not found")
 	}
 	if p.audit != nil {
@@ -305,8 +317,12 @@ func (p *Plugin) testSMTPSender(ctx context.Context, input *TestSMTPSenderInput)
 		p.testLimiter.recordFailure(orgKey)
 	}
 
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	var s SMTPSender
-	if err := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&s).Error; err != nil {
+	if err := tdb.Where("id = ?", input.ID).First(&s).Error; err != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	if err := p.deliverVia(&s, s.FromEmail, "SMTP test from octarq",

@@ -2,12 +2,9 @@ package links
 
 import (
 	"context"
-	"encoding/csv"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -71,7 +68,11 @@ func (p *Plugin) quickCreateLink(ctx context.Context, input *QuickCreateLinkInpu
 	if err := p.checkQuota(ctx, l.OrgID, "links", 1); err != nil {
 		return nil, err
 	}
-	if err := p.db.Create(&l).Error; err != nil {
+	tdb := p.tenantDB(l.OrgID)
+	if tdb == nil {
+		return nil, huma.Error500InternalServerError("database not available")
+	}
+	if err := tdb.Create(&l).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
 	}
 	if p.audit != nil {
@@ -93,46 +94,6 @@ func (p *Plugin) quickCreateLink(ctx context.Context, input *QuickCreateLinkInpu
 		_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
 	}
 	return &QuickCreateLinkOutput{Body: view(l)}, nil
-}
-
-type ExportLinksCSVInput struct {
-	Ctx huma.Context `hidden:"true"`
-}
-
-func (i *ExportLinksCSVInput) Resolve(ctx huma.Context) []error {
-	i.Ctx = ctx
-	return nil
-}
-
-func (p *Plugin) exportLinksCSV(ctx context.Context, input *ExportLinksCSVInput) (*struct{}, error) {
-	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
-	}
-	r, w := humago.Unwrap(input.Ctx)
-	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
-	}
-	var links []Link
-	p.orgDB(r).Order("created_at DESC").Find(&links)
-
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", "attachment; filename=\"links.csv\"")
-
-	cw := csv.NewWriter(w)
-	cw.Write([]string{"ID", "Host", "Slug", "Target", "Title", "Clicks", "CreatedAt"})
-	for _, l := range links {
-		cw.Write([]string{
-			fmt.Sprintf("%d", l.ID),
-			l.Host,
-			l.Slug,
-			l.Target,
-			l.Title,
-			fmt.Sprintf("%d", l.Clicks),
-			l.CreatedAt.Format(time.RFC3339),
-		})
-	}
-	cw.Flush()
-	return nil, nil
 }
 
 type UpdateLinkInput struct {
@@ -159,8 +120,12 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	var l Link
-	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
+	if tdb.Where("id = ?", input.ID).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
 	// Capture BEFORE mutation so cache invalidation targets the original key.
@@ -210,7 +175,7 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 	if err := validateRedirectTargets(&l); err != nil {
 		return nil, err
 	}
-	if err := p.db.Save(&l).Error; err != nil {
+	if err := tdb.Save(&l).Error; err != nil {
 		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
 	}
 
@@ -253,12 +218,17 @@ func (p *Plugin) deleteLink(ctx context.Context, input *DeleteLinkInput) (*Delet
 	if !p.hasRole(r, "admin") {
 		return nil, huma.Error403Forbidden("forbidden: admin role required to delete link")
 	}
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	var l Link
-	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
+	if tdb.Where("id = ?", input.ID).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("not found")
 	}
-	p.db.Where("link_id IN (SELECT id FROM links WHERE id = ? AND owner_id = ?)", input.ID, p.orgID(r)).Delete(&LinkEvent{})
-	p.db.Delete(&l)
+	linkIDs := tdb.Model(&Link{}).Select("id").Where("id = ?", input.ID)
+	p.db.Where("link_id IN (?)", linkIDs).Delete(&LinkEvent{})
+	tdb.Delete(&l)
 	if p.deleteCache != nil {
 		_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
 	}

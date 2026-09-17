@@ -8,14 +8,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
 
 // DefaultMaxBytes is the default maximum byte size of returned query results (1MB).
 const DefaultMaxBytes = 1024 * 1024
+
+// DefaultMaxRows is the default maximum rows returned (200).
+const DefaultMaxRows = 200
 
 // ExecMeta carries execution metadata returned by Execute.
 type ExecMeta struct {
@@ -33,7 +34,7 @@ type execOptions struct {
 	maxBytes int
 }
 
-// WithMaxRows overrides the default maximum row limit (plugin.MaxRows = 200).
+// WithMaxRows overrides the default maximum row limit (DefaultMaxRows = 200).
 func WithMaxRows(maxRows int) ExecOption {
 	return func(opts *execOptions) {
 		if maxRows > 0 {
@@ -51,6 +52,17 @@ func WithMaxBytes(maxBytes int) ExecOption {
 	}
 }
 
+// RedactRow replaces the values of sensitive columns in a result row with RedactedValue.
+func RedactRow(columns []string, row map[string]any) {
+	for _, c := range columns {
+		if SensitiveColumns[strings.ToLower(c)] {
+			if _, ok := row[c]; ok {
+				row[c] = RedactedValue
+			}
+		}
+	}
+}
+
 // Execute validates and executes a tenant SQL query in a fail-closed pipeline:
 //  1. Validate caller orgID from context (reject if 0)
 //  2. Check database dialect (reject if not sqlite or postgres)
@@ -63,7 +75,7 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 	var meta ExecMeta
 
 	// 1. OrgID from context
-	orgID := plugin.OrgIDFromContext(ctx)
+	orgID := OrgIDFromContext(ctx)
 	if orgID == 0 {
 		return nil, meta, errors.New("unauthorized: missing workspace context")
 	}
@@ -85,7 +97,7 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 
 	// Configure execution options
 	eOpts := &execOptions{
-		maxRows:  plugin.MaxRows,
+		maxRows:  DefaultMaxRows,
 		maxBytes: DefaultMaxBytes,
 	}
 	for _, opt := range opts {
@@ -111,7 +123,7 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 		return nil, meta, err
 	}
 
-	referencedViews := make([]plugin.TenantView, 0, len(referencedViewNames))
+	referencedViews := make([]TenantView, 0, len(referencedViewNames))
 	sensitiveSet := make(map[string]bool)
 
 	for _, name := range referencedViewNames {
@@ -202,10 +214,10 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 		}
 
 		// 6. Sensitive column redaction
-		plugin.RedactRow(cols, row)
+		RedactRow(cols, row)
 		for col := range row {
 			if sensitiveSet[strings.ToLower(col)] {
-				row[col] = plugin.RedactedValue
+				row[col] = RedactedValue
 			}
 		}
 
@@ -229,7 +241,7 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 	meta.Duration = time.Since(start)
 
 	// 7. Audit log (synchronous write on root DB)
-	actorID := auth.UserIDFromContext(ctx)
+	actorID := UserIDFromContext(ctx)
 	metaMap := map[string]any{
 		"sql":         querySQL,
 		"rows":        meta.RowCount,

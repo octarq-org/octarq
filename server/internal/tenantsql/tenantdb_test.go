@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -97,7 +96,7 @@ func TestTenantDBFromContext(t *testing.T) {
 	}
 
 	// Authenticated context
-	ctxAuth := plugin.WithOrgID(ctxBg, 100)
+	ctxAuth := WithOrgID(ctxBg, 100)
 	tdb, err := TenantDBFromContext(ctxAuth, db)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -312,9 +311,9 @@ func TestTenantDB_AutoDetectOrgIDColumn(t *testing.T) {
 func TestTenantDB_ExecuteSQL(t *testing.T) {
 	db := setupTestDB(t)
 	reg := NewRegistry()
-	_ = reg.Register(plugin.TenantView{
+	_ = reg.Register(TenantView{
 		Name: "tenant_sample_items",
-		Columns: []plugin.TenantColumn{
+		Columns: []TenantColumn{
 			{Name: "id", Type: "integer"},
 			{Name: "name", Type: "text"},
 		},

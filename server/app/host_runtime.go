@@ -36,12 +36,23 @@ type hostRuntime struct {
 	crypto   plugin.CryptoVault
 	settings plugin.SettingsStore
 	events   plugin.EventSpine
+	db       *gorm.DB
 }
 
 func (h *hostRuntime) Session() plugin.HostSession    { return h.session }
 func (h *hostRuntime) Crypto() plugin.CryptoVault     { return h.crypto }
 func (h *hostRuntime) Settings() plugin.SettingsStore { return h.settings }
 func (h *hostRuntime) Events() plugin.EventSpine      { return h.events }
+func (h *hostRuntime) TenantDB(orgID uint) *plugin.TenantDB {
+	if h.db == nil || orgID == 0 {
+		return nil
+	}
+	tdb, err := tenantsql.NewTenantDB(h.db, orgID)
+	if err != nil {
+		return nil
+	}
+	return tdb
+}
 
 var _ plugin.Host = (*hostRuntime)(nil)
 
@@ -277,6 +288,7 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 		crypto:   vault,
 		settings: settings,
 		events:   events,
+		db:       db,
 	}
 
 	var apiHuma huma.API
@@ -312,10 +324,11 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 	}
 
 	pctx := &plugin.Context{
-		Host:  host,
-		Huma:  apiHuma,
-		DB:    db,
-		Guard: authGuard,
+		Host:     host,
+		TenantDB: host.TenantDB,
+		Huma:     apiHuma,
+		DB:       db,
+		Guard:    authGuard,
 		Notify: func(ctx context.Context, typ, cfgJSON, text string) error {
 			pt, err := notification.ConfigPlaintext(cfgJSON)
 			if err != nil {

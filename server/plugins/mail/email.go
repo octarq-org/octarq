@@ -35,7 +35,11 @@ func (p *Plugin) listEmails(ctx context.Context, input *ListEmailsInput) (*ListE
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 	q := p.db.Where("mailbox_id IN (?)", orgMailboxes).Order("received_at DESC").Omit("Raw", "HTML")
 	if input.Mailbox != "" {
 		q = q.Where("mailbox_id = ?", input.Mailbox)
@@ -77,7 +81,11 @@ func (p *Plugin) getEmail(ctx context.Context, input *GetEmailInput) (*GetEmailO
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 	var e Email
 	if p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).First(&e).Error != nil {
 		return nil, huma.Error404NotFound("not found")
@@ -115,7 +123,11 @@ func (p *Plugin) updateEmail(ctx context.Context, input *UpdateEmailInput) (*Upd
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 	var e Email
 	if p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).First(&e).Error != nil {
 		return nil, huma.Error404NotFound("not found")
@@ -153,7 +165,11 @@ func (p *Plugin) readAllEmails(ctx context.Context, input *ReadAllEmailsInput) (
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
-	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 	q := p.db.Model(&Email{}).Where("read = ? AND mailbox_id IN (?)", false, orgMailboxes)
 	if input.Mailbox != "" {
 		q = q.Where("mailbox_id = ?", input.Mailbox)
@@ -189,8 +205,12 @@ func (p *Plugin) deleteEmail(ctx context.Context, input *DeleteEmailInput) (*Del
 	if !p.hasRole(r, "admin") {
 		return nil, huma.Error403Forbidden("forbidden: admin role required to delete email")
 	}
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	ctx = plugin.WithOrgID(ctx, p.orgID(r))
-	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
+	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 	var e Email
 	if p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).First(&e).Error != nil {
 		return nil, huma.Error404NotFound("not found")
@@ -198,7 +218,7 @@ func (p *Plugin) deleteEmail(ctx context.Context, input *DeleteEmailInput) (*Del
 	key := e.StorageKey
 	if key == "" {
 		var mb Mailbox
-		_ = p.db.First(&mb, e.MailboxID).Error
+		_ = tdb.First(&mb, e.MailboxID).Error
 		key = fmt.Sprintf("mail/%d/%d.eml", mb.OrgID, e.ID)
 	}
 	if storageProv, err := p.getStorageProvider(); err == nil {

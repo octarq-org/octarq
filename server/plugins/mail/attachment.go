@@ -56,8 +56,12 @@ func (p *Plugin) rawEmail(ctx context.Context, input *RawEmailInput) (*struct{},
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	ctx = plugin.WithOrgID(ctx, p.orgID(r))
-	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
+	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 	var e Email
 	if p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).First(&e).Error != nil {
 		return nil, huma.Error404NotFound("not found")
@@ -90,8 +94,12 @@ func (p *Plugin) getAttachment(ctx context.Context, input *GetAttachmentInput) (
 	if p.orgID(r) == 0 {
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
+	tdb := p.tenantDB(p.orgID(r))
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
 	ctx = plugin.WithOrgID(ctx, p.orgID(r))
-	orgMailboxes := p.db.Model(&Mailbox{}).Select("id").Where("owner_id = ?", p.orgID(r))
+	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 	var e Email
 	if p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).First(&e).Error != nil {
 		return nil, huma.Error404NotFound("not found")

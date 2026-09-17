@@ -18,8 +18,12 @@ func (p *Plugin) ownsHost(orgID uint, host string) bool {
 	if orgID == 0 || p.db == nil || !p.db.Migrator().HasTable("domains") {
 		return false
 	}
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return false
+	}
 	var doms []dns.Domain
-	if err := p.db.Where("owner_id = ? AND for_link = ?", orgID, true).Find(&doms).Error; err != nil {
+	if err := tdb.Where("for_link = ?", true).Find(&doms).Error; err != nil {
 		return false
 	}
 	for _, d := range doms {
@@ -52,7 +56,11 @@ func (p *Plugin) linkHostRequired(orgID uint) bool {
 	if models.BaseDomain(p.db) == "" {
 		return false
 	}
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return false
+	}
 	var n int64
-	p.db.Model(&dns.Domain{}).Where("owner_id = ? AND for_link = ?", orgID, true).Count(&n)
+	tdb.Model(&dns.Domain{}).Where("for_link = ?", true).Count(&n)
 	return n > 0
 }

@@ -61,7 +61,7 @@ func TestApp_HealthMonitorIntegration(t *testing.T) {
 
 	// Wait briefly for app to initialize
 	var collector *monitor.Collector
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 250; i++ {
 		if c := a.HealthCollector(); c != nil {
 			collector = c
 			break

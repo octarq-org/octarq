@@ -83,10 +83,11 @@ type mockHost struct {
 	events   plugin.EventSpine
 }
 
-func (m *mockHost) Session() plugin.HostSession    { return m.session }
-func (m *mockHost) Crypto() plugin.CryptoVault     { return m.crypto }
-func (m *mockHost) Settings() plugin.SettingsStore { return m.settings }
-func (m *mockHost) Events() plugin.EventSpine      { return m.events }
+func (m *mockHost) Session() plugin.HostSession          { return m.session }
+func (m *mockHost) Crypto() plugin.CryptoVault           { return m.crypto }
+func (m *mockHost) Settings() plugin.SettingsStore       { return m.settings }
+func (m *mockHost) Events() plugin.EventSpine            { return m.events }
+func (m *mockHost) TenantDB(orgID uint) *plugin.TenantDB { return nil }
 
 var _ plugin.Host = (*mockHost)(nil)
 

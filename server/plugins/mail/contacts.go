@@ -31,8 +31,12 @@ func (p *Plugin) upsertContact(orgID uint, rawAddr string) {
 		return
 	}
 
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return
+	}
 	var contact MailContact
-	err = p.db.Where("owner_id = ? AND address = ?", orgID, addr).First(&contact).Error
+	err = tdb.Where("address = ?", addr).First(&contact).Error
 	now := time.Now()
 	if err == nil {
 		updates := map[string]any{
@@ -42,7 +46,7 @@ func (p *Plugin) upsertContact(orgID uint, rawAddr string) {
 		if contact.Name == "" && name != "" {
 			updates["name"] = name
 		}
-		p.db.Model(&contact).Updates(updates)
+		tdb.Model(&contact).Updates(updates)
 	} else {
 		contact = MailContact{
 			OrgID:            orgID,
@@ -51,7 +55,7 @@ func (p *Plugin) upsertContact(orgID uint, rawAddr string) {
 			InteractionCount: 1,
 			LastSeenAt:       now,
 		}
-		_ = p.db.Create(&contact).Error
+		_ = tdb.Create(&contact).Error
 	}
 }
 
@@ -82,7 +86,11 @@ func (p *Plugin) listContacts(ctx context.Context, input *ListContactsInput) (*L
 		return nil, huma.Error401Unauthorized("unauthorized")
 	}
 
-	q := p.db.Model(&MailContact{}).Where("owner_id = ?", orgID)
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+	q := tdb.Model(&MailContact{})
 	searchTerm := strings.TrimSpace(input.Q)
 	if searchTerm == "" {
 		searchTerm = strings.TrimSpace(input.Query)
@@ -152,8 +160,12 @@ func (p *Plugin) upsertContacts(orgID uint, rawAddrs []string) {
 		return
 	}
 
+	tdb := p.tenantDB(orgID)
+	if tdb == nil {
+		return
+	}
 	// Batch upsert
-	p.db.Clauses(clause.OnConflict{
+	tdb.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "owner_id"}, {Name: "address"}},
 		DoUpdates: clause.Assignments(map[string]interface{}{
 			"interaction_count": gorm.Expr("interaction_count + 1"),

@@ -108,9 +108,23 @@ var docs embed.FS
 
 func (p *Plugin) HelpDocsFS() fs.FS { return docs }
 
+// tenantDB returns a restricted *plugin.TenantDB scoped to orgID.
+func (p *Plugin) tenantDB(orgID uint) *plugin.TenantDB {
+	if p.ctx != nil && p.ctx.TenantDB != nil {
+		if tdb := p.ctx.TenantDB(orgID); tdb != nil {
+			return tdb
+		}
+	}
+	if p.db != nil && orgID != 0 {
+		tdb, _ := plugin.NewTenantDB(p.db, orgID)
+		return tdb
+	}
+	return nil
+}
+
 // orgDB scopes a query to the caller's org.
-func (p *Plugin) orgDB(r *http.Request) *gorm.DB {
-	return p.db.Where("owner_id = ?", p.orgID(r))
+func (p *Plugin) orgDB(r *http.Request) *plugin.TenantDB {
+	return p.tenantDB(p.orgID(r))
 }
 
 func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
