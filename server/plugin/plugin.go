@@ -321,15 +321,15 @@ type Context struct {
 
 	// RevokeUserOrgSessions revokes all active sessions for a user within an org.
 	//
-	// Deprecated: use Host.Session().RevokeUserOrgSessions instead.
+	// Legacy: migrate to Host.Session().RevokeUserOrgSessions instead.
 	RevokeUserOrgSessions func(userID, orgID uint) int
 	// UserID extracts the authenticated user ID from the request session (0 if unauthed).
 	//
-	// Deprecated: use Host.Session().UserID instead.
+	// Legacy: migrate to Host.Session().UserID instead.
 	UserID func(*http.Request) uint
 	// OrgID extracts the authenticated org ID from the request session (0 if unauthed).
 	//
-	// Deprecated: use Host.Session().OrgID instead.
+	// Legacy: migrate to Host.Session().OrgID instead.
 	OrgID func(*http.Request) uint
 	// OrgRole returns the role the caller holds in their ACTIVE org — "owner",
 	// "admin", "member", or "" when unauthenticated or not a member. Use it to
@@ -354,18 +354,18 @@ type Context struct {
 	// IsInstanceAdmin instead — org role says nothing about instance privilege,
 	// and every self-serve signup is "owner" of their own org.
 	//
-	// Deprecated: use Host.Session().OrgRole instead.
+	// Legacy: migrate to Host.Session().OrgRole instead.
 	OrgRole func(*http.Request) string
 	// RequireRole reports whether the caller holds at least the given workspace
 	// role, for plugins gating destructive or credential-bearing operations.
 	// A caller with no membership holds no role and is always refused.
 	//
-	// Deprecated: use Host.Session().RequireRole instead.
+	// Legacy: migrate to Host.Session().RequireRole instead.
 	RequireRole func(r *http.Request, min string) bool
 	// RequirePerm reports whether the caller holds permKey, falling back to the
 	// built-in role comparison when no resolver has an opinion. Wired by the host.
 	//
-	// Deprecated: use Host.Session().RequirePerm instead.
+	// Legacy: migrate to Host.Session().RequirePerm instead.
 	RequirePerm func(r *http.Request, permKey, minRole string) bool
 	// IsInstanceAdmin reports whether the caller is the bootstrap operator
 	// account (User.IsInstanceAdmin, set deterministically for the configured
@@ -376,7 +376,7 @@ type Context struct {
 	// able to change for every other tenant. "Is logged in" is NOT a substitute —
 	// on a multi-tenant host every tenant is logged in.
 	//
-	// Deprecated: use Host.Session().IsInstanceAdmin instead.
+	// Legacy: migrate to Host.Session().IsInstanceAdmin instead.
 	IsInstanceAdmin func(*http.Request) bool
 	// LoginByEmail completes a login for an already-verified email address: it
 	// provisions (or finds) the user + a personal org and issues the session
@@ -418,18 +418,18 @@ type Context struct {
 	Audit func(r *http.Request, action, targetType string, targetID uint, meta map[string]any)
 	// Encrypt seals plaintext with AES-256-GCM and returns base64(nonce||ciphertext).
 	//
-	// Deprecated: use Host.Crypto().Encrypt instead.
+	// Legacy: migrate to Host.Crypto().Encrypt instead.
 	Encrypt func(plaintext []byte) (string, error)
 	// Decrypt reverses Encrypt.
 	//
-	// Deprecated: use Host.Crypto().Decrypt instead.
+	// Legacy: migrate to Host.Crypto().Decrypt instead.
 	Decrypt func(encoded string) ([]byte, error)
 	// OnEmail registers a handler invoked (asynchronously, in its own goroutine)
 	// after each inbound email is stored. Multiple plugins may register; a
 	// handler must not block the request path and should bound its own work with
 	// the context it captures. This is the inbound hook Inbox AI subscribes to.
 	//
-	// Deprecated: use Host.Events().OnEmail instead.
+	// Legacy: migrate to Host.Events().OnEmail instead.
 	OnEmail func(handler func(EmailEvent))
 	// DNS manages DNS records for a domain through the core's configured provider
 	// (Cloudflare, …) so a plugin can change real records without importing octarq's
@@ -463,22 +463,22 @@ type Context struct {
 	Lookup func(name string) (any, bool)
 	// GetWorkspaceSetting reads a per-org setting value.
 	//
-	// Deprecated: use Host.Settings().GetWorkspaceSetting instead.
+	// Legacy: migrate to Host.Settings().GetWorkspaceSetting instead.
 	GetWorkspaceSetting func(orgID uint, key string) string
 	// GetGlobalSetting reads an instance-wide setting value.
 	//
-	// Deprecated: use Host.Settings().GetGlobalSetting instead.
+	// Legacy: migrate to Host.Settings().GetGlobalSetting instead.
 	GetGlobalSetting func(key string) string
 	// SetWorkspaceSetting writes a per-org setting value.
 	//
-	// Deprecated: use Host.Settings().SetWorkspaceSetting instead.
+	// Legacy: migrate to Host.Settings().SetWorkspaceSetting instead.
 	SetWorkspaceSetting func(orgID uint, key, value string) error
 	// SetGlobalSetting writes an instance-wide setting value, paired with
 	// GetGlobalSetting. Plugins that own a configuration table must push the
 	// runtime key the core reads through this seam instead of writing the
 	// settings table directly.
 	//
-	// Deprecated: use Host.Settings().SetGlobalSetting instead.
+	// Legacy: migrate to Host.Settings().SetGlobalSetting instead.
 	SetGlobalSetting func(key, value string) error
 	// Enqueue adds a task to the background job queue.
 	Enqueue func(ctx context.Context, taskType string, payload []byte) error
@@ -501,7 +501,7 @@ type Context struct {
 	ParseUA func(ua string) (device, browser, os string)
 	// PublishEvent publishes an event to the org's webhooks.
 	//
-	// Deprecated: use Host.Events().PublishEvent instead.
+	// Legacy: migrate to Host.Events().PublishEvent instead.
 	PublishEvent func(orgID uint, event string, data any)
 	// RecordUsage reports metered tenant consumption (a link redirect, an email
 	// send) to whatever billing backend is installed. It is a no-op on
@@ -513,7 +513,7 @@ type Context struct {
 	// PublishEvent so the dashboard's webhook editor can offer it for
 	// subscription. Call it during Mount; duplicate keys are ignored.
 	//
-	// Deprecated: use Host.Events().RegisterWebhookEvent instead.
+	// Legacy: migrate to Host.Events().RegisterWebhookEvent instead.
 	RegisterWebhookEvent func(def WebhookEventDef)
 	// HandleRoot registers a handler on the core HTTP mux for the root path "/{slug}".
 	HandleRoot func(handler http.Handler)
