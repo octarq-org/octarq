@@ -623,8 +623,9 @@ type MenuItem struct {
 	ID       string `json:"id"`
 	Label    string `json:"label"`
 	Path     string `json:"path"`
-	Icon     string `json:"icon"`     // emoji or icon key
-	Category string `json:"category"` // default category
+	Icon     string `json:"icon"`           // emoji or icon key
+	Category string `json:"category"`       // default category
+	Area     string `json:"area,omitempty"` // target area: "assets" | "operations" | "settings" or plugin-declared area
 	Order    int    `json:"order,omitempty"`
 	// RequiredRole hides the entry from anyone below this org role
 	// ("member" / "admin" / "owner"); empty shows it to everyone. It is a UX

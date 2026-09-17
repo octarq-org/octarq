@@ -33,6 +33,7 @@ import {
   Workflow,
 } from "lucide-react";
 import type { UIArea } from "@octarq/plugin-sdk";
+import type { MenuItem } from "../api";
 import { NavigationTree, BUILTIN_AREA_GROUPS, BuildNavigationTreeOptions } from "./NavigationTree";
 export { NavigationTree, BUILTIN_AREA_GROUPS };
 export type { BuildNavigationTreeOptions };
@@ -154,6 +155,11 @@ export const FOOTER_PLACEMENT = "footer";
 // Eliminates keyword substring heuristics in favor of exact matching against area IDs and declared groups.
 export function areaForCategory(cat?: string, pluginAreas: UIArea[] = []): AreaId {
   return NavigationTree.resolveCategoryToArea(cat, pluginAreas);
+}
+
+// Maps a dynamic menu item (prioritizing explicit area metadata) to an area deterministically via NavigationTree.
+export function areaForMenu(menu: MenuItem, pluginAreas: UIArea[] = []): AreaId {
+  return NavigationTree.resolveMenuToArea(menu, pluginAreas);
 }
 
 // ─── Plugin-contributed icons & areas ───────────────────────────────────────

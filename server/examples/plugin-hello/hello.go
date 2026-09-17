@@ -98,7 +98,7 @@ func (Plugin) Menus() []plugin.MenuItem {
 		// web/src/shell/areas.tsx. An unrecognised string still "works" — the
 		// sidebar renders it literally, which is how emoji crept in — so the
 		// example uses a real key to show the intended shape.
-		{ID: "hello", Label: "Hello", Path: "/hello", Icon: "puzzle", Category: "Workspace"},
+		{ID: "hello", Label: "Hello", Path: "/hello", Icon: "puzzle", Category: "Workspace", Area: "operations"},
 	}
 }
 

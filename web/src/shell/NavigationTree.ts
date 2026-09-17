@@ -82,9 +82,7 @@ export class NavigationTree {
     if (
       c === "assets" ||
       c === "infrastructure" ||
-      BUILTIN_AREA_GROUPS.assets.some((g) => g.toLowerCase() === c) ||
-      c === "storage" ||
-      c === "databases"
+      BUILTIN_AREA_GROUPS.assets.some((g) => g.toLowerCase() === c)
     ) {
       return "assets";
     }
@@ -99,6 +97,35 @@ export class NavigationTree {
 
     // Default fallback for unclaimed categories
     return "operations";
+  }
+
+  /**
+   * Deterministically resolves a menu item to an AreaId or FOOTER_PLACEMENT.
+   * Prioritizes explicit `menu.area` metadata declared by the plugin/backend
+   * before falling back to category-based area resolution.
+   */
+  static resolveMenuToArea(menu: MenuItem, pluginAreas: UIArea[] = []): AreaId {
+    const rawCat = (menu.category ?? "").trim().toLowerCase();
+    if (rawCat === FOOTER_PLACEMENT || rawCat === "resources") {
+      return FOOTER_PLACEMENT;
+    }
+
+    const rawArea = (menu.area ?? "").trim().toLowerCase();
+    if (rawArea) {
+      if (rawArea === FOOTER_PLACEMENT || rawArea === "resources") return FOOTER_PLACEMENT;
+      if (rawArea === "settings" || rawArea === "instance" || rawArea === "account" || rawArea === "personal") return "settings";
+      if (rawArea === "assets" || rawArea === "infrastructure") return "assets";
+      if (rawArea === "operations") return "operations";
+
+      // Match plugin-declared areas by ID
+      const pluginHit = pluginAreas.find((a) => a.id.toLowerCase() === rawArea);
+      if (pluginHit) return pluginHit.id;
+
+      // If declared area is any custom area id, respect it
+      return rawArea;
+    }
+
+    return NavigationTree.resolveCategoryToArea(menu.category, pluginAreas);
   }
 
   /**
@@ -163,7 +190,7 @@ export class NavigationTree {
 
     // Separate footer-placed items
     const footerItems = extras
-      .filter((m) => NavigationTree.resolveCategoryToArea(m.category, validPluginAreas) === FOOTER_PLACEMENT)
+      .filter((m) => NavigationTree.resolveMenuToArea(m, validPluginAreas) === FOOTER_PLACEMENT)
       .map(toNavItem)
       .sort((a, b) => a.order - b.order);
 
@@ -177,7 +204,7 @@ export class NavigationTree {
 
       // Menus directed to this area
       const areaExtras = extras.filter(
-        (m) => NavigationTree.resolveCategoryToArea(m.category, validPluginAreas) === baseArea.id,
+        (m) => NavigationTree.resolveMenuToArea(m, validPluginAreas) === baseArea.id,
       );
 
       areaExtras.forEach((m) => {
