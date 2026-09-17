@@ -152,3 +152,73 @@ func TestHostInterfaces(t *testing.T) {
 		t.Fatalf("expected published event 'test.event', got %+v", events.published)
 	}
 }
+
+func TestEnsureHost(t *testing.T) {
+	// 1. Nil context
+	hNil := plugin.EnsureHost(nil)
+	if hNil == nil {
+		t.Fatal("expected non-nil Host for nil ctx")
+	}
+	if hNil.Session() == nil || hNil.Settings() == nil || hNil.Events() == nil {
+		t.Fatal("expected non-nil Session, Settings, Events for nil ctx")
+	}
+	if hNil.Crypto() != nil || hNil.TenantDB(1) != nil {
+		t.Fatal("expected nil Crypto and TenantDB for nil ctx")
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	if hNil.Session().UserID(req) != 0 || hNil.Session().OrgID(req) != 0 || hNil.Session().OrgRole(req) != "" {
+		t.Fatal("expected zero values for nil context session")
+	}
+	if hNil.Session().RequireRole(req, "admin") || hNil.Session().RequirePerm(req, "perm", "admin") {
+		t.Fatal("expected fail-closed for nil context RequireRole/RequirePerm")
+	}
+	if hNil.Session().IsInstanceAdmin(req) || hNil.Session().RevokeUserOrgSessions(1, 1) != 0 {
+		t.Fatal("expected false/0 for nil context admin/revoke")
+	}
+
+	if err := hNil.Settings().SetWorkspaceSetting(1, "k", "v"); err == nil {
+		t.Fatal("expected error for SetWorkspaceSetting on nil ctx")
+	}
+	if err := hNil.Settings().SetGlobalSetting("k", "v"); err == nil {
+		t.Fatal("expected error for SetGlobalSetting on nil ctx")
+	}
+	if v := hNil.Settings().GetWorkspaceSetting(1, "k"); v != "" {
+		t.Fatalf("expected empty setting, got %q", v)
+	}
+	if v := hNil.Settings().GetGlobalSetting("k"); v != "" {
+		t.Fatalf("expected empty setting, got %q", v)
+	}
+
+	// 2. Existing host preserved
+	existing := &mockHost{}
+	ctxWithHost := &plugin.Context{Host: existing}
+	if got := plugin.EnsureHost(ctxWithHost); got != existing {
+		t.Fatalf("expected existing Host to be returned directly")
+	}
+
+	// 3. ResolvePerm fallback in RequirePerm
+	defer plugin.ResetPermRegistry()
+	ctxRoleOnly := &plugin.Context{
+		RequireRole: func(r *http.Request, min string) bool {
+			return r.Header.Get("X-Role") == min
+		},
+	}
+	hRoleOnly := plugin.EnsureHost(ctxRoleOnly)
+	reqMember := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqMember.Header.Set("X-Role", "member")
+
+	plugin.SetPermResolver(func(r *http.Request, permKey string) (allow, decided bool) {
+		if permKey == "custom.allow" {
+			return true, true
+		}
+		return false, false
+	})
+
+	if !hRoleOnly.Session().RequirePerm(reqMember, "custom.allow", "admin") {
+		t.Fatal("expected RequirePerm to allow via registered resolver")
+	}
+	if hRoleOnly.Session().RequirePerm(reqMember, "custom.other", "admin") {
+		t.Fatal("expected RequirePerm to deny when resolver undecided and role is member")
+	}
+}
