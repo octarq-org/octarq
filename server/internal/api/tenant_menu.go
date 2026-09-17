@@ -296,6 +296,7 @@ type MenuItem struct {
 	Path     string `json:"path"`
 	Icon     string `json:"icon"`
 	Category string `json:"category"`
+	Area     string `json:"area,omitempty"`
 	Order    int    `json:"order,omitempty"`
 	// Mirrors plugin.MenuItem.RequiredRole.
 	RequiredRole string `json:"requiredRole,omitempty"`
@@ -334,11 +335,11 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 	// own entries via MenuProvider below, so a disabled plugin's path is never
 	// offered.
 	menus := []MenuItem{
-		{ID: "overview", Label: "Overview", Path: "/overview", Icon: "layout-dashboard", Category: "Workspace"},
-		{ID: "inbox", Label: "Inbox", Path: "/notifications", Icon: "bell", Category: "Messaging"},
+		{ID: "overview", Label: "Overview", Path: "/overview", Icon: "layout-dashboard", Category: "Workspace", Area: "operations"},
+		{ID: "inbox", Label: "Inbox", Path: "/notifications", Icon: "bell", Category: "Messaging", Area: "operations"},
 
-		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "scroll-text", Category: "System"},
-		{ID: "abuse", Label: "Abuse Reports", Path: "/abuse", Icon: "shield-alert", Category: "Security"},
+		{ID: "audit", Label: "Audit Log", Path: "/audit", Icon: "scroll-text", Category: "System", Area: "operations"},
+		{ID: "abuse", Label: "Abuse Reports", Path: "/abuse", Icon: "shield-alert", Category: "Security", Area: "operations"},
 	}
 
 	// Query from plugin providers if they satisfy MenuProvider — but only for
@@ -360,6 +361,7 @@ func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMe
 					Path:         m.Path,
 					Icon:         m.Icon,
 					Category:     m.Category,
+					Area:         m.Area,
 					Order:        m.Order,
 					RequiredRole: m.RequiredRole,
 				})

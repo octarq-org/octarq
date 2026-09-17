@@ -165,6 +165,16 @@ func TestTenantMenu_ListMenus(t *testing.T) {
 	if len(out) == 0 {
 		t.Errorf("expected menus to not be empty")
 	}
+	foundArea := false
+	for _, m := range out {
+		if m.Area == "operations" || m.Area == "assets" {
+			foundArea = true
+			break
+		}
+	}
+	if !foundArea {
+		t.Errorf("expected menus to include area metadata ('operations' or 'assets')")
+	}
 }
 
 func TestTenantMenu_ListActions(t *testing.T) {

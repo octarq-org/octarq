@@ -110,6 +110,7 @@ type pluginMenuOut struct {
 	Path     string `json:"path"`
 	Icon     string `json:"icon"`
 	Category string `json:"category"`
+	Area     string `json:"area,omitempty"`
 	Order    int    `json:"order,omitempty"`
 }
 
@@ -287,7 +288,15 @@ func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*Li
 		}
 		if mp, ok := p.(plugin.MenuProvider); ok {
 			for _, m := range mp.Menus() {
-				f.Menus = append(f.Menus, pluginMenuOut{ID: m.ID, Label: m.Label, Path: m.Path, Icon: m.Icon, Category: m.Category, Order: m.Order})
+				f.Menus = append(f.Menus, pluginMenuOut{
+					ID:       m.ID,
+					Label:    m.Label,
+					Path:     m.Path,
+					Icon:     m.Icon,
+					Category: m.Category,
+					Area:     m.Area,
+					Order:    m.Order,
+				})
 			}
 		}
 	}

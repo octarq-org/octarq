@@ -41,8 +41,6 @@ describe("NavigationTree domain model", () => {
       expect(NavigationTree.resolveCategoryToArea("Network")).toBe("assets");
       expect(NavigationTree.resolveCategoryToArea("hosting")).toBe("assets");
       expect(NavigationTree.resolveCategoryToArea("Storage & Databases")).toBe("assets");
-      expect(NavigationTree.resolveCategoryToArea("storage")).toBe("assets");
-      expect(NavigationTree.resolveCategoryToArea("databases")).toBe("assets");
 
       expect(NavigationTree.resolveCategoryToArea("operations")).toBe("operations");
       expect(NavigationTree.resolveCategoryToArea("Workspace")).toBe("operations");
@@ -52,15 +50,158 @@ describe("NavigationTree domain model", () => {
       expect(NavigationTree.resolveCategoryToArea("System")).toBe("operations");
     });
 
-    it("eliminates keyword fuzzy substring heuristics", () => {
+    it("eliminates keyword fuzzy substring heuristics and plugin category hardcoding", () => {
       // Previously, any category containing "asset", "infra", "compute", etc. would match "assets".
+      // Specific plugin words like "storage" and "databases" are no longer hardcoded in resolveCategoryToArea.
       // With deterministic exact matching, non-declared strings fall back to "operations".
+      expect(NavigationTree.resolveCategoryToArea("storage")).toBe("operations");
+      expect(NavigationTree.resolveCategoryToArea("databases")).toBe("operations");
       expect(NavigationTree.resolveCategoryToArea("asset-tracking")).toBe("operations");
       expect(NavigationTree.resolveCategoryToArea("cloud-compute-hub")).toBe("operations");
       expect(NavigationTree.resolveCategoryToArea("infra_nodes")).toBe("operations");
       expect(NavigationTree.resolveCategoryToArea("security-audit-tool")).toBe("operations");
       expect(NavigationTree.resolveCategoryToArea("unknown-category")).toBe("operations");
       expect(NavigationTree.resolveCategoryToArea(undefined)).toBe("operations");
+    });
+  });
+
+  describe("NavigationTree.resolveMenuToArea", () => {
+    it("prioritizes explicit area metadata over category fallback", () => {
+      expect(
+        NavigationTree.resolveMenuToArea({
+          id: "s3",
+          label: "Storage",
+          path: "/storage",
+          icon: "hard-drive",
+          category: "storage",
+          area: "assets",
+        }),
+      ).toBe("assets");
+
+      expect(
+        NavigationTree.resolveMenuToArea({
+          id: "pg",
+          label: "Databases",
+          path: "/databases",
+          icon: "database",
+          category: "databases",
+          area: "assets",
+        }),
+      ).toBe("assets");
+
+      expect(
+        NavigationTree.resolveMenuToArea({
+          id: "custom",
+          label: "Custom Tool",
+          path: "/custom",
+          icon: "puzzle",
+          category: "operations",
+          area: "assets",
+        }),
+      ).toBe("assets");
+
+      expect(
+        NavigationTree.resolveMenuToArea({
+          id: "links",
+          label: "Links",
+          path: "/links",
+          icon: "link-2",
+          category: "Marketing",
+          area: "operations",
+        }),
+      ).toBe("operations");
+
+      expect(
+        NavigationTree.resolveMenuToArea({
+          id: "custom-settings",
+          label: "Custom Settings",
+          path: "/settings/custom",
+          icon: "settings",
+          category: "Custom",
+          area: "settings",
+        }),
+      ).toBe("settings");
+    });
+
+    it("respects plugin-declared UIArea via area metadata", () => {
+      expect(
+        NavigationTree.resolveMenuToArea(
+          {
+            id: "billing",
+            label: "Billing",
+            path: "/billing",
+            icon: "wallet",
+            category: "billing",
+            area: "commerce",
+          },
+          [COMMERCE_AREA],
+        ),
+      ).toBe("commerce");
+    });
+
+    it("falls back to category resolution when area metadata is omitted", () => {
+      expect(
+        NavigationTree.resolveMenuToArea({
+          id: "domains",
+          label: "DNS",
+          path: "/domains",
+          icon: "globe",
+          category: "Network",
+        }),
+      ).toBe("assets");
+
+      expect(
+        NavigationTree.resolveMenuToArea({
+          id: "overview",
+          label: "Overview",
+          path: "/overview",
+          icon: "layout-dashboard",
+          category: "Workspace",
+        }),
+      ).toBe("operations");
+
+      expect(
+        NavigationTree.resolveMenuToArea({
+          id: "unclaimed",
+          label: "Unclaimed",
+          path: "/unclaimed",
+          icon: "puzzle",
+          category: "storage",
+        }),
+      ).toBe("operations");
+    });
+
+    it("routes footer placement accurately", () => {
+      expect(
+        NavigationTree.resolveMenuToArea({
+          id: "help",
+          label: "Help",
+          path: "/help",
+          icon: "book",
+          category: "footer",
+        }),
+      ).toBe(FOOTER_PLACEMENT);
+
+      expect(
+        NavigationTree.resolveMenuToArea({
+          id: "docs",
+          label: "Docs",
+          path: "/docs",
+          icon: "book-open",
+          category: "resources",
+        }),
+      ).toBe(FOOTER_PLACEMENT);
+
+      expect(
+        NavigationTree.resolveMenuToArea({
+          id: "extra-footer",
+          label: "Extra",
+          path: "/extra",
+          icon: "book",
+          category: "documentation",
+          area: "footer",
+        }),
+      ).toBe(FOOTER_PLACEMENT);
     });
   });
 
@@ -200,6 +341,32 @@ describe("NavigationTree domain model", () => {
 
       const adminTree = NavigationTree.build({ isInstanceAdmin: true });
       expect(adminTree.settingsArea.groups.some((g) => g.label === "Instance")).toBe(true);
+    });
+
+    it("assembles menus into areas prioritized by declared area metadata", () => {
+      const menus: MenuItem[] = [
+        { id: "s3", label: "Object Storage", path: "/storage", icon: "hard-drive", category: "Storage", area: "assets" },
+        { id: "pg", label: "PostgreSQL", path: "/databases", icon: "database", category: "Databases", area: "assets" },
+        { id: "links", label: "Links", path: "/links", icon: "link-2", category: "Marketing", area: "operations" },
+      ];
+
+      const tree = NavigationTree.build({
+        menus,
+        plugins: [],
+        pluginAreas: [],
+        backendLoaded: true,
+      });
+
+      const assets = tree.findArea("assets");
+      expect(assets).toBeDefined();
+      const assetsItems = assets!.groups.flatMap((g) => g.items.map((i) => i.id));
+      expect(assetsItems).toContain("s3");
+      expect(assetsItems).toContain("pg");
+
+      const ops = tree.findArea("operations");
+      expect(ops).toBeDefined();
+      const opsItems = ops!.groups.flatMap((g) => g.items.map((i) => i.id));
+      expect(opsItems).toContain("links");
     });
   });
 

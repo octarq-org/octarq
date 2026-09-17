@@ -51,7 +51,7 @@ func (Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 // GROUP the entry joins; keep it in sync with the web half's menu.
 func (Plugin) Menus() []plugin.MenuItem {
 	return []plugin.MenuItem{
-		{ID: "{{.Name}}", Label: "{{.Title}}", Path: "/{{.Name}}", Icon: "🧩", Category: "Workspace"},
+		{ID: "{{.Name}}", Label: "{{.Title}}", Path: "/{{.Name}}", Icon: "🧩", Category: "Workspace", Area: "operations"},
 	}
 }
 

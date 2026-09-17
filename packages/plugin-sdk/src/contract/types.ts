@@ -81,6 +81,7 @@ export interface PluginMenuItem {
   path: string;
   icon: string;
   category: string;
+  area?: string;
   order?: number;
   requiredRole?: string;
 }
