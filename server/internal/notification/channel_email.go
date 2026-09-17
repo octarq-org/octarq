@@ -71,6 +71,8 @@ func (c *EmailChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 	if recipient.Config != nil {
 		if v, ok := recipient.Config["email"].(string); ok && strings.TrimSpace(v) != "" {
 			toEmail = strings.TrimSpace(v)
+		} else if v, ok := recipient.Config["to"].(string); ok && strings.TrimSpace(v) != "" {
+			toEmail = strings.TrimSpace(v)
 		}
 	}
 
@@ -93,8 +95,20 @@ func (c *EmailChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 	}
 
 	var orgID uint
-	if n, err := strconv.ParseUint(recipient.OrgID, 10, 64); err == nil {
-		orgID = uint(n)
+	if recipient.Config != nil {
+		if v, ok := recipient.Config["orgId"].(float64); ok && v > 0 {
+			orgID = uint(v)
+		} else if v, ok := recipient.Config["org_id"].(float64); ok && v > 0 {
+			orgID = uint(v)
+		}
+	}
+	if orgID == 0 {
+		if n, err := strconv.ParseUint(recipient.OrgID, 10, 64); err == nil {
+			orgID = uint(n)
+		}
+	}
+	if orgID == 0 {
+		orgID = 1
 	}
 
 	subject := payload.Title

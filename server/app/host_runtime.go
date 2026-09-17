@@ -312,11 +312,20 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 	}
 
 	pctx := &plugin.Context{
-		Host:   host,
-		Huma:   apiHuma,
-		DB:     db,
-		Guard:  authGuard,
-		Notify: notify.Send,
+		Host:  host,
+		Huma:  apiHuma,
+		DB:    db,
+		Guard: authGuard,
+		Notify: func(ctx context.Context, typ, cfgJSON, text string) error {
+			pt, err := notification.ConfigPlaintext(cfgJSON)
+			if err != nil {
+				return err
+			}
+			if params.notifRouter != nil {
+				return params.notifRouter.SendDirect(ctx, typ, pt, text)
+			}
+			return notification.DefaultRouter().SendDirect(ctx, typ, pt, text)
+		},
 		RegisterNotificationChannel: func(ch plugin.NotificationChannel) {
 			if params.notifRouter != nil {
 				_ = params.notifRouter.RegisterChannel(ch)

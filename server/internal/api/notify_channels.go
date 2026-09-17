@@ -12,7 +12,6 @@ import (
 	"github.com/octarq-org/octarq/server/internal/authz"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/notification"
-	"github.com/octarq-org/octarq/server/internal/notify"
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
@@ -70,44 +69,39 @@ func (h *Handler) listNotificationChannelTypes(ctx context.Context, input *ListN
 	if err != nil {
 		return nil, err
 	}
-	allDescs := notify.Descriptors()
-	var result []NotificationChannelType
-
-	for _, d := range allDescs {
-		if d.PluginName != "" {
-			p := h.findPlugin(d.PluginName)
-			if p == nil || !h.pluginActive(orgID, p) {
-				continue
-			}
-		}
-		result = append(result, NotificationChannelType{
-			Type:        d.Type,
-			Title:       d.Title,
-			Description: d.Description,
-			Icon:        d.Icon,
-		})
-	}
-
-	// Merge SPI registered channels
 	spiChannels := notification.DefaultRouter().ListChannels()
-	existingTypes := make(map[string]bool)
-	for i := range result {
-		existingTypes[result[i].Type] = true
-		for _, sp := range spiChannels {
-			if sp.Name() == result[i].Type {
-				result[i].ConfigSchema = sp.ConfigSchema()
-				break
-			}
-		}
-	}
+	var result []NotificationChannelType
 	for _, sp := range spiChannels {
-		if !existingTypes[sp.Name()] {
-			if d, ok := notification.DefaultRouter().GetDescriptor(sp.Name()); ok && d.PluginName != "" {
+		if d, ok := notification.DefaultRouter().GetDescriptor(sp.Name()); ok {
+			if d.PluginName != "" {
 				p := h.findPlugin(d.PluginName)
 				if p == nil || !h.pluginActive(orgID, p) {
 					continue
 				}
 			}
+			icon := d.Icon
+			if icon == "" {
+				icon = "bell"
+				if sp.Name() == "email" {
+					icon = "mail"
+				}
+			}
+			title := d.Title
+			if title == "" {
+				title = sp.DisplayName()
+			}
+			desc := d.Description
+			if desc == "" {
+				desc = sp.DisplayName()
+			}
+			result = append(result, NotificationChannelType{
+				Type:         sp.Name(),
+				Title:        title,
+				Description:  desc,
+				Icon:         icon,
+				ConfigSchema: sp.ConfigSchema(),
+			})
+		} else {
 			icon := "bell"
 			if sp.Name() == "email" {
 				icon = "mail"
@@ -475,12 +469,7 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 		return out, nil
 	}
 
-	if err := notify.Send(ctxTimeout, ch.Type, ch.Config, "🔔 Test notification from octarq!"); err != nil {
-		return nil, huma.Error400BadRequest(err.Error())
-	}
-	out := &TestNotificationChannelOutput{}
-	out.Body.OK = true
-	return out, nil
+	return nil, huma.Error400BadRequest("unknown notification channel type: " + ch.Type)
 }
 
 func redactConfigSecrets(cfgJSON string) string {

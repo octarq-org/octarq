@@ -21,6 +21,7 @@ import (
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/eventbus"
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/internal/notification"
 	"github.com/octarq-org/octarq/server/internal/notify"
 	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugins/builtin"
@@ -294,6 +295,10 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	}
 	if gotText != "hello "+p.name {
 		t.Errorf("notifier received %q, want %q", gotText, "hello "+p.name)
+	}
+	// ctx.Notify error on undecryptable config
+	if err := ctx.Notify(context.Background(), "cov.notify."+p.name, "undecryptable-garbage", "hello"); err == nil {
+		t.Errorf("expected ctx.Notify error on undecryptable config, got nil")
 	}
 
 	// Cache round-trips through the real in-memory cache.
@@ -1156,7 +1161,15 @@ func TestAppNotify(t *testing.T) {
 
 	// notify.Send decrypts stored channel config before dispatch; a bare App{}
 	// has no decryptor registered, so install a passthrough for this test.
-	notify.SetConfigDecryptor(func(stored string) (string, bool) { return stored, true })
+	notification.SetConfigDecryptor(func(stored string) (string, bool) { return stored, true })
+	defer notification.SetConfigDecryptor(nil)
+
+	// Test decrypt error branch
+	notification.SetConfigDecryptor(func(stored string) (string, bool) { return "", false })
+	if err := a.Notify(ctx, "apptest-chan", "garbled", "hi"); err == nil {
+		t.Fatal("expected error on config decryption failure, got nil")
+	}
+	notification.SetConfigDecryptor(func(stored string) (string, bool) { return stored, true })
 
 	if err := a.Notify(ctx, "apptest-nosuch", "{}", "hi"); err == nil {
 		t.Fatal("Notify accepted an unregistered channel type")
