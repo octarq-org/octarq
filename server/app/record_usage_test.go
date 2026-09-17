@@ -230,11 +230,8 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 	if httpCtx.RegisterNotificationChannel == nil {
 		t.Fatal("expected httpCtx.RegisterNotificationChannel to be non-nil")
 	}
-	if httpCtx.RequireRole == nil {
-		t.Fatal("expected httpCtx.RequireRole to be non-nil")
-	}
-	if httpCtx.RequirePerm == nil {
-		t.Fatal("expected httpCtx.RequirePerm to be non-nil")
+	if httpCtx.Host == nil || httpCtx.Host.Session() == nil {
+		t.Fatal("expected httpCtx.Host.Session to be non-nil")
 	}
 	if httpCtx.PluginActive == nil || httpCtx.FeatureActive == nil || httpCtx.ActivePlugins == nil {
 		t.Fatal("expected plugin/feature active closures to be non-nil in HTTP mode")

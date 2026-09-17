@@ -694,7 +694,7 @@ func TestMCPRemountUsesMinimalContext(t *testing.T) {
 		Provide: func(string, any) {},
 		Lookup:  func(string) (any, bool) { return nil, false },
 	}
-	if minimal.DB == nil || minimal.OrgID == nil || minimal.Provide == nil || minimal.Lookup == nil {
+	if minimal.DB == nil || isNilFunc(ctxField(minimal, "OrgID")) || minimal.Provide == nil || minimal.Lookup == nil {
 		t.Fatal("minimal remount context lost its wired subset")
 		return
 	}
