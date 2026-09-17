@@ -150,3 +150,112 @@ func TestEmailChannel_Errors(t *testing.T) {
 		t.Errorf("expected smtp timeout error, got: %v", err)
 	}
 }
+
+func TestEmailChannel_TenantIsolationSpoofGuard(t *testing.T) {
+	var capturedOrgID uint
+	ch := NewEmailChannel(nil, func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
+		capturedOrgID = orgID
+		return nil
+	})
+
+	ctx := context.Background()
+	payload := plugin.NotificationPayload{
+		Title: "Security Isolation Test",
+		Body:  "Testing anti-spoofing tenant isolation",
+	}
+
+	tests := []struct {
+		name        string
+		recipient   plugin.NotificationRecipient
+		expectedOrg uint
+	}{
+		{
+			name: "Spoof attempt: legitimate system OrgID must not be overridden by config orgId",
+			recipient: plugin.NotificationRecipient{
+				OrgID: "42",
+				Config: map[string]any{
+					"email": "victim@example.com",
+					"orgId": float64(999), // malicious attempt to hijack tenant 999 SMTP sender
+				},
+			},
+			expectedOrg: 42,
+		},
+		{
+			name: "Spoof attempt: legitimate system OrgID must not be overridden by config org_id",
+			recipient: plugin.NotificationRecipient{
+				OrgID: "42",
+				Config: map[string]any{
+					"email":  "victim@example.com",
+					"org_id": float64(888), // malicious attempt to hijack tenant 888 SMTP sender
+				},
+			},
+			expectedOrg: 42,
+		},
+		{
+			name: "Fallback: empty system OrgID allows config orgId fallback",
+			recipient: plugin.NotificationRecipient{
+				OrgID: "",
+				Config: map[string]any{
+					"email": "user@example.com",
+					"orgId": float64(100),
+				},
+			},
+			expectedOrg: 100,
+		},
+		{
+			name: "Fallback: invalid system OrgID allows config org_id fallback",
+			recipient: plugin.NotificationRecipient{
+				OrgID: "not-a-number",
+				Config: map[string]any{
+					"email":  "user@example.com",
+					"org_id": float64(200),
+				},
+			},
+			expectedOrg: 200,
+		},
+		{
+			name: "Fallback: zero system OrgID allows config fallback",
+			recipient: plugin.NotificationRecipient{
+				OrgID: "0",
+				Config: map[string]any{
+					"email": "user@example.com",
+					"orgId": float64(300),
+				},
+			},
+			expectedOrg: 300,
+		},
+		{
+			name: "Fallback: empty OrgID and empty config defaults to org 1",
+			recipient: plugin.NotificationRecipient{
+				OrgID: "",
+				Config: map[string]any{
+					"email": "user@example.com",
+				},
+			},
+			expectedOrg: 1,
+		},
+		{
+			name: "Fallback: invalid OrgID and invalid config defaults to org 1",
+			recipient: plugin.NotificationRecipient{
+				OrgID: "bad_org",
+				Config: map[string]any{
+					"email": "user@example.com",
+					"orgId": float64(-1),
+				},
+			},
+			expectedOrg: 1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			capturedOrgID = 0
+			if err := ch.Send(ctx, tc.recipient, payload); err != nil {
+				t.Fatalf("Send failed: %v", err)
+			}
+			if capturedOrgID != tc.expectedOrg {
+				t.Errorf("tenant isolation spoof guard failed: got orgID %d, want %d", capturedOrgID, tc.expectedOrg)
+			}
+		})
+	}
+}
