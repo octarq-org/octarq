@@ -71,6 +71,8 @@ func (c *EmailChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 	if recipient.Config != nil {
 		if v, ok := recipient.Config["email"].(string); ok && strings.TrimSpace(v) != "" {
 			toEmail = strings.TrimSpace(v)
+		} else if v, ok := recipient.Config["to"].(string); ok && strings.TrimSpace(v) != "" {
+			toEmail = strings.TrimSpace(v)
 		}
 	}
 
@@ -92,9 +94,21 @@ func (c *EmailChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 		return errors.New("notification: no email sender configured")
 	}
 
+	// System recipient.OrgID has top priority to prevent cross-tenant sender hijacking.
+	// Fallback to channel configuration only when recipient.OrgID is empty or invalid.
 	var orgID uint
-	if n, err := strconv.ParseUint(recipient.OrgID, 10, 64); err == nil {
+	if n, err := strconv.ParseUint(strings.TrimSpace(recipient.OrgID), 10, 64); err == nil && n > 0 {
 		orgID = uint(n)
+	}
+	if orgID == 0 && recipient.Config != nil {
+		if v, ok := recipient.Config["orgId"].(float64); ok && v > 0 {
+			orgID = uint(v)
+		} else if v, ok := recipient.Config["org_id"].(float64); ok && v > 0 {
+			orgID = uint(v)
+		}
+	}
+	if orgID == 0 {
+		orgID = 1
 	}
 
 	subject := payload.Title

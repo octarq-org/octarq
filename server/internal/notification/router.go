@@ -141,6 +141,14 @@ func (r *Router) RegisterChannelWithDescriptor(ch plugin.NotificationChannel, de
 
 	r.chMu.Lock()
 	defer r.chMu.Unlock()
+	// If a modern driver is already registered, do not downgrade to a legacy adapter shim.
+	if existing, ok := r.channels[name]; ok {
+		if _, isLegacy := ch.(*LegacyNotifierAdapter); isLegacy {
+			if _, existingIsLegacy := existing.(*LegacyNotifierAdapter); !existingIsLegacy {
+				return nil
+			}
+		}
+	}
 	r.channels[name] = ch
 	r.descriptors[name] = desc
 	return nil
