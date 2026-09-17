@@ -153,8 +153,8 @@ func (p *Plugin) updateInstanceLinkSettings(ctx context.Context, input *UpdateIn
 		return nil, huma.Error403Forbidden("instance admin required")
 	}
 	if input.Body.ReservedSlugs != nil {
-		if p.ctx != nil && p.ctx.SetGlobalSetting != nil {
-			_ = p.ctx.SetGlobalSetting("reserved_slugs", strings.Join(splitList(*input.Body.ReservedSlugs), "\n"))
+		if p.host != nil && p.host.Settings() != nil {
+			_ = p.host.Settings().SetGlobalSetting("reserved_slugs", strings.Join(splitList(*input.Body.ReservedSlugs), "\n"))
 		}
 	}
 	var reserved string

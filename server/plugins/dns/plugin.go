@@ -47,11 +47,18 @@ type Plugin struct {
 
 	publishEvent func(orgID uint, event string, data any)
 	ctx          *plugin.Context
+	host         plugin.Host
 
 	// DNS resolvers, injectable so tests can stub them; default to net.
 	lookupTXT   func(string) ([]string, error)
 	lookupCNAME func(string) (string, error)
 }
+
+// Host returns the host runtime interface.
+func (p *Plugin) Host() plugin.Host { return p.host }
+
+// SetHost sets the host runtime interface.
+func (p *Plugin) SetHost(h plugin.Host) { p.host = h }
 
 // Compile-time capability checks.
 var (
@@ -131,27 +138,24 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	if ctx.DB != nil {
 		p.db = ctx.DB
 	}
-	if ctx.OrgID != nil {
-		p.orgID = ctx.OrgID
+	p.host = plugin.EnsureHost(ctx)
+	if p.host != nil {
+		if p.host.Session() != nil {
+			p.orgID = p.host.Session().OrgID
+			p.requireRole = p.host.Session().RequireRole
+		}
+		if p.host.Crypto() != nil {
+			p.encrypt = p.host.Crypto().Encrypt
+			p.decrypt = p.host.Crypto().Decrypt
+		}
+		if p.host.Events() != nil {
+			p.publishEvent = p.host.Events().PublishEvent
+			p.host.Events().RegisterWebhookEvent(plugin.WebhookEventDef{Key: "domain.create", Group: "Domain", Title: "Domain Created", Description: "A domain was added to the workspace"})
+			p.host.Events().RegisterWebhookEvent(plugin.WebhookEventDef{Key: "domain.verify_failed", Group: "Domain", Title: "Domain Verification Failed", Description: "A domain's provider or DNS verification check failed"})
+		}
 	}
 	if ctx.Audit != nil {
 		p.audit = ctx.Audit
-	}
-	if ctx.Encrypt != nil {
-		p.encrypt = ctx.Encrypt
-	}
-	if ctx.Decrypt != nil {
-		p.decrypt = ctx.Decrypt
-	}
-	if ctx.PublishEvent != nil {
-		p.publishEvent = ctx.PublishEvent
-	}
-	if ctx.RequireRole != nil {
-		p.requireRole = ctx.RequireRole
-	}
-	if ctx.RegisterWebhookEvent != nil {
-		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "domain.create", Group: "Domain", Title: "Domain Created", Description: "A domain was added to the workspace"})
-		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "domain.verify_failed", Group: "Domain", Title: "Domain Verification Failed", Description: "A domain's provider or DNS verification check failed"})
 	}
 
 	api := ctx.Huma

@@ -82,6 +82,7 @@ type Engine struct {
 	db          *gorm.DB
 	resolver    *origin.Resolver
 	ctx         *plugin.Context
+	host        plugin.Host
 	queue       chan clickItem
 	wg          sync.WaitGroup
 	closeOnce   sync.Once
@@ -92,11 +93,8 @@ type Engine struct {
 
 func NewEngine(db *gorm.DB, ctx *plugin.Context) *Engine {
 	e := &Engine{
-		db:          db,
-		resolver:    origin.NewResolver(db),
-		ctx:         ctx,
-		queue:       make(chan clickItem, 5000),
-		rateLimiter: newIPRateLimiter(300, time.Minute),
+		db: db, resolver: origin.NewResolver(db), ctx: ctx, host: plugin.EnsureHost(ctx),
+		queue: make(chan clickItem, 5000), rateLimiter: newIPRateLimiter(300, time.Minute),
 	}
 	e.wg.Add(1)
 	go e.worker()
@@ -285,9 +283,9 @@ func (e *Engine) flushBatch(batch []clickItem) {
 				e.ctx.RecordUsage(orgID, usagemetric.Clicks, count)
 			}
 		}
-		if e.ctx.PublishEvent != nil {
+		if e.host != nil && e.host.Events() != nil {
 			for _, item := range batch {
-				e.ctx.PublishEvent(item.orgID, "link.click", map[string]any{
+				e.host.Events().PublishEvent(item.orgID, "link.click", map[string]any{
 					"linkId":    item.linkID,
 					"slug":      item.slug,
 					"ip":        item.ip,

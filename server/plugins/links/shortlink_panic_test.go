@@ -40,6 +40,7 @@ func testEngine(t *testing.T, publishEvent func(uint, string, any)) *Engine {
 	e := &Engine{
 		db:          testDB(t),
 		ctx:         ctx,
+		host:        plugin.EnsureHost(ctx),
 		queue:       make(chan clickItem, 100),
 		rateLimiter: newIPRateLimiter(300, time.Minute),
 	}

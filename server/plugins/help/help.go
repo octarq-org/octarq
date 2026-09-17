@@ -41,7 +41,14 @@ var (
 
 type Plugin struct {
 	pctx *plugin.Context
+	host plugin.Host
 }
+
+// Host returns the host runtime interface.
+func (p *Plugin) Host() plugin.Host { return p.host }
+
+// SetHost sets the host runtime interface.
+func (p *Plugin) SetHost(h plugin.Host) { p.host = h }
 
 func New() *Plugin {
 	return &Plugin{}
@@ -96,7 +103,10 @@ func (p *Plugin) listDocs(ctx context.Context, input *ListDocsInput) (*ListDocsO
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	orgID := p.pctx.OrgID(r)
+	var orgID uint
+	if p.host != nil && p.host.Session() != nil {
+		orgID = p.host.Session().OrgID(r)
+	}
 	lang := r.URL.Query().Get("lang")
 	if lang == "" {
 		lang = r.Header.Get("Accept-Language")
@@ -154,7 +164,10 @@ func (p *Plugin) getDoc(ctx context.Context, input *GetDocInput) (*GetDocOutput,
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
-	orgID := p.pctx.OrgID(r)
+	var orgID uint
+	if p.host != nil && p.host.Session() != nil {
+		orgID = p.host.Session().OrgID(r)
+	}
 	lang := r.URL.Query().Get("lang")
 	if lang == "" {
 		lang = r.Header.Get("Accept-Language")
@@ -289,6 +302,9 @@ func (p *Plugin) HelpDocsFS() fs.FS { return docs }
 
 func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	p.pctx = ctx
+	if ctx != nil && ctx.Host != nil {
+		p.host = ctx.Host
+	}
 	huma.Register(ctx.Huma, huma.Operation{
 		OperationID: "listHelpDocs",
 		Method:      "GET",

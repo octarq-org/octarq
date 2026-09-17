@@ -24,8 +24,9 @@ func (f *fakePlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.mounts++
-	if ctx.OrgID != nil {
-		f.orgFn = ctx.OrgID
+	h := plugin.EnsureHost(ctx)
+	if h != nil && h.Session() != nil {
+		f.orgFn = h.Session().OrgID
 	}
 }
 func (f *fakePlugin) resolve(r *http.Request) uint {

@@ -27,7 +27,14 @@ type Plugin struct {
 	requireRole         func(r *http.Request, min string) bool
 	isInstanceAdmin     func(r *http.Request) bool
 	ctx                 *plugin.Context
+	host                plugin.Host
 }
+
+// Host returns the host runtime interface.
+func (p *Plugin) Host() plugin.Host { return p.host }
+
+// SetHost sets the host runtime interface.
+func (p *Plugin) SetHost(h plugin.Host) { p.host = h }
 
 var (
 	_ plugin.Plugin               = (*Plugin)(nil)

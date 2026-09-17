@@ -20,40 +20,33 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	if ctx.DB != nil {
 		p.db = ctx.DB
 	}
-	if ctx.UserID != nil {
-		p.auth.UserID = ctx.UserID
-	}
-	if ctx.OrgID != nil {
-		p.auth.OrgID = ctx.OrgID
+	p.host = plugin.EnsureHost(ctx)
+	if p.host != nil {
+		if p.host.Session() != nil {
+			p.auth.UserID = p.host.Session().UserID
+			p.auth.OrgID = p.host.Session().OrgID
+			p.requireRole = p.host.Session().RequireRole
+			p.isInstanceAdmin = p.host.Session().IsInstanceAdmin
+		}
+		if p.host.Settings() != nil {
+			p.getGlobalSetting = p.host.Settings().GetGlobalSetting
+			p.getWorkspaceSetting = p.host.Settings().GetWorkspaceSetting
+		}
+		if p.host.Events() != nil {
+			p.publishEvent = p.host.Events().PublishEvent
+			p.host.Events().RegisterWebhookEvent(plugin.WebhookEventDef{Key: "link.create", Group: "Links", Title: "Link Created", Description: "A short link was created"})
+			p.host.Events().RegisterWebhookEvent(plugin.WebhookEventDef{Key: "link.click", Group: "Links", Title: "Link Clicked", Description: "A tracked short link was visited"})
+			p.host.Events().RegisterWebhookEvent(plugin.WebhookEventDef{Key: "link.delete", Group: "Links", Title: "Link Deleted", Description: "A short link was deleted"})
+		}
 	}
 	if ctx.Audit != nil {
 		p.audit = ctx.Audit
-	}
-	if ctx.GetGlobalSetting != nil {
-		p.getGlobalSetting = ctx.GetGlobalSetting
-	}
-	if ctx.GetWorkspaceSetting != nil {
-		p.getWorkspaceSetting = ctx.GetWorkspaceSetting
 	}
 	if ctx.Enqueue != nil {
 		p.enqueue = ctx.Enqueue
 	}
 	if ctx.DeleteCache != nil {
 		p.deleteCache = ctx.DeleteCache
-	}
-	if ctx.PublishEvent != nil {
-		p.publishEvent = ctx.PublishEvent
-	}
-	if ctx.RequireRole != nil {
-		p.requireRole = ctx.RequireRole
-		if ctx.IsInstanceAdmin != nil {
-			p.isInstanceAdmin = ctx.IsInstanceAdmin
-		}
-	}
-	if ctx.RegisterWebhookEvent != nil {
-		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "link.create", Group: "Links", Title: "Link Created", Description: "A short link was created"})
-		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "link.click", Group: "Links", Title: "Link Clicked", Description: "A tracked short link was visited"})
-		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "link.delete", Group: "Links", Title: "Link Deleted", Description: "A short link was deleted"})
 	}
 
 	RegisterViews(ctx)

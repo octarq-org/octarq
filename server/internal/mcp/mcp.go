@@ -107,6 +107,7 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 			// RequirePerm is intentionally left nil: MCP requests do not carry per-request HTTP user identity.
 			// Authorization is handled by the MCP layer itself; plugin callers using HasPerm must tolerate nil.
 		}
+		pctx.Host = plugin.EnsureHost(pctx)
 		for _, p := range plugins {
 			pctxCopy := *pctx
 			pctxCopy.Cache = cache.NewScoped(cacheBackend, p.Name())
