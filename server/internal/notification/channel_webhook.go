@@ -87,9 +87,14 @@ func (c *WebhookChannel) Send(ctx context.Context, recipient plugin.Notification
 
 	webhookURL = strings.TrimSpace(webhookURL)
 
+	targetOrg := strings.TrimSpace(recipient.OrgID)
+	if targetOrg == "" {
+		targetOrg = strings.TrimSpace(payload.OrgID)
+	}
+
 	// Fallback to database lookup if org-scoped notification channel is configured
-	if webhookURL == "" && c.db != nil && recipient.OrgID != "" {
-		if orgNum, err := strconv.ParseUint(recipient.OrgID, 10, 64); err == nil && orgNum > 0 {
+	if webhookURL == "" && c.db != nil && targetOrg != "" {
+		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			var ch models.NotificationChannel
 			if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", orgNum, "webhook", true).First(&ch).Error; err == nil && ch.Config != "" {
 				plain, decErr := ConfigPlaintext(ch.Config)

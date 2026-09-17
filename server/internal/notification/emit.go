@@ -37,3 +37,18 @@ func Emit(ctx context.Context, payload plugin.NotificationPayload) error {
 func EmitTo(ctx context.Context, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
 	return DefaultRouter().EmitTo(ctx, recipient, payload)
 }
+
+// SendDirect delivers a notification directly via the process-wide DefaultRouter.
+func SendDirect(ctx context.Context, typ, cfgJSON, text string) error {
+	return DefaultRouter().SendDirect(ctx, typ, cfgJSON, text)
+}
+
+// SendDirectWithTenant delivers a notification directly via the process-wide DefaultRouter using an explicit tenant org ID.
+func SendDirectWithTenant(ctx context.Context, orgID uint, typ, cfgJSON, text string) error {
+	return DefaultRouter().SendDirectWithTenant(ctx, orgID, typ, cfgJSON, text)
+}
+
+// SendDirectTo delivers a notification directly to an explicit recipient using the process-wide DefaultRouter.
+func SendDirectTo(ctx context.Context, typ string, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
+	return DefaultRouter().SendDirectTo(ctx, typ, recipient, payload)
+}

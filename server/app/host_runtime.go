@@ -339,6 +339,18 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 			}
 			return notification.DefaultRouter().SendDirect(ctx, typ, pt, text)
 		},
+		Emit: func(ctx context.Context, payload plugin.NotificationPayload) error {
+			if params.notifRouter != nil {
+				return params.notifRouter.Emit(ctx, payload)
+			}
+			return notification.DefaultRouter().Emit(ctx, payload)
+		},
+		EmitTo: func(ctx context.Context, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
+			if params.notifRouter != nil {
+				return params.notifRouter.EmitTo(ctx, recipient, payload)
+			}
+			return notification.DefaultRouter().EmitTo(ctx, recipient, payload)
+		},
 		RegisterNotificationChannel: func(ch plugin.NotificationChannel) {
 			if params.notifRouter != nil {
 				_ = params.notifRouter.RegisterChannel(ch)

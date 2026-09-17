@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/safego"
+	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugin/safehttp"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -230,19 +232,34 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 		}).Create(&supItems)
 	}
 
-	if len(channels) > 0 && len(alertTexts) > 0 {
+	if len(alertTexts) > 0 {
 		for _, alertText := range alertTexts {
 			// Capture variables for goroutine
 			alertText := alertText
-			safego.Go("mail.bounce-notify", func() {
-				ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-				defer cancel()
-				for _, ch := range channels {
-					if p.notify != nil {
+			if p.emit != nil {
+				safego.Go("mail.bounce-notify", func() {
+					ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+					defer cancel()
+					_ = p.emit(ctxCtx, plugin.NotificationPayload{
+						EventType: "mail.bounce",
+						Title:     "Email Delivery Failure",
+						Body:      alertText,
+						OrgID:     strconv.FormatUint(uint64(org.ID), 10),
+						Priority:  "high",
+						Data: map[string]any{
+							"orgId": org.ID,
+						},
+					})
+				})
+			} else if len(channels) > 0 && p.notify != nil {
+				safego.Go("mail.bounce-notify", func() {
+					ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+					defer cancel()
+					for _, ch := range channels {
 						_ = p.notify(ctxCtx, ch.Type, ch.Config, alertText)
 					}
-				}
-			})
+				})
+			}
 		}
 	}
 
