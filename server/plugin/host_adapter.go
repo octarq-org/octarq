@@ -86,6 +86,9 @@ func (s *ctxSessionAdapter) RequirePerm(r *http.Request, permKey, minRole string
 	if s.ctx != nil && s.ctx.RequirePerm != nil {
 		return s.ctx.RequirePerm(r, permKey, minRole)
 	}
+	if allow, decided := ResolvePerm(r, permKey); decided {
+		return allow
+	}
 	if s.ctx != nil && s.ctx.RequireRole != nil {
 		return s.ctx.RequireRole(r, minRole)
 	}
@@ -143,7 +146,7 @@ func (s *ctxSettingsAdapter) SetWorkspaceSetting(orgID uint, key, value string) 
 	if s.ctx != nil && s.ctx.SetWorkspaceSetting != nil {
 		return s.ctx.SetWorkspaceSetting(orgID, key, value)
 	}
-	return nil
+	return errors.New("settings: unavailable")
 }
 
 func (s *ctxSettingsAdapter) GetGlobalSetting(key string) string {
@@ -157,7 +160,7 @@ func (s *ctxSettingsAdapter) SetGlobalSetting(key, value string) error {
 	if s.ctx != nil && s.ctx.SetGlobalSetting != nil {
 		return s.ctx.SetGlobalSetting(key, value)
 	}
-	return nil
+	return errors.New("settings: unavailable")
 }
 
 var _ SettingsStore = (*ctxSettingsAdapter)(nil)
