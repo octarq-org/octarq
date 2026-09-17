@@ -238,6 +238,11 @@ func (r *Router) SendDirect(ctx context.Context, typ, cfgJSON, text string) erro
 			orgIDStr = strings.TrimSpace(v)
 		}
 	}
+	if orgIDStr != "" && plugin.OrgIDFromContext(ctx) == 0 {
+		if orgNum, err := strconv.ParseUint(orgIDStr, 10, 64); err == nil && orgNum > 0 {
+			ctx = plugin.WithOrgID(ctx, uint(orgNum))
+		}
+	}
 	if userIDStr == "" {
 		if v, ok := cfgMap["userId"].(float64); ok && v > 0 {
 			userIDStr = strconv.FormatUint(uint64(v), 10)
@@ -366,6 +371,11 @@ func (r *Router) Emit(ctx context.Context, payload plugin.NotificationPayload) e
 			targetOrg = strconv.FormatUint(uint64(oid), 10)
 		}
 	}
+	if targetOrg != "" && plugin.OrgIDFromContext(ctx) == 0 {
+		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
+			ctx = plugin.WithOrgID(ctx, uint(orgNum))
+		}
+	}
 
 	if targetUser != "" {
 		rec := plugin.NotificationRecipient{
@@ -396,12 +406,20 @@ func (r *Router) Emit(ctx context.Context, payload plugin.NotificationPayload) e
 	if r.db != nil {
 		var admins []models.User
 		if err := r.db.WithContext(ctx).Where("is_instance_admin = ?", true).Find(&admins).Error; err == nil && len(admins) > 0 {
+			adminOrg := targetOrg
+			adminCtx := ctx
+			if adminOrg == "" {
+				adminOrg = "1"
+				if plugin.OrgIDFromContext(adminCtx) == 0 {
+					adminCtx = plugin.WithOrgID(adminCtx, 1)
+				}
+			}
 			for _, a := range admins {
 				rec := plugin.NotificationRecipient{
 					UserID: strconv.FormatUint(uint64(a.ID), 10),
-					OrgID:  targetOrg,
+					OrgID:  adminOrg,
 				}
-				_ = r.EmitTo(ctx, rec, payload)
+				_ = r.EmitTo(adminCtx, rec, payload)
 			}
 			return nil
 		}

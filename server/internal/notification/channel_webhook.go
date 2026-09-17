@@ -91,6 +91,11 @@ func (c *WebhookChannel) Send(ctx context.Context, recipient plugin.Notification
 	if targetOrg == "" {
 		targetOrg = strings.TrimSpace(payload.OrgID)
 	}
+	if targetOrg == "" {
+		if oid := plugin.OrgIDFromContext(ctx); oid > 0 {
+			targetOrg = strconv.FormatUint(uint64(oid), 10)
+		}
+	}
 
 	// Fallback to database lookup if org-scoped notification channel is configured
 	if webhookURL == "" && c.db != nil && targetOrg != "" {
@@ -105,6 +110,23 @@ func (c *WebhookChannel) Send(ctx context.Context, recipient plugin.Notification
 					if json.Unmarshal([]byte(plain), &m) == nil {
 						webhookURL = strings.TrimSpace(m.URL)
 					}
+				}
+			}
+		}
+	}
+
+	// Fallback for system-level alerts: if targetOrg is "0" or payload indicates system event,
+	// and webhookURL is still empty, fall back to instance default channel (org 1)
+	if webhookURL == "" && c.db != nil && (targetOrg == "0" || payload.EventType == "system" || strings.HasPrefix(payload.EventType, "system.")) {
+		var ch models.NotificationChannel
+		if err := c.db.WithContext(ctx).Where("owner_id = ? AND type = ? AND enabled = ?", 1, "webhook", true).First(&ch).Error; err == nil && ch.Config != "" {
+			plain, decErr := ConfigPlaintext(ch.Config)
+			if decErr == nil {
+				var m struct {
+					URL string `json:"url"`
+				}
+				if json.Unmarshal([]byte(plain), &m) == nil {
+					webhookURL = strings.TrimSpace(m.URL)
 				}
 			}
 		}
