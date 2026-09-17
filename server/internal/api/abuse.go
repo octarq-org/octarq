@@ -122,6 +122,7 @@ func (h *Handler) notifyAbuse(rep models.AbuseReport) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
+	ctx = plugin.WithOrgID(ctx, orgID)
 
 	_ = notification.Emit(ctx, plugin.NotificationPayload{
 		EventType: "abuse.report",

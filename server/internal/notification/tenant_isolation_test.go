@@ -490,3 +490,43 @@ func TestTelegramChannel_OrgPayloadFallback(t *testing.T) {
 		t.Errorf("expected missing credentials for unparseable orgID, got %v", err)
 	}
 }
+
+func TestMultiTenant_WebhookChannel_ContextOrgID_And_SystemFallback(t *testing.T) {
+	db := setupTestDB(t)
+	SetConfigDecryptor(func(s string) (string, bool) { return s, true })
+	t.Cleanup(func() { SetConfigDecryptor(nil) })
+
+	// Org 1 (system default)
+	db.Create(&models.NotificationChannel{
+		OrgID:   1,
+		Type:    "webhook",
+		Config:  `{"url":"https://system.example.com/webhook"}`,
+		Enabled: true,
+	})
+
+	// Org 80 (tenant)
+	db.Create(&models.NotificationChannel{
+		OrgID:   80,
+		Type:    "webhook",
+		Config:  `{"url":"https://org80.example.com/webhook"}`,
+		Enabled: true,
+	})
+
+	ch := NewWebhookChannel(db)
+
+	// 1. Context OrgID resolution when recipient.OrgID and payload.OrgID are empty
+	ctx80 := plugin.WithOrgID(context.Background(), 80)
+	err := ch.Send(ctx80, plugin.NotificationRecipient{}, plugin.NotificationPayload{Body: "tenant alert"})
+	if err != nil && strings.Contains(err.Error(), "missing webhook url") {
+		t.Errorf("expected webhookURL to be resolved from context OrgID, got error: %v", err)
+	}
+
+	// 2. System-level alert fallback: when eventType is "system", falls back to Org 1
+	err = ch.Send(context.Background(), plugin.NotificationRecipient{}, plugin.NotificationPayload{
+		EventType: "system",
+		Body:      "kernel error",
+	})
+	if err != nil && strings.Contains(err.Error(), "missing webhook url") {
+		t.Errorf("expected system alert to fall back to Org 1 webhook, got error: %v", err)
+	}
+}
