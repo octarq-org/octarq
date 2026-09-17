@@ -241,7 +241,7 @@ func TestUnifiedPluginContextRuntimeCompleteness(t *testing.T) {
 	}
 
 	// Verify crypto facade delegation
-	ciphertext, err := httpCtx.Encrypt([]byte("secret-token"))
+	ciphertext, err := httpCtx.Host.Crypto().Encrypt([]byte("secret-token"))
 	if err != nil {
 		t.Fatalf("Encrypt failed: %v", err)
 	}

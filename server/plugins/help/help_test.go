@@ -39,6 +39,33 @@ func (m *noHelpPlugin) Name() string                              { return m.nam
 func (m *noHelpPlugin) Models() []any                             { return nil }
 func (m *noHelpPlugin) Mount(mux plugin.Mux, ctx *plugin.Context) {}
 
+type stubHelpSession struct {
+	orgID func(r *http.Request) uint
+}
+
+func (s *stubHelpSession) UserID(r *http.Request) uint { return 0 }
+func (s *stubHelpSession) OrgID(r *http.Request) uint {
+	if s.orgID != nil {
+		return s.orgID(r)
+	}
+	return 1
+}
+func (s *stubHelpSession) OrgRole(r *http.Request) string                { return "admin" }
+func (s *stubHelpSession) RequireRole(r *http.Request, min string) bool  { return true }
+func (s *stubHelpSession) RequirePerm(r *http.Request, p, m string) bool { return true }
+func (s *stubHelpSession) IsInstanceAdmin(r *http.Request) bool          { return false }
+func (s *stubHelpSession) RevokeUserOrgSessions(u, o uint) int           { return 0 }
+
+type stubHelpHost struct {
+	sess plugin.HostSession
+}
+
+func (h *stubHelpHost) Session() plugin.HostSession          { return h.sess }
+func (h *stubHelpHost) Crypto() plugin.CryptoVault           { return nil }
+func (h *stubHelpHost) Settings() plugin.SettingsStore       { return nil }
+func (h *stubHelpHost) Events() plugin.EventSpine            { return nil }
+func (h *stubHelpHost) TenantDB(orgID uint) *plugin.TenantDB { return nil }
+
 func TestHelpDocs(t *testing.T) {
 	org1Enabled := true
 	org2Enabled := false
@@ -59,7 +86,19 @@ func TestHelpDocs(t *testing.T) {
 
 	allPlugins := []plugin.Plugin{pluginA, pluginB, noHelp}
 
+	host := &stubHelpHost{
+		sess: &stubHelpSession{
+			orgID: func(r *http.Request) uint {
+				if r.Header.Get("X-Org") == "2" {
+					return 2
+				}
+				return 1
+			},
+		},
+	}
+
 	pctx := &plugin.Context{
+		Host: host,
 		ActivePlugins: func() []plugin.Plugin {
 			return allPlugins
 		},
@@ -93,6 +132,7 @@ func TestHelpDocs(t *testing.T) {
 
 	h := New()
 	h.pctx = pctx
+	h.SetHost(host)
 
 	getDocs := func(orgID uint) []plugin.HelpDoc {
 		req := httptest.NewRequest("GET", "/api/help/docs", nil)
@@ -191,14 +231,16 @@ func TestHelpDocsCategorySortingAndTranslation(t *testing.T) {
 		helpDocs: []plugin.HelpDoc{docInfra, docOperations, docStart},
 	}
 
+	host := &stubHelpHost{sess: &stubHelpSession{}}
 	pctx := &plugin.Context{
+		Host:          host,
 		ActivePlugins: func() []plugin.Plugin { return []plugin.Plugin{p} },
 		PluginActive:  func(uint, plugin.Plugin) bool { return true },
-		OrgID:         func(*http.Request) uint { return 1 },
 	}
 
 	h := New()
 	h.pctx = pctx
+	h.SetHost(host)
 
 	// Test 1: Category sorting order (start [10] < operations [20] < infrastructure [30])
 	docs := h.getDocs(1, "en")

@@ -34,7 +34,14 @@ type Plugin struct {
 	recordUsage  func(orgID uint, metric string, n int64)
 	requireRole  func(r *http.Request, min string) bool
 	ctx          *plugin.Context
+	host         plugin.Host
 }
+
+// Host returns the host runtime interface.
+func (p *Plugin) Host() plugin.Host { return p.host }
+
+// SetHost sets the host runtime interface.
+func (p *Plugin) SetHost(h plugin.Host) { p.host = h }
 
 // Compile-time capability checks.
 var (
@@ -134,23 +141,28 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	if ctx.DB != nil {
 		p.db = ctx.DB
 	}
-	if ctx.OrgID != nil {
-		p.orgID = ctx.OrgID
+	p.host = plugin.EnsureHost(ctx)
+	if p.host != nil {
+		if p.host.Session() != nil {
+			p.orgID = p.host.Session().OrgID
+			p.requireRole = p.host.Session().RequireRole
+		}
+		if p.host.Crypto() != nil {
+			p.encrypt = p.host.Crypto().Encrypt
+			p.decrypt = p.host.Crypto().Decrypt
+		}
+		if p.host.Settings() != nil {
+			p.getWorkspaceSetting = p.host.Settings().GetWorkspaceSetting
+			p.getGlobalSetting = p.host.Settings().GetGlobalSetting
+		}
+		if p.host.Events() != nil {
+			p.publishEvent = p.host.Events().PublishEvent
+			p.host.Events().RegisterWebhookEvent(plugin.WebhookEventDef{Key: "email.receive", Group: "Email", Title: "Email Received", Description: "An inbound email was delivered to a mailbox"})
+			p.host.Events().RegisterWebhookEvent(plugin.WebhookEventDef{Key: "email.send_failed", Group: "Email", Title: "Email Send Failed", Description: "An outbound email failed to send through the configured SMTP sender"})
+		}
 	}
 	if ctx.Audit != nil {
 		p.audit = ctx.Audit
-	}
-	if ctx.Encrypt != nil {
-		p.encrypt = ctx.Encrypt
-	}
-	if ctx.Decrypt != nil {
-		p.decrypt = ctx.Decrypt
-	}
-	if ctx.GetWorkspaceSetting != nil {
-		p.getWorkspaceSetting = ctx.GetWorkspaceSetting
-	}
-	if ctx.GetGlobalSetting != nil {
-		p.getGlobalSetting = ctx.GetGlobalSetting
 	}
 	if ctx.Notify != nil {
 		p.notify = ctx.Notify
@@ -161,19 +173,8 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	if ctx.EmitTo != nil {
 		p.emitTo = ctx.EmitTo
 	}
-
-	if ctx.PublishEvent != nil {
-		p.publishEvent = ctx.PublishEvent
-	}
 	if ctx.RecordUsage != nil {
 		p.recordUsage = ctx.RecordUsage
-	}
-	if ctx.RequireRole != nil {
-		p.requireRole = ctx.RequireRole
-	}
-	if ctx.RegisterWebhookEvent != nil {
-		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "email.receive", Group: "Email", Title: "Email Received", Description: "An inbound email was delivered to a mailbox"})
-		ctx.RegisterWebhookEvent(plugin.WebhookEventDef{Key: "email.send_failed", Group: "Email", Title: "Email Send Failed", Description: "An outbound email failed to send through the configured SMTP sender"})
 	}
 
 	RegisterViews(ctx)
