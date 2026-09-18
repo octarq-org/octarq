@@ -138,6 +138,68 @@ func TestClientAgainstDeadDaemonFails(t *testing.T) {
 	if _, err := c.Status(context.Background()); err == nil {
 		t.Error("dead daemon must be an error, never fabricated vitals")
 	}
+	if _, err := c.Metrics(context.Background()); err == nil {
+		t.Error("dead daemon metrics must be an error")
+	}
+	if _, err := c.Reload(context.Background()); err == nil {
+		t.Error("dead daemon reload must be an error")
+	}
+}
+
+func TestCodecRoundTrip(t *testing.T) {
+	var c jsonCodec
+	if c.Name() == "" {
+		t.Error("codec name must not be empty")
+	}
+	buf, err := c.Marshal(&StatusReply{Version: "x"})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var back StatusReply
+	if err := c.Unmarshal(buf, &back); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if back.Version != "x" {
+		t.Errorf("round trip version = %q", back.Version)
+	}
+	appended, err := c.MarshalAppend([]byte("["), &StatusReply{Version: "y"})
+	if err != nil {
+		t.Fatalf("marshal append: %v", err)
+	}
+	if len(appended) == 1 {
+		t.Error("marshal append must append")
+	}
+	if err := c.Unmarshal([]byte("{bad"), &back); err == nil {
+		t.Error("bad JSON must fail")
+	}
+}
+
+func TestListenEmptyPathFails(t *testing.T) {
+	if _, err := Listen(""); err == nil {
+		t.Error("empty socket path must fail")
+	}
+}
+
+func TestServeShutdownClean(t *testing.T) {
+	path := testSocket(t)
+	lis, err := Listen(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lis.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	d := &Daemon{Version: "x", Started: time.Now()}
+	done := make(chan error, 1)
+	go func() { done <- d.Serve(ctx, lis) }()
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Errorf("serve after cancel: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("serve did not shut down")
+	}
 }
 
 func TestMetricsRoundTrip(t *testing.T) {

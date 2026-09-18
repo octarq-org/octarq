@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -41,5 +42,42 @@ func TestNewIPCDaemonReloadFailsClosed(t *testing.T) {
 	d := newIPCDaemon("test", func() *monitor.Collector { return nil })
 	if _, err := d.OnReload(context.Background()); err == nil {
 		t.Error("bad config must fail reload")
+	}
+}
+
+func TestApplyServerFlags(t *testing.T) {
+	t.Setenv("OCTARQ_LISTEN", ":8080")
+	if err := applyServerFlags("9090", "127.0.0.1", ""); err != nil {
+		t.Fatalf("apply flags: %v", err)
+	}
+	if got := os.Getenv("OCTARQ_LISTEN"); got != "127.0.0.1:9090" {
+		t.Errorf("OCTARQ_LISTEN = %q, want 127.0.0.1:9090", got)
+	}
+
+	t.Setenv("OCTARQ_LISTEN", ":8080")
+	if err := applyServerFlags("", "", ""); err != nil {
+		t.Fatalf("no flags: %v", err)
+	}
+	if got := os.Getenv("OCTARQ_LISTEN"); got != ":8080" {
+		t.Errorf("OCTARQ_LISTEN = %q, want untouched :8080", got)
+	}
+
+	if err := applyServerFlags("", "", filepath.Join(t.TempDir(), "missing.env")); err != nil {
+		t.Fatalf("missing --config tolerated, got: %v", err)
+	}
+
+	dir := t.TempDir()
+	if err := applyServerFlags("", "", dir); err == nil {
+		t.Error("directory --config must fail closed")
+	}
+}
+
+func TestSplitListen(t *testing.T) {
+	host, port := splitListen("127.0.0.1:9090")
+	if host != "127.0.0.1" || port != "9090" {
+		t.Errorf("split = %q/%q", host, port)
+	}
+	if host, port := splitListen(":8080"); host != "" || port != "8080" {
+		t.Errorf("split = %q/%q", host, port)
 	}
 }

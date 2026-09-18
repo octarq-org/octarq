@@ -2,14 +2,19 @@ package clitop
 
 import (
 	"context"
+	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/octarq-org/octarq/server/internal/ipc"
 )
+
+var errMetricsBoom = errors.New("metrics boom")
 
 func statusForTest() *ipc.StatusReply {
 	return &ipc.StatusReply{Version: "v1.2.3", UptimeSecs: 3723, PID: 4242, Goroutines: 17, MemAlloc: 8 << 20}
@@ -197,5 +202,57 @@ func TestSetupModelFlow(t *testing.T) {
 	m2 = updated.(setupModel)
 	if !m2.done || m2.err == "" {
 		t.Error("abort must finish with an error")
+	}
+}
+
+func TestFormatUptimeBranches(t *testing.T) {
+	cases := map[int64]string{
+		45:    "45s",
+		125:   "2m5s",
+		3723:  "1h2m",
+		90000: "1d1h",
+	}
+	for in, want := range cases {
+		if got := formatUptime(in); got != want {
+			t.Errorf("formatUptime(%d) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestFetchSnapshotMetricsErrorTolerated(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "run.sock")
+	lis, err := ipc.Listen(path)
+	if err != nil {
+		t.Skipf("unix socket unavailable: %v", err)
+	}
+	defer lis.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	d := &ipc.Daemon{
+		Version: "v9",
+		Started: time.Now(),
+		OnMetrics: func(ctx context.Context) (*ipc.MetricsReply, error) {
+			return nil, errMetricsBoom
+		},
+	}
+	go func() { _ = d.Serve(ctx, lis) }()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		conn, derr := net.DialTimeout("unix", path, time.Second)
+		if derr == nil {
+			conn.Close()
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("daemon did not accept")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	snap := FetchSnapshot(context.Background(), path)
+	if snap.Err != "" {
+		t.Fatalf("status must succeed, got %q", snap.Err)
+	}
+	if snap.Metrics != nil {
+		t.Error("failed metrics must stay nil, not fabricated")
 	}
 }

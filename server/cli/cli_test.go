@@ -329,3 +329,51 @@ func TestFormatBytes(t *testing.T) {
 		}
 	}
 }
+
+func TestExecuteServerDelegatesToBoot(t *testing.T) {
+	booted := false
+	d := testDeps()
+	d.Boot = func(ctx context.Context) int { booted = true; return 0 }
+	var out, errb bytes.Buffer
+	if code := Execute(context.Background(), []string{"server", "--port", "0"}, &out, &errb, d); code != 0 {
+		t.Fatalf("server exit = %d, want 0: %s", code, errb.String())
+	}
+	if !booted {
+		t.Error("server command did not boot")
+	}
+}
+
+func TestExecuteMCPDelegates(t *testing.T) {
+	ran := false
+	d := testDeps()
+	d.MCP = func(ctx context.Context) int { ran = true; return 3 }
+	var out, errb bytes.Buffer
+	if code := Execute(context.Background(), []string{"mcp"}, &out, &errb, d); code != 3 {
+		t.Fatalf("mcp exit = %d, want body code 3", code)
+	}
+	if !ran {
+		t.Error("mcp body did not run")
+	}
+}
+
+func TestExecuteOpenAPIDelegates(t *testing.T) {
+	d := testDeps()
+	d.OpenAPI = func(w io.Writer) int { _, _ = w.Write([]byte("spec")); return 0 }
+	var out, errb bytes.Buffer
+	if code := Execute(context.Background(), []string{"openapi"}, &out, &errb, d); code != 0 {
+		t.Fatalf("openapi exit = %d, want 0", code)
+	}
+	if out.String() != "spec" {
+		t.Errorf("openapi output = %q", out.String())
+	}
+}
+
+func TestExecutePluginHelp(t *testing.T) {
+	var out, errb bytes.Buffer
+	if code := Execute(context.Background(), []string{"plugin", "--help"}, &out, &errb, testDeps()); code != 0 {
+		t.Fatalf("plugin help exit = %d, want 0", code)
+	}
+	if !strings.Contains(out.String(), "plugin new") {
+		t.Errorf("plugin help = %q", out.String())
+	}
+}
