@@ -221,6 +221,17 @@ function checkDictionaryCompleteness() {
 // ALLOWLIST_PATTERNS) are imported from i18n-audit-core.mjs — see there for the
 // coverage rules and how they are tested.
 
+// Dev-only tooling is not shipped UI. web/src/dev/** is tree-shaken out of the
+// production bundle (the workbench is reached through a DEV-guarded lazy import
+// in App.tsx), so its strings are preview fixtures rather than product copy —
+// translating dev-tool chrome into five locales would be noise in the dictionary
+// real pages read. Same reasoning as the test-file skip just below.
+const DEV_ONLY_DIRS = [path.join(webDir, "src", "dev")];
+
+function isDevOnly(dir) {
+  return DEV_ONLY_DIRS.some((dev) => dir === dev || dir.startsWith(dev + path.sep));
+}
+
 function getTsxFiles(dir) {
   let res = [];
   if (!fs.existsSync(dir)) return res;
@@ -228,7 +239,7 @@ function getTsxFiles(dir) {
     const p = path.join(dir, f);
     const stat = fs.statSync(p);
     if (stat.isDirectory()) {
-      if (f !== "node_modules" && f !== "dist" && f !== ".git") {
+      if (f !== "node_modules" && f !== "dist" && f !== ".git" && !isDevOnly(p)) {
         res = res.concat(getTsxFiles(p));
       }
     } else if (f.endsWith(".tsx") && !/\.(test|spec)\.tsx?$/.test(f)) {

@@ -13,6 +13,10 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"));
 const StatusPage = lazy(() => import("./pages/Status"));
 // The instance console (own /instance basename) — its own shell, no tenant
 const InstanceConsole = lazy(() => import("./pages/instance/console"));
+// The UI workbench. `import.meta.env.DEV` is statically false in a production
+// build, so this is null there and the dynamic import below is dead code — Rollup
+// emits no workbench chunk at all. A plain top-level import would ship it.
+const DevWorkbench = import.meta.env.DEV ? lazy(() => import("./dev/workbench")) : null;
 import { Modal, Button, toast, cn, Alert, RouteFallback, TableDensityProvider, TableDensity } from "./ui";
 import { useTranslation } from "./i18n";
 import { AreaId, useNavigation, clearCachedNav } from "./shell/areas";
@@ -356,6 +360,7 @@ function Shell({
           <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
           <Route path="/admin/reset" element={<ResetPasswordPage />} />
           {pluginRouteElements()}
+          {DevWorkbench && <Route path="/_dev/workbench" element={<DevWorkbench />} />}
           <Route path="*"           element={<PluginUnavailable />} />
         </Routes>
       </PluginGateContext.Provider>
