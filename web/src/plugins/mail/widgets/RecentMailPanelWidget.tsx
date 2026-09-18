@@ -1,6 +1,6 @@
+import { Panel, timeAgo } from "@octarq/plugin-sdk";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "../../../i18n";
-import { Panel, timeAgo } from "../../../ui";
 import { useOverviewData } from "../../../api";
 
 export default function RecentMailPanelWidget() {

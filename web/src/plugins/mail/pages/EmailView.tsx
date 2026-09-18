@@ -1,7 +1,7 @@
+import { Field, GlassCard, Badge, Button, toast, confirmDialog } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api } from "../../../api";
 import { mailApi, Attachment, Email } from "../api";
-import { Field, GlassCard, Badge, Button, toast, confirmDialog } from "../../../ui";
 import { Paperclip, Trash2, Reply, Download, X, Sparkles, ExternalLink, ShieldAlert, ArchiveRestore, Edit3 } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { ReplyDraft } from "./types";

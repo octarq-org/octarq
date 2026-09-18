@@ -1,8 +1,8 @@
+import { ScreenWrap, PageHeader, GlassCard, Button } from "@octarq/plugin-sdk";
 import { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Domain, effectiveMailHosts } from "../../../api";
 import { mailApi, Email, Mailbox } from "../api";
-import { ScreenWrap, PageHeader, GlassCard, Button } from "../../../ui";
 import { Inbox, Send, Plus } from "lucide-react";
 import { MailSettings } from "./MailSettings";
 import { SMTPSenders } from "./SMTPSenders";

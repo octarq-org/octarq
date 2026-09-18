@@ -1,7 +1,7 @@
+import { Field, Toggle, Button, Select, FormError, Input, Textarea } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api } from "../../../api";
 import { linksApi, Link } from "../api";
-import { Field, Toggle, Button, Select, FormError, Input, Textarea } from "../../../ui";
 import { Sparkles, Trash2, Plus } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 

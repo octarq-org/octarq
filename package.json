@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "Workspace root for the octarq monorepo. Publishable packages live under packages/*; the dashboard app lives in web/ and is built independently.",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@11.8.0",
   "scripts": {
     "changeset": "changeset",
     "version-packages": "changeset version",

@@ -1,8 +1,8 @@
+import { cn } from "@octarq/plugin-sdk";
 import React from "react";
 import { Bell } from "lucide-react";
 import { QueryClientContext } from "@tanstack/react-query";
 import { useTranslation } from "../../i18n";
-import { cn } from "../../ui";
 import { useUnreadNotificationsCountQuery } from "./api";
 import { useNotificationUIStore } from "./store";
 

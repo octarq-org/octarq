@@ -1,3 +1,4 @@
+import { Button, TableDensity } from "@octarq/plugin-sdk";
 import { ReactNode, useState } from "react";
 import {
   ChevronDown,
@@ -8,7 +9,6 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { Table, VisibilityState } from "@tanstack/react-table";
-import { Button, TableDensity } from "../../ui";
 import { useTranslation } from "../../i18n";
 import {
   ProColumn,

@@ -1,11 +1,11 @@
 {
   "name": "@octarq/plugin-sdk",
-  "version": "0.14.0",
+  "version": "0.15.1",
   "description": "Frontend plugin SDK for octarq: the UIPlugin contract, registry, and shared glass-themed UI components.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@11.8.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/octarq-org/octarq.git",

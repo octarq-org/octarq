@@ -1,23 +1,28 @@
-import { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
+import { cn } from "../cn";
 
 // Empty is the centered "nothing here yet" placeholder card. The optional slots
 // let a call site answer the three questions every empty state should: `reason`
 // (why it's empty), `detail` (a concrete fact or path, machine values in mono),
 // and `action` (the next-step control). All slots are optional — the base
 // `children` form keeps working unchanged.
-export function Empty({
-  children,
-  reason,
-  detail,
-  action,
-}: {
+export interface EmptyProps {
   children: ReactNode;
   reason?: ReactNode;
   detail?: ReactNode;
   action?: ReactNode;
-}) {
-  return (
-    <div className="glass flex flex-col items-center justify-center gap-2 rounded-lg py-10 text-foreground/45">
+  className?: string;
+}
+
+export const Empty = forwardRef<HTMLDivElement, EmptyProps>(
+  ({ children, reason, detail, action, className }, ref) => (
+    <div
+      ref={ref}
+      className={cn(
+        "glass flex flex-col items-center justify-center gap-2 rounded-lg py-10 text-foreground/45",
+        className,
+      )}
+    >
       {children}
       {reason && <p className="text-sm font-medium text-foreground/75">{reason}</p>}
       {detail && (
@@ -25,5 +30,6 @@ export function Empty({
       )}
       {action && <div className="mt-1">{action}</div>}
     </div>
-  );
-}
+  ),
+);
+Empty.displayName = "Empty";

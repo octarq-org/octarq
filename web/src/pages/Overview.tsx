@@ -1,10 +1,9 @@
+import { ExtensionSlot, ScreenWrap, PageHeader, GlassCard, Skeleton } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, fetchOverview, Overview } from "../api";
 import { useTranslation } from "../i18n";
-import { ExtensionSlot } from "../plugin-sdk";
-import { ScreenWrap, PageHeader, GlassCard, Skeleton } from "../ui";
-import { SetupStep, SetupChecklistProvider, useSetupChecklist } from "../components/SetupStep";
+import { SetupStep, SetupChecklistProvider, useSetupChecklist } from "../app-ui/SetupStep";
 import { Sparkles, X } from "lucide-react";
 import { HealthOverview } from "./dashboard/components/HealthOverview";
 

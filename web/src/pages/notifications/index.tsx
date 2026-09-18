@@ -1,8 +1,8 @@
+import { cn } from "@octarq/plugin-sdk";
 import React from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { Inbox, Sliders } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { cn } from "../../ui";
 import { InboxPage } from "./InboxPage";
 import { PreferencesPage } from "./PreferencesPage";
 

@@ -1,4 +1,4 @@
-import { GlassCard, PageHeader, cn, useTableDensity, useSetTableDensity } from "../../ui";
+import { GlassCard, PageHeader, cn, useTableDensity, useSetTableDensity } from "@octarq/plugin-sdk";
 import { LANGS, useTranslation, type Lang } from "../../i18n";
 import { setTheme, useTheme, type Theme } from "../../theme";
 

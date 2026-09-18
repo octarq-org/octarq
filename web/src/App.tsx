@@ -17,7 +17,7 @@ const InstanceConsole = lazy(() => import("./pages/instance/console"));
 // build, so this is null there and the dynamic import below is dead code — Rollup
 // emits no workbench chunk at all. A plain top-level import would ship it.
 const DevWorkbench = import.meta.env.DEV ? lazy(() => import("./dev/workbench")) : null;
-import { Modal, Button, toast, cn, Alert, RouteFallback, TableDensityProvider, TableDensity } from "./ui";
+import { Modal, Button, toast, cn, Alert, RouteFallback, TableDensityProvider, TableDensity } from "@octarq/plugin-sdk";
 import { useTranslation } from "./i18n";
 import { AreaId, useNavigation, clearCachedNav } from "./shell/areas";
 import { RoleProvider } from "./shell/role";

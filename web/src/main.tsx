@@ -14,7 +14,7 @@ import "#octarq-plugins";
 import App from "./App";
 import { I18nProvider } from "./i18n";
 import { BrandBridge } from "./brand";
-import { ToastProvider } from "./ui";
+import { ToastProvider } from "@octarq/plugin-sdk";
 import { ConfirmBridge } from "./ConfirmBridge";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";

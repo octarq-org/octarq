@@ -1,4 +1,5 @@
-import { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
+import { cn } from "../cn";
 import { useTranslation } from "../../i18n";
 import { Alert } from "./alert";
 import { Button } from "./button";
@@ -13,6 +14,7 @@ export interface TableErrorProps {
   error?: unknown;
   errorText?: ReactNode;
   onRetry?: () => void;
+  className?: string;
 }
 
 // Narrowed without `as any`: the error arrives from whatever the caller's data
@@ -30,43 +32,46 @@ function errorStatus(error: unknown): number {
   return 0;
 }
 
-export function TableError({ error, errorText, onRetry }: TableErrorProps) {
-  const { t } = useTranslation();
+export const TableError = forwardRef<HTMLDivElement, TableErrorProps>(
+  ({ error, errorText, onRetry, className }, ref) => {
+    const { t } = useTranslation();
 
-  if (errorStatus(error) === 402) {
+    if (errorStatus(error) === 402) {
+      return (
+        <div ref={ref} className={cn("p-6", className)}>
+          <LockedFeature status={402} feature={t("proTable.lockedFeature")} />
+        </div>
+      );
+    }
+
+    const errorMessage =
+      errorText ??
+      (error instanceof Error ? error.message : typeof error === "string" ? error : t("proTable.errorTitle"));
+
     return (
-      <div className="p-6">
-        <LockedFeature status={402} feature="pro_table" />
+      <div ref={ref} className={cn("p-6", className)}>
+        <Alert
+          variant="danger"
+          icon={<AlertCircleGlyph className="h-4 w-4" />}
+          actions={
+            onRetry && (
+              <Button size="sm" variant="outline" onClick={onRetry} className="gap-1.5">
+                <RotateGlyph className="h-3.5 w-3.5" />
+                <span>{t("proTable.retry")}</span>
+              </Button>
+            )
+          }
+        >
+          <div className="space-y-1">
+            <p className="font-semibold text-danger-fg">{t("proTable.errorTitle")}</p>
+            <p className="text-xs text-danger-fg/80">{String(errorMessage)}</p>
+          </div>
+        </Alert>
       </div>
     );
-  }
-
-  const errorMessage =
-    errorText ??
-    (error instanceof Error ? error.message : typeof error === "string" ? error : t("proTable.errorTitle"));
-
-  return (
-    <div className="p-6">
-      <Alert
-        variant="danger"
-        icon={<AlertCircleGlyph className="h-4 w-4" />}
-        actions={
-          onRetry && (
-            <Button size="sm" variant="outline" onClick={onRetry} className="gap-1.5">
-              <RotateGlyph className="h-3.5 w-3.5" />
-              <span>{t("proTable.retry")}</span>
-            </Button>
-          )
-        }
-      >
-        <div className="space-y-1">
-          <p className="font-semibold text-danger-fg">{t("proTable.errorTitle")}</p>
-          <p className="text-xs text-danger-fg/80">{String(errorMessage)}</p>
-        </div>
-      </Alert>
-    </div>
-  );
-}
+  },
+);
+TableError.displayName = "TableError";
 
 // Inline so the package stays free of an icon-library dependency.
 function AlertCircleGlyph({ className }: { className?: string }) {

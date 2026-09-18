@@ -4,7 +4,7 @@ import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/re
 import { api } from "../../api";
 import { I18nProvider } from "../../i18n";
 import { RoleProvider } from "../../shell/role";
-import * as ui from "../../ui";
+import * as ui from "@octarq/plugin-sdk";
 import { WebhooksSettings } from "./webhooks";
 
 function renderWebhooksSettings(role = "admin", isInstanceAdmin = false) {

@@ -1,6 +1,6 @@
+import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, AbuseReport } from "../api";
-import { timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast } from "../ui";
 import { useTranslation } from "../i18n";
 import { ListSkeleton } from "../components/ListSkeleton";
 

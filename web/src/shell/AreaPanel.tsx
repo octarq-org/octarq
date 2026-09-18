@@ -1,3 +1,4 @@
+import { cn } from "@octarq/plugin-sdk";
 import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Menu } from "@base-ui/react/menu";
@@ -6,7 +7,6 @@ import {
   HelpCircle, BookOpen, Info, MessageCircle, ExternalLink,
 } from "lucide-react";
 import { Org } from "../api";
-import { cn } from "../ui";
 import { useTranslation } from "../i18n";
 import { Area, NavItem } from "./areas";
 import {

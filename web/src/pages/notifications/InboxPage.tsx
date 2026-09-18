@@ -1,8 +1,8 @@
+import { Button, GlassCard, PageHeader, ScreenWrap, cn, timeAgo } from "@octarq/plugin-sdk";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCheck, RefreshCw, Settings2, Trash2, MailOpen } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { Button, GlassCard, PageHeader, ScreenWrap, cn, timeAgo } from "../../ui";
 import {
   useDeleteNotificationMutation,
   useMarkAllReadMutation,

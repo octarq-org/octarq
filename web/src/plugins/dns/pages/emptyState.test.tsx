@@ -7,8 +7,8 @@ import { I18nProvider } from "../../../i18n";
 // See links/pages/emptyState.test.tsx — same contract: the page's empty state
 // must render through the shared Empty primitive (tagged with a testid here),
 // never a handwritten copy.
-vi.mock("../../../ui", async (importOriginal) => {
-  const ui = await importOriginal<typeof import("../../../ui")>();
+vi.mock("@octarq/plugin-sdk", async (importOriginal) => {
+  const ui = await importOriginal<typeof import("@octarq/plugin-sdk")>();
   return {
     ...ui,
     Empty: (props: { children?: React.ReactNode; reason?: React.ReactNode; detail?: React.ReactNode; action?: React.ReactNode }) => (

@@ -1,4 +1,13 @@
-import { createContext, useContext, ReactNode, HTMLAttributes, TableHTMLAttributes, ThHTMLAttributes, TdHTMLAttributes } from "react";
+import {
+  createContext,
+  forwardRef,
+  useContext,
+  type HTMLAttributes,
+  type ReactNode,
+  type TableHTMLAttributes,
+  type TdHTMLAttributes,
+  type ThHTMLAttributes,
+} from "react";
 import { cn } from "../cn";
 
 // A small set of themed table primitives — native table elements carrying octarq's
@@ -8,6 +17,10 @@ import { cn } from "../cn";
 //     <THead><TR><TH>Name</TH></TR></THead>
 //     <TBody><TR><TD>…</TD></TR></TBody>
 //   </Table>
+//
+// Each forwards its ref to the DOM element it is named after (Table → <table>,
+// THead → <thead>, …). Table's horizontally-scrolling container is its parent
+// <div>, so scroll a table via `ref.current.parentElement`.
 
 export type TableDensity = "comfortable" | "compact";
 
@@ -44,30 +57,47 @@ export function useSetTableDensity(): (d: TableDensity) => void {
   return useContext(SetTableDensityContext);
 }
 
-export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElement>) {
-  return (
-    <div className="w-full overflow-x-auto">
-      <table className={cn("w-full border-collapse text-left text-sm", className)} {...props} />
-    </div>
-  );
-}
+export type TableProps = TableHTMLAttributes<HTMLTableElement>;
 
-export function THead({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
-  return <thead className={cn("text-foreground/50", className)} {...props} />;
-}
+export const Table = forwardRef<HTMLTableElement, TableProps>(({ className, ...props }, ref) => (
+  <div className="w-full overflow-x-auto">
+    <table ref={ref} className={cn("w-full border-collapse text-left text-sm", className)} {...props} />
+  </div>
+));
+Table.displayName = "Table";
 
-export function TBody({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
-  return <tbody className={cn("divide-y divide-foreground/[0.06]", className)} {...props} />;
-}
+export type THeadProps = HTMLAttributes<HTMLTableSectionElement>;
 
-export function TR({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn("transition-colors hover:bg-foreground/[0.03]", className)} {...props} />;
-}
+export const THead = forwardRef<HTMLTableSectionElement, THeadProps>(({ className, ...props }, ref) => (
+  <thead ref={ref} className={cn("text-foreground/50", className)} {...props} />
+));
+THead.displayName = "THead";
 
-export function TH({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
+export type TBodyProps = HTMLAttributes<HTMLTableSectionElement>;
+
+export const TBody = forwardRef<HTMLTableSectionElement, TBodyProps>(({ className, ...props }, ref) => (
+  <tbody ref={ref} className={cn("divide-y divide-foreground/[0.06]", className)} {...props} />
+));
+TBody.displayName = "TBody";
+
+export type TRProps = HTMLAttributes<HTMLTableRowElement>;
+
+export const TR = forwardRef<HTMLTableRowElement, TRProps>(({ className, ...props }, ref) => (
+  <tr
+    ref={ref}
+    className={cn("transition-colors hover:bg-foreground/[0.03]", className)}
+    {...props}
+  />
+));
+TR.displayName = "TR";
+
+export type THProps = ThHTMLAttributes<HTMLTableCellElement>;
+
+export const TH = forwardRef<HTMLTableCellElement, THProps>(({ className, ...props }, ref) => {
   const density = useTableDensity();
   return (
     <th
+      ref={ref}
       className={cn(
         "whitespace-nowrap px-3 text-[12px] font-medium uppercase tracking-wide",
         density === "compact" ? "py-1" : "py-2",
@@ -76,12 +106,16 @@ export function TH({ className, ...props }: ThHTMLAttributes<HTMLTableCellElemen
       {...props}
     />
   );
-}
+});
+TH.displayName = "TH";
 
-export function TD({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
+export type TDProps = TdHTMLAttributes<HTMLTableCellElement>;
+
+export const TD = forwardRef<HTMLTableCellElement, TDProps>(({ className, ...props }, ref) => {
   const density = useTableDensity();
   return (
     <td
+      ref={ref}
       className={cn(
         "px-3 text-foreground/80",
         // Tightened from py-2.5 for the denser look, but NOT down to py-1.5:
@@ -95,4 +129,5 @@ export function TD({ className, ...props }: TdHTMLAttributes<HTMLTableCellElemen
       {...props}
     />
   );
-}
+});
+TD.displayName = "TD";

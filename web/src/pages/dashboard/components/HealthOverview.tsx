@@ -1,3 +1,4 @@
+import { GlassCard, Badge, Button, Alert, Skeleton } from "@octarq/plugin-sdk";
 import { useMemo } from "react";
 import {
   Activity,
@@ -11,7 +12,6 @@ import {
   Wrench,
 } from "lucide-react";
 import { useTranslation } from "../../../i18n";
-import { GlassCard, Badge, Button, Alert, Skeleton } from "../../../ui";
 import { useHealthQuery } from "../api";
 import {
   formatBytes,

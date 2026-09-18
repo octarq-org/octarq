@@ -8,8 +8,8 @@ import { I18nProvider } from "../../../i18n";
 // a handwritten copy. Mock Empty at the barrel the page imports from, tagging
 // it with a testid; if the page ever regresses to a hand-rolled div, this
 // marker disappears and the test goes red.
-vi.mock("../../../ui", async (importOriginal) => {
-  const ui = await importOriginal<typeof import("../../../ui")>();
+vi.mock("@octarq/plugin-sdk", async (importOriginal) => {
+  const ui = await importOriginal<typeof import("@octarq/plugin-sdk")>();
   return {
     ...ui,
     Empty: (props: { children?: React.ReactNode; reason?: React.ReactNode; detail?: React.ReactNode; action?: React.ReactNode }) => (

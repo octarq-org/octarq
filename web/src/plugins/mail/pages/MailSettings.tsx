@@ -1,6 +1,6 @@
+import { Field, Toggle, Button, toast } from "@octarq/plugin-sdk";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../../api";
-import { Field, Toggle, Button, toast } from "../../../ui";
 import { useTranslation } from "../../../i18n";
 import { useSettingsData } from "../../../pages/settings/shared";
 

@@ -1,4 +1,5 @@
-import { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
+import { cn } from "../cn";
 import { useTranslation } from "../../i18n";
 import { Empty } from "./empty";
 
@@ -11,23 +12,27 @@ export interface TableEmptyProps {
   emptyReason?: ReactNode;
   action?: ReactNode;
   icon?: ReactNode;
+  className?: string;
 }
 
-export function TableEmpty({ emptyText, emptyReason, action, icon }: TableEmptyProps) {
-  const { t } = useTranslation();
+export const TableEmpty = forwardRef<HTMLDivElement, TableEmptyProps>(
+  ({ emptyText, emptyReason, action, icon, className }, ref) => {
+    const { t } = useTranslation();
 
-  return (
-    <div className="py-12">
-      <Empty
-        reason={emptyText ?? t("proTable.empty")}
-        detail={emptyReason ?? t("proTable.emptyReason")}
-        action={action}
-      >
-        {icon ?? <InboxGlyph />}
-      </Empty>
-    </div>
-  );
-}
+    return (
+      <div ref={ref} className={cn("py-12", className)}>
+        <Empty
+          reason={emptyText ?? t("proTable.empty")}
+          detail={emptyReason ?? t("proTable.emptyReason")}
+          action={action}
+        >
+          {icon ?? <InboxGlyph />}
+        </Empty>
+      </div>
+    );
+  },
+);
+TableEmpty.displayName = "TableEmpty";
 
 // Inline so the package stays free of an icon-library dependency — same reason
 // LockedFeature draws its own key glyph.

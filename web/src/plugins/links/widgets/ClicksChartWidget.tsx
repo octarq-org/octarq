@@ -1,5 +1,6 @@
+import { GlassCard } from "@octarq/plugin-sdk";
+import { AreaChart } from "../../../app-ui";
 import { useTranslation } from "../../../i18n";
-import { AreaChart, GlassCard } from "../../../ui";
 import { useOverviewData, StatKV } from "../../../api";
 import { useIncludeBot } from "../store";
 import { BotToggle } from "../components/BotToggle";

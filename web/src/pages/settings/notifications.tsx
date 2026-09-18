@@ -1,10 +1,9 @@
+import { PageHeader, GlassCard, Button, Field, Toggle, Modal, toast, confirmDialog, ExtensionSlot, NotificationChannelFormContext } from "@octarq/plugin-sdk";
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, NotificationChannelType, NotificationChannel } from "../../api";
-import { PageHeader, GlassCard, Button, Field, Toggle, Modal, toast, confirmDialog } from "../../ui";
 import { Bell, ChevronDown, Plus, Trash2, Send, Pencil, Sliders } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { ExtensionSlot, NotificationChannelFormContext } from "../../plugin-sdk";
 import { roleSatisfies, useCurrentRole } from "../../shell/role";
 
 // ---------------------------------------------------------------------------

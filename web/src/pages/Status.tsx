@@ -1,3 +1,4 @@
+import { Badge } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { CheckCircle2, AlertTriangle, XCircle, MinusCircle, RefreshCw, Sun, Moon } from "lucide-react";
 import { api, SubsystemStatusResponse } from "../api";
@@ -5,7 +6,6 @@ import { BrandMark } from "../shell/BrandMark";
 import { useI18n } from "../i18n";
 import { useTheme, toggleTheme } from "../theme";
 
-import { Badge } from "../ui";
 
 export default function StatusPage() {
   const { lang, setLang, t } = useI18n();

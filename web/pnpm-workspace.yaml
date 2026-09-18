@@ -7,3 +7,17 @@ packages:
   # The example plugin, packaged so the OSS default build composes it by name
   # through the plugin manifest (web/octarq.plugins.json).
   - "../server/examples/plugin-hello/web"
+# Skip pnpm 11's pre-run dependency verification (mirrors octarq-pro).
+verifyDepsBeforeRun: false
+# pnpm 10+ treats an ignored build script as the fatal ERR_PNPM_IGNORED_BUILDS
+# rather than a warning, so esbuild's postinstall must be explicitly approved.
+onlyBuiltDependencies:
+  - esbuild
+allowBuilds:
+  esbuild: true
+# Exempt first-party @octarq packages from the minimum-release-age
+# supply-chain gate: freshly-published community plugins would otherwise fail
+# install. Name glob (mirrors octarq-pro) — a versioned `pkg@x.y.z` entry
+# never matches, so list the scope, not versions.
+minimumReleaseAgeExclude:
+  - '@octarq/*'
