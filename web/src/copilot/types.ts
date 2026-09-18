@@ -26,6 +26,14 @@ export interface ActionDiff {
   approvedAt?: string;
   approver?: string;
   rejectReason?: string;
+  /**
+   * Backend CAS binding: the `agent_approvals` row this card represents.
+   * Present only for cards materialized from `/api/ai/approvals`; decisions
+   * must go through the atomic approve/reject endpoints, never local state.
+   */
+  approvalId?: string;
+  /** Anti-replay token echoed back on approve/reject. Never logged. */
+  approvalToken?: string;
 }
 
 export interface ChatMessage {

@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
 import React from "react";
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { ActionDiffCard } from "./ActionDiffCard";
 import type { ActionDiff } from "./types";
+import { useCopilotStore } from "./store";
 import { I18nProvider } from "../i18n";
 
 const mockAction: ActionDiff = {
@@ -28,8 +29,14 @@ function renderWithI18n(ui: React.ReactElement) {
 }
 
 describe("ActionDiffCard", () => {
+  beforeEach(() => {
+    useCopilotStore.getState().resetCopilot();
+    useCopilotStore.getState().addActionDiff(mockAction);
+  });
+
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
   });
   it("renders agent identity, title, target resource, and risk badge", () => {
     renderWithI18n(<ActionDiffCard action={mockAction} />);
@@ -98,5 +105,68 @@ describe("ActionDiffCard", () => {
 
     expect(screen.queryByTitle("Approve")).toBeNull();
     expect(screen.getAllByText("Rejected").length).toBeGreaterThan(0);
+  });
+
+  it("approves a backend-bound card through the atomic CAS endpoint", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "approved", approver: "Operator" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const bound: ActionDiff = { ...mockAction, approvalId: "42", approvalToken: "tok-1" };
+    useCopilotStore.getState().setApprovals([bound]);
+    renderWithI18n(<ActionDiffCard action={bound} />);
+
+    fireEvent.click(screen.getByTitle("Approve"));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/ai/approvals/42/approve",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    const target = useCopilotStore.getState().pendingApprovals.find((a) => a.id === "test-act-1");
+    expect(target?.status).toBe("approved");
+  });
+
+  it("syncs to expired when the backend reports a CAS conflict (409)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, status: 409, text: async () => "" })),
+    );
+
+    const bound: ActionDiff = { ...mockAction, approvalId: "42", approvalToken: "tok-1" };
+    useCopilotStore.getState().setApprovals([bound]);
+    renderWithI18n(<ActionDiffCard action={bound} />);
+
+    fireEvent.click(screen.getByTitle("Approve"));
+
+    await waitFor(() => {
+      const target = useCopilotStore.getState().pendingApprovals.find((a) => a.id === "test-act-1");
+      expect(target?.status).toBe("expired");
+    });
+  });
+
+  it("keeps the card pending and shows the error when the CAS call fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network offline");
+      }),
+    );
+
+    const bound: ActionDiff = { ...mockAction, approvalId: "42", approvalToken: "tok-1" };
+    useCopilotStore.getState().setApprovals([bound]);
+    renderWithI18n(<ActionDiffCard action={bound} />);
+
+    fireEvent.click(screen.getByTitle("Approve"));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeDefined();
+    });
+    const target = useCopilotStore.getState().pendingApprovals.find((a) => a.id === "test-act-1");
+    expect(target?.status).toBe("pending");
   });
 });

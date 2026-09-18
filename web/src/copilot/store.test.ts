@@ -4,8 +4,31 @@ import type { ActionDiff } from "./types";
 
 describe("useCopilotStore", () => {
   beforeEach(() => {
-    useCopilotStore.getState().resetToSample();
-    useCopilotStore.getState().closeCopilot();
+    const s = useCopilotStore.getState();
+    s.resetCopilot();
+    s.closeCopilot();
+    s.addActionDiff({
+      id: "act-dns-001",
+      agent: "Claude Code (MCP)",
+      action: "delete_dns_record",
+      title: "删除 DNS 解析记录",
+      target: "api.octarq.org",
+      riskLevel: "destructive",
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      diff: [],
+    });
+    s.addActionDiff({
+      id: "act-link-002",
+      agent: "Octarq Copilot",
+      action: "update_redirect_target",
+      title: "修改关键跳转目标",
+      target: "短链: /black-friday",
+      riskLevel: "write",
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      diff: [],
+    });
   });
 
   it("handles drawer open, close, and toggle state", () => {
@@ -74,6 +97,40 @@ describe("useCopilotStore", () => {
     expect(target).toBeDefined();
     expect(target?.status).toBe("rejected");
     expect(target?.rejectReason).toBe("Risk too high");
+  });
+
+  it("starts with an empty approval queue (no seeded mock data)", () => {
+    useCopilotStore.getState().resetCopilot();
+    expect(useCopilotStore.getState().pendingApprovals).toHaveLength(0);
+  });
+
+  it("replaces the queue when backend approvals arrive", () => {
+    useCopilotStore.getState().setApprovals([
+      {
+        id: "approval-7",
+        agent: "AI Agent",
+        action: "delete_dns_record",
+        title: "删除 DNS 解析记录",
+        target: "api.octarq.org",
+        riskLevel: "destructive",
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        diff: [],
+      },
+    ]);
+    const approvals = useCopilotStore.getState().pendingApprovals;
+    expect(approvals).toHaveLength(1);
+    expect(approvals[0].id).toBe("approval-7");
+    expect(useCopilotStore.getState().approvalsError).toBeNull();
+  });
+
+  it("syncs a conflicted approval to expired without optimistic approve", () => {
+    useCopilotStore.getState().syncApprovalStatus("act-dns-001", "expired", {
+      rejectReason: "已被他人处理，本地状态已同步",
+    });
+    const target = useCopilotStore.getState().pendingApprovals.find((a) => a.id === "act-dns-001");
+    expect(target?.status).toBe("expired");
+    expect(target?.rejectReason).toBe("已被他人处理，本地状态已同步");
   });
 
   it("adds new action diff without duplicates", () => {

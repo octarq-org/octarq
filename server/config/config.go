@@ -4,7 +4,6 @@ package config
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"strings"
@@ -218,72 +217,10 @@ func loadDotEnv(path string) error {
 }
 
 // Load reads configuration from the environment, applying sane defaults.
+// It resolves through the layered registry (defaults < .env < environment)
+// so every entry point shares one precedence order and one validation path.
 func Load() (*Config, error) {
-	if err := loadDotEnv(".env"); err != nil {
-		return nil, fmt.Errorf("loading .env: %w", err)
-	}
-	c := &Config{
-		Listen:        env("OCTARQ_LISTEN", ":8080"),
-		DBDriver:      env("OCTARQ_DB_DRIVER", "sqlite"),
-		DBDSN:         env("OCTARQ_DB_DSN", "octarq.db"),
-		SecretKey:     env("OCTARQ_SECRET_KEY", ""),
-		AdminUser:     env("OCTARQ_ADMIN_USER", "admin"),
-		AdminPassword: env("OCTARQ_ADMIN_PASSWORD", ""),
-		StorageDir:    env("OCTARQ_STORAGE_DIR", "./data/storage"),
-
-		TrustProxy: strings.EqualFold(strings.TrimSpace(env("OCTARQ_TRUST_PROXY", "")), "true") || strings.TrimSpace(env("OCTARQ_TRUST_PROXY", "")) == "1",
-
-		AllowPrivateWebhooks: strings.EqualFold(strings.TrimSpace(env("OCTARQ_ALLOW_PRIVATE_WEBHOOKS", "")), "true") || strings.TrimSpace(env("OCTARQ_ALLOW_PRIVATE_WEBHOOKS", "")) == "1",
-
-		AllowPrivateSMTP: strings.EqualFold(strings.TrimSpace(env("OCTARQ_ALLOW_PRIVATE_SMTP", "")), "true") || strings.TrimSpace(env("OCTARQ_ALLOW_PRIVATE_SMTP", "")) == "1",
-
-		GeoIPDB:  env("OCTARQ_GEOIP_DB", ""),
-		RedisURL: env("OCTARQ_REDIS_URL", ""),
-
-		PublicCORSOrigins: env("OCTARQ_CORS_ORIGINS", ""),
-
-		DevWebProxy: env("OCTARQ_DEV_WEB_PROXY", ""),
-
-		LogLevel: normalizeLogLevel(env("OCTARQ_LOG_LEVEL", "info")),
-
-		OTelEnabled:         strings.EqualFold(strings.TrimSpace(env("OCTARQ_OTEL_ENABLED", "")), "true") || strings.TrimSpace(env("OCTARQ_OTEL_ENABLED", "")) == "1",
-		OTelEndpoint:        env("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
-		OTelServiceName:     env("OTEL_SERVICE_NAME", DefaultAppName),
-		OTelTracesExporter:  env("OTEL_TRACES_EXPORTER", "otlp"),
-		OTelMetricsExporter: env("OTEL_METRICS_EXPORTER", "prometheus"),
-		OTelSampler:         env("OTEL_TRACES_SAMPLER", "parentbased_always_on"),
-		OTelInsecure:        strings.EqualFold(strings.TrimSpace(env("OTEL_EXPORTER_OTLP_INSECURE", "")), "true") || strings.TrimSpace(env("OTEL_EXPORTER_OTLP_INSECURE", "")) == "1",
-		OTelHeaders:         env("OTEL_EXPORTER_OTLP_HEADERS", ""),
-	}
-	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" && c.DBDriver != "mysql" {
-		return nil, fmt.Errorf("OCTARQ_DB_DRIVER must be sqlite, postgres, or mysql, got %q", c.DBDriver)
-	}
-	if c.LogLevel != "info" && !validLogLevels[c.LogLevel] {
-		return nil, fmt.Errorf("OCTARQ_LOG_LEVEL must be debug, info, warn or error, got %q", c.LogLevel)
-	}
-	// Zero-config boot: when the secret key and/or admin password are absent,
-	// generate and persist them next to the database so `docker run` needs no
-	// .env. Env-supplied values still win and are never written to disk.
-	if err := c.ensureAutoSecrets(); err != nil {
-		return nil, err
-	}
-	if c.SecretKey == "" {
-		return nil, fmt.Errorf("OCTARQ_SECRET_KEY is required (used for sessions and credential encryption)")
-	}
-
-	if c.AdminPassword == "" {
-		return nil, fmt.Errorf("OCTARQ_ADMIN_PASSWORD is required")
-	}
-	// A weak secret key undermines both credential encryption and cookie
-	// integrity. Hard-fail on a provisioned deployment; warn otherwise so the
-	// documented local dev key (OCTARQ_SECRET_KEY=dev) keeps working.
-	if len(c.SecretKey) < MinSecretKeyLen {
-		if c.Provisioned() {
-			return nil, fmt.Errorf("OCTARQ_SECRET_KEY must be at least %d bytes when octarq is pointed at provisioned infrastructure (%s)", MinSecretKeyLen, c.provisionedBecause())
-		}
-		log.Printf("WARNING: OCTARQ_SECRET_KEY is only %d bytes; use at least %d bytes (e.g. `openssl rand -hex 32`) before production", len(c.SecretKey), MinSecretKeyLen)
-	}
-	return c, nil
+	return LoadWithOptions(LoadOptions{DotEnvPath: ".env"})
 }
 
 // Provisioned reports whether this instance is pointed at infrastructure

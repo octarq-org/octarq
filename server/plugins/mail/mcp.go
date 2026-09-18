@@ -77,6 +77,7 @@ type emailSummaryOut struct {
 	Summary    string    `json:"summary"`
 	Category   string    `json:"category"`
 	OTP        string    `json:"otp,omitempty"`
+	Guard      string    `json:"guard"`
 	ReceivedAt time.Time `json:"received_at"`
 }
 
@@ -93,6 +94,7 @@ type emailContentOut struct {
 	Subject    string    `json:"subject"`
 	Text       string    `json:"text"`
 	Truncated  bool      `json:"truncated"`
+	Guard      string    `json:"guard"`
 	ReceivedAt time.Time `json:"received_at"`
 }
 
@@ -277,6 +279,7 @@ func (p *Plugin) mcpGetEmailSummary(ctx context.Context, _ *mcp.CallToolRequest,
 		body = stripHTML(email.HTML)
 	}
 	summary, category := GenerateEmailSummary(email.Subject, body, otp)
+	wrappedSummary, _ := SanitizeAgentBody(summary)
 
 	return jsonResult(emailSummaryOut{
 		ID:         email.ID,
@@ -284,9 +287,10 @@ func (p *Plugin) mcpGetEmailSummary(ctx context.Context, _ *mcp.CallToolRequest,
 		From:       email.FromAddr,
 		To:         email.ToAddr,
 		Subject:    email.Subject,
-		Summary:    summary,
+		Summary:    wrappedSummary,
 		Category:   category,
 		OTP:        otp,
+		Guard:      AgentBodyGuard,
 		ReceivedAt: email.ReceivedAt,
 	})
 }
@@ -310,7 +314,7 @@ func (p *Plugin) mcpGetEmailContent(ctx context.Context, _ *mcp.CallToolRequest,
 		body = stripHTML(email.HTML)
 	}
 
-	sanitizedText, truncated := SanitizeEmailContent(body)
+	sanitizedText, truncated := SanitizeAgentBody(body)
 
 	return jsonResult(emailContentOut{
 		ID:         email.ID,
@@ -320,6 +324,7 @@ func (p *Plugin) mcpGetEmailContent(ctx context.Context, _ *mcp.CallToolRequest,
 		Subject:    email.Subject,
 		Text:       sanitizedText,
 		Truncated:  truncated,
+		Guard:      AgentBodyGuard,
 		ReceivedAt: email.ReceivedAt,
 	})
 }

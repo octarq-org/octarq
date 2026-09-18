@@ -18,11 +18,12 @@ import {
 } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { useCopilotStore } from "./store";
-import { useAIStatusQuery, streamAIChat } from "./api";
+import { AIStreamError, fetchApprovals, useAIStatusQuery, streamAIChat } from "./api";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { ActionDiffCard } from "./ActionDiffCard";
-import type { ChatMessage, AIStatus } from "./types";
+import type { ActionDiff, ChatMessage, AIStatus } from "./types";
 import { QueryClientContext } from "@tanstack/react-query";
+import { LockedFeature } from "@octarq/plugin-sdk";
 
 function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
   const { t } = useTranslation();
@@ -41,6 +42,9 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
     clearMessages,
     pendingApprovals,
     addActionDiff,
+    setApprovals,
+    approvalsError,
+    setApprovalsError,
   } = useCopilotStore();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -49,8 +53,37 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
 
   const [thinkingExpanded, setThinkingExpanded] = useState<Record<string, boolean>>({});
   const [approvalsFilter, setApprovalsFilter] = useState<"all" | "pending" | "resolved">("all");
+  const [streamLocked, setStreamLocked] = useState(false);
+  const [approvalsLoading, setApprovalsLoading] = useState(false);
 
   const pendingCount = pendingApprovals.filter((a) => a.status === "pending").length;
+  const aiUnconfigured = aiStatus != null && !aiStatus.configured;
+
+  // Approvals are the backend agent_approvals truth — loaded on tab open,
+  // never seeded locally. Fail-Closed: fetch failures surface as an error
+  // state (or the 402 upsell), never as placeholder cards.
+  const refreshApprovals = async () => {
+    setApprovalsLoading(true);
+    try {
+      const rows = await fetchApprovals();
+      setApprovals(rows);
+    } catch (err) {
+      if (err instanceof AIStreamError && err.code === "locked") {
+        setApprovalsError("locked");
+      } else {
+        setApprovalsError(err instanceof Error ? err.message : "load failed");
+      }
+    } finally {
+      setApprovalsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && activeTab === "approvals") {
+      void refreshApprovals();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, activeTab]);
 
   // Auto-scroll to bottom when messages update
   useEffect(() => {
@@ -129,16 +162,19 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
         }));
       },
       onToolCall: (toolCall) => {
-        if (toolCall.args?.actionDiff) {
-          const diff = toolCall.args.actionDiff as any;
-          addActionDiff(diff);
+        const raw = toolCall.args?.actionDiff as ActionDiff | undefined;
+        if (raw && typeof raw.approvalId === "string" && raw.approvalId) {
+          addActionDiff(raw);
           updateLastMessage((prev) => ({
             ...prev,
-            actionDiffs: [...(prev.actionDiffs || []), diff],
+            actionDiffs: [...(prev.actionDiffs || []), raw],
           }));
         }
       },
       onError: (err) => {
+        if (err instanceof AIStreamError && err.code === "locked") {
+          setStreamLocked(true);
+        }
         updateLastMessage((prev) => ({
           ...prev,
           content: prev.content
@@ -226,7 +262,7 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-full bg-warning-fg/10 px-2 py-0.5 text-[10px] font-semibold text-warning-fg">
                     <span className="h-1.5 w-1.5 rounded-full bg-warning-fg" />
-                    <span>{t("copilot.demoMode", "本地模式")}</span>
+                    <span>{t("copilot.unconfigured", "未配置")}</span>
                   </span>
                 )}
               </div>
@@ -302,6 +338,28 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
           <div className="flex flex-1 flex-col overflow-hidden">
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {aiUnconfigured && (
+                <div
+                  role="alert"
+                  data-testid="copilot-unconfigured-card"
+                  className="rounded-2xl border border-warning-fg/30 bg-warning-fg/10 p-3.5 text-xs leading-relaxed"
+                >
+                  <div className="font-bold text-warning-fg">
+                    {t("copilot.unconfiguredTitle", "未配置 LLM，请前往设置")}
+                  </div>
+                  <div className="mt-1 text-muted-foreground">
+                    {t(
+                      "copilot.unconfiguredDesc",
+                      "在「Inbox AI → Configure」中添加 LLM 提供商后即可开始对话。配置缺失时不会生成任何模拟回复。",
+                    )}
+                  </div>
+                </div>
+              )}
+              {streamLocked && (
+                <div data-testid="copilot-locked-feature">
+                  <LockedFeature status={402} feature="AI Copilot" />
+                </div>
+              )}
               {messages.length === 0 ? (
                 /* Welcome & Preset Prompts */
                 <div className="my-auto py-6 space-y-6">
@@ -346,9 +404,9 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
                       />
                       <PresetPromptCard
                         icon={<FileCheck className="h-4 w-4 text-accent-fg" />}
-                        title={t("copilot.promptDiff", "模拟生成高危操作审批卡片")}
-                        desc={t("copilot.promptDiffDesc", "体验智能体发起破坏性变更的可视化审批流")}
-                        onClick={() => handleSendMessage(t("copilot.promptDiff", "模拟生成高危操作审批卡片"))}
+                        title={t("copilot.promptApprovals", "检查待处理的审批操作")}
+                        desc={t("copilot.promptApprovalsDesc", "打开待审队列，核对智能体发起的高危变更")}
+                        onClick={() => setActiveTab("approvals")}
                       />
                     </div>
                   </div>
@@ -536,7 +594,25 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
 
             {/* Approvals List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
-              {filteredApprovals.length === 0 ? (
+              {approvalsError === "locked" && filteredApprovals.length === 0 ? (
+                <div data-testid="copilot-approvals-locked">
+                  <LockedFeature status={402} feature="Agent Approvals" />
+                </div>
+              ) : approvalsError && filteredApprovals.length === 0 ? (
+                <div role="alert" className="py-6 text-center space-y-2">
+                  <p className="text-sm font-medium text-danger-fg">
+                    {t("copilot.approvalsLoadFailed", "待审队列加载失败")}
+                  </p>
+                  <p className="text-xs text-muted-foreground max-w-xs mx-auto break-words">{approvalsError}</p>
+                  <Button variant="subtle" size="sm" onClick={() => void refreshApprovals()}>
+                    {t("copilot.retry", "重试")}
+                  </Button>
+                </div>
+              ) : approvalsLoading && filteredApprovals.length === 0 ? (
+                <div className="py-12 text-center">
+                  <p className="text-xs text-muted-foreground">{t("copilot.approvalsLoading", "正在加载待审队列…")}</p>
+                </div>
+              ) : filteredApprovals.length === 0 ? (
                 <div className="py-12 text-center space-y-2">
                   <ShieldAlert className="mx-auto h-8 w-8 text-muted-foreground/60" />
                   <p className="text-sm font-medium text-foreground">
