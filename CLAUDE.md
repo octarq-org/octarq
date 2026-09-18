@@ -5,9 +5,9 @@ Conventions for how changes are made here. Core open-source library and single-b
 ## Toolchain
 
 - **Go 1.25**, standard-library `http.ServeMux`. Backend is pure-Go (no cgo).
-- **Frontend (`web/`)**: Vite + React + TS + Tailwind. Package manager is **pnpm 9** (`packageManager: pnpm@9.15.4` in `web/`).
+- **Frontend (`web/`)**: Vite + React + TS + Tailwind. Package manager is **pnpm 11** (`packageManager: pnpm@11.8.0` in `web/`).
 - **Never use npm.** Use pnpm.
-- **Do NOT bump to pnpm 10/11 here.** They treat esbuild's build script as a fatal `ERR_PNPM_IGNORED_BUILDS` and break CI.
+- pnpm 10+ treats esbuild's build script as a fatal `ERR_PNPM_IGNORED_BUILDS` unless approved: `web/pnpm-workspace.yaml` sets `allowBuilds: {esbuild: true}` + `onlyBuiltDependencies: [esbuild]` (and `verifyDepsBeforeRun: false`, mirroring octarq-pro). Keep that list minimal if new postinstall deps appear.
 
 ## Running & Dev Servers
 
