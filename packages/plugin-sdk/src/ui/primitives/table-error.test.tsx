@@ -8,6 +8,7 @@ const resources = {
     proTable: {
       errorTitle: "Failed to load data",
       retry: "Retry",
+      lockedFeature: "Data tables",
     },
     uiCommon: {
       lockedIntroPre: "This is a ",
@@ -31,7 +32,7 @@ describe("TableError", () => {
   it("renders the 402 upsell mask for a licensed-feature error", () => {
     renderWithI18n(<TableError error={{ status: 402 }} />);
     expect(screen.getByText(/This is a/i)).toBeTruthy();
-    expect(screen.getByText(/pro_table/i)).toBeTruthy();
+    expect(screen.getByText(/Data tables/i)).toBeTruthy();
   });
 
   it("renders the error message", () => {
@@ -55,7 +56,7 @@ describe("TableError", () => {
 
   it("reads status from an axios-style nested response", () => {
     renderWithI18n(<TableError error={{ response: { status: 402 } }} />);
-    expect(screen.getByText(/pro_table/i)).toBeTruthy();
+    expect(screen.getByText(/Data tables/i)).toBeTruthy();
   });
 
   it("falls back to the localized title when a non-Error is rejected", () => {
