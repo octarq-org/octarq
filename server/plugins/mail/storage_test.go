@@ -74,9 +74,13 @@ func TestDefaultStorageBehavior(t *testing.T) {
 
 	reg := plugin.NewRegistry()
 	pctx := &plugin.Context{
-		DB:      db,
-		Huma:    humaAPI,
-		OrgID:   func(r *http.Request) uint { return 1 },
+		DB:   db,
+		Huma: humaAPI,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				OrgIDFn: func(r *http.Request) uint { return 1 },
+			},
+		},
 		Provide: reg.Provide,
 		Lookup:  reg.Lookup,
 	}
@@ -179,9 +183,13 @@ func TestCoexistenceRead(t *testing.T) {
 	reg.Provide(plugin.ServiceMailStorageProvider, plugin.StorageProvider(memStorage))
 
 	pctx := &plugin.Context{
-		DB:      db,
-		Huma:    humaAPI,
-		OrgID:   func(r *http.Request) uint { return 1 },
+		DB:   db,
+		Huma: humaAPI,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				OrgIDFn: func(r *http.Request) uint { return 1 },
+			},
+		},
 		Provide: reg.Provide,
 		Lookup:  reg.Lookup,
 	}
@@ -225,11 +233,15 @@ func TestOSSRejectsProProvider(t *testing.T) {
 		DB:      db,
 		Provide: reg.Provide,
 		Lookup:  reg.Lookup,
-		GetGlobalSetting: func(key string) string {
-			if key == "mail_storage_backend" {
-				return "s3"
-			}
-			return ""
+		Host: &plugin.TestHost{
+			SettingsMock: &plugin.TestSettings{
+				GetGlobalSettingFn: func(key string) string {
+					if key == "mail_storage_backend" {
+						return "s3"
+					}
+					return ""
+				},
+			},
 		},
 	}
 	p.Mount(http.NewServeMux(), pctx)
@@ -260,9 +272,13 @@ func TestStorageUsageMetering(t *testing.T) {
 
 	reg := plugin.NewRegistry()
 	pctx := &plugin.Context{
-		DB:    db,
-		Huma:  humaAPI,
-		OrgID: func(r *http.Request) uint { return 1 },
+		DB:   db,
+		Huma: humaAPI,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				OrgIDFn: func(r *http.Request) uint { return 1 },
+			},
+		},
 		RecordUsage: func(orgID uint, metric string, n int64) {
 			calls = append(calls, struct {
 				orgID  uint

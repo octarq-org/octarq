@@ -56,7 +56,7 @@ func TestHasPermFailClosedWhenNil(t *testing.T) {
 		t.Fatal("expected nil Context.HasPerm to return false, got true")
 	}
 
-	unwiredCtx := &plugin.Context{RequirePerm: nil}
+	unwiredCtx := &plugin.Context{Host: nil}
 	if unwiredCtx.HasPerm(req, "dns.records.delete", "admin") {
 		t.Fatal("expected unwired Context.HasPerm to return false, got true")
 	}

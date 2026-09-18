@@ -32,34 +32,38 @@ import (
 func mountCoreDNS(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypto.Cipher) {
 	reg := plugin.NewRegistry()
 	dns.New().Mount(nil, &plugin.Context{
-		Huma:        h.Huma(),
-		DB:          db,
-		OrgID:       authMgr.OrgID,
-		Audit:       h.Audit,
-		Encrypt:     cipher.Encrypt,
-		Decrypt:     cipher.Decrypt,
-		Provide:     reg.Provide,
-		Lookup:      reg.Lookup,
-		RequireRole: func(*http.Request, string) bool { return true },
-		RequirePerm: func(*http.Request, string, string) bool { return true },
+		Huma:    h.Huma(),
+		DB:      db,
+		Audit:   h.Audit,
+		Provide: reg.Provide,
+		Lookup:  reg.Lookup,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				OrgIDFn: authMgr.OrgID,
+			},
+			CryptoMock: cipher,
+		},
 	})
 }
 
 func mountCoreMail(h *Handler, db *gorm.DB, authMgr *auth.Manager, cipher *crypto.Cipher) {
 	reg := plugin.NewRegistry()
 	mail.New().Mount(nil, &plugin.Context{
-		Huma:                h.Huma(),
-		DB:                  db,
-		OrgID:               authMgr.OrgID,
-		Audit:               h.Audit,
-		Encrypt:             cipher.Encrypt,
-		Decrypt:             cipher.Decrypt,
-		GetWorkspaceSetting: h.GetWorkspaceSetting,
-		GetGlobalSetting:    h.GetGlobalSetting,
-		Provide:             reg.Provide,
-		Lookup:              reg.Lookup,
-		RequireRole:         func(*http.Request, string) bool { return true },
-		RequirePerm:         func(*http.Request, string, string) bool { return true },
+		Huma:    h.Huma(),
+		DB:      db,
+		Audit:   h.Audit,
+		Provide: reg.Provide,
+		Lookup:  reg.Lookup,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				OrgIDFn: authMgr.OrgID,
+			},
+			CryptoMock: cipher,
+			SettingsMock: &plugin.TestSettings{
+				GetWorkspaceSettingFn: h.GetWorkspaceSetting,
+				GetGlobalSettingFn:    h.GetGlobalSetting,
+			},
+		},
 	})
 }
 
@@ -196,22 +200,26 @@ func newTestHandlerRawCfg(t *testing.T, cfg *config.Config) (*Handler, http.Hand
 	srv := h.Routes()
 
 	pctx := &plugin.Context{
-		Huma:                h.Huma(),
-		DB:                  db,
-		Guard:               authMgr.Require,
-		UserID:              authMgr.UserID,
-		OrgID:               authMgr.OrgID,
-		Audit:               h.Audit,
-		Encrypt:             cipher.Encrypt,
-		Decrypt:             cipher.Decrypt,
-		GetGlobalSetting:    h.GetGlobalSetting,
-		GetWorkspaceSetting: h.GetWorkspaceSetting,
-		Enqueue:             h.queue.Enqueue,
-		DeleteCache:         authMgr.Cache().Delete,
-		Provide:             reg.Provide,
-		Lookup:              reg.Lookup,
-		RequireRole:         func(*http.Request, string) bool { return true },
-		RequirePerm:         h.RequirePerm,
+		Huma:        h.Huma(),
+		DB:          db,
+		Guard:       authMgr.Require,
+		Audit:       h.Audit,
+		Enqueue:     h.queue.Enqueue,
+		DeleteCache: authMgr.Cache().Delete,
+		Provide:     reg.Provide,
+		Lookup:      reg.Lookup,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				UserIDFn:      authMgr.UserID,
+				OrgIDFn:       authMgr.OrgID,
+				RequirePermFn: h.RequirePerm,
+			},
+			CryptoMock: cipher,
+			SettingsMock: &plugin.TestSettings{
+				GetWorkspaceSettingFn: h.GetWorkspaceSetting,
+				GetGlobalSettingFn:    h.GetGlobalSetting,
+			},
+		},
 	}
 	dnsP.Mount(nil, pctx)
 	mailP.Mount(nil, pctx)
@@ -264,22 +272,26 @@ func newTestHandlerWithoutMail(t *testing.T) (*Handler, http.Handler, *gorm.DB) 
 	srv := h.Routes()
 
 	pctx := &plugin.Context{
-		Huma:                h.Huma(),
-		DB:                  db,
-		Guard:               authMgr.Require,
-		UserID:              authMgr.UserID,
-		OrgID:               authMgr.OrgID,
-		Audit:               h.Audit,
-		Encrypt:             cipher.Encrypt,
-		Decrypt:             cipher.Decrypt,
-		GetGlobalSetting:    h.GetGlobalSetting,
-		GetWorkspaceSetting: h.GetWorkspaceSetting,
-		Enqueue:             h.queue.Enqueue,
-		DeleteCache:         authMgr.Cache().Delete,
-		Provide:             reg.Provide,
-		Lookup:              reg.Lookup,
-		RequireRole:         func(*http.Request, string) bool { return true },
-		RequirePerm:         h.RequirePerm,
+		Huma:        h.Huma(),
+		DB:          db,
+		Guard:       authMgr.Require,
+		Audit:       h.Audit,
+		Enqueue:     h.queue.Enqueue,
+		DeleteCache: authMgr.Cache().Delete,
+		Provide:     reg.Provide,
+		Lookup:      reg.Lookup,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				UserIDFn:      authMgr.UserID,
+				OrgIDFn:       authMgr.OrgID,
+				RequirePermFn: h.RequirePerm,
+			},
+			CryptoMock: cipher,
+			SettingsMock: &plugin.TestSettings{
+				GetWorkspaceSettingFn: h.GetWorkspaceSetting,
+				GetGlobalSettingFn:    h.GetGlobalSetting,
+			},
+		},
 	}
 	dnsP.Mount(nil, pctx)
 	linksP.Mount(nil, pctx)

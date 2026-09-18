@@ -31,12 +31,15 @@ func mountForManager(t *testing.T, dbName string) (*gorm.DB, plugin.DNSManager) 
 	api := humago.New(mux, huma.DefaultConfig("t", "1.0"))
 	reg := plugin.NewRegistry()
 	p.Mount(nil, &plugin.Context{
-		Huma:        api,
-		DB:          gdb,
-		OrgID:       func(*http.Request) uint { return 1 },
-		RequireRole: func(*http.Request, string) bool { return true },
-		Provide:     reg.Provide,
-		Lookup:      reg.Lookup,
+		Huma:    api,
+		DB:      gdb,
+		Provide: reg.Provide,
+		Lookup:  reg.Lookup,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				OrgIDFn: func(*http.Request) uint { return 1 },
+			},
+		},
 	})
 
 	v, ok := reg.Lookup(plugin.ServiceDNSManager)

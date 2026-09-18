@@ -13,15 +13,21 @@ type mockHostSession struct {
 	orgID           uint
 	orgRole         string
 	isInstanceAdmin bool
+	requirePerm     func(r *http.Request, p, min string) bool
 }
 
-func (m *mockHostSession) UserID(r *http.Request) uint                     { return m.userID }
-func (m *mockHostSession) OrgID(r *http.Request) uint                      { return m.orgID }
-func (m *mockHostSession) OrgRole(r *http.Request) string                  { return m.orgRole }
-func (m *mockHostSession) RequireRole(r *http.Request, min string) bool    { return true }
-func (m *mockHostSession) RequirePerm(r *http.Request, p, min string) bool { return true }
-func (m *mockHostSession) IsInstanceAdmin(r *http.Request) bool            { return m.isInstanceAdmin }
-func (m *mockHostSession) RevokeUserOrgSessions(userID, orgID uint) int    { return 1 }
+func (m *mockHostSession) UserID(r *http.Request) uint                  { return m.userID }
+func (m *mockHostSession) OrgID(r *http.Request) uint                   { return m.orgID }
+func (m *mockHostSession) OrgRole(r *http.Request) string               { return m.orgRole }
+func (m *mockHostSession) RequireRole(r *http.Request, min string) bool { return true }
+func (m *mockHostSession) RequirePerm(r *http.Request, p, min string) bool {
+	if m.requirePerm != nil {
+		return m.requirePerm(r, p, min)
+	}
+	return true
+}
+func (m *mockHostSession) IsInstanceAdmin(r *http.Request) bool         { return m.isInstanceAdmin }
+func (m *mockHostSession) RevokeUserOrgSessions(userID, orgID uint) int { return 1 }
 
 var _ plugin.HostSession = (*mockHostSession)(nil)
 
@@ -195,30 +201,5 @@ func TestEnsureHost(t *testing.T) {
 	ctxWithHost := &plugin.Context{Host: existing}
 	if got := plugin.EnsureHost(ctxWithHost); got != existing {
 		t.Fatalf("expected existing Host to be returned directly")
-	}
-
-	// 3. ResolvePerm fallback in RequirePerm
-	defer plugin.ResetPermRegistry()
-	ctxRoleOnly := &plugin.Context{
-		RequireRole: func(r *http.Request, min string) bool {
-			return r.Header.Get("X-Role") == min
-		},
-	}
-	hRoleOnly := plugin.EnsureHost(ctxRoleOnly)
-	reqMember := httptest.NewRequest(http.MethodGet, "/", nil)
-	reqMember.Header.Set("X-Role", "member")
-
-	plugin.SetPermResolver(func(r *http.Request, permKey string) (allow, decided bool) {
-		if permKey == "custom.allow" {
-			return true, true
-		}
-		return false, false
-	})
-
-	if !hRoleOnly.Session().RequirePerm(reqMember, "custom.allow", "admin") {
-		t.Fatal("expected RequirePerm to allow via registered resolver")
-	}
-	if hRoleOnly.Session().RequirePerm(reqMember, "custom.other", "admin") {
-		t.Fatal("expected RequirePerm to deny when resolver undecided and role is member")
 	}
 }

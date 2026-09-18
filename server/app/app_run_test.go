@@ -199,9 +199,8 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	// DB/OrgID/Provide/Lookup — see mcp.buildServerInstance). That surface is
 	// pinned by TestMCPRemountUsesMinimalContext; here we just confirm the
 	// remount kept the minimal subset and defer the full assertions.
-	if isNilFunc(ctxField(ctx, "SetGlobalSetting")) {
+	if ctx.Guard == nil {
 		p.present("DB", ctx.DB != nil)
-		p.present("OrgID", !isNilFunc(ctxField(ctx, "OrgID")))
 		p.present("Provide", ctx.Provide != nil)
 		p.present("Lookup", ctx.Lookup != nil)
 		return
@@ -209,31 +208,17 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 
 	// The whole surface must be wired.
 	p.present("Guard", ctx.Guard != nil)
-	p.present("UserID", !isNilFunc(ctxField(ctx, "UserID")))
-	p.present("OrgID", !isNilFunc(ctxField(ctx, "OrgID")))
-	p.present("OrgRole", !isNilFunc(ctxField(ctx, "OrgRole")))
-	p.present("RequireRole", !isNilFunc(ctxField(ctx, "RequireRole")))
-	p.present("RequirePerm", !isNilFunc(ctxField(ctx, "RequirePerm")))
-	p.present("IsInstanceAdmin", !isNilFunc(ctxField(ctx, "IsInstanceAdmin")))
 	p.present("Audit", ctx.Audit != nil)
-	p.present("Encrypt", !isNilFunc(ctxField(ctx, "Encrypt")))
-	p.present("Decrypt", !isNilFunc(ctxField(ctx, "Decrypt")))
 	p.present("Notify", ctx.Notify != nil)
 	p.present("RegisterNotifier", ctx.RegisterNotifier != nil)
-	p.present("OnEmail", !isNilFunc(ctxField(ctx, "OnEmail")))
 	p.present("SendMail", ctx.SendMail != nil)
 	p.present("RecordUsage", ctx.RecordUsage != nil)
-	p.present("GetGlobalSetting", !isNilFunc(ctxField(ctx, "GetGlobalSetting")))
-	p.present("SetGlobalSetting", !isNilFunc(ctxField(ctx, "SetGlobalSetting")))
-	p.present("GetWorkspaceSetting", !isNilFunc(ctxField(ctx, "GetWorkspaceSetting")))
-	p.present("SetWorkspaceSetting", !isNilFunc(ctxField(ctx, "SetWorkspaceSetting")))
 	p.present("CacheGet", ctx.CacheGet != nil)
 	p.present("CacheSet", ctx.CacheSet != nil)
 	p.present("DeleteCache", ctx.DeleteCache != nil)
 	p.present("Cache", ctx.Cache != nil)
 	p.present("ParseUA", ctx.ParseUA != nil)
 	p.present("RegisterAuthMethod", ctx.RegisterAuthMethod != nil)
-	p.present("RegisterWebhookEvent", !isNilFunc(ctxField(ctx, "RegisterWebhookEvent")))
 	p.present("LoginByEmail", ctx.LoginByEmail != nil)
 	p.present("LoginByIdentity", ctx.LoginByIdentity != nil)
 	p.present("BindIdentity", ctx.BindIdentity != nil)
@@ -244,6 +229,10 @@ func (p ctxAssertPlugin) Mount(_ plugin.Mux, ctx *plugin.Context) {
 	p.present("RegisterTenantView", ctx.RegisterTenantView != nil)
 	p.present("RegisterReactor", ctx.RegisterReactor != nil)
 	p.present("Host", ctx.Host != nil)
+	p.present("Host.Session", ctx.Host != nil && ctx.Host.Session() != nil)
+	p.present("Host.Crypto", ctx.Host != nil && ctx.Host.Crypto() != nil)
+	p.present("Host.Settings", ctx.Host != nil && ctx.Host.Settings() != nil)
+	p.present("Host.Events", ctx.Host != nil && ctx.Host.Events() != nil)
 
 	if p.httpMode {
 		p.present("PluginActive", ctx.PluginActive != nil)
@@ -690,20 +679,18 @@ func TestMCPRemountUsesMinimalContext(t *testing.T) {
 
 	minimal := &plugin.Context{
 		DB:      db,
-		OrgID:   func(*http.Request) uint { return 1 },
 		Provide: func(string, any) {},
 		Lookup:  func(string) (any, bool) { return nil, false },
 	}
-	if minimal.DB == nil || isNilFunc(ctxField(minimal, "OrgID")) || minimal.Provide == nil || minimal.Lookup == nil {
+	if minimal.DB == nil || minimal.Provide == nil || minimal.Lookup == nil {
 		t.Fatal("minimal remount context lost its wired subset")
 		return
 	}
 	for _, name := range []string{
-		"Guard", "UserID", "OrgRole", "RequirePerm", "Notify", "RegisterNotifier",
-		"SetGlobalSetting", "GetGlobalSetting", "SetWorkspaceSetting", "GetWorkspaceSetting",
+		"Guard", "Notify", "RegisterNotifier",
 		"CacheSet", "CacheGet", "DeleteCache", "LoginByEmail", "LoginByIdentity", "BindIdentity",
-		"OnEmail", "SendMail", "RecordUsage", "PluginActive", "FeatureActive", "ActivePlugins",
-		"RegisterAuthMethod", "RegisterWebhookEvent", "Audit", "ParseUA",
+		"SendMail", "RecordUsage", "PluginActive", "FeatureActive", "ActivePlugins",
+		"RegisterAuthMethod", "Audit", "ParseUA",
 	} {
 		if !isNilFunc(ctxField(minimal, name)) {
 			t.Errorf("minimal MCP Context must leave %s nil", name)

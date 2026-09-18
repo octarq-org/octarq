@@ -14,6 +14,7 @@ import (
 	"github.com/octarq-org/octarq/server/internal/authz"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/tenancy"
+	"github.com/octarq-org/octarq/server/internal/tenantsql"
 	"gorm.io/gorm/clause"
 )
 
@@ -238,6 +239,9 @@ func (h *Handler) setSetting(key, value string) error {
 }
 
 func (h *Handler) GetWorkspaceSetting(orgID uint, key string) string {
+	if orgID == 0 {
+		return ""
+	}
 	var s models.WorkspaceSetting
 	if h.db.First(&s, "org_id = ? AND key = ?", orgID, key).Error == nil {
 		return s.Value
@@ -246,6 +250,9 @@ func (h *Handler) GetWorkspaceSetting(orgID uint, key string) string {
 }
 
 func (h *Handler) SetWorkspaceSetting(orgID uint, key, value string) error {
+	if orgID == 0 {
+		return tenantsql.ErrZeroOrgID
+	}
 	return h.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "org_id"}, {Name: "key"}},
 		DoUpdates: clause.AssignmentColumns([]string{"value"}),

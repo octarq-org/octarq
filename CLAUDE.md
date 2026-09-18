@@ -38,7 +38,11 @@ Run these and make sure they pass — don't claim a change works on inspection a
 - **Single source of truth — derive, don't duplicate**: Derive mappings dynamically (e.g., `areaForPath` in `web/src/shell/areas.tsx`). Collapse parallel hardcoded tables.
 - **Sidebar & Routes**: Sidebar menus come strictly from the Go backend (`MenuProvider` / `/api/menus`). Frontend plugins register routes (`registerUIPlugin` → `uiRoutes()`) and UI components, never static menus.
 - **Graceful degradation**: Optional/Pro feature pages must handle **402** (show upsell `LockedFeature`) and **404** (neutral note) gracefully.
-- **Session invalidation on role change**: Changing a member's role or removing a member must immediately invalidate all stateful sessions (`user_sessions`) for that user in that workspace (`org_id`). Audit log must record `actor`, `target`, `oldRole`, and `newRole`.
+- **Pre-v1.0 Stage (未发布 v1.0 铁律)**:
+  - **严禁保留 fallback、软降级或双轨制兼容代码**。三方生态尚未建立，三方插件必须升级。
+  - 不需要保留 deprecated 标记的旧接口或旧字段，直接彻底清理。
+  - 核心全部通过 `plugin.Host` SPI 暴露，强制 `TenantDB` 隔离，不提供绕过租户的 raw DB fallback。
+  - 缺失凭据或校验失败时**严格 Fail-Closed**，拒绝启动或报错。
 - **Don't cram**: Split overgrown components into focused modules.
 
 ## Sandbox Note

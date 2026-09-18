@@ -94,12 +94,16 @@ func TestClientIPIgnoresProxyHeadersWhenUntrusted(t *testing.T) {
 
 func mockCtx() *plugin.Context {
 	return &plugin.Context{
-		CacheGet:     func(ctx context.Context, key string, val any) bool { return false },
-		CacheSet:     func(ctx context.Context, key string, val any, ttl time.Duration) error { return nil },
-		DeleteCache:  func(ctx context.Context, key string) error { return nil },
-		GeoLookup:    func(ip string) (string, string, string) { return "", "", "" },
-		ParseUA:      func(ua string) (string, string, string) { return "", "", "" },
-		PublishEvent: func(orgID uint, event string, data any) {},
+		CacheGet:    func(ctx context.Context, key string, val any) bool { return false },
+		CacheSet:    func(ctx context.Context, key string, val any, ttl time.Duration) error { return nil },
+		DeleteCache: func(ctx context.Context, key string) error { return nil },
+		GeoLookup:   func(ip string) (string, string, string) { return "", "", "" },
+		ParseUA:     func(ua string) (string, string, string) { return "", "", "" },
+		Host: &plugin.TestHost{
+			EventsMock: &plugin.TestEvents{
+				PublishEventFn: func(orgID uint, event string, data any) {},
+			},
+		},
 	}
 }
 

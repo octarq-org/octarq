@@ -127,8 +127,12 @@ func TestPermResolverAndHasPerm(t *testing.T) {
 	}
 
 	ctxWithPerm := &plugin.Context{
-		RequirePerm: func(r *http.Request, permKey, minRole string) bool {
-			return permKey == "ok.perm" && minRole == "member"
+		Host: &mockHost{
+			session: &mockHostSession{
+				requirePerm: func(r *http.Request, permKey, minRole string) bool {
+					return permKey == "ok.perm" && minRole == "member"
+				},
+			},
 		},
 	}
 	if !ctxWithPerm.HasPerm(req, "ok.perm", "member") {

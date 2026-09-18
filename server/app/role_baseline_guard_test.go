@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestBothPctxConstructorsSetRequireRole(t *testing.T) {
+func TestBothPctxConstructorsSetHost(t *testing.T) {
 	_, currentFile, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("failed to get caller path")
@@ -23,8 +23,7 @@ func TestBothPctxConstructorsSetRequireRole(t *testing.T) {
 	}
 
 	pctxCount := 0
-	requireRoleCount := 0
-	requirePermCount := 0
+	hostCount := 0
 
 	ast.Inspect(node, func(n ast.Node) bool {
 		compLit, ok := n.(*ast.CompositeLit)
@@ -51,11 +50,8 @@ func TestBothPctxConstructorsSetRequireRole(t *testing.T) {
 			}
 			keyIdent, ok := kv.Key.(*ast.Ident)
 			if ok {
-				if keyIdent.Name == "RequireRole" {
-					requireRoleCount++
-				}
-				if keyIdent.Name == "RequirePerm" {
-					requirePermCount++
+				if keyIdent.Name == "Host" {
+					hostCount++
 				}
 			}
 		}
@@ -64,13 +60,10 @@ func TestBothPctxConstructorsSetRequireRole(t *testing.T) {
 	})
 
 	if pctxCount == 0 {
-		t.Fatal("expected to find plugin.Context literals in app.go, found 0")
+		t.Fatal("expected to find plugin.Context literals in host_runtime.go, found 0")
 	}
 
-	if requireRoleCount != pctxCount {
-		t.Fatalf("expected all %d plugin.Context instantiations to set RequireRole, but only %d did", pctxCount, requireRoleCount)
-	}
-	if requirePermCount != pctxCount {
-		t.Fatalf("expected all %d plugin.Context instantiations to set RequirePerm, but only %d did", pctxCount, requirePermCount)
+	if hostCount != pctxCount {
+		t.Fatalf("expected all %d plugin.Context instantiations to set Host, but only %d did", pctxCount, hostCount)
 	}
 }

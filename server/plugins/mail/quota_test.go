@@ -114,10 +114,13 @@ func mailQuotaPlugin(t *testing.T, checker plugin.QuotaChecker) (*Plugin, *int64
 	db.Where("1 = 1").Delete(&SMTPSender{})
 	host, port, accepted := countingSMTP(t)
 	p.Mount(nil, &plugin.Context{
-		DB:          db,
-		OrgID:       func(*http.Request) uint { return 100 },
-		Decrypt:     func(encoded string) ([]byte, error) { return []byte(encoded), nil },
-		RequireRole: func(*http.Request, string) bool { return true },
+		DB: db,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				OrgIDFn: func(*http.Request) uint { return 100 },
+			},
+			CryptoMock: &plugin.TestCrypto{},
+		},
 		Lookup: func(name string) (any, bool) {
 			if name == plugin.ServiceQuotaChecker && checker != nil {
 				return checker, true

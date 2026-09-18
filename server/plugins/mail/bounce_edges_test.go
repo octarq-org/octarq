@@ -320,9 +320,12 @@ func TestResolveMailboxCatchAllCreates(t *testing.T) {
 
 func pluginCtxForTest(db *gorm.DB) *plugin.Context {
 	return &plugin.Context{
-		DB:          db,
-		OrgID:       func(*http.Request) uint { return 1 },
-		RequireRole: func(*http.Request, string) bool { return true },
+		DB: db,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				OrgIDFn: func(*http.Request) uint { return 1 },
+			},
+		},
 	}
 }
 

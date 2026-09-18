@@ -30,28 +30,33 @@ func TestMountWiresEverythingAndServesRoot(t *testing.T) {
 	var webhooks, tasks, provides []string
 	var root http.Handler
 	ctx := &plugin.Context{
-		DB:     db,
-		UserID: func(*http.Request) uint { return 1 },
-		OrgID: func(r *http.Request) uint {
-			if v := r.Header.Get("X-Org-ID"); v != "" {
-				var id uint
-				fmt.Sscanf(v, "%d", &id)
-				return id
-			}
-			return 1
+		DB: db,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				UserIDFn: func(*http.Request) uint { return 1 },
+				OrgIDFn: func(r *http.Request) uint {
+					if v := r.Header.Get("X-Org-ID"); v != "" {
+						var id uint
+						fmt.Sscanf(v, "%d", &id)
+						return id
+					}
+					return 1
+				},
+				RequireRoleFn: func(*http.Request, string) bool { return true },
+			},
+			EventsMock: &plugin.TestEvents{
+				RegisterWebhookEventFn: func(def plugin.WebhookEventDef) { webhooks = append(webhooks, def.Key) },
+				PublishEventFn:         func(uint, string, any) {},
+			},
+			SettingsMock: &plugin.TestSettings{},
 		},
-		Audit:                func(*http.Request, string, string, uint, map[string]any) {},
-		GetGlobalSetting:     func(string) string { return "" },
-		GetWorkspaceSetting:  func(uint, string) string { return "" },
-		Enqueue:              func(context.Context, string, []byte) error { return nil },
-		DeleteCache:          func(context.Context, string) error { return nil },
-		PublishEvent:         func(uint, string, any) {},
-		RequireRole:          func(*http.Request, string) bool { return true },
-		RegisterWebhookEvent: func(def plugin.WebhookEventDef) { webhooks = append(webhooks, def.Key) },
-		RegisterTask:         func(name string, _ func(context.Context, []byte) error) { tasks = append(tasks, name) },
-		Huma:                 api,
-		Provide:              func(name string, _ any) { provides = append(provides, name) },
-		HandleRoot:           func(h http.Handler) { root = h },
+		Audit:        func(*http.Request, string, string, uint, map[string]any) {},
+		Enqueue:      func(context.Context, string, []byte) error { return nil },
+		DeleteCache:  func(context.Context, string) error { return nil },
+		RegisterTask: func(name string, _ func(context.Context, []byte) error) { tasks = append(tasks, name) },
+		Huma:         api,
+		Provide:      func(name string, _ any) { provides = append(provides, name) },
+		HandleRoot:   func(h http.Handler) { root = h },
 	}
 	p.Mount(nil, ctx)
 

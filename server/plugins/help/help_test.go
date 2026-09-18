@@ -120,14 +120,6 @@ func TestHelpDocs(t *testing.T) {
 			}
 			return true
 		},
-		OrgID: func(r *http.Request) uint {
-			// Stub orgID based on Header
-			if r.Header.Get("X-Org") == "2" {
-				return 2
-			}
-			return 1
-		},
-		RequireRole: func(*http.Request, string) bool { return true },
 	}
 
 	h := New()

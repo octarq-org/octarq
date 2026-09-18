@@ -314,9 +314,13 @@ func TestMountWiresWebhookEvents(t *testing.T) {
 	var registered []plugin.WebhookEventDef
 	reg := plugin.NewRegistry()
 	p.Mount(nil, &plugin.Context{
-		RegisterWebhookEvent: func(d plugin.WebhookEventDef) { registered = append(registered, d) },
-		Provide:              reg.Provide,
-		Lookup:               reg.Lookup,
+		Provide: reg.Provide,
+		Lookup:  reg.Lookup,
+		Host: &plugin.TestHost{
+			EventsMock: &plugin.TestEvents{
+				RegisterWebhookEventFn: func(d plugin.WebhookEventDef) { registered = append(registered, d) },
+			},
+		},
 	})
 	if len(registered) != 2 {
 		t.Fatalf("expected 2 webhook events, got %v", registered)

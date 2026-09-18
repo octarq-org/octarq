@@ -92,8 +92,8 @@ func ResetPermRegistry() {
 // nil, the check is skipped entirely, and the endpoint opens to everyone. That
 // exact bug shipped once in the links plugin; see plugins/links/role_gate_test.go.
 func (c *Context) HasPerm(r *http.Request, permKey, minRole string) bool {
-	if c == nil || c.RequirePerm == nil {
+	if c == nil || c.Host == nil || c.Host.Session() == nil {
 		return false
 	}
-	return c.RequirePerm(r, permKey, minRole)
+	return c.Host.Session().RequirePerm(r, permKey, minRole)
 }

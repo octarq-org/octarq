@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/octarq-org/octarq/server/internal/safego"
 	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugins/dns"
 )
@@ -39,7 +40,10 @@ func (p *Plugin) emitEmail(e plugin.EmailEvent) {
 	p.emailMu.RUnlock()
 	for _, h := range handlers {
 		if h != nil {
-			go h(e)
+			handler := h
+			safego.Go("mail.dispatch-plugin", func() {
+				handler(e)
+			})
 		}
 	}
 }

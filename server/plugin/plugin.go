@@ -319,65 +319,6 @@ type Context struct {
 	// FeatureActive reports whether the given feature key is active for orgID.
 	FeatureActive func(orgID uint, featureKey string) bool
 
-	// RevokeUserOrgSessions revokes all active sessions for a user within an org.
-	//
-	// Deprecated: use Host.Session().RevokeUserOrgSessions instead.
-	RevokeUserOrgSessions func(userID, orgID uint) int
-	// UserID extracts the authenticated user ID from the request session (0 if unauthed).
-	//
-	// Deprecated: use Host.Session().UserID instead.
-	UserID func(*http.Request) uint
-	// OrgID extracts the authenticated org ID from the request session (0 if unauthed).
-	//
-	// Deprecated: use Host.Session().OrgID instead.
-	OrgID func(*http.Request) uint
-	// OrgRole returns the role the caller holds in their ACTIVE org — "owner",
-	// "admin", "member", or "" when unauthenticated or not a member. Use it to
-	// gate workspace-level administration: a plugin writing org-scoped config
-	// should require owner/admin rather than merely "logged in".
-	//
-	// It answers for BOTH credentials, and a plugin must not special-case them.
-	// An API bearer token acts as the person who minted it — the core stamps
-	// that user id on the request — so the ordinary membership lookup answers
-	// for a token request exactly as it does for a session request, and the
-	// membership is read live (removing someone from the workspace revokes
-	// their tokens with them). The token's own role then only NARROWS that: the
-	// value returned is min(the holder's membership, the token's cap), so a
-	// member-capped token minted by an owner reads as "member" here.
-	//
-	// Consequence: bearer-token requests ARE role-gatable, and gating them is
-	// mandatory. Writing "tokens carry no role, so skip the check" leaves the
-	// endpoint open to every token on the instance; writing a special case for
-	// them re-implements the cap and will get it wrong.
-	//
-	// Authorization for a WORKSPACE-scoped resource. For instance-wide state use
-	// IsInstanceAdmin instead — org role says nothing about instance privilege,
-	// and every self-serve signup is "owner" of their own org.
-	//
-	// Deprecated: use Host.Session().OrgRole instead.
-	OrgRole func(*http.Request) string
-	// RequireRole reports whether the caller holds at least the given workspace
-	// role, for plugins gating destructive or credential-bearing operations.
-	// A caller with no membership holds no role and is always refused.
-	//
-	// Deprecated: use Host.Session().RequireRole instead.
-	RequireRole func(r *http.Request, min string) bool
-	// RequirePerm reports whether the caller holds permKey, falling back to the
-	// built-in role comparison when no resolver has an opinion. Wired by the host.
-	//
-	// Deprecated: use Host.Session().RequirePerm instead.
-	RequirePerm func(r *http.Request, permKey, minRole string) bool
-	// IsInstanceAdmin reports whether the caller is the bootstrap operator
-	// account (User.IsInstanceAdmin, set deterministically for the configured
-	// OCTARQ_ADMIN_* identity at first login — never derived from org ordering).
-	//
-	// This is the ONLY correct gate for instance-wide state: SSO/OIDC config,
-	// license keys, instance branding defaults, anything one tenant must not be
-	// able to change for every other tenant. "Is logged in" is NOT a substitute —
-	// on a multi-tenant host every tenant is logged in.
-	//
-	// Deprecated: use Host.Session().IsInstanceAdmin instead.
-	IsInstanceAdmin func(*http.Request) bool
 	// LoginByEmail completes a login for an already-verified email address: it
 	// provisions (or finds) the user + a personal org and issues the session
 	// cookie, the same way built-in OAuth login does, returning the user ID. It
@@ -416,21 +357,6 @@ type Context struct {
 	// context (pass nil to omit). Mirrors the core h.audit() helper so plugins
 	// never import octarq's internal/api or internal/models directly.
 	Audit func(r *http.Request, action, targetType string, targetID uint, meta map[string]any)
-	// Encrypt seals plaintext with AES-256-GCM and returns base64(nonce||ciphertext).
-	//
-	// Deprecated: use Host.Crypto().Encrypt instead.
-	Encrypt func(plaintext []byte) (string, error)
-	// Decrypt reverses Encrypt.
-	//
-	// Deprecated: use Host.Crypto().Decrypt instead.
-	Decrypt func(encoded string) ([]byte, error)
-	// OnEmail registers a handler invoked (asynchronously, in its own goroutine)
-	// after each inbound email is stored. Multiple plugins may register; a
-	// handler must not block the request path and should bound its own work with
-	// the context it captures. This is the inbound hook Inbox AI subscribes to.
-	//
-	// Deprecated: use Host.Events().OnEmail instead.
-	OnEmail func(handler func(EmailEvent))
 	// DNS manages DNS records for a domain through the core's configured provider
 	// (Cloudflare, …) so a plugin can change real records without importing octarq's
 	// internal/dnsprovider. This is what makes "point the A record at a new IP"
@@ -461,25 +387,6 @@ type Context struct {
 	// lazily — in Start or per-request. Safe for concurrent use after the
 	// mount phase. Prefer the typed helper LookupAs.
 	Lookup func(name string) (any, bool)
-	// GetWorkspaceSetting reads a per-org setting value.
-	//
-	// Deprecated: use Host.Settings().GetWorkspaceSetting instead.
-	GetWorkspaceSetting func(orgID uint, key string) string
-	// GetGlobalSetting reads an instance-wide setting value.
-	//
-	// Deprecated: use Host.Settings().GetGlobalSetting instead.
-	GetGlobalSetting func(key string) string
-	// SetWorkspaceSetting writes a per-org setting value.
-	//
-	// Deprecated: use Host.Settings().SetWorkspaceSetting instead.
-	SetWorkspaceSetting func(orgID uint, key, value string) error
-	// SetGlobalSetting writes an instance-wide setting value, paired with
-	// GetGlobalSetting. Plugins that own a configuration table must push the
-	// runtime key the core reads through this seam instead of writing the
-	// settings table directly.
-	//
-	// Deprecated: use Host.Settings().SetGlobalSetting instead.
-	SetGlobalSetting func(key, value string) error
 	// Enqueue adds a task to the background job queue.
 	Enqueue func(ctx context.Context, taskType string, payload []byte) error
 	// RegisterTask registers a handler for a task type in the background job queue.
@@ -499,22 +406,12 @@ type Context struct {
 	GeoLookup func(ip string) (country, region, city string)
 	// ParseUA parses a User-Agent string to device, browser, os.
 	ParseUA func(ua string) (device, browser, os string)
-	// PublishEvent publishes an event to the org's webhooks.
-	//
-	// Deprecated: use Host.Events().PublishEvent instead.
-	PublishEvent func(orgID uint, event string, data any)
 	// RecordUsage reports metered tenant consumption (a link redirect, an email
 	// send) to whatever billing backend is installed. It is a no-op on
 	// self-hosted builds where nothing provides "cloud.usage" — metering is a
 	// hosted-only concern, so call sites must not branch on build or config.
 	// Never expose this to tenant-controlled input: n is server-side truth.
 	RecordUsage func(orgID uint, metric string, n int64)
-	// RegisterWebhookEvent declares an event this plugin publishes via
-	// PublishEvent so the dashboard's webhook editor can offer it for
-	// subscription. Call it during Mount; duplicate keys are ignored.
-	//
-	// Deprecated: use Host.Events().RegisterWebhookEvent instead.
-	RegisterWebhookEvent func(def WebhookEventDef)
 	// HandleRoot registers a handler on the core HTTP mux for the root path "/{slug}".
 	HandleRoot func(handler http.Handler)
 	// HandleStatic mounts an embedded single-page app under prefix (e.g.
@@ -666,6 +563,14 @@ type Plugin interface {
 // services from other plugins regardless of registration order.
 type Starter interface {
 	Start(ctx context.Context)
+}
+
+// Validator is an optional interface a Plugin may implement to validate its
+// runtime dependencies, configurations, or environment pre-conditions during server startup.
+// The host invokes Validate synchronously after all plugins have completed Mount.
+// If any plugin returns an error, the host refuses to start (Fail-Closed).
+type Validator interface {
+	Validate(ctx context.Context, host Host) error
 }
 
 // MenuItem represents a menu item exposed by a plugin for rendering in the UI.

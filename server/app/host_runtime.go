@@ -140,13 +140,16 @@ type hostSettingsStore struct {
 }
 
 func (s *hostSettingsStore) GetWorkspaceSetting(orgID uint, key string) string {
-	if s.apiHandler != nil {
+	if s.apiHandler != nil && orgID != 0 {
 		return s.apiHandler.GetWorkspaceSetting(orgID, key)
 	}
 	return ""
 }
 
 func (s *hostSettingsStore) SetWorkspaceSetting(orgID uint, key, value string) error {
+	if orgID == 0 {
+		return tenantsql.ErrZeroOrgID
+	}
 	if s.apiHandler != nil {
 		return s.apiHandler.SetWorkspaceSetting(orgID, key, value)
 	}
@@ -363,16 +366,9 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 				notify.Register(typ, send)
 			}
 		},
-		RevokeUserOrgSessions: session.RevokeUserOrgSessions,
-		UserID:                session.UserID,
-		OrgID:                 session.OrgID,
-		OrgRole:               session.OrgRole,
-		RequireRole:           session.RequireRole,
-		RequirePerm:           session.RequirePerm,
-		IsInstanceAdmin:       session.IsInstanceAdmin,
-		LoginByEmail:          loginByEmail,
-		LoginByIdentity:       loginByIdentity,
-		BindIdentity:          bindIdentity,
+		LoginByEmail:    loginByEmail,
+		LoginByIdentity: loginByIdentity,
+		BindIdentity:    bindIdentity,
 		RegisterAuthMethod: func(m plugin.AuthMethod) {
 			auth.Register(auth.AuthMethod{
 				ID:        m.ID,
@@ -383,9 +379,6 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 			})
 		},
 		Audit:    auditFn,
-		Encrypt:  vault.Encrypt,
-		Decrypt:  vault.Decrypt,
-		OnEmail:  events.OnEmail,
 		DNS:      &lazyDNSManager{lookup: servicesLookup},
 		SendMail: sendMail,
 		SetLLMResolverForOrg: func(resolver func(orgID uint) (llmprovider.Provider, error)) {
@@ -403,10 +396,6 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 				}
 			}
 		},
-		GetWorkspaceSetting: settings.GetWorkspaceSetting,
-		GetGlobalSetting:    settings.GetGlobalSetting,
-		SetGlobalSetting:    settings.SetGlobalSetting,
-		SetWorkspaceSetting: settings.SetWorkspaceSetting,
 		Enqueue: func(ctx context.Context, taskType string, payload []byte) error {
 			if params.taskQueue != nil {
 				return params.taskQueue.Enqueue(ctx, taskType, payload)
@@ -418,12 +407,10 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 				params.taskQueue.Register(taskType, h)
 			}
 		},
-		PublishEvent:         events.PublishEvent,
-		RegisterWebhookEvent: events.RegisterWebhookEvent,
-		CacheGet:             cacheGet,
-		CacheSet:             cacheSet,
-		DeleteCache:          deleteCache,
-		Cache:                scopedCache,
+		CacheGet:    cacheGet,
+		CacheSet:    cacheSet,
+		DeleteCache: deleteCache,
+		Cache:       scopedCache,
 		GeoLookup: func(ip string) (string, string, string) {
 			if geoResolver != nil {
 				return geoResolver.Locate(ip)
