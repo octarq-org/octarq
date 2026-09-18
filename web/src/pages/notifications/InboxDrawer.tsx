@@ -2,8 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCheck, ExternalLink, Settings2, Trash2, X } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { Button, cn } from "../../ui";
-import { timeAgo } from "../../ui/time";
+import { Button, cn, timeAgo } from "../../ui";
 import { QueryClientContext } from "@tanstack/react-query";
 import {
   useDeleteNotificationMutation,

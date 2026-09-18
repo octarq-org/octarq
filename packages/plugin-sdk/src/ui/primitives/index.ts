@@ -24,3 +24,7 @@ export { Skeleton } from "./skeleton";
 export { Alert, alertVariants, type AlertProps } from "./alert";
 export { FormError, formErrorMessage, formErrorStatusKeys } from "./form-error";
 export { RouteFallback } from "./route-fallback";
+
+export { Code } from "./code";
+export { Guide } from "./guide";
+export { timeAgo } from "./time";
