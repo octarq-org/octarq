@@ -15,3 +15,9 @@ onlyBuiltDependencies:
   - esbuild
 allowBuilds:
   esbuild: true
+# Exempt first-party @octarq packages from the minimum-release-age
+# supply-chain gate: freshly-published community plugins would otherwise fail
+# install. Name glob (mirrors octarq-pro) — a versioned `pkg@x.y.z` entry
+# never matches, so list the scope, not versions.
+minimumReleaseAgeExclude:
+  - '@octarq/*'
