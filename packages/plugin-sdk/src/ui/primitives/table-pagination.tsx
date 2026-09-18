@@ -1,7 +1,13 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "../../ui";
 import { useTranslation } from "../../i18n";
-import { ProTablePaginationConfig } from "./types";
+import { Button } from "./button";
+
+// Pagination bar for a table. Moved here from the host app's pro-table; it
+// depends on nothing tanstack — only the fields it actually reads are part of
+// the config type, so it carries none of that grid's weight.
+export interface TablePaginationConfig {
+  pageSizeOptions?: number[];
+  hideOnSinglePage?: boolean;
+}
 
 export interface TablePaginationProps {
   page: number;
@@ -10,8 +16,10 @@ export interface TablePaginationProps {
   pageCount: number;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
-  config?: boolean | ProTablePaginationConfig;
+  config?: boolean | TablePaginationConfig;
 }
+
+const MAX_PAGE_BUTTONS = 5;
 
 export function TablePagination({
   page,
@@ -24,53 +32,37 @@ export function TablePagination({
 }: TablePaginationProps) {
   const { t } = useTranslation();
 
-  if (config === false) {
-    return null;
-  }
+  if (config === false) return null;
 
   const paginationConfig = typeof config === "object" ? config : {};
   const pageSizeOptions = paginationConfig.pageSizeOptions ?? [10, 20, 50, 100];
   const hideOnSinglePage = paginationConfig.hideOnSinglePage ?? false;
 
-  if (hideOnSinglePage && total <= pageSize) {
-    return null;
-  }
+  if (hideOnSinglePage && total <= pageSize) return null;
 
   const canPrev = page > 1;
   const canNext = page < pageCount;
 
-  // Generate visible page numbers
+  // A sliding window of page numbers, kept within bounds at both ends.
   const pages: number[] = [];
-  const maxButtons = 5;
-  let start = Math.max(1, page - Math.floor(maxButtons / 2));
-  let end = Math.min(pageCount, start + maxButtons - 1);
-  if (end - start + 1 < maxButtons) {
-    start = Math.max(1, end - maxButtons + 1);
-  }
-  for (let i = start; i <= end; i++) {
-    pages.push(i);
-  }
+  let start = Math.max(1, page - Math.floor(MAX_PAGE_BUTTONS / 2));
+  const end = Math.min(pageCount, start + MAX_PAGE_BUTTONS - 1);
+  if (end - start + 1 < MAX_PAGE_BUTTONS) start = Math.max(1, end - MAX_PAGE_BUTTONS + 1);
+  for (let i = start; i <= end; i++) pages.push(i);
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 border-t border-foreground/[0.06] px-4 py-3 text-xs text-foreground/70">
-      {/* Total items and current page info */}
       <div className="flex items-center gap-3">
-        <span className="font-medium">
-          {t("proTable.totalItems", { total })}
-        </span>
+        <span className="font-medium">{t("proTable.totalItems", { total })}</span>
         <span className="text-foreground/40">|</span>
-        <span>
-          {t("proTable.pageOf", { page, totalPages: Math.max(1, pageCount) })}
-        </span>
+        <span>{t("proTable.pageOf", { page, totalPages: Math.max(1, pageCount) })}</span>
       </div>
 
-      {/* Controls: Page size selector and navigation buttons */}
       <div className="flex items-center gap-2">
         <select
           value={pageSize}
           onChange={(e) => {
-            const newSize = Number(e.target.value);
-            onPageSizeChange(newSize);
+            onPageSizeChange(Number(e.target.value));
             onPageChange(1);
           }}
           aria-label={t("proTable.perPage", { size: pageSize })}
@@ -92,7 +84,7 @@ export function TablePagination({
             aria-label={t("proTable.prevPage")}
             className="h-7 w-7 p-0"
           >
-            <ChevronLeft className="h-3.5 w-3.5" />
+            <ChevronLeftGlyph className="h-3.5 w-3.5" />
           </Button>
 
           {pages.map((p) => (
@@ -101,9 +93,7 @@ export function TablePagination({
               size="sm"
               variant={p === page ? "primary" : "outline"}
               onClick={() => onPageChange(p)}
-              className={`h-7 min-w-[1.75rem] px-1.5 text-xs ${
-                p === page ? "font-semibold" : ""
-              }`}
+              className={`h-7 min-w-[1.75rem] px-1.5 text-xs ${p === page ? "font-semibold" : ""}`}
             >
               {p}
             </Button>
@@ -117,10 +107,45 @@ export function TablePagination({
             aria-label={t("proTable.nextPage")}
             className="h-7 w-7 p-0"
           >
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRightGlyph className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
     </div>
+  );
+}
+
+// Inline so the package stays free of an icon-library dependency.
+function ChevronLeftGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
+
+function ChevronRightGlyph({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
   );
 }
