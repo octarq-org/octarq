@@ -1,4 +1,4 @@
-import { InputHTMLAttributes } from "react";
+import { forwardRef, type InputHTMLAttributes } from "react";
 import { Input as BaseInput } from "@base-ui/react/input";
 import { cn } from "../cn";
 
@@ -10,12 +10,12 @@ export const fieldClass =
   "placeholder:text-foreground/40 focus:border-accent-border focus:shadow-[0_0_0_3px_var(--accent-soft)] " +
   "disabled:cursor-not-allowed disabled:opacity-50";
 
+export type InputProps = InputHTMLAttributes<HTMLInputElement>;
+
 // Input wraps Base UI's Input primitive (which auto-integrates with Base UI
 // Field for validation/aria when nested in one) and carries octarq's glass theme.
 // Accepts all native <input> attributes.
-export function Input({
-  className,
-  ...props
-}: InputHTMLAttributes<HTMLInputElement>) {
-  return <BaseInput className={cn(fieldClass, className)} {...props} />;
-}
+export const Input = forwardRef<HTMLInputElement, InputProps>(({ className, ...props }, ref) => (
+  <BaseInput ref={ref} className={cn(fieldClass, className)} {...props} />
+));
+Input.displayName = "Input";

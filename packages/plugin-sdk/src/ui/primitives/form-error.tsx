@@ -1,3 +1,5 @@
+import { forwardRef } from "react";
+import { cn } from "../cn";
 import { useTranslation } from "../../i18n";
 
 // The most common failure statuses get a localized, generic line so a zh/es/pt/ja
@@ -31,23 +33,24 @@ export function formErrorMessage(
   return err?.message ?? "";
 }
 
+export interface FormErrorProps {
+  err: string | { message?: string; status?: number; requestId?: string } | null | undefined;
+  className?: string;
+}
+
 // Shared form-failure surface for plugin edit forms. The backend answers with a
 // human message (no structured field names), so the added value here is what
 // only a self-hosted operator can act on: the HTTP status and the server's
 // X-Request-Id — the correlation id for their own logs. Both are machine values,
 // so they render in mono.
-export function FormError({
-  err,
-}: {
-  err: string | { message?: string; status?: number; requestId?: string } | null | undefined;
-}) {
+export const FormError = forwardRef<HTMLDivElement, FormErrorProps>(({ err, className }, ref) => {
   const { t } = useTranslation();
   if (!err) return null;
   const message = formErrorMessage(err, t);
   const status = typeof err === "object" ? err.status : undefined;
   const requestId = typeof err === "object" ? err.requestId : undefined;
   return (
-    <div className="space-y-1">
+    <div ref={ref} className={cn("space-y-1", className)}>
       <p className="text-sm font-medium text-danger-fg">{message}</p>
       {status !== undefined && (
         <p className="font-mono tnum text-[11px] text-danger-fg/70">
@@ -57,4 +60,5 @@ export function FormError({
       )}
     </div>
   );
-}
+});
+FormError.displayName = "FormError";
