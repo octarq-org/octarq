@@ -102,9 +102,13 @@ func TestMailRecordUsageSuccessAndFailure(t *testing.T) {
 	}
 
 	p.Mount(nil, &plugin.Context{
-		DB:      db,
-		OrgID:   func(r *http.Request) uint { return 100 },
-		Decrypt: func(encoded string) ([]byte, error) { return []byte(encoded), nil },
+		DB: db,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				OrgIDFn: func(r *http.Request) uint { return 100 },
+			},
+			CryptoMock: &plugin.TestCrypto{},
+		},
 		RecordUsage: func(orgID uint, metric string, n int64) {
 			mu.Lock()
 			defer mu.Unlock()
@@ -114,7 +118,6 @@ func TestMailRecordUsageSuccessAndFailure(t *testing.T) {
 				n      int64
 			}{orgID, metric, n})
 		},
-		RequireRole: func(*http.Request, string) bool { return true },
 	})
 
 	s := SMTPSender{

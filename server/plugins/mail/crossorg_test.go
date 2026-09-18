@@ -30,16 +30,21 @@ func setupCrossOrgMailDB(t *testing.T) (*Plugin, *gorm.DB) {
 
 	p.Mount(nil, &plugin.Context{
 		DB: db,
-		OrgID: func(r *http.Request) uint {
-			if val := r.Header.Get("X-Org-ID"); val != "" {
-				var id uint
-				fmt.Sscanf(val, "%d", &id)
-				return id
-			}
-			return 1
-		},
-		RequireRole: func(r *http.Request, _ string) bool {
-			return r.Header.Get("X-Role") != "member"
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				OrgIDFn: func(r *http.Request) uint {
+					if val := r.Header.Get("X-Org-ID"); val != "" {
+						var id uint
+						fmt.Sscanf(val, "%d", &id)
+						return id
+					}
+					return 1
+				},
+				RequireRoleFn: func(r *http.Request, _ string) bool {
+					return r.Header.Get("X-Role") != "member"
+				},
+			},
+			CryptoMock: &plugin.TestCrypto{},
 		},
 	})
 	p.encrypt = func(b []byte) (string, error) { return string(b), nil }

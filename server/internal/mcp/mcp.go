@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/octarq-org/octarq/server/config"
@@ -95,7 +94,6 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 		cacheBackend := cache.New("")
 		pctx := &plugin.Context{
 			DB:               gdb,
-			OrgID:            func(_ *http.Request) uint { return orgID },
 			Provide:          reg.Provide,
 			Lookup:           reg.Lookup,
 			Cache:            cache.NewScoped(cacheBackend, "mcp"),

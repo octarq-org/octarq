@@ -15,6 +15,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -273,6 +274,13 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if err := services.Err(); err != nil {
 		return err
 	}
+	for _, p := range a.plugins {
+		if v, ok := p.(plugin.Validator); ok {
+			if err := v.Validate(ctx, pctx.Host); err != nil {
+				return fmt.Errorf("plugin %q startup validation failed: %w", p.Name(), err)
+			}
+		}
+	}
 	if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {
 		emailMu.Lock()
 		handlers := deferredOnEmail
@@ -496,6 +504,14 @@ func (a *App) Run(ctx context.Context) error {
 		runEmailMu.Unlock()
 		for _, handler := range handlers {
 			onEmailService(handler)
+		}
+	}
+
+	for _, p := range a.plugins {
+		if v, ok := p.(plugin.Validator); ok {
+			if err := v.Validate(ctx, pctx.Host); err != nil {
+				return fmt.Errorf("plugin %q startup validation failed: %w", p.Name(), err)
+			}
 		}
 	}
 

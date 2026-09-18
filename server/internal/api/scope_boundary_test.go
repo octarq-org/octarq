@@ -92,12 +92,18 @@ func TestInstanceSettingsRefuseOrgOwner(t *testing.T) {
 	linksPlugin := links.New()
 	h.SetPlugins([]plugin.Plugin{linksPlugin})
 	linksPlugin.Mount(nil, &plugin.Context{
-		DB:               db,
-		Huma:             h.Huma(),
-		IsInstanceAdmin:  h.IsInstanceAdmin,
-		RequireRole:      h.RequireRole,
-		GetGlobalSetting: h.GetGlobalSetting,
-		SetGlobalSetting: h.SetGlobalSetting,
+		DB:   db,
+		Huma: h.Huma(),
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				IsInstanceAdminFn: h.IsInstanceAdmin,
+				RequireRoleFn:     h.RequireRole,
+			},
+			SettingsMock: &plugin.TestSettings{
+				GetGlobalSettingFn: h.GetGlobalSetting,
+				SetGlobalSettingFn: h.SetGlobalSetting,
+			},
+		},
 	})
 
 	const org = uint(904)

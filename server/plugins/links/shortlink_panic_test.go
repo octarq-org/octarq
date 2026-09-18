@@ -35,7 +35,11 @@ func testDB(t *testing.T) *gorm.DB {
 func testEngine(t *testing.T, publishEvent func(uint, string, any)) *Engine {
 	t.Helper()
 	ctx := &plugin.Context{
-		PublishEvent: publishEvent,
+		Host: &plugin.TestHost{
+			EventsMock: &plugin.TestEvents{
+				PublishEventFn: publishEvent,
+			},
+		},
 	}
 	e := &Engine{
 		db:          testDB(t),

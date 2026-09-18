@@ -35,13 +35,19 @@ func TestInstanceLinkSettingsRefusesNonInstanceAdmin(t *testing.T) {
 	mux := http.NewServeMux()
 	api := humago.New(mux, huma.DefaultConfig("links-scope-test", "1.0.0"))
 	ctx := &plugin.Context{
-		Huma:             api,
-		IsInstanceAdmin:  p.isInstanceAdmin,
-		RequireRole:      p.requireRole,
-		GetGlobalSetting: p.getGlobalSetting,
-		SetGlobalSetting: func(key, value string) error {
-			globalSettings[key] = value
-			return nil
+		Huma: api,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				IsInstanceAdminFn: p.isInstanceAdmin,
+				RequireRoleFn:     p.requireRole,
+			},
+			SettingsMock: &plugin.TestSettings{
+				GetGlobalSettingFn: p.getGlobalSetting,
+				SetGlobalSettingFn: func(key, value string) error {
+					globalSettings[key] = value
+					return nil
+				},
+			},
 		},
 	}
 	p.Mount(nil, ctx)
@@ -126,9 +132,15 @@ func TestInstanceLinkSettingsNotGatedByWorkspacePluginToggle(t *testing.T) {
 	mux := http.NewServeMux()
 	api := humago.New(mux, huma.DefaultConfig("links-scope-gate-test", "1.0.0"))
 	ctx := &plugin.Context{
-		Huma:             api,
-		IsInstanceAdmin:  p.isInstanceAdmin,
-		GetGlobalSetting: p.getGlobalSetting,
+		Huma: api,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				IsInstanceAdminFn: p.isInstanceAdmin,
+			},
+			SettingsMock: &plugin.TestSettings{
+				GetGlobalSettingFn: p.getGlobalSetting,
+			},
+		},
 	}
 	p.Mount(nil, ctx)
 

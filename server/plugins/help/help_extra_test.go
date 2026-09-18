@@ -36,8 +36,12 @@ func TestPluginMetadataAndLifecycle(t *testing.T) {
 	api := humago.New(mux, huma.DefaultConfig("Help API", "1.0.0"))
 	pctx := &plugin.Context{
 		Huma: api,
-		OrgID: func(r *http.Request) uint {
-			return 1
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				OrgIDFn: func(r *http.Request) uint {
+					return 1
+				},
+			},
 		},
 	}
 	p.Mount(nil, pctx)
@@ -82,9 +86,13 @@ func TestNilHumaContextHandling(t *testing.T) {
 func TestGetDocNotFound(t *testing.T) {
 	p := New()
 	p.pctx = &plugin.Context{
-		OrgID:         func(r *http.Request) uint { return 1 },
 		ActivePlugins: func() []plugin.Plugin { return nil },
 		PluginActive:  func(uint, plugin.Plugin) bool { return true },
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				OrgIDFn: func(r *http.Request) uint { return 1 },
+			},
+		},
 	}
 
 	req := httptest.NewRequest("GET", "/api/help/docs/non-existent-slug-xyz", nil)

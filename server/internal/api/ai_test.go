@@ -62,21 +62,25 @@ func newAITestHandler(t *testing.T, reply string) (http.Handler, *gorm.DB) {
 	srv := h.Routes()
 
 	pctx := &plugin.Context{
-		Huma:                h.Huma(),
-		DB:                  db,
-		Guard:               authMgr.Require,
-		UserID:              authMgr.UserID,
-		OrgID:               authMgr.OrgID,
-		Audit:               h.Audit,
-		Encrypt:             cipher.Encrypt,
-		Decrypt:             cipher.Decrypt,
-		GetGlobalSetting:    h.GetGlobalSetting,
-		GetWorkspaceSetting: h.GetWorkspaceSetting,
-		Enqueue:             h.queue.Enqueue,
-		DeleteCache:         authMgr.Cache().Delete,
-		Provide:             reg.Provide,
-		Lookup:              reg.Lookup,
-		RequireRole:         func(*http.Request, string) bool { return true },
+		Huma:        h.Huma(),
+		DB:          db,
+		Guard:       authMgr.Require,
+		Audit:       h.Audit,
+		Enqueue:     h.queue.Enqueue,
+		DeleteCache: authMgr.Cache().Delete,
+		Provide:     reg.Provide,
+		Lookup:      reg.Lookup,
+		Host: &plugin.TestHost{
+			SessionMock: &plugin.TestSession{
+				UserIDFn: authMgr.UserID,
+				OrgIDFn:  authMgr.OrgID,
+			},
+			CryptoMock: cipher,
+			SettingsMock: &plugin.TestSettings{
+				GetWorkspaceSettingFn: h.GetWorkspaceSetting,
+				GetGlobalSettingFn:    h.GetGlobalSetting,
+			},
+		},
 	}
 	dnsP.Mount(nil, pctx)
 	mailP.Mount(nil, pctx)
