@@ -14,14 +14,14 @@ import {
   TH,
   TD,
   TableDensityProvider,
+  TablePagination,
+  TableSkeleton,
+  TableEmpty,
+  TableError,
 } from "../../ui";
 import { ProTableProps } from "./types";
 import { useProTable } from "./useProTable";
 import { TableToolbar } from "./TableToolbar";
-import { TablePagination } from "./TablePagination";
-import { TableSkeleton } from "./TableSkeleton";
-import { TableEmpty } from "./TableEmpty";
-import { TableError } from "./TableError";
 
 // Safe fallback QueryClient for standalone tests or components rendered outside a provider
 const fallbackQueryClient = new QueryClient({

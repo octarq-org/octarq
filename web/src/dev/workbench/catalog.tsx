@@ -23,6 +23,10 @@ import {
   Switch,
   Table,
   TableDensityProvider,
+  TableEmpty,
+  TableError,
+  TablePagination,
+  TableSkeleton,
   TBody,
   TD,
   TH,
@@ -196,6 +200,27 @@ export const CATALOG: CatalogEntry[] = [
     Component: () => <TablePreview />,
   },
   {
+    name: "TableSkeleton",
+    group: "data",
+    covers: ["TableSkeleton"],
+    copy: [],
+    Component: () => <TableSkeleton columnsCount={3} rowsCount={3} />,
+  },
+  {
+    name: "TableEmpty",
+    group: "data",
+    covers: ["TableEmpty"],
+    copy: ["No data yet", "No matching data found for the current filters"],
+    Component: () => <TableEmpty />,
+  },
+  {
+    name: "TablePagination",
+    group: "data",
+    covers: ["TablePagination"],
+    copy: ["Total {{total}} items", "Page {{page}} of {{totalPages}}", "{{size}} / page", "Previous", "Next"],
+    Component: () => <TablePaginationPreview />,
+  },
+  {
     name: "Tabs",
     group: "data",
     covers: ["Tabs"],
@@ -253,6 +278,15 @@ export const CATALOG: CatalogEntry[] = [
     covers: ["RouteFallback"],
     copy: [],
     Component: () => <RouteFallback />,
+  },
+  {
+    name: "TableError",
+    group: "feedback",
+    covers: ["TableError"],
+    copy: ["Failed to load data", "Retry"],
+    Component: () => (
+      <TableError error={new Error("Request failed with status 500")} onRetry={() => {}} />
+    ),
   },
   {
     name: "Tooltip",
@@ -399,6 +433,24 @@ function DialogRow() {
         <p className="text-sm text-muted-foreground">This cannot be undone.</p>
       </Dialog>
     </>
+  );
+}
+
+function TablePaginationPreview() {
+  const [page, setPage] = useState(2);
+  const [pageSize, setPageSize] = useState(10);
+  return (
+    <TablePagination
+      page={page}
+      pageSize={pageSize}
+      total={48}
+      pageCount={Math.ceil(48 / pageSize)}
+      onPageChange={setPage}
+      onPageSizeChange={(size) => {
+        setPageSize(size);
+        setPage(1);
+      }}
+    />
   );
 }
 
