@@ -1,0 +1,1 @@
+import{j as a}from"./vendor-motion-DpIiENO5.js";import{r as s}from"./vendor-react-BSo4MVzo.js";import{m as t}from"./index-DTUHqUp8.js";const m=s.forwardRef(({className:r,...e},o)=>a.jsx("div",{ref:o,"aria-hidden":!0,className:t("h-4 w-full animate-pulse rounded-md bg-foreground/[0.08]",r),...e}));m.displayName="Skeleton";export{m as S};
