@@ -1,0 +1,1 @@
+import{j as o}from"./vendor-motion-DpIiENO5.js";import{t}from"./index-D123JDS8.js";function s({className:r,...e}){return o.jsx("div",{"aria-hidden":!0,className:t("h-4 w-full animate-pulse rounded-md bg-foreground/[0.08]",r),...e})}export{s as S};
