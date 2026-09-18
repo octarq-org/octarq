@@ -181,6 +181,13 @@ jobs:
       - name: Color lint
         run: pnpm lint:colors
 
+      # Typecheck cannot see this one: an app-local component that re-uses an SDK
+      # export name is valid TypeScript, and the explicit named export wins over
+      # `export *` — so the app quietly renders its own copy while plugin packages
+      # render the SDK's.
+      - name: UI surface lint
+        run: pnpm lint:ui
+
       # Gates three classes that typecheck can't see, because every one of them
       # is a valid string: a locale missing keys the others have, user-visible
       # English hardcoded into JSX, and a t() key that resolves to nothing (which

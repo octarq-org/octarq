@@ -20,3 +20,7 @@ export { Tabs, type TabItem } from "./tabs";
 export { Tooltip } from "./tooltip";
 export { Table, THead, TBody, TR, TH, TD, TableDensityProvider, useTableDensity, useSetTableDensity, type TableDensity } from "./table";
 export { Skeleton } from "./skeleton";
+
+export { Alert, alertVariants, type AlertProps } from "./alert";
+export { FormError, formErrorMessage, formErrorStatusKeys } from "./form-error";
+export { RouteFallback } from "./route-fallback";

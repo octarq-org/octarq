@@ -1,11 +1,25 @@
-// @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { I18nProvider } from "../../i18n";
-import { FormError, formErrorMessage, formErrorStatusKeys } from "./FormError";
+import { FormError, formErrorMessage, formErrorStatusKeys } from "./form-error";
 
 // The t() shim mirrors the SDK TFunc shape without touching real dictionaries.
 const t = (key: string) => `t:${key}`;
+
+// Minimal host-supplied dictionary: the uiCommon.* keys FormError resolves.
+const resources = {
+  en: {
+    uiCommon: {
+      errStatus401: "session expired",
+      errStatus403: "no permission",
+      errStatus404: "gone",
+      errStatus429: "slow down",
+      errStatus500: "server error",
+      formErrorStatus: "HTTP {{status}}",
+      formErrorRequestId: "request {{requestId}}",
+    },
+  },
+};
 
 describe("formErrorMessage", () => {
   it("maps known failure statuses to their localized copy", () => {
@@ -32,20 +46,20 @@ describe("formErrorMessage", () => {
 describe("FormError", () => {
   it("renders the localized copy for a mapped status", () => {
     render(
-      <I18nProvider>
+      <I18nProvider resources={resources}>
         <FormError err={{ message: "backend raw", status: 403, requestId: "req-1" }} />
-      </I18nProvider>
+      </I18nProvider>,
     );
-    expect(screen.getByText("You don't have permission to do that.")).toBeTruthy();
+    expect(screen.getByText("no permission")).toBeTruthy();
     expect(screen.getByText(/HTTP 403/)).toBeTruthy();
   });
 
   it("renders the backend original for an unmapped status", () => {
     const raw = "the workspace address could not be claimed — please try again";
     render(
-      <I18nProvider>
+      <I18nProvider resources={resources}>
         <FormError err={{ message: raw, status: 409, requestId: "req-2" }} />
-      </I18nProvider>
+      </I18nProvider>,
     );
     expect(screen.getByText(raw)).toBeTruthy();
   });

@@ -4,7 +4,6 @@ import { BookOpen, Bot, Boxes, FileText, Globe, Link2, Mail, Send, Server, Shiel
 import { api, Org } from "./api";
 import { BrandMark } from "./shell/BrandMark";
 import { refreshBrand } from "./brand";
-import { RouteFallback } from "./components/ui/RouteFallback";
 // Lazy-loaded route components.
 const OverviewPage = lazy(() => import("./pages/Overview"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
@@ -14,7 +13,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"));
 const StatusPage = lazy(() => import("./pages/Status"));
 // The instance console (own /instance basename) — its own shell, no tenant
 const InstanceConsole = lazy(() => import("./pages/instance/console"));
-import { Modal, Button, toast, cn, Alert, TableDensityProvider, TableDensity } from "./ui";
+import { Modal, Button, toast, cn, Alert, RouteFallback, TableDensityProvider, TableDensity } from "./ui";
 import { useTranslation } from "./i18n";
 import { AreaId, useNavigation, clearCachedNav } from "./shell/areas";
 import { RoleProvider } from "./shell/role";
@@ -29,13 +28,6 @@ import { uiOnboarding } from "./plugin-sdk";
 import { pluginRouteElements, PluginUnavailable } from "./plugins/PluginRoutes";
 import { PluginGateContext } from "./plugins/PluginGate";
 import { InstanceExitRedirect } from "./pages/instance/redirect";
-
-
-// Re-exported so existing `import { RouteFallback } from "../App"` call sites
-// (Settings.tsx) keep working now that it lives in ./components/ui/RouteFallback.
-export { RouteFallback } from "./components/ui/RouteFallback";
-
-
 
 
 // ─── App ──────────────────────────────────────────────────────────────────────
