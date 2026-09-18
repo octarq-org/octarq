@@ -12,8 +12,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useTranslation } from "../i18n";
-import { Button, cn } from "../ui";
-import { timeAgo } from "../ui/time";
+import { Button, cn, timeAgo } from "../ui";
 import type { ActionDiff, RiskLevel, ApprovalStatus } from "./types";
 import { useCopilotStore } from "./store";
 

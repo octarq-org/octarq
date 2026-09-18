@@ -8,7 +8,6 @@
 export * from "./ui/primitives";
 export * from "./ui/HostList";
 export * from "./ui/charts";
-export * from "./ui/time";
 
 export { SetupStep, type SetupStepProps } from "./components/SetupStep";
 
