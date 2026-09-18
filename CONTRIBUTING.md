@@ -8,8 +8,9 @@ are built, with no fork), see the **[plugin development guide](website/src/conte
 
 - **Go 1.25** (standard-library `http.ServeMux`, pure-Go, no cgo).
 - **Frontend in `web/`**: Vite + React + TypeScript + Tailwind 4. Package manager
-  is **pnpm 9** (`packageManager: pnpm@9.15.4`). **Never use npm.** Do **not**
-  bump pnpm to 10/11 (it breaks CI's esbuild build-script handling).
+  is **pnpm 11** (`packageManager: pnpm@11.8.0`). **Never use npm.**
+  (`web/pnpm-workspace.yaml` approves esbuild's postinstall via `allowBuilds` /
+  `onlyBuiltDependencies` so pnpm 10+ doesn't fatal with `ERR_PNPM_IGNORED_BUILDS`.)
 
 ## Running it
 
