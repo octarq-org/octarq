@@ -256,3 +256,26 @@ func TestFetchSnapshotMetricsErrorTolerated(t *testing.T) {
 		t.Error("failed metrics must stay nil, not fabricated")
 	}
 }
+
+func TestTopViewAfterDone(t *testing.T) {
+	m := setupModel{fields: setupFields(), values: map[string]string{}, done: true}
+	if got := m.View(); got != "" {
+		t.Errorf("done view must be empty, got %q", got)
+	}
+}
+
+func TestTopModelEscQuits(t *testing.T) {
+	m := topModel{}
+	if _, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc}); cmd == nil {
+		t.Error("esc must quit")
+	}
+}
+
+func TestRunTopCIEnvForcesPlain(t *testing.T) {
+	t.Setenv("CI", "true")
+	t.Setenv("OCTARQ_IPC_SOCKET", filepath.Join(t.TempDir(), "nobody.sock"))
+	var buf strings.Builder
+	if code := RunTop(context.Background(), &buf, filepath.Join(t.TempDir(), "x.sock")); code != 1 {
+		t.Errorf("CI plain top exit = %d, want 1", code)
+	}
+}

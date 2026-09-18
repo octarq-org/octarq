@@ -169,7 +169,7 @@ func bootServer(ctx context.Context) int {
 	for _, p := range customPlugins() {
 		a.Use(p)
 	}
-	startIPCDaemon(ctx, a)
+	startIPCDaemon(ctx, buildinfo.Get().Version, a.HealthCollector)
 	if err := a.Run(ctx); err != nil {
 		slog.Error("run failed", "err", err)
 		return 1
@@ -180,15 +180,14 @@ func bootServer(ctx context.Context) int {
 // startIPCDaemon serves the Connect-RPC control plane on the Unix socket in
 // the background. It is best-effort: a socket failure is logged and the
 // server keeps running, because observability must never take down serving.
-func startIPCDaemon(ctx context.Context, a *app.App) {
+func startIPCDaemon(ctx context.Context, version string, collector func() *monitor.Collector) {
 	socketPath := ipc.SocketPath()
 	lis, err := ipc.Listen(socketPath)
 	if err != nil {
 		slog.Error("ipc listen failed; status/top/reload unavailable", "socket", socketPath, "err", err)
 		return
 	}
-	info := buildinfo.Get()
-	daemon := newIPCDaemon(info.Version, a.HealthCollector)
+	daemon := newIPCDaemon(version, collector)
 	go func() {
 		if err := daemon.Serve(ctx, lis); err != nil {
 			slog.Error("ipc serve failed", "err", err)

@@ -77,3 +77,62 @@ func TestLoadWithOptionsValidation(t *testing.T) {
 		t.Error("bad driver must fail closed")
 	}
 }
+
+func TestLoadWithOptionsDotEnvFile(t *testing.T) {
+	dir := t.TempDir()
+	envPath := filepath.Join(dir, ".env")
+	body := "OCTARQ_LISTEN=:7071\nOCTARQ_SECRET_KEY=dotenv-secret-12345678901234\nOCTARQ_ADMIN_PASSWORD=dotenv-admin-pass\n"
+	if err := os.WriteFile(envPath, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	os.Unsetenv("OCTARQ_LISTEN")
+	t.Cleanup(func() { os.Unsetenv("OCTARQ_LISTEN") })
+	cfg, err := LoadWithOptions(LoadOptions{DotEnvPath: envPath})
+	if err != nil {
+		t.Fatalf("dotenv load: %v", err)
+	}
+	if cfg.Listen != ":7071" {
+		t.Errorf("listen = %q, want :7071", cfg.Listen)
+	}
+}
+
+func TestBuildFromValuesBranches(t *testing.T) {
+	base := map[string]string{
+		"OCTARQ_DB_DRIVER":      "sqlite",
+		"OCTARQ_DB_DSN":         filepath.Join(t.TempDir(), "branches.db"),
+		"OCTARQ_SECRET_KEY":     "branch-test-secret-1234567890",
+		"OCTARQ_ADMIN_PASSWORD": "branch-test-admin-pass",
+	}
+	if _, err := buildFromValues(base); err != nil {
+		t.Fatalf("valid values: %v", err)
+	}
+
+	badLevel := map[string]string{}
+	for k, v := range base {
+		badLevel[k] = v
+	}
+	badLevel["OCTARQ_LOG_LEVEL"] = "verbose"
+	if _, err := buildFromValues(badLevel); err == nil {
+		t.Error("bad log level must fail")
+	}
+
+	provisioned := map[string]string{}
+	for k, v := range base {
+		provisioned[k] = v
+	}
+	provisioned["OCTARQ_DB_DRIVER"] = "postgres"
+	provisioned["OCTARQ_SECRET_KEY"] = "short"
+	if _, err := buildFromValues(provisioned); err == nil {
+		t.Error("short secret on provisioned infra must fail")
+	}
+
+	missingSecret := map[string]string{}
+	for k, v := range base {
+		missingSecret[k] = v
+	}
+	delete(missingSecret, "OCTARQ_SECRET_KEY")
+	missingSecret["OCTARQ_DB_DSN"] = filepath.Join(t.TempDir(), "auto.db")
+	if _, err := buildFromValues(missingSecret); err != nil {
+		t.Errorf("zero-config boot must auto-generate secrets, got: %v", err)
+	}
+}

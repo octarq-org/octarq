@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/octarq-org/octarq/server/internal/monitor"
 )
@@ -79,5 +82,54 @@ func TestSplitListen(t *testing.T) {
 	}
 	if host, port := splitListen(":8080"); host != "" || port != "8080" {
 		t.Errorf("split = %q/%q", host, port)
+	}
+}
+
+func TestRunServerSubcommandBootsAndShutsDown(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
+	t.Setenv("OCTARQ_DB_DSN", filepath.Join(tempDir, "server_sub.db"))
+	t.Setenv("OCTARQ_SECRET_KEY", "server-sub-secret-key-32-bytes-long!")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "server-sub-admin-pass")
+	t.Setenv("OCTARQ_LISTEN", "127.0.0.1:0")
+	t.Setenv("OCTARQ_IPC_SOCKET", filepath.Join(tempDir, "run.sock"))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var out, errb bytes.Buffer
+	if code := run(ctx, []string{"server", "--port", "0"}, &out, &errb); code != 0 {
+		t.Fatalf("run server = %d, want 0: %s", code, errb.String())
+	}
+}
+
+func TestStartIPCDaemonListenFailureIsBestEffort(t *testing.T) {
+	blocker := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(blocker, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("OCTARQ_IPC_SOCKET", filepath.Join(blocker, "run.sock"))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	startIPCDaemon(ctx, "test", func() *monitor.Collector { return nil })
+}
+
+func TestStartIPCDaemonServes(t *testing.T) {
+	socket := filepath.Join(t.TempDir(), "run.sock")
+	t.Setenv("OCTARQ_IPC_SOCKET", socket)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	startIPCDaemon(ctx, "test-ipc-main", func() *monitor.Collector { return nil })
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		conn, err := net.DialTimeout("unix", socket, time.Second)
+		if err == nil {
+			conn.Close()
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("ipc daemon did not accept")
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }

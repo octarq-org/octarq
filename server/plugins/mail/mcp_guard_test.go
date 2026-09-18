@@ -138,3 +138,16 @@ func TestMCPContentWrapsHostileMailAndKeepsOTP(t *testing.T) {
 		t.Errorf("OTP tool must stay 100%% accurate on hostile mail, got %+v", otp)
 	}
 }
+
+func TestNeutralizeFramingTagsCaseVariants(t *testing.T) {
+	for _, raw := range []string{"<SYSTEM>", "</System>", "<Instruction>", "[/SYSTEM]"} {
+		got := NeutralizeFramingTags("a " + raw + " b")
+		if strings.Contains(got, raw) {
+			t.Errorf("tag %q survived: %q", raw, got)
+		}
+	}
+	kept := StripInvisibleControls("a\tb\nc")
+	if kept != "a\tb\nc" {
+		t.Errorf("tab/newline must survive, got %q", kept)
+	}
+}

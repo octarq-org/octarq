@@ -433,55 +433,74 @@ func newServiceCommand(d Deps) *cobra.Command {
 		Short: "Manage the OS system service (install, start, stop, status, …)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			svc, err := service.New(prg, svcConfig)
+			svc, err := newServiceBackend(prg, svcConfig)
 			if err != nil {
 				return fmt.Errorf("service not supported on this platform: %w", err)
 			}
-			out := cmd.OutOrStdout()
-			switch args[0] {
-			case "install":
-				if err := svc.Install(); err != nil {
-					return err
-				}
-				fmt.Fprintln(out, "service installed")
-			case "uninstall":
-				if err := svc.Uninstall(); err != nil {
-					return err
-				}
-				fmt.Fprintln(out, "service uninstalled")
-			case "start":
-				if err := svc.Start(); err != nil {
-					return err
-				}
-				fmt.Fprintln(out, "service started")
-			case "stop":
-				if err := svc.Stop(); err != nil {
-					return err
-				}
-				fmt.Fprintln(out, "service stopped")
-			case "restart":
-				if err := svc.Restart(); err != nil {
-					return err
-				}
-				fmt.Fprintln(out, "service restarted")
-			case "status":
-				status, err := svc.Status()
-				if err != nil {
-					return err
-				}
-				switch status {
-				case service.StatusRunning:
-					fmt.Fprintln(out, "running")
-				case service.StatusStopped:
-					fmt.Fprintln(out, "stopped")
-				default:
-					fmt.Fprintln(out, "unknown")
-				}
-			default:
-				return fmt.Errorf("unknown service action %q (try: install, uninstall, start, stop, restart, status)", args[0])
-			}
-			return nil
+			return runServiceAction(cmd.OutOrStdout(), svc, args[0])
 		},
 	}
 	return cmd
+}
+
+// serviceBackend abstracts kardianos/service for testability.
+type serviceBackend interface {
+	Install() error
+	Uninstall() error
+	Start() error
+	Stop() error
+	Restart() error
+	Status() (service.Status, error)
+}
+
+// newServiceBackend constructs the platform backend. It is a variable so
+// tests can inject a fake without touching the OS service manager.
+var newServiceBackend = func(prg *program, cfg *service.Config) (serviceBackend, error) {
+	return service.New(prg, cfg)
+}
+
+func runServiceAction(out io.Writer, svc serviceBackend, action string) error {
+	switch action {
+	case "install":
+		if err := svc.Install(); err != nil {
+			return err
+		}
+		fmt.Fprintln(out, "service installed")
+	case "uninstall":
+		if err := svc.Uninstall(); err != nil {
+			return err
+		}
+		fmt.Fprintln(out, "service uninstalled")
+	case "start":
+		if err := svc.Start(); err != nil {
+			return err
+		}
+		fmt.Fprintln(out, "service started")
+	case "stop":
+		if err := svc.Stop(); err != nil {
+			return err
+		}
+		fmt.Fprintln(out, "service stopped")
+	case "restart":
+		if err := svc.Restart(); err != nil {
+			return err
+		}
+		fmt.Fprintln(out, "service restarted")
+	case "status":
+		status, err := svc.Status()
+		if err != nil {
+			return err
+		}
+		switch status {
+		case service.StatusRunning:
+			fmt.Fprintln(out, "running")
+		case service.StatusStopped:
+			fmt.Fprintln(out, "stopped")
+		default:
+			fmt.Fprintln(out, "unknown")
+		}
+	default:
+		return fmt.Errorf("unknown service action %q (try: install, uninstall, start, stop, restart, status)", action)
+	}
+	return nil
 }

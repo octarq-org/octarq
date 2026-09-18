@@ -244,3 +244,16 @@ func TestMetricsRoundTrip(t *testing.T) {
 		t.Errorf("metrics = %+v", rep)
 	}
 }
+
+func TestServeClosedListenerFails(t *testing.T) {
+	path := testSocket(t)
+	lis, err := Listen(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lis.Close()
+	d := &Daemon{Version: "x", Started: time.Now()}
+	if err := d.Serve(context.Background(), lis); err == nil {
+		t.Error("serve on closed listener must fail")
+	}
+}

@@ -200,3 +200,41 @@ func TestSubscribeHandshakeAndPush(t *testing.T) {
 		t.Fatalf("Unsubscribe: %v", err)
 	}
 }
+
+func TestNotifyHelpersFanOutToWatchers(t *testing.T) {
+	srv := mcp.NewServer(&mcp.Implementation{Name: "notify-test", Version: "1.0"}, nil)
+	inner := &server{subs: &subscriptionTracker{}, srv: srv}
+
+	// Unwatched URIs never touch the server.
+	inner.NotifyLinksTrending(context.Background())
+	inner.NotifyMailboxLatest(context.Background(), 9)
+
+	// Watched URIs push without sessions attached (no-op, must not error).
+	inner.subs.add(ResourceURILinksTrending)
+	inner.NotifyLinksTrending(context.Background())
+	mailURI := "octarq://mailboxes/9/latest"
+	inner.subs.add(mailURI)
+	inner.NotifyMailboxLatest(context.Background(), 9)
+
+	// Nil server is a safe no-op even when watched.
+	inner.srv = nil
+	inner.NotifyLinksTrending(context.Background())
+}
+
+func TestRemoveUnwatchedIsNoOp(t *testing.T) {
+	tr := &subscriptionTracker{}
+	tr.remove("octarq://nothing")
+	if tr.watched("octarq://nothing") {
+		t.Error("never-subscribed URI must not be watched")
+	}
+	tr.add("octarq://x")
+	tr.add("octarq://x")
+	tr.remove("octarq://x")
+	if !tr.watched("octarq://x") {
+		t.Error("refcount must survive one removal of two adds")
+	}
+	tr.remove("octarq://x")
+	if tr.watched("octarq://x") {
+		t.Error("URI must drop after final removal")
+	}
+}
