@@ -1,18 +1,10 @@
-import { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { cn } from "../cn";
 
 // StatCard is the dashboard metric tile: a value with an optional delta and
 // icon, animated in on mount (staggered by `index`) and optionally clickable.
-export function StatCard({
-  label,
-  value,
-  delta,
-  positive,
-  icon,
-  index = 0,
-  onClick,
-}: {
+export interface StatCardProps {
   label: string;
   value: string | number;
   delta?: string;
@@ -20,9 +12,13 @@ export function StatCard({
   icon?: ReactNode;
   index?: number;
   onClick?: () => void;
-}) {
-  return (
+  className?: string;
+}
+
+export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(
+  ({ label, value, delta, positive, icon, index = 0, onClick, className }, ref) => (
     <motion.div
+      ref={ref}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
@@ -46,6 +42,7 @@ export function StatCard({
         onClick
           ? "cursor-pointer hover:bg-foreground/[0.06] hover:ring-1 hover:ring-inset hover:ring-foreground/10 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
           : "",
+        className,
       )}
     >
       <div className="mb-2 flex items-center justify-between">
@@ -70,5 +67,6 @@ export function StatCard({
         )}
       </div>
     </motion.div>
-  );
-}
+  ),
+);
+StatCard.displayName = "StatCard";

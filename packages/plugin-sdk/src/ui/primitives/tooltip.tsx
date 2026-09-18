@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
 import { Tooltip as BaseTooltip } from "@base-ui/react/tooltip";
 import { cn } from "../cn";
 
@@ -6,39 +6,38 @@ import { cn } from "../cn";
 // portalled and positioned, dismissible) with octarq's glass theme. `children` is
 // the trigger; `content` is the floating label. A per-instance Provider carries
 // the open delay.
-export function Tooltip({
-  content,
-  children,
-  side = "top",
-  delay = 200,
-  className,
-}: {
+export interface TooltipProps {
   content: ReactNode;
   children: ReactNode;
   side?: "top" | "bottom" | "left" | "right";
   delay?: number;
   className?: string;
-}) {
-  return (
-    <BaseTooltip.Provider delay={delay}>
-      <BaseTooltip.Root>
-        <BaseTooltip.Trigger render={<span className="inline-flex" />}>
-          {children}
-        </BaseTooltip.Trigger>
-        <BaseTooltip.Portal>
-          <BaseTooltip.Positioner side={side} sideOffset={6} className="z-50 outline-none">
-            <BaseTooltip.Popup
-              className={cn(
-                "glass-strong max-w-xs rounded-lg px-2.5 py-1.5 text-xs text-foreground/85",
-                "origin-[var(--transform-origin)]",
-                className,
-              )}
-            >
-              {content}
-            </BaseTooltip.Popup>
-          </BaseTooltip.Positioner>
-        </BaseTooltip.Portal>
-      </BaseTooltip.Root>
-    </BaseTooltip.Provider>
-  );
 }
+
+export const Tooltip = forwardRef<HTMLButtonElement, TooltipProps>(
+  ({ content, children, side = "top", delay = 200, className }, ref) => {
+    return (
+      <BaseTooltip.Provider delay={delay}>
+        <BaseTooltip.Root>
+          <BaseTooltip.Trigger ref={ref}render={<span className="inline-flex" />}>
+            {children}
+          </BaseTooltip.Trigger>
+          <BaseTooltip.Portal>
+            <BaseTooltip.Positioner side={side} sideOffset={6} className="z-50 outline-none">
+              <BaseTooltip.Popup
+                className={cn(
+                  "glass-strong max-w-xs rounded-lg px-2.5 py-1.5 text-xs text-foreground/85",
+                  "origin-[var(--transform-origin)]",
+                  className,
+                )}
+              >
+                {content}
+              </BaseTooltip.Popup>
+            </BaseTooltip.Positioner>
+          </BaseTooltip.Portal>
+        </BaseTooltip.Root>
+      </BaseTooltip.Provider>
+    );
+  },
+);
+Tooltip.displayName = "Tooltip";

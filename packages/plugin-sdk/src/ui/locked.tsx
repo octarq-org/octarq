@@ -1,23 +1,15 @@
+import { forwardRef, type ReactNode } from "react";
+import { cn } from "./cn";
+import { useTranslation } from "../i18n";
+import { useAppName } from "../brand";
+import { GlassCard, ProPill, Button, TIER_LABEL } from "./primitives";
+
 // The gated-state UI: LockedFeature (the upsell mask for 402 unlicensed / 404
 // plugin-not-in-this-build) and LockedFallback (a one-liner convenience with a
 // default icon). Moved into the published package — driven by the SDK's own
 // i18n + brand context and primitives — so an independent plugin can render the
 // locked state without reaching into the host app.
-import { ReactNode } from "react";
-import { twMerge } from "tailwind-merge";
-import { useTranslation } from "../i18n";
-import { useAppName } from "../brand";
-import { GlassCard, ProPill, Button, TIER_LABEL } from "./primitives";
-
-export function LockedFeature({
-  status,
-  tier = "pro",
-  feature,
-  description,
-  perks,
-  icon,
-  pricingHref,
-}: {
+export interface LockedFeatureProps {
   status: number; // 402 (unlicensed) or 404 (plugin not in this build) → upsell
   tier?: "pro" | "elite";
   feature: string; // e.g. "VPS Infrastructure"
@@ -25,117 +17,123 @@ export function LockedFeature({
   perks?: string[]; // what unlocking grants
   icon?: ReactNode; // icon node from the caller (keeps the package icon-lib-free)
   pricingHref?: string; // optional "compare plans" link to the landing page
-}) {
-  // Both "unlicensed" (402) and "not built into this installation" (404) are
-  // gated Pro states — show one unified upsell mask. Only genuinely unexpected
-  // failures fall through to the neutral message.
-  const locked = status === 402 || status === 404;
-  const label = TIER_LABEL[tier];
-  const appName = useAppName();
-  const { t } = useTranslation();
-
-  return (
-    <GlassCard
-      strong
-      className="mx-auto mt-12 flex max-w-md flex-col items-center gap-5 px-5 py-10 text-center"
-    >
-      <div
-        className={twMerge(
-          "flex h-14 w-14 items-center justify-center rounded-lg",
-          locked
-            ? "bg-info-bg text-accent-fg ring-1 ring-inset ring-info-border"
-            : "bg-rose-500/10 text-danger-fg", /* ui-color-ok */
-        )}
-      >
-        {icon ?? <DefaultLockIcon />}
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-center gap-2">
-          <h2 className="text-xl font-bold text-foreground">{feature}</h2>
-          {locked && <ProPill>{label}</ProPill>}
-        </div>
-        <p className="text-sm leading-relaxed text-foreground/50">
-          {locked ? (
-            <>
-              {t("uiCommon.lockedIntroPre")}
-              <span className="font-medium text-accent-fg">
-                {appName} {label}
-              </span>
-              {t("uiCommon.lockedIntroPost")}
-              {description ? ` ${description}` : ""}
-            </>
-          ) : (
-            t("uiCommon.notAvailable", { feature })
-          )}
-        </p>
-      </div>
-
-      {locked && perks && perks.length > 0 && (
-        <ul className="w-full space-y-1.5 text-left">
-          {perks.map((p) => (
-            <li key={p} className="flex items-start gap-2 text-sm text-foreground/65">
-              <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-muted-foreground" />
-              {p}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {locked && (
-        <div className="flex flex-col items-stretch gap-2 pt-1 sm:flex-row">
-          <Button
-            variant="primary"
-            onClick={() => (window.location.href = "/admin/settings/license")}
-          >
-            {t("uiCommon.upgradeTo", { tier: label })}
-          </Button>
-          {pricingHref && (
-            <a
-              href={pricingHref}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm font-medium text-foreground/65 transition-colors hover:bg-foreground/5 hover:text-foreground"
-            >
-              {t("uiCommon.comparePlans")}
-            </a>
-          )}
-        </div>
-      )}
-    </GlassCard>
-  );
+  className?: string;
 }
 
-// LockedFallback is the convenience the frontend plugin contract points at
-// (UIPlugin.lockedFallback): a LockedFeature preset with a default key icon so a
-// plugin page can degrade in one line — <LockedFallback status={err.status}
-// feature="…" />.
-export function LockedFallback({
-  status,
-  feature,
-  description,
-  perks,
-  tier = "pro",
-  pricingHref,
-}: {
+export const LockedFeature = forwardRef<HTMLDivElement, LockedFeatureProps>(
+  ({ status, tier = "pro", feature, description, perks, icon, pricingHref, className }, ref) => {
+    // Both "unlicensed" (402) and "not built into this installation" (404) are
+    // gated Pro states — show one unified upsell mask. Only genuinely unexpected
+    // failures fall through to the neutral message.
+    const locked = status === 402 || status === 404;
+    const label = TIER_LABEL[tier];
+    const appName = useAppName();
+    const { t } = useTranslation();
+
+    return (
+      <GlassCard
+        ref={ref}
+        strong
+        className={cn("mx-auto mt-12 flex max-w-md flex-col items-center gap-5 px-5 py-10 text-center", className)}
+      >
+        <div
+          className={cn(
+            "flex h-14 w-14 items-center justify-center rounded-lg",
+            locked
+              ? "bg-info-bg text-accent-fg ring-1 ring-inset ring-info-border"
+              : "bg-rose-500/10 text-danger-fg", /* ui-color-ok */
+          )}
+        >
+          {icon ?? <DefaultLockIcon />}
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-center gap-2">
+            <h2 className="text-xl font-bold text-foreground">{feature}</h2>
+            {locked && <ProPill>{label}</ProPill>}
+          </div>
+          <p className="text-sm leading-relaxed text-foreground/50">
+            {locked ? (
+              <>
+                {t("uiCommon.lockedIntroPre")}
+                <span className="font-medium text-accent-fg">
+                  {appName} {label}
+                </span>
+                {t("uiCommon.lockedIntroPost")}
+                {description ? ` ${description}` : ""}
+              </>
+            ) : (
+              t("uiCommon.notAvailable", { feature })
+            )}
+          </p>
+        </div>
+
+        {locked && perks && perks.length > 0 && (
+          <ul className="w-full space-y-1.5 text-left">
+            {perks.map((p) => (
+              <li key={p} className="flex items-start gap-2 text-sm text-foreground/65">
+                <span className="mt-1 h-1.5 w-1.5 flex-none rounded-full bg-muted-foreground" />
+                {p}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {locked && (
+          <div className="flex flex-col items-stretch gap-2 pt-1 sm:flex-row">
+            <Button
+              variant="primary"
+              onClick={() => (window.location.href = "/admin/settings/license")}
+            >
+              {t("uiCommon.upgradeTo", { tier: label })}
+            </Button>
+            {pricingHref && (
+              <a
+                href={pricingHref}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm font-medium text-foreground/65 transition-colors hover:bg-foreground/5 hover:text-foreground"
+              >
+                {t("uiCommon.comparePlans")}
+              </a>
+            )}
+          </div>
+        )}
+      </GlassCard>
+    );
+  },
+);
+LockedFeature.displayName = "LockedFeature";
+
+export interface LockedFallbackProps {
   status: number;
   feature: string;
   description?: string;
   perks?: string[];
   tier?: "pro" | "elite";
   pricingHref?: string;
-}) {
-  return (
+  className?: string;
+}
+
+// LockedFallback is the convenience the frontend plugin contract points at
+// (UIPlugin.lockedFallback): a LockedFeature preset with a default key icon so a
+// plugin page can degrade in one line — <LockedFallback status={err.status}
+// feature="…" />.
+export const LockedFallback = forwardRef<HTMLDivElement, LockedFallbackProps>(
+  ({ status, feature, description, perks, tier = "pro", pricingHref, className }, ref) => (
     <LockedFeature
+      ref={ref}
       status={status}
       tier={tier}
       feature={feature}
       description={description}
       perks={perks}
       pricingHref={pricingHref}
+      className={className}
     />
-  );
-}
+  ),
+);
+LockedFallback.displayName = "LockedFallback";
 
 // A small inline key glyph — keeps the package free of an icon-library dep while
 // still giving the locked state a sensible default visual.

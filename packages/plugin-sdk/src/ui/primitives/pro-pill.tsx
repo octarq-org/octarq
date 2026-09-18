@@ -1,19 +1,24 @@
-import { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
 import { cn } from "../cn";
 
 // ProPill is the small "Pro"/"Elite" tier badge shown next to gated features.
-export function ProPill({ className, children }: { className?: string; children?: ReactNode }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full bg-info-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-info-fg ring-1 ring-inset ring-info-border",
-        className,
-      )}
-    >
-      {children ?? "Pro"}
-    </span>
-  );
+export interface ProPillProps {
+  className?: string;
+  children?: ReactNode;
 }
+
+export const ProPill = forwardRef<HTMLSpanElement, ProPillProps>(({ className, children }, ref) => (
+  <span
+    ref={ref}
+    className={cn(
+      "inline-flex items-center gap-1 rounded-full bg-info-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-info-fg ring-1 ring-inset ring-info-border",
+      className,
+    )}
+  >
+    {children ?? "Pro"}
+  </span>
+));
+ProPill.displayName = "ProPill";
 
 // The tier → display-label map. Kept alongside ProPill so callers labelling a
 // tier and rendering its pill share one source of truth.

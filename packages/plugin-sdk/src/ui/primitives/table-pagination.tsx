@@ -1,3 +1,5 @@
+import { forwardRef } from "react";
+import { cn } from "../cn";
 import { useTranslation } from "../../i18n";
 import { Button } from "./button";
 
@@ -17,19 +19,16 @@ export interface TablePaginationProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   config?: boolean | TablePaginationConfig;
+  className?: string;
 }
 
 const MAX_PAGE_BUTTONS = 5;
 
-export function TablePagination({
-  page,
-  pageSize,
-  total,
-  pageCount,
-  onPageChange,
-  onPageSizeChange,
-  config = true,
-}: TablePaginationProps) {
+export const TablePagination = forwardRef<HTMLDivElement, TablePaginationProps>(
+  (
+    { page, pageSize, total, pageCount, onPageChange, onPageSizeChange, config = true, className },
+    ref,
+  ) => {
   const { t } = useTranslation();
 
   if (config === false) return null;
@@ -51,7 +50,13 @@ export function TablePagination({
   for (let i = start; i <= end; i++) pages.push(i);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 border-t border-foreground/[0.06] px-4 py-3 text-xs text-foreground/70">
+    <div
+      ref={ref}
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-4 border-t border-foreground/[0.06] px-4 py-3 text-xs text-foreground/70",
+        className,
+      )}
+    >
       <div className="flex items-center gap-3">
         <span className="font-medium">{t("proTable.totalItems", { total })}</span>
         <span className="text-foreground/40">|</span>
@@ -112,8 +117,10 @@ export function TablePagination({
         </div>
       </div>
     </div>
-  );
-}
+    );
+  },
+);
+TablePagination.displayName = "TablePagination";
 
 // Inline so the package stays free of an icon-library dependency.
 function ChevronLeftGlyph({ className }: { className?: string }) {

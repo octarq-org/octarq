@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { Switch as BaseSwitch } from "@base-ui/react/switch";
 import { cn } from "../cn";
 
@@ -5,19 +6,20 @@ import { cn } from "../cn";
 // (role="switch", keyboard-toggleable, focus-visible ring) carrying octarq's glass
 // theme. The higher-level `Toggle` in ../primitives adapts it to the app's
 // `{ on, onChange }` API; plugin authors can use either.
-export function Switch({
-  checked,
-  onCheckedChange,
-  disabled,
-  className,
-}: {
+//
+// The ref lands on the switch control itself — the element that takes focus and
+// keyboard input.
+export interface SwitchProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   disabled?: boolean;
   className?: string;
-}) {
-  return (
+}
+
+export const Switch = forwardRef<HTMLButtonElement, SwitchProps>(
+  ({ checked, onCheckedChange, disabled, className }, ref) => (
     <BaseSwitch.Root
+      ref={ref}
       checked={checked}
       onCheckedChange={(v) => onCheckedChange(v)}
       disabled={disabled}
@@ -35,5 +37,6 @@ export function Switch({
         )}
       />
     </BaseSwitch.Root>
-  );
-}
+  ),
+);
+Switch.displayName = "Switch";
