@@ -2,9 +2,13 @@ import { useTranslation } from "../../i18n";
 
 // The most common failure statuses get a localized, generic line so a zh/es/pt/ja
 // operator doesn't read an English detail for a failure whose meaning doesn't
-// depend on the backend message. Anything not listed here falls back to the
-// server's original message verbatim — collapsing an unknown error into a
-// generic "something went wrong" would make every failure indistinguishable.
+// depend on the backend message. Anything not listed falls back to the server's
+// original message verbatim — collapsing an unknown error into a generic
+// "something went wrong" would make every failure indistinguishable.
+//
+// Moved here from web/src/components/ui/FormError.tsx so a plugin package can
+// render the same failure surface; it reads the SDK's own i18n context, which
+// the host app feeds (the uiCommon.* keys below live in the host dictionary).
 export const formErrorStatusKeys: Record<number, string> = {
   401: "uiCommon.errStatus401",
   403: "uiCommon.errStatus403",
@@ -27,11 +31,11 @@ export function formErrorMessage(
   return err?.message ?? "";
 }
 
-// Shared form-failure surface for plugin edit forms. The backend answers with
-// a human message (no structured field names), so the added value here is what
+// Shared form-failure surface for plugin edit forms. The backend answers with a
+// human message (no structured field names), so the added value here is what
 // only a self-hosted operator can act on: the HTTP status and the server's
-// X-Request-Id — the correlation id for their own logs. Both are machine
-// values, so they render in mono.
+// X-Request-Id — the correlation id for their own logs. Both are machine values,
+// so they render in mono.
 export function FormError({
   err,
 }: {

@@ -1,7 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { ScreenWrap } from "../ui";
-import { RouteFallback } from "../App";
+import { ScreenWrap, RouteFallback } from "../ui";
 import { InstanceExitRedirect } from "./instance/redirect";
 // Each settings panel is its own chunk, loaded when its sub-route is opened.
 const PluginsSettings = lazy(() => import("./settings/plugins").then((m) => ({ default: m.PluginsSettings })));

@@ -1,7 +1,12 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "../../lib/utils";
+import { cn } from "../cn";
 
+// Inline status surface. Every tone derives from a --{tone}-* token trio, so a
+// white-label rebrand repaints it and no literal brand hue is ever needed.
+// Moved here from web/src/components/ui/Alert.tsx: it was app-side only, which
+// meant a plugin package could not render it at all and had to approximate one
+// with a Badge.
 export const alertVariants = cva(
   "relative w-full rounded-xl border p-4 text-sm font-medium transition-colors flex items-start gap-3",
   {
@@ -16,7 +21,7 @@ export const alertVariants = cva(
     defaultVariants: {
       variant: "info",
     },
-  }
+  },
 );
 
 export interface AlertProps
@@ -37,7 +42,7 @@ export const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
         className={cn(
           alertVariants({ variant }),
           align === "center" && "items-center",
-          className
+          className,
         )}
         {...props}
       >
@@ -62,6 +67,6 @@ export const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
         )}
       </div>
     );
-  }
+  },
 );
 Alert.displayName = "Alert";
