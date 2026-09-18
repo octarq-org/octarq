@@ -16,7 +16,7 @@ function renderButton() {
 
 describe("CopilotButton", () => {
   beforeEach(() => {
-    useCopilotStore.getState().resetToSample();
+    useCopilotStore.getState().resetCopilot();
     useCopilotStore.getState().closeCopilot();
   });
 
@@ -46,9 +46,36 @@ describe("CopilotButton", () => {
   });
 
   it("displays pending count badge when approvals are pending", () => {
+    useCopilotStore.getState().addActionDiff({
+      id: "act-1",
+      agent: "AI Agent",
+      action: "a",
+      title: "A",
+      target: "t",
+      riskLevel: "write",
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      diff: [],
+    });
+    useCopilotStore.getState().addActionDiff({
+      id: "act-2",
+      agent: "AI Agent",
+      action: "b",
+      title: "B",
+      target: "t",
+      riskLevel: "read",
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      diff: [],
+    });
     renderButton();
 
-    // Default sample has 2 pending approvals
     expect(screen.getByText("2")).toBeDefined();
+  });
+
+  it("shows no badge when the approval queue is empty", () => {
+    renderButton();
+
+    expect(screen.queryByText("2")).toBeNull();
   });
 });

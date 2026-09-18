@@ -15,6 +15,7 @@ import { useTranslation } from "../i18n";
 import { Button, cn, timeAgo } from "../ui";
 import type { ActionDiff, RiskLevel, ApprovalStatus } from "./types";
 import { useCopilotStore } from "./store";
+import { AIStreamError, decideApproval } from "./api";
 
 interface ActionDiffCardProps {
   action: ActionDiff;
@@ -34,30 +35,87 @@ export function ActionDiffCard({
   const { t } = useTranslation();
   const approveAction = useCopilotStore((s) => s.approveAction);
   const rejectAction = useCopilotStore((s) => s.rejectAction);
+  const syncApprovalStatus = useCopilotStore((s) => s.syncApprovalStatus);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [decisionError, setDecisionError] = useState<string | null>(null);
+
+  // Cards materialized from /api/ai/approvals carry approvalId + token and
+  // must decide through the atomic CAS endpoints. Cards without a binding
+  // (e.g. inline diffs from chat tool calls) fall back to local state, and an
+  // explicit onApprove/onReject prop always wins (used by tests/embeds).
+  const decideRemote = async (decision: "approve" | "reject") => {
+    setIsSubmitting(true);
+    setDecisionError(null);
+    try {
+      const result = await decideApproval(action.approvalId as string, decision, action.approvalToken);
+      if (result.outcome === "approved") {
+        syncApprovalStatus(action.id, "approved", { approver: result.approver ?? "Operator" });
+      } else if (result.outcome === "rejected") {
+        syncApprovalStatus(action.id, "rejected", { rejectReason: "Rejected by operator" });
+      } else if (result.outcome === "expired" || result.outcome === "not_found") {
+        syncApprovalStatus(action.id, "expired", { rejectReason: t("copilot.decisionExpired", "审批已过期或不存在") });
+      } else {
+        syncApprovalStatus(action.id, "expired", {
+          rejectReason: t("copilot.decisionConflict", "已被他人处理，本地状态已同步"),
+        });
+      }
+    } catch (err) {
+      if (err instanceof AIStreamError && err.status === 409) {
+        syncApprovalStatus(action.id, "expired", {
+          rejectReason: t("copilot.decisionConflict", "已被他人处理，本地状态已同步"),
+        });
+        return;
+      }
+      if (err instanceof AIStreamError && err.status === 410) {
+        syncApprovalStatus(action.id, "expired", { rejectReason: t("copilot.decisionExpired", "审批已过期或不存在") });
+        return;
+      }
+      setDecisionError(err instanceof Error ? err.message : t("copilot.decisionFailed", "审批请求失败，请重试"));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleApprove = async () => {
+    if (onApprove) {
+      setIsSubmitting(true);
+      try {
+        await onApprove(action.id);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+    if (action.approvalId) {
+      await decideRemote("approve");
+      return;
+    }
     setIsSubmitting(true);
     try {
-      if (onApprove) {
-        await onApprove(action.id);
-      } else {
-        approveAction(action.id);
-      }
+      approveAction(action.id);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleReject = async () => {
+    if (onReject) {
+      setIsSubmitting(true);
+      try {
+        await onReject(action.id);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+    if (action.approvalId) {
+      await decideRemote("reject");
+      return;
+    }
     setIsSubmitting(true);
     try {
-      if (onReject) {
-        await onReject(action.id);
-      } else {
-        rejectAction(action.id);
-      }
+      rejectAction(action.id);
     } finally {
       setIsSubmitting(false);
     }
@@ -171,6 +229,14 @@ export function ActionDiffCard({
       )}
 
       {/* Footer Actions / Meta info */}
+      {decisionError && (
+        <p
+          role="alert"
+          className="mt-3 rounded-xl border border-danger-fg/30 bg-danger-fg/10 p-2.5 text-xs leading-relaxed text-danger-fg"
+        >
+          {decisionError}
+        </p>
+      )}
       <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 pt-1">
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <Clock className="h-3 w-3" />

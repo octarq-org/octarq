@@ -51,6 +51,8 @@ type server struct {
 	gdb    *gorm.DB
 	orgID  uint // tenant scope for the tools (defaults to 1 for Stdio CLI, dynamically set via HTTP tokens for remote SSE)
 	lookup func(name string) (any, bool)
+	srv    *mcp.Server
+	subs   *subscriptionTracker
 }
 
 // Run loads configuration, opens the database read-only-style, builds the MCP
@@ -116,17 +118,21 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 		}
 	}
 
-	s := &server{gdb: gdb, orgID: orgID, lookup: lookupFn}
+	s := &server{gdb: gdb, orgID: orgID, lookup: lookupFn, subs: &subscriptionTracker{}}
 
 	impl := &mcp.Implementation{Name: "octarq", Version: version}
 	opts := &mcp.ServerOptions{
 		Instructions: "octarq is a self-hosted one-person-company backend. These tools " +
 			"read/write short links, email, and domains. Everything is scoped to the " +
 			"caller's own workspace.",
+		SubscribeHandler:   s.handleSubscribe,
+		UnsubscribeHandler: s.handleUnsubscribe,
 	}
 	srv := mcp.NewServer(impl, opts)
+	s.srv = srv
 	s.registerTools(srv)
 	s.registerResources(srv)
+	s.registerExtraResources(srv)
 	_ = endpointEngine.MountMCP(srv)
 
 	for _, p := range plugins {

@@ -455,4 +455,9 @@ CREATE INDEX idx_mail_contacts_last_seen_at ON mail_contacts(last_seen_at);
 7. **Unwired Seam Security Invariant**:
    - If `ctx.RequireRole` is nil, `hasRole` returns `false` (fail-closed refusal). Administrative routes (`createMailbox`, `updateMailbox`, `deleteMailbox`, `createSMTPSender`, `deleteEmail`, `createSuppression`, etc.) strictly reject calls when authorization cannot be verified.
 8. **Constant-Time Webhook Token Authentication**:
-   - Public webhook endpoints (`inbound`, `inboundGeneric`, `emailBounceWebhook`) verify tokens via `subtle.ConstantTimeCompare`. Mismatched tokens log `recordInboundAuthFailure` without recording or leaking the attempted credential.
+    - Public webhook endpoints (`inbound`, `inboundGeneric`, `emailBounceWebhook`) verify tokens via `subtle.ConstantTimeCompare`. Mismatched tokens log `recordInboundAuthFailure` without recording or leaking the attempted credential.
+9. **MCP Prompt-Injection Sanitizer** (`mcp_guard.go`, PD-73):
+    - Every body exposed via `get_email_content` / `get_email_summary` passes `SanitizeAgentBody`: invisible Cc/Cf controls stripped, forged `<system>` / `[SYSTEM]` / `<instruction>` framing tags defused, sensitive URL tokens masked (reused `SanitizeEmailContent` rules), length capped at 4KB, then sealed in `<untrusted_email_body>` with the `AgentBodyGuard` instruction emitted as a separate `guard` field.
+    - OTP extraction (`ExtractOTP`) always runs on the raw message, so adversarial mail keeps 100% OTP accuracy while agents only ever see the wrapped output.
+10. **MCP Resources Push** (`internal/mcp/resources_extra.go`, PD-73):
+    - `octarq://mailboxes/{id}/latest` (template, metadata only, org-scoped) and `octarq://links/trending` complement the existing `octarq://domains/health`; `resources/subscribe` is served with per-URI fan-out via `NotifyMailboxLatest` / `NotifyLinksTrending`, eliminating polling.

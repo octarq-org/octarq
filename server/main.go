@@ -21,11 +21,15 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/octarq-org/octarq/server/app"
+	"github.com/octarq-org/octarq/server/cli"
 	"github.com/octarq-org/octarq/server/config"
 	hello "github.com/octarq-org/octarq/server/examples/plugin-hello"
 	"github.com/octarq-org/octarq/server/internal/buildinfo"
+	"github.com/octarq-org/octarq/server/internal/ipc"
 	"github.com/octarq-org/octarq/server/internal/mcp"
 	"github.com/octarq-org/octarq/server/openapi"
 	"github.com/octarq-org/octarq/server/pkg/telemetry"
@@ -47,59 +51,98 @@ func main() {
 	os.Exit(run(context.Background(), os.Args[1:], os.Stdout, os.Stderr))
 }
 
-// run dispatches every subcommand and returns the process exit code; main()
-// only sets up logging and os.Exit's the code. The body was extracted from
-// main() so the dispatch logic and the default server boot can be exercised by
-// unit tests without forking a process — ctx and writers are passed in.
+// run dispatches every subcommand through the shared Cobra tree
+// (server/cli) and returns the process exit code; main() only sets up
+// logging and os.Exit's the code. ctx and writers are passed in so the
+// dispatch logic and the default server boot stay unit-testable without
+// forking a process.
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
-	// Print build metadata and exit. Version/commit are injected at build time
-	// (see Makefile's LDFLAGS); outside a git checkout they degrade to dev /
-	// unknown, which is also what `go run .` reports.
-	if len(args) > 0 && (args[0] == "--version" || args[0] == "-version") {
-		info := buildinfo.Get()
-		fmt.Fprintf(stdout, "octarq %s (commit %s, built %s)\n", info.Version, info.Commit, info.BuiltAt)
-		return 0
-	}
+	return cli.Execute(ctx, args, stdout, stderr, cli.Deps{
+		Name: "octarq",
+		PrintVersion: func(w io.Writer) {
+			info := buildinfo.Get()
+			fmt.Fprintf(w, "octarq %s (commit %s, built %s)\n", info.Version, info.Commit, info.BuiltAt)
+		},
+		Boot:    bootServer,
+		MCP:     runMCPServer,
+		OpenAPI: runOpenAPI,
+		Backup:  runBackupCommand,
+		Restore: runRestoreCommand,
+		Plugin:  runPluginCommand,
+		ApplyServerFlags: func(port, host, configPath string) error {
+			return applyServerFlags(port, host, configPath)
+		},
+		ServiceName:    "octarq",
+		ServiceDisplay: "Octarq Ops Platform",
+		ServiceDesc:    "Octarq single-binary ops platform (links, email, domains).",
+	})
+}
 
-	// Dispatch subcommands before standing up the full server. `octarq mcp` runs a
-	// stdio MCP server instead of the HTTP service.
-	if len(args) > 0 && args[0] == "mcp" {
-		// Compose the Core plugins so their MCP tools (list_links, list_domains,
-		// list_mailboxes/emails, export_data) are registered on the stdio server.
-		if err := mcp.RunWithPlugins(context.Background(), builtin.Default()); err != nil {
-			slog.Error("mcp failed", "err", err)
-			return 1
+// applyServerFlags maps `server` flag values onto process config before boot.
+// Explicit flags win over the environment; a bad --config path fails closed.
+func applyServerFlags(port, host, configPath string) error {
+	if configPath != "" {
+		if err := config.LoadDotEnv(configPath); err != nil {
+			return fmt.Errorf("load --config %q: %w", configPath, err)
 		}
-		return 0
 	}
-
-	// `octarq openapi` prints the published specification. It boots the same
-	// composition the server does — Core plugins included — so the document is
-	// read off the live handler registrations rather than described alongside
-	// them. Passing nil here would emit a spec missing every links, mail, DNS
-	// and help route.
-	if len(args) > 0 && args[0] == "openapi" {
-		if err := openapi.Generate(stdout, builtin.Default()); err != nil {
-			slog.Error("openapi generation failed", "err", err)
-			return 1
-		}
-		return 0
+	if port == "" && host == "" {
+		return nil
 	}
-
-	if len(args) > 0 && args[0] == "backup" {
-		return runBackupCommand(args[1:])
+	listen := os.Getenv("OCTARQ_LISTEN")
+	if listen == "" {
+		listen = ":8080"
 	}
-
-	if len(args) > 0 && args[0] == "restore" {
-		return runRestoreCommand(args[1:])
+	baseHost, basePort := splitListen(listen)
+	if host != "" {
+		baseHost = host
 	}
-
-	// `octarq plugin new <name>` scaffolds a plugin skeleton (Go + web halves)
-	// and exits, without standing up the server.
-	if len(args) > 0 && args[0] == "plugin" {
-		return runPluginCommand(args[1:])
+	if port != "" {
+		basePort = strings.TrimPrefix(port, ":")
 	}
+	if baseHost == "" {
+		baseHost = ":"
+	}
+	if strings.HasSuffix(baseHost, ":") {
+		_ = os.Setenv("OCTARQ_LISTEN", baseHost+basePort)
+	} else {
+		_ = os.Setenv("OCTARQ_LISTEN", baseHost+":"+basePort)
+	}
+	return nil
+}
 
+func splitListen(listen string) (host, port string) {
+	if i := strings.LastIndex(listen, ":"); i >= 0 {
+		return listen[:i], listen[i+1:]
+	}
+	return listen, ""
+}
+
+// runMCPServer composes the Core plugins so their MCP tools (list_links,
+// list_domains, list_mailboxes/emails, export_data) are registered on the
+// stdio server.
+func runMCPServer(ctx context.Context) int {
+	if err := mcp.RunWithPlugins(ctx, builtin.Default()); err != nil {
+		slog.Error("mcp failed", "err", err)
+		return 1
+	}
+	return 0
+}
+
+// runOpenAPI prints the published specification. It boots the same
+// composition the server does — Core plugins included — so the document is
+// read off the live handler registrations rather than described alongside
+// them. Passing nil here would emit a spec missing every links, mail, DNS
+// and help route.
+func runOpenAPI(stdout io.Writer) int {
+	if err := openapi.Generate(stdout, builtin.Default()); err != nil {
+		slog.Error("openapi generation failed", "err", err)
+		return 1
+	}
+	return 0
+}
+
+func bootServer(ctx context.Context) int {
 	a, err := app.New()
 	if err != nil {
 		slog.Error("init failed", "err", err)
@@ -125,9 +168,65 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	for _, p := range customPlugins() {
 		a.Use(p)
 	}
+	startIPCDaemon(ctx, a)
 	if err := a.Run(ctx); err != nil {
 		slog.Error("run failed", "err", err)
 		return 1
 	}
 	return 0
+}
+
+// startIPCDaemon serves the Connect-RPC control plane on the Unix socket in
+// the background. It is best-effort: a socket failure is logged and the
+// server keeps running, because observability must never take down serving.
+func startIPCDaemon(ctx context.Context, a *app.App) {
+	socketPath := ipc.SocketPath()
+	lis, err := ipc.Listen(socketPath)
+	if err != nil {
+		slog.Error("ipc listen failed; status/top/reload unavailable", "socket", socketPath, "err", err)
+		return
+	}
+	info := buildinfo.Get()
+	daemon := &ipc.Daemon{
+		Version: info.Version,
+		Started: time.Now(),
+		OnReload: func(ctx context.Context) ([]string, error) {
+			cfg, err := config.Load()
+			if err != nil {
+				return nil, err
+			}
+			level, err := config.LogLevel()
+			if err != nil {
+				return nil, err
+			}
+			baseHandler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: level})
+			slog.SetDefault(slog.New(baseHandler))
+			_ = cfg
+			return []string{"log.level"}, nil
+		},
+		OnMetrics: func(ctx context.Context) (*ipc.MetricsReply, error) {
+			collector := a.HealthCollector()
+			if collector == nil {
+				return &ipc.MetricsReply{Overall: "unknown"}, nil
+			}
+			report := collector.LatestReport(ctx)
+			rep := &ipc.MetricsReply{
+				Overall:   string(report.Overall),
+				CheckedAt: report.CheckedAt,
+			}
+			for _, p := range report.Providers {
+				rep.Providers = append(rep.Providers, ipc.ProviderMetric{
+					Name:   p.Name,
+					Status: string(p.Status),
+					Detail: p.Message,
+				})
+			}
+			return rep, nil
+		},
+	}
+	go func() {
+		if err := daemon.Serve(ctx, lis); err != nil {
+			slog.Error("ipc serve failed", "err", err)
+		}
+	}()
 }

@@ -1,46 +1,5 @@
 import { create } from "zustand";
-import type { ActionDiff, ChatMessage } from "./types";
-
-export const SAMPLE_APPROVALS: ActionDiff[] = [
-  {
-    id: "act-dns-001",
-    agent: "Claude Code (MCP)",
-    action: "delete_dns_record",
-    title: "删除 DNS 解析记录",
-    target: "api.octarq.org (A 记录 -> 1.2.3.4)",
-    riskLevel: "destructive",
-    status: "pending",
-    createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 2).toISOString(),
-    reason: "智能体检测到主 API 节点迁移完成，提议下线旧版直连 IP 解析以避免分流风险。",
-    diff: [
-      { field: "domain", label: "目标域名", before: "api.octarq.org", after: "api.octarq.org" },
-      { field: "type", label: "记录类型", before: "A", after: "(已删除)" },
-      { field: "value", label: "解析值", before: "1.2.3.4", after: "(已删除)" },
-      { field: "ttl", label: "TTL", before: "300s", after: "(已删除)" },
-    ],
-  },
-  {
-    id: "act-link-002",
-    agent: "Octarq Copilot",
-    action: "update_redirect_target",
-    title: "修改关键跳转目标",
-    target: "短链: /black-friday",
-    riskLevel: "write",
-    status: "pending",
-    createdAt: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
-    reason: "黑五预热活动结束，根据运营策略重定向至正式大促主会场页面。",
-    diff: [
-      {
-        field: "target",
-        label: "跳转目标",
-        before: "https://octarq.org/campaign/warmup",
-        after: "https://octarq.org/campaign/main-sale",
-      },
-      { field: "utm_campaign", label: "UTM 参数", before: "warmup_2026", after: "main_sale_2026" },
-    ],
-  },
-];
+import type { ActionDiff, ApprovalStatus, ChatMessage } from "./types";
 
 interface CopilotUIState {
   isOpen: boolean;
@@ -49,6 +8,7 @@ interface CopilotUIState {
   input: string;
   isStreaming: boolean;
   pendingApprovals: ActionDiff[];
+  approvalsError: string | null;
 
   openCopilot: () => void;
   closeCopilot: () => void;
@@ -62,7 +22,35 @@ interface CopilotUIState {
   approveAction: (actionId: string, approver?: string) => void;
   rejectAction: (actionId: string, reason?: string) => void;
   addActionDiff: (diff: ActionDiff) => void;
-  resetToSample: () => void;
+  setApprovals: (approvals: ActionDiff[]) => void;
+  setApprovalsError: (error: string | null) => void;
+  syncApprovalStatus: (actionId: string, status: ApprovalStatus, extra?: Partial<ActionDiff>) => void;
+  resetCopilot: () => void;
+}
+
+function applyApprovalStatus(
+  list: ActionDiff[],
+  messages: ChatMessage[],
+  actionId: string,
+  status: ApprovalStatus,
+  extra?: Partial<ActionDiff>,
+) {
+  const now = new Date().toISOString();
+  const patch = { status, ...extra } as Partial<ActionDiff>;
+  const withTimestamp =
+    status === "approved" && !patch.approvedAt ? { ...patch, approvedAt: now } : patch;
+  return {
+    pendingApprovals: list.map((act) => (act.id === actionId ? { ...act, ...withTimestamp } : act)),
+    messages: messages.map((msg) => {
+      if (!msg.actionDiffs || msg.actionDiffs.length === 0) return msg;
+      return {
+        ...msg,
+        actionDiffs: msg.actionDiffs.map((act) =>
+          act.id === actionId ? { ...act, ...withTimestamp } : act,
+        ),
+      };
+    }),
+  };
 }
 
 export const useCopilotStore = create<CopilotUIState>((set) => ({
@@ -71,7 +59,8 @@ export const useCopilotStore = create<CopilotUIState>((set) => ({
   messages: [],
   input: "",
   isStreaming: false,
-  pendingApprovals: SAMPLE_APPROVALS,
+  pendingApprovals: [],
+  approvalsError: null,
 
   openCopilot: () => set({ isOpen: true }),
   closeCopilot: () => set({ isOpen: false }),
@@ -100,58 +89,10 @@ export const useCopilotStore = create<CopilotUIState>((set) => ({
   setIsStreaming: (isStreaming) => set({ isStreaming }),
 
   approveAction: (actionId, approver = "Operator") =>
-    set((state) => {
-      const now = new Date().toISOString();
-      const nextApprovals = state.pendingApprovals.map((act) =>
-        act.id === actionId
-          ? { ...act, status: "approved" as const, approvedAt: now, approver }
-          : act,
-      );
-
-      // Also update any inline actionDiff in chat messages
-      const nextMessages = state.messages.map((msg) => {
-        if (!msg.actionDiffs || msg.actionDiffs.length === 0) return msg;
-        return {
-          ...msg,
-          actionDiffs: msg.actionDiffs.map((act) =>
-            act.id === actionId
-              ? { ...act, status: "approved" as const, approvedAt: now, approver }
-              : act,
-          ),
-        };
-      });
-
-      return {
-        pendingApprovals: nextApprovals,
-        messages: nextMessages,
-      };
-    }),
+    set((state) => applyApprovalStatus(state.pendingApprovals, state.messages, actionId, "approved", { approver })),
 
   rejectAction: (actionId, rejectReason = "Rejected by operator") =>
-    set((state) => {
-      const nextApprovals = state.pendingApprovals.map((act) =>
-        act.id === actionId
-          ? { ...act, status: "rejected" as const, rejectReason }
-          : act,
-      );
-
-      const nextMessages = state.messages.map((msg) => {
-        if (!msg.actionDiffs || msg.actionDiffs.length === 0) return msg;
-        return {
-          ...msg,
-          actionDiffs: msg.actionDiffs.map((act) =>
-            act.id === actionId
-              ? { ...act, status: "rejected" as const, rejectReason }
-              : act,
-          ),
-        };
-      });
-
-      return {
-        pendingApprovals: nextApprovals,
-        messages: nextMessages,
-      };
-    }),
+    set((state) => applyApprovalStatus(state.pendingApprovals, state.messages, actionId, "rejected", { rejectReason })),
 
   addActionDiff: (diff) =>
     set((state) => {
@@ -160,12 +101,20 @@ export const useCopilotStore = create<CopilotUIState>((set) => ({
       return { pendingApprovals: [diff, ...state.pendingApprovals] };
     }),
 
-  resetToSample: () =>
+  setApprovals: (approvals) => set({ pendingApprovals: approvals, approvalsError: null }),
+
+  setApprovalsError: (error) => set({ approvalsError: error }),
+
+  syncApprovalStatus: (actionId, status, extra) =>
+    set((state) => applyApprovalStatus(state.pendingApprovals, state.messages, actionId, status, extra)),
+
+  resetCopilot: () =>
     set({
       activeTab: "chat",
       input: "",
       messages: [],
-      pendingApprovals: SAMPLE_APPROVALS,
+      pendingApprovals: [],
+      approvalsError: null,
       isStreaming: false,
     }),
 }));
