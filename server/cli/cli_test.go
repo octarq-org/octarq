@@ -4,10 +4,14 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
+	"github.com/octarq-org/octarq/server/internal/ipc"
 	"github.com/spf13/cobra"
 )
 
@@ -222,5 +226,106 @@ func TestExecuteSetupRequiresTTY(t *testing.T) {
 	var out, errb bytes.Buffer
 	if code := Execute(context.Background(), []string{"setup"}, &out, &errb, testDeps()); code != 1 {
 		t.Errorf("setup exit = %d, want 1", code)
+	}
+}
+
+func TestExecuteStatusAndReloadAgainstLiveDaemon(t *testing.T) {
+	socket := filepath.Join(t.TempDir(), "run.sock")
+	lis, err := ipc.Listen(socket)
+	if err != nil {
+		t.Skipf("unix socket unavailable: %v", err)
+	}
+	defer lis.Close()
+	daemon := &ipc.Daemon{
+		Version: "test-ipc",
+		Started: time.Now(),
+		OnReload: func(ctx context.Context) ([]string, error) {
+			return []string{"log.level"}, nil
+		},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = daemon.Serve(ctx, lis) }()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		conn, err := net.DialTimeout("unix", socket, time.Second)
+		if err == nil {
+			conn.Close()
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("daemon did not accept")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	t.Setenv("OCTARQ_IPC_SOCKET", socket)
+	var out, errb bytes.Buffer
+	if code := Execute(context.Background(), []string{"status"}, &out, &errb, testDeps()); code != 0 {
+		t.Fatalf("status exit = %d, want 0: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "test-ipc") {
+		t.Errorf("status output missing version, got %q", out.String())
+	}
+
+	out.Reset()
+	errb.Reset()
+	if code := Execute(context.Background(), []string{"reload"}, &out, &errb, testDeps()); code != 0 {
+		t.Fatalf("reload exit = %d, want 0: %s", code, errb.String())
+	}
+	if !strings.Contains(out.String(), "log.level") {
+		t.Errorf("reload output missing applied key, got %q", out.String())
+	}
+}
+
+func TestProgramStartStop(t *testing.T) {
+	started := make(chan struct{})
+	var once sync.Once
+	p := &program{boot: func(ctx context.Context) int {
+		once.Do(func() { close(started) })
+		<-ctx.Done()
+		return 0
+	}}
+	if err := p.Start(nil); err != nil {
+		t.Fatalf("program start: %v", err)
+	}
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("boot did not start")
+	}
+	if err := p.Stop(nil); err != nil {
+		t.Fatalf("program stop: %v", err)
+	}
+	if err := (&program{}).Stop(nil); err != nil {
+		t.Fatalf("stop without start: %v", err)
+	}
+}
+
+func TestFormatDuration(t *testing.T) {
+	cases := map[int64]string{
+		5:     "5s",
+		75:    "1m15s",
+		3723:  "1h2m",
+		90000: "1d1h",
+	}
+	for in, want := range cases {
+		if got := formatDuration(in); got != want {
+			t.Errorf("formatDuration(%d) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestFormatBytes(t *testing.T) {
+	cases := map[uint64]string{
+		512:     "512B",
+		2048:    "2.0KB",
+		8 << 20: "8.0MB",
+		5 << 30: "5.0GB",
+	}
+	for in, want := range cases {
+		if got := formatBytes(in); got != want {
+			t.Errorf("formatBytes(%d) = %q, want %q", in, got, want)
+		}
 	}
 }

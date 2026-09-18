@@ -31,6 +31,7 @@ import (
 	"github.com/octarq-org/octarq/server/internal/buildinfo"
 	"github.com/octarq-org/octarq/server/internal/ipc"
 	"github.com/octarq-org/octarq/server/internal/mcp"
+	"github.com/octarq-org/octarq/server/internal/monitor"
 	"github.com/octarq-org/octarq/server/openapi"
 	"github.com/octarq-org/octarq/server/pkg/telemetry"
 	"github.com/octarq-org/octarq/server/plugins/builtin"
@@ -187,12 +188,24 @@ func startIPCDaemon(ctx context.Context, a *app.App) {
 		return
 	}
 	info := buildinfo.Get()
-	daemon := &ipc.Daemon{
-		Version: info.Version,
-		Started: time.Now(),
+	daemon := newIPCDaemon(info.Version, a.HealthCollector)
+	go func() {
+		if err := daemon.Serve(ctx, lis); err != nil {
+			slog.Error("ipc serve failed", "err", err)
+		}
+	}()
+}
+
+// newIPCDaemon wires daemon state into the control plane: version and start
+// time are static, reload re-validates config and re-applies the log level,
+// metrics reads the health collector (unknown when it has not started).
+func newIPCDaemon(version string, collector func() *monitor.Collector) *ipc.Daemon {
+	started := time.Now()
+	return &ipc.Daemon{
+		Version: version,
+		Started: started,
 		OnReload: func(ctx context.Context) ([]string, error) {
-			cfg, err := config.Load()
-			if err != nil {
+			if _, err := config.Load(); err != nil {
 				return nil, err
 			}
 			level, err := config.LogLevel()
@@ -201,15 +214,14 @@ func startIPCDaemon(ctx context.Context, a *app.App) {
 			}
 			baseHandler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: level})
 			slog.SetDefault(slog.New(baseHandler))
-			_ = cfg
 			return []string{"log.level"}, nil
 		},
 		OnMetrics: func(ctx context.Context) (*ipc.MetricsReply, error) {
-			collector := a.HealthCollector()
-			if collector == nil {
+			c := collector()
+			if c == nil {
 				return &ipc.MetricsReply{Overall: "unknown"}, nil
 			}
-			report := collector.LatestReport(ctx)
+			report := c.LatestReport(ctx)
 			rep := &ipc.MetricsReply{
 				Overall:   string(report.Overall),
 				CheckedAt: report.CheckedAt,
@@ -224,9 +236,4 @@ func startIPCDaemon(ctx context.Context, a *app.App) {
 			return rep, nil
 		},
 	}
-	go func() {
-		if err := daemon.Serve(ctx, lis); err != nil {
-			slog.Error("ipc serve failed", "err", err)
-		}
-	}()
 }

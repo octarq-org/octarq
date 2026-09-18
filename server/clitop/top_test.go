@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/bubbletea"
 	"github.com/octarq-org/octarq/server/internal/ipc"
 )
 
@@ -117,5 +118,84 @@ func TestRunSetupRequiresTTY(t *testing.T) {
 	var buf strings.Builder
 	if code := RunSetup(context.Background(), &buf, filepath.Join(t.TempDir(), ".env"), false); code != 1 {
 		t.Errorf("non-TTY setup exit = %d, want 1", code)
+	}
+}
+
+func TestTopModelQuitAndTick(t *testing.T) {
+	m := topModel{socket: "x"}
+	if _, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}); cmd == nil {
+		t.Error("q must quit")
+	}
+	updated, cmd := m.Update(tickMsg{})
+	if cmd == nil {
+		t.Error("tick must schedule a refresh")
+	}
+	tm := updated.(topModel)
+	if tm.socket != "x" {
+		t.Errorf("socket = %q", tm.socket)
+	}
+	ready, _ := m.Update(snapMsg{snap: Snapshot{Status: statusForTest(), Metrics: metricsForTest()}})
+	rm := ready.(topModel)
+	if !rm.ready {
+		t.Error("snapMsg must mark ready")
+	}
+	view := rm.View()
+	for _, want := range []string{"octarq top", "v1.2.3", "healthy"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("view missing %q:\n%s", want, view)
+		}
+	}
+	pending := topModel{}.View()
+	if !strings.Contains(pending, "connecting") {
+		t.Errorf("pending view must show connecting, got:\n%s", pending)
+	}
+	broken := topModel{socket: "x", ready: true, snap: Snapshot{Err: "boom"}}.View()
+	if !strings.Contains(broken, "boom") {
+		t.Errorf("error view must surface the error, got:\n%s", broken)
+	}
+	if cmd := m.Init(); cmd == nil {
+		t.Error("init must schedule work")
+	}
+	if got := fetchCmd("x")(); got == nil {
+		t.Error("fetchCmd must produce a message")
+	}
+}
+
+func TestSetupModelFlow(t *testing.T) {
+	m := setupModel{fields: setupFields(), values: map[string]string{}}
+	if got := m.Init(); got != nil {
+		t.Errorf("init = %v, want nil", got)
+	}
+	if view := m.View(); !strings.Contains(view, "Admin username") {
+		t.Errorf("view must list fields, got:\n%s", view)
+	}
+	for i := range m.fields {
+		answer := "v" + string(rune('0'+i))
+		for _, r := range answer {
+			updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+			m = updated.(setupModel)
+		}
+		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		m = updated.(setupModel)
+	}
+	if !m.done {
+		t.Error("wizard must finish after all fields")
+	}
+	if m.values["OCTARQ_ADMIN_USER"] == "" {
+		t.Errorf("answers not recorded: %+v", m.values)
+	}
+
+	m2 := setupModel{fields: setupFields(), values: map[string]string{}}
+	updated, _ := m2.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	m2 = updated.(setupModel)
+	updated, _ = m2.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	m2 = updated.(setupModel)
+	if len(m2.input) != 0 {
+		t.Errorf("backspace must erase, got %q", string(m2.input))
+	}
+	updated, _ = m2.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m2 = updated.(setupModel)
+	if !m2.done || m2.err == "" {
+		t.Error("abort must finish with an error")
 	}
 }

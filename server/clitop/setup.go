@@ -40,7 +40,6 @@ type setupModel struct {
 	index  int
 	done   bool
 	err    string
-	force  bool
 }
 
 func (m setupModel) Init() tea.Cmd { return nil }
