@@ -36,7 +36,7 @@ export function TableError({ error, errorText, onRetry }: TableErrorProps) {
   if (errorStatus(error) === 402) {
     return (
       <div className="p-6">
-        <LockedFeature status={402} feature="pro_table" />
+        <LockedFeature status={402} feature={t("proTable.lockedFeature")} />
       </div>
     );
   }
