@@ -1,9 +1,8 @@
+import { Field, Modal, PageHeader, GlassCard, Badge, Button, toast, Code, ExtensionSlot } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, type OrgSlug, type Settings } from "../../api";
-import { Field, Modal, PageHeader, GlassCard, Badge, Button, toast, Code } from "../../ui";
 import { ShieldAlert } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { ExtensionSlot } from "../../plugin-sdk";
 
 // WorkspaceAddress edits the slug — the workspace's identity in URLs, not a
 // display name. Third parties hold addresses built from it (the billing

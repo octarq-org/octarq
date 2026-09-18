@@ -1,4 +1,4 @@
-import { timeAgo } from "../../../ui";
+import { timeAgo } from "@octarq/plugin-sdk";
 import { Email } from "../api";
 import { AuthBadges } from "./AuthBadges";
 import { useTranslation } from "../../../i18n";

@@ -1,10 +1,9 @@
+import { Field, PageHeader, GlassCard, Button, Select, Modal, toast, confirmDialog, ExtensionSlot } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, type SMTPSender } from "../../api";
-import { Field, PageHeader, GlassCard, Button, Select, Modal, toast, confirmDialog } from "../../ui";
 import { Server, Sliders, DatabaseBackup, Cpu, Send } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useInstanceSettings } from "./shared";
-import { ExtensionSlot } from "../../plugin-sdk";
 
 export function InstanceSettings() {
   const { t } = useTranslation();

@@ -18,7 +18,7 @@ import {
   TableSkeleton,
   TableEmpty,
   TableError,
-} from "../../ui";
+} from "@octarq/plugin-sdk";
 import { ProTableProps } from "./types";
 import { useProTable } from "./useProTable";
 import { TableToolbar } from "./TableToolbar";

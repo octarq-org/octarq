@@ -1,3 +1,4 @@
+import { TableDensity } from "@octarq/plugin-sdk";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useReactTable,
@@ -12,7 +13,6 @@ import {
   ProTableActionRef,
 } from "./types";
 import { cleanParams, normalizeColumns, parseArrayWithFallback } from "./utils";
-import { TableDensity } from "../../ui";
 
 export function useProTable<
   TData,

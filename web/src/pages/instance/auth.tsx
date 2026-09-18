@@ -1,10 +1,9 @@
+import { Field, Toggle, PageHeader, GlassCard, Button, confirmDialog, toast, ExtensionSlot } from "@octarq/plugin-sdk";
 import { ReactNode, useEffect, useState } from "react";
 import { api } from "../../api";
-import { Field, Toggle, PageHeader, GlassCard, Button, confirmDialog, toast } from "../../ui";
 import { Mail, ChevronDown, Check } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { useInstanceSettings } from "./shared";
-import { ExtensionSlot } from "../../plugin-sdk";
 import { oauthCallbackPath } from "../../shell/oauthRoutes";
 
 // Provider glyphs — inline so they don't depend on the icon set (matches the

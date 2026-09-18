@@ -1,8 +1,8 @@
+import { GlassCard, Badge, Button, toast } from "@octarq/plugin-sdk";
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Token } from "../api";
 import { useTranslation } from "../i18n";
-import { GlassCard, Badge, Button, toast } from "../ui";
 import { Bot, Copy, Check, Terminal, Code2, ExternalLink, Sparkles } from "lucide-react";
 
 export type McpClientType = "cursor" | "claude-desktop" | "claude-code" | "http";

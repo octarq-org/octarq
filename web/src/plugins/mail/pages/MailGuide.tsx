@@ -1,4 +1,4 @@
-import { Guide } from "../../../ui";
+import { Guide } from "@octarq/plugin-sdk";
 import { useTranslation } from "../../../i18n";
 
 export function MailGuide() {

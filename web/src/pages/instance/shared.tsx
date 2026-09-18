@@ -1,9 +1,9 @@
+import { type BadgeTone } from "@octarq/plugin-sdk";
 // Shared hooks & helpers for the instance console pages (web/src/pages/instance).
 // The console shell gates on isInstanceAdmin before any page mounts, so the
 // settings hook here skips the tenant-shell isInstanceAdmin dance entirely.
 import { useCallback, useEffect, useState } from "react";
 import { api, ReadinessCheck } from "../../api";
-import { type BadgeTone } from "../../ui";
 
 export function useInstanceSettings() {
   const [s, setS] = useState<import("../../api").InstanceSettings | null>(null);

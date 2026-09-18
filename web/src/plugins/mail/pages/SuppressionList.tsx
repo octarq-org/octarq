@@ -1,6 +1,6 @@
+import { Button, Modal, Field, Badge, confirmDialog, timeAgo, Table, THead, TBody, TR, TH, TD, FormError } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { mailApi, MailSuppression } from "../api";
-import { Button, Modal, Field, Badge, confirmDialog, timeAgo, Table, THead, TBody, TR, TH, TD, FormError } from "../../../ui";
 import { useTranslation } from "../../../i18n";
 import { Plus, Trash2, ShieldAlert } from "lucide-react";
 

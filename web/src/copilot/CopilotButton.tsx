@@ -1,7 +1,7 @@
+import { cn } from "@octarq/plugin-sdk";
 import React from "react";
 import { Sparkles } from "lucide-react";
 import { useTranslation } from "../i18n";
-import { cn } from "../ui";
 import { useCopilotStore } from "./store";
 
 interface CopilotButtonProps {

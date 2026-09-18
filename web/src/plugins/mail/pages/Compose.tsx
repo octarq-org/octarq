@@ -1,7 +1,7 @@
+import { Field, Modal, Button, Select, FormError, toast } from "@octarq/plugin-sdk";
 import { useEffect, useState, useRef } from "react";
 import { api } from "../../../api";
 import { mailApi, MailContact } from "../api";
-import { Field, Modal, Button, Select, FormError, toast } from "../../../ui";
 import { CheckCircle, Save } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { ReplyDraft } from "./types";

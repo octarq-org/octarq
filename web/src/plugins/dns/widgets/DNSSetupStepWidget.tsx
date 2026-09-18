@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, Overview } from "../../../api";
 import { useTranslation } from "../../../i18n";
-import { SetupStep } from "../../../components/SetupStep";
+import { SetupStep } from "../../../app-ui/SetupStep";
 
 export default function DNSSetupStepWidget() {
   const [o, setO] = useState<Overview | null>(null);

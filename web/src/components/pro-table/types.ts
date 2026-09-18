@@ -1,3 +1,4 @@
+import { TableDensity } from "@octarq/plugin-sdk";
 import { ReactNode } from "react";
 import {
   ColumnDef,
@@ -6,7 +7,6 @@ import {
   Table,
 } from "@tanstack/react-table";
 import { z } from "zod";
-import { TableDensity } from "../../ui";
 
 export type ProTableValueType = "text" | "select" | "digit" | "date";
 

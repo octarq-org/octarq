@@ -1,5 +1,5 @@
+import { GlassCard, Empty, Button } from "@octarq/plugin-sdk";
 import { Search, X, Mail as MailIcon, Inbox } from "lucide-react";
-import { GlassCard, Empty, Button } from "../../../ui";
 import { ListSkeleton } from "../../../components/ListSkeleton";
 import { Email, Mailbox } from "../api";
 import { MailFolder } from "./types";

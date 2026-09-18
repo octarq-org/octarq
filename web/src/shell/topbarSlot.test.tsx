@@ -1,3 +1,4 @@
+import { registerUIPlugin, resetRegistry, LazyPage } from "@octarq/plugin-sdk";
 // @vitest-environment happy-dom
 //
 // Guards the `topbar-right` extension point in the REAL TopBar (never a copy —
@@ -10,7 +11,6 @@ import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { Action } from "../api";
 import { I18nProvider } from "../i18n";
-import { registerUIPlugin, resetRegistry, LazyPage } from "../plugin-sdk";
 import { TopBar } from "./TopBar";
 
 const baseProps = {

@@ -1,3 +1,4 @@
+import { Field, Button, PageHeader, GlassCard, toast } from "@octarq/plugin-sdk";
 // Instance console → Short Link Settings — the deployment-wide reserved-slug
 // list. A config that exists once per deployment is instance-scoped
 // (GET/PUT /api/instance-settings), so this page lives in the /instance
@@ -8,7 +9,6 @@
 // place here.
 import { useEffect, useState } from "react";
 import { api } from "../../../api";
-import { Field, Button, PageHeader, GlassCard, toast } from "../../../ui";
 import { useTranslation } from "../../../i18n";
 
 export function InstanceLinkSettings() {

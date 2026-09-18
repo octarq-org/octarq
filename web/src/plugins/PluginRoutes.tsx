@@ -2,8 +2,7 @@
 import { Suspense } from "react";
 import { Route, Link } from "react-router-dom";
 import { useCurrentRole, roleSatisfies } from "../shell/role";
-import { GlassCard, PageHeader, ScreenWrap, useTranslation } from "@octarq/plugin-sdk";
-import { RouteFallback } from "../ui";
+import { GlassCard, PageHeader, ScreenWrap, useTranslation, RouteFallback } from "@octarq/plugin-sdk";
 import { uiPlugins } from "@octarq/plugin-sdk";
 import type { UIPlugin } from "@octarq/plugin-sdk";
 import { PluginGate } from "./PluginGate";

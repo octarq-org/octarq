@@ -1,11 +1,10 @@
+import { Alert, ExtensionSlot } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { ShieldAlert, CheckCircle2, Mail } from "lucide-react";
 import { api, ApiError } from "../api";
 import { useAppName } from "../brand";
 import { BrandMark } from "./BrandMark";
 import { useTranslation } from "../i18n";
-import { Alert } from "../ui";
-import { ExtensionSlot } from "../plugin-sdk";
 import { oauthBeginPath } from "./oauthRoutes";
 import { authErrorKey, isVerifiedFlag } from "./authErrors";
 

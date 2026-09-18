@@ -1,9 +1,9 @@
+import { ExtensionSlot, registerUIPlugin, resetRegistry, LazyPage } from "@octarq/plugin-sdk";
 // @vitest-environment jsdom
 import { act, lazy } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SetupStep, SetupChecklistProvider, useSetupChecklist } from "../components/SetupStep";
-import { ExtensionSlot, registerUIPlugin, resetRegistry, LazyPage } from "../plugin-sdk";
+import { SetupStep, SetupChecklistProvider, useSetupChecklist } from "../app-ui/SetupStep";
 
 // @ts-ignore
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;

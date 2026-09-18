@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { ConfirmProvider, PasswordConfirmProvider } from "./ui";
+import { ConfirmProvider, PasswordConfirmProvider } from "@octarq/plugin-sdk";
 import { useTranslation } from "./i18n";
 
 // ConfirmBridge mounts the SDK's ConfirmProvider with the app's translated

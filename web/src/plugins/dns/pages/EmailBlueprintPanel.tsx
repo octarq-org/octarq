@@ -1,6 +1,6 @@
+import { Modal, Button, Alert, Badge, FormError } from "@octarq/plugin-sdk";
 import { useState } from "react";
 import { dnsApi, EmailBlueprintRecord, BlueprintStatus } from "../api";
-import { Modal, Button, Alert, Badge, FormError } from "../../../ui";
 import { useTranslation } from "../../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 import { CheckCircle2, XCircle, AlertCircle, Copy, Check, Zap } from "lucide-react";
