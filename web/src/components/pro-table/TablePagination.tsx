@@ -1,5 +1,5 @@
+import { Button } from "@octarq/plugin-sdk";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "../../ui";
 import { useTranslation } from "../../i18n";
 import { ProTablePaginationConfig } from "./types";
 

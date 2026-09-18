@@ -1,9 +1,9 @@
+import { uiAreas } from "@octarq/plugin-sdk";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { BookOpen } from "lucide-react";
 import { api, MenuItem, PluginInfo, Action, HelpDocMeta, HelpCategory } from "../api";
 import { useTranslation } from "../i18n";
-import { uiAreas } from "../plugin-sdk";
 import { Area, AreaId, NavGroup, NavItem, STATIC_AREAS, menuIcon } from "./areas";
 import { NavigationTree } from "./NavigationTree";
 import { visibleActions } from "./globalActions";

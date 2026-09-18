@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/react";
 import { api, InstanceSettings as IInstanceSettings, SMTPSender } from "../../api";
 import { I18nProvider } from "../../i18n";
-import * as ui from "../../ui";
+import * as ui from "@octarq/plugin-sdk";
 import { InstanceSettings } from "./settings";
 
 function makeSettings(overrides: Partial<IInstanceSettings> = {}): IInstanceSettings {

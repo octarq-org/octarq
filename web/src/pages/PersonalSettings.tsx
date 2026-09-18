@@ -1,6 +1,6 @@
+import { Empty, Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toast, confirmDialog, confirmPassword } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, ApiError, Token } from "../api";
-import { Empty, Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toast, confirmDialog, confirmPassword } from "../ui";
 import { User, Key, Settings, CheckCircle, Trash2, Eye, ClipboardCopy } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { roleSatisfies, useCurrentRole } from "../shell/role";

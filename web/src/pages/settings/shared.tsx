@@ -1,6 +1,6 @@
+import { Badge, GlassCard } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, Settings as SettingsData } from "../../api";
-import { Badge, GlassCard } from "../../ui";
 import { Lock } from "lucide-react";
 import { useTranslation } from "../../i18n";
 

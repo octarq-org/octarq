@@ -1,6 +1,6 @@
+import { Toggle, PageHeader, GlassCard, Badge, Alert, Tooltip, confirmDialog } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, ApiError, PluginInfo } from "../../api";
-import { Toggle, PageHeader, GlassCard, Badge, Alert, Tooltip, confirmDialog } from "../../ui";
 import { ShieldAlert, Puzzle, Search, Tag, Info } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { menuIcon } from "../../shell/areas";

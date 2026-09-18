@@ -1,6 +1,6 @@
+import { Field, Modal, Toggle, PageHeader, GlassCard, Button, toast, confirmDialog } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, WebhookEventGroup } from "../../api";
-import { Field, Modal, Toggle, PageHeader, GlassCard, Button, toast, confirmDialog } from "../../ui";
 import { Trash2, Plus, Send } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../shell/role";

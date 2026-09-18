@@ -1,6 +1,6 @@
+import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, OrgMember } from "../../api";
-import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog } from "../../ui";
 import { Users } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../shell/role";

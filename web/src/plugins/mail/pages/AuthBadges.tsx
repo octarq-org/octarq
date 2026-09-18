@@ -1,4 +1,4 @@
-import { Badge } from "../../../ui";
+import { Badge } from "@octarq/plugin-sdk";
 
 export function AuthBadges({
   spf,

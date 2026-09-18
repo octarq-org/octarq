@@ -1,5 +1,5 @@
+import { Button } from "@octarq/plugin-sdk";
 import { Inbox, Settings } from "lucide-react";
-import { Button } from "../../../ui";
 import { Mailbox } from "../api";
 import { useTranslation } from "../../../i18n";
 

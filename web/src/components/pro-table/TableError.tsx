@@ -1,6 +1,6 @@
+import { Alert, Button, LockedFeature } from "@octarq/plugin-sdk";
 import { ReactNode } from "react";
 import { AlertCircle, RotateCcw } from "lucide-react";
-import { Alert, Button, LockedFeature } from "../../ui";
 import { useTranslation } from "../../i18n";
 
 export interface TableErrorProps {

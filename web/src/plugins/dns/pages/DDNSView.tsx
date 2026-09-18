@@ -1,7 +1,7 @@
+import { GlassCard, Button, Modal, Field, Badge, Empty, timeAgo, toast, Alert, confirmDialog } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { Domain } from "../../../api";
 import { dnsApi, DDNSToken, CreateDDNSTokenResult } from "../api";
-import { GlassCard, Button, Modal, Field, Badge, Empty, timeAgo, toast, Alert, confirmDialog } from "../../../ui";
 import { KeyRound, Plus, Trash2, Copy, Check, AlertTriangle } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";

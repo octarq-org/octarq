@@ -5,7 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { api, ApiError } from "../api";
 import { I18nProvider } from "../i18n";
 import { RoleProvider } from "../shell/role";
-import * as ui from "../ui";
+import * as ui from "@octarq/plugin-sdk";
 import { ProfileSettings, ApiTokens } from "./PersonalSettings";
 
 afterEach(() => {

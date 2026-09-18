@@ -1,3 +1,4 @@
+import { PageHeader, GlassCard, Badge, Alert, Table, THead, TBody, TR, TH, TD } from "@octarq/plugin-sdk";
 // Instance console → Plugins: what this *binary* has loaded.
 //
 // This is the counterpart to Settings → Workspace → Features, and the two
@@ -11,7 +12,6 @@
 // licensing plugin is or isn't in the build.
 import { useEffect, useState } from "react";
 import { api, ApiError, InstancePluginInfo } from "../../api";
-import { PageHeader, GlassCard, Badge, Alert, Table, THead, TBody, TR, TH, TD } from "../../ui";
 import { ShieldAlert } from "lucide-react";
 import { useTranslation } from "../../i18n";
 

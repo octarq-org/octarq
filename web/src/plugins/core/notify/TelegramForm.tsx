@@ -1,4 +1,4 @@
-import { Field, useNotificationChannelForm, useTranslation } from "../../../plugin-sdk";
+import { Field, useNotificationChannelForm, useTranslation } from "@octarq/plugin-sdk";
 
 export default function TelegramForm() {
   const { t } = useTranslation();

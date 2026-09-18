@@ -1,6 +1,6 @@
+import { Code, Guide, Badge, Button } from "@octarq/plugin-sdk";
 import { useState } from "react";
 import { DNSVerifyResult, HostDNSStatus, LinkHostStatus, DNSRecordStatus } from "../api";
-import { Code, Guide, Badge, Button } from "../../../ui";
 import { ShieldCheck, ShieldAlert, AlertTriangle, Zap, Copy, Check, ListChecks, Mail, Link as LinkIcon } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 

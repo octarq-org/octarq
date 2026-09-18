@@ -1,5 +1,6 @@
+import { Panel } from "@octarq/plugin-sdk";
+import { BarList } from "../../../app-ui";
 import { useTranslation } from "../../../i18n";
-import { BarList, Panel } from "../../../ui";
 import { useOverviewData, StatKV } from "../../../api";
 import { useIncludeBot } from "../store";
 

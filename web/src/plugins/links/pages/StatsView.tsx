@@ -1,6 +1,6 @@
+import { StatCard } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { linksApi, Link, LinkStats } from "../api";
-import { StatCard } from "../../../ui";
 import { Link2, Eye, ExternalLink, Tag, Globe, Settings, Share2, Filter, Target } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 

@@ -1,11 +1,10 @@
+import { ExtensionSlot, cn } from "@octarq/plugin-sdk";
 import { useMemo, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Menu } from "@base-ui/react/menu";
 import { Search, Settings, User, LogOut, PanelLeft, Sun, Moon, Globe, BookOpen, ExternalLink, Info, Plus } from "lucide-react";
-import { ExtensionSlot } from "../plugin-sdk";
 import { Action } from "../api";
-import { cn } from "../ui";
 import { useAppName } from "../brand";
 import { BrandMark } from "./BrandMark";
 import { useTranslation, LANGS } from "../i18n";

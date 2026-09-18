@@ -7,7 +7,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { Menu } from "@base-ui/react/menu";
 import { ArrowLeft, Globe, KeyRound, LayoutDashboard, Moon, Puzzle, Server, Sun } from "lucide-react";
-import { uiInstanceRoutes } from "@octarq/plugin-sdk";
+import { uiInstanceRoutes, Button, GlassCard, RouteFallback, cn } from "@octarq/plugin-sdk";
 import { api, type MenuItem } from "../../api";
 import { BrandMark } from "../../shell/BrandMark";
 import { useAppName } from "../../brand";
@@ -17,7 +17,6 @@ import { Login } from "../../shell/Login";
 import { MENU_ITEM, MENU_POPUP } from "../../shell/menuStyles";
 import { translateNavItemLabel } from "../../shell/navI18n";
 import { menuIcon } from "../../shell/areas";
-import { Button, GlassCard, RouteFallback, cn } from "../../ui";
 import { useInstanceReadiness } from "./shared";
 import { ConsoleHome } from "./home";
 

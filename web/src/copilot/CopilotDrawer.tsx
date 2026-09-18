@@ -1,3 +1,4 @@
+import { Button, cn } from "@octarq/plugin-sdk";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Sparkles,
@@ -16,7 +17,6 @@ import {
   FileCheck,
 } from "lucide-react";
 import { useTranslation } from "../i18n";
-import { Button, cn } from "../ui";
 import { useCopilotStore } from "./store";
 import { useAIStatusQuery, streamAIChat } from "./api";
 import { MarkdownRenderer } from "./MarkdownRenderer";

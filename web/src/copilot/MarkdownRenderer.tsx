@@ -1,5 +1,5 @@
+import { cn } from "@octarq/plugin-sdk";
 import React from "react";
-import { cn } from "../ui";
 
 interface MarkdownRendererProps {
   content: string;

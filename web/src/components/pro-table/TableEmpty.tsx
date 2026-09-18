@@ -1,6 +1,6 @@
+import { Empty } from "@octarq/plugin-sdk";
 import { ReactNode } from "react";
 import { Inbox } from "lucide-react";
-import { Empty } from "../../ui";
 import { useTranslation } from "../../i18n";
 
 export interface TableEmptyProps {

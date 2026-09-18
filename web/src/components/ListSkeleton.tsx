@@ -1,4 +1,4 @@
-import { GlassCard, Skeleton } from "../ui";
+import { GlassCard, Skeleton } from "@octarq/plugin-sdk";
 
 // Shared loading skeleton for list pages. Replaces the single "loading…" text
 // line the list pages used to show — links/mail/dns, Abuse and Audit all load

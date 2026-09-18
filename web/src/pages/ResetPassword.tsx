@@ -1,7 +1,7 @@
+import { Button, Alert } from "@octarq/plugin-sdk";
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { api } from "../api";
-import { Button, Alert } from "../ui";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { BrandMark } from "../shell/BrandMark";

@@ -1,6 +1,6 @@
+import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, toast, Alert, confirmDialog, confirmPassword } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, ApiError, type LinkedIdentity } from "../../api";
-import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, toast, Alert, confirmDialog, confirmPassword } from "../../ui";
 import { Shield } from "lucide-react";
 import { useTranslation } from "../../i18n";
 

@@ -1,4 +1,4 @@
-import { Table, THead, TBody, TR, TH, TD, Skeleton } from "../../ui";
+import { Table, THead, TBody, TR, TH, TD, Skeleton } from "@octarq/plugin-sdk";
 
 export interface TableSkeletonProps {
   columnsCount?: number;
