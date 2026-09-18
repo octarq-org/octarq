@@ -1,39 +1,59 @@
-import { ReactNode } from "react";
+import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../cn";
 
+// The single Button for the whole product — core pages AND plugin packages.
+//
+// One definition, one variant vocabulary. It used to exist twice: this package
+// carried a gradient (indigo→violet) primary, while the app carried a flat one
+// in web/src/components/ui/Button.tsx that the app barrel re-exported in its
+// place. Core pages rendered the flat button, every plugin rendered the
+// gradient one, and `size`/`secondary` existed on only one of them.
+//
+// The FLAT fill won: a gradient cannot follow a white-label rebrand, which
+// overrides only the --primary seed (brand.tsx applyAccents) — a hardcoded
+// gradient end stays indigo on a rebranded instance, exactly the failure the
+// token pipeline exists to prevent. Flat also means the primary action and the
+// accent chrome share one source of truth.
+//
+// Radius stays `rounded-xl`, which the host's @theme pins to --radius (4px) —
+// identical to what the app-local button rendered, and still valid for a
+// consumer that ships its own theme (the Pro portal) where `var(--radius)` is
+// not defined at all.
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-[color,background-color,border-color,box-shadow,filter,transform] duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] focus-visible:ring-offset-0 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0",
+  "inline-flex items-center justify-center gap-1.5 rounded-xl border-0 text-sm font-medium transition-all focus-visible:outline-2 focus-visible:outline-(--ring) focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
   {
     variants: {
       variant: {
-        // Primary carries the brand gradient (indigo→violet, same axis as the
-        // TopBar mark) with an inset top highlight so it reads as a lit surface.
-        primary:
-          "bg-[image:var(--gradient-primary)] text-[color:var(--primary-foreground)] " +
-          "shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_30px_-8px_color-mix(in_srgb,var(--primary)_55%,transparent)] " +
-          "hover:brightness-110 disabled:hover:brightness-100",
-        ghost:   "text-foreground/65 hover:text-foreground hover:bg-foreground/[0.06]",
-        outline: "border border-foreground/10 text-foreground/80 hover:bg-foreground/[0.06] hover:border-foreground/20",
-        subtle:  "bg-foreground/5 text-foreground/80 hover:bg-foreground/10 hover:text-foreground",
-        danger:  "text-danger-fg/90 hover:bg-rose-500/10 hover:text-danger-fg", /* ui-color-ok */
+        primary: "bg-primary text-primary-foreground hover:bg-primary-hover active:translate-y-[1px]",
+        secondary: "bg-muted text-foreground hover:bg-surface-hover border border-border active:translate-y-[1px]",
+        subtle: "bg-muted text-foreground hover:bg-surface-hover border border-transparent active:translate-y-[1px]",
+        ghost: "bg-transparent text-muted-foreground hover:bg-surface-hover hover:text-foreground active:translate-y-[1px]",
+        outline: "border border-border bg-card text-foreground hover:bg-surface-hover hover:border-border-strong active:translate-y-[1px]",
+        // Token-driven, not a literal rose: --danger-* already carries the hue
+        // in both themes, so no `ui-color-ok` exemption is needed.
+        danger: "bg-transparent text-danger-fg hover:bg-danger-bg/50 active:translate-y-[1px]",
+      },
+      size: {
+        sm: "h-8 px-3 text-xs",
+        md: "h-9 px-3.5 text-sm",
+        lg: "h-10 px-4 text-base",
       },
     },
-    defaultVariants: { variant: "primary" },
+    defaultVariants: { variant: "primary", size: "md" },
   },
 );
 
 export type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>;
+export type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>;
 
-export function Button({
-  children,
-  variant = "primary",
-  className,
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; children?: ReactNode }) {
-  return (
-    <button className={cn(buttonVariants({ variant }), className)} {...props}>
-      {children}
-    </button>
-  );
-}
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {}
+
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, ...props }, ref) => (
+    <button ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props} />
+  ),
+);
+Button.displayName = "Button";
