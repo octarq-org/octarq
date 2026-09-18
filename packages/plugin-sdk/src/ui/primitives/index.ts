@@ -20,6 +20,14 @@ export { Tabs, type TabItem } from "./tabs";
 export { Tooltip } from "./tooltip";
 export { Table, THead, TBody, TR, TH, TD, TableDensityProvider, useTableDensity, useSetTableDensity, type TableDensity } from "./table";
 export { Skeleton } from "./skeleton";
+export { TableEmpty, type TableEmptyProps } from "./table-empty";
+export { TableError, type TableErrorProps } from "./table-error";
+export { TableSkeleton, type TableSkeletonProps } from "./table-skeleton";
+export {
+  TablePagination,
+  type TablePaginationProps,
+  type TablePaginationConfig,
+} from "./table-pagination";
 
 export { Alert, alertVariants, type AlertProps } from "./alert";
 export { FormError, formErrorMessage, formErrorStatusKeys } from "./form-error";

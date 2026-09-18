@@ -29,6 +29,17 @@ const resources = {
       upgradeTo: "Upgrade to {{tier}}",
       comparePlans: "Compare plans",
     },
+    proTable: {
+      empty: "No data yet",
+      emptyReason: "No matching data found for the current filters",
+      errorTitle: "Failed to load data",
+      retry: "Retry",
+      totalItems: "Total {{total}} items",
+      pageOf: "Page {{page}} of {{totalPages}}",
+      perPage: "{{size}} / page",
+      prevPage: "Previous",
+      nextPage: "Next",
+    },
   },
 };
 
