@@ -1,5 +1,46 @@
 # @octarq-org/plugin-sdk
 
+## 0.12.0
+
+### Minor Changes
+
+- 00bd8f9: Alert, FormError and RouteFallback are now part of the SDK's UI surface.
+
+  All three lived only in the host app (`web/src/components/ui/`), so a plugin
+  package could not render them: a Pro plugin showing an inline status message had
+  to approximate one with a Badge, and a plugin's own `<Suspense>` boundary had no
+  spinner to fall back on.
+
+  - `Alert` (+ `alertVariants`, `AlertProps`) — tones read the `--{info,success,warning,danger}-*`
+    tokens, so no literal brand hue is involved.
+  - `FormError` (+ `formErrorMessage`, `formErrorStatusKeys`) — reads the SDK's own
+    i18n context; the `uiCommon.*` keys it resolves are supplied by the host
+    dictionary, exactly as `LockedFeature` already does.
+  - `RouteFallback` — the shared route-chunk spinner.
+
+  Removing the app-local copies also removes the second `cn` implementation
+  (`web/src/lib/utils.ts`), which existed only to serve them.
+
+- 67a7e67: Button is now the single Button definition for the whole product.
+
+  It previously existed twice: this package shipped a gradient (indigo→violet)
+  `primary`, while the host app carried a flat one in
+  `web/src/components/ui/Button.tsx` that its barrel re-exported _in place of_
+  this one — an explicit named export beats `export *`. Core pages therefore
+  rendered the flat button, every plugin rendered the gradient one, and `size`
+  and `secondary` existed on only one of them.
+
+  - `primary` is now FLAT (`bg-primary` / `hover:bg-primary-hover` / `text-primary-foreground`).
+    A gradient end is a hardcoded hue that cannot follow the `--primary` seed, so
+    it stayed indigo on a white-label rebranded instance.
+  - New `size` axis: `sm | md | lg` (default `md`), exported as `ButtonSize`.
+  - New `secondary` variant: `bg-muted` + `border-border`.
+  - `danger` derives from the `--danger-*` tokens instead of a literal `rose`.
+  - `Button` forwards its ref to the underlying `<button>`.
+  - `ButtonProps` is now exported as an interface (was inline).
+
+  Visual change for consumers on the previous gradient primary: it is flat now.
+
 ## 0.11.0
 
 ### Minor Changes
