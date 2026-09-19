@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/octarq-org/octarq/server/config"
@@ -146,9 +147,17 @@ func ValidateSetup(answers map[string]string) (map[string]string, error) {
 // WriteEnvFile writes resolved answers to path (0600). An existing non-empty
 // file fails closed unless force is set.
 func WriteEnvFile(path string, resolved map[string]string, force bool) error {
-	if !force {
-		if info, err := os.Stat(path); err == nil && info.Size() > 0 {
+	if info, err := os.Stat(path); err == nil && info.Size() > 0 {
+		if !force {
 			return fmt.Errorf("setup: %s already exists (re-run with --force to overwrite)", path)
+		}
+		backupPath := fmt.Sprintf("%s.bak.%d", path, time.Now().Unix())
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("setup: failed to read existing file for backup: %w", err)
+		}
+		if err := os.WriteFile(backupPath, data, 0o600); err != nil {
+			return fmt.Errorf("setup: failed to write backup file: %w", err)
 		}
 	}
 	var b strings.Builder

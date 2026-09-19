@@ -281,12 +281,14 @@ func (p *Plugin) mcpGetEmailSummary(ctx context.Context, _ *mcp.CallToolRequest,
 	summary, category := GenerateEmailSummary(email.Subject, body, otp)
 	wrappedSummary, _ := SanitizeAgentBody(summary)
 
+	sanitizeMeta := func(s string) string { return NeutralizeFramingTags(StripInvisibleControls(s)) }
+
 	return jsonResult(emailSummaryOut{
 		ID:         email.ID,
 		MailboxID:  email.MailboxID,
-		From:       email.FromAddr,
-		To:         email.ToAddr,
-		Subject:    email.Subject,
+		From:       sanitizeMeta(email.FromAddr),
+		To:         sanitizeMeta(email.ToAddr),
+		Subject:    sanitizeMeta(email.Subject),
 		Summary:    wrappedSummary,
 		Category:   category,
 		OTP:        otp,
@@ -316,12 +318,14 @@ func (p *Plugin) mcpGetEmailContent(ctx context.Context, _ *mcp.CallToolRequest,
 
 	sanitizedText, truncated := SanitizeAgentBody(body)
 
+	sanitizeMeta := func(s string) string { return NeutralizeFramingTags(StripInvisibleControls(s)) }
+
 	return jsonResult(emailContentOut{
 		ID:         email.ID,
 		MailboxID:  email.MailboxID,
-		From:       email.FromAddr,
-		To:         email.ToAddr,
-		Subject:    email.Subject,
+		From:       sanitizeMeta(email.FromAddr),
+		To:         sanitizeMeta(email.ToAddr),
+		Subject:    sanitizeMeta(email.Subject),
 		Text:       sanitizedText,
 		Truncated:  truncated,
 		Guard:      AgentBodyGuard,
