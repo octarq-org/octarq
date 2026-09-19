@@ -1,4 +1,4 @@
-import { Toggle, PageHeader, GlassCard, Badge, Alert, Tooltip, confirmDialog } from "@octarq/plugin-sdk";
+import { Switch, PageHeader, GlassCard, Badge, Alert, Tooltip, confirmDialog } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, ApiError, PluginInfo } from "../../api";
 import { ShieldAlert, Puzzle, Search, Tag, Info } from "lucide-react";
@@ -296,16 +296,16 @@ export function PluginsSettings() {
                         // off for any workspace, so say that rather than naming
                         // a dependent that isn't the real reason.
                         <Tooltip content={t("settings.pluginCoreHint")}>
-                          <Toggle on onChange={() => {}} disabled aria-label={p.title} />
+                          <Switch checked onCheckedChange={() => {}} disabled aria-label={p.title} />
                         </Tooltip>
                       ) : lockedBy(p).length > 0 ? (
                         <Tooltip
                           content={t("settings.pluginInUse", { plugin: p.title, dependents: lockedBy(p).join(", ") })}
                         >
-                          <Toggle on={p.enabled} onChange={() => {}} disabled aria-label={p.title} />
+                          <Switch checked={p.enabled} onCheckedChange={() => {}} disabled aria-label={p.title} />
                         </Tooltip>
                       ) : (
-                        <Toggle on={p.enabled} onChange={(v) => toggle(p.key, v)} aria-label={p.title} />
+                        <Switch checked={p.enabled} onCheckedChange={(v) => toggle(p.key, v)} aria-label={p.title} />
                       )}
                     </div>
                   </div>

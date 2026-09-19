@@ -1,4 +1,4 @@
-import { Field, Toggle, PageHeader, GlassCard, Button, confirmDialog, toast, ExtensionSlot } from "@octarq/plugin-sdk";
+import { Field, Switch, PageHeader, GlassCard, Button, confirmDialog, toast, ExtensionSlot } from "@octarq/plugin-sdk";
 import { ReactNode, useEffect, useState } from "react";
 import { api } from "../../api";
 import { Mail, ChevronDown, Check } from "lucide-react";
@@ -185,7 +185,7 @@ export function AuthenticationSettings() {
           <p className="text-sm font-medium text-foreground">{t("settings.allowPublicSignup")}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{t("settings.allowPublicSignupDesc")}</p>
         </div>
-        <Toggle on={allowReg} onChange={toggleRegistration} />
+        <Switch checked={allowReg} onCheckedChange={toggleRegistration} />
       </GlassCard>
 
       {/* Email verification gate */}
@@ -194,7 +194,7 @@ export function AuthenticationSettings() {
           <p className="text-sm font-medium text-foreground">{t("settings.requireEmailVerification")}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{t("settings.requireEmailVerificationDesc")}</p>
         </div>
-        <Toggle on={requireVerify} onChange={toggleRequireVerification} />
+        <Switch checked={requireVerify} onCheckedChange={toggleRequireVerification} />
       </GlassCard>
 
       {/* Provider list (Supabase-style accordion) */}

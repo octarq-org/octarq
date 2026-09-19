@@ -1,4 +1,4 @@
-import { Button, GlassCard, PageHeader, ScreenWrap, Table, THead, TBody, TR, TH, TD, Toggle, cn, toast } from "@octarq/plugin-sdk";
+import { Button, GlassCard, PageHeader, ScreenWrap, Table, THead, TBody, TR, TH, TD, cn, toast } from "@octarq/plugin-sdk";
 import React, { useEffect, useState } from "react";
 import { Plus, RotateCcw, Save, Trash2, Sliders, Check } from "lucide-react";
 import { useTranslation } from "../../i18n";

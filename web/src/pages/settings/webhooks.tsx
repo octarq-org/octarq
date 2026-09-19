@@ -1,4 +1,4 @@
-import { Field, Modal, Toggle, PageHeader, GlassCard, Button, toast, confirmDialog } from "@octarq/plugin-sdk";
+import { Field, Modal, Switch, PageHeader, GlassCard, Button, toast, confirmDialog } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, WebhookEventGroup } from "../../api";
 import { Trash2, Plus, Send } from "lucide-react";
@@ -126,7 +126,7 @@ export function WebhooksSettings() {
                 </div>
                 {canManage && (
                   <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">
-                    <Toggle on={w.enabled} onChange={() => toggle(w)} />
+                    <Switch checked={w.enabled} onCheckedChange={() => toggle(w)} />
                     <Button
                       variant="ghost"
                       onClick={() => test(w)}

@@ -34,7 +34,6 @@ import {
   TR,
   Tabs,
   Textarea,
-  Toggle,
   Tooltip,
   type TableDensity,
 } from "@octarq/plugin-sdk";
@@ -178,17 +177,10 @@ export const CATALOG: CatalogEntry[] = [
     Component: () => <SelectRow />,
   },
   {
-    name: "Toggle",
-    group: "form",
-    covers: ["Toggle"],
-    copy: ["Enable alerts"],
-    Component: () => <ToggleRow />,
-  },
-  {
     name: "Switch",
     group: "form",
     covers: ["Switch"],
-    copy: [],
+    copy: ["Enable alerts"],
     Component: () => <SwitchRow />,
   },
 
@@ -368,18 +360,13 @@ function SelectRow() {
   );
 }
 
-function ToggleRow() {
+function SwitchRow() {
   const [on, setOn] = useState(true);
   return (
     <Field label="Enable alerts">
-      <Toggle on={on} onChange={setOn} />
+      <Switch checked={on} onCheckedChange={setOn} />
     </Field>
   );
-}
-
-function SwitchRow() {
-  const [checked, setChecked] = useState(false);
-  return <Switch checked={checked} onCheckedChange={setChecked} />;
 }
 
 function BadgeRows() {

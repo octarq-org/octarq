@@ -1,4 +1,4 @@
-import { PageHeader, GlassCard, Button, Field, Toggle, Modal, toast, confirmDialog, ExtensionSlot, NotificationChannelFormContext } from "@octarq/plugin-sdk";
+import { PageHeader, GlassCard, Button, Field, Switch, Modal, toast, confirmDialog, ExtensionSlot, NotificationChannelFormContext } from "@octarq/plugin-sdk";
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, NotificationChannelType, NotificationChannel } from "../../api";
@@ -244,7 +244,7 @@ function EditChannelModal({
         </NotificationChannelFormContext.Provider>
 
         <div className="flex items-center gap-3 pt-2">
-          <Toggle on={enabled} onChange={setEnabled} />
+          <Switch checked={enabled} onCheckedChange={setEnabled} />
           <span className="text-sm text-foreground/60 select-none">{t("settings.channelEnabled")}</span>
         </div>
 
