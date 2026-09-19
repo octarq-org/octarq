@@ -117,6 +117,32 @@ func TestWriteEnvFileRefusesOverwrite(t *testing.T) {
 	if info.Mode().Perm() != 0o600 {
 		t.Errorf("env perm = %o, want 600", info.Mode().Perm())
 	}
+
+	// Check backup file
+	files, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var backupFound bool
+	for _, f := range files {
+		if strings.HasPrefix(f.Name(), ".env.bak.") {
+			backupFound = true
+			bInfo, err := f.Info()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if bInfo.Mode().Perm() != 0o600 {
+				t.Errorf("backup file perm = %v, want 0600", bInfo.Mode().Perm())
+			}
+			bData, _ := os.ReadFile(filepath.Join(filepath.Dir(path), f.Name()))
+			if string(bData) != "OCTARQ_LISTEN=:1\n" {
+				t.Errorf("backup file content = %q, want OCTARQ_LISTEN=:1\n", string(bData))
+			}
+		}
+	}
+	if !backupFound {
+		t.Error("backup file not created on force overwrite")
+	}
 }
 
 func TestRunSetupRequiresTTY(t *testing.T) {
@@ -277,5 +303,55 @@ func TestRunTopCIEnvForcesPlain(t *testing.T) {
 	var buf strings.Builder
 	if code := RunTop(context.Background(), &buf, filepath.Join(t.TempDir(), "x.sock")); code != 1 {
 		t.Errorf("CI plain top exit = %d, want 1", code)
+	}
+}
+
+func TestWriteEnvFileBackupFailure(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+	if err := os.WriteFile(path, []byte("OCTARQ_LISTEN=:1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// Make directory read-only so backup file cannot be created
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(dir, 0o700) // cleanup
+
+	resolved := map[string]string{
+		"OCTARQ_ADMIN_USER": "a", "OCTARQ_ADMIN_PASSWORD": "b",
+		"OCTARQ_DB_DRIVER": "sqlite", "OCTARQ_DB_DSN": "c",
+		"OCTARQ_LISTEN": ":1", "OCTARQ_SECRET_KEY": "d",
+	}
+	err := WriteEnvFile(path, resolved, true)
+	if err == nil {
+		t.Error("expected backup to fail due to read-only directory")
+	} else if !strings.Contains(err.Error(), "failed to write backup file") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestWriteEnvFileReadFailure(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+	if err := os.WriteFile(path, []byte("OCTARQ_LISTEN=:1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// Make file write-only so it cannot be read
+	if err := os.Chmod(path, 0o200); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(path, 0o600) // cleanup
+
+	resolved := map[string]string{
+		"OCTARQ_ADMIN_USER": "a", "OCTARQ_ADMIN_PASSWORD": "b",
+		"OCTARQ_DB_DRIVER": "sqlite", "OCTARQ_DB_DSN": "c",
+		"OCTARQ_LISTEN": ":1", "OCTARQ_SECRET_KEY": "d",
+	}
+	err := WriteEnvFile(path, resolved, true)
+	if err == nil {
+		t.Error("expected backup to fail due to unreadable file")
+	} else if !strings.Contains(err.Error(), "failed to read existing file for backup") {
+		t.Errorf("unexpected error: %v", err)
 	}
 }

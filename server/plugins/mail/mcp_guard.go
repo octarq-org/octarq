@@ -54,8 +54,29 @@ func StripInvisibleControls(s string) string {
 	}, s)
 }
 
+// normalizeFullwidth converts fullwidth ASCII (U+FF01-U+FF5E) and lookalike brackets to standard ASCII.
+func normalizeFullwidth(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r >= 0xFF01 && r <= 0xFF5E {
+			return r - 0xFEE0
+		}
+		switch r {
+		case '〈', '《':
+			return '<'
+		case '〉', '》':
+			return '>'
+		case '「', '『':
+			return '['
+		case '」', '』':
+			return ']'
+		}
+		return r
+	}, s)
+}
+
 // NeutralizeFramingTags defuses forged system/instruction boundary tags.
 func NeutralizeFramingTags(s string) string {
+	s = normalizeFullwidth(s)
 	lowered := strings.ToLower(s)
 	out := s
 	for _, rep := range defusedTagReplacements {

@@ -24,6 +24,12 @@ Run these and make sure they pass — don't claim a change works on inspection a
 - In `server/`: `gofmt -w .`
 - In `web/`: `pnpm typecheck` and `pnpm test`
 
+## Change Workflow (worktree + pr-ship)
+
+- **All new changes go through a git worktree** (under `/Volumes/PHD/code/.worktrees/`, one branch per change). Never develop directly on a `main` checkout.
+- **After work completes, automatically run `/pr-ship`**: open PRs, gate on real CI green, squash-merge (OSS first, then Pro bump, then Pro), and clean up branches/worktrees.
+- Coverage gates stay as-is; never lower thresholds to make CI pass.
+
 ## Embedded Dashboard (`server/webembed/dist`) — Critical Rule
 
 - **Never build or commit `server/webembed/dist` manually.** It is tracked in git for downstream consumption (e.g. `octarq-pro`), but refreshed automatically by CI post-merge via a `chore(web): refresh embedded dashboard build` PR.
