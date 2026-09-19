@@ -57,7 +57,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9.15.4 # keep in sync with root package.json "packageManager"
+          version: 11.8.0 # keep in sync with root package.json "packageManager"
 
       - uses: actions/setup-node@v4
         with:
@@ -92,7 +92,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9.15.4
+          version: 11.8.0
 
       - uses: actions/setup-node@v4
         with:
