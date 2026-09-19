@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CATALOG, CATALOG_GROUPS, type CatalogGroup } from "./catalog";
 import { Inspector } from "./Inspector";
+import { PreviewBoundary } from "./PreviewBoundary";
 import { toggleTheme, useTheme } from "../../theme";
 
 // The UI tuning workbench: a dev-only route that renders the SDK's real
@@ -80,7 +81,9 @@ export function Workbench() {
                 <span className="text-xs text-muted-foreground">{entry.group}</span>
               </div>
               <div className="rounded-xl border border-border bg-background p-6">
-                <entry.Component />
+                <PreviewBoundary key={entry.name} name={entry.name}>
+                  <entry.Component />
+                </PreviewBoundary>
               </div>
             </>
           ) : (
