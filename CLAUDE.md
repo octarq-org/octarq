@@ -32,7 +32,7 @@ Run these and make sure they pass — don't claim a change works on inspection a
 
 ## Embedded Dashboard (`server/webembed/dist`) — Critical Rule
 
-- **Never build or commit `server/webembed/dist` manually.** It is tracked in git for downstream consumption (e.g. `octarq-pro`), but refreshed automatically by CI post-merge via a `chore(web): refresh embedded dashboard build` PR.
+- **Never build or commit `server/webembed/dist` manually.** It is tracked in git for downstream consumption (e.g. `octarq-pro`), but refreshed automatically by CI post-merge with a direct `chore(web): refresh embedded dashboard build [auto]` commit to `main`.
 - On any branch touching `web/`, committed `server/webembed/dist` is stale until merged. Test frontend live via `cd web && pnpm dev --host` against the Go backend.
 
 ## Architecture & Code Conventions
