@@ -1,4 +1,4 @@
-import { Field, Toggle, Button, Select, FormError, Input, Textarea } from "@octarq/plugin-sdk";
+import { Field, Switch, Button, Select, FormError, Input, Textarea } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api } from "../../../api";
 import { linksApi, Link } from "../api";
@@ -206,7 +206,7 @@ export function LinkEditorForm({
       </div>
 
       <div className="flex items-center gap-3 pt-2 min-w-0">
-        <Toggle on={enabled} onChange={setEnabled} />
+        <Switch checked={enabled} onCheckedChange={setEnabled} />
         <span className="text-sm text-foreground/60 select-none">{t("links.linkRoutingActive")}</span>
       </div>
 

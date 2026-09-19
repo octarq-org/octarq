@@ -10,7 +10,6 @@ export { ScreenWrap } from "./screen-wrap";
 export { Modal } from "./modal";
 export { Field } from "./field";
 export { Empty } from "./empty";
-export { Toggle } from "./toggle";
 
 // Form / data components
 export { Input, fieldClass } from "./input";

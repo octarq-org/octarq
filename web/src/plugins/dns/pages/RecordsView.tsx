@@ -1,4 +1,4 @@
-import { Code, Empty, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert, confirmDialog, Table, THead, TBody, TR, TH, TD, FormError } from "@octarq/plugin-sdk";
+import { Code, Empty, Field, Guide, Modal, Switch, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert, confirmDialog, Table, THead, TBody, TR, TH, TD, FormError } from "@octarq/plugin-sdk";
 import { HostList } from "../../../app-ui";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -228,7 +228,7 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
 
         {canProxy && (
           <div className="flex items-center gap-2 pt-1">
-            <Toggle on={proxied} onChange={setProxied} />
+            <Switch checked={proxied} onCheckedChange={setProxied} />
             <span className="text-xs text-foreground/60 select-none">{t("domains.proxiedLabel")}</span>
           </div>
         )}

@@ -4,8 +4,8 @@ import { cn } from "../cn";
 
 // Switch is a shadcn-style wrapper over Base UI's accessible Switch primitive
 // (role="switch", keyboard-toggleable, focus-visible ring) carrying octarq's glass
-// theme. The higher-level `Toggle` in ../primitives adapts it to the app's
-// `{ on, onChange }` API; plugin authors can use either.
+// theme. Base UI renders this as a <span>, so `inline-flex` is load-bearing:
+// without it the span stays inline, ignores h-5/w-9, and the track never paints.
 //
 // The ref lands on the switch control itself — the element that takes focus and
 // keyboard input.
@@ -14,17 +14,19 @@ export interface SwitchProps {
   onCheckedChange: (checked: boolean) => void;
   disabled?: boolean;
   className?: string;
+  "aria-label"?: string;
 }
 
-export const Switch = forwardRef<HTMLButtonElement, SwitchProps>(
-  ({ checked, onCheckedChange, disabled, className }, ref) => (
+export const Switch = forwardRef<HTMLSpanElement, SwitchProps>(
+  ({ checked, onCheckedChange, disabled, className, "aria-label": ariaLabel }, ref) => (
     <BaseSwitch.Root
       ref={ref}
       checked={checked}
       onCheckedChange={(v) => onCheckedChange(v)}
       disabled={disabled}
+      aria-label={ariaLabel}
       className={cn(
-        "relative h-5 w-9 shrink-0 rounded-full outline-none transition-colors duration-300",
+        "relative inline-flex h-5 w-9 shrink-0 rounded-full outline-none transition-colors duration-300",
         "focus-visible:ring-2 focus-visible:ring-ring/60 disabled:cursor-not-allowed disabled:opacity-50",
         "bg-foreground/15 data-[checked]:bg-primary",
         className,

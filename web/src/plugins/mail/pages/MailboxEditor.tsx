@@ -1,4 +1,4 @@
-import { Code, Field, Guide, Modal, Toggle, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert, confirmDialog, FormError } from "@octarq/plugin-sdk";
+import { Code, Field, Guide, Modal, Switch, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert, confirmDialog, FormError } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Domain, effectiveMailHosts } from "../../../api";
@@ -86,7 +86,7 @@ export function MailboxEditor({
           <textarea className="input w-full text-sm" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("mail.noteMemoPlaceholder")} />
         </Field>
         <div className="flex items-center gap-3 py-1">
-          <Toggle on={enabled} onChange={setEnabled} />
+          <Switch checked={enabled} onCheckedChange={setEnabled} />
           <span className="text-sm text-foreground/60 select-none">{t("mail.mailReceivingEnabled")}</span>
         </div>
         {canDeleteBox && box && (

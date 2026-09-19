@@ -1,4 +1,4 @@
-import { Field, Toggle, Button, toast } from "@octarq/plugin-sdk";
+import { Field, Switch, Button, toast } from "@octarq/plugin-sdk";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../../api";
 import { useTranslation } from "../../../i18n";
@@ -114,14 +114,14 @@ export function MailSettings() {
         </>
       )}
       <div className="flex items-center gap-3 border-t border-foreground/[0.04] pt-4">
-        <Toggle on={catchAll} onChange={setCatchAll} />
+        <Switch checked={catchAll} onCheckedChange={setCatchAll} />
         <div>
           <span className="block select-none text-xs font-semibold text-foreground/70">{t("settings.enableCatchAll")}</span>
           <span className="select-none text-[10px] text-foreground/40">{t("settings.enableCatchAllDesc")}</span>
         </div>
       </div>
       <div className="flex items-center gap-3 border-t border-foreground/[0.04] pt-4">
-        <Toggle on={autoWrap} onChange={setAutoWrap} />
+        <Switch checked={autoWrap} onCheckedChange={setAutoWrap} />
         <div>
           <span className="block select-none text-xs font-semibold text-foreground/70">{t("settings.autoWrapLinks")}</span>
           <span className="select-none text-[10px] text-foreground/40">{t("settings.autoWrapLinksDesc")}</span>
