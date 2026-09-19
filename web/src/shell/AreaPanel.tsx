@@ -17,6 +17,7 @@ import {
 } from "./navI18n";
 import { RESOURCES } from "./resources";
 import { MENU_ITEM, MENU_POPUP } from "./menuStyles";
+import { isNavItemActive } from "./navActive";
 
 // lucide-react @1.x dropped the `Github` glyph, so the mark is inlined (same
 // path the Login page uses for the GitHub OAuth button).
@@ -153,9 +154,7 @@ export function AreaPanel({
               )}
             <div className="space-y-0.5">
               {group.items.map((item) => {
-                const active = item.path.includes("?")
-                  ? currentPath === item.path
-                  : (item.path !== "/" && currentPath.startsWith(item.path));
+                const active = isNavItemActive(item.path, currentPath);
                 if (collapsed) {
                   if (item.external) {
                     return (
@@ -267,7 +266,7 @@ export function AreaPanel({
       <div className={cn("border-t border-border", collapsed ? "space-y-1 p-2" : "space-y-0.5 px-3 py-2")}>
         {footerItems.map((it) => {
           const label = translateNavItemLabel(t, it.id, it.label);
-          const active = currentPath === it.path || currentPath.startsWith(it.path + "/");
+          const active = isNavItemActive(it.path, currentPath);
           return (
             <NavLink
               key={it.id}
