@@ -272,20 +272,19 @@ jobs:
   # and gets the embedded dashboard from the module zip. CI keeps it fresh so
   # nobody has to build and commit dist locally.
   #
-  # This used to run on the PR branch, committing a fresh dist onto the head of
-  # every PR that touched web/. That bot-authored push became the new head, and
-  # GitHub gates workflow runs on bot pushes: the run stopped at
-  # `action_required` and the PR read as unchecked until a human approved it.
-  # Every frontend PR needed that click, on a commit nobody reviews anyway.
+  # Direct push, no PR: on a push to main this rebuilds the dashboard and —
+  # only if the output actually differs — commits it straight onto main.
+  # The source it was built from already passed CI on this very commit, so
+  # there is no logic to review; a PR would only add a manual merge step.
   #
-  # So the refresh moved behind the merge. On a push to main, this rebuilds the
-  # dashboard and — only if the output actually differs — opens a PR with just
-  # webembed/dist. Merging that PR is the one manual step, and it replaces a
-  # manual approval that had to happen on every frontend PR.
+  # Concurrency: if main moved while we built, we do NOT push — the newer
+  # commit's own run builds from a tree that already contains ours, so
+  # skipping here loses nothing. A push rejected as non-fast-forward is
+  # treated the same way (skip, no retry loop pushing stale dist over fresh).
   #
-  # The dist PR itself carries no checks: PRs opened with GITHUB_TOKEN don't
-  # trigger workflows. That is the same restriction as before, but harmless
-  # here — the source it was built from already passed CI on this very commit.
+  # No self-trigger loop: a dist-only push touches server/** but not web/**,
+  # so on that push web is skipped and this job's
+  # `needs.web.result == 'success'` gate stays false.
   #
   # needs: [web] so a go-only main push (web skipped) does not rebuild dist.
   dist:
@@ -295,13 +294,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Why this guard exists — it is what produced the empty PR #200.
       #
-      # This job checks out `github.sha`, but the PR it opens targets `main` as
+      # This job checks out `github.sha`, but it pushes onto `main` as
       # main is *now*. Those are the same commit only if no merge landed while
       # the job waited on `needs`. On 2026-08-06 three PRs merged inside four
       # minutes: a web change (#196) queued its dist PR, that dist PR merged,
@@ -364,33 +364,31 @@ jobs:
             echo "main moved to $tip during the build — skipping."
           fi
 
-      - name: Open a PR if dist changed
+      - name: Commit and push dist if changed
+        id: push
         if: steps.tip_after_build.outputs.current == 'true'
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ secrets.PAT_GITHUB || secrets.GITHUB_TOKEN }}
-          add-paths: server/webembed/dist
-          branch: chore/refresh-embedded-dashboard
-          # Tidy up the reused branch once main has the dist — otherwise it
-          # outlives every merge and sits there looking like pending work. Only
-          # fires when the branch no longer differs from base, so it can never
-          # discard a refresh that still needs merging. This is a backstop for
-          # the seconds-wide window the re-check above can't close, not the fix.
-          delete-branch: true
-          # Reuse one branch: a second merge before the first dist PR lands
-          # updates that PR rather than opening a competing one.
-          commit-message: "chore(web): refresh embedded dashboard build [auto]"
-          title: "chore(web): refresh embedded dashboard build"
-          body: |
-            The dashboard bundle in `server/webembed/dist` no longer matches `web/`.
-
-            octarq-pro consumes octarq as a Go module and gets the embedded
-            dashboard from the module zip, so dist has to stay committed and
-            current. This was built from ${{ github.sha }}, which already
-            passed CI.
-
-            Nothing here is hand-written — merge it as-is, or close it if a
-            newer merge is about to supersede it.
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add server/webembed/dist
+          if git diff --cached --quiet; then
+            echo "dist unchanged — nothing to push."
+            exit 0
+          fi
+          git commit -m "chore(web): refresh embedded dashboard build [auto]" -m "Built from $GITHUB_SHA, which already passed CI."
+          # Seconds-wide race: main may have moved since the re-check above.
+          # The newer commit's own run owns the refresh — skip instead of
+          # pushing stale dist over fresh. A rejected push is the same
+          # signal, so treat it as skip, not failure.
+          tip=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ "$tip" != "$GITHUB_SHA" ]; then
+            echo "main moved to $tip during push prep — skipping."
+            exit 0
+          fi
+          if ! git push origin HEAD:refs/heads/main; then
+            echo "push rejected — a newer commit owns the refresh, skipping."
+            exit 0
+          fi
 
   # Aggregator for branch protection: the rule requires a single check named
   # "CI". Without this, a website-only change skips go/web/e2e and GitHub
