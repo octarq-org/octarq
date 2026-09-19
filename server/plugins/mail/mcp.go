@@ -98,6 +98,11 @@ type emailContentOut struct {
 	ReceivedAt time.Time `json:"received_at"`
 }
 
+// sanitizeMailMeta strips invisible controls and defuses forged framing tags
+// in attacker-controlled email metadata (From/To/Subject) before it reaches
+// agent context. Every MCP output carrying inbound metadata must use it.
+func sanitizeMailMeta(s string) string { return NeutralizeFramingTags(StripInvisibleControls(s)) }
+
 func (p *Plugin) RegisterMCP(srv *mcp.Server) {
 	mcp.AddTool(srv, &mcp.Tool{
 		Name:        "list_mailboxes",
@@ -187,8 +192,8 @@ func (p *Plugin) mcpListEmails(ctx context.Context, _ *mcp.CallToolRequest, in l
 	out := make([]emailOut, 0, len(emails))
 	for _, e := range emails {
 		out = append(out, emailOut{
-			ID: e.ID, MailboxID: e.MailboxID, From: e.FromAddr, To: e.ToAddr,
-			Subject: e.Subject, Read: e.Read, ReceivedAt: e.ReceivedAt,
+			ID: e.ID, MailboxID: e.MailboxID, From: sanitizeMailMeta(e.FromAddr), To: sanitizeMailMeta(e.ToAddr),
+			Subject: sanitizeMailMeta(e.Subject), Read: e.Read, ReceivedAt: e.ReceivedAt,
 		})
 	}
 	return jsonResult(out)
@@ -245,9 +250,9 @@ func (p *Plugin) mcpGetLatestOTP(ctx context.Context, _ *mcp.CallToolRequest, in
 				OTP:        otp,
 				EmailID:    e.ID,
 				MailboxID:  e.MailboxID,
-				Subject:    e.Subject,
-				From:       e.FromAddr,
-				To:         e.ToAddr,
+				Subject:    sanitizeMailMeta(e.Subject),
+				From:       sanitizeMailMeta(e.FromAddr),
+				To:         sanitizeMailMeta(e.ToAddr),
 				ReceivedAt: e.ReceivedAt,
 			})
 		}
@@ -281,14 +286,12 @@ func (p *Plugin) mcpGetEmailSummary(ctx context.Context, _ *mcp.CallToolRequest,
 	summary, category := GenerateEmailSummary(email.Subject, body, otp)
 	wrappedSummary, _ := SanitizeAgentBody(summary)
 
-	sanitizeMeta := func(s string) string { return NeutralizeFramingTags(StripInvisibleControls(s)) }
-
 	return jsonResult(emailSummaryOut{
 		ID:         email.ID,
 		MailboxID:  email.MailboxID,
-		From:       sanitizeMeta(email.FromAddr),
-		To:         sanitizeMeta(email.ToAddr),
-		Subject:    sanitizeMeta(email.Subject),
+		From:       sanitizeMailMeta(email.FromAddr),
+		To:         sanitizeMailMeta(email.ToAddr),
+		Subject:    sanitizeMailMeta(email.Subject),
 		Summary:    wrappedSummary,
 		Category:   category,
 		OTP:        otp,
@@ -318,14 +321,12 @@ func (p *Plugin) mcpGetEmailContent(ctx context.Context, _ *mcp.CallToolRequest,
 
 	sanitizedText, truncated := SanitizeAgentBody(body)
 
-	sanitizeMeta := func(s string) string { return NeutralizeFramingTags(StripInvisibleControls(s)) }
-
 	return jsonResult(emailContentOut{
 		ID:         email.ID,
 		MailboxID:  email.MailboxID,
-		From:       sanitizeMeta(email.FromAddr),
-		To:         sanitizeMeta(email.ToAddr),
-		Subject:    sanitizeMeta(email.Subject),
+		From:       sanitizeMailMeta(email.FromAddr),
+		To:         sanitizeMailMeta(email.ToAddr),
+		Subject:    sanitizeMailMeta(email.Subject),
 		Text:       sanitizedText,
 		Truncated:  truncated,
 		Guard:      AgentBodyGuard,
