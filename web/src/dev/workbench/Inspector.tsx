@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SEED_TOKENS, TOKENS, readTokenValues, themeAlias, type TokenDef } from "@octarq/plugin-sdk";
+import { useTheme } from "../../theme";
 import type { CatalogEntry } from "./catalog";
 
 // Reads a token's declaration in BOTH themes without leaving the page in the
 // other mode. Toggling the class on <html> is what actually re-resolves the
 // declarations, so there is no second source to keep in sync.
+//
+// WARNING: this writes <html>'s class list. Never call it from a MutationObserver
+// on that element — the observer would see its own write and re-fire forever.
 function readBothThemes(names: string[]): { light: Record<string, string>; dark: Record<string, string> } {
   const el = document.documentElement;
   const wasDark = el.classList.contains("dark");
@@ -45,17 +49,13 @@ export function Inspector({ entry }: { entry: CatalogEntry | undefined }) {
 }
 
 function TokenList() {
+  const theme = useTheme();
   const [values, setValues] = useState(() => readBothThemes(ALL_NAMES));
 
-  const refresh = useCallback(() => setValues(readBothThemes(ALL_NAMES)), []);
-
-  // Re-read when the theme flips from the shell's own toggle, so the two columns
-  // stay truthful rather than showing what they were on mount.
-  useEffect(() => {
-    const observer = new MutationObserver(refresh);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
-    return () => observer.disconnect();
-  }, [refresh]);
+  // Driven by the theme store rather than a MutationObserver on <html>:
+  // readBothThemes() itself flips the `dark` class, so an observer watching that
+  // element re-fires on its own write and loops until the tab dies.
+  useEffect(() => setValues(readBothThemes(ALL_NAMES)), [theme]);
 
   const groups = useMemo(() => {
     const out = new Map<string, TokenDef[]>();
