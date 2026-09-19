@@ -7,3 +7,12 @@
 # also reworking that CI job.
 packages:
   - "packages/*"
+
+# Skip pnpm's pre-run dependency verification (mirrors web/ and octarq-pro).
+verifyDepsBeforeRun: false
+# pnpm 10+ treats an ignored build script as the fatal ERR_PNPM_IGNORED_BUILDS
+# rather than a warning, so esbuild's postinstall must be explicitly approved.
+onlyBuiltDependencies:
+  - esbuild
+allowBuilds:
+  esbuild: true
