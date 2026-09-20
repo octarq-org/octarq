@@ -45,10 +45,13 @@ Run these and make sure they pass — don't claim a change works on inspection a
 - **Sidebar & Routes**: Sidebar menus come strictly from the Go backend (`MenuProvider` / `/api/menus`). Frontend plugins register routes (`registerUIPlugin` → `uiRoutes()`) and UI components, never static menus.
 - **Graceful degradation**: Optional/Pro feature pages must handle **402** (show upsell `LockedFeature`) and **404** (neutral note) gracefully.
 - **Pre-v1.0 Stage (未发布 v1.0 铁律)**:
+  - **Engineering Invariants**: All changes must adhere to the [Five Invariants & Trinity Law](docs/INVARIANTS.md).
+  - **Trinity Interface Law**: Every feature must provide Web UI (`plugin-sdk`), REST API (OpenAPI), and Agent Tool (MCP with `org_id` isolation).
   - **严禁保留 fallback、软降级或双轨制兼容代码**。三方生态尚未建立，三方插件必须升级。
   - 不需要保留 deprecated 标记的旧接口或旧字段，直接彻底清理。
   - 核心全部通过 `plugin.Host` SPI 暴露，强制 `TenantDB` 隔离，不提供绕过租户的 raw DB fallback。
   - 缺失凭据或校验失败时**严格 Fail-Closed**，拒绝启动或报错。
+  - **Redis is optional**: SQLite-only mode must be complete and pass all tests. Redis is for `asynq` enhancement only.
 - **Don't cram**: Split overgrown components into focused modules.
 
 ## Sandbox Note
