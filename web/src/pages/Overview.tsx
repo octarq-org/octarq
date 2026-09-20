@@ -6,6 +6,7 @@ import { useTranslation } from "../i18n";
 import { SetupStep, SetupChecklistProvider, useSetupChecklist } from "../app-ui/SetupStep";
 import { Sparkles, X } from "lucide-react";
 import { HealthOverview } from "./dashboard/components/HealthOverview";
+import { ActivityFeed } from "./dashboard/components/ActivityFeed";
 
 function OverviewChecklistSection({
   dismissed,
@@ -174,6 +175,8 @@ export default function OverviewPage() {
       </SetupChecklistProvider>
 
       <HealthOverview />
+
+      <ActivityFeed />
 
       <ExtensionSlot
         name="home-overview"
