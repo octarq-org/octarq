@@ -94,6 +94,24 @@ type parserImpl struct {
 	allowedViews     map[string]bool
 }
 
+// rejectUnknownTableExpr enforces the explicit table-shape guard: only plain
+// view names and derived subqueries may appear in FROM. Anything else (e.g. a
+// table-valued function such as FROM pragma_table_info('t'), should a future
+// parser version start accepting it) is rejected here rather than relying on
+// the parser's current inability to parse it.
+func rejectUnknownTableExpr(expr sqlparser.SimpleTableExpr) error {
+	switch expr.(type) {
+	case nil:
+		return nil
+	case *sqlparser.Subquery:
+		return nil
+	case sqlparser.TableName:
+		return nil
+	default:
+		return fmt.Errorf("disallowed table expression %T: only plain views and derived subqueries are permitted", expr)
+	}
+}
+
 // NewParser creates a new Parser with the provided options.
 // Note: Pre-P3 API subject to change (P3 前 API 易变).
 func NewParser(opts ...Option) Parser {
@@ -161,6 +179,9 @@ func (p *parserImpl) Validate(sql string) (err error) {
 		case *sqlparser.AliasedTableExpr:
 			if n == nil {
 				return true, nil
+			}
+			if err := rejectUnknownTableExpr(n.Expr); err != nil {
+				return false, err
 			}
 			if tn, ok := n.Expr.(sqlparser.TableName); ok {
 				if !tn.Qualifier.IsEmpty() {
