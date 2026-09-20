@@ -176,8 +176,8 @@ func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
 // SQL: an arbitrary SELECT cannot carry an owner_id predicate, which is why the
 // former query_db_readonly tool no longer exists on any transport.
 func (s *server) registerTools(srv *mcp.Server) {
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "export_data",
+	plugin.AddMCPTool(srv, "core_mcp", &mcp.Tool{
+		Name:        "octarq_infra__export_data",
 		Description: "Export the operator's data for one resource type (links, emails, domains, mailboxes) as JSON — for backup and data sovereignty.",
 	}, s.exportData)
 }

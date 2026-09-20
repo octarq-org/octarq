@@ -104,28 +104,28 @@ type emailContentOut struct {
 func sanitizeMailMeta(s string) string { return NeutralizeFramingTags(StripInvisibleControls(s)) }
 
 func (p *Plugin) RegisterMCP(srv *mcp.Server) {
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "list_mailboxes",
+	plugin.AddMCPTool(srv, "mail", &mcp.Tool{
+		Name:        "octarq_network__list_mailboxes",
 		Description: "List email mailboxes with their unread counts.",
 	}, p.mcpListMailboxes)
 
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "list_emails",
+	plugin.AddMCPTool(srv, "mail", &mcp.Tool{
+		Name:        "octarq_network__list_emails",
 		Description: "List recently received emails (subject, from, to, date) — optionally for one mailbox. Bodies are not returned; open the full message in the dashboard.",
 	}, p.mcpListEmails)
 
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "get_latest_otp",
+	plugin.AddMCPTool(srv, "mail", &mcp.Tool{
+		Name:        "octarq_identity__get_latest_otp",
 		Description: "Get the latest one-time verification code (OTP) from unread emails received in the last 10 minutes, optionally filtered by mailbox ID or address.",
 	}, p.mcpGetLatestOTP)
 
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "get_email_summary",
+	plugin.AddMCPTool(srv, "mail", &mcp.Tool{
+		Name:        "octarq_network__get_email_summary",
 		Description: "Get a structured, sanitized summary of an email by ID, including detected category and any extracted verification code (OTP).",
 	}, p.mcpGetEmailSummary)
 
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "get_email_content",
+	plugin.AddMCPTool(srv, "mail", &mcp.Tool{
+		Name:        "octarq_network__get_email_content",
 		Description: "Get the sanitized plain text content of an email by ID with safety guardrails (sensitive tokens redacted, inline base64 images stripped, capped at 4KB).",
 	}, p.mcpGetEmailContent)
 }

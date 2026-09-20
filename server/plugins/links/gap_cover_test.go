@@ -267,8 +267,8 @@ func TestRegisterMCPRegistersListLinksTool(t *testing.T) {
 	for _, tool := range res.Tools {
 		names = append(names, tool.Name)
 	}
-	if !slicesContains(names, "list_links") {
-		t.Errorf("list_links tool not registered; got %v", names)
+	if !slicesContains(names, "octarq_network__list_links") {
+		t.Errorf("octarq_network__list_links tool not registered; got %v", names)
 	}
 }
 

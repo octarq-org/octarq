@@ -28,6 +28,7 @@ type NotifyOutput struct {
 func (p *Plugin) registerRoutes(ctx *plugin.Context) {
 	_ = plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[NotifyInput, NotifyOutput]{
 		Name:        "notify",
+		MCPToolName: "octarq_infra__notify",
 		Method:      "POST",
 		Path:        "/api/notify",
 		Summary:     "Send Notification",

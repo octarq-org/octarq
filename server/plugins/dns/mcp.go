@@ -26,8 +26,8 @@ type domainOut struct {
 }
 
 func (p *Plugin) RegisterMCP(srv *mcp.Server) {
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "list_domains",
+	plugin.AddMCPTool(srv, "dns", &mcp.Tool{
+		Name:        "octarq_network__list_domains",
 		Description: "List managed domains and what each is used for (mail / links).",
 	}, p.mcpListDomains)
 }
