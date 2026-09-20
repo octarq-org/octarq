@@ -1,4 +1,4 @@
-import { Field, PageHeader, GlassCard, Button, Select, Modal, toast, confirmDialog, ExtensionSlot } from "@octarq/plugin-sdk";
+import { Field, PageHeader, GlassCard, Button, Select, Modal, toast, confirmDialog, ExtensionSlot, Input } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, type SMTPSender } from "../../api";
 import { Server, Sliders, DatabaseBackup, Cpu, Send } from "lucide-react";
@@ -121,41 +121,41 @@ export function InstanceSettings() {
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <Field label={t("settings.instanceAppName")} hint={t("settings.instanceAppNameHint")}>
-            <input
-              className="input w-full text-sm"
+            <Input
+              className="text-sm"
               value={appName}
               onChange={(e) => setAppName(e.target.value)}
               placeholder="octarq"
             />
           </Field>
           <Field label={t("settings.instanceBaseDomain")} hint={t("settings.instanceBaseDomainHint")}>
-            <input
-              className="input w-full font-mono text-sm"
+            <Input
+              className="font-mono text-sm"
               value={baseDomain}
               onChange={(e) => setBaseDomain(e.target.value)}
               placeholder="e.g. app.example.com"
             />
           </Field>
           <Field label={t("settings.instanceSharedHosts")} hint={t("settings.instanceSharedHostsHint")}>
-            <input
-              className="input w-full font-mono text-sm"
+            <Input
+              className="font-mono text-sm"
               value={sharedHosts}
               onChange={(e) => setSharedHosts(e.target.value)}
               placeholder={t("settings.instanceSharedHostsPlaceholder")}
             />
           </Field>
           <Field label={t("settings.retentionLabel")} hint={t("settings.retentionHint")}>
-            <input
+            <Input
               type="number"
               min={0}
-              className="input w-full font-mono text-sm"
+              className="font-mono text-sm"
               value={retention}
               onChange={(e) => setRetention(Number(e.target.value))}
             />
           </Field>
           <Field label={t("settings.instancePublicCorsOrigins")} hint={t("settings.instancePublicCorsOriginsHint")}>
-            <input
-              className="input w-full font-mono text-sm"
+            <Input
+              className="font-mono text-sm"
               value={publicCorsOrigins}
               onChange={(e) => setPublicCorsOrigins(e.target.value)}
               placeholder={t("settings.instancePublicCorsOriginsPlaceholder")}
@@ -164,7 +164,7 @@ export function InstanceSettings() {
           <Field label={t("settings.instanceSystemSender")} hint={t("settings.instanceSystemSenderHint")}>
             <div className="flex gap-2">
               <Select
-                className="w-full text-sm"
+                className="text-sm"
                 value={String(systemSenderId)}
                 onValueChange={(v) => setSystemSenderId(Number(v))}
                 options={[
@@ -191,8 +191,8 @@ export function InstanceSettings() {
               label={t("settings.reservedSlugsLabel")}
               hint={t("settings.reservedSlugsHint", { list: (settings.builtinReserved || []).join(", ") })}
             >
-              <input
-                className="input w-full font-mono text-sm"
+              <Input
+                className="font-mono text-sm"
                 value={reservedSlugs}
                 onChange={(e) => setReservedSlugs(e.target.value)}
                 placeholder={t("settings.instanceReservedSlugsPlaceholder")}
@@ -206,8 +206,8 @@ export function InstanceSettings() {
           hint={metricsTokenSet ? t("settings.instanceMetricsTokenSetHint") : t("settings.instanceMetricsTokenHint")}
         >
           <div className="flex gap-2 max-w-md">
-            <input
-              className="input w-full font-mono text-sm"
+            <Input
+              className="font-mono text-sm"
               type="password"
               value={metricsToken}
               onChange={(e) => setMetricsToken(e.target.value)}
@@ -252,28 +252,28 @@ export function InstanceSettings() {
         <p className="text-xs text-foreground/50">{t("settings.instanceRlHint")}</p>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           <Field label={t("settings.instanceRlAuth")}>
-            <input
+            <Input
               type="number"
               min={0}
-              className="input w-full font-mono text-sm"
+              className="font-mono text-sm"
               value={rlAuth}
               onChange={(e) => setRlAuth(Number(e.target.value))}
             />
           </Field>
           <Field label={t("settings.instanceRlApi")}>
-            <input
+            <Input
               type="number"
               min={0}
-              className="input w-full font-mono text-sm"
+              className="font-mono text-sm"
               value={rlApi}
               onChange={(e) => setRlApi(Number(e.target.value))}
             />
           </Field>
           <Field label={t("settings.instanceRlRedirect")}>
-            <input
+            <Input
               type="number"
               min={0}
-              className="input w-full font-mono text-sm"
+              className="font-mono text-sm"
               value={rlRedirect}
               onChange={(e) => setRlRedirect(Number(e.target.value))}
             />
@@ -376,9 +376,9 @@ function TestInstanceMailModal({ onClose }: { onClose: () => void }) {
           {t("settings.instanceTestMailDesc")}
         </p>
         <Field label={t("settings.instanceTestMailRecipient")} hint={t("settings.instanceTestMailRecipientHint")}>
-          <input
+          <Input
             type="email"
-            className="input w-full text-sm"
+            className="text-sm"
             value={to}
             onChange={(e) => setTo(e.target.value)}
             placeholder={t("settings.instanceTestMailRecipientPlaceholder")}

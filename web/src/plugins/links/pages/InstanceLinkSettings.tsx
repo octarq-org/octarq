@@ -1,4 +1,4 @@
-import { Field, Button, PageHeader, GlassCard, toast } from "@octarq/plugin-sdk";
+import { Field, Button, PageHeader, GlassCard, toast, Textarea } from "@octarq/plugin-sdk";
 // Instance console → Short Link Settings — the deployment-wide reserved-slug
 // list. A config that exists once per deployment is instance-scoped
 // (GET/PUT /api/instance-settings), so this page lives in the /instance
@@ -52,8 +52,8 @@ export function InstanceLinkSettings() {
       ) : (
         <GlassCard className="p-6 space-y-6">
           <Field label={t("settings.reservedSlugsLabel")} hint={t("settings.reservedSlugsHint", { list: builtinReserved.join(", ") })}>
-            <textarea
-              className="input w-full font-mono text-xs"
+            <Textarea
+              className="font-mono text-xs"
               rows={3}
               value={reservedSlugs}
               onChange={(e) => setReservedSlugs(e.target.value)}

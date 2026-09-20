@@ -1,4 +1,4 @@
-import { Switch, PageHeader, GlassCard, Badge, Alert, Tooltip, confirmDialog } from "@octarq/plugin-sdk";
+import { Switch, PageHeader, GlassCard, Badge, Alert, Tooltip, confirmDialog, Input } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, ApiError, PluginInfo } from "../../api";
 import { ShieldAlert, Puzzle, Search, Tag, Info } from "lucide-react";
@@ -191,12 +191,12 @@ export function PluginsSettings() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-foreground/[0.02] p-3 rounded-2xl border border-border/60">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
+              <Input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t("common.search")}
-                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-accent-fg/30 text-foreground placeholder:text-muted-foreground"
+                className="pl-9 pr-3 py-1.5 text-xs rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-accent-fg/30 text-foreground placeholder:text-muted-foreground"
               />
             </div>
 
