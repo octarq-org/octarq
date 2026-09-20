@@ -109,7 +109,7 @@ Everything else — auth, orgs, audit log, notifications, job queue, webhooks, b
 
 ## Agent-native: your plugin is an MCP tool
 
-Octarq ships a built-in **MCP server** (`octarq mcp` over stdio; SSE and Streamable HTTP on the server at `/api/mcp/sse` and `/api/mcp/stream`) so assistants like Claude Code can read and query your instance — `list_links`, `list_mailboxes`, `list_domains`, `export_data`. Every tool is read-only and scoped to the caller's own workspace.
+Octarq ships a built-in **MCP server** (`octarq mcp` over stdio; SSE and Streamable HTTP on the server at `/api/mcp/sse` and `/api/mcp/stream`) so assistants like Claude Code can read and query your instance — namespaced tools such as `octarq_network__list_links`, `octarq_identity__get_latest_otp`, `octarq_infra__query_db_readonly` and `octarq_infra__export_data`. Every tool is scoped to the caller's own workspace with `org_id` isolation; SQL access is SELECT-only with sensitive columns redacted, and duplicate tool registrations fail closed instead of silently overwriting.
 
 The point isn't "we added AI." The point is the **framework** wiring: a plugin that implements the optional `MCPProvider` interface exposes its own tools to every connected agent — no extra plumbing. Write a plugin, and your AI agent can drive it.
 

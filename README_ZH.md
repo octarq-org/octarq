@@ -109,7 +109,7 @@ OCTARQ_SECRET_KEY=… OCTARQ_ADMIN_PASSWORD=… ./octarq        # 监听 :8080
 
 ## Agent-Native：你的插件即 MCP 工具
 
-Octarq 内置了 **MCP 服务器**（`octarq mcp` 走 stdio；服务器自身在 `/api/mcp/sse` 与 `/api/mcp/stream` 提供 SSE 与 Streamable HTTP），AI 助手（如 Claude Code）可以直接读取并查询你的实例能力 —— `list_links`、`list_mailboxes`、`list_domains`、`export_data`。所有工具均为只读，且严格限定在调用方自己的工作区内。
+Octarq 内置了 **MCP 服务器**（`octarq mcp` 走 stdio；服务器自身在 `/api/mcp/sse` 与 `/api/mcp/stream` 提供 SSE 与 Streamable HTTP），AI 助手（如 Claude Code）可以直接读取并查询你的实例能力 —— 命名空间化工具如 `octarq_network__list_links`、`octarq_identity__get_latest_otp`、`octarq_infra__query_db_readonly` 与 `octarq_infra__export_data`。所有工具均通过 `org_id` 严格限定在调用方自己的工作区内；SQL 访问仅允许 SELECT 且敏感列会被脱敏，同名工具重复注册会直接失败而非静默覆盖。
 
 重点不在于"我们加入了 AI"，而在于**框架级别的管线机制**：实现可选 `MCPProvider` 接口的插件会自动将其工具暴露给所有连接的 AI Agent —— 无需额外胶水代码。编写一个插件，你的 AI Agent 就能直接驱动它。
 
