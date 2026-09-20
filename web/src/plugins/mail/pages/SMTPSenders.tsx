@@ -1,4 +1,4 @@
-import { Empty, Field, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast, confirmDialog, FormError } from "@octarq/plugin-sdk";
+import { Empty, Field, Input, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast, confirmDialog, FormError } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../../api";
@@ -157,32 +157,32 @@ function SMTPSenderModal({ sender, onClose, onSaved }: { sender: any; onClose: (
     <Modal title={sender ? t("settings.modifySmtpRelay") : t("settings.configureSmtpRelay")} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <Field label={t("settings.senderConnectionName")}>
-          <input className="input w-full" value={name} onChange={e => setName(e.target.value)} placeholder={t("settings.senderConnectionPlaceholder")} required autoFocus />
+          <Input  value={name} onChange={e => setName(e.target.value)} placeholder={t("settings.senderConnectionPlaceholder")} required autoFocus />
         </Field>
 
         <div className="flex gap-4">
           <div className="flex-[3]">
             <Field label={t("settings.smtpHostLabel")}>
-              <input className="input w-full font-mono text-xs" value={host} onChange={e => setHost(e.target.value)} placeholder="smtp.mailgun.org" required />
+              <Input className="font-mono text-xs" value={host} onChange={e => setHost(e.target.value)} placeholder="smtp.mailgun.org" required />
             </Field>
           </div>
           <div className="flex-1">
             <Field label={t("settings.smtpPortLabel")}>
-              <input type="number" className="input w-full font-mono text-xs" value={port} onChange={e => setPort(e.target.value)} placeholder="587" required />
+              <Input type="number" className="font-mono text-xs" value={port} onChange={e => setPort(e.target.value)} placeholder="587" required />
             </Field>
           </div>
         </div>
 
         <Field label={t("settings.smtpUsernameLabel")}>
-          <input className="input w-full font-mono text-xs" value={user} onChange={e => setUser(e.target.value)} placeholder={t("settings.smtpUsernamePlaceholder")} required />
+          <Input className="font-mono text-xs" value={user} onChange={e => setUser(e.target.value)} placeholder={t("settings.smtpUsernamePlaceholder")} required />
         </Field>
 
         <Field label={t("settings.smtpPasswordLabel")} hint={sender ? t("settings.smtpPasswordHint") : ""}>
-          <input type="password" className="input w-full font-mono text-xs" value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••••" required={!sender} />
+          <Input type="password" className="font-mono text-xs" value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••••" required={!sender} />
         </Field>
 
         <Field label={t("settings.defaultFromAddress")} hint={t("settings.defaultFromHint")}>
-          <input className="input w-full font-mono text-xs" value={fromEmail} onChange={e => setFromEmail(e.target.value)} placeholder="noreply@domain.com" required />
+          <Input className="font-mono text-xs" value={fromEmail} onChange={e => setFromEmail(e.target.value)} placeholder="noreply@domain.com" required />
         </Field>
 
         {err && <FormError err={err} />}

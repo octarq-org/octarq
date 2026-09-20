@@ -1,4 +1,4 @@
-import { Field, Switch, Button, toast } from "@octarq/plugin-sdk";
+import { Field, Input, Textarea, Switch, Button, toast } from "@octarq/plugin-sdk";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../../api";
 import { useTranslation } from "../../../i18n";
@@ -82,22 +82,22 @@ export function MailSettings() {
         <h2 className="text-sm font-semibold text-foreground/90">{t("settings.inboundMailboxesSettings")}</h2>
       </div>
       <Field label={t("settings.reservedMailboxesLabel")} hint={t("settings.reservedMailboxesHint")}>
-        <textarea className="input w-full font-mono text-xs" rows={2} value={reservedMailboxes} onChange={(e) => setReservedMailboxes(e.target.value)} placeholder="admin&#10;postmaster" />
+        <Textarea className="font-mono text-xs" rows={2} value={reservedMailboxes} onChange={(e) => setReservedMailboxes(e.target.value)} placeholder="admin&#10;postmaster" />
       </Field>
       {adminView && (
         <>
           <Field label={t("settings.inboundWebhookUrlLabel")} hint={t("settings.inboundWebhookUrlHint")}>
-            <input
+            <Input
               readOnly
-              className="input w-full font-mono text-xs"
+              className="font-mono text-xs"
               value={`${location.origin}/api/v1/webhook/${s?.orgSlug || ""}/email/inbound/${displayed}`}
               onFocus={(e) => e.currentTarget.select()}
             />
           </Field>
           <Field label={t("settings.inboundTokenLabel")} hint={t("settings.inboundTokenHint")}>
             <div className="flex gap-2">
-              <input
-                className="input w-full font-mono text-xs"
+              <Input
+                className="font-mono text-xs"
                 value={displayed}
                 readOnly={!revealed || !tokenLoaded}
                 onChange={(e) => setInboundToken(e.target.value)}

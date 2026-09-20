@@ -1,4 +1,4 @@
-import { Button, Modal, Field, Badge, confirmDialog, timeAgo, Table, THead, TBody, TR, TH, TD, FormError } from "@octarq/plugin-sdk";
+import { Button, Modal, Field, Input, Badge, confirmDialog, timeAgo, Table, THead, TBody, TR, TH, TD, FormError } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { mailApi, MailSuppression } from "../api";
 import { useTranslation } from "../../../i18n";
@@ -124,8 +124,8 @@ export function SuppressionList() {
         <Modal title={t("mail.addSuppressionTitle")} onClose={() => setShowAdd(false)}>
           <div className="space-y-4">
             <Field label={t("mail.enterAddress")}>
-              <input
-                className="input w-full font-mono text-sm"
+              <Input
+                className="font-mono text-sm"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder={t("mail.addressPlaceholder")}

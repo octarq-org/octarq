@@ -1,4 +1,4 @@
-import { Code, Empty, Field, Guide, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast, confirmDialog } from "@octarq/plugin-sdk";
+import { Code, Empty, Field, Input, Guide, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, toast, confirmDialog } from "@octarq/plugin-sdk";
 import { HostList } from "../../../app-ui";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -537,8 +537,8 @@ export default function DomainsPage() {
               {/* Filter bar and quick stats */}
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 flex-1 max-w-md">
-                  <input
-                    className="input w-full text-sm"
+                  <Input
+                    className="text-sm"
                     placeholder={t("domains.searchDomains")}
                     value={q}
                     onChange={(e) => setQ(e.target.value)}

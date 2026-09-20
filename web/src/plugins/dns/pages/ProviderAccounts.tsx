@@ -1,4 +1,4 @@
-import { Empty, Field, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog, FormError } from "@octarq/plugin-sdk";
+import { Empty, Field, Input, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog, FormError } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../../api";
@@ -143,7 +143,7 @@ function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onC
     <Modal title={account ? t("settings.editProviderAccount") : t("settings.registerProviderAccount")} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <Field label={t("settings.providerLabelName")}>
-          <input className="input w-full" value={name} onChange={e => setName(e.target.value)} placeholder={t("settings.providerLabelPlaceholder")} required autoFocus />
+          <Input  value={name} onChange={e => setName(e.target.value)} placeholder={t("settings.providerLabelPlaceholder")} required autoFocus />
         </Field>
         {!account && (
           <Field label={t("settings.dnsProviderType")}>
@@ -156,7 +156,7 @@ function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onC
           </Field>
         )}
         <Field label={t("settings.apiKeysCredentials")} hint={account ? t("settings.apiKeysHintExisting") : t("settings.apiKeysHintNew")}>
-          <input className="input w-full font-mono text-xs" type="password" value={config} onChange={e => setConfig(e.target.value)} placeholder={account ? "••••••••" : t("settings.apiKeysPlaceholderNew")} required={!account} />
+          <Input className="font-mono text-xs" type="password" value={config} onChange={e => setConfig(e.target.value)} placeholder={account ? "••••••••" : t("settings.apiKeysPlaceholderNew")} required={!account} />
         </Field>
         {err && <FormError err={err} />}
         <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
