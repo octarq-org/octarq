@@ -1,4 +1,4 @@
-import { Code, Empty, Field, Guide, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, FormError } from "@octarq/plugin-sdk";
+import { Code, Empty, Field, Input, Textarea, Guide, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, FormError } from "@octarq/plugin-sdk";
 import { HostList } from "../../../app-ui";
 import { useEffect, useMemo, useState } from "react";
 import { api, Domain, HostEntry, ProviderAccount } from "../../../api";
@@ -36,7 +36,7 @@ export function DomainEditorForm({ domain, accounts, onCancel, onSaved }: { doma
   return (
     <div className="space-y-4">
       <Field label={t("domains.domainName")}>
-        <input className="input w-full font-mono" value={name} onChange={(e) => setName(e.target.value)} placeholder="example.com" disabled={!!domain} required />
+        <Input className="font-mono" value={name} onChange={(e) => setName(e.target.value)} placeholder="example.com" disabled={!!domain} required />
       </Field>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label={t("domains.dnsProviderConnection")}>
@@ -51,11 +51,11 @@ export function DomainEditorForm({ domain, accounts, onCancel, onSaved }: { doma
           />
         </Field>
         <Field label={t("domains.zoneIdentifier")}>
-          <input className="input w-full font-mono text-xs" value={zoneId} onChange={(e) => setZoneId(e.target.value)} placeholder={t("domains.zoneIdPlaceholder")} />
+          <Input className="font-mono text-xs" value={zoneId} onChange={(e) => setZoneId(e.target.value)} placeholder={t("domains.zoneIdPlaceholder")} />
         </Field>
       </div>
       <Field label={t("domains.internalAdminNote")}>
-        <textarea className="input w-full" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("domains.notePlaceholder")} />
+        <Textarea  rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("domains.notePlaceholder")} />
       </Field>
       {!domain && (
         <>

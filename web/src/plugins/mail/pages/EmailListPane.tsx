@@ -1,4 +1,4 @@
-import { GlassCard, Empty, Button } from "@octarq/plugin-sdk";
+import { GlassCard, Empty, Button, Input } from "@octarq/plugin-sdk";
 import { Search, X, Mail as MailIcon, Inbox } from "lucide-react";
 import { ListSkeleton } from "../../../components/ListSkeleton";
 import { Email, Mailbox } from "../api";
@@ -38,8 +38,8 @@ export function EmailListPane({
   return (
     <div className="flex flex-col min-h-0 w-full">
       <div className="mb-3 relative">
-        <input
-          className="input w-full !pl-8 text-sm"
+        <Input
+          className="!pl-8 text-sm"
           placeholder={t("mail.searchPlaceholder")}
           value={q}
           onChange={(e) => onSearchChange(e.target.value)}

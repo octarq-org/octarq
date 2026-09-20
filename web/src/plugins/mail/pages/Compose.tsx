@@ -1,4 +1,4 @@
-import { Field, Modal, Button, Select, FormError, toast } from "@octarq/plugin-sdk";
+import { Field, Input, Textarea, Modal, Button, Select, FormError, toast } from "@octarq/plugin-sdk";
 import { useEffect, useState, useRef } from "react";
 import { api } from "../../../api";
 import { mailApi, MailContact } from "../api";
@@ -113,7 +113,7 @@ export function Compose({
             <CheckCircle className="h-6 w-6" />
           </div>
           <p className="text-foreground font-semibold">{t("mail.messageSent")}</p>
-          <Button variant="primary" onClick={onClose} className="w-full">
+          <Button variant="primary" onClick={onClose} >
             {t("mail.done")}
           </Button>
         </div>
@@ -131,12 +131,12 @@ export function Compose({
             />
           </Field>
           <Field label={t("mail.fromOverride")} hint={t("mail.fromOverrideHint")}>
-            <input className="input w-full font-mono text-sm" value={from} onChange={(e) => setFrom(e.target.value)} placeholder={t("mail.fromPlaceholder")} />
+            <Input className="font-mono text-sm" value={from} onChange={(e) => setFrom(e.target.value)} placeholder={t("mail.fromPlaceholder")} />
           </Field>
           <div ref={toContainerRef} className="relative">
             <Field label={t("mail.toRecipients")} hint={t("mail.toHint")}>
-              <input
-                className="input w-full font-mono text-sm"
+              <Input
+                className="font-mono text-sm"
                 value={to}
                 onChange={(e) => {
                   setTo(e.target.value);
@@ -156,7 +156,7 @@ export function Compose({
                   <button
                     key={c.id}
                     type="button"
-                    className="w-full px-3.5 py-2 text-left text-xs hover:bg-foreground/[0.05] transition-colors flex items-center justify-between cursor-pointer"
+                    className="px-3.5 py-2 text-left text-xs hover:bg-foreground/[0.05] transition-colors flex items-center justify-between cursor-pointer"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       selectContact(c);
@@ -170,14 +170,14 @@ export function Compose({
             )}
           </div>
           <Field label={t("mail.subjectTitle")}>
-            <input className="input w-full text-sm" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t("mail.subjectPlaceholder")} required />
+            <Input className="text-sm" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t("mail.subjectPlaceholder")} required />
           </Field>
           <Field label={t("mail.bodyLabel")}>
-            <textarea className="input w-full text-sm font-sans" rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder={t("mail.bodyPlaceholder")} required />
+            <Textarea className="text-sm font-sans" rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder={t("mail.bodyPlaceholder")} required />
           </Field>
           {autoWrapLinksEnabled && (
             <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-300 select-none">
-              <input
+              <Input
                 type="checkbox"
                 checked={trackLinks}
                 onChange={(e) => setTrackLinks(e.target.checked)}

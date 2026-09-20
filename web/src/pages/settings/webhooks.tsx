@@ -1,4 +1,4 @@
-import { Field, Modal, Switch, PageHeader, GlassCard, Button, toast, confirmDialog } from "@octarq/plugin-sdk";
+import { Field, Input, Modal, Switch, PageHeader, GlassCard, Button, toast, confirmDialog } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, WebhookEventGroup } from "../../api";
 import { Trash2, Plus, Send } from "lucide-react";
@@ -147,20 +147,16 @@ export function WebhooksSettings() {
       {show && (
         <Modal title={t("settings.addWebhookEndpoint")} onClose={() => setShow(false)}>
           <form onSubmit={create} className="space-y-4">
-            <Field label={t("settings.endpointName")}><input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder="n8n automation" required autoFocus /></Field>
-            <Field label={t("settings.endpointUrl")}><input className="input w-full font-mono text-xs" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://your-server.com/webhooks/octarq" required /></Field>
+            <Field label={t("settings.endpointName")}><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="n8n automation" required autoFocus /></Field>
+            <Field label={t("settings.endpointUrl")}><Input className="font-mono text-xs" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://your-server.com/webhooks/octarq" required /></Field>
             <Field label={t("settings.signingSecretOptional")} hint={t("settings.signingSecretHint")}>
-              <input className="input w-full font-mono text-xs" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={t("settings.signingSecretPlaceholder")} />
+              <Input className="font-mono text-xs" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={t("settings.signingSecretPlaceholder")} />
             </Field>
             <Field label={t("settings.eventSubscriptions")}>
               <div className="mt-1 space-y-2">
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
-                  <input type="radio" name="webhook-events-mode" checked={all} onChange={() => setAll(true)} />
-                  <span>{t("settings.allEventsStar")}</span>
-                </label>
-                <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-300">
-                  <input type="radio" name="webhook-events-mode" checked={!all} onChange={() => setAll(false)} />
-                  <span>{t("settings.customEvents")}</span>
+                  <Switch checked={all} onCheckedChange={setAll} />
+                  <span>{all ? t("settings.allEventsStar") : t("settings.customEvents")}</span>
                 </label>
                 {!all && (
                   <div className="max-h-64 space-y-3 overflow-y-auto rounded-lg border border-foreground/[0.06] bg-well p-3">

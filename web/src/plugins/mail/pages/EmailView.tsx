@@ -1,4 +1,4 @@
-import { Field, GlassCard, Badge, Button, toast, confirmDialog } from "@octarq/plugin-sdk";
+import { Field, Input, GlassCard, Badge, Button, toast, confirmDialog } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api } from "../../../api";
 import { mailApi, Attachment, Email } from "../api";
@@ -142,9 +142,9 @@ export function EmailViewForm({
         )}
 
         <div className="flex flex-col sm:flex-row items-end gap-3 pt-2">
-          <div className="w-full sm:flex-1">
+          <div className="sm:flex-1">
             <Field label={t("mail.noteMemo")}>
-              <input className="input w-full" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("mail.notePlaceholder")} />
+              <Input  value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("mail.notePlaceholder")} />
             </Field>
           </div>
           <div className="flex flex-wrap gap-2 w-full sm:w-auto shrink-0 pb-1">

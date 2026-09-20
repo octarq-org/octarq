@@ -1,4 +1,4 @@
-import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, toast, Alert, confirmDialog, confirmPassword } from "@octarq/plugin-sdk";
+import { Field, Input, timeAgo, PageHeader, GlassCard, Badge, Button, toast, Alert, confirmDialog, confirmPassword } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, ApiError, type LinkedIdentity } from "../../api";
 import { Shield } from "lucide-react";
@@ -338,11 +338,11 @@ export function SecuritySettings() {
               src={setup.qrDataUri}
             />
             <Field label={t("settings.setupKeyLabel")}>
-              <input className="input w-full font-mono text-xs" readOnly value={setup.secret} />
+              <Input className="font-mono text-xs" readOnly value={setup.secret} />
             </Field>
             <a className="block break-all text-[10px] text-accent-fg/70 hover:underline" href={setup.otpauthUrl}>{setup.otpauthUrl}</a>
             <Field label={t("settings.verificationCode")}>
-              <input className="input w-full text-sm" value={enrollCode} onChange={(e) => setEnrollCode(e.target.value)} placeholder="123456" autoComplete="one-time-code" />
+              <Input className="text-sm" value={enrollCode} onChange={(e) => setEnrollCode(e.target.value)} placeholder="123456" autoComplete="one-time-code" />
             </Field>
             <div className="flex gap-2">
               <Button variant="primary" onClick={confirmEnable} disabled={busy || !enrollCode.trim()}>{busy ? "…" : t("settings.confirmEnable")}</Button>
@@ -355,7 +355,7 @@ export function SecuritySettings() {
           <div className="space-y-3 rounded-xl border border-foreground/[0.05] bg-well p-4">
             <p className="text-xs text-foreground/60">{t("settings.disableInstructions")}</p>
             <Field label={t("settings.verificationCode")}>
-              <input className="input w-full text-sm" value={disableCode} onChange={(e) => setDisableCode(e.target.value)} placeholder={t("settings.disableCodePlaceholder")} autoComplete="one-time-code" />
+              <Input className="text-sm" value={disableCode} onChange={(e) => setDisableCode(e.target.value)} placeholder={t("settings.disableCodePlaceholder")} autoComplete="one-time-code" />
             </Field>
             <Button variant="danger" onClick={disable} disabled={busy || !disableCode.trim()}>{busy ? "…" : t("settings.disable2FA")}</Button>
           </div>

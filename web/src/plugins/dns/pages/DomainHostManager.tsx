@@ -1,4 +1,4 @@
-import { Code, Empty, Field, Guide, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Table, THead, TBody, TR, TH, TD, toast } from "@octarq/plugin-sdk";
+import { Code, Empty, Field, Input, Guide, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Table, THead, TBody, TR, TH, TD, toast } from "@octarq/plugin-sdk";
 import { HostList } from "../../../app-ui";
 import { useEffect, useMemo, useState } from "react";
 import { api, Domain, HostEntry, ProviderAccount } from "../../../api";
@@ -190,8 +190,8 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
   return (
     <div className="flex items-center gap-2 flex-wrap bg-foreground/[0.02] p-2.5 rounded-xl border border-foreground/[0.04]">
       <div className="relative flex-1 min-w-[150px]">
-        <input
-          className="input h-9 text-xs py-1.5 w-full"
+        <Input
+          className="h-9 text-xs py-1.5 w-full"
           placeholder={t("domains.hostDraftPlaceholder")}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
