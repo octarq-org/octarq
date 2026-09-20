@@ -1,4 +1,4 @@
-import { PageHeader, GlassCard, Button, Field, Switch, Modal, toast, confirmDialog, ExtensionSlot, NotificationChannelFormContext } from "@octarq/plugin-sdk";
+import { PageHeader, GlassCard, Button, Field, Switch, Modal, toast, confirmDialog, ExtensionSlot, NotificationChannelFormContext, Input } from "@octarq/plugin-sdk";
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, NotificationChannelType, NotificationChannel } from "../../api";
@@ -229,8 +229,8 @@ function EditChannelModal({
         className="space-y-4"
       >
         <Field label={t("settings.channelName")} hint={t("settings.channelNameHint")}>
-          <input
-            className="input w-full"
+          <Input
+            
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="My Dev Team Telegram"

@@ -1,4 +1,4 @@
-import { Button, Alert } from "@octarq/plugin-sdk";
+import { Button, Alert, Input } from "@octarq/plugin-sdk";
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { api } from "../api";
@@ -81,10 +81,10 @@ export default function InviteAcceptPage() {
             <div>
               <label className="label">{t("invite.newPasswordLabel")}</label>
               <div className="relative mt-1">
-                <input
+                <Input
                   type="password"
                   required
-                  className="input w-full pl-9 text-sm animate-none"
+                  className="pl-9 text-sm animate-none"
                   placeholder={t("invite.newPasswordPlaceholder")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -96,10 +96,10 @@ export default function InviteAcceptPage() {
             <div>
               <label className="label">{t("invite.confirmPasswordLabel")}</label>
               <div className="relative mt-1">
-                <input
+                <Input
                   type="password"
                   required
-                  className="input w-full pl-9 text-sm animate-none"
+                  className="pl-9 text-sm animate-none"
                   placeholder={t("invite.confirmPasswordPlaceholder")}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -110,7 +110,7 @@ export default function InviteAcceptPage() {
 
             {err && <p className="text-xs text-danger-fg leading-normal">{err}</p>}
 
-            <Button type="submit" variant="primary" className="w-full mt-2" disabled={busy || !token}>
+            <Button type="submit" variant="primary" className="mt-2" disabled={busy || !token}>
               {busy ? t("invite.activating") : t("invite.activate")}
             </Button>
           </form>

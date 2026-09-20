@@ -1,4 +1,4 @@
-import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog } from "@octarq/plugin-sdk";
+import { Field, timeAgo, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog, Input } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, OrgMember } from "../../api";
 import { Users } from "lucide-react";
@@ -108,9 +108,9 @@ export function OrgMembersManager() {
       <form onSubmit={handleAdd} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end p-4 rounded-xl border border-foreground/[0.05] bg-well">
         <div className="flex-1">
           <Field label={t("settings.inviteByEmail")}>
-            <input
+            <Input
               type="email"
-              className="input w-full text-xs"
+              className="text-xs"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="colleague@example.com"
@@ -118,7 +118,7 @@ export function OrgMembersManager() {
             />
           </Field>
         </div>
-        <div className="w-full sm:w-32">
+        <div className="sm:w-32">
           <label className="label text-xs">{t("settings.accessRole")}</label>
           <Select
             className="mt-1 text-xs"
@@ -131,7 +131,7 @@ export function OrgMembersManager() {
             ]}
           />
         </div>
-        <Button variant="primary" className="w-full sm:w-auto py-2 text-xs shrink-0" disabled={busy || !email}>
+        <Button variant="primary" className="sm:w-auto py-2 text-xs shrink-0" disabled={busy || !email}>
           {busy ? t("settings.inviting") : t("settings.inviteMember")}
         </Button>
       </form>

@@ -1,4 +1,4 @@
-import { Field, useNotificationChannelForm, useTranslation } from "@octarq/plugin-sdk";
+import { Field, useNotificationChannelForm, useTranslation, Input } from "@octarq/plugin-sdk";
 
 export default function WebhookForm() {
   const { t } = useTranslation();
@@ -6,8 +6,8 @@ export default function WebhookForm() {
 
   return (
     <Field label={t("settings.customHttpTargetUrl")} hint={t("settings.customHttpTargetHint")}>
-      <input
-        className="input w-full font-mono text-xs"
+      <Input
+        className="font-mono text-xs"
         value={config.url || ""}
         onChange={(e) => updateConfig("url", e.target.value)}
         placeholder="https://my-webhook.com/alerts"
