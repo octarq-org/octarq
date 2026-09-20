@@ -1,4 +1,4 @@
-import { GlassCard, Button, Modal, Field, Badge, Empty, timeAgo, toast, Alert, confirmDialog } from "@octarq/plugin-sdk";
+import { GlassCard, Button, Modal, Field, Input, Select, Badge, Empty, timeAgo, toast, Alert, confirmDialog } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { Domain } from "../../../api";
 import { dnsApi, DDNSToken, CreateDDNSTokenResult } from "../api";
@@ -208,50 +208,43 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
         >
           <form onSubmit={handleCreateToken} className="space-y-4 pt-2">
             <Field label={t("domains.selectDomain")}>
-              <select
-                value={domainId}
-                onChange={(e) => handleDomainChange(Number(e.target.value))}
-                className="input w-full"
-                required
-              >
-                {domains.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+              <Select
+                value={String(domainId)}
+                onValueChange={(v) => handleDomainChange(Number(v))}
+                options={domains.map((d) => ({ value: String(d.id), label: d.name }))}
+              />
             </Field>
 
             <Field label={t("domains.recordName")}>
-              <input
+              <Input
                 type="text"
                 value={recordName}
                 onChange={(e) => setRecordName(e.target.value)}
                 placeholder="e.g. home.example.com"
-                className="input w-full font-mono text-xs"
+                className="font-mono text-xs"
                 required
               />
             </Field>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label={t("domains.recordType")}>
-                <select
+                <Select
                   value={recordType}
-                  onChange={(e) => setRecordType(e.target.value as "A" | "AAAA")}
-                  className="input w-full"
-                >
-                  <option value="A">A (IPv4)</option>
-                  <option value="AAAA">AAAA (IPv6)</option>
-                </select>
+                  onValueChange={(v) => setRecordType(v as "A" | "AAAA")}
+                  options={[
+                    { value: "A", label: "A (IPv4)" },
+                    { value: "AAAA", label: "AAAA (IPv6)" },
+                  ]}
+                />
               </Field>
 
               <Field label={t("domains.label")}>
-                <input
+                <Input
                   type="text"
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
                   placeholder="e.g. Home Router"
-                  className="input w-full text-xs"
+                  className="text-xs"
                 />
               </Field>
             </div>
@@ -283,11 +276,11 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
 
             <Field label={t("domains.secretLabel")}>
               <div className="flex items-center gap-2">
-                <input
+                <Input
                   type="text"
                   readOnly
                   value={createdResult.secret}
-                  className="input font-mono text-xs flex-1 bg-surface font-semibold text-accent-fg select-all"
+                  className="font-mono text-xs flex-1 bg-surface font-semibold text-accent-fg select-all"
                 />
                 <Button
                   variant="subtle"
@@ -302,11 +295,11 @@ export function DDNSView({ domains }: { domains: Domain[] }) {
 
             <Field label={t("domains.updateUrlLabel")}>
               <div className="flex items-center gap-2">
-                <input
+                <Input
                   type="text"
                   readOnly
                   value={fullUpdateUrl}
-                  className="input font-mono text-xs flex-1 bg-surface select-all text-muted-foreground"
+                  className="font-mono text-xs flex-1 bg-surface select-all text-muted-foreground"
                 />
                 <Button
                   variant="subtle"

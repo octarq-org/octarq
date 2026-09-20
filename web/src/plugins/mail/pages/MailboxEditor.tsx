@@ -1,4 +1,4 @@
-import { Code, Field, Guide, Modal, Switch, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert, confirmDialog, FormError } from "@octarq/plugin-sdk";
+import { Code, Field, Input, Textarea, Guide, Modal, Switch, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert, confirmDialog, FormError } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Domain, effectiveMailHosts } from "../../../api";
@@ -53,7 +53,7 @@ export function MailboxEditor({
       <div className="space-y-4">
         {box ? (
           <Field label={t("mail.mailboxAddress")}>
-            <input className="input w-full font-mono text-sm" value={box.address} disabled />
+            <Input className="font-mono text-sm" value={box.address} disabled />
           </Field>
         ) : hosts.length === 0 ? (
           <Alert variant="warning" className="p-3 text-xs flex items-center gap-1.5 font-normal">
@@ -63,8 +63,8 @@ export function MailboxEditor({
         ) : (
           <Field label={t("mail.mailboxPrefix")} hint={t("mail.prefixHint")}>
             <div className="flex items-center gap-2">
-              <input
-                className="input w-full font-mono text-sm"
+              <Input
+                className="font-mono text-sm"
                 value={prefix}
                 onChange={(e) => setPrefix(e.target.value)}
                 placeholder={t("mail.prefixPlaceholder")}
@@ -83,7 +83,7 @@ export function MailboxEditor({
           </Field>
         )}
         <Field label={t("mail.noteMemo")}>
-          <textarea className="input w-full text-sm" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("mail.noteMemoPlaceholder")} />
+          <Textarea className="text-sm" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("mail.noteMemoPlaceholder")} />
         </Field>
         <div className="flex items-center gap-3 py-1">
           <Switch checked={enabled} onCheckedChange={setEnabled} />
@@ -98,7 +98,7 @@ export function MailboxEditor({
                 onSaved();
               }
             }}
-            className="w-full text-xs py-1.5 border-0 mt-2"
+            className="text-xs py-1.5 border-0 mt-2"
           >
             {t("mail.deleteMailboxCompletely")}
           </Button>

@@ -1,4 +1,4 @@
-import { Code, Empty, Field, Guide, Modal, Switch, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert, confirmDialog, Table, THead, TBody, TR, TH, TD, FormError } from "@octarq/plugin-sdk";
+import { Code, Empty, Field, Input, Guide, Modal, Switch, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, Alert, confirmDialog, Table, THead, TBody, TR, TH, TD, FormError } from "@octarq/plugin-sdk";
 import { HostList } from "../../../app-ui";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -59,7 +59,7 @@ export function RecordsView({ domain }: { domain: Domain }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="w-full sm:w-auto sm:min-w-[120px]">
+        <div className="sm:w-auto sm:min-w-[120px]">
           <Select
             className="text-xs"
             value={typeFilter}
@@ -72,7 +72,7 @@ export function RecordsView({ domain }: { domain: Domain }) {
             ]}
           />
         </div>
-        <input className="input flex-1 min-w-0 sm:min-w-[140px] text-xs py-1" placeholder={t("domains.filterPlaceholder")} value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
+        <Input className="flex-1 min-w-0 sm:min-w-[140px] text-xs py-1" placeholder={t("domains.filterPlaceholder")} value={searchInput} onChange={(e) => setSearchInput(e.target.value)} />
         <Button variant="subtle" onClick={() => setShowBlueprint(true)} className="py-1 px-3 text-xs gap-1.5">
           <Mail className="h-3 w-3 text-success-fg" />
           {t("domains.emailSetupButton")}
@@ -207,23 +207,23 @@ function RecordEditor({ domainId, domainName, linkHost, record, subdomain, onClo
             />
           </Field>
           <Field label={t("domains.nameHost")}>
-            <input className="input w-full font-mono" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("domains.namePlaceholder")} />
+            <Input className="font-mono" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("domains.namePlaceholder")} />
           </Field>
         </div>
         
         <div className={needsPriority ? "grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-4" : ""}>
           <Field label={t("domains.targetValue")} hint={contentHint[type.toUpperCase()]}>
-            <input className="input w-full font-mono text-xs" value={content} onChange={(e) => setContent(e.target.value)} required />
+            <Input className="font-mono text-xs" value={content} onChange={(e) => setContent(e.target.value)} required />
           </Field>
           {needsPriority && (
             <Field label={t("domains.priority")}>
-              <input type="number" min={0} className="input w-full" value={priority} onChange={(e) => setPriority(Number(e.target.value))} />
+              <Input type="number" min={0}  value={priority} onChange={(e) => setPriority(Number(e.target.value))} />
             </Field>
           )}
         </div>
 
         <Field label={t("domains.metadataComment")}>
-          <input className="input w-full text-xs" value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("domains.commentPlaceholder")} />
+          <Input className="text-xs" value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("domains.commentPlaceholder")} />
         </Field>
 
         {canProxy && (
