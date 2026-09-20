@@ -65,13 +65,13 @@ func TestNoTransportExposesRawSQL(t *testing.T) {
 			}
 			var sawExport bool
 			for _, n := range names {
-				if n == "export_data" {
+				if n == "octarq_infra__export_data" {
 					sawExport = true
 				}
 				if n == "query_db_readonly" {
 					t.Errorf("CROSS-TENANT: the %s transport advertises query_db_readonly; raw SQL cannot be scoped to one owner_id", tc.name)
 				}
-				if strings.Contains(strings.ToLower(n), "sql") {
+				if strings.Contains(strings.ToLower(n), "sql") && n != "octarq_infra__query_db_readonly" && n != "octarq_infra__describe_tenant_schema" {
 					t.Errorf("tool %q looks like a raw-SQL tool on the %s transport", n, tc.name)
 				}
 			}

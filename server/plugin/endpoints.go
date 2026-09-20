@@ -21,6 +21,7 @@ type HandlerFunc[In any, Out any] func(ctx context.Context, input In) (*Out, err
 type EndpointSpec[In any, Out any] struct {
 	// Base metadata
 	Name        string // Unique identifier, e.g. "create_link"
+	MCPToolName string // Optional override for MCP tool name (e.g. "octarq_network__create_link")
 	Summary     string // Short summary
 	Description string // Detailed description for OpenAPI and MCP Tool
 
@@ -280,8 +281,12 @@ func (s EndpointSpec[In, Out]) RegisterMCP(srv *mcp.Server) error {
 	} else {
 		desc = riskSuffix
 	}
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        s.EndpointName(),
+	toolName := s.MCPToolName
+	if toolName == "" {
+		toolName = s.EndpointName()
+	}
+	AddMCPTool(srv, "endpoint_"+s.EndpointName(), &mcp.Tool{
+		Name:        toolName,
 		Description: desc,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in In) (*mcp.CallToolResult, any, error) {
 		if s.RequireAuth {

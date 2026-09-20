@@ -36,7 +36,7 @@ func TestRegisterMCPRegistersMailTools(t *testing.T) {
 	for _, tool := range res.Tools {
 		names[tool.Name] = true
 	}
-	for _, want := range []string{"list_mailboxes", "list_emails", "get_latest_otp", "get_email_summary", "get_email_content"} {
+	for _, want := range []string{"octarq_network__list_mailboxes", "octarq_network__list_emails", "octarq_identity__get_latest_otp", "octarq_network__get_email_summary", "octarq_network__get_email_content"} {
 		if !names[want] {
 			t.Errorf("tool %s not registered; got %v", want, names)
 		}

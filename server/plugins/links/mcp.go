@@ -42,8 +42,8 @@ type linkOut struct {
 }
 
 func (p *Plugin) RegisterMCP(srv *mcp.Server) {
-	mcp.AddTool(srv, &mcp.Tool{
-		Name:        "list_links",
+	plugin.AddMCPTool(srv, "links", &mcp.Tool{
+		Name:        "octarq_network__list_links",
 		Description: "List short links with their click counts. Optionally filter by host or tag, and limit the count.",
 	}, p.mcpListLinks)
 }

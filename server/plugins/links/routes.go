@@ -55,6 +55,7 @@ func (p *Plugin) registerRoutes(ctx *plugin.Context) {
 	}
 	_ = plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[DeclarativeLinkInput, DeclarativeLinkOutput]{
 		Name:        "create_shortlink",
+		MCPToolName: "octarq_network__create_shortlink",
 		Method:      "POST",
 		Path:        "/api/links/declarative",
 		Summary:     "Create Short Link Declarative",

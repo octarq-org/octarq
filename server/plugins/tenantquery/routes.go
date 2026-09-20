@@ -46,6 +46,7 @@ type QueryTenantSQLOutput struct {
 func (p *Plugin) registerRoutes(ctx *plugin.Context) {
 	_ = plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[DescribeTenantSchemaInput, DescribeTenantSchemaOutput]{
 		Name:        "describe_tenant_schema",
+		MCPToolName: "octarq_infra__describe_tenant_schema",
 		Method:      "GET",
 		Path:        "/api/tenant/schema",
 		Summary:     "Describe Tenant Schema",
@@ -58,6 +59,7 @@ func (p *Plugin) registerRoutes(ctx *plugin.Context) {
 
 	_ = plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[QueryTenantSQLInput, QueryTenantSQLOutput]{
 		Name:        "query_tenant_sql",
+		MCPToolName: "octarq_infra__query_db_readonly",
 		Method:      "POST",
 		Path:        "/api/tenant/query",
 		Summary:     "Query Tenant SQL",

@@ -32,6 +32,7 @@ var SensitiveColumns = map[string]bool{
 	"text":          true,
 	"storage_key":   true,
 	"fingerprint":   true,
+	"ciphertext":    true,
 }
 
 // TenantColumn describes a column in a tenant view schema.
