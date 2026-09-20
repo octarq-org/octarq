@@ -15,9 +15,14 @@ onlyBuiltDependencies:
   - esbuild
 allowBuilds:
   esbuild: true
-# Exempt first-party @octarq packages from the minimum-release-age
-# supply-chain gate: freshly-published community plugins would otherwise fail
-# install. Name glob (mirrors octarq-pro) — a versioned `pkg@x.y.z` entry
-# never matches, so list the scope, not versions.
+# Exempt first-party packages from the minimum-release-age supply-chain gate:
+# they are self-published and trusted, and a freshly-published one would
+# otherwise be held back. Both scopes must be listed — the composed Pro build
+# (`make web` against octarq.plugins.json) installs @octarq-org/* plugins
+# through this very workspace, so omitting that scope let pnpm resolve a stale
+# plugin build that still imported the SDK's removed `Toggle` and broke the
+# dashboard build. Name globs (mirror octarq-pro) — a versioned `pkg@x.y.z`
+# entry never matches, so list the scope, not versions.
 minimumReleaseAgeExclude:
+  - '@octarq-org/*'
   - '@octarq/*'
