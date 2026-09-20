@@ -1,4 +1,4 @@
-import { Field, Modal, PageHeader, GlassCard, Badge, Button, toast, Code, ExtensionSlot } from "@octarq/plugin-sdk";
+import { Field, Input, Modal, PageHeader, GlassCard, Badge, Button, toast, Code, ExtensionSlot } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, type OrgSlug, type Settings } from "../../api";
 import { ShieldAlert } from "lucide-react";
@@ -46,8 +46,8 @@ function WorkspaceAddress() {
       <form className="max-w-md" onSubmit={(e) => { e.preventDefault(); setConfirming(true); }}>
         <Field label={t("settings.workspaceAddressLabel")} hint={t("settings.workspaceAddressHint")}>
           <div className="flex gap-2">
-            <input
-              className="input flex-1 text-sm font-mono"
+            <Input
+              className="flex-1 text-sm font-mono"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               placeholder="acme"
@@ -202,7 +202,7 @@ export function GeneralSettings() {
         <form onSubmit={renameWorkspace} className="max-w-md">
           <Field label={t("settings.workspaceNameLabel")} hint={t("settings.workspaceNameHint")}>
             <div className="flex gap-2">
-              <input className="input flex-1 text-sm" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} placeholder="Acme Production" required />
+              <Input className="flex-1 text-sm" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} placeholder="Acme Production" required />
               <Button type="submit" variant="primary" disabled={workspaceBusy || !workspaceName.trim()} className="shrink-0">
                 {workspaceBusy ? t("settings.updating") : t("settings.update")}
               </Button>
@@ -261,9 +261,9 @@ export function GeneralSettings() {
             <p className="text-sm text-foreground/70">
               {t("settings.confirmTypePre")}<span className="font-mono font-bold text-danger-fg select-all">DELETE MY DATA</span>{t("settings.confirmTypePost")}
             </p>
-            <input
+            <Input
               type="text"
-              className="input w-full text-sm font-mono text-center border-danger-border focus:border-danger-fg"
+              className="text-sm font-mono text-center border-danger-border focus:border-danger-fg"
               value={deleteConfirmationText}
               onChange={(e) => setDeleteConfirmationText(e.target.value)}
               placeholder="DELETE MY DATA"

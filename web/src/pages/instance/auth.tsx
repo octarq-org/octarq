@@ -1,4 +1,4 @@
-import { Field, Switch, PageHeader, GlassCard, Button, confirmDialog, toast, ExtensionSlot } from "@octarq/plugin-sdk";
+import { Field, Input, Switch, PageHeader, GlassCard, Button, confirmDialog, toast, ExtensionSlot } from "@octarq/plugin-sdk";
 import { ReactNode, useEffect, useState } from "react";
 import { api } from "../../api";
 import { Mail, ChevronDown, Check } from "lucide-react";
@@ -168,7 +168,7 @@ export function AuthenticationSettings() {
   // Callback path constructed centrally; validated against Go route by oauthRoutes.test.ts.
   const CallbackField = ({ provider }: { provider: string }) => (
     <Field label={t("settings.callbackUrl")} hint={t("settings.callbackUrlHint")}>
-      <input readOnly className="input w-full cursor-text bg-well font-mono text-xs text-foreground/80" value={`${origin}${oauthCallbackPath(provider)}`} />
+      <Input readOnly className="cursor-text bg-well font-mono text-xs text-foreground/80" value={`${origin}${oauthCallbackPath(provider)}`} />
     </Field>
   );
 
@@ -218,12 +218,12 @@ export function AuthenticationSettings() {
             enabled={googleEnabled}
           >
             <Field label={t("settings.googleClientId")}>
-              <input className="input w-full text-xs" value={googleId} onChange={(e) => setGoogleId(e.target.value)} placeholder="*.apps.googleusercontent.com" />
+              <Input className="text-xs" value={googleId} onChange={(e) => setGoogleId(e.target.value)} placeholder="*.apps.googleusercontent.com" />
             </Field>
             <Field label={t("settings.googleClientSecret")}>
               <div className="flex gap-2">
-                <input
-                  className="input w-full font-mono text-xs"
+                <Input
+                  className="font-mono text-xs"
                   type="password"
                   value={googleSecret}
                   onChange={(e) => setGoogleSecret(e.target.value)}
@@ -259,12 +259,12 @@ export function AuthenticationSettings() {
             enabled={githubEnabled}
           >
             <Field label={t("settings.githubClientId")}>
-              <input className="input w-full text-xs" value={githubId} onChange={(e) => setGithubId(e.target.value)} placeholder="Ov23li…" />
+              <Input className="text-xs" value={githubId} onChange={(e) => setGithubId(e.target.value)} placeholder="Ov23li…" />
             </Field>
             <Field label={t("settings.githubClientSecret")}>
               <div className="flex gap-2">
-                <input
-                  className="input w-full font-mono text-xs"
+                <Input
+                  className="font-mono text-xs"
                   type="password"
                   value={githubSecret}
                   onChange={(e) => setGithubSecret(e.target.value)}

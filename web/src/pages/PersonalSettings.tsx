@@ -1,4 +1,4 @@
-import { Empty, Field, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toast, confirmDialog, confirmPassword } from "@octarq/plugin-sdk";
+import { Empty, Field, Input, Select, Modal, timeAgo, PageHeader, GlassCard, Badge, Button, toast, confirmDialog, confirmPassword } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, ApiError, Token } from "../api";
 import { User, Key, Settings, CheckCircle, Trash2, Eye, ClipboardCopy } from "lucide-react";
@@ -128,9 +128,9 @@ export function ProfileSettings() {
         {changingEmail && (
           <form onSubmit={handleEmailUpdate} className="space-y-4 border-t border-foreground/[0.04] pt-4">
             <Field label={t("personal.newEmailLabel")} hint={t("personal.newEmailHint")}>
-              <input
+              <Input
                 type="email"
-                className="input w-full"
+                
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 placeholder={t("personal.newEmailPlaceholder")}
@@ -162,9 +162,9 @@ export function ProfileSettings() {
       <GlassCard className="p-6 max-w-xl">
         <form onSubmit={updatePassword} className="space-y-5">
           <Field label={t("personal.currentPasswordLabel")}>
-            <input
+            <Input
               type="password"
-              className="input w-full"
+              
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               placeholder="••••••••"
@@ -174,9 +174,9 @@ export function ProfileSettings() {
           </Field>
 
           <Field label={t("personal.newPasswordLabel")} hint={t("personal.newPasswordHint")}>
-            <input
+            <Input
               type="password"
-              className="input w-full"
+              
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -186,9 +186,9 @@ export function ProfileSettings() {
           </Field>
 
           <Field label={t("personal.confirmPasswordLabel")}>
-            <input
+            <Input
               type="password"
-              className="input w-full"
+              
               value={repeatPassword}
               onChange={(e) => setRepeatPassword(e.target.value)}
               placeholder="••••••••"
@@ -344,7 +344,7 @@ export function ApiTokens() {
                 await navigator.clipboard?.writeText(created.token);
                 toast.success(t("personal.tokenCopied"));
               }}
-              className="w-full gap-1.5"
+              className="gap-1.5"
             >
               <ClipboardCopy className="h-4 w-4" />
               {t("personal.copyToClipboard")}
@@ -421,8 +421,7 @@ function CreateTokenModal({
     <Modal title={t("personal.generateTokenTitle")} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         <Field label={t("personal.tokenNameLabel")} hint={t("personal.tokenNameHint")}>
-          <input
-            className="input w-full"
+          <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("personal.tokenNamePlaceholder")}
@@ -431,23 +430,27 @@ function CreateTokenModal({
           />
         </Field>
         <Field label={t("personal.tokenRoleLabel")} hint={t("personal.tokenRoleHint")}>
-          <select className="input w-full text-sm" value={role} onChange={(e) => setRole(e.target.value as typeof role)}>
-            {mintable.map((r) => (
-              <option key={r} value={r}>{t(MINT_ROLE_LABEL[r])}</option>
-            ))}
-          </select>
+          <Select
+            value={role}
+            onValueChange={(v) => setRole(v as typeof role)}
+            options={mintable.map((r) => ({ value: r, label: t(MINT_ROLE_LABEL[r]) }))}
+          />
         </Field>
         <Field label={t("personal.tokenExpiryLabel")} hint={t("personal.tokenExpiryHint")}>
-          <select className="input w-full text-sm" value={expiresInDays} onChange={(e) => setExpiresInDays(Number(e.target.value))}>
-            <option value={0}>{t("personal.expiryNever")}</option>
-            <option value={7}>{t("personal.expiry7Days")}</option>
-            <option value={30}>{t("personal.expiry30Days")}</option>
-            <option value={90}>{t("personal.expiry90Days")}</option>
-            <option value={365}>{t("personal.expiry365Days")}</option>
-          </select>
+          <Select
+            value={String(expiresInDays)}
+            onValueChange={(v) => setExpiresInDays(Number(v))}
+            options={[
+              { value: "0", label: t("personal.expiryNever") },
+              { value: "7", label: t("personal.expiry7Days") },
+              { value: "30", label: t("personal.expiry30Days") },
+              { value: "90", label: t("personal.expiry90Days") },
+              { value: "365", label: t("personal.expiry365Days") },
+            ]}
+          />
         </Field>
         <Field label={t("personal.tokenRemarksLabel")} hint={t("personal.tokenRemarksHint")}>
-          <input className="input w-full text-sm" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("personal.tokenRemarksPlaceholder")} />
+          <Input className="text-sm" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("personal.tokenRemarksPlaceholder")} />
         </Field>
         <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
           <Button type="button" variant="ghost" onClick={onClose}>{t("personal.cancel")}</Button>
@@ -511,8 +514,7 @@ function EditTokenModal({
           {t("personal.editTokenHint")}
         </div>
         <Field label={t("personal.tokenNameLabel")} hint={t("personal.tokenNameHint")}>
-          <input
-            className="input w-full"
+          <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("personal.tokenNamePlaceholder")}
@@ -521,24 +523,28 @@ function EditTokenModal({
           />
         </Field>
         <Field label={t("personal.tokenRoleLabel")} hint={t("personal.tokenRoleHint")}>
-          <select className="input w-full text-sm" value={role} onChange={(e) => setRole(e.target.value as typeof role)}>
-            {mintable.map((r) => (
-              <option key={r} value={r}>{t(MINT_ROLE_LABEL[r])}</option>
-            ))}
-          </select>
+          <Select
+            value={role}
+            onValueChange={(v) => setRole(v as typeof role)}
+            options={mintable.map((r) => ({ value: r, label: t(MINT_ROLE_LABEL[r]) }))}
+          />
         </Field>
         <Field label={t("personal.tokenExpiryLabel")} hint={t("personal.tokenExpiryHint")}>
-          <select className="input w-full text-sm" value={expiryOption} onChange={(e) => setExpiryOption(e.target.value)}>
-            <option value="keep">{t("personal.expiryKeep")}</option>
-            <option value="0">{t("personal.expiryNever")}</option>
-            <option value="7">{t("personal.expiry7Days")}</option>
-            <option value="30">{t("personal.expiry30Days")}</option>
-            <option value="90">{t("personal.expiry90Days")}</option>
-            <option value="365">{t("personal.expiry365Days")}</option>
-          </select>
+          <Select
+            value={expiryOption}
+            onValueChange={setExpiryOption}
+            options={[
+              { value: "keep", label: t("personal.expiryKeep") },
+              { value: "0", label: t("personal.expiryNever") },
+              { value: "7", label: t("personal.expiry7Days") },
+              { value: "30", label: t("personal.expiry30Days") },
+              { value: "90", label: t("personal.expiry90Days") },
+              { value: "365", label: t("personal.expiry365Days") },
+            ]}
+          />
         </Field>
         <Field label={t("personal.tokenRemarksLabel")} hint={t("personal.tokenRemarksHint")}>
-          <input className="input w-full text-sm" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("personal.tokenRemarksPlaceholder")} />
+          <Input className="text-sm" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("personal.tokenRemarksPlaceholder")} />
         </Field>
         <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
           <Button type="button" variant="ghost" onClick={onClose}>{t("personal.cancel")}</Button>
