@@ -2,6 +2,91 @@
 
 All notable changes to this project are documented here.
 
+## [0.6.0] - 2026-09-29
+
+### 🚀 Features
+
+- **core**: Unify MCP tools, audit filters, and outbound webhooks docs (PD-178) (#630)
+- **web**: Overview activity feed over notifications plus audit with five-locale copy (PD-91) (#628)
+- **mcp**: Unify domain namespaces with tenant guardrails (PD-88) (#625)
+- **notify**: Add a core notify MCP tool (#621)
+- **cli**: Cobra command tree, MCP prompt-injection guard, IPC console, copilot fail-closed (PD-66) (#607)
+- **sdk**: Promote the presentational table parts into the SDK (#PD-75) (#597)
+- **web**: Add the UI workbench — SDK catalog, token inspector, seed colour editor (#PD-75) (#596)
+- **sdk**: Expose the design-token set as data (#PD-75) (#593)
+- **core**: 落地 TenantDB 真实生产调用并终结空转假接缝 (#580)
+- **web**: Integrate AI Copilot sidecar drawer and Action Diff approval cards (#578)
+- **blueprints**: Add autonomous solopreneur blueprint, executable scaffold and agent guidelines (#568)
+- **mcp**: Add OTP extraction, email desensitization tools, and read-only resources (#569)
+
+### 📦 Other
+
+- Refactor(tenantsql): add TenantDB scope handle and remove unused datascope seam (#572)
+
+### 🐛 Bug Fixes
+
+- **tenantsql**: Explicit table-shape guard rejecting non-view non-subquery FROM items (PD-93) (#627)
+- **web**: Exempt @octarq-org/* from the release-age gate so the Pro dashboard resolves current plugins (#622)
+- **web**: Scope sidebar active state to whole path segments (#617)
+- **mail**: Sanitize metadata in list_emails and get_latest_otp (#616)
+- **ci**: Unbreak deploy-website.yml's stale pnpm pin (#614)
+- **ci**: Approve esbuild's build script in the root workspace (#612)
+- **ci**: Unbreak the SDK publish workflow's stale pnpm pin (#611)
+- **web**: Stop the UI workbench freezing, and give each preview a boundary
+- **mail,cli**: Close MCP metadata injection bypass, harden framing-tag filter, backup setup --force (#608)
+- **sdk**: TableError no longer renders the literal string "pro_table" (#PD-75) (#601)
+- **plugin**: Check ResolvePerm in host adapter and fail closed on setting write without store (#586)
+- **notification**: Eliminate SendDirect hardcoded tenant and enforce fail-closed isolation (#PD-57) (#581)
+- **notify**: Add email channel provider, form widget, and register inbox in menu (#566)
+
+### ⚡ Performance
+
+- **api**: Optimize test suite with bcrypt MinCost and SQLite schema templating (#575)
+- **ci**: Optimize workflow triggers, fix setup-go cache and parallelize Go jobs (#574)
+
+### ♻️ Refactor
+
+- **web**: Standardize remaining core forms on the SDK components (#620)
+- **web**: Standardize mail & dns plugin forms on the SDK components (#619)
+- **web**: Standardize settings & auth forms on the SDK components (#618)
+- **sdk**: One public switch — remove Toggle, fix Switch's box and aria-label
+- **sdk**: One authoring contract for every component — ref, displayName, Props, className (#605)
+- **web**: One import specifier for UI — collapse the ../ui barrels (#PD-75) (#598)
+- **web,sdk**: Promote Code/Guide/timeAgo, shrinking the app facade to one hop (#PD-75) (#592)
+- **web,sdk**: Promote Alert/FormError/RouteFallback into the SDK (#PD-75) (#590)
+- **web,sdk**: Collapse the duplicated Button into one SDK definition (#PD-75) (#588)
+- **arch**: Eliminate legacy plugin closures in favor of pure Host SPI and add Validator hook (#587)
+- **plugin**: Complete Host migration for core plugins and restore Deprecated markers (#585)
+- **arch**: Deprecate legacy plugin.Context closures & enrich notification OrgID (PD-60) (#584)
+- **web,server**: Drive navigation tree area placement from menu metadata and drop keyword heuristics (#PD-59) (#582)
+- **notification**: Retire legacy notify calls and shim downgrade branches (#579)
+- **web**: Replace areas.tsx string matching with NavigationTree domain model (#576)
+- **notify**: Converge internal/notify into notification.Router and unify SPI (#573)
+- **core**: Converge plugin.Context closures into Host contracts and unify app.go constructors (#571)
+
+### 📚 Documentation
+
+- **readme**: Fix Go version badge and pkg.go.dev reference links
+- **readme**: Refresh MCP tool inventory to namespaced names, bilingual (PD-94) (#629)
+
+### 🧪 Testing
+
+- **tenantsql**: Adversarial exploit verdicts for UNION/ATTACH/PRAGMA/CTE/TVF vectors (PD-89) (#626)
+- **e2e**: Backfill core user journeys and zero-leak page guards (#570)
+
+### 🧹 Chores
+
+- **ci**: Push dist refresh straight to main, no PR (#615)
+- **web**: Refresh embedded dashboard build [auto] (#610)
+- **web**: Refresh embedded dashboard build [auto] (#603)
+- **web**: Lock vite 5.4.21 resolution, exempt @octarq scope from release-age gate (#606)
+- **web**: Support pnpm 11 and unify vite to ^5.4.21 (#604)
+- **web**: Refresh embedded dashboard build [auto] (#600)
+- **web**: Refresh embedded dashboard build [auto] (#591)
+- **web**: Refresh embedded dashboard build [auto] (#583)
+- **web**: Refresh embedded dashboard build [auto] (#577)
+- **web**: Refresh embedded dashboard build [auto] (#567)
+
 ## [0.5.0] - 2026-09-14
 
 ### 🚀 Features
