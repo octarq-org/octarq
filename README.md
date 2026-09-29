@@ -12,8 +12,8 @@
 <p align="center">
   <a href="https://github.com/octarq-org/octarq/actions/workflows/ci.yml"><img src="https://github.com/octarq-org/octarq/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/octarq-org/octarq/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/coverage-≥90%25-brightgreen.svg" alt="Coverage: ≥90%"></a>
-  <a href="go.mod"><img src="https://img.shields.io/github/go-mod/go-version/octarq-org/octarq?logo=go&label=Go" alt="Go version"></a>
-  <a href="https://pkg.go.dev/github.com/octarq-org/octarq"><img src="https://pkg.go.dev/badge/github.com/octarq-org/octarq.svg" alt="Go Reference"></a>
+  <a href="server/go.mod"><img src="https://img.shields.io/github/go-mod/go-version/octarq-org/octarq?filename=server%2Fgo.mod&logo=go&label=Go" alt="Go version"></a>
+  <a href="https://pkg.go.dev/github.com/octarq-org/octarq/server"><img src="https://pkg.go.dev/badge/github.com/octarq-org/octarq/server.svg" alt="Go Reference"></a>
   <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-enabled-8b5cf6.svg" alt="MCP enabled"></a>
 </p>
 
