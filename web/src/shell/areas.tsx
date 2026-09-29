@@ -118,7 +118,7 @@ export const SETTINGS_AREA: Area = {
         { id: "general",       label: "General",     Icon: Settings,    path: "/settings/general" },
         { id: "plugins",       label: "Features",    Icon: Puzzle,      path: "/settings/plugins" },
         { id: "members",       label: "Members",     Icon: Users,       path: "/settings/members" },
-        { id: "webhooks",      label: "Webhooks",    Icon: Webhook,     path: "/settings/webhooks" },
+        { id: "webhooks",      label: "Outbound Webhooks", Icon: Webhook, path: "/settings/webhooks" },
         { id: "notifications", label: "Alerts",      Icon: Bell,        path: "/settings/notifications" },
       ],
     },

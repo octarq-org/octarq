@@ -645,3 +645,19 @@ func (a *App) setupBuiltinCron(pctx *plugin.Context, apiHandler *api.Handler) {
 		return err
 	})
 }
+
+// Backup performs a pure-Go, online, non-locking backup of the database.
+func (a *App) Backup(outputPath string) error {
+	if a == nil || a.cfg == nil {
+		return errors.New("app or config is nil")
+	}
+	return db.Backup(a.cfg, outputPath)
+}
+
+// DefaultBackupFilename returns a timestamped backup filename for the current database driver.
+func (a *App) DefaultBackupFilename(now time.Time) string {
+	if a == nil || a.cfg == nil {
+		return db.DefaultBackupFilename("sqlite", now)
+	}
+	return db.DefaultBackupFilename(a.cfg.DBDriver, now)
+}
