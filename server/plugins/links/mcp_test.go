@@ -45,7 +45,7 @@ func TestMCPLinksLifecycle(t *testing.T) {
 
 	// 3. Update in Org 1
 	newTitle := "Updated Title"
-	res, rawOut, err = p.mcpUpdateLink(ctx1, nil, updateLinkInput{
+	_, rawOut, err = p.mcpUpdateLink(ctx1, nil, updateLinkInput{
 		ID:     created.ID,
 		Target: &newTarget,
 		Title:  &newTitle,
@@ -123,5 +123,103 @@ func TestMCPCreateLinkValidation(t *testing.T) {
 	_, _, err = p.mcpCreateLink(context.Background(), nil, createLinkInput{Target: "https://ok.com"})
 	if err == nil {
 		t.Error("expected error when no org in context")
+	}
+}
+
+func TestMCPWriteEdgeCases(t *testing.T) {
+	p, _ := setupFullLinksTestDB(t)
+	ctx := plugin.WithOrgID(context.Background(), 1)
+
+	// Reserved slug
+	_, _, err := p.mcpCreateLink(ctx, nil, createLinkInput{
+		Target: "https://example.com",
+		Slug:   "admin",
+	})
+	if err == nil {
+		t.Error("expected error for reserved slug")
+	}
+
+	// Host not owned
+	_, _, err = p.mcpCreateLink(ctx, nil, createLinkInput{
+		Target: "https://example.com",
+		Host:   "unowned.com",
+	})
+	if err == nil {
+		t.Error("expected error for unowned host")
+	}
+
+	// Update with invalid target
+	invTarget := "ftp://bad"
+	_, _, err = p.mcpUpdateLink(ctx, nil, updateLinkInput{
+		ID:     999999,
+		Target: &invTarget,
+	})
+	if err == nil {
+		t.Error("expected error for link not found")
+	}
+
+	// Update with ID=0
+	_, _, err = p.mcpUpdateLink(ctx, nil, updateLinkInput{
+		ID: 0,
+	})
+	if err == nil {
+		t.Error("expected error for ID=0")
+	}
+
+	// Update with no org
+	_, _, err = p.mcpUpdateLink(context.Background(), nil, updateLinkInput{
+		ID: 1,
+	})
+	if err == nil {
+		t.Error("expected error for no org")
+	}
+
+	// Delete with ID=0
+	_, _, err = p.mcpDeleteLink(ctx, nil, deleteLinkInput{ID: 0})
+	if err == nil {
+		t.Error("expected error for delete ID=0")
+	}
+
+	// Delete with no org
+	_, _, err = p.mcpDeleteLink(context.Background(), nil, deleteLinkInput{ID: 1})
+	if err == nil {
+		t.Error("expected error for delete no org")
+	}
+
+	// Delete not found
+	_, _, err = p.mcpDeleteLink(ctx, nil, deleteLinkInput{ID: 999999})
+	if err == nil {
+		t.Error("expected error for delete not found")
+	}
+
+	// Batch create empty
+	_, _, err = p.mcpBatchCreateLinks(ctx, nil, batchCreateLinksInput{})
+	if err == nil {
+		t.Error("expected error for empty batch")
+	}
+
+	// Batch create error in item
+	_, _, err = p.mcpBatchCreateLinks(ctx, nil, batchCreateLinksInput{
+		Links: []createLinkInput{
+			{Target: "javascript:bad"},
+		},
+	})
+	if err == nil {
+		t.Error("expected error for invalid link in batch")
+	}
+
+	// List links no org
+	_, _, err = p.mcpListLinks(context.Background(), nil, listLinksInput{})
+	if err == nil {
+		t.Error("expected error for list no org")
+	}
+
+	// Export links
+	exp, err := p.mcpExportLinks(ctx, 1)
+	if err != nil {
+		t.Fatalf("mcpExportLinks: %v", err)
+	}
+	if exp == nil {
+		t.Error("expected non-nil export")
 	}
 }

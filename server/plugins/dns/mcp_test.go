@@ -218,3 +218,56 @@ func TestMCPDNSRecordsLifecycle(t *testing.T) {
 		t.Fatalf("expected 1 record left, got %d", len(mockProv.records))
 	}
 }
+
+func TestMCPDNSRecordsValidation(t *testing.T) {
+	p, _ := setupFreshTestDB(t)
+	ctx := plugin.WithOrgID(context.Background(), 1)
+
+	// List no org
+	_, _, err := p.mcpListDNSRecords(context.Background(), nil, listDNSRecordsInput{DomainID: 1})
+	if err == nil {
+		t.Error("expected error for no org")
+	}
+
+	// List domain not found
+	_, _, err = p.mcpListDNSRecords(ctx, nil, listDNSRecordsInput{DomainID: 99999})
+	if err == nil {
+		t.Error("expected error for domain not found")
+	}
+
+	// Set record no org
+	_, _, err = p.mcpSetDNSRecord(context.Background(), nil, setDNSRecordInput{DomainID: 1})
+	if err == nil {
+		t.Error("expected error for no org")
+	}
+
+	// Set record domain not found
+	_, _, err = p.mcpSetDNSRecord(ctx, nil, setDNSRecordInput{DomainID: 99999, Type: "A", Name: "sub", Content: "1.1.1.1"})
+	if err == nil {
+		t.Error("expected error for domain not found")
+	}
+
+	// Delete record no org
+	_, _, err = p.mcpDeleteDNSRecord(context.Background(), nil, deleteDNSRecordInput{DomainID: 1, RecordID: "r1"})
+	if err == nil {
+		t.Error("expected error for no org")
+	}
+
+	// Delete record domain not found
+	_, _, err = p.mcpDeleteDNSRecord(ctx, nil, deleteDNSRecordInput{DomainID: 99999, RecordID: "r1"})
+	if err == nil {
+		t.Error("expected error for domain not found")
+	}
+
+	// Update domain config no org
+	_, _, err = p.mcpUpdateDomainConfig(context.Background(), nil, updateDomainConfigInput{ID: 1})
+	if err == nil {
+		t.Error("expected error for no org")
+	}
+
+	// Update domain config not found
+	_, _, err = p.mcpUpdateDomainConfig(ctx, nil, updateDomainConfigInput{ID: 99999})
+	if err == nil {
+		t.Error("expected error for domain not found")
+	}
+}
