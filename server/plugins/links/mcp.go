@@ -46,6 +46,26 @@ func (p *Plugin) RegisterMCP(srv *mcp.Server) {
 		Name:        "octarq_network__list_links",
 		Description: "List short links with their click counts. Optionally filter by host or tag, and limit the count.",
 	}, p.mcpListLinks)
+
+	plugin.AddMCPTool(srv, "links", &mcp.Tool{
+		Name:        "octarq_network__create_link",
+		Description: "Create a new short link in the workspace. Optionally specify host, slug, title, tags, and note.",
+	}, p.mcpCreateLink)
+
+	plugin.AddMCPTool(srv, "links", &mcp.Tool{
+		Name:        "octarq_network__update_link",
+		Description: "Update properties of an existing short link (target, title, tags, note, enabled, archived) by ID.",
+	}, p.mcpUpdateLink)
+
+	plugin.AddMCPTool(srv, "links", &mcp.Tool{
+		Name:        "octarq_network__delete_link",
+		Description: "Delete a short link by its ID.",
+	}, p.mcpDeleteLink)
+
+	plugin.AddMCPTool(srv, "links", &mcp.Tool{
+		Name:        "octarq_network__batch_create_links",
+		Description: "Create multiple short links in a single operation.",
+	}, p.mcpBatchCreateLinks)
 }
 
 func (p *Plugin) mcpListLinks(ctx context.Context, _ *mcp.CallToolRequest, in listLinksInput) (*mcp.CallToolResult, any, error) {

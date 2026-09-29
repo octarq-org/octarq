@@ -31,13 +31,17 @@ func validateRecord(rec dnsprovider.Record) string {
 
 // recordsProvider loads the domain (scoped to the caller's org) and builds its
 // DNS provider.
-func (p *Plugin) recordsProvider(r *http.Request, id uint) (dnsprovider.Provider, *Domain, error) {
+func (p *Plugin) recordsProviderForOrg(orgID uint, id uint) (dnsprovider.Provider, *Domain, error) {
 	var dom Domain
-	if p.db.Where("id = ? AND owner_id = ?", id, p.orgID(r)).First(&dom).Error != nil {
+	if p.db.Where("id = ? AND owner_id = ?", id, orgID).First(&dom).Error != nil {
 		return nil, nil, errNotFound
 	}
 	prov, err := p.providerFor(dom)
 	return prov, &dom, err
+}
+
+func (p *Plugin) recordsProvider(r *http.Request, id uint) (dnsprovider.Provider, *Domain, error) {
+	return p.recordsProviderForOrg(p.orgID(r), id)
 }
 
 type ListRecordsInput struct {
