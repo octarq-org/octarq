@@ -149,6 +149,18 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 1.25 OAuth flow ingress routes (/auth/begin/... and /auth/callback/...)
+	// mounted by the auth/oauth package on s.api. Gated by dashboardAllowed
+	// like /admin and /login: link/mail hostnames must not serve OAuth flows.
+	if strings.HasPrefix(path, "/auth/") {
+		if !s.dashboardAllowed(r.Host) {
+			http.NotFound(w, r)
+			return
+		}
+		s.api.ServeHTTP(w, r)
+		return
+	}
+
 	// 1.5 The API's own generated reference. huma registers these on the API
 	// mux from the real handler registrations, so this document cannot drift
 	// from what the instance serves — it IS what the instance serves.

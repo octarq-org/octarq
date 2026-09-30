@@ -86,6 +86,23 @@ func TestServer(t *testing.T) {
 		t.Errorf("api route failed: got %d %q", recAPI.Code, recAPI.Body.String())
 	}
 
+	// 1.25 OAuth Ingress Route (/auth/begin/google, /auth/callback/google)
+	reqOAuth := httptest.NewRequest("GET", "/auth/begin/google", nil)
+	recOAuth := httptest.NewRecorder()
+	srv.ServeHTTP(recOAuth, reqOAuth)
+	if recOAuth.Code != http.StatusOK || recOAuth.Body.String() != "api response" {
+		t.Errorf("oauth ingress route failed: got %d %q, want 200 api response", recOAuth.Code, recOAuth.Body.String())
+	}
+
+	// 1.26 OAuth Route on traffic host -> 404
+	reqOAuthBlocked := httptest.NewRequest("GET", "/auth/begin/google", nil)
+	reqOAuthBlocked.Host = "links.example.com"
+	recOAuthBlocked := httptest.NewRecorder()
+	srv.ServeHTTP(recOAuthBlocked, reqOAuthBlocked)
+	if recOAuthBlocked.Code != http.StatusNotFound {
+		t.Errorf("oauth route on traffic host: got %d, want 404", recOAuthBlocked.Code)
+	}
+
 	// 2. Admin index fallback (when allowed)
 	reqAdmin := httptest.NewRequest("GET", "/admin/", nil)
 	reqAdmin.Host = "admin.example.com:8080" // test with port

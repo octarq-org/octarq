@@ -86,10 +86,12 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 			return nil, huma.Error400BadRequest("invalid md5 hash length")
 		}
 
-		// Check database for existing file record with matching MD5
+		// Check database for existing file record with matching MD5 within the caller's organization.
+		// Cross-tenant deduplication based solely on client-provided MD5 is strictly prohibited to
+		// prevent data exfiltration and existence oracle attacks (SEC-02).
 		var existing models.File
-		if err := h.db.Where("md5 = ?", cleanMD5).First(&existing).Error; err == nil {
-			// Found in database: instant dedup reuse!
+		if err := h.db.Where("md5 = ? AND owner_id = ?", cleanMD5, orgID).First(&existing).Error; err == nil {
+			// Found in caller's organization: instant dedup reuse within same tenant!
 			fileName := req.Name
 			if fileName == "" {
 				fileName = existing.Name
@@ -118,32 +120,6 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 			}, nil
 		}
 
-		// Also check if object exists on disk
-		if existingKey, existingSize, exists := h.storage.CheckMD5Exists(cleanMD5, filepath.Ext(req.Name)); exists {
-			fileName := req.Name
-			if fileName == "" {
-				fileName = "file"
-			}
-			newRecord := models.File{
-				OrgID:       orgID,
-				Name:        fileName,
-				Size:        existingSize,
-				ContentType: req.ContentType,
-				MD5:         cleanMD5,
-				Path:        existingKey,
-			}
-			if err := h.db.Create(&newRecord).Error; err != nil {
-				return nil, huma.Error500InternalServerError("failed to save file record")
-			}
-			return &UploadFileOutput{
-				Body: UploadFileResponse{
-					File:         newRecord,
-					Deduplicated: true,
-					Message:      "File content found on disk and reused",
-				},
-			}, nil
-		}
-
 		return nil, huma.Error404NotFound("file not found for md5 precheck, full upload required")
 	}
 
@@ -156,11 +132,11 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 			defer r.MultipartForm.RemoveAll()
 		}
 
-		// Check if client passed an MD5 form hint for fast dedup precheck
+		// Check if client passed an MD5 form hint for fast dedup precheck within caller's organization
 		formMD5 := strings.TrimSpace(strings.ToLower(r.FormValue("md5")))
 		if formMD5 != "" && len(formMD5) == 32 {
 			var existing models.File
-			if err := h.db.Where("md5 = ?", formMD5).First(&existing).Error; err == nil {
+			if err := h.db.Where("md5 = ? AND owner_id = ?", formMD5, orgID).First(&existing).Error; err == nil {
 				fileName := strings.TrimSpace(r.FormValue("name"))
 				if fileName == "" {
 					fileName = existing.Name
