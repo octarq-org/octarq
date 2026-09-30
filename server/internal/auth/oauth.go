@@ -237,6 +237,21 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// SEC-10: Enterprise SSO domain bypass guard.
+	// If an enterprise workspace has enabled SSO for this email domain,
+	// general social OAuth is prohibited to enforce enterprise identity & 2FA policies.
+	if at := strings.LastIndex(email, "@"); at >= 0 && at < len(email)-1 {
+		domain := email[at+1:]
+		if h.db != nil && h.db.Migrator().HasTable("sso_configs") {
+			var count int64
+			if err := h.db.Table("sso_configs").Where("enabled = ? AND LOWER(allowed_domain) = ?", true, domain).Count(&count).Error; err == nil && count > 0 {
+				log.Printf("oauth callback rejected: email domain %s requires enterprise SSO", domain)
+				http.Error(w, "Sign-in for domain "+domain+" is managed by Enterprise SSO. Please use your organization's SSO portal to log in.", http.StatusForbidden)
+				return
+			}
+		}
+	}
+
 	// Upsert User. When public registration is disabled (invite-only instance),
 	// OAuth must not be a side door: existing users may still sign in, but an
 	// unknown email is refused instead of silently provisioning a new account.
