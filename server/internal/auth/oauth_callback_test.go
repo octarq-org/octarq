@@ -262,3 +262,42 @@ func TestLoadProviderEdgeCases(t *testing.T) {
 	// it clears goth's process-global provider registry, which would break the
 	// order-sensitive OAuth tests under -count=2.
 }
+
+// TestOAuthCallbackRejectsWhenSSODomainEnabled verifies SEC-10: if an enterprise
+// domain is managed by SSO, social OAuth callback must be rejected with 403 Forbidden.
+func TestOAuthCallbackRejectsWhenSSODomainEnabled(t *testing.T) {
+	h, db := oauthPreparedHandler(t)
+	type SSOConfig struct {
+		ID            string `gorm:"primaryKey"`
+		OrgID         string
+		AllowedDomain string
+		Enabled       bool
+	}
+	if err := db.AutoMigrate(&SSOConfig{}); err != nil {
+		t.Fatalf("migrate sso_configs: %v", err)
+	}
+	if err := db.Table("sso_configs").Create(&SSOConfig{
+		ID:            "sso-1",
+		OrgID:         "org-corp",
+		AllowedDomain: "acme.corp",
+		Enabled:       true,
+	}).Error; err != nil {
+		t.Fatalf("create sso config: %v", err)
+	}
+
+	seedUserOrgs(t, db, "bob@acme.corp")
+
+	overrideCompleteUserAuth(t, func(w http.ResponseWriter, r *http.Request) (goth.User, error) {
+		return goth.User{Email: "bob@Acme.corp"}, nil
+	})
+
+	rec := httptest.NewRecorder()
+	h.Callback(rec, callbackRequest())
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("Callback = %d, want 403 Forbidden", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "managed by Enterprise SSO") {
+		t.Errorf("expected rejection message, got: %s", rec.Body.String())
+	}
+}
