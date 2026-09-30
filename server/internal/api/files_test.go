@@ -60,7 +60,7 @@ func createTestUserAndOrg(t *testing.T, h *Handler) (string, uint) {
 
 func TestFiles_Upload_Precheck(t *testing.T) {
 	h, srv, _ := newTestHandlerRaw(t)
-	token, _ := createTestUserAndOrg(t, h)
+	token, orgID := createTestUserAndOrg(t, h)
 
 	// Ensure isolated test storage
 	tmpDir := t.TempDir()
@@ -104,10 +104,10 @@ func TestFiles_Upload_Precheck(t *testing.T) {
 		t.Fatalf("expected 404 for unknown MD5, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	// 4. Precheck hit via existing DB record
+	// 4. Precheck hit via existing DB record in same org
 	knownMD5 := "098f6bcd4621d373cade4e832627b4f6"
 	existingFile := models.File{
-		OrgID:       1,
+		OrgID:       orgID,
 		Name:        "existing.png",
 		Size:        512,
 		ContentType: "image/png",
@@ -142,30 +142,34 @@ func TestFiles_Upload_Precheck(t *testing.T) {
 		t.Errorf("expected reused path %s, got %s", existingFile.Path, resp.File.Path)
 	}
 
-	// 5. Precheck hit via disk object (even if not yet in DB)
-	diskMD5 := "5eb63bbbe01eeed093cb22bb8f5acdc3"
-	key, _, _, _, err := storage.PutObjectByHash(context.Background(), strings.NewReader("hello world"), ".txt")
-	if err != nil {
+	// 5. Cross-tenant isolation (SEC-02): file exists in another org, precheck must fail closed with 404
+	_, otherOrgID := createTestUserAndOrg(t, h)
+	crossOrgMD5 := "5eb63bbbe01eeed093cb22bb8f5acdc3"
+	otherFile := models.File{
+		OrgID:       otherOrgID,
+		Name:        "secret.txt",
+		Size:        11,
+		ContentType: "text/plain",
+		MD5:         crossOrgMD5,
+		Path:        "dedup/other-secret.txt",
+	}
+	if err := h.db.Create(&otherFile).Error; err != nil {
+		t.Fatalf("create other org file: %v", err)
+	}
+	// Also ensure file is present on disk
+	if _, _, _, _, err := storage.PutObjectByHash(context.Background(), strings.NewReader("hello world"), ".txt"); err != nil {
 		t.Fatalf("put object on disk: %v", err)
 	}
-	bodyJSON = fmt.Sprintf(`{"md5": "%s", "name": "disk-hello.txt"}`, diskMD5)
+
+	// Requesting precheck for another org's MD5 must NOT return 200/deduplicate
+	bodyJSON = fmt.Sprintf(`{"md5": "%s", "name": "stolen.txt"}`, crossOrgMD5)
 	req = httptest.NewRequest("POST", "/api/files/upload", strings.NewReader(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(&http.Cookie{Name: "octarq_session", Value: token})
 	rec = httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 for disk precheck hit, got %d: %s", rec.Code, rec.Body.String())
-	}
-	var diskResp UploadFileResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &diskResp); err != nil {
-		t.Fatalf("unmarshal disk response: %v", err)
-	}
-	if !diskResp.Deduplicated {
-		t.Error("expected Deduplicated=true for disk precheck hit")
-	}
-	if diskResp.File.Path != key {
-		t.Errorf("expected path %s, got %s", key, diskResp.File.Path)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 for cross-tenant precheck, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 
