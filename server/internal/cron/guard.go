@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -14,6 +15,14 @@ import (
 // Guard prevents concurrent or overlapping executions of the same job.
 type Guard interface {
 	Acquire(ctx context.Context, jobName string, ttl time.Duration) (release func(), ok bool, err error)
+}
+
+type failClosedGuard struct {
+	err error
+}
+
+func (g *failClosedGuard) Acquire(ctx context.Context, jobName string, ttl time.Duration) (func(), bool, error) {
+	return nil, false, g.err
 }
 
 type redisClient interface {
@@ -43,7 +52,9 @@ func NewDistGuard(client redis.UniversalClient) Guard {
 }
 
 // NewGuard creates a Guard based on the provided redisURL.
-// If redisURL is empty or fails to connect, it falls back to NewLocalGuard.
+// If redisURL is empty, it returns NewLocalGuard for standalone deployments.
+// If redisURL is configured but invalid or fails to connect, it fails closed to prevent
+// concurrent multi-replica execution in cluster deployments.
 func NewGuard(redisURL string) Guard {
 	if redisURL == "" {
 		return NewLocalGuard()
@@ -51,8 +62,8 @@ func NewGuard(redisURL string) Guard {
 
 	opts, err := redis.ParseURL(redisURL)
 	if err != nil {
-		slog.Warn("cron: failed to parse redis URL, using local guard", "err", err)
-		return NewLocalGuard()
+		slog.Error("cron: failed to parse redis URL, failing closed", "err", err)
+		return &failClosedGuard{err: fmt.Errorf("cron: invalid redis url: %w", err)}
 	}
 
 	client := redis.NewClient(opts)
@@ -60,8 +71,8 @@ func NewGuard(redisURL string) Guard {
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
-		slog.Warn("cron: redis ping failed, using local guard", "err", err)
-		return NewLocalGuard()
+		slog.Error("cron: redis ping failed, failing closed", "err", err)
+		return &failClosedGuard{err: fmt.Errorf("cron: redis ping failed: %w", err)}
 	}
 
 	return NewDistGuard(client)
@@ -111,12 +122,9 @@ func (g *distGuard) Acquire(ctx context.Context, jobName string, ttl time.Durati
 
 	acquired, err := g.client.SetNX(ctx, key, token, ttl).Result()
 	if err != nil {
-		// Redis error: degrade gracefully to local lock
-		slog.Warn("cron: redis setnx failed, degrading to local guard", "job", jobName, "err", err)
-		var once sync.Once
-		return func() {
-			once.Do(localLock.Unlock)
-		}, true, nil
+		localLock.Unlock()
+		slog.Error("cron: redis setnx failed, failing closed", "job", jobName, "err", err)
+		return nil, false, fmt.Errorf("cron: redis setnx failed: %w", err)
 	}
 
 	if !acquired {

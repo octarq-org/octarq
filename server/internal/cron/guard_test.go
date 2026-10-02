@@ -68,12 +68,19 @@ func TestLocalGuard(t *testing.T) {
 	rel4()
 }
 
-func TestNewGuard_Fallbacks(t *testing.T) {
-	// Empty URL
+func TestNewGuard_FailClosed(t *testing.T) {
+	ctx := context.Background()
+
+	// Empty URL -> NewLocalGuard (works locally)
 	g1 := NewGuard("")
 	if g1 == nil {
 		t.Fatal("expected non-nil guard for empty url")
 	}
+	rel1, ok1, err1 := g1.Acquire(ctx, "job1", time.Minute)
+	if err1 != nil || !ok1 || rel1 == nil {
+		t.Fatalf("expected local guard acquire to succeed for empty url, got ok=%v, err=%v", ok1, err1)
+	}
+	rel1()
 
 	// NewDistGuard constructor
 	gDist := NewDistGuard(nil)
@@ -81,16 +88,24 @@ func TestNewGuard_Fallbacks(t *testing.T) {
 		t.Fatal("expected non-nil dist guard")
 	}
 
-	// Invalid URL
+	// Invalid URL -> fails closed
 	g2 := NewGuard("not a valid url :///")
 	if g2 == nil {
 		t.Fatal("expected non-nil guard for invalid url")
 	}
+	rel2, ok2, err2 := g2.Acquire(ctx, "job2", time.Minute)
+	if err2 == nil || ok2 || rel2 != nil {
+		t.Fatalf("expected acquire to fail closed for invalid redis url, got ok=%v, err=%v", ok2, err2)
+	}
 
-	// Non-existent redis host
+	// Non-existent redis host -> fails closed
 	g3 := NewGuard("redis://127.0.0.1:58999/0")
 	if g3 == nil {
-		t.Fatal("expected fallback guard when redis down")
+		t.Fatal("expected non-nil guard when redis down")
+	}
+	rel3, ok3, err3 := g3.Acquire(ctx, "job3", time.Minute)
+	if err3 == nil || ok3 || rel3 != nil {
+		t.Fatalf("expected acquire to fail closed when redis ping fails, got ok=%v, err=%v", ok3, err3)
 	}
 }
 
@@ -160,7 +175,7 @@ func TestDistGuard_RedisLockedByAnotherNode(t *testing.T) {
 	rel2()
 }
 
-func TestDistGuard_RedisErrorDegradesToLocal(t *testing.T) {
+func TestDistGuard_RedisErrorFailsClosed(t *testing.T) {
 	ctx := context.Background()
 	mock := &mockRedisClient{
 		setNXFunc: func(ctx context.Context, key string, value any, expiration time.Duration) *redis.BoolCmd {
@@ -176,15 +191,19 @@ func TestDistGuard_RedisErrorDegradesToLocal(t *testing.T) {
 	}
 
 	rel, ok, err := guard.Acquire(ctx, "cluster_job", time.Minute)
-	if err != nil || !ok || rel == nil {
-		t.Fatalf("expected degrade to local lock on redis error, got ok=%v, err=%v", ok, err)
+	if err == nil || ok || rel != nil {
+		t.Fatalf("expected fail closed on redis error, got ok=%v, rel!=nil=%v, err=%v", ok, rel != nil, err)
 	}
 
-	// While degraded lock is held, local re-acquire fails
-	_, ok2, _ := guard.Acquire(ctx, "cluster_job", time.Minute)
-	if ok2 {
-		t.Fatalf("expected second acquire to fail while degraded lock is held")
+	// Local lock must have been unlocked so that subsequent attempts are not permanently deadlocked
+	mock.setNXFunc = func(ctx context.Context, key string, value any, expiration time.Duration) *redis.BoolCmd {
+		cmd := redis.NewBoolCmd(ctx)
+		cmd.SetVal(true)
+		return cmd
 	}
-
-	rel()
+	rel2, ok2, err2 := guard.Acquire(ctx, "cluster_job", time.Minute)
+	if err2 != nil || !ok2 || rel2 == nil {
+		t.Fatalf("expected acquire success after redis recovers, got ok=%v, err=%v", ok2, err2)
+	}
+	rel2()
 }
