@@ -52,7 +52,7 @@ export function CopilotButton({ className }: CopilotButtonProps) {
         </span>
       ) : (
         <kbd className="hidden rounded-md border border-foreground/10 dark:border-white/10 bg-muted/80 px-1 py-0.5 text-[9px] font-mono font-medium text-muted-foreground md:block">
-          ⌘&nbsp;J
+          {t("copilot.shortcutKey", "⌘J")}
         </kbd>
       )}
     </button>

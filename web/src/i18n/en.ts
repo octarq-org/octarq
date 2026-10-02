@@ -5,6 +5,7 @@ export const en = {
     done: "Done",
     search: "Search…",
     cancel: "Cancel",
+    close: "Close",
     confirm: "Confirm",
     confirmTitle: "Are you sure?",
     passwordConfirmTitle: "Confirm your password",

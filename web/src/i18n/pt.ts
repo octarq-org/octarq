@@ -5,6 +5,7 @@ export const pt = {
     done: "Concluído",
     search: "Pesquisar…",
     cancel: "Cancelar",
+    close: "Fechar",
     confirm: "Confirmar",
     confirmTitle: "Tem certeza?",
     passwordConfirmTitle: "Confirme sua senha",

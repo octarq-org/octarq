@@ -201,7 +201,7 @@ export function TopBar({
       >
         <Search className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" aria-hidden="true" />
         <span className="hidden text-xs font-medium md:block group-hover:text-foreground">{t("common.search")}</span>
-        <kbd className="hidden rounded-md border border-foreground/10 dark:border-white/10 bg-muted/80 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground md:block">⌘&nbsp;K</kbd>
+        <kbd className="hidden rounded-md border border-foreground/10 dark:border-white/10 bg-muted/80 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground md:block">⌘K</kbd>
       </button>
 
       {/* AI Copilot Sidecar Trigger (⌘+J) */}

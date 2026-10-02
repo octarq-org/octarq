@@ -6,6 +6,7 @@ export const zh: Resources = {
     done: "完成",
     search: "搜索…",
     cancel: "取消",
+    close: "关闭",
     confirm: "确认",
     confirmTitle: "确认操作",
     passwordConfirmTitle: "确认密码",
