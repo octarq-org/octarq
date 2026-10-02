@@ -460,9 +460,9 @@ export default function HelpViewer() {
                   {prevDoc ? (
                     <button
                       onClick={() => navigate(getDocUrl(prevDoc))}
-                      className="p-4 rounded-2xl border border-border/80 bg-card hover:bg-surface-hover text-left transition-all group flex items-start gap-3 shadow-xs"
+                      className="p-4 rounded-2xl border border-border/80 bg-card hover:bg-surface-hover text-left transition-colors group flex items-start gap-3 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
-                      <ArrowLeft className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:-translate-x-1 transition-all mt-0.5 shrink-0" />
+                      <ArrowLeft className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:-translate-x-1 transition-transform mt-0.5 shrink-0" aria-hidden="true" />
                       <div>
                         <div className="text-[10px] text-muted-foreground uppercase font-semibold">
                           {t("help.prev_doc", "Previous")}
@@ -479,7 +479,7 @@ export default function HelpViewer() {
                   {nextDoc ? (
                     <button
                       onClick={() => navigate(getDocUrl(nextDoc))}
-                      className="p-4 rounded-2xl border border-border/80 bg-card hover:bg-surface-hover text-right transition-all group flex items-start justify-end gap-3 shadow-xs"
+                      className="p-4 rounded-2xl border border-border/80 bg-card hover:bg-surface-hover text-right transition-colors group flex items-start justify-end gap-3 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                       <div>
                         <div className="text-[10px] text-muted-foreground uppercase font-semibold">
@@ -489,7 +489,7 @@ export default function HelpViewer() {
                           {nextDoc.title}
                         </div>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all mt-0.5 shrink-0" />
+                      <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-transform mt-0.5 shrink-0" aria-hidden="true" />
                     </button>
                   ) : (
                     <div />
@@ -514,11 +514,12 @@ export default function HelpViewer() {
                   href={`#${item.id}`}
                   onClick={(e) => {
                     e.preventDefault();
+                    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
                     document
                       .getElementById(item.id)
-                      ?.scrollIntoView({ behavior: "smooth" });
+                      ?.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth" });
                   }}
-                  className={`block py-1 px-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-all truncate ${
+                  className={`block py-1 px-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary truncate ${
                     item.level === 3 ? "pl-4 text-[11px]" : "font-medium"
                   }`}
                 >

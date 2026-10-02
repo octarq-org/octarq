@@ -13,6 +13,8 @@ export default function EmailForm() {
         type="email"
         className="text-xs"
         placeholder="alerts@example.com"
+        autoComplete="email"
+        spellCheck={false}
         value={config.email || ""}
         onChange={(e) => updateConfig("email", e.target.value)}
       />

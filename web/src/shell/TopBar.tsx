@@ -29,7 +29,8 @@ function GithubIcon({ className }: { className?: string }) {
 // elevation is reserved for floating layers.
 const ACTION_BUTTON =
   "rounded-xl border border-foreground/10 dark:border-white/10 bg-surface-hover/50 " +
-  "hover:bg-surface-hover hover:border-foreground/20 text-muted-foreground transition-all";
+  "hover:bg-surface-hover hover:border-foreground/20 text-muted-foreground transition-colors " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
 export function TopBar({
   areas,
@@ -195,11 +196,12 @@ export function TopBar({
       {/* Command palette trigger */}
       <button
         onClick={onOpenCommand}
+        aria-label={t("common.search")}
         className={cn(ACTION_BUTTON, "group flex h-9 items-center gap-2 px-3")}
       >
-        <Search className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+        <Search className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" aria-hidden="true" />
         <span className="hidden text-xs font-medium md:block group-hover:text-foreground">{t("common.search")}</span>
-        <kbd className="hidden rounded-md border border-foreground/10 dark:border-white/10 bg-muted/80 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground md:block">⌘K</kbd>
+        <kbd className="hidden rounded-md border border-foreground/10 dark:border-white/10 bg-muted/80 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground md:block">⌘&nbsp;K</kbd>
       </button>
 
       {/* AI Copilot Sidecar Trigger (⌘+J) */}
@@ -210,7 +212,7 @@ export function TopBar({
         onClick={toggleTheme}
         aria-label={theme === "dark" ? t("topbar.lightMode", "Light mode") : t("topbar.darkMode", "Dark mode")}
         title={theme === "dark" ? t("topbar.lightMode", "Light mode") : t("topbar.darkMode", "Dark mode")}
-        className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+        className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
       >
         {theme === "dark" ? <Sun className="h-5 w-5" strokeWidth={1.75} /> : <Moon className="h-5 w-5" strokeWidth={1.75} />}
       </button>

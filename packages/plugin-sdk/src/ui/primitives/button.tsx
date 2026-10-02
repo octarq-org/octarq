@@ -21,7 +21,7 @@ import { cn } from "../cn";
 // consumer that ships its own theme (the Pro portal) where `var(--radius)` is
 // not defined at all.
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-1.5 rounded-xl border-0 text-sm font-medium transition-all focus-visible:outline-2 focus-visible:outline-(--ring) focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+  "inline-flex items-center justify-center gap-1.5 rounded-xl border-0 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-(--ring) focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
   {
     variants: {
       variant: {

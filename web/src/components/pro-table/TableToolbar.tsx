@@ -368,7 +368,7 @@ export function TableToolbar<TData>({
                             onChange={(e) =>
                               onColumnVisibilityChange(colId, e.target.checked)
                             }
-                            className="rounded border-border text-primary focus:ring-primary"
+                            className="rounded border-border text-primary focus-visible:ring-primary focus-visible:outline-none"
                           />
                           <span className="truncate">{title}</span>
                         </label>

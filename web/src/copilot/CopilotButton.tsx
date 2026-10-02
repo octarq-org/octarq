@@ -24,7 +24,7 @@ export function CopilotButton({ className }: CopilotButtonProps) {
       title={t("copilot.buttonTitle", "AI Copilot (⌘+J)")}
       aria-pressed={isOpen}
       className={cn(
-        "group relative flex h-9 items-center gap-1.5 rounded-xl border border-foreground/10 dark:border-white/10 px-2.5 text-xs font-semibold transition-all",
+        "group relative flex h-9 items-center gap-1.5 rounded-xl border border-foreground/10 dark:border-white/10 px-2.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
         isOpen
           ? "bg-primary/10 text-primary border-primary/30 ring-1 ring-primary/20"
           : "bg-surface-hover/50 text-muted-foreground hover:bg-surface-hover hover:text-foreground",
@@ -33,10 +33,10 @@ export function CopilotButton({ className }: CopilotButtonProps) {
       data-testid="copilot-trigger-btn"
     >
       <div className="relative">
-        <Sparkles className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
+        <Sparkles className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" aria-hidden="true" />
         {pendingCount > 0 && (
           <span className="absolute -top-1.5 -right-1.5 flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger-fg opacity-75" />
+            <span className="animate-ping motion-reduce:hidden absolute inline-flex h-full w-full rounded-full bg-danger-fg opacity-75" />
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-danger-fg" />
           </span>
         )}
@@ -52,7 +52,7 @@ export function CopilotButton({ className }: CopilotButtonProps) {
         </span>
       ) : (
         <kbd className="hidden rounded-md border border-foreground/10 dark:border-white/10 bg-muted/80 px-1 py-0.5 text-[9px] font-mono font-medium text-muted-foreground md:block">
-          {t("copilot.shortcutKey", "⌘J")}
+          ⌘&nbsp;J
         </kbd>
       )}
     </button>

@@ -55,10 +55,10 @@ export const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
               <button
                 type="button"
                 onClick={onDismiss}
-                className="opacity-70 hover:opacity-100 transition-opacity p-1 rounded-md cursor-pointer"
+                className="opacity-70 hover:opacity-100 transition-opacity p-1 rounded-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
                 aria-label="Dismiss alert"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>

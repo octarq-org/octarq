@@ -84,8 +84,8 @@ export function EmailViewForm({
             </div>
           </div>
         </div>
-        <Button variant="ghost" onClick={onClose} className="p-2 shrink-0">
-          <X className="h-4 w-4" />
+        <Button variant="ghost" onClick={onClose} aria-label={t("common.close") || "Close"} className="p-2 shrink-0">
+          <X className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
 

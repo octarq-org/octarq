@@ -6,8 +6,8 @@ import { cn } from "../cn";
 // component is self-contained (mirrors the app's `.input` class without
 // depending on it).
 export const fieldClass =
-  "w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition-all " +
-  "placeholder:text-foreground/40 focus:border-accent-border focus:shadow-[0_0_0_3px_var(--accent-soft)] " +
+  "w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition-[border-color,box-shadow] " +
+  "placeholder:text-foreground/40 focus-visible:border-accent-border focus-visible:shadow-[0_0_0_3px_var(--accent-soft)] focus:outline-none " +
   "disabled:cursor-not-allowed disabled:opacity-50";
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement>;

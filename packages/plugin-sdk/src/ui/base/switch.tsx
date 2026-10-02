@@ -34,7 +34,7 @@ export const Switch = forwardRef<HTMLSpanElement, SwitchProps>(
     >
       <BaseSwitch.Thumb
         className={cn(
-          "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-300",
+          "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-[left,transform,opacity] duration-300",
           "left-0.5 scale-90 opacity-70 data-[checked]:left-4 data-[checked]:scale-110 data-[checked]:opacity-100",
         )}
       />

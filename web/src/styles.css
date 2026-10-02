@@ -330,7 +330,7 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0.5rem 0.875rem;
   font-size: 0.875rem;
   font-weight: 500;
-  transition: all 0.15s;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s, transform 0.15s;
   border: none;
   text-decoration: none;
 }
@@ -386,7 +386,7 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.875rem;
   color: var(--foreground);
   outline: none;
-  transition: all 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
   font-family: inherit;
   field-sizing: content;
 }
@@ -396,14 +396,14 @@ h1, h2, h3, h4, h5, h6 {
 .input:hover {
   border-color: var(--border-strong);
 }
-.input:focus {
+.input:focus-visible {
   border-color: color-mix(in srgb, var(--primary) 55%, transparent);
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent);
 }
 .dark .input {
   background: rgba(255, 255, 255, 0.04);
 }
-.dark .input:focus {
+.dark .input:focus-visible {
   background: rgba(255, 255, 255, 0.06);
 }
 
