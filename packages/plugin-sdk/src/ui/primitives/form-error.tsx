@@ -50,10 +50,10 @@ export const FormError = forwardRef<HTMLDivElement, FormErrorProps>(({ err, clas
   const status = typeof err === "object" ? err.status : undefined;
   const requestId = typeof err === "object" ? err.requestId : undefined;
   return (
-    <div ref={ref} className={cn("space-y-1", className)}>
+    <div ref={ref} role="alert" aria-live="polite" className={cn("space-y-1", className)}>
       <p className="text-sm font-medium text-danger-fg">{message}</p>
       {status !== undefined && (
-        <p className="font-mono tnum text-[11px] text-danger-fg/70">
+        <p className="font-mono tabular-nums tnum text-[11px] text-danger-fg/70">
           {t("uiCommon.formErrorStatus", { status })}
           {requestId && <> · {t("uiCommon.formErrorRequestId", { requestId })}</>}
         </p>

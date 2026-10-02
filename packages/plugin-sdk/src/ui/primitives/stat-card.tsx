@@ -38,7 +38,7 @@ export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(
           : undefined
       }
       className={cn(
-        "glass rounded-2xl p-4 text-left transition-all duration-150",
+        "glass rounded-2xl p-4 text-left transition-colors duration-150",
         onClick
           ? "cursor-pointer hover:bg-foreground/[0.06] hover:ring-1 hover:ring-inset hover:ring-foreground/10 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
           : "",
@@ -47,10 +47,10 @@ export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(
     >
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[12px] font-medium text-foreground/55">{label}</span>
-        {icon && <span className="text-foreground/40">{icon}</span>}
+        {icon && <span className="text-foreground/40" aria-hidden="true">{icon}</span>}
       </div>
       <div className="flex items-end gap-2">
-        <span className="tnum font-mono text-2xl font-bold tracking-tight text-foreground">
+        <span className="tabular-nums tnum font-mono text-2xl font-bold tracking-tight text-foreground">
           {value}
         </span>
         {delta && (

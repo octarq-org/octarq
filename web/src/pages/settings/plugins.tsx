@@ -27,7 +27,7 @@ function PluginIcon({ iconStr, firstMenuIcon }: { iconStr?: string; firstMenuIco
 
   // Check if target is an image URL or data URI
   if (target.startsWith("http://") || target.startsWith("https://") || target.startsWith("data:") || target.startsWith("/")) {
-    return <img src={target} alt={t("settings.pluginLogoAlt")} className="h-6 w-6 object-contain rounded-lg" />;
+    return <img src={target} alt={t("settings.pluginLogoAlt")} width={24} height={24} className="h-6 w-6 object-contain rounded-lg" />;
   }
 
   // Resolve via single menuIcon map in shell/areas
@@ -196,7 +196,7 @@ export function PluginsSettings() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t("common.search")}
-                className="pl-9 pr-3 py-1.5 text-xs rounded-xl bg-card border border-border focus:outline-none focus:ring-2 focus:ring-accent-fg/30 text-foreground placeholder:text-muted-foreground"
+                className="pl-9 pr-3 py-1.5 text-xs rounded-xl bg-card border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-fg/30 text-foreground placeholder:text-muted-foreground"
               />
             </div>
 

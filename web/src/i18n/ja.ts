@@ -5,6 +5,7 @@ export const ja = {
     done: "完了",
     search: "検索…",
     cancel: "キャンセル",
+    close: "閉じる",
     confirm: "確認",
     confirmTitle: "よろしいですか？",
     passwordConfirmTitle: "パスワードの確認",

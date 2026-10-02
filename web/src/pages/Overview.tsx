@@ -57,10 +57,11 @@ function OverviewChecklistSection({
     <GlassCard className={`mb-6 p-6 relative overflow-hidden ${totalCount === 0 ? "hidden" : ""}`}>
       <button 
         onClick={dismiss} 
-        className="absolute top-4 right-4 p-1 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-colors"
+        className="absolute top-4 right-4 p-1 rounded-lg text-foreground/40 hover:text-foreground hover:bg-foreground/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        aria-label={t("overview.dismissChecklist")}
         title={t("overview.dismissChecklist")}
       >
-        <X size={16} />
+        <X size={16} aria-hidden="true" />
       </button>
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">

@@ -304,6 +304,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
                 onKeyDown={onEnter}
                 autoComplete="email"
                 placeholder={t("app.emailPlaceholder")}
+                spellCheck={false}
                 required
                 disabled={oauthPending}
               />

@@ -227,6 +227,14 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
     return true;
   });
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeCopilot();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [closeCopilot]);
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end" data-testid="copilot-drawer">
       {/* Backdrop */}
@@ -241,13 +249,13 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
         role="dialog"
         aria-modal="true"
         aria-label={t("copilot.title", "AI Copilot")}
-        className="relative z-50 flex h-full w-full max-w-lg flex-col border-l border-border bg-background shadow-2xl transition-all duration-200 animate-in slide-in-from-right"
+        className="relative z-50 flex h-full w-full max-w-lg flex-col border-l border-border bg-background shadow-2xl transition-[transform,opacity] duration-200 animate-in slide-in-from-right"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-well/40">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl brand-gradient text-white shadow-xs">
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -498,20 +506,21 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
 
             {/* Input & Footer Controls */}
             <div className="border-t border-border bg-well/30 p-3">
-              <div className="relative flex flex-col rounded-2xl border border-border bg-background focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+              <div className="relative flex flex-col rounded-2xl border border-border bg-background focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/50 transition-colors">
                 <textarea
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={t("copilot.inputPlaceholder", "问点什么，或下达运营指令 (Enter 发送)...")}
+                  placeholder={t("copilot.inputPlaceholder", "问点什么，或下达运营指令 (Enter 发送)…")}
+                  aria-label={t("copilot.inputPlaceholder", "问点什么，或下达运营指令 (Enter 发送)…")}
                   rows={2}
-                  className="w-full resize-none bg-transparent p-3 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground outline-none"
+                  className="w-full resize-none bg-transparent p-3 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground outline-none focus-visible:outline-none"
                 />
 
                 <div className="flex items-center justify-between border-t border-border/40 px-3 py-2 bg-well/20 rounded-b-2xl">
                   <div className="text-[10px] text-muted-foreground hidden sm:block">
-                    {t("copilot.shortcutHint", "Shift + Enter 换行 · Enter 发送 · ⌘J 唤起/收起")}
+                    {t("copilot.shortcutHint", "Shift + Enter 换行 · Enter 发送 · ⌘&nbsp;J 唤起/收起")}
                   </div>
 
                   <div className="flex items-center gap-1.5 ml-auto">
@@ -653,7 +662,7 @@ function PresetPromptCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex items-start gap-3 rounded-xl border border-border/70 bg-card p-3 text-left transition-all hover:border-primary/50 hover:bg-surface-hover/70 group"
+      className="flex items-start gap-3 rounded-xl border border-border/70 bg-card p-3 text-left transition-colors hover:border-primary/50 hover:bg-surface-hover/70 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       <div className="mt-0.5 shrink-0 rounded-lg bg-well p-1.5 shadow-2xs group-hover:scale-105 transition-transform">
         {icon}

@@ -580,16 +580,25 @@ export default function DomainsPage() {
                   {domains.map((d) => (
                     <div
                       key={d.id}
-                      className="glass p-4 rounded-2xl border border-foreground/[0.06] hover:border-foreground/20 transition-all cursor-pointer group"
+                      role="button"
+                      tabIndex={0}
+                      className="glass p-4 rounded-2xl border border-foreground/[0.06] hover:border-foreground/20 transition-colors cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                       onClick={() => {
                         setActive(d);
                         setActiveSubTab("records");
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setActive(d);
+                          setActiveSubTab("records");
+                        }
                       }}
                     >
                       <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="h-10 w-10 rounded-xl bg-accent-soft flex items-center justify-center text-accent-fg shrink-0 group-hover:scale-105 transition-transform">
-                            <Globe className="h-5 w-5" />
+                            <Globe className="h-5 w-5" aria-hidden="true" />
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">

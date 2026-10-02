@@ -85,7 +85,7 @@ export function AreaPanel({
               aria-label={t("topbar.switchWorkspace")}
               title={collapsed ? activeOrgName : undefined}
               className={cn(
-                "flex items-center rounded-xl ring-1 ring-inset ring-border transition hover:ring-border-strong data-[popup-open]:ring-border-strong",
+                "flex items-center rounded-xl ring-1 ring-inset ring-border transition hover:ring-border-strong data-[popup-open]:ring-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                 collapsed ? "h-10 w-10 justify-center bg-primary/10" : "h-10 w-full gap-2 bg-primary/[0.07] px-1.5",
               )}
             >
@@ -126,7 +126,7 @@ export function AreaPanel({
             title={t(`areas.${area.id}.title`, area.title)}
             className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground/[0.04] text-foreground"
           >
-            <area.Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            <area.Icon className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
           </div>
         ) : (
           <div className="px-1">

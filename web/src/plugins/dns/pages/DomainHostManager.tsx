@@ -204,11 +204,11 @@ function AddHostRow({ domain, busy, onAdd }: { domain: Domain; busy: boolean; on
         )}
       </div>
       <label className="flex items-center gap-1.5 text-xs text-foreground/60 cursor-pointer select-none">
-        <input type="checkbox" checked={forLink} onChange={(e) => setForLink(e.target.checked)} className="accent-[var(--primary)]" />
+        <input type="checkbox" checked={forLink} onChange={(e) => setForLink(e.target.checked)} className="rounded accent-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
         {t("domains.thLink")}
       </label>
       <label className="flex items-center gap-1.5 text-xs text-foreground/60 cursor-pointer select-none">
-        <input type="checkbox" checked={forMail} onChange={(e) => setForMail(e.target.checked)} className="accent-emerald-500" />
+        <input type="checkbox" checked={forMail} onChange={(e) => setForMail(e.target.checked)} className="rounded accent-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" />
         {t("domains.thMail")}
       </label>
       <Button variant="primary" className="h-9 py-1 px-3 text-xs" disabled={busy || !draft.trim() || (!forLink && !forMail)} onClick={submit}>

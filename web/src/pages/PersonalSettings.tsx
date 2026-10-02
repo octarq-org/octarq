@@ -130,7 +130,7 @@ export function ProfileSettings() {
             <Field label={t("personal.newEmailLabel")} hint={t("personal.newEmailHint")}>
               <Input
                 type="email"
-                
+                spellCheck={false}
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 placeholder={t("personal.newEmailPlaceholder")}
