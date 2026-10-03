@@ -19,6 +19,31 @@ export function ProfileSettings() {
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDeleteAccount() {
+    if (deleteConfirmationText !== "DELETE MY ACCOUNT") {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await api.deleteUserAccount("DELETE MY ACCOUNT");
+      toast.success(t("personal.deleteAccountSuccess"));
+      setShowDeleteModal(false);
+      setDeleteConfirmationText("");
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 700);
+    } catch (err: any) {
+      toast.error(err.message || t("personal.deleteAccountFailed"));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const { t } = useTranslation();
   const reloadUser = () => {
     api.me().then((u) => setEmail(u.email || u.username || ""));
@@ -204,6 +229,67 @@ export function ProfileSettings() {
           </div>
         </form>
       </GlassCard>
+
+      <GlassCard className="p-6 space-y-3 border-danger/30">
+        <div className="flex items-center gap-2 text-danger">
+          <Trash2 size={18} />
+          <h2 className="text-base font-bold">{t("personal.dangerZone")}</h2>
+        </div>
+        <p className="text-xs text-foreground/60">
+          {t("personal.deleteAccountDesc")}
+        </p>
+        <div className="pt-2">
+          <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
+            {t("personal.deleteAccountButton")}
+          </Button>
+        </div>
+      </GlassCard>
+
+      {showDeleteModal && (
+        <Modal
+          title={t("personal.deleteAccountTitle")}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setDeleteConfirmationText("");
+          }}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-foreground/70">
+              {t("personal.deleteAccountModalDesc")}
+            </p>
+            <p className="text-sm text-foreground/70">
+              {t("personal.confirmTypePre")}
+              <span className="font-mono font-bold text-danger-fg select-all">DELETE MY ACCOUNT</span>
+              {t("personal.confirmTypePost")}
+            </p>
+            <Input
+              type="text"
+              className="text-sm font-mono text-center border-danger-border focus:border-danger-fg"
+              value={deleteConfirmationText}
+              onChange={(e) => setDeleteConfirmationText(e.target.value)}
+              placeholder="DELETE MY ACCOUNT"
+            />
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmationText("");
+                }}
+              >
+                {t("personal.cancel")}
+              </Button>
+              <Button
+                variant="danger"
+                disabled={deleteConfirmationText !== "DELETE MY ACCOUNT" || deleting}
+                onClick={handleDeleteAccount}
+              >
+                {deleting ? t("personal.deleting") : t("personal.permanentlyDelete")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
