@@ -173,8 +173,16 @@ func (e *Engine) checkAndRun(ctx context.Context) {
 
 func (e *Engine) executeJob(ctx context.Context, j *jobEntry) {
 	release, ok, err := e.guard.Acquire(ctx, j.name, 10*time.Minute)
-	if err != nil || !ok {
-		// Guard rejected or lock already held
+	if err != nil {
+		e.mu.Lock()
+		j.status = "error"
+		j.lastErr = err.Error()
+		e.mu.Unlock()
+		slog.Error("cron: guard acquire failed", "job", j.name, "err", err)
+		return
+	}
+	if !ok {
+		// Lock held by another node or active job
 		return
 	}
 	defer release()
