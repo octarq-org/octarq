@@ -447,6 +447,8 @@ export const api = {
   // assertion — so core only lists and removes them.
   identities: () => req<LinkedIdentity[]>("GET", "/api/account/identities"),
   unlinkIdentity: (id: number) => req<{ ok: boolean }>("DELETE", `/api/account/identities/${id}`),
+  deleteUserAccount: (confirm: string) =>
+    req<{ ok: boolean }>("DELETE", "/api/account/user", { confirm }),
   acceptInvite: (token: string, password: string) =>
     req<{ ok: boolean }>("POST", "/api/auth/invite/accept", { token, password }),
 

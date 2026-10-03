@@ -159,6 +159,87 @@ describe("ProfileSettings suite", () => {
     fireEvent.click(screen.getByRole("button", { name: /update password/i }));
     expect(toastErrorSpy).toHaveBeenCalledWith(expect.stringMatching(/do not match/i));
   });
+
+  it("renders danger zone delete account button and opens confirmation modal", async () => {
+    vi.spyOn(api, "me").mockResolvedValue({
+      email: "user@octarq.local",
+      orgId: 1,
+    });
+
+    render(
+      <I18nProvider>
+        <MemoryRouter>
+          <ProfileSettings />
+        </MemoryRouter>
+      </I18nProvider>,
+    );
+
+    const deleteBtn = await screen.findByRole("button", { name: /delete my account/i });
+    expect(deleteBtn).toBeTruthy();
+
+    fireEvent.click(deleteBtn);
+    expect(screen.getByText("DELETE MY ACCOUNT")).toBeTruthy();
+    expect(screen.getByPlaceholderText("DELETE MY ACCOUNT")).toBeTruthy();
+  });
+
+  it("handles account deletion on valid confirmation text", async () => {
+    vi.spyOn(api, "me").mockResolvedValue({
+      email: "user@octarq.local",
+      orgId: 1,
+    });
+    const deleteAccountSpy = vi.spyOn(api, "deleteUserAccount").mockResolvedValue({ ok: true });
+    const toastSuccessSpy = vi.spyOn(ui.toast, "success");
+
+    render(
+      <I18nProvider>
+        <MemoryRouter>
+          <ProfileSettings />
+        </MemoryRouter>
+      </I18nProvider>,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /delete my account/i }));
+
+    const confirmInput = screen.getByPlaceholderText("DELETE MY ACCOUNT");
+    fireEvent.change(confirmInput, { target: { value: "DELETE MY ACCOUNT" } });
+
+    const permDeleteBtn = screen.getByRole("button", { name: /permanently delete/i });
+    fireEvent.click(permDeleteBtn);
+
+    await waitFor(() => {
+      expect(deleteAccountSpy).toHaveBeenCalledWith("DELETE MY ACCOUNT");
+      expect(toastSuccessSpy).toHaveBeenCalled();
+    });
+  });
+
+  it("handles account deletion error (e.g. 409 conflict)", async () => {
+    vi.spyOn(api, "me").mockResolvedValue({
+      email: "user@octarq.local",
+      orgId: 1,
+    });
+    vi.spyOn(api, "deleteUserAccount").mockRejectedValue(new ApiError(409, "leave all organizations before deleting your account"));
+    const toastErrorSpy = vi.spyOn(ui.toast, "error");
+
+    render(
+      <I18nProvider>
+        <MemoryRouter>
+          <ProfileSettings />
+        </MemoryRouter>
+      </I18nProvider>,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /delete my account/i }));
+
+    const confirmInput = screen.getByPlaceholderText("DELETE MY ACCOUNT");
+    fireEvent.change(confirmInput, { target: { value: "DELETE MY ACCOUNT" } });
+
+    const permDeleteBtn = screen.getByRole("button", { name: /permanently delete/i });
+    fireEvent.click(permDeleteBtn);
+
+    await waitFor(() => {
+      expect(toastErrorSpy).toHaveBeenCalledWith(expect.stringMatching(/leave all organizations/i));
+    });
+  });
 });
 
 describe("ApiTokens suite", () => {
