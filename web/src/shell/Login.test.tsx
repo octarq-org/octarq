@@ -113,7 +113,7 @@ describe("Login form suite", () => {
 
     await waitFor(() => {
       expect(verifyChallengeSpy).toHaveBeenCalledWith("654321");
-      expect(onLogin).toHaveBeenCalledWith("admin", 5);
+      expect(onLogin).toHaveBeenCalledWith("oauth@user.com", 5);
     });
   });
 
