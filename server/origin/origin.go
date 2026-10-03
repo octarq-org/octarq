@@ -29,24 +29,20 @@
 // via the OCTARQ_SHARED_HOSTS environment variable. This is safe because it is
 // an explicit deployment declaration, not inferred from the request.
 //
-// # The no-whitelist fallback
+// # The local development loopback fallback
 //
-// A fresh self-hosted instance has registered no domains at all, so there is
-// nothing to check Host against. Refusing to build any absolute URL there would
-// mean password reset never works until a domain is attached — for a build
-// composed without the dns plugin, never at all. Such an instance therefore
-// falls back to using the request host as-is.
+// A fresh self-hosted instance running locally has registered no domains at all,
+// so there is nothing to check Host against. To support local development while
+// strictly preventing Host header poisoning (CWE-640 / AUD-P2-03), the fallback path
+// permits ONLY verified loopback hosts (localhost, 127.0.0.1, [::1], *.localhost).
 //
-// The residual risk of that fallback is real but bounded: an attacker who can
-// reach the instance can still aim a reset link at their own host. What contains
-// it is that the fallback is switched off the moment ANY domain is registered —
-// see Resolver.Absolute. It is never a "try the whitelist, then trust the host
-// anyway" path, which would make the whitelist decorative. An operator who wants
-// the guarantee turns it on by registering the domain they serve on.
+// Any untrusted or external host header is rejected (returning "") unless explicitly
+// declared by the operator via OCTARQ_SHARED_HOSTS or registered in the domains table.
 package origin
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -434,6 +430,19 @@ func safeHostPort(raw string) bool {
 	return raw != "" && len(raw) <= 259 && !strings.ContainsAny(raw, unsafeHostChars)
 }
 
+// isLoopbackHost reports whether raw represents a loopback host (localhost, 127.0.0.1, [::1], etc.).
+func isLoopbackHost(raw string) bool {
+	host := NormalizeHost(raw)
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]" {
+		return true
+	}
+	if strings.HasSuffix(host, ".localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 // ttl bounds how long an ownership answer is reused. The endpoints that build
 // absolute URLs are unauthenticated and the dashboard gate runs on every page
 // load, so without a cache an attacker spraying Host headers is a free DB-query
@@ -753,9 +762,11 @@ func (rv *Resolver) Absolute(orgID uint, r *http.Request, secure bool) string {
 	if rv.AnyRegistered() || len(cachedSharedHosts(rv.db)) > 0 {
 		return ""
 	}
-	// No whitelist exists at all: nothing to check against. See the package
-	// comment for the scope of, and the residual risk in, this fallback.
-	if !safeHostPort(r.Host) {
+	// No whitelist exists at all: nothing to check against.
+	// To prevent Host header poisoning (CWE-640 / AUD-P2-03), never trust
+	// an arbitrary request Host. Only loopback hosts (localhost, 127.0.0.1, ::1)
+	// are permitted in this unconfigured fallback mode for local development.
+	if !isLoopbackHost(r.Host) || !safeHostPort(r.Host) {
 		return ""
 	}
 	if secure {

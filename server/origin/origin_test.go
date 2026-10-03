@@ -275,13 +275,23 @@ func TestAbsolute(t *testing.T) {
 		})
 	})
 
-	t.Run("no registered domain falls back to the request host", func(t *testing.T) {
+	t.Run("no registered domain falls back to loopback host only", func(t *testing.T) {
 		rv := NewResolver(testDB(t))
 		if got := rv.Absolute(0, req("localhost:8080"), false); got != "http://localhost:8080" {
 			t.Errorf("Absolute = %q, want http://localhost:8080", got)
 		}
 		if got := rv.Absolute(0, req("localhost:8080"), true); got != "https://localhost:8080" {
 			t.Errorf("Absolute over TLS = %q, want https://localhost:8080", got)
+		}
+		if got := rv.Absolute(0, req("127.0.0.1:3000"), false); got != "http://127.0.0.1:3000" {
+			t.Errorf("Absolute = %q, want http://127.0.0.1:3000", got)
+		}
+		// AUD-P2-03: non-loopback untrusted host must be rejected
+		if got := rv.Absolute(0, req("evil.com"), false); got != "" {
+			t.Errorf("Absolute = %q, want \"\" for untrusted non-loopback host", got)
+		}
+		if got := rv.Absolute(0, req("app.local"), true); got != "" {
+			t.Errorf("Absolute = %q, want \"\" for untrusted non-loopback host", got)
 		}
 	})
 
@@ -626,11 +636,14 @@ func TestAbsoluteAfterProvisioningUsesSharedHost(t *testing.T) {
 func TestCacheIsNamespacedPerDatabase(t *testing.T) {
 	clearAllCache()
 
-	// A whitelist-free instance: no domains table at all, so the fallback is on
-	// and the request Host is used as-is.
+	// A whitelist-free instance: no domains table at all.
+	// AUD-P2-03: Untrusted non-loopback host must be rejected, while loopback host resolves.
 	bare := NewResolver(openDB(t, "bare"))
-	if got := bare.Absolute(0, req("evil.example"), false); got != "http://evil.example" {
-		t.Fatalf("Absolute on a whitelist-free instance = %q, want the request host; the assertion below would be vacuous", got)
+	if got := bare.Absolute(0, req("evil.example"), false); got != "" {
+		t.Fatalf("Absolute on a whitelist-free instance with untrusted host = %q, want \"\"", got)
+	}
+	if got := bare.Absolute(0, req("localhost:8080"), false); got != "http://localhost:8080" {
+		t.Fatalf("Absolute on a whitelist-free instance with loopback host = %q, want \"http://localhost:8080\"", got)
 	}
 	if bare.AnyRegistered() {
 		t.Fatal("AnyRegistered on a database with no domains table")

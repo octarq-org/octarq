@@ -138,18 +138,23 @@ func TestForgotPasswordRejectsForgedHost(t *testing.T) {
 		}
 	})
 
-	t.Run("instance with no registered domain falls back to the request host", func(t *testing.T) {
-		// Documented fallback: with nothing registered there is no whitelist to
-		// check against, and refusing every absolute link would mean password
-		// reset never works on a fresh self-hosted instance. This is exactly why
-		// the fallback must switch off as soon as a domain exists — the case
-		// above.
+	t.Run("instance with no registered domain falls back to loopback host only", func(t *testing.T) {
 		srv, _, sent := originTestServer(t)
 
-		link := forgot(t, srv, sent, "octarq.internal:8080")
+		// Loopback host for local dev is honoured
+		link := forgot(t, srv, sent, "localhost:8080")
+		if !strings.HasPrefix(link, "http://localhost:8080/admin/reset?token=") {
+			t.Errorf("unregistered instance with localhost produced %q, want http://localhost:8080/admin/reset?token=...", link)
+		}
 
-		if !strings.HasPrefix(link, "http://octarq.internal:8080/admin/reset?token=") {
-			t.Errorf("unregistered instance produced %q, want the request host verbatim", link)
+		// AUD-P2-03: untrusted non-loopback host must NOT become origin (falls back to relative path)
+		*sent = nil
+		untrustedLink := forgot(t, srv, sent, "octarq.internal:8080")
+		if strings.Contains(untrustedLink, "octarq.internal") {
+			t.Fatalf("untrusted host header poisoned password-reset link: %s", untrustedLink)
+		}
+		if !strings.HasPrefix(untrustedLink, "/admin/reset?token=") {
+			t.Errorf("untrusted host produced %q, want relative /admin/reset path", untrustedLink)
 		}
 	})
 }
