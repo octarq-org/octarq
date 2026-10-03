@@ -61,7 +61,7 @@ Octarq includes a built-in, cookie-free A/B testing engine that distributes traf
 
 Protect sensitive links or launch time-limited promotional campaigns:
 
-- **Password Gate**: Set a secret passphrase. Unauthenticated visitors are presented with an HTML passcode gate. Submissions are verified using constant-time comparison (`subtle.ConstantTimeCompare`) to eliminate timing side-channel attacks. A sliding-window IP rate limiter (300 requests/minute) blocks brute-force attempts.
+- **Password Gate**: Set a secret passphrase. Unauthenticated visitors are presented with an HTML passcode gate. Submissions are verified securely to protect against brute-force guessing, supported by a sliding-window IP rate limiter (300 requests/minute).
 - **Expiration Timestamp**: Specify a future date and time (`ExpiresAt`). Once elapsed, visitors are redirected to a customizable **Expired URL** (or receive HTTP 404 if unconfigured).
 - **Click Ceiling**: Specify a maximum allowed total click count (`ClickLimit`).
 - **Cache Optimization**: Links configured with a click limit automatically utilize a reduced cache TTL (5 seconds) across edge nodes, preventing traffic over-delivery past the ceiling.

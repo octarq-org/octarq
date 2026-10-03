@@ -21,7 +21,7 @@ Octarq 支持通过两条专用的 HTTPS Webhook 端点接入入站邮件。
 2. 在 **入站配置** 下复制当前工作区的 **入站 Webhook URL**：
    `/api/webhook/{orgSlug}/email/inbound/{token}`
 3. 在 Cloudflare 控制台中进入 **Email Routing → Routing Rules**，创建 Cloudflare Email Worker 规则，将收到的原始邮件 POST 至该 Webhook 地址。
-4. 密钥校验使用常量时间比对 (`subtle.ConstantTimeCompare`)，有效抵御基于响应时序侧信道的安全嗅探。
+4. 采用安全令牌校验机制，确保仅授权的 Webhook 请求可以投递邮件。
 
 ### 通用原始 EML 入站 Webhook (RFC 822)
 

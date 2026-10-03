@@ -21,7 +21,7 @@ Octarq receives incoming mail over HTTPS through two specialized webhook endpoin
 2. Under **Inbound Configuration**, copy your workspace **Inbound Webhook URL**:
    `/api/webhook/{orgSlug}/email/inbound/{token}`
 3. In your Cloudflare Dashboard, navigate to **Email Routing → Routing Rules** and configure a Cloudflare Email Worker to POST raw email payloads to this URL.
-4. Token validation uses constant-time string comparison (`subtle.ConstantTimeCompare`) to defend against timing side-channel attacks.
+4. Inbound requests are authenticated using the secret token to ensure only authorized webhooks can deliver email.
 
 ### Generic Raw EML Inbound Webhook (RFC 822)
 
