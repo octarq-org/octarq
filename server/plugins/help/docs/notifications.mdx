@@ -37,19 +37,15 @@ After configuring any alert channel:
 3. Octarq immediately constructs a synthetic test alert payload and executes a live dispatch.
 4. The console displays the HTTP response status code, round-trip latency, and upstream error message (if the request was rejected).
 
-## Security Guards and Architectural Safeguards
+## Security and Reliability
 
-### Dial-Time SSRF Socket Guard
+### Internal Network Protection
 
-To ensure notification webhooks cannot be leveraged as an attack vector against internal cloud assets:
+To safeguard infrastructure security, webhook dispatches automatically validate destination addresses. Requests directed at internal, private, or cloud infrastructure addresses are strictly blocked to protect corporate networks.
 
-- Custom webhook dispatches utilize a hardened dialer (`safehttp.NewWebhookClient`).
-- Destination hostnames are resolved, and the resulting IP addresses are checked at socket dial time before initiating the TCP handshake.
-- Connections targeting loopback (`127.0.0.1`), RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), link-local IPs, or cloud instance metadata endpoints (`169.254.169.254`) are immediately aborted.
+### Asynchronous Reliable Delivery
 
-### Asynchronous Non-Blocking Dispatch
-
-All alert broadcasts execute asynchronously within an isolated worker pool (`safego.Go`). A slow or unresponsive third-party messaging API will never stall time-sensitive email ingestion, short link redirects, or REST API request lifecycles. Dispatches enforce a strict 10-second timeout.
+All alert notifications are processed asynchronously in the background. Latency or outages from external messaging services will not impact incoming email delivery, link redirects, or core dashboard performance. Dispatches enforce a 10-second request timeout.
 
 :::caution This is a Pro feature
 Octarq Pro expands notification capabilities with a dedicated Slack channel integration, featuring native Slack block-kit interactive formatting, channel routing, and strict domain pinning (`hooks.slack.com`).
