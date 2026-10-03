@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -212,6 +213,9 @@ func TestAuthSessionsMeAndInvite(t *testing.T) {
 	rec = do(srv, "POST", "/api/auth/invite/accept", nil, `{"token":"goodinvitetoken","password":"validpassword123"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("accept valid invite token: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Header().Get("Set-Cookie"), "octarq_session") {
+		t.Errorf("expected Set-Cookie to contain session cookie, got %q", rec.Header().Get("Set-Cookie"))
 	}
 
 	// 7. POST /api/auth/2fa/verify

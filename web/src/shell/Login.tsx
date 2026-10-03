@@ -9,7 +9,7 @@ import { oauthBeginPath } from "./oauthRoutes";
 import { authErrorKey, isVerifiedFlag } from "./authErrors";
 
 export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void }) {
-  const [u, setU] = useState("admin");
+  const [u, setU] = useState("");
   const [p, setP] = useState("");
   const [workspace, setWorkspace] = useState("");
   const [code, setCode] = useState("");
@@ -81,7 +81,7 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
 
   async function finishLogin(email: string) {
     const me = await api.me();
-    onLogin(email, me.orgId);
+    onLogin(me.email || email, me.orgId);
   }
 
   async function doSubmit() {

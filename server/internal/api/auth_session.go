@@ -450,7 +450,7 @@ func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Missing huma context")
 	}
-	r, _ := humago.Unwrap(input.Ctx)
+	r, w := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
 	// Same budget as the password-reset endpoints: this is an unauthenticated
 	// "completion" endpoint, so every request counts (there is no "failed"
@@ -500,9 +500,18 @@ func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*
 	h.audit(r, "user.activate", "user", user.ID, map[string]any{"email": user.Email})
 	// The invite is now redeemed: the account both joined its workspace(s) and
 	// set its password in this one step.
-	for _, oid := range h.memberOrgIDs(user.ID) {
+	memberOrgs := h.memberOrgIDs(user.ID)
+	for _, oid := range memberOrgs {
 		eventbus.Publish(oid, "member.join", map[string]any{"userId": user.ID, "email": user.Email})
 		eventbus.Publish(oid, "auth.password_changed", map[string]any{"userId": user.ID, "email": user.Email})
+	}
+
+	primaryOrgID := uint(0)
+	if len(memberOrgs) > 0 {
+		primaryOrgID = memberOrgs[0]
+	}
+	if w != nil && h.auth != nil {
+		h.auth.SetSessionFromRequest(r, w, user.ID, primaryOrgID)
 	}
 
 	out := &AcceptInviteOutput{}

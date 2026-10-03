@@ -38,9 +38,8 @@ export default function InviteAcceptPage() {
       await api.acceptInvite(token, password);
       setSuccess(true);
       setTimeout(() => {
-        navigate("/");
-        window.location.reload();
-      }, 2000);
+        window.location.href = "/";
+      }, 1500);
     } catch (e: any) {
       setErr(e.message || t("invite.errAcceptFailed"));
     } finally {
