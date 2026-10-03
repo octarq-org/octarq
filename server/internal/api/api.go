@@ -75,9 +75,10 @@ type Handler struct {
 
 	// hostOrgs caches Host→org resolution for per-workspace branding on the
 	// public, pre-auth config endpoint. See host_org.go.
-	hostOrgs    hostOrgCache
-	storage     *plugin.LocalStorageService
-	cronService plugin.CronService
+	hostOrgs           hostOrgCache
+	storage            *plugin.LocalStorageService
+	cronService        plugin.CronService
+	resendInviteLimits sync.Map
 }
 
 func (h *Handler) Storage() *plugin.LocalStorageService {
@@ -475,6 +476,7 @@ func (h *Handler) Routes() *http.ServeMux {
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/org/members", Summary: "Add Org Member", Tags: []string{"Org Management"}}, h.addOrgMember)
 	huma.Register(api, huma.Operation{Method: "PATCH", Path: "/api/org/members/{userId}", Summary: "Update Org Member Role", Tags: []string{"Org Management"}}, h.updateOrgMember)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/org/members/{userId}", Summary: "Remove Org Member", Tags: []string{"Org Management"}}, h.removeOrgMember)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/org/members/{userId}/resend", Summary: "Resend Org Member Invite", Tags: []string{"Org Management"}}, h.resendOrgMemberInvite)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "exportAccount",

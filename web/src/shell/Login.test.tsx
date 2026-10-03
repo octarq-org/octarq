@@ -40,7 +40,7 @@ describe("Login form suite", () => {
     expect(screen.getByLabelText(/password/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /^sign in$/i })).toBeTruthy();
     expect(screen.getByRole("button", { name: /forgot password\?/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /create one/i })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /create one/i })).toBeTruthy();
     expect(screen.getByText("Google")).toBeTruthy();
     expect(screen.getByText("GitHub")).toBeTruthy();
   });
