@@ -246,11 +246,6 @@ func TestTenantScopedCache_ExplicitAndForOrg(t *testing.T) {
 		t.Errorf("Key = %q, want org:42:links:pricing", got)
 	}
 
-	// ForOrg derives a new tenant cache
-	tc99 := tc.ForOrg(99)
-	if got := tc99.Prefix(); got != "org:99:org:42:links" && got != "org:99:links" {
-		// tc was already prefixed with org:42:links, ForOrg(99)
-	}
 	base := plugin.NewScopedCache("links", l1, nil)
 	base99 := base.ForOrg(99)
 	if got := base99.Prefix(); got != "org:99:links" {
