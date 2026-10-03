@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -29,12 +30,30 @@ func NewScoped(backend Cache, prefix string) plugin.ScopedCache {
 	}
 }
 
+// NewTenantScoped constructs a ScopedCache for the given tenant org and plugin namespace.
+func NewTenantScoped(backend Cache, orgID uint, prefix string) plugin.ScopedCache {
+	p := prefix
+	if orgID > 0 {
+		if prefix != "" {
+			p = fmt.Sprintf("org:%d:%s", orgID, prefix)
+		} else {
+			p = fmt.Sprintf("org:%d", orgID)
+		}
+	}
+	return NewScoped(backend, p)
+}
+
 // NewMemoryScoped creates an in-memory ScopedCache.
 func NewMemoryScoped() plugin.ScopedCache {
 	return NewScoped(NewMemoryCache(10000), "")
 }
 
-func (s *ScopedCache) fullKey(key string) string {
+func (s *ScopedCache) fullKey(ctx context.Context, key string) string {
+	if ctx != nil && !strings.HasPrefix(s.prefix, "org:") && !strings.HasPrefix(key, "org:") {
+		if orgID := plugin.OrgIDFromContext(ctx); orgID > 0 {
+			return fmt.Sprintf("org:%d:%s%s", orgID, s.prefix, key)
+		}
+	}
 	return s.prefix + key
 }
 
@@ -42,7 +61,7 @@ func (s *ScopedCache) Get(ctx context.Context, key string, dest any) (bool, erro
 	if s.backend == nil {
 		return false, nil
 	}
-	found := s.backend.Get(ctx, s.fullKey(key), dest)
+	found := s.backend.Get(ctx, s.fullKey(ctx, key), dest)
 	return found, nil
 }
 
@@ -50,14 +69,14 @@ func (s *ScopedCache) Set(ctx context.Context, key string, val any, ttl time.Dur
 	if s.backend == nil {
 		return nil
 	}
-	return s.backend.Set(ctx, s.fullKey(key), val, ttl)
+	return s.backend.Set(ctx, s.fullKey(ctx, key), val, ttl)
 }
 
 func (s *ScopedCache) Delete(ctx context.Context, key string) error {
 	if s.backend == nil {
 		return nil
 	}
-	return s.backend.Delete(ctx, s.fullKey(key))
+	return s.backend.Delete(ctx, s.fullKey(ctx, key))
 }
 
 func (s *ScopedCache) InvalidateTag(ctx context.Context, tag string) error {

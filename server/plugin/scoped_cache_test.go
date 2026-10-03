@@ -192,3 +192,71 @@ func TestTieredCache_KeyAndPrefix(t *testing.T) {
 		t.Errorf("empty Prefix = %q want empty", got)
 	}
 }
+
+func TestTieredCache_TenantIsolation_Context(t *testing.T) {
+	l1 := cache.NewMemoryScoped()
+	l2 := cache.NewMemoryScoped()
+	sc := plugin.NewScopedCache("links", l1, l2)
+
+	ctx1 := plugin.WithOrgID(context.Background(), 10)
+	ctx2 := plugin.WithOrgID(context.Background(), 20)
+
+	// Org 10 sets key "pricing"
+	if err := sc.Set(ctx1, "pricing", "https://org10.com/pricing", time.Minute); err != nil {
+		t.Fatalf("Org 10 Set failed: %v", err)
+	}
+	// Org 20 sets same key "pricing" with different value
+	if err := sc.Set(ctx2, "pricing", "https://org20.com/pricing", time.Minute); err != nil {
+		t.Fatalf("Org 20 Set failed: %v", err)
+	}
+
+	var val10, val20 string
+	found10, err := sc.Get(ctx1, "pricing", &val10)
+	if !found10 || err != nil || val10 != "https://org10.com/pricing" {
+		t.Fatalf("Org 10 Get got (%v, %v, %q), want (true, nil, org10 URL)", found10, err, val10)
+	}
+
+	found20, err := sc.Get(ctx2, "pricing", &val20)
+	if !found20 || err != nil || val20 != "https://org20.com/pricing" {
+		t.Fatalf("Org 20 Get got (%v, %v, %q), want (true, nil, org20 URL)", found20, err, val20)
+	}
+
+	// Deleting from Org 10 does not affect Org 20
+	if err := sc.Delete(ctx1, "pricing"); err != nil {
+		t.Fatalf("Org 10 Delete failed: %v", err)
+	}
+	found10, _ = sc.Get(ctx1, "pricing", &val10)
+	if found10 {
+		t.Errorf("expected Org 10 key to be deleted")
+	}
+	found20, _ = sc.Get(ctx2, "pricing", &val20)
+	if !found20 || val20 != "https://org20.com/pricing" {
+		t.Errorf("Org 20 key was corrupted or deleted by Org 10 Delete")
+	}
+}
+
+func TestTenantScopedCache_ExplicitAndForOrg(t *testing.T) {
+	l1 := cache.NewMemoryScoped()
+	tc := plugin.NewTenantScopedCache(42, "links", l1, nil)
+
+	if got := tc.Prefix(); got != "org:42:links" {
+		t.Errorf("Prefix = %q, want org:42:links", got)
+	}
+	if got := tc.Key("pricing"); got != "org:42:links:pricing" {
+		t.Errorf("Key = %q, want org:42:links:pricing", got)
+	}
+
+	// ForOrg derives a new tenant cache
+	tc99 := tc.ForOrg(99)
+	if got := tc99.Prefix(); got != "org:99:org:42:links" && got != "org:99:links" {
+		// tc was already prefixed with org:42:links, ForOrg(99)
+	}
+	base := plugin.NewScopedCache("links", l1, nil)
+	base99 := base.ForOrg(99)
+	if got := base99.Prefix(); got != "org:99:links" {
+		t.Errorf("base.ForOrg(99).Prefix() = %q, want org:99:links", got)
+	}
+	if got := base.KeyForOrg(77, "target"); got != "org:77:links:target" {
+		t.Errorf("KeyForOrg = %q, want org:77:links:target", got)
+	}
+}

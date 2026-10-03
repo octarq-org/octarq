@@ -2,6 +2,8 @@ package plugin
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -30,16 +32,47 @@ func NewScopedCache(pluginName string, l1, l2 ScopedCache) *TieredCache {
 	}
 }
 
-func (s *TieredCache) key(k string) string {
-	if s.prefix == "" {
-		return k
+// NewTenantScopedCache creates a new tenant-and-plugin scoped two-level cache.
+// Keys are namespaced under org:<orgID>:<pluginName> to ensure strict tenant isolation.
+func NewTenantScopedCache(orgID uint, pluginName string, l1, l2 ScopedCache) *TieredCache {
+	prefix := pluginName
+	if orgID > 0 {
+		if pluginName != "" {
+			prefix = fmt.Sprintf("org:%d:%s", orgID, pluginName)
+		} else {
+			prefix = fmt.Sprintf("org:%d", orgID)
+		}
 	}
-	return s.prefix + ":" + k
+	return NewScopedCache(prefix, l1, l2)
 }
 
-// Key returns the fully namespaced cache key for the given key string.
+// ForOrg returns a tenant-scoped view of this TieredCache with keys prefixed by org:<orgID>:<prefix>.
+func (s *TieredCache) ForOrg(orgID uint) *TieredCache {
+	return NewTenantScopedCache(orgID, s.prefix, s.l1, s.l2)
+}
+
+func (s *TieredCache) key(ctx context.Context, k string) string {
+	base := k
+	if s.prefix != "" {
+		base = s.prefix + ":" + k
+	}
+	if ctx != nil && !strings.HasPrefix(s.prefix, "org:") && !strings.HasPrefix(k, "org:") {
+		if orgID := OrgIDFromContext(ctx); orgID > 0 {
+			return fmt.Sprintf("org:%d:%s", orgID, base)
+		}
+	}
+	return base
+}
+
+// Key returns the fully namespaced cache key for the given key string (with no tenant context).
 func (s *TieredCache) Key(k string) string {
-	return s.key(k)
+	return s.key(context.Background(), k)
+}
+
+// KeyForOrg returns the fully namespaced cache key for the given orgID and key string.
+func (s *TieredCache) KeyForOrg(orgID uint, k string) string {
+	ctx := WithOrgID(context.Background(), orgID)
+	return s.key(ctx, k)
 }
 
 // Prefix returns the plugin namespace prefix.
@@ -50,7 +83,7 @@ func (s *TieredCache) Prefix() string {
 // Get retrieves a key, first checking L1. If missed and L2 is present,
 // it checks L2 and backfills L1 upon hit.
 func (s *TieredCache) Get(ctx context.Context, k string, dest any) (bool, error) {
-	fullKey := s.key(k)
+	fullKey := s.key(ctx, k)
 	if s.l1 != nil {
 		found, err := s.l1.Get(ctx, fullKey, dest)
 		if err != nil {
@@ -78,7 +111,7 @@ func (s *TieredCache) Get(ctx context.Context, k string, dest any) (bool, error)
 
 // Set writes through to both L1 and L2.
 func (s *TieredCache) Set(ctx context.Context, k string, val any, ttl time.Duration) error {
-	fullKey := s.key(k)
+	fullKey := s.key(ctx, k)
 	if s.l1 != nil {
 		if err := s.l1.Set(ctx, fullKey, val, ttl); err != nil {
 			return err
@@ -94,7 +127,7 @@ func (s *TieredCache) Set(ctx context.Context, k string, val any, ttl time.Durat
 
 // Delete removes the key from both L1 and L2.
 func (s *TieredCache) Delete(ctx context.Context, k string) error {
-	fullKey := s.key(k)
+	fullKey := s.key(ctx, k)
 	var err1, err2 error
 	if s.l1 != nil {
 		err1 = s.l1.Delete(ctx, fullKey)
@@ -110,7 +143,7 @@ func (s *TieredCache) Delete(ctx context.Context, k string) error {
 
 // InvalidateTag invalidates the tag in both L1 and L2.
 func (s *TieredCache) InvalidateTag(ctx context.Context, tag string) error {
-	fullTag := s.key(tag)
+	fullTag := s.key(ctx, tag)
 	var err1, err2 error
 	if s.l1 != nil {
 		err1 = s.l1.InvalidateTag(ctx, fullTag)
