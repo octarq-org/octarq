@@ -18,6 +18,7 @@ export function OrgMembersManager() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
   const [busy, setBusy] = useState(false);
+  const [resendingId, setResendingId] = useState<number | null>(null);
 
   async function load() {
     setLoading(true);
@@ -87,6 +88,22 @@ export function OrgMembersManager() {
       load();
     } catch (e: any) {
       toast.error(e.message || t("settings.failedRemoveMember"));
+    }
+  }
+
+  async function handleResend(userId: number) {
+    setResendingId(userId);
+    try {
+      const res = await api.resendOrgMemberInvite(userId);
+      if (res?.emailSent === false) {
+        toast.warning(t("settings.inviteNoMail"));
+      } else {
+        toast.success(t("settings.inviteResent"));
+      }
+    } catch (e: any) {
+      toast.error(e.message || t("settings.failedResendInvite"));
+    } finally {
+      setResendingId(null);
     }
   }
 
@@ -175,7 +192,17 @@ export function OrgMembersManager() {
                   )}
                 </div>
                 {canManage && !isSelf && (
-                  <div className="flex justify-end w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">
+                  <div className="flex items-center gap-2 justify-end w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">
+                    {m.pending && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => handleResend(m.userId)}
+                        disabled={resendingId === m.userId}
+                        className="text-xs min-h-[44px] sm:min-h-0 py-2 sm:py-1 px-3 sm:px-2.5"
+                      >
+                        {resendingId === m.userId ? t("settings.resending") : t("settings.resendInvite")}
+                      </Button>
+                    )}
                     <Button
                       variant="danger"
                       onClick={() => handleRemove(m.userId)}

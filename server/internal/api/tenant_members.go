@@ -486,3 +486,102 @@ func (h *Handler) removeOrgMember(ctx context.Context, input *RemoveOrgMemberInp
 	out.Body.OK = true
 	return out, nil
 }
+
+type ResendOrgMemberInviteInput struct {
+	UserID uint64       `path:"userId"`
+	Ctx    huma.Context `hidden:"true"`
+}
+
+func (i *ResendOrgMemberInviteInput) Resolve(ctx huma.Context) []error {
+	i.Ctx = ctx
+	return nil
+}
+
+type ResendOrgMemberInviteOutput struct {
+	Body struct {
+		OK        bool `json:"ok"`
+		EmailSent bool `json:"emailSent"`
+	}
+}
+
+// resendOrgMemberInvite re-generates an invite token and delivers a new invite
+// email to a pending workspace member who hasn't accepted yet.
+// POST /api/org/members/{userId}/resend
+func (h *Handler) resendOrgMemberInvite(ctx context.Context, input *ResendOrgMemberInviteInput) (*ResendOrgMemberInviteOutput, error) {
+	if input.Ctx == nil {
+		return nil, huma.Error500InternalServerError("Missing huma context")
+	}
+	r, _ := humago.Unwrap(input.Ctx)
+	r, ok := h.auth.AuthenticateRequest(r)
+	if !ok {
+		return nil, huma.Error401Unauthorized("unauthorized")
+	}
+
+	orgID, err := h.requireOrg(r)
+	if err != nil {
+		return nil, err
+	}
+	callerRole := string(h.effectiveRole(r))
+	if callerRole != "owner" && callerRole != "admin" {
+		return nil, huma.Error403Forbidden("forbidden: only owner/admin can manage members")
+	}
+
+	// Rate limit check: 30 seconds cooldown per user ID
+	if last, ok := h.resendInviteLimits.Load(input.UserID); ok {
+		if t, isTime := last.(time.Time); isTime && time.Since(t) < 30*time.Second {
+			return nil, huma.Error429TooManyRequests("please wait before resending invitation")
+		}
+	}
+
+	var mem models.OrgMember
+	if err := h.db.Where("org_id = ? AND user_id = ?", orgID, input.UserID).First(&mem).Error; err != nil {
+		return nil, huma.Error404NotFound("not a member of this organization")
+	}
+
+	var user models.User
+	if err := h.db.Where("id = ?", input.UserID).First(&user).Error; err != nil {
+		return nil, huma.Error404NotFound("user not found")
+	}
+	if user.InviteTokenHash == "" {
+		return nil, huma.Error400BadRequest("member has already accepted invitation")
+	}
+
+	tokenBytes := make([]byte, 24)
+	if _, err := rand.Read(tokenBytes); err != nil {
+		return nil, huma.Error500InternalServerError("failed to generate invite token")
+	}
+	rawInviteToken := hex.EncodeToString(tokenBytes)
+	expiresAt := time.Now().Add(24 * time.Hour)
+
+	if err := h.db.Model(&user).Updates(map[string]any{
+		"invite_token_hash": hashToken(rawInviteToken),
+		"invite_expires_at": &expiresAt,
+	}).Error; err != nil {
+		return nil, huma.Error500InternalServerError("failed to update invitation")
+	}
+
+	h.resendInviteLimits.Store(input.UserID, time.Now())
+
+	acceptURL := "/admin/invite/accept?token=" + rawInviteToken
+	if base := h.origin(r); base != "" {
+		acceptURL = base + acceptURL
+	}
+	sent := h.sendInviteEmail(user.Email, acceptURL)
+
+	h.audit(r, "member.invite_resend", "user", uint(input.UserID), map[string]any{
+		"actor":     h.auth.UserID(r),
+		"target":    input.UserID,
+		"email":     user.Email,
+		"emailSent": sent,
+	})
+	eventbus.Publish(orgID, "member.invite_resend", map[string]any{
+		"userId":    input.UserID,
+		"email":     user.Email,
+		"emailSent": sent,
+	})
+
+	out := &ResendOrgMemberInviteOutput{}
+	out.Body.OK = true
+	out.Body.EmailSent = sent
+	return out, nil
+}

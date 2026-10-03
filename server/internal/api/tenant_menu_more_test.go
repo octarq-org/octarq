@@ -384,6 +384,9 @@ func TestSendInviteEmailAndMenus(t *testing.T) {
 	if _, err := h.removeOrgMember(ctx, &RemoveOrgMemberInput{Ctx: nil}); err == nil {
 		t.Error("expected error for nil Ctx in removeOrgMember")
 	}
+	if _, err := h.resendOrgMemberInvite(ctx, &ResendOrgMemberInviteInput{Ctx: nil}); err == nil {
+		t.Error("expected error for nil Ctx in resendOrgMemberInvite")
+	}
 	if _, err := h.listMenus(ctx, &ListMenusInput{Ctx: nil}); err == nil {
 		t.Error("expected error for nil Ctx in listMenus")
 	}
@@ -561,6 +564,9 @@ func TestDirectUnauthHandlers(t *testing.T) {
 	}
 	if _, err := h.removeOrgMember(ctx, &RemoveOrgMemberInput{Ctx: humaCtx}); err == nil {
 		t.Error("expected 401 for direct removeOrgMember")
+	}
+	if _, err := h.resendOrgMemberInvite(ctx, &ResendOrgMemberInviteInput{Ctx: humaCtx}); err == nil {
+		t.Error("expected 401 for direct resendOrgMemberInvite")
 	}
 	if _, err := h.listMenus(ctx, &ListMenusInput{Ctx: humaCtx}); err == nil {
 		t.Error("expected 401 for direct listMenus")

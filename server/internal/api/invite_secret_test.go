@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
@@ -136,5 +137,70 @@ func TestInviteResponseOmitsTokenWhenMailUnconfigured(t *testing.T) {
 	}
 	if v, ok := m["emailSent"].(bool); !ok || v {
 		t.Fatalf("expected emailSent=false with no sender mounted, got %v", m["emailSent"])
+	}
+}
+
+func TestResendOrgMemberInvite(t *testing.T) {
+	h, srv, db := newTestHandlerRaw(t)
+	const orgID = uint(1)
+	adminUID := seedOrgMember(t, db, orgID, "admin_resend@example.com", "admin")
+	adminSession := sessionCookies(t, adminUID, orgID)
+	memberUID := seedOrgMember(t, db, orgID, "regular_resend@example.com", "member")
+	memberSession := sessionCookies(t, memberUID, orgID)
+	sent := captureInviteMail(t, h)
+
+	// 1. Invite a new user
+	email := "pending_invitee@example.com"
+	rec := do(srv, "POST", "/api/org/members", adminSession, fmt.Sprintf(`{"email":%q,"role":"member"}`, email))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("addOrgMember: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var invitedUser models.User
+	if err := db.Where("email = ?", email).First(&invitedUser).Error; err != nil {
+		t.Fatalf("find invited user: %v", err)
+	}
+	initialToken := tokenFromInviteMail(t, sent)
+	if initialToken == "" {
+		t.Fatal("expected initial invite token in email")
+	}
+
+	// 2. Member (non-admin) forbidden to resend
+	rec = do(srv, "POST", fmt.Sprintf("/api/org/members/%d/resend", invitedUser.ID), memberSession, "")
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for member resend, got %d", rec.Code)
+	}
+
+	// 3. Nonexistent user -> 404
+	rec = do(srv, "POST", "/api/org/members/99999/resend", adminSession, "")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 for nonexistent user resend, got %d", rec.Code)
+	}
+
+	// 4. Rate limit check: first resend succeeds
+	h.resendInviteLimits.Delete(uint64(invitedUser.ID))
+	rec = do(srv, "POST", fmt.Sprintf("/api/org/members/%d/resend", invitedUser.ID), adminSession, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 for valid resend, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	newToken := tokenFromInviteMail(t, sent)
+	if newToken == "" || newToken == initialToken {
+		t.Fatalf("expected newly generated token, got initial=%q, new=%q", initialToken, newToken)
+	}
+
+	// 5. Immediate resend within 30s rate limited -> 429
+	rec = do(srv, "POST", fmt.Sprintf("/api/org/members/%d/resend", invitedUser.ID), adminSession, "")
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 for rapid resend, got %d", rec.Code)
+	}
+
+	// 6. Already accepted user cannot be resent
+	var userRecord models.User
+	db.First(&userRecord, invitedUser.ID)
+	userRecord.InviteTokenHash = ""
+	db.Save(&userRecord)
+	h.resendInviteLimits.Delete(uint64(invitedUser.ID))
+	rec = do(srv, "POST", fmt.Sprintf("/api/org/members/%d/resend", invitedUser.ID), adminSession, "")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for already accepted member resend, got %d", rec.Code)
 	}
 }

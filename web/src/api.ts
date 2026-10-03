@@ -592,6 +592,8 @@ export const api = {
   updateOrgMemberRole: (userId: number, role: string) =>
     req<{ ok: boolean }>("PATCH", `/api/org/members/${userId}`, { role }),
   deleteOrgMember: (userId: number) => req<void>("DELETE", `/api/org/members/${userId}`),
+  resendOrgMemberInvite: (userId: number) =>
+    req<{ ok: boolean; emailSent?: boolean }>("POST", `/api/org/members/${userId}/resend`),
 
   // menus and user settings
   menus: () => req<MenuItem[]>("GET", "/api/menus"),
