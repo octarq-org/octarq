@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 func TestNew_MemoryDefault(t *testing.T) {
@@ -115,6 +117,47 @@ func TestScopedCache_PrefixIsolation(t *testing.T) {
 	found, _ = mailCache.Get(ctx, "item", &mailVal)
 	if !found || mailVal != "mail_data" {
 		t.Errorf("mailCache item should not have been affected by linksCache delete")
+	}
+}
+
+func TestScopedCache_TenantIsolation(t *testing.T) {
+	backend := NewMemoryCache(100)
+	sc := NewScoped(backend, "links")
+
+	ctx10 := plugin.WithOrgID(context.Background(), 10)
+	ctx20 := plugin.WithOrgID(context.Background(), 20)
+
+	_ = sc.Set(ctx10, "route", "target10", 0)
+	_ = sc.Set(ctx20, "route", "target20", 0)
+
+	var v10, v20 string
+	found, err := sc.Get(ctx10, "route", &v10)
+	if !found || err != nil || v10 != "target10" {
+		t.Fatalf("ctx10 got (%v, %v, %q), want (true, nil, target10)", found, err, v10)
+	}
+
+	found, err = sc.Get(ctx20, "route", &v20)
+	if !found || err != nil || v20 != "target20" {
+		t.Fatalf("ctx20 got (%v, %v, %q), want (true, nil, target20)", found, err, v20)
+	}
+
+	_ = sc.Delete(ctx10, "route")
+	found, _ = sc.Get(ctx10, "route", &v10)
+	if found {
+		t.Errorf("expected ctx10 route to be deleted")
+	}
+	found, _ = sc.Get(ctx20, "route", &v20)
+	if !found || v20 != "target20" {
+		t.Errorf("ctx20 route should remain intact")
+	}
+
+	// Test explicit NewTenantScoped
+	tsc := NewTenantScoped(backend, 42, "auth")
+	_ = tsc.Set(context.Background(), "token", "tok42", 0)
+	var vTok string
+	found, _ = tsc.Get(context.Background(), "token", &vTok)
+	if !found || vTok != "tok42" {
+		t.Errorf("tsc got (%v, %q), want (true, tok42)", found, vTok)
 	}
 }
 

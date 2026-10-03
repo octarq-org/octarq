@@ -40,6 +40,7 @@ func bootApp(t *testing.T) *App {
 	t.Setenv("OCTARQ_DB_DSN", filepath.Join(tempDir, "boot.db"))
 	t.Setenv("OCTARQ_SECRET_KEY", "app-boot-secret-key-32-bytes-long!!!")
 	t.Setenv("OCTARQ_ADMIN_PASSWORD", "app-boot-admin-pass")
+	t.Setenv("OCTARQ_LISTEN", "127.0.0.1:0")
 	a, err := New()
 	if err != nil {
 		t.Fatalf("New: %v", err)
