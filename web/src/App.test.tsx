@@ -53,19 +53,19 @@ vi.mock("./plugins/PluginRoutes", async (importOriginal) => {
 });
 
 describe("App Routing", () => {
-  it("sends /license to the instance console, not a tenant route", async () => {
-    // The license is instance state, so its page moved to the /instance
-    // console. That is a different router basename, so the tenant shell has to
-    // leave with a full page load — a router <Navigate> would resolve the
-    // target against /admin and land on the tenant catch-all.
+  it("sends /link-settings to the instance console, not a tenant route", async () => {
+    // Instance-level settings live in the /instance console. That is a different
+    // router basename, so the tenant shell has to leave with a full page load —
+    // a router <Navigate> would resolve the target against /admin and land on
+    // the tenant catch-all.
     const replace = vi.fn();
     Object.defineProperty(window, "location", {
-      value: { pathname: "/license", replace },
+      value: { pathname: "/link-settings", replace },
       writable: true,
     });
 
     render(
-      <MemoryRouter initialEntries={["/license"]}>
+      <MemoryRouter initialEntries={["/link-settings"]}>
         <I18nProvider>
           <App />
         </I18nProvider>
@@ -73,7 +73,7 @@ describe("App Routing", () => {
     );
 
     await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/instance/license");
+      expect(replace).toHaveBeenCalledWith("/instance/link-settings");
     }, { timeout: 2000 });
     // And it must not have quietly rendered the tenant catch-all instead.
     expect(screen.queryByText(/Not part of this build/i)).toBeNull();

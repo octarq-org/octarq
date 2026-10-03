@@ -96,8 +96,6 @@ export default function App() {
     // Same pattern as /status: the browser is on the console's basename, so
     // the tenant shell must not boot. The console handles its own auth gate.
     content = <Suspense fallback={<RouteFallback />}><InstanceConsole /></Suspense>;
-  } else if (window.location.pathname === "/license") {
-    content = <InstanceExitRedirect to="/instance/license" />;
   } else if (window.location.pathname === "/link-settings") {
     content = <InstanceExitRedirect to="/instance/link-settings" />;
   } else if (window.location.pathname === "/admin/invite/accept") {
@@ -348,10 +346,6 @@ function Shell({
       <PluginGateContext.Provider value={pluginGateCtxValue}>
         <Routes>
           <Route path="/"           element={<Navigate to="/overview" replace />} />
-          {/* The Pro license is instance state, so its page lives in the
-              /instance console. Crossing basenames needs a full page load —
-              a router <Navigate> would resolve to /admin/instance. */}
-          <Route path="/license"       element={<InstanceExitRedirect to="/instance/license" />} />
           <Route path="/link-settings" element={<InstanceExitRedirect to="/instance/link-settings" />} />
           <Route path="/onboarding"    element={<Navigate to="/overview" replace />} />
           <Route path="/overview"   element={<OverviewPage />} />
