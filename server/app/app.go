@@ -115,8 +115,7 @@ func New() (*App, error) {
 
 	geoResolver, err := geo.Open(cfg.GeoIPDB)
 	if err != nil {
-		slog.Warn("geoip disabled", "err", err)
-		geoResolver, _ = geo.Open("")
+		return nil, fmt.Errorf("open geoip database %q: %w", cfg.GeoIPDB, err)
 	}
 
 	telCfg := telemetry.ConfigFromEnv(config.DefaultAppName, buildinfo.Get().Version)
