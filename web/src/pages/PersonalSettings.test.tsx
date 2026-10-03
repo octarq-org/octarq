@@ -219,6 +219,42 @@ describe("ApiTokens suite", () => {
     });
   });
 
+  it("handles token revoke failure gracefully with error toast", async () => {
+    vi.spyOn(api, "tokens").mockResolvedValue([
+      {
+        id: 1,
+        name: "ci-pipeline",
+        prefix: "oct_live_1234",
+        note: "Github Actions runner",
+        userId: 1,
+        role: "admin",
+        lastUsedAt: "2026-08-30T00:00:00Z",
+        expiresAt: null,
+        createdAt: "2026-08-01T00:00:00Z",
+      },
+    ]);
+    vi.spyOn(ui, "confirmDialog").mockResolvedValue(true);
+    vi.spyOn(api, "deleteToken").mockRejectedValue(new Error("Network failed"));
+    const toastErrorSpy = vi.spyOn(ui.toast, "error");
+
+    render(
+      <I18nProvider>
+        <MemoryRouter>
+          <RoleProvider value={{ role: "admin", isInstanceAdmin: false }}>
+            <ApiTokens />
+          </RoleProvider>
+        </MemoryRouter>
+      </I18nProvider>,
+    );
+
+    const revokeBtn = await screen.findByRole("button", { name: /revoke/i });
+    fireEvent.click(revokeBtn);
+
+    await waitFor(() => {
+      expect(toastErrorSpy).toHaveBeenCalledWith("Network failed");
+    });
+  });
+
   it("creates a new token via modal and displays copy affordance", async () => {
     vi.spyOn(api, "tokens").mockResolvedValue([]);
     const createSpy = vi.spyOn(api, "createToken").mockResolvedValue({

@@ -248,8 +248,13 @@ export function ApiTokens() {
 
   async function remove(id: number) {
     if (!(await confirmDialog(t("personal.revokeConfirm")))) return;
-    await api.deleteToken(id);
-    load();
+    try {
+      await api.deleteToken(id);
+      toast.success(t("personal.tokenRevoked"));
+      load();
+    } catch (e: any) {
+      toast.error(e?.message || t("personal.tokenRevokeFailed"));
+    }
   }
 
   return (
