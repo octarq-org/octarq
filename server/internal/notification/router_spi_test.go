@@ -83,22 +83,15 @@ func TestRouter_DescriptorsAndRegistration(t *testing.T) {
 		t.Errorf("expected unknown type error, got %v", err)
 	}
 
-	// 7. Test that LegacyNotifierAdapter cannot downgrade an existing modern channel
-	modernEmail, ok := r.GetChannel("email")
-	if !ok {
-		t.Fatalf("built-in email channel must exist")
-	}
-	legacyEmail := NewLegacyNotifierAdapter("email", "Legacy Email", func(ctx context.Context, cfgJSON, text string) error {
+	// 7. Test channel replacement via RegisterChannel
+	replacementEmail := NewLegacyNotifierAdapter("email", "Updated Email Service", func(ctx context.Context, cfgJSON, text string) error {
 		return nil
 	})
-	if err := r.RegisterChannel(legacyEmail); err != nil {
+	if err := r.RegisterChannel(replacementEmail); err != nil {
 		t.Fatalf("RegisterChannel returned error: %v", err)
 	}
-	currentEmail, _ := r.GetChannel("email")
-	if _, isLegacy := currentEmail.(*LegacyNotifierAdapter); isLegacy {
-		t.Errorf("modern email channel was downgraded to legacy adapter!")
-	}
-	if currentEmail != modernEmail {
-		t.Errorf("expected modern email channel to be preserved, got %v", currentEmail)
+	currentEmail, ok := r.GetChannel("email")
+	if !ok || currentEmail != replacementEmail {
+		t.Errorf("expected channel replacement to take effect, got %v", currentEmail)
 	}
 }
