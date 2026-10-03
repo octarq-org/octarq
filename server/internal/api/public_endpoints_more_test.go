@@ -69,10 +69,10 @@ func TestPublicEndpointsMore(t *testing.T) {
 		_ = h.queue.Enqueue(context.Background(), "abuse.notify", []byte("invalid-json"))
 	}
 
-	// 6. Test /api/v1/ alias router
+	// 6. Test /api/v1/ alias is rejected (404)
 	recV1 := do(srv, "GET", "/api/v1/status", nil, "")
-	if recV1.Code != http.StatusOK {
-		t.Errorf("expected 200 on /api/v1/status, got %d", recV1.Code)
+	if recV1.Code != http.StatusNotFound {
+		t.Errorf("expected 404 on /api/v1/status, got %d", recV1.Code)
 	}
 	_ = db
 }
