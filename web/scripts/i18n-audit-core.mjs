@@ -50,6 +50,7 @@ export const ALLOWLIST_EXACT = new Set([
 
   // Technical confirmation tokens & constant identifiers
   "DELETE MY DATA",
+  "DELETE MY ACCOUNT",
   "OCTARQ_PRO_LICENSE",
   "OCTARQ_ENDPOINT",
   "license.publicKeyB64",
