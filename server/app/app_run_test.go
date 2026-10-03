@@ -833,18 +833,15 @@ func TestNewErrorPaths(t *testing.T) {
 		}
 	})
 
-	t.Run("missing geoip degrades", func(t *testing.T) {
+	t.Run("missing geoip fails closed", func(t *testing.T) {
 		t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
 		t.Setenv("OCTARQ_DB_DSN", filepath.Join(t.TempDir(), "geo.db"))
 		t.Setenv("OCTARQ_SECRET_KEY", "new-err-geo-secret-key-32-bytes!!!")
 		t.Setenv("OCTARQ_ADMIN_PASSWORD", "new-err-geo-admin-pass")
 		t.Setenv("OCTARQ_GEOIP_DB", filepath.Join(t.TempDir(), "no-such-file.mmdb"))
-		a, err := New()
-		if err != nil {
-			t.Fatalf("New with a broken geoip path = %v, want fallback", err)
-		}
-		if a.geo == nil {
-			t.Error("geo resolver is nil after the fallback")
+		_, err := New()
+		if err == nil {
+			t.Fatal("expected New to fail closed with a broken geoip path, got nil")
 		}
 	})
 }
