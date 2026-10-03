@@ -50,7 +50,7 @@ func overrideCompleteUserAuth(t *testing.T, fn func(w http.ResponseWriter, r *ht
 }
 
 func callbackRequest() *http.Request {
-	r := httptest.NewRequest(http.MethodGet, "/auth/callback/google?state=st", nil)
+	r := httptest.NewRequest(http.MethodGet, "http://localhost/auth/callback/google?state=st", nil)
 	r.SetPathValue("provider", "google")
 	return r
 }
@@ -197,7 +197,7 @@ func TestOAuthBeginRedirects(t *testing.T) {
 	InitGothStore("secret")
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/auth/begin/google", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://localhost/auth/begin/google", nil)
 	req.SetPathValue("provider", "google")
 	h.Begin(rec, req)
 
