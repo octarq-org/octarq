@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -539,20 +538,6 @@ func (h *Handler) Routes() *http.ServeMux {
 		Tags:        []string{"Files"},
 	}, h.getFile)
 
-	// /api/v1/x is a published alias for /api/x: the docs, the billing webhook
-	// URLs and the inbound-mail webhook URLs all hand out the v1 form. Dispatch
-	// happens through the same mux at request time, so routes plugins mount
-	// after Routes() returns are reachable under the alias too.
-	//
-	// Anything classifying by path *before* the mux (the rate limiter's tierFor,
-	// see internal/server/middleware.go) still sees the raw /api/v1/ path and
-	// must normalize it itself — otherwise /api/v1/auth/login escapes the strict
-	// auth tier.
-	mux.HandleFunc("/api/v1/", func(w http.ResponseWriter, r *http.Request) {
-		r.URL.Path = "/api/" + strings.TrimPrefix(r.URL.Path, "/api/v1/")
-		mux.ServeHTTP(w, r)
-	})
-
 	// The Error schema is registered by the first huma.Register above; fill in
 	// the closed code registry now that it exists.
 	documentErrorCodes(api.OpenAPI())
@@ -572,10 +557,7 @@ description of it. If it is not here, it is not served.
 
 ## Base path
 
-All endpoints live under ` + "`/api/`" + `. ` + "`/api/v1/…`" + ` is accepted as an alias for
-` + "`/api/…`" + `, but it is only a rewrite: it does not pin a frozen surface and
-carries no compatibility guarantee the unversioned path does not. Prefer
-` + "`/api/…`" + `.
+All endpoints live under ` + "`/api/`" + `.
 
 ## Authentication
 

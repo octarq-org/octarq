@@ -221,13 +221,6 @@ func (rl *rateLimiter) sweepLocked(now time.Time) {
 // tierFor classifies a request into a rate-limit tier by path/method.
 func tierFor(r *http.Request) tier {
 	p := r.URL.Path
-	// /api/v1/x is an alias the mux rewrites to /api/x, but this middleware runs
-	// before the mux and still sees the v1 form. Normalize before classifying,
-	// or /api/v1/auth/login lands in the generous API tier instead of the strict
-	// auth tier — a rate-limit bypass for password brute force.
-	if strings.HasPrefix(p, "/api/v1/") {
-		p = "/api/" + strings.TrimPrefix(p, "/api/v1/")
-	}
 	switch {
 	case strings.HasPrefix(p, "/api/auth/"), strings.HasPrefix(p, "/api/webhook/"):
 		return tierAuth
@@ -648,11 +641,7 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 // still record the token. Suppress the path (or the whole webhook route) in the
 // proxy's access-log config too, and rotate the token if those logs leaked.
 func redactPathSecrets(path string) string {
-	p := path
-	if strings.HasPrefix(p, "/api/v1/") {
-		p = "/api/" + strings.TrimPrefix(p, "/api/v1/")
-	}
-	if !strings.HasPrefix(p, "/api/webhook/") {
+	if !strings.HasPrefix(path, "/api/webhook/") {
 		return path
 	}
 	i := strings.LastIndex(path, "/")

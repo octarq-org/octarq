@@ -25,8 +25,6 @@ func TestRedactPathSecrets(t *testing.T) {
 		{"/api/webhook/acme/email/inbound/s3cr3t-token", "/api/webhook/acme/email/inbound/[redacted]"},
 		{"/api/webhook/acme/email/inbound/raw/s3cr3t-token", "/api/webhook/acme/email/inbound/raw/[redacted]"},
 		{"/api/webhook/acme/email/bounce/s3cr3t-token", "/api/webhook/acme/email/bounce/[redacted]"},
-		// The /api/v1 alias reaches this middleware unrewritten.
-		{"/api/v1/webhook/acme/email/inbound/s3cr3t-token", "/api/v1/webhook/acme/email/inbound/[redacted]"},
 		// Everything else is logged as-is: over-redacting would blind the log.
 		{"/api/auth/login", "/api/auth/login"},
 		{"/api/links/abc123", "/api/links/abc123"},
