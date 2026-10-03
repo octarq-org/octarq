@@ -17,11 +17,13 @@ export interface LockedFeatureProps {
   perks?: string[]; // what unlocking grants
   icon?: ReactNode; // icon node from the caller (keeps the package icon-lib-free)
   pricingHref?: string; // optional "compare plans" link to the landing page
+  upgradeHref?: string; // optional explicit target URL for upgrading
+  onUpgrade?: () => void; // optional custom upgrade action handler
   className?: string;
 }
 
 export const LockedFeature = forwardRef<HTMLDivElement, LockedFeatureProps>(
-  ({ status, tier = "pro", feature, description, perks, icon, pricingHref, className }, ref) => {
+  ({ status, tier = "pro", feature, description, perks, icon, pricingHref, upgradeHref, onUpgrade, className }, ref) => {
     // Both "unlicensed" (402) and "not built into this installation" (404) are
     // gated Pro states — show one unified upsell mask. Only genuinely unexpected
     // failures fall through to the neutral message.
@@ -83,7 +85,13 @@ export const LockedFeature = forwardRef<HTMLDivElement, LockedFeatureProps>(
           <div className="flex flex-col items-stretch gap-2 pt-1 sm:flex-row">
             <Button
               variant="primary"
-              onClick={() => (window.location.href = "/admin/settings/license")}
+              onClick={onUpgrade ?? (() => {
+                if (upgradeHref) {
+                  window.location.href = upgradeHref;
+                } else {
+                  window.location.href = "/instance/license";
+                }
+              })}
             >
               {t("uiCommon.upgradeTo", { tier: label })}
             </Button>
