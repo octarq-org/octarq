@@ -23,8 +23,15 @@ const (
 // underlying reader is drained without buffering an unbounded payload.
 // It returns the read bytes, whether content was truncated, and the total size.
 func readLimited(r io.Reader) (b []byte, truncated bool, totalBytes int) {
-	b, _ = io.ReadAll(io.LimitReader(r, maxPartBytes))
-	nDiscarded, _ := io.Copy(io.Discard, r)
+	var readErr error
+	b, readErr = io.ReadAll(io.LimitReader(r, maxPartBytes))
+	if readErr != nil {
+		slog.Warn("mail: read limited part error", "error", readErr)
+	}
+	nDiscarded, copyErr := io.Copy(io.Discard, r)
+	if copyErr != nil {
+		slog.Warn("mail: discard remaining part error", "error", copyErr)
+	}
 	totalBytes = len(b) + int(nDiscarded)
 	truncated = nDiscarded > 0
 	return b, truncated, totalBytes
@@ -78,8 +85,16 @@ func Parse(raw []byte) (*Parsed, error) {
 	}
 	h := mr.Header
 	p := &Parsed{Raw: raw, ReceivedAt: time.Now()}
-	p.MessageID, _ = h.MessageID()
-	p.Subject, _ = h.Subject()
+	var msgIDErr error
+	p.MessageID, msgIDErr = h.MessageID()
+	if msgIDErr != nil {
+		slog.Debug("mail: header Message-ID missing or invalid", "error", msgIDErr)
+	}
+	var subjErr error
+	p.Subject, subjErr = h.Subject()
+	if subjErr != nil {
+		slog.Debug("mail: header Subject missing or invalid", "error", subjErr)
+	}
 	if addrs, err := h.AddressList("From"); err == nil && len(addrs) > 0 {
 		p.From = addrs[0].Address
 	}
