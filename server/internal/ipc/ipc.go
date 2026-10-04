@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -114,15 +115,21 @@ func Listen(socketPath string) (net.Listener, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("ipc: mkdir %s: %w", dir, err)
 	}
-	_ = os.Chmod(dir, 0o700)
-	_ = os.Remove(socketPath)
+	if err := os.Chmod(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("ipc: chmod dir %s: %w", dir, err)
+	}
+	if err := os.Remove(socketPath); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("ipc: remove stale socket %s: %w", socketPath, err)
+	}
 	lc := net.ListenConfig{}
 	lis, err := lc.Listen(context.Background(), "unix", socketPath)
 	if err != nil {
 		return nil, fmt.Errorf("ipc: listen %s: %w", socketPath, err)
 	}
 	if err := os.Chmod(socketPath, 0o600); err != nil {
-		_ = lis.Close()
+		if closeErr := lis.Close(); closeErr != nil {
+			return nil, fmt.Errorf("ipc: chmod %s: %w (close error: %v)", socketPath, err, closeErr)
+		}
 		return nil, fmt.Errorf("ipc: chmod %s: %w", socketPath, err)
 	}
 	return lis, nil
@@ -194,7 +201,9 @@ func (d *Daemon) Serve(ctx context.Context, lis net.Listener) error {
 		<-ctx.Done()
 		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = srv.Shutdown(shutCtx)
+		if err := srv.Shutdown(shutCtx); err != nil {
+			log.Printf("ipc: shutdown error: %v", err)
+		}
 	}()
 	if err := srv.Serve(lis); err != nil && err != http.ErrServerClosed {
 		return err
