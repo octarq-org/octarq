@@ -12,7 +12,9 @@ const slugAlphabet = "abcdefghijkmnpqrstuvwxyz23456789"
 
 func RandomSlug(n int) string {
 	b := make([]byte, n)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("models: crypto/rand entropy failure: " + err.Error())
+	}
 	for i := range b {
 		b[i] = slugAlphabet[int(b[i])%len(slugAlphabet)]
 	}
