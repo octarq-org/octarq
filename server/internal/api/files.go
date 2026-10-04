@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -337,7 +338,9 @@ func (h *Handler) downloadFile(ctx context.Context, input *DownloadFileInput) (*
 			ctx.SetHeader("Content-Length", strconv.FormatInt(file.Size, 10))
 			ctx.SetHeader("Content-Disposition", fmt.Sprintf("%s; filename=%q", dispType, file.Name))
 			w := ctx.BodyWriter()
-			_, _ = io.Copy(w, rc)
+			if _, err := io.Copy(w, rc); err != nil {
+				slog.Warn("file download stream ended with error", "fileId", file.ID, "err", err)
+			}
 		},
 	}, nil
 }
