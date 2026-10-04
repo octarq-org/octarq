@@ -2,6 +2,7 @@ package mail
 
 import (
 	"fmt"
+	"log"
 	netmail "net/mail"
 	"strconv"
 	"strings"
@@ -194,7 +195,9 @@ func (p *Plugin) recordSentEmail(orgID uint, from, to, subject, text, html strin
 	if err := tdb.Where("address = ?", from).First(&mb).Error; err != nil {
 		if err := tdb.First(&mb).Error; err != nil {
 			mb = Mailbox{OrgID: orgID, Address: from, Enabled: true, Note: "outbound"}
-			_ = tdb.Create(&mb).Error
+			if err := tdb.Create(&mb).Error; err != nil {
+				log.Printf("mail: failed to auto-create outbound mailbox for org %d: %v", orgID, err)
+			}
 		}
 	}
 	if mb.ID != 0 {
@@ -209,6 +212,8 @@ func (p *Plugin) recordSentEmail(orgID uint, from, to, subject, text, html strin
 			Read:       true,
 			ReceivedAt: time.Now(),
 		}
-		_ = p.db.Create(&sentEmail).Error
+		if err := p.db.Create(&sentEmail).Error; err != nil {
+			log.Printf("mail: failed to persist sent email record for mailbox %d: %v", mb.ID, err)
+		}
 	}
 }
