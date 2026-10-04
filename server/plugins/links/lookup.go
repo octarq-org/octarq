@@ -2,6 +2,7 @@ package links
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/octarq-org/octarq/server/plugins/dns"
@@ -57,7 +58,9 @@ func (e *Engine) Lookup(host, slug string) (*Link, bool) {
 		if link.ClickLimit > 0 {
 			ttl = clickLimitCacheTTL
 		}
-		_ = e.ctx.CacheSet(ctx, cacheKey, &link, ttl)
+		if err := e.ctx.CacheSet(ctx, cacheKey, &link, ttl); err != nil {
+			log.Printf("links: cacheSet failed for key %s: %v", cacheKey, err)
+		}
 	}
 	return &link, true
 }
@@ -101,7 +104,9 @@ func (e *Engine) scopeForHost(slug, host string) (*gorm.DB, bool) {
 func (e *Engine) cacheNegative(ctx context.Context, cacheKey string) {
 	var empty Link
 	if e.ctx != nil && e.ctx.CacheSet != nil {
-		_ = e.ctx.CacheSet(ctx, cacheKey, &empty, time.Minute)
+		if err := e.ctx.CacheSet(ctx, cacheKey, &empty, time.Minute); err != nil {
+			log.Printf("links: cacheNegative failed for key %s: %v", cacheKey, err)
+		}
 	}
 }
 

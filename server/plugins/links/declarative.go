@@ -2,6 +2,7 @@ package links
 
 import (
 	"context"
+	"log"
 	"strings"
 	"time"
 
@@ -67,7 +68,9 @@ func (p *Plugin) createDeclarativeLink(ctx context.Context, in DeclarativeLinkIn
 		p.publishEvent(l.OrgID, "link.create", map[string]any{"id": l.ID, "slug": l.Slug, "host": l.Host, "target": l.Target})
 	}
 	if p.deleteCache != nil {
-		_ = p.deleteCache(ctx, "link:redirect:"+l.Host+":"+l.Slug)
+		if err := p.deleteCache(ctx, "link:redirect:"+l.Host+":"+l.Slug); err != nil {
+			log.Printf("links: failed to delete cache for %s:%s: %v", l.Host, l.Slug, err)
+		}
 	}
 	return &DeclarativeLinkOutput{
 		ID:          l.ID,
