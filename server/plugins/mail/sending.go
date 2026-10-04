@@ -11,6 +11,7 @@ import (
 	"github.com/octarq-org/octarq/server/internal/mail"
 	"github.com/octarq-org/octarq/server/internal/usagemetric"
 	"github.com/octarq-org/octarq/server/plugin"
+	"gorm.io/gorm"
 )
 
 func (p *Plugin) getStorageProvider() (plugin.StorageProvider, error) {
@@ -113,11 +114,9 @@ func (p *Plugin) mailReady() bool {
 	return n > 0
 }
 
-// systemSender resolves the instance's system sender: the one selected in
-// instance settings (mail_system_sender_id) when present and still existing,
-// otherwise the lowest-id sender on the instance (deterministic fallback that
-// also covers a stale reference to a deleted sender). Returns an explicit
-// error when no sender exists at all.
+// systemSender resolves the instance's system sender: the one explicitly
+// selected in instance settings (mail_system_sender_id). Pre-v1.0 fail-closed
+// invariants strictly prohibit falling back to lowest-id or arbitrary tenant senders.
 func (p *Plugin) systemSender() (*SMTPSender, error) {
 	if p.getGlobalSetting != nil {
 		if idStr := strings.TrimSpace(p.getGlobalSetting("mail_system_sender_id")); idStr != "" {
@@ -126,14 +125,12 @@ func (p *Plugin) systemSender() (*SMTPSender, error) {
 				if err := p.db.First(&s, id).Error; err == nil {
 					return &s, nil
 				}
+				return nil, fmt.Errorf("configured system SMTP sender %d not found: %w", id, gorm.ErrRecordNotFound)
 			}
+			return nil, fmt.Errorf("invalid mail_system_sender_id setting %q", idStr)
 		}
 	}
-	var s SMTPSender
-	if err := p.db.Order("id ASC").First(&s).Error; err != nil {
-		return nil, fmt.Errorf("no SMTP sender configured on this instance; system email cannot be sent. Configure an SMTP sender (Mail → SMTP senders) or mount a plugin providing mail.send")
-	}
-	return &s, nil
+	return nil, fmt.Errorf("no SMTP sender configured on this instance; configure mail_system_sender_id in system settings")
 }
 
 // deliverVia sends one message through the given sender record, handling

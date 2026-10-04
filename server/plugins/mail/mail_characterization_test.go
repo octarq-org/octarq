@@ -47,29 +47,23 @@ func TestMail_Characterization_SystemSenderFailClosed(t *testing.T) {
 	p.db.Create(&SMTPSender{ID: 1, OrgID: 1, Name: "tenant1-sender"})
 	p.db.Create(&SMTPSender{ID: 2, OrgID: 2, Name: "tenant2-sender"})
 
-	// 2. With no mail_system_sender_id configured, resolves lowest ID default sender.
-	s, err := p.systemSender()
-	if err != nil {
-		t.Fatalf("systemSender failed with senders in db: %v", err)
-	}
-	if s.ID != 1 {
-		t.Fatalf("expected default sender ID=1, got %d", s.ID)
+	// 2. With no mail_system_sender_id configured, MUST fail closed (no lowest-ID fallback).
+	_, err = p.systemSender()
+	if err == nil {
+		t.Fatal("expected systemSender to fail closed when mail_system_sender_id is not configured")
 	}
 
-	// 3. With stale/deleted sender ID, falls back deterministically to lowest ID sender.
+	// 3. With stale/deleted sender ID, MUST fail closed (no lowest-ID fallback).
 	settings := map[string]string{"mail_system_sender_id": "999"}
 	p.getGlobalSetting = func(k string) string { return settings[k] }
-	s, err = p.systemSender()
-	if err != nil {
-		t.Fatalf("systemSender failed with stale sender setting: %v", err)
-	}
-	if s.ID != 1 {
-		t.Fatalf("expected fallback sender ID=1, got %d", s.ID)
+	_, err = p.systemSender()
+	if err == nil {
+		t.Fatal("expected systemSender to fail closed when mail_system_sender_id points to non-existent sender")
 	}
 
 	// 4. With valid configured sender ID, systemSender resolves configured sender.
 	settings["mail_system_sender_id"] = "2"
-	s, err = p.systemSender()
+	s, err := p.systemSender()
 	if err != nil {
 		t.Fatalf("systemSender failed with valid sender: %v", err)
 	}

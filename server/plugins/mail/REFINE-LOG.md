@@ -21,7 +21,7 @@
   - `inbound.go` & `inbound_multipart.go`: proper error handling on header parsing and MIME extraction.
   - `mailbox.go`: verified quota calculation errors.
   - `ratelimit.go`: fail-closed on limiter initialization failure.
-  - `sending.go`: fail-closed guard when no SMTP sender configured; proper error logging on auto-created outbound mailbox records.
+  - `sending.go`: Removed lowest-ID SMTP sender fallback in `sending.go:120-136`. Enforced fail-closed tenant isolation (requires explicit `mail_system_sender_id` setting or returns explicit error; no arbitrary tenant sender leakage); proper error logging on auto-created outbound mailbox records.
 
 ## Stage 3: Atomic Refactoring & File Hygiene
 - Decomposed monolithic `mail_edge_test.go` into:
