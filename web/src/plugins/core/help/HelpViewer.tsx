@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useHref, useLocation, useNavigate } from "react-router-dom";
 import DOMPurify from "dompurify";
 import { api, HelpCategory, HelpDocMeta } from "../../../api";
@@ -6,24 +6,18 @@ import { useTranslation } from "../../../i18n";
 import {
   BookOpen,
   ChevronRight,
-  ArrowLeft,
-  ArrowRight,
   Check,
-  ListFilter,
   AlertTriangle,
   Clock,
   Share2,
 } from "lucide-react";
+import { useDocDomEnhancer } from "./useDocDomEnhancer";
+import { HelpDocToc, type TocItem } from "./HelpDocToc";
+import { HelpDocPagination } from "./HelpDocPagination";
 
 interface DocContent {
   title: string;
   html: string;
-}
-
-interface TocItem {
-  id: string;
-  text: string;
-  level: number;
 }
 
 export default function HelpViewer() {
@@ -99,168 +93,27 @@ export default function HelpViewer() {
     api
       .helpPage(currentSlug, lang)
       .then((res) => setContent(res))
-      .catch((err: any) => {
-        setError(err.message || "Failed to load documentation");
-        setErrorMeta({ status: err?.status, requestId: err?.requestId });
+      .catch((err: unknown) => {
+        const errorObj = err as { message?: string; status?: number; requestId?: string };
+        setError(errorObj.message || "Failed to load documentation");
+        setErrorMeta({ status: errorObj.status, requestId: errorObj.requestId });
       })
       .finally(() => setLoadingContent(false));
   }, [currentSlug, lang, retryNonce]);
 
-  // Expands 2-segment /help/<slug> links to include category using doc index.
-  const resolveInAppPath = useCallback(
-    (href: string) => {
-      if (!href.startsWith("/help/")) return href;
-      const [path, hash] = href.split("#");
-      const parts = path.split("/").filter(Boolean); // ["help", …]
-      const slug = parts[parts.length - 1];
-      const doc = docs.find((d) => d.slug === slug);
-      const resolved = doc ? getDocUrl(doc) : path;
-      return hash ? `${resolved}#${hash}` : resolved;
-    },
-    [docs],
-  );
-
-  // Post-process HTML content for interactive code blocks, responsive tables, callouts & SPA routing
-  useEffect(() => {
-    if (!contentRef.current || !content?.html) return;
-
-    // Rewrite in-app links, then intercept their clicks for SPA routing.
-    const links = contentRef.current.querySelectorAll("a");
-    links.forEach((a) => {
-      // Resolution needs the doc index; without it every /help/<slug> would be
-      // frozen at its unexpanded form. The effect re-runs when it arrives.
-      if (a.dataset.navEnhanced || docs.length === 0) return;
-      a.dataset.navEnhanced = "true";
-      const href = a.getAttribute("href");
-      if (
-        href &&
-        href.startsWith("/") &&
-        !href.startsWith("//")
-      ) {
-        const target = resolveInAppPath(href);
-        // The href carries the basename so the URL the browser exposes is real;
-        // navigate() takes the router path, which does not.
-        a.setAttribute("href", routerBase + target);
-        a.onclick = (e) => {
-          e.preventDefault();
-          navigate(target);
-        };
-      }
-    });
-
-    // Wrap tables in responsive scroll wrapper
-    const tables = contentRef.current.querySelectorAll("table");
-    tables.forEach((table) => {
-      if (table.parentElement?.classList.contains("table-wrapper")) return;
-      const wrapper = document.createElement("div");
-      wrapper.className = "table-wrapper";
-      table.parentNode?.insertBefore(wrapper, table);
-      wrapper.appendChild(table);
-    });
-
-    // Add code block headers with language badges & copy buttons
-    const preBlocks = contentRef.current.querySelectorAll("pre");
-    preBlocks.forEach((pre) => {
-      if (pre.dataset.enhanced) return;
-      pre.dataset.enhanced = "true";
-
-      const wrapper = document.createElement("div");
-      wrapper.className = "code-block-wrapper";
-
-      const header = document.createElement("div");
-      header.className = "code-block-header";
-
-      const codeElem = pre.querySelector("code");
-      const langClass = Array.from(codeElem?.classList || []).find((c) =>
-        c.startsWith("language-"),
-      );
-      const langText = langClass
-        ? langClass.replace("language-", "").toUpperCase()
-        : "CODE";
-
-      const langSpan = document.createElement("span");
-      langSpan.textContent = langText;
-      langSpan.className = "code-block-lang";
-
-      const copyBtn = document.createElement("button");
-      copyBtn.className = "code-block-copy-btn";
-      copyBtn.innerHTML = `<span>Copy</span>`;
-
-      copyBtn.onclick = () => {
-        const text = pre.textContent || "";
-        navigator.clipboard.writeText(text);
-        copyBtn.innerHTML = `<span style="color:#10b981;font-weight:700">Copied!</span>`;
-        setTimeout(() => {
-          copyBtn.innerHTML = `<span>Copy</span>`;
-        }, 2000);
-      };
-
-      header.appendChild(langSpan);
-      header.appendChild(copyBtn);
-
-      pre.parentNode?.insertBefore(wrapper, pre);
-      wrapper.appendChild(header);
-      wrapper.appendChild(pre);
-    });
-
-    // Style blockquotes as GFM callouts / alert cards based strictly on [!TYPE] tag at the start
-    const blockquotes = contentRef.current.querySelectorAll("blockquote");
-    blockquotes.forEach((bq) => {
-      if (bq.dataset.enhanced) return;
-      bq.dataset.enhanced = "true";
-      const text = (bq.textContent || "").trim();
-
-      let type: "tip" | "warning" | "important" | "note" | null = null;
-      let label = "";
-
-      const match = text.match(/^\[!(TIP|WARNING|CAUTION|IMPORTANT|NOTE)\]/i);
-      if (match) {
-        const tag = match[1].toUpperCase();
-        if (tag === "TIP") {
-          type = "tip";
-          label = `💡 ${t("help.callout_tip", "TIP")}`;
-        } else if (tag === "WARNING" || tag === "CAUTION") {
-          type = "warning";
-          label = `⚠️ ${t("help.callout_warning", "WARNING")}`;
-        } else if (tag === "IMPORTANT") {
-          type = "important";
-          label = `🚨 ${t("help.callout_important", "IMPORTANT")}`;
-        } else if (tag === "NOTE") {
-          type = "note";
-          label = `ℹ️ ${t("help.callout_note", "NOTE")}`;
-        }
-      }
-
-      if (type) {
-        bq.classList.add("callout", `callout-${type}`);
-
-        const walker = document.createTreeWalker(bq, NodeFilter.SHOW_TEXT, null);
-        let node = walker.nextNode();
-        while (node) {
-          if (node.nodeValue && /\[!(TIP|WARNING|CAUTION|IMPORTANT|NOTE)\]/i.test(node.nodeValue)) {
-            node.nodeValue = node.nodeValue.replace(/\[!(TIP|WARNING|CAUTION|IMPORTANT|NOTE)\]/gi, "");
-            break;
-          }
-          node = walker.nextNode();
-        }
-
-        const titleDiv = document.createElement("div");
-        titleDiv.className = "callout-title";
-        titleDiv.textContent = label;
-
-        const contentDiv = document.createElement("div");
-        while (bq.firstChild) {
-          contentDiv.appendChild(bq.firstChild);
-        }
-
-        bq.appendChild(titleDiv);
-        bq.appendChild(contentDiv);
-      }
-    });
-  }, [content?.html, t, docs.length, resolveInAppPath, routerBase]);
+  // Hook to enhance DOM for interactive code blocks, tables, GFM callouts, SPA navigation
+  useDocDomEnhancer({
+    contentRef,
+    html: content?.html,
+    docs,
+    routerBase,
+    navigate,
+    getDocUrl,
+    t,
+  });
 
   // Extract Table of Contents from HTML content
-  const toc = useMemo(() => {
+  const toc = useMemo<TocItem[]>(() => {
     if (!content?.html) return [];
     const div = document.createElement("div");
     div.innerHTML = content.html;
@@ -329,9 +182,7 @@ export default function HelpViewer() {
             <>
               <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
               {categoryObj && (
-                <span
-                  className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-primary/10 text-primary border-primary/20"
-                >
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-primary/10 text-primary border-primary/20">
                   {categoryObj.labels[lang] || categoryObj.labels["en"] || categoryObj.key}
                 </span>
               )}
@@ -351,7 +202,7 @@ export default function HelpViewer() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/80 bg-background hover:bg-surface-hover text-xs font-medium text-muted-foreground hover:text-foreground transition-all shadow-xs"
           >
             {copiedLink ? (
-              <Check className="w-3.5 h-3.5 text-emerald-500" /* ui-color-ok */ />
+              <Check className="w-3.5 h-3.5 text-success-fg" />
             ) : (
               <Share2 className="w-3.5 h-3.5" />
             )}
@@ -374,7 +225,10 @@ export default function HelpViewer() {
                   <h1 className="text-lg font-bold">{t("help.not_found_title", "That page isn't in this build")}</h1>
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  {t("help.not_found_body", "No documentation is installed under this address. The plugin that owns it may not be part of this edition, or the page may have been renamed.")}
+                  {t(
+                    "help.not_found_body",
+                    "No documentation is installed under this address. The plugin that owns it may not be part of this edition, or the page may have been renamed.",
+                  )}
                 </p>
                 {docs.length > 0 && (
                   <button
@@ -422,9 +276,7 @@ export default function HelpViewer() {
                   <div className="space-y-4 border-b border-border/50 pb-6 mb-8">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       {categoryObj && (
-                        <span
-                          className="text-xs font-bold px-3 py-1 rounded-full border shadow-2xs flex items-center gap-1.5 bg-primary/10 text-primary border-primary/20"
-                        >
+                        <span className="text-xs font-bold px-3 py-1 rounded-full border shadow-2xs flex items-center gap-1.5 bg-primary/10 text-primary border-primary/20">
                           <span className="w-1.5 h-1.5 rounded-full bg-current inline-block" />
                           {categoryObj.labels[lang] || categoryObj.labels["en"] || categoryObj.key}
                         </span>
@@ -433,7 +285,9 @@ export default function HelpViewer() {
                       <div className="flex items-center gap-3 text-xs text-muted-foreground/80 font-medium">
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-primary" />
-                          <span>{readTimeMinutes} {t("help.read_time", "min read")}</span>
+                          <span>
+                            {readTimeMinutes} {t("help.read_time", "min read")}
+                          </span>
                         </div>
                         <span>•</span>
                         <span>
@@ -456,79 +310,18 @@ export default function HelpViewer() {
                 </div>
 
                 {/* Bottom Pagination Controls */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                  {prevDoc ? (
-                    <button
-                      onClick={() => navigate(getDocUrl(prevDoc))}
-                      className="p-4 rounded-2xl border border-border/80 bg-card hover:bg-surface-hover text-left transition-colors group flex items-start gap-3 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      <ArrowLeft className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:-translate-x-1 transition-transform mt-0.5 shrink-0" aria-hidden="true" />
-                      <div>
-                        <div className="text-[10px] text-muted-foreground uppercase font-semibold">
-                          {t("help.prev_doc", "Previous")}
-                        </div>
-                        <div className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
-                          {prevDoc.title}
-                        </div>
-                      </div>
-                    </button>
-                  ) : (
-                    <div />
-                  )}
-
-                  {nextDoc ? (
-                    <button
-                      onClick={() => navigate(getDocUrl(nextDoc))}
-                      className="p-4 rounded-2xl border border-border/80 bg-card hover:bg-surface-hover text-right transition-colors group flex items-start justify-end gap-3 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      <div>
-                        <div className="text-[10px] text-muted-foreground uppercase font-semibold">
-                          {t("help.next_doc", "Next")}
-                        </div>
-                        <div className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
-                          {nextDoc.title}
-                        </div>
-                      </div>
-                      <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-transform mt-0.5 shrink-0" aria-hidden="true" />
-                    </button>
-                  ) : (
-                    <div />
-                  )}
-                </div>
+                <HelpDocPagination
+                  prevDoc={prevDoc}
+                  nextDoc={nextDoc}
+                  onNavigateDoc={(doc) => navigate(getDocUrl(doc))}
+                />
               </div>
             ) : null}
           </div>
         </div>
 
         {/* Right Table of Contents Sidebar (Desktop) */}
-        {toc.length > 0 && (
-          <div className="w-64 border-l border-border/60 bg-background p-6 hidden lg:flex flex-col h-full overflow-hidden shrink-0">
-            <div className="flex items-center gap-2 text-xs font-bold text-foreground mb-4 shrink-0">
-              <ListFilter className="w-4 h-4 text-primary" />
-              <span>{t("help.on_this_page", "On this page")}</span>
-            </div>
-            <nav className="flex-1 overflow-y-auto scrollbar-thin space-y-1.5 text-xs border-l-2 border-border/40 ml-1 pl-2 pr-1">
-              {toc.map((item) => (
-                <a
-                  key={item.id}
-                  href={`#${item.id}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-                    document
-                      .getElementById(item.id)
-                      ?.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth" });
-                  }}
-                  className={`block py-1 px-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary truncate ${
-                    item.level === 3 ? "pl-4 text-[11px]" : "font-medium"
-                  }`}
-                >
-                  {item.text}
-                </a>
-              ))}
-            </nav>
-          </div>
-        )}
+        <HelpDocToc items={toc} />
       </div>
     </div>
   );
