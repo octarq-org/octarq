@@ -154,7 +154,7 @@ export default function LinksPage() {
             </div>
             {searchInput && (
               <Button variant="ghost" className="text-xs py-1.5 px-2" onClick={() => setSearchInput("")}>
-                {t("links.clear")}
+                {t("links.emptyFilteredAction")}
               </Button>
             )}
           </div>

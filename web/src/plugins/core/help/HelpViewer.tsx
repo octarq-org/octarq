@@ -202,7 +202,7 @@ export default function HelpViewer() {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/80 bg-background hover:bg-surface-hover text-xs font-medium text-muted-foreground hover:text-foreground transition-all shadow-xs"
           >
             {copiedLink ? (
-              <Check className="w-3.5 h-3.5 text-emerald-500" />
+              <Check className="w-3.5 h-3.5 text-success-fg" />
             ) : (
               <Share2 className="w-3.5 h-3.5" />
             )}
