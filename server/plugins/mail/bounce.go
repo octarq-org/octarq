@@ -240,7 +240,7 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 				safego.Go("mail.bounce-notify", func() {
 					ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 					defer cancel()
-					_ = p.emit(ctxCtx, plugin.NotificationPayload{
+					if err := p.emit(ctxCtx, plugin.NotificationPayload{
 						EventType: "mail.bounce",
 						Title:     "Email Delivery Failure",
 						Body:      alertText,
@@ -249,14 +249,18 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 						Data: map[string]any{
 							"orgId": org.ID,
 						},
-					})
+					}); err != nil {
+						log.Printf("mail: failed to emit bounce notification for org %d: %v", org.ID, err)
+					}
 				})
 			} else if len(channels) > 0 && p.notify != nil {
 				safego.Go("mail.bounce-notify", func() {
 					ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 					defer cancel()
 					for _, ch := range channels {
-						_ = p.notify(ctxCtx, ch.Type, ch.Config, alertText)
+						if err := p.notify(ctxCtx, ch.Type, ch.Config, alertText); err != nil {
+							log.Printf("mail: failed to notify channel %s for org %d: %v", ch.Type, org.ID, err)
+						}
 					}
 				})
 			}

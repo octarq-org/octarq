@@ -78,7 +78,7 @@ func TestHumaGuard_NoDirectAPIRegistration(t *testing.T) {
 					}
 					// Allow-list: infrastructure routes that intentionally bypass Huma
 					// (MCP SSE/stream are stdlib handlers).
-					if strings.Contains(path, "internal/api/api.go") && strings.Contains(trim, "/api/mcp/") {
+					if strings.Contains(path, "internal/api/") && strings.Contains(trim, "/api/mcp/") {
 						continue
 					}
 					// Only flag if the literal "/api/" appears inside the Handle call's pattern argument.

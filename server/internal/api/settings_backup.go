@@ -53,7 +53,9 @@ func (h *Handler) downloadBackup(ctx context.Context, input *DownloadBackupInput
 
 	f, err := os.Open(tmpFile)
 	if err != nil {
-		_ = os.Remove(tmpFile)
+		if remErr := os.Remove(tmpFile); remErr != nil {
+			slog.Warn("failed to remove tmp backup file", "file", tmpFile, "err", remErr)
+		}
 		return nil, huma.Error500InternalServerError("open backup file failed")
 	}
 
@@ -64,9 +66,13 @@ func (h *Handler) downloadBackup(ctx context.Context, input *DownloadBackupInput
 			w := ctx.BodyWriter()
 			ctx.SetHeader("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 			ctx.SetHeader("Content-Type", "application/octet-stream")
-			_, _ = io.Copy(w, f)
+			if _, copyErr := io.Copy(w, f); copyErr != nil {
+				slog.Error("failed streaming backup file", "file", tmpFile, "err", copyErr)
+			}
 			f.Close()
-			_ = os.Remove(tmpFile)
+			if remErr := os.Remove(tmpFile); remErr != nil {
+				slog.Warn("failed to remove tmp backup file after streaming", "file", tmpFile, "err", remErr)
+			}
 		},
 	}, nil
 }

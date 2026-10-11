@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -61,10 +62,14 @@ func (rl *rateLimiter) allow(ip string) bool {
 
 func (rl *rateLimiter) recordFailure(ip string) {
 	ctx := context.Background()
-	_, _ = rl.store.Increment(ctx, ip, 1, rl.rate)
+	if _, err := rl.store.Increment(ctx, ip, 1, rl.rate); err != nil {
+		slog.Warn("rate limiter increment failure", "ip", ip, "err", err)
+	}
 }
 
 func (rl *rateLimiter) reset(ip string) {
 	ctx := context.Background()
-	_, _ = rl.store.Reset(ctx, ip, rl.rate)
+	if _, err := rl.store.Reset(ctx, ip, rl.rate); err != nil {
+		slog.Warn("rate limiter reset failure", "ip", ip, "err", err)
+	}
 }

@@ -139,11 +139,19 @@ func TestSendSystemMailNoSenderReturnsClearError(t *testing.T) {
 // TestSendSystemMailDeliversWithoutOrg pins the send path itself: a sender on
 // some workspace delivers system mail to the fake relay. The send carries no
 // orgID — the recipient's membership (or lack of one) must not matter.
+// TestSendSystemMailDeliversWithoutOrg pins the send path itself: an explicitly
+// configured system sender delivers system mail to the fake relay. The send carries no
+// orgID — the recipient's membership (or lack of one) must not matter.
 func TestSendSystemMailDeliversWithoutOrg(t *testing.T) {
 	host, port, got := captureSMTP(t)
-	p, db := newSystemMailTestPlugin(t, nil)
+	p, db := newSystemMailTestPlugin(t, func(key string) string {
+		if key == "mail_system_sender_id" {
+			return "1"
+		}
+		return ""
+	})
 	if err := db.Create(&SMTPSender{
-		OrgID: 1, Name: "relay", Host: host, Port: port,
+		ID: 1, OrgID: 1, Name: "relay", Host: host, Port: port,
 		User: "u", Pass: "pw", FromEmail: "noreply@example.com",
 	}).Error; err != nil {
 		t.Fatalf("seed sender: %v", err)
@@ -159,10 +167,9 @@ func TestSendSystemMailDeliversWithoutOrg(t *testing.T) {
 	}
 }
 
-// TestSystemSenderResolution pins the deterministic resolution order: the
-// explicitly configured sender (mail_system_sender_id) wins when it exists; a
-// stale id falls back to the lowest-id sender; with no setting the lowest-id
-// sender wins.
+// TestSystemSenderResolution pins the fail-closed resolution order: the
+// explicitly configured sender (mail_system_sender_id) wins when it exists;
+// unset or stale ids fail closed without falling back to arbitrary tenant senders.
 func TestSystemSenderResolution(t *testing.T) {
 	settings := map[string]string{}
 	p, db := newSystemMailTestPlugin(t, func(key string) string { return settings[key] })
@@ -175,18 +182,14 @@ func TestSystemSenderResolution(t *testing.T) {
 		t.Fatalf("seed second: %v", err)
 	}
 
-	// Unset → lowest id.
-	s, err := p.systemSender()
-	if err != nil {
-		t.Fatalf("systemSender: %v", err)
-	}
-	if s.ID != 1 {
-		t.Fatalf("unset setting resolved sender %d, want 1 (lowest id)", s.ID)
+	// Unset → fail closed.
+	if _, err := p.systemSender(); err == nil {
+		t.Fatal("unset setting must fail closed without fallback to lowest id")
 	}
 
 	// Configured → that sender.
 	settings["mail_system_sender_id"] = "2"
-	s, err = p.systemSender()
+	s, err := p.systemSender()
 	if err != nil {
 		t.Fatalf("systemSender: %v", err)
 	}
@@ -194,13 +197,9 @@ func TestSystemSenderResolution(t *testing.T) {
 		t.Fatalf("configured setting resolved sender %d, want 2", s.ID)
 	}
 
-	// Stale id (sender deleted) → deterministic fallback to the lowest id.
+	// Stale id (sender deleted) → fail closed.
 	settings["mail_system_sender_id"] = "999"
-	s, err = p.systemSender()
-	if err != nil {
-		t.Fatalf("systemSender: %v", err)
-	}
-	if s.ID != 1 {
-		t.Fatalf("stale setting resolved sender %d, want 1 (fallback)", s.ID)
+	if _, err := p.systemSender(); err == nil {
+		t.Fatal("stale setting must fail closed without fallback to lowest id")
 	}
 }
