@@ -9,8 +9,10 @@ import { oauthBeginPath, oauthCallbackPath } from "./oauthRoutes";
 // silently never works for anyone who followed the instructions on screen.
 //
 // So the assertion reads the Go route table instead of restating the paths,
-// which would just be the same copy that drifted the first time.
-const GO_ROUTES = import.meta.glob("../../../server/internal/api/api.go", {
+// which would just be the same copy that drifted the first time. The glob
+// covers the whole api package: the god-file split moved route registration
+// out of api.go, and pinning one filename goes quiet when it moves again.
+const GO_ROUTES = import.meta.glob("../../../server/internal/api/*.go", {
   query: "?raw",
   import: "default",
   eager: true,
@@ -27,7 +29,7 @@ function goOAuthRoutes(): string[] {
 }
 
 describe("OAuth route contract with the Go half", () => {
-  it("parses both routes out of internal/api/api.go", () => {
+  it("parses both routes out of the internal/api package", () => {
     // Without this the two assertions below pass vacuously against an empty
     // list — the guard would go quiet exactly when the routes were renamed.
     expect(goOAuthRoutes().sort()).toEqual(["/auth/begin/{provider}", "/auth/callback/{provider}"]);
