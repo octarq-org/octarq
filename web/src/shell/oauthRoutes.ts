@@ -1,6 +1,7 @@
 // The two OAuth paths the Go half serves, in one place.
 //
-// These are registered in internal/api/api.go as
+// These are registered in server/internal/api (api_routes.go, after the
+// god-file split) as
 //   GET /auth/begin/{provider}
 //   GET /auth/callback/{provider}
 // and internal/auth/oauth.go builds the redirect URI it sends the provider from
