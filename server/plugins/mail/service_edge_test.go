@@ -279,7 +279,14 @@ func TestSendSystemMailFailurePublishesEvent(t *testing.T) {
 	}
 
 	// A sender pointing at an unreachable port: the send fails and the event fires.
-	db.Create(&SMTPSender{OrgID: 1, Name: "dead", Host: "127.0.0.1", Port: 1, User: "u", Pass: "p", FromEmail: "noreply@example.com"})
+	deadSender := SMTPSender{OrgID: 1, Name: "dead", Host: "127.0.0.1", Port: 1, User: "u", Pass: "p", FromEmail: "noreply@example.com"}
+	db.Create(&deadSender)
+	p.getGlobalSetting = func(k string) string {
+		if k == "mail_system_sender_id" {
+			return fmt.Sprint(deadSender.ID)
+		}
+		return ""
+	}
 	if err := p.sendSystemMail("to@example.com", "subj", "", "body"); err == nil {
 		t.Fatal("sendSystemMail to an unreachable relay must fail")
 		return
@@ -295,7 +302,14 @@ func TestSendSystemMailSuccessRecordsUsage(t *testing.T) {
 	p.decrypt = func(encoded string) ([]byte, error) { return []byte(encoded), nil }
 
 	host, port, _ := captureSMTP(t)
-	db.Create(&SMTPSender{OrgID: 3, Name: "relay", Host: host, Port: port, User: "u", Pass: "p", FromEmail: "noreply@example.com"})
+	relaySender := SMTPSender{OrgID: 3, Name: "relay", Host: host, Port: port, User: "u", Pass: "p", FromEmail: "noreply@example.com"}
+	db.Create(&relaySender)
+	p.getGlobalSetting = func(k string) string {
+		if k == "mail_system_sender_id" {
+			return fmt.Sprint(relaySender.ID)
+		}
+		return ""
+	}
 
 	usage := 0
 	p.recordUsage = func(orgID uint, metric string, n int64) {

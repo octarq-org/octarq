@@ -3,6 +3,7 @@ package links
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 
@@ -84,14 +85,19 @@ func (p *Plugin) quickCreateLink(ctx context.Context, input *QuickCreateLinkInpu
 
 	if p.enqueue != nil {
 		payload, _ := json.Marshal(map[string]any{
-			"id":     l.ID,
-			"target": l.Target,
+			"id":       l.ID,
+			"target":   l.Target,
+			"owner_id": l.OrgID,
 		})
-		_ = p.enqueue(r.Context(), "link.crawl", payload)
+		if err := p.enqueue(r.Context(), "link.crawl", payload); err != nil {
+			log.Printf("links: failed to enqueue link.crawl for link %d: %v", l.ID, err)
+		}
 	}
 
 	if p.deleteCache != nil {
-		_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+		if err := p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug); err != nil {
+			log.Printf("links: failed to delete cache for %s:%s: %v", l.Host, l.Slug, err)
+		}
 	}
 	return &QuickCreateLinkOutput{Body: view(l)}, nil
 }
@@ -180,9 +186,13 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 	}
 
 	if p.deleteCache != nil {
-		_ = p.deleteCache(r.Context(), "link:redirect:"+oldHost+":"+oldSlug)
+		if err := p.deleteCache(r.Context(), "link:redirect:"+oldHost+":"+oldSlug); err != nil {
+			log.Printf("links: failed to delete old cache for %s:%s: %v", oldHost, oldSlug, err)
+		}
 		if oldHost != l.Host || oldSlug != l.Slug {
-			_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+			if err := p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug); err != nil {
+				log.Printf("links: failed to delete cache for %s:%s: %v", l.Host, l.Slug, err)
+			}
 		}
 	}
 
@@ -230,7 +240,9 @@ func (p *Plugin) deleteLink(ctx context.Context, input *DeleteLinkInput) (*Delet
 	p.db.Where("link_id IN (?)", linkIDs).Delete(&LinkEvent{})
 	tdb.Delete(&l)
 	if p.deleteCache != nil {
-		_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+		if err := p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug); err != nil {
+			log.Printf("links: failed to delete cache for %s:%s: %v", l.Host, l.Slug, err)
+		}
 	}
 
 	if p.audit != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -101,7 +102,9 @@ func (h *Handler) submitAbuse(ctx context.Context, input *SubmitAbuseInput) (*Su
 
 	// Best-effort notification to all enabled channels via task queue.
 	payload, _ := json.Marshal(rep)
-	_ = h.queue.Enqueue(r.Context(), "abuse.notify", payload)
+	if err := h.queue.Enqueue(r.Context(), "abuse.notify", payload); err != nil {
+		slog.Warn("failed to enqueue abuse notification", "reportId", rep.ID, "err", err)
+	}
 
 	out := &SubmitAbuseOutput{}
 	out.Body.OK = true
@@ -124,7 +127,7 @@ func (h *Handler) notifyAbuse(rep models.AbuseReport) {
 	defer cancel()
 	ctx = plugin.WithOrgID(ctx, orgID)
 
-	_ = notification.Emit(ctx, plugin.NotificationPayload{
+	if err := notification.Emit(ctx, plugin.NotificationPayload{
 		EventType: "abuse.report",
 		Title:     fmt.Sprintf("🚨 Abuse Report #%d", rep.ID),
 		Body:      msg,
@@ -137,7 +140,9 @@ func (h *Handler) notifyAbuse(rep models.AbuseReport) {
 			"target":      rep.Target,
 			"description": rep.Description,
 		},
-	})
+	}); err != nil {
+		slog.Warn("failed to emit abuse notification", "reportId", rep.ID, "err", err)
+	}
 }
 
 type ListAbuseReportsInput struct {

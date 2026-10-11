@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -261,7 +262,9 @@ func (h *Handler) resetPassword(ctx context.Context, input *ResetPasswordInput) 
 	var sessions []models.Session
 	h.db.Where("user_id = ?", user.ID).Find(&sessions)
 	for _, s := range sessions {
-		_ = h.auth.Cache().Delete(ctx, "session:"+s.Token)
+		if err := h.auth.Cache().Delete(ctx, "session:"+s.Token); err != nil {
+			slog.Warn("failed to delete session cache on password reset", "token", s.Token, "err", err)
+		}
 	}
 	h.db.Where("user_id = ?", user.ID).Delete(&models.Session{})
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -247,16 +248,21 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 		"rows":        meta.RowCount,
 		"duration_ms": meta.Duration.Milliseconds(),
 	}
-	metaJSON, _ := json.Marshal(metaMap)
+	metaJSON, err := json.Marshal(metaMap)
+	if err != nil {
+		log.Printf("[tenantsql] failed to marshal audit log metadata: %v", err)
+	}
 
-	_ = db.Create(&models.AuditLog{
+	if err := db.Create(&models.AuditLog{
 		OrgID:      orgID,
 		ActorID:    actorID,
 		Action:     "tenant_sql.query",
 		TargetType: "tenant_sql",
 		Meta:       string(metaJSON),
 		CreatedAt:  time.Now(),
-	}).Error
+	}).Error; err != nil {
+		log.Printf("[tenantsql] warning: failed to write query audit log: %v", err)
+	}
 
 	return result, meta, nil
 }
