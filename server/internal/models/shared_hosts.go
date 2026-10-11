@@ -22,7 +22,7 @@ func SharedHosts(db *gorm.DB) []string {
 	var raw string
 	if db != nil && db.Migrator().HasTable("settings") {
 		var s Setting
-		if err := db.First(&s, "key = ?", SharedHostsSetting).Error; err == nil {
+		if err := db.Where("key = ?", SharedHostsSetting).Limit(1).Find(&s).Error; err == nil && s.Key != "" {
 			raw = s.Value
 		}
 	}

@@ -360,7 +360,9 @@ func (h *Handler) deleteAccount(ctx context.Context, input *DeleteAccountInput) 
 	var sessions []models.Session
 	h.db.Where("user_id = ?", uid).Find(&sessions)
 	for _, s := range sessions {
-		_ = h.auth.Cache().Delete(r.Context(), "session:"+s.Token)
+		if err := h.auth.Cache().Delete(r.Context(), "session:"+s.Token); err != nil {
+			slog.Warn("failed to evict session cache", "token", s.Token, "err", err)
+		}
 	}
 
 	// Delete user-scoped rows in one transaction. OrgMember is swept even though

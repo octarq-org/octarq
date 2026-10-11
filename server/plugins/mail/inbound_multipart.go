@@ -28,7 +28,9 @@ func findMultipartField(r *http.Request, names []string) []byte {
 			f, err := files[0].Open()
 			if err == nil {
 				b, readErr := io.ReadAll(io.LimitReader(f, 25<<20))
-				_ = f.Close()
+				if closeErr := f.Close(); closeErr != nil {
+					log.Printf("mail: failed to close multipart upload file %s: %v", name, closeErr)
+				}
 				if readErr == nil && len(b) > 0 {
 					return b
 				}
