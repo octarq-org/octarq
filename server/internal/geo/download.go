@@ -218,7 +218,10 @@ func fetch(ctx context.Context, client *http.Client, base, key, suffix string) (
 		return nil, redactKey(err, key)
 	}
 	if resp.StatusCode != http.StatusOK {
-		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 200))
+		snippet, readErr := io.ReadAll(io.LimitReader(resp.Body, 200))
+		if readErr != nil && len(snippet) == 0 {
+			snippet = []byte(fmt.Sprintf("<error reading body: %v>", readErr))
+		}
 		resp.Body.Close()
 		return nil, fmt.Errorf("geoip download (%s): HTTP %d from MaxMind (check OCTARQ_MAXMIND_LICENSE_KEY): %s",
 			suffix, resp.StatusCode, firstN(strings.TrimSpace(string(snippet)), 120))

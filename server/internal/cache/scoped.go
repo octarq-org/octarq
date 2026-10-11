@@ -92,8 +92,11 @@ func (s *ScopedCache) InvalidateTag(ctx context.Context, tag string) error {
 	delete(s.tags, tag)
 	s.mu.Unlock()
 
+	var firstErr error
 	for k := range keys {
-		_ = s.backend.Delete(ctx, k)
+		if err := s.backend.Delete(ctx, k); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
-	return nil
+	return firstErr
 }

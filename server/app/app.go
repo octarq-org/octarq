@@ -31,17 +31,14 @@ import (
 	"github.com/octarq-org/octarq/server/idempotency"
 	"github.com/octarq-org/octarq/server/internal/api"
 	"github.com/octarq-org/octarq/server/internal/auth"
-	"github.com/octarq-org/octarq/server/internal/buildinfo"
 	"github.com/octarq-org/octarq/server/internal/cache"
 	"github.com/octarq-org/octarq/server/internal/cleanup"
 	"github.com/octarq-org/octarq/server/internal/cron"
 	"github.com/octarq-org/octarq/server/internal/crypto"
-	"github.com/octarq-org/octarq/server/internal/db"
 	"github.com/octarq-org/octarq/server/internal/endpoint"
 	"github.com/octarq-org/octarq/server/internal/eventbus"
 	"github.com/octarq-org/octarq/server/internal/geo"
 	"github.com/octarq-org/octarq/server/internal/mcp"
-	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/internal/monitor"
 	"github.com/octarq-org/octarq/server/internal/notification"
 	"github.com/octarq-org/octarq/server/internal/queue"
@@ -49,7 +46,6 @@ import (
 	"github.com/octarq-org/octarq/server/origin"
 	"github.com/octarq-org/octarq/server/pkg/telemetry"
 	"github.com/octarq-org/octarq/server/plugin"
-	"github.com/octarq-org/octarq/server/plugin/safehttp"
 	"github.com/octarq-org/octarq/server/webembed"
 	"gorm.io/gorm"
 )
@@ -73,98 +69,13 @@ func (a *App) HealthCollector() *monitor.Collector {
 	return a.healthCollector.Load()
 }
 
-// New loads configuration and opens the database (without migrating). Call
-// Use to register plugins, then Run.
-func New() (*App, error) {
-	cfg, err := config.Load()
-	if err != nil {
-		return nil, err
-	}
-
-	gdb, err := db.Open(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	eventbus.Init(gdb)
-	// Opt webhook/notification delivery into private targets only when the operator
-	// has explicitly allowed it (trusted internal receivers); default stays strict.
-	safehttp.SetAllowPrivateWebhooks(cfg.AllowPrivateWebhooks)
-	safehttp.SetAllowPrivateSMTP(cfg.AllowPrivateSMTP)
-
-	cipher := crypto.New(cfg.SecretKey)
-	// Webhook signing secrets are AES-GCM encrypted at rest; teach the eventbus how
-	// to unwrap them before HMAC-signing a delivery. (Envelope mode is enabled in
-	// Run before any delivery fires.)
-	eventbus.SetSecretDecryptor(func(stored string) (string, bool) {
-		b, err := cipher.Decrypt(stored)
-		if err != nil {
-			return "", false
-		}
-		return string(b), true
-	})
-	notification.SetConfigDecryptor(func(stored string) (string, bool) {
-		b, err := cipher.Decrypt(stored)
-		if err != nil {
-			return "", false
-		}
-		return string(b), true
-	})
-	cacheLayer := cache.New(cfg.RedisURL)
-	authMgr := auth.New(cfg, cipher).WithDB(gdb).WithCache(cacheLayer)
-
-	geoResolver, err := geo.Open(cfg.GeoIPDB)
-	if err != nil {
-		return nil, fmt.Errorf("open geoip database %q: %w", cfg.GeoIPDB, err)
-	}
-
-	telCfg := telemetry.ConfigFromEnv(config.DefaultAppName, buildinfo.Get().Version)
-	tel, err := telemetry.Init(context.Background(), telCfg)
-	if err != nil {
-		slog.Warn("telemetry init failed", "err", err)
-	}
-
-	a := &App{
-		cfg:       cfg,
-		gdb:       gdb,
-		cipher:    cipher,
-		auth:      authMgr,
-		geo:       geoResolver,
-		telemetry: tel,
-	}
-	// Composition is the caller's job: New() mounts no feature plugins. Each
-	// entry point (octarq/main.go, a downstream distribution's main, a trimmed edition) Uses the
-	// plugins it wants — Core plugins the same way extra plugins are added, via
-	// a.Use. The OSS default set is plugins/builtin.Default(); see
-	// website/src/content/docs/architecture/overview.md.
-	return a, nil
-}
-
 // RunMCP runs the MCP server with the registered plugins over stdio. It mounts
 // the plugins with the same plugin.Context the HTTP server uses, so their MCP
 // tool handlers have their dependencies wired (DB, DNS manager, Encrypt/Decrypt)
 // — without this, plugin MCP tools would run with nil dependencies. The HTTP mux
 // they mount onto is discarded; only the captured context matters here.
 func (a *App) RunMCP(ctx context.Context) error {
-	if err := preflightNameCollisions(a.plugins); err != nil {
-		return err
-	}
-	if err := preflightDependencies(a.plugins); err != nil {
-		return err
-	}
-	if err := preflightTableCollisions(a.gdb.NamingStrategy, a.plugins); err != nil {
-		return err
-	}
-	// The webhook delivery log and the idempotency ledger are core
-	// infrastructure that no plugin owns, so they join the same single pass.
-	extra := append(eventbus.Models(), idempotency.Models()...)
-	for _, p := range a.plugins {
-		extra = append(extra, p.Models()...)
-	}
-	if err := db.Migrate(a.gdb, extra...); err != nil {
-		return err
-	}
-	if err := a.cipher.EnableEnvelope(settingsStore{a.gdb}); err != nil {
+	if err := a.prepareMigrationAndCipher(); err != nil {
 		return err
 	}
 
@@ -186,9 +97,11 @@ func (a *App) RunMCP(ctx context.Context) error {
 	var deferredOnEmail []func(plugin.EmailEvent)
 	endpointEngine := endpoint.NewEngine()
 	notifRouter := notification.NewRouter(a.gdb)
-	_ = notifRouter.RegisterChannel(notification.NewEmailChannel(a.gdb, func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
+	if err := notifRouter.RegisterChannel(notification.NewEmailChannel(a.gdb, func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
 		return a.sendMail(orgID, to, subject, htmlBody, textBody)
-	}))
+	})); err != nil {
+		slog.Warn("app: failed to register email notification channel in MCP mode", "error", err)
+	}
 	notification.SetDefaultRouter(notifRouter)
 	pctx := a.buildPluginContext(pluginContextParams{
 		apiHandler:      apiHandler,
@@ -212,15 +125,11 @@ func (a *App) RunMCP(ctx context.Context) error {
 		plugins:         a.plugins,
 	})
 	apiHandler.SetEndpointSource(endpointEngine)
-	// Same idempotency seam as the HTTP path — a plugin that resolves it in
-	// Mount must find it in both compositions.
 	services.Provide(idempotency.ServiceName, idempotency.New(a.gdb).Middleware(func(r *http.Request) uint {
 		return a.auth.OrgID(r)
 	}))
 	services.Provide(plugin.ServiceNotificationRouter, notifRouter)
 	enabled := a.pluginGate(apiHandler)
-	// Route ownership guard: see routeRegistry. Declared before the mount loop
-	// because every plugin registers through it.
 	routes := newRouteRegistry()
 	for _, p := range a.plugins {
 		pctxCopy := *pctx
@@ -229,13 +138,15 @@ func (a *App) RunMCP(ctx context.Context) error {
 		pctxCopy.Cache = cache.NewScoped(a.auth.Cache(), pName)
 		pctxCopy.RegisterNotificationChannel = func(ch plugin.NotificationChannel) {
 			if notifRouter != nil {
-				_ = notifRouter.RegisterChannelWithDescriptor(ch, notification.Descriptor{
+				if err := notifRouter.RegisterChannelWithDescriptor(ch, notification.Descriptor{
 					Type:        ch.Name(),
 					Title:       pInfo.Title,
 					Description: pInfo.Description,
 					Icon:        pInfo.Icon,
 					PluginName:  pName,
-				})
+				}); err != nil {
+					slog.Warn("app: failed to register notification channel with descriptor in MCP mode", "plugin", pName, "error", err)
+				}
 			}
 		}
 		pctxCopy.RegisterNotifier = func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
@@ -264,9 +175,6 @@ func (a *App) RunMCP(ctx context.Context) error {
 			p.Mount(&gatedMux{real: recorder, plugin: plugin.FeatureKey(p), enabled: enabled}, &pctxCopy)
 		}
 	}
-	// Two plugins claiming the same route, or the same service name, is a wiring
-	// bug — refuse to serve, same as a table collision. Routes first: that one
-	// would otherwise have been a ServeMux panic.
 	if err := routes.Err(); err != nil {
 		return err
 	}
@@ -298,35 +206,10 @@ func (a *App) RunMCP(ctx context.Context) error {
 func (a *App) Run(ctx context.Context) error {
 	defer a.geo.Close()
 
-	// 1. Migrate AFTER every plugin is registered, so plugin models join the
-	//    core schema in a single AutoMigrate pass. First refuse startup if two
-	//    different plugin model types would fight over the same table.
-	if err := preflightNameCollisions(a.plugins); err != nil {
-		return err
-	}
-	if err := preflightDependencies(a.plugins); err != nil {
-		return err
-	}
-	if err := preflightTableCollisions(a.gdb.NamingStrategy, a.plugins); err != nil {
-		return err
-	}
-	// The webhook delivery log and the idempotency ledger are core
-	// infrastructure that no plugin owns, so they join the same single pass.
-	extra := append(eventbus.Models(), idempotency.Models()...)
-	for _, p := range a.plugins {
-		extra = append(extra, p.Models()...)
-	}
-	if err := db.Migrate(a.gdb, extra...); err != nil {
+	if err := a.prepareMigrationAndCipher(); err != nil {
 		return err
 	}
 
-	// 1b. Upgrade the cipher to envelope mode now that the settings table exists
-	//     (loads or creates the DEK; re-wraps it under a rotated key if needed).
-	if err := a.cipher.EnableEnvelope(settingsStore{a.gdb}); err != nil {
-		return err
-	}
-
-	// 2. Core API mux, then let plugins mount their own routes onto it.
 	auth.InitGothStore(a.cfg.SecretKey)
 	taskQueue := queue.New(a.cfg.RedisURL)
 	go func() {
@@ -352,9 +235,11 @@ func (a *App) Run(ctx context.Context) error {
 	var runDeferredOnEmail []func(plugin.EmailEvent)
 	endpointEngine := endpoint.NewEngine()
 	notifRouter := notification.NewRouter(a.gdb)
-	_ = notifRouter.RegisterChannel(notification.NewEmailChannel(a.gdb, func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
+	if err := notifRouter.RegisterChannel(notification.NewEmailChannel(a.gdb, func(ctx context.Context, orgID uint, to, subject, htmlBody, textBody string) error {
 		return a.sendMail(orgID, to, subject, htmlBody, textBody)
-	}))
+	})); err != nil {
+		slog.Warn("app: failed to register email notification channel in Run mode", "error", err)
+	}
 	notification.SetDefaultRouter(notifRouter)
 	pctx := a.buildPluginContext(pluginContextParams{
 		apiHandler:      apiHandler,
@@ -372,24 +257,15 @@ func (a *App) Run(ctx context.Context) error {
 		loginByIdentity: a.loginByIdentity,
 		onEmailMu:       &runEmailMu,
 		deferredOnEmail: &runDeferredOnEmail,
-		handleRoot: func(h http.Handler) {
-			rootHandler = h
-		},
+		handleRoot:      func(h http.Handler) { rootHandler = h },
 		handleStatic: func(prefix string, fsys fs.FS) {
 			staticMounts = append(staticMounts, server.StaticMount{Prefix: prefix, FS: fsys})
 		},
 		httpMode: true,
 		plugins:  a.plugins,
 	})
-	a.setupBuiltinCron(pctx, apiHandler)
 	apiHandler.SetEndpointSource(endpointEngine)
-	// Idempotency-Key support is offered to plugin routes through the service
-	// registry rather than a new plugin.Context field, so a plugin adopts it
-	// per route (see idempotency.ServiceName) without every route paying for it.
-	services.Provide(idempotency.ServiceName, idempotency.New(a.gdb).Middleware(func(r *http.Request) uint {
-		return a.auth.OrgID(r)
-	}))
-	services.Provide(plugin.ServiceNotificationRouter, notifRouter)
+	a.Setup(pctx, apiHandler)
 	healthCollector := monitor.NewCollector(30*time.Second,
 		monitor.NewRuntimeProvider(),
 		monitor.NewDBProvider(a.gdb),
@@ -400,13 +276,12 @@ func (a *App) Run(ctx context.Context) error {
 	})
 	a.healthCollector.Store(healthCollector)
 	monitor.RegisterRoutes(apiHandler.Huma(), healthCollector)
-	// Non-core plugin routes are gated by a per-workspace feature toggle: when the
-	// caller's workspace has the feature disabled, the app answers 404 before the
-	// handler runs. Core plumbing (license activation) mounts ungated — it must
-	// always work.
+	services.Provide(idempotency.ServiceName, idempotency.New(a.gdb).Middleware(func(r *http.Request) uint {
+		return a.auth.OrgID(r)
+	}))
+	services.Provide(plugin.ServiceNotificationRouter, notifRouter)
+
 	enabled := a.pluginGate(apiHandler)
-	// Route ownership guard: see routeRegistry. Declared before the mount loop
-	// because every plugin registers through it.
 	routes := newRouteRegistry()
 	for _, p := range a.plugins {
 		pctxCopy := *pctx
@@ -415,13 +290,15 @@ func (a *App) Run(ctx context.Context) error {
 		pctxCopy.Cache = cache.NewScoped(a.auth.Cache(), pName)
 		pctxCopy.RegisterNotificationChannel = func(ch plugin.NotificationChannel) {
 			if notifRouter != nil {
-				_ = notifRouter.RegisterChannelWithDescriptor(ch, notification.Descriptor{
+				if err := notifRouter.RegisterChannelWithDescriptor(ch, notification.Descriptor{
 					Type:        ch.Name(),
 					Title:       pInfo.Title,
 					Description: pInfo.Description,
 					Icon:        pInfo.Icon,
 					PluginName:  pName,
-				})
+				}); err != nil {
+					slog.Warn("app: failed to register notification channel with descriptor", "plugin", pName, "error", err)
+				}
 			}
 		}
 		pctxCopy.RegisterNotifier = func(typ string, send func(ctx context.Context, cfgJSON, text string) error) {
@@ -451,7 +328,7 @@ func (a *App) Run(ctx context.Context) error {
 		}
 		slog.Info("plugin mounted", "name", p.Name())
 	}
-	_ = endpointEngine.MountHTTP(apiHandler.Huma(), endpoint.HTTPOptions{
+	if err := endpointEngine.MountHTTP(apiHandler.Huma(), endpoint.HTTPOptions{
 		RequireAuth: func(ctx context.Context) (uint, error) {
 			orgID := plugin.OrgIDFromContext(ctx)
 			if orgID == 0 {
@@ -474,28 +351,21 @@ func (a *App) Run(ctx context.Context) error {
 			}
 			return huma.Error403Forbidden("forbidden: insufficient workspace role privilege")
 		},
-	})
-	// Two plugins claiming the same route, or the same service name, is a wiring
-	// bug — refuse to serve, same as a table collision. Routes first: that one
-	// would otherwise have been a ServeMux panic.
+	}); err != nil {
+		slog.Warn("app: failed to mount endpoint HTTP routes", "error", err)
+	}
 	if err := routes.Err(); err != nil {
 		return err
 	}
 	if err := services.Err(); err != nil {
 		return err
 	}
-	// Propagate cfg.TrustProxy to plugins that extract client IPs.
-	// The seams were provided at mount time; this is the assembly-layer
-	// wiring that was previously missing — see links/plugin.go:182.
 	if fn, ok := plugin.LookupServiceAs[func(bool)](services.Lookup, "links.trust_proxy"); ok {
 		fn(a.cfg.TrustProxy)
 	}
 	if fn, ok := plugin.LookupServiceAs[func(bool)](services.Lookup, "dns.trust_proxy"); ok {
 		fn(a.cfg.TrustProxy)
 	}
-	// Launch Starters only after EVERY plugin has mounted (and Provided): this
-	// is the ordering guarantee that makes Start-time Lookup of another
-	// plugin's services safe regardless of registration order.
 	if onEmailService, ok := plugin.LookupServiceAs[plugin.EmailDispatcher](services.Lookup, plugin.ServiceMailDispatcher); ok {
 		runEmailMu.Lock()
 		handlers := runDeferredOnEmail
@@ -526,9 +396,6 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}()
 
-	// Tell the operator, once and before anything is served, which capabilities
-	// this instance actually has. Several of them fail silently otherwise — see
-	// readinessReport.
 	domainsRegistered := origin.AnyRegistered(a.gdb) || origin.HasSharedHosts(a.gdb)
 	mailReady := false
 	if fn, ok := plugin.LookupServiceAs[plugin.MailReady](services.Lookup, plugin.ServiceMailReady); ok {
@@ -555,9 +422,6 @@ func (a *App) Run(ctx context.Context) error {
 	if a.cfg.DevWebProxy != "" {
 		slog.Info("dev web proxy enabled", "target", a.cfg.DevWebProxy)
 	}
-	// CSRFGuard wraps the fully-assembled mux (core + plugin routes) to block
-	// cross-site state-changing requests and validate double-submit tokens.
-	// It runs outside huma to protect standard library routes too.
 	srv, err := server.New(a.cfg, a.gdb, api.CSRFGuard(a.cfg.SecretKey, mux), rootHandler, webFS, staticMounts, server.RuntimeSettings{
 		MetricsToken: apiHandler.MetricsToken,
 		RateLimits:   apiHandler.RateLimits,
@@ -607,40 +471,9 @@ func (a *App) Run(ctx context.Context) error {
 		slog.Warn("cron shutdown failed", "err", err)
 	}
 	if a.telemetry != nil {
-		_ = a.telemetry.Shutdown(shutCtx)
+		if err := a.telemetry.Shutdown(shutCtx); err != nil {
+			slog.Warn("app: telemetry shutdown failed", "error", err)
+		}
 	}
 	return httpSrv.Shutdown(shutCtx)
-}
-
-// Setup sets up built-in background services, including cron jobs.
-func (a *App) Setup(pctx *plugin.Context, apiHandler *api.Handler) {
-	a.setupBuiltinCron(pctx, apiHandler)
-}
-
-func (a *App) setupBuiltinCron(pctx *plugin.Context, apiHandler *api.Handler) {
-	if pctx == nil || pctx.RegisterCron == nil {
-		return
-	}
-	_ = pctx.RegisterCron("session_cleanup", "0 * * * *", func(ctx context.Context) error {
-		now := time.Now()
-		if err := a.gdb.WithContext(ctx).Where("expires_at < ?", now).Delete(&models.Session{}).Error; err != nil {
-			return err
-		}
-		if err := a.gdb.WithContext(ctx).Where("expires_at IS NOT NULL AND expires_at < ?", now).Delete(&models.Token{}).Error; err != nil {
-			return err
-		}
-		return nil
-	})
-
-	_ = pctx.RegisterCron("log_rotation", "0 0 * * *", func(ctx context.Context) error {
-		if apiHandler == nil {
-			return nil
-		}
-		days := apiHandler.DataRetentionDays()
-		if days <= 0 {
-			return nil
-		}
-		_, err := cleanup.PruneAuditLogs(a.gdb, days)
-		return err
-	})
 }
