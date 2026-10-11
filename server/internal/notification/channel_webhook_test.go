@@ -36,7 +36,9 @@ func TestWebhookChannel_DeliveryAndErrors(t *testing.T) {
 		var m struct {
 			Text string `json:"text"`
 		}
-		_ = json.Unmarshal(body, &m)
+		if err := json.Unmarshal(body, &m); err != nil {
+			t.Errorf("unmarshal webhook payload: %v", err)
+		}
 		gotText = m.Text
 		if r.URL.Path == "/error" {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -130,7 +132,9 @@ func TestWebhookChannel_DBLookup(t *testing.T) {
 		var m struct {
 			Text string `json:"text"`
 		}
-		_ = json.Unmarshal(body, &m)
+		if err := json.Unmarshal(body, &m); err != nil {
+			t.Errorf("unmarshal webhook payload: %v", err)
+		}
 		gotText = m.Text
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -140,7 +144,9 @@ func TestWebhookChannel_DBLookup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	_ = db.AutoMigrate(&models.NotificationChannel{})
+	if err := db.AutoMigrate(&models.NotificationChannel{}); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
 
 	SetConfigDecryptor(func(stored string) (string, bool) {
 		return stored, true
