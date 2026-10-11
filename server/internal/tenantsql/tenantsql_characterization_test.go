@@ -48,8 +48,9 @@ func TestCharacterization_TenantDB_FailClosedGuards(t *testing.T) {
 		t.Errorf("NewTenantDB(db, 0) = %v, want ErrZeroOrgID", err)
 	}
 
-	// 3. Nil context
-	if _, err := tenantsql.TenantDBFromContext(nil, db); err != tenantsql.ErrMissingTenantContext {
+	// 3. Nil context: the nil-context guard must fail closed. Nil is the exact
+	// input under test here, not an oversight (see nolint below).
+	if _, err := tenantsql.TenantDBFromContext(nil, db); err != tenantsql.ErrMissingTenantContext { //nolint:staticcheck // SA1012: nil is the exact input under test (nil-context fail-closed guard)
 		t.Errorf("TenantDBFromContext(nil, db) = %v, want ErrMissingTenantContext", err)
 	}
 
