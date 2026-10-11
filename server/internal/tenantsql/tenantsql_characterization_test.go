@@ -12,8 +12,8 @@ import (
 )
 
 type charTestModel struct {
-	ID      uint   `gorm:"primaryKey"`
-	OwnerID uint   `gorm:"index"`
+	ID      uint `gorm:"primaryKey"`
+	OwnerID uint `gorm:"index"`
 	Name    string
 }
 
