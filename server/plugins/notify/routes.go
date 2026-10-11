@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/octarq-org/octarq/server/internal/models"
@@ -26,7 +27,7 @@ type NotifyOutput struct {
 }
 
 func (p *Plugin) registerRoutes(ctx *plugin.Context) {
-	_ = plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[NotifyInput, NotifyOutput]{
+	if err := plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[NotifyInput, NotifyOutput]{
 		Name:        "notify",
 		MCPToolName: "octarq_infra__notify",
 		Method:      "POST",
@@ -37,7 +38,9 @@ func (p *Plugin) registerRoutes(ctx *plugin.Context) {
 		RequireAuth: true,
 		ExposeMCP:   true,
 		Handler:     p.notify,
-	})
+	}); err != nil {
+		log.Printf("notify: failed to register notify endpoint: %v", err)
+	}
 }
 
 func (p *Plugin) notify(ctx context.Context, in NotifyInput) (*NotifyOutput, error) {

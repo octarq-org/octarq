@@ -44,7 +44,9 @@ func setupTestApp(t *testing.T) (*gorm.DB, *endpoint.Engine) {
 		DB:               db,
 		RegisterEndpoint: engine.Register,
 		RegisterTenantView: func(v plugin.TenantView) {
-			_ = tenantsql.DefaultRegistry().Register(v)
+			if err := tenantsql.DefaultRegistry().Register(v); err != nil && !strings.Contains(err.Error(), "already registered") {
+				t.Fatalf("failed to register tenant view %s: %v", v.Name, err)
+			}
 		},
 	}
 

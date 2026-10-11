@@ -140,11 +140,15 @@ func (r *Resolver) Load(path string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.closed {
-		_ = db.Close()
+		if closeErr := db.Close(); closeErr != nil {
+			slog.Warn("geo: failed to close parsed db on closed resolver", "err", closeErr)
+		}
 		return nil
 	}
 	if r.db != nil {
-		_ = r.db.Close()
+		if closeErr := r.db.Close(); closeErr != nil {
+			slog.Warn("geo: failed to close previous db", "err", closeErr)
+		}
 	}
 	r.db = db
 	return nil
@@ -193,7 +197,9 @@ func (r *Resolver) Close() {
 		r.cancel()
 	}
 	if r.db != nil {
-		_ = r.db.Close()
+		if closeErr := r.db.Close(); closeErr != nil {
+			slog.Warn("geo: failed to close db during resolver teardown", "err", closeErr)
+		}
 		r.db = nil
 	}
 	r.mu.Unlock()

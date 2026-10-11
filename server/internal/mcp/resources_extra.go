@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"sync"
@@ -133,7 +134,9 @@ func (s *server) notifyResourceUpdated(ctx context.Context, uri string) {
 	if s.srv == nil {
 		return
 	}
-	_ = s.srv.ResourceUpdated(ctx, &mcp.ResourceUpdatedNotificationParams{URI: uri})
+	if err := s.srv.ResourceUpdated(ctx, &mcp.ResourceUpdatedNotificationParams{URI: uri}); err != nil {
+		slog.Warn("mcp: failed to dispatch resource updated notification", "uri", uri, "err", err)
+	}
 }
 
 // NotifyMailboxLatest announces a new arrival without polling.
