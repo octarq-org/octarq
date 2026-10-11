@@ -3,6 +3,7 @@ package monitor
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -109,7 +110,10 @@ func (c *Collector) Start(ctx context.Context) {
 	c.mu.Unlock()
 
 	// Perform initial collection immediately
-	_ = c.Collect(ctx)
+	rep := c.Collect(ctx)
+	if rep.Overall == plugin.HealthError {
+		slog.Warn("monitor: initial collection reported error status")
+	}
 
 	go func() {
 		ticker := time.NewTicker(interval)
@@ -122,7 +126,10 @@ func (c *Collector) Start(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				_ = c.Collect(ctx)
+				r := c.Collect(ctx)
+				if r.Overall == plugin.HealthError {
+					slog.Warn("monitor: background collection reported error status")
+				}
 			}
 		}
 	}()

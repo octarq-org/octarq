@@ -3,6 +3,7 @@ package monitor
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -44,7 +45,9 @@ func RegisterRoutes(api huma.API, collector *Collector) {
 			if w != nil {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusServiceUnavailable)
-				_ = json.NewEncoder(w).Encode(report)
+				if err := json.NewEncoder(w).Encode(report); err != nil {
+					slog.Warn("monitor: failed to encode health report", "err", err)
+				}
 				return nil, nil
 			}
 		}
@@ -62,7 +65,9 @@ func Handler(collector *Collector) http.Handler {
 		} else {
 			w.WriteHeader(http.StatusOK)
 		}
-		_ = json.NewEncoder(w).Encode(report)
+		if err := json.NewEncoder(w).Encode(report); err != nil {
+			slog.Warn("monitor: failed to encode health report", "err", err)
+		}
 	})
 }
 
