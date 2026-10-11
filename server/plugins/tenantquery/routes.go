@@ -3,6 +3,7 @@ package tenantquery
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/octarq-org/octarq/server/internal/tenantsql"
@@ -44,7 +45,7 @@ type QueryTenantSQLOutput struct {
 }
 
 func (p *Plugin) registerRoutes(ctx *plugin.Context) {
-	_ = plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[DescribeTenantSchemaInput, DescribeTenantSchemaOutput]{
+	if err := plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[DescribeTenantSchemaInput, DescribeTenantSchemaOutput]{
 		Name:        "describe_tenant_schema",
 		MCPToolName: "octarq_infra__describe_tenant_schema",
 		Method:      "GET",
@@ -55,9 +56,11 @@ func (p *Plugin) registerRoutes(ctx *plugin.Context) {
 		RequireAuth: true,
 		ExposeMCP:   true,
 		Handler:     p.describeTenantSchema,
-	})
+	}); err != nil {
+		log.Printf("tenantquery: failed to register describe_tenant_schema endpoint: %v", err)
+	}
 
-	_ = plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[QueryTenantSQLInput, QueryTenantSQLOutput]{
+	if err := plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[QueryTenantSQLInput, QueryTenantSQLOutput]{
 		Name:        "query_tenant_sql",
 		MCPToolName: "octarq_infra__query_db_readonly",
 		Method:      "POST",
@@ -68,7 +71,9 @@ func (p *Plugin) registerRoutes(ctx *plugin.Context) {
 		RequireAuth: true,
 		ExposeMCP:   true,
 		Handler:     p.queryTenantSQL,
-	})
+	}); err != nil {
+		log.Printf("tenantquery: failed to register query_tenant_sql endpoint: %v", err)
+	}
 }
 
 func (p *Plugin) describeTenantSchema(ctx context.Context, _ DescribeTenantSchemaInput) (*DescribeTenantSchemaOutput, error) {
