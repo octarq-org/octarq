@@ -89,9 +89,8 @@ func TestHarnessCharacterization_NewRunnerInstantiation(t *testing.T) {
 	if r == nil {
 		t.Fatal("NewRunner returned nil")
 	}
-	if _, ok := r.(harness.Runner); !ok {
-		t.Error("r must implement harness.Runner")
-	}
+	// harness.Runner conformance is statically guaranteed by NewRunner's
+	// signature; only the dynamic StreamRunner capability needs asserting.
 	if _, ok := r.(harness.StreamRunner); !ok {
 		t.Error("r must implement harness.StreamRunner")
 	}
