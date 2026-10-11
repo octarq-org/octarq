@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/octarq-org/octarq/server/config"
@@ -101,7 +102,9 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 			Cache:            cache.NewScoped(cacheBackend, "mcp"),
 			RegisterEndpoint: endpointEngine.Register,
 			RegisterTenantView: func(view plugin.TenantView) {
-				_ = tenantsql.DefaultRegistry().Register(view)
+				if err := tenantsql.DefaultRegistry().Register(view); err != nil {
+					slog.Warn("mcp: failed to register tenant view", "name", view.Name, "err", err)
+				}
 			},
 			RegisterReactor: eventbus.RegisterReactor,
 			// RequirePerm is intentionally left nil: MCP requests do not carry per-request HTTP user identity.
@@ -133,7 +136,9 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 	s.registerTools(srv)
 	s.registerResources(srv)
 	s.registerExtraResources(srv)
-	_ = endpointEngine.MountMCP(srv)
+	if err := endpointEngine.MountMCP(srv); err != nil {
+		slog.Warn("mcp: failed to mount endpoint engine tools", "err", err)
+	}
 
 	for _, p := range plugins {
 		if mp, ok := p.(plugin.MCPProvider); ok {
