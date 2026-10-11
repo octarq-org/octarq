@@ -3,6 +3,7 @@ package links
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -219,14 +220,19 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 
 	if l.Title == "" && p.enqueue != nil {
 		payload, _ := json.Marshal(map[string]any{
-			"id":     l.ID,
-			"target": l.Target,
+			"id":       l.ID,
+			"target":   l.Target,
+			"owner_id": l.OrgID,
 		})
-		_ = p.enqueue(r.Context(), "link.crawl", payload)
+		if err := p.enqueue(r.Context(), "link.crawl", payload); err != nil {
+			log.Printf("links: failed to enqueue link.crawl for link %d: %v", l.ID, err)
+		}
 	}
 
 	if p.deleteCache != nil {
-		_ = p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug)
+		if err := p.deleteCache(r.Context(), "link:redirect:"+l.Host+":"+l.Slug); err != nil {
+			log.Printf("links: failed to delete cache for %s:%s: %v", l.Host, l.Slug, err)
+		}
 	}
 	return &CreateLinkOutput{Body: view(l)}, nil
 }

@@ -30,9 +30,9 @@ const BaseDomainEnv = "OCTARQ_BASE_DOMAIN"
 // tenancy provisioning helper), so none of them can drift apart about what the
 // base is.
 func BaseDomain(db *gorm.DB) string {
-	if db != nil {
+	if db != nil && db.Migrator().HasTable("settings") {
 		var s Setting
-		if err := db.First(&s, "key = ?", BaseDomainSetting).Error; err == nil {
+		if err := db.Where("key = ?", BaseDomainSetting).Limit(1).Find(&s).Error; err == nil && s.Key != "" {
 			return normalizeBaseDomain(s.Value)
 		}
 	}

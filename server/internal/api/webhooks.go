@@ -126,7 +126,9 @@ func (h *Handler) createWebhook(ctx context.Context, input *CreateWebhookInput) 
 	if secret == "" {
 		// Generate random 16-byte hex secret (32 chars)
 		b := make([]byte, 16)
-		_, _ = rand.Read(b)
+		if _, err := rand.Read(b); err != nil {
+			return nil, huma.Error500InternalServerError("failed to generate webhook secret")
+		}
 		secret = hex.EncodeToString(b)
 	}
 
