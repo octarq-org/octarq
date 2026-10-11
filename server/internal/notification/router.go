@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strconv"
 	"strings"
@@ -60,30 +61,19 @@ func NewRouter(db *gorm.DB, opts ...RouterOption) *Router {
 	}
 
 	// Register Core built-in channels with their metadata descriptors
-	_ = r.RegisterChannelWithDescriptor(NewInAppChannel(db), Descriptor{
-		Type:        "in_app",
-		Title:       "In-App Notification",
-		Description: "Deliver notifications in-app via event spine",
-		Icon:        "bell",
-	})
-	_ = r.RegisterChannelWithDescriptor(NewEmailChannel(db, nil), Descriptor{
-		Type:        "email",
-		Title:       "Email",
-		Description: "Deliver notifications via transactional email",
-		Icon:        "mail",
-	})
-	_ = r.RegisterChannelWithDescriptor(NewTelegramChannel(db), Descriptor{
-		Type:        "telegram",
-		Title:       "Telegram",
-		Description: "Deliver notifications via Telegram bot",
-		Icon:        "send",
-	})
-	_ = r.RegisterChannelWithDescriptor(NewWebhookChannel(db), Descriptor{
-		Type:        "webhook",
-		Title:       "Webhook",
-		Description: "Custom HTTP POST payload to any URL",
-		Icon:        "webhook",
-	})
+	for _, reg := range []struct {
+		ch   plugin.NotificationChannel
+		desc Descriptor
+	}{
+		{NewInAppChannel(db), Descriptor{Type: "in_app", Title: "In-App Notification", Description: "Deliver notifications in-app via event spine", Icon: "bell"}},
+		{NewEmailChannel(db, nil), Descriptor{Type: "email", Title: "Email", Description: "Deliver notifications via transactional email", Icon: "mail"}},
+		{NewTelegramChannel(db), Descriptor{Type: "telegram", Title: "Telegram", Description: "Deliver notifications via Telegram bot", Icon: "send"}},
+		{NewWebhookChannel(db), Descriptor{Type: "webhook", Title: "Webhook", Description: "Custom HTTP POST payload to any URL", Icon: "webhook"}},
+	} {
+		if err := r.RegisterChannelWithDescriptor(reg.ch, reg.desc); err != nil {
+			slog.Warn("notification: failed to register default channel", "channel", reg.desc.Type, "error", err)
+		}
+	}
 
 	return r
 }
@@ -203,7 +193,10 @@ func (r *Router) SendDirect(ctx context.Context, typ, cfgJSON, text string) erro
 
 	var cfgMap map[string]interface{}
 	if strings.TrimSpace(cfgJSON) != "" && strings.TrimSpace(cfgJSON) != "{}" {
-		_ = json.Unmarshal([]byte(cfgJSON), &cfgMap)
+		if err := json.Unmarshal([]byte(cfgJSON), &cfgMap); err != nil {
+			slog.Warn("notification: malformed direct channel config JSON", "channel", typ, "error", err)
+			return fmt.Errorf("invalid channel config JSON: %w", err)
+		}
 	}
 	if cfgMap == nil {
 		cfgMap = make(map[string]interface{})
@@ -387,7 +380,9 @@ func (r *Router) Emit(ctx context.Context, payload plugin.NotificationPayload) e
 						UserID: strconv.FormatUint(uint64(m.UserID), 10),
 						OrgID:  targetOrg,
 					}
-					_ = r.EmitTo(ctx, rec, payload)
+					if err := r.EmitTo(ctx, rec, payload); err != nil {
+						slog.Warn("notification: emit to member failed", "user_id", rec.UserID, "org_id", rec.OrgID, "error", err)
+					}
 				}
 				return nil
 			}
@@ -411,7 +406,9 @@ func (r *Router) Emit(ctx context.Context, payload plugin.NotificationPayload) e
 					UserID: strconv.FormatUint(uint64(a.ID), 10),
 					OrgID:  adminOrg,
 				}
-				_ = r.EmitTo(adminCtx, rec, payload)
+				if err := r.EmitTo(adminCtx, rec, payload); err != nil {
+					slog.Warn("notification: emit to admin failed", "user_id", rec.UserID, "org_id", rec.OrgID, "error", err)
+				}
 			}
 			return nil
 		}

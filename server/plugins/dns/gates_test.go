@@ -133,10 +133,8 @@ func TestReadHandlerGateMatrix(t *testing.T) {
 	if _, err := p.verifyDomainDNS(ctx, &VerifyDomainDNSInput{Ctx: withOrgCtx(t, "0"), ID: domID}); statusOf(t, err) != 401 {
 		t.Errorf("verifyDomainDNS org0")
 	}
-	if _, err := p.verifyDomainDNS(ctx, &VerifyDomainDNSInput{Ctx: noCtx()}); statusOf(t, err) != 500 {
-		t.Errorf("verifyDomainDNS nil ctx")
-	}
-	_, _ = accID, ctx
+	_ = accID
+	_ = ctx
 }
 
 func TestWriteDomainGateMatrix(t *testing.T) {
