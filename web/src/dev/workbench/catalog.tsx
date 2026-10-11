@@ -1,42 +1,38 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
-  Alert,
-  Badge,
-  Button,
   Code,
-  Dialog,
   Empty,
   Field,
   FormError,
   GlassCard,
   Guide,
   Input,
-  Modal,
   PageHeader,
   Panel,
   ProPill,
   RouteFallback,
   ScreenWrap,
-  Select,
   Skeleton,
   StatCard,
-  Switch,
-  Table,
-  TableDensityProvider,
   TableEmpty,
   TableError,
-  TablePagination,
   TableSkeleton,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
   Tabs,
   Textarea,
   Tooltip,
-  type TableDensity,
+  Button,
 } from "@octarq/plugin-sdk";
+import {
+  AlertRows,
+  BadgeRows,
+  ButtonVariants,
+  DialogRow,
+  ModalRow,
+  SelectRow,
+  SwitchRow,
+  TablePaginationPreview,
+  TablePreview,
+} from "./catalogPreviews";
 
 // The workbench catalog: one entry per SDK UI component, each rendering the REAL
 // component imported from the SDK — never a copy, never a mock. That is the
@@ -326,157 +322,3 @@ export const CATALOG: CatalogEntry[] = [
     ),
   },
 ];
-
-// Previews that need local state. Each is its own component so switching catalog
-// entries cannot disturb the workbench's hook order.
-
-function ButtonVariants() {
-  return (
-    <div className="flex flex-wrap items-center gap-3">
-      {(["primary", "secondary", "subtle", "ghost", "outline", "danger"] as const).map((variant) => (
-        <Button key={variant} variant={variant}>
-          Save changes
-        </Button>
-      ))}
-      <Button size="sm">Sm</Button>
-      <Button size="md">Md</Button>
-      <Button size="lg">Lg</Button>
-      <Button disabled>Disabled</Button>
-    </div>
-  );
-}
-
-function SelectRow() {
-  const [value, setValue] = useState("daily");
-  return (
-    <Select
-      value={value}
-      onValueChange={setValue}
-      options={[
-        { value: "daily", label: "Daily" },
-        { value: "weekly", label: "Weekly" },
-      ]}
-    />
-  );
-}
-
-function SwitchRow() {
-  const [on, setOn] = useState(true);
-  return (
-    <Field label="Enable alerts">
-      <Switch checked={on} onCheckedChange={setOn} />
-    </Field>
-  );
-}
-
-function BadgeRows() {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {(["default", "info", "success", "warning", "danger", "secondary", "outline"] as const).map(
-        (tone) => (
-          <Badge key={tone} tone={tone}>
-            Active
-          </Badge>
-        ),
-      )}
-    </div>
-  );
-}
-
-function AlertRows() {
-  return (
-    <div className="space-y-3">
-      {(["info", "success", "warning", "danger"] as const).map((variant) => (
-        <Alert key={variant} variant={variant}>
-          Your changes were saved.
-        </Alert>
-      ))}
-    </div>
-  );
-}
-
-function ModalRow() {
-  // Modal has no `open` prop: mounting it IS opening it (it wraps Dialog with
-  // open). So the preview mounts it only while the button has been clicked.
-  const [open, setOpen] = useState(true);
-  return (
-    <>
-      <Button onClick={() => setOpen(true)}>Open modal</Button>
-      {open && (
-        <Modal title="Rename link" onClose={() => setOpen(false)}>
-          <p className="text-sm text-muted-foreground">Modal body content.</p>
-        </Modal>
-      )}
-    </>
-  );
-}
-
-function DialogRow() {
-  const [open, setOpen] = useState(true);
-  return (
-    <>
-      <Button onClick={() => setOpen(true)}>Open dialog</Button>
-      <Dialog open={open} onOpenChange={setOpen} title="Confirm removal">
-        <p className="text-sm text-muted-foreground">This cannot be undone.</p>
-      </Dialog>
-    </>
-  );
-}
-
-function TablePaginationPreview() {
-  const [page, setPage] = useState(2);
-  const [pageSize, setPageSize] = useState(10);
-  return (
-    <TablePagination
-      page={page}
-      pageSize={pageSize}
-      total={48}
-      pageCount={Math.ceil(48 / pageSize)}
-      onPageChange={setPage}
-      onPageSizeChange={(size) => {
-        setPageSize(size);
-        setPage(1);
-      }}
-    />
-  );
-}
-
-function TablePreview() {
-  const [density, setDensity] = useState<TableDensity>("comfortable");
-  return (
-    <div className="space-y-3">
-      <div className="flex gap-2">
-        {(["comfortable", "compact"] as const).map((d) => (
-          <Button
-            key={d}
-            size="sm"
-            variant={density === d ? "primary" : "ghost"}
-            onClick={() => setDensity(d)}
-          >
-            {d === "comfortable" ? "Comfortable" : "Compact"}
-          </Button>
-        ))}
-      </div>
-      <TableDensityProvider density={density} onDensityChange={setDensity}>
-        <Table>
-          <THead>
-            <TR>
-              <TH>Link</TH>
-              <TH>Clicks</TH>
-            </TR>
-          </THead>
-          <TBody>
-            <TR>
-              <TD>/launch</TD>
-              <TD>412</TD>
-            </TR>
-            <TR>
-              <TD>/pricing</TD>
-              <TD>88</TD>
-            </TR>
-          </TBody>
-        </Table>
-      </TableDensityProvider>
-    </div>
-  );
-}
