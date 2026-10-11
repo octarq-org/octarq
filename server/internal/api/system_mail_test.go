@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -105,7 +106,7 @@ func TestVerificationEmailDeliveredWithoutOrgMembership(t *testing.T) {
 	safehttp.SetAllowPrivateSMTP(true)
 	defer safehttp.SetAllowPrivateSMTP(false)
 
-	srv, db := newTestHandler(t)
+	h, srv, db := newTestHandlerRaw(t)
 	host, port, got := captureSMTP(t)
 
 	// Rebuild the handler's cipher (same KEK, same envelope store) so the
@@ -119,11 +120,17 @@ func TestVerificationEmailDeliveredWithoutOrgMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encrypt sender pass: %v", err)
 	}
-	if err := db.Create(&mailmodels.SMTPSender{
+	sender := mailmodels.SMTPSender{
 		OrgID: 1, Name: "relay", Host: host, Port: port,
 		User: "u", Pass: enc, FromEmail: "noreply@example.com",
-	}).Error; err != nil {
+	}
+	if err := db.Create(&sender).Error; err != nil {
 		t.Fatalf("seed sender: %v", err)
+	}
+	// Pre-v1.0 fail-closed: the mail plugin refuses the removed lowest-id
+	// fallback, so the system sender must be selected explicitly.
+	if err := h.setSetting(keySystemSenderID, strconv.FormatUint(uint64(sender.ID), 10)); err != nil {
+		t.Fatalf("set system sender: %v", err)
 	}
 
 	// require_email_verification defaults to on; the seeded sender makes

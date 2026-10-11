@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -38,9 +39,11 @@ func (p *Plugin) exportLinksCSV(ctx context.Context, input *ExportLinksCSVInput)
 	w.Header().Set("Content-Disposition", "attachment; filename=\"links.csv\"")
 
 	cw := csv.NewWriter(w)
-	_ = cw.Write([]string{"ID", "Host", "Slug", "Target", "Title", "Clicks", "CreatedAt"})
+	if err := cw.Write([]string{"ID", "Host", "Slug", "Target", "Title", "Clicks", "CreatedAt"}); err != nil {
+		log.Printf("links: failed to write csv header: %v", err)
+	}
 	for _, l := range links {
-		_ = cw.Write([]string{
+		if err := cw.Write([]string{
 			fmt.Sprintf("%d", l.ID),
 			l.Host,
 			l.Slug,
@@ -48,7 +51,9 @@ func (p *Plugin) exportLinksCSV(ctx context.Context, input *ExportLinksCSVInput)
 			l.Title,
 			fmt.Sprintf("%d", l.Clicks),
 			l.CreatedAt.Format(time.RFC3339),
-		})
+		}); err != nil {
+			log.Printf("links: failed to write csv row for link %d: %v", l.ID, err)
+		}
 	}
 	cw.Flush()
 	return nil, nil

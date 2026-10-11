@@ -2,6 +2,7 @@ package mail
 
 import (
 	"context"
+	"log"
 	netmail "net/mail"
 	"strings"
 	"time"
@@ -55,7 +56,9 @@ func (p *Plugin) upsertContact(orgID uint, rawAddr string) {
 			InteractionCount: 1,
 			LastSeenAt:       now,
 		}
-		_ = tdb.Create(&contact).Error
+		if err := tdb.Create(&contact).Error; err != nil {
+			log.Printf("mail: failed to auto-create contact for org %d: %v", orgID, err)
+		}
 	}
 }
 

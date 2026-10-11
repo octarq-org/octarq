@@ -36,7 +36,7 @@ const (
 	keyBaseDomain               = models.BaseDomainSetting     // shared tenant-subdomain base; empty = feature off
 	keySharedHosts              = models.SharedHostsSetting    // instance-wide shared hostnames; comma/newline-separated
 	keyPublicCORSOrigins        = "public_cors_origins"        // comma/newline-separated exact origins allowed to read public GET endpoints
-	keySystemSenderID           = "mail_system_sender_id"      // SMTPSender id used for instance-level system mail; empty = lowest-id sender
+	keySystemSenderID           = "mail_system_sender_id"      // SMTPSender id for instance-level system mail; empty = unset (system mail fails closed)
 )
 
 // Rate-limit defaults (requests per minute per IP) when the setting is unset.
@@ -186,7 +186,8 @@ func (h *Handler) RequireEmailVerification() bool {
 }
 
 // systemSenderID returns the instance setting naming which SMTPSender is the
-// system sender; 0 means "unset — use the lowest-id sender".
+// system sender; 0 means "unset" — system mail then fails closed, because the
+// mail plugin no longer falls back to a lowest-id sender.
 func (h *Handler) systemSenderID() uint {
 	v := strings.TrimSpace(h.getSetting(keySystemSenderID))
 	if v == "" {

@@ -3,6 +3,7 @@ package mail
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -218,14 +219,20 @@ func (p *Plugin) deleteEmail(ctx context.Context, input *DeleteEmailInput) (*Del
 	key := e.StorageKey
 	if key == "" {
 		var mb Mailbox
-		_ = tdb.First(&mb, e.MailboxID).Error
+		if err := tdb.First(&mb, e.MailboxID).Error; err != nil {
+			log.Printf("mail: delete email mailbox lookup failed for mailbox %d: %v", e.MailboxID, err)
+		}
 		key = fmt.Sprintf("mail/%d/%d.eml", mb.OrgID, e.ID)
 	}
 	if storageProv, err := p.getStorageProvider(); err == nil {
-		_ = storageProv.Delete(ctx, key)
+		if err := storageProv.Delete(ctx, key); err != nil {
+			log.Printf("mail: storage provider failed to delete blob for key %s: %v", key, err)
+		}
 	}
 	dbProv := NewDBStorageProvider(p.db)
-	_ = dbProv.Delete(ctx, key)
+	if err := dbProv.Delete(ctx, key); err != nil {
+		log.Printf("mail: db storage provider failed to delete blob for key %s: %v", key, err)
+	}
 	p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).Delete(&Email{})
 	return &DeleteEmailOutput{Body: map[string]bool{"ok": true}}, nil
 }
