@@ -218,7 +218,7 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 		safego.Go("mail.inbound-notify", func() {
 			ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
-			_ = p.emit(ctxCtx, plugin.NotificationPayload{
+			if err := p.emit(ctxCtx, plugin.NotificationPayload{
 				EventType: "mail.inbound",
 				Title:     fmt.Sprintf("New mail to %s", to),
 				Body:      text,
@@ -230,7 +230,9 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 					"from":      from,
 					"subject":   subject,
 				},
-			})
+			}); err != nil {
+				log.Printf("mail: failed to emit inbound notification for mailbox %d: %v", mb.ID, err)
+			}
 		})
 	} else if p.notify != nil {
 		var channels []models.NotificationChannel
@@ -240,7 +242,9 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 				ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 				for _, ch := range channels {
-					_ = p.notify(ctxCtx, ch.Type, ch.Config, text)
+					if err := p.notify(ctxCtx, ch.Type, ch.Config, text); err != nil {
+						log.Printf("mail: failed to notify channel %s for inbound mail: %v", ch.Type, err)
+					}
 				}
 			})
 		}
