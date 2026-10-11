@@ -138,7 +138,9 @@ func (g *distGuard) Acquire(ctx context.Context, jobName string, ttl time.Durati
 		once.Do(func() {
 			defer localLock.Unlock()
 			const delScript = `if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end`
-			_ = g.client.Eval(context.Background(), delScript, []string{key}, token).Err()
+			if err := g.client.Eval(context.Background(), delScript, []string{key}, token).Err(); err != nil {
+				slog.Warn("cron: failed to release redis distributed lock", "job", jobName, "err", err)
+			}
 		})
 	}
 

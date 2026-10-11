@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log/slog"
 	"mime"
 	"net"
 	"net/smtp"
@@ -76,7 +77,10 @@ func (s *SMTPSender) Send(m Message) error {
 	if err != nil {
 		return err
 	}
-	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
+	if err := conn.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		conn.Close()
+		return err
+	}
 	c, err := smtp.NewClient(conn, s.host)
 	if err != nil {
 		conn.Close()
@@ -119,7 +123,9 @@ func (s *SMTPSender) Send(m Message) error {
 	}
 	_, err = w.Write([]byte(b.String()))
 	if err != nil {
-		_ = w.Close()
+		if closeErr := w.Close(); closeErr != nil {
+			slog.Warn("mail: close writer error on failed write", "error", closeErr)
+		}
 		return err
 	}
 	if err := w.Close(); err != nil {

@@ -33,8 +33,12 @@ func New(redisURL string) Cache {
 	}
 
 	client := redis.NewClient(opts)
-	_ = redisotel.InstrumentTracing(client)
-	_ = redisotel.InstrumentMetrics(client)
+	if err := redisotel.InstrumentTracing(client); err != nil {
+		log.Printf("cache: failed to instrument redis tracing: %v", err)
+	}
+	if err := redisotel.InstrumentMetrics(client); err != nil {
+		log.Printf("cache: failed to instrument redis metrics: %v", err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -255,7 +256,9 @@ func (q *AsynqQueue) Start(ctx context.Context) error {
 	go func() {
 		<-ctx.Done()
 		srv.Shutdown()
-		_ = q.client.Close()
+		if err := q.client.Close(); err != nil {
+			slog.Warn("queue: asynq client close failed on shutdown", "error", err)
+		}
 	}()
 
 	return nil
