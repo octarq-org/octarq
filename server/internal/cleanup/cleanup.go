@@ -44,7 +44,9 @@ func PruneAuditLogs(db *gorm.DB, days int) (int64, error) {
 }
 
 func pruneAuditLogs(db *gorm.DB, days int) {
-	_, _ = PruneAuditLogs(db, days)
+	if _, err := PruneAuditLogs(db, days); err != nil {
+		log.Printf("cleanup: background prune audit logs failed: %v", err)
+	}
 }
 
 // Start runs provided plugin cleanup functions (e.g. purging LinkEvents)

@@ -10,10 +10,9 @@ package auth
 import (
 	"context"
 	"crypto/rand"
-	"crypto/subtle"
 	"encoding/hex"
+	"log/slog"
 	"net/http"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -22,123 +21,10 @@ import (
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/csrf"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/octarq-org/octarq/server/internal/tenantsql"
 	"github.com/octarq-org/octarq/server/origin"
 	"github.com/octarq-org/octarq/server/plugin"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
-
-// BcryptCost is the bcrypt hashing cost used across the application.
-// Defaults to bcrypt.DefaultCost (10), but can be set to bcrypt.MinCost (4) in tests.
-var BcryptCost = bcrypt.DefaultCost
-
-type contextKey string
-
-const (
-	userIDKey    contextKey = "user_id"
-	sessionIDKey contextKey = "session_id"
-	tokenIDKey   contextKey = "token_id"
-	tokenRoleKey contextKey = "token_role"
-)
-
-// WithOrgID returns a new context containing the organization ID.
-func WithOrgID(ctx context.Context, orgID uint) context.Context {
-	return plugin.WithOrgID(ctx, orgID)
-}
-
-// WithUserID returns a new context containing the authenticated user ID, using
-// the same key UserID reads. Mirrors WithOrgID.
-func WithUserID(ctx context.Context, uid uint) context.Context {
-	ctx = context.WithValue(ctx, userIDKey, uid)
-	return tenantsql.WithUserID(ctx, uid)
-}
-
-// UserIDFromContext extracts the authenticated user ID from ctx, returning 0 if absent.
-func UserIDFromContext(ctx context.Context) uint {
-	if v, ok := ctx.Value(userIDKey).(uint); ok && v != 0 {
-		return v
-	}
-	return tenantsql.UserIDFromContext(ctx)
-}
-
-// WithTokenID returns a new context containing the API bearer token ID.
-func WithTokenID(ctx context.Context, id uint) context.Context {
-	return context.WithValue(ctx, tokenIDKey, id)
-}
-
-// TokenIDFromContext extracts the API bearer token ID from ctx, returning 0 if absent.
-func TokenIDFromContext(ctx context.Context) uint {
-	if v, ok := ctx.Value(tokenIDKey).(uint); ok {
-		return v
-	}
-	return 0
-}
-
-// TokenID extracts the API bearer token ID from the request context.
-func (m *Manager) TokenID(r *http.Request) uint {
-	return TokenIDFromContext(r.Context())
-}
-
-// WithTokenRole returns a new context carrying the bearer token's role ceiling.
-// An empty role means an unrestricted (pre-scoping) token — see models.Token.Role.
-func WithTokenRole(ctx context.Context, role string) context.Context {
-	return context.WithValue(ctx, tokenRoleKey, role)
-}
-
-// TokenRoleFromContext returns the bearer token's role ceiling, or "" when the
-// request is not token-authenticated OR the token predates scoping. Callers must
-// therefore check TokenIDFromContext first to tell those two cases apart — "" on
-// its own does not mean "no token".
-func TokenRoleFromContext(ctx context.Context) string {
-	if v, ok := ctx.Value(tokenRoleKey).(string); ok {
-		return v
-	}
-	return ""
-}
-
-// WithTokenIdentity stamps a validated bearer token onto ctx and kicks off the
-// best-effort LastUsedAt touch. Every bearer path funnels through here so token
-// context is consistently populated across all paths.
-func (m *Manager) WithTokenIdentity(ctx context.Context, tok models.Token) context.Context {
-	ctx = WithTokenID(ctx, tok.ID)
-	ctx = WithTokenRole(ctx, tok.Role)
-	m.touchToken(tok.ID)
-	return ctx
-}
-
-// touchToken records LastUsedAt asynchronously; never blocks a request.
-func (m *Manager) touchToken(id uint) {
-	db := m.db
-	if db == nil {
-		return
-	}
-	go func() {
-		now := time.Now()
-		db.Model(&models.Token{}).Where("id = ?", id).Update("last_used_at", &now)
-	}()
-}
-
-// TokenByRequest resolves and validates the request's "oct_" bearer token.
-// It does NOT touch LastUsedAt — callers that admit the token use
-// withTokenIdentity, which does.
-func (m *Manager) TokenByRequest(r *http.Request) (models.Token, bool) {
-	var tok models.Token
-	if m.db == nil {
-		return tok, false
-	}
-	raw := bearerToken(r)
-	if !strings.HasPrefix(raw, "oct_") {
-		return tok, false
-	}
-	if m.db.Where("hash = ?", models.HashToken(raw)).First(&tok).Error != nil {
-		return tok, false
-	}
-	if tok.Expired() {
-		return models.Token{}, false
-	}
-	return tok, true
-}
 
 const (
 	cookieName    = "octarq_session"
@@ -154,16 +40,17 @@ type Manager struct {
 	cache  cache.Cache
 }
 
-func New(cfg *config.Config, c *crypto.Cipher) *Manager {
-	trustProxy.Store(cfg.TrustProxy)
-	return &Manager{cfg: cfg, cipher: c, cache: cache.New("")}
-}
-
 // trustProxy gates whether proxy-supplied headers are honoured: the client-IP
 // headers when deriving the client IP for rate limiting, and X-Forwarded-Proto
 // when deciding whether a request arrived over TLS (which sets the session
 // cookie's Secure attribute). Set once from config in New.
 var trustProxy atomic.Bool
+
+// New creates a new session Manager.
+func New(cfg *config.Config, c *crypto.Cipher) *Manager {
+	trustProxy.Store(cfg.TrustProxy)
+	return &Manager{cfg: cfg, cipher: c, cache: cache.New("")}
+}
 
 // WithDB attaches a database so sessions and API bearer tokens can be
 // validated against persistent state.
@@ -183,22 +70,8 @@ func (m *Manager) Cache() cache.Cache {
 	return m.cache
 }
 
-// Check verifies admin credentials using a constant-time comparison, so a
-// timing side channel cannot reveal prefix information about them (the
-// comparison still reveals each string's length).
-func (m *Manager) Check(user, pass string) bool {
-	userOK := subtle.ConstantTimeCompare([]byte(user), []byte(m.cfg.AdminUser)) == 1
-	passOK := subtle.ConstantTimeCompare([]byte(pass), []byte(m.cfg.AdminPassword)) == 1
-	return userOK && passOK
-}
-
-// CheckAdminPassword verifies the instance admin password using constant-time comparison.
-func (m *Manager) CheckAdminPassword(pass string) bool {
-	return subtle.ConstantTimeCompare([]byte(pass), []byte(m.cfg.AdminPassword)) == 1
-}
-
 // generateToken returns a random 64-char hex string suitable for use as a
-// session token. Panics only if the OS random source fails.
+// session token. Panics fail-closed if the OS random source fails.
 func generateToken() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
@@ -224,38 +97,31 @@ func (m *Manager) SetSessionFromRequest(r *http.Request, w http.ResponseWriter, 
 		err := m.db.Where("user_id = ? AND ip = ? AND user_agent = ? AND expires_at > ?", uid, ip, ua, now).
 			First(&existing).Error
 		if err == nil {
-			// Refresh the existing session. Only the token hash is stored, so we
-			// can't recover the raw token from the row. If the caller already
-			// holds this session's cookie (switch-org, refresh), reuse that raw
-			// token to preserve continuity; otherwise (fresh login from the same
-			// fingerprint) rotate to the freshly generated token.
-			//
-			// org_id must be written on BOTH refresh paths, not just on the
-			// create path below. switch-org is exactly the case that lands here
-			// (same browser, same cookie), so omitting it made every switch
-			// after the first a silent no-op: the endpoint answered 200, the
-			// dashboard remounted showing the new workspace's name, and every
-			// subsequent request still resolved to the old org.
 			if raw := cookieToken(r); raw != "" && models.HashToken(raw) == existing.Token {
-				m.db.Model(&existing).Updates(map[string]any{
+				if updateErr := m.db.Model(&existing).Updates(map[string]any{
 					"org_id":       orgID,
 					"last_seen_at": now,
 					"expires_at":   expires,
-				})
-				// The cache is keyed by token hash, and this path keeps the
-				// token — so without an explicit invalidation a cached row would
-				// keep serving the pre-switch org even now that the DB is right.
-				_ = m.cache.Delete(context.Background(), "session:"+existing.Token)
+				}).Error; updateErr != nil {
+					slog.Error("auth: failed to refresh existing session", "user_id", uid, "error", updateErr)
+				}
+				if delErr := m.cache.Delete(context.Background(), "session:"+existing.Token); delErr != nil {
+					slog.Warn("auth: cache eviction failed", "error", delErr)
+				}
 				m.setCookie(w, r, raw)
 				return
 			}
-			m.db.Model(&existing).Updates(map[string]any{
+			if updateErr := m.db.Model(&existing).Updates(map[string]any{
 				"org_id":       orgID,
 				"token":        models.HashToken(token),
 				"last_seen_at": now,
 				"expires_at":   expires,
-			})
-			_ = m.cache.Delete(context.Background(), "session:"+existing.Token)
+			}).Error; updateErr != nil {
+				slog.Error("auth: failed to rotate existing session", "user_id", uid, "error", updateErr)
+			}
+			if delErr := m.cache.Delete(context.Background(), "session:"+existing.Token); delErr != nil {
+				slog.Warn("auth: cache eviction failed", "error", delErr)
+			}
 			m.setCookie(w, r, token)
 			return
 		}
@@ -269,7 +135,10 @@ func (m *Manager) SetSessionFromRequest(r *http.Request, w http.ResponseWriter, 
 			LastSeenAt: now,
 			ExpiresAt:  expires,
 		}
-		m.db.Create(&sess)
+		if createErr := m.db.Create(&sess).Error; createErr != nil {
+			slog.Error("auth: failed to create session", "user_id", uid, "error", createErr)
+			return
+		}
 	}
 	m.setCookie(w, r, token)
 }
@@ -289,19 +158,16 @@ func (m *Manager) SetSession(w http.ResponseWriter, r *http.Request, uid, orgID 
 			LastSeenAt: now,
 			ExpiresAt:  now.Add(sessionTTL),
 		}
-		m.db.Create(&sess)
+		if createErr := m.db.Create(&sess).Error; createErr != nil {
+			slog.Error("auth: failed to create session", "user_id", uid, "error", createErr)
+			return
+		}
 	}
 	m.setCookie(w, r, token)
 }
 
 // setCookie writes the session cookie, marking it Secure exactly when the
 // request that is establishing the session arrived over TLS.
-//
-// Deriving this from the request rather than from configuration removes the
-// trap that used to need a warning at startup: a Secure cookie set over plain
-// HTTP is silently dropped by the browser, so the user logs in and every
-// following request is a 401. It cannot happen now — over HTTP the flag is off,
-// and the moment the same instance is reached over HTTPS it is on.
 func (m *Manager) setCookie(w http.ResponseWriter, r *http.Request, token string) {
 	secure := origin.Secure(r, trustProxy.Load())
 	http.SetCookie(w, &http.Cookie{
@@ -335,7 +201,9 @@ func (m *Manager) sessionByToken(token string) *models.Session {
 		if s.ExpiresAt.After(time.Now()) {
 			return &s
 		}
-		_ = m.cache.Delete(ctx, "session:"+hashed)
+		if delErr := m.cache.Delete(ctx, "session:"+hashed); delErr != nil {
+			slog.Warn("auth: cache delete expired session failed", "error", delErr)
+		}
 	}
 
 	if err := m.db.Where("token = ? AND expires_at > ?", hashed, time.Now()).First(&s).Error; err != nil {
@@ -344,7 +212,9 @@ func (m *Manager) sessionByToken(token string) *models.Session {
 
 	ttl := time.Until(s.ExpiresAt)
 	if ttl > 0 {
-		_ = m.cache.Set(ctx, "session:"+hashed, &s, ttl)
+		if setErr := m.cache.Set(ctx, "session:"+hashed, &s, ttl); setErr != nil {
+			slog.Warn("auth: cache set session failed", "error", setErr)
+		}
 	}
 	return &s
 }
@@ -400,9 +270,13 @@ func (m *Manager) Clear(r *http.Request, w http.ResponseWriter) {
 	token := cookieToken(r)
 	if token != "" {
 		hashed := models.HashToken(token)
-		_ = m.cache.Delete(context.Background(), "session:"+hashed)
+		if delErr := m.cache.Delete(context.Background(), "session:"+hashed); delErr != nil {
+			slog.Warn("auth: cache delete failed on clear", "error", delErr)
+		}
 		if m.db != nil {
-			m.db.Where("token = ?", hashed).Delete(&models.Session{})
+			if delErr := m.db.Where("token = ?", hashed).Delete(&models.Session{}).Error; delErr != nil {
+				slog.Error("auth: db session delete failed on clear", "error", delErr)
+			}
 		}
 	}
 	http.SetCookie(w, &http.Cookie{
@@ -414,12 +288,6 @@ func (m *Manager) Clear(r *http.Request, w http.ResponseWriter) {
 // RevokeUserOrgSessions deletes every session that binds the given user to the
 // given org, evicting each from the cache first so a cached row can't keep
 // serving after the DB row is gone. Returns the number of sessions revoked.
-//
-// Membership is checked ONCE, when the session is minted: a session row carries
-// its org and every later request trusts it. So dropping the org_members row is
-// not by itself a revocation — without this, a removed member keeps full access
-// to the workspace's data until their session expires (up to sessionTTL). Any
-// code path that ends a membership must call this.
 func (m *Manager) RevokeUserOrgSessions(userID, orgID uint) int {
 	if m.db == nil || userID == 0 || orgID == 0 {
 		return 0
@@ -434,34 +302,15 @@ func (m *Manager) RevokeUserOrgSessions(userID, orgID uint) int {
 	ctx := context.Background()
 	ids := make([]uint, 0, len(sessions))
 	for _, s := range sessions {
-		// Session.Token holds the SHA-256 hash, which is exactly the cache key.
-		_ = m.cache.Delete(ctx, "session:"+s.Token)
+		if delErr := m.cache.Delete(ctx, "session:"+s.Token); delErr != nil {
+			slog.Warn("auth: cache delete failed on revoke", "error", delErr)
+		}
 		ids = append(ids, s.ID)
 	}
-	m.db.Where("id IN ?", ids).Delete(&models.Session{})
+	if delErr := m.db.Where("id IN ?", ids).Delete(&models.Session{}).Error; delErr != nil {
+		slog.Error("auth: db revoke sessions failed", "error", delErr)
+	}
 	return len(ids)
-}
-
-// RevokeUserOrgTokens deletes every API bearer token bound to the given user
-// in the given org. A token's authority is normally read live from its
-// holder's membership, but that live read is only one layer of defence: any
-// authorization seam that answers before the live read (a plugin resolver, for
-// one) would let a removed member's token keep acting. Deleting the rows makes
-// the removal explicit rather than implied. Returns the number of tokens
-// revoked.
-//
-// Token.OrgID maps to the owner_id column, so the query is scoped by that name;
-// like sessions, revocation is per (user, org) and leaves the user's tokens in
-// their other workspaces alone.
-func (m *Manager) RevokeUserOrgTokens(userID, orgID uint) int {
-	if m.db == nil || userID == 0 || orgID == 0 {
-		return 0
-	}
-	res := m.db.Where("user_id = ? AND owner_id = ?", userID, orgID).Delete(&models.Token{})
-	if res.Error != nil {
-		return 0
-	}
-	return int(res.RowsAffected)
 }
 
 // TouchSession updates LastSeenAt for the session associated with r, but
@@ -482,37 +331,13 @@ func (m *Manager) TouchSession(r *http.Request) {
 		return
 	}
 	if now.Sub(s.LastSeenAt) >= touchInterval {
-		m.db.Model(&s).Update("last_seen_at", now)
-		// Evict from cache to force update on next read
-		_ = m.cache.Delete(context.Background(), "session:"+hashed)
+		if upErr := m.db.Model(&s).Update("last_seen_at", now).Error; upErr != nil {
+			slog.Error("auth: touch session update failed", "error", upErr)
+		}
+		if delErr := m.cache.Delete(context.Background(), "session:"+hashed); delErr != nil {
+			slog.Warn("auth: cache delete failed on touch session", "error", delErr)
+		}
 	}
-}
-
-// bearerToken extracts a "oct_" token from the Authorization header.
-func bearerToken(r *http.Request) string {
-	h := r.Header.Get("Authorization")
-	const pfx = "Bearer "
-	if !strings.HasPrefix(h, pfx) {
-		return ""
-	}
-	return strings.TrimSpace(h[len(pfx):])
-}
-
-// tokenAuthed reports whether the request carries a valid API bearer token.
-// On success it best-effort records LastUsedAt asynchronously.
-func (m *Manager) tokenAuthed(r *http.Request) bool {
-	tok, ok := m.TokenByRequest(r)
-	if !ok {
-		return false
-	}
-	m.touchToken(tok.ID)
-	return true
-}
-
-// APIAuthed reports whether the request is authenticated by either a valid
-// session cookie or a valid API bearer token.
-func (m *Manager) APIAuthed(r *http.Request) bool {
-	return m.Authed(r) || m.tokenAuthed(r)
 }
 
 // identify resolves the request's credentials — session cookie first, then API
@@ -528,11 +353,7 @@ func (m *Manager) identify(r *http.Request) (context.Context, bool) {
 		}
 	}
 
-	// 2. Bearer token (API access, no session row). The token acts as the person
-	// who minted it: stamping their user id is what lets the ordinary membership
-	// lookup answer role questions, so there is one authorization path rather
-	// than a parallel one that only bearer requests take. The token's own role is
-	// carried alongside as a ceiling, never as a substitute (see callerHoldsRole).
+	// 2. Bearer token (API access, no session row).
 	if tok, ok := m.TokenByRequest(r); ok {
 		ctx := context.WithValue(r.Context(), userIDKey, tok.UserID)
 		ctx = plugin.WithOrgID(ctx, tok.OrgID)
@@ -564,34 +385,4 @@ func (m *Manager) AuthenticateRequest(r *http.Request) (*http.Request, bool) {
 		return r, false
 	}
 	return r.WithContext(ctx), true
-}
-
-// reporterIP extracts the best-effort client IP from the request. Proxy
-// headers are honoured only when trustProxy is set, otherwise a client could
-// spoof X-Forwarded-For to evade the login rate limiter.
-func reporterIP(r *http.Request) string {
-	if trustProxy.Load() {
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			parts := strings.SplitN(xff, ",", 2)
-			return strings.TrimSpace(parts[0])
-		}
-		if xri := r.Header.Get("X-Real-IP"); xri != "" {
-			return strings.TrimSpace(xri)
-		}
-	}
-	// RemoteAddr is "host:port" — strip port.
-	addr := r.RemoteAddr
-	if i := strings.LastIndex(addr, ":"); i > 0 {
-		return addr[:i]
-	}
-	return addr
-}
-
-// IsConfigAdmin reports whether email is the instance's bootstrap admin — the
-// account whose password lives in the instance config rather than in a row.
-// Callers that need to know whether octarq holds a checkable password for an
-// account (re-authentication before a sensitive change) cannot tell from an
-// empty PasswordHash alone: this user has one too, and it is not "no password".
-func (m *Manager) IsConfigAdmin(email string) bool {
-	return email != "" && email == m.cfg.AdminUser
 }
