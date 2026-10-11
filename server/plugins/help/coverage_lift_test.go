@@ -71,10 +71,7 @@ func TestCoverageLift_GetDocsBranches(t *testing.T) {
 			return true
 		},
 		FeatureActive: func(orgID uint, feat string) bool {
-			if feat == "disabled_feature" {
-				return false
-			}
-			return true
+			return feat != "disabled_feature"
 		},
 		Host: &plugin.TestHost{
 			SessionMock: &plugin.TestSession{

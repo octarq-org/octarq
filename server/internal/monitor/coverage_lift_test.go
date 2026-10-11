@@ -47,12 +47,11 @@ func TestCoverageLift_DBProvider_LazyInitAndDBError(t *testing.T) {
 		t.Fatal("expected sqlDB to be populated after Check")
 	}
 
-	// 2. Error when db.DB() fails (Statement.ConnPool is a *sql.Tx)
-	badGdb := *gdb
-	stmt := *badGdb.Statement
-	stmt.ConnPool = &sql.Tx{}
-	badGdb.Statement = &stmt
-	pBroken := &DBProvider{db: &badGdb}
+	// 2. Error when db.DB() fails (Statement.ConnPool is a *sql.Tx).
+	// Clone via Session so no lock-bearing gorm structs are copied (copylocks).
+	badGdb := gdb.Session(&gorm.Session{NewDB: true})
+	badGdb.Statement.ConnPool = &sql.Tx{}
+	pBroken := &DBProvider{db: badGdb}
 	resErr := pBroken.Check(context.Background())
 	if resErr.Status != plugin.HealthError {
 		t.Fatalf("expected HealthError when db.DB() fails, got %v", resErr.Status)

@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
+
+	"gorm.io/gorm"
 )
 
 func TestCoverageLift_NormalizeHost_IPv6Port(t *testing.T) {
@@ -49,11 +51,10 @@ func TestCoverageLift_NilAndEmptyInputs(t *testing.T) {
 	if p := namespace(nil); p != "nodb|" {
 		t.Fatalf("expected nodb| for nil db, got %q", p)
 	}
-	badGDB := *db
-	stmt := *badGDB.Statement
-	stmt.ConnPool = &sql.Tx{}
-	badGDB.Statement = &stmt
-	if p := namespace(&badGDB); p != "nodb|" {
+	// Clone via Session so no lock-bearing gorm structs are copied (copylocks).
+	badGDB := db.Session(&gorm.Session{NewDB: true})
+	badGDB.Statement.ConnPool = &sql.Tx{}
+	if p := namespace(badGDB); p != "nodb|" {
 		t.Fatalf("expected nodb| for broken gorm.DB, got %q", p)
 	}
 
