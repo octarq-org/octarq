@@ -2,6 +2,7 @@ package mail
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -61,5 +62,7 @@ func (rl *rateLimiter) allow(ip string) bool {
 
 func (rl *rateLimiter) recordFailure(ip string) {
 	ctx := context.Background()
-	_, _ = rl.store.Increment(ctx, ip, 1, rl.rate)
+	if _, err := rl.store.Increment(ctx, ip, 1, rl.rate); err != nil {
+		log.Printf("mail: failed to increment rate limit failure count for ip %s: %v", ip, err)
+	}
 }

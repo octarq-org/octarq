@@ -103,15 +103,20 @@ func (p *Plugin) linkMetadata(ctx context.Context, input *LinkMetadataInput) (*L
 
 func (p *Plugin) handleLinkCrawl(ctx context.Context, payload []byte) error {
 	var d struct {
-		ID     uint   `json:"id"`
-		Target string `json:"target"`
+		ID      uint   `json:"id"`
+		Target  string `json:"target"`
+		OwnerID uint   `json:"owner_id"`
 	}
 	if err := json.Unmarshal(payload, &d); err != nil {
 		return err
 	}
 	title, _ := fetchPageMeta(ctx, d.Target)
 	if title != "" {
-		return p.db.Model(&Link{}).Where("id = ?", d.ID).Update("title", title).Error
+		q := p.db.Model(&Link{}).Where("id = ?", d.ID)
+		if d.OwnerID != 0 {
+			q = q.Where("owner_id = ?", d.OwnerID)
+		}
+		return q.Update("title", title).Error
 	}
 	return nil
 }

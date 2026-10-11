@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -106,7 +107,9 @@ func (h *Handler) changePassword(ctx context.Context, input *ChangePasswordInput
 	h.db.Where("user_id = ? AND id <> ?", uid, currentID).Find(&sessions)
 	reqCtx := r.Context()
 	for _, s := range sessions {
-		_ = h.auth.Cache().Delete(reqCtx, "session:"+s.Token)
+		if err := h.auth.Cache().Delete(reqCtx, "session:"+s.Token); err != nil {
+			slog.Warn("failed to delete session from cache", "token", s.Token, "err", err)
+		}
 	}
 	h.db.Where("user_id = ? AND id <> ?", uid, currentID).Delete(&models.Session{})
 

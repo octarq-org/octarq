@@ -2,6 +2,7 @@ package links
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 
@@ -53,7 +54,7 @@ func (p *Plugin) registerRoutes(ctx *plugin.Context) {
 		huma.Register(api, huma.Operation{Method: "GET", Path: "/api/instance/link-settings", Summary: "Get Instance Link Settings", Tags: []string{"Settings"}}, p.getInstanceLinkSettings)
 		huma.Register(api, huma.Operation{Method: "PUT", Path: "/api/instance/link-settings", Summary: "Update Instance Link Settings", Tags: []string{"Settings"}}, p.updateInstanceLinkSettings)
 	}
-	_ = plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[DeclarativeLinkInput, DeclarativeLinkOutput]{
+	if err := plugin.RegisterEndpoint(ctx, plugin.EndpointSpec[DeclarativeLinkInput, DeclarativeLinkOutput]{
 		Name:        "create_shortlink",
 		MCPToolName: "octarq_network__create_shortlink",
 		Method:      "POST",
@@ -63,7 +64,9 @@ func (p *Plugin) registerRoutes(ctx *plugin.Context) {
 		RequireAuth: true,
 		ExposeMCP:   true,
 		Handler:     p.createDeclarativeLink,
-	})
+	}); err != nil {
+		log.Printf("links: failed to register declarative endpoint: %v", err)
+	}
 	if ctx.HandleRoot != nil {
 		ctx.HandleRoot(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			slug := strings.TrimPrefix(r.URL.Path, "/")
@@ -155,7 +158,9 @@ func (p *Plugin) updateInstanceLinkSettings(ctx context.Context, input *UpdateIn
 	}
 	if input.Body.ReservedSlugs != nil {
 		if p.host != nil && p.host.Settings() != nil {
-			_ = p.host.Settings().SetGlobalSetting("reserved_slugs", strings.Join(splitList(*input.Body.ReservedSlugs), "\n"))
+			if err := p.host.Settings().SetGlobalSetting("reserved_slugs", strings.Join(splitList(*input.Body.ReservedSlugs), "\n")); err != nil {
+				log.Printf("links: failed to set global reserved_slugs setting: %v", err)
+			}
 		}
 	}
 	var reserved string

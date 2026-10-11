@@ -3,6 +3,7 @@ package mail
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -213,9 +214,13 @@ func (p *Plugin) deleteMailbox(ctx context.Context, input *DeleteMailboxInput) (
 			key = fmt.Sprintf("mail/%d/%d.eml", p.orgID(r), e.ID)
 		}
 		if storageProv != nil {
-			_ = storageProv.Delete(ctx, key)
+			if err := storageProv.Delete(ctx, key); err != nil {
+				log.Printf("mail: storage provider failed to delete blob for key %s: %v", key, err)
+			}
 		}
-		_ = dbProv.Delete(ctx, key)
+		if err := dbProv.Delete(ctx, key); err != nil {
+			log.Printf("mail: db storage provider failed to delete blob for key %s: %v", key, err)
+		}
 	}
 	p.db.Where("mailbox_id = ?", input.ID).Delete(&Email{})
 	if p.audit != nil {

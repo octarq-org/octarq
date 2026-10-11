@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -32,7 +33,9 @@ func (p *Plugin) loadRawEmail(ctx context.Context, e *Email) []byte {
 	key := e.StorageKey
 	if key == "" {
 		var mb Mailbox
-		_ = p.db.First(&mb, e.MailboxID).Error
+		if err := p.db.First(&mb, e.MailboxID).Error; err != nil {
+			log.Printf("mail: failed to load mailbox %d for raw email %d: %v", e.MailboxID, e.ID, err)
+		}
 		key = fmt.Sprintf("mail/%d/%d.eml", mb.OrgID, e.ID)
 	}
 	if storageProv, err := p.getStorageProvider(); err == nil {
@@ -110,7 +113,9 @@ func (p *Plugin) getAttachment(ctx context.Context, input *GetAttachmentInput) (
 		Size        int    `json:"size"`
 	}
 	if e.Attachments != "" {
-		_ = json.Unmarshal([]byte(e.Attachments), &atts)
+		if err := json.Unmarshal([]byte(e.Attachments), &atts); err != nil {
+			log.Printf("mail: failed to unmarshal attachments for email %d: %v", e.ID, err)
+		}
 	}
 	if input.Index < 0 || input.Index >= len(atts) {
 		return nil, huma.Error404NotFound("attachment not found")
@@ -131,19 +136,23 @@ func (p *Plugin) getAttachment(ctx context.Context, input *GetAttachmentInput) (
 			w.Header().Set("Content-Type", meta.ContentType)
 			w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", meta.Filename))
 			w.Header().Set("Content-Length", fmt.Sprint(len(data)))
-			_, _ = w.Write(data)
+			if _, err := w.Write(data); err != nil {
+				log.Printf("mail: failed to write attachment payload for email %d: %v", e.ID, err)
+			}
 			return nil, nil
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotImplemented)
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	if err := json.NewEncoder(w).Encode(map[string]any{
 		"error":       "attachment content not available, download raw email instead",
 		"attachment":  meta,
 		"rawUrl":      fmt.Sprintf("/api/emails/%d/raw", e.ID),
 		"contentType": meta.ContentType,
 		"filename":    meta.Filename,
-	})
+	}); err != nil {
+		log.Printf("mail: failed to write fallback attachment json response: %v", err)
+	}
 	return nil, nil
 }
 

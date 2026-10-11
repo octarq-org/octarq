@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"log"
 	"sync"
 )
 
@@ -57,9 +58,13 @@ func (b *TypedBus[T]) PublishAsync(ctx context.Context, e T) {
 			}
 			func(fn func(T) error) {
 				defer func() {
-					_ = recover()
+					if r := recover(); r != nil {
+						log.Printf("[typed_bus] recovered panic in async handler for %T: %v", e, r)
+					}
 				}()
-				_ = fn(e)
+				if err := fn(e); err != nil {
+					log.Printf("[typed_bus] error in async handler for %T: %v", e, err)
+				}
 			}(h)
 		}
 	}()
