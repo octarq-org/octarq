@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -69,7 +70,9 @@ func (d *Dispatcher) Dispatch(ctx context.Context, ch plugin.NotificationChannel
 	d.wg.Add(1)
 	go func() {
 		defer d.wg.Done()
-		_ = d.DispatchSync(ctx, ch, recipient, payload)
+		if err := d.DispatchSync(ctx, ch, recipient, payload); err != nil {
+			slog.Warn("notification: async dispatch delivery failed", "channel", ch.Name(), "error", err)
+		}
 	}()
 }
 
