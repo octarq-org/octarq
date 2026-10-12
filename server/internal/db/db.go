@@ -6,6 +6,7 @@ package db
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"slices"
 	"strings"
@@ -72,9 +73,15 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("sql db: %w", err)
 	}
 
-	// Instrument GORM with OpenTelemetry tracing and pool metrics
-	_ = gdb.Use(tracing.NewPlugin(tracing.WithoutQueryVariables()))
-	_ = telemetry.RegisterDBStatsMetrics(otel.GetMeterProvider().Meter("github.com/octarq-org/octarq/server/db"), sqlDB)
+	// Instrument GORM with OpenTelemetry tracing and pool metrics. Both are
+	// observability aids, not correctness gates — a failure here must not stop
+	// db open, but it must not be invisible either.
+	if err := gdb.Use(tracing.NewPlugin(tracing.WithoutQueryVariables())); err != nil {
+		slog.Warn("db: failed to install gorm tracing plugin", "err", err)
+	}
+	if err := telemetry.RegisterDBStatsMetrics(otel.GetMeterProvider().Meter("github.com/octarq-org/octarq/server/db"), sqlDB); err != nil {
+		slog.Warn("db: failed to register db pool metrics", "err", err)
+	}
 
 	if cfg.DBDriver == "sqlite" {
 		// Apply on the live connection so a user DSN that already has

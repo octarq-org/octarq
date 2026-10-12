@@ -417,9 +417,14 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 
 	if sp, ok := notification.DefaultRouter().GetChannel(ch.Type); ok {
 		var cfgMap map[string]any
-		plain, _ := h.channelConfigPlaintext(ch.Config)
+		plain, err := h.channelConfigPlaintext(ch.Config)
+		if err != nil {
+			return nil, huma.Error400BadRequest("stored channel config could not be decrypted: " + err.Error())
+		}
 		if plain != "" {
-			_ = json.Unmarshal([]byte(plain), &cfgMap)
+			if err := json.Unmarshal([]byte(plain), &cfgMap); err != nil {
+				return nil, huma.Error400BadRequest("stored channel config is not valid JSON: " + err.Error())
+			}
 		}
 		if cfgMap == nil {
 			cfgMap = make(map[string]any)
@@ -432,7 +437,7 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 				}
 			}
 		}
-		err := sp.Send(ctxTimeout, plugin.NotificationRecipient{
+		err = sp.Send(ctxTimeout, plugin.NotificationRecipient{
 			UserID: strconv.FormatUint(uint64(h.auth.UserID(r)), 10),
 			OrgID:  strconv.FormatUint(uint64(orgID), 10),
 			Config: cfgMap,
