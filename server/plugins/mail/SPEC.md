@@ -114,7 +114,7 @@ type MailContact struct {
 }
 ```
 
-### 2.2 Storage Provider Contract (`plugin/plugin.go:170-175`)
+### 2.2 Storage Provider Contract (`plugin/services.go`)
 
 ```go
 type StorageProvider interface {

@@ -1,6 +1,9 @@
 package plugin
 
-import "strings"
+import (
+	"errors"
+	"strings"
+)
 
 // ProviderOIDC is the Provider value for an OpenID Connect identity.
 const ProviderOIDC = "oidc"
@@ -77,4 +80,37 @@ type ExternalIdentity struct {
 // ErrAccountLinkRequired branch and locks them out. Both sides call this.
 func NormalizeIssuer(issuer string) string {
 	return strings.TrimRight(strings.TrimSpace(issuer), "/")
+}
+
+// ErrLoginRegistrationDisabled is returned by Context.LoginByEmail when the
+// email is unknown and the instance has public registration turned off
+// (invite-only). An SSO/identity plugin should surface this as "ask an admin to
+// add your account" rather than a generic error. It mirrors the core auth
+// sentinel across the plugin boundary so plugins can errors.Is against it
+// without importing internal packages.
+var ErrLoginRegistrationDisabled = errors.New("registration disabled")
+
+// ErrAccountLinkRequired is returned by Context.LoginByIdentity when the
+// external identity is not bound to anyone yet but its asserted email already
+// belongs to an account. Signing in would mean handing that account to whoever
+// controls the IdP, so the link has to be made from the other direction: the
+// owner signs in the way they already can and binds the identity from account
+// settings (Context.BindIdentity).
+var ErrAccountLinkRequired = errors.New("account link required")
+
+// AuthMethod is a provider-agnostic auth method definition, mirroring the fields
+// of internal/auth.AuthMethod using only stable types so plugins in a separate
+// module never import internal packages.
+type AuthMethod struct {
+	ID       string `json:"id"`       // stable identifier, e.g. "sso" / "oidc-acme"
+	Label    string `json:"label"`    // button label, e.g. "Sign in with SSO"
+	LoginURL string `json:"loginUrl"` // launch/redirect URL (plugin's /api/... endpoint)
+	IconKey  string `json:"iconKey"`  // frontend icon key, optional
+	// Available reports whether the method can actually be used right now.
+	// Registration happens at Mount with no way to unregister, so without this
+	// a method is offered from the moment its plugin is compiled in — that is
+	// how the login page came to show "Sign in with SSO" on instances where SSO
+	// was never configured. Consulted per request, so it tracks configuration
+	// changes. nil means always available.
+	Available func() bool `json:"-"`
 }
