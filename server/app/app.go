@@ -14,25 +14,19 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
-	"os"
-	"os/signal"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
-	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/idempotency"
 	"github.com/octarq-org/octarq/server/internal/api"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/cache"
-	"github.com/octarq-org/octarq/server/internal/cleanup"
 	"github.com/octarq-org/octarq/server/internal/cron"
 	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/endpoint"
@@ -328,32 +322,7 @@ func (a *App) Run(ctx context.Context) error {
 		}
 		slog.Info("plugin mounted", "name", p.Name())
 	}
-	if err := endpointEngine.MountHTTP(apiHandler.Huma(), endpoint.HTTPOptions{
-		RequireAuth: func(ctx context.Context) (uint, error) {
-			orgID := plugin.OrgIDFromContext(ctx)
-			if orgID == 0 {
-				return 0, huma.Error401Unauthorized("unauthorized")
-			}
-			return orgID, nil
-		},
-		RequireRole: func(ctx context.Context, roles []string) error {
-			if len(roles) == 0 {
-				return nil
-			}
-			r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
-			if err != nil {
-				return huma.Error403Forbidden("forbidden: insufficient workspace role privilege")
-			}
-			for _, role := range roles {
-				if apiHandler.RequireRole(r, role) {
-					return nil
-				}
-			}
-			return huma.Error403Forbidden("forbidden: insufficient workspace role privilege")
-		},
-	}); err != nil {
-		slog.Warn("app: failed to mount endpoint HTTP routes", "error", err)
-	}
+	mountEndpointHTTP(apiHandler, endpointEngine)
 	if err := routes.Err(); err != nil {
 		return err
 	}
@@ -422,58 +391,14 @@ func (a *App) Run(ctx context.Context) error {
 	if a.cfg.DevWebProxy != "" {
 		slog.Info("dev web proxy enabled", "target", a.cfg.DevWebProxy)
 	}
-	srv, err := server.New(a.cfg, a.gdb, api.CSRFGuard(a.cfg.SecretKey, mux), rootHandler, webFS, staticMounts, server.RuntimeSettings{
-		MetricsToken: apiHandler.MetricsToken,
-		RateLimits:   apiHandler.RateLimits,
-		PublicGET:    api.PublicGETMatcher(apiHandler.Huma()),
-		CORSOrigins:  apiHandler.CORSOrigins,
+	return a.serve(ctx, serverRunParams{
+		mux:             mux,
+		rootHandler:     rootHandler,
+		webFS:           webFS,
+		staticMounts:    staticMounts,
+		apiHandler:      apiHandler,
+		services:        services,
+		cronEngine:      cronEngine,
+		healthCollector: healthCollector,
 	})
-	if err != nil {
-		return err
-	}
-
-	httpSrv := &http.Server{
-		Addr:              a.cfg.Listen,
-		Handler:           srv,
-		ReadHeaderTimeout: 10 * time.Second,
-	}
-
-	var cleanups []func(context.Context, int)
-	for _, p := range a.plugins {
-		if fn, ok := plugin.LookupServiceAs[plugin.CleanupFunc](services.Lookup, plugin.CleanupServiceName(p.Name())); ok {
-			cleanups = append(cleanups, fn)
-		}
-	}
-	go cleanup.Start(ctx, apiHandler.DataRetentionDays, cleanups...)
-	go cleanup.StartSessionCleanup(ctx, a.gdb, apiHandler.DataRetentionDays)
-	healthCollector.Start(ctx)
-	defer healthCollector.Stop()
-
-	go func() {
-		slog.Info("octarq listening", "addr", a.cfg.Listen, "db", a.cfg.DBDriver)
-		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("listen failed", "err", err)
-			os.Exit(1)
-		}
-	}()
-
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	select {
-	case <-stop:
-	case <-ctx.Done():
-	}
-
-	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	slog.Info("shutting down")
-	if err := cronEngine.Stop(shutCtx); err != nil {
-		slog.Warn("cron shutdown failed", "err", err)
-	}
-	if a.telemetry != nil {
-		if err := a.telemetry.Shutdown(shutCtx); err != nil {
-			slog.Warn("app: telemetry shutdown failed", "error", err)
-		}
-	}
-	return httpSrv.Shutdown(shutCtx)
 }
