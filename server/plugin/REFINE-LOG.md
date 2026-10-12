@@ -34,3 +34,22 @@
 - `go test -race ./plugin/...` -> PASS (Zero race conditions)
 - `gofmt -w .` -> Clean
 - `go build ./...` across `server/` -> Clean build
+
+---
+
+## 4. Follow-up: Residual God-File Split (2026-10-12)
+
+The helpdoc extraction above left `plugin.go` at 770 LOC — still the last >500-LOC production file in the OSS server. Final split, pure moves within the package:
+
+- `context.go` (new) — `Context`, `TenantDBFor`, `WithOrgID`/`OrgIDFromContext`/`WithUserID`/`UserIDFromContext`.
+- `services.go` — absorbed the well-known service names + contracts the first pass missed: `ServiceDNSManager`/`DNSManager`/`DNSRecord`, `ServiceMailStorageProvider`/`StorageProvider`/`ErrStorageNotFound`, `ServiceQuotaChecker`/`QuotaChecker`/`ErrQuotaExceeded`/`ErrQuotaUnavailable`, `LinkCreator` (this file is what the package doc designates for well-known services).
+- `identity.go` — absorbed `AuthMethod`, `ErrLoginRegistrationDisabled`, `ErrAccountLinkRequired`.
+- `menu.go` (new) — `MenuItem`/`MenuProvider`/`InstanceMenuProvider`/`Action`/`ActionProvider`.
+- `info.go` (new) — category constants, `ValidCategories`, `Info`/`Describer`/`Describe`/`FeatureKey`/`FeatureIsCore`.
+- `events.go` (new) — `EmailEvent`/`WebhookEventDef`.
+- `tracing.go` (new) — `StartSpan`.
+- `plugin.go` — now 179 LOC: package doc + `Plugin`/`Mux`/`Starter`/`Validator` + optional-capability interfaces.
+
+No behavior or API change: all symbols, signatures and doc comments preserved verbatim (content-conservation check; the surviving `plugin.go` diff is deletions-only). Stale `plugin/plugin.go:<line>` references in `scope_boundary_test.go` comments, the website architecture docs, and help/mail `SPEC.md` were re-pointed to symbols/files (the numbers had drifted with earlier edits).
+
+Verification: `gofmt -l` clean; `go build ./...` and `go vet ./plugin/...` clean; `go test ./... -race` full suite green; largest new file 388 LOC.

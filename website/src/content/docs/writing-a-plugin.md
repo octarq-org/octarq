@@ -144,12 +144,12 @@ Verify frontend registration:
 Octarq runs at two scopes, and a plugin page belongs to exactly one of them:
 
 - **Tenant scope** — one per workspace. The UI lives in the `/admin` shell; the
-  sidebar entry comes from `plugin.MenuProvider` (`server/plugin/plugin.go`), is served
+  sidebar entry comes from `plugin.MenuProvider` (`server/plugin/menu.go`), is served
   by `GET /api/menus`, and is gated per workspace: a workspace that disables the
   feature stops seeing it. The frontend page is a `UIPlugin.routes` entry.
 - **Instance scope** — one per deployment. The UI lives in the `/instance`
   console; the rail entry comes from `plugin.InstanceMenuProvider`
-  (`server/plugin/plugin.go`), is served by the instance-admin-gated
+  (`server/plugin/menu.go`), is served by the instance-admin-gated
   `GET /api/instance/menus` endpoint, and has no per-workspace toggle — the
   entry is announced by the deployment or it isn't. The frontend page is a
   `UIPlugin.instanceRoutes` entry.

@@ -12,7 +12,7 @@ package api
 // These tests lock the boundary from the outside: the tenant menu surface must
 // never point into instance territory, and the largest org role (owner) must
 // still be refused on the instance-settings endpoints — "org 里最大的角色说明
-// 不了实例权限" is the contract written in plugin/plugin.go:251-252, and until
+// 不了实例权限" is the contract written on plugin.InstanceMenuProvider, and until
 // now nothing pinned the owner rung (only the member rung was covered, in
 // instance_readiness_test.go:248).
 
@@ -82,7 +82,7 @@ func TestTenantMenusNeverExposeInstancePaths(t *testing.T) {
 }
 
 // TestInstanceSettingsRefuseOrgOwner locks the org-owner rung of the
-// instance-settings gate. The contract (plugin/plugin.go:251-252) is that an
+// instance-settings gate. The contract (plugin.InstanceMenuProvider) is that an
 // org role — including the most powerful one, owner — says nothing about
 // instance privilege: every self-serve signup is owner of their own org. The
 // member rung is already covered (instance_readiness_test.go:248); the owner

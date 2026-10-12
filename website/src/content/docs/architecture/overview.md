@@ -19,7 +19,7 @@ Every platform capability is structured as a **plugin** with two corresponding h
 
 Both halves compose **at build time**: compile-time Go interface implementations + build-time frontend manifest injection. The resulting single binary embeds the frontend assets via Go's standard `go:embed`.
 
-## 2. Backend contract (`server/plugin/plugin.go`)
+## 2. Backend contract (`server/plugin/`)
 
 ```go
 type Plugin interface {
@@ -82,7 +82,8 @@ For development conventions and architectural rules, see [Developer Conventions]
 ## 6. File Map
 
 Core codebase layout:
-- `server/plugin/plugin.go` — Backend plugin contract & `Context`.
+- `server/plugin/plugin.go` — Backend plugin contract (`Plugin`, `Mux`, optional capability interfaces).
+- `server/plugin/context.go` — the `Context` and org/user context helpers handed to every plugin.
 - `server/app/app.go` — Server wiring, `Use()`, middleware, and HTTP listeners.
 - `packages/plugin-sdk/` — Public frontend SDK package (contracts + UI components).
 - `web/src/plugin-sdk/` — Dashboard facade re-exporting the SDK.

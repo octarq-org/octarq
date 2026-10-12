@@ -1,6 +1,9 @@
 package plugin
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
 // Well-known service names for cross-plugin contracts, paired with the named
 // contract types below. Providers register under these names in Mount with an
@@ -262,3 +265,124 @@ type EmailGetter func(orgID uint, id uint) (from, subject, body string, ok bool)
 // contract: every provider and the MCP server must change together, which the
 // explicit conversion at the Provide call site enforces at compile time.
 type MCPExporter func(ctx context.Context, orgID uint) (any, error)
+
+// ServiceDNSManager is the well-known service name under which the DNS manager
+// is provided (contract type DNSManager). This is the single declaration of the
+// name: the dns plugin re-exports it rather than declaring a second constant
+// with the same literal, so editing it here moves both halves of the wiring.
+//
+// Providers MUST convert at the Provide call site —
+// ctx.Provide(plugin.ServiceDNSManager, plugin.DNSManager(mgr)) — and consumers
+// MUST resolve it with LookupAs[plugin.DNSManager] rather than a hand-rolled
+// type assertion, so there is one assertion implementation.
+const ServiceDNSManager = "dns.manager"
+
+// ServiceMailStorageProvider is the well-known service name under which the raw
+// email storage provider is registered (contract type StorageProvider).
+//
+// Providers MUST convert at the Provide call site —
+// ctx.Provide(plugin.ServiceMailStorageProvider, plugin.StorageProvider(prov))
+// — and consumers MUST resolve it with LookupAs[plugin.StorageProvider].
+// Providing the concrete type unconverted compiles even after the concrete type
+// stops satisfying StorageProvider; the failure then surfaces as raw email
+// silently falling back to database storage at runtime.
+const ServiceMailStorageProvider = "mail.storage_provider"
+
+// ErrStorageNotFound is returned when a storage object does not exist.
+var ErrStorageNotFound = errors.New("storage object not found")
+
+// StorageProvider defines the blob storage contract for raw email content.
+type StorageProvider interface {
+	Put(ctx context.Context, key string, data []byte) error
+	Get(ctx context.Context, key string) ([]byte, error)
+	Delete(ctx context.Context, key string) error
+	Stat(ctx context.Context, key string) (int64, error)
+}
+
+// ServiceQuotaChecker is the well-known service name under which a per-org
+// quota checker is registered (contract type QuotaChecker). Only the hosted
+// (Cloud) build provides one; a self-hosted install has no quota concept at all
+// and every call site simply finds nothing here and proceeds.
+//
+// Providers MUST convert at the Provide call site —
+// ctx.Provide(plugin.ServiceQuotaChecker, plugin.QuotaChecker(p)) — and
+// consumers MUST resolve it with LookupAs[plugin.QuotaChecker] (CheckQuota does
+// exactly that). Providing the concrete plugin value unconverted compiles fine
+// the day the concrete type stops satisfying QuotaChecker, and the only symptom
+// is that every quota stops being enforced: "service absent" and "service
+// present but wrong type" are indistinguishable to the consumer, and both read
+// as "self-hosted, no quotas".
+const ServiceQuotaChecker = "quota.checker"
+
+// QuotaChecker decides whether an org may consume n more of a metered
+// resource. Metric names are the keys of the pricing catalog's per-plan quota
+// map ("links", "customDomains", "mailOutPerMonth", ...).
+//
+// The three outcomes are deliberately distinct and must not be collapsed:
+//
+//   - nil                  → allowed. Either under quota, or over it on a paid
+//     plan where the excess is billed as metered
+//     overage rather than refused.
+//   - ErrQuotaExceeded     → the org has a quota for this metric and has used
+//     it up. Callers answer 429.
+//   - ErrQuotaUnavailable  → the plan does not include this capability at all
+//     (a Free org sending outbound mail). Callers answer
+//     402: this is an upgrade prompt, not a rate limit.
+//
+// Implementations must be safe for concurrent use.
+type QuotaChecker interface {
+	Check(ctx context.Context, orgID uint, metric string, n int64) error
+}
+
+var (
+	// ErrQuotaExceeded means the org used up an allowance it does have.
+	ErrQuotaExceeded = errors.New("quota exceeded")
+	// ErrQuotaUnavailable means the org's plan does not include this capability.
+	ErrQuotaUnavailable = errors.New("capability not included in plan")
+)
+
+// DNSRecord is a provider-agnostic DNS record, mirroring the fields of octarq's
+// internal dnsprovider.Record using only stable types so plugins in a separate
+// module never import internal packages. An empty ID on a write means "create".
+type DNSRecord struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"` // A, AAAA, CNAME, TXT, MX, …
+	Name     string `json:"name"`
+	Content  string `json:"content"`
+	TTL      int    `json:"ttl"`
+	Proxied  bool   `json:"proxied"`
+	Comment  string `json:"comment"`
+	Priority *int   `json:"priority,omitempty"`
+}
+
+// DNSManager is the DNS-management seam exposed to plugins via Context.DNS. All
+// operations take a octarq domain ID and resolve its zone + provider internally.
+//
+// Every operation also takes the org whose behalf it acts on, and resolves the
+// domain scoped to that org: a domain id alone is a bare primary key, and these
+// calls write into a real zone with that domain's stored provider credentials.
+// Passing the caller's own org is what keeps one tenant out of another's DNS
+// even when the calling plugin forgets to check ownership itself. orgID is
+// required — 0 is rejected rather than treated as "any org".
+type DNSManager interface {
+	// List returns all records in the domain's zone.
+	List(ctx context.Context, orgID, domainID uint) ([]DNSRecord, error)
+	// Set creates the record when r.ID is empty, otherwise updates it. Returns
+	// the stored record.
+	Set(ctx context.Context, orgID, domainID uint, r DNSRecord) (DNSRecord, error)
+	// Delete removes a record by provider record ID.
+	Delete(ctx context.Context, orgID, domainID uint, recordID string) error
+}
+
+// LinkCreator is the short-link creation seam the links plugin publishes under
+// the service name "links.create" (resolve it lazily with
+// plugin.LookupAs[plugin.LinkCreator]). It lets any plugin turn a URL into a
+// short link — the programmatic equivalent of POST /api/links — without
+// importing the links plugin. It degrades gracefully: a consumer must tolerate
+// the service being absent (links not composed into this build).
+type LinkCreator interface {
+	// CreateLink creates an enabled short link for targetURL in orgID's
+	// workspace on the default host with a random slug, and returns the slug.
+	// targetURL must be an http(s) URL.
+	CreateLink(ctx context.Context, orgID uint, targetURL string) (slug string, err error)
+}

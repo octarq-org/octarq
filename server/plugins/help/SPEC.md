@@ -54,13 +54,13 @@ var (
        HelpDocsFS() fs.FS
    }
    ```
-2. **`HelpProvider`** (`plugin/plugin.go:922-924`):
+2. **`HelpProvider`** (`plugin/plugin.go`):
    ```go
    type HelpProvider interface {
        HelpDocs() []HelpDoc
    }
    ```
-3. **`HelpDoc`** (`plugin/plugin.go:804-812`):
+3. **`HelpDoc`** (`plugin/helpdoc.go`):
    ```go
    type HelpDoc struct {
        Slug         string                        `yaml:"slug" json:"slug"`
@@ -72,7 +72,7 @@ var (
        Translations map[string]HelpDocTranslation `yaml:"translations" json:"translations,omitempty"`
    }
    ```
-4. **`HelpCategory`** (`plugin/plugin.go:683-688`):
+4. **`HelpCategory`** (`plugin/helpdoc.go`):
    ```go
    type HelpCategory struct {
        Key    string            `json:"key"`
@@ -145,8 +145,8 @@ When `pluginDocs` encounters a cache miss for a `plugin.HelpDocsFS` provider, it
    - **Title Fallback**: If frontmatter `doc.Title` is missing, logs a warning and falls back to `doc.Slug`.
 4. **Sibling Translation Discovery & Attachment (`readHelpDocTranslations`, lines 81-85, 133-151)**:
    - For each canonical English document in directory `dir := path.Dir(p)`, probes for sibling files matching `<base>.<lang>.<ext>` across all configured languages (`helpDocLangs`: `zh`, `es`, `pt`, `ja`) and extensions (`.mdx`, `.md`).
-   - Reads the raw content of the first matching extension for each language and attaches it via `doc = doc.WithTranslation(lang, raw)` (`plugin.go:816-835`), storing parsed translation title, category, and markdown in `doc.Translations[lang]`.
-5. **Deterministic Sort Ordering (`CompareHelpDocs`, line 94; `plugin/plugin.go:776-794`)**:
+   - Reads the raw content of the first matching extension for each language and attaches it via `doc = doc.WithTranslation(lang, raw)` (`plugin/helpdoc.go`), storing parsed translation title, category, and markdown in `doc.Translations[lang]`.
+5. **Deterministic Sort Ordering (`CompareHelpDocs`, `plugin/helpdoc.go`)**:
    - Sorts loaded documents prior to cache storage using `sort.Slice(docs, func(i, j int) bool { return CompareHelpDocs(docs[i], docs[j]) })`.
    - Documents are ordered hierarchically by:
      1. Category taxonomy order: `helpCategoryMap[a.Category].Order < helpCategoryMap[b.Category].Order` (unmapped categories default to order `9999`).
@@ -157,7 +157,7 @@ When `pluginDocs` encounters a cache miss for a `plugin.HelpDocsFS` provider, it
 - `docsFSCache` (`sync.Map`) is keyed by the `plugin.Plugin` interface value, **not** by `pl.Name()`.
 - Rationale: Downstream commercial distributions mount both the OSS help plugin and a Pro help extension module, both answering `Name() == "help"` so they share a single UI toggle. Keying by name caused cache collisions where one overwritten the other. Interface pointer identity guarantees zero cross-module cache corruption.
 
-### 3.4 Closed Category Taxonomy (`plugin/plugin.go:690-766`)
+### 3.4 Closed Category Taxonomy (`plugin/helpdoc.go`)
 The platform enforces a closed set of 6 standard categories:
 1. `start` (Order: 10, Icon: `"book-open"`): "Start & platform" / "入门与平台"
 2. `operations` (Order: 20, Icon: `"workflow"`): "Operations" / "运营"
