@@ -45,3 +45,6 @@ server/examples/*/web/node_modules
 # dir, created and deleted by playwright.config.ts / global-teardown.ts)
 playwright-report/
 test-results/
+
+# agent: per-module refinement audit logs (local-only)
+REFINE-LOG.md
