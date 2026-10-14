@@ -289,7 +289,9 @@ func (mw *middleware) serveMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_ = json.NewEncoder(w).Encode(mw.metrics.snapshot())
+	if err := json.NewEncoder(w).Encode(mw.metrics.snapshot()); err != nil {
+		slog.Warn("server: failed to encode metrics snapshot", "err", err)
+	}
 }
 
 func (mw *middleware) metricsAllowed(r *http.Request) bool {

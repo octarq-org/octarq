@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net"
 	"net/http"
 	"strconv"
@@ -221,9 +222,11 @@ func (mw *middleware) setRateLimitHeaders(w http.ResponseWriter, t tier, ip stri
 func writeRateLimited(w http.ResponseWriter, retryAfterSecs int) {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(http.StatusTooManyRequests)
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	if err := json.NewEncoder(w).Encode(map[string]any{
 		"title":  "Too Many Requests",
 		"status": http.StatusTooManyRequests,
 		"detail": "rate limit exceeded; retry in " + strconv.Itoa(retryAfterSecs) + "s",
-	})
+	}); err != nil {
+		slog.Warn("server: failed to encode rate-limit response", "err", err)
+	}
 }
