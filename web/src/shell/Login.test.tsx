@@ -39,7 +39,7 @@ describe("Login form suite", () => {
     expect(await screen.findByLabelText(/email/i)).toBeTruthy();
     expect(screen.getByLabelText(/password/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /^sign in$/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /forgot password\?/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /forgot (your )?password\?/i })).toBeTruthy();
     expect(await screen.findByRole("button", { name: /create one/i })).toBeTruthy();
     expect(screen.getByText("Google")).toBeTruthy();
     expect(screen.getByText("GitHub")).toBeTruthy();
@@ -151,8 +151,8 @@ describe("Login form suite", () => {
     renderLogin();
     const forgotSpy = vi.spyOn(api, "forgotPassword").mockResolvedValue({ ok: true });
 
-    fireEvent.click(await screen.findByRole("button", { name: /forgot password\?/i }));
-    expect(screen.getByText(/enter your account email to receive a reset link/i)).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: /forgot (your )?password\?/i }));
+    expect(screen.getByText(/enter your email to get a reset link/i)).toBeTruthy();
 
     const emailInput = screen.getByLabelText(/email/i);
     fireEvent.change(emailInput, { target: { value: "recover@user.com" } });
@@ -160,7 +160,7 @@ describe("Login form suite", () => {
 
     await waitFor(() => {
       expect(forgotSpy).toHaveBeenCalledWith("recover@user.com");
-      expect(screen.getByText(/if an account exists with that email, a reset link has been sent/i)).toBeTruthy();
+      expect(screen.getByText(/if an account exists for that email, we sent a reset link/i)).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("button", { name: /back to sign in/i }));
