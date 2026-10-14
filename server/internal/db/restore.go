@@ -46,7 +46,9 @@ func restoreSQLite(targetDSN, inputPath string) error {
 
 	dir := filepath.Dir(targetFile)
 	if dir != "" && dir != "." {
-		_ = os.MkdirAll(dir, 0755)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("create database directory: %w", err)
+		}
 	}
 
 	tmpTarget := targetFile + ".tmp." + fmt.Sprintf("%d", time.Now().UnixNano())

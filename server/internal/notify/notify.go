@@ -4,6 +4,7 @@ package notify
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	"github.com/octarq-org/octarq/server/internal/notification"
@@ -22,7 +23,9 @@ func Register(typ string, p Provider) {
 		return
 	}
 	adapter := notification.NewLegacyNotifierAdapter(typ, "", p)
-	_ = notification.DefaultRouter().RegisterChannel(adapter)
+	if err := notification.DefaultRouter().RegisterChannel(adapter); err != nil {
+		slog.Warn("notify: channel registration failed", "type", typ, "err", err)
+	}
 }
 
 // RegisterWithDescriptor registers a provider along with its full metadata descriptor.
@@ -31,7 +34,9 @@ func RegisterWithDescriptor(desc Descriptor, p Provider) {
 		return
 	}
 	adapter := notification.NewLegacyNotifierAdapter(desc.Type, desc.Title, p)
-	_ = notification.DefaultRouter().RegisterChannelWithDescriptor(adapter, desc)
+	if err := notification.DefaultRouter().RegisterChannelWithDescriptor(adapter, desc); err != nil {
+		slog.Warn("notify: channel registration failed", "type", desc.Type, "err", err)
+	}
 }
 
 // Descriptors returns all registered notification channel type descriptors sorted by type.

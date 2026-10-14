@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -201,15 +202,21 @@ func componentSchemas(m map[string]any) map[string]any {
 
 func setIfUnset(key, value string) {
 	if os.Getenv(key) == "" {
-		_ = os.Setenv(key, value)
+		if err := os.Setenv(key, value); err != nil {
+			slog.Warn("openapi: setenv failed", "key", key, "err", err)
+		}
 	}
 }
 
 func restoreEnv(key, orig string, had bool) {
 	if had {
-		_ = os.Setenv(key, orig)
+		if err := os.Setenv(key, orig); err != nil {
+			slog.Warn("openapi: restore env failed", "key", key, "err", err)
+		}
 	} else {
-		_ = os.Unsetenv(key)
+		if err := os.Unsetenv(key); err != nil {
+			slog.Warn("openapi: unset env failed", "key", key, "err", err)
+		}
 	}
 }
 

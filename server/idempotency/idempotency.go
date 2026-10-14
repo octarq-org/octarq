@@ -371,13 +371,17 @@ func replay(w http.ResponseWriter, rec *Record) {
 	w.Header().Set(HeaderReplayed, "true")
 	w.Header().Set("Content-Length", strconv.Itoa(len(rec.ResponseBody)))
 	w.WriteHeader(rec.StatusCode)
-	_, _ = w.Write(rec.ResponseBody)
+	if _, err := w.Write(rec.ResponseBody); err != nil {
+		slog.Warn("idempotency: failed to write cached response body", "err", err)
+	}
 }
 
 func writeErr(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
+	if err := json.NewEncoder(w).Encode(map[string]string{"error": msg}); err != nil {
+		slog.Warn("idempotency: failed to encode error response", "err", err)
+	}
 }
 
 // captureWriter tees the handler's response so it can be stored for replay.
