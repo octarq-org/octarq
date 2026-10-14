@@ -94,7 +94,11 @@ func New(cfg *config.Config, db *gorm.DB, apiHandler http.Handler, rootFallback 
 			return nil, err
 		}
 	} else if webFS != nil {
-		idx, _ = fs.ReadFile(webFS, "index.html")
+		if iv, err := fs.ReadFile(webFS, "index.html"); err == nil {
+			idx = iv
+		} else {
+			slog.Warn("dev web proxy: could not read index.html", "err", err)
+		}
 	}
 
 	var staticHandler http.Handler
