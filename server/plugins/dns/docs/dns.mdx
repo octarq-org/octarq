@@ -1,67 +1,68 @@
 ---
 title: DNS
-description: Connect Cloudflare and DNSPod provider accounts, manage DNS records, run live SPF/DKIM posture checks, and apply one-click email setup blueprints.
+description: Connect DNS providers, manage records, verify mail and link setup, and apply email blueprints.
 category: infrastructure
 order: 10
 ---
 
-Octarq DNS provides comprehensive domain zone synchronization and DNS record orchestration. It integrates with DNS providers like Cloudflare and DNSPod, enables direct management of resource records, performs live posture verifications for mail and link services, automates email DNS record provisioning through blueprints, and enforces multi-tenant anti-hijacking safeguards.
+Octarq DNS connects to your DNS providers to manage domain zones and records. You can sync domains from Cloudflare and DNSPod, edit DNS records directly, verify email and link routing, and apply email setup blueprints with one click.
 
-## Provider Account Integration
+## Connect a DNS Provider
 
-To manage DNS records directly from Octarq:
-
-1. Go to **Infrastructure → Network → DNS** and click the **Provider Accounts** tab.
-2. Click **Add Provider Account** and select **Cloudflare** or **DNSPod**.
-3. Enter your API credentials:
-   - **Cloudflare**: Provide an API Token with `Zone - Zone:Read` and `Zone - DNS:Edit` permissions.
+1. Go to **Infrastructure → Network → DNS** and click the **Settings** tab.
+2. Click **Connect a DNS Provider** and select **Cloudflare** or **DNSPod**.
+3. Enter your provider API credentials:
+   - **Cloudflare**: Enter an API token with `Zone:Read` and `DNS:Edit` permissions.
    - **DNSPod**: Enter your API ID and Token pair.
-4. Click **Save**. All credentials are encrypted at rest using AES-GCM.
-5. **Anti-Enumeration Defense**: When deleting provider accounts, Octarq verifies organization ownership before inspecting referencing domains. Requests for non-owned accounts return HTTP 404 rather than HTTP 409, preventing cross-tenant account enumeration.
+4. Click **Save**. Octarq encrypts your credentials at rest.
+5. Connected provider accounts are scoped to your workspace and cannot be accessed by other workspaces.
 
 ## Sync Domains and Manage Records
 
-1. Click **Sync Domains** on the DNS page to discover and import active zones from connected provider accounts.
-2. Select any domain from the left list to view its resource records.
-3. Supported record types include:
-   - **A** (IPv4 Address) and **AAAA** (IPv6 Address)
-   - **CNAME** (Canonical Name Alias)
-   - **TXT** (Text records for SPF, DKIM, and site verification)
-   - **MX** (Mail Exchange with priority integers)
-   - **NS** (Name Server delegation)
-4. **Cloudflare Proxy Toggle**: On Cloudflare-backed domains, switch the **Proxied** toggle (orange cloud) on or off per record to control whether traffic traverses Cloudflare's CDN and DDoS proxy or routes directly to the origin.
+1. On the **DNS** tab, click **Sync Domains** to import hosted zones from your connected provider accounts.
+2. Select a domain from the list to view and manage its DNS records.
+3. Add or update records using standard types:
+   - **A** and **AAAA**: Point hostnames to IPv4 or IPv6 addresses (for example, `192.0.2.1` or `2001:db8::1`).
+   - **CNAME**: Alias a subdomain to another domain (for example, `go.example.com` to `octarq.example.com`).
+   - **TXT**: Add verification tokens, SPF rules, or DKIM keys.
+   - **MX**: Route incoming email with priority values (for example, priority `10` pointing to `mail.example.com`).
+   - **NS**: Delegate subdomains to dedicated nameservers (for example, `ns1.example.com`).
+4. (Optional) For Cloudflare domains, switch the **Proxied** toggle (orange cloud) to route traffic through Cloudflare's CDN and DDoS protection or directly to the origin.
 
-## Automated DNS Posture Verification
+:::tip[DNSSEC Management]
+DNSSEC signing and DS records are managed directly in your DNS provider's dashboard (such as Cloudflare or DNSPod) or domain registrar.
+:::
 
-Misconfigured DNS records are the leading cause of deliverability issues and broken short links. Octarq provides automated live posture diagnostics:
+## Verify DNS Records
 
-1. Select a domain and click **Verify DNS** (endpoint `POST /api/domains/{id}/verify`).
-2. Octarq performs direct DNS queries against public recursive resolvers to inspect:
-   - **SPF**: Checks the domain apex for valid `v=spf1` TXT records.
-   - **DMARC**: Queries `_dmarc.{domain}` for policy TXT records (such as `v=DMARC1; p=none;`).
-   - **DKIM Selectors**: Probes standard industry DKIM selectors (`default`, `octarq`, `google`, `mail`, `k1`, `sig1`) to confirm public key presence.
-   - **Link CNAMEs**: Resolves designated vanity short link subdomains to confirm they point to your Octarq instance address.
-3. **Cloudflare CNAME Flattening Note**: When a short link subdomain has Cloudflare proxying enabled, Cloudflare flattens CNAME responses to edge IPs. The verification badge may indicate "Unverified", but short link redirection continues to function normally.
+1. Select a domain and click **Verify DNS**.
+2. Octarq queries public resolvers to check key records:
+   - **SPF**: Checks for a valid `v=spf1` TXT record at the root domain.
+   - **DMARC**: Checks for a policy record at `_dmarc.{domain}` (for example, `v=DMARC1; p=none;`).
+   - **DKIM**: Probes standard selectors (`default`, `octarq`, `google`, `mail`, `k1`, `sig1`) for published public keys.
+   - **Link CNAME**: Verifies that custom short-link subdomains resolve to your Octarq instance.
 
-## Email Setup Blueprint Automation
+:::note[Cloudflare Proxying and CNAME Verification]
+When proxying is enabled on a short-link CNAME, Cloudflare flattens the response to its edge IP addresses. The verification badge may show Unverified, but short-link redirection continues to work normally.
+:::
 
-Octarq includes an automated Email DNS Blueprint engine (`email_blueprint.go`) that simplifies setting up custom domain mail routing:
+## Apply an Email Blueprint
 
-1. Select your domain and click **Email Blueprint**.
-2. **Status Diff Computation**: Octarq compares your current zone records against the standard Cloudflare Email Routing and transactional mail requirements:
-   - Three MX records (`route1.mx.cloudflare.net` priority 13, `route2.mx.cloudflare.net` priority 45, `route3.mx.cloudflare.net` priority 99).
-   - SPF TXT record: `v=spf1 include:_spf.mx.cloudflare.net ~all`.
-   - DMARC TXT record: `v=DMARC1; p=none; sp=none;`.
-3. The modal highlights the status of each record as **OK**, **Missing**, or **Mismatch**.
-4. Click **Apply Blueprint** (`POST /api/domains/{id}/apply-email-blueprint`). Octarq idempotently provisions all missing and mismatched records in your provider account without duplicating existing healthy records.
+1. Select a domain and click **Email Blueprint**.
+2. Review the recommended records and their live status:
+   - **MX**: `route1.mx.cloudflare.net` (priority `10`) and `route2.mx.cloudflare.net` (priority `53`)
+   - **SPF**: TXT record `v=spf1 include:_spf.mx.cloudflare.net ~all`
+   - **DMARC**: TXT record `_dmarc` with `v=DMARC1; p=none; sp=none;`
+3. Check the status of each record: **OK** (matches live record), **Missing** (absent), or **Mismatch** (content differs).
+4. Click **Apply Blueprint**. Octarq creates missing records and updates mismatches in your provider account without changing healthy existing records.
 
-## Reserved Base Zone Anti-Hijacking Protection
+## Protect Reserved Hostnames
 
-To ensure platform security in multi-tenant environments:
+To protect shared routing and avoid collisions between workspaces:
 
-- Instances configured with a shared base domain (`OCTARQ_BASE_DOMAIN`) enforce a strict triple-gate validation (`underBaseZone`, `reservedInHostLists`, `syncZones`).
-- Tenants are strictly blocked from registering or modifying domain apexes or subdomains that collide with the instance base domain.
-- Any attempt to claim reserved system subdomains or fellow tenant routes is rejected with HTTP 400 Bad Request: *"that hostname is reserved for automatic tenant subdomains"*.
+- Hostnames matching the instance's base domain or its subdomains are reserved for automatic workspace routing.
+- Workspaces cannot claim or register reserved system hostnames.
+- If you enter a hostname that is reserved, Octarq rejects the change and prompts you to use a different subdomain.
 
 ## Related Guides
 

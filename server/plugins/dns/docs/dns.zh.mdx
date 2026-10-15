@@ -1,70 +1,72 @@
 ---
 title: DNS 域名解析
-description: 绑定 Cloudflare 与 DNSPod 服务商账户、管理 DNS 解析记录、实时检测 SPF/DKIM 邮局配置，并一键应用邮件解析蓝图。
+description: 绑定 DNS 服务商、管理解析记录、验证邮件与短链配置，并一键应用邮件蓝图。
 category: infrastructure
 order: 10
 ---
 
-Octarq DNS 提供全面的域名托管同步与解析记录编排能力。系统深度集成 Cloudflare 与 DNSPod 解析服务商，支持直接管理各类资源记录、执行针对邮件与短链域名的实时合规性校验、通过邮件蓝图一键自动补全解析配置，并内置多租户防域名抢注与劫持机制。
+Octarq DNS 连接你的 DNS 服务商，统一管理域名与解析记录。你可以从 Cloudflare 和 DNSPod 同步域名、直接编辑 DNS 记录、验证邮件与短链解析，并一键应用邮件配置蓝图。
 
-## 绑定服务商账户
+## 绑定 DNS 服务商
 
-在 Octarq 中统一管理解析记录：
-
-1. 进入 **基础设施 → 网络 → DNS**，切换到 **服务商账户** 标签页。
-2. 点击 **添加服务商账户**，选择 **Cloudflare** 或 **DNSPod**。
-3. 填入 API 凭证：
-   - **Cloudflare**：提供具备 `Zone - Zone:Read` 和 `Zone - DNS:Edit` 权限的 API Token。
-   - **DNSPod**：输入由 DNSPod 控制台颁发的 API ID 与 Token 密钥对。
-4. 点击 **保存**。所有敏感凭据在落库时均采用 AES-GCM 算法加密存储。
-5. **防租户枚举保护**：删除服务商账户时，系统优先校验账户是否属于当前请求组织。对未持有账户的访问将直接返回 HTTP 404 而非 HTTP 409，杜绝跨租户遍历账户 ID 的探测行为。
+1. 进入 **基础设施 → 网络 → DNS**，切换到 **设置** 标签页。
+2. 点击 **连接 DNS 服务商**，选择 **Cloudflare** 或 **DNSPod**。
+3. 输入服务商 API 凭证：
+   - **Cloudflare**：输入具有 `Zone:Read` 和 `DNS:Edit` 权限的 API Token。
+   - **DNSPod**：输入控制台颁发的 API ID 与 Token 密钥对。
+4. 点击 **保存**。Octarq 会在存储时对凭据进行加密。
+5. 已绑定的服务商账户仅归当前工作区所有，其他工作区无法访问。
 
 ## 同步域名与管理解析记录
 
-1. 在 DNS 页面点击 **同步域名**，系统自动拉取并导入已绑定账户下托管的有效域名 Zone。
-2. 在左侧列表中选中目标域名，即可直接查看并管理其全部解析记录。
-3. 支持维护的记录类型包括：
-   - **A 记录**（IPv4 主机地址）与 **AAAA 记录**（IPv6 主机地址）
-   - **CNAME 记录**（别名重定向）
-   - **TXT 记录**（用于 SPF、DKIM 签名与第三方平台验证）
-   - **MX 记录**（包含优先级的邮件服务器地址）
-   - **NS 记录**（域名服务器委派）
-4. **Cloudflare 代理开关**：针对 Cloudflare 托管域名，可对单条记录单独开启或关闭 **Proxied** 开关（橙色云朵），灵活控制流量是否走 Cloudflare CDN 缓存与 DDoS 防护边缘网关。
+1. 在 **DNS** 标签页中点击 **同步域名**，从已绑定的服务商账户中导入托管域名。
+2. 在左侧列表中选择域名，即可查看并管理其全部 DNS 记录。
+3. 添加或更新常用类型的记录：
+   - **A 与 AAAA**：将主机名指向 IPv4 或 IPv6 地址（例如 `192.0.2.1` 或 `2001:db8::1`）。
+   - **CNAME**：将子域名别名指向另一个域名（例如将 `go.example.com` 指向 `octarq.example.com`）。
+   - **TXT**：保存站点验证、SPF 策略或 DKIM 公钥。
+   - **MX**：配置带有优先级的邮件路由地址（例如优先级 `10` 指向 `mail.example.com`）。
+   - **NS**：将子域委派给专门的域名服务器（例如 `ns1.example.com`）。
+4. （可选）针对 Cloudflare 托管的域名，切换 **Proxied** 代理开关（橙色云朵）控制流量是否经过 Cloudflare CDN 与 DDoS 防护，或直接导向源站。
 
-## 自动化 DNS 状态校验
+:::tip[DNSSEC 管理]
+DNSSEC 签名与 DS 记录由绑定的 DNS 服务商（如 Cloudflare 或 DNSPod）或域名注册商直接管理，需在对应服务商控制台中配置。
+:::
 
-DNS 配置缺失或错误是导致邮件投递失败与短链异常的主要原因。Octarq 提供自动化的公网 DNS 状态探测诊断：
+## 检查 DNS 记录
 
-1. 选中目标域名，点击 **校验 DNS**（对应端点 `POST /api/domains/{id}/verify`）。
-2. Octarq 将直接向公网递归解析器发起实时查询，全面验证以下指标：
-   - **SPF 记录**：检查域名根节点下是否存在有效的 `v=spf1` TXT 记录。
-   - **DMARC 策略**：探测 `_dmarc.{domain}` 下是否存在策略定义（如 `v=DMARC1; p=none;`）。
-   - **DKIM 签名选择器**：批量探测业界通用 Selector（`default`、`octarq`、`google`、`mail`、`k1`、`sig1`），确认公钥发布状态。
-   - **短链 CNAME**：检查分配给短链的自定义子域名是否已正确指向当前 Octarq 实例地址。
-3. **Cloudflare CNAME 展平说明**：短链子域名开启 Cloudflare 代理（橙色云朵）后，Cloudflare 会在响应中将 CNAME 展平为边缘 Anycast IP 地址。校验徽标可能显示为“未验证”，但这属于正常边缘解析机制，短链跳转业务不受任何影响。
+1. 选择目标域名，点击 **校验 DNS**。
+2. Octarq 会向公网解析器发起查询，检验关键记录：
+   - **SPF**：检查域名根节点下是否存在有效的 `v=spf1` TXT 记录。
+   - **DMARC**：检查 `_dmarc.{domain}` 下是否存在策略记录（例如 `v=DMARC1; p=none;`）。
+   - **DKIM**：探测常用选择器（`default`、`octarq`、`google`、`mail`、`k1`、`sig1`）下的公钥发布状态。
+   - **短链 CNAME**：检查分配给短链的自定义子域是否正确解析到当前 Octarq 实例。
 
-## 一键邮件解析蓝图自动化 (`email_blueprint.go`)
+:::note[Cloudflare 代理与 CNAME 校验]
+当短链 CNAME 开启 Cloudflare 代理（橙色云朵）后，Cloudflare 会在响应中将别名展平为边缘节点 IP 地址。状态徽标可能显示为未验证，但这属于正常边缘行为，短链跳转不受影响。
+:::
 
-Octarq 内置邮件 DNS 自动化蓝图引擎，大幅简化自定义域名绑定邮局的解析门槛：
+## 一键应用邮件蓝图
 
-1. 选中目标域名，点击 **邮件蓝图 (Email Blueprint)**。
-2. **差量状态比对**：系统将当前 Zone 记录与 Cloudflare Email Routing 及主流外发邮件标准进行实时对比：
-   - 三条 MX 记录（`route1.mx.cloudflare.net` 优先级 13，`route2.mx.cloudflare.net` 优先级 45，`route3.mx.cloudflare.net` 优先级 99）。
-   - SPF 记录：`v=spf1 include:_spf.mx.cloudflare.net ~all`。
-   - DMARC 记录：`v=DMARC1; p=none; sp=none;`。
-3. 对话框清晰标示每项记录的当前状态为 **正常 (OK)**、**缺失 (Missing)** 还是 **配置冲突 (Mismatch)**。
-4. 点击 **一键应用蓝图**（端点 `POST /api/domains/{id}/apply-email-blueprint`）。Octarq 将以幂等方式自动在服务商处补全所有缺失或冲突记录，绝不破坏现存的健康配置。
+1. 选择目标域名，点击 **邮件蓝图**。
+2. 查看推荐的邮件解析记录与当前比对状态：
+   - **MX 记录**：`route1.mx.cloudflare.net`（优先级 `10`）与 `route2.mx.cloudflare.net`（优先级 `53`）
+   - **SPF 记录**：TXT 记录 `v=spf1 include:_spf.mx.cloudflare.net ~all`
+   - **DMARC 记录**：`_dmarc` 的 TXT 记录 `v=DMARC1; p=none; sp=none;`
+3. 检查每项记录的状态标示：**正常**（已正确配置）、**缺失**（尚未添加）或 **配置冲突**（内容不一致）。
+4. 点击 **应用蓝图**。Octarq 会自动在服务商处补全缺失记录并纠正冲突，不会更改现有的正常记录。
 
-## 平台基础域名防劫持保护
+## 保留域名保护
 
-在多租户协作环境中，平台安全受到系统底层三级校验拦截（`underBaseZone`、`reservedInHostLists`、`syncZones`）：
+为了保护共享路由并防止工作区之间的域名冲突：
 
-- 凡配置了全局共享基础域名（`OCTARQ_BASE_DOMAIN`）的实例，系统严禁租户自行登记或抢注落在平台基准域名之下的 Apex 或子域名。
-- 任何试图侵占平台公共路由或其他租户自动子域名的请求，均会被直接拦截并返回 HTTP 400 Bad Request：*“that hostname is reserved for automatic tenant subdomains”*。
+- 与平台基础域名或其子域匹配的主机名专用于系统分配的工作区路由。
+- 租户工作区不能登记或抢注系统保留的主机名。
+- 如果添加的域名属于保留范围，Octarq 会拒绝操作并提示使用其他子域。
 
 ## 相关指南
 
 - [动态 DNS (DDNS)](/help/ddns)
 - [短链](/help/short-links)
-- [邮箱与邮件路由](/help/mailboxes)
+- [邮箱](/help/mailboxes)
 - [快速开始](/help/quickstart)
