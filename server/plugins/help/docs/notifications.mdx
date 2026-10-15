@@ -1,58 +1,45 @@
 ---
 title: Alerts
-description: Route critical system events and security incidents to Telegram bots, custom HTTP webhooks, or Slack alert channels.
+description: Send real-time alerts for received emails, delivery failures, and DNS changes to Telegram, Webhooks, or Slack.
 category: settings
 order: 30
 ---
 
-Octarq provides a unified alerting and notification dispatch engine. It monitors key workspace events—such as received transactional emails, SMTP delivery failures, DNS verification drops, and click cap triggers—and broadcasts real-time alerts to external messaging destinations.
+Octarq provides an alerting engine that monitors workspace events—such as received transactional emails, delivery failures, and DNS verification changes—and dispatches notifications to external messaging channels.
 
-## Supported Notification Channels
+## Connect a Telegram Bot
 
-### 1. Telegram Bot Integration
-
-Telegram notifications deliver instant mobile and desktop alerts with zero setup fees:
-
-1. Open Telegram, search for [@BotFather](https://t.me/BotFather), and execute `/newbot` to create your alert bot. Copy the generated **Bot Token** (e.g. `123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ`).
-2. Add your new bot to a Telegram group or channel, or start a direct conversation with it.
-3. Obtain the destination **Chat ID** (for groups, this is typically a negative integer like `-100123456789`).
+1. Open Telegram, search for [@BotFather](https://t.me/BotFather), and send `/newbot` to create your bot. Copy the **Bot Token**.
+2. Add your bot to a Telegram group or channel, or start a direct chat with it.
+3. Find the destination **Chat ID** (group IDs usually start with a negative number).
 4. In Octarq, go to **Settings → Workspace → Alerts** (or press `⌘K` / `Ctrl+K` and search "Alerts").
 5. Click **Add Channel**, select **Telegram Bot**, enter the **Bot Token** and **Chat ID**, and click **Save**.
 
-### 2. Custom HTTP Webhook Alerts
-
-For custom SIEM receivers, Discord bots, DingTalk, Lark, or internal incident management systems:
+## Connect a Custom Webhook
 
 1. Go to **Settings → Workspace → Alerts**.
 2. Click **Add Channel** and select **Custom Webhook (HTTP POST)**.
-3. Enter the destination **Endpoint URL** (such as `https://alerts.internal.example.com/api/octarq`).
-4. Click **Save**. Alerts are dispatched as structured JSON payloads with event severity, timestamp, workspace context, and descriptive messages.
+3. Enter your destination **Endpoint URL** (such as `https://alerts.example.com/octarq`).
+4. Click **Save**. Octarq dispatches structured JSON payloads with event severity, timestamp, and details.
 
-## Test Dispatch Verification
+## Test Alert Delivery
 
-After configuring any alert channel:
+1. Go to **Settings → Workspace → Alerts**.
+2. Find your configured channel in the list and click **Test Delivery**.
+3. Octarq sends a test alert payload to your endpoint.
+4. Check the displayed HTTP status code, latency, and any upstream error messages.
 
-1. Locate the channel row in the **Alerts** settings page.
-2. Click **Test Delivery**.
-3. Octarq immediately constructs a synthetic test alert payload and executes a live dispatch.
-4. The console displays the HTTP response status code, round-trip latency, and upstream error message (if the request was rejected).
+## Protect Delivery Security
 
-## Security and Reliability
+- **Network protection**: Webhook destinations are checked automatically. Requests to private or local network addresses are blocked to protect your infrastructure.
+- **Background delivery**: Alerts are processed asynchronously with a 10-second timeout. Upstream service delays will not slow down incoming mail delivery or link redirects.
 
-### Internal Network Protection
-
-To safeguard infrastructure security, webhook dispatches automatically validate destination addresses. Requests directed at internal, private, or cloud infrastructure addresses are strictly blocked to protect corporate networks.
-
-### Asynchronous Reliable Delivery
-
-All alert notifications are processed asynchronously in the background. Latency or outages from external messaging services will not impact incoming email delivery, link redirects, or core dashboard performance. Dispatches enforce a 10-second request timeout.
-
-:::caution This is a Pro feature
-Octarq Pro expands notification capabilities with a dedicated Slack channel integration, featuring native Slack block-kit interactive formatting, channel routing, and strict domain pinning (`hooks.slack.com`).
+:::note Slack Integration
+Octarq Pro adds a dedicated Slack integration with Block Kit formatting and channel routing.
 :::
 
 ## Related Guides
 
-- [Webhooks](/help/webhooks)
+- [Outbound Webhooks](/help/webhooks)
 - [Mailboxes](/help/mailboxes)
 - [API Tokens](/help/api-tokens)

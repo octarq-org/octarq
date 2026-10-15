@@ -1,57 +1,44 @@
 ---
-title: Outbound Webhooks
-description: Stream workspace events in real time to external HTTP endpoints with V1/V2 HMAC-SHA256 signatures and replay defense.
+title: Outbound webhooks
+description: Stream workspace events in real time to external HTTP endpoints with HMAC-SHA256 signatures and replay defense.
 category: settings
 order: 40
 ---
 
-Octarq Outbound Webhooks stream real-time JSON event payloads to your external application servers whenever activities occur in your workspace. This enables seamless automation for CRM pipelines, custom alert handlers, event logging, and serverless edge functions.
+Octarq Outbound Webhooks stream real-time JSON event payloads to your external application servers whenever activities occur in your workspace. This enables automation for CRM pipelines, custom alerts, event logging, and serverless edge functions.
 
-## Event Subscriptions
+## Subscribe to Events
 
-When registering a webhook endpoint, you can subscribe to specific topics or use the wildcard `*` to receive all workspace events:
+When creating a webhook, choose specific events or subscribe to `*` for all workspace events:
 
-- `email.receive`: Dispatched when an inbound transactional email is successfully parsed and stored.
-- `email.send_failed`: Dispatched when an outbound email encounters a relay failure or bounce.
-- `domain.verify_failed`: Dispatched when automated DNS posture verification detects a broken SPF, DMARC, or DKIM record.
-- `link.click_limit`: Dispatched when a short link reaches its assigned click ceiling.
-- `abuse.report`: Dispatched when an abuse complaint is filed against a link or mailbox.
+- `email.receive`: Dispatched when an inbound email is received and stored.
+- `email.send_failed`: Dispatched when an outbound email fails or bounces.
+- `domain.verify_failed`: Dispatched when DNS verification detects a problem with SPF, DMARC, or DKIM records.
+- `link.click_limit`: Dispatched when a short link reaches its click limit.
+- `abuse.report`: Dispatched when an abuse report is submitted.
 
-## Delivery Headers and Anti-Replay Architecture
+## Verify Webhook Signatures
 
-Octarq dispatches HTTP `POST` requests with JSON payloads containing standardized delivery headers designed for security and idempotency:
+Octarq sends HTTP POST requests with JSON payloads and delivery headers:
 
-| Header Name | Description | Example |
+| Header | Description | Example |
 |---|---|---|
-| `Content-Type` | MIME payload format | `application/json` |
-| `User-Agent` | Platform user agent identifier | `Octarq-Webhook/1.0` |
-| `X-Octarq-Delivery` | Globally unique UUID for this delivery attempt | `7b8f9e12-4c3a-4e89-a123-d8e7f6a5b4c3` |
-| `X-Octarq-Timestamp` | Unix timestamp in seconds when the event was dispatched | `1725801600` |
-| `X-Octarq-Attempt` | Monotonic counter indicating transmission attempts | `1` |
-| `X-Octarq-Signature` | Legacy V1 HMAC-SHA256 signature calculated over the raw body | `sha256=a1b2c3d4e5...` |
-| `X-Octarq-Signature-V2` | Hardened V2 HMAC-SHA256 signature binding timestamp and ID | `v2=f6e5d4c3b2...` |
+| `Content-Type` | Payload format | `application/json` |
+| `User-Agent` | Client identifier | `Octarq-Webhook/1.0` |
+| `X-Octarq-Delivery` | Unique UUID for this delivery attempt | `7b8f9e12-4c3a-4e89-a123-d8e7f6a5b4c3` |
+| `X-Octarq-Timestamp` | Unix timestamp in seconds | `1725801600` |
+| `X-Octarq-Attempt` | Attempt counter | `1` |
+| `X-Octarq-Signature` | Legacy V1 HMAC-SHA256 signature | `sha256=a1b2c3d4e5...` |
+| `X-Octarq-Signature-V2` | Hardened V2 signature binding timestamp, delivery ID, and body | `v2=f6e5d4c3b2...` |
 
-### V2 Signature Construction and Replay Protection
+To verify signatures and protect against replay attacks on your receiver:
 
-V1 signatures verify that the request body has not been tampered with. However, to eliminate packet capture and replay attacks, Octarq implements **V2 HMAC-SHA256 signatures**.
+1. Check the timestamp: Read `X-Octarq-Timestamp` and reject requests older than 5 minutes (`300` seconds) to prevent replay attacks.
+2. Deduplicate deliveries: Check `X-Octarq-Delivery` against recently seen IDs to avoid processing duplicate events.
+3. Compute signature: Hash `<X-Octarq-Timestamp>.<X-Octarq-Delivery>.<raw_body>` using HMAC-SHA256 with your signing secret.
+4. Compare signatures: Use constant-time string comparison to compare your calculated signature with `X-Octarq-Signature-V2`.
 
-The signed string for V2 binds the delivery timestamp, delivery UUID, and raw JSON body:
-```
-signed_material = <X-Octarq-Timestamp> + "." + <X-Octarq-Delivery> + "." + <raw_json_body>
-```
-
-The signature is computed using your endpoint's signing secret as the HMAC key:
-```
-X-Octarq-Signature-V2: v2 = hex(hmac_sha256(secret, signed_material))
-```
-
-### Verification Rules on the Receiver
-
-1. **Check Drift Window**: Extract `X-Octarq-Timestamp` and confirm it is within a **5-minute tolerance window** (`|current_time - timestamp| <= 300` seconds). Reject expired requests.
-2. **Deduplicate ID**: Record `X-Octarq-Delivery` in Redis or database cache. If the UUID was already processed, treat it as an idempotent retry.
-3. **Compute and Compare**: Calculate the expected HMAC hex digest and verify it using constant-time string comparison.
-
-## Verified Signature Verification Snippets
+## Verification Code Examples
 
 ### Node.js (Express)
 
@@ -135,7 +122,7 @@ async def handle_webhook(
     return {"status": "ok"}
 ```
 
-### Go (`net/http`)
+### Go (net/http)
 
 ```go
 package main
@@ -180,15 +167,15 @@ func verifyWebhook(w http.ResponseWriter, r *http.Request, secret []byte) ([]byt
 }
 ```
 
-## Register a Webhook Endpoint
+## Create a Webhook Endpoint
 
 1. Go to **Settings → Workspace → Webhooks** (or press `⌘K` / `Ctrl+K` and search "Webhooks").
 2. Click **Add Webhook Endpoint**.
-3. Fill in:
-   - **Endpoint Name**: A memorable identifier (such as `Production Event Consumer`).
-   - **Endpoint URL**: The HTTPS target destination (e.g. `https://api.yourdomain.com/webhooks/octarq`).
-   - **Signing Secret**: Provide a custom secret string or leave blank to let Octarq generate a high-entropy secret.
-   - **Event Subscriptions**: Select specific event topics or subscribe to `*`.
+3. Configure endpoint settings:
+   - **Name**: Enter a descriptive label (such as `Event Consumer`).
+   - **Endpoint URL**: Enter your HTTPS target destination (such as `https://api.example.com/webhooks/octarq`).
+   - **Signing Secret**: Enter your own secret or leave blank to let Octarq generate one.
+   - **Events**: Select specific event topics or subscribe to all events (`*`).
 4. Click **Create Endpoint**.
 
 ## Related Guides

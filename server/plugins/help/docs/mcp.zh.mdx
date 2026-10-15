@@ -1,152 +1,92 @@
 ---
 title: 模型上下文协议 (MCP)
-description: 通过模型上下文协议 (MCP) 将 Claude Desktop、Cursor 及远程 AI Agent 无缝连接到 Octarq 工作区。
+description: 使用模型上下文协议 (MCP) 将 Claude Desktop、Cursor 及 AI Agent 连接到 Octarq 工作区。
 category: settings
 order: 50
 ---
 
-Octarq 内置标准模型上下文协议 (Model Context Protocol, MCP) 服务端，允许主流大语言模型 (LLM)、IDE 智能编码助手及自主 AI Agent 以结构化工具形式安全查询与操作工作区内的短链、邮件、DNS 解析记录及系统数据。
+Octarq 内置标准模型上下文协议 (Model Context Protocol, MCP) 服务端，允许大语言模型 (LLM)、IDE 编程助手及自动化 Agent 安全调用工具，管理工作区内的短链、邮件与 DNS 记录。
 
-## 双传输通道与安全架构
+## 选择连接方式
 
-Octarq 针对本地桌面客户端与分布式云端服务提供了两种标准传输通道：
+Octarq 提供两种标准连接方式：
 
-### 1. 本地 stdio 传输通道
+- **本地 stdio 连接**：适用于在本地运行的桌面助手（如 Claude Desktop 和 Cursor）。直接通过 `octarq mcp` 启动。
+- **远程 HTTP 与 SSE 连接**：适用于云端 AI Agent 与外部系统。通过 [API 令牌](/help/api-tokens)（`Authorization: Bearer oct_...`）连接到 `https://your-octarq-host.com/api/mcp/sse`。所有操作严格限定在令牌对应的工作区内。
 
-本地 stdio 通道以子进程标准输入输出（stdin/stdout）方式交互，专门面向运行在本地的桌面端应用（如 Claude Desktop 与 Cursor）：
-
-- **执行指令**：`octarq mcp`
-- **运行配置**：读取本地数据库连接（`OCTARQ_DB_DSN`）。
-- **运行权限**：遵循当前操作系统本地用户的进程权限。
-
-### 2. 远程 HTTP / SSE 传输通道
-
-面向远程 AI 智能体、自动化云端 Worker 及企业 Agent 编排流水线：
-
-- **端点地址**：`https://your-octarq-host.com/api/mcp/sse`
-- **身份认证**：通过标准 HTTP 请求头传递 [API 令牌](/help/api-tokens)（`Authorization: Bearer oct_...`）建立 Server-Sent Events (SSE) 长连接。
-- **租户严格隔离**：整个会话与调用的权限严格收敛于该 API 令牌所归属的单个组织，杜绝任何跨租户越权访问。
-
-:::note 绝对杜绝原始 SQL 工具
-Octarq MCP 服务端**严禁**提供任何形式的原始 SQL 执行工具。在多租户数据库架构中，任意 SQL 无法在解析层被绝对安全地限定在单租户范围内。比起脆弱易错的 SQL 黑名单过滤，Octarq 采用更加稳健的架构设计——直接排除底层 SQL 执行能力，所有操作必须通过经过审计的结构化领域工具完成。
+:::note 结构化工具调用
+Octarq 提供安全的结构化工具调用，不暴露底层原始 SQL 查询。这能确保多租户数据隔离，防止越权访问。
 :::
 
-## 完整工具目录清单
+## 可用工具列表
 
-无论是 stdio 还是 SSE 通道，MCP 服务端均向 AI 模型开放以下标准工具：
+无论通过 stdio 还是 SSE 连接，MCP 服务端均提供以下标准工具：
 
-### 1. `create_shortlink`
-声明式创建包含路由和安全保护的短链接：
-- **输入参数**：
-  - `destination`（字符串，必填）：重定向目标落地页 URL。
-  - `slug`（字符串，可选）：自定义路径别名。
-  - `host`（字符串，可选）：绑定的自定义域名。
-  - `password`（字符串，可选）：访问验证密码。
-  - `expiresAt`（字符串，可选）：ISO-8601 标准过期时间戳。
-- **输出结果**：解析后的完整短链 URL、分配的 Slug 及创建状态。
+- **`create_shortlink`**：创建短链接，支持设置目标落地页、自定义别名、域名、访问密码和过期时间。
+- **`list_links`**：分页查询当前工作区下的短链接列表，支持限制条数与关键词检索。
+- **`list_domains`**：查看已绑定的域名与 DNS 验证状态（SPF、DKIM、DMARC）。
+- **`list_mailboxes`**：查看邮箱列表、地址与未读邮件计数。
+- **`list_emails`**：查看最近收到的事务邮件列表，包含发件人、主题和摘要。
+- **`get_latest_otp`**：从最近 10 分钟内收到的未读邮件中提取验证码 (OTP)。
+- **`get_email_summary`**：获取邮件的脱敏摘要，自动识别类别与验证码。
+- **`get_email_content`**：获取脱敏后的邮件纯文本正文，自动移除敏感链接。
+- **`export_data`**：导出工作区数据（短链、邮件、域名或邮箱）的 JSON 记录。
 
-### 2. `list_links`
-分页查询当前工作区下的短链接列表并支持关键字搜索：
-- **输入参数**：`limit`（整数，1–100）、`search`（字符串）。
-- **输出结果**：短链对象数组，包含 Slug、目标地址、累计点击量及状态。
+## 读取监控资源
 
-### 3. `list_domains`
-查询已托管的域名 Zone 列表及解析健康状态：
-- **输入参数**：无。
-- **输出结果**：域名列表，包含托管服务商、解析状态及 SPF/DKIM/DMARC 验证指标。
+AI 客户端可以读取工作区监控资源：
 
-### 4. `list_mailboxes`
-查询当前工作区配置的邮箱账号及 Catch-All 路由状态：
-- **输入参数**：无。
-- **输出结果**：邮箱列表，包含邮箱地址、创建时间及未读邮件计数。
+- **`octarq://metrics/traffic`**：当前工作区的短链跳转与点击量统计。
+- **`octarq://domains/health`**：已绑定域名的 DNS 配置与健康状态。
 
-### 5. `list_emails`
-获取工作区收到的事务性入站邮件摘要：
-- **输入参数**：`mailbox_id`（可选）、`limit`（整数，1–50）。
-- **输出结果**：邮件对象数组，包含发件人、收件人、邮件主题、接收时间戳及文本摘要。
+## 配置 Claude Desktop
 
-### 6. `get_latest_otp`
-从最近 10 分钟内到达的未读邮件中自动提取一次性验证码 (OTP)：
-- **输入参数**：`mailbox_id`（可选整数）、`mailbox_address`（可选字符串）。
-- **输出结果**：包含 `found` 标识、提取出的 4~8 位验证码 `otp`、对应 `email_id`、`subject`、`from`、`to` 及 `received_at`。
+1. 打开 Claude Desktop 配置文件（macOS 位于 `~/Library/Application Support/Claude/claude_desktop_config.json`，Windows 位于 `%APPDATA%\Claude\claude_desktop_config.json`）。
+2. 添加 `octarq` 服务配置：
+   ```json
+   {
+     "mcpServers": {
+       "octarq": {
+         "command": "/usr/local/bin/octarq",
+         "args": ["mcp"],
+         "env": {
+           "OCTARQ_DB_DSN": "/var/lib/octarq/data.db"
+         }
+       }
+     }
+   }
+   ```
+3. 重启 Claude Desktop。
 
-### 7. `get_email_summary`
-获取指定邮件的结构化脱敏摘要并自动识别分类与验证码：
-- **输入参数**：`email_id`（整数，必填）。
-- **输出结果**：邮件概括 `summary`、分类 `category`（如 `otp`、`security_alert`、`billing`、`notification`）、提取的 `otp`（若存在）及邮件元信息。
+## 配置 Cursor
 
-### 8. `get_email_content`
-获取具备安全脱敏护栏的邮件纯文本正文：
-- **输入参数**：`email_id`（整数，必填）。
-- **输出结果**：清洗后的文本正文 `text`、截断标识 `truncated`。自动过滤密码重置与认证链接中的敏感 Token，移除 Base64 内联图片，并严格限定 4KB 上下文窗口安全上限。
+1. 在项目根目录中创建或编辑 `.cursor/mcp.json`。
+2. 添加远程 Octarq 连接配置：
+   ```json
+   {
+     "mcpServers": {
+       "octarq-remote": {
+         "url": "https://your-octarq-host.com/api/mcp/sse",
+         "headers": {
+           "Authorization": "Bearer oct_your_secret_api_token"
+         }
+       }
+     }
+   }
+   ```
+3. 保存文件并重启 Cursor。
 
-### 9. `export_data`
-导出当前租户全部业务数据的结构化备份：
-- **输入参数**：`resource`（字符串：`links`、`emails`、`domains` 或 `mailboxes`）。
-- **输出结果**：完整的 JSON 投影数据，包含该租户下的所有短链、域名及邮箱配置。
+## 使用自然语言提示词
 
-## 标准 MCP 只读 Resources 规范
+配置完成后，你可以直接在聊天框中使用自然语言向 AI 助手发出指令：
 
-Octarq 遵循 MCP 规范开放只读 Resource 端点供 Agent 订阅与监测：
-
-### 1. `octarq://metrics/traffic`
-当前工作区的短链重定向与访问流量实时指标：
-- **MIME 类型**：`application/json`
-- **字段**：`total_links`、`active_links`、`total_clicks`、`clicks_7d`、`clicks_30d` 及 `top_links`。
-
-### 2. `octarq://domains/health`
-当前工作区纳管域名的 DNS 配置、验证状态与路由能力：
-- **MIME 类型**：`application/json`
-- **字段**：`total_domains`、`active_mail_domains`、`active_link_domains` 及包含 `status`（`healthy`、`pending_provider`、`pending_zone`）的域名健康列表。
-
-## 客户端配置示例
-
-### Claude Desktop 配置文件
-
-在 Claude Desktop 配置文件中（macOS 位于 `~/Library/Application Support/Claude/claude_desktop_config.json`，Windows 位于 `%APPDATA%\Claude\claude_desktop_config.json`）添加 `octarq` 项：
-
-```json
-{
-  "mcpServers": {
-    "octarq": {
-      "command": "/usr/local/bin/octarq",
-      "args": ["mcp"],
-      "env": {
-        "OCTARQ_DB_DSN": "/var/lib/octarq/data.db"
-      }
-    }
-  }
-}
-```
-
-### Cursor IDE 配置文件
-
-在项目根目录创建或编辑 `.cursor/mcp.json`：
-
-```json
-{
-  "mcpServers": {
-    "octarq-remote": {
-      "url": "https://your-octarq-host.com/api/mcp/sse",
-      "headers": {
-        "Authorization": "Bearer oct_your_secret_api_token"
-      }
-    }
-  }
-}
-```
-
-## 自然语言交互示例
-
-配置完成后，您可以直接在 AI 聊天框中用自然语言发出指令：
-
-- *“帮我在域名 go.example.com 上创建一个指向 https://github.com/my-org/repo 的短链，别名设为 github-repo”*
-- *“列出我工作区的所有域名，检查是否存在 SPF 或 DMARC 验证失败的情况”*
-- *“查看最近收件箱里的前 5 封邮件，总结它们的主要诉求”*
+- “在域名 go.example.com 上创建一个指向 https://example.com/docs 的短链，别名设为 docs”
+- “检查当前工作区所有域名的验证状态”
+- “查找客服邮箱最近 5 分钟内收到的验证码”
 
 ## 相关指南
 
 - [API 令牌](/help/api-tokens)
 - [短链](/help/short-links)
-- [邮箱与邮件路由](/help/mailboxes)
+- [邮箱](/help/mailboxes)
 - [DNS 域名解析](/help/dns)

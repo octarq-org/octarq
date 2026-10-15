@@ -1,52 +1,45 @@
 ---
-title: API Tokens
-description: Issue scoped bearer tokens with oct_ prefix to authenticate REST API requests, CI/CD automation, and remote MCP agents.
+title: API tokens
+description: Create and manage scoped API tokens to authenticate scripts, CI/CD pipelines, and remote agents.
 category: settings
 order: 20
 ---
 
-Octarq API tokens provide non-interactive, cryptographically secure authentication for automation scripts, CI/CD deployment pipelines, scheduled cron tasks, and remote AI agents. Every token acts as a scoped bearer credential bound to a specific workspace and member identity.
+Octarq API tokens let you authenticate scripts, CI/CD pipelines, and remote agents without sharing your account password. Every token is scoped to your active workspace and restricted by your member role.
 
-## Token Specifications and Cryptographic Security
-
-- **Prefix & Entropy**: All tokens begin with the prefix `oct_` followed by 24 cryptographically secure random bytes (base62 encoded, e.g. `oct_AbC123...`).
-- **One-Way Storage**: Raw token strings are never stored in plain text. The database saves only a one-way SHA-256 hash (`token_hash`). The plain token is revealed exactly once upon generation.
-- **Header Standard**: Authenticate requests by passing the token in the standard HTTP `Authorization` header:
-  ```http
-  Authorization: Bearer oct_your_secret_api_token
-  ```
-
-## Role Scoping and Anti-Privilege Escalation
-
-API tokens enforce strict role-based access control (RBAC) within your workspace:
-
-### Role Narrowing (`callerHoldsRole`)
-
-When generating a token, you can assign an explicit role scope:
-- **`member`**: Standard operational privileges (manage short links, mailboxes, and view domain records).
-- **`admin`**: Operational privileges plus administrative settings, DNS provider management, webhooks, and alerts.
-- **`owner`**: Full workspace authority, including billing, membership changes, and workspace deletion.
-
-To prevent privilege escalation, Octarq enforces compile-time and runtime **Role Narrowing**:
-- A member cannot mint a token with a role higher than their own personal workspace role.
-- An `Admin` can mint `member` or `admin` tokens, but is blocked from minting `owner` tokens with HTTP 403 Forbidden (*"cannot mint a token above your own role"*).
-- **Least Privilege Default**: If the `role` field is omitted during creation, Octarq automatically defaults to `member`.
-
-## Generate an API Token
+## Create an API Token
 
 1. Go to **Settings → Account → API Tokens** (or press `⌘K` / `Ctrl+K` and search "API Tokens").
-2. Click **+ New Token**.
-3. Configure token properties:
-   - **Name**: A descriptive label (such as `GitHub Actions Deployment` or `Terraform Provider`).
-   - **Role Scope**: Select `Member`, `Admin`, or `Owner` (bounded by your workspace role).
-   - **Expiration (in days)**: Choose 7, 30, 90 days, or leave empty for a non-expiring token.
-   - **Note**: Optional contextual metadata describing the token's intended purpose.
+2. Click **New Token**.
+3. Configure the token options:
+   - **Name**: Enter a descriptive label, such as `GitHub Actions` or `Deploy Script`.
+   - **Role**: Choose `Member`, `Admin`, or `Owner`. You cannot grant a role higher than your own workspace role.
+   - **Expiration**: Choose 7, 30, 90 days, or leave it blank for a non-expiring token.
+   - **Note**: (Optional) Add context about where the token is used.
 4. Click **Create Token**.
-5. Copy the displayed secret token immediately.
+5. Copy the displayed secret token immediately. Octarq stores tokens encrypted at rest and never displays the secret again.
 
-## Example API Requests
+## Choose a Role Scope
 
-### 1. List Domains in Workspace
+Every API token enforces role-based access control (RBAC) within your workspace:
+
+- **Member**: Standard operational access to create and manage short links, mailboxes, and domain records.
+- **Admin**: Operational access plus workspace settings, DNS providers, Webhook endpoints, and alerts.
+- **Owner**: Full workspace access, including member invitations, billing, and workspace deletion.
+
+:::note Role Limits
+You can only issue tokens with permissions up to your own workspace role. If you are an Admin, you cannot create an Owner token.
+:::
+
+## Authenticate API Requests
+
+Include your API token in the standard HTTP `Authorization` header with the `Bearer` prefix:
+
+```http
+Authorization: Bearer oct_your_secret_api_token
+```
+
+### List Domains
 
 ```bash
 curl -s -X GET "https://your-octarq-host.com/api/domains" \
@@ -54,7 +47,7 @@ curl -s -X GET "https://your-octarq-host.com/api/domains" \
   -H "Accept: application/json"
 ```
 
-### 2. Create a Short Link Declaratively
+### Create a Short Link
 
 ```bash
 curl -s -X POST "https://your-octarq-host.com/api/links" \
@@ -62,19 +55,21 @@ curl -s -X POST "https://your-octarq-host.com/api/links" \
   -H "Content-Type: application/json" \
   -d '{
     "target": "https://example.com/docs",
-    "slug": "docs",
-    "host": "go.example.com"
+    "slug": "docs"
   }'
 ```
 
-## Token Revocation and Lifecycle Security
+## Revoke an API Token
 
-- **Manual Revocation**: Go to **Settings → Account → API Tokens**, locate the token, and click **Revoke**. The token hash is deleted immediately, and any subsequent API request using it receives an instant HTTP 401 Unauthorized response.
-- **Cascade Revocation on Member Removal**: Tokens are strictly scoped to the tuple of `(org_id, user_id)`. When an administrator removes a team member from an organization, all API tokens minted by that user within the workspace are permanently cascade-deleted, preventing orphaned credentials from lingering in automated systems.
+1. Go to **Settings → Account → API Tokens**.
+2. Find the token in the list and click **Revoke**.
+3. The token stops working immediately. Any request using this token receives an HTTP 401 Unauthorized response.
+
+When an administrator removes a member from a workspace, Octarq automatically revokes all API tokens created by that member in the workspace.
 
 ## Related Guides
 
 - [Model Context Protocol (MCP)](/help/mcp)
-- [Webhooks](/help/webhooks)
+- [Outbound Webhooks](/help/webhooks)
 - [Alerts](/help/notifications)
 - [Organizations & Workspace RBAC](/help/multi-org)
