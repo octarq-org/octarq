@@ -1,52 +1,45 @@
 ---
 title: API 令牌
-description: 生成以 oct_ 为前缀的权限约束型 Bearer 令牌，用于 REST API 鉴权、CI/CD 自动化及远程 MCP Agent 交互。
+description: 生成并管理用于脚本、CI/CD 流水线与远程 Agent 鉴权的 API 令牌。
 category: settings
 order: 20
 ---
 
-Octarq API 令牌为自动化运维脚本、CI/CD 持续交付流水线、Crontab 定时任务以及远程 AI Agent 提供了非交互式的安全访问凭证。每个令牌均严格绑定在当前工作区与创建者的身份上下文之中。
-
-## 令牌规范与安全存储
-
-- **格式规则与高熵值**：所有令牌统一以 `oct_` 前缀起始，后接 24 字节高强度密码学随机串（Base62 编码，例如 `oct_AbC123...`）。
-- **单向哈希加密存储**：数据库中绝不落盘明文 Token。系统只保存其单向 SHA-256 哈希值（`token_hash`）。明文仅在初次生成时完整展示一次。
-- **请求头标准**：客户端发起 API 调用时，需在标准 HTTP `Authorization` 请求头中传入 Bearer 凭据：
-  ```http
-  Authorization: Bearer oct_your_secret_api_token
-  ```
-
-## 权限降级收敛与防越权保护
-
-API 令牌内置严格的工作区角色访问控制机制（RBAC）：
-
-### 角色范围约束 (`callerHoldsRole`)
-
-创建令牌时，可显式指定其生效的角色范围：
-- **`member`（普通成员）**：拥有常规业务操作权限（管理短链、邮箱并查看域名解析）。
-- **`admin`（管理员）**：包含业务权限，并可配置工作区设置、DNS 解析服务商、出站 Webhook 与告警渠道。
-- **`owner`（所有者）**：拥有工作区最高管控权限，包括账单支付、成员管理与工作区注销。
-
-为了杜绝权限越级提升，Octarq 在鉴权层强制执行**角色收敛 (Role Narrowing)**：
-- 任何成员均无法签发超出自身工作区当前角色的更高权限令牌。
-- `Admin` 仅可签发 `member` 或 `admin` 权限令牌，若尝试签发 `owner` 令牌，系统将直接拦截并返回 HTTP 403 Forbidden（*“cannot mint a token above your own role”*）。
-- **默认最小权限原则**：若在生成接口中省略 `role` 字段，Octarq 将自动降级赋予最小权限 `member`。
+Octarq API 令牌支持在无需共享账户密码的情况下，为自动化脚本、CI/CD 流水线以及远程 Agent 提供安全的调用凭证。每个令牌均限定在当前工作区内，并受创建者的角色权限约束。
 
 ## 创建 API 令牌
 
 1. 前往 **设置 → 账户 → API 令牌**（或按 `⌘K` / `Ctrl+K` 搜索“API 令牌”）。
-2. 点击 **+ 新建令牌**。
-3. 配置令牌属性：
-   - **名称**：填写易于识别的用途标签（如 `GitHub Actions 流水线` 或 `自动化发布脚本`）。
-   - **角色范围**：选择 `Member`、`Admin` 或 `Owner`（受限于您自身当前角色）。
-   - **有效期（天数）**：可选 7 天、30 天、90 天，或留空生成永久有效令牌。
-   - **备注**：填写可选的环境背景或调用说明。
-4. 点击 **生成令牌**。
-5. 立即复制并妥善保管明文密钥。
+2. 点击 **新建令牌**。
+3. 配置令牌选项：
+   - **名称**：输入描述性名称，例如 `GitHub Actions` 或 `发布脚本`。
+   - **角色**：选择 `Member`、`Admin` 或 `Owner`。你无法授予高于自身工作区角色的权限。
+   - **过期时间**：选择 7、30、90 天，或留空生成永久令牌。
+   - **备注**：（可选）添加令牌使用场景说明。
+4. 点击 **创建令牌**。
+5. 立即复制显示的明文令牌。Octarq 对令牌进行加密存储，后续不再展示明文。
 
-## API 调用代码示例
+## 选择角色权限范围
 
-### 1. 查询当前工作区的域名列表
+每个 API 令牌均受工作区角色访问控制 (RBAC) 约束：
+
+- **Member**：常规操作权限，可创建和管理短链、邮箱与域名记录。
+- **Admin**：包含常规操作，并可管理工作区设置、DNS 服务商、Webhook 端点与告警。
+- **Owner**：工作区全部权限，包括成员邀请、账单与工作区注销。
+
+:::note 权限上限约束
+你只能签发权限等于或低于自身工作区角色的令牌。如果你是 Admin，则无法创建 Owner 权限的令牌。
+:::
+
+## 发送认证请求
+
+发起 API 请求时，在 HTTP `Authorization` 请求头中传入附带 `Bearer` 前缀的令牌：
+
+```http
+Authorization: Bearer oct_your_secret_api_token
+```
+
+### 查询域名列表
 
 ```bash
 curl -s -X GET "https://your-octarq-host.com/api/domains" \
@@ -54,7 +47,7 @@ curl -s -X GET "https://your-octarq-host.com/api/domains" \
   -H "Accept: application/json"
 ```
 
-### 2. 声明式创建短链
+### 创建短链接
 
 ```bash
 curl -s -X POST "https://your-octarq-host.com/api/links" \
@@ -62,19 +55,21 @@ curl -s -X POST "https://your-octarq-host.com/api/links" \
   -H "Content-Type: application/json" \
   -d '{
     "target": "https://example.com/docs",
-    "slug": "docs",
-    "host": "go.example.com"
+    "slug": "docs"
   }'
 ```
 
-## 令牌吊销与生命周期安全
+## 吊销 API 令牌
 
-- **手动即时吊销**：前往 **设置 → 账户 → API 令牌**，在列表中找到对应令牌点击 **吊销**。哈希记录将立即从数据库抹除，后续所有使用该令牌的请求均会立即返回 HTTP 401 Unauthorized 报错。
-- **成员注销级联失效**：所有令牌在底层均绑定为 `(org_id, user_id)` 双元组。当管理员从工作区中移除某位成员时，该成员在该工作区下创建的所有 API 令牌将触发级联物理删除，彻底清除幽灵凭据遗留隐患。
+1. 前往 **设置 → 账户 → API 令牌**。
+2. 在列表中找到对应令牌，点击 **吊销**。
+3. 令牌立即失效。后续使用该令牌发起的请求均会返回 HTTP 401 错误。
+
+当管理员从工作区中移除成员时，Octarq 会自动吊销该成员在该工作区创建的所有 API 令牌。
 
 ## 相关指南
 
-- [模型上下文协议 (MCP)](/help/mcp)
+- [Model Context Protocol (MCP)](/help/mcp)
 - [出站 Webhook](/help/webhooks)
 - [告警通知渠道](/help/notifications)
 - [组织与团队权限](/help/multi-org)
