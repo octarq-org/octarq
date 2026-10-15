@@ -1,104 +1,101 @@
 ---
-title: Mail
-description: Receive transactional inbound emails via webhooks, manage mailboxes and catch-all routing, configure outbound SMTP relays with SSRF guards, and handle bounces and suppressions.
+title: Mailboxes
+description: Receive inbound emails via webhooks, route messages to custom addresses, and configure outbound SMTP senders.
 category: operations
 order: 20
 ---
 
-Octarq provides an operational and transactional mail gateway engineered for developer platforms and automation workflows. It ingests inbound email through high-throughput HTTP webhooks (such as Cloudflare Email Routing or generic RFC 822 payloads) and dispatches outbound messages through external SMTP relays.
+Octarq Mailboxes gives your workspace dedicated email addresses on your custom domains. You can receive transactional incoming mail via webhooks, route unassigned addresses with catch-all rules, and send outbound messages through external SMTP relays.
 
-:::note Architectural Overview
-Octarq is designed as a webhook-driven transactional mail platform. It connects to external outbound SMTP servers and ingests incoming messages via edge webhooks. It does **not** run an embedded IMAP or POP3 mail server daemon.
+:::note
+Octarq receives mail through webhooks and delivers outgoing mail through external SMTP servers. It does not run an IMAP or POP3 mail server.
 :::
 
-## Inbound Email via Webhook Ingress
+## Create a Mailbox
 
-Octarq receives incoming mail over HTTPS through two specialized webhook endpoints.
+1. Go to **Operations → Messaging → Mail** and open the **Mailboxes** tab (or press `⌘K` / `Ctrl+K` and search "Mail").
+2. Click **New Mailbox**.
+3. Select a verified domain from [DNS Management](/help/dns) and enter an address prefix (such as `support`).
+4. Click **Create Mailbox**.
 
-### Cloudflare Email Routing Webhook
+Inbound messages sent to this address appear directly in this mailbox.
+
+## Route Incoming Email with Catch-All
+
+Catch-all routing captures messages sent to addresses you have not explicitly created:
 
 1. Go to **Operations → Messaging → Mail** and open the **Settings** tab.
-2. Under **Inbound Configuration**, copy your workspace **Inbound Webhook URL**:
-   `/api/webhook/{orgSlug}/email/inbound/{token}`
-3. In your Cloudflare Dashboard, navigate to **Email Routing → Routing Rules** and configure a Cloudflare Email Worker to POST raw email payloads to this URL.
-4. Inbound requests are authenticated using the secret token to ensure only authorized webhooks can deliver email.
+2. Turn on **Enable Catch-All Routing**.
+3. (Optional) In **Reserved Mailbox Prefixes**, enter comma-separated prefixes (such as `admin, postmaster, abuse, security`) that bypass auto-creation.
+4. Click **Save Changes**.
 
-### Generic Raw EML Inbound Webhook (RFC 822)
+When catch-all is active, messages sent to unconfigured addresses on your domain automatically create a mailbox tagged as `auto (catch-all)`. Reserved prefixes are excluded to protect critical addresses.
 
-For mail services other than Cloudflare (such as Mailgun, SendGrid, Postmark, or custom postfix relays), use the generic raw webhook:
-`/api/webhook/{orgSlug}/email/inbound/raw/{token}`
+## Receive Inbound Email
 
-This endpoint accepts raw RFC 822 `.eml` byte streams or standard `multipart/form-data` uploads:
+Octarq receives inbound messages through HTTPS webhooks from edge email services.
 
-- **Token Routing**: The secret token is passed in the URL path, not in HTTP request headers.
-- **Mailgun Routes**: Configure an action `forward("https://your-octarq-host/api/webhook/{orgSlug}/email/inbound/raw/{token}")`.
-- **SendGrid Inbound Parse**: Point the webhook destination to the raw inbound URL with "POST the raw, full MIME message" enabled.
+### Set Up an Inbound Webhook
 
-### Streaming MIME Parsing and Error Resilience
+1. Go to **Operations → Messaging → Mail** and open the **Settings** tab.
+2. Copy your workspace **Inbound Webhook URL** under **Inbound Configuration**.
+3. Configure your mail provider (such as Cloudflare Email Routing, SendGrid, or Mailgun) to POST incoming messages to this URL.
 
-Inbound emails undergo streaming MIME decomposition:
+Requests are authenticated using a secret token in the URL path.
 
-- **Resource Limits**: Inbound bodies are capped at 25 MiB total, individual MIME parts are limited to 10 MiB, and a message can contain up to 200 MIME parts.
-- **Data Extraction**: Extracts plaintext bodies, HTML bodies, inline attachments with `Content-ID` references, and SPF/DKIM/DMARC authentication verdict headers.
-- **Fail-Safe Resilience**: If incoming headers are malformed or multipart boundaries are corrupt, Octarq preserves the message with a placeholder subject (`(unparseable message)`), ensuring incoming transactional data is never dropped.
+### Message Limits
 
-## Mailbox Setup and Custom Domain Routing
+Octarq processes incoming messages with the following limits:
 
-1. Go to **Operations → Messaging → Mail** and open the **Mailboxes** tab.
-2. Click **New Mailbox**.
-3. Select an active, verified domain (configured via [DNS Management](/help/dns)) and enter an address prefix (such as `support@example.com`).
-4. Click **Create**. Inbound messages matching this address are categorized directly into this mailbox.
+- **Message size**: Up to 25 MiB total per email.
+- **Attachments and parts**: Up to 10 MiB per file, with up to 200 parts per message.
+- **Error resilience**: If a message has malformed headers or corrupt boundaries, Octarq saves it with the subject `(unparseable message)` so data is never lost.
 
-### Catch-All Mail Routing and Reserved Prefixes
+## Configure Outbound SMTP Senders
 
-Octarq can automatically intercept and provision mailboxes for unexpected incoming addresses on your custom domains:
+To send transactional emails or invitations from your workspace:
 
-1. In **Mail → Settings**, toggle on **Enable Catch-All Routing**.
-2. When an email arrives for an unconfigured address on an owned domain, Octarq automatically creates a mailbox entry tagged as `auto (catch-all)`.
-3. **Reserved Prefixes**: Specify comma-separated prefixes (such as `admin, postmaster, abuse, hostmaster, security`) in **Reserved Mailbox Prefixes**. Emails sent to reserved prefixes bypass catch-all auto-creation to protect core system addresses.
+1. Go to **Operations → Messaging → Mail** and open the **Settings** tab.
+2. Under **SMTP Gateways**, click **Add SMTP Sender**.
+3. Enter your SMTP **Host**, **Port** (`587` or `465`), **Username**, **Password**, and default **From Email**.
+4. Click **Save Sender**.
 
-## Outbound SMTP Relay Configuration
+Credentials are encrypted at rest. Active SSRF protection blocks outbound connections to private networks, loopback addresses, and cloud metadata services.
 
-To send transactional emails or member invitation notifications from your workspace:
+## Test Connection and Handle Failures
 
-1. Go to **Operations → Messaging → Mail**, open the **Settings** tab, and locate **SMTP Gateways**.
-2. Click **Add SMTP Sender**.
-3. Enter your SMTP Host (such as `smtp.mailgun.org` or `email-smtp.us-east-1.amazonaws.com`), Port (`587` or `465`), Username, Password, and default From Email.
-4. Passwords are encrypted at rest using AES-GCM.
+After adding an SMTP sender, verify that your credentials work:
 
-### Pre-Flight Test Connection
+1. Find your sender under **SMTP Gateways**.
+2. Click **Test Connection**.
+3. Review the result. Octarq opens a connection to the server, runs a TLS handshake, and reports the status immediately.
 
-After creating an SMTP sender, click **Test Connection** (endpoint `POST /api/smtp-senders/{id}/test`). Octarq opens a live TCP socket to the relay, completes the TLS handshake, and reports success or error diagnostics immediately.
+If the test fails, check the following:
 
-### Dial-Time SSRF Socket Guard
+- **Authentication error**: Verify that the username, password, or API key are correct.
+- **Connection timeout**: Check the host address and port number (usually `587` for STARTTLS or `465` for TLS).
+- **Security rejection**: Outbound connections to private or internal IP addresses are blocked by SSRF protection.
 
-To prevent malicious users from targeting internal cloud infrastructure through forged SMTP endpoints:
+## Manage Suppressions and Bounces
 
-- Octarq utilizes a dial-time socket filter (`safehttp.SMTPControl`).
-- After DNS resolution and immediately prior to the TCP handshake, Octarq verifies the destination IP.
-- Connections resolving to loopback (`127.0.0.1`), private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), link-local IPs, or cloud metadata endpoints (`169.254.169.254`) are aborted at the kernel socket boundary.
+Octarq tracks delivery failures to protect your sender reputation:
 
-## Suppression Management and Bounce Processing
+- **Hard bounces and complaints**: When an email permanently bounces or receives a spam complaint, Octarq adds the recipient to the workspace suppression list automatically.
+- **Soft bounces**: Temporary delivery issues (such as a full inbox) are logged in activity history and trigger alerts without suppressing the address.
+- **Manual suppression**: Open the **Suppressions** tab under **Operations → Messaging → Mail** to add or remove addresses. Outbound messages to suppressed addresses are rejected before transmission.
 
-Protect your outbound sender reputation from ISP blocking and blacklists:
+## Auto-Wrap Outbound Links
 
-### Automated Webhook Bounce Processing
+To track clicks in outgoing emails without manually modifying URLs:
 
-Octarq can ingest real-time delivery webhooks from Amazon SES, Mailgun, and SendGrid:
+1. Go to **Operations → Messaging → Mail** and open the **Settings** tab.
+2. Turn on **Auto-wrap links in outgoing mail**.
+3. Click **Save Changes**.
 
-- **Permanent Hard Bounces & Spam Complaints**: The recipient address is automatically added to the workspace `mail_suppressions` list.
-- **Transient Soft Bounces** (e.g. mailbox full, temporary greylisting): The failure is logged in the audit trail and triggers an alert, but the address is **never** added to the suppression list.
-
-### Manual Suppression List Controls
-
-Go to **Operations → Messaging → Mail** and click the **Suppressions** tab to view, manually add, or remove email addresses. Any outbound email attempt targeting a suppressed address is rejected before transmission with HTTP 400.
-
-## Outbound Link Tracking Auto-Wrapping
-
-When enabled under **Mail → Settings**, outgoing HTML emails automatically convert external hyperlinks into click-tracking [Short Links](/help/short-links). Internal domain links and `mailto:` protocol links are preserved without modification.
+External links in outgoing HTML emails are converted into tracked [Short Links](/help/short-links). Internal domain links and `mailto:` links remain unchanged.
 
 :::caution This is a Pro feature
-In Octarq Core, raw email bodies and attachments are stored locally in the primary database. With **Octarq Pro**, incoming EML messages and multi-megabyte attachments can be offloaded directly to dedicated S3, Cloudflare R2, or MinIO object storage buckets.
+Octarq Core stores email bodies and attachments in the local database. With **Octarq Pro**, incoming messages and attachments can be stored directly in Amazon S3, Cloudflare R2, or MinIO object storage.
 :::
 
 ## Related Guides

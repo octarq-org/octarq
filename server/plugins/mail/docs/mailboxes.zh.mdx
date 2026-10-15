@@ -1,104 +1,101 @@
 ---
-title: 邮件
-description: 接收事务性入站邮件 Webhook、管理邮箱与 Catch-All 路由、配置具备 SSRF 拦截防护的出站 SMTP 发件服务，并处理退信与黑名单名单。
+title: 邮箱
+description: 通过 Webhook 接收传入邮件、将邮件路由至自定义域名地址，并配置出站 SMTP 发件服务。
 category: operations
 order: 20
 ---
 
-Octarq 提供面向开发者工作流与自动化系统的事务性邮件网关。平台通过高吞吐的 HTTP Webhook（例如 Cloudflare Email Routing 或标准 RFC 822 报文）接收外部入站邮件，并通过对接外部 SMTP 发件服务执行出站通知投递。
+Octarq 邮箱为你的工作区在自定义域名上提供专属邮件地址。你可以通过 Webhook 接收事务性入站邮件、通过 Catch-All 规则路由未配置的地址，并通过外部 SMTP 发件服务发送出站邮件。
 
-:::note 架构说明
-Octarq 采用基于 Webhook 与 REST API 的现代事务邮件架构。平台负责连接外部出站 SMTP 发件中继，并通过边缘 Webhook 接收外部邮件。系统**未内置**传统的 IMAP 或 POP3 邮件服务端守护进程。
+:::note
+Octarq 通过 Webhook 接收邮件，并通过外部 SMTP 服务器发送出站邮件。系统未内置 IMAP 或 POP3 邮件服务。
 :::
 
-## 接入入站邮件 Webhook
+## 创建邮箱
 
-Octarq 支持通过两条专用的 HTTPS Webhook 端点接入入站邮件。
-
-### Cloudflare Email Routing 路由 Webhook
-
-1. 进入 **日常运营 → 消息 → 邮件**，切换至 **Settings** 标签页。
-2. 在 **入站配置** 下复制当前工作区的 **入站 Webhook URL**：
-   `/api/webhook/{orgSlug}/email/inbound/{token}`
-3. 在 Cloudflare 控制台中进入 **Email Routing → Routing Rules**，创建 Cloudflare Email Worker 规则，将收到的原始邮件 POST 至该 Webhook 地址。
-4. 采用安全令牌校验机制，确保仅授权的 Webhook 请求可以投递邮件。
-
-### 通用原始 EML 入站 Webhook (RFC 822)
-
-针对 Cloudflare 之外的邮件服务商（如 Mailgun、SendGrid、Postmark 或自建 Postfix 中继），使用通用原始端点：
-`/api/webhook/{orgSlug}/email/inbound/raw/{token}`
-
-该端点支持直接接收标准 RFC 822 `.eml` 原始报文字节流或 `multipart/form-data` 格式：
-
-- **URL 路径鉴权**：安全 Token 作为 URL 的最后一段路径传入，无需放置在 HTTP 请求头中。
-- **Mailgun Routes**：添加操作 `forward("https://your-octarq-host/api/webhook/{orgSlug}/email/inbound/raw/{token}")`。
-- **SendGrid Inbound Parse**：将 Webhook 地址填写为原始入站 URL，并勾选 "POST the raw, full MIME message"。
-
-### 流式 MIME 解析与异常容错
-
-所有入站邮件均经由底层流式 MIME 解析引擎处理：
-
-- **资源边界配额**：单封邮件报文总上限为 25 MiB，单个 MIME Part 附件上限为 10 MiB，单封邮件最多解析 200 个 Part。
-- **内容深度提取**：自动提取 Plaintext 纯文本、HTML 正文、带 `Content-ID` 关联的内联附件以及 SPF、DKIM、DMARC 邮件鉴权认证判定头。
-- **高可用容错保护**：若邮件头出现非标畸变或 multipart 分界符被截断，Octarq 会保留原始报文并以占位主题（`(unparseable message)`）落库，确保入站业务邮件绝不丢失。
-
-## 邮箱设置与自定义域名绑定
-
-1. 进入 **日常运营 → 消息 → 邮件**，切换至 **Mailboxes** 标签页。
+1. 进入 **日常运营 → 消息 → 邮件**，切换到 **邮箱** 标签页（或按 `⌘K` / `Ctrl+K` 搜索“邮件”）。
 2. 点击 **新建邮箱**。
-3. 选择已在 [DNS 域名解析](/help/dns) 中完成验证的域名，输入前缀（例如 `support@example.com`）。
-4. 点击 **创建**。后续发送至该完整地址的邮件将自动规整到该邮箱目录下。
+3. 从 [DNS 域名解析](/help/dns) 中选择已验证的域名，并输入地址前缀（例如 `support`）。
+4. 点击 **创建邮箱**。
 
-### Catch-All 邮件路由与保留前缀
+发送至该地址的入站邮件将直接归入该邮箱。
 
-当向您域名下的未配置地址发送邮件时，Octarq 可自动截获并动态创建邮箱：
+## 用 Catch-All 路由接收邮件
 
-1. 在 **邮件 → Settings** 中，开启 **启用 Catch-All 路由**。
-2. 当有新邮件发送至未配置的前缀时，系统会自动生成带有 `auto (catch-all)` 标记的邮箱记录。
-3. **保留邮箱前缀**：在 **保留邮箱前缀** 输入框中填写以逗号分隔的前缀（如 `admin, postmaster, abuse, hostmaster, security`）。发送至保留前缀的邮件将直接旁路，保护系统级重要地址。
+Catch-All 路由可捕获发送至尚未单独创建的地址的邮件：
+
+1. 进入 **日常运营 → 消息 → 邮件**，切换到 **设置** 标签页。
+2. 开启 **启用 Catch-All 路由**。
+3. （可选）在 **保留邮箱前缀** 中输入以逗号分隔的前缀（例如 `admin, postmaster, abuse, security`），这些地址将跳过自动创建。
+4. 点击 **保存更改**。
+
+开启 Catch-All 后，发送至已验证域名上未配置地址的邮件会自动创建带有 `auto (catch-all)` 标记的邮箱。保留前缀会被排除，以保护系统核心地址。
+
+## 接收入站邮件
+
+Octarq 通过来自边缘邮件服务的 HTTPS Webhook 接收入站邮件。
+
+### 配置 Webhook 端点
+
+1. 进入 **日常运营 → 消息 → 邮件**，切换到 **设置** 标签页。
+2. 在 **入站配置** 下复制当前工作区的 **入站 Webhook URL**。
+3. 配置你的邮件服务商（例如 Cloudflare Email Routing、SendGrid 或 Mailgun），将接收到的邮件 POST 至该 Webhook 地址。
+
+请求通过 URL 路径中的密钥令牌进行鉴权。
+
+### 邮件大小限制
+
+Octarq 接收邮件时遵循以下限制：
+
+- **邮件总大小**：单封邮件上限 25 MiB。
+- **附件与内容分块**：单个文件上限 10 MiB，单封邮件最多 200 个分块。
+- **容错处理**：如果传入邮件的标头或分界格式异常，Octarq 仍会以 `(unparseable message)` 为主题保存邮件，确保数据不丢失。
 
 ## 配置出站 SMTP 发件服务
 
-为工作区配置外发系统通知或成员邀请邮件：
+如需从工作区发送事务性通知或成员邀请邮件：
 
-1. 进入 **日常运营 → 消息 → 邮件**，切换至 **Settings** 标签页，找到 **SMTP 发件配置**。
-2. 点击 **添加 SMTP 发件服务**。
-3. 填入 SMTP 主机（例如 `smtp.mailgun.org` 或 `email-smtp.us-east-1.amazonaws.com`）、端口（`587` 或 `465`）、用户名、密码及默认发件人邮箱。
-4. 密码敏感凭证在落库时全程采用 AES-GCM 高强度加密。
+1. 进入 **日常运营 → 消息 → 邮件**，切换到 **设置** 标签页。
+2. 在 **SMTP 发件配置** 下，点击 **添加 SMTP 发件服务**。
+3. 填入 SMTP **主机**、**端口**（`587` 或 `465`）、**用户名**、**密码** 及默认 **发件人邮箱**。
+4. 点击 **保存发件服务**。
 
-### 发信前连通性测试 (Test Connection)
+凭证在存储时全程加密。系统具备活跃的 SSRF 拦截防护，自动阻断针对私有网络、本地回环地址以及云厂商内部元数据端点的出站连接。
 
-添加完成后，点击列表中的 **测试连接**（端点 `POST /api/smtp-senders/{id}/test`）。Octarq 会立即发起真实 TCP 建连与 TLS 握手，并实时反馈连通状态与延迟。
+## 测试连接与排查故障
 
-### 拨号期 SSRF Socket 拦截防护
+添加发件服务后，验证你的凭证是否有效：
 
-为防止恶意用户配置内部主机造成内网探测与 SSRF 穿透：
+1. 在 **SMTP 发件配置** 列表中找到你的发件服务。
+2. 点击 **测试连接**。
+3. 查看测试结果。Octarq 会连接到服务器执行 TLS 握手，并立即反馈状态。
 
-- Octarq 在底层采用网络拨号级 Socket 拦截器（`safehttp.SMTPControl`）。
-- 在完成 DNS 域名解析后、发起 TCP 三次握手前，系统对目标真实 IP 进行即时研判。
-- 凡指向本地回环 (`127.0.0.1`)、RFC 1918 私网网段 (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) 或云厂商元数据地址 (`169.254.169.254`) 的连接，均在内核 Socket 层直接阻断。
+如果连接测试失败，请排查以下原因：
 
-## 黑名单管理与自动化退信处理
+- **认证失败**：请检查用户名、密码或 API 密钥是否正确。
+- **连接超时**：请核对主机地址与端口（通常使用 `587` 进行 STARTTLS 或 `465` 进行 TLS）。
+- **安全拦截**：指向私有网络或内部 IP 地址的出站连接会被 SSRF 防护直接拦截。
 
-维护发信人域名信誉，防止被公网 ISP 投递服务列入反垃圾黑名单：
+## 管理退信与黑名单
 
-### 自动化 Webhook 退信处理
+Octarq 跟踪投递失败记录，保护发信域名信誉：
 
-Octarq 可对接 Amazon SES、Mailgun 及 SendGrid 的投递回调 Webhook：
+- **硬退信与垃圾邮件投诉**：当邮件永久投递失败或收到垃圾邮件投诉时，Octarq 会自动将收件地址加入工作区黑名单。
+- **软退信**：临时投递问题（例如邮箱容量已满）仅记录在活动日志中并触发告警，不会将地址加入黑名单。
+- **手动黑名单**：进入 **日常运营 → 消息 → 邮件** 打开 **黑名单** 标签页，即可添加或移除地址。发送至黑名单地址的出站邮件会在发出前被直接拦截。
 
-- **永久硬退信 (Hard Bounce) 与垃圾邮件投诉 (Complaint)**：收件地址将被自动写入当前工作区的 `mail_suppressions` 黑名单中。
-- **临时软退信 (Soft Bounce)**（如邮箱空间已满、临时灰名单等）：系统仅在审计日志中记录并触发告警，**绝不**将该地址加入黑名单。
+## 自动包装出站链接
 
-### 手动黑名单维护
+无需手动修改链接即可追踪外发邮件中的点击：
 
-在 **日常运营 → 消息 → 邮件** 的 **Suppressions** 列表中，管理员可随时手动录入或移除黑名单地址。凡尝试向黑名单地址发送邮件的操作，均会在发送前被拦截并返回 HTTP 400。
+1. 进入 **日常运营 → 消息 → 邮件**，切换到 **设置** 标签页。
+2. 开启 **在发出的邮件中自动包装链接**。
+3. 点击 **保存更改**。
 
-## 出站邮件超链接自动包装短链
-
-在 **邮件 → Settings** 中开启此项后，系统外发的 HTML 邮件中的所有外部超链接，均会自动转换为带有点击追踪统计的 [短链](/help/short-links)。域名内相对地址与 `mailto:` 链接将自动跳过。
+HTML 邮件中的外部链接会自动转换为带有点击追踪的 [短链](/help/short-links)。同域名内部链接与 `mailto:` 链接保持原样不变。
 
 :::caution 本功能为 Pro 专属功能
-在 Octarq 社区版中，原始邮件报文和附件保存在本地主数据库中。在 **Octarq Pro** 中，原始 EML 报文与大型附件可自动无缝转存至专属的 S3、Cloudflare R2 或 MinIO 对象存储桶中。
+Octarq 社区版将邮件正文与附件保存在本地数据库中。在 **Octarq Pro** 中，传入邮件与附件可直接转存至 Amazon S3、Cloudflare R2 或 MinIO 对象存储。
 :::
 
 ## 相关指南
