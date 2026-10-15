@@ -21,7 +21,7 @@ export const proTable = {
     retry: "Retry",
     lockedFeature: "Data tables",
     all: "All",
-    inputPlaceholder: "Please enter {{name}}",
+    inputPlaceholder: "Enter {{name}}",
   },
   zh: {
     search: "查询",
@@ -45,7 +45,7 @@ export const proTable = {
     retry: "重试",
     lockedFeature: "数据表格",
     all: "全部",
-    inputPlaceholder: "请输入 {{name}}",
+    inputPlaceholder: "输入 {{name}}",
   },
   es: {
     search: "Buscar",
