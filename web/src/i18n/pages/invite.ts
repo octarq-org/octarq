@@ -1,7 +1,7 @@
 export const invite = {
   en: {
     heading: "Colleague Invitation",
-    intro: "You've been invited to join the workspace. Please set your account password below to activate your account.",
+    intro: "You've been invited to join the workspace. Set your password below to activate your account.",
     successHeading: "Account Activated",
     successBody: "Your account is ready. Redirecting to login...",
     noTokenWarning: "Warning: No token found in URL. You will not be able to activate your account.",
@@ -11,14 +11,14 @@ export const invite = {
     confirmPasswordPlaceholder: "Repeat new password",
     activating: "Activating Account...",
     activate: "Activate Account",
-    errTokenMissing: "Invitation token is missing. Please check your invitation link.",
+    errTokenMissing: "Invitation token is missing. Check your invitation link.",
     errPasswordTooShort: "Password must be at least 8 characters long.",
     errPasswordMismatch: "Passwords do not match.",
-    errAcceptFailed: "Failed to accept invitation",
+    errAcceptFailed: "Could not accept invitation. Request a new invite and try again.",
   },
   zh: {
     heading: "同事邀请",
-    intro: "你已被邀请加入该工作区。请设置密码以完成激活。",
+    intro: "你已被邀请加入该工作区。设置密码即可完成激活。",
     successHeading: "账户已激活",
     successBody: "你的账户已就绪。正在跳转至登录页...",
     noTokenWarning: "警告：链接中缺少邀请令牌，无法激活账户。",
@@ -31,7 +31,7 @@ export const invite = {
     errTokenMissing: "缺少邀请令牌，请检查邀请链接。",
     errPasswordTooShort: "密码长度至少为 8 个字符。",
     errPasswordMismatch: "两次输入的密码不一致。",
-    errAcceptFailed: "接受邀请失败",
+    errAcceptFailed: "无法接受邀请。请请求重新发送邀请后重试。",
   },
   es: {
     heading: "Invitación de Colega",
@@ -45,10 +45,10 @@ export const invite = {
     confirmPasswordPlaceholder: "Repita la nueva contraseña",
     activating: "Activando Cuenta...",
     activate: "Activar Cuenta",
-    errTokenMissing: "Falta el token de invitación. Por favor verifique su enlace de invitación.",
+    errTokenMissing: "Falta el token de invitación. Revisa tu enlace de invitación.",
     errPasswordTooShort: "La contraseña debe tener al menos 8 caracteres.",
     errPasswordMismatch: "Las contraseñas no coinciden.",
-    errAcceptFailed: "Error al aceptar la invitación",
+    errAcceptFailed: "No se pudo aceptar la invitación. Solicita una nueva invitación y vuelve a intentarlo.",
   },
   pt: {
     heading: "Convite de Colega",
@@ -65,7 +65,7 @@ export const invite = {
     errTokenMissing: "Token de convite ausente. Verifique seu link de convite.",
     errPasswordTooShort: "A senha deve ter pelo menos 8 caracteres.",
     errPasswordMismatch: "As senhas não coincidem.",
-    errAcceptFailed: "Falha ao aceitar o convite",
+    errAcceptFailed: "Não foi possível aceitar o convite. Solicite um novo convite e tente novamente.",
   },
   ja: {
     heading: "同僚からの招待",
@@ -82,6 +82,6 @@ export const invite = {
     errTokenMissing: "招待tokenがありません。招待リンクを確認してください。",
     errPasswordTooShort: "パスワードは8文字以上である必要があります。",
     errPasswordMismatch: "パスワードが一致しません。",
-    errAcceptFailed: "招待の承認に失敗しました",
+    errAcceptFailed: "招待を承諾できませんでした。新しい招待をリクエストして再試行してください。",
   },
 };
