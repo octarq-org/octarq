@@ -1,102 +1,101 @@
 ---
 title: Dynamic DNS
-description: Automatically synchronize dynamic home, office, and homelab IP addresses to DNS records using standard Dyndns2 protocol endpoints.
+description: Keep A and AAAA DNS records synchronized with dynamic IP addresses using standard Dyndns2 update endpoints.
 category: infrastructure
 order: 20
 ---
 
-Octarq Dynamic DNS (DDNS) allows routers, NAS appliances, IoT gateways, and remote servers to keep A (IPv4) and AAAA (IPv6) DNS records synchronized with their current public IP addresses. It implements a standard Dyndns2-compatible HTTP endpoint, making it a drop-in replacement for legacy dynamic DNS services.
+Octarq Dynamic DNS (DDNS) keeps your domain's A (IPv4) and AAAA (IPv6) records synchronized with changing IP addresses on routers, NAS devices, homelabs, and servers. Each DDNS token provides a standard HTTP update URL that works with popular DDNS clients and scheduled scripts.
 
 ## Create a DDNS Token
 
-1. Go to **Infrastructure → Network → DNS** and open the **Dynamic DNS (DDNS)** tab.
+1. Go to **Infrastructure → Network → DNS** and open the **Dynamic DNS** tab.
 2. Click **New DDNS Token**.
 3. Select your managed domain from the dropdown.
 4. Enter the subdomain record name (for example, `home` or `vpn`).
 5. Choose the record type:
    - **A**: For IPv4 addresses.
-   - **AAAA**: For native IPv6 addresses.
-6. Click **Generate Token**.
-7. **Copy Your Secret Key Immediately**: Octarq displays the generated secret key and update URL once upon creation.
+   - **AAAA**: For IPv6 addresses.
+6. (Optional) Enter a label to identify the device (for example, `Home Router`).
+7. Click **Generate Token**.
+8. Copy your secret key and update URL immediately.
 
-:::caution One-Time Secret Display
-For cryptographic security, Octarq stores only a SHA-256 hash of your token (`token_hash`) in the database. The plain secret key cannot be retrieved or decrypted after closing the modal. If a secret key is lost or leaked, you must revoke the token and issue a replacement.
+:::caution[Secret Key Shown Once]
+Octarq encrypts tokens and does not store the cleartext secret. You cannot view the secret key after closing the dialog. If you lose the key, revoke the token and create a new one.
 :::
 
-## Dyndns2 Protocol Endpoint
+## Update Endpoint
 
-The update endpoint accepts standard Dyndns2 parameters via HTTP `GET` or `POST`:
+Send an HTTP GET or POST request to the update endpoint to refresh the DNS record:
 
-`https://your-octarq-host.com/api/dns/ddns/update?hostname={hostname}&key={token}`
+```
+https://your-octarq-host.com/api/dns/ddns/update?token={token}
+```
 
 ### Query Parameters
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `hostname` | String | Yes | The fully qualified domain name to update (e.g. `home.example.com`). |
-| `key` | String | Yes | Your secret DDNS token (alternatively accepted via HTTP Basic Auth password). |
-| `ip` | String | Optional | Explicit IPv4 or IPv6 address override. If omitted, Octarq auto-detects the client's public IP from the TCP connection or trusted proxy headers. |
+| `token` | String | Yes | Your secret DDNS token key. |
+| `ip` | String | Optional | Explicit IPv4 or IPv6 address. If omitted, Octarq detects your client's public IP automatically. |
 
-### Status Codes and Responses
+### Responses
 
-Octarq responds with standard Dyndns2 plaintext responses:
+The endpoint returns plain text responses:
 
-- `good <ip>`: The DNS record was successfully updated with the new IP address.
-- `nochg <ip>`: The IP address matches the current DNS record value. No provider API call was made, preventing provider rate limiting.
-- `badauth`: Authentication failed due to an invalid, revoked, or missing secret token.
-- `notfqdn`: The `hostname` parameter is missing, malformed, or invalid.
-- `nohost`: The hostname does not match any active DDNS token or domain zone registered in your workspace.
-- `dnserr`: An upstream error occurred while communicating with the DNS provider API.
+- `good <ip>`: The DNS record was successfully updated to the new IP address.
+- `nochg <ip>`: The submitted IP matches the existing DNS record. No provider update was needed.
+- `badauth`: Authentication failed. The token is missing, revoked, or invalid.
+- `dnserr`: An error occurred while resolving the domain or updating records at the DNS provider.
 
-## Client Configuration Guides
+## Configure Clients
 
-### 1. Scheduled Cron Job with `curl`
+### Scheduled Cron with curl
 
-Add a cron job to any Linux server or homelab machine to push IP updates every 10 minutes:
+Add a cron job to update your IP address automatically every 10 minutes:
 
 ```bash
-*/10 * * * * curl -s "https://your-octarq-host.com/api/dns/ddns/update?hostname=home.example.com&key=YOUR_SECRET_TOKEN" >> /var/log/ddns.log 2>&1
+*/10 * * * * curl -s "https://your-octarq-host.com/api/dns/ddns/update?token=YOUR_SECRET_TOKEN" >> /var/log/ddns.log 2>&1
 ```
 
-To explicitly force an IPv6 update from a dual-stack host, use `curl -6`:
+To update an IPv6 record from a dual-stack host, use `curl -6`:
 
 ```bash
-*/10 * * * * curl -6 -s "https://your-octarq-host.com/api/dns/ddns/update?hostname=home-v6.example.com&key=YOUR_SECRET_TOKEN"
+*/10 * * * * curl -6 -s "https://your-octarq-host.com/api/dns/ddns/update?token=YOUR_SECRET_TOKEN" >> /var/log/ddns-v6.log 2>&1
 ```
 
-### 2. OpenWrt Router (`ddns-scripts`)
+### OpenWrt Router
 
 In the OpenWrt LuCI web interface:
 
-1. Navigate to **Services → Dynamic DNS**.
-2. Add a new service section:
+1. Go to **Services → Dynamic DNS**.
+2. Add a new DDNS service configuration:
    - **Lookup host**: `home.example.com`
    - **DDNS Service provider**: `-- custom --`
-   - **Custom update-URL**: `https://your-octarq-host.com/api/dns/ddns/update?hostname=[DOMAIN]&key=[PASSWORD]&ip=[IP]`
+   - **Custom update-URL**: `https://your-octarq-host.com/api/dns/ddns/update?token=[PASSWORD]&ip=[IP]`
    - **Domain**: `home.example.com`
-   - **Username**: `none` (or your hostname)
    - **Password**: `YOUR_SECRET_TOKEN`
-   - **IP address source**: `network` or `web` (e.g. `http://checkip.dyndns.com`)
-3. Save & Apply.
+   - **IP address source**: `network` or `web`
+3. Click **Save & Apply**.
 
-### 3. Synology NAS
+### Synology NAS
 
 In Synology DiskStation Manager (DSM):
 
 1. Go to **Control Panel → External Access → DDNS**.
-2. Click **Customize** to add a new DDNS provider:
+2. Click **Customize** to register a new provider:
    - **Service Provider**: `Octarq`
-   - **Query URL**: `https://your-octarq-host.com/api/dns/ddns/update?hostname=__HOSTNAME__&key=__PASSWORD__&ip=__MYIP__`
+   - **Query URL**: `https://your-octarq-host.com/api/dns/ddns/update?token=__PASSWORD__&ip=__MYIP__`
 3. Click **Add**:
    - **Service Provider**: Select `Octarq`
    - **Hostname**: `home.example.com`
    - **Username/Email**: `token`
    - **Password/Key**: `YOUR_SECRET_TOKEN`
-4. Click **Test Connection** to confirm status shows `Normal`.
+4. Click **Test Connection** to confirm that the status reports **Normal**.
 
-### 4. Linux `ddclient` Daemon
+### Linux ddclient
 
-In `/etc/ddclient.conf`:
+For systems running `ddclient`, configure `/etc/ddclient.conf` with a custom script or update URL:
 
 ```ini
 daemon=300
@@ -110,15 +109,15 @@ password=YOUR_SECRET_TOKEN
 home.example.com
 ```
 
-Restart `ddclient` to activate continuous background synchronization.
+Restart `ddclient` to enable background updates.
 
-## Token Revocation and Security Lifecycle
+## Revoke a Token
 
-If a router is decommissioned or a token key is exposed:
+If a device is replaced or a token is exposed:
 
-1. Go to **Infrastructure → Network → DNS → Dynamic DNS**.
+1. Go to **Infrastructure → Network → DNS** and open the **Dynamic DNS** tab.
 2. Locate the token in the list and click **Revoke**.
-3. Revocation takes effect immediately: subsequent update requests using the revoked token receive `badauth`.
+3. Revocation takes effect immediately. Subsequent update requests using the revoked token receive `badauth`.
 
 ## Related Guides
 
