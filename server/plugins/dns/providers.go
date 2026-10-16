@@ -44,11 +44,11 @@ type ListProviderAccountsOutput struct {
 
 func (p *Plugin) listProviderAccounts(ctx context.Context, input *ListProviderAccountsInput) (*ListProviderAccountsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var accounts []ProviderAccount
 	p.orgDB(r).Order("created_at DESC").Find(&accounts)
@@ -74,23 +74,23 @@ type CreateProviderAccountOutput struct {
 
 func (p *Plugin) createProviderAccount(ctx context.Context, input *CreateProviderAccountInput) (*CreateProviderAccountOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to create provider account")
+		return nil, huma.Error403Forbidden("Admin role required to create provider account. Contact a workspace admin for access.")
 	}
 	name := strings.TrimSpace(input.Body.Name)
 	typ := strings.TrimSpace(input.Body.Type)
 	if name == "" || typ == "" {
-		return nil, huma.Error400BadRequest("name and type are required")
+		return nil, huma.Error400BadRequest("Provider account name and type are required")
 	}
 	enc, err := p.encryptConfig(input.Body.Config)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("encrypt config")
+		return nil, huma.Error500InternalServerError("Could not encrypt provider configuration. Try again.")
 	}
 	acc := ProviderAccount{
 		OrgID:  p.orgID(r),
@@ -99,7 +99,7 @@ func (p *Plugin) createProviderAccount(ctx context.Context, input *CreateProvide
 		Config: enc,
 	}
 	if err := p.db.Create(&acc).Error; err != nil {
-		return nil, huma.Error500InternalServerError("provider operation failed")
+		return nil, huma.Error500InternalServerError("Could not connect to DNS provider. Check credentials and try again.")
 	}
 	p.audit(r, "provider.create", "provider", acc.ID, map[string]any{"name": acc.Name, "type": acc.Type})
 	acc.HasCredentials = acc.Config != ""
@@ -123,18 +123,18 @@ type UpdateProviderAccountOutput struct {
 
 func (p *Plugin) updateProviderAccount(ctx context.Context, input *UpdateProviderAccountInput) (*UpdateProviderAccountOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to update provider account")
+		return nil, huma.Error403Forbidden("Admin role required to update provider account. Contact a workspace admin for access.")
 	}
 	var acc ProviderAccount
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&acc).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Provider account not found")
 	}
 	if strings.TrimSpace(input.Body.Name) != "" {
 		acc.Name = strings.TrimSpace(input.Body.Name)
@@ -142,7 +142,7 @@ func (p *Plugin) updateProviderAccount(ctx context.Context, input *UpdateProvide
 	if len(input.Body.Config) > 0 {
 		enc, err := p.encryptConfig(input.Body.Config)
 		if err != nil {
-			return nil, huma.Error500InternalServerError("encrypt config")
+			return nil, huma.Error500InternalServerError("Could not encrypt provider configuration. Try again.")
 		}
 		acc.Config = enc
 	}
@@ -179,14 +179,14 @@ type DeleteProviderAccountOutput struct {
 
 func (p *Plugin) deleteProviderAccount(ctx context.Context, input *DeleteProviderAccountInput) (*DeleteProviderAccountOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to delete provider account")
+		return nil, huma.Error403Forbidden("Admin role required to delete provider account. Contact a workspace admin for access.")
 	}
 
 	// Verify ownership before anything else: without this, the domain-usage
@@ -194,17 +194,17 @@ func (p *Plugin) deleteProviderAccount(ctx context.Context, input *DeleteProvide
 	// cross-tenant oracle (it reveals whether another org's provider account
 	// exists and is referenced). Fail closed with 404 if the caller doesn't own it.
 	if err := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&ProviderAccount{}).Error; err != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Provider account not found")
 	}
 
 	var count int64
 	p.db.Model(&Domain{}).Where("provider_account_id = ?", input.ID).Count(&count)
 	if count > 0 {
-		return nil, huma.NewError(http.StatusConflict, "cannot delete provider account because it is used by one or more domains")
+		return nil, huma.NewError(http.StatusConflict, "Cannot delete provider account because it is used by one or more domains. Reassign or delete those domains first.")
 	}
 
 	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&ProviderAccount{}); res.RowsAffected == 0 {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Provider account not found")
 	}
 	p.audit(r, "provider.delete", "provider", input.ID, nil)
 	return &DeleteProviderAccountOutput{Body: map[string]bool{"ok": true}}, nil

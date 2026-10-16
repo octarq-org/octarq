@@ -60,21 +60,21 @@ type ListRecordsOutput struct {
 
 func (p *Plugin) listRecords(ctx context.Context, input *ListRecordsInput) (*ListRecordsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	prov, dom, err := p.recordsProvider(r, input.ID)
 	if err != nil {
 		if errors.Is(err, errNotFound) {
-			return nil, huma.Error404NotFound("domain not found")
+			return nil, huma.Error404NotFound("Domain not found")
 		}
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 	if dom.ZoneID == "" {
-		return nil, huma.Error400BadRequest("this domain has no Zone ID — sync from Cloudflare or set it in the domain settings")
+		return nil, huma.Error400BadRequest("This domain has no Zone ID. Sync from the DNS provider or set it in domain settings.")
 	}
 	recs, err := prov.ListRecords(r.Context(), dom.ZoneID)
 	if err != nil {
@@ -100,24 +100,24 @@ type CreateRecordOutput struct {
 
 func (p *Plugin) createRecord(ctx context.Context, input *CreateRecordInput) (*CreateRecordOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to create DNS record")
+		return nil, huma.Error403Forbidden("Admin role required to create DNS record. Contact a workspace admin for access.")
 	}
 	prov, dom, err := p.recordsProvider(r, input.ID)
 	if err != nil {
 		if errors.Is(err, errNotFound) {
-			return nil, huma.Error404NotFound("domain not found")
+			return nil, huma.Error404NotFound("Domain not found")
 		}
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 	if dom.ZoneID == "" {
-		return nil, huma.Error400BadRequest("this domain has no Zone ID — sync from Cloudflare or set it in the domain settings")
+		return nil, huma.Error400BadRequest("This domain has no Zone ID. Sync from the DNS provider or set it in domain settings.")
 	}
 	if msg := validateRecord(input.Body); msg != "" {
 		return nil, huma.Error400BadRequest(msg)
@@ -147,24 +147,24 @@ type UpdateRecordOutput struct {
 
 func (p *Plugin) updateRecord(ctx context.Context, input *UpdateRecordInput) (*UpdateRecordOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to update DNS record")
+		return nil, huma.Error403Forbidden("Admin role required to update DNS record. Contact a workspace admin for access.")
 	}
 	prov, dom, err := p.recordsProvider(r, input.ID)
 	if err != nil {
 		if errors.Is(err, errNotFound) {
-			return nil, huma.Error404NotFound("domain not found")
+			return nil, huma.Error404NotFound("Domain not found")
 		}
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 	if dom.ZoneID == "" {
-		return nil, huma.Error400BadRequest("this domain has no Zone ID — sync from Cloudflare or set it in the domain settings")
+		return nil, huma.Error400BadRequest("This domain has no Zone ID. Sync from the DNS provider or set it in domain settings.")
 	}
 	rec := input.Body
 	rec.ID = input.RID
@@ -195,24 +195,24 @@ type DeleteRecordOutput struct {
 
 func (p *Plugin) deleteRecord(ctx context.Context, input *DeleteRecordInput) (*DeleteRecordOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to delete DNS record")
+		return nil, huma.Error403Forbidden("Admin role required to delete DNS record. Contact a workspace admin for access.")
 	}
 	prov, dom, err := p.recordsProvider(r, input.ID)
 	if err != nil {
 		if errors.Is(err, errNotFound) {
-			return nil, huma.Error404NotFound("domain not found")
+			return nil, huma.Error404NotFound("Domain not found")
 		}
 		return nil, huma.Error400BadRequest(err.Error())
 	}
 	if dom.ZoneID == "" {
-		return nil, huma.Error400BadRequest("this domain has no Zone ID — sync from Cloudflare or set it in the domain settings")
+		return nil, huma.Error400BadRequest("This domain has no Zone ID. Sync from the DNS provider or set it in domain settings.")
 	}
 	if err := prov.DeleteRecord(r.Context(), dom.ZoneID, input.RID); err != nil {
 		return nil, p.providerErr("delete record", err)

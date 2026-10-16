@@ -38,14 +38,14 @@ func validateRedirectTargets(l *Link) error {
 	if l.ExpiredURL != "" {
 		n, ok := normalizeTarget(strings.TrimSpace(l.ExpiredURL))
 		if !ok {
-			return huma.Error400BadRequest("expiredUrl must be an http(s) URL")
+			return huma.Error400BadRequest("Expired URL must be an http or https URL.")
 		}
 		l.ExpiredURL = n
 	}
 	for i := range l.RoutingRules {
 		n, ok := normalizeTarget(strings.TrimSpace(l.RoutingRules[i].Target))
 		if !ok {
-			return huma.Error400BadRequest("routing rule target must be an http(s) URL")
+			return huma.Error400BadRequest("Routing rule target must be an http or https URL.")
 		}
 		l.RoutingRules[i].Target = n
 	}
@@ -57,9 +57,9 @@ func quotaErrorToHTTP(err error, metric string) error {
 		return nil
 	}
 	if errors.Is(err, plugin.ErrQuotaUnavailable) {
-		return huma.Error402PaymentRequired(metric + " is not included in this plan")
+		return huma.Error402PaymentRequired(metric + " is not included in this plan. Upgrade your plan to unlock it.")
 	}
-	return huma.Error429TooManyRequests(metric + " quota exceeded for this workspace")
+	return huma.Error429TooManyRequests(metric + " quota exceeded for this workspace. Upgrade your plan or wait for the quota to reset.")
 }
 
 // checkQuota asks the (hosted-only) quota checker whether the org may consume

@@ -116,16 +116,16 @@ type EmailBlueprintOutput struct {
 
 func (p *Plugin) emailBlueprint(ctx context.Context, input *EmailBlueprintInput) (*EmailBlueprintOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 
 	var dom Domain
 	if err := p.orgDB(r).Where("id = ?", input.ID).First(&dom).Error; err != nil {
-		return nil, huma.Error404NotFound("domain not found")
+		return nil, huma.Error404NotFound("Domain not found")
 	}
 
 	blueprint := emailBlueprintRecords()
@@ -140,7 +140,7 @@ func (p *Plugin) emailBlueprint(ctx context.Context, input *EmailBlueprintInput)
 
 	prov, err := p.providerFor(dom)
 	if err != nil {
-		return nil, huma.Error400BadRequest("domain has no DNS provider configured")
+		return nil, huma.Error400BadRequest("This domain has no DNS provider configured. Connect a provider in domain settings.")
 	}
 
 	live, err := prov.ListRecords(r.Context(), dom.ZoneID)
@@ -177,28 +177,28 @@ type ApplyEmailBlueprintOutput struct {
 
 func (p *Plugin) applyEmailBlueprint(ctx context.Context, input *ApplyEmailBlueprintInput) (*ApplyEmailBlueprintOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("admin role required to apply email blueprint")
+		return nil, huma.Error403Forbidden("Admin role required to apply email blueprint. Contact a workspace admin for access.")
 	}
 
 	var dom Domain
 	if err := p.orgDB(r).Where("id = ?", input.ID).First(&dom).Error; err != nil {
-		return nil, huma.Error404NotFound("domain not found")
+		return nil, huma.Error404NotFound("Domain not found")
 	}
 
 	if dom.ProviderAccountID == 0 {
-		return nil, huma.Error400BadRequest("domain has no DNS provider configured")
+		return nil, huma.Error400BadRequest("This domain has no DNS provider configured. Connect a provider in domain settings.")
 	}
 
 	prov, err := p.providerFor(dom)
 	if err != nil {
-		return nil, huma.Error400BadRequest("domain has no DNS provider configured")
+		return nil, huma.Error400BadRequest("This domain has no DNS provider configured. Connect a provider in domain settings.")
 	}
 
 	live, err := prov.ListRecords(r.Context(), dom.ZoneID)

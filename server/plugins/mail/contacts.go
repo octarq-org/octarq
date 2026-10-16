@@ -81,17 +81,17 @@ type ListContactsOutput struct {
 
 func (p *Plugin) listContacts(ctx context.Context, input *ListContactsInput) (*ListContactsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	orgID := p.orgID(r)
 	if orgID == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 
 	tdb := p.tenantDB(orgID)
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	q := tdb.Model(&MailContact{})
 	searchTerm := strings.TrimSpace(input.Q)
@@ -109,7 +109,7 @@ func (p *Plugin) listContacts(ctx context.Context, input *ListContactsInput) (*L
 
 	var contacts []MailContact
 	if err := q.Find(&contacts).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to query contacts")
+		return nil, huma.Error500InternalServerError("Could not retrieve contacts. Try again later.")
 	}
 	return &ListContactsOutput{Body: contacts}, nil
 }

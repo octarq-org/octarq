@@ -31,21 +31,21 @@ type LinkStatsOutput struct {
 // top referers / countries / devices / browsers over the requested window.
 func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkStatsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r = r.WithContext(ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	tdb := p.tenantDB(p.orgID(r))
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	// Ensure the link belongs to the caller's org before exposing its analytics.
 	var l Link
 	if tdb.Where("id = ?", input.ID).First(&l).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Link not found")
 	}
 	days := 30
 	if input.Days > 0 && input.Days <= 365 {
@@ -176,20 +176,20 @@ func (i *LinkQRInput) Resolve(ctx huma.Context) []error {
 
 func (p *Plugin) linkQR(ctx context.Context, input *LinkQRInput) (*struct{}, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var l Link
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&l).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Link not found")
 	}
 	target := shortURL(r, l)
 	png, err := qrcode.Encode(target, qrcode.Medium, 320)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("qr failed")
+		return nil, huma.Error500InternalServerError("Could not generate QR code. Try again.")
 	}
 	w.Header().Set("Content-Type", "image/png")
 	w.Write(png)

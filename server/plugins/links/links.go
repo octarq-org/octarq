@@ -61,12 +61,12 @@ type ListLinksOutput struct {
 
 func (p *Plugin) listLinks(ctx context.Context, input *ListLinksInput) (*ListLinksOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r = r.WithContext(ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var links []Link
 	q := p.orgDB(r).Order("created_at DESC")
@@ -90,7 +90,7 @@ func (p *Plugin) listLinks(ctx context.Context, input *ListLinksInput) (*ListLin
 	offset := plugin.PageOffset(input.Offset)
 	q = q.Limit(limit).Offset(offset)
 	if err := q.Find(&links).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to list links")
+		return nil, huma.Error500InternalServerError("Could not load links. Try again.")
 	}
 	out := make([]linkView, len(links))
 	for i, l := range links {
@@ -115,20 +115,20 @@ type GetLinkOutput struct {
 
 func (p *Plugin) getLink(ctx context.Context, input *GetLinkInput) (*GetLinkOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r = r.WithContext(ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	tdb := p.tenantDB(p.orgID(r))
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var l Link
 	if tdb.Where("id = ?", input.ID).First(&l).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Link not found")
 	}
 	return &GetLinkOutput{Body: view(l)}, nil
 }
@@ -149,27 +149,27 @@ type CreateLinkOutput struct {
 
 func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*CreateLinkOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r = r.WithContext(ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	target := strings.TrimSpace(input.Body.Target)
 	if target == "" {
-		return nil, huma.Error400BadRequest("target is required")
+		return nil, huma.Error400BadRequest("Target URL is required")
 	}
 	normalized, ok := normalizeTarget(target)
 	if !ok {
-		return nil, huma.Error400BadRequest("target must be an http(s) URL")
+		return nil, huma.Error400BadRequest("Target URL must begin with http:// or https://")
 	}
 	slug := strings.TrimSpace(input.Body.Slug)
 	if slug == "" {
 		slug = models.RandomSlug(6)
 	}
 	if p.isReservedSlug(slug) {
-		return nil, huma.NewError(http.StatusConflict, "slug is reserved")
+		return nil, huma.NewError(http.StatusConflict, "This slug is reserved. Choose a different slug.")
 	}
 	enabled := true
 	if input.Body.Enabled != nil {
@@ -188,10 +188,10 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 		Enabled:      enabled,
 	}
 	if l.Host != "" && !p.ownsHost(l.OrgID, l.Host) {
-		return nil, huma.Error403Forbidden("host is not a link host of this workspace")
+		return nil, huma.Error403Forbidden("Host is not configured for links in this workspace. Choose a configured link host.")
 	}
 	if l.Host == "" && p.linkHostRequired(l.OrgID) {
-		return nil, huma.Error400BadRequest("host is required: this instance is multi-tenant, short links must pick a link host")
+		return nil, huma.Error400BadRequest("Link host is required. Choose a configured link host.")
 	}
 	if err := validateRedirectTargets(&l); err != nil {
 		return nil, err
@@ -206,10 +206,10 @@ func (p *Plugin) createLink(ctx context.Context, input *CreateLinkInput) (*Creat
 	}
 	tdb := p.tenantDB(l.OrgID)
 	if tdb == nil {
-		return nil, huma.Error500InternalServerError("database not available")
+		return nil, huma.Error500InternalServerError("Database is unavailable. Try again.")
 	}
 	if err := tdb.Create(&l).Error; err != nil {
-		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
+		return nil, huma.NewError(http.StatusConflict, "This slug already exists on this host. Choose a different slug.")
 	}
 	if p.audit != nil {
 		p.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})

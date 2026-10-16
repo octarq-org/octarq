@@ -74,23 +74,23 @@ type LinkMetadataOutput struct {
 // the dashboard can prefill a link's title (dub-style). Best-effort.
 func (p *Plugin) linkMetadata(ctx context.Context, input *LinkMetadataInput) (*LinkMetadataOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r = r.WithContext(ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	raw := strings.TrimSpace(input.URL)
 	if raw == "" {
-		return nil, huma.Error400BadRequest("url required")
+		return nil, huma.Error400BadRequest("URL is required")
 	}
 	if !strings.Contains(raw, "://") {
 		raw = "https://" + raw
 	}
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
-		return nil, huma.Error400BadRequest("invalid url")
+		return nil, huma.Error400BadRequest("Enter a valid HTTP or HTTPS URL")
 	}
 	title, desc := fetchPageMeta(r.Context(), raw)
 	favicon := u.Scheme + "://" + u.Host + "/favicon.ico"

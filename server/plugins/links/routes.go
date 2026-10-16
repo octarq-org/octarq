@@ -111,11 +111,11 @@ type GetInstanceLinkSettingsOutput struct {
 
 func (p *Plugin) getInstanceLinkSettings(ctx context.Context, input *GetInstanceLinkSettingsInput) (*GetInstanceLinkSettingsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if !p.isInstanceAdminUser(r) {
-		return nil, huma.Error403Forbidden("instance admin required")
+		return nil, huma.Error403Forbidden("Instance admin role required. Contact an instance administrator.")
 	}
 	var reserved string
 	if p.getGlobalSetting != nil {
@@ -150,11 +150,11 @@ type UpdateInstanceLinkSettingsOutput struct {
 
 func (p *Plugin) updateInstanceLinkSettings(ctx context.Context, input *UpdateInstanceLinkSettingsInput) (*UpdateInstanceLinkSettingsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if !p.isInstanceAdminUser(r) {
-		return nil, huma.Error403Forbidden("instance admin required")
+		return nil, huma.Error403Forbidden("Instance admin role required. Contact an instance administrator.")
 	}
 	if input.Body.ReservedSlugs != nil {
 		if p.host != nil && p.host.Settings() != nil {

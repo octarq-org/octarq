@@ -32,24 +32,24 @@ type SaveDraftOutput struct {
 
 func (p *Plugin) saveDraft(ctx context.Context, input *SaveDraftInput) (*SaveDraftOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	orgID := p.orgID(r)
 	if orgID == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 
 	tdb := p.tenantDB(orgID)
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 
 	if input.Body.ID != 0 {
 		var e Email
 		if p.db.Where("id = ? AND mailbox_id IN (?)", input.Body.ID, orgMailboxes).First(&e).Error != nil {
-			return nil, huma.Error404NotFound("draft not found")
+			return nil, huma.Error404NotFound("Draft email not found.")
 		}
 		e.ToAddr = input.Body.To
 		e.Subject = input.Body.Subject
@@ -60,7 +60,7 @@ func (p *Plugin) saveDraft(ctx context.Context, input *SaveDraftInput) (*SaveDra
 		e.Folder = "drafts"
 		e.ReceivedAt = time.Now()
 		if err := p.db.Save(&e).Error; err != nil {
-			return nil, huma.Error500InternalServerError("failed to update draft")
+			return nil, huma.Error500InternalServerError("Could not update email draft. Try again later.")
 		}
 		return &SaveDraftOutput{Body: e}, nil
 	}
@@ -80,7 +80,7 @@ func (p *Plugin) saveDraft(ctx context.Context, input *SaveDraftInput) (*SaveDra
 		var count int64
 		tdb.Model(&Mailbox{}).Where("id = ?", mbID).Count(&count)
 		if count == 0 {
-			return nil, huma.Error400BadRequest("invalid mailbox id")
+			return nil, huma.Error400BadRequest("Specified mailbox was not found in this workspace.")
 		}
 	}
 
@@ -95,7 +95,7 @@ func (p *Plugin) saveDraft(ctx context.Context, input *SaveDraftInput) (*SaveDra
 		ReceivedAt: time.Now(),
 	}
 	if err := p.db.Create(&e).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to save draft")
+		return nil, huma.Error500InternalServerError("Could not save email draft. Try again later.")
 	}
 	return &SaveDraftOutput{Body: e}, nil
 }
@@ -116,25 +116,25 @@ type DeleteDraftOutput struct {
 
 func (p *Plugin) deleteDraft(ctx context.Context, input *DeleteDraftInput) (*DeleteDraftOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	orgID := p.orgID(r)
 	if orgID == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 
 	tdb := p.tenantDB(orgID)
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 	var e Email
 	if p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).First(&e).Error != nil {
-		return nil, huma.Error404NotFound("draft not found")
+		return nil, huma.Error404NotFound("Draft email not found.")
 	}
 	if e.Folder != "drafts" {
-		return nil, huma.Error400BadRequest("not a draft")
+		return nil, huma.Error400BadRequest("Email is not located in the drafts folder.")
 	}
 	p.db.Delete(&e)
 	return &DeleteDraftOutput{Body: map[string]bool{"ok": true}}, nil

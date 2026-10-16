@@ -22,23 +22,23 @@ func (i *InboundGenericInput) Resolve(ctx huma.Context) []error {
 
 func (p *Plugin) inboundGeneric(ctx context.Context, input *InboundGenericInput) (*InboundOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 
 	var org models.Org
 	if p.db.Where("slug = ?", input.OrgSlug).First(&org).Error != nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Invalid workspace or webhook token.")
 	}
 
 	if org.InboundToken == "" || subtle.ConstantTimeCompare([]byte(input.Token), []byte(org.InboundToken)) != 1 {
 		p.recordInboundAuthFailure(r, org.ID, "generic")
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Invalid webhook token. Provide a valid inbound webhook token.")
 	}
 
 	raw, err := extractRawEmail(r)
 	if err != nil || len(raw) == 0 {
-		return nil, huma.Error400BadRequest("read body")
+		return nil, huma.Error400BadRequest("Could not read webhook request body.")
 	}
 
 	overrideTo := r.Header.Get("X-Octarq-To")
