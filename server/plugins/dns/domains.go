@@ -46,11 +46,11 @@ type ListDomainsOutput struct {
 
 func (p *Plugin) listDomains(ctx context.Context, input *ListDomainsInput) (*ListDomainsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var ds []Domain
 	q := p.orgDB(r).Order("created_at DESC")
@@ -81,25 +81,25 @@ type CreateDomainOutput struct {
 
 func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*CreateDomainOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to create domain")
+		return nil, huma.Error403Forbidden("Admin role required to create domain. Contact a workspace admin for access.")
 	}
 	name := strings.TrimSpace(strings.ToLower(input.Body.Name))
 	if name == "" || input.Body.ProviderAccountID == 0 {
-		return nil, huma.Error400BadRequest("name and provider account are required")
+		return nil, huma.Error400BadRequest("Domain name and provider account are required")
 	}
 	if underBaseZone(p.db, name) {
 		return nil, huma.Error400BadRequest("that hostname is reserved for automatic tenant subdomains")
 	}
 
 	if !p.ownsProviderAccount(r, input.Body.ProviderAccountID) {
-		return nil, huma.Error404NotFound("provider account not found")
+		return nil, huma.Error404NotFound("Provider account not found")
 	}
 	var linkHosts, mailHosts []hostEntry
 	if input.Body.LinkHosts != nil {
@@ -156,12 +156,12 @@ func (p *Plugin) createDomain(ctx context.Context, input *CreateDomainInput) (*C
 	// runs before the row exists so a refusal leaves no partial domain behind.
 	if err := plugin.CheckQuota(p.ctx, ctx, dom.OrgID, "customDomains", 1); err != nil {
 		if errors.Is(err, plugin.ErrQuotaUnavailable) {
-			return nil, huma.Error402PaymentRequired("custom domains are not included in this plan")
+			return nil, huma.Error402PaymentRequired("Custom domains are not included in this plan. Upgrade to add custom domains.")
 		}
-		return nil, huma.Error429TooManyRequests("custom domain quota exceeded for this workspace")
+		return nil, huma.Error429TooManyRequests("Custom domain quota exceeded for this workspace. Upgrade your plan to add more domains.")
 	}
 	if err := p.db.Create(&dom).Error; err != nil {
-		return nil, huma.NewError(http.StatusConflict, "domain already exists")
+		return nil, huma.NewError(http.StatusConflict, "Domain already exists in this workspace")
 	}
 	forgetOrigin(dom.Name)
 	p.audit(r, "domain.create", "domain", dom.ID, map[string]any{"name": dom.Name})
@@ -188,18 +188,18 @@ type UpdateDomainOutput struct {
 
 func (p *Plugin) updateDomain(ctx context.Context, input *UpdateDomainInput) (*UpdateDomainOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to update domain")
+		return nil, huma.Error403Forbidden("Admin role required to update domain. Contact a workspace admin for access.")
 	}
 	var dom Domain
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&dom).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Domain not found")
 	}
 	if input.Body.Note != "" {
 		dom.Note = input.Body.Note
@@ -230,7 +230,7 @@ func (p *Plugin) updateDomain(ctx context.Context, input *UpdateDomainInput) (*U
 	}
 	if input.Body.ProviderAccountID != 0 {
 		if !p.ownsProviderAccount(r, input.Body.ProviderAccountID) {
-			return nil, huma.Error404NotFound("provider account not found")
+			return nil, huma.Error404NotFound("Provider account not found")
 		}
 		dom.ProviderAccountID = input.Body.ProviderAccountID
 	}
@@ -258,24 +258,24 @@ type DeleteDomainOutput struct {
 
 func (p *Plugin) deleteDomain(ctx context.Context, input *DeleteDomainInput) (*DeleteDomainOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to delete domain")
+		return nil, huma.Error403Forbidden("Admin role required to delete domain. Contact a workspace admin for access.")
 	}
 	// Read the name before the row goes: it is the cache key that has to be
 	// dropped, and after the DELETE there is nowhere left to read it from.
 	var dom Domain
 	if p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&dom).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Domain not found")
 	}
 	p.db.Where("domain_id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&DDNSToken{})
 	if res := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).Delete(&Domain{}); res.RowsAffected == 0 {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Domain not found")
 	}
 	forgetOrigin(dom.Name)
 	p.audit(r, "domain.delete", "domain", input.ID, nil)

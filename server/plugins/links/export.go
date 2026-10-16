@@ -22,16 +22,16 @@ func (i *ExportLinksCSVInput) Resolve(ctx huma.Context) []error {
 
 func (p *Plugin) exportLinksCSV(ctx context.Context, input *ExportLinksCSVInput) (*struct{}, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var links []Link
 	tdb := p.tenantDB(p.orgID(r))
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	tdb.Order("created_at DESC").Find(&links)
 

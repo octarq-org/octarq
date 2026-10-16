@@ -156,15 +156,15 @@ type VerifyDomainDNSOutput struct {
 
 func (p *Plugin) verifyDomainDNS(ctx context.Context, input *VerifyDomainDNSInput) (*VerifyDomainDNSOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var dom Domain
 	if err := p.db.Where("id = ? AND owner_id = ?", input.ID, p.orgID(r)).First(&dom).Error; err != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Domain not found")
 	}
 
 	// Verify every enabled mail host. Records are per-host, so a domain serving

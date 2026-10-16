@@ -38,24 +38,24 @@ type InboundOutput struct {
 
 func (p *Plugin) inbound(ctx context.Context, input *InboundInput) (*InboundOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	// The {orgSlug} path segment names the tenant: a shared inbound host can't be
 	// told apart by Host, so delivery is confined to this org's mailboxes.
 	var org models.Org
 	if p.db.Where("slug = ?", input.OrgSlug).First(&org).Error != nil {
-		return nil, huma.Error404NotFound("unknown org")
+		return nil, huma.Error404NotFound("Workspace not found.")
 	}
 	// Auth is the org's per-tenant token, carried in the path so the Cloudflare
 	// worker needs only this one URL and no custom header.
 	if org.InboundToken == "" || subtle.ConstantTimeCompare([]byte(input.Token), []byte(org.InboundToken)) != 1 {
 		p.recordInboundAuthFailure(r, org.ID, "path-token")
-		return nil, huma.Error401Unauthorized("bad token")
+		return nil, huma.Error401Unauthorized("Invalid webhook token. Provide a valid inbound webhook token.")
 	}
 	raw, err := io.ReadAll(io.LimitReader(r.Body, 25<<20)) // 25 MiB cap
 	if err != nil {
-		return nil, huma.Error400BadRequest("read body")
+		return nil, huma.Error400BadRequest("Could not read webhook request body.")
 	}
 	overrideTo := r.Header.Get("X-Octarq-To")
 	return p.processInboundMail(ctx, org.ID, overrideTo, raw)
@@ -149,7 +149,7 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 	}
 	if err := p.db.Create(&e).Error; err != nil {
 		log.Printf("inbound: failed to store email: %v", err)
-		return nil, huma.Error500InternalServerError("failed to store email")
+		return nil, huma.Error500InternalServerError("Could not store inbound email. Try again later.")
 	}
 
 	// The RFC822 original goes through the storage seam rather than onto the

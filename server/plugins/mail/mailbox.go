@@ -32,11 +32,11 @@ type ListMailboxesOutput struct {
 
 func (p *Plugin) listMailboxes(ctx context.Context, input *ListMailboxesInput) (*ListMailboxesOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var boxes []Mailbox
 	p.orgDB(r).Order("created_at DESC").Find(&boxes)
@@ -80,21 +80,21 @@ type CreateMailboxOutput struct {
 
 func (p *Plugin) createMailbox(ctx context.Context, input *CreateMailboxInput) (*CreateMailboxOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to create mailbox")
+		return nil, huma.Error403Forbidden("Administrator role required to create a mailbox.")
 	}
 	addr := strings.TrimSpace(strings.ToLower(input.Body.Address))
 	if !strings.Contains(addr, "@") {
-		return nil, huma.Error400BadRequest("address must be a full email")
+		return nil, huma.Error400BadRequest("Enter a complete email address including user and domain.")
 	}
 	if !p.mailAddressDomainNotAnotherTenants(p.orgID(r), addr) {
-		return nil, huma.Error403Forbidden("address domain is a mail host of another workspace")
+		return nil, huma.Error403Forbidden("The domain of this address belongs to another workspace. Choose a domain configured for your workspace.")
 	}
 	enabled := true
 	if input.Body.Enabled != nil {
@@ -106,10 +106,10 @@ func (p *Plugin) createMailbox(ctx context.Context, input *CreateMailboxInput) (
 	}
 	tdb := p.tenantDB(p.orgID(r))
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if err := tdb.Create(&mb).Error; err != nil {
-		return nil, huma.NewError(http.StatusConflict, "mailbox already exists")
+		return nil, huma.NewError(http.StatusConflict, "A mailbox with this email address already exists in this workspace.")
 	}
 	if p.audit != nil {
 		p.audit(r, "mailbox.create", "mailbox", mb.ID, map[string]any{"address": mb.Address})
@@ -134,22 +134,22 @@ type UpdateMailboxOutput struct {
 
 func (p *Plugin) updateMailbox(ctx context.Context, input *UpdateMailboxInput) (*UpdateMailboxOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to update mailbox")
+		return nil, huma.Error403Forbidden("Administrator role required to update a mailbox.")
 	}
 	tdb := p.tenantDB(p.orgID(r))
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var mb Mailbox
 	if tdb.Where("id = ?", input.ID).First(&mb).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Mailbox not found.")
 	}
 	mb.Note = input.Body.Note
 	if input.Body.Enabled != nil {
@@ -182,28 +182,28 @@ type DeleteMailboxOutput struct {
 
 func (p *Plugin) deleteMailbox(ctx context.Context, input *DeleteMailboxInput) (*DeleteMailboxOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to delete mailbox")
+		return nil, huma.Error403Forbidden("Administrator role required to delete a mailbox.")
 	}
 	tdb := p.tenantDB(p.orgID(r))
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var mb Mailbox
 	if err := tdb.Where("id = ?", input.ID).First(&mb).Error; err != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Mailbox not found.")
 	}
 	var emails []Email
 	p.db.Where("mailbox_id = ?", mb.ID).Find(&emails)
 	res := tdb.Where("id = ?", mb.ID).Delete(&Mailbox{})
 	if res.RowsAffected == 0 {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Mailbox not found.")
 	}
 	ctx = plugin.WithOrgID(ctx, p.orgID(r))
 	storageProv, _ := p.getStorageProvider()

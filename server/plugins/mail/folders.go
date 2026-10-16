@@ -27,34 +27,34 @@ type UpdateEmailFolderOutput struct {
 
 func (p *Plugin) updateEmailFolder(ctx context.Context, input *UpdateEmailFolderInput) (*UpdateEmailFolderOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	orgID := p.orgID(r)
 	if orgID == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 
 	folder := strings.ToLower(strings.TrimSpace(input.Body.Folder))
 	switch folder {
 	case "inbox", "sent", "drafts", "trash", "spam":
 	default:
-		return nil, huma.Error400BadRequest("invalid folder: must be inbox, sent, drafts, trash, or spam")
+		return nil, huma.Error400BadRequest("Invalid target folder. Choose one of: inbox, sent, drafts, trash, or spam.")
 	}
 
 	tdb := p.tenantDB(orgID)
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 	var e Email
 	if p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).First(&e).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Email not found.")
 	}
 
 	e.Folder = folder
 	if err := p.db.Model(&e).Update("folder", folder).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to update folder")
+		return nil, huma.Error500InternalServerError("Could not update email folder. Try again later.")
 	}
 	return &UpdateEmailFolderOutput{Body: e}, nil
 }

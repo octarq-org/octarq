@@ -100,7 +100,7 @@ type ListDocsOutput struct {
 
 func (p *Plugin) listDocs(ctx context.Context, input *ListDocsInput) (*ListDocsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	var orgID uint
@@ -161,7 +161,7 @@ type GetDocOutput struct {
 
 func (p *Plugin) getDoc(ctx context.Context, input *GetDocInput) (*GetDocOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	var orgID uint
@@ -182,12 +182,12 @@ func (p *Plugin) getDoc(ctx context.Context, input *GetDocInput) (*GetDocOutput,
 		}
 	}
 	if found == nil {
-		return nil, huma.Error404NotFound("doc not found")
+		return nil, huma.Error404NotFound("Documentation article not found")
 	}
 
 	html, err := renderMarkdown(found.Markdown)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to render markdown")
+		return nil, huma.Error500InternalServerError("Could not render documentation content. Try again.")
 	}
 
 	out := &GetDocOutput{}

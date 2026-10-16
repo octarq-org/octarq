@@ -29,26 +29,26 @@ type SyncDomainsOutput struct {
 
 func (p *Plugin) syncDomains(ctx context.Context, input *SyncDomainsInput) (*SyncDomainsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to sync domains")
+		return nil, huma.Error403Forbidden("Admin role required to sync domains. Contact a workspace admin for access.")
 	}
 	if input.Body.ProviderAccountID == 0 {
-		return nil, huma.Error400BadRequest("providerAccountId is required")
+		return nil, huma.Error400BadRequest("Provider account ID is required")
 	}
 	var acc ProviderAccount
 	if err := p.db.Where("id = ? AND owner_id = ?", input.Body.ProviderAccountID, p.orgID(r)).First(&acc).Error; err != nil {
-		return nil, huma.Error404NotFound("provider account not found")
+		return nil, huma.Error404NotFound("Provider account not found")
 	}
 
 	creds, err := p.decrypt(acc.Config)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("stored API token could not be decrypted — re-save this provider's API token under Settings → DNS Providers (the encryption key or database changed since it was saved)")
+		return nil, huma.Error500InternalServerError("Stored API token could not be decrypted. Re-save this provider's API token under Settings → DNS Providers.")
 	}
 
 	prov, err := dnsprovider.New(acc.Type, creds)

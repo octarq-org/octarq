@@ -31,7 +31,7 @@ func recordDDNSUpdate(p *Plugin, tok *DDNSToken, ip string, now time.Time) {
 
 func (p *Plugin) updateDDNS(ctx context.Context, input *updateDDNSInput) (*struct{}, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 

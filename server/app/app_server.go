@@ -26,7 +26,7 @@ func mountEndpointHTTP(apiHandler *api.Handler, endpointEngine *endpoint.Engine)
 		RequireAuth: func(ctx context.Context) (uint, error) {
 			orgID := plugin.OrgIDFromContext(ctx)
 			if orgID == 0 {
-				return 0, huma.Error401Unauthorized("unauthorized")
+				return 0, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 			}
 			return orgID, nil
 		},
@@ -36,14 +36,14 @@ func mountEndpointHTTP(apiHandler *api.Handler, endpointEngine *endpoint.Engine)
 			}
 			r, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
 			if err != nil {
-				return huma.Error403Forbidden("forbidden: insufficient workspace role privilege")
+				return huma.Error403Forbidden("Insufficient permissions. Contact a workspace admin for access.")
 			}
 			for _, role := range roles {
 				if apiHandler.RequireRole(r, role) {
 					return nil
 				}
 			}
-			return huma.Error403Forbidden("forbidden: insufficient workspace role privilege")
+			return huma.Error403Forbidden("Insufficient permissions. Contact a workspace admin for access.")
 		},
 	}); err != nil {
 		slog.Warn("app: failed to mount endpoint HTTP routes", "error", err)

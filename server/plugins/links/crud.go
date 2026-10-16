@@ -33,31 +33,31 @@ type QuickCreateLinkOutput struct {
 
 func (p *Plugin) quickCreateLink(ctx context.Context, input *QuickCreateLinkInput) (*QuickCreateLinkOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r = r.WithContext(ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	target := strings.TrimSpace(input.Body.URL)
 	if target == "" {
-		return nil, huma.Error400BadRequest("url is required")
+		return nil, huma.Error400BadRequest("Destination URL is required")
 	}
 	normalized, ok := normalizeTarget(target)
 	if !ok {
-		return nil, huma.Error400BadRequest("url must be an http(s) URL")
+		return nil, huma.Error400BadRequest("Destination URL must begin with http:// or https://")
 	}
 	host := strings.TrimSpace(input.Body.Host)
 	if host != "" && !p.ownsHost(p.orgID(r), host) {
-		return nil, huma.Error403Forbidden("host is not a link host of this workspace")
+		return nil, huma.Error403Forbidden("Host is not configured for links in this workspace. Choose a configured link host.")
 	}
 	if host == "" && p.linkHostRequired(p.orgID(r)) {
-		return nil, huma.Error400BadRequest("host is required: this instance is multi-tenant, short links must pick a link host")
+		return nil, huma.Error400BadRequest("Link host is required. Choose a configured link host.")
 	}
 	slug := models.RandomSlug(6)
 	if p.isReservedSlug(slug) {
-		return nil, huma.NewError(http.StatusConflict, "slug is reserved")
+		return nil, huma.NewError(http.StatusConflict, "This slug is reserved. Choose a different slug.")
 	}
 	l := Link{
 		OrgID:   p.orgID(r),
@@ -71,10 +71,10 @@ func (p *Plugin) quickCreateLink(ctx context.Context, input *QuickCreateLinkInpu
 	}
 	tdb := p.tenantDB(l.OrgID)
 	if tdb == nil {
-		return nil, huma.Error500InternalServerError("database not available")
+		return nil, huma.Error500InternalServerError("Database is unavailable. Try again.")
 	}
 	if err := tdb.Create(&l).Error; err != nil {
-		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
+		return nil, huma.NewError(http.StatusConflict, "This slug already exists on this host. Choose a different slug.")
 	}
 	if p.audit != nil {
 		p.audit(r, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target})
@@ -119,20 +119,20 @@ type UpdateLinkOutput struct {
 
 func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*UpdateLinkOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r = r.WithContext(ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	tdb := p.tenantDB(p.orgID(r))
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var l Link
 	if tdb.Where("id = ?", input.ID).First(&l).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Link not found")
 	}
 	// Capture BEFORE mutation so cache invalidation targets the original key.
 	oldHost := l.Host
@@ -141,24 +141,24 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 	if input.Body.Slug != "" {
 		slug := strings.TrimSpace(input.Body.Slug)
 		if slug != l.Slug && p.isReservedSlug(slug) {
-			return nil, huma.NewError(http.StatusConflict, "slug is reserved")
+			return nil, huma.NewError(http.StatusConflict, "This slug is reserved. Choose a different slug.")
 		}
 		l.Slug = slug
 	}
 	if input.Body.Target != "" {
 		normalized, ok := normalizeTarget(strings.TrimSpace(input.Body.Target))
 		if !ok {
-			return nil, huma.Error400BadRequest("target must be an http(s) URL")
+			return nil, huma.Error400BadRequest("Target URL must begin with http:// or https://")
 		}
 		l.Target = normalized
 	}
 
 	l.Host = strings.TrimSpace(input.Body.Host)
 	if l.Host != "" && !p.ownsHost(p.orgID(r), l.Host) {
-		return nil, huma.Error403Forbidden("host is not a link host of this workspace")
+		return nil, huma.Error403Forbidden("Host is not configured for links in this workspace. Choose a configured link host.")
 	}
 	if l.Host == "" && p.linkHostRequired(p.orgID(r)) {
-		return nil, huma.Error400BadRequest("host is required: this instance is multi-tenant, short links must pick a link host")
+		return nil, huma.Error400BadRequest("Link host is required. Choose a configured link host.")
 	}
 	l.Note = input.Body.Note
 	l.Title = input.Body.Title
@@ -182,7 +182,7 @@ func (p *Plugin) updateLink(ctx context.Context, input *UpdateLinkInput) (*Updat
 		return nil, err
 	}
 	if err := tdb.Save(&l).Error; err != nil {
-		return nil, huma.NewError(http.StatusConflict, "slug already exists on this host")
+		return nil, huma.NewError(http.StatusConflict, "This slug already exists on this host. Choose a different slug.")
 	}
 
 	if p.deleteCache != nil {
@@ -218,23 +218,23 @@ type DeleteLinkOutput struct {
 
 func (p *Plugin) deleteLink(ctx context.Context, input *DeleteLinkInput) (*DeleteLinkOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r = r.WithContext(ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to delete link")
+		return nil, huma.Error403Forbidden("Admin role required to delete link. Contact a workspace admin for access.")
 	}
 	tdb := p.tenantDB(p.orgID(r))
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var l Link
 	if tdb.Where("id = ?", input.ID).First(&l).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Link not found")
 	}
 	linkIDs := tdb.Model(&Link{}).Select("id").Where("id = ?", input.ID)
 	p.db.Where("link_id IN (?)", linkIDs).Delete(&LinkEvent{})

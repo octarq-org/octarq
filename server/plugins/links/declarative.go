@@ -26,28 +26,28 @@ type DeclarativeLinkOutput struct {
 func (p *Plugin) createDeclarativeLink(ctx context.Context, in DeclarativeLinkInput) (*DeclarativeLinkOutput, error) {
 	orgID := plugin.OrgIDFromContext(ctx)
 	if orgID == 0 {
-		return nil, plugin.NewAgentError(401, "UNAUTHORIZED", "unauthorized: missing workspace", "Ensure an authenticated session or API token is provided.", false)
+		return nil, plugin.NewAgentError(401, "UNAUTHORIZED", "Authentication required. Missing workspace context.", "Provide a valid authenticated session or API token.", false)
 	}
 	if p.linkHostRequired(orgID) {
-		return nil, plugin.NewAgentError(400, "HOST_REQUIRED", "host is required in multi-tenant mode", "Please configure a custom link host first.", false)
+		return nil, plugin.NewAgentError(400, "HOST_REQUIRED", "host is required in multi-tenant mode", "Configure a custom link host before creating short links.", false)
 	}
 	if err := p.checkQuota(ctx, orgID, "links", 1); err != nil {
 		return nil, err
 	}
 	dest := strings.TrimSpace(in.Destination)
 	if dest == "" {
-		return nil, plugin.NewAgentError(400, "MISSING_DESTINATION", "destination is required", "Please provide a valid destination URL.", false)
+		return nil, plugin.NewAgentError(400, "MISSING_DESTINATION", "Destination URL is required.", "Provide a valid destination URL.", false)
 	}
 	normalized, ok := normalizeTarget(dest)
 	if !ok {
-		return nil, plugin.NewAgentError(400, "INVALID_DESTINATION", "destination must be an http(s) URL", "Please provide a valid URL starting with http:// or https://.", false)
+		return nil, plugin.NewAgentError(400, "INVALID_DESTINATION", "Destination URL must start with http:// or https://.", "Provide a valid URL starting with http:// or https://.", false)
 	}
 	slug := strings.TrimSpace(in.Slug)
 	if slug == "" {
 		slug = models.RandomSlug(6)
 	}
 	if p.isReservedSlug(slug) {
-		return nil, plugin.NewAgentError(409, "SLUG_RESERVED", "slug is reserved", "The specified slug is a system reserved path. Please pick a different slug.", false)
+		return nil, plugin.NewAgentError(409, "SLUG_RESERVED", "Short link slug is reserved.", "The specified slug is a system reserved path. Choose a different slug.", false)
 	}
 	tagStr := strings.Join(in.Tags, ",")
 	l := Link{
@@ -59,7 +59,7 @@ func (p *Plugin) createDeclarativeLink(ctx context.Context, in DeclarativeLinkIn
 		CreatedAt: time.Now(),
 	}
 	if err := p.db.WithContext(ctx).Create(&l).Error; err != nil {
-		return nil, plugin.NewAgentError(409, "SLUG_ALREADY_EXISTS", "slug already exists on this host", "The slug is already taken. Please choose another slug or leave it blank.", false)
+		return nil, plugin.NewAgentError(409, "SLUG_ALREADY_EXISTS", "Short link slug already exists on this host.", "The slug is already taken. Choose another slug or leave it blank to auto-generate.", false)
 	}
 	if p.audit != nil {
 		p.audit(nil, "link.create", "link", l.ID, map[string]any{"slug": l.Slug, "target": l.Target, "source": "declarative"})

@@ -23,22 +23,22 @@ func isRestrictedSMTPHostIP(ip net.IP) bool {
 func validateSMTPTarget(host string, port int) error {
 	allowedPorts := map[int]bool{25: true, 465: true, 587: true, 2525: true}
 	if !allowedPorts[port] {
-		return huma.Error422UnprocessableEntity("port must be 25, 465, 587, or 2525")
+		return huma.Error422UnprocessableEntity("SMTP port must be 25, 465, 587, or 2525.")
 	}
 
 	host = strings.TrimSpace(host)
 	if host == "" {
-		return huma.Error422UnprocessableEntity("host is required")
+		return huma.Error422UnprocessableEntity("host is required. Enter a valid mail server hostname.")
 	}
 
 	lowerHost := strings.ToLower(host)
 	if lowerHost == "localhost" || strings.HasSuffix(lowerHost, ".localhost") || strings.HasSuffix(lowerHost, ".local") {
-		return huma.Error422UnprocessableEntity("host cannot be a private or restricted host address")
+		return huma.Error422UnprocessableEntity("SMTP host cannot be a private or restricted host address.")
 	}
 
 	if ip := net.ParseIP(host); ip != nil {
 		if isRestrictedSMTPHostIP(ip) {
-			return huma.Error422UnprocessableEntity("host cannot be a private or restricted IP address")
+			return huma.Error422UnprocessableEntity("SMTP host cannot be a private or restricted IP address.")
 		}
 	}
 	return nil
@@ -59,11 +59,11 @@ type ListSMTPSendersOutput struct {
 
 func (p *Plugin) listSMTPSenders(ctx context.Context, input *ListSMTPSendersInput) (*ListSMTPSendersOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var senders []SMTPSender
 	p.orgDB(r).Order("name ASC").Find(&senders)
@@ -96,32 +96,32 @@ type CreateSMTPSenderOutput struct {
 
 func (p *Plugin) createSMTPSender(ctx context.Context, input *CreateSMTPSenderInput) (*CreateSMTPSenderOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to create SMTP sender")
+		return nil, huma.Error403Forbidden("Administrator role required to create an SMTP sender.")
 	}
 	name := strings.TrimSpace(input.Body.Name)
 	host := strings.TrimSpace(input.Body.Host)
 	user := strings.TrimSpace(input.Body.User)
 	pass := input.Body.Pass
 	if name == "" || host == "" || input.Body.Port == 0 || user == "" || pass == "" {
-		return nil, huma.Error400BadRequest("name, host, port, user and pass are required")
+		return nil, huma.Error400BadRequest("Name, host, port, user, and password are required.")
 	}
 	if err := validateSMTPTarget(host, input.Body.Port); err != nil {
 		return nil, err
 	}
 
 	if p.encrypt == nil {
-		return nil, huma.Error500InternalServerError("encrypt unavailable")
+		return nil, huma.Error500InternalServerError("Encryption service is unavailable. Verify encryption configuration.")
 	}
 	encPass, err := p.encrypt([]byte(pass))
 	if err != nil {
-		return nil, huma.Error500InternalServerError("encrypt failed")
+		return nil, huma.Error500InternalServerError("Could not encrypt SMTP sender credentials. Try again later.")
 	}
 
 	sender := SMTPSender{
@@ -136,10 +136,10 @@ func (p *Plugin) createSMTPSender(ctx context.Context, input *CreateSMTPSenderIn
 
 	tdb := p.tenantDB(p.orgID(r))
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if err := tdb.Create(&sender).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to save")
+		return nil, huma.Error500InternalServerError("Could not save SMTP sender. Try again later.")
 	}
 	if p.audit != nil {
 		p.audit(r, "smtp.create", "smtp_sender", sender.ID, map[string]any{"name": sender.Name, "host": sender.Host})
@@ -172,23 +172,23 @@ type UpdateSMTPSenderOutput struct {
 
 func (p *Plugin) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderInput) (*UpdateSMTPSenderOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to update SMTP sender")
+		return nil, huma.Error403Forbidden("Administrator role required to update an SMTP sender.")
 	}
 
 	tdb := p.tenantDB(p.orgID(r))
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var sender SMTPSender
 	if tdb.Where("id = ?", input.ID).First(&sender).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("SMTP sender not found.")
 	}
 
 	if input.Body.Name != nil {
@@ -213,11 +213,11 @@ func (p *Plugin) updateSMTPSender(ctx context.Context, input *UpdateSMTPSenderIn
 
 	if input.Body.Pass != nil && *input.Body.Pass != "" {
 		if p.encrypt == nil {
-			return nil, huma.Error500InternalServerError("encrypt unavailable")
+			return nil, huma.Error500InternalServerError("Encryption service is unavailable. Verify encryption configuration.")
 		}
 		enc, err := p.encrypt([]byte(*input.Body.Pass))
 		if err != nil {
-			return nil, huma.Error500InternalServerError("encrypt failed")
+			return nil, huma.Error500InternalServerError("Could not encrypt SMTP sender credentials. Try again later.")
 		}
 		sender.Pass = enc
 	}
@@ -256,22 +256,22 @@ type DeleteSMTPSenderOutput struct {
 
 func (p *Plugin) deleteSMTPSender(ctx context.Context, input *DeleteSMTPSenderInput) (*DeleteSMTPSenderOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to delete SMTP sender")
+		return nil, huma.Error403Forbidden("Administrator role required to delete an SMTP sender.")
 	}
 
 	tdb := p.tenantDB(p.orgID(r))
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if res := tdb.Where("id = ?", input.ID).Delete(&SMTPSender{}); res.RowsAffected == 0 {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("SMTP sender not found.")
 	}
 	if p.audit != nil {
 		p.audit(r, "smtp.delete", "smtp_sender", input.ID, nil)
@@ -299,36 +299,36 @@ type TestSMTPSenderOutput struct {
 // delivery, addressed to the configured From so no third party is involved.
 func (p *Plugin) testSMTPSender(ctx context.Context, input *TestSMTPSenderInput) (*TestSMTPSenderOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to test SMTP sender")
+		return nil, huma.Error403Forbidden("Administrator role required to test an SMTP sender.")
 	}
 
 	orgKey := fmt.Sprintf("org:%d", p.orgID(r))
 	if p.testLimiter != nil {
 		if !p.testLimiter.allow(orgKey) {
-			return nil, huma.Error429TooManyRequests("too many test attempts; please wait before retrying")
+			return nil, huma.Error429TooManyRequests("too many test attempts. Wait a moment before trying again.")
 		}
 		p.testLimiter.recordFailure(orgKey)
 	}
 
 	tdb := p.tenantDB(p.orgID(r))
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	var s SMTPSender
 	if err := tdb.Where("id = ?", input.ID).First(&s).Error; err != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("SMTP sender not found.")
 	}
 	if err := p.deliverVia(&s, s.FromEmail, "SMTP test from octarq",
 		"<p>Your SMTP sender <strong>"+html.EscapeString(s.Name)+"</strong> is working.</p>",
 		"Your SMTP sender '"+s.Name+"' is working."); err != nil {
-		return nil, huma.Error400BadRequest(err.Error())
+		return nil, huma.Error400BadRequest("Could not deliver SMTP test message: " + err.Error())
 	}
 	if p.audit != nil {
 		p.audit(r, "smtp.test", "smtp_sender", s.ID, map[string]any{"to": s.FromEmail})

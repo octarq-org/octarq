@@ -24,7 +24,7 @@ type listDDNSTokensOutput struct {
 
 func (p *Plugin) listDDNSTokens(ctx context.Context, input *listDDNSTokensInput) (*listDDNSTokensOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	orgID := p.orgID(r)
@@ -66,29 +66,29 @@ type createDDNSTokenOutput struct {
 
 func (p *Plugin) createDDNSToken(ctx context.Context, input *createDDNSTokenInput) (*createDDNSTokenOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	orgID := p.orgID(r)
 	if orgID == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to create DDNS token")
+		return nil, huma.Error403Forbidden("Admin role required to create DDNS token. Contact a workspace admin for access.")
 	}
 
 	if input.Body.DomainID == 0 {
-		return nil, huma.Error400BadRequest("domainId is required")
+		return nil, huma.Error400BadRequest("Domain ID is required")
 	}
 
 	var dom Domain
 	if err := p.db.Where("id = ? AND owner_id = ?", input.Body.DomainID, orgID).First(&dom).Error; err != nil {
-		return nil, huma.Error404NotFound("domain not found")
+		return nil, huma.Error404NotFound("Domain not found")
 	}
 
 	recName := strings.TrimSpace(input.Body.RecordName)
 	if recName == "" {
-		return nil, huma.Error400BadRequest("recordName is required")
+		return nil, huma.Error400BadRequest("Record name is required")
 	}
 
 	recType := strings.ToUpper(strings.TrimSpace(input.Body.RecordType))
@@ -96,12 +96,12 @@ func (p *Plugin) createDDNSToken(ctx context.Context, input *createDDNSTokenInpu
 		recType = "A"
 	}
 	if recType != "A" && recType != "AAAA" {
-		return nil, huma.Error400BadRequest("recordType must be A or AAAA")
+		return nil, huma.Error400BadRequest("Record type must be A or AAAA")
 	}
 
 	secret, err := generateDDNSSecret()
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to generate secret")
+		return nil, huma.Error500InternalServerError("Could not generate secret token. Try again.")
 	}
 
 	tokenHash := hashDDNSSecret(secret)
@@ -117,7 +117,7 @@ func (p *Plugin) createDDNSToken(ctx context.Context, input *createDDNSTokenInpu
 	}
 
 	if err := p.db.Create(&tok).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to save ddns token")
+		return nil, huma.Error500InternalServerError("Could not save DDNS token. Try again.")
 	}
 
 	if p.audit != nil {
@@ -155,23 +155,23 @@ type deleteDDNSTokenOutput struct {
 
 func (p *Plugin) deleteDDNSToken(ctx context.Context, input *deleteDDNSTokenInput) (*deleteDDNSTokenOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable. Try again.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	orgID := p.orgID(r)
 	if orgID == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	if !p.hasRole(r, "admin") {
-		return nil, huma.Error403Forbidden("forbidden: admin role required to delete DDNS token")
+		return nil, huma.Error403Forbidden("Admin role required to delete DDNS token. Contact a workspace admin for access.")
 	}
 
 	res := p.db.Where("id = ? AND owner_id = ?", input.ID, orgID).Delete(&DDNSToken{})
 	if res.Error != nil {
-		return nil, huma.Error500InternalServerError("failed to delete ddns token")
+		return nil, huma.Error500InternalServerError("Could not delete DDNS token. Try again.")
 	}
 	if res.RowsAffected == 0 {
-		return nil, huma.Error404NotFound("ddns token not found")
+		return nil, huma.Error404NotFound("DDNS token not found")
 	}
 
 	if p.audit != nil {

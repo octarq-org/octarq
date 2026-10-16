@@ -53,21 +53,21 @@ func (p *Plugin) loadRawEmail(ctx context.Context, e *Email) []byte {
 // rawEmail streams the original RFC822 message as a downloadable .eml file.
 func (p *Plugin) rawEmail(ctx context.Context, input *RawEmailInput) (*struct{}, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	tdb := p.tenantDB(p.orgID(r))
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	ctx = plugin.WithOrgID(ctx, p.orgID(r))
 	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 	var e Email
 	if p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).First(&e).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Email not found.")
 	}
 
 	rawBytes := p.loadRawEmail(ctx, &e)
@@ -91,21 +91,21 @@ func (i *GetAttachmentInput) Resolve(ctx huma.Context) []error {
 
 func (p *Plugin) getAttachment(ctx context.Context, input *GetAttachmentInput) (*struct{}, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 	if p.orgID(r) == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	tdb := p.tenantDB(p.orgID(r))
 	if tdb == nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required. Sign in to continue.")
 	}
 	ctx = plugin.WithOrgID(ctx, p.orgID(r))
 	orgMailboxes := tdb.Model(&Mailbox{}).Select("id")
 	var e Email
 	if p.db.Where("id = ? AND mailbox_id IN (?)", input.ID, orgMailboxes).First(&e).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Email not found.")
 	}
 	var atts []struct {
 		Filename    string `json:"filename"`
@@ -118,7 +118,7 @@ func (p *Plugin) getAttachment(ctx context.Context, input *GetAttachmentInput) (
 		}
 	}
 	if input.Index < 0 || input.Index >= len(atts) {
-		return nil, huma.Error404NotFound("attachment not found")
+		return nil, huma.Error404NotFound("Attachment not found for this email.")
 	}
 	meta := atts[input.Index]
 	rawBytes := p.loadRawEmail(ctx, &e)
@@ -145,7 +145,7 @@ func (p *Plugin) getAttachment(ctx context.Context, input *GetAttachmentInput) (
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotImplemented)
 	if err := json.NewEncoder(w).Encode(map[string]any{
-		"error":       "attachment content not available, download raw email instead",
+		"error":       "Attachment content is not available directly. Download the raw message to view this attachment.",
 		"attachment":  meta,
 		"rawUrl":      fmt.Sprintf("/api/emails/%d/raw", e.ID),
 		"contentType": meta.ContentType,

@@ -45,7 +45,7 @@ type EmailBounceWebhookOutput struct {
 // POST /api/webhook/{orgSlug}/email/bounce/{token}
 func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebhookInput) (*EmailBounceWebhookOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("An unexpected error occurred while processing the request context.")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	// Authenticate + scope by tenant (same scheme as inbound): the {orgSlug}
@@ -53,16 +53,16 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 	// forged POST could spam an org's notification channels and audit log.
 	var org models.Org
 	if p.db.Where("slug = ?", input.OrgSlug).First(&org).Error != nil {
-		return nil, huma.Error404NotFound("unknown org")
+		return nil, huma.Error404NotFound("Workspace not found.")
 	}
 	if org.InboundToken == "" || subtle.ConstantTimeCompare([]byte(input.Token), []byte(org.InboundToken)) != 1 {
 		p.recordInboundAuthFailure(r, org.ID, "bounce")
-		return nil, huma.Error401Unauthorized("bad token")
+		return nil, huma.Error401Unauthorized("Invalid webhook token. Provide a valid inbound webhook token.")
 	}
 
 	body, err := io.ReadAll(io.LimitReader(r.Body, 5<<20)) // 5 MiB cap
 	if err != nil {
-		return nil, huma.Error400BadRequest("read body")
+		return nil, huma.Error400BadRequest("Could not read webhook request body.")
 	}
 
 	var snsWrap map[string]any
@@ -76,7 +76,7 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 					// is attacker-influenced, so it must never be fetched blindly.
 					if !isAWSSNSURL(subURL) {
 						log.Printf("bounce: refusing SNS SubscribeURL with non-AWS host: %s", subURL)
-						return nil, huma.Error400BadRequest("invalid SubscribeURL")
+						return nil, huma.Error400BadRequest("Subscription URL must be a valid AWS SNS HTTPS endpoint.")
 					}
 					safego.Go("mail.sns-confirm", func() {
 						resp, err := safehttp.Get(context.Background(), snsConfirmClient, subURL, "")
@@ -118,7 +118,7 @@ func (p *Plugin) emailBounceWebhook(ctx context.Context, input *EmailBounceWebho
 
 	var mailboxes []Mailbox
 	if err := p.db.Where("address IN ? AND owner_id = ?", emails, org.ID).Find(&mailboxes).Error; err != nil {
-		return nil, huma.Error500InternalServerError("database error querying mailboxes")
+		return nil, huma.Error500InternalServerError("Could not query mailboxes. Try again later.")
 	}
 
 	mbMap := make(map[string]*Mailbox, len(mailboxes))
