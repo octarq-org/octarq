@@ -44,20 +44,20 @@ type UploadFileOutput struct {
 
 func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*UploadFileOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("missing context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	orgID := h.auth.OrgID(r)
 	if orgID == 0 {
-		return nil, huma.Error400BadRequest("invalid organization")
+		return nil, huma.Error400BadRequest("Workspace context is invalid; select a workspace and try again")
 	}
 
 	if h.storage == nil {
-		return nil, huma.Error500InternalServerError("storage service unavailable")
+		return nil, huma.Error500InternalServerError("Storage service is currently unavailable; retry later")
 	}
 
 	contentType := r.Header.Get("Content-Type")
@@ -67,17 +67,17 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 		var req UploadPrecheckRequest
 		bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 		if err != nil {
-			return nil, huma.Error400BadRequest("failed to read json body")
+			return nil, huma.Error400BadRequest("Could not read request body; retry the request")
 		}
 		if err := json.Unmarshal(bodyBytes, &req); err != nil {
-			return nil, huma.Error400BadRequest("invalid json: " + err.Error())
+			return nil, huma.Error400BadRequest("Malformed JSON body; check request payload formatting")
 		}
 		cleanMD5 := strings.TrimSpace(strings.ToLower(req.MD5))
 		if cleanMD5 == "" {
-			return nil, huma.Error400BadRequest("md5 is required for precheck")
+			return nil, huma.Error400BadRequest("MD5 checksum is required for upload precheck; provide a 32-character hex string")
 		}
 		if len(cleanMD5) != 32 {
-			return nil, huma.Error400BadRequest("invalid md5 hash length")
+			return nil, huma.Error400BadRequest("Invalid MD5 checksum length; expected a 32-character hex string")
 		}
 
 		// Check database for existing file record with matching MD5 within the caller's organization.
@@ -103,7 +103,7 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 				Path:        existing.Path,
 			}
 			if err := h.db.Create(&newRecord).Error; err != nil {
-				return nil, huma.Error500InternalServerError("failed to save file record")
+				return nil, huma.Error500InternalServerError("Could not save file record; retry the request")
 			}
 			return &UploadFileOutput{
 				Body: UploadFileResponse{
@@ -114,13 +114,13 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 			}, nil
 		}
 
-		return nil, huma.Error404NotFound("file not found for md5 precheck, full upload required")
+		return nil, huma.Error404NotFound("File hash not found in workspace; upload the complete file")
 	}
 
 	// 2. Multipart form upload
 	if strings.Contains(strings.ToLower(contentType), "multipart/form-data") {
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
-			return nil, huma.Error400BadRequest("failed to parse multipart form: " + err.Error())
+			return nil, huma.Error400BadRequest("Could not parse multipart form; check upload format and try again")
 		}
 		if r.MultipartForm != nil {
 			defer r.MultipartForm.RemoveAll()
@@ -144,7 +144,7 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 					Path:        existing.Path,
 				}
 				if err := h.db.Create(&newRecord).Error; err != nil {
-					return nil, huma.Error500InternalServerError("failed to save file record")
+					return nil, huma.Error500InternalServerError("Could not save file record; retry the request")
 				}
 				return &UploadFileOutput{
 					Body: UploadFileResponse{
@@ -161,9 +161,9 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 		if err != nil {
 			// If no file but md5 was provided and missed
 			if formMD5 != "" {
-				return nil, huma.Error404NotFound("file not found for md5 precheck, full upload required")
+				return nil, huma.Error404NotFound("File hash not found in workspace; upload the complete file")
 			}
-			return nil, huma.Error400BadRequest("missing file in form-data: " + err.Error())
+			return nil, huma.Error400BadRequest("File is missing from upload; select a file and try again")
 		}
 		defer file.Close()
 
@@ -183,7 +183,7 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 		// PutObjectByHash computes MD5 and atomically stores or dedups the file
 		key, md5Hash, sizeWritten, deduplicated, err := h.storage.PutObjectByHash(ctx, file, ext)
 		if err != nil {
-			return nil, huma.Error500InternalServerError("failed to store file: " + err.Error())
+			return nil, huma.Error500InternalServerError("Could not save file content; retry the upload")
 		}
 
 		newRecord := models.File{
@@ -195,7 +195,7 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 			Path:        key,
 		}
 		if err := h.db.Create(&newRecord).Error; err != nil {
-			return nil, huma.Error500InternalServerError("failed to save file record")
+			return nil, huma.Error500InternalServerError("Could not save file record; retry the request")
 		}
 
 		msg := "File uploaded successfully"
@@ -224,7 +224,7 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 
 	key, md5Hash, sizeWritten, deduplicated, err := h.storage.PutObjectByHash(ctx, r.Body, ext)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to store raw file: " + err.Error())
+		return nil, huma.Error500InternalServerError("Could not save file content; retry the upload")
 	}
 
 	newRecord := models.File{
@@ -236,7 +236,7 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 		Path:        key,
 	}
 	if err := h.db.Create(&newRecord).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to save file record")
+		return nil, huma.Error500InternalServerError("Could not save file record; retry the request")
 	}
 
 	return &UploadFileOutput{

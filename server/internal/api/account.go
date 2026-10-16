@@ -41,12 +41,12 @@ type ExportAccountOutput struct {
 // Owner/admin only. GET /api/account/export
 func (h *Handler) exportAccount(ctx context.Context, input *ExportAccountInput) (*ExportAccountOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, err
@@ -153,18 +153,18 @@ type PurgeAccountOutput struct {
 // Body: {"confirm": "DELETE MY DATA"}
 func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*PurgeAccountOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if err := h.requireRole(r, authz.RoleOwner); err != nil {
 		return nil, err
 	}
 	if input.Body.Confirm != "DELETE MY DATA" {
-		return nil, huma.Error400BadRequest(`confirmation required: send {"confirm":"DELETE MY DATA"}`)
+		return nil, huma.Error400BadRequest(`Confirmation required: send {"confirm":"DELETE MY DATA"}`)
 	}
 	org, err := h.requireOrg(r)
 	if err != nil {
@@ -184,7 +184,7 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 		}
 	}
 	if len(purgeErrs) > 0 {
-		return nil, huma.Error500InternalServerError("plugin purge failed: " + strings.Join(purgeErrs, "; "))
+		return nil, huma.Error500InternalServerError("Could not purge plugin data: " + strings.Join(purgeErrs, "; ") + "; retry the request or contact support")
 	}
 
 	// 2. Revoke sessions for all members of this org before purging org_members
@@ -270,7 +270,7 @@ func (h *Handler) purgeAccount(ctx context.Context, input *PurgeAccountInput) (*
 		return nil
 	})
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to purge account data")
+		return nil, huma.Error500InternalServerError("Could not purge organization data; retry the request")
 	}
 
 	// Deliberately NOT h.audit: that writes an org-scoped AuditLog row, and writing
@@ -328,21 +328,21 @@ type DeleteAccountOutput struct {
 // Body: {"confirm": "DELETE MY ACCOUNT"}
 func (h *Handler) deleteAccount(ctx context.Context, input *DeleteAccountInput) (*DeleteAccountOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	uid := h.auth.UserID(r)
 
 	var user models.User
 	if err := h.db.First(&user, uid).Error; err != nil {
-		return nil, huma.Error404NotFound("account not found")
+		return nil, huma.Error404NotFound("User account not found; sign in again or check your account status")
 	}
 	if input.Body.Confirm != "DELETE MY ACCOUNT" {
-		return nil, huma.Error400BadRequest(`confirmation required: send {"confirm":"DELETE MY ACCOUNT"}`)
+		return nil, huma.Error400BadRequest(`Confirmation required: send {"confirm":"DELETE MY ACCOUNT"}`)
 	}
 
 	// Self-service deletion must not silently evict the user from active
@@ -351,7 +351,7 @@ func (h *Handler) deleteAccount(ctx context.Context, input *DeleteAccountInput) 
 	var memberships int64
 	h.db.Model(&models.OrgMember{}).Where("user_id = ?", uid).Count(&memberships)
 	if memberships != 0 {
-		return nil, huma.Error409Conflict("leave all organizations before deleting your account")
+		return nil, huma.Error409Conflict("Leave all organizations before deleting your account")
 	}
 
 	// Evict every session from the cache first — the cache key is the token
@@ -390,7 +390,7 @@ func (h *Handler) deleteAccount(ctx context.Context, input *DeleteAccountInput) 
 		return nil
 	})
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to delete account")
+		return nil, huma.Error500InternalServerError("Could not delete account; retry the request")
 	}
 
 	// Unlike purgeAccount, the org survives this deletion, so h.audit is safe

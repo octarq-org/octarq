@@ -26,15 +26,15 @@ type GetInstanceSettingsOutput struct {
 
 func (h *Handler) getInstanceSettings(ctx context.Context, input *GetInstanceSettingsInput) (*GetInstanceSettingsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if !h.isInstanceAdmin(r) {
-		return nil, huma.Error403Forbidden("instance admin role required")
+		return nil, huma.Error403Forbidden("Instance administrator role required; contact an instance administrator")
 	}
 	retDays := DefaultRetentionDays
 	if v := h.getSetting(keyDataRetentionDays); v != "" {
@@ -103,15 +103,15 @@ type UpdateInstanceSettingsOutput struct {
 
 func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInstanceSettingsInput) (*UpdateInstanceSettingsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if !h.isInstanceAdmin(r) {
-		return nil, huma.Error403Forbidden("instance admin role required")
+		return nil, huma.Error403Forbidden("Instance administrator role required; contact an instance administrator")
 	}
 
 	if input.Body.ReservedSlugs != nil {
@@ -126,7 +126,7 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 		} else {
 			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*input.Body.GoogleClientSecret)))
 			if err != nil {
-				return nil, huma.Error500InternalServerError("encrypt token")
+				return nil, huma.Error500InternalServerError("Could not secure OAuth secret; retry the request")
 			}
 			h.setSetting(keyGoogleClientSecret, enc)
 		}
@@ -140,7 +140,7 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 		} else {
 			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*input.Body.GitHubClientSecret)))
 			if err != nil {
-				return nil, huma.Error500InternalServerError("encrypt token")
+				return nil, huma.Error500InternalServerError("Could not secure OAuth secret; retry the request")
 			}
 			h.setSetting(keyGitHubClientSecret, enc)
 		}
@@ -182,7 +182,7 @@ func (h *Handler) updateInstanceSettings(ctx context.Context, input *UpdateInsta
 		} else {
 			enc, err := h.cipher.Encrypt([]byte(strings.TrimSpace(*input.Body.MetricsToken)))
 			if err != nil {
-				return nil, huma.Error500InternalServerError("encrypt token")
+				return nil, huma.Error500InternalServerError("Could not secure metrics token; retry the request")
 			}
 			h.setSetting(keyMetricsToken, enc)
 		}

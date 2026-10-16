@@ -153,7 +153,7 @@ func TestChangeEmailInstanceAdminWrongPassword(t *testing.T) {
 	cookies := rec.Result().Cookies()
 
 	res := do(srv, "PUT", "/api/auth/email", cookies, `{"newEmail":"admin-new@example.com","currentPassword":"wrongpassword"}`)
-	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "current password is incorrect") {
+	if res.Code != http.StatusBadRequest || !strings.Contains(res.Body.String(), "Current password is incorrect") {
 		t.Fatalf("expected 400 for wrong password, got %d (%s)", res.Code, res.Body.String())
 	}
 }

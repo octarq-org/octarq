@@ -63,12 +63,12 @@ type ListWebhooksOutput struct {
 
 func (h *Handler) listWebhooks(ctx context.Context, input *ListWebhooksInput) (*ListWebhooksOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, err
@@ -109,17 +109,17 @@ type CreateWebhookOutput struct {
 
 func (h *Handler) createWebhook(ctx context.Context, input *CreateWebhookInput) (*CreateWebhookOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	name := strings.TrimSpace(input.Body.Name)
 	url := strings.TrimSpace(input.Body.URL)
 	if name == "" || url == "" {
-		return nil, huma.Error400BadRequest("name and url are required")
+		return nil, huma.Error400BadRequest("Webhook name and target URL are required; provide both fields")
 	}
 
 	secret := strings.TrimSpace(input.Body.Secret)
@@ -127,7 +127,7 @@ func (h *Handler) createWebhook(ctx context.Context, input *CreateWebhookInput) 
 		// Generate random 16-byte hex secret (32 chars)
 		b := make([]byte, 16)
 		if _, err := rand.Read(b); err != nil {
-			return nil, huma.Error500InternalServerError("failed to generate webhook secret")
+			return nil, huma.Error500InternalServerError("Could not generate webhook secret; retry the request")
 		}
 		secret = hex.EncodeToString(b)
 	}
@@ -144,7 +144,7 @@ func (h *Handler) createWebhook(ctx context.Context, input *CreateWebhookInput) 
 
 	encSecret, err := h.encryptWebhookSecret(secret)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to secure secret")
+		return nil, huma.Error500InternalServerError("Could not encrypt webhook secret; retry the request")
 	}
 
 	orgID, err := h.requireOrg(r)
@@ -165,7 +165,7 @@ func (h *Handler) createWebhook(ctx context.Context, input *CreateWebhookInput) 
 	}
 
 	if err := h.db.Create(&hook).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to save")
+		return nil, huma.Error500InternalServerError("Could not save webhook; retry the request")
 	}
 
 	h.audit(r, "webhook.create", "webhook", hook.ID, map[string]any{"name": hook.Name, "url": hook.URL})
@@ -203,12 +203,12 @@ type UpdateWebhookOutput struct {
 
 func (h *Handler) updateWebhook(ctx context.Context, input *UpdateWebhookInput) (*UpdateWebhookOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	orgID, err := h.requireOrg(r)
@@ -221,13 +221,13 @@ func (h *Handler) updateWebhook(ctx context.Context, input *UpdateWebhookInput) 
 
 	var hook models.Webhook
 	if h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).First(&hook).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Webhook not found; verify the webhook identifier and try again")
 	}
 
 	name := strings.TrimSpace(input.Body.Name)
 	url := strings.TrimSpace(input.Body.URL)
 	if name == "" || url == "" {
-		return nil, huma.Error400BadRequest("name and url are required")
+		return nil, huma.Error400BadRequest("Webhook name and target URL are required; provide both fields")
 	}
 
 	hook.Name = name
@@ -235,7 +235,7 @@ func (h *Handler) updateWebhook(ctx context.Context, input *UpdateWebhookInput) 
 	if input.Body.Secret != "" {
 		enc, err := h.encryptWebhookSecret(strings.TrimSpace(input.Body.Secret))
 		if err != nil {
-			return nil, huma.Error500InternalServerError("failed to secure secret")
+			return nil, huma.Error500InternalServerError("Could not encrypt webhook secret; retry the request")
 		}
 		hook.Secret = enc
 	}
@@ -281,12 +281,12 @@ type DeleteWebhookOutput struct {
 
 func (h *Handler) deleteWebhook(ctx context.Context, input *DeleteWebhookInput) (*DeleteWebhookOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	orgID, err := h.requireOrg(r)
@@ -298,7 +298,7 @@ func (h *Handler) deleteWebhook(ctx context.Context, input *DeleteWebhookInput) 
 	}
 
 	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).Delete(&models.Webhook{}); res.RowsAffected == 0 {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Webhook not found; verify the webhook identifier and try again")
 	}
 
 	h.audit(r, "webhook.delete", "webhook", input.ID, nil)
@@ -325,12 +325,12 @@ type TestWebhookOutput struct {
 // reason, not the loop's dead-letter summary.
 func (h *Handler) testWebhook(ctx context.Context, input *TestWebhookInput) (*TestWebhookOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	orgID, err := h.requireOrg(r)
@@ -343,10 +343,10 @@ func (h *Handler) testWebhook(ctx context.Context, input *TestWebhookInput) (*Te
 
 	var hook models.Webhook
 	if h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).First(&hook).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Webhook not found; verify the webhook identifier and try again")
 	}
 	if !hook.Enabled {
-		return nil, huma.Error400BadRequest("webhook is disabled; enable it before testing")
+		return nil, huma.Error400BadRequest("Webhook is disabled; enable it before testing")
 	}
 
 	testCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
@@ -377,11 +377,11 @@ type ListWebhookEventsOutput struct {
 // this build can actually fire.
 func (h *Handler) listWebhookEvents(ctx context.Context, input *ListWebhookEventsInput) (*ListWebhookEventsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	if _, ok := h.auth.AuthenticateRequest(r); !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	return &ListWebhookEventsOutput{Body: eventbus.EventGroups()}, nil
 }

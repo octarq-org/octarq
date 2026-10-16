@@ -32,7 +32,7 @@ func (i *DownloadFileInput) Resolve(ctx huma.Context) []error {
 
 func (h *Handler) downloadFile(ctx context.Context, input *DownloadFileInput) (*huma.StreamResponse, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("missing context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 
@@ -45,7 +45,7 @@ func (h *Handler) downloadFile(ctx context.Context, input *DownloadFileInput) (*
 		if h.storage != nil && h.storage.VerifyDownloadToken(input.Token, idStr) {
 			hasValidToken = true
 		} else {
-			return nil, huma.Error401Unauthorized("invalid or expired download token")
+			return nil, huma.Error401Unauthorized("Download token is invalid or expired; request a new download token")
 		}
 	}
 
@@ -53,7 +53,7 @@ func (h *Handler) downloadFile(ctx context.Context, input *DownloadFileInput) (*
 		// No valid token provided: require session / bearer authentication
 		r2, ok := h.auth.AuthenticateRequest(r)
 		if !ok {
-			return nil, huma.Error401Unauthorized("unauthorized: valid session or download token required")
+			return nil, huma.Error401Unauthorized("Authentication required; provide a valid session or download token")
 		}
 		authedOrgID = h.auth.OrgID(r2)
 	}
@@ -61,26 +61,26 @@ func (h *Handler) downloadFile(ctx context.Context, input *DownloadFileInput) (*
 	var file models.File
 	if err := h.db.First(&file, input.ID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, huma.Error404NotFound("file not found")
+			return nil, huma.Error404NotFound("File not found; verify the file identifier and try again")
 		}
-		return nil, huma.Error500InternalServerError("database error")
+		return nil, huma.Error500InternalServerError("Could not load file information; retry the request")
 	}
 
 	// Verify org isolation when authenticated via session (not via signed token)
 	if !hasValidToken && authedOrgID != 0 && file.OrgID != authedOrgID {
-		return nil, huma.Error403Forbidden("access denied to file from another organization")
+		return nil, huma.Error403Forbidden("Workspace permission denied; this file belongs to another workspace")
 	}
 
 	if h.storage == nil {
-		return nil, huma.Error500InternalServerError("storage service unavailable")
+		return nil, huma.Error500InternalServerError("Storage service is currently unavailable; retry later")
 	}
 
 	rc, err := h.storage.GetObject(ctx, file.Path)
 	if err != nil {
 		if errors.Is(err, plugin.ErrStorageObjectNotFound) {
-			return nil, huma.Error404NotFound("file object not found in storage")
+			return nil, huma.Error404NotFound("File content not found in storage; check if the file was deleted")
 		}
-		return nil, huma.Error500InternalServerError("failed to open file object")
+		return nil, huma.Error500InternalServerError("Could not open file; retry the request")
 	}
 
 	ct := file.ContentType
@@ -139,29 +139,29 @@ type TempTokenOutput struct {
 
 func (h *Handler) createTempToken(ctx context.Context, input *TempTokenInput) (*TempTokenOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("missing context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	orgID := h.auth.OrgID(r)
 
 	if input.Body.FileID == 0 {
-		return nil, huma.Error400BadRequest("file_id is required")
+		return nil, huma.Error400BadRequest("File ID is required; provide a valid file identifier")
 	}
 
 	var file models.File
 	if err := h.db.Where("id = ? AND owner_id = ?", input.Body.FileID, orgID).First(&file).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, huma.Error404NotFound("file not found")
+			return nil, huma.Error404NotFound("File not found; verify the file identifier and try again")
 		}
-		return nil, huma.Error500InternalServerError("database error")
+		return nil, huma.Error500InternalServerError("Could not load file information; retry the request")
 	}
 
 	if h.storage == nil {
-		return nil, huma.Error500InternalServerError("storage service unavailable")
+		return nil, huma.Error500InternalServerError("Storage service is currently unavailable; retry later")
 	}
 
 	expire := 15 * time.Minute
@@ -202,21 +202,21 @@ type GetFileOutput struct {
 
 func (h *Handler) getFile(ctx context.Context, input *GetFileInput) (*GetFileOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("missing context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	orgID := h.auth.OrgID(r)
 
 	var file models.File
 	if err := h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).First(&file).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, huma.Error404NotFound("file not found")
+			return nil, huma.Error404NotFound("File not found; verify the file identifier and try again")
 		}
-		return nil, huma.Error500InternalServerError("database error")
+		return nil, huma.Error500InternalServerError("Could not load file information; retry the request")
 	}
 
 	return &GetFileOutput{Body: file}, nil

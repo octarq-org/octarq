@@ -40,12 +40,12 @@ type ListMenusOutput struct {
 // GET /api/menus
 func (h *Handler) listMenus(ctx context.Context, input *ListMenusInput) (*ListMenusOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	// Core default navigation items — ONLY the pages the core itself serves
@@ -121,12 +121,12 @@ type ListActionsOutput struct {
 // GET /api/actions
 func (h *Handler) listActions(ctx context.Context, input *ListActionsInput) (*ListActionsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	actions := make([]Action, 0)
@@ -176,18 +176,18 @@ type GetUserSettingsOutput struct {
 // The only key in use today is onboarding_dismissed, read by the Overview page.
 func (h *Handler) getUserSettings(ctx context.Context, input *GetUserSettingsInput) (*GetUserSettingsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uid := h.auth.UserID(r)
 	var settings []models.UserSetting
 	if err := h.db.Where("user_id = ?", uid).Find(&settings).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to query user settings")
+		return nil, huma.Error500InternalServerError("Could not load user settings; retry the request")
 	}
 
 	out := make(map[string]string)
@@ -224,18 +224,18 @@ type UpdateUserSettingsOutput struct {
 // PUT /api/user/settings  {"key": "onboarding_dismissed", "value": "true"}
 func (h *Handler) updateUserSettings(ctx context.Context, input *UpdateUserSettingsInput) (*UpdateUserSettingsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uid := h.auth.UserID(r)
 	key := strings.TrimSpace(input.Body.Key)
 	if key == "" {
-		return nil, huma.Error400BadRequest("key is required")
+		return nil, huma.Error400BadRequest("Setting key is required; provide a setting key")
 	}
 
 	s := models.UserSetting{
@@ -245,7 +245,7 @@ func (h *Handler) updateUserSettings(ctx context.Context, input *UpdateUserSetti
 		UpdatedAt: time.Now(),
 	}
 	if err := h.db.Save(&s).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to save user setting")
+		return nil, huma.Error500InternalServerError("Could not save user setting; retry the request")
 	}
 	out := &UpdateUserSettingsOutput{}
 	out.Body.OK = true

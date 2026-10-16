@@ -29,12 +29,12 @@ type OverviewOutput struct {
 // human clicks so the caller can compare bot vs human traffic.
 func (h *Handler) overview(ctx context.Context, input *OverviewInput) (*OverviewOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	go h.auth.TouchSession(r)

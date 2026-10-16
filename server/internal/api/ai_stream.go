@@ -66,13 +66,13 @@ func (h *Handler) SetEndpointSource(src harness.EndpointSource) {
 // aiChatStream handles POST /api/ai/chat/stream via Server-Sent Events (SSE).
 func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeErr(w, r, http.StatusMethodNotAllowed, "", "method not allowed")
+		writeErr(w, r, http.StatusMethodNotAllowed, "", "Method not allowed; use POST for streaming chat")
 		return
 	}
 
 	r2, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, r, http.StatusUnauthorized, "", "unauthorized")
+		writeErr(w, r, http.StatusUnauthorized, "", "Authentication required; sign in to continue")
 		return
 	}
 	r = r2
@@ -85,12 +85,12 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 
 	var req AIChatStreamRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeErr(w, r, http.StatusBadRequest, "", "invalid JSON body: "+err.Error())
+		writeErr(w, r, http.StatusBadRequest, "", "Malformed JSON body: "+err.Error()+"; check request payload")
 		return
 	}
 
 	if len(req.Messages) == 0 {
-		writeErr(w, r, http.StatusBadRequest, "", "messages must not be empty")
+		writeErr(w, r, http.StatusBadRequest, "", "Messages list cannot be empty; provide at least one message")
 		return
 	}
 

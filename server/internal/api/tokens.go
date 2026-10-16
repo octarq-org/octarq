@@ -54,12 +54,12 @@ type ListTokensOutput struct {
 // they keep is member removal, which revokes that person's tokens with them.
 func (h *Handler) listTokens(ctx context.Context, input *ListTokensInput) (*ListTokensOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if _, err := h.requireOrg(r); err != nil {
 		return nil, err
@@ -97,19 +97,19 @@ type CreateTokenOutput struct {
 
 func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*CreateTokenOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	name := strings.TrimSpace(input.Body.Name)
 	if name == "" {
-		return nil, huma.Error400BadRequest("name is required")
+		return nil, huma.Error400BadRequest("Token name is required; provide a token name")
 	}
 	if input.Body.ExpiresInDays < 0 {
-		return nil, huma.Error400BadRequest("expiresInDays must be zero (never) or positive")
+		return nil, huma.Error400BadRequest("Token expiration days must be zero (never) or a positive integer")
 	}
 	var expiresAt *time.Time
 	if input.Body.ExpiresInDays > 0 {
@@ -128,19 +128,19 @@ func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*Cr
 		role = authz.RoleMember
 	}
 	if !validTokenRole(role) {
-		return nil, huma.Error400BadRequest("role must be one of member, admin, owner")
+		return nil, huma.Error400BadRequest("Role must be one of: member, admin, owner")
 	}
 	// A token must not out-rank the caller minting it, or an admin could mint an
 	// owner token and use it to walk straight past the gate that just checked them.
 	if !h.callerHoldsRole(r, role) {
-		return nil, huma.Error403Forbidden("forbidden: cannot mint a token above your own role")
+		return nil, huma.Error403Forbidden("Cannot create a token with permissions exceeding your role; select a lower or equal role")
 	}
 	// The token acts as this person from here on. Minting it while
 	// unattributable would be the one way to create authority that outlives the
 	// account it came from.
 	uid := h.auth.UserID(r)
 	if uid == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	raw := newRawToken()
 	tok := models.Token{
@@ -154,7 +154,7 @@ func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*Cr
 		ExpiresAt: expiresAt,
 	}
 	if err := h.db.Create(&tok).Error; err != nil {
-		return nil, huma.Error500InternalServerError("create token")
+		return nil, huma.Error500InternalServerError("Could not create token; retry the request")
 	}
 	h.audit(r, "token.create", "token", tok.ID, map[string]any{"name": tok.Name, "prefix": tok.Prefix, "role": tok.Role})
 	// The raw token is returned ONLY here; it is never stored or shown again.
@@ -192,12 +192,12 @@ type DeleteTokenOutput struct {
 
 func (h *Handler) deleteToken(ctx context.Context, input *DeleteTokenInput) (*DeleteTokenOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {
@@ -205,7 +205,7 @@ func (h *Handler) deleteToken(ctx context.Context, input *DeleteTokenInput) (*De
 	}
 	q := h.db.Where("id = ? AND owner_id = ? AND user_id = ?", input.ID, orgID, h.auth.UserID(r))
 	if res := q.Delete(&models.Token{}); res.RowsAffected == 0 {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Token not found; verify the token identifier and try again")
 	}
 	h.audit(r, "token.delete", "token", input.ID, nil)
 	out := &DeleteTokenOutput{}
@@ -237,12 +237,12 @@ type UpdateTokenOutput struct {
 
 func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*UpdateTokenOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {
@@ -254,7 +254,7 @@ func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*Up
 	var tok models.Token
 	if err := h.db.Where("id = ? AND owner_id = ? AND user_id = ?", input.ID, orgID, h.auth.UserID(r)).
 		First(&tok).Error; err != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Token not found; verify the token identifier and try again")
 	}
 
 	oldName := tok.Name
@@ -270,7 +270,7 @@ func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*Up
 	if input.Body.Name != nil {
 		name := strings.TrimSpace(*input.Body.Name)
 		if name == "" {
-			return nil, huma.Error400BadRequest("name is required")
+			return nil, huma.Error400BadRequest("Token name is required; provide a token name")
 		}
 		if name != oldName {
 			tok.Name = name
@@ -293,10 +293,10 @@ func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*Up
 	if input.Body.Role != nil {
 		role := authz.Role(strings.TrimSpace(*input.Body.Role))
 		if !validTokenRole(role) {
-			return nil, huma.Error400BadRequest("role must be one of member, admin, owner")
+			return nil, huma.Error400BadRequest("Role must be one of: member, admin, owner")
 		}
 		if !h.callerHoldsRole(r, role) {
-			return nil, huma.Error403Forbidden("forbidden: cannot mint a token above your own role")
+			return nil, huma.Error403Forbidden("Cannot update a token to exceed your role; select a lower or equal role")
 		}
 		if string(role) != oldRole {
 			tok.Role = string(role)
@@ -309,7 +309,7 @@ func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*Up
 	if input.Body.ExpiresInDays != nil {
 		days := *input.Body.ExpiresInDays
 		if days < 0 {
-			return nil, huma.Error400BadRequest("expiresInDays must be zero (never) or positive")
+			return nil, huma.Error400BadRequest("Token expiration days must be zero (never) or a positive integer")
 		}
 		var newExpiresAt *time.Time
 		if days > 0 {
@@ -340,7 +340,7 @@ func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*Up
 			"role":       tok.Role,
 			"expires_at": tok.ExpiresAt,
 		}).Error; err != nil {
-			return nil, huma.Error500InternalServerError("update token")
+			return nil, huma.Error500InternalServerError("Could not update token; retry the request")
 		}
 		h.audit(r, "token.update", "token", tok.ID, meta)
 	}

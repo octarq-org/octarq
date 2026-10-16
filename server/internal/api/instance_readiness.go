@@ -32,15 +32,15 @@ type InstanceReadinessOutput struct {
 // up to — an enumeration signal a tenant member must not read.
 func (h *Handler) instanceReadiness(ctx context.Context, input *InstanceReadinessInput) (*InstanceReadinessOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if !h.isInstanceAdmin(r) {
-		return nil, huma.Error403Forbidden("instance admin role required")
+		return nil, huma.Error403Forbidden("Instance administrator role required; contact an instance administrator")
 	}
 	checks := readiness.Evaluate(h.cfg, h.mailReady(), origin.AnyRegistered(h.db) || origin.HasSharedHosts(h.db), h.requireEmailVerification())
 	for i := range checks {

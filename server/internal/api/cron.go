@@ -23,12 +23,12 @@ type ListCronJobsOutput struct {
 
 func (h *Handler) listCronJobs(ctx context.Context, input *ListCronJobsInput) (*ListCronJobsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	_, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	cronSvc := h.cronService

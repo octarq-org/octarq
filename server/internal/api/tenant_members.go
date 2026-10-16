@@ -38,12 +38,12 @@ type ListOrgMembersOutput struct {
 // GET /api/org/members
 func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput) (*ListOrgMembersOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	orgID, err := h.requireOrg(r)
@@ -69,7 +69,7 @@ func (h *Handler) listOrgMembers(ctx context.Context, input *ListOrgMembersInput
 		Where("org_members.org_id = ?", orgID).
 		Scan(&rows).Error
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to query members")
+		return nil, huma.Error500InternalServerError("Could not load workspace members; retry the request")
 	}
 	for _, row := range rows {
 		// Pending means an unredeemed invite. An empty password hash alone is
@@ -116,12 +116,12 @@ type AddOrgMemberOutput struct {
 // POST /api/org/members  {"email": "user@example.com", "role": "member"}
 func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*AddOrgMemberOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	orgID, err := h.requireOrg(r)
@@ -130,13 +130,13 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 	}
 	callerRole := string(h.effectiveRole(r))
 	if callerRole != "owner" && callerRole != "admin" {
-		return nil, huma.Error403Forbidden("forbidden: only owner/admin can manage members")
+		return nil, huma.Error403Forbidden("Workspace owner or administrator role required to manage members")
 	}
 
 	email := strings.TrimSpace(input.Body.Email)
 	role := strings.TrimSpace(input.Body.Role)
 	if email == "" {
-		return nil, huma.Error400BadRequest("email is required")
+		return nil, huma.Error400BadRequest("Member email address is required; provide an email address")
 	}
 	if role != "owner" && role != "admin" && role != "member" {
 		role = "member"
@@ -144,7 +144,7 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 	// Only an owner may grant or revoke the owner role — an admin can't mint
 	// owners (or promote itself) and thereby take over the workspace.
 	if authz.Role(role) == authz.RoleOwner && !authz.AtLeast(authz.Role(callerRole), authz.RoleOwner) {
-		return nil, huma.Error403Forbidden("forbidden: only an owner can grant the owner role")
+		return nil, huma.Error403Forbidden("Workspace owner role required to grant owner permissions")
 	}
 
 	var user models.User
@@ -154,7 +154,7 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 		isNew = true
 		tokenBytes := make([]byte, 24)
 		if _, err := rand.Read(tokenBytes); err != nil {
-			return nil, huma.Error500InternalServerError("failed to generate invite token")
+			return nil, huma.Error500InternalServerError("Could not generate invitation token; retry the request")
 		}
 		rawInviteToken = hex.EncodeToString(tokenBytes)
 		expiresAt := time.Now().Add(24 * time.Hour)
@@ -170,7 +170,7 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 			InviteExpiresAt: &expiresAt,
 		}
 		if err := h.db.Create(&user).Error; err != nil {
-			return nil, huma.Error500InternalServerError("failed to create user")
+			return nil, huma.Error500InternalServerError("Could not create user account; retry the request")
 		}
 	}
 
@@ -180,7 +180,7 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 		// Re-grading an existing owner (demote, or re-affirm) is an owner-only act,
 		// so an admin can't strip the owner's role out from under them.
 		if authz.Role(existing.Role) == authz.RoleOwner && !authz.AtLeast(authz.Role(callerRole), authz.RoleOwner) {
-			return nil, huma.Error403Forbidden("forbidden: only an owner can change an owner's role")
+			return nil, huma.Error403Forbidden("Workspace owner role required to modify an owner's role")
 		}
 		// Re-inviting the sole owner at a lower role demotes them, and this path
 		// had no last-owner guard — the workspace could be left with nobody able
@@ -212,7 +212,7 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 				}
 				return nil
 			}); err != nil {
-				return nil, huma.Error500InternalServerError("failed to update member role")
+				return nil, huma.Error500InternalServerError("Could not update member role; retry the request")
 			}
 			h.audit(r, "member.role", "user", user.ID, map[string]any{
 				"from":    existing.Role,
@@ -227,7 +227,7 @@ func (h *Handler) addOrgMember(ctx context.Context, input *AddOrgMemberInput) (*
 	} else {
 		mem := models.OrgMember{OrgID: orgID, UserID: user.ID, Role: role}
 		if err := h.db.Create(&mem).Error; err != nil {
-			return nil, huma.Error500InternalServerError("failed to add member")
+			return nil, huma.Error500InternalServerError("Could not add member to workspace; retry the request")
 		}
 	}
 

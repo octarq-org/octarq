@@ -63,11 +63,11 @@ type RegisterOutput struct {
 // arrive.
 func (h *Handler) register(ctx context.Context, input *RegisterInput) (*RegisterOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 	if !h.registrationEnabled() {
-		return nil, huma.Error403Forbidden("registration is disabled")
+		return nil, huma.Error403Forbidden("User registration is disabled; contact an instance administrator")
 	}
 	ip := reporterIP(r)
 	// Own budget, not the login one: register succeeds without ever counting
@@ -75,41 +75,41 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 	// shared budget was never spent and could never stop a sign-up flood.
 	// Every request counts here, exactly like recoveryLimiter.
 	if !h.registerLimiter.allow(ip) {
-		return nil, huma.Error429TooManyRequests("too many attempts")
+		return nil, huma.Error429TooManyRequests("Too many requests; wait a few minutes before trying again")
 	}
 	h.registerLimiter.recordFailure(ip)
 
 	// Fail loudly instead of returning an unfulfillable verificationRequired:
 	// a verification email is only deliverable when some SMTP sender exists.
 	if h.requireEmailVerification() && !h.mailReady() {
-		return nil, huma.NewError(http.StatusServiceUnavailable, "this instance cannot send email yet; ask the administrator to configure an SMTP sender or disable email verification")
+		return nil, huma.NewError(http.StatusServiceUnavailable, "This instance cannot send email yet; ask the administrator to configure an SMTP sender or disable email verification")
 	}
 	email := strings.ToLower(strings.TrimSpace(input.Body.Email))
 	if addr, err := mail.ParseAddress(email); err != nil || addr.Address != email || !strings.Contains(email, "@") {
-		return nil, huma.Error400BadRequest("a valid email is required")
+		return nil, huma.Error400BadRequest("Valid email address required; enter an address in the form user@example.com")
 	}
 	if len(input.Body.Password) < 8 {
-		return nil, huma.Error400BadRequest("password must be at least 8 characters")
+		return nil, huma.Error400BadRequest("Password must be at least 8 characters; choose a longer password")
 	}
 	orgName := strings.TrimSpace(input.Body.OrgName)
 	if orgName != "" && len(orgName) > 255 {
-		return nil, huma.Error400BadRequest("workspace name must be 255 characters or fewer")
+		return nil, huma.Error400BadRequest("Workspace name must be 255 characters or fewer; choose a shorter name")
 	}
 
 	// Reject duplicates case-insensitively (also covers OAuth-provisioned users).
 	var existing models.User
 	if h.db.Where("LOWER(email) = ?", email).First(&existing).Error == nil {
-		return nil, huma.NewError(http.StatusConflict, "an account with this email already exists")
+		return nil, huma.NewError(http.StatusConflict, "An account with this email address already exists; use a different email address")
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Body.Password), auth.BcryptCost)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to hash password")
+		return nil, huma.Error500InternalServerError("Could not process password; retry the request")
 	}
 
 	rawToken, tokenHash, err := generateSecureToken()
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to generate verification token")
+		return nil, huma.Error500InternalServerError("Could not generate verification token; retry the request")
 	}
 	expiry := time.Now().Add(24 * time.Hour)
 
@@ -121,7 +121,7 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 		VerifyTokenExpiry: &expiry,
 	}
 	if err := h.db.Create(&user).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to create account")
+		return nil, huma.Error500InternalServerError("Could not create account; retry the request")
 	}
 
 	verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.origin(r), rawToken)
@@ -132,7 +132,7 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 
 	slug, err := models.AllocateOrgSlug(h.db)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to create workspace")
+		return nil, huma.Error500InternalServerError("Could not create workspace; retry the request")
 	}
 	name := email
 	if orgName != "" {
@@ -156,9 +156,9 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 	})
 	if err != nil {
 		if errors.Is(err, tenancy.ErrNameTaken) {
-			return nil, huma.NewError(http.StatusConflict, "the workspace address could not be claimed — please try again")
+			return nil, huma.NewError(http.StatusConflict, "Workspace address could not be claimed; try a different workspace name")
 		}
-		return nil, huma.Error500InternalServerError("failed to create workspace")
+		return nil, huma.Error500InternalServerError("Could not create workspace; retry the request")
 	}
 
 	h.auditAs(r, orgID, user.ID, "user.register", "user", user.ID, map[string]any{"email": email})

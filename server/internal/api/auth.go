@@ -45,13 +45,13 @@ type LoginOutput struct {
 // loginHuma is the huma-adapted login handler
 func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 
 	ip := reporterIP(r)
 	if !h.loginLimiter.allow(ip) {
-		return nil, huma.Error429TooManyRequests("too many failed login attempts")
+		return nil, huma.Error429TooManyRequests("Too many failed login attempts; wait a few minutes before trying again")
 	}
 
 	loginUser := strings.TrimSpace(input.Body.Email)
@@ -60,12 +60,12 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 	if !ok {
 		h.loginLimiter.recordFailure(ip)
 		h.publishLoginFailed(r, loginUser, "invalid credentials")
-		return nil, huma.Error401Unauthorized("invalid credentials")
+		return nil, huma.Error401Unauthorized("Invalid credentials; check your email and password and try again")
 	}
 
 	var user models.User
 	if err := h.db.First(&user, uid).Error; err != nil {
-		return nil, huma.Error401Unauthorized("invalid credentials")
+		return nil, huma.Error401Unauthorized("Invalid credentials; check your email and password and try again")
 	}
 
 	if user.IsInstanceAdmin && !user.EmailVerified {
@@ -74,7 +74,7 @@ func (h *Handler) loginHuma(ctx context.Context, input *LoginInput) (*LoginOutpu
 	}
 
 	if h.requireEmailVerification() && !user.EmailVerified && !user.IsInstanceAdmin {
-		return nil, huma.NewError(http.StatusForbidden, "email verification required")
+		return nil, huma.NewError(http.StatusForbidden, "Email verification required; verify your email before signing in")
 	}
 
 	if user.TOTPEnabled {

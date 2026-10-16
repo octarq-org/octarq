@@ -139,16 +139,16 @@ type AISuggestSlugOutput struct {
 
 func (h *Handler) aiSuggestSlug(ctx context.Context, input *AISuggestSlugInput) (*AISuggestSlugOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	target := strings.TrimSpace(input.Body.Target)
 	if target == "" {
-		return nil, huma.Error400BadRequest("target is required")
+		return nil, huma.Error400BadRequest("Target URL is required; provide a valid destination URL")
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {
@@ -174,11 +174,11 @@ func (h *Handler) aiSuggestSlug(ctx context.Context, input *AISuggestSlugInput) 
 		JSON:      true,
 	})
 	if err != nil {
-		return nil, huma.NewError(http.StatusBadGateway, "AI request failed: "+err.Error())
+		return nil, huma.NewError(http.StatusBadGateway, "Could not complete AI request: "+err.Error()+"; retry or check AI configuration")
 	}
 	slugs := parseSlugList(resp.Text)
 	if len(slugs) == 0 {
-		return nil, huma.NewError(http.StatusBadGateway, "AI returned no usable slugs")
+		return nil, huma.NewError(http.StatusBadGateway, "No usable slugs generated; retry with a different title or target")
 	}
 	out := &AISuggestSlugOutput{}
 	out.Body.Slugs = slugs
@@ -235,12 +235,12 @@ type AISummarizeEmailOutput struct {
 
 func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailInput) (*AISummarizeEmailOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {
@@ -254,7 +254,7 @@ func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailI
 		fromAddr, subject, body, found = fn(orgID, input.ID)
 	}
 	if !found {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Email not found; verify the identifier and try again")
 	}
 	p, err := h.llmFor(orgID)
 	if err != nil {
@@ -279,7 +279,7 @@ func (h *Handler) aiSummarizeEmail(ctx context.Context, input *AISummarizeEmailI
 		MaxTokens: 300,
 	})
 	if err != nil {
-		return nil, huma.NewError(http.StatusBadGateway, "AI request failed: "+err.Error())
+		return nil, huma.NewError(http.StatusBadGateway, "Could not complete AI request: "+err.Error()+"; retry or check AI configuration")
 	}
 	out := &AISummarizeEmailOutput{}
 	out.Body.Summary = strings.TrimSpace(resp.Text)

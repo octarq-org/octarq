@@ -181,12 +181,12 @@ type ListPluginsOutput struct {
 
 func (h *Handler) listPlugins(ctx context.Context, input *ListPluginsInput) (*ListPluginsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {
@@ -340,15 +340,15 @@ type UpdatePluginOutput struct {
 // PUT /api/plugins/{name}  {"enabled": true}   (name is the feature key)
 func (h *Handler) updatePlugin(ctx context.Context, input *UpdatePluginInput) (*UpdatePluginOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
-		return nil, huma.Error403Forbidden("owner or admin role required")
+		return nil, huma.Error403Forbidden("Workspace owner or administrator role required; contact a workspace administrator")
 	}
 	key := input.Name
 	known := false
@@ -361,7 +361,7 @@ func (h *Handler) updatePlugin(ctx context.Context, input *UpdatePluginInput) (*
 		}
 	}
 	if !known {
-		return nil, huma.Error404NotFound("unknown feature")
+		return nil, huma.Error404NotFound("Feature not found; verify the feature name and try again")
 	}
 
 	orgID, err := h.requireOrg(r)
@@ -406,7 +406,7 @@ func (h *Handler) updatePlugin(ctx context.Context, input *UpdatePluginInput) (*
 			Columns:   []clause.Column{{Name: "org_id"}, {Name: "plugin"}},
 			DoUpdates: clause.AssignmentColumns([]string{"enabled", "updated_at"}),
 		}).Create(&ps).Error; err != nil {
-			return nil, huma.Error500InternalServerError("failed to save plugin setting")
+			return nil, huma.Error500InternalServerError("Could not save feature configuration; retry the request")
 		}
 		h.audit(r, "plugin.toggle", "plugin", 0, map[string]any{"feature": key, "enabled": false})
 	} else {
@@ -443,7 +443,7 @@ func (h *Handler) updatePlugin(ctx context.Context, input *UpdatePluginInput) (*
 			return enableRecursive(key)
 		})
 		if err != nil {
-			return nil, huma.Error500InternalServerError("failed to save plugin settings")
+			return nil, huma.Error500InternalServerError("Could not save feature configuration; retry the request")
 		}
 	}
 

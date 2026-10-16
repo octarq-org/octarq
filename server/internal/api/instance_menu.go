@@ -35,15 +35,15 @@ type ListInstanceMenusOutput struct {
 // deployment-wide page). Order asc, then ID asc, so the console rail is stable.
 func (h *Handler) listInstanceMenus(ctx context.Context, input *ListInstanceMenusInput) (*ListInstanceMenusOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if !h.isInstanceAdmin(r) {
-		return nil, huma.Error403Forbidden("instance admin required")
+		return nil, huma.Error403Forbidden("Instance administrator role required; contact an instance administrator")
 	}
 
 	var menus []MenuItem

@@ -41,25 +41,25 @@ type TestInstanceMailOutput struct {
 // delivery errors, and 503 if no system mail sender is configured.
 func (h *Handler) testInstanceMail(ctx context.Context, input *TestInstanceMailInput) (*TestInstanceMailOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if !h.isInstanceAdmin(r) {
-		return nil, huma.Error403Forbidden("instance admin role required")
+		return nil, huma.Error403Forbidden("Instance administrator role required; contact an instance administrator")
 	}
 
 	to := strings.ToLower(strings.TrimSpace(input.Body.To))
 	if addr, err := mail.ParseAddress(to); err != nil || addr.Address != to || !strings.Contains(to, "@") {
-		return nil, huma.Error400BadRequest("a valid recipient email address is required")
+		return nil, huma.Error400BadRequest("Valid recipient email address required; enter an address in the form user@example.com")
 	}
 
 	fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem)
 	if !ok {
-		return nil, huma.Error503ServiceUnavailable("system mail sender is not available or not configured")
+		return nil, huma.Error503ServiceUnavailable("System mail sender is not configured; set up an SMTP sender in instance settings")
 	}
 
 	subject := "Octarq System Mail Test"
@@ -67,7 +67,7 @@ func (h *Handler) testInstanceMail(ctx context.Context, input *TestInstanceMailI
 	textBody := "This is a test email sent from your octarq instance."
 
 	if err := fn(to, subject, htmlBody, textBody); err != nil {
-		return nil, huma.Error400BadRequest(fmt.Sprintf("failed to send test email: %v", err))
+		return nil, huma.Error400BadRequest(fmt.Sprintf("Could not send test email: %v", err))
 	}
 
 	h.audit(r, "instance.mail_test", "system_mail", 0, map[string]any{"to": to})

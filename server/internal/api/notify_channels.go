@@ -38,12 +38,12 @@ type ListNotificationChannelTypesOutput struct {
 
 func (h *Handler) listNotificationChannelTypes(ctx context.Context, input *ListNotificationChannelTypesInput) (*ListNotificationChannelTypesOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	orgID, err := h.requireOrg(r)
@@ -127,12 +127,12 @@ type ListNotificationChannelsOutput struct {
 
 func (h *Handler) listNotificationChannels(ctx context.Context, input *ListNotificationChannelsInput) (*ListNotificationChannelsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	spiChannels := notification.DefaultRouter().ListChannels()
@@ -154,7 +154,7 @@ func (h *Handler) listNotificationChannels(ctx context.Context, input *ListNotif
 	for i := range channels {
 		plain, err := h.channelConfigPlaintext(channels[i].Config)
 		if err != nil {
-			return nil, huma.Error500InternalServerError("failed to decrypt channel config")
+			return nil, huma.Error500InternalServerError("Could not decrypt channel configuration; retry the request")
 		}
 		channels[i].Config = redactConfigSecrets(plain)
 		for _, sp := range spiChannels {
@@ -190,12 +190,12 @@ type CreateNotificationChannelOutput struct {
 
 func (h *Handler) createNotificationChannel(ctx context.Context, input *CreateNotificationChannelInput) (*CreateNotificationChannelOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, err
@@ -203,7 +203,7 @@ func (h *Handler) createNotificationChannel(ctx context.Context, input *CreateNo
 	name := strings.TrimSpace(input.Body.Name)
 	typ := strings.ToLower(strings.TrimSpace(input.Body.Type))
 	if name == "" || typ == "" {
-		return nil, huma.Error400BadRequest("name and type are required")
+		return nil, huma.Error400BadRequest("Channel name and type are required; provide both fields")
 	}
 	enabled := true
 	if input.Body.Enabled != nil {
@@ -219,7 +219,7 @@ func (h *Handler) createNotificationChannel(ctx context.Context, input *CreateNo
 	}
 	encConfig, err := h.encryptChannelConfig(config)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to secure channel config")
+		return nil, huma.Error500InternalServerError("Could not encrypt channel configuration; retry the request")
 	}
 	d := models.NotificationChannel{
 		OrgID:   orgID,
@@ -229,7 +229,7 @@ func (h *Handler) createNotificationChannel(ctx context.Context, input *CreateNo
 		Enabled: enabled,
 	}
 	if err := h.db.Create(&d).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to create")
+		return nil, huma.Error500InternalServerError("Could not create notification channel; retry the request")
 	}
 	h.audit(r, "notification.create", "notification_channel", d.ID, map[string]any{"name": d.Name, "type": d.Type})
 	out := d
@@ -261,12 +261,12 @@ type UpdateNotificationChannelOutput struct {
 
 func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNotificationChannelInput) (*UpdateNotificationChannelOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {
@@ -277,7 +277,7 @@ func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNo
 	}
 	var ch models.NotificationChannel
 	if h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).First(&ch).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Notification channel not found; verify the channel identifier and try again")
 	}
 	d := input.Body
 	if d.Name != nil {
@@ -290,7 +290,7 @@ func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNo
 		newCfgStr := *d.Config
 		oldPlaintext, err := h.channelConfigPlaintext(ch.Config)
 		if err != nil {
-			return nil, huma.Error500InternalServerError("failed to decrypt channel config")
+			return nil, huma.Error500InternalServerError("Could not decrypt channel configuration; retry the request")
 		}
 		var targetPlaintext string
 		if oldPlaintext != "" && strings.Contains(newCfgStr, "[REDACTED]") {
@@ -300,7 +300,7 @@ func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNo
 		}
 		enc, err := h.encryptChannelConfig(targetPlaintext)
 		if err != nil {
-			return nil, huma.Error500InternalServerError("failed to secure channel config")
+			return nil, huma.Error500InternalServerError("Could not encrypt channel configuration; retry the request")
 		}
 		ch.Config = enc
 	}
@@ -325,7 +325,7 @@ func (h *Handler) updateNotificationChannel(ctx context.Context, input *UpdateNo
 	out := ch
 	plain, err := h.channelConfigPlaintext(ch.Config)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to decrypt channel config")
+		return nil, huma.Error500InternalServerError("Could not decrypt channel configuration; retry the request")
 	}
 	out.Config = redactConfigSecrets(plain)
 	return &UpdateNotificationChannelOutput{Body: out}, nil
@@ -351,12 +351,12 @@ type DeleteNotificationChannelOutput struct {
 
 func (h *Handler) deleteNotificationChannel(ctx context.Context, input *DeleteNotificationChannelInput) (*DeleteNotificationChannelOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {
@@ -366,7 +366,7 @@ func (h *Handler) deleteNotificationChannel(ctx context.Context, input *DeleteNo
 		return nil, err
 	}
 	if res := h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).Delete(&models.NotificationChannel{}); res.RowsAffected == 0 {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Notification channel not found; verify the channel identifier and try again")
 	}
 	h.audit(r, "notification.delete", "notification_channel", input.ID, nil)
 	out := &DeleteNotificationChannelOutput{}
@@ -394,12 +394,12 @@ type TestNotificationChannelOutput struct {
 
 func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotificationChannelInput) (*TestNotificationChannelOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {
@@ -410,7 +410,7 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 	}
 	var ch models.NotificationChannel
 	if h.db.Where("id = ? AND owner_id = ?", input.ID, orgID).First(&ch).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Notification channel not found; verify the channel identifier and try again")
 	}
 	ctxTimeout, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
@@ -419,11 +419,11 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 		var cfgMap map[string]any
 		plain, err := h.channelConfigPlaintext(ch.Config)
 		if err != nil {
-			return nil, huma.Error400BadRequest("stored channel config could not be decrypted: " + err.Error())
+			return nil, huma.Error400BadRequest("Could not decrypt stored channel configuration; re-enter the configuration")
 		}
 		if plain != "" {
 			if err := json.Unmarshal([]byte(plain), &cfgMap); err != nil {
-				return nil, huma.Error400BadRequest("stored channel config is not valid JSON: " + err.Error())
+				return nil, huma.Error400BadRequest("Stored channel configuration is not valid JSON; re-enter the configuration")
 			}
 		}
 		if cfgMap == nil {
@@ -455,5 +455,5 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 		return out, nil
 	}
 
-	return nil, huma.Error400BadRequest("unknown notification channel type: " + ch.Type)
+	return nil, huma.Error400BadRequest("Unsupported notification channel type " + ch.Type + "; choose an available channel type")
 }

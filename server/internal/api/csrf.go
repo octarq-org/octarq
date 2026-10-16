@@ -66,13 +66,13 @@ func CSRFGuard(secret string, next http.Handler) http.Handler {
 		}
 
 		if !sameOriginRequest(r) {
-			writeErr(w, r, http.StatusForbidden, apierror.CodeCSRFOriginBlocked, "cross-origin request blocked")
+			writeErr(w, r, http.StatusForbidden, apierror.CodeCSRFOriginBlocked, "Cross-origin request blocked; make requests from the same origin")
 			return
 		}
 
 		if sc, err := r.Cookie(sessionCookieName); err == nil {
 			if !hmac.Equal([]byte(r.Header.Get(csrf.HeaderName)), []byte(csrf.GenerateToken(secret, sc.Value))) {
-				writeErr(w, r, http.StatusForbidden, apierror.CodeCSRFTokenInvalid, "invalid csrf token")
+				writeErr(w, r, http.StatusForbidden, apierror.CodeCSRFTokenInvalid, "CSRF token is invalid or missing; reload the page and try again")
 				return
 			}
 		}

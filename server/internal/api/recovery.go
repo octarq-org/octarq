@@ -110,7 +110,7 @@ type ForgotPasswordOutput struct {
 // ALWAYS returns 200 {ok: true} to prevent email enumeration.
 func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput) (*ForgotPasswordOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
@@ -118,7 +118,7 @@ func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput
 	// "failed" reset), so spending login's 5-per-15min would let anyone behind a
 	// shared IP be locked out of logging in by a few reset requests.
 	if !h.recoveryLimiter.allow(ip) {
-		return nil, huma.Error429TooManyRequests("too many attempts")
+		return nil, huma.Error429TooManyRequests("Too many requests; wait a few minutes before trying again")
 	}
 	h.recoveryLimiter.recordFailure(ip)
 
@@ -156,7 +156,7 @@ func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput
 
 	rawToken, tokenHash, err := generateSecureToken()
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to generate token")
+		return nil, huma.Error500InternalServerError("Could not generate reset token; retry the request")
 	}
 
 	expiry := time.Now().Add(1 * time.Hour)
@@ -168,7 +168,7 @@ func (h *Handler) forgotPassword(ctx context.Context, input *ForgotPasswordInput
 		"reset_token_hash":   tokenHash,
 		"reset_token_expiry": expiry,
 	}).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to store reset token")
+		return nil, huma.Error500InternalServerError("Could not save reset token; retry the request")
 	}
 
 	// h.origin is "" when the request came in on a hostname this instance has
@@ -208,7 +208,7 @@ type ResetPasswordOutput struct {
 // POST /api/auth/reset (public) — completes password reset using secret token.
 func (h *Handler) resetPassword(ctx context.Context, input *ResetPasswordInput) (*ResetPasswordOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
@@ -216,32 +216,32 @@ func (h *Handler) resetPassword(ctx context.Context, input *ResetPasswordInput) 
 	// request counts (there is no successful attempt to exempt), so a burst of
 	// junk or real requests cannot burn unbounded CPU/DB/email for one IP.
 	if !h.recoveryLimiter.allow(ip) {
-		return nil, huma.Error429TooManyRequests("too many attempts")
+		return nil, huma.Error429TooManyRequests("Too many requests; wait a few minutes before trying again")
 	}
 	h.recoveryLimiter.recordFailure(ip)
 
 	token := strings.TrimSpace(input.Body.Token)
 	password := input.Body.Password
 	if token == "" {
-		return nil, huma.Error400BadRequest("token is required")
+		return nil, huma.Error400BadRequest("Reset token is required; check the link in your email")
 	}
 	if len(password) < 8 {
-		return nil, huma.Error400BadRequest("password must be at least 8 characters")
+		return nil, huma.Error400BadRequest("Password must be at least 8 characters; choose a longer password")
 	}
 
 	hash := hashToken(token)
 	var user models.User
 	if err := h.db.Where("reset_token_hash = ?", hash).First(&user).Error; err != nil {
-		return nil, huma.Error400BadRequest("invalid or expired token")
+		return nil, huma.Error400BadRequest("Reset token is invalid or expired; request a new reset link")
 	}
 
 	if user.ResetTokenExpiry == nil || time.Now().After(*user.ResetTokenExpiry) {
-		return nil, huma.Error400BadRequest("invalid or expired token")
+		return nil, huma.Error400BadRequest("Reset token is invalid or expired; request a new reset link")
 	}
 
 	pwHash, err := bcrypt.GenerateFromPassword([]byte(password), auth.BcryptCost)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to hash password")
+		return nil, huma.Error500InternalServerError("Could not process password; retry the request")
 	}
 
 	// Update user password & clear reset token. No session_epoch bump: nothing
@@ -256,7 +256,7 @@ func (h *Handler) resetPassword(ctx context.Context, input *ResetPasswordInput) 
 		"reset_token_hash":   "",
 		"reset_token_expiry": nil,
 	}).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to update password")
+		return nil, huma.Error500InternalServerError("Could not update password; retry the request")
 	}
 
 	var sessions []models.Session
@@ -288,7 +288,7 @@ func (i *VerifyEmailInput) Resolve(ctx huma.Context) []error {
 // GET /api/auth/verify-email (public) — verifies email token and 302 redirects to login.
 func (h *Handler) verifyEmail(ctx context.Context, input *VerifyEmailInput) (*struct{}, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 	token := strings.TrimSpace(input.Token)
@@ -353,7 +353,7 @@ type ResendVerificationOutput struct {
 // ALWAYS returns 200 {ok: true}. Rate-limited via recoveryLimiter.
 func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificationInput) (*ResendVerificationOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
@@ -361,7 +361,7 @@ func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificat
 	// "failed" reset), so spending login's 5-per-15min would let anyone behind a
 	// shared IP be locked out of logging in by a few reset requests.
 	if !h.recoveryLimiter.allow(ip) {
-		return nil, huma.Error429TooManyRequests("too many attempts")
+		return nil, huma.Error429TooManyRequests("Too many requests; wait a few minutes before trying again")
 	}
 	h.recoveryLimiter.recordFailure(ip)
 
@@ -386,7 +386,7 @@ func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificat
 
 	rawToken, tokenHash, err := generateSecureToken()
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to generate token")
+		return nil, huma.Error500InternalServerError("Could not generate verification token; retry the request")
 	}
 
 	expiry := time.Now().Add(24 * time.Hour)
@@ -397,7 +397,7 @@ func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificat
 		"verify_token_hash":   tokenHash,
 		"verify_token_expiry": expiry,
 	}).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to store verification token")
+		return nil, huma.Error500InternalServerError("Could not save verification token; retry the request")
 	}
 
 	verifyURL := fmt.Sprintf("%s/api/auth/verify-email?token=%s", h.origin(r), rawToken)

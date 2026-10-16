@@ -39,7 +39,7 @@ type AcceptInviteOutput struct {
 // POST /api/auth/invite/accept
 func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*AcceptInviteOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
@@ -47,31 +47,31 @@ func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*
 	// "completion" endpoint, so every request counts (there is no "failed"
 	// attempt to budget on), and sharing the budget keeps a single limiter.
 	if !h.recoveryLimiter.allow(ip) {
-		return nil, huma.Error429TooManyRequests("too many attempts")
+		return nil, huma.Error429TooManyRequests("Too many requests; wait a few minutes before trying again")
 	}
 	h.recoveryLimiter.recordFailure(ip)
 
 	token := strings.TrimSpace(input.Body.Token)
 	if token == "" {
-		return nil, huma.Error400BadRequest("token is required")
+		return nil, huma.Error400BadRequest("Invitation token is required; check the link in your invitation email")
 	}
 	password := input.Body.Password
 	if len(password) < 8 {
-		return nil, huma.Error400BadRequest("password must be at least 8 characters")
+		return nil, huma.Error400BadRequest("Password must be at least 8 characters; choose a longer password")
 	}
 
 	var user models.User
 	if err := h.db.Where("invite_token_hash = ?", hashToken(token)).First(&user).Error; err != nil {
-		return nil, huma.Error400BadRequest("invalid token")
+		return nil, huma.Error400BadRequest("Invitation token is invalid; check the link in your invitation email")
 	}
 
 	if user.InviteExpiresAt == nil || user.InviteExpiresAt.Before(time.Now()) {
-		return nil, huma.Error400BadRequest("invite token has expired")
+		return nil, huma.Error400BadRequest("Invitation token has expired; ask the workspace administrator for a new invitation")
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), auth.BcryptCost)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to hash password")
+		return nil, huma.Error500InternalServerError("Could not process password; retry the request")
 	}
 
 	user.PasswordHash = string(hash)
@@ -85,7 +85,7 @@ func (h *Handler) acceptInvite(ctx context.Context, input *AcceptInviteInput) (*
 	user.EmailVerified = true
 
 	if err := h.db.Save(&user).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to save user settings")
+		return nil, huma.Error500InternalServerError("Could not accept invitation; retry the request")
 	}
 
 	h.audit(r, "user.activate", "user", user.ID, map[string]any{"email": user.Email})
