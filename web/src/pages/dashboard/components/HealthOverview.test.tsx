@@ -111,13 +111,13 @@ describe("HealthOverview Component", () => {
 
     // Global title and badge
     expect(screen.getByTestId("health-overview")).toBeTruthy();
-    expect(screen.getByText("System Health")).toBeTruthy();
+    expect(screen.getByText("System health")).toBeTruthy();
     expect(screen.getAllByText("Healthy").length).toBeGreaterThanOrEqual(1);
 
     // Runtime card
     expect(screen.getByTestId("health-card-runtime")).toBeTruthy();
     expect(screen.getByText("42")).toBeTruthy(); // goroutines
-    expect(screen.getByText("go1.25.0 · 8 CPU Cores")).toBeTruthy();
+    expect(screen.getByText("go1.25.0 · 8 CPU cores")).toBeTruthy();
     expect(screen.getByText("2h 2m")).toBeTruthy(); // uptime
     expect(screen.getByText("Heap: 20 MB")).toBeTruthy();
     expect(screen.getByText("Sys: 64 MB")).toBeTruthy();
@@ -171,7 +171,7 @@ describe("HealthOverview Component", () => {
     // Troubleshooting alert should appear with database recommendations
     const alert = screen.getByTestId("health-troubleshooting-alert");
     expect(alert).toBeTruthy();
-    expect(screen.getByText("Subsystem Health Alert")).toBeTruthy();
+    expect(screen.getByText("Subsystem health alert")).toBeTruthy();
     expect(screen.getByText(/3 slow queries detected/i)).toBeTruthy();
     expect(
       screen.getByText(
@@ -239,7 +239,7 @@ describe("HealthOverview Component", () => {
     await waitFor(() => {
       expect(screen.getByTestId("health-overview-error")).toBeTruthy();
     });
-    expect(screen.getByText("Failed to load health status")).toBeTruthy();
+    expect(screen.getByText("Could not load health status. Try again.")).toBeTruthy();
 
     const retryBtn = screen.getByTestId("health-retry-btn");
     fireEvent.click(retryBtn);

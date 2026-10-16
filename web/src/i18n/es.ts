@@ -154,7 +154,7 @@ export const es = {
     notifications: "Alertas",
     "checkout-orders": "Pedidos",
     "checkout-promos": "Códigos promocionales",
-    profile: "Mi Perfil",
+    profile: "Mi perfil",
     security: "Seguridad",
     tokens: "Tokens de API",
     appearance: "Apariencia",
