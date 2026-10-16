@@ -42,17 +42,17 @@ type TwoFAStatusOutput struct {
 // GET /api/auth/2fa/status
 func (h *Handler) twoFAStatus(ctx context.Context, input *TwoFAStatusInput) (*TwoFAStatusOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	uid := h.auth.UserID(r)
 	var user models.User
 	if err := h.db.First(&user, uid).Error; err != nil {
-		return nil, huma.Error401Unauthorized("user not found")
+		return nil, huma.Error401Unauthorized("User account not found; verify the member identifier and try again")
 	}
 	out := &TwoFAStatusOutput{}
 	out.Body.Enabled = user.TOTPEnabled
@@ -85,17 +85,17 @@ type Setup2FAOutput struct {
 // POST /api/auth/2fa/setup
 func (h *Handler) setup2FA(ctx context.Context, input *Setup2FAInput) (*Setup2FAOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	uid := h.auth.UserID(r)
 	var user models.User
 	if err := h.db.First(&user, uid).Error; err != nil {
-		return nil, huma.Error401Unauthorized("user not found")
+		return nil, huma.Error401Unauthorized("User account not found; verify the member identifier and try again")
 	}
 	if err := h.requirePasswordStepUp(r, &user, input.Body.Password); err != nil {
 		return nil, err
@@ -114,11 +114,11 @@ func (h *Handler) setup2FA(ctx context.Context, input *Setup2FAInput) (*Setup2FA
 		AccountName: user.Email,
 	})
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to generate secret")
+		return nil, huma.Error500InternalServerError("Could not generate two-factor authentication secret; retry the request")
 	}
 	enc, err := h.cipher.Encrypt([]byte(key.Secret()))
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to encrypt secret")
+		return nil, huma.Error500InternalServerError("Could not encrypt two-factor authentication secret; retry the request")
 	}
 	// Store the pending secret but keep 2FA disabled until the user proves they
 	// can produce a code (enable step).
@@ -126,7 +126,7 @@ func (h *Handler) setup2FA(ctx context.Context, input *Setup2FAInput) (*Setup2FA
 		"totp_secret":  enc,
 		"totp_enabled": false,
 	}).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to store secret")
+		return nil, huma.Error500InternalServerError("Could not save two-factor authentication secret; retry the request")
 	}
 	// Render the QR server-side as a data URI. The otpauth URL contains the TOTP
 	// secret, so it must never be sent to a third-party QR service.
@@ -163,40 +163,40 @@ type Enable2FAOutput struct {
 // POST /api/auth/2fa/enable  {code}
 func (h *Handler) enable2FA(ctx context.Context, input *Enable2FAInput) (*Enable2FAOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	uid := h.auth.UserID(r)
 	var user models.User
 	if err := h.db.First(&user, uid).Error; err != nil {
-		return nil, huma.Error401Unauthorized("user not found")
+		return nil, huma.Error401Unauthorized("User account not found; verify the member identifier and try again")
 	}
 
 	if user.TOTPSecret == "" {
-		return nil, huma.Error400BadRequest("2FA setup not started")
+		return nil, huma.Error400BadRequest("Two-factor authentication setup has not been initiated; start setup before enabling")
 	}
 	secret, err := h.cipher.Decrypt(user.TOTPSecret)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to read secret")
+		return nil, huma.Error500InternalServerError("Could not load two-factor authentication secret; retry the request")
 	}
 	if !totp.Validate(strings.TrimSpace(input.Body.Code), string(secret)) {
-		return nil, huma.Error400BadRequest("invalid code")
+		return nil, huma.Error400BadRequest("Invalid verification code; check the code and try again")
 	}
 
 	plainCodes, hashed, err := generateRecoveryCodes(recoveryCodeCount)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to generate recovery codes")
+		return nil, huma.Error500InternalServerError("Could not generate recovery codes; retry the request")
 	}
 	hashedJSON, _ := json.Marshal(hashed)
 	if err := h.db.Model(&user).Updates(map[string]any{
 		"totp_enabled":   true,
 		"recovery_codes": string(hashedJSON),
 	}).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to enable 2FA")
+		return nil, huma.Error500InternalServerError("Could not enable two-factor authentication; retry the request")
 	}
 	return &Enable2FAOutput{
 		Body: map[string]any{
@@ -236,17 +236,17 @@ type Disable2FAOutput struct {
 // POST /api/auth/2fa/disable  {code, password}
 func (h *Handler) disable2FA(ctx context.Context, input *Disable2FAInput) (*Disable2FAOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	uid := h.auth.UserID(r)
 	var user models.User
 	if err := h.db.First(&user, uid).Error; err != nil {
-		return nil, huma.Error401Unauthorized("user not found")
+		return nil, huma.Error401Unauthorized("User account not found; verify the member identifier and try again")
 	}
 
 	if !user.TOTPEnabled {
@@ -259,7 +259,7 @@ func (h *Handler) disable2FA(ctx context.Context, input *Disable2FAInput) (*Disa
 		return nil, err
 	}
 	if !h.verifyTOTPOrRecovery(&user, strings.TrimSpace(input.Body.Code)) {
-		return nil, huma.Error401Unauthorized("verification failed")
+		return nil, huma.Error401Unauthorized("Two-factor verification failed; check the code and try again")
 	}
 
 	if err := h.db.Model(&user).Updates(map[string]any{
@@ -267,7 +267,7 @@ func (h *Handler) disable2FA(ctx context.Context, input *Disable2FAInput) (*Disa
 		"totp_secret":    "",
 		"recovery_codes": "",
 	}).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to disable 2FA")
+		return nil, huma.Error500InternalServerError("Could not disable two-factor authentication; retry the request")
 	}
 	out := &Disable2FAOutput{}
 	out.Body.OK = true
@@ -288,13 +288,13 @@ func (h *Handler) requirePasswordStepUp(r *http.Request, user *models.User, pass
 		return nil
 	}
 	if password == "" {
-		return huma.Error401Unauthorized("password confirmation required")
+		return huma.Error401Unauthorized("Current password is required; enter your password to confirm")
 	}
 	if !h.verifyUserPassword(user, password) {
 		// Same bookkeeping a failed login gets: this endpoint is otherwise a
 		// password oracle that no rate limit is watching.
 		h.loginLimiter.recordFailure(reporterIP(r))
-		return huma.Error401Unauthorized("password confirmation failed")
+		return huma.Error401Unauthorized("Incorrect password; check your password and try again")
 	}
 	return nil
 }

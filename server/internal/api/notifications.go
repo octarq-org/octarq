@@ -33,17 +33,17 @@ type ListNotificationsOutput struct {
 
 func (h *Handler) listNotifications(ctx context.Context, input *ListNotificationsInput) (*ListNotificationsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uid := h.auth.UserID(r)
 	if uid == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uidStr := strconv.FormatUint(uint64(uid), 10)
@@ -57,7 +57,7 @@ func (h *Handler) listNotifications(ctx context.Context, input *ListNotification
 
 	var items []models.Notification
 	if err := q.Limit(limit).Offset(offset).Find(&items).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to list notifications")
+		return nil, huma.Error500InternalServerError("Could not load notifications; retry the request")
 	}
 
 	return &ListNotificationsOutput{Body: items}, nil
@@ -83,29 +83,29 @@ type MarkNotificationReadOutput struct {
 
 func (h *Handler) markNotificationRead(ctx context.Context, input *MarkNotificationReadInput) (*MarkNotificationReadOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uid := h.auth.UserID(r)
 	if uid == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uidStr := strconv.FormatUint(uint64(uid), 10)
 	var notif models.Notification
 	if err := h.db.WithContext(ctx).Where("id = ? AND user_id = ?", input.ID, uidStr).First(&notif).Error; err != nil {
-		return nil, huma.Error404NotFound("notification not found")
+		return nil, huma.Error404NotFound("Notification not found; verify the notification identifier and try again")
 	}
 
 	now := time.Now()
 	notif.ReadAt = &now
 	if err := h.db.WithContext(ctx).Save(&notif).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to mark notification as read")
+		return nil, huma.Error500InternalServerError("Could not mark notification as read; retry the request")
 	}
 
 	return &MarkNotificationReadOutput{Body: SimpleOKOutputBody{OK: true}}, nil
@@ -126,17 +126,17 @@ type MarkAllNotificationsReadOutput struct {
 
 func (h *Handler) markAllNotificationsRead(ctx context.Context, input *MarkAllNotificationsReadInput) (*MarkAllNotificationsReadOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uid := h.auth.UserID(r)
 	if uid == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uidStr := strconv.FormatUint(uint64(uid), 10)
@@ -144,7 +144,7 @@ func (h *Handler) markAllNotificationsRead(ctx context.Context, input *MarkAllNo
 	if err := h.db.WithContext(ctx).Model(&models.Notification{}).
 		Where("user_id = ? AND read_at IS NULL", uidStr).
 		Update("read_at", &now).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to mark all notifications as read")
+		return nil, huma.Error500InternalServerError("Could not mark all notifications as read; retry the request")
 	}
 
 	return &MarkAllNotificationsReadOutput{Body: SimpleOKOutputBody{OK: true}}, nil
@@ -166,27 +166,27 @@ type DeleteNotificationOutput struct {
 
 func (h *Handler) deleteNotification(ctx context.Context, input *DeleteNotificationInput) (*DeleteNotificationOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uid := h.auth.UserID(r)
 	if uid == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uidStr := strconv.FormatUint(uint64(uid), 10)
 	var notif models.Notification
 	if err := h.db.WithContext(ctx).Where("id = ? AND user_id = ?", input.ID, uidStr).First(&notif).Error; err != nil {
-		return nil, huma.Error404NotFound("notification not found")
+		return nil, huma.Error404NotFound("Notification not found; verify the notification identifier and try again")
 	}
 
 	if err := h.db.WithContext(ctx).Delete(&notif).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to delete notification")
+		return nil, huma.Error500InternalServerError("Could not delete notification; retry the request")
 	}
 
 	return &DeleteNotificationOutput{Body: SimpleOKOutputBody{OK: true}}, nil
@@ -209,23 +209,23 @@ type GetNotificationPreferencesOutput struct {
 
 func (h *Handler) getNotificationPreferences(ctx context.Context, input *GetNotificationPreferencesInput) (*GetNotificationPreferencesOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uid := h.auth.UserID(r)
 	if uid == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uidStr := strconv.FormatUint(uint64(uid), 10)
 	prefs, err := notification.GetPreferences(ctx, h.db, uidStr)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to load preferences")
+		return nil, huma.Error500InternalServerError("Could not load notification preferences; retry the request")
 	}
 
 	return &GetNotificationPreferencesOutput{Body: prefs}, nil
@@ -253,17 +253,17 @@ type UpdateNotificationPreferencesOutput struct {
 
 func (h *Handler) updateNotificationPreferences(ctx context.Context, input *UpdateNotificationPreferencesInput) (*UpdateNotificationPreferencesOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uid := h.auth.UserID(r)
 	if uid == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uidStr := strconv.FormatUint(uint64(uid), 10)
@@ -279,12 +279,12 @@ func (h *Handler) updateNotificationPreferences(ctx context.Context, input *Upda
 	}
 
 	if err := notification.SavePreferences(ctx, h.db, uidStr, items); err != nil {
-		return nil, huma.Error500InternalServerError("failed to save preferences")
+		return nil, huma.Error500InternalServerError("Could not save notification preferences; retry the request")
 	}
 
 	prefs, err := notification.GetPreferences(ctx, h.db, uidStr)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to reload preferences")
+		return nil, huma.Error500InternalServerError("Could not reload notification preferences; retry the request")
 	}
 
 	return &UpdateNotificationPreferencesOutput{Body: prefs}, nil
@@ -305,22 +305,22 @@ type ResetNotificationPreferencesOutput struct {
 
 func (h *Handler) resetNotificationPreferences(ctx context.Context, input *ResetNotificationPreferencesInput) (*ResetNotificationPreferencesOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uid := h.auth.UserID(r)
 	if uid == 0 {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uidStr := strconv.FormatUint(uint64(uid), 10)
 	if err := notification.ResetPreferences(ctx, h.db, uidStr); err != nil {
-		return nil, huma.Error500InternalServerError("failed to reset preferences")
+		return nil, huma.Error500InternalServerError("Could not reset notification preferences; retry the request")
 	}
 
 	return &ResetNotificationPreferencesOutput{Body: SimpleOKOutputBody{OK: true}}, nil
@@ -349,12 +349,12 @@ type ListRegisteredChannelsOutput struct {
 
 func (h *Handler) listRegisteredChannels(ctx context.Context, input *ListRegisteredChannelsInput) (*ListRegisteredChannelsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	_, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	channels := notification.DefaultRouter().ListChannels()

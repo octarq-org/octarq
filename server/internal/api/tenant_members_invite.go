@@ -57,12 +57,12 @@ type ResendOrgMemberInviteOutput struct {
 // POST /api/org/members/{userId}/resend
 func (h *Handler) resendOrgMemberInvite(ctx context.Context, input *ResendOrgMemberInviteInput) (*ResendOrgMemberInviteOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	orgID, err := h.requireOrg(r)
@@ -71,32 +71,32 @@ func (h *Handler) resendOrgMemberInvite(ctx context.Context, input *ResendOrgMem
 	}
 	callerRole := string(h.effectiveRole(r))
 	if callerRole != "owner" && callerRole != "admin" {
-		return nil, huma.Error403Forbidden("forbidden: only owner/admin can manage members")
+		return nil, huma.Error403Forbidden("Workspace owner or administrator role required to manage members")
 	}
 
 	// Rate limit check: 30 seconds cooldown per user ID
 	if last, ok := h.resendInviteLimits.Load(input.UserID); ok {
 		if t, isTime := last.(time.Time); isTime && time.Since(t) < 30*time.Second {
-			return nil, huma.Error429TooManyRequests("please wait before resending invitation")
+			return nil, huma.Error429TooManyRequests("Too many invitation requests; wait 30 seconds before trying again")
 		}
 	}
 
 	var mem models.OrgMember
 	if err := h.db.Where("org_id = ? AND user_id = ?", orgID, input.UserID).First(&mem).Error; err != nil {
-		return nil, huma.Error404NotFound("not a member of this organization")
+		return nil, huma.Error404NotFound("Member not found in this workspace; verify the member identifier and try again")
 	}
 
 	var user models.User
 	if err := h.db.Where("id = ?", input.UserID).First(&user).Error; err != nil {
-		return nil, huma.Error404NotFound("user not found")
+		return nil, huma.Error404NotFound("User account not found; verify the member identifier and try again")
 	}
 	if user.InviteTokenHash == "" {
-		return nil, huma.Error400BadRequest("member has already accepted invitation")
+		return nil, huma.Error400BadRequest("Invitation already accepted; member has joined the workspace")
 	}
 
 	tokenBytes := make([]byte, 24)
 	if _, err := rand.Read(tokenBytes); err != nil {
-		return nil, huma.Error500InternalServerError("failed to generate invite token")
+		return nil, huma.Error500InternalServerError("Could not generate invitation token; retry the request")
 	}
 	rawInviteToken := hex.EncodeToString(tokenBytes)
 	expiresAt := time.Now().Add(24 * time.Hour)
@@ -105,7 +105,7 @@ func (h *Handler) resendOrgMemberInvite(ctx context.Context, input *ResendOrgMem
 		"invite_token_hash": hashToken(rawInviteToken),
 		"invite_expires_at": &expiresAt,
 	}).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to update invitation")
+		return nil, huma.Error500InternalServerError("Could not update invitation; retry the request")
 	}
 
 	h.resendInviteLimits.Store(input.UserID, time.Now())

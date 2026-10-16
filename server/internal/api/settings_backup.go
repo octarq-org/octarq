@@ -26,15 +26,15 @@ func (i *DownloadBackupInput) Resolve(ctx huma.Context) []error {
 
 func (h *Handler) downloadBackup(ctx context.Context, input *DownloadBackupInput) (*huma.StreamResponse, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if !h.isInstanceAdmin(r) {
-		return nil, huma.Error403Forbidden("instance admin role required")
+		return nil, huma.Error403Forbidden("Instance administrator role required; contact an instance administrator")
 	}
 
 	backupCfg := *h.cfg
@@ -48,7 +48,7 @@ func (h *Handler) downloadBackup(ctx context.Context, input *DownloadBackupInput
 	tmpFile := filepath.Join(os.TempDir(), fmt.Sprintf("tmp-%s-%s", uuid.NewString(), db.DefaultBackupFilename(backupCfg.DBDriver, time.Now())))
 	if err := db.Backup(&backupCfg, tmpFile); err != nil {
 		slog.Error("backup failed", "err", err)
-		return nil, huma.Error500InternalServerError("backup failed")
+		return nil, huma.Error500InternalServerError("Could not generate database backup; retry the request")
 	}
 
 	f, err := os.Open(tmpFile)
@@ -56,7 +56,7 @@ func (h *Handler) downloadBackup(ctx context.Context, input *DownloadBackupInput
 		if remErr := os.Remove(tmpFile); remErr != nil {
 			slog.Warn("failed to remove tmp backup file", "file", tmpFile, "err", remErr)
 		}
-		return nil, huma.Error500InternalServerError("open backup file failed")
+		return nil, huma.Error500InternalServerError("Could not read database backup; retry the request")
 	}
 
 	filename := db.DefaultBackupFilename(h.cfg.DBDriver, time.Now())

@@ -41,12 +41,12 @@ type UpdateOrgMemberOutput struct {
 // PATCH /api/org/members/{userId}  {"role": "admin"}
 func (h *Handler) updateOrgMember(ctx context.Context, input *UpdateOrgMemberInput) (*UpdateOrgMemberOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	orgID, err := h.requireOrg(r)
@@ -55,17 +55,17 @@ func (h *Handler) updateOrgMember(ctx context.Context, input *UpdateOrgMemberInp
 	}
 	callerRole := string(h.effectiveRole(r))
 	if callerRole != "owner" && callerRole != "admin" {
-		return nil, huma.Error403Forbidden("forbidden: only owner/admin can manage members")
+		return nil, huma.Error403Forbidden("Workspace owner or administrator role required to manage members")
 	}
 
 	role := authz.Role(strings.TrimSpace(input.Body.Role))
 	if role != authz.RoleOwner && role != authz.RoleAdmin && role != authz.RoleMember {
-		return nil, huma.Error400BadRequest("role must be one of member, admin, owner")
+		return nil, huma.Error400BadRequest("Role must be one of: member, admin, owner")
 	}
 
 	var target models.OrgMember
 	if err := h.db.Where("org_id = ? AND user_id = ?", orgID, input.UserID).First(&target).Error; err != nil {
-		return nil, huma.Error404NotFound("not a member of this organization")
+		return nil, huma.Error404NotFound("Member not found in this workspace; verify the member identifier and try again")
 	}
 	if target.Role == string(role) {
 		out := &UpdateOrgMemberOutput{}
@@ -77,10 +77,10 @@ func (h *Handler) updateOrgMember(ctx context.Context, input *UpdateOrgMemberInp
 	// an owner (which would be self-promotion by proxy) nor re-grade the one
 	// already there.
 	if role == authz.RoleOwner && !authz.AtLeast(authz.Role(callerRole), authz.RoleOwner) {
-		return nil, huma.Error403Forbidden("forbidden: only an owner can grant the owner role")
+		return nil, huma.Error403Forbidden("Workspace owner role required to grant owner permissions")
 	}
 	if authz.Role(target.Role) == authz.RoleOwner && !authz.AtLeast(authz.Role(callerRole), authz.RoleOwner) {
-		return nil, huma.Error403Forbidden("forbidden: only an owner can change an owner's role")
+		return nil, huma.Error403Forbidden("Workspace owner role required to modify an owner's role")
 	}
 	// Demoting the last owner strands the workspace: nobody left who can grant
 	// the role back, including the person who just gave it up. removeOrgMember
@@ -112,7 +112,7 @@ func (h *Handler) updateOrgMember(ctx context.Context, input *UpdateOrgMemberInp
 		}
 		return nil
 	}); err != nil {
-		return nil, huma.Error500InternalServerError("failed to update member role")
+		return nil, huma.Error500InternalServerError("Could not update member role; retry the request")
 	}
 
 	h.audit(r, "member.role", "user", input.UserID, map[string]any{
@@ -138,7 +138,7 @@ func (h *Handler) requireAnotherOwner(orgID, userID uint) error {
 		Where("org_id = ? AND role = ? AND user_id <> ?", orgID, "owner", userID).
 		Count(&owners)
 	if owners == 0 {
-		return huma.Error400BadRequest("cannot demote the last owner of the workspace")
+		return huma.Error400BadRequest("Cannot demote the last workspace owner; transfer ownership first")
 	}
 	return nil
 }
@@ -165,12 +165,12 @@ type RemoveOrgMemberOutput struct {
 // DELETE /api/org/members/{userId}
 func (h *Handler) removeOrgMember(ctx context.Context, input *RemoveOrgMemberInput) (*RemoveOrgMemberOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	orgID, err := h.requireOrg(r)
@@ -179,34 +179,34 @@ func (h *Handler) removeOrgMember(ctx context.Context, input *RemoveOrgMemberInp
 	}
 	callerRole := string(h.effectiveRole(r))
 	if callerRole != "owner" && callerRole != "admin" {
-		return nil, huma.Error403Forbidden("forbidden: only owner/admin can manage members")
+		return nil, huma.Error403Forbidden("Workspace owner or administrator role required to manage members")
 	}
 
 	callerUID := h.auth.UserID(r)
 	if input.UserID == callerUID {
-		return nil, huma.Error400BadRequest("cannot remove yourself from the workspace")
+		return nil, huma.Error400BadRequest("Cannot remove your own account from the workspace; ask another administrator to remove you")
 	}
 
 	var target models.OrgMember
 	if err := h.db.Where("org_id = ? AND user_id = ?", orgID, input.UserID).First(&target).Error; err != nil {
-		return nil, huma.Error404NotFound("not a member of this organization")
+		return nil, huma.Error404NotFound("Member not found in this workspace; verify the member identifier and try again")
 	}
 	// Only an owner may remove an owner.
 	if target.Role == "owner" && callerRole != "owner" {
-		return nil, huma.Error403Forbidden("forbidden: only an owner can remove an owner")
+		return nil, huma.Error403Forbidden("Workspace owner role required to remove an owner")
 	}
 	// Never strand the workspace ownerless — refuse to remove the last owner.
 	if target.Role == "owner" {
 		var owners int64
 		h.db.Model(&models.OrgMember{}).Where("org_id = ? AND role = ?", orgID, "owner").Count(&owners)
 		if owners <= 1 {
-			return nil, huma.Error400BadRequest("cannot remove the last owner of the workspace")
+			return nil, huma.Error400BadRequest("Cannot remove the last workspace owner; transfer ownership first")
 		}
 	}
 
 	if err := h.db.Where("org_id = ? AND user_id = ?", orgID, input.UserID).
 		Delete(&models.OrgMember{}).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to remove member")
+		return nil, huma.Error500InternalServerError("Could not remove member from workspace; retry the request")
 	}
 	revoked := h.auth.RevokeUserOrgSessions(input.UserID, orgID)
 	tokensRevoked := h.auth.RevokeUserOrgTokens(input.UserID, orgID)

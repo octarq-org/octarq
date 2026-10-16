@@ -52,12 +52,12 @@ type GetSettingsOutput struct {
 
 func (h *Handler) getSettings(ctx context.Context, input *GetSettingsInput) (*GetSettingsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {
@@ -117,15 +117,15 @@ type GetInboundTokenOutput struct {
 // explicit, admin-or-owner-only action.
 func (h *Handler) getInboundToken(ctx context.Context, input *GetInboundTokenInput) (*GetInboundTokenOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if !h.callerHoldsRole(r, authz.RoleAdmin) {
-		return nil, huma.Error403Forbidden("owner or admin role required")
+		return nil, huma.Error403Forbidden("Workspace owner or administrator role required; contact a workspace administrator")
 	}
 	if _, err := h.requireOrg(r); err != nil {
 		return nil, err
@@ -162,15 +162,15 @@ type UpdateSettingsOutput struct {
 
 func (h *Handler) updateSettings(ctx context.Context, input *UpdateSettingsInput) (*UpdateSettingsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
-		return nil, huma.Error403Forbidden("owner or admin role required")
+		return nil, huma.Error403Forbidden("Workspace owner or administrator role required; contact a workspace administrator")
 	}
 	orgID, err := h.requireOrg(r)
 	if err != nil {

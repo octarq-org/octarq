@@ -50,20 +50,20 @@ type SubmitAbuseOutput struct {
 // POST /abuse  {"slug":"abc","reason":"phishing","description":"..."}
 func (h *Handler) submitAbuse(ctx context.Context, input *SubmitAbuseInput) (*SubmitAbuseOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
 	if !h.abuseLimiter.allow(ip) {
-		return nil, huma.Error429TooManyRequests("too many reports from this IP, try again later")
+		return nil, huma.Error429TooManyRequests("Too many abuse reports submitted from this address; wait a moment before trying again")
 	}
 	slug := strings.TrimSpace(input.Body.Slug)
 	reason := strings.TrimSpace(strings.ToLower(input.Body.Reason))
 	if slug == "" {
-		return nil, huma.Error400BadRequest("slug is required")
+		return nil, huma.Error400BadRequest("Slug is required; specify a short link to report")
 	}
 	if !validAbuseReasons[reason] {
-		return nil, huma.Error400BadRequest("reason must be one of: spam, phishing, malware, other")
+		return nil, huma.Error400BadRequest("Reason must be one of spam, phishing, malware, or other")
 	}
 	description := input.Body.Description
 	if len(description) > 2000 {
@@ -95,7 +95,7 @@ func (h *Handler) submitAbuse(ctx context.Context, input *SubmitAbuseInput) (*Su
 		Status:      "open",
 	}
 	if err := h.db.Create(&rep).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to save report")
+		return nil, huma.Error500InternalServerError("Could not submit abuse report; retry the request")
 	}
 
 	h.abuseLimiter.recordFailure(ip)
@@ -163,12 +163,12 @@ type ListAbuseReportsOutput struct {
 // GET /api/abuse?status=open
 func (h *Handler) listAbuseReports(ctx context.Context, input *ListAbuseReportsInput) (*ListAbuseReportsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, err
@@ -205,23 +205,23 @@ type UpdateAbuseReportOutput struct {
 // PUT /api/abuse/{id}  {"status":"reviewed"}
 func (h *Handler) updateAbuseReport(ctx context.Context, input *UpdateAbuseReportInput) (*UpdateAbuseReportOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
 		return nil, err
 	}
 	var rep models.AbuseReport
 	if h.orgDB(r).First(&rep, input.ID).Error != nil {
-		return nil, huma.Error404NotFound("not found")
+		return nil, huma.Error404NotFound("Abuse report not found; verify the identifier and try again")
 	}
 	status := strings.TrimSpace(input.Body.Status)
 	if status != "open" && status != "reviewed" && status != "dismissed" {
-		return nil, huma.Error400BadRequest("status must be open, reviewed, or dismissed")
+		return nil, huma.Error400BadRequest("Status must be open, reviewed, or dismissed")
 	}
 	h.orgDB(r).Model(&rep).Update("status", status)
 	rep.Status = status

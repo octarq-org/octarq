@@ -43,12 +43,12 @@ type ListIdentitiesOutput struct {
 // GET /api/account/identities
 func (h *Handler) listIdentities(ctx context.Context, input *ListIdentitiesInput) (*ListIdentitiesOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	uid := h.auth.UserID(r)
 
@@ -84,18 +84,18 @@ type UnlinkIdentityOutput struct {
 // somebody else's unbinding.
 func (h *Handler) unlinkIdentity(ctx context.Context, input *UnlinkIdentityInput) (*UnlinkIdentityOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	uid := h.auth.UserID(r)
 
 	var id models.UserIdentity
 	if err := h.db.Where("id = ? AND user_id = ?", input.ID, uid).First(&id).Error; err != nil {
-		return nil, huma.Error404NotFound("identity not found")
+		return nil, huma.Error404NotFound("Identity not found; verify the identity identifier and try again")
 	}
 
 	// Removing the last way in is not a setting, it's a lockout. A user
@@ -103,18 +103,18 @@ func (h *Handler) unlinkIdentity(ctx context.Context, input *UnlinkIdentityInput
 	// of their credentials.
 	var user models.User
 	if err := h.db.First(&user, uid).Error; err != nil {
-		return nil, huma.Error500InternalServerError("could not load account")
+		return nil, huma.Error500InternalServerError("Could not load account details; retry the request")
 	}
 	if user.PasswordHash == "" {
 		var n int64
 		h.db.Model(&models.UserIdentity{}).Where("user_id = ?", uid).Count(&n)
 		if n <= 1 {
-			return nil, huma.Error409Conflict("set a password before removing your only sign-in method")
+			return nil, huma.Error409Conflict("Set an account password before removing your only sign-in method")
 		}
 	}
 
 	if err := h.db.Delete(&models.UserIdentity{}, id.ID).Error; err != nil {
-		return nil, huma.Error500InternalServerError("could not unlink identity")
+		return nil, huma.Error500InternalServerError("Could not unlink identity; retry the request")
 	}
 	h.audit(r, "identity.unlink", "user_identity", id.ID, map[string]any{
 		"provider": id.Provider, "issuer": id.Issuer,

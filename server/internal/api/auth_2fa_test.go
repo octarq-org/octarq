@@ -30,7 +30,7 @@ func TestVerify2FACoverage(t *testing.T) {
 		}
 
 		_, err := h.verify2FA(ctx, &Verify2FAInput{Ctx: humaCtx})
-		if err == nil || !strings.Contains(err.Error(), "too many failed login attempts") {
+		if err == nil || !strings.Contains(err.Error(), "Too many failed login attempts") {
 			t.Errorf("expected rate limit error, got %v", err)
 		}
 
@@ -49,7 +49,7 @@ func TestVerify2FACoverage(t *testing.T) {
 		humaCtx := humago.NewContext(nil, req, rec)
 
 		_, err := h.verify2FA(ctx, &Verify2FAInput{Ctx: humaCtx})
-		if err == nil || !strings.Contains(err.Error(), "invalid 2FA challenge") {
+		if err == nil || !strings.Contains(err.Error(), "Invalid two-factor authentication challenge") {
 			t.Errorf("expected invalid 2FA challenge error, got %v", err)
 		}
 	})
@@ -65,7 +65,7 @@ func TestVerify2FACoverage(t *testing.T) {
 		humaCtx := humago.NewContext(nil, req, rec)
 
 		_, err := h.verify2FA(ctx, &Verify2FAInput{Ctx: humaCtx})
-		if err == nil || !strings.Contains(err.Error(), "invalid 2FA challenge") {
+		if err == nil || !strings.Contains(err.Error(), "Invalid two-factor authentication challenge") {
 			t.Errorf("expected invalid 2FA challenge error (missing user), got %v", err)
 		}
 	})
@@ -84,7 +84,7 @@ func TestVerify2FACoverage(t *testing.T) {
 		humaCtx := humago.NewContext(nil, req, rec)
 
 		_, err := h.verify2FA(ctx, &Verify2FAInput{Ctx: humaCtx})
-		if err == nil || !strings.Contains(err.Error(), "invalid 2FA challenge") {
+		if err == nil || !strings.Contains(err.Error(), "Invalid two-factor authentication challenge") {
 			t.Errorf("expected invalid 2FA challenge error (TOTP disabled), got %v", err)
 		}
 	})
@@ -103,7 +103,7 @@ func TestVerify2FACoverage(t *testing.T) {
 		humaCtx := humago.NewContext(nil, req, rec)
 
 		_, err := h.verify2FA(ctx, &Verify2FAInput{Ctx: humaCtx})
-		if err == nil || !strings.Contains(err.Error(), "invalid 2FA challenge") {
+		if err == nil || !strings.Contains(err.Error(), "Invalid two-factor authentication challenge") {
 			t.Errorf("expected invalid 2FA challenge error (missing org member), got %v", err)
 		}
 	})
@@ -132,7 +132,7 @@ func TestVerify2FACoverage(t *testing.T) {
 				Code: "123456",
 			},
 		})
-		if err == nil || !strings.Contains(err.Error(), "email verification required") {
+		if err == nil || !strings.Contains(err.Error(), "Email verification required") {
 			t.Errorf("expected email verification required error, got %v", err)
 		}
 
@@ -162,7 +162,7 @@ func TestVerify2FACoverage(t *testing.T) {
 				Code: "123456",
 			},
 		})
-		if err == nil || !strings.Contains(err.Error(), "invalid 2FA code") {
+		if err == nil || !strings.Contains(err.Error(), "Invalid two-factor authentication code") {
 			t.Errorf("expected invalid 2FA code since we gave dummy code, got %v", err)
 		}
 

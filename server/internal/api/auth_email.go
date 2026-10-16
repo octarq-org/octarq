@@ -44,28 +44,28 @@ type ChangeEmailOutput struct {
 // PUT /api/auth/email
 func (h *Handler) changeEmail(ctx context.Context, input *ChangeEmailInput) (*ChangeEmailOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
 	if !h.loginLimiter.allow(ip) {
-		return nil, huma.Error429TooManyRequests("too many attempts")
+		return nil, huma.Error429TooManyRequests("Too many requests; wait a few minutes before trying again")
 	}
 
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	newEmail := strings.ToLower(strings.TrimSpace(input.Body.NewEmail))
 	if addr, err := mail.ParseAddress(newEmail); err != nil || addr.Address != newEmail || !strings.Contains(newEmail, "@") {
-		return nil, huma.Error400BadRequest("a valid email address is required")
+		return nil, huma.Error400BadRequest("Valid email address required; enter an address in the form user@example.com")
 	}
 
 	uid := h.auth.UserID(r)
 	var user models.User
 	if err := h.db.First(&user, uid).Error; err != nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	if strings.EqualFold(user.Email, newEmail) {
@@ -78,20 +78,20 @@ func (h *Handler) changeEmail(ctx context.Context, input *ChangeEmailInput) (*Ch
 	if user.PasswordHash != "" {
 		if input.Body.CurrentPassword == "" || bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Body.CurrentPassword)) != nil {
 			h.loginLimiter.recordFailure(ip)
-			return nil, huma.Error400BadRequest("current password is incorrect")
+			return nil, huma.Error400BadRequest("Current password is incorrect; check your password and try again")
 		}
 	} else if user.IsInstanceAdmin {
 		if input.Body.CurrentPassword == "" || !h.auth.CheckAdminPassword(input.Body.CurrentPassword) {
 			h.loginLimiter.recordFailure(ip)
-			return nil, huma.Error400BadRequest("current password is incorrect")
+			return nil, huma.Error400BadRequest("Current password is incorrect; check your password and try again")
 		}
 	} else {
-		return nil, huma.Error400BadRequest("this account is managed by an external identity provider; please update your email with your provider")
+		return nil, huma.Error400BadRequest("Account managed by an external identity provider; update your email through your provider")
 	}
 
 	var existing models.User
 	if h.db.Where("LOWER(email) = ? AND id <> ?", newEmail, user.ID).First(&existing).Error == nil {
-		return nil, huma.NewError(http.StatusConflict, "an account with this email already exists")
+		return nil, huma.NewError(http.StatusConflict, "An account with this email address already exists; use a different email address")
 	}
 
 	oldEmail := user.Email
@@ -105,7 +105,7 @@ func (h *Handler) changeEmail(ctx context.Context, input *ChangeEmailInput) (*Ch
 	if h.requireEmailVerification() {
 		rawToken, tokenHash, err := generateSecureToken()
 		if err != nil {
-			return nil, huma.Error500InternalServerError("failed to generate verification token")
+			return nil, huma.Error500InternalServerError("Could not generate verification token; retry the request")
 		}
 		expiry := time.Now().Add(24 * time.Hour)
 		updates["verify_token_hash"] = tokenHash
@@ -120,7 +120,7 @@ func (h *Handler) changeEmail(ctx context.Context, input *ChangeEmailInput) (*Ch
 	}
 
 	if err := h.db.Model(&user).Updates(updates).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to update email")
+		return nil, huma.Error500InternalServerError("Could not update email address; retry the request")
 	}
 
 	h.audit(r, "user.update_email", "user", user.ID, map[string]any{

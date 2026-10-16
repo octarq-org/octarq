@@ -32,12 +32,12 @@ type LogoutAllOutput struct {
 // POST /api/auth/logout-all
 func (h *Handler) logoutAll(ctx context.Context, input *LogoutAllInput) (*LogoutAllOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	uid := h.auth.UserID(r)
 	oid := h.orgID(r)
@@ -84,12 +84,12 @@ type ListSessionsOutput struct {
 // The session matching the caller's cookie is flagged isCurrent: true.
 func (h *Handler) listSessions(ctx context.Context, input *ListSessionsInput) (*ListSessionsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	uid := h.auth.UserID(r)
 	var sessions []models.Session
@@ -176,18 +176,18 @@ type RevokeSessionOutput struct {
 // If the caller revokes their OWN session, the cookie is also cleared.
 func (h *Handler) revokeSession(ctx context.Context, input *RevokeSessionInput) (*RevokeSessionOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	uid := h.auth.UserID(r)
 	oid := h.orgID(r)
 	var sess models.Session
 	if err := h.db.Where("id = ? AND user_id = ?", input.ID, uid).First(&sess).Error; err != nil {
-		return nil, huma.Error404NotFound("session not found")
+		return nil, huma.Error404NotFound("Session not found; check the session identifier and try again")
 	}
 	h.db.Delete(&sess)
 	if err := h.auth.Cache().Delete(r.Context(), "session:"+sess.Token); err != nil {
@@ -225,7 +225,7 @@ type LogoutOutput struct {
 
 func (h *Handler) logout(ctx context.Context, input *LogoutInput) (*LogoutOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 	uid := h.auth.UserID(r)
@@ -265,17 +265,17 @@ type MeOutput struct {
 
 func (h *Handler) me(ctx context.Context, input *MeInput) (*MeOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	uid := h.auth.UserID(r)
 	var user models.User
 	if err := h.db.First(&user, uid).Error; err != nil {
-		return nil, huma.Error401Unauthorized("user not found")
+		return nil, huma.Error401Unauthorized("User account not found; sign in again or check your account status")
 	}
 	out := &MeOutput{}
 	out.Body.Email = user.Email

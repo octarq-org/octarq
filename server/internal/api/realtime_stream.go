@@ -18,13 +18,13 @@ var realtimePingInterval = 15 * time.Second
 // strictly filtered by the caller's authenticated organization (orgID).
 func (h *Handler) realtimeStream(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		writeErr(w, r, http.StatusMethodNotAllowed, "", "method not allowed")
+		writeErr(w, r, http.StatusMethodNotAllowed, "", "Method not allowed; use GET to open event stream")
 		return
 	}
 
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		writeErr(w, r, http.StatusUnauthorized, "", "unauthorized")
+		writeErr(w, r, http.StatusUnauthorized, "", "Authentication required; sign in to continue")
 		return
 	}
 
@@ -36,7 +36,7 @@ func (h *Handler) realtimeStream(w http.ResponseWriter, r *http.Request) {
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		writeErr(w, r, http.StatusInternalServerError, "", "streaming unsupported")
+		writeErr(w, r, http.StatusInternalServerError, "", "Streaming unsupported; client or proxy does not support HTTP flush")
 		return
 	}
 

@@ -51,23 +51,23 @@ type ChangePasswordOutput struct {
 // which one matters.
 func (h *Handler) changePassword(ctx context.Context, input *ChangePasswordInput) (*ChangePasswordOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	newPassword := input.Body.NewPassword
 	if len(newPassword) < 8 {
-		return nil, huma.Error400BadRequest("password must be at least 8 characters")
+		return nil, huma.Error400BadRequest("Password must be at least 8 characters; choose a longer password")
 	}
 
 	uid := h.auth.UserID(r)
 	var user models.User
 	if err := h.db.First(&user, uid).Error; err != nil {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	// An empty hash means this account has no password of its own to replace:
@@ -77,15 +77,15 @@ func (h *Handler) changePassword(ctx context.Context, input *ChangePasswordInput
 	// still authenticate with the env password (h.auth.Check runs first), so the
 	// change would appear to work and change nothing.
 	if user.PasswordHash == "" {
-		return nil, huma.Error400BadRequest("this account signs in without a stored password; use the password reset flow or your identity provider")
+		return nil, huma.Error400BadRequest("Account has no stored password; use the password reset flow or sign in through your identity provider")
 	}
 	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Body.CurrentPassword)) != nil {
-		return nil, huma.Error400BadRequest("current password is incorrect")
+		return nil, huma.Error400BadRequest("Current password is incorrect; check your password and try again")
 	}
 
 	pwHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), auth.BcryptCost)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to hash password")
+		return nil, huma.Error500InternalServerError("Could not process password; retry the request")
 	}
 	// Clear any outstanding reset token along with the password. Changing your
 	// password from inside the app is the natural response to "I got a reset
@@ -98,7 +98,7 @@ func (h *Handler) changePassword(ctx context.Context, input *ChangePasswordInput
 		"reset_token_hash":   "",
 		"reset_token_expiry": nil,
 	}).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to update password")
+		return nil, huma.Error500InternalServerError("Could not update password; retry the request")
 	}
 
 	// Revoke every session except the one making this request.

@@ -74,7 +74,7 @@ func (h *Handler) orgDB(r *http.Request) *gorm.DB {
 func (h *Handler) requireOrg(r *http.Request) (uint, error) {
 	id := h.auth.OrgID(r)
 	if id == 0 {
-		return 0, huma.Error401Unauthorized("unauthorized: missing workspace context")
+		return 0, huma.Error401Unauthorized("Workspace context is missing; select a workspace to continue")
 	}
 	return id, nil
 }
@@ -84,7 +84,7 @@ func (h *Handler) requireRole(r *http.Request, min authz.Role) error {
 	if h.callerHoldsRole(r, min) {
 		return nil
 	}
-	return huma.Error403Forbidden("forbidden: insufficient workspace role privilege")
+	return huma.Error403Forbidden("Workspace permission denied; higher workspace role required")
 }
 
 // effectiveRole is the authority a request actually carries, and every

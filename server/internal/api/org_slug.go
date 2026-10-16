@@ -53,20 +53,20 @@ type GetOrgSlugOutput struct {
 // email-derived one. GET /api/org/slug
 func (h *Handler) getOrgSlug(ctx context.Context, input *GetOrgSlugInput) (*GetOrgSlugOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
-		return nil, huma.Error403Forbidden("forbidden")
+		return nil, huma.Error403Forbidden("Workspace administrator role required; contact a workspace administrator")
 	}
 
 	var org models.Org
 	if err := h.db.First(&org, h.auth.OrgID(r)).Error; err != nil {
-		return nil, huma.Error404NotFound("workspace not found")
+		return nil, huma.Error404NotFound("Workspace not found; check workspace settings")
 	}
 	return &GetOrgSlugOutput{Body: OrgSlugView{Slug: org.Slug}}, nil
 }
@@ -90,29 +90,29 @@ type UpdateOrgSlugOutput struct {
 // PUT /api/org/slug
 func (h *Handler) updateOrgSlug(ctx context.Context, input *UpdateOrgSlugInput) (*UpdateOrgSlugOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 	// Owner, not admin: this invalidates addresses held by Stripe and by the
 	// org's identity provider, and only the person answerable for those
 	// accounts should be able to do it.
 	if err := h.requireRole(r, authz.RoleOwner); err != nil {
-		return nil, huma.Error403Forbidden("forbidden: only the workspace owner can change the address")
+		return nil, huma.Error403Forbidden("Workspace owner role required to change the workspace slug")
 	}
 
 	slug := strings.ToLower(strings.TrimSpace(input.Body.Slug))
 	if !orgSlugPattern.MatchString(slug) {
-		return nil, huma.Error400BadRequest("address must be 3-64 characters of lowercase letters, digits and inner hyphens")
+		return nil, huma.Error400BadRequest("Workspace slug must be 3-64 characters of lowercase letters, digits, and hyphens")
 	}
 
 	oid := h.auth.OrgID(r)
 	var org models.Org
 	if err := h.db.First(&org, oid).Error; err != nil {
-		return nil, huma.Error404NotFound("workspace not found")
+		return nil, huma.Error404NotFound("Workspace not found; check workspace settings")
 	}
 	if slug == org.Slug {
 		return &UpdateOrgSlugOutput{Body: OrgSlugView{Slug: org.Slug}}, nil
@@ -120,15 +120,15 @@ func (h *Handler) updateOrgSlug(ctx context.Context, input *UpdateOrgSlugInput) 
 
 	status, err := models.CheckOrgSlugAvailable(h.db, slug, oid)
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to check address availability")
+		return nil, huma.Error500InternalServerError("Could not verify slug availability; retry the request")
 	}
 	if status == models.SlugReserved {
-		return nil, huma.Error409Conflict("that address is reserved")
+		return nil, huma.Error409Conflict("Workspace slug is reserved; choose a different slug")
 	}
 	if status == models.SlugTaken {
 		// Same answer as "reserved": whether some other workspace holds this
 		// address is not something an outsider gets to probe.
-		return nil, huma.Error409Conflict("that address is taken")
+		return nil, huma.Error409Conflict("Workspace slug is already in use; choose a different slug")
 	}
 
 	old := org.Slug
@@ -161,10 +161,10 @@ func (h *Handler) updateOrgSlug(ctx context.Context, input *UpdateOrgSlugInput) 
 	})
 	if err != nil {
 		if errors.Is(err, tenancy.ErrNameTaken) {
-			return nil, huma.Error409Conflict("that address is taken")
+			return nil, huma.Error409Conflict("Workspace slug is already in use; choose a different slug")
 		}
 		// The unique index is the real arbiter; a racing writer lands here.
-		return nil, huma.Error409Conflict("that address is taken")
+		return nil, huma.Error409Conflict("Workspace slug is already in use; choose a different slug")
 	}
 	h.audit(r, "org.slug.update", "org", org.ID, map[string]any{"from": old, "to": slug})
 

@@ -70,12 +70,12 @@ type SwitchOrgOutput struct {
 // POST /api/auth/switch-org  {"orgId": 2}
 func (h *Handler) switchOrg(ctx context.Context, input *SwitchOrgInput) (*SwitchOrgOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	// A bearer token must never leave here holding a session cookie. This is the
@@ -94,7 +94,7 @@ func (h *Handler) switchOrg(ctx context.Context, input *SwitchOrgInput) (*Switch
 	// CSRF is no obstacle either — a cookie-less bearer request is waved through
 	// the guard by design. So the refusal has to live here.
 	if auth.TokenIDFromContext(r.Context()) != 0 {
-		return nil, huma.Error403Forbidden("api tokens cannot switch the active workspace; scope the token to the workspace instead")
+		return nil, huma.Error403Forbidden("API tokens cannot switch the active workspace; scope the token to the workspace instead")
 	}
 
 	uid := h.auth.UserID(r)
@@ -102,7 +102,7 @@ func (h *Handler) switchOrg(ctx context.Context, input *SwitchOrgInput) (*Switch
 	// Verify the user belongs to the target organization.
 	var mem models.OrgMember
 	if err := h.db.Where("org_id = ? AND user_id = ?", input.Body.OrgID, uid).First(&mem).Error; err != nil {
-		return nil, huma.Error403Forbidden("not a member of this organization")
+		return nil, huma.Error403Forbidden("Account is not a member of this workspace; select an authorized workspace")
 	}
 
 	h.auth.SetSessionFromRequest(r, w, uid, input.Body.OrgID)
@@ -139,12 +139,12 @@ type ListOrgsOutput struct {
 // GET /api/orgs
 func (h *Handler) listOrgs(ctx context.Context, input *ListOrgsInput) (*ListOrgsOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uid := h.auth.UserID(r)
@@ -155,7 +155,7 @@ func (h *Handler) listOrgs(ctx context.Context, input *ListOrgsInput) (*ListOrgs
 		Where("org_members.user_id = ?", uid).
 		Scan(&items).Error
 	if err != nil {
-		return nil, huma.Error500InternalServerError("failed to query organizations")
+		return nil, huma.Error500InternalServerError("Could not load workspaces; retry the request")
 	}
 
 	return &ListOrgsOutput{Body: items}, nil
@@ -183,18 +183,18 @@ type CreateOrgOutput struct {
 // POST /api/orgs  {"name": "New Organization"}
 func (h *Handler) createOrg(ctx context.Context, input *CreateOrgInput) (*CreateOrgOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	uid := h.auth.UserID(r)
 	name := strings.TrimSpace(input.Body.Name)
 	if name == "" {
-		return nil, huma.Error400BadRequest("name is required")
+		return nil, huma.Error400BadRequest("Workspace name is required; provide a workspace name")
 	}
 	org := models.Org{Name: name}
 	err := h.db.Transaction(func(tx *gorm.DB) error {
@@ -218,9 +218,9 @@ func (h *Handler) createOrg(ctx context.Context, input *CreateOrgInput) (*Create
 	})
 	if err != nil {
 		if errors.Is(err, tenancy.ErrNameTaken) {
-			return nil, huma.NewError(http.StatusConflict, "the workspace address could not be claimed — please try again")
+			return nil, huma.NewError(http.StatusConflict, "Workspace address could not be claimed; retry the request")
 		}
-		return nil, huma.Error500InternalServerError("failed to create organization")
+		return nil, huma.Error500InternalServerError("Could not create workspace; retry the request")
 	}
 
 	return &CreateOrgOutput{Body: org}, nil
@@ -248,34 +248,34 @@ type UpdateOrgOutput struct {
 // PUT /api/org
 func (h *Handler) updateOrg(ctx context.Context, input *UpdateOrgInput) (*UpdateOrgOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, _ := humago.Unwrap(input.Ctx)
 	r, ok := h.auth.AuthenticateRequest(r)
 	if !ok {
-		return nil, huma.Error401Unauthorized("unauthorized")
+		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
 
 	oid := h.auth.OrgID(r)
 
 	// Verify permissions: only owner/admin can rename organization/workspace
 	if err := h.requireRole(r, authz.RoleAdmin); err != nil {
-		return nil, huma.Error403Forbidden("forbidden: only owner/admin can rename workspace")
+		return nil, huma.Error403Forbidden("Workspace owner or administrator role required to rename workspace")
 	}
 
 	name := strings.TrimSpace(input.Body.Name)
 	if name == "" {
-		return nil, huma.Error400BadRequest("name is required")
+		return nil, huma.Error400BadRequest("Workspace name is required; provide a workspace name")
 	}
 
 	var org models.Org
 	if err := h.db.First(&org, oid).Error; err != nil {
-		return nil, huma.Error404NotFound("workspace not found")
+		return nil, huma.Error404NotFound("Workspace not found; verify the workspace identifier and try again")
 	}
 
 	org.Name = name
 	if err := h.db.Save(&org).Error; err != nil {
-		return nil, huma.Error500InternalServerError("failed to update workspace name")
+		return nil, huma.Error500InternalServerError("Could not update workspace name; retry the request")
 	}
 
 	return &UpdateOrgOutput{Body: org}, nil

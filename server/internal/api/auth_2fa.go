@@ -49,12 +49,12 @@ type Verify2FAOutput struct {
 // POST /api/auth/2fa/verify  {email, password, code} | {code + challenge cookie}
 func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify2FAOutput, error) {
 	if input.Ctx == nil {
-		return nil, huma.Error500InternalServerError("Missing huma context")
+		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
 	r, w := humago.Unwrap(input.Ctx)
 	ip := reporterIP(r)
 	if !h.loginLimiter.allow(ip) {
-		return nil, huma.Error429TooManyRequests("too many failed login attempts")
+		return nil, huma.Error429TooManyRequests("Too many failed login attempts; wait a few minutes before trying again")
 	}
 
 	loginUser := strings.TrimSpace(input.Body.Email)
@@ -75,23 +75,23 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 			// would turn a typo into a full OAuth restart.)
 			h.auth.ClearTwoFAChallengeCookie(w, r)
 			h.loginLimiter.recordFailure(ip)
-			return nil, huma.Error401Unauthorized("invalid 2FA challenge")
+			return nil, huma.Error401Unauthorized("Invalid two-factor authentication challenge; sign in again to receive a new challenge")
 		}
 		if err := h.db.First(&user, uid).Error; err != nil {
 			h.loginLimiter.recordFailure(ip)
-			return nil, huma.Error401Unauthorized("invalid 2FA challenge")
+			return nil, huma.Error401Unauthorized("Invalid two-factor authentication challenge; sign in again to receive a new challenge")
 		}
 		// A challenge exists only for logins pending a second factor; an
 		// account that disabled TOTP since the challenge was minted must start
 		// its login over rather than ride the stale challenge to a session.
 		if !user.TOTPEnabled {
 			h.loginLimiter.recordFailure(ip)
-			return nil, huma.Error401Unauthorized("invalid 2FA challenge")
+			return nil, huma.Error401Unauthorized("Invalid two-factor authentication challenge; sign in again to receive a new challenge")
 		}
 		var member models.OrgMember
 		if err := h.db.Where("user_id = ?", user.ID).First(&member).Error; err != nil {
 			h.loginLimiter.recordFailure(ip)
-			return nil, huma.Error401Unauthorized("invalid 2FA challenge")
+			return nil, huma.Error401Unauthorized("Invalid two-factor authentication challenge; sign in again to receive a new challenge")
 		}
 		orgID = member.OrgID
 		loginUser = user.Email
@@ -102,10 +102,10 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 		if !ok {
 			h.loginLimiter.recordFailure(ip)
 			h.publishLoginFailed(r, loginUser, "invalid credentials")
-			return nil, huma.Error401Unauthorized("invalid credentials")
+			return nil, huma.Error401Unauthorized("Invalid credentials; check your email and password and try again")
 		}
 		if err := h.db.First(&user, uid).Error; err != nil {
-			return nil, huma.Error401Unauthorized("invalid credentials")
+			return nil, huma.Error401Unauthorized("Invalid credentials; check your email and password and try again")
 		}
 		meta = map[string]any{"email": loginUser}
 	}
@@ -114,13 +114,13 @@ func (h *Handler) verify2FA(ctx context.Context, input *Verify2FAInput) (*Verify
 		user.EmailVerified = true
 	}
 	if h.requireEmailVerification() && !user.EmailVerified && !user.IsInstanceAdmin {
-		return nil, huma.NewError(http.StatusForbidden, "email verification required")
+		return nil, huma.NewError(http.StatusForbidden, "Email verification required; verify your email before signing in")
 	}
 	if user.TOTPEnabled {
 		if !h.verifyTOTPOrRecovery(&user, strings.TrimSpace(input.Body.Code)) {
 			h.loginLimiter.recordFailure(ip)
 			h.publishLoginFailed(r, loginUser, "invalid 2FA code")
-			return nil, huma.Error401Unauthorized("invalid 2FA code")
+			return nil, huma.Error401Unauthorized("Invalid two-factor authentication code; check the code from your authenticator app and try again")
 		}
 	}
 	h.loginLimiter.reset(ip)

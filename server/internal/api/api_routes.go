@@ -62,7 +62,7 @@ func (h *Handler) Routes() *http.ServeMux {
 			if r != nil {
 				r2, ok := h.auth.AuthenticateRequest(r)
 				if !ok {
-					huma.WriteErr(api, ctx, http.StatusUnauthorized, "unauthorized")
+					huma.WriteErr(api, ctx, http.StatusUnauthorized, "Authentication required; sign in to continue")
 					return
 				}
 				ctx = huma.WithContext(ctx, r2.Context())

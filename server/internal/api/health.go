@@ -96,7 +96,7 @@ func (h *Handler) subsystemStatus(ctx context.Context, input *StatusStatusInput)
 		if r != nil && h.statusLimiter != nil {
 			ip := reporterIP(r)
 			if !h.statusLimiter.allow(ip) {
-				return nil, huma.Error429TooManyRequests("too many status requests")
+				return nil, huma.Error429TooManyRequests("Too many status requests; wait a few minutes before trying again")
 			}
 			h.statusLimiter.recordFailure(ip)
 		}
