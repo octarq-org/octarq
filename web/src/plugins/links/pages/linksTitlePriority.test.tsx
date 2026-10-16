@@ -151,29 +151,29 @@ describe("LinksPage title priority and tag badges", () => {
     fireEvent.click(analyticsButtons[0]);
 
     await waitFor(() => {
-      expect(screen.getByText("Click Performance Analytics — Summer Sale 2026")).toBeDefined();
+      expect(screen.getByText("Click performance analytics — Summer Sale 2026")).toBeDefined();
     });
 
     // Close Analytics modal
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
     // Test QR modal title for link with title
-    const qrButtons = screen.getAllByTitle("QR Code");
+    const qrButtons = screen.getAllByTitle("QR code");
     fireEvent.click(qrButtons[0]);
 
     await waitFor(() => {
-      expect(screen.getByText("Link QR Code — Summer Sale 2026")).toBeDefined();
+      expect(screen.getByText("Link QR code — Summer Sale 2026")).toBeDefined();
     });
 
     // Close QR modal
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
     // Test Edit modal title for link with title
-    const editButtons = screen.getAllByTitle("Edit Link");
+    const editButtons = screen.getAllByTitle("Edit link");
     fireEvent.click(editButtons[0]);
 
     await waitFor(() => {
-      expect(screen.getByText("Edit Link — Summer Sale 2026")).toBeDefined();
+      expect(screen.getByText("Edit link — Summer Sale 2026")).toBeDefined();
     });
 
     // Close Edit modal
@@ -183,7 +183,7 @@ describe("LinksPage title priority and tag badges", () => {
     fireEvent.click(editButtons[1]);
 
     await waitFor(() => {
-      expect(screen.getByText("Edit Link — /random-slug-without-title")).toBeDefined();
+      expect(screen.getByText("Edit link — /random-slug-without-title")).toBeDefined();
     });
   });
 });

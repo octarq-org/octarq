@@ -141,7 +141,7 @@ describe("Mail Enhancements", () => {
     expect((toInput as HTMLInputElement).value).toBe("contact@example.com");
 
     // Click Save Draft
-    const saveDraftBtn = screen.getByRole("button", { name: "Save Draft" });
+    const saveDraftBtn = screen.getByRole("button", { name: "Save draft" });
     fireEvent.click(saveDraftBtn);
 
     await waitFor(() => {

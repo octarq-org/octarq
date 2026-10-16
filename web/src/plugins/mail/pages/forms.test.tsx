@@ -177,8 +177,8 @@ describe("Mail Forms", () => {
       renderWithProviders(<Compose onClose={onClose} />);
 
       // Verify fields
-      expect(screen.getByText("Compose Mail")).toBeDefined();
-      expect((screen.getByRole("button", { name: "Send Mail" }) as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.getByText("Compose mail")).toBeDefined();
+      expect((screen.getByRole("button", { name: "Send mail" }) as HTMLButtonElement).disabled).toBe(true);
 
       // Wait for settings & senders to load and checkbox to appear
       await waitFor(() => {
@@ -194,7 +194,7 @@ describe("Mail Forms", () => {
       fireEvent.change(subjectInput, {
         target: { value: "Important System Update" },
       });
-      fireEvent.change(screen.getByPlaceholderText("Type mail content here..."), {
+      fireEvent.change(screen.getByPlaceholderText("Type email content here…"), {
         target: { value: "Hello team,\nPlease read https://example.com/update" },
       });
       fireEvent.change(screen.getByPlaceholderText("e.g. custom@domain.com"), {
@@ -202,12 +202,12 @@ describe("Mail Forms", () => {
       });
 
       // Submit email
-      const sendBtn = screen.getByRole("button", { name: "Send Mail" });
+      const sendBtn = screen.getByRole("button", { name: "Send mail" });
       expect((sendBtn as HTMLButtonElement).disabled).toBe(false);
       fireEvent.click(sendBtn);
 
       await waitFor(() => {
-        expect(screen.getByText("Message Sent Successfully")).toBeDefined();
+        expect(screen.getByText("Message sent.")).toBeDefined();
       });
 
       // Verify the POST payload sent to /api/emails/send
@@ -271,12 +271,12 @@ describe("Mail Forms", () => {
 
       renderWithProviders(<Compose onClose={vi.fn()} />);
 
-      expect(screen.getByText("Compose Mail")).toBeDefined();
+      expect(screen.getByText("Compose mail")).toBeDefined();
 
       fireEvent.change(screen.getByPlaceholderText("hello@world.com"), { target: { value: "test@example.com" } });
       fireEvent.change(screen.getByPlaceholderText("Subject line"), { target: { value: "Test" } });
 
-      const sendBtn = screen.getByRole("button", { name: "Send Mail" });
+      const sendBtn = screen.getByRole("button", { name: "Send mail" });
       expect((sendBtn as HTMLButtonElement).disabled).toBe(false);
       fireEvent.click(sendBtn);
 
@@ -300,14 +300,14 @@ describe("Mail Forms", () => {
         />
       );
 
-      expect(screen.getByText("Create Mailbox")).toBeDefined();
+      expect(screen.getByText("Create mailbox")).toBeDefined();
       const prefixInput = screen.getByPlaceholderText("e.g. sales");
       const noteInput = screen.getByPlaceholderText("e.g. support operations");
 
       fireEvent.change(prefixInput, { target: { value: "hello" } });
       fireEvent.change(noteInput, { target: { value: "General contact inbox" } });
 
-      const saveBtn = screen.getByRole("button", { name: "Save Configuration" });
+      const saveBtn = screen.getByRole("button", { name: "Save configuration" });
       fireEvent.click(saveBtn);
 
       await waitFor(() => {
@@ -340,7 +340,7 @@ describe("Mail Forms", () => {
         />
       );
 
-      expect(screen.getByText("Edit Mailbox")).toBeDefined();
+      expect(screen.getByText("Edit mailbox")).toBeDefined();
       const addressInput = screen.getByDisplayValue("support@acme.com") as HTMLInputElement;
       expect(addressInput.disabled).toBe(true);
 
@@ -349,7 +349,7 @@ describe("Mail Forms", () => {
 
       fireEvent.change(noteInput, { target: { value: "Updated support queue note" } });
 
-      const saveBtn = screen.getByRole("button", { name: "Save Configuration" });
+      const saveBtn = screen.getByRole("button", { name: "Save configuration" });
       fireEvent.click(saveBtn);
 
       await waitFor(() => {
@@ -357,7 +357,7 @@ describe("Mail Forms", () => {
       });
 
       // Delete mailbox with confirmation
-      const delBtn = screen.getByRole("button", { name: "Delete Mailbox Completely" });
+      const delBtn = screen.getByRole("button", { name: "Delete mailbox completely" });
       fireEvent.click(delBtn);
 
       await waitFor(() => {
@@ -463,25 +463,25 @@ describe("Mail Forms", () => {
         expect(screen.getByText("hardbounce@invalid.com")).toBeDefined();
         expect(screen.getByText("complaint@spam.com")).toBeDefined();
         expect(screen.getByText("manual@blocked.com")).toBeDefined();
-        expect(screen.getByText("Hard Bounce")).toBeDefined();
+        expect(screen.getByText("Hard bounce")).toBeDefined();
         expect(screen.getByText("Complaint")).toBeDefined();
         expect(screen.getByText("Manual")).toBeDefined();
       });
 
       // Add address
-      const addBtn = screen.getByRole("button", { name: "Add Address" });
+      const addBtn = screen.getByRole("button", { name: "Add address" });
       fireEvent.click(addBtn);
 
-      expect(screen.getByText("Add to Suppression List")).toBeDefined();
+      expect(screen.getByText("Add to suppression list")).toBeDefined();
 
       const addrInput = screen.getByPlaceholderText("colleague@example.com");
       fireEvent.change(addrInput, { target: { value: "spammer@bad.org" } });
 
-      const saveBtn = screen.getByRole("button", { name: "Save Configuration" });
+      const saveBtn = screen.getByRole("button", { name: "Save configuration" });
       fireEvent.click(saveBtn);
 
       await waitFor(() => {
-        expect(screen.queryByText("Add to Suppression List")).toBeNull();
+        expect(screen.queryByText("Add to suppression list")).toBeNull();
       });
 
       // Remove suppression item with confirmation
