@@ -444,7 +444,7 @@ describe("DNS Forms", () => {
       // Secret modal should open
       await waitFor(() => {
         expect(screen.getByText("DDNS Token Created")).toBeDefined();
-        expect(screen.getByText("Copy your secret token now. It will never be displayed again!")).toBeDefined();
+        expect(screen.getByText("Copy your secret token now. It will never be displayed again.")).toBeDefined();
       });
 
       const secretInput = screen.getByDisplayValue("ddns_sec_abcdef123456");
@@ -461,14 +461,14 @@ describe("DNS Forms", () => {
       fireEvent.click(revokeBtn);
 
       await waitFor(() => {
-        expect(screen.getByText("Are you sure you want to revoke this DDNS token? Devices using it will fail to update DNS.")).toBeDefined();
+        expect(screen.getByText("Revoke this DDNS token? Devices using it will stop updating DNS.")).toBeDefined();
       });
 
       const confirmBtn = screen.getByRole("button", { name: "Confirm" });
       fireEvent.click(confirmBtn);
 
       await waitFor(() => {
-        expect(screen.queryByText("Are you sure you want to revoke this DDNS token? Devices using it will fail to update DNS.")).toBeNull();
+        expect(screen.queryByText("Revoke this DDNS token? Devices using it will stop updating DNS.")).toBeNull();
       });
     });
   });

@@ -98,7 +98,7 @@ describe("LinkEditorForm", () => {
     expect(slugInput).toBeDefined();
 
     // Save button should be disabled when target is empty
-    const saveBtn = screen.getByRole("button", { name: "Save Link" });
+    const saveBtn = screen.getByRole("button", { name: "Save link" });
     expect((saveBtn as HTMLButtonElement).disabled).toBe(true);
 
     // Cancel button works
@@ -120,13 +120,13 @@ describe("LinkEditorForm", () => {
 
     // Wait for AI assist status to load
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "AI Suggest" })).toBeDefined();
+      expect(screen.getByRole("button", { name: "AI suggest" })).toBeDefined();
     });
 
     const targetInput = screen.getByPlaceholderText("https://example.com/blog-post-xyz");
     fireEvent.change(targetInput, { target: { value: "https://acme.com/awesome-tool" } });
 
-    const aiBtn = screen.getByRole("button", { name: "AI Suggest" });
+    const aiBtn = screen.getByRole("button", { name: "AI suggest" });
     fireEvent.click(aiBtn);
 
     await waitFor(() => {
@@ -160,17 +160,17 @@ describe("LinkEditorForm", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "AI Suggest" })).toBeDefined();
+      expect(screen.getByRole("button", { name: "AI suggest" })).toBeDefined();
     });
 
     const targetInput = screen.getByPlaceholderText("https://example.com/blog-post-xyz");
     fireEvent.change(targetInput, { target: { value: "https://acme.com/awesome-tool" } });
 
-    const aiBtn = screen.getByRole("button", { name: "AI Suggest" });
+    const aiBtn = screen.getByRole("button", { name: "AI suggest" });
     fireEvent.click(aiBtn);
 
     await waitFor(() => {
-      expect(screen.getByText("AI suggestion failed")).toBeDefined();
+      expect(screen.getByText("Could not generate AI suggestion. Try again.")).toBeDefined();
     });
   });
 
@@ -218,7 +218,7 @@ describe("LinkEditorForm", () => {
     fireEvent.change(screen.getByPlaceholderText("utm_content"), { target: { value: "header-link" } });
 
     // Apply UTM
-    const applyBtn = screen.getByRole("button", { name: "Apply UTM Parameters" });
+    const applyBtn = screen.getByRole("button", { name: "Apply UTM parameters" });
     fireEvent.click(applyBtn);
 
     expect(targetInput.value).toBe(
@@ -234,7 +234,7 @@ describe("LinkEditorForm", () => {
     );
 
     // Add rule
-    const addRuleBtn = screen.getByRole("button", { name: "Add Rule" });
+    const addRuleBtn = screen.getByRole("button", { name: "Add rule" });
     fireEvent.click(addRuleBtn);
 
     // Initial added rule is split with weight 50
@@ -319,7 +319,7 @@ describe("LinkEditorForm", () => {
     });
 
     // Submit
-    const saveBtn = screen.getByRole("button", { name: "Save Link" });
+    const saveBtn = screen.getByRole("button", { name: "Save link" });
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
@@ -387,7 +387,7 @@ describe("LinkEditorForm", () => {
 
     // Modify title and submit
     fireEvent.change(titleInput, { target: { value: "Updated Spring Promo 2026" } });
-    const saveBtn = screen.getByRole("button", { name: "Save Link" });
+    const saveBtn = screen.getByRole("button", { name: "Save link" });
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
@@ -424,7 +424,7 @@ describe("LinkEditorForm", () => {
       target: { value: "https://acme.com/test" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Save Link" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save link" }));
 
     await waitFor(() => {
       expect(screen.getByText("Host is required: pick a link host for this short link (this instance is multi-tenant)")).toBeDefined();
@@ -456,7 +456,7 @@ describe("LinkEditorForm", () => {
       target: { value: "https://acme.com/test" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Save Link" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save link" }));
 
     await waitFor(() => {
       expect(screen.getByText("Slug 'custom' is already in use by another link")).toBeDefined();

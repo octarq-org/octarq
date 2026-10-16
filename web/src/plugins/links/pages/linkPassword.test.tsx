@@ -79,11 +79,11 @@ describe("Link password plaintext display and edit form", () => {
     });
 
     // 2. Click Edit Link to open the editor modal
-    const editBtn = screen.getByTitle("Edit Link");
+    const editBtn = screen.getByTitle("Edit link");
     fireEvent.click(editBtn);
 
     await waitFor(() => {
-      expect(screen.getByText("Edit Link — Protected Link")).toBeDefined();
+      expect(screen.getByText("Edit link — Protected Link")).toBeDefined();
     });
 
     // 3. The password input field should be type="text" and contain "SecretCode123"
@@ -92,7 +92,7 @@ describe("Link password plaintext display and edit form", () => {
     expect(passwordInput.type).toBe("text");
 
     // 4. Save without touching password -> payload should retain the password and not silently clear it
-    const saveBtn = screen.getByText("Save Link");
+    const saveBtn = screen.getByText("Save link");
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
