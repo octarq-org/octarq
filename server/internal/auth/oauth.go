@@ -246,7 +246,7 @@ func (h *OAuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 			var count int64
 			if err := h.db.Table("sso_configs").Where("enabled = ? AND LOWER(allowed_domain) = ?", true, domain).Count(&count).Error; err == nil && count > 0 {
 				log.Printf("oauth callback rejected: email domain %s requires enterprise SSO", domain)
-				http.Error(w, "Sign-in for domain "+domain+" is managed by Enterprise SSO. Please use your organization's SSO portal to log in.", http.StatusForbidden)
+				http.Error(w, "Sign-in for domain "+domain+" is managed by Enterprise SSO. Use your organization's SSO portal to sign in.", http.StatusForbidden)
 				return
 			}
 		}

@@ -77,7 +77,7 @@ func backupPostgres(dsn, outputPath string) error {
 
 	pgDumpPath, err := exec.LookPath("pg_dump")
 	if err != nil {
-		return fmt.Errorf("pg_dump command not found in PATH; please install postgresql-client / pg_dump")
+		return fmt.Errorf("pg_dump command not found in PATH; install postgresql-client / pg_dump")
 	}
 
 	dir := filepath.Dir(outputPath)
@@ -119,7 +119,7 @@ func backupMySQL(dsn, outputPath string) error {
 
 	dumpPath, err := exec.LookPath("mysqldump")
 	if err != nil {
-		return fmt.Errorf("mysqldump command not found in PATH; please install mysql-client / default-mysql-client / mariadb-client")
+		return fmt.Errorf("mysqldump command not found in PATH; install mysql-client / default-mysql-client / mariadb-client")
 	}
 
 	dir := filepath.Dir(outputPath)

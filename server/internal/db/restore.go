@@ -81,7 +81,7 @@ func restorePostgres(dsn, inputPath string) error {
 		toolName = "pg_restore"
 		pgRestorePath, err := exec.LookPath(toolName)
 		if err != nil {
-			return fmt.Errorf("%s command not found in PATH; please install postgresql-client", toolName)
+			return fmt.Errorf("%s command not found in PATH; install postgresql-client", toolName)
 		}
 		cmd = exec.Command(pgRestorePath,
 			"-h", pgCfg.Host,
@@ -95,7 +95,7 @@ func restorePostgres(dsn, inputPath string) error {
 		toolName = "psql"
 		psqlPath, err := exec.LookPath(toolName)
 		if err != nil {
-			return fmt.Errorf("%s command not found in PATH; please install postgresql-client", toolName)
+			return fmt.Errorf("%s command not found in PATH; install postgresql-client", toolName)
 		}
 		cmd = exec.Command(psqlPath,
 			"-h", pgCfg.Host,
@@ -130,7 +130,7 @@ func restoreMySQL(dsn, inputPath string) error {
 
 	mysqlClientPath, err := exec.LookPath("mysql")
 	if err != nil {
-		return fmt.Errorf("mysql command not found in PATH; please install mysql-client / default-mysql-client / mariadb-client")
+		return fmt.Errorf("mysql command not found in PATH; install mysql-client / default-mysql-client / mariadb-client")
 	}
 
 	in, err := os.Open(inputPath)

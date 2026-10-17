@@ -213,7 +213,7 @@ func (p *Plugin) processInboundMail(ctx context.Context, orgID uint, overrideTo 
 	})
 
 	// Best-effort notification; never block or fail the webhook.
-	text := fmt.Sprintf("📧 New mail to %s — From: %s — %s", to, from, subject)
+	text := fmt.Sprintf("📧 New mail to %s from %s: %s", to, from, subject)
 	if p.emit != nil {
 		safego.Go("mail.inbound-notify", func() {
 			ctxCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

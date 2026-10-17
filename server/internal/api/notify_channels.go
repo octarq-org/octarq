@@ -442,8 +442,8 @@ func (h *Handler) testNotificationChannel(ctx context.Context, input *TestNotifi
 			OrgID:  strconv.FormatUint(uint64(orgID), 10),
 			Config: cfgMap,
 		}, plugin.NotificationPayload{
-			Title:     "🔔 Test notification from octarq!",
-			Body:      "This is a test notification confirming your channel is configured properly.",
+			Title:     "🔔 Test notification from Octarq",
+			Body:      "Your notification channel is configured correctly.",
 			EventType: "test",
 			Priority:  "normal",
 		})

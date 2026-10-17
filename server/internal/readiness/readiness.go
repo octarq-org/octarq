@@ -71,7 +71,7 @@ func Evaluate(cfg *config.Config, mailReady, domainsRegistered, requireEmailVeri
 			Status: boolStatus(mailReady),
 			Detail: boolDetail(mailReady,
 				"the system sender is available; password reset, email verification and invites can be delivered",
-				"no SMTP sender is configured, so the system sender is unavailable — password-reset, verification and invite messages will NOT be delivered and a locked-out user cannot recover their account. Configure an SMTP sender (Mail → SMTP senders), or mount a plugin providing mail.send"),
+				"no SMTP sender is configured, so the system sender is unavailable. Password-reset, verification and invite messages will not be delivered, and a locked-out user cannot recover their account. Configure an SMTP sender (Mail → SMTP senders) or mount a plugin providing mail.send"),
 		},
 		{
 			ID: "registration", Title: "registration", FixPath: "/mail?tab=settings",
