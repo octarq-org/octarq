@@ -126,7 +126,7 @@ func (c *EmailChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 
 	subject := payload.Title
 	if subject == "" {
-		subject = fmt.Sprintf("[%s] Notification", payload.EventType)
+		subject = "Notification from Octarq"
 	}
 
 	textBody := payload.Body

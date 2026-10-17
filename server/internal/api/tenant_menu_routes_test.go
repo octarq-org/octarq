@@ -30,7 +30,7 @@ func TestSendInviteEmailAndMenus(t *testing.T) {
 	}))
 	h.SetServiceLookup(reg.Lookup)
 	h.sendInviteEmail("invited@example.com", "https://example.com/accept")
-	if sentTo != "invited@example.com" || sentSubj != "You've been invited to octarq" {
+	if sentTo != "invited@example.com" || sentSubj != "You're invited to join a workspace on Octarq" {
 		t.Errorf("sendInviteEmail did not send: to=%q subj=%q", sentTo, sentSubj)
 	}
 
