@@ -82,7 +82,7 @@ func TestProviderErrUnit(t *testing.T) {
 		t.Fatal("expected non-nil error for auth failure")
 		return
 	}
-	if msg := errAuth.Error(); msg != "list zones: authentication failed — check your API token or credentials" {
+	if msg := errAuth.Error(); msg != "list zones: authentication failed. Check your API token or credentials" {
 		t.Errorf("unexpected auth error message: %v", msg)
 	}
 	// The raw secret must not appear in the response.

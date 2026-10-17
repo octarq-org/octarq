@@ -68,7 +68,7 @@ func (p *Plugin) notify(ctx context.Context, in NotifyInput) (*NotifyOutput, err
 		if in.Channel != "" {
 			return nil, fmt.Errorf("notify: no enabled %q notification channel for this workspace", in.Channel)
 		}
-		return nil, fmt.Errorf("notify: no enabled notification channels for this workspace — configure one in Settings → Alerts")
+		return nil, fmt.Errorf("notify: no enabled notification channels for this workspace. Configure one in Settings → Alerts")
 	}
 
 	text := msg

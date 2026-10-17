@@ -270,7 +270,7 @@ func (p *Plugin) providerFor(dom Domain) (dnsprovider.Provider, error) {
 	}
 	creds, err := p.decrypt(acc.Config)
 	if err != nil {
-		return nil, errors.New("stored API token could not be decrypted — re-save this provider's API token under Settings → DNS Providers (the encryption key or database changed since it was saved)")
+		return nil, errors.New("stored API token could not be decrypted. Re-save this provider's API token under Settings → DNS Providers (the encryption key or database changed since it was saved)")
 	}
 	return dnsprovider.New(acc.Type, creds)
 }

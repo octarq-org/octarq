@@ -45,7 +45,7 @@ func runBackupCommand(args []string) int {
 		sizeStr = formatBytes(info.Size())
 	}
 
-	fmt.Printf("Backup completed successfully: %s (%s)\n", finalOut, sizeStr)
+	fmt.Printf("Backup complete: %s (%s)\n", finalOut, sizeStr)
 	return 0
 }
 
@@ -110,9 +110,9 @@ func runRestoreCommandWithInput(args []string, in io.Reader) int {
 		return 1
 	}
 
-	fmt.Printf("Restore completed successfully from '%s'.\n", *inPath)
+	fmt.Printf("Restored from '%s'.\n", *inPath)
 	if cfg.DBDriver == "sqlite" {
-		fmt.Println("Note: If the Octarq server process is currently running, please restart it to ensure the restored database is reloaded.")
+		fmt.Println("Note: if the Octarq server is running, restart it so the restored database is reloaded.")
 	}
 	return 0
 }

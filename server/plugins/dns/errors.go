@@ -27,7 +27,7 @@ func cleanProviderError(errStr string) string {
 	lower := strings.ToLower(errStr)
 	switch {
 	case isAuthError(lower):
-		return "authentication failed — check your API token or credentials"
+		return "authentication failed. Check your API token or credentials"
 	case strings.Contains(lower, "not found"), strings.Contains(lower, "not exist"), strings.Contains(lower, "nxdomain"), strings.Contains(lower, "missing"):
 		return "record or zone not found"
 	case strings.Contains(lower, "already exists"), strings.Contains(lower, "duplicate"):
