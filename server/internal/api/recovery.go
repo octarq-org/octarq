@@ -44,8 +44,8 @@ func hashToken(token string) string {
 // recipient's workspace: the request arrives before anyone is authenticated.
 func (h *Handler) sendPasswordResetEmail(to, resetURL string) {
 	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
-		text := fmt.Sprintf("Reset your password for octarq:\n\n%s\n\nThis link expires in 1 hour.", resetURL)
-		if err := fn(to, "Reset your octarq password", "", text); err != nil {
+		text := fmt.Sprintf("A password reset was requested for your Octarq account.\n\nSet a new password:\n%s\n\nThis link expires in 1 hour. If you didn't request this, you can ignore this email.", resetURL)
+		if err := fn(to, "Reset your Octarq password", "", text); err != nil {
 			log.Printf("password reset email to %s failed: %v", to, err)
 		}
 		return
@@ -73,8 +73,8 @@ func (h *Handler) mailReady() bool {
 // resolving the org's sender there would find none and drop the mail.
 func (h *Handler) sendVerificationEmail(to, verifyURL string) {
 	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
-		text := fmt.Sprintf("Verify your email address for octarq:\n\n%s\n\nThis link expires in 24 hours.", verifyURL)
-		if err := fn(to, "Verify your octarq email", "", text); err != nil {
+		text := fmt.Sprintf("Confirm your email address for Octarq:\n\n%s\n\nThis link expires in 24 hours. If you didn't create this account, you can ignore this email.", verifyURL)
+		if err := fn(to, "Verify your Octarq email", "", text); err != nil {
 			log.Printf("verification email to %s failed: %v", to, err)
 		}
 		return

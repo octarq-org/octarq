@@ -22,10 +22,10 @@ import (
 // case as emailSent, because the link is no longer recoverable any other way.
 func (h *Handler) sendInviteEmail(to, acceptURL string) bool {
 	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
-		text := fmt.Sprintf("You've been invited to join a workspace on octarq.\n\n"+
-			"Accept your invite and set a password here:\n%s\n\n"+
+		text := fmt.Sprintf("You've been invited to join a workspace on Octarq.\n\n"+
+			"Accept the invite and set a password:\n%s\n\n"+
 			"This link expires in 24 hours.", acceptURL)
-		if err := fn(to, "You've been invited to octarq", "", text); err != nil {
+		if err := fn(to, "You're invited to join a workspace on Octarq", "", text); err != nil {
 			log.Printf("invite email to %s failed: %v", to, err)
 			return false
 		}
