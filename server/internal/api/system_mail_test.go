@@ -150,7 +150,7 @@ func TestVerificationEmailDeliveredWithoutOrgMembership(t *testing.T) {
 	// The send happens synchronously inside register, before the org/membership
 	// transaction — the relay must have received the verification mail anyway.
 	mailed := got()
-	if !strings.Contains(mailed, "Verify your email address for octarq") {
+	if !strings.Contains(mailed, "Confirm your email address for Octarq") {
 		t.Fatalf("verification email never reached the relay — the org-less send is broken:\n%s", mailed)
 	}
 	if !strings.Contains(mailed, "/api/auth/verify-email?token=") {

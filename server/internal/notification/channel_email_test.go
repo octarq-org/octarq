@@ -76,7 +76,7 @@ func TestEmailChannel_SendSuccess(t *testing.T) {
 	if err := ch.Send(ctx, recTo, payloadNoTitle); err != nil {
 		t.Fatalf("Send failed: %v", err)
 	}
-	if sentTo != "target@example.com" || sentOrgID != 99 || sentSub != "[alert] Notification" {
+	if sentTo != "target@example.com" || sentOrgID != 99 || sentSub != "Notification from Octarq" {
 		t.Errorf("unexpected send values: to=%q org=%d sub=%q", sentTo, sentOrgID, sentSub)
 	}
 
