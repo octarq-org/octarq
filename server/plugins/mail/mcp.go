@@ -111,7 +111,7 @@ func (p *Plugin) RegisterMCP(srv *mcp.Server) {
 
 	plugin.AddMCPTool(srv, "mail", &mcp.Tool{
 		Name:        "octarq_network__list_emails",
-		Description: "List recently received emails (subject, from, to, date) — optionally for one mailbox. Bodies are not returned; open the full message in the dashboard.",
+		Description: "List recently received emails (subject, from, to, date), optionally for one mailbox. Bodies are not returned; open the full message in the dashboard.",
 	}, p.mcpListEmails)
 
 	plugin.AddMCPTool(srv, "mail", &mcp.Tool{

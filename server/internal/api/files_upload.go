@@ -198,9 +198,9 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 			return nil, huma.Error500InternalServerError("Could not save file record; retry the request")
 		}
 
-		msg := "File uploaded successfully"
+		msg := "File uploaded"
 		if deduplicated {
-			msg = "File uploaded and deduplicated via existing MD5 hash"
+			msg = "File uploaded and deduplicated by MD5 hash"
 		}
 		return &UploadFileOutput{
 			Body: UploadFileResponse{
@@ -243,7 +243,7 @@ func (h *Handler) uploadFile(ctx context.Context, input *UploadFileInput) (*Uplo
 		Body: UploadFileResponse{
 			File:         newRecord,
 			Deduplicated: deduplicated,
-			Message:      "Raw file stored successfully",
+			Message:      "Raw file stored",
 		},
 	}, nil
 }

@@ -30,7 +30,7 @@ func newRootCmd() *cobra.Command {
 			if dir != "" && dir != "." {
 				targetDir = dir + "/" + name
 			}
-			fmt.Printf("Successfully scaffolded plugin %q in %s\n", name, targetDir)
+			fmt.Printf("Scaffolded plugin %q in %s\n", name, targetDir)
 			return nil
 		},
 	}
