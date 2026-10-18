@@ -187,6 +187,12 @@ export const es = {
     errPasswordMismatch: "Las contraseñas no coinciden.",
     errResetFailed: "No se pudo restablecer la contraseña. Solicita un nuevo enlace e inténtalo de nuevo.",
   },
+  export: {
+    title: "Soberanía de datos y exportación",
+    desc: "Descargue un archivo completo de los activos de su espacio de trabajo en cualquier momento. Incluye enlaces cortos, configuraciones DNS, enrutamiento de correo y registros de auditoría en un archivo ZIP portable CSV/JSON.",
+    button: "Exportar todos los datos (.zip)",
+    downloading: "Empaquetando ZIP…",
+  },
   footer: {
     help: "Acerca de Octarq",
     docs: "Documentación para desarrolladores",

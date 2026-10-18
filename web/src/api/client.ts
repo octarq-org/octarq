@@ -375,7 +375,28 @@ export const api = {
   },
 
   // GDPR
-  exportWorkspaceData: () => req<Record<string, unknown>>("GET", "/api/account/export"),
+  exportWorkspaceData: async (): Promise<{ blob: Blob; filename: string }> => {
+    const res = await fetch("/api/account/export", {
+      headers: {
+        "Accept-Language": getAppLang(),
+      },
+    });
+    if (!res.ok) {
+      let msg = res.statusText;
+      try {
+        const parsed = await res.json();
+        if (parsed?.message) msg = parsed.message;
+        else if (parsed?.error) msg = parsed.error;
+        else if (parsed?.detail) msg = parsed.detail;
+      } catch {
+        /* not JSON — keep statusText */
+      }
+      throw new ApiError(res.status, msg);
+    }
+    const cd = res.headers.get("content-disposition") || "";
+    const m = /filename="?([^"]+)"?/.exec(cd);
+    return { blob: await res.blob(), filename: m?.[1] || `workspace-export-${new Date().toISOString().split("T")[0]}.zip` };
+  },
   purgeWorkspaceData: () => req<void>("DELETE", "/api/account/data"),
 
   // Help

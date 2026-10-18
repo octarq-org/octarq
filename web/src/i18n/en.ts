@@ -204,6 +204,12 @@ export const en = {
     errPasswordMismatch: "Passwords do not match.",
     errResetFailed: "Could not reset password. Request a new link and try again.",
   },
+  export: {
+    title: "Data Sovereignty & Export",
+    desc: "Download a complete archive of your workspace assets at any time. Includes all short links, DNS configurations, mail routing, and audit logs as a portable CSV/JSON ZIP archive.",
+    button: "Export All Data (.zip)",
+    downloading: "Packaging ZIP…",
+  },
   footer: {
     help: "About Octarq",
     docs: "Developer docs",

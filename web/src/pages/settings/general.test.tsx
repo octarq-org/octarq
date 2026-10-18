@@ -159,13 +159,13 @@ describe("GeneralSettings suite", () => {
       isInstanceAdmin: false,
     });
     const exportSpy = vi.spyOn(api, "exportWorkspaceData").mockResolvedValue({
-      org: { id: 1, name: "Acme Corp" },
-      links: [],
+      blob: new Blob(["PK0304mock"], { type: "application/zip" }),
+      filename: "workspace-export-org1-20261018.zip",
     });
 
     renderGeneralSettings();
 
-    const exportBtn = await screen.findByRole("button", { name: /download my data/i });
+    const exportBtn = await screen.findByRole("button", { name: /export all data/i });
     fireEvent.click(exportBtn);
 
     await waitFor(() => {

@@ -27,12 +27,16 @@ func TestAccountExportAndPurge(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("export: got %d, want 200 (%s)", rec.Code, rec.Body.String())
 	}
-	body := rec.Body.String()
-	if !containsAll(body, `"exp1"`, `"relay"`) {
-		t.Errorf("export missing expected records: %s", body)
+	files := unzipTestArchive(t, rec.Body.Bytes())
+	linksCSV := string(files["links.csv"])
+	if !contains(linksCSV, "exp1") {
+		t.Errorf("export missing expected records in links.csv: %s", linksCSV)
 	}
-	if containsAny(body, "supersecret", models.HashToken("oct_acct_export_token_000000000000")) {
-		t.Error("export leaked a secret (smtp pass or token hash)")
+	for fName, fContent := range files {
+		fStr := string(fContent)
+		if containsAny(fStr, "supersecret", models.HashToken("oct_acct_export_token_000000000000")) {
+			t.Errorf("export leaked a secret in %s (smtp pass or token hash)", fName)
+		}
 	}
 
 	// Purge without confirmation is rejected.
@@ -64,15 +68,6 @@ func TestAccountExportRequiresOwnerAdmin(t *testing.T) {
 	if rec := do(srv, "DELETE", "/api/account/data", sess, `{"confirm":"DELETE MY DATA"}`); rec.Code != http.StatusForbidden {
 		t.Errorf("member purge: got %d, want 403", rec.Code)
 	}
-}
-
-func containsAll(s string, subs ...string) bool {
-	for _, sub := range subs {
-		if !jsonContains(s, sub) {
-			return false
-		}
-	}
-	return true
 }
 
 func containsAny(s string, subs ...string) bool {

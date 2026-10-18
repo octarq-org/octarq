@@ -151,12 +151,13 @@ export function GeneralSettings() {
   async function handleExport() {
     setExporting(true);
     try {
-      const data = await api.exportWorkspaceData();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const res = await api.exportWorkspaceData();
+      const blob = res && "blob" in res && res.blob instanceof Blob ? res.blob : new Blob([JSON.stringify(res, null, 2)], { type: "application/zip" });
+      const filename = res && "filename" in res && typeof res.filename === "string" ? res.filename : `workspace-export-${new Date().toISOString().split("T")[0]}.zip`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `workspace-data-${new Date().toISOString().split("T")[0]}.json`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -220,14 +221,14 @@ export function GeneralSettings() {
       {isAdminOrOwner && (
         <GlassCard className="p-6 space-y-4">
           <div>
-            <h2 className="text-base font-bold text-foreground">{t("settings.exportWorkspaceData")}</h2>
+            <h2 className="text-base font-bold text-foreground">{t("export.title")}</h2>
             <p className="text-xs text-foreground/50 mt-1">
-              {t("settings.exportWorkspaceDesc")}
+              {t("export.desc")}
             </p>
           </div>
           <div className="pt-2">
             <Button variant="outline" onClick={handleExport} disabled={exporting}>
-              {exporting ? t("settings.preparing") : t("settings.downloadMyData")}
+              {exporting ? t("export.downloading") : t("export.button")}
             </Button>
           </div>
         </GlassCard>

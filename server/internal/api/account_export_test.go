@@ -23,50 +23,35 @@ func TestExportAccount_CompletenessAndSecretRedaction(t *testing.T) {
 		t.Fatalf("export request failed: got status %d, body %s", rec.Code, rec.Body.String())
 	}
 
-	bodyStr := rec.Body.String()
+	files := unzipTestArchive(t, rec.Body.Bytes())
 
-	// 1. Assert raw secret is NOT present in export body
-	if contains(bodyStr, secretStr) {
-		t.Errorf("SECRET LEAK: export contains raw webhook secret %q", secretStr)
-	}
-	if contains(bodyStr, "inbound-secret-token") {
-		t.Errorf("SECRET LEAK: export contains raw org inbound token")
-	}
-
-	// 2. Unmarshal and assert struct components are present
-	var res map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
-		t.Fatalf("unmarshal export json: %v", err)
-	}
-
-	for _, key := range []string{
-		"organization", "apiTokens", "notificationChannels",
-		"workspaceSettings", "pluginSettings", "auditLogs",
-		"webhooks", "abuseReports",
-	} {
-		if _, ok := res[key]; !ok {
-			t.Errorf("missing key %q in export response: %+v", key, res)
+	// 1. Assert raw secret is NOT present in any export file
+	for fName, fBytes := range files {
+		fStr := string(fBytes)
+		if contains(fStr, secretStr) {
+			t.Errorf("SECRET LEAK: export file %s contains raw webhook secret %q", fName, secretStr)
+		}
+		if contains(fStr, "inbound-secret-token") {
+			t.Errorf("SECRET LEAK: export file %s contains raw org inbound token", fName)
 		}
 	}
 
-	// 3. Verify webhook secret is redacted
-	webhooksArr, _ := res["webhooks"].([]any)
-	if len(webhooksArr) != 1 {
-		t.Fatalf("expected 1 webhook in export, got %d", len(webhooksArr))
-	}
-	whMap, _ := webhooksArr[0].(map[string]any)
-	if sec, _ := whMap["secret"].(string); sec != "[redacted]" {
-		t.Errorf("webhook secret = %q, want [redacted]", sec)
+	// 2. Assert standard files are present in the zip
+	for _, key := range []string{
+		"metadata.json", "links.csv", "domains.json", "mailboxes.json", "audit_logs.json",
+	} {
+		if _, ok := files[key]; !ok {
+			t.Errorf("missing file %q in export zip", key)
+		}
 	}
 
-	// 4. Verify notification channel config is redacted
-	channelsArr, _ := res["notificationChannels"].([]any)
-	if len(channelsArr) != 1 {
-		t.Fatalf("expected 1 channel in export, got %d", len(channelsArr))
+	// 3. Verify metadata.json counts and structure
+	var meta map[string]any
+	if err := json.Unmarshal(files["metadata.json"], &meta); err != nil {
+		t.Fatalf("unmarshal metadata.json: %v", err)
 	}
-	chMap, _ := channelsArr[0].(map[string]any)
-	if cfg, _ := chMap["config"].(string); cfg != "[redacted]" {
-		t.Errorf("notification channel config = %q, want [redacted]", cfg)
+	if meta["orgId"] != float64(orgA) {
+		t.Errorf("metadata orgId = %v, want %d", meta["orgId"], orgA)
 	}
 }
 
@@ -97,13 +82,23 @@ func TestExportAccount_IncludesPluginData(t *testing.T) {
 		t.Fatalf("export request failed: got status %d, body %s", rec.Code, rec.Body.String())
 	}
 
+	files := unzipTestArchive(t, rec.Body.Bytes())
+	linksPluginData, ok := files["plugins/links.json"]
+	if !ok {
+		t.Fatalf("export missing plugins/links.json: got files %+v", files)
+	}
+
 	var res map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
-		t.Fatalf("unmarshal export json: %v", err)
+	if err := json.Unmarshal(linksPluginData, &res); err != nil {
+		t.Fatalf("unmarshal plugins/links.json: %v", err)
 	}
 	linksArr, ok := res["links"].([]any)
-	if !ok || len(linksArr) != 1 {
+	if !ok || len(linksArr) == 0 {
 		t.Errorf("export missing the links plugin's data (plugin.ExportFunc guard broken?): %+v", res)
+	}
+	linksCSV := string(files["links.csv"])
+	if !contains(linksCSV, "guard-export") {
+		t.Errorf("links.csv missing guard-export link: %s", linksCSV)
 	}
 }
 

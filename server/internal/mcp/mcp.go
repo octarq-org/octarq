@@ -187,7 +187,7 @@ func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
 func (s *server) registerTools(srv *mcp.Server) {
 	plugin.AddMCPTool(srv, "core_mcp", &mcp.Tool{
 		Name:        "octarq_infra__export_data",
-		Description: "Export the operator's data for one resource type (links, emails, domains, mailboxes) as JSON for backup and data sovereignty.",
+		Description: "Export the operator's data for one resource type (links, emails, domains, mailboxes) as JSON or 'all'/'zip_url' for a full ZIP summary with signed download URL.",
 	}, s.exportData)
 }
 
