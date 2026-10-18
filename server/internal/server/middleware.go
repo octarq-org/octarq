@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -95,11 +96,18 @@ type middleware struct {
 }
 
 func newMiddleware(rs RuntimeSettings) *middleware {
-	return &middleware{
+	mw := &middleware{
 		limiter:  newRateLimiter(),
 		metrics:  newMetrics(),
 		settings: rs,
 	}
+	if rs.MetricsToken != nil {
+		mw.metricsToken = strings.TrimSpace(rs.MetricsToken())
+	}
+	if mw.metricsToken == "" {
+		mw.metricsToken = strings.TrimSpace(os.Getenv("OCTARQ_METRICS_TOKEN"))
+	}
+	return mw
 }
 
 // refreshConfig re-reads the DB-backed runtime settings at most once per
@@ -114,6 +122,9 @@ func (mw *middleware) refreshConfig(now time.Time) {
 	mw.confAt = now
 	if mw.settings.MetricsToken != nil {
 		mw.metricsToken = strings.TrimSpace(mw.settings.MetricsToken())
+	}
+	if mw.metricsToken == "" {
+		mw.metricsToken = strings.TrimSpace(os.Getenv("OCTARQ_METRICS_TOKEN"))
 	}
 	if mw.settings.RateLimits != nil {
 		mw.limiter.setLimits(mw.settings.RateLimits())
@@ -184,6 +195,10 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 
 	// 2. Gated metrics endpoint.
 	if r.Method == http.MethodGet && r.URL.Path == "/metrics" {
+		if !mw.metricsEnabled() {
+			http.NotFound(w, r)
+			return
+		}
 		mw.serveMetrics(w, r)
 		telemetry.SetOK(span)
 		mw.finish(r, ip, rid, http.StatusOK, start)
@@ -227,6 +242,7 @@ func (mw *middleware) handle(w http.ResponseWriter, r *http.Request, next http.H
 	}
 
 	mw.metrics.record(sr.status)
+	telemetry.RecordHTTPRequest(r.Method, r.URL.Path, sr.status, time.Since(start))
 	if tel.Metrics != nil {
 		tel.Metrics.RecordHTTPRequest(ctx, r.Method, r.URL.Path, sr.status, time.Since(start), 0)
 	}
@@ -275,31 +291,52 @@ func (mw *middleware) finish(r *http.Request, ip, rid string, status int, start 
 	slog.InfoContext(r.Context(), "request", attrs...)
 }
 
-// serveMetrics gates and serves metrics. When OpenTelemetry Prometheus exporter
-// is active and the client does not explicitly ask for ?format=json, it serves
-// standard Prometheus metrics; otherwise it returns the JSON expvar snapshot.
+// serveMetrics gates and serves metrics. When client requests ?format=json,
+// it returns the JSON expvar snapshot. Otherwise, it defaults to standard Prometheus
+// text exposition format.
 func (mw *middleware) serveMetrics(w http.ResponseWriter, r *http.Request) {
 	if !mw.metricsAllowed(r) {
-		http.Error(w, "forbidden", http.StatusForbidden)
+		http.Error(w, "forbidden: loopback or OCTARQ_METRICS_TOKEN required", http.StatusForbidden)
 		return
 	}
+
+	mw.metrics.record(http.StatusOK)
+	telemetry.RecordHTTPRequest(r.Method, r.URL.Path, http.StatusOK, 0)
+
+	if r.URL.Query().Get("format") == "json" {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if err := json.NewEncoder(w).Encode(mw.metrics.snapshot()); err != nil {
+			slog.Warn("server: failed to encode metrics snapshot", "err", err)
+		}
+		return
+	}
+
+	var promHandler http.Handler
 	tel := telemetry.Global()
-	if tel != nil && tel.PrometheusExporter != nil && r.URL.Query().Get("format") != "json" {
-		tel.PrometheusHandler().ServeHTTP(w, r)
-		return
+	if tel != nil && tel.PrometheusExporter != nil {
+		promHandler = tel.PrometheusHandler()
+	} else {
+		promHandler = telemetry.DefaultPrometheusHandler()
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if err := json.NewEncoder(w).Encode(mw.metrics.snapshot()); err != nil {
-		slog.Warn("server: failed to encode metrics snapshot", "err", err)
-	}
+	promHandler.ServeHTTP(w, r)
 }
 
 func (mw *middleware) metricsAllowed(r *http.Request) bool {
+	if isLoopback(r) {
+		return true
+	}
 	if token := mw.currentMetricsToken(); token != "" {
 		got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 		got = strings.TrimSpace(got)
 		return got != "" && subtle.ConstantTimeCompare([]byte(got), []byte(token)) == 1
 	}
-	// No token configured: bind to loopback only.
-	return isLoopback(r)
+	return false
+}
+
+func (mw *middleware) metricsEnabled() bool {
+	if v := os.Getenv("OCTARQ_METRICS_ENABLED"); v != "" {
+		v = strings.ToLower(strings.TrimSpace(v))
+		return v != "false" && v != "0" && v != "no" && v != "off"
+	}
+	return true
 }

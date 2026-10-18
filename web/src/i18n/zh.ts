@@ -92,6 +92,12 @@ export const zh: Resources = {
     placeholder: "搜索页面…",
     emptyTitle: "没有页面或操作匹配",
     emptyHint: "⌘K 只能跳转页面，不能创建内容。试试这些区域：{{areas}}。",
+    action: {
+      newLink: "新建短链",
+      newDomain: "绑定域名",
+      exportData: "导出工作区数据",
+      askCopilot: "打开 AI 智能副驾",
+    },
     chat: {
       askAi: "向 AI 提问",
       placeholder: "向 AI 提问…（Enter 发送，Esc 返回搜索）",

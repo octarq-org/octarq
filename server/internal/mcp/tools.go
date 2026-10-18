@@ -11,8 +11,11 @@ package mcp
 
 import (
 	"context"
+	"fmt"
+	"slices"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
@@ -21,6 +24,18 @@ type exportInput struct {
 }
 
 func (s *server) exportData(ctx context.Context, _ *mcp.CallToolRequest, in exportInput) (*mcp.CallToolResult, any, error) {
+	if auth.IsAgentFromContext(ctx) {
+		allowed := auth.AllowedToolsFromContext(ctx)
+		if !slices.Contains(allowed, "octarq_infra__export_data") {
+			return nil, nil, plugin.NewAgentError(
+				403,
+				"FORBIDDEN_AGENT_TOOL_DISALLOWED",
+				fmt.Sprintf("tool %q is not authorized for this agent token", "octarq_infra__export_data"),
+				"Contact your administrator to add this tool to the agent token's allowed_tools whitelist.",
+				false,
+			)
+		}
+	}
 	orgID := plugin.OrgIDFromContext(ctx)
 	if orgID == 0 {
 		return nil, nil, errNoOrgInContext

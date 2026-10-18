@@ -2,8 +2,10 @@ package plugin
 
 import (
 	"context"
+	"encoding/json"
 	"io/fs"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -32,6 +34,77 @@ func WithUserID(ctx context.Context, uid uint) context.Context {
 // UserIDFromContext extracts the authenticated user ID from context (0 if unset).
 func UserIDFromContext(ctx context.Context) uint {
 	return tenantsql.UserIDFromContext(ctx)
+}
+
+type agentContextKey string
+
+const (
+	agentFlagKey  agentContextKey = "token_is_agent"
+	agentToolsKey agentContextKey = "token_allowed_tools"
+)
+
+// WithTokenAgent returns a new context containing the token's agent flag and allowed tools.
+func WithTokenAgent(ctx context.Context, isAgent bool, allowedTools any) context.Context {
+	var list []string
+	switch v := allowedTools.(type) {
+	case string:
+		list = parseAllowedTools(v)
+	case []string:
+		list = v
+	}
+	ctx = context.WithValue(ctx, agentFlagKey, isAgent)
+	return context.WithValue(ctx, agentToolsKey, list)
+}
+
+// IsAgentFromContext extracts the token agent flag from ctx.
+func IsAgentFromContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	if v, ok := ctx.Value(agentFlagKey).(bool); ok {
+		return v
+	}
+	return false
+}
+
+// AllowedToolsFromContext extracts the permitted MCP tool names from ctx.
+func AllowedToolsFromContext(ctx context.Context) []string {
+	if ctx == nil {
+		return nil
+	}
+	if v, ok := ctx.Value(agentToolsKey).([]string); ok {
+		return v
+	}
+	return nil
+}
+
+func parseAllowedTools(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	var list []string
+	if strings.HasPrefix(raw, "[") {
+		if err := json.Unmarshal([]byte(raw), &list); err == nil {
+			var out []string
+			for _, item := range list {
+				trimmed := strings.TrimSpace(item)
+				if trimmed != "" {
+					out = append(out, trimmed)
+				}
+			}
+			return out
+		}
+	}
+	parts := strings.Split(raw, ",")
+	var out []string
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 // Context carries the shared dependencies a plugin needs to wire its routes.

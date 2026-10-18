@@ -104,6 +104,9 @@ type Config struct {
 	OTelSampleRatio     float64
 	OTelInsecure        bool
 	OTelHeaders         string
+	// Metrics endpoint configuration.
+	MetricsEnabled bool
+	MetricsToken   string
 
 	// Remote S3 / Cloudflare R2 automated backup settings
 	BackupS3Endpoint    string // OCTARQ_BACKUP_S3_ENDPOINT

@@ -82,6 +82,7 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 	if err := telemetry.RegisterDBStatsMetrics(otel.GetMeterProvider().Meter("github.com/octarq-org/octarq/server/db"), sqlDB); err != nil {
 		slog.Warn("db: failed to register db pool metrics", "err", err)
 	}
+	telemetry.RegisterDB(sqlDB)
 
 	if cfg.DBDriver == "sqlite" {
 		// Apply on the live connection so a user DSN that already has

@@ -23,6 +23,8 @@ type Config struct {
 	Sampler            string // "always_on", "always_off", "traceidratio", "parentbased_always_on", "parentbased_traceidratio"
 	SampleRatio        float64
 	ResourceAttributes map[string]string
+	MetricsEnabled     bool
+	MetricsToken       string
 }
 
 // ConfigFromEnv reads standard OpenTelemetry and Octarq-specific environment variables.
@@ -49,6 +51,8 @@ func ConfigFromEnv(defaultServiceName, defaultVersion string) Config {
 		Sampler:            strings.ToLower(strings.TrimSpace(envOr("OTEL_TRACES_SAMPLER", "parentbased_always_on"))),
 		SampleRatio:        parseFloat(os.Getenv("OTEL_TRACES_SAMPLER_ARG"), 1.0),
 		ResourceAttributes: parseResourceAttributes(os.Getenv("OTEL_RESOURCE_ATTRIBUTES")),
+		MetricsEnabled:     parseBool(envOr("OCTARQ_METRICS_ENABLED", "true"), true),
+		MetricsToken:       envOr("OCTARQ_METRICS_TOKEN", ""),
 	}
 
 	// OCTARQ_OTEL_ENABLED / OTEL_SDK_DISABLED handling
