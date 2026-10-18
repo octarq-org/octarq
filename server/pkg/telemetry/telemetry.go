@@ -343,7 +343,7 @@ func parseSampler(samplerName string, ratio float64) traceSdk.Sampler {
 
 // PrometheusHandler returns an http.Handler that serves Prometheus metrics.
 func (t *Telemetry) PrometheusHandler() http.Handler {
-	if t.PrometheusExporter != nil {
+	if t != nil && t.PrometheusExporter != nil {
 		return promhttp.Handler()
 	}
 	return http.NotFoundHandler()

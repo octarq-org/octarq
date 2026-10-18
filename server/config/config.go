@@ -104,6 +104,10 @@ type Config struct {
 	OTelSampleRatio     float64
 	OTelInsecure        bool
 	OTelHeaders         string
+
+	// Metrics endpoint configuration.
+	MetricsEnabled bool
+	MetricsToken   string
 }
 
 // validLogLevels is the vocabulary OCTARQ_LOG_LEVEL accepts. Keeping the list
