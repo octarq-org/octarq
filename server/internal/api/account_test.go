@@ -70,15 +70,6 @@ func TestAccountExportRequiresOwnerAdmin(t *testing.T) {
 	}
 }
 
-func containsAll(s string, subs ...string) bool {
-	for _, sub := range subs {
-		if !jsonContains(s, sub) {
-			return false
-		}
-	}
-	return true
-}
-
 func containsAny(s string, subs ...string) bool {
 	for _, sub := range subs {
 		if jsonContains(s, sub) {
