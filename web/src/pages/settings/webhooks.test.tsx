@@ -23,6 +23,58 @@ afterEach(() => {
 });
 
 describe("WebhooksSettings suite", () => {
+  it("renders loading skeleton while webhooks request is pending and hides empty state", () => {
+    vi.spyOn(api, "webhooks").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(api, "webhookEvents").mockReturnValue(new Promise(() => {}));
+
+    renderWebhooksSettings("admin", false);
+
+    expect(document.querySelector('[aria-busy="true"]')).toBeTruthy();
+    expect(screen.getByRole("status", { name: /loading webhooks/i })).toBeTruthy();
+    expect(screen.queryByText(/no outbound webhooks configured/i)).toBeNull();
+  });
+
+  it("renders error alert and retry button on 500 failure and does not render empty state", async () => {
+    vi.spyOn(api, "webhooks").mockRejectedValue(new Error("Request failed with status 500"));
+    vi.spyOn(api, "webhookEvents").mockResolvedValue([]);
+
+    renderWebhooksSettings("admin", false);
+
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /retry/i })).toBeTruthy();
+    expect(screen.getByText(/could not load webhooks/i)).toBeTruthy();
+    expect(screen.queryByText(/no outbound webhooks configured/i)).toBeNull();
+  });
+
+  it("retrying after failure re-loads and recovers when request succeeds", async () => {
+    const webhooksSpy = vi.spyOn(api, "webhooks")
+      .mockRejectedValueOnce(new Error("Request failed with status 500"))
+      .mockResolvedValueOnce([
+        {
+          id: 1,
+          name: "Webhook 1",
+          url: "https://example.com/webhook",
+          events: "*",
+          enabled: true,
+          createdAt: "2026-08-31T00:00:00Z",
+          updatedAt: "2026-08-31T00:00:00Z",
+        },
+      ]);
+    vi.spyOn(api, "webhookEvents").mockResolvedValue([]);
+
+    renderWebhooksSettings("admin", false);
+
+    const retryBtn = await screen.findByRole("button", { name: /retry/i });
+    expect(screen.queryByText(/no outbound webhooks configured/i)).toBeNull();
+
+    fireEvent.click(retryBtn);
+
+    expect(await screen.findByText("Webhook 1")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText(/no outbound webhooks configured/i)).toBeNull();
+    expect(webhooksSpy).toHaveBeenCalledTimes(2);
+  });
+
   it("renders webhook list and handles empty state", async () => {
     vi.spyOn(api, "webhooks").mockResolvedValue([]);
     vi.spyOn(api, "webhookEvents").mockResolvedValue([]);
