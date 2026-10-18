@@ -1,15 +1,29 @@
-import { Field, Input, Modal, Switch, PageHeader, GlassCard, Button, toast, confirmDialog } from "@octarq/plugin-sdk";
+import {
+  Field,
+  Input,
+  Modal,
+  Switch,
+  PageHeader,
+  GlassCard,
+  Button,
+  toast,
+  confirmDialog,
+  Alert,
+} from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, WebhookEventGroup } from "../../api";
-import { Trash2, Plus, Send } from "lucide-react";
+import { Trash2, Plus, Send, AlertCircle, RefreshCw } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../shell/role";
+import { ListSkeleton } from "../../components/ListSkeleton";
 
 export function WebhooksSettings() {
   const { t } = useTranslation();
   const { role, isInstanceAdmin } = useCurrentRole();
   const canManage = roleSatisfies("admin", role, isInstanceAdmin);
   const [webhooks, setWebhooks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
   const [show, setShow] = useState(false);
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
@@ -20,7 +34,21 @@ export function WebhooksSettings() {
   const [busy, setBusy] = useState(false);
   const [testingId, setTestingId] = useState<number | null>(null);
 
-  function load() { api.webhooks().then(setWebhooks).catch(() => {}); }
+  function load() {
+    setLoading(true);
+    setError(null);
+    api.webhooks()
+      .then((data) => {
+        setWebhooks(data);
+        setError(null);
+      })
+      .catch((err) => {
+        setError(err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }
   useEffect(load, []);
   useEffect(() => { api.webhookEvents().then(setEventGroups).catch(() => setEventGroups([])); }, []);
 
@@ -75,6 +103,7 @@ export function WebhooksSettings() {
       const events = all || selected.size === 0 ? "*" : Array.from(selected).join(",");
       const created = await api.createWebhook({ name: name.trim(), url: url.trim(), secret: secret.trim() || undefined, events, enabled: true } as any);
       setWebhooks((w) => [created, ...w]);
+      setError(null);
       setShow(false);
       setName("");
       setUrl("");
@@ -99,7 +128,41 @@ export function WebhooksSettings() {
             </Button>
           )}
         </div>
-        {webhooks.length === 0 ? (
+        {loading ? (
+          <ListSkeleton rows={4} ariaLabel={t("settings.loadingWebhooks")} />
+        ) : error ? (
+          <Alert
+            variant="danger"
+            icon={<AlertCircle className="h-5 w-5 shrink-0" />}
+            actions={
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={load}
+                className="flex items-center gap-1.5 text-xs"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                {t("settings.retry")}
+              </Button>
+            }
+          >
+            <div className="space-y-1">
+              <p className="font-semibold text-danger-fg">{t("settings.loadFailed")}</p>
+              {error instanceof Error ? (
+                <p className="text-xs text-danger-fg/80">{error.message}</p>
+              ) : typeof error === "string" ? (
+                <p className="text-xs text-danger-fg/80">{error}</p>
+              ) : null}
+              {typeof error === "object" && error !== null && ("status" in error || "requestId" in error) && (
+                <p className="font-mono tabular-nums tnum text-[11px] text-danger-fg/70">
+                  {typeof (error as any).status === "number" && t("uiCommon.formErrorStatus", { status: (error as any).status })}
+                  {typeof (error as any).status === "number" && (error as any).requestId && " · "}
+                  {(error as any).requestId && t("uiCommon.formErrorRequestId", { requestId: (error as any).requestId })}
+                </p>
+              )}
+            </div>
+          </Alert>
+        ) : webhooks.length === 0 ? (
           <div className="select-none rounded border border-dashed border-foreground/[0.06] py-4 text-center text-xs text-foreground/40">{t("settings.noWebhooks")}</div>
         ) : (
           <div className="space-y-3.5">

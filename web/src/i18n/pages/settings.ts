@@ -258,6 +258,9 @@ export const settings = {
     // WebhooksSettings
     confirmDeleteWebhook: "Delete this webhook endpoint?",
     createFailed: "Could not create webhook",
+    loadFailed: "Could not load webhooks",
+    loadingWebhooks: "Loading webhooks…",
+    retry: "Retry",
     webhooksTitle: "Webhooks",
     webhooksDescription: "Send click and email events to your own systems in real time. Every request is signed so you can verify it came from octarq.",
     outboundEventWebhooks: "Outbound Event Webhooks",
@@ -647,6 +650,9 @@ export const settings = {
     // WebhooksSettings
     confirmDeleteWebhook: "删除此 Webhook 端点？",
     createFailed: "创建失败",
+    loadFailed: "无法加载 Webhook 列表",
+    loadingWebhooks: "正在加载 Webhook 列表…",
+    retry: "重试",
     webhooksTitle: "Webhooks",
     webhooksDescription: "实时将点击和邮件事件发送到你的系统。每个请求均包含签名验证。",
     outboundEventWebhooks: "出站事件 Webhooks",
@@ -1036,6 +1042,9 @@ export const settings = {
     // WebhooksSettings
     confirmDeleteWebhook: "¿Eliminar este punto de enlace de Webhook?",
     createFailed: "error al crear",
+    loadFailed: "No se pudieron cargar los webhooks",
+    loadingWebhooks: "Cargando webhooks…",
+    retry: "Reintentar",
     webhooksTitle: "Webhooks",
     webhooksDescription: "Envíe eventos de clics y correo a sus propios sistemas en tiempo real. Cada solicitud se firma para que pueda verificar que proviene de octarq.",
     outboundEventWebhooks: "Webhooks de Eventos Salientes",
@@ -1425,6 +1434,9 @@ export const settings = {
     // WebhooksSettings
     confirmDeleteWebhook: "Excluir este endpoint de webhook?",
     createFailed: "falha ao criar",
+    loadFailed: "Não foi possível carregar os webhooks",
+    loadingWebhooks: "Carregando webhooks…",
+    retry: "Tentar novamente",
     webhooksTitle: "Webhooks",
     webhooksDescription: "Envie eventos de clique e e-mail para seus próprios sistemas em tempo real. Cada requisição é assinada para que você possa verificar se veio do octarq.",
     outboundEventWebhooks: "Webhooks de Eventos de Saída",
@@ -1814,6 +1826,9 @@ export const settings = {
     // WebhooksSettings
     confirmDeleteWebhook: "このWebhookエンドポイントを削除しますか？",
     createFailed: "作成に失敗しました",
+    loadFailed: "Webhook を読み込めませんでした",
+    loadingWebhooks: "Webhook を読み込み中…",
+    retry: "再試行",
     webhooksTitle: "Webhooks",
     webhooksDescription: "クリックイベントとメールイベントをリアルタイムで自社システムに送信します。すべてのリクエストは署名されているため、octarqからのものであることを確認できます。",
     outboundEventWebhooks: "送信イベント Webhooks",
