@@ -70,6 +70,8 @@ func newOpenAPICommand(d Deps) *cobra.Command {
 
 func newBackupCommand(d Deps) *cobra.Command {
 	var out string
+	var remote bool
+	var encrypt bool
 	cmd := &cobra.Command{
 		Use:   "backup",
 		Short: "Back up the database",
@@ -79,17 +81,31 @@ func newBackupCommand(d Deps) *cobra.Command {
 			}
 			args := []string{}
 			if out != "" {
-				args = []string{"--out", out}
+				args = append(args, "--out", out)
+			}
+			if remote {
+				args = append(args, "--remote")
+			}
+			if cmd.Flags().Changed("encrypt") {
+				if encrypt {
+					args = append(args, "--encrypt=true")
+				} else {
+					args = append(args, "--encrypt=false")
+				}
 			}
 			return codeErr(d.Backup(args))
 		},
 	}
 	cmd.Flags().StringVarP(&out, "out", "o", "", "output file path for backup")
+	cmd.Flags().BoolVar(&remote, "remote", false, "upload encrypted backup to configured remote S3/R2 storage")
+	cmd.Flags().BoolVar(&encrypt, "encrypt", true, "encrypt backup with AES-256-GCM before saving/uploading")
 	return cmd
 }
 
 func newRestoreCommand(d Deps) *cobra.Command {
 	var in string
+	var fromS3 string
+	var decrypt bool
 	var yes bool
 	cmd := &cobra.Command{
 		Use:   "restore",
@@ -102,13 +118,21 @@ func newRestoreCommand(d Deps) *cobra.Command {
 			if in != "" {
 				args = append(args, "--in", in)
 			}
+			if fromS3 != "" {
+				args = append(args, "--from-s3", fromS3)
+			}
+			if decrypt {
+				args = append(args, "--decrypt")
+			}
 			if yes {
 				args = append(args, "--yes")
 			}
 			return codeErr(d.Restore(args))
 		},
 	}
-	cmd.Flags().StringVarP(&in, "in", "i", "", "input backup file path (required)")
+	cmd.Flags().StringVarP(&in, "in", "i", "", "input backup file path (required unless --from-s3 is used)")
+	cmd.Flags().StringVar(&fromS3, "from-s3", "", "restore directly from remote S3 snapshot key (or 'latest')")
+	cmd.Flags().BoolVar(&decrypt, "decrypt", false, "decrypt backup file using OCTARQ_SECRET_KEY before restoring")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "confirm restore without prompt")
 	_ = cmd.Flags().Bool("confirm", false, "alias of --yes")
 	return cmd
