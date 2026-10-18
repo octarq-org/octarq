@@ -8,6 +8,7 @@ import (
 	"github.com/octarq-org/octarq/server/internal/auth"
 	mcp_internal "github.com/octarq-org/octarq/server/internal/mcp"
 	"github.com/octarq-org/octarq/server/internal/models"
+	"github.com/octarq-org/octarq/server/pkg/telemetry"
 )
 
 // mcpAuth is a middleware that authenticates MCP requests. An authenticated
@@ -54,7 +55,12 @@ func (h *Handler) mcpSSEHandler() http.Handler {
 	}, &mcp.SSEOptions{
 		DisableLocalhostProtection: true,
 	})
-	return h.mcpAuth(handler)
+	authed := h.mcpAuth(handler)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		telemetry.IncMCPSessions()
+		defer telemetry.DecMCPSessions()
+		authed.ServeHTTP(w, r)
+	})
 }
 
 // mcpStreamHandler returns an http.Handler that handles MCP over Streamable HTTP.
@@ -67,5 +73,10 @@ func (h *Handler) mcpStreamHandler() http.Handler {
 	}, &mcp.StreamableHTTPOptions{
 		DisableLocalhostProtection: true,
 	})
-	return h.mcpAuth(handler)
+	authed := h.mcpAuth(handler)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		telemetry.IncMCPSessions()
+		defer telemetry.DecMCPSessions()
+		authed.ServeHTTP(w, r)
+	})
 }

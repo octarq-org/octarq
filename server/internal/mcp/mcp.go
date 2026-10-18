@@ -29,6 +29,7 @@ import (
 	"github.com/octarq-org/octarq/server/internal/endpoint"
 	"github.com/octarq-org/octarq/server/internal/eventbus"
 	"github.com/octarq-org/octarq/server/internal/tenantsql"
+	"github.com/octarq-org/octarq/server/pkg/telemetry"
 	"github.com/octarq-org/octarq/server/plugin"
 	"gorm.io/gorm"
 )
@@ -162,6 +163,9 @@ func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
 	if err != nil {
 		return fmt.Errorf("mcp: open db: %w", err)
 	}
+
+	telemetry.IncMCPSessions()
+	defer telemetry.DecMCPSessions()
 
 	// Stdio CLI: single local operator, org 1.
 	//

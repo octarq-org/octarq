@@ -104,11 +104,17 @@ func (h *Handler) BrandFor(orgID uint) (logo, color, color2 string) {
 func (h *Handler) MetricsToken() string {
 	enc := h.getSetting(keyMetricsToken)
 	if enc == "" {
-		return ""
+		if h.cfg != nil && h.cfg.MetricsToken != "" {
+			return strings.TrimSpace(h.cfg.MetricsToken)
+		}
+		return strings.TrimSpace(os.Getenv("OCTARQ_METRICS_TOKEN"))
 	}
 	b, err := h.cipher.Decrypt(enc)
 	if err != nil {
-		return ""
+		if h.cfg != nil && h.cfg.MetricsToken != "" {
+			return strings.TrimSpace(h.cfg.MetricsToken)
+		}
+		return strings.TrimSpace(os.Getenv("OCTARQ_METRICS_TOKEN"))
 	}
 	return strings.TrimSpace(string(b))
 }

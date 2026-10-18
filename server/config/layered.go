@@ -45,6 +45,8 @@ var layeredKeys = []struct {
 	{"OTEL_TRACES_SAMPLER", "otel.traces_sampler"},
 	{"OTEL_EXPORTER_OTLP_INSECURE", "otel.insecure"},
 	{"OTEL_EXPORTER_OTLP_HEADERS", "otel.headers"},
+	{"OCTARQ_METRICS_ENABLED", "metrics.enabled"},
+	{"OCTARQ_METRICS_TOKEN", "metrics.token"},
 }
 
 // LoadOptions selects the configuration sources for one load.
@@ -144,6 +146,8 @@ func buildFromValues(values map[string]string) (*Config, error) {
 		OTelSampler:         get("OTEL_TRACES_SAMPLER", "parentbased_always_on"),
 		OTelInsecure:        strings.EqualFold(strings.TrimSpace(get("OTEL_EXPORTER_OTLP_INSECURE", "")), "true") || strings.TrimSpace(get("OTEL_EXPORTER_OTLP_INSECURE", "")) == "1",
 		OTelHeaders:         get("OTEL_EXPORTER_OTLP_HEADERS", ""),
+		MetricsEnabled:      !strings.EqualFold(strings.TrimSpace(get("OCTARQ_METRICS_ENABLED", "true")), "false") && strings.TrimSpace(get("OCTARQ_METRICS_ENABLED", "true")) != "0",
+		MetricsToken:        get("OCTARQ_METRICS_TOKEN", ""),
 	}
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" && c.DBDriver != "mysql" {
 		return nil, fmt.Errorf("OCTARQ_DB_DRIVER must be sqlite, postgres, or mysql, got %q", c.DBDriver)
