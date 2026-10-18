@@ -95,6 +95,42 @@ describe("Global Actions pure helpers", () => {
     const mergedEmpty = mergeCommandItems(undefined as any, navItems);
     expect(mergedEmpty).toEqual(navItems);
   });
+
+  it("4. mergeCommandItems injects builtin quick actions when includeBuiltin is true", () => {
+    const navItems: CommandPaletteItem[] = [
+      { id: "/overview", label: "Overview", path: "/overview", isAction: false },
+    ];
+    const onNavigate = vi.fn();
+    const onOpenCopilot = vi.fn();
+
+    const merged = mergeCommandItems([], navItems, {
+      includeBuiltin: true,
+      onNavigate,
+      onOpenCopilot,
+    });
+
+    // 4 builtin quick actions + 1 nav item = 5 items
+    expect(merged).toHaveLength(5);
+    expect(merged.map((m) => m.id)).toEqual([
+      "action.new_link",
+      "action.new_domain",
+      "action.export_data",
+      "action.ask_copilot",
+      "/overview",
+    ]);
+
+    // Test actionType and shortcut properties
+    const newLink = merged.find((m) => m.id === "action.new_link");
+    expect(newLink?.actionType).toBe("create_link");
+    expect(newLink?.shortcut).toBe("⌘N");
+    expect(typeof newLink?.actionHandler).toBe("function");
+
+    const copilotAction = merged.find((m) => m.id === "action.ask_copilot");
+    expect(copilotAction?.actionType).toBe("open_ai_chat");
+    expect(copilotAction?.shortcut).toBe("⌘J");
+    copilotAction?.actionHandler?.();
+    expect(onOpenCopilot).toHaveBeenCalled();
+  });
 });
 
 describe("TopBar component rendering with actions", () => {

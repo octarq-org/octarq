@@ -98,6 +98,12 @@ export const en = {
     // the hint is the real constraint: ⌘K jumps, it doesn't create.
     emptyTitle: "No page or action matches",
     emptyHint: "⌘K opens pages — it can't create anything. Try one of: {{areas}}.",
+    action: {
+      newLink: "Create short link",
+      newDomain: "Add domain",
+      exportData: "Export workspace data",
+      askCopilot: "Open AI Copilot",
+    },
     chat: {
       askAi: "Ask AI",
       placeholder: "Ask AI anything… (Enter to send, Esc to return to search)",

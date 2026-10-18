@@ -290,6 +290,106 @@ describe("CommandPalette", () => {
     unmount();
     expect(streamSignal?.aborted).toBe(true);
   });
+
+  it("7. executes actionHandler on Enter for quick action items and closes dialog without calling onNavigate", () => {
+    const onNavigate = vi.fn();
+    const onClose = vi.fn();
+
+    const openLinkSpy = vi.fn();
+    const customListener = () => openLinkSpy();
+    window.addEventListener("octarq:open-new-link", customListener);
+
+    render(
+      <I18nProvider>
+        <CommandPalette
+          open={true}
+          onClose={onClose}
+          areas={dummyAreas}
+          settingsArea={dummySettingsArea}
+          onNavigate={onNavigate}
+          actions={dummyActions}
+        />
+      </I18nProvider>,
+    );
+
+    const input = screen.getByPlaceholderText("Search pages…");
+    // Filter to the builtin "Create short link"
+    fireEvent.change(input, { target: { value: "Create short link" } });
+
+    // Press Enter to trigger the selected item
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    // actionHandler dispatched custom event and called onClose
+    expect(openLinkSpy).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+
+    window.removeEventListener("octarq:open-new-link", customListener);
+  });
+
+  it("8. executes actionHandler on click for quick action items", () => {
+    const onNavigate = vi.fn();
+    const onClose = vi.fn();
+
+    const exportSpy = vi.fn();
+    const customListener = () => exportSpy();
+    window.addEventListener("octarq:export-data", customListener);
+
+    render(
+      <I18nProvider>
+        <CommandPalette
+          open={true}
+          onClose={onClose}
+          areas={dummyAreas}
+          settingsArea={dummySettingsArea}
+          onNavigate={onNavigate}
+          actions={dummyActions}
+        />
+      </I18nProvider>,
+    );
+
+    const input = screen.getByPlaceholderText("Search pages…");
+    fireEvent.change(input, { target: { value: "Export workspace data" } });
+
+    const itemBtn = screen.getByText("Export workspace data");
+    fireEvent.click(itemBtn);
+
+    expect(exportSpy).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+
+    window.removeEventListener("octarq:export-data", customListener);
+  });
+
+  it("9. triggers open-copilot event when action.ask_copilot is executed", () => {
+    const onNavigate = vi.fn();
+    const onClose = vi.fn();
+
+    const copilotSpy = vi.fn();
+    const customListener = () => copilotSpy();
+    window.addEventListener("octarq:open-copilot", customListener);
+
+    render(
+      <I18nProvider>
+        <CommandPalette
+          open={true}
+          onClose={onClose}
+          areas={dummyAreas}
+          settingsArea={dummySettingsArea}
+          onNavigate={onNavigate}
+          actions={dummyActions}
+        />
+      </I18nProvider>,
+    );
+
+    const input = screen.getByPlaceholderText("Search pages…");
+    fireEvent.change(input, { target: { value: "Open AI Copilot" } });
+
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(copilotSpy).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+
+    window.removeEventListener("octarq:open-copilot", customListener);
+  });
 });
 
 describe("ThinkingCollapsible", () => {
