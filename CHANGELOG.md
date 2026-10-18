@@ -2,6 +2,83 @@
 
 All notable changes to this project are documented here.
 
+## [0.7.0] - 2026-10-17
+
+### 🚀 Features
+
+- **account**: Expose GDPR account erasure in UI and api client (AUD-P3-03) (#647)
+- **members**: Expose resend invite endpoint and button for pending members (AUD-P2-12) (#644)
+
+### 📦 Other
+
+- **notify,mail,dns,readiness**: Polish notification, readiness, and ops message copy (#680)
+- **emails**: Polish transactional email copy and unify brand casing (#679)
+- **web**: Refine remaining settings pages and top-level locale residuals (#678)
+- **mail,links,dns**: Refine user-facing copy for COPY_STYLE consistency (AGY-COPY-PLUGIN-MAIL-LINKS) (#677)
+- **plugins,app**: Refine user-facing error wording for COPY_STYLE consistency (#676)
+- **web**: Refine user-facing strings for COPY_STYLE consistency (#674) (#674)
+- **dns/help**: Rewrite DNS and DDNS help docs for clarity (EN/ZH) (#672)
+- **links/help**: Rewrite short-links copy for clarity (EN/ZH) (#670)
+- **auth**: Tighten login/reset copy for clarity and consistency (#669)
+- **utils**: Log db restore mkdir, notify registration, idempotency writes, openapi setenv failures; add SPEC/REFINE-LOGs (#667)
+- **server**: Log JSON response write failures; add SPEC.md and REFINE-LOG.md (#666)
+- **eventbus**: Audit pass + add SPEC.md and REFINE-LOG.md (#665)
+- **api**: Split 5 test God files into cohesive sub-files <=450 LOC (#657)
+- **harness,help,mcp,notify,tenantquery**: Small-module hardening and swallowed-error fixes (#654)
+- **app,auth**: Composition-root decomposition and auth hardening with characterization locks (#653)
+- **origin,dns,notification,mail,queue**: God-file decomposition and fail-closed characterization locks (#651)
+- **links,mail**: Fail-closed tenant sender, edge-test decomposition and zero swallowed errors (#655)
+- **api**: Eliminate 7 god files, fail-closed hardening and route-security characterization (#650)
+- **core**: Decompose plugin/models/tenantsql god files, fail-closed guards and characterization locks (#649)
+- **web**: Decompose 12 core web God files <=450 LOC and eliminate any (#648)
+
+### 🐛 Bug Fixes
+
+- Fail-closed stored notification config parsing; surface db instrumentation failures (#662)
+- **web**: Parse OAuth routes from the whole internal/api package after the split (#660)
+- **personal**: Handle token deletion errors and show toasts (AUD-P3-02) (#646)
+- **boundary**: Remove pro licensing concepts and exit redirects from OSS root App.tsx (AUD-P3-01) (#645)
+- **auth**: Establish session cookie on invite accept and remove hardcoded admin login default (AUD-P2-11) (#643)
+- **app**: Fail closed when OCTARQ_GEOIP_DB is invalid or unreadable (AUD-P2-07) (#642)
+- **origin**: Reject untrusted host header in origin resolver fallback (AUD-P2-03) (#638)
+- **cache**: Enforce tenant organization namespace isolation in ScopedCache (AUD-P2-01) (#637)
+- **api**: Remove /api/v1/ compatibility shim (AUD-P1-05) (#636)
+- **ui**: Resolve upgrade routing to /instance/license in LockedFeature and Settings (AUD-P1-04) (#635)
+- **cron**: Enforce strict fail-closed distributed lock without local fallback (AUD-P1-01) (#634)
+- **web**: Comply with web interface guidelines for accessibility, focus states, and transitions (#633)
+- **auth**: Enforce enterprise SSO domain guard during OAuth callback (SEC-10) (#632)
+- **sec**: Resolve OAuth route dropout and files cross-tenant MD5 leak (SEC-01, SEC-02) (#631)
+
+### ♻️ Refactor
+
+- **api**: Refine user-facing error copy according to copy guidelines (#675)
+- **arch**: Buffer squeeze tenantdb, app, tenant_members, files to <=450 LOC (AGY-BUFF-A) (#664)
+- **test**: Squeeze 9 buffer-zone test files to <=450 LOC (AGY-BUFF-B) (#663)
+- **plugin**: Split plugin.go into focused files (770→179) (#661)
+- **tests**: Split oversized test god files <=450 LOC (AGY-PT) (#658)
+- Split god files in server middleware, db, and cli (#656)
+- **core**: Refine 11 internal packages (authz, cache, cleanup, cron, crypto, geo, ipc, monitor, readiness, safego, usagemetric) (#652)
+- **notification**: Eliminate legacy notifier adapter downgrade shim (AUD-P2-06) (#641)
+
+### 📚 Documentation
+
+- **mail**: Refine mailboxes help docs for task-first clarity and Apple style (#673)
+- **help**: Rewrite core help docs to follow task-oriented COPY_STYLE (#671)
+- **help**: Sanitize exploit mitigations and internal mechanics in user help docs (AUD-P2-05) (#640)
+- **tenantquery**: Add module engineering specification SPEC.md (AUD-P2-04) (#639)
+
+### 🧪 Testing
+
+- **core**: Lift aggregate coverage margin above the 90% ratchet (#659)
+
+### ⚙️ CI & Build
+
+- **release**: Make server module tagging idempotent
+
+### 🧹 Chores
+
+- Ignore REFINE-LOG.md (local-only audit logs) (#668)
+
 ## [0.6.0] - 2026-09-29
 
 ### 🚀 Features
