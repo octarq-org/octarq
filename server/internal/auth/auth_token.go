@@ -20,6 +20,7 @@ func (m *Manager) TokenID(r *http.Request) uint {
 func (m *Manager) WithTokenIdentity(ctx context.Context, tok models.Token) context.Context {
 	ctx = WithTokenID(ctx, tok.ID)
 	ctx = WithTokenRole(ctx, tok.Role)
+	ctx = WithTokenAgent(ctx, tok.IsAgent, tok.AllowedTools)
 	m.touchToken(tok.ID)
 	return ctx
 }
