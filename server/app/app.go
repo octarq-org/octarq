@@ -359,6 +359,9 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}
 	eventbus.StartReactors(ctx, 0)
+	if err := cron.RegisterBackupJob(cronEngine, a.cfg); err != nil {
+		slog.Error("cron backup registration failed", "err", err)
+	}
 	go func() {
 		if err := cronEngine.Start(ctx); err != nil {
 			slog.Error("cron start failed", "err", err)

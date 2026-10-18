@@ -104,6 +104,20 @@ func TestExecuteBackupPassesOutFlag(t *testing.T) {
 	}
 }
 
+func TestExecuteBackupRemoteAndEncryptFlags(t *testing.T) {
+	var got []string
+	d := testDeps()
+	d.Backup = func(args []string) int { got = args; return 0 }
+	var out, errb bytes.Buffer
+	if code := Execute(context.Background(), []string{"backup", "--remote", "--encrypt=true"}, &out, &errb, d); code != 0 {
+		t.Fatalf("backup exit = %d, want 0", code)
+	}
+	joined := strings.Join(got, " ")
+	if !strings.Contains(joined, "--remote") || !strings.Contains(joined, "--encrypt=true") {
+		t.Errorf("backup args = %v, want --remote and --encrypt=true", got)
+	}
+}
+
 func TestExecuteRestoreBuildsArgs(t *testing.T) {
 	var got []string
 	d := testDeps()
@@ -115,6 +129,20 @@ func TestExecuteRestoreBuildsArgs(t *testing.T) {
 	joined := strings.Join(got, " ")
 	if !strings.Contains(joined, "--in") || !strings.Contains(joined, "a.db") || !strings.Contains(joined, "--yes") {
 		t.Errorf("restore args = %v, want --in a.db --yes", got)
+	}
+}
+
+func TestExecuteRestoreFromS3AndDecryptFlags(t *testing.T) {
+	var got []string
+	d := testDeps()
+	d.Restore = func(args []string) int { got = args; return 0 }
+	var out, errb bytes.Buffer
+	if code := Execute(context.Background(), []string{"restore", "--from-s3", "latest", "--decrypt", "--yes"}, &out, &errb, d); code != 0 {
+		t.Fatalf("restore exit = %d, want 0", code)
+	}
+	joined := strings.Join(got, " ")
+	if !strings.Contains(joined, "--from-s3") || !strings.Contains(joined, "latest") || !strings.Contains(joined, "--decrypt") || !strings.Contains(joined, "--yes") {
+		t.Errorf("restore args = %v, want --from-s3 latest --decrypt --yes", got)
 	}
 }
 

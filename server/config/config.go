@@ -104,6 +104,23 @@ type Config struct {
 	OTelSampleRatio     float64
 	OTelInsecure        bool
 	OTelHeaders         string
+
+	// Remote S3 / Cloudflare R2 automated backup settings
+	BackupS3Endpoint    string // OCTARQ_BACKUP_S3_ENDPOINT
+	BackupS3Bucket      string // OCTARQ_BACKUP_S3_BUCKET
+	BackupS3AccessKey   string // OCTARQ_BACKUP_S3_ACCESS_KEY
+	BackupS3SecretKey   string // OCTARQ_BACKUP_S3_SECRET_KEY
+	BackupS3Region      string // OCTARQ_BACKUP_S3_REGION (default: "auto" or "us-east-1")
+	BackupRetentionDays int    // OCTARQ_BACKUP_RETENTION_DAYS (default: 30)
+	BackupCron          string // OCTARQ_BACKUP_CRON (default: "0 3 * * *")
+}
+
+// BackupS3Configured reports whether the remote S3/R2 backup target has all
+// required credentials configured (bucket, access key, secret key).
+func (c *Config) BackupS3Configured() bool {
+	return strings.TrimSpace(c.BackupS3Bucket) != "" &&
+		strings.TrimSpace(c.BackupS3AccessKey) != "" &&
+		strings.TrimSpace(c.BackupS3SecretKey) != ""
 }
 
 // validLogLevels is the vocabulary OCTARQ_LOG_LEVEL accepts. Keeping the list

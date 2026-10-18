@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/knadh/koanf/parsers/yaml"
@@ -45,6 +46,13 @@ var layeredKeys = []struct {
 	{"OTEL_TRACES_SAMPLER", "otel.traces_sampler"},
 	{"OTEL_EXPORTER_OTLP_INSECURE", "otel.insecure"},
 	{"OTEL_EXPORTER_OTLP_HEADERS", "otel.headers"},
+	{"OCTARQ_BACKUP_S3_ENDPOINT", "backup.s3.endpoint"},
+	{"OCTARQ_BACKUP_S3_BUCKET", "backup.s3.bucket"},
+	{"OCTARQ_BACKUP_S3_ACCESS_KEY", "backup.s3.access_key"},
+	{"OCTARQ_BACKUP_S3_SECRET_KEY", "backup.s3.secret_key"},
+	{"OCTARQ_BACKUP_S3_REGION", "backup.s3.region"},
+	{"OCTARQ_BACKUP_RETENTION_DAYS", "backup.retention_days"},
+	{"OCTARQ_BACKUP_CRON", "backup.cron"},
 }
 
 // LoadOptions selects the configuration sources for one load.
@@ -144,6 +152,25 @@ func buildFromValues(values map[string]string) (*Config, error) {
 		OTelSampler:         get("OTEL_TRACES_SAMPLER", "parentbased_always_on"),
 		OTelInsecure:        strings.EqualFold(strings.TrimSpace(get("OTEL_EXPORTER_OTLP_INSECURE", "")), "true") || strings.TrimSpace(get("OTEL_EXPORTER_OTLP_INSECURE", "")) == "1",
 		OTelHeaders:         get("OTEL_EXPORTER_OTLP_HEADERS", ""),
+
+		BackupS3Endpoint:    get("OCTARQ_BACKUP_S3_ENDPOINT", ""),
+		BackupS3Bucket:      get("OCTARQ_BACKUP_S3_BUCKET", ""),
+		BackupS3AccessKey:   get("OCTARQ_BACKUP_S3_ACCESS_KEY", ""),
+		BackupS3SecretKey:   get("OCTARQ_BACKUP_S3_SECRET_KEY", ""),
+		BackupS3Region:      get("OCTARQ_BACKUP_S3_REGION", "auto"),
+		BackupRetentionDays: 30,
+		BackupCron:          get("OCTARQ_BACKUP_CRON", "0 3 * * *"),
+	}
+	if c.BackupS3Region == "" {
+		c.BackupS3Region = "auto"
+	}
+	if c.BackupCron == "" {
+		c.BackupCron = "0 3 * * *"
+	}
+	if daysStr := get("OCTARQ_BACKUP_RETENTION_DAYS", ""); daysStr != "" {
+		if d, err := strconv.Atoi(strings.TrimSpace(daysStr)); err == nil && d > 0 {
+			c.BackupRetentionDays = d
+		}
 	}
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" && c.DBDriver != "mysql" {
 		return nil, fmt.Errorf("OCTARQ_DB_DRIVER must be sqlite, postgres, or mysql, got %q", c.DBDriver)

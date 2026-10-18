@@ -344,3 +344,65 @@ func TestDevWebProxyConfig(t *testing.T) {
 		t.Errorf("DevWebProxy = %q, want http://localhost:5173", cfg.DevWebProxy)
 	}
 }
+
+func TestBackupS3Config(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("OCTARQ_SECRET_KEY", "1234567890123456")
+	t.Setenv("OCTARQ_ADMIN_PASSWORD", "secret")
+	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
+	t.Setenv("OCTARQ_DB_DSN", filepath.Join(dir, "octarq.db"))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.BackupS3Configured() {
+		t.Errorf("expected BackupS3Configured() to be false when unconfigured")
+	}
+	if cfg.BackupRetentionDays != 30 {
+		t.Errorf("expected default retention days 30, got %d", cfg.BackupRetentionDays)
+	}
+	if cfg.BackupCron != "0 3 * * *" {
+		t.Errorf("expected default cron '0 3 * * *', got %q", cfg.BackupCron)
+	}
+	if cfg.BackupS3Region != "auto" {
+		t.Errorf("expected default region 'auto', got %q", cfg.BackupS3Region)
+	}
+
+	t.Setenv("OCTARQ_BACKUP_S3_ENDPOINT", "https://r2.cloudflarestorage.com")
+	t.Setenv("OCTARQ_BACKUP_S3_BUCKET", "octarq-backups")
+	t.Setenv("OCTARQ_BACKUP_S3_ACCESS_KEY", "test-key-id")
+	t.Setenv("OCTARQ_BACKUP_S3_SECRET_KEY", "test-secret-key")
+	t.Setenv("OCTARQ_BACKUP_S3_REGION", "us-east-1")
+	t.Setenv("OCTARQ_BACKUP_RETENTION_DAYS", "14")
+	t.Setenv("OCTARQ_BACKUP_CRON", "0 4 * * *")
+
+	cfg2, err := Load()
+	if err != nil {
+		t.Fatalf("Load configured: %v", err)
+	}
+	if !cfg2.BackupS3Configured() {
+		t.Errorf("expected BackupS3Configured() to be true")
+	}
+	if cfg2.BackupS3Endpoint != "https://r2.cloudflarestorage.com" {
+		t.Errorf("BackupS3Endpoint = %q", cfg2.BackupS3Endpoint)
+	}
+	if cfg2.BackupS3Bucket != "octarq-backups" {
+		t.Errorf("BackupS3Bucket = %q", cfg2.BackupS3Bucket)
+	}
+	if cfg2.BackupS3AccessKey != "test-key-id" {
+		t.Errorf("BackupS3AccessKey = %q", cfg2.BackupS3AccessKey)
+	}
+	if cfg2.BackupS3SecretKey != "test-secret-key" {
+		t.Errorf("BackupS3SecretKey = %q", cfg2.BackupS3SecretKey)
+	}
+	if cfg2.BackupS3Region != "us-east-1" {
+		t.Errorf("BackupS3Region = %q", cfg2.BackupS3Region)
+	}
+	if cfg2.BackupRetentionDays != 14 {
+		t.Errorf("BackupRetentionDays = %d, want 14", cfg2.BackupRetentionDays)
+	}
+	if cfg2.BackupCron != "0 4 * * *" {
+		t.Errorf("BackupCron = %q, want '0 4 * * *'", cfg2.BackupCron)
+	}
+}
