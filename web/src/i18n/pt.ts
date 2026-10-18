@@ -91,6 +91,12 @@ export const pt = {
     placeholder: "Pesquisar páginas…",
     emptyTitle: "Nenhuma página ou ação corresponde",
     emptyHint: "O ⌘K abre páginas — não pode criar nada. Tente uma destas áreas: {{areas}}.",
+    action: {
+      newLink: "Criar link curto",
+      newDomain: "Adicionar domínio",
+      exportData: "Exportar dados do espaço de trabalho",
+      askCopilot: "Abrir Copiloto IA",
+    },
     chat: {
       askAi: "Perguntar à IA",
       placeholder: "Pergunte à IA… (Enter para enviar, Esc para voltar à busca)",

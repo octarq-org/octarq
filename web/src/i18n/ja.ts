@@ -91,6 +91,12 @@ export const ja = {
     placeholder: "ページを検索…",
     emptyTitle: "一致するページやアクションはありません",
     emptyHint: "⌘K はページを開くだけです（作成はできません）。次のエリアを試してください: {{areas}}。",
+    action: {
+      newLink: "短縮URLを作成",
+      newDomain: "ドメインを追加",
+      exportData: "ワークスペースデータをエクスポート",
+      askCopilot: "AI コパイロットを開く",
+    },
     chat: {
       askAi: "AI に質問",
       placeholder: "AI に何でも質問…（Enter で送信、Esc で検索に戻る）",

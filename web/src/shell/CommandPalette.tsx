@@ -82,8 +82,13 @@ export function CommandPalette({
       mergeCommandItems(
         actions.map((a) => ({ ...a, label: translateNavItemLabel(t, a.id, a.label) })),
         navItems,
+        {
+          includeBuiltin: true,
+          t,
+          onNavigate,
+        },
       ),
-    [actions, navItems, t],
+    [actions, navItems, onNavigate, t],
   );
 
   const areaTitles = useMemo(
@@ -119,11 +124,13 @@ export function CommandPalette({
           (c.isAction ? c.category?.toLowerCase().includes(needle) : false) ||
           (!c.isAction && c.area?.toLowerCase().includes(needle)) ||
           (!c.isAction && c.group?.toLowerCase().includes(needle)) ||
-          c.path.toLowerCase().includes(needle),
+          c.path.toLowerCase().includes(needle) ||
+          (c.actionType ? c.actionType.toLowerCase().includes(needle) : false) ||
+          c.id.toLowerCase().includes(needle),
       );
     }
     if (askAiItem) {
-      return [askAiItem, ...result];
+      return [...result, askAiItem];
     }
     return result;
   }, [q, commands, askAiItem]);
@@ -301,6 +308,9 @@ export function CommandPalette({
       if (c) {
         if (c.id === "ask-ai-entry") {
           startChatWithQuery(q);
+        } else if (c.actionHandler) {
+          c.actionHandler();
+          onClose();
         } else {
           onNavigate(c.path);
         }
@@ -368,6 +378,9 @@ export function CommandPalette({
                       onClick={() => {
                         if (c.id === "ask-ai-entry") {
                           startChatWithQuery(q);
+                        } else if (c.actionHandler) {
+                          c.actionHandler();
+                          onClose();
                         } else {
                           onNavigate(c.path);
                         }
@@ -392,6 +405,8 @@ export function CommandPalette({
                       <span className="shrink-0 rounded-md border border-foreground/5 dark:border-white/5 bg-muted/40 dark:bg-white/5 px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
                         {c.id === "ask-ai-entry"
                           ? t("command.chat.modeBadge")
+                          : c.shortcut
+                          ? c.shortcut
                           : c.isAction
                           ? t("command.create", "Create")
                           : `${c.area} · ${c.group}`}
