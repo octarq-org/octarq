@@ -59,3 +59,7 @@ type MCPProvider interface {
 2. **Subscription Isolation**:
    - `subscriptionTracker` maintains thread-safe sets of active watcher URIs.
    - Resource updates are published strictly to subscribed sessions watching exact tenant URIs.
+3. **Agent Service Account Tool Whitelist (Fail-Closed)**:
+   - When an authenticated request arrives with an Agent service account token (`auth.IsAgentFromContext(ctx) == true`), tool invocation is strictly checked against the token's allowed tools (`auth.AllowedToolsFromContext(ctx)`).
+   - If the requested tool name is not present in the whitelist, the execution is immediately rejected with a 403 `FORBIDDEN_AGENT_TOOL_DISALLOWED` AgentError and logged with `slog.Warn`. The underlying tool handler is never called.
+   - Non-agent tokens (`IsAgent == false`) bypass this whitelist check and are governed by standard role-based access control.

@@ -1,5 +1,10 @@
 export const copilot = {
   en: {
+    drawerTitle: "AI Copilot",
+    placeholder: "Ask anything about your workspace...",
+    quickPrompt1: "Analyze past 7 days link traffic trends & anomaly referrers",
+    quickPrompt2: "Check current DNS records & domain health status",
+    quickPrompt3: "Summarize recent unread emails and generate highlights",
     title: "AI Copilot",
     subtitle: "Operational assistant & human-in-the-loop hub",
     buttonTitle: "AI Copilot (⌘+J)",
@@ -62,6 +67,11 @@ export const copilot = {
     badgeExpired: "Expired",
   },
   zh: {
+    drawerTitle: "AI 智能副驾",
+    placeholder: "向智能副驾提问，或让其操作当前工作区...",
+    quickPrompt1: "分析过去 7 天短链点击趋势与异常来源",
+    quickPrompt2: "检查当前 DNS 记录与域名健康状态",
+    quickPrompt3: "汇总最新未读邮件并生成摘要",
     title: "AI 协同助理",
     subtitle: "业务运营助理与人机协同中枢",
     buttonTitle: "AI 协同助理 (⌘+J)",
@@ -124,6 +134,11 @@ export const copilot = {
     badgeExpired: "已过期",
   },
   ja: {
+    drawerTitle: "AI コパイロット",
+    placeholder: "ワークスペースについて何でも質問してください...",
+    quickPrompt1: "過去7日間の短縮URLクリック傾向と異常リファラーを分析",
+    quickPrompt2: "現在のDNSレコードとドメインヘルス状態を確認",
+    quickPrompt3: "最新の未読メールを集計してハイライトを生成",
     title: "AI コパイロット",
     subtitle: "運用アシスタント＆承認ハブ",
     buttonTitle: "AI コパイロット (⌘+J)",
@@ -186,6 +201,11 @@ export const copilot = {
     badgeExpired: "期限切れ",
   },
   es: {
+    drawerTitle: "Copiloto IA",
+    placeholder: "Pregunta cualquier cosa sobre tu espacio de trabajo...",
+    quickPrompt1: "Analizar tendencias de clics y fuentes anómalas de los últimos 7 días",
+    quickPrompt2: "Comprobar registros DNS actuales y estado de salud del dominio",
+    quickPrompt3: "Resumir correos electrónicos no leídos recientes y generar aspectos destacados",
     title: "Copiloto IA",
     subtitle: "Asistente operativo y centro de aprobación",
     buttonTitle: "Copiloto IA (⌘+J)",
@@ -248,6 +268,11 @@ export const copilot = {
     badgeExpired: "Expirado",
   },
   pt: {
+    drawerTitle: "Copiloto IA",
+    placeholder: "Pergunte qualquer coisa sobre seu espaço de trabalho...",
+    quickPrompt1: "Analisar tendências de cliques e fontes anômalas dos últimos 7 dias",
+    quickPrompt2: "Verificar registros DNS atuais e status de integridade do domínio",
+    quickPrompt3: "Resumir e-mails não lidos recentes e gerar destaques",
     title: "Copiloto IA",
     subtitle: "Assistente operacional e central de aprovações",
     buttonTitle: "Copiloto IA (⌘+J)",

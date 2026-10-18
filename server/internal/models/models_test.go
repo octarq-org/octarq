@@ -297,3 +297,57 @@ func TestNotificationModels(t *testing.T) {
 		t.Errorf("unexpected loaded preference: %+v", loaded)
 	}
 }
+
+func TestToken_AllowsTool(t *testing.T) {
+	t.Parallel()
+
+	// 1. Non-agent token: allows any tool
+	humanTok := Token{IsAgent: false}
+	if !humanTok.AllowsTool("octarq_network__list_links") {
+		t.Error("expected human token to allow octarq_network__list_links")
+	}
+	if !humanTok.AllowsTool("octarq_network__delete_link") {
+		t.Error("expected human token to allow octarq_network__delete_link")
+	}
+
+	// 2. Agent token with empty AllowedTools: strictly fail-closed
+	emptyAgentTok := Token{IsAgent: true, AllowedTools: ""}
+	if emptyAgentTok.AllowsTool("octarq_network__list_links") {
+		t.Error("expected empty agent token to fail-closed on any tool")
+	}
+
+	// Empty tool name is rejected for agent token
+	if emptyAgentTok.AllowsTool("") {
+		t.Error("expected empty toolName to be disallowed")
+	}
+
+	// 3. Agent token with JSON array
+	jsonAgentTok := Token{
+		IsAgent:      true,
+		AllowedTools: `["octarq_network__list_links", "octarq_network__get_email_summary"]`,
+	}
+	if !jsonAgentTok.AllowsTool("octarq_network__list_links") {
+		t.Error("expected jsonAgentTok to allow octarq_network__list_links")
+	}
+	if !jsonAgentTok.AllowsTool("octarq_network__get_email_summary") {
+		t.Error("expected jsonAgentTok to allow octarq_network__get_email_summary")
+	}
+	if jsonAgentTok.AllowsTool("octarq_network__delete_link") {
+		t.Error("expected jsonAgentTok to reject octarq_network__delete_link")
+	}
+
+	// 4. Agent token with comma-separated list
+	csvAgentTok := Token{
+		IsAgent:      true,
+		AllowedTools: "octarq_network__list_links, octarq_infra__export_data",
+	}
+	if !csvAgentTok.AllowsTool("octarq_network__list_links") {
+		t.Error("expected csvAgentTok to allow octarq_network__list_links")
+	}
+	if !csvAgentTok.AllowsTool("octarq_infra__export_data") {
+		t.Error("expected csvAgentTok to allow octarq_infra__export_data")
+	}
+	if csvAgentTok.AllowsTool("octarq_network__delete_link") {
+		t.Error("expected csvAgentTok to reject octarq_network__delete_link")
+	}
+}

@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -266,12 +267,71 @@ type Token struct {
 	// effective role is min(the user's role in OrgID, this). That is what lets an
 	// owner hand CI a read-only token instead of a copy of their own account.
 	// Empty is read as "member", matching what minting defaults to.
-	Role       string     `gorm:"size:32" json:"role"`
+	Role string `gorm:"size:32" json:"role"`
+
+	// IsAgent marks this token as a machine agent service account.
+	// When true, tool executions over MCP are strictly restricted to AllowedTools.
+	IsAgent bool `gorm:"default:false;index" json:"isAgent"`
+
+	// AllowedTools stores a JSON-encoded array or comma-separated list of permitted
+	// MCP tool names (e.g. ["octarq_network__list_links", "octarq_network__get_email_summary"]).
+	// An empty list for an agent token means NO tools are permitted (Strict Fail-Closed).
+	AllowedTools string `gorm:"type:text" json:"allowedTools"`
+
 	LastUsedAt *time.Time `json:"lastUsedAt"`
 	// ExpiresAt bounds the token's validity. NULL = never expires (back-compat for
 	// tokens minted before expiry support). Auth paths reject an expired token.
 	ExpiresAt *time.Time `json:"expiresAt"`
 	CreatedAt time.Time  `json:"createdAt"`
+}
+
+// ParseAllowedTools parses a JSON-encoded array or comma-separated list of permitted MCP tool names.
+func ParseAllowedTools(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	var list []string
+	if strings.HasPrefix(raw, "[") {
+		if err := json.Unmarshal([]byte(raw), &list); err == nil {
+			var out []string
+			for _, item := range list {
+				trimmed := strings.TrimSpace(item)
+				if trimmed != "" {
+					out = append(out, trimmed)
+				}
+			}
+			return out
+		}
+	}
+	parts := strings.Split(raw, ",")
+	var out []string
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
+// AllowsTool checks whether the token is authorized to execute the given MCP tool name.
+// Non-agent tokens return true (subject to normal RBAC roles).
+// Agent tokens return true ONLY IF the tool name matches AllowedTools.
+func (t Token) AllowsTool(toolName string) bool {
+	if !t.IsAgent {
+		return true
+	}
+	if toolName == "" {
+		return false
+	}
+	tools := ParseAllowedTools(t.AllowedTools)
+	for _, allowed := range tools {
+		if allowed == toolName {
+			return true
+		}
+	}
+	return false
 }
 
 // Expired reports whether the token has a set expiry that is in the past.
