@@ -4,6 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,6 +15,8 @@ import (
 	"github.com/octarq-org/octarq/server/internal/authz"
 	"github.com/octarq-org/octarq/server/internal/models"
 )
+
+var toolNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_\-]{1,64}$`)
 
 // The token body is URL-safe base64 (without padding) so it is copy/paste friendly.
 func newRawToken() string {
@@ -79,6 +84,15 @@ type CreateTokenInputBody struct {
 	// does not think about it gets a narrow token rather than a copy of their
 	// own account.
 	Role string `json:"role,omitempty"`
+
+	// IsAgent marks this token as a machine agent service account.
+	// When true, tool executions over MCP are strictly restricted to AllowedTools.
+	IsAgent      bool     `json:"is_agent,omitempty" doc:"Marks this token as an agent service account restricted to AllowedTools"`
+	AllowedTools []string `json:"allowed_tools,omitempty" doc:"Whitelisted MCP tool names permitted for this agent token"`
+
+	// Support camelCase from JS clients
+	IsAgentCamel      *bool     `json:"isAgent,omitempty" hidden:"true"`
+	AllowedToolsCamel *[]string `json:"allowedTools,omitempty" hidden:"true"`
 }
 
 type CreateTokenInput struct {
@@ -142,32 +156,72 @@ func (h *Handler) createToken(ctx context.Context, input *CreateTokenInput) (*Cr
 	if uid == 0 {
 		return nil, huma.Error401Unauthorized("Authentication required; sign in to continue")
 	}
+
+	isAgent := input.Body.IsAgent
+	if input.Body.IsAgentCamel != nil && !isAgent {
+		isAgent = *input.Body.IsAgentCamel
+	}
+	allowedTools := input.Body.AllowedTools
+	if input.Body.AllowedToolsCamel != nil && len(allowedTools) == 0 {
+		allowedTools = *input.Body.AllowedToolsCamel
+	}
+
+	var allowedToolsJSON string
+	if isAgent {
+		if len(allowedTools) == 0 {
+			return nil, huma.Error400BadRequest("Agent token must specify at least one allowed tool in allowed_tools")
+		}
+		var cleaned []string
+		for _, tool := range allowedTools {
+			trimmed := strings.TrimSpace(tool)
+			if trimmed == "" || !toolNameRegex.MatchString(trimmed) {
+				return nil, huma.Error400BadRequest(fmt.Sprintf("Invalid tool name %q: must match ^[a-zA-Z0-9_-]{1,64}$", tool))
+			}
+			cleaned = append(cleaned, trimmed)
+		}
+		b, err := json.Marshal(cleaned)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Invalid allowed_tools format")
+		}
+		allowedToolsJSON = string(b)
+	}
+
 	raw := newRawToken()
 	tok := models.Token{
-		OrgID:     orgID,
-		UserID:    uid,
-		Name:      name,
-		Hash:      models.HashToken(raw),
-		Prefix:    tokenPrefix(raw),
-		Note:      input.Body.Note,
-		Role:      string(role),
-		ExpiresAt: expiresAt,
+		OrgID:        orgID,
+		UserID:       uid,
+		Name:         name,
+		Hash:         models.HashToken(raw),
+		Prefix:       tokenPrefix(raw),
+		Note:         input.Body.Note,
+		Role:         string(role),
+		IsAgent:      isAgent,
+		AllowedTools: allowedToolsJSON,
+		ExpiresAt:    expiresAt,
 	}
 	if err := h.db.Create(&tok).Error; err != nil {
 		return nil, huma.Error500InternalServerError("Could not create token; retry the request")
 	}
-	h.audit(r, "token.create", "token", tok.ID, map[string]any{"name": tok.Name, "prefix": tok.Prefix, "role": tok.Role})
+	h.audit(r, "token.create", "token", tok.ID, map[string]any{
+		"name":         tok.Name,
+		"prefix":       tok.Prefix,
+		"role":         tok.Role,
+		"isAgent":      tok.IsAgent,
+		"allowedTools": tok.AllowedTools,
+	})
 	// The raw token is returned ONLY here; it is never stored or shown again.
 	return &CreateTokenOutput{
 		Body: map[string]any{
-			"id":        tok.ID,
-			"name":      tok.Name,
-			"note":      tok.Note,
-			"prefix":    tok.Prefix,
-			"role":      tok.Role,
-			"expiresAt": tok.ExpiresAt,
-			"createdAt": tok.CreatedAt,
-			"token":     raw,
+			"id":           tok.ID,
+			"name":         tok.Name,
+			"note":         tok.Note,
+			"prefix":       tok.Prefix,
+			"role":         tok.Role,
+			"isAgent":      tok.IsAgent,
+			"allowedTools": tok.AllowedTools,
+			"expiresAt":    tok.ExpiresAt,
+			"createdAt":    tok.CreatedAt,
+			"token":        raw,
 		},
 	}, nil
 }
@@ -214,10 +268,14 @@ func (h *Handler) deleteToken(ctx context.Context, input *DeleteTokenInput) (*De
 }
 
 type UpdateTokenInputBody struct {
-	Name          *string `json:"name,omitempty"`
-	Note          *string `json:"note,omitempty"`
-	Role          *string `json:"role,omitempty"`
-	ExpiresInDays *int    `json:"expiresInDays,omitempty"`
+	Name              *string   `json:"name,omitempty"`
+	Note              *string   `json:"note,omitempty"`
+	Role              *string   `json:"role,omitempty"`
+	ExpiresInDays     *int      `json:"expiresInDays,omitempty"`
+	IsAgent           *bool     `json:"is_agent,omitempty"`
+	AllowedTools      *[]string `json:"allowed_tools,omitempty"`
+	IsAgentCamel      *bool     `json:"isAgent,omitempty" hidden:"true"`
+	AllowedToolsCamel *[]string `json:"allowedTools,omitempty" hidden:"true"`
 }
 
 type UpdateTokenInput struct {
@@ -261,6 +319,8 @@ func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*Up
 	oldNote := tok.Note
 	oldRole := tok.Role
 	oldExpiresAt := tok.ExpiresAt
+	oldIsAgent := tok.IsAgent
+	oldAllowedTools := tok.AllowedTools
 
 	meta := map[string]any{
 		"prefix": tok.Prefix,
@@ -333,12 +393,60 @@ func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*Up
 		}
 	}
 
+	if input.Body.IsAgent != nil || input.Body.IsAgentCamel != nil {
+		newIsAgent := false
+		if input.Body.IsAgent != nil {
+			newIsAgent = *input.Body.IsAgent
+		} else if input.Body.IsAgentCamel != nil {
+			newIsAgent = *input.Body.IsAgentCamel
+		}
+		if newIsAgent != oldIsAgent {
+			tok.IsAgent = newIsAgent
+			meta["isAgentFrom"] = oldIsAgent
+			meta["isAgentTo"] = newIsAgent
+			changed = true
+		}
+	}
+
+	if input.Body.AllowedTools != nil || input.Body.AllowedToolsCamel != nil {
+		var tools []string
+		if input.Body.AllowedTools != nil {
+			tools = *input.Body.AllowedTools
+		} else if input.Body.AllowedToolsCamel != nil {
+			tools = *input.Body.AllowedToolsCamel
+		}
+		if tok.IsAgent && len(tools) == 0 {
+			return nil, huma.Error400BadRequest("Agent token must specify at least one allowed tool in allowed_tools")
+		}
+		var cleaned []string
+		for _, tool := range tools {
+			trimmed := strings.TrimSpace(tool)
+			if trimmed == "" || !toolNameRegex.MatchString(trimmed) {
+				return nil, huma.Error400BadRequest(fmt.Sprintf("Invalid tool name %q: must match ^[a-zA-Z0-9_-]{1,64}$", tool))
+			}
+			cleaned = append(cleaned, trimmed)
+		}
+		b, err := json.Marshal(cleaned)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Invalid allowed_tools format")
+		}
+		newAllowed := string(b)
+		if newAllowed != oldAllowedTools {
+			tok.AllowedTools = newAllowed
+			meta["allowedToolsFrom"] = oldAllowedTools
+			meta["allowedToolsTo"] = newAllowed
+			changed = true
+		}
+	}
+
 	if changed {
 		if err := h.db.Model(&tok).Updates(map[string]any{
-			"name":       tok.Name,
-			"note":       tok.Note,
-			"role":       tok.Role,
-			"expires_at": tok.ExpiresAt,
+			"name":          tok.Name,
+			"note":          tok.Note,
+			"role":          tok.Role,
+			"is_agent":      tok.IsAgent,
+			"allowed_tools": tok.AllowedTools,
+			"expires_at":    tok.ExpiresAt,
 		}).Error; err != nil {
 			return nil, huma.Error500InternalServerError("Could not update token; retry the request")
 		}
@@ -347,13 +455,15 @@ func (h *Handler) updateToken(ctx context.Context, input *UpdateTokenInput) (*Up
 
 	return &UpdateTokenOutput{
 		Body: map[string]any{
-			"id":        tok.ID,
-			"name":      tok.Name,
-			"note":      tok.Note,
-			"prefix":    tok.Prefix,
-			"role":      tok.Role,
-			"expiresAt": tok.ExpiresAt,
-			"createdAt": tok.CreatedAt,
+			"id":           tok.ID,
+			"name":         tok.Name,
+			"note":         tok.Note,
+			"prefix":       tok.Prefix,
+			"role":         tok.Role,
+			"isAgent":      tok.IsAgent,
+			"allowedTools": tok.AllowedTools,
+			"expiresAt":    tok.ExpiresAt,
+			"createdAt":    tok.CreatedAt,
 		},
 	}, nil
 }

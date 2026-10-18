@@ -384,3 +384,54 @@ func TestMemberTokensAreTheirOwn(t *testing.T) {
 		t.Errorf("member revoking their own token: got %d, want 200 (body=%s)", rec.Code, rec.Body.String())
 	}
 }
+
+func TestMintAgentToken_ValidationAndSuccess(t *testing.T) {
+	srv, db := newTestHandler(t)
+	owner := sessionCookies(t, 1, 1)
+
+	// 1. Agent token with empty allowed_tools is rejected (Fail-Closed)
+	recEmpty := do(srv, http.MethodPost, "/api/tokens", owner, `{"name":"agent-dead","is_agent":true,"allowed_tools":[]}`)
+	if recEmpty.Code != http.StatusBadRequest {
+		t.Errorf("mint agent token with empty tools: got %d, want 400 (body=%s)", recEmpty.Code, recEmpty.Body.String())
+	}
+
+	// 2. Agent token with invalid tool name is rejected
+	recInvalid := do(srv, http.MethodPost, "/api/tokens", owner, `{"name":"agent-bad","is_agent":true,"allowed_tools":["invalid tool with spaces!"]}`)
+	if recInvalid.Code != http.StatusBadRequest {
+		t.Errorf("mint agent token with invalid tool name: got %d, want 400 (body=%s)", recInvalid.Code, recInvalid.Body.String())
+	}
+
+	// 3. Valid agent token creation succeeds
+	recOK := do(srv, http.MethodPost, "/api/tokens", owner, `{"name":"agent-ok","is_agent":true,"allowed_tools":["octarq_network__list_links","octarq_network__get_email_summary"]}`)
+	if recOK.Code != http.StatusOK && recOK.Code != http.StatusCreated {
+		t.Fatalf("mint valid agent token: got %d (body=%s)", recOK.Code, recOK.Body.String())
+	}
+
+	var tok models.Token
+	if err := db.Where("name = ?", "agent-ok").First(&tok).Error; err != nil {
+		t.Fatalf("agent token not found in database: %v", err)
+	}
+	if !tok.IsAgent {
+		t.Error("expected tok.IsAgent to be true in database")
+	}
+	if !tok.AllowsTool("octarq_network__list_links") {
+		t.Error("expected tok.AllowsTool(octarq_network__list_links) to be true")
+	}
+	if tok.AllowsTool("octarq_network__delete_link") {
+		t.Error("expected tok.AllowsTool(octarq_network__delete_link) to be false")
+	}
+
+	// 4. Update agent token allowed tools
+	tokID := testIDStr(tok.ID)
+	recUpdate := do(srv, http.MethodPut, "/api/tokens/"+tokID, owner, `{"allowed_tools":["octarq_network__list_links"]}`)
+	if recUpdate.Code != http.StatusOK {
+		t.Fatalf("update agent token tools: got %d (body=%s)", recUpdate.Code, recUpdate.Body.String())
+	}
+
+	if err := db.First(&tok, tok.ID).Error; err != nil {
+		t.Fatalf("reload agent token: %v", err)
+	}
+	if !strings.Contains(tok.AllowedTools, "octarq_network__list_links") || strings.Contains(tok.AllowedTools, "octarq_network__get_email_summary") {
+		t.Errorf("unexpected updated allowed tools in db: %s", tok.AllowedTools)
+	}
+}

@@ -74,6 +74,21 @@ func TokenRoleFromContext(ctx context.Context) string {
 	return ""
 }
 
+// WithTokenAgent returns a new context containing the token's agent flag and allowed tools.
+func WithTokenAgent(ctx context.Context, isAgent bool, allowedTools any) context.Context {
+	return plugin.WithTokenAgent(ctx, isAgent, allowedTools)
+}
+
+// IsAgentFromContext extracts the token agent flag from ctx.
+func IsAgentFromContext(ctx context.Context) bool {
+	return plugin.IsAgentFromContext(ctx)
+}
+
+// AllowedToolsFromContext extracts the permitted MCP tool names from ctx.
+func AllowedToolsFromContext(ctx context.Context) []string {
+	return plugin.AllowedToolsFromContext(ctx)
+}
+
 // reporterIP extracts the best-effort client IP from the request. Proxy
 // headers are honoured only when trustProxy is set, otherwise a client could
 // spoof X-Forwarded-For to evade the login rate limiter.
