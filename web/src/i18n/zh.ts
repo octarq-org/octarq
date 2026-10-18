@@ -188,6 +188,12 @@ export const zh: Resources = {
     errPasswordMismatch: "两次输入的密码不一致。",
     errResetFailed: "无法重置密码。请申请新链接后重试。",
   },
+  export: {
+    title: "数据主权与导出",
+    desc: "随时下载你工作区的全部资产数据。包含所有短链、DNS 配置、邮件路由与审计日志，格式为通用的 CSV/JSON 压缩包。",
+    button: "一键导出全部数据 (.zip)",
+    downloading: "正在打包 ZIP…",
+  },
   footer: {
     help: "关于 Octarq",
     docs: "开发者文档",

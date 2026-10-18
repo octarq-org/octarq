@@ -187,6 +187,12 @@ export const pt = {
     errPasswordMismatch: "As senhas não coincidem.",
     errResetFailed: "Não foi possível redefinir a senha. Solicite um novo link e tente novamente.",
   },
+  export: {
+    title: "Soberania de dados e exportação",
+    desc: "Baixe um arquivo completo dos ativos do seu espaço de trabalho a qualquer momento. Inclui todos os links curtos, configurações DNS, roteamento de e-mail e logs de auditoria em um arquivo ZIP portátil CSV/JSON.",
+    button: "Exportar todos os dados (.zip)",
+    downloading: "Empacotando ZIP…",
+  },
   footer: {
     help: "Sobre o Octarq",
     docs: "Documentação para desenvolvedores",

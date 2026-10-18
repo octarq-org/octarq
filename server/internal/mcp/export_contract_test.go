@@ -77,3 +77,37 @@ func TestMCPExport_BareFuncIsNotAccepted(t *testing.T) {
 		t.Error("a non-conforming provider should fall through to the unknown-resource reply")
 	}
 }
+
+func TestMCPExport_AllAndZipURL(t *testing.T) {
+	signCalled := false
+	signer := plugin.ExportSignedURLFunc(func(orgID uint) (string, error) {
+		signCalled = true
+		if orgID != 7 {
+			t.Errorf("orgID = %d, want 7", orgID)
+		}
+		return "/api/account/export?token=test-signed-token", nil
+	})
+
+	probe, err := callExport(t, lookupProviding(plugin.ServiceExportSignedURL, signer), "all")
+	if err != nil {
+		t.Fatalf("exportData all returned err: %v", err)
+	}
+	if probe.isError {
+		t.Error("exportData reported error for resource 'all'")
+	}
+	if !signCalled {
+		t.Error("ExportSignedURLFunc was not invoked for resource 'all'")
+	}
+
+	signCalled = false
+	probe, err = callExport(t, lookupProviding(plugin.ServiceExportSignedURL, signer), "zip_url")
+	if err != nil {
+		t.Fatalf("exportData zip_url returned err: %v", err)
+	}
+	if probe.isError {
+		t.Error("exportData reported error for resource 'zip_url'")
+	}
+	if !signCalled {
+		t.Error("ExportSignedURLFunc was not invoked for resource 'zip_url'")
+	}
+}

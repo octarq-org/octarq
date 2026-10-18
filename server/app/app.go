@@ -84,6 +84,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 	if apiHandler.Storage() != nil {
 		services.Provide(plugin.ServiceStorage, plugin.StorageService(apiHandler.Storage()))
 	}
+	services.Provide(plugin.ServiceExportSignedURL, plugin.ExportSignedURLFunc(apiHandler.GenerateExportSignedURL))
 	cronEngine := cron.New(a.cfg.RedisURL)
 	apiHandler.SetCronService(cronEngine)
 	services.Provide(plugin.ServiceCron, plugin.CronService(cronEngine))
@@ -220,6 +221,7 @@ func (a *App) Run(ctx context.Context) error {
 	if apiHandler.Storage() != nil {
 		services.Provide(plugin.ServiceStorage, plugin.StorageService(apiHandler.Storage()))
 	}
+	services.Provide(plugin.ServiceExportSignedURL, plugin.ExportSignedURLFunc(apiHandler.GenerateExportSignedURL))
 	cronEngine := cron.New(a.cfg.RedisURL)
 	apiHandler.SetCronService(cronEngine)
 	services.Provide(plugin.ServiceCron, plugin.CronService(cronEngine))

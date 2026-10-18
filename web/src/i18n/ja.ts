@@ -187,6 +187,12 @@ export const ja = {
     errPasswordMismatch: "パスワードが一致しません。",
     errResetFailed: "パスワードをリセットできませんでした。新しいリンクをリクエストして再試行してください。",
   },
+  export: {
+    title: "データの主権とエクスポート",
+    desc: "ワークスペースの全資産データをいつでもダウンロードできます。すべての短縮リンク、DNS設定、メールルーティング、監査ログをポータブルなCSV/JSON ZIPアーカイブとして含みます。",
+    button: "全データをエクスポート (.zip)",
+    downloading: "ZIPパッケージを生成中…",
+  },
   footer: {
     help: "Octarq について",
     docs: "開発者ドキュメント",

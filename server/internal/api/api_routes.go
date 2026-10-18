@@ -318,11 +318,12 @@ func (h *Handler) Routes() *http.ServeMux {
 		Method:      "GET",
 		Path:        "/api/account/export",
 		Summary:     "Export workspace data",
-		Description: "Streams everything the active workspace owns as a single JSON document — the data-portability " +
-			"half of the GDPR pair whose other half is `DELETE /api/account/data`. Response size grows with the " +
-			"workspace, so treat it as a download, not a synchronous API call.",
-		Tags:   []string{"Account"},
-		Errors: []int{401, 403},
+		Description: "Streams everything the active workspace owns as a streaming ZIP archive containing CSV/JSON files — " +
+			"the data-portability half of the GDPR pair whose other half is `DELETE /api/account/data`. Supports session auth " +
+			"or 15-minute temporary signed download token.",
+		Tags:     []string{"Account"},
+		Errors:   []int{401, 403},
+		Metadata: map[string]any{"public": true},
 	}, h.exportAccount)
 	huma.Register(api, huma.Operation{Method: "DELETE", Path: "/api/account/data", Summary: "Purge Org Data", Tags: []string{"Account"}}, h.purgeAccount)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/account/identities", Summary: "List Linked Identities", Tags: []string{"Account"}}, h.listIdentities)

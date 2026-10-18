@@ -20,7 +20,7 @@ import (
 )
 
 type exportInput struct {
-	Resource string `json:"resource" jsonschema:"Resource type to export: links, emails, domains, or mailboxes"`
+	Resource string `json:"resource" jsonschema:"Resource type to export: links, emails, domains, mailboxes, all, or zip_url"`
 }
 
 func (s *server) exportData(ctx context.Context, _ *mcp.CallToolRequest, in exportInput) (*mcp.CallToolResult, any, error) {
@@ -40,6 +40,37 @@ func (s *server) exportData(ctx context.Context, _ *mcp.CallToolRequest, in expo
 	if orgID == 0 {
 		return nil, nil, errNoOrgInContext
 	}
+	if in.Resource == "all" || in.Resource == "zip_url" {
+		var linksCount, domainsCount, mailboxesCount, emailsCount int64
+		if s.gdb != nil {
+			s.gdb.Table("links").Where("owner_id = ?", orgID).Count(&linksCount)
+			s.gdb.Table("domains").Where("owner_id = ?", orgID).Count(&domainsCount)
+			s.gdb.Table("mailboxes").Where("owner_id = ?", orgID).Count(&mailboxesCount)
+			mailboxIDs := s.gdb.Table("mailboxes").Where("owner_id = ?", orgID).Select("id")
+			s.gdb.Table("emails").Where("mailbox_id IN (?)", mailboxIDs).Count(&emailsCount)
+		}
+		var downloadURL string
+		if s.lookup != nil {
+			if fn, ok := plugin.LookupServiceAs[plugin.ExportSignedURLFunc](s.lookup, plugin.ServiceExportSignedURL); ok {
+				downloadURL, _ = fn(orgID)
+			}
+		}
+		if downloadURL == "" {
+			downloadURL = fmt.Sprintf("/api/account/export?org=%d", orgID)
+		}
+		res := map[string]any{
+			"summary": map[string]int64{
+				"links":     linksCount,
+				"domains":   domainsCount,
+				"mailboxes": mailboxesCount,
+				"emails":    emailsCount,
+			},
+			"downloadUrl": downloadURL,
+			"expiresIn":   "15m",
+			"resource":    in.Resource,
+		}
+		return jsonResultAny(res)
+	}
 	if s.lookup != nil {
 		// A resource whose plugin isn't mounted falls through to the
 		// unknown-resource reply below; see plugin.MCPExporter.
@@ -53,7 +84,7 @@ func (s *server) exportData(ctx context.Context, _ *mcp.CallToolRequest, in expo
 	}
 	return &mcp.CallToolResult{
 		IsError: true,
-		Content: []mcp.Content{&mcp.TextContent{Text: "unknown resource; use one of: links, emails, domains, mailboxes"}},
+		Content: []mcp.Content{&mcp.TextContent{Text: "unknown resource; use one of: links, emails, domains, mailboxes, all, zip_url"}},
 	}, nil, nil
 }
 

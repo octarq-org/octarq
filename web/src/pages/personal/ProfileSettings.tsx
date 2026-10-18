@@ -41,7 +41,9 @@ export function ProfileSettings() {
       setShowDeleteModal(false);
       setDeleteConfirmationText("");
       setTimeout(() => {
-        window.location.href = "/login";
+        if (typeof window !== "undefined" && window.location) {
+          window.location.href = "/login";
+        }
       }, 700);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t("personal.deleteAccountFailed");

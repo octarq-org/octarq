@@ -61,6 +61,9 @@ var registeredPublicEndpoints = map[string]string{
 
 	// File download with optional temporary signed token
 	"GET /api/files/{id}/download": "session or HMAC-SHA256 signed temporary download token",
+
+	// Tenant workspace full data export with optional 15-minute signed token
+	"GET /api/account/export": "session (owner/admin) or HMAC-SHA256 signed temporary download token",
 }
 
 // TestPublicEndpointRegistry fails when the set of routes reachable without a

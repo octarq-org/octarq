@@ -266,6 +266,13 @@ type EmailGetter func(orgID uint, id uint) (from, subject, body string, ok bool)
 // explicit conversion at the Provide call site enforces at compile time.
 type MCPExporter func(ctx context.Context, orgID uint) (any, error)
 
+// ServiceExportSignedURL is the well-known service name under which the signed
+// export URL generator is registered (contract type ExportSignedURLFunc).
+const ServiceExportSignedURL = "export.signed_url"
+
+// ExportSignedURLFunc generates a signed download URL for the tenant's full ZIP export.
+type ExportSignedURLFunc func(orgID uint) (string, error)
+
 // ServiceDNSManager is the well-known service name under which the DNS manager
 // is provided (contract type DNSManager). This is the single declaration of the
 // name: the dns plugin re-exports it rather than declaring a second constant
