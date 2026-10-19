@@ -6,7 +6,7 @@ are built, with no fork), see the **[plugin development guide](website/src/conte
 
 ## Toolchain
 
-- **Go 1.25** (standard-library `http.ServeMux`, pure-Go, no cgo).
+- **Go 1.26** (standard-library `http.ServeMux`, pure-Go, no cgo).
 - **Frontend in `web/`**: Vite + React + TypeScript + Tailwind 4. Package manager
   is **pnpm 11** (`packageManager: pnpm@11.8.0`). **Never use npm.**
   (`web/pnpm-workspace.yaml` approves esbuild's postinstall via `allowBuilds` /

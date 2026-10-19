@@ -20,7 +20,10 @@ jobs:
       - name: Run govulncheck
         uses: golang/govulncheck-action@v1
         with:
-          go-version: ""
+          # `go-version-input` defaults to "stable", which takes precedence over
+          # `go-version-file` inside the action. Clear it so the scan uses the
+          # patched toolchain pinned in go.mod (the same one releases build with).
+          go-version-input: ""
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
           work-dir: server
