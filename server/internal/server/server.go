@@ -71,11 +71,18 @@ func New(cfg *config.Config, db *gorm.DB, apiHandler http.Handler, rootFallback 
 		if err != nil || target.Scheme == "" || target.Host == "" {
 			return nil, fmt.Errorf("invalid OCTARQ_DEV_WEB_PROXY URL %q: scheme and host required", cfg.DevWebProxy)
 		}
-		devProxy = httputil.NewSingleHostReverseProxy(target)
-		origDirector := devProxy.Director
-		devProxy.Director = func(req *http.Request) {
-			origDirector(req)
-			req.Host = target.Host
+		// Built directly rather than via httputil.NewSingleHostReverseProxy,
+		// which sets the legacy Director hook (deprecated in Go 1.26) that
+		// ReverseProxy refuses to pair with Rewrite. SetURL routes the
+		// outbound request to the target and clears Out.Host so the Host
+		// header matches the target — the same override the old Director
+		// wrapper did; SetXForwarded preserves the X-Forwarded-* headers the
+		// Director path used to add.
+		devProxy = &httputil.ReverseProxy{
+			Rewrite: func(pr *httputil.ProxyRequest) {
+				pr.SetURL(target)
+				pr.SetXForwarded()
+			},
 		}
 		devProxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 			slog.Warn("dev web proxy connection error", "target", target.String(), "path", r.URL.Path, "err", err)
