@@ -295,9 +295,20 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Pushed with PAT_GITHUB, not GITHUB_TOKEN, and that is load-bearing.
+      # The `main protection` ruleset requires the "CI" status check with strict
+      # policy, so a GITHUB_TOKEN push is refused: a status check can never be
+      # satisfied by the very commit that introduces it. GITHUB_TOKEN also cannot
+      # be a ruleset bypass actor. PAT_GITHUB is owned by an admin, and the
+      # ruleset already grants the maintain/admin roles `bypass_mode: always` —
+      # so this push lands without widening what any workflow token may do.
+      # (Same `PAT_GITHUB || GITHUB_TOKEN` fallback as release.yml /
+      # publish-sdk.yml; the fallback keeps forks and local runs working, where
+      # the secret is absent.)
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.PAT_GITHUB || secrets.GITHUB_TOKEN }}
 
       # Why this guard exists — it is what produced the empty PR #200.
       #
@@ -408,15 +419,21 @@ jobs:
   # "CI". Without this, a website-only change skips go/web/e2e and GitHub
   # never reports a "CI" conclusion, leaving the PR at "Expected — Waiting".
   # This job always runs and maps skipped → success, failure/cancelled → failure.
+  #
+  # `dist` is included even though it only runs on main pushes (it is skipped on
+  # PRs, which maps to success). It belongs here because it was the one job that
+  # could fail with no check reflecting it: while it was silently skipping its
+  # own push, the "CI" badge stayed green and the staleness went unnoticed for a
+  # month. A job that can fail must be visible in the check people actually gate on.
   CI:
     name: CI
     if: always()
-    needs: [changes, lint, go, web, e2e]
+    needs: [changes, lint, go, web, e2e, dist]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all required jobs
         run: |
-          for result in "${{ needs.changes.result }}" "${{ needs.lint.result }}" "${{ needs.go.result }}" "${{ needs.web.result }}" "${{ needs.e2e.result }}"; do
+          for result in "${{ needs.changes.result }}" "${{ needs.lint.result }}" "${{ needs.go.result }}" "${{ needs.web.result }}" "${{ needs.e2e.result }}" "${{ needs.dist.result }}"; do
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
               echo "Required job failed: $result"
               exit 1
