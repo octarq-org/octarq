@@ -378,15 +378,29 @@ jobs:
           git commit -m "chore(web): refresh embedded dashboard build [auto]" -m "Built from $GITHUB_SHA, which already passed CI."
           # Seconds-wide race: main may have moved since the re-check above.
           # The newer commit's own run owns the refresh — skip instead of
-          # pushing stale dist over fresh. A rejected push is the same
-          # signal, so treat it as skip, not failure.
+          # pushing stale dist over fresh.
           tip=$(git ls-remote origin refs/heads/main | cut -f1)
           if [ "$tip" != "$GITHUB_SHA" ]; then
             echo "main moved to $tip during push prep — skipping."
             exit 0
           fi
-          if ! git push origin HEAD:refs/heads/main; then
-            echo "push rejected — a newer commit owns the refresh, skipping."
+          # A rejected push has two unrelated causes, and conflating them is
+          # what let this job report success for a month while dist went stale:
+          # a race with a newer commit (benign — skip), or a repository rule
+          # refusing the push (a real breakage that must not be swallowed).
+          # Only the first is a skip. The tip was just re-read above and still
+          # equals our commit, so if the push fails now, no newer commit can be
+          # responsible — the rejection is the ruleset.
+          if ! push_out=$(git push origin HEAD:refs/heads/main 2>&1); then
+            echo "$push_out"
+            tip=$(git ls-remote origin refs/heads/main | cut -f1)
+            if [ "$tip" = "$GITHUB_SHA" ]; then
+              echo "::error title=Embedded dashboard refresh blocked::main is still $GITHUB_SHA, so this rejection was not a race — a repository rule refused the push. server/webembed/dist is not being refreshed and is going stale."
+              echo "Cause: the 'main protection' ruleset requires the \"CI\" status check with strict policy, and a direct push can never satisfy a status check on its own commit."
+              echo "Remediation (pick one): add the GitHub Actions integration to that ruleset's bypass actors, or have this step open a PR instead of pushing."
+              exit 1
+            fi
+            echo "main moved to $tip during push — a newer commit owns the refresh, skipping."
             exit 0
           fi
 
