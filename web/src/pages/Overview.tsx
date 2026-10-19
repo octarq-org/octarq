@@ -1,10 +1,10 @@
-import { ExtensionSlot, ScreenWrap, PageHeader, GlassCard, Skeleton } from "@octarq/plugin-sdk";
+import { Alert, Button, ExtensionSlot, ScreenWrap, PageHeader, GlassCard, Skeleton } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, fetchOverview, Overview } from "../api";
 import { useTranslation } from "../i18n";
 import { SetupStep, SetupChecklistProvider, useSetupChecklist } from "../app-ui/SetupStep";
-import { Sparkles, X } from "lucide-react";
+import { AlertCircle, Sparkles, X } from "lucide-react";
 import { HealthOverview } from "./dashboard/components/HealthOverview";
 import { ActivityFeed } from "./dashboard/components/ActivityFeed";
 
@@ -112,14 +112,26 @@ function OverviewChecklistSection({
 
 export default function OverviewPage() {
   const [o, setO] = useState<Overview | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [twoFAEnabled, setTwoFAEnabled] = useState<boolean | null>(null);
   const [tokenCount, setTokenCount] = useState<number | null>(null);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem("dismiss_onboarding") === "true");
   const nav = useNavigate();
   const { t } = useTranslation();
 
+  // `catch(() => {})` left `o` null, which the page renders as a skeleton — a
+  // failed overview request looked like an endless load. The checklist's
+  // secondary requests stay neutral on failure (null hides a step rather than
+  // claiming it is complete).
+  function loadOverview() {
+    setLoadFailed(false);
+    fetchOverview()
+      .then((data) => setO(data))
+      .catch(() => setLoadFailed(true));
+  }
+
   useEffect(() => {
-    fetchOverview().then(setO).catch(() => {});
+    loadOverview();
     api.twoFAStatus().then(r => setTwoFAEnabled(r.enabled)).catch(() => {});
     api.tokens().then(toks => setTokenCount(toks.length)).catch(() => {});
     api.getUserSettings().then(s => {
@@ -134,6 +146,25 @@ export default function OverviewPage() {
     api.updateUserSettings("onboarding_dismissed", "true").catch(() => {});
     setDismissed(true);
   };
+
+  if (loadFailed) {
+    return (
+      <ScreenWrap>
+        <PageHeader title={t("overview.title")} description={t("overview.description")} />
+        <Alert
+          variant="danger"
+          icon={<AlertCircle className="h-4 w-4" />}
+          actions={
+            <Button variant="outline" size="sm" onClick={loadOverview}>
+              {t("proTable.retry")}
+            </Button>
+          }
+        >
+          {t("overview.loadFailed")}
+        </Alert>
+      </ScreenWrap>
+    );
+  }
 
   if (!o) return (
     // Skeleton mirrors the real layout (title + 4 stat tiles + chart) so the page doesn't jump when data arrives.
