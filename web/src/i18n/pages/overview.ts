@@ -1,6 +1,7 @@
 export const overview = {
   en: {
     loading: "Loading…",
+    loadFailed: "Failed to load the overview.",
     title: "Overview",
     description: "Workspace status and setup progress",
     activityFeedTitle: "Activity",
@@ -78,6 +79,7 @@ export const overview = {
   },
   zh: {
     loading: "加载中…",
+    loadFailed: "概览加载失败。",
     title: "概览",
     description: "工作区状态与快捷入口",
     activityFeedTitle: "动态",
@@ -155,6 +157,7 @@ export const overview = {
   },
   es: {
     loading: "Cargando…",
+    loadFailed: "No se pudo cargar la visión general.",
     title: "Visión general",
     description: "Estado del espacio de trabajo",
     activityFeedTitle: "Actividad",
@@ -232,6 +235,7 @@ export const overview = {
   },
   pt: {
     loading: "Carregando…",
+    loadFailed: "Falha ao carregar a visão geral.",
     title: "Visão geral",
     description: "Visão geral do espaço de trabalho",
     activityFeedTitle: "Atividade",
@@ -309,6 +313,7 @@ export const overview = {
   },
   ja: {
     loading: "読み込み中…",
+    loadFailed: "概要を読み込めませんでした。",
     title: "概要",
     description: "ワークスペースのステータス",
     activityFeedTitle: "アクティビティ",

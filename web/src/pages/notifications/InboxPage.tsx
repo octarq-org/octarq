@@ -1,7 +1,7 @@
-import { Button, GlassCard, PageHeader, ScreenWrap, cn, timeAgo } from "@octarq/plugin-sdk";
+import { Alert, Button, GlassCard, PageHeader, ScreenWrap, cn, timeAgo } from "@octarq/plugin-sdk";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CheckCheck, RefreshCw, Settings2, Trash2, MailOpen } from "lucide-react";
+import { AlertCircle, CheckCheck, RefreshCw, Settings2, Trash2, MailOpen } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import {
   useDeleteNotificationMutation,
@@ -20,6 +20,7 @@ export function InboxPage() {
   const {
     data: notifications = [],
     isLoading,
+    isError,
     refetch,
     isFetching,
   } = useNotificationsQuery({
@@ -126,6 +127,22 @@ export function InboxPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          ) : isError ? (
+            // A failed query left `data` empty, so the page used to say the
+            // inbox was empty over a request that never succeeded.
+            <div className="p-6">
+              <Alert
+                variant="danger"
+                icon={<AlertCircle className="h-4 w-4" />}
+                actions={
+                  <Button variant="outline" size="sm" onClick={() => refetch()}>
+                    {t("proTable.retry")}
+                  </Button>
+                }
+              >
+                {t("notifications.loadFailed", "加载通知失败")}
+              </Alert>
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
