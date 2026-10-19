@@ -6,30 +6,17 @@ import (
 )
 
 type recordingTracer struct {
-	starts []string
-	ends   []string
-	turns  []string
+	events []TraceEvent
 }
 
-func (r *recordingTracer) StepStart(_ context.Context, stepID string) {
-	r.starts = append(r.starts, stepID)
-}
-
-func (r *recordingTracer) StepEnd(_ context.Context, stepID string, _ error) {
-	r.ends = append(r.ends, stepID)
-}
-
-func (r *recordingTracer) TurnEnd(_ context.Context, turnID string, _ TurnStatus) {
-	r.turns = append(r.turns, turnID)
+func (r *recordingTracer) Event(_ context.Context, ev TraceEvent) {
+	r.events = append(r.events, ev)
 }
 
 func TestNopTracer(t *testing.T) {
 	t.Parallel()
 	var tr NopTracer
-	ctx := context.Background()
-	tr.StepStart(ctx, "s1")
-	tr.StepEnd(ctx, "s1", nil)
-	tr.TurnEnd(ctx, "t1", TurnStatusDone)
+	tr.Event(context.Background(), TraceEvent{Kind: TraceKindTurnStart})
 }
 
 func TestProfile_MaxSteps(t *testing.T) {
@@ -82,8 +69,20 @@ func TestRunner_WithTracerAndOptions(t *testing.T) {
 	if err := runner.Run(context.Background(), sess, turn); err != nil {
 		t.Fatalf("run failed: %v", err)
 	}
-	if len(tr.starts) != 1 || len(tr.ends) != 1 || len(tr.turns) != 1 {
-		t.Errorf("tracer mismatch: starts=%v, ends=%v, turns=%v", tr.starts, tr.ends, tr.turns)
+
+	var starts, steps, ends int
+	for _, ev := range tr.events {
+		switch ev.Kind {
+		case TraceKindTurnStart:
+			starts++
+		case TraceKindStep:
+			steps++
+		case TraceKindTurnEnd:
+			ends++
+		}
+	}
+	if starts != 1 || steps != 1 || ends != 1 {
+		t.Errorf("tracer mismatch: starts=%d, steps=%d, ends=%d (%+v)", starts, steps, ends, tr.events)
 	}
 	if turn.Status != TurnStatusDone {
 		t.Errorf("turn status = %d, want %d", turn.Status, TurnStatusDone)

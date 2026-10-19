@@ -3,6 +3,7 @@ package harness
 import (
 	"context"
 	"errors"
+	"github.com/danielgtaylor/huma/v2"
 	"strings"
 	"testing"
 
@@ -149,6 +150,10 @@ func (mockBadOutputEndpoint) EndpointRequireAuth() bool     { return false }
 func (mockBadOutputEndpoint) EndpointRequireRole() []string { return nil }
 func (mockBadOutputEndpoint) EndpointExposeMCP() bool       { return false }
 func (mockBadOutputEndpoint) EndpointRequireApproval() bool { return false }
+func (mockBadOutputEndpoint) EndpointRisk() string          { return "write" }
+func (mockBadOutputEndpoint) EndpointInputSchema() *huma.Schema {
+	return nil
+}
 func (mockBadOutputEndpoint) Execute(_ context.Context, _ any) (any, error) {
 	return nil, nil
 }
@@ -162,6 +167,10 @@ type mockBadOutputSource struct{}
 
 func (mockBadOutputSource) Lookup(name string) (plugin.Endpoint, bool) {
 	return mockBadOutputEndpoint{}, true
+}
+
+func (mockBadOutputSource) Endpoints() []plugin.Endpoint {
+	return []plugin.Endpoint{mockBadOutputEndpoint{}}
 }
 
 func TestCoverageLiftWiringEdgeCases(t *testing.T) {

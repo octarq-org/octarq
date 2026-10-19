@@ -364,14 +364,17 @@ func TestParseToolCalls_EdgeCases(t *testing.T) {
 	t.Parallel()
 
 	// Missing end marker
-	calls, rem := parseToolCalls("```tool_call\n{\"name\":\"foo\"}")
+	calls, rem, _ := parseToolCalls("```tool_call\n{\"name\":\"foo\"}")
 	if len(calls) != 0 || !strings.Contains(rem, "```tool_call") {
 		t.Errorf("missing end marker: calls=%v, rem=%q", calls, rem)
 	}
 
 	// Bad json line inside block
-	calls, rem = parseToolCalls("```tool_call\ninvalid json\n{\"name\":\"valid\",\"args\":\"{}\"}\n\n```")
+	calls, rem, invalid := parseToolCalls("```tool_call\ninvalid json\n{\"name\":\"valid\",\"args\":\"{}\"}\n\n```")
 	if len(calls) != 1 || calls[0].Name != "valid" {
 		t.Errorf("invalid json line handling: calls=%v, rem=%q", calls, rem)
+	}
+	if len(invalid) != 1 {
+		t.Errorf("expected the malformed line to be reported, got %v", invalid)
 	}
 }

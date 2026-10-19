@@ -2,6 +2,7 @@ package harness
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -33,6 +34,21 @@ func (r *defaultRunner) Stream(ctx context.Context, s *Session, t *Turn, h llmpr
 		return r.Run(ctx, s, t)
 	}
 
+	r.tracer.Event(ctx, TraceEvent{Kind: TraceKindTurnStart})
+	err := r.streamLoop(ctx, s, t, sp, h)
+	r.tracer.Event(ctx, TraceEvent{
+		Kind:            TraceKindTurnEnd,
+		Status:          t.Status.String(),
+		InputTokens:     t.InputTokens,
+		OutputTokens:    t.OutputTokens,
+		ReasoningTokens: t.ReasoningTokens,
+	})
+	return err
+}
+
+// streamLoop is the streaming agent loop. It always leaves t.Status set to
+// the terminal state of the turn.
+func (r *defaultRunner) streamLoop(ctx context.Context, s *Session, t *Turn, sp llmprovider.StreamProvider, h llmprovider.StreamHandler) error {
 	maxSteps := r.profile.MaxSteps(t.HasDestructive)
 	t.Status = TurnStatusRunning
 
@@ -42,7 +58,6 @@ func (r *defaultRunner) Stream(ctx context.Context, s *Session, t *Turn, h llmpr
 	for step := 0; ; step++ {
 		if step >= maxSteps {
 			t.Status = TurnStatusFailed
-			r.tracer.TurnEnd(ctx, s.ID, TurnStatusFailed)
 			return ErrMaxStepsExceeded
 		}
 
@@ -58,13 +73,11 @@ func (r *defaultRunner) Stream(ctx context.Context, s *Session, t *Turn, h llmpr
 		resp, err := sp.StreamComplete(ctx, req, collector)
 		if err != nil {
 			t.Status = TurnStatusFailed
-			r.tracer.TurnEnd(ctx, s.ID, TurnStatusFailed)
 			return fmt.Errorf("harness: stream error: %w", err)
 		}
 
 		if collector.err != nil {
 			t.Status = TurnStatusFailed
-			r.tracer.TurnEnd(ctx, s.ID, TurnStatusFailed)
 			return fmt.Errorf("harness: stream order error: %w", collector.err)
 		}
 
@@ -74,14 +87,13 @@ func (r *defaultRunner) Stream(ctx context.Context, s *Session, t *Turn, h llmpr
 
 		calls, remaining := collector.extractToolCalls()
 		if len(calls) == 0 {
-			calls, remaining = parseToolCalls(collector.fullText())
+			calls, remaining, _ = parseToolCalls(collector.fullText())
 		}
 
 		if len(calls) == 0 {
 			// No tool calls — the turn is done.
 			s.History = append(s.History, Message{Role: "assistant", Content: collector.fullText()})
 			t.Status = TurnStatusDone
-			r.tracer.TurnEnd(ctx, s.ID, TurnStatusDone)
 			return nil
 		}
 
@@ -89,11 +101,9 @@ func (r *defaultRunner) Stream(ctx context.Context, s *Session, t *Turn, h llmpr
 		if err := r.executeSteps(ctx, s, t, step, calls, remaining); err != nil {
 			if errors.Is(err, ErrApprovalRequired) {
 				t.Status = TurnStatusAwaitingApproval
-				r.tracer.TurnEnd(ctx, s.ID, TurnStatusAwaitingApproval)
 				return err
 			}
 			t.Status = TurnStatusFailed
-			r.tracer.TurnEnd(ctx, s.ID, TurnStatusFailed)
 			return err
 		}
 	}
@@ -188,9 +198,15 @@ func (c *streamCollector) extractToolCalls() ([]toolCall, string) {
 	for _, idx := range c.order {
 		tc := c.toolCalls[idx]
 		if tc.name != "" {
+			// The provider streams the arguments as a JSON object; a tool
+			// without arguments arrives as an empty string.
+			args := strings.TrimSpace(tc.argsJSON.String())
+			if args == "" {
+				args = "{}"
+			}
 			calls = append(calls, toolCall{
 				Name:     tc.name,
-				ArgsJSON: tc.argsJSON.String(),
+				ArgsJSON: json.RawMessage(args),
 			})
 		}
 	}

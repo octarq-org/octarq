@@ -1,6 +1,7 @@
 package harness
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -49,48 +50,94 @@ type StreamRunner interface {
 }
 
 // toolCall is an internal representation of a tool invocation parsed from
-// LLM output.
+// LLM output. ArgsJSON is the raw JSON object the model supplied.
 type toolCall struct {
-	Name     string `json:"name"`
-	ArgsJSON string `json:"args"`
+	Name     string          `json:"name"`
+	ArgsJSON json.RawMessage `json:"args"`
 }
 
 // parseToolCalls extracts tool-call intents from LLM output.
+//
 // Convention: the model emits a JSON block fenced with ```tool_call ... ```
-// containing {"name":"...","args":"..."} objects separated by newlines.
-func parseToolCalls(text string) ([]toolCall, string) {
+// containing one {"name":"...","args":{...}} object per line.
+//
+// A line that does not parse is returned in `invalid` instead of being
+// dropped: the model is told what it got wrong and can correct itself. A
+// silently dropped call would leave the model believing it had acted.
+func parseToolCalls(text string) ([]toolCall, string, []string) {
 	const startMarker = "```tool_call\n"
 	const endMarker = "\n```"
 
 	idx := strings.Index(text, startMarker)
 	if idx == -1 {
-		return nil, text
+		return nil, text, nil
 	}
 	after := text[idx+len(startMarker):]
 	endIdx := strings.Index(after, endMarker)
 	if endIdx == -1 {
-		return nil, text
+		return nil, text, nil
 	}
 	block := after[:endIdx]
 
 	var calls []toolCall
+	var invalid []string
 	for _, line := range strings.Split(block, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		var tc toolCall
-		if err := json.Unmarshal([]byte(line), &tc); err != nil {
+		var raw struct {
+			Name string          `json:"name"`
+			Args json.RawMessage `json:"args"`
+		}
+		if err := json.Unmarshal([]byte(line), &raw); err != nil {
+			invalid = append(invalid, line)
 			continue
 		}
-		if tc.Name != "" {
-			calls = append(calls, tc)
+		if raw.Name == "" {
+			invalid = append(invalid, line)
+			continue
 		}
+		args, ok := normalizeToolArgs(raw.Args)
+		if !ok {
+			invalid = append(invalid, line)
+			continue
+		}
+		calls = append(calls, toolCall{Name: raw.Name, ArgsJSON: args})
 	}
 
 	// remaining is the text outside the tool_call block
 	remaining := strings.TrimSpace(text[:idx] + after[endIdx+len(endMarker):])
-	return calls, remaining
+	return calls, remaining, invalid
+}
+
+// normalizeToolArgs turns the "args" member into raw JSON object bytes.
+//
+// The canonical shape is an object. A JSON-encoded string holds the same
+// value, so it is unwrapped rather than rejected — a model that quotes its
+// arguments has still made a well-formed call. Anything else is not a call.
+func normalizeToolArgs(raw json.RawMessage) (json.RawMessage, bool) {
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 || string(trimmed) == "null" {
+		return json.RawMessage("{}"), true
+	}
+	if trimmed[0] == '"' {
+		var s string
+		if err := json.Unmarshal(trimmed, &s); err != nil {
+			return nil, false
+		}
+		trimmed = bytes.TrimSpace([]byte(s))
+		if len(trimmed) == 0 {
+			return json.RawMessage("{}"), true
+		}
+	}
+	if trimmed[0] != '{' {
+		return nil, false
+	}
+	if !json.Valid(trimmed) {
+		return nil, false
+	}
+	return json.RawMessage(trimmed), true
 }
 
 // wrapUntrustedFence wraps tool output in an untrusted fence to prevent
@@ -158,6 +205,21 @@ func NewRunner(c Completer, exec ToolExecutor, opts ...RunnerOption) Runner {
 // execute tool → fence output → append history → repeat until no tool calls
 // or step limit reached.
 func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
+	r.tracer.Event(ctx, TraceEvent{Kind: TraceKindTurnStart})
+	err := r.loop(ctx, s, t)
+	r.tracer.Event(ctx, TraceEvent{
+		Kind:            TraceKindTurnEnd,
+		Status:          t.Status.String(),
+		InputTokens:     t.InputTokens,
+		OutputTokens:    t.OutputTokens,
+		ReasoningTokens: t.ReasoningTokens,
+	})
+	return err
+}
+
+// loop is the agent loop proper. It always leaves t.Status set to the
+// terminal state of the turn.
+func (r *defaultRunner) loop(ctx context.Context, s *Session, t *Turn) error {
 	maxSteps := r.profile.MaxSteps(t.HasDestructive)
 	t.Status = TurnStatusRunning
 
@@ -167,7 +229,6 @@ func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
 	for step := 0; ; step++ {
 		if step >= maxSteps {
 			t.Status = TurnStatusFailed
-			r.tracer.TurnEnd(ctx, s.ID, TurnStatusFailed)
 			return ErrMaxStepsExceeded
 		}
 
@@ -175,17 +236,26 @@ func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
 		text, err := r.completer.Complete(ctx, r.model, r.system, s.History)
 		if err != nil {
 			t.Status = TurnStatusFailed
-			r.tracer.TurnEnd(ctx, s.ID, TurnStatusFailed)
 			return fmt.Errorf("harness: completer error: %w", err)
 		}
 
 		// Parse tool calls from LLM output.
-		calls, remaining := parseToolCalls(text)
+		calls, remaining, invalid := parseToolCalls(text)
 		if len(calls) == 0 {
+			if len(invalid) > 0 {
+				// The model tried to call a tool and got the format wrong.
+				// Tell it so instead of ending the turn on a call it
+				// believes it made.
+				s.History = append(s.History, Message{Role: "assistant", Content: text})
+				s.History = append(s.History, Message{
+					Role:    "tool",
+					Content: wrapUntrustedFence(invalidToolCallNotice(invalid)),
+				})
+				continue
+			}
 			// No tool calls — the turn is done.
 			s.History = append(s.History, Message{Role: "assistant", Content: text})
 			t.Status = TurnStatusDone
-			r.tracer.TurnEnd(ctx, s.ID, TurnStatusDone)
 			return nil
 		}
 
@@ -193,14 +263,27 @@ func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
 		if err := r.executeSteps(ctx, s, t, step, calls, remaining); err != nil {
 			if errors.Is(err, ErrApprovalRequired) {
 				t.Status = TurnStatusAwaitingApproval
-				r.tracer.TurnEnd(ctx, s.ID, TurnStatusAwaitingApproval)
 				return err
 			}
 			t.Status = TurnStatusFailed
-			r.tracer.TurnEnd(ctx, s.ID, TurnStatusFailed)
 			return err
 		}
 	}
+}
+
+// invalidToolCallNotice explains to the model why its call did not run.
+func invalidToolCallNotice(invalid []string) string {
+	var b strings.Builder
+	b.WriteString("Your tool call was not executed because it could not be parsed.")
+	b.WriteString(" Emit one fenced block per turn, each line a JSON object with \"name\" and")
+	b.WriteString(" \"args\" (an object), for example:")
+	b.WriteString("\n```tool_call\n{\"name\": \"list_domains\", \"args\": {}}\n```")
+	b.WriteString("\nThe rejected line(s):")
+	for _, line := range invalid {
+		b.WriteString("\n- ")
+		b.WriteString(line)
+	}
+	return b.String()
 }
 
 // executeSteps executes parsed tool calls with guard checks and tracing,
@@ -213,12 +296,9 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 		})
 	}
 	for _, tc := range calls {
-		stepID := fmt.Sprintf("%s-step-%d-%s", s.ID, step, tc.Name)
-		r.tracer.StepStart(ctx, stepID)
-
 		st := Step{
 			ToolName: tc.Name,
-			ArgsJSON: tc.ArgsJSON,
+			ArgsJSON: string(tc.ArgsJSON),
 		}
 
 		// Guard check.
@@ -226,7 +306,17 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 			st.Err = guardErr
 			st.OutputFenced = wrapUntrustedFence(guardErr.Error())
 			t.Steps = append(t.Steps, st)
-			r.tracer.StepEnd(ctx, stepID, guardErr)
+			guardStatus := TraceStatusDenied
+			if errors.Is(guardErr, ErrApprovalRequired) {
+				guardStatus = TraceStatusBlocked
+			}
+			r.tracer.Event(ctx, TraceEvent{
+				Kind:      TraceKindStep,
+				Step:      step,
+				Tool:      tc.Name,
+				Status:    guardStatus,
+				ErrorCode: traceErrorCode(guardErr),
+			})
 			if errors.Is(guardErr, ErrApprovalRequired) {
 				return guardErr
 			}
@@ -240,7 +330,7 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 
 		// Execute tool.
 		start := time.Now()
-		output, execErr := r.executor.Execute(ctx, s.OrgID, tc.Name, tc.ArgsJSON)
+		output, execErr := r.executor.Execute(ctx, s.OrgID, tc.Name, string(tc.ArgsJSON))
 		st.DurationMS = time.Since(start).Milliseconds()
 
 		if execErr != nil {
@@ -258,7 +348,14 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 		}
 
 		t.Steps = append(t.Steps, st)
-		r.tracer.StepEnd(ctx, stepID, st.Err)
+		r.tracer.Event(ctx, TraceEvent{
+			Kind:       TraceKindStep,
+			Step:       step,
+			Tool:       tc.Name,
+			Status:     traceStatusForError(st.Err),
+			ErrorCode:  traceErrorCode(st.Err),
+			DurationMS: st.DurationMS,
+		})
 
 		// Append the tool output into history so the LLM can reason about results.
 		s.History = append(s.History, Message{
@@ -267,6 +364,28 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 		})
 	}
 	return nil
+}
+
+// traceStatusForError classifies a tool outcome: a tool that ran and failed
+// is an error; a tool that was never allowed to run is reported by the guard
+// branch instead.
+func traceStatusForError(err error) string {
+	if err == nil {
+		return TraceStatusOK
+	}
+	return TraceStatusError
+}
+
+// traceErrorCode extracts the stable business error code of a failed step.
+func traceErrorCode(err error) string {
+	if err == nil {
+		return ""
+	}
+	var ae *plugin.AgentError
+	if errors.As(err, &ae) {
+		return ae.Code
+	}
+	return ""
 }
 
 // toProviderMessages converts harness Messages to llmprovider Messages.

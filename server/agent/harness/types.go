@@ -33,6 +33,23 @@ const (
 	TurnStatusFailed                             // terminated with error
 )
 
+// String returns the stable, machine-readable name of the status. Traces and
+// audit records store this name, not the enum's ordinal.
+func (s TurnStatus) String() string {
+	switch s {
+	case TurnStatusRunning:
+		return "running"
+	case TurnStatusAwaitingApproval:
+		return "awaiting_approval"
+	case TurnStatusDone:
+		return "done"
+	case TurnStatusFailed:
+		return "failed"
+	default:
+		return "unknown"
+	}
+}
+
 // Step records one tool invocation within a turn.
 type Step struct {
 	ToolName     string

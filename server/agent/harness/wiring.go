@@ -20,9 +20,14 @@ var ErrApprovalRequired = errors.New("harness: tool requires operator approval")
 // It decouples the harness from the concrete Engine type so both can be
 // injected through constructors.
 //
+// Endpoints lists the whole registry: the agent harness compiles its tool
+// guidance from it, so an endpoint that is not listed is invisible to the
+// model.
+//
 // P3 前 API 易变.
 type EndpointSource interface {
 	Lookup(name string) (plugin.Endpoint, bool)
+	Endpoints() []plugin.Endpoint
 }
 
 // RegistryExecutor adapts an EndpointSource into the harness ToolExecutor
