@@ -20,7 +20,7 @@ export interface TableErrorProps {
 // Narrowed without `as any`: the error arrives from whatever the caller's data
 // layer rejected with, so both the axios-shaped { response.status } and a plain
 // { status } are accepted, and anything else is "no status".
-function errorStatus(error: unknown): number {
+export function errorStatus(error: unknown): number {
   if (!error || typeof error !== "object") return 0;
   const direct = (error as { status?: unknown }).status;
   if (typeof direct === "number") return direct;
@@ -44,9 +44,13 @@ export const TableError = forwardRef<HTMLDivElement, TableErrorProps>(
       );
     }
 
+    const title = t("proTable.errorTitle");
     const errorMessage =
       errorText ??
-      (error instanceof Error ? error.message : typeof error === "string" ? error : t("proTable.errorTitle"));
+      (error instanceof Error ? error.message : typeof error === "string" ? error : undefined);
+    // A caller that has no detail to show gets the title once. Falling back to
+    // the title as the body rendered the same sentence twice.
+    const showDetail = errorMessage !== undefined && String(errorMessage) !== title;
 
     return (
       <div ref={ref} className={cn("p-6", className)}>
@@ -63,8 +67,8 @@ export const TableError = forwardRef<HTMLDivElement, TableErrorProps>(
           }
         >
           <div className="space-y-1">
-            <p className="font-semibold text-danger-fg">{t("proTable.errorTitle")}</p>
-            <p className="text-xs text-danger-fg/80">{String(errorMessage)}</p>
+            <p className="font-semibold text-danger-fg">{title}</p>
+            {showDetail && <p className="text-xs text-danger-fg/80">{String(errorMessage)}</p>}
           </div>
         </Alert>
       </div>
