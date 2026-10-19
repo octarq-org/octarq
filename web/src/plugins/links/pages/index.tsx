@@ -1,9 +1,9 @@
-import { Empty, ScreenWrap, PageHeader, GlassCard, Button, Input, Table, THead, TBody, TR, TH, confirmDialog } from "@octarq/plugin-sdk";
+import { Alert, Empty, ScreenWrap, PageHeader, GlassCard, Button, Input, Table, THead, TBody, TR, TH, TableError, confirmDialog, toast } from "@octarq/plugin-sdk";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, Domain, effectiveLinkHosts } from "../../../api";
 import { linksApi, Link } from "../api";
-import { Link2, Search, Settings, Plus } from "lucide-react";
+import { AlertCircle, Link2, Search, Settings, Plus } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 
@@ -47,6 +47,7 @@ export default function LinksPage() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<{ detail?: string } | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const { t } = useTranslation();
   const pluginGate = usePluginGate();
@@ -70,6 +71,7 @@ export default function LinksPage() {
   async function loadMore(reset = false) {
     if (loading || (!hasMore && !reset)) return;
     setLoading(true);
+    if (reset) setError(null);
     try {
       const limit = 50;
       const offset = reset ? 0 : page * limit;
@@ -79,11 +81,17 @@ export default function LinksPage() {
 
       setLinks((prev) => (reset ? res : [...prev, ...res]));
       setPage(reset ? 1 : page + 1);
+      setError(null);
     } catch (e: unknown) {
-      const err = e as { status?: number };
+      const err = e as { status?: number; message?: string };
       if (err.status === 404 || err.status === 402) {
         pluginGate.degrade(err.status);
+        return;
       }
+      // Everything else used to be swallowed: the first page rendered the
+      // "no links yet" empty state over a 500, and a failed next page looked
+      // like the end of the list.
+      setError({ detail: err.status ? `HTTP ${err.status}` : err.message });
     } finally {
       setLoading(false);
     }
@@ -115,14 +123,23 @@ export default function LinksPage() {
   };
 
   const toggleArchive = async (l: Link) => {
-    await linksApi.updateLink(l.id, { archived: !l.archived });
-    loadMore(true);
+    try {
+      await linksApi.updateLink(l.id, { archived: !l.archived });
+      loadMore(true);
+    } catch {
+      // A rejected mutation used to bubble out of the click handler as an
+      // unhandled rejection, leaving the row unchanged with no feedback.
+      toast.error(t("links.actionFailed"));
+    }
   };
 
   const handleDelete = async (l: Link) => {
-    if (await confirmDialog(t("links.confirmDelete", { slug: l.slug }))) {
+    if (!(await confirmDialog(t("links.confirmDelete", { slug: l.slug })))) return;
+    try {
       await linksApi.deleteLink(l.id);
       loadMore(true);
+    } catch {
+      toast.error(t("links.actionFailed"));
     }
   };
 
@@ -184,7 +201,9 @@ export default function LinksPage() {
         </div>
 
         {/* Links Data Table / Empty Views */}
-        {loading && links.length === 0 ? (
+        {error && links.length === 0 ? (
+          <TableError errorText={error.detail} onRetry={() => loadMore(true)} />
+        ) : loading && links.length === 0 ? (
           <ListSkeleton rows={8} ariaLabel={t("links.loading")} />
         ) : links.length === 0 ? (
           q ? (
@@ -224,6 +243,7 @@ export default function LinksPage() {
             </Empty>
           )
         ) : (
+          <>
           <GlassCard className="overflow-hidden border border-foreground/[0.06]">
             <div className="overflow-x-auto max-h-[700px] overflow-y-auto" onScroll={handleScroll}>
               <Table>
@@ -257,6 +277,21 @@ export default function LinksPage() {
               {loading && <div className="p-3 text-center text-xs text-foreground/40">{t("links.loading")}</div>}
             </div>
           </GlassCard>
+          {error && (
+            <Alert
+              variant="danger"
+              icon={<AlertCircle className="h-4 w-4" />}
+              actions={
+                <Button variant="outline" size="sm" onClick={() => loadMore()}>
+                  {t("proTable.retry")}
+                </Button>
+              }
+            >
+              {t("proTable.errorTitle")}
+              {error.detail ? ` (${error.detail})` : ""}
+            </Alert>
+          )}
+          </>
         )}
       </div>
 
