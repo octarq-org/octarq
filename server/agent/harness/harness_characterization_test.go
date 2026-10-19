@@ -68,9 +68,9 @@ func TestHarnessCharacterization_NopTracerAndGuard(t *testing.T) {
 	ctx := context.Background()
 
 	// All calls must be safe and no-op
-	tr.StepStart(ctx, "step-1")
-	tr.StepEnd(ctx, "step-1", nil)
-	tr.TurnEnd(ctx, "turn-1", harness.TurnStatusDone)
+	tr.Event(ctx, harness.TraceEvent{Kind: harness.TraceKindTurnStart})
+	tr.Event(ctx, harness.TraceEvent{Kind: harness.TraceKindStep, Tool: "any_tool"})
+	tr.Event(ctx, harness.TraceEvent{Kind: harness.TraceKindTurnEnd, Status: harness.TurnStatusDone.String()})
 
 	var gd harness.Guard = harness.NopGuard{}
 	if err := gd.Allow(ctx, 1, "any_tool"); err != nil {

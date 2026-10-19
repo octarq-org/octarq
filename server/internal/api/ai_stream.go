@@ -44,6 +44,53 @@ func (g *readOnlyGuard) Allow(ctx context.Context, orgID uint, tool string) erro
 	return nil
 }
 
+// readOnlyTool keeps only the tools a read-only session may call. It mirrors
+// the readOnlyGuard rule exactly, so the compiled prompt and the guard agree
+// on the tool surface.
+func readOnlyTool(d harness.ToolDescriptor) bool {
+	return d.Method == http.MethodGet || d.Method == http.MethodHead
+}
+
+// auditAgentTurn records the shape of an agent turn: which tools ran, whether
+// they worked, how long they took and what the turn cost.
+//
+// The trace deliberately keeps no tool arguments and no tool output — those
+// may carry workspace data and belong to the session, not to the audit log.
+func (h *Handler) auditAgentTurn(
+	r *http.Request,
+	orgID uint,
+	sessionID string,
+	turn *harness.Turn,
+	events []harness.TraceEvent,
+	catalog harness.Catalog,
+	maxSteps int,
+	model string,
+) {
+	steps := make([]map[string]any, 0, len(turn.Steps))
+	for _, st := range turn.Steps {
+		steps = append(steps, map[string]any{
+			"tool":       st.ToolName,
+			"durationMs": st.DurationMS,
+			"failed":     st.Err != nil,
+		})
+	}
+	meta := map[string]any{
+		"sessionId":         sessionID,
+		"channel":           "web",
+		"model":             model,
+		"status":            turn.Status.String(),
+		"steps":             steps,
+		"inputTokens":       turn.InputTokens,
+		"outputTokens":      turn.OutputTokens,
+		"reasoningTokens":   turn.ReasoningTokens,
+		"promptVersion":     harness.SystemPromptVersion,
+		"promptFingerprint": catalog.Fingerprint(maxSteps),
+		"toolCount":         len(catalog.Tools),
+		"traceEvents":       len(events),
+	}
+	h.auditAs(r, orgID, h.auth.UserID(r), "agent.turn", "agent_session", 0, meta)
+}
+
 // AIChatStreamMessage is a single message in the chat stream request.
 type AIChatStreamMessage struct {
 	Role    string `json:"role"`
@@ -51,11 +98,15 @@ type AIChatStreamMessage struct {
 }
 
 // AIChatStreamRequest is the request body for POST /api/ai/chat/stream.
+//
+// There is deliberately no system-prompt field: the prompt is compiled on the
+// server from the endpoint registry, so a caller cannot replace the agent's
+// rules — not the tool-call format, not the untrusted-data rule, not the tool
+// list.
 type AIChatStreamRequest struct {
 	Messages []AIChatStreamMessage `json:"messages"`
 	Model    string                `json:"model,omitempty"`
 	Thinking *bool                 `json:"thinking,omitempty"`
-	System   string                `json:"system,omitempty"`
 }
 
 // SetEndpointSource configures the endpoint source for agent tool dispatch.
@@ -150,14 +201,26 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		guard = newReadOnlyGuard(nil)
 	}
 
+	// Compile the tool catalog and the system prompt from the endpoint
+	// registry. The web assistant is read-only, so only the read tools are
+	// advertised: a prompt that offers a tool the guard refuses teaches the
+	// model to call something it can never use.
+	catalog := harness.BuildCatalog(h.endpointSource, readOnlyTool)
+	maxSteps := harness.ProfileNormal.MaxSteps(false)
+	systemPrompt := catalog.SystemPrompt(maxSteps)
+
+	tracer := harness.NewRecordingTracer()
 	adapter := &harness.CompleterAdapter{Provider: p}
 	var runnerOpts []harness.RunnerOption
 	runnerOpts = append(runnerOpts,
 		harness.WithGuard(guard),
-		harness.WithTracer(harness.NopTracer{}),
+		harness.WithTracer(tracer),
 		harness.WithProfile(harness.ProfileNormal),
+		harness.WithSystem(systemPrompt),
 	)
+	model := p.DefaultModel()
 	if req.Model != "" {
+		model = req.Model
 		runnerOpts = append(runnerOpts, harness.WithModel(req.Model))
 	}
 
@@ -174,6 +237,10 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	} else {
 		runErr = runner.Run(r.Context(), session, turn)
 	}
+
+	// Record what the agent did before answering: a turn that failed is
+	// exactly the one an operator will want to look at later.
+	h.auditAgentTurn(r, orgID, session.ID, turn, tracer.Events(), catalog, maxSteps, model)
 
 	if runErr != nil {
 		_ = writeSSEPayload(w, flusher, "error", map[string]string{

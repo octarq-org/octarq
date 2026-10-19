@@ -325,7 +325,12 @@ func TestAIChatStream_IgnoresClientSystemPrompt(t *testing.T) {
 		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	if fake.lastReq.System != "" {
+	// The client prompt is ignored; the server sends the prompt it compiled
+	// from the endpoint registry.
+	if strings.Contains(fake.lastReq.System, "malicious system jailbreak") {
 		t.Fatalf("expected client system prompt to be ignored, got %q", fake.lastReq.System)
+	}
+	if !strings.Contains(fake.lastReq.System, "Octarq workspace assistant") {
+		t.Fatalf("expected the compiled system prompt, got %q", fake.lastReq.System)
 	}
 }

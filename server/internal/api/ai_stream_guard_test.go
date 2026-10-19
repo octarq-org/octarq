@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/server/llmprovider"
 	"github.com/octarq-org/octarq/server/plugin"
 )
@@ -27,6 +28,10 @@ func (e *fakeEndpoint) EndpointRequireAuth() bool     { return false }
 func (e *fakeEndpoint) EndpointRequireRole() []string { return nil }
 func (e *fakeEndpoint) EndpointExposeMCP() bool       { return true }
 func (e *fakeEndpoint) EndpointRequireApproval() bool { return e.requireApproval }
+func (e *fakeEndpoint) EndpointRisk() string          { return "read" }
+func (e *fakeEndpoint) EndpointInputSchema() *huma.Schema {
+	return nil
+}
 func (e *fakeEndpoint) Execute(ctx context.Context, input any) (any, error) {
 	if e.executed != nil {
 		*e.executed = true
@@ -48,6 +53,14 @@ type fakeEndpointSource struct {
 func (s *fakeEndpointSource) Lookup(name string) (plugin.Endpoint, bool) {
 	ep, ok := s.endpoints[name]
 	return ep, ok
+}
+
+func (s *fakeEndpointSource) Endpoints() []plugin.Endpoint {
+	out := make([]plugin.Endpoint, 0, len(s.endpoints))
+	for _, ep := range s.endpoints {
+		out = append(out, ep)
+	}
+	return out
 }
 
 func TestAIChatStream_ReadOnlyGuard_BlocksNonGet(t *testing.T) {

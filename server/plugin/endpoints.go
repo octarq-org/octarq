@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -65,6 +66,11 @@ func DefaultRiskLevel(method string) string {
 }
 
 // Endpoint is the untyped interface implemented by EndpointSpec[In, Out].
+//
+// EndpointRisk and EndpointInputSchema exist so an agent harness can compile
+// tool guidance straight from the endpoint registry instead of a second,
+// hand-maintained list of tools. Everything the model is told about a tool
+// therefore comes from the same declaration the HTTP and MCP surfaces use.
 type Endpoint interface {
 	EndpointName() string
 	EndpointSummary() string
@@ -75,6 +81,12 @@ type Endpoint interface {
 	EndpointRequireRole() []string
 	EndpointExposeMCP() bool
 	EndpointRequireApproval() bool
+	// EndpointRisk returns the effective risk tier: "read", "write" or
+	// "destructive". An endpoint with no inferable risk returns "".
+	EndpointRisk() string
+	// EndpointInputSchema returns the JSON schema of the endpoint's input
+	// type, or nil when the endpoint takes no typed input.
+	EndpointInputSchema() *huma.Schema
 	Execute(ctx context.Context, input any) (any, error)
 	ExecuteAgentJSON(ctx context.Context, argsJSON string) (any, error)
 	Spec() any
@@ -111,6 +123,25 @@ func (s EndpointSpec[In, Out]) EndpointRequireRole() []string { return s.Require
 func (s EndpointSpec[In, Out]) EndpointExposeMCP() bool       { return s.ExposeMCP }
 func (s EndpointSpec[In, Out]) EndpointRequireApproval() bool { return s.RequireApproval }
 func (s EndpointSpec[In, Out]) Spec() any                     { return s }
+
+// EndpointRisk implements Endpoint.
+func (s EndpointSpec[In, Out]) EndpointRisk() string { return s.EffectiveRisk() }
+
+// endpointSchemaRegistry derives JSON schemas for endpoint input types. It is
+// the same registry shape Huma uses for OpenAPI components, so a schema that
+// describes an agent tool matches the schema that validates its HTTP twin.
+var endpointSchemaRegistry = huma.NewMapRegistry("#/components/schemas/", huma.DefaultSchemaNamer)
+
+// EndpointInputSchema implements Endpoint. It returns nil for input types
+// that carry no object shape (interfaces, empty structs), because there is
+// nothing to tell a model about them.
+func (s EndpointSpec[In, Out]) EndpointInputSchema() *huma.Schema {
+	t := reflect.TypeOf((*In)(nil)).Elem()
+	if t == nil || t.Kind() != reflect.Struct {
+		return nil
+	}
+	return huma.SchemaFromType(endpointSchemaRegistry, t)
+}
 
 // EffectiveRisk returns the effective risk level of the endpoint.
 // Explicit valid RiskLevel takes precedence; otherwise it is inferred from Method.
