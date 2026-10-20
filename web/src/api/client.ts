@@ -10,13 +10,17 @@ import type {
   AbuseReport,
   Action,
   AuditLog,
+  CreateHarnessLessonInput,
   Domain,
   HarnessActiveVersion,
-  HarnessRollbackResponse,
+  HarnessLesson,
+  HarnessLessonsResponse,
+  HarnessProposalInput,
   HarnessSpecContent,
   HarnessSpecDetail,
   HarnessSpecsListResponse,
   HarnessVersionItem,
+  HarnessVersionStatus,
   HelpCategory,
   HelpDocContent,
   HelpDocMeta,
@@ -413,8 +417,17 @@ export const api = {
   // Agent Harness
   agentHarnessSpecs: () => req<HarnessSpecsListResponse>("GET", "/api/agent-harness/specs"),
   agentHarnessSpec: (id: number) => req<HarnessSpecDetail>("GET", `/api/agent-harness/specs/${id}`),
-  publishAgentHarnessSpec: (spec: HarnessSpecContent) =>
-    req<HarnessSpecDetail>("POST", "/api/agent-harness/specs", spec),
-  rollbackAgentHarnessSpec: (id: number) =>
-    req<HarnessRollbackResponse>("POST", `/api/agent-harness/specs/${id}/rollback`),
+  createAgentHarnessDraft: (spec: HarnessSpecContent) =>
+    req<HarnessSpecDetail>("POST", "/api/agent-harness/drafts", { spec }),
+  importAgentHarnessProposal: (proposal: HarnessProposalInput) =>
+    req<HarnessSpecDetail>("POST", "/api/agent-harness/proposals", proposal),
+  activateAgentHarnessSpec: (id: number) =>
+    req<{ ok: boolean }>("POST", `/api/agent-harness/specs/${id}/activate`),
+  discardAgentHarnessSpec: (id: number) =>
+    req<{ ok: boolean }>("POST", `/api/agent-harness/specs/${id}/discard`),
+  agentHarnessLessons: () => req<HarnessLessonsResponse>("GET", "/api/agent-harness/lessons"),
+  createAgentHarnessLesson: (input: CreateHarnessLessonInput) =>
+    req<HarnessLesson>("POST", "/api/agent-harness/lessons", input),
+  dismissAgentHarnessLesson: (id: number) =>
+    req<{ ok: boolean }>("POST", `/api/agent-harness/lessons/${id}/dismiss`),
 };

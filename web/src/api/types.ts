@@ -360,6 +360,8 @@ export interface WebhookEventGroup {
 }
 
 // Agent Harness
+export type HarnessVersionStatus = "draft" | "published" | "archived" | "discarded";
+
 export interface HarnessSpecContent {
   version: number;
   name: string;
@@ -374,8 +376,11 @@ export interface HarnessActiveVersion {
   name: string;
   version: number;
   fingerprint: string;
-  publishedAt: string;
+  status: HarnessVersionStatus;
   createdBy: string;
+  createdAt: string;
+  publishedAt: string | null;
+  evidence: unknown | null;
 }
 
 export interface HarnessVersionItem {
@@ -383,9 +388,11 @@ export interface HarnessVersionItem {
   name: string;
   version: number;
   fingerprint: string;
-  publishedAt: string;
+  status: HarnessVersionStatus;
   createdBy: string;
-  status: "published" | "archived";
+  createdAt: string;
+  publishedAt: string | null;
+  evidence: unknown | null;
 }
 
 export interface HarnessSpecsListResponse {
@@ -398,14 +405,41 @@ export interface HarnessSpecDetail {
   name: string;
   version: number;
   fingerprint: string;
-  status: "published" | "archived";
-  createdAt: string;
-  publishedAt: string;
+  status: HarnessVersionStatus;
   createdBy: string;
+  createdAt: string;
+  publishedAt: string | null;
+  evidence: unknown | null;
   spec: HarnessSpecContent;
 }
 
-export interface HarnessRollbackResponse {
-  ok: boolean;
+export interface HarnessProposalInput {
+  name?: string;
+  spec: HarnessSpecContent;
+  evidence?: unknown;
+  [key: string]: unknown;
+}
+
+export type HarnessLessonStatus = "suggested" | "adopted" | "dismissed";
+
+export interface HarnessLesson {
+  id: number;
+  scope: string;
+  note: string;
+  status: HarnessLessonStatus;
+  evidence: unknown | null;
+  createdBy: string;
+  createdAt: string;
+  specId: number | null;
+}
+
+export interface HarnessLessonsResponse {
+  lessons: HarnessLesson[];
+}
+
+export interface CreateHarnessLessonInput {
+  scope: string;
+  note: string;
+  evidence?: unknown;
 }
 

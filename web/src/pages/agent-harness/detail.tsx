@@ -10,6 +10,7 @@ import {
   useTranslation,
 } from "@octarq/plugin-sdk";
 import { api, type HarnessSpecContent, type HarnessSpecDetail } from "../../api";
+import { EvidenceViewer } from "./evidence";
 
 export interface HarnessDetailModalProps {
   open: boolean;
@@ -17,7 +18,8 @@ export interface HarnessDetailModalProps {
   specId: number | null;
   cachedDetail?: HarnessSpecDetail | null;
   onUseAsTemplate?: (spec: HarnessSpecContent) => void;
-  onRollback?: (version: number, id: number) => void;
+  onActivate?: (version: number, id: number) => void;
+  onDiscard?: (version: number, id: number) => void;
   isActive?: boolean;
 }
 
@@ -27,7 +29,8 @@ export function HarnessDetailModal({
   specId,
   cachedDetail,
   onUseAsTemplate,
-  onRollback,
+  onActivate,
+  onDiscard,
   isActive,
 }: HarnessDetailModalProps) {
   const { t } = useTranslation();
@@ -92,6 +95,21 @@ export function HarnessDetailModal({
     version: detail?.version ?? specId,
   });
 
+  const getStatusBadge = () => {
+    if (!detail) return null;
+    switch (detail.status) {
+      case "published":
+        return <Badge variant="green">{t("agentHarness.statusPublished")}</Badge>;
+      case "draft":
+        return <Badge variant="amber">{t("agentHarness.statusDraft")}</Badge>;
+      case "discarded":
+        return <Badge variant="red">{t("agentHarness.statusDiscarded")}</Badge>;
+      case "archived":
+      default:
+        return <Badge variant="neutral">{t("agentHarness.statusArchived")}</Badge>;
+    }
+  };
+
   return (
     <Modal
       title={modalTitle}
@@ -99,13 +117,7 @@ export function HarnessDetailModal({
       className="max-w-2xl w-full p-6 space-y-5"
     >
       <div className="flex items-center gap-2 -mt-2">
-        {detail && (
-          <Badge variant={detail.status === "published" ? "green" : "neutral"}>
-            {detail.status === "published"
-              ? t("agentHarness.statusPublished")
-              : t("agentHarness.statusArchived")}
-          </Badge>
-        )}
+        {getStatusBadge()}
         {isActive && (
           <Badge variant="indigo">{t("agentHarness.activeBadge")}</Badge>
         )}
@@ -115,6 +127,12 @@ export function HarnessDetailModal({
           </span>
         )}
       </div>
+
+      {detail?.status === "draft" && (
+        <div className="p-2.5 rounded-xl border border-warning-border bg-warning-bg text-warning-fg text-xs font-medium">
+          {t("agentHarness.draftNoticeDesc")}
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-3 py-4">
@@ -129,7 +147,7 @@ export function HarnessDetailModal({
       ) : detail ? (
         <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
           {/* Metadata Grid */}
-          <div className="grid grid-cols-3 gap-2 text-xs">
+          <div className="grid grid-cols-4 gap-2 text-xs">
             <GlassCard className="p-2.5">
               <span className="text-muted-foreground block text-[10px]">
                 {t("agentHarness.createdBy")}
@@ -138,10 +156,18 @@ export function HarnessDetailModal({
             </GlassCard>
             <GlassCard className="p-2.5">
               <span className="text-muted-foreground block text-[10px]">
+                {t("agentHarness.createdAt")}
+              </span>
+              <span className="font-medium text-foreground" title={detail.createdAt}>
+                {detail.createdAt ? timeAgo(detail.createdAt) : "—"}
+              </span>
+            </GlassCard>
+            <GlassCard className="p-2.5">
+              <span className="text-muted-foreground block text-[10px]">
                 {t("agentHarness.publishedAt")}
               </span>
-              <span className="font-medium text-foreground" title={detail.publishedAt}>
-                {timeAgo(detail.publishedAt)}
+              <span className="font-medium text-foreground" title={detail.publishedAt ?? undefined}>
+                {detail.publishedAt ? timeAgo(detail.publishedAt) : t("agentHarness.notPublished")}
               </span>
             </GlassCard>
             <GlassCard className="p-2.5">
@@ -208,6 +234,18 @@ export function HarnessDetailModal({
               </div>
             )}
           </div>
+
+          {/* Evidence */}
+          {detail.evidence !== null && detail.evidence !== undefined && (
+            <div className="space-y-1.5">
+              <span className="text-xs font-semibold text-foreground">
+                {t("agentHarness.evidence")}
+              </span>
+              <div className="p-3 rounded-xl border border-border bg-well/30 max-h-40 overflow-y-auto">
+                <EvidenceViewer evidence={detail.evidence} />
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -241,19 +279,35 @@ export function HarnessDetailModal({
         </div>
 
         <div className="flex items-center gap-2">
-          {detail && !isActive && onRollback && (
+          {detail && detail.status === "draft" && onDiscard && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => {
                 onClose();
-                onRollback(detail.version, detail.id);
+                onDiscard(detail.version, detail.id);
               }}
-              className="text-xs text-warning-fg border-warning-fg/30 hover:bg-warning-fg/10"
+              className="text-xs text-danger-fg border-danger-fg/30 hover:bg-danger-fg/10"
             >
-              {t("agentHarness.rollback")}
+              {t("agentHarness.discard")}
             </Button>
           )}
+          {detail &&
+            (detail.status === "draft" || detail.status === "archived") &&
+            !isActive &&
+            onActivate && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  onActivate(detail.version, detail.id);
+                }}
+                className="text-xs"
+              >
+                {t("agentHarness.activate")}
+              </Button>
+            )}
           <Button variant="ghost" size="sm" onClick={onClose}>
             {t("agentHarness.close")}
           </Button>

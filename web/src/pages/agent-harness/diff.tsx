@@ -1,12 +1,14 @@
 import { useMemo } from "react";
 import { Badge, Button, GlassCard, Modal, useTranslation } from "@octarq/plugin-sdk";
 import type { HarnessSpecDetail } from "../../api";
+import { EvidenceViewer } from "./evidence";
 
 export interface HarnessDiffModalProps {
   open: boolean;
   onClose: () => void;
   activeDetail: HarnessSpecDetail | null;
   targetDetail: HarnessSpecDetail | null;
+  onActivate?: (version: number, id: number) => void;
 }
 
 export function HarnessDiffModal({
@@ -14,6 +16,7 @@ export function HarnessDiffModal({
   onClose,
   activeDetail,
   targetDetail,
+  onActivate,
 }: HarnessDiffModalProps) {
   const { t } = useTranslation();
 
@@ -82,14 +85,41 @@ export function HarnessDiffModal({
     target: activeDetail ? activeDetail.version : t("agentHarness.noActiveSpec"),
   });
 
+  const canActivate =
+    onActivate &&
+    (targetDetail.status === "draft" || targetDetail.status === "archived") &&
+    (!activeDetail || activeDetail.id !== targetDetail.id);
+
   return (
     <Modal
       title={modalTitle}
       onClose={onClose}
       className="max-w-3xl w-full p-6 space-y-5"
     >
-      <div className="text-xs font-mono text-muted-foreground -mt-2">
-        {targetDetail.fingerprint.slice(0, 16)}…
+      <div className="flex items-center gap-2 -mt-2">
+        <span className="text-xs font-mono text-muted-foreground" title={targetDetail.fingerprint}>
+          {targetDetail.fingerprint.slice(0, 16)}…
+        </span>
+        <Badge
+          variant={
+            targetDetail.status === "published"
+              ? "green"
+              : targetDetail.status === "draft"
+              ? "amber"
+              : targetDetail.status === "discarded"
+              ? "red"
+              : "neutral"
+          }
+          className="text-[10px]"
+        >
+          {targetDetail.status === "published"
+            ? t("agentHarness.statusPublished")
+            : targetDetail.status === "draft"
+            ? t("agentHarness.statusDraft")
+            : targetDetail.status === "discarded"
+            ? t("agentHarness.statusDiscarded")
+            : t("agentHarness.statusArchived")}
+        </Badge>
       </div>
 
       {!diffData || !diffData.hasActive ? (
@@ -253,10 +283,37 @@ export function HarnessDiffModal({
               </div>
             </div>
           </GlassCard>
+
+          {/* Evidence if present on target */}
+          {targetDetail.evidence !== null && targetDetail.evidence !== undefined && (
+            <GlassCard className="p-3 space-y-2 text-xs">
+              <span className="font-semibold text-foreground/70 block">
+                {t("agentHarness.evidence")}
+              </span>
+              <div className="p-2.5 rounded bg-well/40 border border-border/50 max-h-36 overflow-y-auto">
+                <EvidenceViewer evidence={targetDetail.evidence} />
+              </div>
+            </GlassCard>
+          )}
         </div>
       )}
 
-      <div className="flex justify-end pt-2 border-t border-border/60">
+      <div className="flex items-center justify-between pt-2 border-t border-border/60">
+        <div>
+          {canActivate && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                onClose();
+                onActivate(targetDetail.version, targetDetail.id);
+              }}
+              className="text-xs"
+            >
+              {t("agentHarness.activate")}
+            </Button>
+          )}
+        </div>
         <Button variant="outline" size="sm" onClick={onClose}>
           {t("agentHarness.close")}
         </Button>

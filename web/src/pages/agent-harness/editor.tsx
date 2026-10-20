@@ -99,12 +99,12 @@ export function HarnessEditorModal({
 
     setSubmitting(true);
     try {
-      const created = await api.publishAgentHarnessSpec(payload);
-      toast.success(t("agentHarness.publishSuccess"));
+      const created = await api.createAgentHarnessDraft(payload);
+      toast.success(t("agentHarness.stageSuccess"));
       onSuccess(created);
       onClose();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t("agentHarness.publishFailed");
+      const msg = err instanceof Error ? err.message : t("agentHarness.stageFailed");
       setErrorMsg(msg);
     } finally {
       setSubmitting(false);
@@ -117,13 +117,18 @@ export function HarnessEditorModal({
       onClose={onClose}
       className="max-w-2xl w-full p-6 space-y-5"
     >
-      <p className="text-xs text-muted-foreground -mt-2">
-        {t("agentHarness.editorDesc")}
-      </p>
+      <div className="space-y-2 -mt-2">
+        <p className="text-xs text-muted-foreground">
+          {t("agentHarness.editorDesc")}
+        </p>
+        <div className="p-2.5 rounded-xl border border-warning-border bg-warning-bg text-warning-fg text-xs font-medium">
+          {t("agentHarness.draftNoticeDesc")}
+        </div>
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+      <form onSubmit={handleSubmit} className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
         {errorMsg && (
-          <Alert variant="danger" title={t("agentHarness.publishFailed")}>
+          <Alert variant="danger" title={t("agentHarness.stageFailed")}>
             {errorMsg}
           </Alert>
         )}
@@ -265,7 +270,7 @@ export function HarnessEditorModal({
             size="sm"
             disabled={submitting || !preamble.trim()}
           >
-            {submitting ? t("agentHarness.publishingBtn") : t("agentHarness.publishBtn")}
+            {submitting ? t("agentHarness.stagingBtn") : t("agentHarness.stageBtn")}
           </Button>
         </div>
       </form>
