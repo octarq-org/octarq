@@ -155,6 +155,10 @@ type defaultRunner struct {
 	profile   Profile
 	model     string
 	system    string
+	// maxSteps tightens the profile's step ceiling. It can only lower it:
+	// the profile's ceiling is a safety invariant, a harness spec is not
+	// allowed to raise it.
+	maxSteps int
 }
 
 // RunnerOption configures a defaultRunner.
@@ -184,6 +188,13 @@ func WithModel(m string) RunnerOption {
 // WithSystem sets the system prompt.
 func WithSystem(s string) RunnerOption {
 	return func(r *defaultRunner) { r.system = s }
+}
+
+// WithMaxSteps tightens the step ceiling below the profile's. A value of
+// zero or more than the profile's ceiling is ignored — the ceiling is a
+// safety invariant that a harness spec cannot raise.
+func WithMaxSteps(n int) RunnerOption {
+	return func(r *defaultRunner) { r.maxSteps = n }
 }
 
 // NewRunner constructs a Runner with the given dependencies and options.
@@ -220,7 +231,7 @@ func (r *defaultRunner) Run(ctx context.Context, s *Session, t *Turn) error {
 // loop is the agent loop proper. It always leaves t.Status set to the
 // terminal state of the turn.
 func (r *defaultRunner) loop(ctx context.Context, s *Session, t *Turn) error {
-	maxSteps := r.profile.MaxSteps(t.HasDestructive)
+	maxSteps := r.effectiveMaxSteps(t.HasDestructive)
 	t.Status = TurnStatusRunning
 
 	// Seed history with the user's input.
@@ -269,6 +280,16 @@ func (r *defaultRunner) loop(ctx context.Context, s *Session, t *Turn) error {
 			return err
 		}
 	}
+}
+
+// effectiveMaxSteps returns the step ceiling for a turn: the profile's,
+// lowered by an explicit override when the override is stricter.
+func (r *defaultRunner) effectiveMaxSteps(hasDestructive bool) int {
+	maxSteps := r.profile.MaxSteps(hasDestructive)
+	if r.maxSteps > 0 && r.maxSteps < maxSteps {
+		return r.maxSteps
+	}
+	return maxSteps
 }
 
 // invalidToolCallNotice explains to the model why its call did not run.

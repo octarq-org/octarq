@@ -49,7 +49,7 @@ func (r *defaultRunner) Stream(ctx context.Context, s *Session, t *Turn, h llmpr
 // streamLoop is the streaming agent loop. It always leaves t.Status set to
 // the terminal state of the turn.
 func (r *defaultRunner) streamLoop(ctx context.Context, s *Session, t *Turn, sp llmprovider.StreamProvider, h llmprovider.StreamHandler) error {
-	maxSteps := r.profile.MaxSteps(t.HasDestructive)
+	maxSteps := r.effectiveMaxSteps(t.HasDestructive)
 	t.Status = TurnStatusRunning
 
 	// Seed history with the user's input.

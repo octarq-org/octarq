@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/octarq-org/octarq/server/agent/harness"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/plugin"
 )
@@ -169,5 +170,86 @@ func TestAIChatStream_TurnFailureIsStillAudited(t *testing.T) {
 	}
 	if meta["status"] != "failed" {
 		t.Errorf("audit status = %v, want failed", meta["status"])
+	}
+}
+
+func TestAIChatStream_UsesThePublishedHarnessSpec(t *testing.T) {
+	llm := &fakeStreamingLLM{texts: []string{"hello"}}
+	src := &fakeEndpointSource{endpoints: map[string]plugin.Endpoint{
+		"read_things": catalogTestEndpoint("read_things", http.MethodGet),
+	}}
+	srv, _, h := newAIStreamTestHandlerFull(t, llm, src)
+
+	h.SetHarnessSpecProvider(func(orgID uint) (harness.HarnessSpec, error) {
+		return harness.HarnessSpec{
+			Version:    harness.HarnessSpecVersion,
+			Name:       "support",
+			Preamble:   "You are the support agent of this workspace.",
+			ExtraRules: []string{"Always greet the operator by name."},
+			MaxSteps:   2,
+		}, nil
+	})
+
+	postAIChat(t, srv, `{"messages":[{"role":"user","content":"hi"}]}`)
+
+	system := llm.lastReq.System
+	if !strings.Contains(system, "You are the support agent of this workspace.") {
+		t.Errorf("the published preamble did not reach the provider:\n%s", system)
+	}
+	if !strings.Contains(system, "Always greet the operator by name.") {
+		t.Errorf("the published rule did not reach the provider:\n%s", system)
+	}
+	if !strings.Contains(system, "at most 2 tool-calling steps") {
+		t.Errorf("the published step budget did not reach the provider:\n%s", system)
+	}
+}
+
+func TestAIChatStream_AnInvalidPublishedSpecFailsClosed(t *testing.T) {
+	llm := &fakeStreamingLLM{texts: []string{"hello"}}
+	src := &fakeEndpointSource{endpoints: map[string]plugin.Endpoint{
+		"read_things": catalogTestEndpoint("read_things", http.MethodGet),
+	}}
+	srv, _, h := newAIStreamTestHandlerFull(t, llm, src)
+
+	h.SetHarnessSpecProvider(func(orgID uint) (harness.HarnessSpec, error) {
+		// A spec that does not validate must not reach the model, and must
+		// not silently degrade into the built-in default.
+		return harness.HarnessSpec{Version: harness.HarnessSpecVersion, Name: ""}, nil
+	})
+
+	rec := postAIChat(t, srv, `{"messages":[{"role":"user","content":"hi"}]}`)
+
+	if rec.Code == http.StatusOK {
+		t.Fatalf("expected the request to fail, got 200")
+	}
+	if llm.lastReq.System != "" {
+		t.Errorf("an invalid spec still reached the provider:\n%s", llm.lastReq.System)
+	}
+}
+
+func TestAIChatStream_TheSpecAllowlistNarrowsTheAdvertisedTools(t *testing.T) {
+	llm := &fakeStreamingLLM{texts: []string{"hello"}}
+	src := &fakeEndpointSource{endpoints: map[string]plugin.Endpoint{
+		"read_things":  catalogTestEndpoint("read_things", http.MethodGet),
+		"read_more":    catalogTestEndpoint("read_more", http.MethodGet),
+		"write_things": catalogTestEndpoint("write_things", http.MethodPost),
+	}}
+	srv, _, h := newAIStreamTestHandlerFull(t, llm, src)
+
+	h.SetHarnessSpecProvider(func(orgID uint) (harness.HarnessSpec, error) {
+		return harness.HarnessSpec{
+			Version:   harness.HarnessSpecVersion,
+			Name:      "narrow",
+			ToolAllow: []string{"read_things"},
+		}, nil
+	})
+
+	postAIChat(t, srv, `{"messages":[{"role":"user","content":"hi"}]}`)
+
+	if !strings.Contains(llm.lastReq.System, "read_things") {
+		t.Errorf("the allowed tool is missing:\n%s", llm.lastReq.System)
+	}
+	if strings.Contains(llm.lastReq.System, "read_more") {
+		t.Errorf("a tool outside the allowlist is advertised:\n%s", llm.lastReq.System)
 	}
 }

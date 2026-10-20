@@ -68,17 +68,44 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
   type ToolFilter func(ToolDescriptor) bool
 
   func BuildCatalog(src EndpointSource, filter ToolFilter) Catalog
-  func (c Catalog) SystemPrompt(maxSteps int) string
-  func (c Catalog) Fingerprint(maxSteps int) string
+  func (c Catalog) SystemPrompt(spec HarnessSpec) string
+  func (c Catalog) Fingerprint(spec HarnessSpec) string
   ```
   The catalog is compiled from the endpoint registry, so the tool list the
   model sees cannot drift from the tools that exist. `EndpointSource` must
   therefore expose `Endpoints() []plugin.Endpoint` in addition to `Lookup`.
 
+- **Harness Spec** (`spec.go`):
+  ```go
+  type HarnessSpec struct {
+      Version    int      `json:"version"`
+      Name       string   `json:"name"`
+      Preamble   string   `json:"preamble,omitempty"`
+      ExtraRules []string `json:"extraRules,omitempty"`
+      ToolAllow  []string `json:"toolAllow,omitempty"`
+      MaxSteps   int      `json:"maxSteps,omitempty"`
+  }
+  ```
+  The spec is the versioned, publishable description of an agent's shell. It
+  holds only the components that change behaviour today; a slot that does not
+  exist cannot be set to a value that is silently ignored — `DecodeSpec`
+  rejects unknown fields and `Validate` refuses the spec as a whole.
+
+  - The spec may only **tighten** the step ceiling, never raise it: the
+    profile's ceiling is a safety invariant (`EffectiveMaxSteps`).
+  - `ToolAllow` narrows the advertised surface; it can never widen it past
+    the session policy (`composeToolFilter` in the API layer).
+  - Extra rules are appended **after** the built-in rules. A spec can add
+    rules, never remove them.
+  - `Fingerprint()` is the SHA-256 of the canonical spec JSON: two specs with
+    the same fingerprint compile the same prompt.
+
 - **Endpoint contract additions** (`server/plugin/endpoints.go`):
   `plugin.Endpoint` gained `EndpointRisk() string` and
-  `EndpointInputSchema() *huma.Schema` so the harness can describe a tool
-  without a second, hand-maintained list.
+  `EndpointInputSchema() json.RawMessage` so the harness can describe a tool
+  without a second, hand-maintained list. The schema is a plain JSON Schema
+  document on purpose: a plugin may produce it with any JSON Schema
+  producer, not only Huma.
 
 ---
 
@@ -122,9 +149,18 @@ never accepted from the client. It states four things:
    requirement, description and the parameter list derived from the input
    schema.
 
-`Catalog.Fingerprint(maxSteps)` is the SHA-256 of the compiled prompt. Two
+`Catalog.Fingerprint(spec)` is the SHA-256 of the compiled prompt. Two
 sessions with the same fingerprint ran the same prompt against the same tool
 surface, which is what makes recorded turns comparable.
+
+The prompt is compiled from a `HarnessSpec`: the spec contributes the
+preamble, the extra rules and the step budget. The built-in rules always come
+first and cannot be removed. The step budget in the prompt is the *effective*
+one — the profile's ceiling lowered by the spec, never raised — so the model
+is told the ceiling the runner will actually enforce.
+
+An invalid published spec fails the request (HTTP 500) before the stream
+starts. It never degrades into the built-in default.
 
 The catalog is filtered per session: the web assistant is read-only, so only
 `GET`/`HEAD` tools are advertised. A prompt must never offer a tool the

@@ -2,12 +2,12 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/server/llmprovider"
 	"github.com/octarq-org/octarq/server/plugin"
 )
@@ -29,7 +29,7 @@ func (e *fakeEndpoint) EndpointRequireRole() []string { return nil }
 func (e *fakeEndpoint) EndpointExposeMCP() bool       { return true }
 func (e *fakeEndpoint) EndpointRequireApproval() bool { return e.requireApproval }
 func (e *fakeEndpoint) EndpointRisk() string          { return "read" }
-func (e *fakeEndpoint) EndpointInputSchema() *huma.Schema {
+func (e *fakeEndpoint) EndpointInputSchema() json.RawMessage {
 	return nil
 }
 func (e *fakeEndpoint) Execute(ctx context.Context, input any) (any, error) {

@@ -2,8 +2,8 @@ package harness
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"github.com/danielgtaylor/huma/v2"
 	"strings"
 	"testing"
 
@@ -151,7 +151,7 @@ func (mockBadOutputEndpoint) EndpointRequireRole() []string { return nil }
 func (mockBadOutputEndpoint) EndpointExposeMCP() bool       { return false }
 func (mockBadOutputEndpoint) EndpointRequireApproval() bool { return false }
 func (mockBadOutputEndpoint) EndpointRisk() string          { return "write" }
-func (mockBadOutputEndpoint) EndpointInputSchema() *huma.Schema {
+func (mockBadOutputEndpoint) EndpointInputSchema() json.RawMessage {
 	return nil
 }
 func (mockBadOutputEndpoint) Execute(_ context.Context, _ any) (any, error) {

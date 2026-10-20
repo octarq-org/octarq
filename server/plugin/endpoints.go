@@ -84,9 +84,11 @@ type Endpoint interface {
 	// EndpointRisk returns the effective risk tier: "read", "write" or
 	// "destructive". An endpoint with no inferable risk returns "".
 	EndpointRisk() string
-	// EndpointInputSchema returns the JSON schema of the endpoint's input
-	// type, or nil when the endpoint takes no typed input.
-	EndpointInputSchema() *huma.Schema
+	// EndpointInputSchema returns the JSON Schema of the endpoint's input
+	// type, or nil when the endpoint takes no typed input. The document is
+	// schema-library agnostic on purpose: the harness renders it, and a
+	// plugin may produce it with any JSON Schema producer.
+	EndpointInputSchema() json.RawMessage
 	Execute(ctx context.Context, input any) (any, error)
 	ExecuteAgentJSON(ctx context.Context, argsJSON string) (any, error)
 	Spec() any
@@ -135,12 +137,16 @@ var endpointSchemaRegistry = huma.NewMapRegistry("#/components/schemas/", huma.D
 // EndpointInputSchema implements Endpoint. It returns nil for input types
 // that carry no object shape (interfaces, empty structs), because there is
 // nothing to tell a model about them.
-func (s EndpointSpec[In, Out]) EndpointInputSchema() *huma.Schema {
+func (s EndpointSpec[In, Out]) EndpointInputSchema() json.RawMessage {
 	t := reflect.TypeOf((*In)(nil)).Elem()
 	if t == nil || t.Kind() != reflect.Struct {
 		return nil
 	}
-	return huma.SchemaFromType(endpointSchemaRegistry, t)
+	raw, err := json.Marshal(huma.SchemaFromType(endpointSchemaRegistry, t))
+	if err != nil {
+		return nil
+	}
+	return json.RawMessage(raw)
 }
 
 // EffectiveRisk returns the effective risk level of the endpoint.

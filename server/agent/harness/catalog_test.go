@@ -45,6 +45,12 @@ func (s *catalogSource) Lookup(name string) (plugin.Endpoint, bool) {
 
 func (s *catalogSource) Endpoints() []plugin.Endpoint { return s.eps }
 
+// specWithSteps builds a spec whose compiled prompt states the given step
+// budget.
+func specWithSteps(n int) harness.HarnessSpec {
+	return harness.DefaultHarnessSpec().WithMaxSteps(n)
+}
+
 func TestBuildCatalog_ListsEndpointsSortedByName(t *testing.T) {
 	src := &catalogSource{eps: []plugin.Endpoint{
 		catalogEndpoint("zeta_tool", "GET", "Zeta"),
@@ -165,7 +171,7 @@ func TestBuildCatalog_CapturesRiskAndApproval(t *testing.T) {
 
 func TestSystemPrompt_DocumentsTheToolCallFormat(t *testing.T) {
 	src := &catalogSource{eps: []plugin.Endpoint{catalogEndpoint("create_link", "POST", "Create")}}
-	prompt := harness.BuildCatalog(src, nil).SystemPrompt(8)
+	prompt := harness.BuildCatalog(src, nil).SystemPrompt(specWithSteps(8))
 
 	if !strings.Contains(prompt, "```tool_call") {
 		t.Errorf("prompt does not show the tool_call fence:\n%s", prompt)
@@ -177,7 +183,7 @@ func TestSystemPrompt_DocumentsTheToolCallFormat(t *testing.T) {
 
 func TestSystemPrompt_DocumentsTheUntrustedFence(t *testing.T) {
 	src := &catalogSource{eps: []plugin.Endpoint{catalogEndpoint("create_link", "POST", "Create")}}
-	prompt := harness.BuildCatalog(src, nil).SystemPrompt(8)
+	prompt := harness.BuildCatalog(src, nil).SystemPrompt(specWithSteps(8))
 
 	if !strings.Contains(prompt, "```untrusted") {
 		t.Errorf("prompt does not explain the untrusted fence:\n%s", prompt)
@@ -189,7 +195,7 @@ func TestSystemPrompt_DocumentsTheUntrustedFence(t *testing.T) {
 
 func TestSystemPrompt_ListsToolGuidance(t *testing.T) {
 	src := &catalogSource{eps: []plugin.Endpoint{catalogEndpoint("create_link", "POST", "Create")}}
-	prompt := harness.BuildCatalog(src, nil).SystemPrompt(8)
+	prompt := harness.BuildCatalog(src, nil).SystemPrompt(specWithSteps(8))
 
 	for _, want := range []string{
 		"create_link",
@@ -206,7 +212,7 @@ func TestSystemPrompt_ListsToolGuidance(t *testing.T) {
 
 func TestSystemPrompt_MentionsTheStepBudget(t *testing.T) {
 	src := &catalogSource{eps: []plugin.Endpoint{catalogEndpoint("create_link", "POST", "Create")}}
-	prompt := harness.BuildCatalog(src, nil).SystemPrompt(3)
+	prompt := harness.BuildCatalog(src, nil).SystemPrompt(specWithSteps(3))
 
 	if !strings.Contains(prompt, "3") {
 		t.Errorf("prompt does not mention the step budget:\n%s", prompt)
@@ -214,7 +220,7 @@ func TestSystemPrompt_MentionsTheStepBudget(t *testing.T) {
 }
 
 func TestSystemPrompt_EmptyCatalogStatesNoTools(t *testing.T) {
-	prompt := harness.BuildCatalog(nil, nil).SystemPrompt(8)
+	prompt := harness.BuildCatalog(nil, nil).SystemPrompt(specWithSteps(8))
 
 	if !strings.Contains(prompt, "no tools") && !strings.Contains(prompt, "No tools") {
 		t.Errorf("prompt does not say that no tools are available:\n%s", prompt)
@@ -231,9 +237,9 @@ func TestSystemPrompt_FingerprintIsStableAndTracksTheToolSet(t *testing.T) {
 		catalogEndpoint("read_links", "GET", "Read"),
 	}}
 
-	a := harness.BuildCatalog(one, nil).Fingerprint(8)
-	b := harness.BuildCatalog(one, nil).Fingerprint(8)
-	c := harness.BuildCatalog(two, nil).Fingerprint(8)
+	a := harness.BuildCatalog(one, nil).Fingerprint(specWithSteps(8))
+	b := harness.BuildCatalog(one, nil).Fingerprint(specWithSteps(8))
+	c := harness.BuildCatalog(two, nil).Fingerprint(specWithSteps(8))
 
 	if a == "" {
 		t.Fatal("fingerprint is empty")
