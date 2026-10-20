@@ -289,3 +289,30 @@ func TestAgentHarness_DefaultSpecIsUsedWhenNothingIsPublished(t *testing.T) {
 		t.Errorf("the built-in preamble was not used:\n%s", llm.lastReq.System)
 	}
 }
+
+func TestAgentHarness_TheAuthorIsNamedNotNumbered(t *testing.T) {
+	srv, db, h := newAIStreamTestHandlerFull(t, nil, nil)
+	store := agentstore.NewHarnessStore(db)
+	h.SetHarnessStore(store)
+	h.SetHarnessSpecProvider(store.Spec)
+
+	const org = uint(7802)
+	ownerUID := seedOrgMember(t, db, org, "owner@harness.test", "owner")
+	cookies := sessionCookies(t, ownerUID, org)
+
+	rec := publishSpec(t, srv, cookies, `{"version":1,"name":"default"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var doc AgentHarnessSpecDocument
+	if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if doc.CreatedBy == "" {
+		t.Error("the author is empty")
+	}
+	if !strings.Contains(doc.CreatedBy, "owner@harness.test") {
+		t.Errorf("author = %q, want the publishing account", doc.CreatedBy)
+	}
+}
