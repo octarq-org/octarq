@@ -474,6 +474,6 @@ func AllModels() []any {
 		&Token{}, &Setting{}, &WorkspaceSetting{}, &NotificationChannel{},
 		&AbuseReport{}, &AuditLog{}, &Webhook{}, &Session{}, &OrgSlugHistory{},
 		&Notification{}, &NotificationPreference{}, &File{},
-		&AgentHarnessSpec{},
+		&AgentHarnessSpec{}, &AgentHarnessLesson{},
 	}
 }

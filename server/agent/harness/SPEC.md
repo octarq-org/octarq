@@ -204,35 +204,76 @@ stateDiagram-v2
 
 ---
 
-## 7. Harness Spec Store & Admin API
+## 7. Harness Spec Store, Draft Lifecycle & Admin API
 
-The spec is published per workspace. Rows live in `agent_harness_specs`
+The spec is versioned per workspace. Rows live in `agent_harness_specs`
 (`server/internal/models/agent_harness.go`) and are managed by
 `server/internal/agentstore/harness.go`.
 
-- Versions are **immutable**: publishing archives the previous version, a
-  rollback re-publishes an older one. Nothing is deleted, so a rollback always
-  has a target.
-- A workspace has at most one **published** version at a time. The built-in
-  default applies only when a workspace has never published one — that is the
-  product's normal state, not a fallback.
-- The store is tenant-scoped: every query filters on `owner_id`. A version of
-  another workspace is invisible, and a cross-workspace rollback is refused.
-- A published spec that cannot be decoded **fails the request** (HTTP 500
-  before the stream starts). It is never silently replaced by the default:
-  that would hide a broken configuration behind a working-looking agent.
+### 7.1 Lifecycle
 
-Admin API (workspace admin, `authz.RoleAdmin`):
+```
+        stage / import proposal
+                 │
+                 ▼
+             ┌───────┐  discard   ┌───────────┐
+             │ draft │──────────▶│ discarded │
+             └───┬───┘            └───────────┘
+                 │ activate
+                 ▼
+             ┌──────────┐  activate (another)  ┌──────────┐
+             │ published│─────────────────────▶│ archived │
+             └──────────┘                       └──────────┘
+                  ▲                                  │
+                  └──────────────────────────────────┘
+                              rollback
+```
+
+- A version is **immutable**: only its status changes. Nothing is deleted, so
+  a rollback always has a target.
+- **Staging is not publishing.** A staged version is a draft; the workspace's
+  assistant keeps running the previous live version until somebody activates
+  the draft. This is the gate an imported lab proposal passes too.
+- A workspace has **exactly one** live version. Activating archives whatever
+  was live before — across every name, because the workspace runs one harness.
+- The built-in default applies only when a workspace has **never** activated a
+  version — that is the product's normal state, not a fallback.
+- A live spec that cannot be decoded **fails the request** (HTTP 500 before
+  the stream starts). It is never silently replaced by the default: that would
+  hide a broken configuration behind a working-looking agent.
+- The store is tenant-scoped: every query filters on `owner_id`. A version of
+  another workspace is invisible, and a cross-workspace activation is refused.
+
+### 7.2 Admin API (workspace admin, `authz.RoleAdmin`)
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/agent-harness/specs` | list the versions, mark the active one |
+| GET | `/api/agent-harness/specs` | list the versions, mark the live one |
 | GET | `/api/agent-harness/specs/{id}` | read one version and its spec |
-| POST | `/api/agent-harness/specs` | validate and publish a new version |
-| POST | `/api/agent-harness/specs/{id}/rollback` | make an archived version active |
+| POST | `/api/agent-harness/drafts` | stage a spec as a draft |
+| POST | `/api/agent-harness/proposals` | import a lab proposal as a draft |
+| POST | `/api/agent-harness/specs/{id}/activate` | make a version live |
+| POST | `/api/agent-harness/specs/{id}/discard` | throw a draft away |
+| GET | `/api/agent-harness/lessons` | list what the workspace learned |
+| POST | `/api/agent-harness/lessons` | record a lesson |
+| POST | `/api/agent-harness/lessons/{id}/dismiss` | reject a lesson |
 
-Publishing and rolling back are audited (`agent.harness.publish` /
-`agent.harness.rollback`).
+Staging, importing, activating and discarding are audited
+(`agent.harness.stage` / `.import` / `.activate` / `.discard`).
+
+### 7.3 The improvement ledger
+
+A **lesson** is what the workspace learned about its agent: a scope, a note,
+and the evidence it rests on. Lessons live in `agent_harness_lessons`,
+tenant-scoped like everything else.
+
+- A lesson is a **suggestion**, never a rule. It does not change the harness
+  by itself; an operator decides whether it becomes one.
+- Importing a lab proposal records a lesson automatically (`suggested`).
+- Activating the version that lesson motivated marks it `adopted`; discarding
+  that draft marks it `dismissed`.
+- A dismissed lesson stays visible: what was considered and turned down is
+  part of the record.
 
 ---
 
