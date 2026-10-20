@@ -51,6 +51,40 @@ func readOnlyTool(d harness.ToolDescriptor) bool {
 	return d.Method == http.MethodGet || d.Method == http.MethodHead
 }
 
+// composeToolFilter combines the session policy with the spec's allowlist.
+// The policy can narrow the advertised surface, the spec can narrow it
+// further; neither can widen it.
+func composeToolFilter(policy harness.ToolFilter, spec harness.HarnessSpec) harness.ToolFilter {
+	specFilter := spec.ToolFilter()
+	if policy == nil {
+		return specFilter
+	}
+	if specFilter == nil {
+		return policy
+	}
+	return func(d harness.ToolDescriptor) bool {
+		return policy(d) && specFilter(d)
+	}
+}
+
+// harnessSpec resolves the published harness spec of a workspace. With no
+// provider wired the built-in default applies — that is the product's normal
+// state, not a fallback. A spec that fails validation is an error: it is
+// never silently replaced by the default.
+func (h *Handler) harnessSpec(orgID uint) (harness.HarnessSpec, error) {
+	if h == nil || h.harnessSpecProvider == nil {
+		return harness.DefaultHarnessSpec(), nil
+	}
+	spec, err := h.harnessSpecProvider(orgID)
+	if err != nil {
+		return harness.HarnessSpec{}, err
+	}
+	if err := harness.Validate(spec); err != nil {
+		return harness.HarnessSpec{}, fmt.Errorf("published harness spec is invalid: %w", err)
+	}
+	return spec, nil
+}
+
 // auditAgentTurn records the shape of an agent turn: which tools ran, whether
 // they worked, how long they took and what the turn cost.
 //
@@ -63,7 +97,7 @@ func (h *Handler) auditAgentTurn(
 	turn *harness.Turn,
 	events []harness.TraceEvent,
 	catalog harness.Catalog,
-	maxSteps int,
+	spec harness.HarnessSpec,
 	model string,
 ) {
 	steps := make([]map[string]any, 0, len(turn.Steps))
@@ -84,7 +118,8 @@ func (h *Handler) auditAgentTurn(
 		"outputTokens":      turn.OutputTokens,
 		"reasoningTokens":   turn.ReasoningTokens,
 		"promptVersion":     harness.SystemPromptVersion,
-		"promptFingerprint": catalog.Fingerprint(maxSteps),
+		"promptFingerprint": catalog.Fingerprint(spec),
+		"specFingerprint":   spec.Fingerprint(),
 		"toolCount":         len(catalog.Tools),
 		"traceEvents":       len(events),
 	}
@@ -112,6 +147,12 @@ type AIChatStreamRequest struct {
 // SetEndpointSource configures the endpoint source for agent tool dispatch.
 func (h *Handler) SetEndpointSource(src harness.EndpointSource) {
 	h.endpointSource = src
+}
+
+// SetHarnessSpecProvider configures where the published agent harness spec of
+// a workspace is resolved from. Without one the built-in default applies.
+func (h *Handler) SetHarnessSpecProvider(fn func(orgID uint) (harness.HarnessSpec, error)) {
+	h.harnessSpecProvider = fn
 }
 
 // aiChatStream handles POST /api/ai/chat/stream via Server-Sent Events (SSE).
@@ -148,6 +189,15 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	p, err := h.llmFor(orgID)
 	if err != nil {
 		writeErr(w, r, http.StatusBadRequest, "", err.Error())
+		return
+	}
+
+	// Resolve the published harness spec before the response starts: an
+	// invalid spec must fail the request, not degrade into the built-in
+	// default halfway through a stream.
+	spec, err := h.harnessSpec(orgID)
+	if err != nil {
+		writeErr(w, r, http.StatusInternalServerError, "", "The workspace's agent harness spec is invalid. Ask an administrator to republish it.")
 		return
 	}
 
@@ -205,9 +255,16 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	// registry. The web assistant is read-only, so only the read tools are
 	// advertised: a prompt that offers a tool the guard refuses teaches the
 	// model to call something it can never use.
-	catalog := harness.BuildCatalog(h.endpointSource, readOnlyTool)
-	maxSteps := harness.ProfileNormal.MaxSteps(false)
-	systemPrompt := catalog.SystemPrompt(maxSteps)
+	//
+	// The spec is the published harness description. Until a workspace
+	// publishes one, the built-in default applies; a spec that fails
+	// validation never reaches this point.
+	catalog := harness.BuildCatalog(h.endpointSource, composeToolFilter(readOnlyTool, spec))
+	// The spec may only tighten the profile's step ceiling, and the prompt
+	// must state the budget the runner will actually enforce.
+	maxSteps := spec.EffectiveMaxSteps(harness.ProfileNormal.MaxSteps(false))
+	spec = spec.WithMaxSteps(maxSteps)
+	systemPrompt := catalog.SystemPrompt(spec)
 
 	tracer := harness.NewRecordingTracer()
 	adapter := &harness.CompleterAdapter{Provider: p}
@@ -217,6 +274,7 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		harness.WithTracer(tracer),
 		harness.WithProfile(harness.ProfileNormal),
 		harness.WithSystem(systemPrompt),
+		harness.WithMaxSteps(maxSteps),
 	)
 	model := p.DefaultModel()
 	if req.Model != "" {
@@ -240,7 +298,7 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 
 	// Record what the agent did before answering: a turn that failed is
 	// exactly the one an operator will want to look at later.
-	h.auditAgentTurn(r, orgID, session.ID, turn, tracer.Events(), catalog, maxSteps, model)
+	h.auditAgentTurn(r, orgID, session.ID, turn, tracer.Events(), catalog, spec, model)
 
 	if runErr != nil {
 		_ = writeSSEPayload(w, flusher, "error", map[string]string{

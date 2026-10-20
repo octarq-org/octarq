@@ -378,3 +378,40 @@ func TestParseToolCalls_EdgeCases(t *testing.T) {
 		t.Errorf("expected the malformed line to be reported, got %v", invalid)
 	}
 }
+
+// A harness spec may tighten the step ceiling, never raise it: the profile's
+// ceiling is a safety invariant.
+func TestRunner_WithMaxStepsOnlyTightens(t *testing.T) {
+	t.Parallel()
+
+	responses := make([]string, MaxStepsNormal+5)
+	for i := range responses {
+		responses[i] = toolCallBlock("noop", "{}")
+	}
+
+	// Tightened: the turn stops at the override.
+	comp := &fakeCompleter{responses: responses}
+	exec := &fakeExecutor{outputs: map[string]string{"noop": "ok"}}
+	runner := NewRunner(comp, exec, WithMaxSteps(2))
+	sess := &Session{ID: "s1", OrgID: 1, Channel: "test"}
+	turn := &Turn{Input: "go"}
+	if err := runner.Run(context.Background(), sess, turn); !errors.Is(err, ErrMaxStepsExceeded) {
+		t.Fatalf("expected ErrMaxStepsExceeded, got %v", err)
+	}
+	if len(turn.Steps) != 2 {
+		t.Fatalf("expected 2 steps, got %d", len(turn.Steps))
+	}
+
+	// Loosened: the profile's ceiling still applies.
+	comp2 := &fakeCompleter{responses: responses}
+	exec2 := &fakeExecutor{outputs: map[string]string{"noop": "ok"}}
+	runner2 := NewRunner(comp2, exec2, WithMaxSteps(MaxStepsNormal+10))
+	sess2 := &Session{ID: "s2", OrgID: 1, Channel: "test"}
+	turn2 := &Turn{Input: "go"}
+	if err := runner2.Run(context.Background(), sess2, turn2); !errors.Is(err, ErrMaxStepsExceeded) {
+		t.Fatalf("expected ErrMaxStepsExceeded, got %v", err)
+	}
+	if len(turn2.Steps) != MaxStepsNormal {
+		t.Fatalf("a spec must not raise the ceiling: %d steps", len(turn2.Steps))
+	}
+}

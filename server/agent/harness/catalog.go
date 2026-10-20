@@ -3,11 +3,10 @@ package harness
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
-
-	"github.com/danielgtaylor/huma/v2"
 )
 
 // The tool catalog is the single source of truth for what an agent may call
@@ -24,7 +23,11 @@ import (
 // SystemPromptVersion identifies the shape of the compiled prompt. It changes
 // whenever the wording changes, so a recorded turn can be tied to the prompt
 // that produced it.
-const SystemPromptVersion = "harness-prompt/1"
+const SystemPromptVersion = "harness-prompt/2"
+
+// DefaultPreamble opens the system prompt when the spec supplies none.
+const DefaultPreamble = `You are the Octarq workspace assistant. You help the workspace operator by
+calling the tools listed below and reporting what they return.`
 
 // ToolDescriptor is one tool as the model sees it.
 type ToolDescriptor struct {
@@ -101,34 +104,82 @@ func BuildCatalog(src EndpointSource, filter ToolFilter) Catalog {
 	return catalog
 }
 
-// describeParameters turns an input schema into the flat parameter list the
-// prompt renders. A schema without object properties (a ref to a named
-// schema, or no schema at all) yields no parameters rather than a guess.
-func describeParameters(schema *huma.Schema) []ParameterDescriptor {
-	if schema == nil || len(schema.Properties) == 0 {
+// jsonSchemaDoc is the part of a JSON Schema document the prompt needs.
+type jsonSchemaDoc struct {
+	Type       schemaType                `json:"type"`
+	Properties map[string]jsonSchemaProp `json:"properties"`
+	Required   []string                  `json:"required"`
+}
+
+type jsonSchemaProp struct {
+	Type        schemaType      `json:"type"`
+	Description string          `json:"description"`
+	Ref         string          `json:"$ref"`
+	Items       *jsonSchemaProp `json:"items"`
+	Enum        []any           `json:"enum"`
+	Properties  map[string]any  `json:"properties"`
+}
+
+// schemaType is a JSON Schema "type" that tolerates the union form
+// ("type": ["array", "null"]), which is what a nullable slice produces. A
+// document whose type cannot be read is a document that cannot be described,
+// so an unreadable type is an error rather than a silent empty description.
+type schemaType string
+
+func (t *schemaType) UnmarshalJSON(data []byte) error {
+	var single string
+	if err := json.Unmarshal(data, &single); err == nil {
+		*t = schemaType(single)
+		return nil
+	}
+	var many []string
+	if err := json.Unmarshal(data, &many); err == nil {
+		for _, v := range many {
+			if v != "null" {
+				*t = schemaType(v)
+				return nil
+			}
+		}
+		*t = ""
+		return nil
+	}
+	return fmt.Errorf("schema type is neither a string nor an array of strings")
+}
+
+// describeParameters turns a JSON Schema document into the flat parameter
+// list the prompt renders. A document without object properties (a ref to a
+// named schema, or no schema at all) yields no parameters rather than a
+// guess.
+func describeParameters(raw json.RawMessage) []ParameterDescriptor {
+	if len(raw) == 0 {
+		return nil
+	}
+	var doc jsonSchemaDoc
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		// A schema that cannot be read is a schema that cannot be described.
+		return nil
+	}
+	if len(doc.Properties) == 0 {
 		return nil
 	}
 
-	required := make(map[string]bool, len(schema.Required))
-	for _, name := range schema.Required {
+	required := make(map[string]bool, len(doc.Required))
+	for _, name := range doc.Required {
 		required[name] = true
 	}
 
-	names := make([]string, 0, len(schema.Properties))
-	for name := range schema.Properties {
+	names := make([]string, 0, len(doc.Properties))
+	for name := range doc.Properties {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 
 	params := make([]ParameterDescriptor, 0, len(names))
 	for _, name := range names {
-		prop := schema.Properties[name]
-		if prop == nil {
-			continue
-		}
+		prop := doc.Properties[name]
 		param := ParameterDescriptor{
 			Name:        name,
-			Type:        schemaTypeName(prop),
+			Type:        schemaTypeName(&prop),
 			Required:    required[name],
 			Description: strings.TrimSpace(prop.Description),
 		}
@@ -141,37 +192,46 @@ func describeParameters(schema *huma.Schema) []ParameterDescriptor {
 }
 
 // schemaTypeName renders a schema type the way a model reads it.
-func schemaTypeName(s *huma.Schema) string {
-	if s == nil {
+func schemaTypeName(p *jsonSchemaProp) string {
+	if p == nil {
 		return "value"
 	}
-	switch s.Type {
+	switch string(p.Type) {
 	case "array":
-		if s.Items != nil {
-			return "array of " + schemaTypeName(s.Items)
+		if p.Items != nil {
+			return "array of " + schemaTypeName(p.Items)
 		}
 		return "array"
 	case "object":
 		return "object"
 	case "":
+		if p.Ref != "" {
+			return "object"
+		}
 		return "value"
 	default:
-		return s.Type
+		return string(p.Type)
 	}
 }
 
-// SystemPrompt renders the compiled prompt for a session with the given
-// step budget.
+// SystemPrompt renders the compiled prompt for a session.
 //
 // The prompt states four things: how to call a tool, that tool output is data
 // and not instructions, the rules the agent must not break, and the tools it
 // may call. Everything is derived — there is no second hand-written tool list
 // to fall out of date.
-func (c Catalog) SystemPrompt(maxSteps int) string {
+//
+// The spec contributes the preamble, the extra rules and the step budget. The
+// built-in rules always come first: a spec can add rules, never remove them.
+func (c Catalog) SystemPrompt(spec HarnessSpec) string {
 	var b strings.Builder
 
-	b.WriteString("You are the Octarq workspace assistant. You help the workspace operator by\n")
-	b.WriteString("calling the tools listed below and reporting what they return.\n")
+	preamble := strings.TrimSpace(spec.Preamble)
+	if preamble == "" {
+		preamble = DefaultPreamble
+	}
+	b.WriteString(preamble)
+	b.WriteString("\n")
 
 	if len(c.Tools) == 0 {
 		b.WriteString("\n## Available tools\n\n")
@@ -199,10 +259,20 @@ func (c Catalog) SystemPrompt(maxSteps int) string {
 	b.WriteString("- Only the tools listed below exist. A tool you invent cannot be called.\n")
 	b.WriteString("- A tool marked \"needs approval\" is not executed: the operator decides.\n")
 	b.WriteString("  Say what you wanted to do and stop.\n")
-	if maxSteps > 0 {
-		fmt.Fprintf(&b, "- You have at most %d tool-calling steps for this request.\n", maxSteps)
+	if spec.MaxSteps > 0 {
+		fmt.Fprintf(&b, "- You have at most %d tool-calling steps for this request.\n", spec.MaxSteps)
 	}
 	b.WriteString("- Never invent data. If the tools cannot answer the question, say so plainly.\n")
+
+	for _, rule := range spec.ExtraRules {
+		trimmed := strings.TrimSpace(rule)
+		if trimmed == "" {
+			continue
+		}
+		b.WriteString("- ")
+		b.WriteString(trimmed)
+		b.WriteString("\n")
+	}
 
 	b.WriteString("\n## Available tools\n")
 	for _, tool := range c.Tools {
@@ -262,7 +332,7 @@ func (c Catalog) SystemPrompt(maxSteps int) string {
 // Fingerprint identifies the compiled prompt. Two sessions with the same
 // fingerprint ran the same prompt against the same tool surface, which is
 // what makes recorded turns comparable.
-func (c Catalog) Fingerprint(maxSteps int) string {
-	sum := sha256.Sum256([]byte(c.SystemPrompt(maxSteps)))
+func (c Catalog) Fingerprint(spec HarnessSpec) string {
+	sum := sha256.Sum256([]byte(c.SystemPrompt(spec)))
 	return hex.EncodeToString(sum[:])
 }

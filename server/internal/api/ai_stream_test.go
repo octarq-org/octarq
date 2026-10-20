@@ -68,6 +68,13 @@ func newAIStreamTestHandler(t *testing.T, p llmprovider.Provider) (http.Handler,
 }
 
 func newAIStreamTestHandlerWithEndpointSource(t *testing.T, p llmprovider.Provider, src harness.EndpointSource) (http.Handler, *gorm.DB) {
+	srv, db, _ := newAIStreamTestHandlerFull(t, p, src)
+	return srv, db
+}
+
+// newAIStreamTestHandlerFull also hands back the handler, for tests that need
+// to wire a collaborator the request path resolves.
+func newAIStreamTestHandlerFull(t *testing.T, p llmprovider.Provider, src harness.EndpointSource) (http.Handler, *gorm.DB, *Handler) {
 	t.Helper()
 	db := newTestDB(t)
 	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
@@ -94,7 +101,7 @@ func newAIStreamTestHandlerWithEndpointSource(t *testing.T, p llmprovider.Provid
 	h.SetServiceLookup(reg.Lookup)
 
 	srv := h.Routes()
-	return srv, db
+	return srv, db, h
 }
 
 func TestAIChatStream_AuthRequired(t *testing.T) {

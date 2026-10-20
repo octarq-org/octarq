@@ -70,7 +70,10 @@ type Handler struct {
 	// by the app via SetServiceLookup.
 	lookupService  func(name string) (any, bool)
 	endpointSource harness.EndpointSource
-	humaAPI        huma.API
+	// harnessSpecProvider resolves the published agent harness spec of a
+	// workspace. Nil means the built-in default applies.
+	harnessSpecProvider func(orgID uint) (harness.HarnessSpec, error)
+	humaAPI             huma.API
 
 	// hostOrgs caches Host→org resolution for per-workspace branding on the
 	// public, pre-auth config endpoint. See host_org.go.
