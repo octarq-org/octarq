@@ -234,9 +234,8 @@ func (c Catalog) SystemPrompt(spec HarnessSpec) string {
 	b.WriteString("\n")
 
 	if len(c.Tools) == 0 {
-		b.WriteString("\n## Available tools\n\n")
-		b.WriteString("No tools are available to you in this session. Say plainly what you cannot do\n")
-		b.WriteString("and what the operator would have to enable.\n")
+		b.WriteString("\n")
+		b.WriteString(c.ToolSection())
 		return b.String()
 	}
 
@@ -274,7 +273,29 @@ func (c Catalog) SystemPrompt(spec HarnessSpec) string {
 		b.WriteString("\n")
 	}
 
-	b.WriteString("\n## Available tools\n")
+	b.WriteString("\n")
+	b.WriteString(c.ToolSection())
+	return b.String()
+}
+
+// ToolSection renders the "## Available tools" part of the prompt on its own.
+//
+// A caller that composes its own preamble — another channel, another product
+// voice — needs the tool list without the rest of the prompt, and it must
+// not have to scrape it out of the rendered text. The section is rendered by
+// the same code that renders it inside the full prompt, so the two can never
+// disagree.
+func (c Catalog) ToolSection() string {
+	var b strings.Builder
+
+	if len(c.Tools) == 0 {
+		b.WriteString("## Available tools\n\n")
+		b.WriteString("No tools are available to you in this session. Say plainly what you cannot do\n")
+		b.WriteString("and what the operator would have to enable.\n")
+		return b.String()
+	}
+
+	b.WriteString("## Available tools\n")
 	for _, tool := range c.Tools {
 		b.WriteString("\n### ")
 		b.WriteString(tool.Name)

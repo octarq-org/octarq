@@ -69,6 +69,7 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
 
   func BuildCatalog(src EndpointSource, filter ToolFilter) Catalog
   func (c Catalog) SystemPrompt(spec HarnessSpec) string
+  func (c Catalog) ToolSection() string
   func (c Catalog) Fingerprint(spec HarnessSpec) string
   ```
   The catalog is compiled from the endpoint registry, so the tool list the
@@ -148,6 +149,13 @@ never accepted from the client. It states four things:
 4. the tools themselves — name, summary, method, path, risk tier, approval
    requirement, description and the parameter list derived from the input
    schema.
+
+`Catalog.ToolSection()` renders the "## Available tools" part on its own. A
+caller that composes its own preamble — another channel, another product voice
+— uses it instead of scraping the section out of the rendered prompt: the
+section is rendered by the same code either way, so the two cannot disagree.
+An empty catalog renders a section that says no tool can be called, never an
+empty section that would read as "nothing is needed".
 
 `Catalog.Fingerprint(spec)` is the SHA-256 of the compiled prompt. Two
 sessions with the same fingerprint ran the same prompt against the same tool
