@@ -29,6 +29,7 @@ import {
 import { HarnessDetailModal } from "./detail";
 import { HarnessDiffModal } from "./diff";
 import { HarnessEditorModal } from "./editor";
+import { Bot } from "lucide-react";
 
 export default function AgentHarnessPage() {
   const { t } = useTranslation();
@@ -215,7 +216,9 @@ export default function AgentHarnessPage() {
                 </Button>
               }
             >
-              <div className="text-3xl mb-1">🤖</div>
+              <div className="mb-1 flex justify-center">
+                <Bot className="h-8 w-8 text-muted-foreground" />
+              </div>
             </Empty>
           </GlassCard>
         </div>

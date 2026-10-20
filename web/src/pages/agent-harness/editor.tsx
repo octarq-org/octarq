@@ -133,7 +133,7 @@ export function HarnessEditorModal({
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="default"
+              placeholder={t("agentHarness.namePlaceholder")}
               disabled={submitting}
               required
             />
@@ -241,7 +241,7 @@ export function HarnessEditorModal({
               <Input
                 value={toolsInput}
                 onChange={(e) => setToolsInput(e.target.value)}
-                placeholder="list_links, list_domains, dns_verify"
+                placeholder={t("agentHarness.toolAllowPlaceholder")}
                 className="font-mono text-xs"
                 disabled={submitting}
               />

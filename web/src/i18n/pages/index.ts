@@ -14,7 +14,7 @@ import { uiCommon } from "./uiCommon";
 import { notifications } from "./notifications";
 import { proTable } from "./proTable";
 import { copilot } from "./copilot";
-import { agentHarness } from "../../pages/agent-harness/i18n";
+import { agentHarness } from "./agentHarness";
 
 const NS = {
   appearance,
