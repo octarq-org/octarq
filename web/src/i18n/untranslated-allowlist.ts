@@ -33,6 +33,7 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "personal.newEmailPlaceholder", // Example email placeholder (you@domain.com)
   "settings.apiKeysPlaceholderNew", // Technical input placeholder (API token...)
   "settings.botAuthToken", // Technical credential placeholder
+  "agentHarness.toolAllowPlaceholder", // Example tool identifiers (list_links, list_domains, dns_verify)
 
   // Industry terms & loanwords standard in ES/PT tech communities
   "groups.Marketing", // Industry standard term in ES/PT (Marketing)

@@ -158,6 +158,7 @@ export const pt = {
     members: "Membros",
     webhooks: "Webhooks",
     notifications: "Alertas",
+    "agent-harness": "Ambiente do agente",
     "checkout-orders": "Pedidos",
     "checkout-promos": "Códigos promocionais",
     profile: "Meu perfil",

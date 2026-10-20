@@ -175,6 +175,7 @@ export const en = {
     members: "Members",
     webhooks: "Webhooks",
     notifications: "Alerts",
+    "agent-harness": "Agent Harness",
     "checkout-orders": "Orders",
     "checkout-promos": "Promo codes",
     profile: "My profile",

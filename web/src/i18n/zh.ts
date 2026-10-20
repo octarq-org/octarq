@@ -159,6 +159,7 @@ export const zh: Resources = {
     members: "成员",
     webhooks: "Webhook",
     notifications: "告警",
+    "agent-harness": "Agent 运行环境",
     "checkout-orders": "订单",
     "checkout-promos": "优惠码",
     profile: "我的资料",

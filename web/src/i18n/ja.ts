@@ -158,6 +158,7 @@ export const ja = {
     members: "メンバー",
     webhooks: "Webhooks",
     notifications: "アラート",
+    "agent-harness": "エージェント環境",
     "checkout-orders": "注文",
     "checkout-promos": "プロモコード",
     profile: "マイプロファイル",
