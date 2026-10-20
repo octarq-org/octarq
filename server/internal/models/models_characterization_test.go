@@ -11,14 +11,14 @@ import (
 )
 
 // TestCharacterization_AllModelsRegistryLocks validates the complete closed set
-// of 19 models registered in AllModels() and verifies that AutoMigrate succeeds
+// of 20 models registered in AllModels() and verifies that AutoMigrate succeeds
 // cleanly on a fresh database.
 func TestCharacterization_AllModelsRegistryLocks(t *testing.T) {
 	t.Parallel()
 
 	models := AllModels()
-	if len(models) != 19 {
-		t.Fatalf("AllModels() must return exactly 19 registered models, got %d", len(models))
+	if len(models) != 20 {
+		t.Fatalf("AllModels() must return exactly 20 registered models, got %d", len(models))
 	}
 
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
@@ -39,6 +39,7 @@ func TestCharacterization_AllModelsRegistryLocks(t *testing.T) {
 		"notification_preferences": NotificationPreference{}.TableName(),
 		"files":                    File{}.TableName(),
 		"agent_harness_specs":      AgentHarnessSpec{}.TableName(),
+		"agent_harness_lessons":    AgentHarnessLesson{}.TableName(),
 	}
 
 	for expected, actual := range customTableNames {

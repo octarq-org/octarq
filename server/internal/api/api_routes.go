@@ -301,11 +301,18 @@ func (h *Handler) Routes() *http.ServeMux {
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/audit", Summary: "List Audit Logs", Tags: []string{"Audit Logs"}}, h.listAuditLogs)
 
-	// Agent harness: the published description of the workspace's agent shell.
+	// Agent harness: the versioned description of the workspace's agent shell.
+	// A version is staged as a draft first and only becomes live when an
+	// operator activates it — the gate an imported lab proposal passes too.
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/agent-harness/specs", Summary: "List Agent Harness Versions", Tags: []string{"Agent Harness"}}, h.listAgentHarnessSpecs)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/agent-harness/specs/{id}", Summary: "Get Agent Harness Version", Tags: []string{"Agent Harness"}}, h.getAgentHarnessSpec)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/agent-harness/specs", Summary: "Publish Agent Harness Spec", Tags: []string{"Agent Harness"}, DefaultStatus: 201}, h.publishAgentHarnessSpec)
-	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/agent-harness/specs/{id}/rollback", Summary: "Roll Back Agent Harness Version", Tags: []string{"Agent Harness"}}, h.rollbackAgentHarnessSpec)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/agent-harness/drafts", Summary: "Stage Agent Harness Draft", Tags: []string{"Agent Harness"}, DefaultStatus: 201}, h.stageAgentHarnessDraft)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/agent-harness/proposals", Summary: "Import Agent Harness Proposal", Tags: []string{"Agent Harness"}, DefaultStatus: 201}, h.importAgentHarnessProposal)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/agent-harness/specs/{id}/activate", Summary: "Activate Agent Harness Version", Tags: []string{"Agent Harness"}}, h.activateAgentHarnessSpec)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/agent-harness/specs/{id}/discard", Summary: "Discard Agent Harness Draft", Tags: []string{"Agent Harness"}}, h.discardAgentHarnessSpec)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/agent-harness/lessons", Summary: "List Agent Harness Lessons", Tags: []string{"Agent Harness"}}, h.listAgentHarnessLessons)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/agent-harness/lessons", Summary: "Create Agent Harness Lesson", Tags: []string{"Agent Harness"}, DefaultStatus: 201}, h.createAgentHarnessLesson)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/agent-harness/lessons/{id}/dismiss", Summary: "Dismiss Agent Harness Lesson", Tags: []string{"Agent Harness"}}, h.dismissAgentHarnessLesson)
 
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/switch-org", Summary: "Switch Org", Tags: []string{"Org Management"}}, h.switchOrg)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/orgs", Summary: "List Orgs", Tags: []string{"Org Management"}}, h.listOrgs)
