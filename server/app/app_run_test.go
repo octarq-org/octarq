@@ -47,8 +47,13 @@ func TestRunMCPWiring(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	err := a.RunMCP(ctx)
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("RunMCP = %v, want context.Canceled", err)
+	// The stdio transport reads os.Stdin, so the run can end in two ways: the
+	// cancelled context, or a clean EOF on stdin — whichever the machine
+	// reaches first. CI runners hand the test a closed stdin, so the EOF wins
+	// there and the cancellation wins locally. The wiring is what this test
+	// is about; the exit reason is incidental to it.
+	if err != nil && !errors.Is(err, context.Canceled) {
+		t.Fatalf("RunMCP = %v, want context.Canceled or a clean EOF exit", err)
 	}
 	if c.emailHandlers < 2 {
 		t.Errorf("email dispatcher captured %d handler(s), want >= 2", c.emailHandlers)
