@@ -114,7 +114,7 @@
 编译并运行 `cmd/agent-lab`：
 
 ```bash
-agent-lab -tasks <task-set.json> -candidates <dir-or-file>... -out <report-dir> [-baseline <name>]
+agent-lab -tasks <task-set.json> -candidates <dir-or-file>... -out <report-dir> [-baseline <name>] [-propose <proposal.json>]
 ```
 
 ### 示例
@@ -124,15 +124,18 @@ cd /Volumes/PHD/code/.worktrees/harness-lab/server
 go run ./cmd/agent-lab \
   -tasks ./agent/lab/testdata/tasks.example.json \
   -candidates ./agent/lab/testdata/candidates \
-  -out /tmp/agent-lab-report
+  -out /tmp/agent-lab-report \
+  -propose /tmp/proposal.json
 ```
 
 ### 退出码契约（Fail-Closed）
-- `0`：成功生成 `report.json` 与 `report.md`；
+- `0`：成功生成 `report.json` 与 `report.md`（若提供 `-propose` 则同时生成 `proposal.json`）；
 - `1`：参数缺失或格式错误；
 - `2`：任务集文件不存在、无法读取或校验失败；
 - `3`：候选文件解析失败、格式不合法或违反 `harness.Validate`；
-- `4`：Lab 运行时回放故障。
+- `4`：Lab 运行时回放故障；
+- `5`：Proposal 构建校验失败或无推荐候选；
+- `6`：Proposal 文件写入失败。
 
 ---
 
