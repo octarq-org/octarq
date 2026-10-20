@@ -180,7 +180,7 @@ func TestAIChatStream_UsesThePublishedHarnessSpec(t *testing.T) {
 	}}
 	srv, _, h := newAIStreamTestHandlerFull(t, llm, src)
 
-	h.SetHarnessSpecProvider(func(orgID uint) (harness.HarnessSpec, error) {
+	h.SetHarnessSpecProvider(func(ctx context.Context, orgID uint) (harness.HarnessSpec, error) {
 		return harness.HarnessSpec{
 			Version:    harness.HarnessSpecVersion,
 			Name:       "support",
@@ -211,7 +211,7 @@ func TestAIChatStream_AnInvalidPublishedSpecFailsClosed(t *testing.T) {
 	}}
 	srv, _, h := newAIStreamTestHandlerFull(t, llm, src)
 
-	h.SetHarnessSpecProvider(func(orgID uint) (harness.HarnessSpec, error) {
+	h.SetHarnessSpecProvider(func(ctx context.Context, orgID uint) (harness.HarnessSpec, error) {
 		// A spec that does not validate must not reach the model, and must
 		// not silently degrade into the built-in default.
 		return harness.HarnessSpec{Version: harness.HarnessSpecVersion, Name: ""}, nil
@@ -236,7 +236,7 @@ func TestAIChatStream_TheSpecAllowlistNarrowsTheAdvertisedTools(t *testing.T) {
 	}}
 	srv, _, h := newAIStreamTestHandlerFull(t, llm, src)
 
-	h.SetHarnessSpecProvider(func(orgID uint) (harness.HarnessSpec, error) {
+	h.SetHarnessSpecProvider(func(ctx context.Context, orgID uint) (harness.HarnessSpec, error) {
 		return harness.HarnessSpec{
 			Version:   harness.HarnessSpecVersion,
 			Name:      "narrow",

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/octarq-org/octarq/server/agent/harness"
+	"github.com/octarq-org/octarq/server/internal/agentstore"
 	"github.com/octarq-org/octarq/server/llmprovider"
 )
 
@@ -71,11 +72,11 @@ func composeToolFilter(policy harness.ToolFilter, spec harness.HarnessSpec) harn
 // provider wired the built-in default applies — that is the product's normal
 // state, not a fallback. A spec that fails validation is an error: it is
 // never silently replaced by the default.
-func (h *Handler) harnessSpec(orgID uint) (harness.HarnessSpec, error) {
+func (h *Handler) harnessSpec(ctx context.Context, orgID uint) (harness.HarnessSpec, error) {
 	if h == nil || h.harnessSpecProvider == nil {
 		return harness.DefaultHarnessSpec(), nil
 	}
-	spec, err := h.harnessSpecProvider(orgID)
+	spec, err := h.harnessSpecProvider(ctx, orgID)
 	if err != nil {
 		return harness.HarnessSpec{}, err
 	}
@@ -151,8 +152,14 @@ func (h *Handler) SetEndpointSource(src harness.EndpointSource) {
 
 // SetHarnessSpecProvider configures where the published agent harness spec of
 // a workspace is resolved from. Without one the built-in default applies.
-func (h *Handler) SetHarnessSpecProvider(fn func(orgID uint) (harness.HarnessSpec, error)) {
+func (h *Handler) SetHarnessSpecProvider(fn func(ctx context.Context, orgID uint) (harness.HarnessSpec, error)) {
 	h.harnessSpecProvider = fn
+}
+
+// SetHarnessStore configures the store that persists the published harness
+// versions of a workspace.
+func (h *Handler) SetHarnessStore(store *agentstore.HarnessStore) {
+	h.harnessStore = store
 }
 
 // aiChatStream handles POST /api/ai/chat/stream via Server-Sent Events (SSE).
@@ -195,7 +202,7 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 	// Resolve the published harness spec before the response starts: an
 	// invalid spec must fail the request, not degrade into the built-in
 	// default halfway through a stream.
-	spec, err := h.harnessSpec(orgID)
+	spec, err := h.harnessSpec(r.Context(), orgID)
 	if err != nil {
 		writeErr(w, r, http.StatusInternalServerError, "", "The workspace's agent harness spec is invalid. Ask an administrator to republish it.")
 		return

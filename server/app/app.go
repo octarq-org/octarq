@@ -24,6 +24,7 @@ import (
 
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/idempotency"
+	"github.com/octarq-org/octarq/server/internal/agentstore"
 	"github.com/octarq-org/octarq/server/internal/api"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/cache"
@@ -261,6 +262,9 @@ func (a *App) Run(ctx context.Context) error {
 		plugins:  a.plugins,
 	})
 	apiHandler.SetEndpointSource(endpointEngine)
+	harnessStore := agentstore.NewHarnessStore(a.gdb)
+	apiHandler.SetHarnessStore(harnessStore)
+	apiHandler.SetHarnessSpecProvider(harnessStore.Spec)
 	a.Setup(pctx, apiHandler)
 	healthCollector := monitor.NewCollector(30*time.Second,
 		monitor.NewRuntimeProvider(),
