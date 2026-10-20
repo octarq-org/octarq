@@ -527,3 +527,45 @@ func TestDiscard_DismissesTheLessonOfTheDiscardedDraft(t *testing.T) {
 		t.Errorf("status = %q, want dismissed", rows[0].Status)
 	}
 }
+
+// The version counter is per workspace: two workspaces both start at 1.
+func TestStage_VersionNumbersArePerWorkspace(t *testing.T) {
+	store, _ := newTestStore(t)
+	ctx := context.Background()
+
+	first, err := store.Stage(ctx, 7, testSpec(), 42)
+	if err != nil {
+		t.Fatalf("Stage: %v", err)
+	}
+	other, err := store.Stage(ctx, 8, testSpec(), 42)
+	if err != nil {
+		t.Fatalf("Stage: %v", err)
+	}
+	if first.Version != 1 || other.Version != 1 {
+		t.Errorf("versions = %d and %d, want 1 and 1", first.Version, other.Version)
+	}
+}
+
+// Two admins publishing at the same moment must not produce two versions
+// with the same number: the pair (workspace, version) is unique.
+func TestStage_RefusesADuplicateVersionNumber(t *testing.T) {
+	store, db := newTestStore(t)
+	ctx := context.Background()
+
+	if _, err := store.Stage(ctx, 7, testSpec(), 42); err != nil {
+		t.Fatalf("Stage: %v", err)
+	}
+
+	duplicate := &models.AgentHarnessSpec{
+		OrgID:       7,
+		Name:        "default",
+		Version:     1,
+		SpecJSON:    testSpec().CanonicalJSON(),
+		Fingerprint: testSpec().Fingerprint(),
+		Status:      models.AgentHarnessStatusDraft,
+		CreatedBy:   42,
+	}
+	if err := db.Create(duplicate).Error; err == nil {
+		t.Fatal("expected the duplicate version number to be refused")
+	}
+}
