@@ -196,7 +196,39 @@ stateDiagram-v2
 
 ---
 
-## 7. Trace & Evidence
+## 7. Harness Spec Store & Admin API
+
+The spec is published per workspace. Rows live in `agent_harness_specs`
+(`server/internal/models/agent_harness.go`) and are managed by
+`server/internal/agentstore/harness.go`.
+
+- Versions are **immutable**: publishing archives the previous version, a
+  rollback re-publishes an older one. Nothing is deleted, so a rollback always
+  has a target.
+- A workspace has at most one **published** version at a time. The built-in
+  default applies only when a workspace has never published one — that is the
+  product's normal state, not a fallback.
+- The store is tenant-scoped: every query filters on `owner_id`. A version of
+  another workspace is invisible, and a cross-workspace rollback is refused.
+- A published spec that cannot be decoded **fails the request** (HTTP 500
+  before the stream starts). It is never silently replaced by the default:
+  that would hide a broken configuration behind a working-looking agent.
+
+Admin API (workspace admin, `authz.RoleAdmin`):
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/agent-harness/specs` | list the versions, mark the active one |
+| GET | `/api/agent-harness/specs/{id}` | read one version and its spec |
+| POST | `/api/agent-harness/specs` | validate and publish a new version |
+| POST | `/api/agent-harness/specs/{id}/rollback` | make an archived version active |
+
+Publishing and rolling back are audited (`agent.harness.publish` /
+`agent.harness.rollback`).
+
+---
+
+## 8. Trace & Evidence
 
 Every turn emits a `TraceEvent` stream:
 

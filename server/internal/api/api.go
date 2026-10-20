@@ -15,6 +15,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/octarq-org/octarq/server/agent/harness"
 	"github.com/octarq-org/octarq/server/config"
+	"github.com/octarq-org/octarq/server/internal/agentstore"
 	"github.com/octarq-org/octarq/server/internal/apierror"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/crypto"
@@ -72,8 +73,10 @@ type Handler struct {
 	endpointSource harness.EndpointSource
 	// harnessSpecProvider resolves the published agent harness spec of a
 	// workspace. Nil means the built-in default applies.
-	harnessSpecProvider func(orgID uint) (harness.HarnessSpec, error)
-	humaAPI             huma.API
+	harnessSpecProvider func(ctx context.Context, orgID uint) (harness.HarnessSpec, error)
+	// harnessStore persists the published harness versions of a workspace.
+	harnessStore *agentstore.HarnessStore
+	humaAPI      huma.API
 
 	// hostOrgs caches Host→org resolution for per-workspace branding on the
 	// public, pre-auth config endpoint. See host_org.go.

@@ -301,6 +301,12 @@ func (h *Handler) Routes() *http.ServeMux {
 
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/audit", Summary: "List Audit Logs", Tags: []string{"Audit Logs"}}, h.listAuditLogs)
 
+	// Agent harness: the published description of the workspace's agent shell.
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/agent-harness/specs", Summary: "List Agent Harness Versions", Tags: []string{"Agent Harness"}}, h.listAgentHarnessSpecs)
+	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/agent-harness/specs/{id}", Summary: "Get Agent Harness Version", Tags: []string{"Agent Harness"}}, h.getAgentHarnessSpec)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/agent-harness/specs", Summary: "Publish Agent Harness Spec", Tags: []string{"Agent Harness"}, DefaultStatus: 201}, h.publishAgentHarnessSpec)
+	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/agent-harness/specs/{id}/rollback", Summary: "Roll Back Agent Harness Version", Tags: []string{"Agent Harness"}}, h.rollbackAgentHarnessSpec)
+
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/auth/switch-org", Summary: "Switch Org", Tags: []string{"Org Management"}}, h.switchOrg)
 	huma.Register(api, huma.Operation{Method: "GET", Path: "/api/orgs", Summary: "List Orgs", Tags: []string{"Org Management"}}, h.listOrgs)
 	huma.Register(api, huma.Operation{Method: "POST", Path: "/api/orgs", Summary: "Create Org", Tags: []string{"Org Management"}, DefaultStatus: 201}, h.createOrg)
