@@ -16,9 +16,12 @@ type AgentHarnessSpec struct {
 	ID uint `gorm:"primaryKey" json:"id"`
 	// OrgID scopes the row to one workspace. The column is owner_id for
 	// consistency with the rest of the tenant-scoped tables.
-	OrgID   uint   `gorm:"index:idx_agent_harness_org;not null;column:owner_id" json:"orgId"`
-	Name    string `gorm:"size:64;not null" json:"name"`
-	Version int    `gorm:"not null" json:"version"`
+	OrgID uint   `gorm:"index:idx_agent_harness_org;uniqueIndex:idx_agent_harness_org_version;not null;column:owner_id" json:"orgId"`
+	Name  string `gorm:"size:64;not null" json:"name"`
+	// Version counts up within the workspace. The (workspace, version) pair is
+	// unique: two admins publishing at the same moment must not produce two
+	// versions with the same number.
+	Version int `gorm:"uniqueIndex:idx_agent_harness_org_version;not null" json:"version"`
 	// SpecJSON is the canonical spec document.
 	SpecJSON string `gorm:"type:text;not null" json:"spec"`
 	// Fingerprint is the SHA-256 of the canonical spec document.
