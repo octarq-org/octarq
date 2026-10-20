@@ -193,7 +193,7 @@ export function HarnessDetailModal({
               {t("agentHarness.toolAllow")}
             </span>
             {!detail.spec.toolAllow || detail.spec.toolAllow.length === 0 ? (
-              <div className="flex items-center gap-2 p-2.5 rounded-xl border border-indigo-500/20 bg-indigo-500/10 text-indigo-400 text-xs">
+              <div className="flex items-center gap-2 p-2.5 rounded-xl border border-accent-border bg-accent-soft text-accent-fg text-xs">
                 <span className="font-medium">
                   {t("agentHarness.toolsAllAllowed")}
                 </span>
