@@ -22,6 +22,7 @@ import {
 import {
   api,
   type HarnessActiveVersion,
+  ApiError,
   type HarnessLesson,
   type HarnessSpecContent,
   type HarnessSpecDetail,
@@ -33,7 +34,7 @@ import { HarnessEditorModal } from "./editor";
 import { HarnessProposalModal } from "./proposal";
 import { HarnessLessonModal } from "./lesson-modal";
 import { EvidenceViewer } from "./evidence";
-import { Bot, BookOpen, Plus, UploadCloud } from "lucide-react";
+import { Bot, BookOpen, Lock, Plus, UploadCloud } from "lucide-react";
 
 export type AgentHarnessTab = "specs" | "lessons";
 
@@ -45,6 +46,9 @@ export default function AgentHarnessPage() {
   // Specs state
   const [specsLoading, setSpecsLoading] = useState(true);
   const [specsError, setSpecsError] = useState<string | null>(null);
+  // Set when the server refuses the page because the caller is not a
+  // workspace admin. It is a state of its own, not a failed load.
+  const [forbidden, setForbidden] = useState(false);
   const [activeVersion, setActiveVersion] = useState<HarnessActiveVersion | null>(null);
   const [versions, setVersions] = useState<HarnessVersionItem[]>([]);
 
@@ -92,6 +96,14 @@ export default function AgentHarnessPage() {
         setActiveDetail(null);
       }
     } catch (err: unknown) {
+      // A member who opens the page is not an error: the harness is a
+      // workspace-admin page, and the page says so instead of showing a
+      // failed load.
+      if (err instanceof ApiError && err.status === 403) {
+        setForbidden(true);
+        setSpecsError(null);
+        return;
+      }
       const msg = err instanceof Error ? err.message : t("agentHarness.loadError");
       setSpecsError(msg);
     } finally {
@@ -342,8 +354,22 @@ export default function AgentHarnessPage() {
             </div>
           )}
 
-          {/* 2. Error State */}
-          {!specsLoading && specsError && (
+          {/* 2. Forbidden State */}
+          {!specsLoading && forbidden && (
+            <div data-testid="agent-harness-forbidden">
+              <GlassCard className="p-10 text-center max-w-xl mx-auto space-y-4">
+                <Empty
+                  reason={t("agentHarness.forbiddenTitle")}
+                  detail={t("agentHarness.forbiddenDesc")}
+                >
+                  <Lock className="h-6 w-6" />
+                </Empty>
+              </GlassCard>
+            </div>
+          )}
+
+          {/* 3. Error State */}
+          {!specsLoading && !forbidden && specsError && (
             <div data-testid="agent-harness-error">
               <GlassCard className="p-6 text-center space-y-4 max-w-lg mx-auto">
                 <Alert variant="danger" title={t("agentHarness.loadError")}>
@@ -466,7 +492,7 @@ export default function AgentHarnessPage() {
                     {t("agentHarness.versionHistory")}
                   </h3>
                   <span className="text-xs text-muted-foreground">
-                    {versions.length} {t("agentHarness.versionHistory").toLowerCase()}
+                    {t("agentHarness.versionCount", { count: versions.length })}
                   </span>
                 </div>
 
@@ -682,7 +708,7 @@ export default function AgentHarnessPage() {
                     {t("agentHarness.lessonsTitle")}
                   </h3>
                   <span className="text-xs text-muted-foreground">
-                    {lessons.length} {t("agentHarness.lessonsTitle").toLowerCase()}
+                    {t("agentHarness.lessonCount", { count: lessons.length })}
                   </span>
                 </div>
 

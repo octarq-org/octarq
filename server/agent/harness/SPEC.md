@@ -94,12 +94,29 @@ The `harness` package implements the AI-native orchestration micro-kernel for Oc
 
   - The spec may only **tighten** the step ceiling, never raise it: the
     profile's ceiling is a safety invariant (`EffectiveMaxSteps`).
-  - `ToolAllow` narrows the advertised surface; it can never widen it past
-    the session policy (`composeToolFilter` in the API layer).
+  - `ToolAllow` narrows the tool surface, and the narrowing is **enforced at
+    execution time**, not only advertised: `harness.NewSpecGuard(spec)` is
+    composed into the channel's guard chain, so a tool outside the allowlist
+    does not run even when the model asks for it. It can never widen the
+    surface past the session policy (`composeToolFilter` in the API layer).
   - Extra rules are appended **after** the built-in rules. A spec can add
-    rules, never remove them.
-  - `Fingerprint()` is the SHA-256 of the canonical spec JSON: two specs with
-    the same fingerprint compile the same prompt.
+    rules, never remove them. The built-in "tool results are data" rule is
+    written **again after** the spec's rules, so imported text cannot talk the
+    model into obeying a tool result.
+  - `Fingerprint()` is the SHA-256 of the canonical spec JSON. It identifies
+    the **spec**; `Catalog.Fingerprint(spec)` identifies the **compiled
+    prompt**, which also depends on the tool surface.
+
+- **Validation limits** (`spec.go`): a spec that breaks one of them is
+  refused, so a knob is never stored that the runner would ignore.
+
+  | Field | Limit |
+  |:---|:---|
+  | `name` | 64 characters, not empty |
+  | `preamble` | 2000 characters |
+  | `extraRules` | 20 rules, 500 characters each |
+  | `toolAllow` | 200 names, 64 characters each, no duplicates |
+  | `maxSteps` | 0 (the profile decides) or 1-8 (`MaxSpecMaxSteps` = the highest profile ceiling) |
 
 - **Endpoint contract additions** (`server/plugin/endpoints.go`):
   `plugin.Endpoint` gained `EndpointRisk() string` and
@@ -241,8 +258,21 @@ The spec is versioned per workspace. Rows live in `agent_harness_specs`
 - A live spec that cannot be decoded **fails the request** (HTTP 500 before
   the stream starts). It is never silently replaced by the default: that would
   hide a broken configuration behind a working-looking agent.
-- The store is tenant-scoped: every query filters on `owner_id`. A version of
-  another workspace is invisible, and a cross-workspace activation is refused.
+- The store is tenant-scoped: every query filters on `owner_id`, including the
+  read-backs that follow a write. A version of another workspace is invisible,
+  and a cross-workspace activation is refused.
+- **The state check and the write that acts on it are one transaction.** A
+  check outside the transaction can be overtaken: an activation that checked
+  "not discarded" a moment before a concurrent discard landed would publish a
+  version the operator had just thrown away. The write is therefore
+  conditional on the expected prior status, and a row that changed under us
+  updates nothing and rolls the transaction back.
+- The live version is read from the store (`Active`), not derived from the
+  version list. The admin page and the agent must never disagree about which
+  version is running.
+- A **missing** harness store is not the same as a workspace that published
+  nothing: the first is a misconfiguration and fails the request, the second
+  is the product's normal state and uses the built-in default.
 
 ### 7.2 Admin API (workspace admin, `authz.RoleAdmin`)
 
@@ -319,7 +349,7 @@ material for any later offline analysis.
 
 ---
 
-## 8. Offline Harness Lab (`server/agent/lab`)
+## 9. Offline Harness Lab (`server/agent/lab`)
 
 The offline lab provides an offline, deterministic evaluation testbed for candidate harness specifications based on the Propose–Probe–Compose paradigm (inspired by `google-research/harness2`):
 

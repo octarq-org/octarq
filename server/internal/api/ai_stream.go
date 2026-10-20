@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -68,13 +69,19 @@ func composeToolFilter(policy harness.ToolFilter, spec harness.HarnessSpec) harn
 	}
 }
 
-// harnessSpec resolves the published harness spec of a workspace. With no
-// provider wired the built-in default applies — that is the product's normal
-// state, not a fallback. A spec that fails validation is an error: it is
-// never silently replaced by the default.
+// harnessSpec resolves the published harness spec of a workspace.
+//
+// A workspace with no published spec gets the built-in default — that is the
+// product's normal state, not a fallback. A spec that fails validation is an
+// error: it is never silently replaced by the default.
+//
+// A missing provider is an error too, and that is a different thing: it
+// means the harness is not wired into this process, not that the workspace
+// published nothing. Answering with the default there would run a harness
+// nobody published, with no error and no log.
 func (h *Handler) harnessSpec(ctx context.Context, orgID uint) (harness.HarnessSpec, error) {
 	if h == nil || h.harnessSpecProvider == nil {
-		return harness.DefaultHarnessSpec(), nil
+		return harness.HarnessSpec{}, errors.New("the agent harness is not configured on this instance")
 	}
 	spec, err := h.harnessSpecProvider(ctx, orgID)
 	if err != nil {
@@ -257,6 +264,10 @@ func (h *Handler) aiChatStream(w http.ResponseWriter, r *http.Request) {
 		executor = harness.NewRegistryExecutor(nil)
 		guard = newReadOnlyGuard(nil)
 	}
+	// The published spec narrows the tool surface, and the guard enforces it.
+	// The prompt tells the model which tools exist; the guard is what makes
+	// the promise true when the model decides otherwise.
+	guard = harness.ComposeGuards(guard, harness.NewSpecGuard(spec))
 
 	// Compile the tool catalog and the system prompt from the endpoint
 	// registry. The web assistant is read-only, so only the read tools are

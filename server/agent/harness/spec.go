@@ -1,9 +1,11 @@
 package harness
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -30,15 +32,21 @@ const HarnessSpecVersion = 1
 // Limits enforced by Validate. They exist so a spec cannot be used to smuggle
 // an unbounded prompt or an unbounded tool list into every turn.
 const (
-	MaxSpecNameLen     = 64
-	MaxPreambleLen     = 2000
-	MaxExtraRules      = 20
-	MaxExtraRuleLen    = 500
-	MaxToolAllowLen    = 200
-	MaxToolNameLen     = 64
-	MinSpecMaxSteps    = 1
-	MaxSpecMaxSteps    = 32
-	DefaultMaxStepsFor = 8
+	MaxSpecNameLen  = 64
+	MaxPreambleLen  = 2000
+	MaxExtraRules   = 20
+	MaxExtraRuleLen = 500
+	MaxToolAllowLen = 200
+	MaxToolNameLen  = 64
+	MinSpecMaxSteps = 1
+	// MaxSpecMaxSteps is the highest step budget a spec may ask for: the
+	// ceiling of the most generous profile (MaxStepsNormal). A value above it
+	// would be clamped at run time, so accepting it would store a number the
+	// agent never honours — the operator would read the spec, believe the
+	// budget was 32, and watch the agent stop at 8.
+	MaxSpecMaxSteps = MaxStepsNormal
+	// DefaultMaxStepsFor is the budget a spec gets when it asks for none.
+	DefaultMaxStepsFor = MaxStepsNormal
 )
 
 // HarnessSpec is the published description of an agent's shell.
@@ -236,12 +244,20 @@ func (s HarnessSpec) CanonicalJSON() string {
 // DecodeSpec decodes a spec document. Unknown fields are rejected: a spec
 // that sets a component octarq does not implement must fail loudly, not be
 // silently ignored.
+//
+// Content after the document is rejected too. A file holding two JSON objects
+// would otherwise decode as the first one, and the rest of the file — a
+// hand-edited second version, a second candidate — would vanish without a
+// word.
 func DecodeSpec(raw []byte) (HarnessSpec, error) {
-	dec := json.NewDecoder(strings.NewReader(string(raw)))
+	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	var spec HarnessSpec
 	if err := dec.Decode(&spec); err != nil {
 		return HarnessSpec{}, fmt.Errorf("harness: decode spec: %w", err)
+	}
+	if dec.More() {
+		return HarnessSpec{}, errors.New("harness: decode spec: the document has content after the spec")
 	}
 	if err := Validate(spec); err != nil {
 		return HarnessSpec{}, err

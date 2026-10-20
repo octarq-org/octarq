@@ -104,19 +104,23 @@ func (s *HarnessStore) Activate(ctx context.Context, orgID, id, actorID uint) (*
 		return nil, errors.New("agentstore: harness store is not configured")
 	}
 
-	var target models.AgentHarnessSpec
-	if err := s.db.WithContext(ctx).Where("id = ? AND owner_id = ?", id, orgID).First(&target).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrNotFound
-		}
-		return nil, err
-	}
-	if target.Status == models.AgentHarnessStatusDiscarded {
-		return nil, fmt.Errorf("%w: a discarded version cannot be activated", ErrInvalidState)
-	}
-
 	now := time.Now().UTC()
+	var target models.AgentHarnessSpec
 	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// The state check belongs inside the transaction that acts on it.
+		// Checked outside, a concurrent discard could land in between and the
+		// activation would then publish a version the operator had just
+		// thrown away.
+		if err := tx.Where("id = ? AND owner_id = ?", id, orgID).First(&target).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFound
+			}
+			return err
+		}
+		if target.Status == models.AgentHarnessStatusDiscarded {
+			return fmt.Errorf("%w: a discarded version cannot be activated", ErrInvalidState)
+		}
+
 		// Archive every live version of the workspace, whatever its name.
 		if err := tx.Model(&models.AgentHarnessSpec{}).
 			Where("owner_id = ? AND status = ?", orgID, models.AgentHarnessStatusPublished).
@@ -124,13 +128,20 @@ func (s *HarnessStore) Activate(ctx context.Context, orgID, id, actorID uint) (*
 			return err
 		}
 
-		if err := tx.Model(&models.AgentHarnessSpec{}).
-			Where("id = ? AND owner_id = ?", id, orgID).
+		// The publish is conditional on the version still being publishable.
+		// A row that changed under us updates nothing, and the transaction
+		// rolls back rather than leaving the workspace without a live version.
+		res := tx.Model(&models.AgentHarnessSpec{}).
+			Where("id = ? AND owner_id = ? AND status <> ?", id, orgID, models.AgentHarnessStatusDiscarded).
 			Updates(map[string]any{
 				"status":       models.AgentHarnessStatusPublished,
 				"published_at": &now,
-			}).Error; err != nil {
-			return err
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return fmt.Errorf("%w: a discarded version cannot be activated", ErrInvalidState)
 		}
 
 		// A lesson that motivated this version has now been acted on.
@@ -142,7 +153,7 @@ func (s *HarnessStore) Activate(ctx context.Context, orgID, id, actorID uint) (*
 		return nil, err
 	}
 
-	if err := s.db.WithContext(ctx).Where("id = ?", id).First(&target).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("id = ? AND owner_id = ?", id, orgID).First(&target).Error; err != nil {
 		return nil, err
 	}
 	return &target, nil
@@ -156,32 +167,43 @@ func (s *HarnessStore) Discard(ctx context.Context, orgID, id uint) (*models.Age
 	}
 
 	var target models.AgentHarnessSpec
-	if err := s.db.WithContext(ctx).Where("id = ? AND owner_id = ?", id, orgID).First(&target).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrNotFound
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// The state check belongs inside the transaction that acts on it: a
+		// concurrent activation could land in between, and a discard that
+		// follows it would leave the workspace with no live version.
+		if err := tx.Where("id = ? AND owner_id = ?", id, orgID).First(&target).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFound
+			}
+			return err
 		}
+		if target.Status != models.AgentHarnessStatusDraft {
+			return fmt.Errorf("%w: only a draft can be discarded", ErrInvalidState)
+		}
+
+		// The write is conditional on the version still being a draft.
+		res := tx.Model(&models.AgentHarnessSpec{}).
+			Where("id = ? AND owner_id = ? AND status = ?", id, orgID, models.AgentHarnessStatusDraft).
+			Update("status", models.AgentHarnessStatusDiscarded)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return fmt.Errorf("%w: only a draft can be discarded", ErrInvalidState)
+		}
+
+		// A lesson that was only a suggestion dies with the draft it
+		// motivated. Same transaction: a lesson left pointing at a discarded
+		// draft is a lesson nobody can act on.
+		return tx.Model(&models.AgentHarnessLesson{}).
+			Where("owner_id = ? AND spec_id = ? AND status = ?", orgID, id, models.AgentHarnessLessonSuggested).
+			Update("status", models.AgentHarnessLessonDismissed).Error
+	})
+	if err != nil {
 		return nil, err
 	}
-	if target.Status != models.AgentHarnessStatusDraft {
-		return nil, fmt.Errorf("%w: only a draft can be discarded", ErrInvalidState)
-	}
 
-	if err := s.db.WithContext(ctx).
-		Model(&models.AgentHarnessSpec{}).
-		Where("id = ? AND owner_id = ?", id, orgID).
-		Update("status", models.AgentHarnessStatusDiscarded).Error; err != nil {
-		return nil, err
-	}
-
-	// A lesson that was only a suggestion dies with the draft it motivated.
-	if err := s.db.WithContext(ctx).
-		Model(&models.AgentHarnessLesson{}).
-		Where("owner_id = ? AND spec_id = ? AND status = ?", orgID, id, models.AgentHarnessLessonSuggested).
-		Update("status", models.AgentHarnessLessonDismissed).Error; err != nil {
-		return nil, err
-	}
-
-	if err := s.db.WithContext(ctx).Where("id = ?", id).First(&target).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("id = ? AND owner_id = ?", id, orgID).First(&target).Error; err != nil {
 		return nil, err
 	}
 	return &target, nil
@@ -257,16 +279,37 @@ func (s *HarnessStore) Spec(ctx context.Context, orgID uint) (harness.HarnessSpe
 	return spec, nil
 }
 
+// Limits on a lesson. They exist so a lesson cannot become an unbounded row:
+// the scope is an identifier (the model's column is 64 characters wide) and
+// the note is a sentence, not a document.
+const (
+	MaxLessonScopeLen    = 64
+	MaxLessonNoteLen     = 2000
+	MaxLessonEvidenceLen = 8000
+)
+
+// ErrInvalidLesson is returned when a lesson is refused on its content.
+var ErrInvalidLesson = errors.New("agentstore: lesson is not valid")
+
 // CreateLesson records something the workspace learned about its agent.
 func (s *HarnessStore) CreateLesson(ctx context.Context, orgID uint, scope, note string, evidence json.RawMessage, specID, actorID uint) (*models.AgentHarnessLesson, error) {
 	if s == nil || s.db == nil {
 		return nil, errors.New("agentstore: harness store is not configured")
 	}
 	if scope == "" {
-		return nil, errors.New("agentstore: a lesson needs a scope")
+		return nil, fmt.Errorf("%w: a lesson needs a scope", ErrInvalidLesson)
 	}
 	if note == "" {
-		return nil, errors.New("agentstore: a lesson needs a note")
+		return nil, fmt.Errorf("%w: a lesson needs a note", ErrInvalidLesson)
+	}
+	if len(scope) > MaxLessonScopeLen {
+		return nil, fmt.Errorf("%w: the scope must be at most %d characters", ErrInvalidLesson, MaxLessonScopeLen)
+	}
+	if len(note) > MaxLessonNoteLen {
+		return nil, fmt.Errorf("%w: the note must be at most %d characters", ErrInvalidLesson, MaxLessonNoteLen)
+	}
+	if len(evidence) > MaxLessonEvidenceLen {
+		return nil, fmt.Errorf("%w: the evidence must be at most %d characters", ErrInvalidLesson, MaxLessonEvidenceLen)
 	}
 
 	evidenceText := ""
@@ -327,7 +370,7 @@ func (s *HarnessStore) DismissLesson(ctx context.Context, orgID, id uint) (*mode
 		return nil, err
 	}
 
-	if err := s.db.WithContext(ctx).Where("id = ?", id).First(&target).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("id = ? AND owner_id = ?", id, orgID).First(&target).Error; err != nil {
 		return nil, err
 	}
 	return &target, nil

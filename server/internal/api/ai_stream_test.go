@@ -85,6 +85,12 @@ func newAIStreamTestHandlerFull(t *testing.T, p llmprovider.Provider, src harnes
 	authMgr := auth.New(cfg, cipher).WithDB(db)
 	g, _ := geo.Open("")
 	h := New(cfg, db, cipher, authMgr, g, queue.New(""))
+	// The app wires the harness store into the handler in production; a
+	// handler without it answers the agent chat with a 500. These tests use
+	// a workspace that published nothing.
+	h.SetHarnessSpecProvider(func(context.Context, uint) (harness.HarnessSpec, error) {
+		return harness.DefaultHarnessSpec(), nil
+	})
 	if p != nil {
 		h.SetLLMResolverForOrg(func(_ uint) (llmprovider.Provider, error) { return p, nil })
 	}

@@ -13,19 +13,25 @@ import { I18nProvider } from "../../i18n";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as sdk from "@octarq/plugin-sdk";
 
-vi.mock("../../api", () => ({
-  api: {
-    agentHarnessSpecs: vi.fn(),
-    agentHarnessSpec: vi.fn(),
-    createAgentHarnessDraft: vi.fn(),
-    importAgentHarnessProposal: vi.fn(),
-    activateAgentHarnessSpec: vi.fn(),
-    discardAgentHarnessSpec: vi.fn(),
-    agentHarnessLessons: vi.fn(),
-    createAgentHarnessLesson: vi.fn(),
-    dismissAgentHarnessLesson: vi.fn(),
-  },
-}));
+// The page reads the failure's status from the real ApiError class, so the
+// mock keeps every other export and replaces the API client only.
+vi.mock("../../api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api")>();
+  return {
+    ...actual,
+    api: {
+      agentHarnessSpecs: vi.fn(),
+      agentHarnessSpec: vi.fn(),
+      createAgentHarnessDraft: vi.fn(),
+      importAgentHarnessProposal: vi.fn(),
+      activateAgentHarnessSpec: vi.fn(),
+      discardAgentHarnessSpec: vi.fn(),
+      agentHarnessLessons: vi.fn(),
+      createAgentHarnessLesson: vi.fn(),
+      dismissAgentHarnessLesson: vi.fn(),
+    },
+  };
+});
 
 function renderPage() {
   const queryClient = new QueryClient({
@@ -302,7 +308,7 @@ describe("AgentHarnessPage", () => {
     await waitFor(() => {
       expect(screen.getByText("You are the Octarq workspace assistant v3.")).toBeDefined();
       expect(screen.getByText("Always answer in the operator's language.")).toBeDefined();
-      expect(screen.getByText(/unrestricted|不限制/i)).toBeDefined();
+      expect(screen.getByText(/every tool the session allows|会话允许的全部工具/i)).toBeDefined();
     });
   });
 

@@ -117,35 +117,6 @@ func (e *MockToolExecutor) ExecutedCalls() []ExecutedToolCall {
 	return append([]ExecutedToolCall{}, e.calls...)
 }
 
-// SpecGuard implements harness.Guard to enforce candidate spec ToolAllow.
-type SpecGuard struct {
-	allowAll bool
-	allowed  map[string]bool
-}
-
-// NewSpecGuard constructs a Guard enforcing the spec's ToolAllow allowlist.
-func NewSpecGuard(spec harness.HarnessSpec) harness.Guard {
-	if len(spec.ToolAllow) == 0 {
-		return &SpecGuard{allowAll: true}
-	}
-	m := make(map[string]bool, len(spec.ToolAllow))
-	for _, name := range spec.ToolAllow {
-		m[name] = true
-	}
-	return &SpecGuard{allowAll: false, allowed: m}
-}
-
-// Allow checks if the tool is permitted by the spec.
-func (g *SpecGuard) Allow(_ context.Context, _ uint, tool string) error {
-	if g.allowAll {
-		return nil
-	}
-	if !g.allowed[tool] {
-		return fmt.Errorf("tool %q denied by harness tool allowlist", tool)
-	}
-	return nil
-}
-
 // EstimateTokens provides a strictly deterministic token count estimate (~4 chars/token).
 // It has zero dependency on time, random number generators, or external services.
 func EstimateTokens(text string) int {
@@ -237,7 +208,7 @@ func RunTask(ctx context.Context, task Task, cand Candidate, baseCatalog []harne
 	completer := NewScriptedCompleter(task.MockResponses)
 	executor := NewMockToolExecutor(task.MockTools)
 	tracer := harness.NewRecordingTracer()
-	guard := NewSpecGuard(cand.Spec)
+	guard := harness.NewSpecGuard(cand.Spec)
 
 	runner := harness.NewRunner(
 		completer,
