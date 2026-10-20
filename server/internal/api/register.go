@@ -42,10 +42,13 @@ type RegisterOutputBody struct {
 	OK       bool   `json:"ok"`
 	Email    string `json:"email"`
 	Username string `json:"username,omitempty"`
-	// VerificationRequired reports that the account exists but no session
-	// was established: the instance requires a verified email first. The
-	// client must branch on this field, not on whether a cookie came back.
-	VerificationRequired bool `json:"verificationRequired"`
+	// No session is issued and no flag says so. A successful sign-up always
+	// means the same thing — a message is on its way to the address, and the
+	// next step is in it — so the response carries no field the client could
+	// read as "sometimes there is a session instead". The two outcomes the
+	// endpoint hides (a fresh address, an address that already has an
+	// account) must be indistinguishable down to the cookies, and a branch
+	// on a constant would only invite one back.
 }
 
 type RegisterOutput struct {
@@ -55,17 +58,30 @@ type RegisterOutput struct {
 // POST /api/auth/register (public) — self-serve email/password sign-up.
 // Gated by the instance-level allow_registration setting (default on) and an
 // independent per-IP budget (registerLimiter, 5/hour) that counts every
-// request. On success it provisions a fresh personal workspace with the user
-// as owner and logs them straight in — unless the instance requires a verified
-// email, in which case no session is set and the response says so. When
-// verification is required but the instance cannot send mail, registration
-// fails with 503 instead of promising a verification email that can never
-// arrive.
+// request.
+//
+// The answer never says whether the address already has an account. This
+// endpoint is public, so a reply that distinguishes the two turns it into an
+// oracle for "who has an account on this instance" — the same reason the
+// password-reset endpoint answers 200 whatever it finds. Both outcomes answer
+// the same way: a message is on its way to the address, and that message says
+// what to do next (verify the address, or sign in to the account that is
+// already there). The owner of the mailbox is the only one who learns which
+// of the two it was, and they already know.
+//
+// A consequence, and the reason the response carries no session: the two
+// outcomes must be indistinguishable down to the cookies, so registration can
+// only ever end in the mailbox. A sign-up that handed out a session at once
+// would differ from a refused one by that cookie alone.
+//
+// The instance must be able to send mail: the answer promises a message, and
+// a message that cannot be delivered is a promise nobody can keep. An
+// instance without a mail sender takes sign-ups through invitations instead.
 func (h *Handler) register(ctx context.Context, input *RegisterInput) (*RegisterOutput, error) {
 	if input.Ctx == nil {
 		return nil, huma.Error500InternalServerError("Request context is unavailable; retry the request")
 	}
-	r, w := humago.Unwrap(input.Ctx)
+	r, _ := humago.Unwrap(input.Ctx)
 	if !h.registrationEnabled() {
 		return nil, huma.Error403Forbidden("User registration is disabled; contact an instance administrator")
 	}
@@ -79,10 +95,9 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 	}
 	h.registerLimiter.recordFailure(ip)
 
-	// Fail loudly instead of returning an unfulfillable verificationRequired:
-	// a verification email is only deliverable when some SMTP sender exists.
-	if h.requireEmailVerification() && !h.mailReady() {
-		return nil, huma.NewError(http.StatusServiceUnavailable, "This instance cannot send email yet; ask the administrator to configure an SMTP sender or disable email verification")
+	// Fail loudly instead of promising a message that can never arrive.
+	if !h.mailReady() {
+		return nil, huma.NewError(http.StatusServiceUnavailable, "This instance cannot send email yet; ask the administrator to configure an SMTP sender or use an invitation")
 	}
 	email := strings.ToLower(strings.TrimSpace(input.Body.Email))
 	if addr, err := mail.ParseAddress(email); err != nil || addr.Address != email || !strings.Contains(email, "@") {
@@ -96,10 +111,16 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 		return nil, huma.Error400BadRequest("Workspace name must be 255 characters or fewer; choose a shorter name")
 	}
 
-	// Reject duplicates case-insensitively (also covers OAuth-provisioned users).
+	// The address may or may not already have an account. The answer must not
+	// say which: this endpoint is public, and a reply that distinguishes the
+	// two turns it into an oracle for "who has an account here". So the taken
+	// case creates nothing and sends the owner of the address a message that
+	// says what to do next; the free case creates the account and sends the
+	// verification link. The reply is the same either way.
 	var existing models.User
 	if h.db.Where("LOWER(email) = ?", email).First(&existing).Error == nil {
-		return nil, huma.NewError(http.StatusConflict, "An account with this email address already exists; use a different email address")
+		h.sendAccountExistsEmail(email, h.origin(r)+"/admin/login")
+		return registerAccepted(email), nil
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Body.Password), auth.BcryptCost)
@@ -163,22 +184,21 @@ func (h *Handler) register(ctx context.Context, input *RegisterInput) (*Register
 
 	h.auditAs(r, orgID, user.ID, "user.register", "user", user.ID, map[string]any{"email": email})
 
+	return registerAccepted(email), nil
+}
+
+// registerAccepted is the one answer this endpoint gives. It is deliberately
+// the same for a fresh address and for an address that already has an account:
+// the client learns that a message is on its way and nothing else.
+//
+// The session is never set here. A session would tell the two cases apart by
+// its cookie alone, and the whole point of the uniform answer is that the
+// client cannot tell them apart. The mailbox hands out the session instead:
+// the verification link marks the address verified, and the user signs in.
+func registerAccepted(email string) *RegisterOutput {
 	out := &RegisterOutput{}
 	out.Body.OK = true
 	out.Body.Email = email
 	out.Body.Username = email
-
-	// Same answer as the login path (auth.go) for the same state: with the
-	// instance-level gate on, an unverified account gets no session. Login's
-	// extra !user.IsInstanceAdmin escape hatch has no counterpart here — that
-	// flag is only ever set for the bootstrap operator account (see
-	// bootstrapUserID in auth.go), never for a self-serve sign-up, so the
-	// freshly created user below is always a plain member.
-	if h.requireEmailVerification() && !user.EmailVerified {
-		out.Body.VerificationRequired = true
-		return out, nil
-	}
-
-	h.auth.SetSessionFromRequest(r, w, user.ID, orgID)
-	return out, nil
+	return out
 }

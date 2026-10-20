@@ -2,9 +2,13 @@
 //
 // Guards the sign-up half of the email-verification gate in the REAL Login
 // screen. When the instance requires a verified email the server creates the
-// account but issues no session (internal/api/register.go), flagging it with
-// `verificationRequired`. The UI must branch on that flag: show "verify your
-// email", not push the user at a dashboard they can't load.
+// account but issues no session (internal/api/register.go), so the UI must
+// send the user to their mailbox instead of pushing them at a dashboard they
+// can't load.
+//
+// The server's answer is the same whether the address was free or already
+// had an account — it must not say which — so the page never asks. What the
+// mailbox holds decides what happens next.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/react";
 import { api } from "../api";
@@ -49,34 +53,18 @@ describe("sign-up when the instance requires a verified email", () => {
     vi.spyOn(api, "register").mockResolvedValue({
       ok: true,
       email: "new@user.com",
-      verificationRequired: true,
     });
 
     await signUp();
 
     // The address is echoed back so the user knows which mailbox to open.
-    expect(await screen.findByText(/verify your email/i)).toBeTruthy();
+    expect(await screen.findByText(/check your email/i)).toBeTruthy();
     expect(screen.getByText(/new@user\.com/)).toBeTruthy();
     // A resend action is reachable from this state, not just from a failed login.
-    expect(screen.getByRole("button", { name: /resend verification email/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /resend email/i })).toBeTruthy();
     // No session exists, so nothing may try to enter the app.
     expect(onLogin).not.toHaveBeenCalled();
     expect(me).not.toHaveBeenCalled();
-  });
-
-  it("still logs the user straight in when the gate is off", async () => {
-    const onLogin = renderLogin();
-    vi.spyOn(api, "me").mockResolvedValue({ email: "new@user.com", orgId: 7 });
-    vi.spyOn(api, "register").mockResolvedValue({
-      ok: true,
-      email: "new@user.com",
-      verificationRequired: false,
-    });
-
-    await signUp();
-
-    await waitFor(() => expect(onLogin).toHaveBeenCalledWith("new@user.com", 7));
-    expect(screen.queryByText(/verify your email/i)).toBeNull();
   });
 
   it("does not render success notice when resendVerification returns mailConfigured: false", async () => {
@@ -84,7 +72,6 @@ describe("sign-up when the instance requires a verified email", () => {
     vi.spyOn(api, "register").mockResolvedValue({
       ok: true,
       email: "new@user.com",
-      verificationRequired: true,
     });
     const resendSpy = vi.spyOn(api, "resendVerification").mockResolvedValue({
       ok: true,
@@ -93,13 +80,13 @@ describe("sign-up when the instance requires a verified email", () => {
 
     await signUp();
 
-    const resendBtn = await screen.findByRole("button", { name: /resend verification email/i });
+    const resendBtn = await screen.findByRole("button", { name: /resend email/i });
     fireEvent.click(resendBtn);
 
     await waitFor(() => expect(resendSpy).toHaveBeenCalledWith("new@user.com"));
 
     // Success notice must NOT be rendered
-    expect(screen.queryByText(/verification email sent/i)).toBeNull();
+    expect(screen.queryByText(/email sent/i)).toBeNull();
     // Error banner must display the unconfigured mail notice
     expect(await screen.findByText(/mail service is not configured/i)).toBeTruthy();
   });
@@ -109,7 +96,6 @@ describe("sign-up when the instance requires a verified email", () => {
     vi.spyOn(api, "register").mockResolvedValue({
       ok: true,
       email: "new@user.com",
-      verificationRequired: true,
     });
     const resendSpy = vi.spyOn(api, "resendVerification").mockResolvedValue({
       ok: true,
@@ -118,13 +104,13 @@ describe("sign-up when the instance requires a verified email", () => {
 
     await signUp();
 
-    const resendBtn = await screen.findByRole("button", { name: /resend verification email/i });
+    const resendBtn = await screen.findByRole("button", { name: /resend email/i });
     fireEvent.click(resendBtn);
 
     await waitFor(() => expect(resendSpy).toHaveBeenCalledWith("new@user.com"));
 
     // Success notice MUST be rendered
-    expect(await screen.findByText(/verification email sent/i)).toBeTruthy();
+    expect(await screen.findByText(/email sent/i)).toBeTruthy();
     // Error notice must NOT be displayed
     expect(screen.queryByText(/mail service is not configured/i)).toBeNull();
   });

@@ -143,8 +143,8 @@ func TestVerificationEmailDeliveredWithoutOrgMembership(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode register response: %v (%s)", err, rec.Body.String())
 	}
-	if !body.VerificationRequired {
-		t.Fatalf("register with gate on: verificationRequired = false (%s)", rec.Body.String())
+	if !body.OK {
+		t.Fatalf("register did not report success (%s)", rec.Body.String())
 	}
 
 	// The send happens synchronously inside register, before the org/membership

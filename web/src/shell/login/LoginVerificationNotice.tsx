@@ -26,7 +26,7 @@ export function LoginVerificationNotice({
       </Alert>
       <div className="text-center space-y-3">
         {verifySent ? (
-          <p className="text-xs text-success-fg font-medium">✓ {t("app.verificationSent")}</p>
+          <p className="text-xs text-success-fg font-medium">✓ {t("app.emailSent")}</p>
         ) : (
           <button
             type="button"
@@ -34,7 +34,7 @@ export function LoginVerificationNotice({
             disabled={resendingVerify}
             className="text-xs text-accent-fg hover:underline font-medium"
           >
-            {resendingVerify ? t("app.sending") : t("app.resendVerificationBtn")}
+            {resendingVerify ? t("app.sending") : t("app.resendEmailBtn")}
           </button>
         )}
         <div>

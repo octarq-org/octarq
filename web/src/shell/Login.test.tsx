@@ -167,14 +167,13 @@ describe("Login form suite", () => {
     expect(screen.getByRole("button", { name: /^sign in$/i })).toBeTruthy();
   });
 
-  it("supports register mode and completes registration", async () => {
+  it("supports register mode and sends the user to their mailbox", async () => {
     const onLogin = renderLogin();
     const regSpy = vi.spyOn(api, "register").mockResolvedValue({
       ok: true,
       email: "newreg@user.com",
-      verificationRequired: false,
     });
-    vi.spyOn(api, "me").mockResolvedValue({ email: "newreg@user.com", orgId: 99 });
+    const meSpy = vi.spyOn(api, "me");
 
     fireEvent.click(await screen.findByRole("button", { name: /create one/i }));
     expect(screen.getByLabelText(/workspace name/i)).toBeTruthy();
@@ -186,7 +185,38 @@ describe("Login form suite", () => {
 
     await waitFor(() => {
       expect(regSpy).toHaveBeenCalledWith("newreg@user.com", "secret123", "Acme Corp");
-      expect(onLogin).toHaveBeenCalledWith("newreg@user.com", 99);
+    });
+    // The sign-up never carries a session: the next step is in the mailbox.
+    // The page must not try to enter the app.
+    expect(await screen.findByText(/check your email/i)).toBeTruthy();
+    expect(onLogin).not.toHaveBeenCalled();
+    expect(meSpy).not.toHaveBeenCalled();
+  });
+
+  it("never prefills a credential on the sign-in form", async () => {
+    renderLogin();
+    const emailInput = await screen.findByLabelText(/email/i);
+    // The instance admin is seeded with a name, not with a credential the
+    // page may offer. The form starts empty.
+    expect((emailInput as HTMLInputElement).value).toBe("");
+  });
+
+  it("accepts a sign-in identifier that is not an email address", async () => {
+    // The seeded instance admin is named "admin" (OCTARQ_ADMIN_USER), and the
+    // sign-in field is typed as text so such a name can be entered at all.
+    const onLogin = renderLogin();
+    const loginSpy = vi.spyOn(api, "login").mockResolvedValue({ ok: true, email: "admin" });
+    vi.spyOn(api, "me").mockResolvedValue({ email: "admin", orgId: 1 });
+
+    const emailInput = await screen.findByLabelText(/email/i);
+    expect(emailInput.getAttribute("type")).toBe("text");
+    fireEvent.change(emailInput, { target: { value: "admin" } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "secret123" } });
+    fireEvent.click(screen.getByRole("button", { name: /^sign in$/i }));
+
+    await waitFor(() => {
+      expect(loginSpy).toHaveBeenCalledWith("admin", "secret123");
+      expect(onLogin).toHaveBeenCalledWith("admin", 1);
     });
   });
 });

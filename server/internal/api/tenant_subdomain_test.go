@@ -130,6 +130,7 @@ func TestCreateOrgProvisionsTenantSubdomain(t *testing.T) {
 func TestRegisterProvisionsTenantSubdomain(t *testing.T) {
 	srv, db := newTestHandler(t)
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 	setBaseDomain(t, db, "app.octarq.org")
 
 	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"founder@example.com","password":"password123","orgName":"Acme"}`)

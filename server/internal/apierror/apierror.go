@@ -35,16 +35,21 @@ import (
 // removed without the deprecation process. The prose in Message is NOT stable
 // and must never be matched on.
 const (
-	CodeBadRequest          = "bad_request"
-	CodeValidationFailed    = "validation_failed"
-	CodeUnauthorized        = "unauthorized"
-	CodeForbidden           = "forbidden"
-	CodeCSRFOriginBlocked   = "csrf_origin_blocked"
-	CodeCSRFTokenInvalid    = "csrf_token_invalid"
-	CodeNotFound            = "not_found"
-	CodePluginNotEnabled    = "plugin_not_enabled"
-	CodeMethodNotAllowed    = "method_not_allowed"
-	CodeConflict            = "conflict"
+	CodeBadRequest        = "bad_request"
+	CodeValidationFailed  = "validation_failed"
+	CodeUnauthorized      = "unauthorized"
+	CodeForbidden         = "forbidden"
+	CodeCSRFOriginBlocked = "csrf_origin_blocked"
+	CodeCSRFTokenInvalid  = "csrf_token_invalid"
+	CodeNotFound          = "not_found"
+	CodePluginNotEnabled  = "plugin_not_enabled"
+	CodeMethodNotAllowed  = "method_not_allowed"
+	CodeConflict          = "conflict"
+	// CodeEmailInUse separates "this email address already belongs to an
+	// account" from every other 409. The register endpoint has two conflicts
+	// (the address is taken, the workspace slug is taken) and the client has
+	// to tell them apart to show the right next step.
+	CodeEmailInUse          = "email_in_use"
 	CodeUnsupportedMedia    = "unsupported_media_type"
 	CodeUnprocessableEntity = "unprocessable_entity"
 	CodeRateLimitExceeded   = "rate_limit_exceeded"
@@ -67,6 +72,7 @@ var codes = []string{
 	CodePluginNotEnabled,
 	CodeMethodNotAllowed,
 	CodeConflict,
+	CodeEmailInUse,
 	CodeUnsupportedMedia,
 	CodeUnprocessableEntity,
 	CodeRateLimitExceeded,

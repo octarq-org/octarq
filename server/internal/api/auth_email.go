@@ -11,6 +11,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/octarq-org/octarq/server/internal/apierror"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -91,7 +92,8 @@ func (h *Handler) changeEmail(ctx context.Context, input *ChangeEmailInput) (*Ch
 
 	var existing models.User
 	if h.db.Where("LOWER(email) = ? AND id <> ?", newEmail, user.ID).First(&existing).Error == nil {
-		return nil, huma.NewError(http.StatusConflict, "An account with this email address already exists; use a different email address")
+		// Same code as the register path so one client check covers both.
+		return nil, apierror.New(http.StatusConflict, apierror.CodeEmailInUse, "That email address is already in use. Use a different address.")
 	}
 
 	oldEmail := user.Email

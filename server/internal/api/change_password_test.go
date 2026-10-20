@@ -18,9 +18,17 @@ import (
 func registerUser(t *testing.T, srv http.Handler, db *gorm.DB, email, password string) []*http.Cookie {
 	t.Helper()
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"`+email+`","password":"`+password+`"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("register %s: got %d (%s)", email, rec.Code, rec.Body.String())
+	}
+	// Sign-up no longer hands out a session — the account is activated from
+	// the mailbox, and the answer must not say whether the address was free.
+	// The tests that need a session sign in for it.
+	rec = do(srv, "POST", "/api/auth/login", nil, `{"email":"`+email+`","password":"`+password+`"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("login %s: got %d (%s)", email, rec.Code, rec.Body.String())
 	}
 	return rec.Result().Cookies()
 }
@@ -100,10 +108,19 @@ func TestChangePasswordRevokesOtherSessionsOnly(t *testing.T) {
 
 	srv, db := newTestHandler(t)
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 	rec := doUA(srv, "POST", "/api/auth/register", nil,
 		`{"email":"owner@example.com","password":"originalpw1"}`, agentA)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("register: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	// Sign-up no longer hands out a session (the account is activated from the
+	// mailbox, and the answer must not say whether the address was free), so
+	// the tests that need a session sign in for it.
+	rec = doUA(srv, "POST", "/api/auth/login", nil,
+		`{"email":"owner@example.com","password":"originalpw1"}`, agentA)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("login: got %d (%s)", rec.Code, rec.Body.String())
 	}
 	first := rec.Result().Cookies()
 

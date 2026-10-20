@@ -77,10 +77,27 @@ func newTestHandler(t *testing.T) (http.Handler, *gorm.DB) {
 // setting off so tests exercising register-then-login against a fresh handler
 // keep the pre-gate behavior. Explicit opt-out: nothing may rely on the
 // verification default being off.
+//
+// It no longer makes registration work: sign-up always ends in the mailbox,
+// so a test that registers needs enableMail as well.
 func disableEmailVerification(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	if err := db.Save(&models.Setting{Key: keyRequireEmailVerification, Value: "false"}).Error; err != nil {
 		t.Fatalf("set require_email_verification=false: %v", err)
+	}
+}
+
+// enableMail seeds an SMTP sender so the instance can deliver system mail.
+// Registration answers "a message is on its way" whatever it finds, so an
+// instance that cannot send mail refuses sign-ups outright (503) rather than
+// promising a message that never arrives.
+func enableMail(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	if err := db.Create(&mail.SMTPSender{
+		OrgID: 1, Name: "test", Host: "smtp.example.com", Port: 587,
+		User: "u", Pass: "enc", FromEmail: "noreply@example.com",
+	}).Error; err != nil {
+		t.Fatalf("seed smtp sender: %v", err)
 	}
 }
 
