@@ -16,6 +16,7 @@ func TestVerifyEmailRedirectsWithErrorWhenWriteFails(t *testing.T) {
 	// Register is pure setup here; a mail-less test instance cannot pass the
 	// verification gate (register 503s), so opt out explicitly.
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 
 	if regRec := do(srv, "POST", "/api/auth/register", nil, `{"email":"fail@verify.com","password":"password123"}`); regRec.Code != http.StatusOK {
 		t.Fatalf("register: got %d (%s)", regRec.Code, regRec.Body.String())
@@ -63,6 +64,7 @@ func TestResendVerificationFailsLoudlyWhenTokenWriteFails(t *testing.T) {
 	// Register is pure setup here; a mail-less test instance cannot pass the
 	// verification gate (register 503s), so opt out explicitly.
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 
 	if regRec := do(srv, "POST", "/api/auth/register", nil, `{"email":"fail@resend.com","password":"password123"}`); regRec.Code != http.StatusOK {
 		t.Fatalf("register: got %d (%s)", regRec.Code, regRec.Body.String())
@@ -95,6 +97,7 @@ func TestVerifyEmailAndResendFlow(t *testing.T) {
 	// Register is pure setup here; a mail-less test instance cannot pass the
 	// verification gate (register 503s), so opt out explicitly.
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 
 	// 1. Register user
 	do(srv, "POST", "/api/auth/register", nil, `{"email":"unverified@domain.com","password":"password123"}`)
@@ -156,6 +159,7 @@ func TestEmailVerificationGatingToggle(t *testing.T) {
 	// exercise the unverified-login path, exactly as an operator who opts out
 	// would.
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 
 	do(srv, "POST", "/api/auth/register", nil, `{"email":"gated@user.com","password":"password123"}`)
 

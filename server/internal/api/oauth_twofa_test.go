@@ -112,11 +112,19 @@ func challengeCookie(cookies []*http.Cookie) *http.Cookie {
 func TestOAuthCallbackRequiresTwoFactorForTOTPUsers(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 
 	// Register bob and enroll TOTP through the real API.
 	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"bob@example.com","password":"secret-pw"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("register: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	// Sign-up no longer hands out a session (the account is activated from the
+	// mailbox, and the answer must not say whether the address was free), so
+	// the tests that need a session sign in for it.
+	rec = do(srv, "POST", "/api/auth/login", nil, `{"email":"bob@example.com","password":"secret-pw"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("login: got %d (%s)", rec.Code, rec.Body.String())
 	}
 	regCookies := rec.Result().Cookies()
 	rec = do(srv, "POST", "/api/auth/2fa/setup", regCookies, `{"password":"secret-pw"}`)
@@ -213,6 +221,7 @@ func TestOAuthCallbackRequiresTwoFactorForTOTPUsers(t *testing.T) {
 func TestOAuthCallbackWithoutTwoFactorStillSignsIn(t *testing.T) {
 	h, srv, db := newTestHandlerRaw(t)
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 
 	rec := do(srv, "POST", "/api/auth/register", nil, `{"email":"carol@example.com","password":"secret-pw"}`)
 	if rec.Code != http.StatusOK {

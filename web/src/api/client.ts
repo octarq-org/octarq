@@ -186,7 +186,7 @@ export const api = {
   authConfig: () => req<{ googleEnabled: boolean; githubEnabled: boolean; registrationEnabled: boolean; appName: string; logoUrl: string; brandColor: string; brandColor2: string }>("GET", "/api/auth/config"),
   me: () => req<{ email: string; username?: string; orgId: number; role?: string; emailVerified?: boolean; isInstanceAdmin?: boolean }>("GET", "/api/auth/me"),
   register: (email: string, password: string, orgName?: string) =>
-    req<{ ok: boolean; email: string; username?: string; verificationRequired?: boolean }>(
+    req<{ ok: boolean; email: string; username?: string }>(
       "POST",
       "/api/auth/register",
       orgName ? { email, password, orgName } : { email, password },

@@ -7,7 +7,18 @@ import (
 
 	"github.com/octarq-org/octarq/server/internal/models"
 	mailmodels "github.com/octarq-org/octarq/server/plugins/mail"
+	"gorm.io/gorm"
 )
+
+// seedUser inserts a user row directly, for tests that need an account on an
+// instance whose sign-up path is closed (no mail sender) or irrelevant.
+func seedUser(t *testing.T, db *gorm.DB, email string, verified bool) {
+	t.Helper()
+	u := models.User{Email: email, EmailVerified: verified, PasswordHash: "x"}
+	if err := db.Create(&u).Error; err != nil {
+		t.Fatalf("seed user %s: %v", email, err)
+	}
+}
 
 // TestResendVerificationMailSignalAndAntiEnumeration verifies that /api/auth/resend-verification
 // reports mailConfigured=false when no SMTP sender is configured (even if the mail plugin is mounted)
@@ -24,16 +35,11 @@ func TestResendVerificationMailSignalAndAntiEnumeration(t *testing.T) {
 			t.Fatal("expected mailReady to be false when no SMTP sender is configured")
 		}
 
-		// Register unverified and verified accounts
-		if reg := do(srv, "POST", "/api/auth/register", nil, `{"email":"unverified@nosmtp.com","password":"password123"}`); reg.Code != http.StatusOK {
-			t.Fatalf("register unverified user: %d (%s)", reg.Code, reg.Body.String())
-		}
-		if reg := do(srv, "POST", "/api/auth/register", nil, `{"email":"verified@nosmtp.com","password":"password123"}`); reg.Code != http.StatusOK {
-			t.Fatalf("register verified user: %d (%s)", reg.Code, reg.Body.String())
-		}
-		if err := db.Model(&models.User{}).Where("email = ?", "verified@nosmtp.com").Update("email_verified", true).Error; err != nil {
-			t.Fatalf("mark user verified: %v", err)
-		}
+		// Seed the accounts directly: an instance that cannot send mail does
+		// not accept sign-ups any more, and this test is about the resend
+		// endpoint, not about how an account comes into being.
+		seedUser(t, db, "unverified@nosmtp.com", false)
+		seedUser(t, db, "verified@nosmtp.com", true)
 
 		recUnknown := do(srv, "POST", "/api/auth/resend-verification", nil, `{"email":"unknown@nosmtp.com"}`)
 		recUnverified := do(srv, "POST", "/api/auth/resend-verification", nil, `{"email":"unverified@nosmtp.com"}`)
@@ -80,6 +86,7 @@ func TestResendVerificationMailSignalAndAntiEnumeration(t *testing.T) {
 	t.Run("MailPluginMountedWithSMTPSender", func(t *testing.T) {
 		h, srv, db := newTestHandlerRaw(t)
 		disableEmailVerification(t, db)
+		enableMail(t, db)
 
 		// Seed an SMTP sender
 		if err := db.Create(&mailmodels.SMTPSender{
@@ -153,16 +160,11 @@ func TestResendVerificationMailSignalAndAntiEnumeration(t *testing.T) {
 			t.Fatal("expected mailReady to be false when mail plugin is not mounted")
 		}
 
-		// Register unverified and verified accounts
-		if reg := do(srv, "POST", "/api/auth/register", nil, `{"email":"unverified@nomail.com","password":"password123"}`); reg.Code != http.StatusOK {
-			t.Fatalf("register unverified user: %d (%s)", reg.Code, reg.Body.String())
-		}
-		if reg := do(srv, "POST", "/api/auth/register", nil, `{"email":"verified@nomail.com","password":"password123"}`); reg.Code != http.StatusOK {
-			t.Fatalf("register verified user: %d (%s)", reg.Code, reg.Body.String())
-		}
-		if err := db.Model(&models.User{}).Where("email = ?", "verified@nomail.com").Update("email_verified", true).Error; err != nil {
-			t.Fatalf("mark user verified: %v", err)
-		}
+		// Seed the accounts directly: an instance that cannot send mail does
+		// not accept sign-ups any more, and this test is about the resend
+		// endpoint, not about how an account comes into being.
+		seedUser(t, db, "unverified@nomail.com", false)
+		seedUser(t, db, "verified@nomail.com", true)
 
 		recUnknown := do(srv, "POST", "/api/auth/resend-verification", nil, `{"email":"unknown@nomail.com"}`)
 		recUnverified := do(srv, "POST", "/api/auth/resend-verification", nil, `{"email":"unverified@nomail.com"}`)

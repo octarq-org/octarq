@@ -61,7 +61,6 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
     // server-side anyway.
     if (params.get("mode") === "register") {
       setMode("register");
-      if (u === "admin") setU("");
     }
 
     // OAuth callback with a pending second factor: /admin/?twofa=1. The query
@@ -102,14 +101,13 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
       }
 
       if (mode === "register") {
-        const res = await api.register(u.trim(), p, workspace.trim());
-        if (res.verificationRequired) {
-          // No session was issued; sending them to the dashboard would just
-          // bounce off /api/auth/me. Ask for the mailbox instead.
-          setPendingVerifyEmail(u.trim());
-          return;
-        }
-        await finishLogin(u.trim());
+        await api.register(u.trim(), p, workspace.trim());
+        // A successful sign-up never carries a session: the next step is in
+        // the mailbox, and the mailbox says whether it is a verification link
+        // or an account that already exists. The page cannot tell them apart
+        // — and must not, because that difference is the one the server
+        // hides from everyone but the owner of the address.
+        setPendingVerifyEmail(u.trim());
         return;
       }
 
@@ -163,9 +161,6 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
     setNeeds2FA(false);
     setOauthPending(false);
     setCode("");
-    if (next === "register" || next === "forgot") {
-      if (u === "admin") setU("");
-    }
   }
 
   function submit(e: React.FormEvent) {
@@ -242,17 +237,21 @@ export function Login({ onLogin }: { onLogin: (u: string, orgId: number) => void
           <form onSubmit={submit} className="space-y-4">
             <div>
               <label className="label" htmlFor="login-email">
-                {t("app.email")}
+                {mode === "login" ? t("app.emailOrUser") : t("app.email")}
               </label>
               <input
                 id="login-email"
-                type="email"
+                // The instance admin is seeded with a name, not an address
+                // (OCTARQ_ADMIN_USER defaults to "admin"), so the sign-in field
+                // takes any identifier. Sign-up and password recovery really do
+                // need an address, so those keep the browser's email check.
+                type={mode === "login" ? "text" : "email"}
                 name="email"
                 className="input animate-none"
                 value={u}
                 onChange={(e) => setU(e.target.value)}
                 onKeyDown={onEnter}
-                autoComplete="email"
+                autoComplete={mode === "login" ? "username" : "email"}
                 placeholder={t("app.emailPlaceholder")}
                 spellCheck={false}
                 required

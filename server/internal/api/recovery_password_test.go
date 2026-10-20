@@ -78,10 +78,18 @@ func seedResetToken(t *testing.T, db *gorm.DB, user *models.User) string {
 func TestResetPasswordKeepsSessionsWhenPasswordWriteFails(t *testing.T) {
 	srv, db := newTestHandler(t)
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 
 	regRec := do(srv, "POST", "/api/auth/register", nil, `{"email":"fail@reset.com","password":"oldpassword123"}`)
 	if regRec.Code != http.StatusOK {
 		t.Fatalf("register: got %d (%s)", regRec.Code, regRec.Body.String())
+	}
+	// Sign-up no longer hands out a session (the account is activated from the
+	// mailbox, and the answer must not say whether the address was free), so
+	// the tests that need a session sign in for it.
+	regRec = do(srv, "POST", "/api/auth/login", nil, `{"email":"fail@reset.com","password":"oldpassword123"}`)
+	if regRec.Code != http.StatusOK {
+		t.Fatalf("login: got %d (%s)", regRec.Code, regRec.Body.String())
 	}
 	cookies := regRec.Result().Cookies()
 
@@ -141,6 +149,7 @@ func TestForgotPasswordFailsLoudlyWhenTokenWriteFails(t *testing.T) {
 	// Register is pure setup here; a mail-less test instance cannot pass the
 	// verification gate (register 503s), so opt out explicitly.
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 
 	if regRec := do(srv, "POST", "/api/auth/register", nil, `{"email":"fail@forgot.com","password":"password123"}`); regRec.Code != http.StatusOK {
 		t.Fatalf("register: got %d (%s)", regRec.Code, regRec.Body.String())
@@ -182,6 +191,7 @@ func TestForgotPasswordNoLeak(t *testing.T) {
 	// Register is pure setup here; a mail-less test instance cannot pass the
 	// verification gate (register 503s), so opt out explicitly.
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 
 	do(srv, "POST", "/api/auth/register", nil, `{"email":"exist@user.com","password":"password123"}`)
 
@@ -214,11 +224,19 @@ func TestForgotPasswordNoLeak(t *testing.T) {
 func TestResetPasswordFlow(t *testing.T) {
 	srv, db := newTestHandler(t)
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 
 	// 1. Register user and log in to obtain session
 	regRec := do(srv, "POST", "/api/auth/register", nil, `{"email":"user@reset.com","password":"oldpassword123"}`)
 	if regRec.Code != http.StatusOK {
 		t.Fatalf("register: got %d", regRec.Code)
+	}
+	// Sign-up no longer hands out a session (the account is activated from the
+	// mailbox, and the answer must not say whether the address was free), so
+	// the tests that need a session sign in for it.
+	regRec = do(srv, "POST", "/api/auth/login", nil, `{"email":"user@reset.com","password":"oldpassword123"}`)
+	if regRec.Code != http.StatusOK {
+		t.Fatalf("login: got %d", regRec.Code)
 	}
 	cookies := regRec.Result().Cookies()
 
@@ -303,6 +321,7 @@ func TestForgotPasswordNoLeakExistence(t *testing.T) {
 	// Register is pure setup here; a mail-less test instance cannot pass the
 	// verification gate (register 503s), so opt out explicitly.
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 
 	do(srv, "POST", "/api/auth/register", nil, `{"email":"realuser@domain.com","password":"password123"}`)
 

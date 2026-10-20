@@ -30,8 +30,10 @@ func TestRegisterMore(t *testing.T) {
 		t.Fatalf("verification required but mail not ready: got %d, want 503", rec.Code)
 	}
 
-	// 4. Disable email verification -> register succeeds and creates session
-	disableEmailVerification(t, db)
+	// 4. With a mail sender the sign-up is accepted. It answers "a message is
+	// on its way" and issues no session: the account is activated from the
+	// mailbox, and the answer must not say whether the address was free.
+	enableMail(t, db)
 	h.registerLimiter.reset("192.0.2.1")
 
 	// Invalid email -> 400
@@ -47,21 +49,22 @@ func TestRegisterMore(t *testing.T) {
 		t.Fatalf("long org name: got %d, want 400", rec.Code)
 	}
 
-	// Valid registration without email verification
+	// Valid registration
 	h.registerLimiter.reset("192.0.2.1")
 	rec = do(srv, "POST", "/api/auth/register", nil, `{"email":"valid@example.com","password":"password123","orgName":"My Custom Team"}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("valid registration: got %d (%s)", rec.Code, rec.Body.String())
 	}
-	if len(rec.Result().Cookies()) == 0 {
-		t.Errorf("expected session cookies on successful register without verification")
+	if len(rec.Result().Cookies()) != 0 {
+		t.Errorf("register must not issue a session: the next step is in the mailbox")
 	}
 
-	// Duplicate registration -> 409
+	// A duplicate address is not an error: the same answer comes back, and no
+	// second account is made.
 	h.registerLimiter.reset("192.0.2.1")
 	rec = do(srv, "POST", "/api/auth/register", nil, `{"email":"valid@example.com","password":"password123"}`)
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("duplicate email register: got %d, want 409", rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("duplicate email register: got %d, want 200", rec.Code)
 	}
 
 	// 5. Nil Ctx call

@@ -161,6 +161,7 @@ func TestChangeEmailInstanceAdminWrongPassword(t *testing.T) {
 func TestChangeEmailInstanceAdminLifecycle(t *testing.T) {
 	srv, db := newTestHandler(t)
 	disableEmailVerification(t, db)
+	enableMail(t, db)
 
 	// 1. Initial admin login
 	rec := do(srv, "POST", "/api/auth/login", nil, `{"email":"admin","password":"pw"}`)

@@ -43,15 +43,19 @@ export const en = {
     createAndSwitch: "Create & switch",
     verifyEmailBanner: "Your email address is not verified.",
     resendVerificationBtn: "Resend verification email",
+    resendEmailBtn: "Resend email",
+    emailSent: "Email sent.",
     sending: "Sending…",
     verificationSent: "Verification email sent.",
     verificationMailNotConfigured: "Mail service is not configured on this instance. Contact an administrator.",
-    registerVerifyTitle: "Verify your email to continue",
-    registerVerifyNotice: "Your account is ready, but this instance requires a verified email. We sent a verification link to {{email}} — open it, then sign in.",
+    registerVerifyTitle: "Check your email to continue",
+    registerVerifyNotice: "We sent a link to {{email}}.",
     // Shown when registration cannot pass the verification gate because the
     // instance has no SMTP sender configured: promising a verification email
     // that can never arrive would leave the account locked out forever.
-    registerMailUnavailable: "This instance cannot send email yet, so accounts cannot be verified. Ask an administrator to configure an SMTP sender or disable email verification.",
+    registerMailUnavailable: "This instance cannot send email yet, so it cannot accept sign-ups. Ask an administrator to configure an SMTP sender or use an invitation.",
+    // The address already has an account. The page says so in one sentence and
+    // offers the only move left: sign in.
     workspaceCreated: "Workspace created",
     skipToContent: "Skip to content",
     switchWorkspaceFailed: "Couldn't switch workspace. Try again.",
@@ -60,6 +64,7 @@ export const en = {
     registerSubtitle: "Sign up to create your workspace",
     loginSubtitle: "Enter your credentials to sign in",
     email: "Email",
+    emailOrUser: "Email or user name",
     emailPlaceholder: "you@domain.com",
     password: "Password",
     passwordRegisterPlaceholder: "At least 8 characters",

@@ -53,6 +53,25 @@ func (h *Handler) sendPasswordResetEmail(to, resetURL string) {
 	log.Printf("password reset email skipped for %s: mail plugin not mounted", to)
 }
 
+// sendAccountExistsEmail tells the owner of an address that a sign-up for it
+// did not create a second account. The recipient already knows the address is
+// theirs; whoever asked for the sign-up learns nothing from this message,
+// because it goes to the mailbox and not to the requester.
+//
+// The link is the sign-in page, not a session: handing out a link that signs
+// someone in would turn a public endpoint into a password reset for every
+// registered address.
+func (h *Handler) sendAccountExistsEmail(to, signInURL string) {
+	if fn, ok := plugin.LookupServiceAs[plugin.SystemMailSender](h.LookupService, plugin.ServiceMailSendSystem); ok {
+		text := fmt.Sprintf("An Octarq account already uses this address.\n\nSign in instead:\n%s\n\nIf you did not try to create an account, you can ignore this email.", signInURL)
+		if err := fn(to, "Your Octarq account already exists", "", text); err != nil {
+			log.Printf("account-exists email to %s failed: %v", to, err)
+		}
+		return
+	}
+	log.Printf("account-exists email skipped for %s: mail plugin not mounted", to)
+}
+
 // mailReady reports whether this instance can actually deliver system mail:
 // the mail plugin's mail.ready service answers "is the system sender
 // available"; "service absent" (no mail plugin, or a plugin that cannot
@@ -381,6 +400,10 @@ func (h *Handler) resendVerification(ctx context.Context, input *ResendVerificat
 	}
 
 	if user.EmailVerified {
+		// The address has a usable account, so there is no verification link
+		// to send. The mailbox still gets the message that says so, which is
+		// what the sign-up page promised: a message, and the next step in it.
+		h.sendAccountExistsEmail(user.Email, h.origin(r)+"/admin/login")
 		return out, nil
 	}
 

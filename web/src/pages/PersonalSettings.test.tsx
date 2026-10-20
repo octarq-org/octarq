@@ -94,7 +94,7 @@ describe("ProfileSettings suite", () => {
     fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     await waitFor(() => {
-      expect(toastErrorSpy).toHaveBeenCalledWith(expect.stringMatching(/already exists/i));
+      expect(toastErrorSpy).toHaveBeenCalledWith(expect.stringMatching(/already in use/i));
     });
   });
 
