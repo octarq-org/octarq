@@ -364,10 +364,17 @@ func (h *Handler) listAgentHarnessSpecs(ctx context.Context, input *ListAgentHar
 	out.Body.Versions = make([]AgentHarnessVersion, 0, len(rows))
 	for _, row := range rows {
 		out.Body.Versions = append(out.Body.Versions, h.harnessVersion(row))
-		if row.Status == models.AgentHarnessStatusPublished {
-			active := h.harnessVersion(row)
-			out.Body.Active = &active
-		}
+	}
+
+	// The live version comes from the store, not from the list. The store is
+	// what the agent runs; the admin page has to mark the same version, or it
+	// would show one version as live while the agent runs another.
+	live, err := h.harnessStore.Active(r.Context(), orgID)
+	if err == nil {
+		active := h.harnessVersion(*live)
+		out.Body.Active = &active
+	} else if !errors.Is(err, agentstore.ErrNotFound) {
+		return nil, huma.Error500InternalServerError("Could not read the live harness version; retry the request")
 	}
 	return out, nil
 }
@@ -540,13 +547,14 @@ func (h *Handler) createAgentHarnessLesson(ctx context.Context, input *CreateAge
 		return nil, err
 	}
 
-	if input.Body.Scope == "" || input.Body.Note == "" {
-		return nil, huma.Error400BadRequest("A lesson needs a scope and a note.")
-	}
-
 	row, err := h.harnessStore.CreateLesson(r.Context(), orgID, input.Body.Scope, input.Body.Note, input.Body.Evidence, 0, h.auth.UserID(r))
 	if err != nil {
-		return nil, huma.Error400BadRequest(err.Error())
+		if errors.Is(err, agentstore.ErrInvalidLesson) {
+			return nil, huma.Error400BadRequest(err.Error())
+		}
+		// A storage failure is not the caller's fault, and the storage
+		// engine's words are not the caller's business either.
+		return nil, huma.Error500InternalServerError("Could not record the lesson; retry the request")
 	}
 
 	h.auditAs(r, orgID, h.auth.UserID(r), "agent.harness.lesson", "agent_harness", row.ID, map[string]any{

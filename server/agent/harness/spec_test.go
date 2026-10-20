@@ -241,3 +241,34 @@ func TestSpecCanonicalJSON_IsStable(t *testing.T) {
 		t.Errorf("canonical JSON = %s", raw)
 	}
 }
+
+// TestDecodeSpecRefusesContentAfterTheDocument pins the rule that a spec
+// document ends where it says it does. A file holding two JSON objects would
+// otherwise decode as the first one, and everything after it would vanish
+// without a word.
+func TestDecodeSpecRefusesContentAfterTheDocument(t *testing.T) {
+	raw := []byte(`{"version":1,"name":"a"}{"version":1,"name":"b"}`)
+	if _, err := harness.DecodeSpec(raw); err == nil {
+		t.Fatal("expected a document with trailing content to be refused")
+	}
+}
+
+// TestValidateRefusesAStepBudgetTheRunnerWouldIgnore pins the promise that a
+// knob is either in effect or refused. A budget above the profile ceiling
+// would be clamped at run time, so the operator would read the spec, believe
+// the budget was 32, and watch the agent stop at 8.
+func TestValidateRefusesAStepBudgetTheRunnerWouldIgnore(t *testing.T) {
+	spec := harness.HarnessSpec{
+		Version:  harness.HarnessSpecVersion,
+		Name:     "greedy",
+		MaxSteps: harness.MaxSpecMaxSteps + 1,
+	}
+	if err := harness.Validate(spec); err == nil {
+		t.Fatalf("expected maxSteps=%d to be refused", spec.MaxSteps)
+	}
+	// The ceiling the profile owns is the highest one, so the spec's range
+	// and the runner's range cannot drift apart.
+	if harness.MaxSpecMaxSteps != harness.MaxStepsNormal {
+		t.Fatalf("the spec accepts %d steps but the profile allows %d", harness.MaxSpecMaxSteps, harness.MaxStepsNormal)
+	}
+}
