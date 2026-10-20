@@ -10,7 +10,6 @@ const SettingsPage = lazy(() => import("../pages/Settings"));
 const NotificationsPage = lazy(() => import("../pages/notifications"));
 const InviteAcceptPage = lazy(() => import("../pages/InviteAccept"));
 const ResetPasswordPage = lazy(() => import("../pages/ResetPassword"));
-const AgentHarnessPage = lazy(() => import("../pages/agent-harness"));
 const DevWorkbench = import.meta.env.DEV ? lazy(() => import("../dev/workbench")) : null;
 
 export interface AppRoutesProps {
@@ -30,8 +29,6 @@ export function AppRoutes({ pluginGateCtxValue }: AppRoutesProps) {
           <Route path="/settings/*" element={<SettingsPage />} />
           <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />
           <Route path="/admin/reset" element={<ResetPasswordPage />} />
-          <Route path="/agent-harness" element={<AgentHarnessPage />} />
-          <Route path="/admin/agent-harness" element={<AgentHarnessPage />} />
           {pluginRouteElements()}
           {DevWorkbench && <Route path="/_dev/workbench" element={<DevWorkbench />} />}
           <Route path="*" element={<PluginUnavailable />} />

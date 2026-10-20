@@ -120,6 +120,7 @@ export const SETTINGS_AREA: Area = {
         { id: "members",       label: "Members",     Icon: Users,       path: "/settings/members" },
         { id: "webhooks",      label: "Outbound Webhooks", Icon: Webhook, path: "/settings/webhooks" },
         { id: "notifications", label: "Alerts",      Icon: Bell,        path: "/settings/notifications" },
+        { id: "agent-harness", label: "Agent Harness", Icon: Bot,      path: "/settings/agent-harness" },
       ],
     },
     {

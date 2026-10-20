@@ -14,6 +14,9 @@ const SecuritySettings = lazy(() => import("./settings/security").then((m) => ({
 const ProfileSettings = lazy(() => import("./PersonalSettings").then((m) => ({ default: m.ProfileSettings })));
 const ApiTokens = lazy(() => import("./PersonalSettings").then((m) => ({ default: m.ApiTokens })));
 const AppearanceSettings = lazy(() => import("./settings/appearance").then((m) => ({ default: m.AppearanceSettings })));
+// The agent harness lives in the workspace settings space: it is a workspace
+// admin tool, not a plugin page.
+const AgentHarnessPage = lazy(() => import("./agent-harness").then((m) => ({ default: m.default })));
 
 export default function SettingsPage() {
   return (
@@ -38,6 +41,7 @@ export default function SettingsPage() {
         <Route path="/security" element={<SecuritySettings />} />
         <Route path="/tokens" element={<ApiTokens />} />
         <Route path="/appearance" element={<AppearanceSettings />} />
+        <Route path="/agent-harness" element={<AgentHarnessPage />} />
       </Routes>
       </Suspense>
     </ScreenWrap>
