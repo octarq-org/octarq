@@ -1,0 +1,1 @@
+import{j as t}from"./vendor-motion-DpIiENO5.js";import{r as o}from"./vendor-react-BSo4MVzo.js";import{e as m,a2 as x}from"./index-D0gn2Oe0.js";const i=o.forwardRef(({className:a,rows:r=3,...e},s)=>t.jsx("textarea",{ref:s,rows:r,className:m(x,"resize-y",a),...e}));i.displayName="Textarea";export{i as T};
