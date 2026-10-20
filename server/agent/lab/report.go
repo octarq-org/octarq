@@ -119,9 +119,10 @@ func RenderMarkdown(r *LabReport) string {
 
 	for _, sc := range r.Scores {
 		notes := ""
-		if sc.CandidateName == r.RecommendedCandidate {
+		switch sc.CandidateName {
+		case r.RecommendedCandidate:
 			notes = "**Recommended**"
-		} else if sc.CandidateName == r.BaselineName {
+		case r.BaselineName:
 			notes = "Baseline"
 		}
 		fmt.Fprintf(&b, "| %d | `%s` | %.1f%% | %d/%d | %d | %d | %d | %s |\n",
