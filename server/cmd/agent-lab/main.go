@@ -36,11 +36,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 	var candidateTargets stringSlice
 	var outDir string
 	var baselineName string
+	var proposePath string
 
 	fs.StringVar(&tasksPath, "tasks", "", "Path to the task set JSON file (required)")
 	fs.Var(&candidateTargets, "candidates", "Path(s) to candidate HarnessSpec files or directory (required)")
 	fs.StringVar(&outDir, "out", "", "Output directory to store report.json and report.md (required)")
 	fs.StringVar(&baselineName, "baseline", "", "Name of the baseline candidate (optional, defaults to 'baseline' or 'default')")
+	fs.StringVar(&proposePath, "propose", "", "Path to output proposal JSON for the recommended candidate (optional)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(stderr, "error: flag parsing failed: %v\n", err)
@@ -92,10 +94,26 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 4
 	}
 
+	// Generate proposal if requested
+	if strings.TrimSpace(proposePath) != "" {
+		proposal, err := lab.BuildProposal(report)
+		if err != nil {
+			fmt.Fprintf(stderr, "error: failed to build proposal: %v\n", err)
+			return 5
+		}
+		if err := lab.WriteProposalFile(proposal, proposePath); err != nil {
+			fmt.Fprintf(stderr, "error: failed to write proposal file %q: %v\n", proposePath, err)
+			return 6
+		}
+	}
+
 	fmt.Fprintf(stdout, "Agent Lab Evaluation Completed Successfully.\n")
 	fmt.Fprintf(stdout, "Report Directory: %s\n", outDir)
 	fmt.Fprintf(stdout, "  JSON: %s\n", filepath.Join(outDir, "report.json"))
 	fmt.Fprintf(stdout, "  Markdown: %s\n", filepath.Join(outDir, "report.md"))
+	if strings.TrimSpace(proposePath) != "" {
+		fmt.Fprintf(stdout, "  Proposal: %s\n", proposePath)
+	}
 	fmt.Fprintf(stdout, "Tasks: %d, Candidates: %d\n", report.TotalTasks, len(candidates))
 	fmt.Fprintf(stdout, "Recommended Candidate: %s (%s)\n", report.RecommendedCandidate, report.RecommendationReason)
 
