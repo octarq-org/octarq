@@ -11,6 +11,12 @@ import type {
   Action,
   AuditLog,
   Domain,
+  HarnessActiveVersion,
+  HarnessRollbackResponse,
+  HarnessSpecContent,
+  HarnessSpecDetail,
+  HarnessSpecsListResponse,
+  HarnessVersionItem,
   HelpCategory,
   HelpDocContent,
   HelpDocMeta,
@@ -403,4 +409,12 @@ export const api = {
   helpCategories: () => req<HelpCategory[]>("GET", "/api/help/categories"),
   helpIndex: (lang?: string) => req<HelpDocMeta[]>("GET", lang ? `/api/help/docs?lang=${encodeURIComponent(lang)}` : "/api/help/docs", undefined, lang),
   helpPage: (slug: string, lang?: string) => req<HelpDocContent>("GET", lang ? `/api/help/docs/${encodeURIComponent(slug)}?lang=${encodeURIComponent(lang)}` : `/api/help/docs/${encodeURIComponent(slug)}`, undefined, lang),
+
+  // Agent Harness
+  agentHarnessSpecs: () => req<HarnessSpecsListResponse>("GET", "/api/agent-harness/specs"),
+  agentHarnessSpec: (id: number) => req<HarnessSpecDetail>("GET", `/api/agent-harness/specs/${id}`),
+  publishAgentHarnessSpec: (spec: HarnessSpecContent) =>
+    req<HarnessSpecDetail>("POST", "/api/agent-harness/specs", spec),
+  rollbackAgentHarnessSpec: (id: number) =>
+    req<HarnessRollbackResponse>("POST", `/api/agent-harness/specs/${id}/rollback`),
 };

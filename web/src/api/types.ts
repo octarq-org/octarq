@@ -358,3 +358,54 @@ export interface WebhookEventGroup {
   group: string;
   events: WebhookEventDef[];
 }
+
+// Agent Harness
+export interface HarnessSpecContent {
+  version: number;
+  name: string;
+  preamble: string;
+  extraRules: string[];
+  toolAllow: string[];
+  maxSteps: number;
+}
+
+export interface HarnessActiveVersion {
+  id: number;
+  name: string;
+  version: number;
+  fingerprint: string;
+  publishedAt: string;
+  createdBy: string;
+}
+
+export interface HarnessVersionItem {
+  id: number;
+  name: string;
+  version: number;
+  fingerprint: string;
+  publishedAt: string;
+  createdBy: string;
+  status: "published" | "archived";
+}
+
+export interface HarnessSpecsListResponse {
+  active: HarnessActiveVersion | null;
+  versions: HarnessVersionItem[];
+}
+
+export interface HarnessSpecDetail {
+  id: number;
+  name: string;
+  version: number;
+  fingerprint: string;
+  status: "published" | "archived";
+  createdAt: string;
+  publishedAt: string;
+  createdBy: string;
+  spec: HarnessSpecContent;
+}
+
+export interface HarnessRollbackResponse {
+  ok: boolean;
+}
+
