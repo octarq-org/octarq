@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -21,12 +22,14 @@ import (
 
 // AgentHarnessVersion is one published harness version.
 type AgentHarnessVersion struct {
-	ID          uint       `json:"id"`
-	Name        string     `json:"name"`
-	Version     int        `json:"version"`
-	Fingerprint string     `json:"fingerprint"`
-	Status      string     `json:"status"`
-	CreatedBy   uint       `json:"createdBy"`
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Version     int    `json:"version"`
+	Fingerprint string `json:"fingerprint"`
+	Status      string `json:"status"`
+	// CreatedBy names the account that published the version. An operator
+	// reads a name, not a user id.
+	CreatedBy   string     `json:"createdBy"`
 	CreatedAt   time.Time  `json:"createdAt"`
 	PublishedAt *time.Time `json:"publishedAt"`
 }
@@ -109,29 +112,46 @@ type RollbackAgentHarnessSpecOutput struct {
 	} `json:"-"`
 }
 
-// harnessVersion renders a stored row as the API's version shape.
-func harnessVersion(row models.AgentHarnessSpec) AgentHarnessVersion {
+// harnessVersion renders a stored row as the API's version shape. The author
+// is resolved to an account name; a row whose account is gone keeps a stable
+// placeholder rather than an empty field.
+func (h *Handler) harnessVersion(row models.AgentHarnessSpec) AgentHarnessVersion {
 	return AgentHarnessVersion{
 		ID:          row.ID,
 		Name:        row.Name,
 		Version:     row.Version,
 		Fingerprint: row.Fingerprint,
 		Status:      row.Status,
-		CreatedBy:   row.CreatedBy,
+		CreatedBy:   h.actorName(row.CreatedBy),
 		CreatedAt:   row.CreatedAt,
 		PublishedAt: row.PublishedAt,
 	}
 }
 
+// actorName resolves a user id to the account name an operator recognises.
+func (h *Handler) actorName(userID uint) string {
+	if userID == 0 {
+		return "system"
+	}
+	if h == nil || h.db == nil {
+		return fmt.Sprintf("user #%d", userID)
+	}
+	var user models.User
+	if err := h.db.Select("id", "email").First(&user, userID).Error; err != nil {
+		return fmt.Sprintf("user #%d", userID)
+	}
+	return user.Email
+}
+
 // harnessDocument renders a stored row with the spec it carries.
-func harnessDocument(row models.AgentHarnessSpec) (AgentHarnessSpecDocument, error) {
+func (h *Handler) harnessDocument(row models.AgentHarnessSpec) (AgentHarnessSpecDocument, error) {
 	spec, err := harness.DecodeSpec([]byte(row.SpecJSON))
 	if err != nil {
 		// A stored spec that cannot be decoded is a broken row: report it
 		// rather than pretending the version carries the default.
 		return AgentHarnessSpecDocument{}, huma.Error500InternalServerError("This harness version cannot be read; publish a new one.")
 	}
-	return AgentHarnessSpecDocument{AgentHarnessVersion: harnessVersion(row), Spec: spec}, nil
+	return AgentHarnessSpecDocument{AgentHarnessVersion: h.harnessVersion(row), Spec: spec}, nil
 }
 
 // listAgentHarnessSpecs lists the published versions of the workspace.
@@ -163,9 +183,9 @@ func (h *Handler) listAgentHarnessSpecs(ctx context.Context, input *ListAgentHar
 	out := &ListAgentHarnessSpecsOutput{}
 	out.Body.Versions = make([]AgentHarnessVersion, 0, len(rows))
 	for _, row := range rows {
-		out.Body.Versions = append(out.Body.Versions, harnessVersion(row))
+		out.Body.Versions = append(out.Body.Versions, h.harnessVersion(row))
 		if row.Status == models.AgentHarnessStatusPublished {
-			active := harnessVersion(row)
+			active := h.harnessVersion(row)
 			out.Body.Active = &active
 		}
 	}
@@ -200,7 +220,7 @@ func (h *Handler) getAgentHarnessSpec(ctx context.Context, input *GetAgentHarnes
 		}
 		return nil, huma.Error500InternalServerError("Could not read the harness version; retry the request")
 	}
-	doc, err := harnessDocument(*row)
+	doc, err := h.harnessDocument(*row)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +259,7 @@ func (h *Handler) publishAgentHarnessSpec(ctx context.Context, input *PublishAge
 		return nil, huma.Error500InternalServerError("Could not publish the harness spec; retry the request")
 	}
 
-	doc, err := harnessDocument(*row)
+	doc, err := h.harnessDocument(*row)
 	if err != nil {
 		return nil, err
 	}
