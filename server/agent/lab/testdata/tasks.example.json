@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "name": "example-ops-tasks",
+  "description": "Deterministic operational tasks for Octarq assistant harness evaluation",
+  "catalog": [
+    {
+      "name": "lookup_domain",
+      "summary": "Check domain registration status",
+      "description": "Inspects whether a domain is active or registered in the DNS zone",
+      "method": "GET",
+      "path": "/api/domains/{domain}",
+      "risk": "read",
+      "parameters": [
+        {
+          "name": "domain",
+          "type": "string",
+          "required": true,
+          "description": "The domain name to check"
+        }
+      ]
+    },
+    {
+      "name": "create_link",
+      "summary": "Create a new shortlink",
+      "description": "Creates a redirect shortlink with a given slug and target destination",
+      "method": "POST",
+      "path": "/api/links",
+      "risk": "write",
+      "parameters": [
+        {
+          "name": "destination",
+          "type": "string",
+          "required": true,
+          "description": "Target URL"
+        },
+        {
+          "name": "slug",
+          "type": "string",
+          "required": true,
+          "description": "Custom slug"
+        }
+      ]
+    },
+    {
+      "name": "get_node_metrics",
+      "summary": "Query infrastructure metrics",
+      "description": "Fetches real-time telemetry from an edge cluster node",
+      "method": "GET",
+      "path": "/api/nodes/{node_id}/metrics",
+      "risk": "read",
+      "parameters": [
+        {
+          "name": "node_id",
+          "type": "string",
+          "required": true,
+          "description": "Identifier of the node"
+        }
+      ]
+    },
+    {
+      "name": "delete_link",
+      "summary": "Delete a shortlink",
+      "description": "Removes a shortlink destination",
+      "method": "DELETE",
+      "path": "/api/links/{id}",
+      "risk": "high",
+      "requires_approval": true
+    }
+  ],
+  "tasks": [
+    {
+      "id": "check-domain-status",
+      "title": "Lookup active domain registration",
+      "input": "Check if octarq.org is registered and active",
+      "mock_responses": [
+        "```tool_call\n{\"name\": \"lookup_domain\", \"args\": {\"domain\": \"octarq.org\"}}\n```",
+        "The domain octarq.org is active and registered."
+      ],
+      "mock_tools": {
+        "lookup_domain": {
+          "output": "{\"domain\":\"octarq.org\",\"status\":\"active\",\"expires_at\":\"2028-01-01\"}"
+        }
+      },
+      "criteria": {
+        "expected_status": "done",
+        "expected_tools": ["lookup_domain"],
+        "final_contains": "octarq.org is active",
+        "max_steps": 2,
+        "max_tool_errors": 0
+      }
+    },
+    {
+      "id": "create-short-link",
+      "title": "Provision new shortlink redirect",
+      "input": "Create a shortlink for https://docs.octarq.org with slug doc",
+      "mock_responses": [
+        "```tool_call\n{\"name\": \"create_link\", \"args\": {\"destination\": \"https://docs.octarq.org\", \"slug\": \"doc\"}}\n```",
+        "Shortlink created successfully: https://octarq.org/doc"
+      ],
+      "mock_tools": {
+        "create_link": {
+          "output": "{\"id\":\"link-101\",\"slug\":\"doc\",\"destination\":\"https://docs.octarq.org\"}"
+        }
+      },
+      "criteria": {
+        "expected_status": "done",
+        "expected_tools": ["create_link"],
+        "forbidden_tools": ["delete_link"],
+        "final_contains": "Shortlink created",
+        "max_steps": 2,
+        "max_tool_errors": 0
+      }
+    },
+    {
+      "id": "failing-node-metrics",
+      "title": "Handle offline node gracefully",
+      "input": "Query server metrics for node-99",
+      "mock_responses": [
+        "```tool_call\n{\"name\": \"get_node_metrics\", \"args\": {\"node_id\": \"node-99\"}}\n```",
+        "Failed to retrieve metrics for node-99: node not reachable."
+      ],
+      "mock_tools": {
+        "get_node_metrics": {
+          "error": "node not reachable",
+          "error_code": "ERR_NODE_OFFLINE"
+        }
+      },
+      "criteria": {
+        "expected_status": "done",
+        "expected_tools": ["get_node_metrics"],
+        "final_contains": "node not reachable",
+        "max_steps": 2
+      }
+    }
+  ]
+}

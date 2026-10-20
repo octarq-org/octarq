@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "candidate-optimized",
+  "preamble": "Octarq ops assistant.",
+  "extraRules": [
+    "Verify parameters before execution."
+  ],
+  "toolAllow": [
+    "create_link",
+    "get_node_metrics",
+    "lookup_domain"
+  ],
+  "maxSteps": 4
+}

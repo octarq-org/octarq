@@ -254,3 +254,16 @@ data and belong to the session.
 
 The trace is what makes a turn comparable across harness versions — the raw
 material for any later offline analysis.
+
+---
+
+## 8. Offline Harness Lab (`server/agent/lab`)
+
+The offline lab provides an offline, deterministic evaluation testbed for candidate harness specifications based on the Propose–Probe–Compose paradigm (inspired by `google-research/harness2`):
+
+- **Shared Core Contracts**: The lab directly consumes the existing `harness.HarnessSpec` (`spec.go`), `harness.Catalog` / `harness.BuildCatalog` (`catalog.go`), `harness.Runner` (`runner.go`), and `harness.TraceEvent` (`tracer.go`). It does **not** invent an alternative spec format or parallel execution engine.
+- **Propose**: Candidates are represented as versioned `harness.HarnessSpec` files.
+- **Probe**: Fixed task sets replay scripted model responses and mock tool outputs against each candidate specification, harvesting trace events.
+- **Compose**: A strictly deterministic scorer ranks candidate performance (success rate, tool error count, step budget efficiency, and estimated token footprint) without dependency on clocks, random numbers, or external networks.
+- **Explicit Invariant & Human Adoption**: The lab operates strictly offline and produces artifact reports (`report.json` and `report.md`). It never modifies production databases or live prompts, and never executes in the live request path. All spec adoptions are executed manually by human operators.
+
