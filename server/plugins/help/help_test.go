@@ -2,6 +2,7 @@ package help
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -57,6 +58,9 @@ func (h *stubHelpHost) Crypto() plugin.CryptoVault           { return nil }
 func (h *stubHelpHost) Settings() plugin.SettingsStore       { return nil }
 func (h *stubHelpHost) Events() plugin.EventSpine            { return nil }
 func (h *stubHelpHost) TenantDB(orgID uint) *plugin.TenantDB { return nil }
+func (h *stubHelpHost) HarnessSpec(context.Context, uint) (json.RawMessage, error) {
+	return nil, nil
+}
 
 func TestHelpDocs(t *testing.T) {
 	org1Enabled := true

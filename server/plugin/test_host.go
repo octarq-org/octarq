@@ -1,6 +1,10 @@
 package plugin
 
-import "net/http"
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+)
 
 // TestHost is a configurable Host implementation for unit and integration testing.
 type TestHost struct {
@@ -9,6 +13,8 @@ type TestHost struct {
 	SettingsMock SettingsStore
 	EventsMock   EventSpine
 	TenantDBMock func(orgID uint) *TenantDB
+	// HarnessSpecFn is an optional mock for the Host's HarnessSpec.
+	HarnessSpecFn func(ctx context.Context, orgID uint) (json.RawMessage, error)
 }
 
 func (h *TestHost) Session() HostSession {
@@ -37,6 +43,15 @@ func (h *TestHost) Events() EventSpine {
 		return h.EventsMock
 	}
 	return noopEvents{}
+}
+
+// HarnessSpec returns the mocked published harness of the workspace. Without
+// a mock the workspace has published none, which is the normal state.
+func (h *TestHost) HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error) {
+	if h != nil && h.HarnessSpecFn != nil {
+		return h.HarnessSpecFn(ctx, orgID)
+	}
+	return nil, nil
 }
 
 func (h *TestHost) TenantDB(orgID uint) *TenantDB {
