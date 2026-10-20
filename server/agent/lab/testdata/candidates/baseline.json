@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "name": "baseline",
+  "preamble": "You are the Octarq workspace assistant.",
+  "extraRules": [],
+  "toolAllow": [],
+  "maxSteps": 0
+}

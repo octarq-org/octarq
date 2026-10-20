@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "name": "candidate-restricted",
+  "preamble": "You are a read-only query assistant.",
+  "extraRules": [
+    "Never execute modifying or sensitive operations."
+  ],
+  "toolAllow": [
+    "lookup_domain"
+  ],
+  "maxSteps": 2
+}
