@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
 )
 
@@ -46,4 +48,13 @@ type Host interface {
 	Settings() SettingsStore
 	Events() EventSpine
 	TenantDB(orgID uint) *TenantDB
+	// HarnessSpec 返回该工作区已发布的 agent harness（规范 JSON 文档）。
+	//
+	// 返回 nil 文档表示工作区没有发布过 harness，调用方应使用内置默认值。
+	// 用 JSON 而不是类型化返回值，是因为 harness 包依赖本包（plugin.Endpoint），
+	// 直接引用它的类型会形成导入环；调用方用 harness.DecodeSpec 解码即可。
+	//
+	// 返回 error 表示已发布的 harness 读不出来 —— 调用方必须 fail closed，
+	// 绝不能悄悄换一个 harness 继续跑。
+	HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error)
 }

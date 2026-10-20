@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"log/slog"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/octarq-org/octarq/server/internal/agentstore"
 	"github.com/octarq-org/octarq/server/internal/api"
 	"github.com/octarq-org/octarq/server/internal/auth"
 	"github.com/octarq-org/octarq/server/internal/cache"
@@ -38,6 +40,10 @@ type hostRuntime struct {
 	settings plugin.SettingsStore
 	events   plugin.EventSpine
 	db       *gorm.DB
+	// harnessStore resolves the workspace's published agent harness. It is
+	// what lets a plugin's agent run on the same harness the dashboard
+	// publishes, instead of a second, hand-written prompt.
+	harnessStore *agentstore.HarnessStore
 }
 
 func (h *hostRuntime) Session() plugin.HostSession    { return h.session }
@@ -53,6 +59,26 @@ func (h *hostRuntime) TenantDB(orgID uint) *plugin.TenantDB {
 		return nil
 	}
 	return tdb
+}
+
+// HarnessSpec returns the workspace's published agent harness as its
+// canonical JSON document.
+//
+// A nil document means the workspace has published none: the caller uses the
+// built-in default. An error means the published harness could not be read —
+// the caller must fail closed rather than run a different harness.
+func (h *hostRuntime) HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error) {
+	if h == nil || h.harnessStore == nil {
+		return nil, nil
+	}
+	row, err := h.harnessStore.Active(ctx, orgID)
+	if err != nil {
+		if errors.Is(err, agentstore.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return json.RawMessage(row.SpecJSON), nil
 }
 
 var _ plugin.Host = (*hostRuntime)(nil)
@@ -138,6 +164,9 @@ func (a *App) buildPluginContext(params pluginContextParams) *plugin.Context {
 		settings: settings,
 		events:   events,
 		db:       db,
+	}
+	if db != nil {
+		host.harnessStore = agentstore.NewHarnessStore(db)
 	}
 
 	var apiHuma huma.API

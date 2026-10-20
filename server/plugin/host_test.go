@@ -1,6 +1,8 @@
 package plugin_test
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -94,6 +96,9 @@ func (m *mockHost) Crypto() plugin.CryptoVault           { return m.crypto }
 func (m *mockHost) Settings() plugin.SettingsStore       { return m.settings }
 func (m *mockHost) Events() plugin.EventSpine            { return m.events }
 func (m *mockHost) TenantDB(orgID uint) *plugin.TenantDB { return nil }
+func (m *mockHost) HarnessSpec(context.Context, uint) (json.RawMessage, error) {
+	return nil, nil
+}
 
 var _ plugin.Host = (*mockHost)(nil)
 

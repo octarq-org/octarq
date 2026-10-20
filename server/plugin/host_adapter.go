@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 )
@@ -21,6 +23,10 @@ func (noopHost) Crypto() CryptoVault     { return nil }
 func (noopHost) Settings() SettingsStore { return noopSettings{} }
 func (noopHost) Events() EventSpine      { return noopEvents{} }
 func (noopHost) TenantDB(uint) *TenantDB { return nil }
+
+// HarnessSpec reports that no harness is published: a host without a
+// workspace behind it has none to report.
+func (noopHost) HarnessSpec(context.Context, uint) (json.RawMessage, error) { return nil, nil }
 
 type noopSession struct{}
 

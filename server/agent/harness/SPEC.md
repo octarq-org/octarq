@@ -261,7 +261,28 @@ The spec is versioned per workspace. Rows live in `agent_harness_specs`
 Staging, importing, activating and discarding are audited
 (`agent.harness.stage` / `.import` / `.activate` / `.discard`).
 
-### 7.3 The improvement ledger
+### 7.3 The host seam: one harness for every channel
+
+`plugin.Host` exposes the workspace's published harness so a plugin's agent
+runs on the same shell the dashboard publishes, instead of a second
+hand-written prompt:
+
+```go
+// HarnessSpec returns the published agent harness of the workspace as its
+// canonical JSON document. A nil document means the workspace has published
+// none; an error means the published harness could not be read and the caller
+// must fail closed.
+HarnessSpec(ctx context.Context, orgID uint) (json.RawMessage, error)
+```
+
+The document is JSON rather than a typed value because `server/agent/harness`
+depends on `server/plugin` (`plugin.Endpoint`), so a typed return would close
+an import cycle. Callers decode it with `harness.DecodeSpec`.
+
+Only the **published** version is handed out: a staged draft is not the
+workspace's harness until somebody activates it.
+
+### 7.4 The improvement ledger
 
 A **lesson** is what the workspace learned about its agent: a scope, a note,
 and the evidence it rests on. Lessons live in `agent_harness_lessons`,
