@@ -309,6 +309,13 @@ The spec is versioned per workspace. Rows live in `agent_harness_specs`
 Staging, importing, activating and discarding are audited
 (`agent.harness.stage` / `.import` / `.activate` / `.discard`).
 
+The spec a version carries is returned **in full**: every field is present,
+even when it is empty, and an empty list is a list rather than a null. A
+client reads a field and finds it there; it never has to tell "empty" from
+"not sent". The request body is the other way round — a producer may leave
+the optional fields out, because an omitted field and an empty one mean the
+same thing.
+
 ### 7.3 The host seam: one harness for every channel
 
 `plugin.Host` exposes the workspace's published harness so a plugin's agent

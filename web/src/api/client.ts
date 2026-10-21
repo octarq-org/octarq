@@ -16,7 +16,7 @@ import type {
   HarnessLesson,
   HarnessLessonsResponse,
   HarnessProposalInput,
-  HarnessSpecContent,
+  HarnessSpecInput,
   HarnessSpecDetail,
   HarnessSpecsListResponse,
   HarnessVersionItem,
@@ -417,7 +417,7 @@ export const api = {
   // Agent Harness
   agentHarnessSpecs: () => req<HarnessSpecsListResponse>("GET", "/api/agent-harness/specs"),
   agentHarnessSpec: (id: number) => req<HarnessSpecDetail>("GET", `/api/agent-harness/specs/${id}`),
-  createAgentHarnessDraft: (spec: HarnessSpecContent) =>
+  createAgentHarnessDraft: (spec: HarnessSpecInput) =>
     req<HarnessSpecDetail>("POST", "/api/agent-harness/drafts", { spec }),
   importAgentHarnessProposal: (proposal: HarnessProposalInput) =>
     req<HarnessSpecDetail>("POST", "/api/agent-harness/proposals", proposal),

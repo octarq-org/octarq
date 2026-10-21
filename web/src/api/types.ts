@@ -371,6 +371,17 @@ export interface HarnessSpecContent {
   maxSteps: number;
 }
 
+// A spec on the way in. The optional fields may be left out: an omitted
+// field means the same thing as an empty one.
+export interface HarnessSpecInput {
+  version: number;
+  name: string;
+  preamble?: string;
+  extraRules?: string[];
+  toolAllow?: string[];
+  maxSteps?: number;
+}
+
 export interface HarnessActiveVersion {
   id: number;
   name: string;
@@ -414,7 +425,7 @@ export interface HarnessSpecDetail {
 }
 
 export interface HarnessProposalInput {
-  spec: HarnessSpecContent;
+  spec: HarnessSpecInput;
   evidence?: unknown;
   [key: string]: unknown;
 }
