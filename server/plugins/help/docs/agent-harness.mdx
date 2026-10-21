@@ -1,0 +1,82 @@
+---
+title: Agent harness
+description: Author, inspect, diff, and activate runtime specifications and lessons for workspace agents.
+category: settings
+order: 60
+---
+
+The agent harness defines runtime constraints for agents inside a workspace. Every agent request adheres to the active specification.
+
+## Overview
+
+The agent harness enforces operational boundaries on workspace agents. Each workspace maintains exactly one active harness version at any time. When no custom version is active, the workspace uses the built-in default specification.
+
+Access the management page at **Settings → Agent Harness**.
+
+## Versions and Drafts
+
+Administrators manage configurations through versions and drafts.
+
+Follow these stages to update an agent specification:
+
+1. **Stage a draft**: Create a draft to edit prompts, tools, and step limits.
+2. **Review diffs**: Compare staged changes against the currently active version.
+3. **Activate**: Apply the selected version to put it live immediately.
+
+Activating a version automatically archives the previous active version. Discard unneeded drafts directly from the version actions menu. Discarding a draft marks it as discarded permanently. You cannot undo a discard action.
+
+## Tool Allowlist
+
+The tool allowlist restricts the tools an agent can execute.
+
+- **Unrestricted list**: Leave the list empty to allow every tool permitted by the active session.
+- **Custom list**: Enter specific tool names to restrict tool execution.
+
+Separate tool names with commas or newlines. The agent can only execute tools present in this allowlist.
+
+## Maximum Steps
+
+The maximum steps setting limits consecutive tool executions per request.
+
+- The allowed range is 1 to 8 steps.
+- The default value is 6 steps.
+
+Lower step limits stop runaway loops and reduce execution costs.
+
+## Extra Rules
+
+Extra rules append custom operational instructions to the agent prompt.
+
+Add instructions for preferred output format, language requirements, or domain policies. Extra rules cannot remove or bypass built-in system instructions.
+
+## Lessons Ledger
+
+The lessons ledger records operational insights and prompt recommendations.
+
+Each entry includes a scope, a descriptive note, and optional JSON evidence. Entries use three lifecycle statuses: Suggested, Adopted, and Dismissed.
+
+Administrators can dismiss irrelevant lessons from the ledger. Dismissed lessons remain visible for audit reference.
+
+A lesson record alone does not alter agent behavior. To enforce a lesson, add its instruction into a draft specification and activate that version.
+
+## Import Proposals
+
+Administrators can import complete harness proposals into the workspace.
+
+Upload a proposal JSON file or paste JSON text into the import dialog. Importing a proposal creates a new staged draft version. The import operation never activates the proposal directly.
+
+Review the staged draft diffs and activate the version when ready.
+
+## Access Permissions
+
+Workspace administrator permissions are required to manage the agent harness.
+
+Members without administrator roles cannot edit or activate harness versions. Non-admin members receive an access restriction banner on this page. Contact a workspace administrator to request configuration updates.
+
+## Harness Boundaries
+
+A harness only tightens agent execution constraints. It cannot expand agent capabilities beyond platform limits.
+
+- You cannot grant tools that the active session denies.
+- You cannot set maximum steps above 8.
+- You cannot delete built-in system safety rules.
