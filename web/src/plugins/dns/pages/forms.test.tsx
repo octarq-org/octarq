@@ -520,14 +520,14 @@ describe("DNS Forms", () => {
       fireEvent.click(removeButtons[1]);
 
       await waitFor(() => {
-        expect(screen.getByText("Remove this provider account? Managed domains using these credentials will fail sync.")).toBeDefined();
+        expect(screen.getByText("Remove this provider account? Managed domains using these credentials fail synchronization.")).toBeDefined();
       });
 
       const confirmBtn = screen.getByRole("button", { name: "Confirm" });
       fireEvent.click(confirmBtn);
 
       await waitFor(() => {
-        expect(screen.queryByText("Remove this provider account? Managed domains using these credentials will fail sync.")).toBeNull();
+        expect(screen.queryByText("Remove this provider account? Managed domains using these credentials fail synchronization.")).toBeNull();
       });
     });
   });
