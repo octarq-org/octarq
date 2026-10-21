@@ -252,6 +252,16 @@ func RunTask(ctx context.Context, task Task, cand Candidate, baseCatalog []harne
 
 	judgement := task.Criteria.Judge(turn, session.History)
 
+	// The report is a deterministic artifact: two runs of the same candidate
+	// must produce the same bytes. A wall-clock duration is not part of an
+	// offline evaluation — the tools are mocks, so the time a call took
+	// measures the machine, not the candidate. The report therefore carries
+	// no duration.
+	traceEvents := tracer.Events()
+	for i := range traceEvents {
+		traceEvents[i].DurationMS = 0
+	}
+
 	return TaskResult{
 		TaskID:         task.ID,
 		TaskTitle:      task.Title,
@@ -265,7 +275,7 @@ func RunTask(ctx context.Context, task Task, cand Candidate, baseCatalog []harne
 		TotalTokens:    inputTokens + outputTokens,
 		CapturedSystem: completer.CapturedSystem(),
 		FailureReasons: judgement.Reasons,
-		TraceEvents:    tracer.Events(),
+		TraceEvents:    traceEvents,
 	}, nil
 }
 
