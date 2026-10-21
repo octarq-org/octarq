@@ -32,7 +32,7 @@ func TestAgentHarness_ErrorsAreRefusedNotSwallowed(t *testing.T) {
 	if rec := stageSpec(t, srv, cookies, `{"spec":{"version":1,"name":"default"}}`); rec.Code != http.StatusInternalServerError {
 		t.Errorf("stage without a store = %d, want 500", rec.Code)
 	}
-	if rec := do(srv, "POST", "/api/agent-harness/proposals", cookies, `{"name":"x","spec":{"version":1,"name":"default"}}`); rec.Code != http.StatusInternalServerError {
+	if rec := do(srv, "POST", "/api/agent-harness/proposals", cookies, `{"spec":{"version":1,"name":"default"}}`); rec.Code != http.StatusInternalServerError {
 		t.Errorf("import without a store = %d, want 500", rec.Code)
 	}
 	if rec := do(srv, "GET", "/api/agent-harness/lessons", cookies, ""); rec.Code != http.StatusInternalServerError {

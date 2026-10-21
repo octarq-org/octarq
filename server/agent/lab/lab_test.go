@@ -138,6 +138,17 @@ func TestScorer_Deterministic(t *testing.T) {
 	b2, err := os.ReadFile(filepath.Join(tmp2, "report.json"))
 	require.NoError(t, err)
 	assert.Equal(t, string(b1), string(b2), "report.json must be identical across runs")
+
+	// The report carries no wall-clock reading. A mock tool call takes no
+	// time to measure, so a duration in the report would be the machine's,
+	// not the candidate's — and two runs on a loaded machine would differ.
+	for _, cr := range rep1.CandidateResults {
+		for _, tr := range cr.TaskResults {
+			for _, ev := range tr.TraceEvents {
+				assert.Zero(t, ev.DurationMS, "the report must not carry a wall-clock duration")
+			}
+		}
+	}
 }
 
 func TestCandidate_InvalidSpecRejected(t *testing.T) {

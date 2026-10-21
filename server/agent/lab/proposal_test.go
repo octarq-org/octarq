@@ -35,7 +35,6 @@ func TestProposal_BuildAndDecodeContract(t *testing.T) {
 	require.NotNil(t, proposal)
 
 	// Invariant: name matches recommended candidate
-	assert.Equal(t, report.RecommendedCandidate, proposal.Name)
 	assert.Equal(t, report.RecommendedCandidate, proposal.Spec.Name)
 
 	// Contract Test: proposal.Spec can be decoded by core's harness.DecodeSpec
@@ -56,12 +55,10 @@ func TestProposal_BuildAndDecodeContract(t *testing.T) {
 	require.NoError(t, err)
 
 	var doc struct {
-		Name     string          `json:"name"`
 		Spec     json.RawMessage `json:"spec"`
 		Evidence json.RawMessage `json:"evidence"`
 	}
 	require.NoError(t, json.Unmarshal(rawProposal, &doc))
-	assert.Equal(t, proposal.Name, doc.Name)
 
 	specFromDoc, err := harness.DecodeSpec(doc.Spec)
 	require.NoError(t, err, "core harness.DecodeSpec must decode proposal.spec from full document")
@@ -188,7 +185,6 @@ func TestProposal_WriteProposalFile(t *testing.T) {
 	spec.MaxSteps = 4
 
 	proposal := &lab.Proposal{
-		Name: spec.Name,
 		Spec: spec,
 		Evidence: lab.ProposalEvidence{
 			TaskSet:              "test-ts",
@@ -212,11 +208,51 @@ func TestProposal_WriteProposalFile(t *testing.T) {
 
 	var readProp lab.Proposal
 	require.NoError(t, json.Unmarshal(data, &readProp))
-	assert.Equal(t, proposal.Name, readProp.Name)
+	assert.Equal(t, proposal.Spec.Name, readProp.Spec.Name)
 	assert.Equal(t, proposal.Spec.MaxSteps, readProp.Spec.MaxSteps)
 	assert.Equal(t, proposal.Evidence.EstimatedTokens, readProp.Evidence.EstimatedTokens)
 
 	// Fail closed on invalid inputs
 	assert.Error(t, lab.WriteProposalFile(nil, outPath))
 	assert.Error(t, lab.WriteProposalFile(proposal, ""))
+}
+
+func TestProposal_EvidenceCandidateFingerprintMatchesProposedSpec(t *testing.T) {
+	t.Parallel()
+
+	// Candidate with maxSteps = 0 (unconstrained step budget)
+	spec := harness.DefaultHarnessSpec()
+	spec.Name = "zero-steps-cand"
+	spec.MaxSteps = 0
+
+	rawFp := spec.Fingerprint()
+
+	cand := lab.Candidate{Name: spec.Name, Spec: spec}
+	score := lab.CandidateScore{
+		CandidateName:   spec.Name,
+		SpecFingerprint: rawFp,
+		TotalTasks:      1,
+		SuccessTasks:    1,
+		SuccessRate:     1.0,
+	}
+
+	report := &lab.LabReport{
+		TaskSetName:          "test-ts",
+		BaselineName:         spec.Name,
+		RecommendedCandidate: spec.Name,
+		Scores:               []lab.CandidateScore{score},
+		CandidateResults: []lab.CandidateResult{
+			{Candidate: cand},
+		},
+	}
+
+	proposal, err := lab.BuildProposal(report)
+	require.NoError(t, err)
+
+	// Invariant guard:
+	// Normal profile ceiling (8) tightens maxSteps from 0 to 8, which changes the fingerprint.
+	// The proposal evidence CandidateFingerprint must match the proposed spec's fingerprint,
+	// NOT the diverging raw evaluated candidate fingerprint.
+	assert.NotEqual(t, rawFp, proposal.Spec.Fingerprint(), "tightening maxSteps must change fingerprint")
+	assert.Equal(t, proposal.Spec.Fingerprint(), proposal.Evidence.CandidateFingerprint)
 }

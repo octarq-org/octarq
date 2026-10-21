@@ -107,6 +107,46 @@
 }
 ```
 
+### 2.3 提案格式（`proposal.json`）
+
+通过 `-propose <path>` 输出的提案包含且仅包含两个顶层字段：`spec` 与 `evidence`。
+规范自身的名字是提案唯一的名字，顶层不保留 `name` 字段。
+`evidence.candidateFingerprint` 严格指向真正被提案的那份规范的指纹（`specToPropose.Fingerprint()`）：
+
+```json
+{
+  "spec": {
+    "version": 1,
+    "name": "candidate-optimized",
+    "preamble": "Octarq ops assistant.",
+    "extraRules": [
+      "Verify parameters before execution."
+    ],
+    "toolAllow": [
+      "create_link",
+      "get_node_metrics",
+      "lookup_domain"
+    ],
+    "maxSteps": 4
+  },
+  "evidence": {
+    "taskSet": "example-ops-tasks",
+    "baseline": "baseline",
+    "candidate": "candidate-optimized",
+    "baselineFingerprint": "520041f72dfeff30e0a4c6469dc33e5066315f4a42e8bd0af1ce3a6a6bd93a29",
+    "candidateFingerprint": "3a0811b9a7e5da3bca67bef3b9536926ad4703642c3da450cfa41f79b0fb7fd1",
+    "successRate": 1,
+    "toolErrors": 1,
+    "totalSteps": 3,
+    "estimatedTokens": 1692
+  }
+}
+```
+
+#### 提案字段说明
+- `spec`：经过 `EffectiveMaxSteps` 预算归一化并由 `harness.Validate` 校验通过的完整规范文档。
+- `evidence`：支持采纳该提案的确定性评测证据（任务集、基线名称、候选名称、双方指纹及各项评分指标）。
+
 ---
 
 ## 3. 命令行用法（CLI）

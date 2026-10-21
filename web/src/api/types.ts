@@ -414,7 +414,6 @@ export interface HarnessSpecDetail {
 }
 
 export interface HarnessProposalInput {
-  name?: string;
   spec: HarnessSpecContent;
   evidence?: unknown;
   [key: string]: unknown;

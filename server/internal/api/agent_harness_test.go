@@ -200,7 +200,7 @@ func TestAgentHarness_ImportAProposalStagesADraftWithItsEvidence(t *testing.T) {
 	srv, _ := newHarnessTestHandler(t)
 	cookies := loginCookies(t, srv)
 
-	body := `{"name":"default","spec":{"version":1,"name":"default","preamble":"You are the tuned agent."},` +
+	body := `{"spec":{"version":1,"name":"default","preamble":"You are the tuned agent."},` +
 		`"evidence":{"taskSet":"ops-tasks","candidate":"candidate-optimized"}}`
 	rec := do(srv, "POST", "/api/agent-harness/proposals", cookies, body)
 	if rec.Code != http.StatusCreated {
@@ -245,7 +245,7 @@ func TestAgentHarness_ImportAProposalRefusesAnInvalidSpec(t *testing.T) {
 	srv, _ := newHarnessTestHandler(t)
 	cookies := loginCookies(t, srv)
 
-	rec := do(srv, "POST", "/api/agent-harness/proposals", cookies, `{"name":"x","spec":{"version":99,"name":""}}`)
+	rec := do(srv, "POST", "/api/agent-harness/proposals", cookies, `{"spec":{"version":99,"name":""}}`)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
 	}
