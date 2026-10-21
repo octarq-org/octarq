@@ -108,13 +108,25 @@ func (h *Handler) auditAgentTurn(
 	spec harness.HarnessSpec,
 	model string,
 ) {
-	steps := make([]map[string]any, 0, len(turn.Steps))
-	for _, st := range turn.Steps {
-		steps = append(steps, map[string]any{
-			"tool":       st.ToolName,
-			"durationMs": st.DurationMS,
-			"failed":     st.Err != nil,
-		})
+	// The step list comes from the trace, not from the turn. The trace knows
+	// the outcome of a step: a tool that ran and failed, a tool the policy
+	// denied, a tool held for approval. The turn knows only that something
+	// went wrong, so a dashboard built on the turn cannot tell a refusal
+	// from a failure.
+	steps := make([]map[string]any, 0, len(events))
+	for _, ev := range events {
+		if ev.Kind != harness.TraceKindStep {
+			continue
+		}
+		step := map[string]any{
+			"tool":       ev.Tool,
+			"outcome":    ev.Status,
+			"durationMs": ev.DurationMS,
+		}
+		if ev.ErrorCode != "" {
+			step["errorCode"] = ev.ErrorCode
+		}
+		steps = append(steps, step)
 	}
 	meta := map[string]any{
 		"sessionId":         sessionID,

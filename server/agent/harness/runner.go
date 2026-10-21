@@ -257,11 +257,7 @@ func (r *defaultRunner) loop(ctx context.Context, s *Session, t *Turn) error {
 				// The model tried to call a tool and got the format wrong.
 				// Tell it so instead of ending the turn on a call it
 				// believes it made.
-				s.History = append(s.History, Message{Role: "assistant", Content: text})
-				s.History = append(s.History, Message{
-					Role:    "tool",
-					Content: wrapUntrustedFence(invalidToolCallNotice(invalid)),
-				})
+				reportInvalidCalls(s, text, invalid)
 				continue
 			}
 			// No tool calls — the turn is done.
@@ -271,7 +267,7 @@ func (r *defaultRunner) loop(ctx context.Context, s *Session, t *Turn) error {
 		}
 
 		// Execute each tool call.
-		if err := r.executeSteps(ctx, s, t, step, calls, remaining); err != nil {
+		if err := r.executeSteps(ctx, s, t, step, calls, remaining, invalid); err != nil {
 			if errors.Is(err, ErrApprovalRequired) {
 				t.Status = TurnStatusAwaitingApproval
 				return err
@@ -307,9 +303,26 @@ func invalidToolCallNotice(invalid []string) string {
 	return b.String()
 }
 
+// reportInvalidCalls hands the calls the model could not express back to it.
+//
+// A model that believes it called a tool stops asking for the result. The
+// turn therefore continues with the rejected lines, and the model can correct
+// itself. The same rule holds for the streaming path: a call that did not
+// parse is reported there too.
+func reportInvalidCalls(s *Session, text string, invalid []string) {
+	s.History = append(s.History, Message{Role: "assistant", Content: text})
+	s.History = append(s.History, Message{
+		Role:    "tool",
+		Content: wrapUntrustedFence(invalidToolCallNotice(invalid)),
+	})
+}
+
 // executeSteps executes parsed tool calls with guard checks and tracing,
 // appending results to history.
-func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, step int, calls []toolCall, remaining string) error {
+//
+// A call the model wrote wrongly is reported after the calls that ran, so the
+// model learns about both in one turn.
+func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, step int, calls []toolCall, remaining string, invalid []string) error {
 	if remaining != "" {
 		s.History = append(s.History, Message{
 			Role:    "assistant",
@@ -382,6 +395,15 @@ func (r *defaultRunner) executeSteps(ctx context.Context, s *Session, t *Turn, s
 		s.History = append(s.History, Message{
 			Role:    "tool",
 			Content: st.OutputFenced,
+		})
+	}
+
+	// Tell the model about the calls that did not run. A rejected call is
+	// never dropped: the model must not believe it acted.
+	if len(invalid) > 0 {
+		s.History = append(s.History, Message{
+			Role:    "tool",
+			Content: wrapUntrustedFence(invalidToolCallNotice(invalid)),
 		})
 	}
 	return nil
