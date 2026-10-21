@@ -116,7 +116,6 @@ func TestCLI_Propose_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	var doc struct {
-		Name     string          `json:"name"`
 		Spec     json.RawMessage `json:"spec"`
 		Evidence struct {
 			TaskSet   string `json:"taskSet"`
@@ -124,7 +123,6 @@ func TestCLI_Propose_Success(t *testing.T) {
 		} `json:"evidence"`
 	}
 	require.NoError(t, json.Unmarshal(data, &doc))
-	assert.Equal(t, "candidate-optimized", doc.Name)
 	assert.Equal(t, "candidate-optimized", doc.Evidence.Candidate)
 	assert.Equal(t, "example-ops-tasks", doc.Evidence.TaskSet)
 

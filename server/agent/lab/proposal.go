@@ -14,7 +14,6 @@ import (
 // Proposal represents a recommended harness spec ready for adoption as a draft.
 // Its shape strictly matches the core admin draft import contract.
 type Proposal struct {
-	Name     string              `json:"name"`
 	Spec     harness.HarnessSpec `json:"spec"`
 	Evidence ProposalEvidence    `json:"evidence"`
 }
@@ -116,7 +115,7 @@ func BuildProposal(report *LabReport) (*Proposal, error) {
 		Baseline:             report.BaselineName,
 		Candidate:            recCand.Name,
 		BaselineFingerprint:  baselineFp,
-		CandidateFingerprint: recScore.SpecFingerprint,
+		CandidateFingerprint: specToPropose.Fingerprint(),
 		SuccessRate:          recScore.SuccessRate,
 		ToolErrors:           recScore.ToolErrors,
 		TotalSteps:           recScore.TotalSteps,
@@ -124,7 +123,6 @@ func BuildProposal(report *LabReport) (*Proposal, error) {
 	}
 
 	return &Proposal{
-		Name:     recCand.Spec.Name,
 		Spec:     specToPropose,
 		Evidence: evidence,
 	}, nil

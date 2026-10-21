@@ -55,12 +55,10 @@ type AgentHarnessDraftBody struct {
 	Spec harness.HarnessSpec `json:"spec"`
 }
 
-// AgentHarnessProposal is a harness proposal produced elsewhere — by the
-// offline lab, or by any other tool that ran the candidates and kept the
-// evidence. The spec is validated exactly like a hand-written one.
+// AgentHarnessProposal defines a proposed harness spec with empirical evidence.
+// The spec contains its own name as the only authoritative name.
+// Core validates the spec before importing it as a draft.
 type AgentHarnessProposal struct {
-	// Name labels the proposal.
-	Name string `json:"name"`
 	// Spec is the proposed harness.
 	Spec harness.HarnessSpec `json:"spec"`
 	// Evidence is the free-form JSON that justifies the proposal.
