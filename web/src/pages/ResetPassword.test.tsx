@@ -78,7 +78,7 @@ describe("ResetPasswordPage suite", () => {
     await waitFor(() => {
       expect(resetSpy).toHaveBeenCalledWith("test-token-xyz", "brandNewPass123");
       expect(screen.getByText(/password reset complete/i)).toBeTruthy();
-      expect(screen.getByText(/your password has been updated/i)).toBeTruthy();
+      expect(screen.getByText(/your password is updated/i)).toBeTruthy();
     });
   });
 
