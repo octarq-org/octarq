@@ -128,7 +128,7 @@ describe("CopilotDrawer", () => {
   it("sends user message and renders message bubble", async () => {
     renderDrawer();
 
-    const textarea = screen.getByPlaceholderText("Ask a question or enter a command (Enter to send)...");
+    const textarea = screen.getByPlaceholderText("Ask a question or enter a command…");
     fireEvent.change(textarea, { target: { value: "测试指令" } });
 
     const sendBtn = screen.getByTitle("Send");
@@ -150,7 +150,7 @@ describe("CopilotDrawer", () => {
     });
     renderDrawer();
 
-    const textarea = screen.getByPlaceholderText("Ask a question or enter a command (Enter to send)...");
+    const textarea = screen.getByPlaceholderText("Ask a question or enter a command…");
     fireEvent.change(textarea, { target: { value: "汇总本周点击最高的短链" } });
     fireEvent.click(screen.getByTitle("Send"));
 
