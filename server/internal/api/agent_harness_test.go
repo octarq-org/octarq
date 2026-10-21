@@ -307,6 +307,37 @@ func TestAgentHarness_LessonWithoutScopeOrNoteIsRefused(t *testing.T) {
 	}
 }
 
+// The API returns the whole spec. A client reads a field and finds it
+// there, whether it is empty or not — and an empty list is a list, not a
+// null it has to guard against.
+func TestAgentHarness_TheReturnedSpecCarriesEveryField(t *testing.T) {
+	srv, _ := newHarnessTestHandler(t)
+	cookies := loginCookies(t, srv)
+
+	rec := stageSpec(t, srv, cookies, `{"spec":{"version":1,"name":"default"}}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var raw struct {
+		Spec map[string]json.RawMessage `json:"spec"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+		t.Fatalf("decode: %v (%s)", err, rec.Body.String())
+	}
+	for _, field := range []string{"version", "name", "preamble", "extraRules", "toolAllow", "maxSteps"} {
+		if _, ok := raw.Spec[field]; !ok {
+			t.Errorf("the response omits %q: %s", field, rec.Body.String())
+		}
+	}
+	if string(raw.Spec["extraRules"]) != "[]" {
+		t.Errorf("extraRules = %s, want []", raw.Spec["extraRules"])
+	}
+	if string(raw.Spec["toolAllow"]) != "[]" {
+		t.Errorf("toolAllow = %s, want []", raw.Spec["toolAllow"])
+	}
+}
+
 func TestAgentHarness_GetOneVersion(t *testing.T) {
 	srv, _ := newHarnessTestHandler(t)
 	cookies := loginCookies(t, srv)

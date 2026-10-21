@@ -44,10 +44,41 @@ type AgentHarnessVersion struct {
 	Evidence json.RawMessage `json:"evidence"`
 }
 
+// AgentHarnessSpecContent is a harness spec as the API returns it.
+//
+// Every field is present, even when it is empty. A client that reads a spec
+// does not have to tell "empty" from "not sent", and the generated schema
+// says the same thing the interface types say.
+//
+// The request body is the other way round: a producer may leave the optional
+// fields out, so the request keeps the spec's own lenient shape.
+type AgentHarnessSpecContent struct {
+	Version    int      `json:"version"`
+	Name       string   `json:"name"`
+	Preamble   string   `json:"preamble"`
+	ExtraRules []string `json:"extraRules"`
+	ToolAllow  []string `json:"toolAllow"`
+	MaxSteps   int      `json:"maxSteps"`
+}
+
+// harnessSpecContent renders a spec in the shape the API returns.
+func harnessSpecContent(spec harness.HarnessSpec) AgentHarnessSpecContent {
+	out := AgentHarnessSpecContent{
+		Version:  spec.Version,
+		Name:     spec.Name,
+		Preamble: spec.Preamble,
+		MaxSteps: spec.MaxSteps,
+	}
+	// An empty list is a list, not a null: the client walks it.
+	out.ExtraRules = append([]string{}, spec.ExtraRules...)
+	out.ToolAllow = append([]string{}, spec.ToolAllow...)
+	return out
+}
+
 // AgentHarnessSpecDocument is a version together with the spec it carries.
 type AgentHarnessSpecDocument struct {
 	AgentHarnessVersion
-	Spec harness.HarnessSpec `json:"spec"`
+	Spec AgentHarnessSpecContent `json:"spec"`
 }
 
 // AgentHarnessDraftBody is the body of a staging request.
@@ -304,7 +335,7 @@ func (h *Handler) harnessDocument(row models.AgentHarnessSpec) (AgentHarnessSpec
 		// rather than pretending the version carries the default.
 		return AgentHarnessSpecDocument{}, huma.Error500InternalServerError("This harness version cannot be read; stage a new one.")
 	}
-	return AgentHarnessSpecDocument{AgentHarnessVersion: h.harnessVersion(row), Spec: spec}, nil
+	return AgentHarnessSpecDocument{AgentHarnessVersion: h.harnessVersion(row), Spec: harnessSpecContent(spec)}, nil
 }
 
 // actorName resolves a user id to the account name an operator recognises.
