@@ -269,6 +269,8 @@ The spec is versioned per workspace. Rows live in `agent_harness_specs`
   the draft. This is the gate an imported lab proposal passes too.
 - A workspace has **exactly one** live version. Activating archives whatever
   was live before — across every name, because the workspace runs one harness.
+  The transaction keeps that true inside one process; the **database** keeps
+  it true when two activations race (see §7.5).
 - The built-in default applies only when a workspace has **never** activated a
   version — that is the product's normal state, not a fallback.
 - A live spec that cannot be decoded **fails the request** (HTTP 500 before
@@ -341,6 +343,48 @@ tenant-scoped like everything else.
   that draft marks it `dismissed`.
 - A dismissed lesson stays visible: what was considered and turned down is
   part of the record.
+
+### 7.5 One live version, enforced by the database
+
+The transaction in `HarnessStore.Activate` keeps a workspace to one live
+version inside one process. Two activations that arrive at the same moment
+run in two transactions, and a transaction cannot see what the other one has
+not committed: without a rule of its own, both can publish, and the workspace
+ends up with two live versions.
+
+The rule lives in the schema. `agent_harness_specs` carries a nullable
+`live_slot` column inside a unique index on `(owner_id, live_slot)`:
+
+| Row | `status` | `live_slot` |
+|---|---|---|
+| the live version | `published` | `1` |
+| every other version | `draft` / `archived` / `discarded` | `NULL` |
+
+NULLs are distinct in a unique index on every supported database, so any
+number of drafts may carry NULL while only one row may carry `1`. The second
+activation of a race is refused by the database, its transaction rolls back,
+and the operator sees an error instead of a workspace with two live versions.
+
+Two rules keep the column honest:
+
+- The column is written **in the same statement** as the status, so the two
+  cannot drift apart.
+- The column is **never read** to decide which version is live. The status is
+  the truth; the column is the constraint. `Active()` reads the status.
+
+`internal/db.Migrate` installs the guarantee in the order that makes it safe
+on an install that already broke the rule:
+
+1. **before** the schema changes, a workspace that published twice is
+   repaired: the newer version keeps the workspace live, the older one is
+   archived. The unique index cannot be created while two rows claim the
+   slot, and an install that cannot be migrated would refuse to start.
+2. the schema changes add the column and the index.
+3. **after** the schema changes, the live version takes the slot and every
+   other row releases it.
+
+The repair is idempotent: once the index exists, a workspace cannot hold two
+published rows, so the repair finds nothing to do.
 
 ---
 

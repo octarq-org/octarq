@@ -25,6 +25,10 @@ var ErrNotFound = errors.New("agentstore: harness spec not found")
 // current state — discarding a live version, for instance.
 var ErrInvalidState = errors.New("agentstore: harness version is not in a state that allows this")
 
+// harnessLiveSlot is the value the live-slot column carries on the workspace's
+// one live version. Every other row carries NULL.
+const harnessLiveSlot = 1
+
 // HarnessStore reads and writes the harness versions of a workspace.
 type HarnessStore struct {
 	db *gorm.DB
@@ -122,20 +126,33 @@ func (s *HarnessStore) Activate(ctx context.Context, orgID, id, actorID uint) (*
 		}
 
 		// Archive every live version of the workspace, whatever its name.
+		//
+		// The live slot is released in the same statement: the database
+		// enforces "one live version per workspace" through that column, and
+		// a row that keeps the slot after it is archived would block the
+		// next activation.
 		if err := tx.Model(&models.AgentHarnessSpec{}).
 			Where("owner_id = ? AND status = ?", orgID, models.AgentHarnessStatusPublished).
-			Update("status", models.AgentHarnessStatusArchived).Error; err != nil {
+			Updates(map[string]any{
+				"status":    models.AgentHarnessStatusArchived,
+				"live_slot": nil,
+			}).Error; err != nil {
 			return err
 		}
 
 		// The publish is conditional on the version still being publishable.
 		// A row that changed under us updates nothing, and the transaction
 		// rolls back rather than leaving the workspace without a live version.
+		//
+		// The live slot is taken in the same statement. Two activations that
+		// race cannot both take the slot: the second one is refused by the
+		// database and its transaction rolls back.
 		res := tx.Model(&models.AgentHarnessSpec{}).
 			Where("id = ? AND owner_id = ? AND status <> ?", id, orgID, models.AgentHarnessStatusDiscarded).
 			Updates(map[string]any{
 				"status":       models.AgentHarnessStatusPublished,
 				"published_at": &now,
+				"live_slot":    harnessLiveSlot,
 			})
 		if res.Error != nil {
 			return res.Error

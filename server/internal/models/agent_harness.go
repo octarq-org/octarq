@@ -16,7 +16,7 @@ type AgentHarnessSpec struct {
 	ID uint `gorm:"primaryKey" json:"id"`
 	// OrgID scopes the row to one workspace. The column is owner_id for
 	// consistency with the rest of the tenant-scoped tables.
-	OrgID uint   `gorm:"index:idx_agent_harness_org;uniqueIndex:idx_agent_harness_org_version;not null;column:owner_id" json:"orgId"`
+	OrgID uint   `gorm:"index:idx_agent_harness_org;uniqueIndex:idx_agent_harness_org_version;uniqueIndex:idx_agent_harness_live_slot;not null;column:owner_id" json:"orgId"`
 	Name  string `gorm:"size:64;not null" json:"name"`
 	// Version counts up within the workspace. The (workspace, version) pair is
 	// unique: two admins publishing at the same moment must not produce two
@@ -28,6 +28,20 @@ type AgentHarnessSpec struct {
 	Fingerprint string `gorm:"size:64;index;not null" json:"fingerprint"`
 	// Status is one of draft / published / archived / discarded.
 	Status string `gorm:"size:16;not null;index" json:"status"`
+	// LiveSlot marks the row that occupies the workspace's single live slot:
+	// 1 for the live version, NULL for every other row.
+	//
+	// It exists so the database can refuse a second live version. A status
+	// column cannot carry that rule — "published" is a value many rows may
+	// hold — but a nullable column inside a unique index on
+	// (owner_id, live_slot) can: NULLs are distinct on every supported
+	// database, so any number of drafts may carry NULL while only one row may
+	// carry 1.
+	//
+	// The column is written in the same statement as the status and is never
+	// read to decide which version is live. The status is the truth; this is
+	// the constraint.
+	LiveSlot *int `gorm:"column:live_slot;uniqueIndex:idx_agent_harness_live_slot" json:"-"`
 	// Evidence is the JSON document that justifies this version, when it came
 	// from somewhere else — an offline lab proposal, for instance. Empty when
 	// a human wrote the spec themselves.
