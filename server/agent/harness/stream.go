@@ -85,12 +85,15 @@ func (r *defaultRunner) streamLoop(ctx context.Context, s *Session, t *Turn, sp 
 		t.OutputTokens += resp.OutputTokens
 		t.ReasoningTokens += resp.ReasoningTokens
 
-		calls, remaining := collector.extractToolCalls()
+		calls, remaining, invalid := collector.parsePlan()
 		if len(calls) == 0 {
-			calls, remaining, _ = parseToolCalls(collector.fullText())
-		}
-
-		if len(calls) == 0 {
+			if len(invalid) > 0 {
+				// The model tried to call a tool and got the format wrong.
+				// Tell it so instead of ending the turn on a call it
+				// believes it made. The non-streaming path does the same.
+				reportInvalidCalls(s, collector.fullText(), invalid)
+				continue
+			}
 			// No tool calls — the turn is done.
 			s.History = append(s.History, Message{Role: "assistant", Content: collector.fullText()})
 			t.Status = TurnStatusDone
@@ -98,7 +101,7 @@ func (r *defaultRunner) streamLoop(ctx context.Context, s *Session, t *Turn, sp 
 		}
 
 		// Execute each tool call.
-		if err := r.executeSteps(ctx, s, t, step, calls, remaining); err != nil {
+		if err := r.executeSteps(ctx, s, t, step, calls, remaining, invalid); err != nil {
 			if errors.Is(err, ErrApprovalRequired) {
 				t.Status = TurnStatusAwaitingApproval
 				return err
@@ -190,25 +193,59 @@ func (c *streamCollector) fullText() string {
 	return c.text.String()
 }
 
-func (c *streamCollector) extractToolCalls() ([]toolCall, string) {
+// parsePlan reads the accumulated stream into the calls to run, the text to
+// keep in the history, and the calls the model wrote wrongly.
+//
+// A provider that streams tool calls natively is the only source of calls.
+// The fenced block is read only when the provider streamed no call, so a call
+// is never run twice. The arguments of a native call go through the same
+// normalization as a fenced call: a call whose arguments are not an object
+// is a call the model wrote wrongly, not a call that runs.
+func (c *streamCollector) parsePlan() ([]toolCall, string, []string) {
+	calls, invalid := c.extractToolCalls()
+	if len(calls) > 0 || len(invalid) > 0 {
+		return calls, c.text.String(), invalid
+	}
+	calls, remaining, invalid := parseToolCalls(c.text.String())
+	return calls, remaining, invalid
+}
+
+// extractToolCalls returns the calls the provider streamed, and the calls it
+// streamed wrongly. A call without a name, or with arguments that are not a
+// JSON object, is reported instead of run.
+func (c *streamCollector) extractToolCalls() ([]toolCall, []string) {
 	if len(c.toolCalls) == 0 {
-		return nil, c.text.String()
+		return nil, nil
 	}
 	var calls []toolCall
+	var invalid []string
 	for _, idx := range c.order {
 		tc := c.toolCalls[idx]
-		if tc.name != "" {
-			// The provider streams the arguments as a JSON object; a tool
-			// without arguments arrives as an empty string.
-			args := strings.TrimSpace(tc.argsJSON.String())
-			if args == "" {
-				args = "{}"
-			}
-			calls = append(calls, toolCall{
-				Name:     tc.name,
-				ArgsJSON: json.RawMessage(args),
-			})
+		if tc.name == "" {
+			invalid = append(invalid, rejectedCallLine("", tc.argsJSON.String()))
+			continue
 		}
+		// The provider streams the arguments as a JSON object; a tool
+		// without arguments arrives as an empty string.
+		args, ok := normalizeToolArgs(json.RawMessage(tc.argsJSON.String()))
+		if !ok {
+			invalid = append(invalid, rejectedCallLine(tc.name, tc.argsJSON.String()))
+			continue
+		}
+		calls = append(calls, toolCall{
+			Name:     tc.name,
+			ArgsJSON: args,
+		})
 	}
-	return calls, c.text.String()
+	return calls, invalid
+}
+
+// rejectedCallLine renders a call the model wrote wrongly, in the shape the
+// notice quotes back to it.
+func rejectedCallLine(name, args string) string {
+	trimmed := strings.TrimSpace(args)
+	if trimmed == "" {
+		trimmed = "{}"
+	}
+	return fmt.Sprintf(`{"name":%q,"args":%s}`, name, trimmed)
 }

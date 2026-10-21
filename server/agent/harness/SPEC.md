@@ -156,6 +156,22 @@ The model reaches a tool through one fenced block per turn:
   untrusted fence instead of being dropped. A silently dropped call would
   leave the model believing it had acted.
 
+**One rule, two transports.** The streaming path and the non-streaming path
+are the same loop; only the transport differs. They must agree on every rule
+above:
+
+| Situation | Non-streaming | Streaming |
+|---|---|---|
+| A call in a fenced block does not parse | reported to the model | reported to the model |
+| A call the provider streams has arguments that are not an object | not applicable | reported to the model |
+| A call the provider streams has no tool name | not applicable | reported to the model |
+| A call in a block does not parse while another call in the same block runs | reported to the model | reported to the model |
+
+A provider that streams tool calls natively is the only source of calls in
+that turn; the fenced block is read only when the provider streamed no call,
+so a call is never run twice. The arguments of a streamed call go through the
+same normalization as a fenced call.
+
 The system prompt is **compiled on the server** (`Catalog.SystemPrompt`) and
 never accepted from the client. It states four things:
 
@@ -343,6 +359,21 @@ The web assistant records the trace into the audit log (`action = agent.turn`,
 fingerprint, the model, the token totals and one entry per step. Tool
 arguments and tool output are **not** persisted: they may carry workspace
 data and belong to the session.
+
+The step list is built from the trace, not from the turn. The turn knows that
+a step failed; the trace knows **how** it ended:
+
+| Outcome | Meaning |
+|---|---|
+| `ok` | the tool ran and returned |
+| `error` | the tool ran and failed |
+| `denied` | the policy refused the tool; it never ran |
+| `blocked` | the tool needs operator approval; the turn stopped |
+
+A row that records only "failed" cannot tell a policy decision from a broken
+tool, and an operator cannot act on that difference. The audit entry of a
+step therefore carries the tool name, the outcome, the duration and the
+stable error code of the step, when there is one.
 
 The trace is what makes a turn comparable across harness versions — the raw
 material for any later offline analysis.

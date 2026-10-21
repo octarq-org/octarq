@@ -379,6 +379,41 @@ func TestParseToolCalls_EdgeCases(t *testing.T) {
 	}
 }
 
+// A call the model wrote wrongly is reported even when another call in the
+// same block did run: the model must learn about both.
+func TestRunner_InvalidCallIsReportedAlongsideTheValidOne(t *testing.T) {
+	t.Parallel()
+
+	comp := &fakeCompleter{
+		responses: []string{
+			"```tool_call\n{\"name\":\"lookup\",\"args\":{}}\nnot json at all\n```",
+			"final answer",
+		},
+	}
+	exec := &fakeExecutor{
+		outputs: map[string]string{"lookup": "ok"},
+		errs:    map[string]error{},
+	}
+
+	runner := NewRunner(comp, exec)
+	sess := &Session{ID: "sess-mixed", OrgID: 1}
+	turn := &Turn{Input: "look up user 123"}
+
+	if err := runner.Run(context.Background(), sess, turn); err != nil {
+		t.Fatalf("unexpected runner error: %v", err)
+	}
+	if len(exec.calls) != 1 || exec.calls[0] != "lookup" {
+		t.Fatalf("expected only the valid call to run, got %v", exec.calls)
+	}
+	notice := lastToolMessage(sess)
+	if !strings.Contains(notice, "was not executed") {
+		t.Fatalf("the model was not told that its call did not run: %q", notice)
+	}
+	if !strings.Contains(notice, "not json at all") {
+		t.Fatalf("the model was not told what it sent: %q", notice)
+	}
+}
+
 // A harness spec may tighten the step ceiling, never raise it: the profile's
 // ceiling is a safety invariant.
 func TestRunner_WithMaxStepsOnlyTightens(t *testing.T) {
