@@ -2,6 +2,76 @@
 
 All notable changes to this project are documented here.
 
+## [0.8.0] - 2026-10-21
+
+### 🚀 Features
+
+- **web**: Support draft staging, proposals, and lessons ledger in harness admin (#707)
+- **agent/lab**: Emit importable draft proposal JSON from harness lab (#704)
+- **plugin**: Expose the workspace's published harness to plugins (#702)
+- **harness**: Stage drafts, import proposals and keep the improvement ledger (#701)
+- **agent/lab**: Offline deterministic harness lab and agent-lab CLI (#699)
+- **web**: Add the agent harness admin page (#700)
+- **harness**: Expose the tool section on its own (#697)
+- **harness**: Publish, list and roll back the workspace harness spec (#696)
+- **harness**: Add the versioned harness spec and compile prompts from it (#695)
+- **harness**: Compile the agent tool catalog and system prompt from the registry (#694)
+- **plugin-sdk**: Add a single load-failure surface (#692)
+- **export**: Support one-click tenant data zip export and gdpr compliance (#683)
+- **backup**: Support automated encrypted remote backups to S3 and Cloudflare R2 (#685)
+- **telemetry**: Enable zero-config standard prometheus metrics format by default (#684)
+- **web**: Add command palette quick actions and inline AI copilot drawer (#682)
+- **mcp**: Support agent service accounts with allowed tools whitelist (#681)
+
+### 📦 Other
+
+- **links**: Surface a failed list load instead of "no links yet" (#690)
+- **web**: Surface failed overview and inbox loads (#689)
+- **webhooks**: Add loading and error states to outbound webhook list (#686)
+
+### 🐛 Bug Fixes
+
+- **api**: Return the harness spec in full (#718)
+- **harness/lab**: One name per proposal, and evidence that names the imported spec (#713)
+- **harness**: Let the database refuse a second live version (#711)
+- **harness**: Report what the agent could not do (#710)
+- **harness**: Enforce the published harness instead of advertising it (#709)
+- **auth**: Stop the sign-up page from revealing which addresses have an account (#708)
+- **harness**: Keep harness version numbers unique per workspace (#703)
+- **harness**: Name the author of a published harness version (#698)
+- **deps**: Bump Go to 1.26.9 and x/net, x/text, grpc, otlptracegrpc to clear govulncheck (#691)
+- **ci**: Authenticate the dist refresh with PAT_GITHUB and gate CI on it (#688)
+- **ci**: Fail loudly when a repository rule blocks the dist refresh (#687)
+
+### ♻️ Refactor
+
+- **i18n**: Simplify the remaining page copy (#716)
+- **i18n**: Simplify personal, overview, and copilot page copy under ASD-STE100 (#717)
+- **web**: Simplify settings and instance console copy to ASD-STE100 (#715)
+- **i18n**: Simplify common copy to state and action under ASD-STE100 (#714)
+
+### 📚 Documentation
+
+- **help**: Add the agent harness help page (#712)
+
+### 🧪 Testing
+
+- **harness**: Cover the store's refusals, the lab's helpers and the API's error paths (#706)
+- **harness**: Pin the lab proposal to the import contract (#705)
+
+### 🧹 Chores
+
+- **web**: Refresh embedded dashboard build [auto]
+- **web**: Refresh embedded dashboard build [auto]
+- **web**: Refresh embedded dashboard build [auto]
+- **web**: Refresh embedded dashboard build [auto]
+- **web**: Refresh embedded dashboard build [auto]
+- **web**: Refresh embedded dashboard build [auto]
+- **web**: Refresh embedded dashboard build [auto]
+- **web**: Refresh embedded dashboard build [auto]
+- **web**: Refresh embedded dashboard build [auto]
+- **web**: Refresh embedded dashboard build [auto]
+
 ## [0.7.0] - 2026-10-17
 
 ### 🚀 Features
