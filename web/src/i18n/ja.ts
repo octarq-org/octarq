@@ -64,7 +64,7 @@ export const ja = {
     password: "パスワード",
     passwordRegisterPlaceholder: "8文字以上",
     authCode: "認証コード",
-    twoFactorOAuthDesc: "このアカウントは二要素認証が有効です。認証アプリのコードを入力してサインインを完了してください。",
+    twoFactorOAuthDesc: "このアカウントは二要素認証を使用しています。認証アプリのコードを入力してください。",
     authCodePlaceholder: "6桁のコードまたはリカバリーコード",
     creating: "作成中…",
     signingIn: "サインイン中…",
@@ -102,7 +102,7 @@ export const ja = {
     },
     chat: {
       askAi: "AI に質問",
-      placeholder: "AI に何でも質問…（Enter で送信、Esc で検索に戻る）",
+      placeholder: "AI に質問…",
       send: "送信",
       stop: "停止",
       thinking: "思考中",
@@ -184,7 +184,7 @@ export const ja = {
     submit: "パスワードをリセット",
     resetting: "リセット中…",
     successHeading: "パスワードのリセットが完了しました",
-    successBody: "パスワードを更新しました。サインイン画面に移動します…",
+    successBody: "パスワードを更新しました。もう一度サインインしてください。",
     noTokenWarning: "パスワードリセットのリンクが無効か、見つかりません。",
     errTokenMissing: "リンクにリセットトークンが含まれていません。",
     errPasswordTooShort: "パスワードは 8 文字以上にしてください。",
@@ -192,9 +192,9 @@ export const ja = {
     errResetFailed: "パスワードをリセットできませんでした。新しいリンクをリクエストして再試行してください。",
   },
   export: {
-    title: "データの主権とエクスポート",
-    desc: "ワークスペースの全資産データをいつでもダウンロードできます。すべての短縮リンク、DNS設定、メールルーティング、監査ログをポータブルなCSV/JSON ZIPアーカイブとして含みます。",
-    button: "全データをエクスポート (.zip)",
+    title: "ワークスペースデータをエクスポート",
+    desc: "すべてのワークスペースデータを1つのZIPファイルとしてダウンロードします。ファイルには短縮リンク、DNSレコード、メールルーティング、監査ログが含まれます。",
+    button: "すべてのデータをエクスポート (.zip)",
     downloading: "ZIPパッケージを生成中…",
   },
   footer: {
@@ -207,7 +207,7 @@ export const ja = {
   status: {
     loadingSystemStatus: "システム状態を読み込み中…",
     title: "システムステータス",
-    desc: "Octarq サービスおよびサブシステムのリアルタイムステータス",
+    desc: "Octarq サービスの現在のステータス",
     allSystemsOperational: "すべてのシステムが正常に稼働中",
     someSystemsDegraded: "一部のシステムでパフォーマンスが低下",
     majorOutage: "大規模な障害が発生中",
