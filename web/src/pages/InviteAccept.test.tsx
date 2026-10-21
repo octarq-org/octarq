@@ -27,7 +27,7 @@ describe("InviteAcceptPage suite", () => {
   it("renders warning and disables submit button when token is missing", async () => {
     renderInviteAccept("/invite/accept");
 
-    expect(await screen.findByText(/no token found in url/i)).toBeTruthy();
+    expect(await screen.findByText(/invalid or missing invitation link/i)).toBeTruthy();
     const submitBtn = screen.getByRole("button", { name: /activate account/i });
     expect(submitBtn.getAttribute("disabled")).not.toBeNull();
   });
@@ -35,7 +35,7 @@ describe("InviteAcceptPage suite", () => {
   it("renders password inputs when valid invite token is provided", async () => {
     renderInviteAccept("/invite/accept?token=invite-token-123");
 
-    expect(screen.queryByText(/no token found in url/i)).toBeNull();
+    expect(screen.queryByText(/invalid or missing invitation link/i)).toBeNull();
     expect(screen.getByText(/^new password$/i)).toBeTruthy();
     expect(screen.getByText(/^confirm password$/i)).toBeTruthy();
     expect(screen.getByPlaceholderText(/at least 8 characters/i)).toBeTruthy();
@@ -54,7 +54,7 @@ describe("InviteAcceptPage suite", () => {
     fireEvent.change(confirmInput, { target: { value: "short" } });
     fireEvent.click(screen.getByRole("button", { name: /activate account/i }));
 
-    expect(await screen.findByText(/password must be at least 8 characters long/i)).toBeTruthy();
+    expect(await screen.findByText(/password must be at least 8 characters/i)).toBeTruthy();
   });
 
   it("validates that passwords match", async () => {
@@ -84,7 +84,7 @@ describe("InviteAcceptPage suite", () => {
     await waitFor(() => {
       expect(acceptSpy).toHaveBeenCalledWith("valid-invite-abc", "memberPassword123");
       expect(screen.getByText(/account activated/i)).toBeTruthy();
-      expect(screen.getByText(/your account is ready/i)).toBeTruthy();
+      expect(screen.getByText(/your account is active/i)).toBeTruthy();
     });
   });
 
@@ -117,7 +117,7 @@ describe("InviteAcceptPage suite", () => {
 
     await waitFor(() => {
       expect(submitBtn.getAttribute("disabled")).not.toBeNull();
-      expect(screen.getByRole("button", { name: /activating account\.\.\./i })).toBeTruthy();
+      expect(screen.getByRole("button", { name: /activating account/i })).toBeTruthy();
     });
 
     resolveAccept({ ok: true });
