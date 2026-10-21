@@ -59,7 +59,7 @@ describe("Tenant subdomain settings UI", () => {
       </I18nProvider>,
     );
     await waitFor(() => {
-      expect(screen.getByText("Tenant address")).not.toBeNull();
+      expect(screen.getByText("Workspace subdomain")).not.toBeNull();
     });
     // The address itself renders inside the click-to-copy Code element.
     expect(await screen.findByText("acme.app.example.com")).not.toBeNull();

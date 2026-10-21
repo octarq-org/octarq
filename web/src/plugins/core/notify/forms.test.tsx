@@ -302,14 +302,14 @@ describe("Notify & Alerts Forms", () => {
 
       // Confirm dialog appears
       await waitFor(() => {
-        expect(screen.getByText("Delete this notification channel?")).toBeDefined();
+        expect(screen.getByText("Delete this alert channel?")).toBeDefined();
       });
 
       const confirmBtn = screen.getByRole("button", { name: "Confirm" });
       fireEvent.click(confirmBtn);
 
       await waitFor(() => {
-        expect(screen.queryByText("Delete this notification channel?")).toBeNull();
+        expect(screen.queryByText("Delete this alert channel?")).toBeNull();
       });
     });
   });

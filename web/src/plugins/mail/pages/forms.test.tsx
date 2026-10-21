@@ -443,14 +443,14 @@ describe("Mail Forms", () => {
       fireEvent.click(removeBtn);
 
       await waitFor(() => {
-        expect(screen.getByText("Remove this SMTP sender config? Outbound mail relying on it will fail to send.")).toBeDefined();
+        expect(screen.getByText("Remove this SMTP sender config? Outbound mail relying on it fails to send.")).toBeDefined();
       });
 
       const confirmBtn = screen.getByRole("button", { name: "Confirm" });
       fireEvent.click(confirmBtn);
 
       await waitFor(() => {
-        expect(screen.queryByText("Remove this SMTP sender config? Outbound mail relying on it will fail to send.")).toBeNull();
+        expect(screen.queryByText("Remove this SMTP sender config? Outbound mail relying on it fails to send.")).toBeNull();
       });
     });
   });
