@@ -124,6 +124,7 @@
     ],
     "toolAllow": [
       "create_link",
+      "get_node_metrics",
       "lookup_domain"
     ],
     "maxSteps": 4
@@ -135,7 +136,7 @@
     "baselineFingerprint": "520041f72dfeff30e0a4c6469dc33e5066315f4a42e8bd0af1ce3a6a6bd93a29",
     "candidateFingerprint": "3a0811b9a7e5da3bca67bef3b9536926ad4703642c3da450cfa41f79b0fb7fd1",
     "successRate": 1,
-    "toolErrors": 0,
+    "toolErrors": 1,
     "totalSteps": 3,
     "estimatedTokens": 1692
   }
