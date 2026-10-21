@@ -1,0 +1,82 @@
+---
+title: Agent harness
+description: Author, inspect, diff, and activate the runtime specification of the workspace agent.
+category: settings
+order: 60
+---
+
+The agent harness sets the rules the workspace agent runs under. Every request uses the live version.
+
+## Overview
+
+A workspace has one live harness version. A workspace that never activated a version runs the built-in default specification.
+
+**Workspace → Agent Harness** opens the management page.
+
+## Versions and Drafts
+
+A version is a specification of the agent. The management page keeps every version: the live one, the drafts, and the archived ones.
+
+Update the agent specification in three stages:
+
+1. **Stage a draft**: Create a draft with the new preamble, rules, tools, and step limit.
+2. **Review diffs**: Compare the draft with the live version.
+3. **Activate**: Make the reviewed version live.
+
+Activating a version archives the version that was live. Discard a draft from the version actions menu. A discarded draft cannot be restored.
+
+## Tool Allowlist
+
+The tool allowlist names the tools the agent may call.
+
+- **Empty list**: The agent may call every tool the session allows.
+- **List with names**: The agent may call only the tools on the list.
+
+Separate the tool names with commas or newlines.
+
+## Maximum Steps
+
+The maximum steps setting limits the tool calls the agent may make in one request.
+
+- The allowed range is 1 to 8 steps.
+- The editor starts at 6 steps.
+
+A lower limit stops a runaway loop and costs less.
+
+## Extra Rules
+
+Extra rules add instructions to the agent prompt.
+
+Use them for the output format, the response language, or the rules of a domain. Extra rules cannot remove or bypass the built-in instructions.
+
+## Lessons Ledger
+
+The lessons ledger records what the workspace learned about its agent.
+
+Each entry has a scope, a note, and optional JSON evidence. An entry is a suggestion, an adopted lesson, or a dismissed lesson.
+
+Dismiss a lesson you do not need. A dismissed lesson stays in the ledger for the record.
+
+A lesson does not change the agent by itself. Write the lesson into a draft and activate that version to put it into effect.
+
+## Import Proposals
+
+Import a harness proposal into the workspace.
+
+Upload a proposal JSON file or paste the JSON into the import dialog. The import creates a new draft. An import never activates the proposal.
+
+Review the draft and activate the version.
+
+## Access Permissions
+
+Managing the agent harness needs the workspace admin role.
+
+Members without the admin role see a notice that the page needs a workspace admin.
+
+## Harness Boundaries
+
+A harness only tightens the rules of the agent.
+
+- It cannot grant a tool that the session denies.
+- It cannot set the step limit above 8.
+- It cannot remove the built-in instructions.
