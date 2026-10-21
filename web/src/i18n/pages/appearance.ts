@@ -1,7 +1,7 @@
 export const appearance = {
   en: {
     title: "Appearance",
-    subtitle: "How the dashboard looks for you — these settings follow your account, not the workspace",
+    subtitle: "Dashboard appearance settings. These settings apply to your account, not the workspace.",
     themeTitle: "Theme",
     themeDesc: "Light is the default. Dark applies across every page and plugin.",
     themeLight: "Light",
@@ -15,7 +15,7 @@ export const appearance = {
   },
   zh: {
     title: "外观",
-    subtitle: "后台在你这里的显示方式 —— 这些设置跟随账号，不属于工作区",
+    subtitle: "控制台外观设置。这些设置跟随个人账号，不影响工作区。",
     themeTitle: "主题",
     themeDesc: "默认浅色。深色对所有页面与插件生效。",
     themeLight: "浅色",
@@ -29,7 +29,7 @@ export const appearance = {
   },
   es: {
     title: "Apariencia",
-    subtitle: "Cómo se ve el panel para ti: estos ajustes siguen a tu cuenta, no al espacio de trabajo",
+    subtitle: "Ajustes de apariencia del panel. Esta configuración se aplica a su cuenta, no al espacio de trabajo.",
     themeTitle: "Tema",
     themeDesc: "El claro es el predeterminado. El oscuro se aplica a todas las páginas y complementos.",
     themeLight: "Claro",
@@ -43,7 +43,7 @@ export const appearance = {
   },
   pt: {
     title: "Aparência",
-    subtitle: "Como o painel aparece para você — estas configurações seguem sua conta, não o espaço de trabalho",
+    subtitle: "Ajustes de aparência do painel. Estas configurações se aplicam à sua conta, não ao workspace.",
     themeTitle: "Tema",
     themeDesc: "O claro é o padrão. O escuro se aplica a todas as páginas e plugins.",
     themeLight: "Claro",
@@ -57,7 +57,7 @@ export const appearance = {
   },
   ja: {
     title: "外観",
-    subtitle: "ダッシュボードの表示方法。これらの設定はワークスペースではなくアカウントに従います",
+    subtitle: "ダッシュボードの外観設定。これらの設定はアカウントに適用され、ワークスペースには影響しません。",
     themeTitle: "テーマ",
     themeDesc: "デフォルトはライトです。ダークはすべてのページとプラグインに適用されます。",
     themeLight: "ライト",

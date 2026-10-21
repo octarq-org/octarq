@@ -50,7 +50,7 @@ describe("InboxPage — failed load", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Failed to load notifications.")).toBeTruthy();
+    expect(await screen.findByText("Could not load notifications. Try again.")).toBeTruthy();
     expect(screen.queryByText("Inbox is empty")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
@@ -69,6 +69,6 @@ describe("InboxPage — failed load", () => {
     renderPage();
 
     expect(await screen.findByText("Inbox is empty")).toBeTruthy();
-    expect(screen.queryByText("Failed to load notifications.")).toBeNull();
+    expect(screen.queryByText("Could not load notifications. Try again.")).toBeNull();
   });
 });
