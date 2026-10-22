@@ -1,14 +1,17 @@
 package crypto
 
 import (
+	"errors"
+	"strings"
 	"sync"
 	"testing"
 )
 
 // memStore is an in-memory SecretStore for envelope tests.
 type memStore struct {
-	mu sync.Mutex
-	m  map[string]string
+	mu        sync.Mutex
+	m         map[string]string
+	encrypted bool // what HasEncryptedValues reports
 }
 
 func newMemStore() *memStore { return &memStore{m: map[string]string{}} }
@@ -26,6 +29,8 @@ func (s *memStore) Set(k, v string) error {
 	s.m[k] = v
 	return nil
 }
+
+func (s *memStore) HasEncryptedValues() (bool, error) { return s.encrypted, nil }
 
 func TestEnvelopePersistsDEK(t *testing.T) {
 	store := newMemStore()
@@ -74,5 +79,36 @@ func TestWrongMasterFailsToUnwrap(t *testing.T) {
 	if err := New("wrong").EnableEnvelope(store); err == nil {
 		t.Fatal("expected EnableEnvelope to fail unwrapping the DEK with the wrong master")
 		return
+	}
+}
+
+func TestEnvelopeRefusesANewDEKWhenCiphertextExists(t *testing.T) {
+	store := newMemStore()
+	store.encrypted = true
+
+	c := New("master")
+	err := c.EnableEnvelope(store)
+	if !errors.Is(err, ErrDEKMissing) {
+		t.Fatalf("EnableEnvelope error = %v, want ErrDEKMissing", err)
+	}
+	if _, ok := store.Get(dekSettingKey); ok {
+		t.Fatal("EnableEnvelope saved a DEK although it refused to create one")
+	}
+	if _, err := c.Encrypt([]byte("token")); err == nil {
+		t.Fatal("Encrypt worked although the envelope never loaded")
+	}
+}
+
+type probeErrorStore struct{ memStore }
+
+func (s *probeErrorStore) HasEncryptedValues() (bool, error) {
+	return false, errors.New("settings table is locked")
+}
+
+func TestEnvelopeReportsAProbeFailure(t *testing.T) {
+	c := New("master")
+	err := c.EnableEnvelope(&probeErrorStore{memStore: *newMemStore()})
+	if err == nil || !strings.Contains(err.Error(), "settings table is locked") {
+		t.Fatalf("EnableEnvelope error = %v, want the probe failure", err)
 	}
 }

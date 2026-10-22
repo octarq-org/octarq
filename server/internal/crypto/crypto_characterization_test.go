@@ -20,6 +20,8 @@ func (m *memStore) Set(key, val string) error {
 	return nil
 }
 
+func (m *memStore) HasEncryptedValues() (bool, error) { return false, nil }
+
 func TestCryptoCharacterizationUninitialized(t *testing.T) {
 	c := crypto.New("test-master-secret-12345")
 

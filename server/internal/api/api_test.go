@@ -341,6 +341,10 @@ func (s apiEnvStore) Set(key, val string) error {
 	return s.db.Save(&models.Setting{Key: key, Value: val}).Error
 }
 
+func (s apiEnvStore) HasEncryptedValues() (bool, error) {
+	return models.HasEncryptedValues(s.db)
+}
+
 func TestTokenLifecycleAndBearerAuth(t *testing.T) {
 	srv, _ := newTestHandler(t)
 

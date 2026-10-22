@@ -18,17 +18,17 @@ const (
 	keyReservedMailboxes        = "reserved_mailboxes"
 	keyCatchAll                 = "catch_all"
 	keyGoogleClientID           = "oauth.google.client_id"
-	keyGoogleClientSecret       = "oauth.google.client_secret" // stored AES-GCM encrypted
+	keyGoogleClientSecret       = models.SettingGoogleClientSecret // stored AES-GCM encrypted
 	keyGitHubClientID           = "oauth.github.client_id"
-	keyGitHubClientSecret       = "oauth.github.client_secret" // stored AES-GCM encrypted
-	keyDataRetentionDays        = "data_retention_days"        // 0 = disabled
+	keyGitHubClientSecret       = models.SettingGitHubClientSecret // stored AES-GCM encrypted
+	keyDataRetentionDays        = "data_retention_days"            // 0 = disabled
 	keyAutoWrapLinks            = "auto_wrap_links"
-	keyAllowRegistration        = "allow_registration" // "false" disables public sign-up; default on
-	keyAppName                  = "app_name"           // UI product name; empty = config.DefaultAppName
-	keyBrandLogo                = "brand_logo"         // white-label logo (URL or data URI); empty = gradient initial
-	keyBrandColor               = "brand_color"        // white-label primary accent hex; empty = default indigo
-	keyBrandColor2              = "brand_color_2"      // white-label secondary accent hex; empty = default violet
-	keyMetricsToken             = "metrics_token"      // /metrics bearer; stored AES-GCM encrypted; empty = loopback-only
+	keyAllowRegistration        = "allow_registration"       // "false" disables public sign-up; default on
+	keyAppName                  = "app_name"                 // UI product name; empty = config.DefaultAppName
+	keyBrandLogo                = "brand_logo"               // white-label logo (URL or data URI); empty = gradient initial
+	keyBrandColor               = "brand_color"              // white-label primary accent hex; empty = default indigo
+	keyBrandColor2              = "brand_color_2"            // white-label secondary accent hex; empty = default violet
+	keyMetricsToken             = models.SettingMetricsToken // /metrics bearer; stored AES-GCM encrypted; empty = loopback-only
 	keyRatelimitAuthRPM         = "ratelimit_auth_rpm"
 	keyRatelimitAPIRPM          = "ratelimit_api_rpm"
 	keyRatelimitRedirRPM        = "ratelimit_redirect_rpm"

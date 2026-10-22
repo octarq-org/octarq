@@ -217,7 +217,7 @@ func TestCoverageLift_GatedAdapter_AbortHandlerPanic(t *testing.T) {
 
 func TestCoverageLift_NotificationConfigDecryptor(t *testing.T) {
 	a := bootApp(t)
-	_ = a.gdb.AutoMigrate(&models.Setting{})
+	_ = a.gdb.AutoMigrate(&models.Setting{}, &models.NotificationChannel{}, &models.Webhook{}, &models.User{})
 	if err := a.cipher.EnableEnvelope(settingsStore{a.gdb}); err != nil {
 		t.Fatalf("EnableEnvelope failed: %v", err)
 	}

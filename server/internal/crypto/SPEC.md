@@ -14,6 +14,7 @@
 - **Uninitialized Envelope**: Invoking `Encrypt` or `Decrypt` prior to `EnableEnvelope` fails closed with error `"crypto: envelope not initialized"`.
 - **Ciphertext Integrity**: Tampered ciphertexts or truncated data return errors without panicking.
 - **Constant-Time Verification**: `Verify` uses `hmac.Equal` to prevent timing attacks.
+- **Lost DEK With Live Ciphertext**: When the `crypto.dek` row is missing, `EnableEnvelope` asks the store whether the database still holds ciphertext (`SecretStore.HasEncryptedValues`: encrypted settings keys, notification channel configs, webhook secrets, TOTP shared secrets). A `true` answer returns `ErrDEKMissing` and the boot stops. A fresh DEK in that state would leave every stored value unreadable with no error at the write site. No DEK row is written on that path, so a restart cannot paper over the problem.
 
 ## 4. Verification
 - Validated via unit tests, rotation tests, and `crypto_characterization_test.go` under `-race`.

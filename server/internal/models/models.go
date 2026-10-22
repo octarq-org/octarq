@@ -365,7 +365,7 @@ type NotificationChannel struct {
 	OrgID        uint            `gorm:"column:owner_id;index" json:"-"`
 	Name         string          `json:"name"`
 	Type         string          `json:"type"`                    // e.g. "telegram", "webhook"
-	Config       string          `json:"config" gorm:"type:text"` // AES-GCM encrypted JSON object at rest; readers MUST decrypt with failure fallback to raw string
+	Config       string          `json:"config" gorm:"type:text"` // AES-GCM encrypted JSON object at rest; a value that does not decrypt is an error, never a passthrough
 	ConfigSchema json.RawMessage `json:"configSchema,omitempty" gorm:"-"`
 	Enabled      bool            `json:"enabled" gorm:"default:true"`
 	CreatedAt    time.Time       `json:"createdAt"`

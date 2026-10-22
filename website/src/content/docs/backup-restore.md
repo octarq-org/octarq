@@ -82,3 +82,22 @@ a timer. Backups happen when you make them happen: wire `octarq backup` (plus
 the key files, §1) into your cron, Kubernetes CronJob, or backup agent, and test
 a restore before you need one. The [pre-launch checklist](/pre-launch/) treats
 this as a checklist item for a reason.
+
+## When the key and the data disagree
+
+Every stored credential is ciphertext under the key from §1. Two situations
+leave that ciphertext unreadable:
+
+- You restore a database without its key, or with a key from another install.
+  The values decrypt with the old key only.
+- You start the service on a fresh database that received the old rows but not
+  the old `settings` table.
+
+Octarq stops the start when the database still holds encrypted values but the
+key that decrypts them is missing. A new key would make every saved value
+unreadable without a word. The error names the values to check: notification
+channels, webhook secrets, two-factor authentication, and OAuth client secrets.
+
+To recover, restore the database and the key files together (§1), then start the
+service again. If you have no matching backup, delete the affected values and
+enter them again. The service encrypts the new values with the current key.

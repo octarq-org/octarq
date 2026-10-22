@@ -28,10 +28,19 @@ const dekSettingKey = "crypto.dek"
 // SecretStore is the minimal key/value access the envelope bootstrap needs to
 // persist the wrapped DEK. The app backs it with the settings table; keeping it
 // an interface avoids a gorm dependency here.
+//
+// HasEncryptedValues reports whether the backing database still holds a value
+// that only the DEK can read. EnableEnvelope asks before it creates a DEK, so a
+// lost key does not silently replace the one that decrypts saved data.
 type SecretStore interface {
 	Get(key string) (string, bool)
 	Set(key, val string) error
+	HasEncryptedValues() (bool, error)
 }
+
+// ErrDEKMissing reports that the wrapped DEK is absent while saved ciphertext
+// remains. A fresh DEK would make every stored value unreadable.
+var ErrDEKMissing = errors.New("crypto: the key that decrypts saved values is missing. Restore the database backup taken before the upgrade, or set the affected values again: notification channels, webhook secrets, two-factor authentication, and OAuth client secrets")
 
 // Cipher encrypts secrets at rest (under the DEK) and signs session cookies
 // (under the KEK). The KEK is derived from OCTARQ_SECRET_KEY; the DEK is loaded by
@@ -50,6 +59,10 @@ func New(secret string) *Cipher {
 
 // EnableEnvelope loads the wrapped DEK from the store (generating a fresh random
 // one on first run). Idempotent.
+//
+// A missing DEK on a database that still holds ciphertext stops the boot: the
+// operator restores the key or clears the values, and no stored value becomes
+// unreadable behind their back.
 func (c *Cipher) EnableEnvelope(store SecretStore) error {
 	if wrapped, ok := store.Get(dekSettingKey); ok && wrapped != "" {
 		dek, err := c.unwrapDEK(wrapped)
@@ -59,6 +72,14 @@ func (c *Cipher) EnableEnvelope(store SecretStore) error {
 		c.dek = dek
 		c.ready = true
 		return nil
+	}
+
+	encrypted, err := store.HasEncryptedValues()
+	if err != nil {
+		return fmt.Errorf("crypto: read the encrypted values: %w", err)
+	}
+	if encrypted {
+		return ErrDEKMissing
 	}
 
 	// First run: generate a fresh DEK and persist it wrapped under the KEK.

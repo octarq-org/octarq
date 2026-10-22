@@ -33,6 +33,10 @@ func (s testEnvStore) Set(key, val string) error {
 	return s.db.Save(&models.Setting{Key: key, Value: val}).Error
 }
 
+func (s testEnvStore) HasEncryptedValues() (bool, error) {
+	return models.HasEncryptedValues(s.db)
+}
+
 func testManager(t *testing.T) *Manager {
 	t.Helper()
 	cfg := &config.Config{AdminUser: "admin", AdminPassword: "pw", SecretKey: "secret"}
