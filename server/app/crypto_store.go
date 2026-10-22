@@ -24,3 +24,10 @@ func (s settingsStore) Set(key, val string) error {
 		DoUpdates: clause.AssignmentColumns([]string{"value"}),
 	}).Create(&models.Setting{Key: key, Value: val}).Error
 }
+
+// HasEncryptedValues reports whether the database holds a value that only the
+// envelope DEK can read. The envelope bootstrap refuses to create a DEK while
+// this is true, because a fresh key would make every such value unreadable.
+func (s settingsStore) HasEncryptedValues() (bool, error) {
+	return models.HasEncryptedValues(s.db)
+}

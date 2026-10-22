@@ -181,6 +181,8 @@ func (s *mockSecretStore) Get(key string) (string, bool) {
 	return v, ok
 }
 
+func (s *mockSecretStore) HasEncryptedValues() (bool, error) { return false, nil }
+
 func (s *mockSecretStore) Set(key, val string) error {
 	s.m[key] = val
 	return nil

@@ -49,8 +49,9 @@ func TestUnwrapDEK_WrongLength(t *testing.T) {
 
 type errStore struct{}
 
-func (errStore) Get(string) (string, bool) { return "", false }
-func (errStore) Set(string, string) error  { return errors.New("db disk full") }
+func (errStore) Get(string) (string, bool)         { return "", false }
+func (errStore) Set(string, string) error          { return errors.New("db disk full") }
+func (errStore) HasEncryptedValues() (bool, error) { return false, nil }
 
 func TestEnableEnvelope_StoreSetError(t *testing.T) {
 	c := New("master-key")

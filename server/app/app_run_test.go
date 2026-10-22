@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/glebarez/sqlite"
+	"github.com/octarq-org/octarq/server/internal/crypto"
 	"github.com/octarq-org/octarq/server/internal/models"
 	"github.com/octarq-org/octarq/server/plugin"
 	"github.com/octarq-org/octarq/server/plugins/dns"
@@ -154,6 +155,31 @@ func TestRunEnableEnvelopeFailure(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "cannot unwrap DEK") {
 		t.Fatalf("Run = %v, want the DEK unwrap refusal", err)
+	}
+}
+
+// TestRunRefusesANewDEKWhenCiphertextExists pins the guard: a database that
+// still holds encrypted values but lost the DEK row stops the boot. A fresh DEK
+// would make every saved value unreadable without a word.
+func TestRunRefusesANewDEKWhenCiphertextExists(t *testing.T) {
+	a := bootApp(t)
+	if err := a.gdb.AutoMigrate(&models.NotificationChannel{}); err != nil {
+		t.Fatalf("migrate channels: %v", err)
+	}
+	if err := a.gdb.Create(&models.NotificationChannel{Name: "Ops", Type: "webhook", Config: "ciphertext"}).Error; err != nil {
+		t.Fatalf("seed channel: %v", err)
+	}
+
+	err := a.Run(context.Background())
+	if !errors.Is(err, crypto.ErrDEKMissing) {
+		t.Fatalf("Run = %v, want crypto.ErrDEKMissing", err)
+	}
+	var dekRows int64
+	if err := a.gdb.Model(&models.Setting{}).Where("key = ?", "crypto.dek").Count(&dekRows).Error; err != nil {
+		t.Fatalf("count DEK rows: %v", err)
+	}
+	if dekRows != 0 {
+		t.Fatal("Run saved a DEK although it refused to create one")
 	}
 }
 
