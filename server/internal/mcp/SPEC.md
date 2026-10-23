@@ -9,6 +9,7 @@ The `internal/mcp` package implements Octarq's Model Context Protocol (MCP) prov
 - **Tenant Scope Enforcement**: All tool and resource calls are strictly bound to a tenant org ID via `plugin.OrgIDFromContext(ctx)`. Absent workspace IDs in networked context immediately fail with `errNoOrgInContext` ("no workspace in this request").
 - **Zero General-Purpose Raw-SQL Invariant**: General raw SELECT queries are deliberately forbidden. Raw queries cannot safely enforce `owner_id` predicates across join boundaries or tables lacking tenant columns (`emails`).
 - **Networked Mount Isolation**: Plugins are mounted once at bootstrap. Networked MCP instances **never re-mount plugins**; re-mounting per connection would overwrite process-wide resolvers and leak cross-tenant context.
+- **Stdio Mount Contract**: `NewServerInstance` mounts plugins with no HTTP surface: `ctx.Huma` is nil, the mux is nil, and `ctx.Guard` is nil, because this transport serves no HTTP. Plugins **must skip HTTP registration** when that surface is absent, and keep their MCP tool registration (`RegisterMCP`) unconditional. A plugin that registers routes unconditionally panics the stdio server at startup.
 - **Resource Subscriptions & Live Updates**: Supports MCP push notifications (`notifications/resources/updated`) for streaming trending links and new incoming mailbox arrivals.
 - **Binary Embedding Guarantee**: Co-located at `server/internal/mcp/SPEC.md`. Strictly excluded from binary embedding.
 

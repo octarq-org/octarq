@@ -305,21 +305,29 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	if ctx != nil && ctx.Host != nil {
 		p.host = ctx.Host
 	}
-	huma.Register(ctx.Huma, huma.Operation{
+	// The MCP composition path mounts every plugin with no huma API: it wants
+	// the plugin's MCP tools, not its HTTP routes. This plugin has only HTTP
+	// routes, so it stops here. Without the guard the registrations below
+	// dereference a nil API and panic the MCP server at startup.
+	api := ctx.Huma
+	if api == nil {
+		return
+	}
+	huma.Register(api, huma.Operation{
 		OperationID: "listHelpDocs",
 		Method:      "GET",
 		Path:        "/api/help/docs",
 		Summary:     "List help docs",
 		Tags:        []string{"Help"},
 	}, p.listDocs)
-	huma.Register(ctx.Huma, huma.Operation{
+	huma.Register(api, huma.Operation{
 		OperationID: "listHelpCategories",
 		Method:      "GET",
 		Path:        "/api/help/categories",
 		Summary:     "List help categories",
 		Tags:        []string{"Help"},
 	}, p.listCategories)
-	huma.Register(ctx.Huma, huma.Operation{
+	huma.Register(api, huma.Operation{
 		OperationID: "getHelpDoc",
 		Method:      "GET",
 		Path:        "/api/help/docs/{slug}",
