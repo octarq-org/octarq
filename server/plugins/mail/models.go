@@ -80,3 +80,20 @@ type MailContact struct {
 	CreatedAt        time.Time `json:"createdAt"`
 	UpdatedAt        time.Time `json:"updatedAt"`
 }
+
+// MailDraft stores draft messages created by users or agents prior to sending.
+type MailDraft struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	OrgID       uint      `gorm:"column:owner_id;index;default:1" json:"-"`
+	MailboxID   uint      `gorm:"index" json:"mailboxId,omitempty"`
+	To          string    `gorm:"size:1024" json:"to"`
+	CC          string    `gorm:"size:1024" json:"cc,omitempty"`
+	Subject     string    `gorm:"type:text" json:"subject"`
+	Body        string    `gorm:"type:text" json:"body"`
+	InReplyToID uint      `gorm:"index" json:"inReplyToId,omitempty"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+func (MailDraft) TableName() string { return "mail_drafts" }
+

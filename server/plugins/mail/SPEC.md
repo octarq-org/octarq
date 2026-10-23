@@ -391,6 +391,25 @@ CREATE TABLE mail_contacts (
 CREATE INDEX idx_mail_contacts_last_seen_at ON mail_contacts(last_seen_at);
 ```
 
+#### 7. `mail_drafts`
+```sql
+CREATE TABLE mail_drafts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_id INTEGER NOT NULL DEFAULT 1,
+    mailbox_id INTEGER,
+    "to" VARCHAR(1024) NOT NULL,
+    cc VARCHAR(1024),
+    subject TEXT,
+    body TEXT,
+    in_reply_to_id INTEGER,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
+);
+CREATE INDEX idx_mail_drafts_owner_id ON mail_drafts(owner_id);
+CREATE INDEX idx_mail_drafts_mailbox_id ON mail_drafts(mailbox_id);
+CREATE INDEX idx_mail_drafts_in_reply_to_id ON mail_drafts(in_reply_to_id);
+```
+
 ### 4.2 Tenant SQL View & Column Redactions (`views.go:15-39`)
 
 - **View Name**: `tenant_emails`
@@ -433,6 +452,15 @@ CREATE INDEX idx_mail_contacts_last_seen_at ON mail_contacts(last_seen_at);
 | `links.Link` & `plugin.LinkCreator` | Scans outbound emails for HTTP(S) links and creates short links under the workspace's link domain. |
 | `dns.Domain` | Evaluates email domains (`for_mail = true`) and verifies `EffectiveMailHosts()` in catch-all resolution. |
 | `plugin.Context` core services | `ctx.DB`, `ctx.OrgID`, `ctx.Audit`, `ctx.Encrypt` / `ctx.Decrypt`, `ctx.GetWorkspaceSetting`, `ctx.GetGlobalSetting`, `ctx.Notify`, `ctx.PublishEvent`, `ctx.RecordUsage`, `ctx.RequireRole`, `ctx.RegisterWebhookEvent`, `ctx.RegisterTenantView`. |
+
+### 5.3 AI Agent Actuators & Declarative Dual Endpoints (`mail_ai_tools.go`)
+
+| Endpoint Name | MCP Tool Name | HTTP Method & Path | Risk Level | Approval Required | Description |
+|---|---|---|---|---|---|
+| `read_email_body` / `mail_get` | `mail_get` | `GET /api/mail/emails/{id}/body` | `read` | No | Reads single email by ID with plain-text `TextBody` in `<untrusted>` fences, sender, recipients, and attachment metadata (`AttachmentDTO`). |
+| `create_email_draft` / `mail_draft_create` | `mail_draft_create` | `POST /api/mail/drafts/create` | `write` | No | Creates and persists outgoing drafts with recipient, cc, subject, and body in `mail_drafts`. |
+| `send_email` / `mail_send_reply` | `mail_send_reply` | `POST /api/mail/emails/send-reply` | `destructive` | **Yes (HITL mandatory)** | Transmits outbound email or reply through configured SMTP sender with suppression checks, rate limits, and quota validation. Triggers human-in-the-loop preview. |
+
 
 ---
 

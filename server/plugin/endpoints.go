@@ -52,6 +52,9 @@ type EndpointSpec[In any, Out any] struct {
 	Handler HandlerFunc[In, Out]
 }
 
+// EndpointDescriptor is a type alias for EndpointSpec.
+type EndpointDescriptor[In any, Out any] = EndpointSpec[In, Out]
+
 // MetadataTier is the huma.Operation metadata key that declares the license
 // tier a route requires. EndpointSpec.RegisterHTTP sets it from Tier; a module
 // that registers huma operations directly sets it too. The platform gate reads

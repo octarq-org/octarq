@@ -131,6 +131,57 @@ func (p *Plugin) RegisterMCP(srv *mcp.Server) {
 		Name:        "octarq_network__get_email_content",
 		Description: "Get the sanitized plain text content of an email by ID with safety guardrails (sensitive tokens redacted, inline base64 images stripped, capped at 4KB).",
 	}, p.mcpGetEmailContent)
+
+	plugin.AddMCPTool(srv, "mail", &mcp.Tool{
+		Name:        "mail_get",
+		Description: "Read a single email message by ID including its sanitized plain-text body in <untrusted> fences and attachment metadata list.",
+	}, p.mcpMailGet)
+	plugin.AddMCPTool(srv, "mail", &mcp.Tool{
+		Name:        "read_email_body",
+		Description: "Read a single email message by ID including its sanitized plain-text body in <untrusted> fences and attachment metadata list.",
+	}, p.mcpMailGet)
+
+	plugin.AddMCPTool(srv, "mail", &mcp.Tool{
+		Name:        "mail_draft_create",
+		Description: "Create and persist a draft email with recipients, subject, and body in mail_drafts.",
+	}, p.mcpMailDraftCreate)
+	plugin.AddMCPTool(srv, "mail", &mcp.Tool{
+		Name:        "create_email_draft",
+		Description: "Create and persist a draft email with recipients, subject, and body in mail_drafts.",
+	}, p.mcpMailDraftCreate)
+
+	plugin.AddMCPTool(srv, "mail", &mcp.Tool{
+		Name:        "mail_send_reply",
+		Description: "Send an outbound email or reply via the configured outbound mail provider. [risk: destructive, approval required]",
+	}, p.mcpMailSendReply)
+	plugin.AddMCPTool(srv, "mail", &mcp.Tool{
+		Name:        "send_email",
+		Description: "Send an outbound email or reply via the configured outbound mail provider. [risk: destructive, approval required]",
+	}, p.mcpMailSendReply)
+}
+
+func (p *Plugin) mcpMailGet(ctx context.Context, _ *mcp.CallToolRequest, in ReadEmailInput) (*mcp.CallToolResult, any, error) {
+	out, err := p.handleReadEmailBody(ctx, in)
+	if err != nil {
+		return nil, nil, err
+	}
+	return jsonResult(out)
+}
+
+func (p *Plugin) mcpMailDraftCreate(ctx context.Context, _ *mcp.CallToolRequest, in CreateDraftInput) (*mcp.CallToolResult, any, error) {
+	out, err := p.handleCreateDraft(ctx, in)
+	if err != nil {
+		return nil, nil, err
+	}
+	return jsonResult(out)
+}
+
+func (p *Plugin) mcpMailSendReply(ctx context.Context, _ *mcp.CallToolRequest, in SendEmailToolInput) (*mcp.CallToolResult, any, error) {
+	out, err := p.handleSendEmail(ctx, in)
+	if err != nil {
+		return nil, nil, err
+	}
+	return jsonResult(out)
 }
 
 func (p *Plugin) mcpListMailboxes(ctx context.Context, _ *mcp.CallToolRequest, _ listMailboxesInput) (*mcp.CallToolResult, any, error) {
