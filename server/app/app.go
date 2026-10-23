@@ -57,6 +57,9 @@ type App struct {
 	healthCollector atomic.Pointer[monitor.Collector]
 	webFS           fs.FS // overrides the embedded OSS dashboard when set (see WithWebFS)
 	telemetry       *telemetry.Telemetry
+	// mcpTierGate judges the tiers the MCP composition may expose (see
+	// WithMCPTierGate). Nil means this build has no tier model.
+	mcpTierGate plugin.TierGate
 }
 
 // HealthCollector returns the system health collector instance.
@@ -194,7 +197,7 @@ func (a *App) RunMCP(ctx context.Context) error {
 		}
 	}
 
-	return mcp.RunWithPlugins(ctx, a.plugins)
+	return mcp.RunWithPlugins(ctx, a.plugins, a.mcpTierGate)
 }
 
 // Run migrates the schema (core + plugin models), builds the HTTP server, and

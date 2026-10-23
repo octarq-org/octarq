@@ -137,7 +137,7 @@ func TestMCPResources_ListAndRead(t *testing.T) {
 	gdb.Create(&dOrg2)
 
 	// Create MCP server instance for Org 1
-	server := NewServerInstance(gdb, 1, nil)
+	server := NewServerInstance(gdb, 1, nil, nil)
 	client := mcp.NewClient(&mcp.Implementation{Name: "client", Version: "1.0"}, nil)
 	serverTransport, clientTransport := mcp.NewInMemoryTransports()
 	serverSession, err := server.Connect(ctx, serverTransport, nil)

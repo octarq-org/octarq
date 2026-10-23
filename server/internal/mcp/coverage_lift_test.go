@@ -28,14 +28,14 @@ func TestCoverageLiftRegisterTenantViewAndRunWithPlugins(t *testing.T) {
 	gdb := setupExtraResourcesTestDB(t)
 
 	// 1. RegisterTenantView in NewServerInstance
-	srv := NewServerInstance(gdb, 1, []plugin.Plugin{dummyTenantViewPlugin{}})
+	srv := NewServerInstance(gdb, 1, []plugin.Plugin{dummyTenantViewPlugin{}}, nil)
 	if srv == nil {
 		t.Fatalf("expected non-nil server")
 	}
 
 	// 2. RunWithPlugins config load error with invalid driver
 	t.Setenv("OCTARQ_DB_DRIVER", "invalid_driver")
-	err := RunWithPlugins(context.Background(), nil)
+	err := RunWithPlugins(context.Background(), nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "mcp: load config") {
 		t.Errorf("expected mcp: load config error, got %v", err)
 	}
@@ -45,7 +45,7 @@ func TestCoverageLiftRegisterTenantViewAndRunWithPlugins(t *testing.T) {
 	t.Setenv("OCTARQ_ADMIN_PASSWORD", "admin123456")
 	t.Setenv("OCTARQ_DB_DRIVER", "sqlite")
 	t.Setenv("OCTARQ_DB_DSN", "/dev/null/nonexistent/db.sqlite")
-	err = RunWithPlugins(context.Background(), nil)
+	err = RunWithPlugins(context.Background(), nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "mcp: open db") {
 		t.Errorf("expected mcp: open db error, got %v", err)
 	}

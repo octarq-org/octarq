@@ -123,7 +123,7 @@ func splitListen(listen string) (host, port string) {
 // list_domains, list_mailboxes/emails, export_data) are registered on the
 // stdio server.
 func runMCPServer(ctx context.Context) int {
-	if err := mcp.RunWithPlugins(ctx, builtin.Default()); err != nil {
+	if err := mcp.RunWithPlugins(ctx, builtin.Default(), nil); err != nil {
 		slog.Error("mcp failed", "err", err)
 		return 1
 	}

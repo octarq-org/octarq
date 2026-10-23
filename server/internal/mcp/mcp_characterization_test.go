@@ -26,7 +26,7 @@ func TestMCP_Characterization_ServerConstruction(t *testing.T) {
 
 	// 1. Basic server creation via NewServerInstance
 	mock := &mockMCPPlugin{name: "mock-mcp-char"}
-	srv := NewServerInstance(db, 1, []plugin.Plugin{mock})
+	srv := NewServerInstance(db, 1, []plugin.Plugin{mock}, nil)
 	if srv == nil {
 		t.Fatal("expected non-nil MCP server from NewServerInstance()")
 	}

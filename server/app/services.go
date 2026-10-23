@@ -20,6 +20,11 @@ import (
 // an fs.FS rooted where the core's webembed.FS() would be (index.html at root).
 func (a *App) WithWebFS(f fs.FS) *App { a.webFS = f; return a }
 
+// WithMCPTierGate sets the judge for tiers the MCP composition may expose. A
+// licensed build passes its license check here; tools declared above the
+// covered tier are never registered. Leaving it unset means no tier model.
+func (a *App) WithMCPTierGate(g plugin.TierGate) *App { a.mcpTierGate = g; return a }
+
 // DB exposes the shared database handle (useful for plugin construction).
 func (a *App) DB() *gorm.DB { return a.gdb }
 

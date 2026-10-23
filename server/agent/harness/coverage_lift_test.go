@@ -149,6 +149,7 @@ func (mockBadOutputEndpoint) EndpointPath() string          { return "/bad" }
 func (mockBadOutputEndpoint) EndpointRequireAuth() bool     { return false }
 func (mockBadOutputEndpoint) EndpointRequireRole() []string { return nil }
 func (mockBadOutputEndpoint) EndpointExposeMCP() bool       { return false }
+func (mockBadOutputEndpoint) EndpointTier() string          { return "" }
 func (mockBadOutputEndpoint) EndpointRequireApproval() bool { return false }
 func (mockBadOutputEndpoint) EndpointRisk() string          { return "write" }
 func (mockBadOutputEndpoint) EndpointInputSchema() json.RawMessage {

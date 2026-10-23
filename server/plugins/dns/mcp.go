@@ -27,6 +27,9 @@ type domainOut struct {
 	ZoneID  string `json:"zoneId"`
 }
 
+// MCPTier reports the license tier these tools require. Core tools are free.
+func (*Plugin) MCPTier() string { return "" }
+
 func (p *Plugin) RegisterMCP(srv *mcp.Server) {
 	plugin.AddMCPTool(srv, "dns", &mcp.Tool{
 		Name:        "octarq_network__list_domains",

@@ -41,6 +41,9 @@ type linkOut struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+// MCPTier reports the license tier these tools require. Core tools are free.
+func (*Plugin) MCPTier() string { return "" }
+
 func (p *Plugin) RegisterMCP(srv *mcp.Server) {
 	plugin.AddMCPTool(srv, "links", &mcp.Tool{
 		Name:        "octarq_network__list_links",

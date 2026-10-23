@@ -103,6 +103,9 @@ type emailContentOut struct {
 // agent context. Every MCP output carrying inbound metadata must use it.
 func sanitizeMailMeta(s string) string { return NeutralizeFramingTags(StripInvisibleControls(s)) }
 
+// MCPTier reports the license tier these tools require. Core tools are free.
+func (*Plugin) MCPTier() string { return "" }
+
 func (p *Plugin) RegisterMCP(srv *mcp.Server) {
 	plugin.AddMCPTool(srv, "mail", &mcp.Tool{
 		Name:        "octarq_network__list_mailboxes",

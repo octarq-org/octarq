@@ -94,7 +94,7 @@ func TestLinksTrendingReadAndIsolation(t *testing.T) {
 	gdb.Create(&testLinkRow{OrgID: 1, Host: "go.corp.com", Slug: "mid", Title: "Mid", Clicks: 10, Enabled: true, CreatedAt: now})
 	gdb.Create(&testLinkRow{OrgID: 2, Host: "x.other.com", Slug: "secret", Title: "Secret", Clicks: 999, Enabled: true, CreatedAt: now})
 
-	srv := NewServerInstance(gdb, 1, nil)
+	srv := NewServerInstance(gdb, 1, nil, nil)
 	cs, _ := connectTestClient(t, ctx, srv, nil)
 
 	res, err := cs.ReadResource(ctx, &mcp.ReadResourceParams{URI: ResourceURILinksTrending})
@@ -128,7 +128,7 @@ func TestMailboxLatestTemplateRead(t *testing.T) {
 	gdb.Create(&testEmailRow{MailboxID: mb.ID, From: "a@x.com", Subject: "older", Read: true, ReceivedAt: now.Add(-time.Hour)})
 	gdb.Create(&testEmailRow{MailboxID: mb.ID, From: "b@x.com", Subject: "newest hello", Read: false, ReceivedAt: now})
 
-	srv := NewServerInstance(gdb, 1, nil)
+	srv := NewServerInstance(gdb, 1, nil, nil)
 	cs, _ := connectTestClient(t, ctx, srv, nil)
 
 	uri := "octarq://mailboxes/1/latest"
@@ -164,7 +164,7 @@ func TestMailboxLatestTemplateRead(t *testing.T) {
 func TestSubscribeHandshakeAndPush(t *testing.T) {
 	ctx := context.Background()
 	gdb := setupExtraResourcesTestDB(t)
-	srv := NewServerInstance(gdb, 1, nil)
+	srv := NewServerInstance(gdb, 1, nil, nil)
 
 	updated := make(chan string, 4)
 	cs, _ := connectTestClient(t, ctx, srv, &mcp.ClientOptions{

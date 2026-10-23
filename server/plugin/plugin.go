@@ -160,6 +160,13 @@ type Validator interface {
 // the caller's org ID, and MUST NOT read org fields cached on the plugin during Mount
 // (under networked transport that field belongs to another caller).
 type MCPProvider interface {
+	// MCPTier names the license tier every tool from this plugin requires,
+	// in the same vocabulary an endpoint's Tier uses ("" = free). It is
+	// declared here, not judged here: the MCP composition consults the
+	// injected TierGate and never calls RegisterMCP for a tier the instance
+	// does not cover. A plugin with tools of mixed tiers must expose the
+	// higher one through an EndpointSpec per tool instead.
+	MCPTier() string
 	RegisterMCP(srv *mcp.Server)
 }
 

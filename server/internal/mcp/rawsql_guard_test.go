@@ -50,7 +50,7 @@ func TestNoTransportExposesRawSQL(t *testing.T) {
 		name string
 		srv  *mcp.Server
 	}{
-		{"stdio", NewServerInstance(nil, 1, nil)},
+		{"stdio", NewServerInstance(nil, 1, nil, nil)},
 		{"networked", NewNetworkedServerInstance(nil, 42, nil, nil)},
 	}
 
