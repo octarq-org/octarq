@@ -18,6 +18,7 @@ import (
 type fakeEndpoint struct {
 	name            string
 	method          string
+	risk            string
 	requireApproval bool
 	executed        *bool
 }
@@ -32,7 +33,15 @@ func (e *fakeEndpoint) EndpointRequireRole() []string { return nil }
 func (e *fakeEndpoint) EndpointExposeMCP() bool       { return true }
 func (e *fakeEndpoint) EndpointTier() string          { return "" }
 func (e *fakeEndpoint) EndpointRequireApproval() bool { return e.requireApproval }
-func (e *fakeEndpoint) EndpointRisk() string          { return "read" }
+func (e *fakeEndpoint) EndpointRisk() string {
+	if e.risk != "" {
+		return e.risk
+	}
+	if strings.EqualFold(e.method, http.MethodGet) || strings.EqualFold(e.method, http.MethodHead) {
+		return plugin.RiskLevelRead
+	}
+	return plugin.RiskLevelWrite
+}
 func (e *fakeEndpoint) EndpointInputSchema() json.RawMessage {
 	return nil
 }
@@ -105,6 +114,31 @@ func TestAIChatStream_ReadOnlyGuard_BlocksNonGet(t *testing.T) {
 
 	if postExecuted {
 		t.Fatalf("POST endpoint was executed but should have been blocked by readOnlyGuard")
+	}
+}
+
+func TestAIChatStream_ReadOnlyGuard_AllowsPostWithReadRisk(t *testing.T) {
+	var postReadExecuted bool
+	src := &fakeEndpointSource{
+		endpoints: map[string]plugin.Endpoint{
+			"query_tenant_sql": &fakeEndpoint{
+				name:     "query_tenant_sql",
+				method:   "POST",
+				risk:     plugin.RiskLevelRead,
+				executed: &postReadExecuted,
+			},
+		},
+	}
+
+	guard := newReadOnlyGuard(src)
+	if err := guard.Allow(context.Background(), 1, "query_tenant_sql"); err != nil {
+		t.Fatalf("expected POST tool with RiskLevelRead to be allowed, got: %v", err)
+	}
+	if !readOnlyTool(harness.ToolDescriptor{Name: "query_tenant_sql", Method: "POST", Risk: plugin.RiskLevelRead}) {
+		t.Fatal("readOnlyTool rejected POST tool with RiskLevelRead")
+	}
+	if readOnlyTool(harness.ToolDescriptor{Name: "create_link", Method: "POST", Risk: plugin.RiskLevelWrite}) {
+		t.Fatal("readOnlyTool allowed POST tool with RiskLevelWrite")
 	}
 }
 
