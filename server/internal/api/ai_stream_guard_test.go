@@ -30,6 +30,7 @@ func (e *fakeEndpoint) EndpointPath() string          { return "/api/test" }
 func (e *fakeEndpoint) EndpointRequireAuth() bool     { return false }
 func (e *fakeEndpoint) EndpointRequireRole() []string { return nil }
 func (e *fakeEndpoint) EndpointExposeMCP() bool       { return true }
+func (e *fakeEndpoint) EndpointTier() string          { return "" }
 func (e *fakeEndpoint) EndpointRequireApproval() bool { return e.requireApproval }
 func (e *fakeEndpoint) EndpointRisk() string          { return "read" }
 func (e *fakeEndpoint) EndpointInputSchema() json.RawMessage {

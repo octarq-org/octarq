@@ -41,8 +41,35 @@ type EndpointSpec[In any, Out any] struct {
 	// Agent-Native options
 	ExposeMCP bool // Whether to expose as MCP Tool (default true)
 
+	// Tier names the license tier this endpoint requires, in the same
+	// vocabulary route metadata uses ("" = free). Declare it once; both
+	// surfaces enforce it: RegisterHTTP copies it into the operation metadata
+	// the platform gate reads, and the MCP composition asks the injected
+	// TierGate before it exposes the tool.
+	Tier string
+
 	// Core business handler
 	Handler HandlerFunc[In, Out]
+}
+
+// MetadataTier is the huma.Operation metadata key that declares the license
+// tier a route requires. EndpointSpec.RegisterHTTP sets it from Tier; a module
+// that registers huma operations directly sets it too. The platform gate reads
+// it once for every operation, so tier judgement stays in one place.
+const MetadataTier = "tier"
+
+// TierGate reports whether the running instance may use a tier. A nil gate
+// means "this build has no tier model", so every tier is allowed; a licensed
+// build injects its own judge.
+type TierGate func(tier string) bool
+
+// Allows reports whether tier is available under this gate. An empty tier is
+// free and always allowed.
+func (g TierGate) Allows(tier string) bool {
+	if tier == "" || g == nil {
+		return true
+	}
+	return g(tier)
 }
 
 // Risk level constants.
@@ -80,6 +107,7 @@ type Endpoint interface {
 	EndpointRequireAuth() bool
 	EndpointRequireRole() []string
 	EndpointExposeMCP() bool
+	EndpointTier() string
 	EndpointRequireApproval() bool
 	// EndpointRisk returns the effective risk tier: "read", "write" or
 	// "destructive". An endpoint with no inferable risk returns "".
@@ -123,6 +151,7 @@ func (s EndpointSpec[In, Out]) EndpointPath() string          { return s.Path }
 func (s EndpointSpec[In, Out]) EndpointRequireAuth() bool     { return s.RequireAuth }
 func (s EndpointSpec[In, Out]) EndpointRequireRole() []string { return s.RequireRole }
 func (s EndpointSpec[In, Out]) EndpointExposeMCP() bool       { return s.ExposeMCP }
+func (s EndpointSpec[In, Out]) EndpointTier() string          { return s.Tier }
 func (s EndpointSpec[In, Out]) EndpointRequireApproval() bool { return s.RequireApproval }
 func (s EndpointSpec[In, Out]) Spec() any                     { return s }
 
@@ -238,6 +267,9 @@ func (s EndpointSpec[In, Out]) RegisterHTTP(api huma.API, opts HTTPOptions) erro
 		Path:        s.EndpointPath(),
 		Summary:     s.EndpointSummary(),
 		Description: s.EndpointDescription(),
+	}
+	if s.Tier != "" {
+		op.Metadata = map[string]any{MetadataTier: s.Tier}
 	}
 	if s.Method == "POST" || s.Method == "PUT" || s.Method == "PATCH" {
 		huma.Register(api, op, func(ctx context.Context, input *httpBodyInput[In]) (*httpBodyOutput[Out], error) {

@@ -81,13 +81,15 @@ func (e *Engine) MountHTTP(api huma.API, opts HTTPOptions) error {
 	return nil
 }
 
-// MountMCP registers all collected endpoints with ExposeMCP=true onto the MCP server.
-func (e *Engine) MountMCP(srv *mcp.Server) error {
+// MountMCP registers all collected endpoints with ExposeMCP=true onto the MCP
+// server. An endpoint whose Tier the gate does not allow is skipped: the tool
+// never reaches the agent, so an unlicensed instance cannot call it.
+func (e *Engine) MountMCP(srv *mcp.Server, gate plugin.TierGate) error {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
 	for _, ep := range e.endpoints {
-		if ep.EndpointExposeMCP() {
+		if ep.EndpointExposeMCP() && gate.Allows(ep.EndpointTier()) {
 			if mr, ok := ep.(plugin.MCPRegistrar); ok {
 				if err := mr.RegisterMCP(srv); err != nil {
 					return err

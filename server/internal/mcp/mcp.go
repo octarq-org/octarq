@@ -61,7 +61,7 @@ type server struct {
 // server with every tool registered, and serves over stdio until ctx is
 // cancelled or stdin closes. It is the body of the `octarq mcp` subcommand.
 func Run(ctx context.Context) error {
-	return RunWithPlugins(ctx, nil)
+	return RunWithPlugins(ctx, nil, nil)
 }
 
 // NewNetworkedServerInstance builds an MCP server for a networked transport
@@ -78,19 +78,22 @@ func Run(ctx context.Context) error {
 // Mounting used to (re)build; it is required, not optional, so a caller cannot
 // quietly drop it and lose the export tools.
 func NewNetworkedServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookup func(string) (any, bool)) *mcp.Server {
-	return buildServerInstance(gdb, orgID, plugins, lookup, false)
+	return buildServerInstance(gdb, orgID, plugins, lookup, false, nil)
 }
 
 // NewServerInstance builds an MCP server for a single operator, scoped to
-// orgID, with the given plugins mounted the way app boot mounts them. The
-// networked counterpart is NewNetworkedServerInstance. Both expose the same
-// tenant-scoped tool set; there is no transport that gets extra reach.
-func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin) *mcp.Server {
-	return buildServerInstance(gdb, orgID, plugins, nil, true)
+// orgID, with the given plugins mounted the way app boot mounts them. gate is
+// the operator's tier judge: tools declared above a tier it does not allow are
+// never registered, so an unlicensed instance cannot call them. A nil gate
+// means the build has no tier model (core). The networked counterpart is
+// NewNetworkedServerInstance. Both expose the same tenant-scoped tool set;
+// there is no transport that gets extra reach.
+func NewServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, gate plugin.TierGate) *mcp.Server {
+	return buildServerInstance(gdb, orgID, plugins, nil, true, gate)
 }
 
 // buildServerInstance is the single chokepoint that constructs an MCP server.
-func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookup func(string) (any, bool), mountPlugins bool) *mcp.Server {
+func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, lookup func(string) (any, bool), mountPlugins bool, gate plugin.TierGate) *mcp.Server {
 	lookupFn := lookup
 	endpointEngine := endpoint.NewEngine()
 	if mountPlugins {
@@ -137,12 +140,12 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 	s.registerTools(srv)
 	s.registerResources(srv)
 	s.registerExtraResources(srv)
-	if err := endpointEngine.MountMCP(srv); err != nil {
+	if err := endpointEngine.MountMCP(srv, gate); err != nil {
 		slog.Warn("mcp: failed to mount endpoint engine tools", "err", err)
 	}
 
 	for _, p := range plugins {
-		if mp, ok := p.(plugin.MCPProvider); ok {
+		if mp, ok := p.(plugin.MCPProvider); ok && gate.Allows(mp.MCPTier()) {
 			mp.RegisterMCP(srv)
 		}
 	}
@@ -153,8 +156,9 @@ func buildServerInstance(gdb *gorm.DB, orgID uint, plugins []plugin.Plugin, look
 // Pro plugins so they can register their custom MCP write or finance tools.
 //
 // It is the stdio entry point: the caller is the single local operator, and the
-// tools are scoped to the bootstrap org (stdioOrgID).
-func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
+// tools are scoped to the bootstrap org (stdioOrgID). gate is passed through to
+// NewServerInstance, so tier-gated tools stay absent without a license.
+func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin, gate plugin.TierGate) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("mcp: load config: %w", err)
@@ -176,7 +180,7 @@ func RunWithPlugins(ctx context.Context, plugins []plugin.Plugin) error {
 	// fallback — a fallback that is harmless here and a cross-tenant read over
 	// the network. One line at the entry point removes the need for all of them.
 	ctx = plugin.WithOrgID(ctx, stdioOrgID)
-	srv := NewServerInstance(gdb, stdioOrgID, plugins)
+	srv := NewServerInstance(gdb, stdioOrgID, plugins, gate)
 	return srv.Run(ctx, &mcp.StdioTransport{})
 }
 

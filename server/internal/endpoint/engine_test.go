@@ -142,7 +142,7 @@ func TestEngine_DualEndpoint_HTTPAndMCP(t *testing.T) {
 	mcpImpl := &mcp.Implementation{Name: "test-mcp", Version: "1.0.0"}
 	mcpServer := mcp.NewServer(mcpImpl, nil)
 
-	if err := eng.MountMCP(mcpServer); err != nil {
+	if err := eng.MountMCP(mcpServer, nil); err != nil {
 		t.Fatalf("MountMCP: %v", err)
 	}
 

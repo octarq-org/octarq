@@ -103,7 +103,7 @@ func TestNetworkedInstanceConcurrentRace(t *testing.T) {
 func TestStdioInstanceMountsPlugins(t *testing.T) {
 	f := &fakePlugin{}
 	before := f.mounts
-	NewServerInstance(nil, 1, []plugin.Plugin{f})
+	NewServerInstance(nil, 1, []plugin.Plugin{f}, nil)
 	if f.mounts != before+1 {
 		t.Fatalf("stdio MCP connection must Mount plugins (%d -> %d mounts)", before, f.mounts)
 	}

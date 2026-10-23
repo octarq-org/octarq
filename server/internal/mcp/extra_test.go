@@ -21,6 +21,7 @@ type mockMCPPlugin struct {
 func (m *mockMCPPlugin) Name() string                              { return m.name }
 func (m *mockMCPPlugin) Models() []any                             { return nil }
 func (m *mockMCPPlugin) Mount(mux plugin.Mux, ctx *plugin.Context) { m.mountCalled = true }
+func (m *mockMCPPlugin) MCPTier() string                           { return "" }
 func (m *mockMCPPlugin) RegisterMCP(srv *mcp.Server)               { m.registerCalled = true }
 
 func TestBuildServerInstance_WithMCPProvider(t *testing.T) {
@@ -31,7 +32,7 @@ func TestBuildServerInstance_WithMCPProvider(t *testing.T) {
 	}
 
 	p := &mockMCPPlugin{name: "mock-mcp"}
-	srv := NewServerInstance(gdb, 1, []plugin.Plugin{p})
+	srv := NewServerInstance(gdb, 1, []plugin.Plugin{p}, nil)
 	if srv == nil {
 		t.Fatal("expected non-nil server")
 		return
@@ -77,5 +78,5 @@ func TestRunAndRunWithPlugins(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // pre-canceled context so StdioTransport does not block
 	_ = Run(ctx)
-	_ = RunWithPlugins(ctx, nil)
+	_ = RunWithPlugins(ctx, nil, nil)
 }
