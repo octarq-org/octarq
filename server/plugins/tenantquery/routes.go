@@ -2,7 +2,6 @@ package tenantquery
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"strings"
 
@@ -114,29 +113,6 @@ func (p *Plugin) describeTenantSchema(ctx context.Context, _ DescribeTenantSchem
 }
 
 func (p *Plugin) queryTenantSQL(ctx context.Context, in QueryTenantSQLInput) (*QueryTenantSQLOutput, error) {
-	reg := p.registry
-	if reg == nil {
-		reg = tenantsql.DefaultRegistry()
-	}
-
-	rows, meta, err := tenantsql.Execute(ctx, p.db, reg, in.SQL)
-	if err != nil {
-		views := reg.List()
-		viewNames := make([]string, len(views))
-		for i, v := range views {
-			viewNames[i] = v.Name
-		}
-		availMsg := fmt.Sprintf("available views: %s", strings.Join(viewNames, ", "))
-		return nil, fmt.Errorf("%w (%s)", err, availMsg)
-	}
-
-	if rows == nil {
-		rows = []map[string]any{}
-	}
-
-	return &QueryTenantSQLOutput{
-		Rows:      rows,
-		RowCount:  meta.RowCount,
-		Truncated: meta.Truncated,
-	}, nil
+	svc := NewService(p.db, p.registry)
+	return svc.Query(ctx, in)
 }
