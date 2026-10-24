@@ -89,7 +89,7 @@ func (p *Plugin) Describe() plugin.Info {
 }
 
 func (p *Plugin) Models() []any {
-	return []any{&Mailbox{}, &Email{}, &SMTPSender{}, &MailRawBlob{}, &MailSuppression{}, &MailContact{}}
+	return []any{&Mailbox{}, &Email{}, &SMTPSender{}, &MailRawBlob{}, &MailSuppression{}, &MailContact{}, &MailDraft{}}
 }
 
 // Menus announces this plugin's sidebar entry so /api/menus only offers it
@@ -178,6 +178,7 @@ func (p *Plugin) Mount(mux plugin.Mux, ctx *plugin.Context) {
 	}
 
 	RegisterViews(ctx)
+	p.registerDeclarativeEndpoints(ctx)
 
 	api := ctx.Huma
 	if api != nil {
