@@ -43,7 +43,7 @@ export function CardShell({
         data-state={state}
         className={cn(
           "rounded-xl border border-border bg-card p-3 text-xs leading-relaxed shadow-xs space-y-1.5",
-          state === "forbidden" && "border-amber-500/30 bg-amber-500/5",
+          state === "forbidden" && "border-warning-fg/30 bg-warning-fg/10",
           state === "error" && "border-destructive/30 bg-destructive/5",
           className,
         )}
@@ -52,13 +52,13 @@ export function CardShell({
           {state === "loading" && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
           {state === "error" && <AlertCircle className="h-3.5 w-3.5 text-destructive" />}
           {state === "empty" && <Inbox className="h-3.5 w-3.5 text-muted-foreground" />}
-          {state === "forbidden" && <Lock className="h-3.5 w-3.5 text-amber-500" />}
+          {state === "forbidden" && <Lock className="h-3.5 w-3.5 text-warning-fg" />}
           <span>{title}</span>
         </div>
         <div
           className={cn(
             "text-xs text-muted-foreground",
-            state === "forbidden" && "text-amber-600 dark:text-amber-400 font-medium",
+            state === "forbidden" && "text-warning-fg font-medium",
             state === "error" && "text-destructive",
           )}
           role={state === "error" ? "alert" : undefined}
