@@ -162,12 +162,6 @@ func HasScopeColumn(view TenantView) bool {
 	return false
 }
 
-// wrapRedactedViewSQL rewrites the view definition query to replace sensitive columns
-// with the redacted literal value, preventing sensitive data from ever reaching TEMP VIEW output columns.
-func wrapRedactedViewSQL(view TenantView, inner string) (string, error) {
-	return wrapScopedRedactedViewSQL(view, inner, true)
-}
-
 // wrapScopedRedactedViewSQL rewrites the view definition query to redact sensitive columns
 // and, when allowPersonal is false and the view contains a scope_key column, enforces
 // WHERE "scope_key" LIKE 'work:%' so personal:* records cannot leak.

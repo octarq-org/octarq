@@ -91,7 +91,7 @@ func TestFenceEscape(t *testing.T) {
 	open := strings.Index(block, "<"+Tag)
 	closeIdx := strings.LastIndex(block, "</"+Tag+">")
 	ignore := strings.Index(block, "IGNORE ALL PREVIOUS INSTRUCTIONS")
-	if !(open < ignore && ignore < closeIdx) {
+	if open >= ignore || ignore >= closeIdx {
 		t.Fatalf("payload escaped the fence: open=%d ignore=%d close=%d", open, ignore, closeIdx)
 	}
 }
