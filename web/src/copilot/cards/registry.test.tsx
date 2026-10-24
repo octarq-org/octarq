@@ -119,4 +119,17 @@ describe("renderToolCall", () => {
     expect(screen.getByText(/Approval Required/)).toBeDefined();
     expect(screen.getByText("Pending Action")).toBeDefined();
   });
+
+  it("renders EmailManagementCard for mail_draft_create tool call", () => {
+    renderWithI18n(
+      <>{renderToolCall(
+        "mail_draft_create",
+        "c-draft-1",
+        { to: "partner@example.com", subject: "Partnership Agreement Draft", body: "Here is the agreement outline." },
+        noop,
+      )}</>,
+    );
+    expect(screen.getByText(/partner@example\.com/)).toBeDefined();
+    expect(screen.getByText("Partnership Agreement Draft")).toBeDefined();
+  });
 });

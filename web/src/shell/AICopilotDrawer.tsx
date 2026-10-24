@@ -347,6 +347,11 @@ export function AICopilotDrawer() {
               <div className="w-full space-y-2 pt-2 text-left">
                 {[
                   {
+                    id: "p0",
+                    icon: "🌅",
+                    text: t("copilot.quickPrompt0", "生成 6 维晨间工作简报 (Briefing v2) 与多维异动播报"),
+                  },
+                  {
                     id: "p1",
                     icon: "💡",
                     text: t("copilot.quickPrompt1", "分析过去 7 天短链点击趋势与异常来源"),

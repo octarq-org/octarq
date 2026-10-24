@@ -33,7 +33,7 @@ export interface Artifact<T = unknown> {
 
 export interface CopilotUIState {
   isOpen: boolean;
-  activeTab: "chat" | "approvals";
+  activeTab: "chat" | "briefing" | "approvals";
   messages: ChatMessage[];
   input: string;
   isStreaming: boolean;
@@ -50,7 +50,7 @@ export interface CopilotUIState {
   openCopilot: () => void;
   closeCopilot: () => void;
   toggleCopilot: () => void;
-  setActiveTab: (tab: "chat" | "approvals") => void;
+  setActiveTab: (tab: "chat" | "briefing" | "approvals") => void;
   setInput: (input: string) => void;
   setTransport: (transport: "agui" | "legacy") => void;
   setThreadId: (threadId?: string) => void;

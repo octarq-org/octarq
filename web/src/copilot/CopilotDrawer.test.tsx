@@ -168,4 +168,30 @@ describe("CopilotDrawer", () => {
 
     expect(screen.getByText("Summarize this week's top links")).toBeDefined();
   });
+
+  it("switches to briefing tab and renders Morning Briefing v2 and anomaly broadcasts", () => {
+    renderDrawer();
+
+    const briefingTab = screen.getByTestId("copilot-tab-briefing");
+    fireEvent.click(briefingTab);
+
+    expect(useCopilotStore.getState().activeTab).toBe("briefing");
+    expect(screen.getByTestId("copilot-briefing-tab")).toBeDefined();
+    expect(screen.getByText("Chief-of-Staff Morning Briefing")).toBeDefined();
+    expect(screen.getByText(/Schedule & Agenda/)).toBeDefined();
+    expect(screen.getByText(/Tasks & Commitments/)).toBeDefined();
+    expect(screen.getByText(/Priority Communications/)).toBeDefined();
+    expect(screen.getByText(/Autonomous Actions/)).toBeDefined();
+    expect(screen.getByText(/Multi-Dimensional Anomaly Broadcasts/)).toBeDefined();
+  });
+
+  it("handles Undo action on autonomous commit in Briefing tab", () => {
+    renderDrawer();
+
+    fireEvent.click(screen.getByTestId("copilot-tab-briefing"));
+    const undoButton = screen.getByRole("button", { name: "↩️ Undo" });
+    fireEvent.click(undoButton);
+
+    expect(screen.getByRole("button", { name: "Undone" })).toBeDefined();
+  });
 });

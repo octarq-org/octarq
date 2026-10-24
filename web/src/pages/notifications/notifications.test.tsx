@@ -191,6 +191,17 @@ describe("InboxDrawer", () => {
       expect(notifSpy).toHaveBeenCalledWith({ unreadOnly: true });
     });
   });
+
+  it("renders gear link pointing to personal notification settings", async () => {
+    vi.spyOn(api, "notifications").mockResolvedValue(mockNotifications);
+
+    renderWithProviders(<InboxDrawer />);
+
+    const gearLink = await screen.findByTestId("inbox-preferences-link");
+    expect(gearLink).toBeDefined();
+    fireEvent.click(gearLink);
+    expect(useNotificationUIStore.getState().isDrawerOpen).toBe(false);
+  });
 });
 
 describe("InboxPage", () => {

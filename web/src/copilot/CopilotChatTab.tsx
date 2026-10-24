@@ -11,6 +11,7 @@ import {
   CreditCard,
   Globe2,
   FileCheck,
+  Sunrise,
 } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { useCopilotStore } from "./store";
@@ -71,7 +72,7 @@ export function CopilotChatTab({
             <div className="mt-1 text-muted-foreground">
               {t(
                 "copilot.unconfiguredDesc",
-                "在「Inbox AI → Configure」中添加 LLM 提供商后即可开始对话。配置缺失时不会生成任何模拟回复。",
+                "在「Settings › Features」中配置 LLM 提供商后即可开始对话。配置缺失时系统拒绝生成未经验证的回复。",
               )}
             </div>
           </div>
@@ -105,6 +106,12 @@ export function CopilotChatTab({
                 {t("copilot.quickPrompts", "常用运营快捷指令")}
               </div>
               <div className="grid grid-cols-1 gap-2">
+                <PresetPromptCard
+                  icon={<Sunrise className="h-4 w-4 text-primary" />}
+                  title={t("copilot.promptBriefing", "查看晨间简报与异动 (Briefing v2)")}
+                  desc={t("copilot.promptBriefingDesc", "查看 6 维晨间工作简报、待办事项与实时多维异动播报")}
+                  onClick={() => setActiveTab("briefing")}
+                />
                 <PresetPromptCard
                   icon={<Flame className="h-4 w-4 text-warning-fg" />}
                   title={t("copilot.promptLinks", "汇总本周点击最高的短链")}

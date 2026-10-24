@@ -1,4 +1,4 @@
-import { timeAgo } from "@octarq/plugin-sdk";
+import { Badge, timeAgo } from "@octarq/plugin-sdk";
 import { Email } from "../api";
 import { AuthBadges } from "./AuthBadges";
 import { useTranslation } from "../../../i18n";
@@ -9,6 +9,27 @@ interface EmailListItemProps {
   folder: MailFolder;
   isSelected: boolean;
   onSelect: () => void;
+}
+
+const CATEGORY_META: Record<string, { tone: "amber" | "cyan" | "red" | "neutral"; label: string }> = {
+  bill: { tone: "amber", label: "Bill" },
+  otp: { tone: "cyan", label: "OTP" },
+  marketing: { tone: "neutral", label: "Marketing" },
+  important: { tone: "red", label: "Important" },
+};
+
+function renderImportanceDots(n?: number) {
+  if (!n || n <= 0) return null;
+  const clamped = Math.max(1, Math.min(5, n));
+  return (
+    <span
+      className="text-[10px] tracking-wider text-warning-fg/80"
+      title={`Importance: ${clamped}/5`}
+      data-testid="importance-dots"
+    >
+      {"●".repeat(clamped)}{"○".repeat(5 - clamped)}
+    </span>
+  );
 }
 
 export function EmailListItem({
@@ -24,6 +45,8 @@ export function EmailListItem({
     ? (email.to ? `${t("mail.toLabel")} ${email.to}` : t("mail.noSubject"))
     : (email.from || t("mail.unknownSender"));
 
+  const catMeta = email.category ? CATEGORY_META[email.category] : undefined;
+
   return (
     <button
       type="button"
@@ -38,8 +61,14 @@ export function EmailListItem({
           <span className={`truncate text-sm ${email.read ? "text-foreground/60" : "font-bold text-foreground"}`}>
             {displayAddress}
           </span>
+          {catMeta && (
+            <Badge tone={catMeta.tone} className="text-[10px] py-0 px-1.5 uppercase font-medium shrink-0">
+              {t(`mail.cat_${email.category}`, catMeta.label)}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
+          {renderImportanceDots(email.importance)}
           {!isOutbound && <AuthBadges spf={email.authSpf} dkim={email.authDkim} dmarc={email.authDmarc} compact />}
           <span className="text-[11px] text-foreground/40">{timeAgo(email.receivedAt)}</span>
         </div>
@@ -47,6 +76,11 @@ export function EmailListItem({
       <div className={`truncate text-xs ${email.read ? "text-foreground/45" : "text-foreground/80 font-medium"}`}>
         {email.subject || t("mail.noSubject")}
       </div>
+      {email.summary && email.summary !== email.subject && (
+        <p className="mt-1 line-clamp-1 text-[11px] text-foreground/50">
+          {email.summary}
+        </p>
+      )}
     </button>
   );
 }

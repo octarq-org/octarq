@@ -29,6 +29,7 @@ export default function SettingsPage() {
         <Route path="/webhooks" element={<WebhooksSettings />} />
         <Route path="/notifications" element={<NotificationChannels />} />
         <Route path="/notifications/preferences" element={<PreferencesPage />} />
+        <Route path="/personal/notifications" element={<PreferencesPage />} />
         <Route path="/members" element={<OrgMembersManager />} />
         {/* The instance console moved out of /settings into its own /instance
             basename (R4) — old paths redirect with a full page navigation. */}
