@@ -60,4 +60,5 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "personal.mcpTabHttp", // Technical protocol acronym (HTTP / SSE)
   "personal.mcpPlaceholderToken", // Universal token placeholder (<YOUR_API_TOKEN>)
   "copilot.shortcutKey", // Standard keyboard shortcut notation (⌘J)
+  "copilot.cardIdPrefix", // Standard universal technical abbreviation (ID:)
 ]);
