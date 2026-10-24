@@ -5,7 +5,8 @@
  * All user copy strictly conforms to ASD-STE100 (<= 20 words/sentence, active voice).
  */
 import React from "react";
-import { UserCheck, Bot } from "lucide-react";
+import { Bot } from "lucide-react";
+import { useTranslation } from "../../i18n";
 import { CardShell, type CardState } from "./CardShell";
 import type { ToolCardProps } from "./registry";
 
@@ -22,13 +23,14 @@ export function EmployeeCard({
   args,
   state,
 }: ToolCardProps & { state?: CardState }) {
+  const { t } = useTranslation();
   const e = (args ?? {}) as EmployeeArgs;
   const isOnline = e.status === "online";
   const persona = (e.soul ?? "").trim();
   const tools = e.tools ?? [];
 
   return (
-    <CardShell title={`AI Crew Member — ${e.name ?? "Assistant"}`} state={state}>
+    <CardShell title={`${t("copilot.cardAiCrewMember", "AI Crew Member")} — ${e.name ?? "Assistant"}`} state={state}>
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1.5">
           <Bot className="h-4 w-4 text-primary" />
@@ -37,16 +39,21 @@ export function EmployeeCard({
             data-status={isOnline ? "online" : "offline"}
             className={isOnline ? "font-semibold text-success-fg" : "text-muted-foreground"}
           >
-            ● {isOnline ? "Online" : "Offline"}
+            <span aria-hidden="true">• </span>
+            {isOnline ? t("copilot.cardStatusOnline", "Online") : t("copilot.cardStatusOffline", "Offline")}
           </span>
         </div>
-        {e.id && <span className="font-mono text-muted-foreground">ID: #{e.id}</span>}
+        {e.id && (
+          <span className="font-mono text-muted-foreground">
+            {t("copilot.cardEmployeeIdPrefix", "ID: #")}{e.id}
+          </span>
+        )}
       </div>
 
       {persona && (
         <div className="mt-2 space-y-1">
           <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Persona & Directives
+            {t("copilot.cardEmployeePersona", "Persona & Directives")}
           </div>
           <div
             data-testid="employee-persona"
@@ -71,7 +78,7 @@ export function EmployeeCard({
       )}
 
       <div className="pt-1 text-[11px] text-muted-foreground">
-        Manage employee personas and tool grants in Workspace Settings.
+        {t("copilot.cardEmployeeHint", "Manage employee personas and tool grants in Workspace Settings.")}
       </div>
     </CardShell>
   );

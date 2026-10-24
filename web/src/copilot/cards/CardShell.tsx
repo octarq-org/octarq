@@ -8,6 +8,7 @@
 import React, { type ReactNode } from "react";
 import { cn } from "@octarq/plugin-sdk";
 import { AlertCircle, Lock, Loader2, Inbox } from "lucide-react";
+import { useTranslation } from "../../i18n";
 
 export type CardState = "loading" | "error" | "empty" | "forbidden";
 
@@ -36,6 +37,15 @@ export function CardShell({
   className,
   children,
 }: CardShellProps) {
+  const { t } = useTranslation();
+
+  const stateText: Record<CardState, string> = {
+    loading: t("copilot.cardStateLoading", CARD_STATE_TEXT.loading),
+    error: t("copilot.cardStateError", CARD_STATE_TEXT.error),
+    empty: t("copilot.cardStateEmpty", CARD_STATE_TEXT.empty),
+    forbidden: t("copilot.cardStateForbidden", CARD_STATE_TEXT.forbidden),
+  };
+
   if (state) {
     return (
       <div
@@ -65,11 +75,12 @@ export function CardShell({
         >
           {state === "forbidden" && forbiddenReason
             ? forbiddenReason
-            : CARD_STATE_TEXT[state]}
+            : stateText[state]}
         </div>
         {state === "error" && errorDetail && (
           <div className="font-mono text-[11px] text-muted-foreground break-all">
-            detail: {errorDetail}
+            <span>{t("copilot.cardDetail", "detail:")} </span>
+            {errorDetail}
           </div>
         )}
       </div>

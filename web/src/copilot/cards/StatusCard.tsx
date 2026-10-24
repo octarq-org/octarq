@@ -5,6 +5,7 @@
  */
 import React from "react";
 import { Activity } from "lucide-react";
+import { useTranslation } from "../../i18n";
 import type { ToolCardProps } from "./registry";
 import { CardShell, type CardState } from "./CardShell";
 
@@ -20,6 +21,7 @@ export function StatusCard({
   toolName,
   state,
 }: ToolCardProps & { state?: CardState }) {
+  const { t } = useTranslation();
   const a = (args ?? {}) as StatusArgs;
   const slug = (a.slug ?? a.pageSlug ?? "").trim();
 
@@ -30,16 +32,18 @@ export function StatusCard({
         <div className="flex-1 space-y-1">
           {slug ? (
             <div data-testid="status-slug" className="font-mono text-xs">
-              <span className="text-muted-foreground">Public Page: </span>
+              <span className="text-muted-foreground">
+                <span>{t("copilot.cardPublicPagePrefix", "Public Page:")} </span>
+              </span>
               <span className="font-semibold text-foreground">/status/{slug}</span>
             </div>
           ) : (
             <div data-testid="status-probe" className="font-mono text-xs text-muted-foreground">
-              Probe check requested{a.target ? ` for ${a.target}` : ""}.
+              {t("copilot.cardProbeRequested", "Probe check requested.")}
             </div>
           )}
           <div className="text-[11px] text-muted-foreground">
-            Live health checks and probe telemetry display under Operations.
+            {t("copilot.cardStatusHint", "Live health checks and probe telemetry display under Operations.")}
           </div>
         </div>
       </div>

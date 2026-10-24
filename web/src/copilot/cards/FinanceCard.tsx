@@ -6,6 +6,7 @@
  */
 import React from "react";
 import { DollarSign } from "lucide-react";
+import { useTranslation } from "../../i18n";
 import type { ToolCardProps } from "./registry";
 import { CardShell, type CardState } from "./CardShell";
 
@@ -30,18 +31,19 @@ export function FinanceCard({
   toolName,
   state,
 }: ToolCardProps & { state?: CardState }) {
+  const { t } = useTranslation();
   const a = (args ?? {}) as FinanceArgs;
 
   return (
     <CardShell title={`Finance — ${toolName.replace("finance_", "")}`} state={state}>
       <div className="space-y-1.5">
-        {a.currency && <MetricRow label="Currency" value={a.currency} testid="finance-currency" />}
-        {a.kind && <MetricRow label="Kind" value={a.kind} testid="finance-kind" />}
-        {a.category && <MetricRow label="Category" value={a.category} testid="finance-category" />}
-        {a.limit !== undefined && <MetricRow label="Limit" value={String(a.limit)} testid="finance-limit" />}
+        {a.currency && <MetricRow label={t("copilot.cardCurrency", "Currency")} value={a.currency} testid="finance-currency" />}
+        {a.kind && <MetricRow label={t("copilot.cardKind", "Kind")} value={a.kind} testid="finance-kind" />}
+        {a.category && <MetricRow label={t("copilot.cardCategory", "Category")} value={a.category} testid="finance-category" />}
+        {a.limit !== undefined && <MetricRow label={t("copilot.cardLimit", "Limit")} value={String(a.limit)} testid="finance-limit" />}
         {!a.currency && !a.kind && !a.category && a.limit === undefined && (
           <div className="font-mono text-xs text-muted-foreground">
-            Subscription review requested. Full ledger lives under Finance.
+            {t("copilot.cardFinanceHint", "Subscription review requested. Full ledger lives under Finance.")}
           </div>
         )}
       </div>

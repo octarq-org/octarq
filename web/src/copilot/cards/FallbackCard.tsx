@@ -4,6 +4,7 @@
  * Never throws and never returns blank.
  */
 import React from "react";
+import { useTranslation } from "../../i18n";
 import type { CardActionHandler } from "./registry";
 
 export type FallbackReason =
@@ -36,6 +37,7 @@ export function FallbackCard({
 }: FallbackCardProps) {
   void callId;
   void onAction;
+  const { t } = useTranslation();
 
   return (
     <div
@@ -44,9 +46,17 @@ export function FallbackCard({
       data-reason={reason}
       className="rounded-xl border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground space-y-1"
     >
-      <div className="font-mono font-semibold text-foreground">tool: {toolName}</div>
+      <div className="font-mono font-semibold text-foreground">
+        <span>{t("copilot.cardToolPrefix", "tool:")} </span>
+        {toolName}
+      </div>
       <div>{REASON_TEXT[reason]}</div>
-      {detail && <div className="font-mono text-[11px] text-muted-foreground break-all">detail: {detail}</div>}
+      {detail && (
+        <div className="font-mono text-[11px] text-muted-foreground break-all">
+          <span>{t("copilot.cardDetail", "detail:")} </span>
+          {detail}
+        </div>
+      )}
     </div>
   );
 }

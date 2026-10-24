@@ -2,6 +2,7 @@
 import React from "react";
 import { render, screen, cleanup } from "@testing-library/react";
 import { describe, expect, it, afterEach } from "vitest";
+import { I18nProvider } from "../../i18n";
 import {
   registerCard,
   resolveCard,
@@ -11,6 +12,10 @@ import {
   carriesApprovalID,
   type ToolCardProps,
 } from "./registry";
+
+function renderWithI18n(ui: React.ReactElement) {
+  return render(<I18nProvider>{ui}</I18nProvider>);
+}
 
 function StubCard({ args, toolName }: ToolCardProps) {
   return (
@@ -68,20 +73,20 @@ describe("renderToolCall", () => {
       properties: { message: { type: "string" } },
     });
 
-    render(<>{renderToolCall("valid_tool", "c1", { message: "hello" }, noop)}</>);
+    renderWithI18n(<>{renderToolCall("valid_tool", "c1", { message: "hello" }, noop)}</>);
     expect(screen.getByTestId("stub-card")).toBeDefined();
     expect(screen.getByText(/hello/)).toBeDefined();
   });
 
   it("renders FallbackCard on unregistered tool", () => {
-    render(<>{renderToolCall("ghost_tool", "c1", {}, noop)}</>);
+    renderWithI18n(<>{renderToolCall("ghost_tool", "c1", {}, noop)}</>);
     expect(screen.getByTestId("fallback-card")).toBeDefined();
     expect(screen.getByText(/ghost_tool/)).toBeDefined();
     expect(screen.getByText(/No card is registered/)).toBeDefined();
   });
 
   it("renders FallbackCard on malformed JSON string", () => {
-    render(<>{renderToolCall("any_tool", "c1", "{bad json", noop)}</>);
+    renderWithI18n(<>{renderToolCall("any_tool", "c1", "{bad json", noop)}</>);
     expect(screen.getByTestId("fallback-card")).toBeDefined();
     expect(screen.getByText(/Tool arguments are not valid JSON/)).toBeDefined();
   });
@@ -94,7 +99,7 @@ describe("renderToolCall", () => {
       properties: { required_field: { type: "string" } },
     });
 
-    render(<>{renderToolCall("schema_tool", "c1", {}, noop)}</>);
+    renderWithI18n(<>{renderToolCall("schema_tool", "c1", {}, noop)}</>);
     expect(screen.getByTestId("fallback-card")).toBeDefined();
     expect(screen.getByText(/Tool arguments failed validation/)).toBeDefined();
     expect(screen.getByText(/required_field is required/)).toBeDefined();
@@ -102,13 +107,13 @@ describe("renderToolCall", () => {
 
   it("renders FallbackCard when tool has no schema", () => {
     registerCard("schemaless_tool", StubCard);
-    render(<>{renderToolCall("schemaless_tool", "c1", {}, noop)}</>);
+    renderWithI18n(<>{renderToolCall("schemaless_tool", "c1", {}, noop)}</>);
     expect(screen.getByTestId("fallback-card")).toBeDefined();
     expect(screen.getByText(/The tool has no schema to validate against/)).toBeDefined();
   });
 
   it("renders ApprovalCard when args carry approval ID", () => {
-    render(
+    renderWithI18n(
       <>{renderToolCall("any_risky_tool", "c1", { approval_id: "appr-999", summary: "Pending Action" }, noop)}</>,
     );
     expect(screen.getByText(/Approval Required/)).toBeDefined();

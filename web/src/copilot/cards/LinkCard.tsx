@@ -7,6 +7,7 @@
 import React, { useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Copy, Check, ExternalLink, Globe } from "lucide-react";
+import { useTranslation } from "../../i18n";
 import type { ToolCardProps } from "./registry";
 import { CardShell, type CardState } from "./CardShell";
 
@@ -24,6 +25,7 @@ export function LinkCard({
   onAction,
   state,
 }: ToolCardProps & { state?: CardState }) {
+  const { t } = useTranslation();
   const initial = (args ?? {}) as LinkArgs;
   const [slug, setSlug] = useState(initial.slug ?? "");
   const [target, setTarget] = useState(initial.target ?? "");
@@ -58,15 +60,15 @@ export function LinkCard({
   };
 
   return (
-    <CardShell title="Short Link" state={state}>
+    <CardShell title={t("copilot.cardShortLink", "Short Link")} state={state}>
       <div className="space-y-2">
         <div>
           <label htmlFor="link-slug-input" className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Slug
+            {t("copilot.cardSlug", "Slug")}
           </label>
           <input
             id="link-slug-input"
-            aria-label="slug"
+            aria-label={t("copilot.cardSlug", "Slug")}
             className="mt-1 w-full rounded-lg border border-border bg-background px-2.5 py-1.5 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
@@ -75,11 +77,11 @@ export function LinkCard({
 
         <div>
           <label htmlFor="link-target-input" className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Target Destination URL
+            {t("copilot.cardTargetUrl", "Target Destination URL")}
           </label>
           <input
             id="link-target-input"
-            aria-label="target"
+            aria-label={t("copilot.cardTargetUrl", "Target Destination URL")}
             className="mt-1 w-full rounded-lg border border-border bg-background px-2.5 py-1.5 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
@@ -106,7 +108,7 @@ export function LinkCard({
               }
               className="h-7 text-xs"
             >
-              {initial.slug ? "Save Changes" : "Create Link"}
+              {initial.slug ? t("copilot.cardSaveChanges", "Save Changes") : t("copilot.cardCreateLink", "Create Link")}
             </Button>
 
             {shortURL && (
@@ -117,7 +119,7 @@ export function LinkCard({
                 className="h-7 text-xs flex items-center gap-1"
               >
                 {copied ? <Check className="h-3.5 w-3.5 text-success-fg" /> : <Copy className="h-3.5 w-3.5" />}
-                <span>{copied ? "Copied" : "Copy"}</span>
+                <span>{copied ? t("copilot.cardCopied", "Copied") : t("copilot.cardCopy", "Copy")}</span>
               </Button>
             )}
           </div>
@@ -129,7 +131,7 @@ export function LinkCard({
               onChange={(e) => handleToggleEnabled(e.target.checked)}
               className="rounded border-border"
             />
-            <span>Enabled</span>
+            <span>{t("copilot.cardEnabled", "Enabled")}</span>
           </label>
         </div>
 

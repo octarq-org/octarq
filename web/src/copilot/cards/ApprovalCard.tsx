@@ -10,6 +10,7 @@
 import React, { useState } from "react";
 import { Button } from "@octarq/plugin-sdk";
 import { Check, X, AlertTriangle, ShieldCheck } from "lucide-react";
+import { useTranslation } from "../../i18n";
 import type { CardAction, ToolCardProps } from "./registry";
 import { CardShell, type CardState } from "./CardShell";
 
@@ -41,6 +42,7 @@ export function ApprovalCard({
   onAction,
   state,
 }: ToolCardProps & { state?: CardState }) {
+  const { t } = useTranslation();
   const a = (args ?? {}) as ApprovalArgs;
   const [verdict, setVerdict] = useState<Verdict>("none");
   const [detail, setDetail] = useState("");
@@ -96,13 +98,13 @@ export function ApprovalCard({
       {hasDiff && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
           <div>
-            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Before</div>
+            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t("copilot.diffBefore", "Before")}</div>
             <pre data-testid="diff-before" className="mt-1 max-h-36 overflow-auto rounded-lg bg-well p-2 font-mono text-[11px]">
               {pretty(a.before ?? null)}
             </pre>
           </div>
           <div>
-            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">After</div>
+            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{t("copilot.diffAfter", "After")}</div>
             <pre data-testid="diff-after" className="mt-1 max-h-36 overflow-auto rounded-lg bg-well p-2 font-mono text-[11px]">
               {pretty(a.after ?? null)}
             </pre>
@@ -117,7 +119,7 @@ export function ApprovalCard({
           className="flex items-center gap-1.5 rounded-lg border border-warning-fg/30 bg-warning-fg/10 p-2 text-xs text-warning-fg"
         >
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          <span>No approval ID provided. You cannot submit this action.</span>
+          <span>{t("copilot.cardMissingApprovalId", "No approval ID provided. You cannot submit this action.")}</span>
         </div>
       )}
 
@@ -129,9 +131,9 @@ export function ApprovalCard({
         >
           <ShieldCheck className="h-4 w-4 text-primary" />
           <span>
-            {verdict === "decided" && "Action approved. The change executed successfully."}
-            {verdict === "rejected" && "Action rejected. The system made no changes."}
-            {verdict === "expired" && "Approval expired. Submit a new request."}
+            {verdict === "decided" && t("copilot.cardApprovedDesc", "Action approved. The change executed successfully.")}
+            {verdict === "rejected" && t("copilot.cardRejectedDesc", "Action rejected. The system made no changes.")}
+            {verdict === "expired" && t("copilot.cardExpiredDesc", "Approval expired. Submit a new request.")}
           </span>
         </div>
       ) : (
@@ -144,7 +146,7 @@ export function ApprovalCard({
             className="flex items-center gap-1 h-7 text-xs"
           >
             <Check className="h-3.5 w-3.5" />
-            <span>Approve</span>
+            <span>{t("copilot.approveAction", "Approve")}</span>
           </Button>
           <Button
             size="sm"
@@ -154,11 +156,12 @@ export function ApprovalCard({
             className="flex items-center gap-1 h-7 text-xs"
           >
             <X className="h-3.5 w-3.5" />
-            <span>Reject</span>
+            <span>{t("copilot.rejectAction", "Reject")}</span>
           </Button>
           {approvalID && (
             <span className="font-mono text-[11px] text-muted-foreground ml-auto">
-              ID: {approvalID.slice(0, 8)}…
+              <span>{t("copilot.cardIdPrefix", "ID:")} </span>
+              {approvalID.slice(0, 8)}…
             </span>
           )}
         </div>

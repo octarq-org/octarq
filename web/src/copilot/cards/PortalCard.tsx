@@ -6,6 +6,7 @@
  */
 import React from "react";
 import { Key } from "lucide-react";
+import { useTranslation } from "../../i18n";
 import type { ToolCardProps } from "./registry";
 import { CardShell, type CardState } from "./CardShell";
 
@@ -19,6 +20,7 @@ export function PortalCard({
   toolName,
   state,
 }: ToolCardProps & { state?: CardState }) {
+  const { t } = useTranslation();
   const a = (args ?? {}) as PortalArgs;
 
   return (
@@ -28,19 +30,23 @@ export function PortalCard({
         <div className="flex-1 space-y-1 font-mono text-xs">
           {a.email && (
             <div data-testid="portal-email">
-              <span className="text-muted-foreground">Buyer: </span>
+              <span className="text-muted-foreground">
+                <span>{t("copilot.cardBuyerPrefix", "Buyer:")} </span>
+              </span>
               <span className="font-semibold text-foreground">{a.email}</span>
             </div>
           )}
           {a.licenseId !== undefined && (
             <div data-testid="portal-license">
-              <span className="text-muted-foreground">License ID: </span>
+              <span className="text-muted-foreground">
+                <span>{t("copilot.cardLicenseIdPrefix", "License ID:")} </span>
+              </span>
               <span className="font-semibold text-foreground">#{a.licenseId}</span>
             </div>
           )}
           {toolName === "portal_licenses" && (
             <div className="text-[11px] text-muted-foreground">
-              Metadata display only. Secret license keys never appear in chat history.
+              {t("copilot.cardPortalHint", "Metadata display only. Secret license keys never appear in chat history.")}
             </div>
           )}
         </div>
