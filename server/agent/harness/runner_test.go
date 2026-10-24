@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/octarq-org/octarq/server/llmprovider"
 	"github.com/octarq-org/octarq/server/plugin"
 )
 
@@ -448,5 +449,59 @@ func TestRunner_WithMaxStepsOnlyTightens(t *testing.T) {
 	}
 	if len(turn2.Steps) != MaxStepsNormal {
 		t.Fatalf("a spec must not raise the ceiling: %d steps", len(turn2.Steps))
+	}
+}
+
+type tokenMockProvider struct {
+	steps []llmprovider.Response
+	idx   int
+}
+
+func (p *tokenMockProvider) Name() string         { return "token-mock" }
+func (p *tokenMockProvider) DefaultModel() string { return "token-mock-model" }
+func (p *tokenMockProvider) CheapModel() string   { return "token-mock-cheap" }
+func (p *tokenMockProvider) Complete(_ context.Context, _ llmprovider.Request) (llmprovider.Response, error) {
+	if p.idx >= len(p.steps) {
+		return llmprovider.Response{Text: "done"}, nil
+	}
+	r := p.steps[p.idx]
+	p.idx++
+	return r, nil
+}
+
+func TestCompleterAdapter_PropagatesTokensIntoTurn(t *testing.T) {
+	t.Parallel()
+	prov := &tokenMockProvider{
+		steps: []llmprovider.Response{
+			{
+				Text:            toolCallBlock("list_domains", `{}`),
+				InputTokens:     120,
+				OutputTokens:    45,
+				ReasoningTokens: 10,
+			},
+			{
+				Text:            "You have 2 domains.",
+				InputTokens:     180,
+				OutputTokens:    30,
+				ReasoningTokens: 5,
+			},
+		},
+	}
+	adapter := &CompleterAdapter{Provider: prov}
+	exec := &fakeExecutor{outputs: map[string]string{"list_domains": `["a.com","b.com"]`}}
+	runner := NewRunner(adapter, exec)
+	sess := &Session{ID: "s-tokens", OrgID: 1, Channel: "telegram"}
+	turn := &Turn{Input: "list my domains"}
+	if err := runner.Run(context.Background(), sess, turn); err != nil {
+		t.Fatalf("Run failed: %v", err)
+	}
+	if turn.InputTokens != 300 {
+		t.Fatalf("turn.InputTokens = %d, want 300", turn.InputTokens)
+	}
+	if turn.OutputTokens != 75 {
+		t.Fatalf("turn.OutputTokens = %d, want 75", turn.OutputTokens)
+	}
+	if turn.ReasoningTokens != 15 {
+		t.Fatalf("turn.ReasoningTokens = %d, want 15", turn.ReasoningTokens)
 	}
 }
