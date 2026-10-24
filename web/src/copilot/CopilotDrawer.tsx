@@ -153,6 +153,12 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
           updateLastMessage((prev) => ({
             ...prev,
             actionDiffs: [...(prev.actionDiffs || []), raw],
+            toolCall: { name: toolCall.name, args: toolCall.args },
+          }));
+        } else {
+          updateLastMessage((prev) => ({
+            ...prev,
+            toolCall: { name: toolCall.name, args: toolCall.args },
           }));
         }
       },

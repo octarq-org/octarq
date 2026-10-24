@@ -16,6 +16,8 @@ import { useTranslation } from "../i18n";
 import { useCopilotStore } from "./store";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { ActionDiffCard } from "./ActionDiffCard";
+import { renderToolCall, type CardAction, type CardOutcome } from "./cards";
+import { decideApproval } from "./api";
 import type { AIStatus } from "./types";
 
 export interface CopilotChatTabProps {
@@ -207,6 +209,28 @@ export function CopilotChatTab({
                   {msg.actionDiffs.map((diff) => (
                     <ActionDiffCard key={diff.id} action={diff} />
                   ))}
+                </div>
+              )}
+
+              {/* Domain Tool Call Card */}
+              {msg.toolCall && (!msg.actionDiffs || msg.actionDiffs.length === 0) && (
+                <div className="w-full space-y-2.5 pt-1 max-w-full" data-testid="copilot-tool-call">
+                  {renderToolCall(
+                    msg.toolCall.name,
+                    msg.id,
+                    msg.toolCall.args,
+                    async (action: CardAction): Promise<CardOutcome> => {
+                      if (action.type === "approve" && action.approvalId) {
+                        const res = await decideApproval(action.approvalId, "approve");
+                        return { status: res.outcome === "approved" ? 200 : 409 };
+                      }
+                      if (action.type === "reject" && action.approvalId) {
+                        const res = await decideApproval(action.approvalId, "reject");
+                        return { status: res.outcome === "rejected" ? 200 : 409 };
+                      }
+                      return { status: 200 };
+                    },
+                  )}
                 </div>
               )}
             </div>
