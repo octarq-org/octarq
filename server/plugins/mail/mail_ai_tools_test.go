@@ -3,6 +3,7 @@ package mail
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -277,5 +278,83 @@ func TestMailSendReply_DeclarativeContractAndHITL(t *testing.T) {
 	})
 	if errNoSMTP == nil {
 		t.Fatal("expected error when no SMTP sender is configured")
+	}
+
+	// 5. Unauthorized send (no org)
+	if _, err := p.handleSendEmail(context.Background(), SendEmailToolInput{To: []string{"test@example.com"}}); err == nil {
+		t.Fatal("expected unauthorized error")
+	}
+
+	// 6. ToAddr comma/semicolon parsing and decryption failures
+	db.Create(&SMTPSender{OrgID: 1, Host: "127.0.0.1", Port: 2525, User: "sender", Pass: "encpass", FromEmail: "sender@example.com"})
+	_, errDecAvail := p.handleSendEmail(ctx1, SendEmailToolInput{
+		ToAddr:  "user1@test.com; user2@test.com",
+		Subject: "Test Parsed Addrs",
+		Body:    "Hello",
+	})
+	if errDecAvail == nil {
+		t.Fatal("expected decryption unavailable error")
+	}
+
+	p.decrypt = func(encoded string) ([]byte, error) {
+		return nil, errors.New("crypto failure")
+	}
+	_, errDecFail := p.handleSendEmail(ctx1, SendEmailToolInput{
+		To:      []string{"valid@example.com"},
+		Subject: "Test",
+		Body:    "Hello",
+	})
+	if errDecFail == nil {
+		t.Fatal("expected decryption failed error")
+	}
+
+	// 7. Send failed error from network dialer
+	p.decrypt = func(encoded string) ([]byte, error) {
+		return []byte("plainpass"), nil
+	}
+	_, errSendFail := p.handleSendEmail(ctx1, SendEmailToolInput{
+		To:      []string{"valid@example.com"},
+		Subject: "Test",
+		Body:    "Hello",
+	})
+	if errSendFail == nil {
+		t.Fatal("expected send failed error")
+	}
+}
+
+func TestMailAITools_ReadEmailAndDraftEdgeCases(t *testing.T) {
+	db, p := setupMailboxTestDB(t)
+	ctx1 := plugin.WithOrgID(context.Background(), 1)
+
+	// Read email ID == 0
+	if _, err := p.handleReadEmailBody(ctx1, ReadEmailInput{}); err == nil {
+		t.Fatal("expected bad request for missing email id")
+	}
+
+	// Read email with HTML fallback and attachments
+	mb := Mailbox{OrgID: 1, Address: "inbox2@example.com"}
+	db.Create(&mb)
+	em := Email{
+		MailboxID:   mb.ID,
+		Subject:     "Newsletter",
+		HTML:        "<div>Hello HTML <b>world</b></div>",
+		Attachments: `[{"filename":"invoice.pdf","contentType":"application/pdf","size":1024}]`,
+	}
+	db.Create(&em)
+
+	out, err := p.handleReadEmailBody(ctx1, ReadEmailInput{EmailID: em.ID})
+	if err != nil {
+		t.Fatalf("handleReadEmailBody failed: %v", err)
+	}
+	if !strings.Contains(out.TextBody, "Hello HTML world") {
+		t.Fatalf("expected stripped html in textBody, got %q", out.TextBody)
+	}
+	if len(out.Attachments) != 1 || out.Attachments[0].Filename != "invoice.pdf" {
+		t.Fatalf("expected attachment dto, got %v", out.Attachments)
+	}
+
+	// Create draft with missing recipient
+	if _, err := p.handleCreateDraft(ctx1, CreateDraftInput{Subject: "No recipient"}); err == nil {
+		t.Fatal("expected error creating draft with no recipient")
 	}
 }

@@ -260,4 +260,27 @@ func TestEndToEndMailInjection(t *testing.T) {
 	if err := fresh.AddExternalAny(string(inbound), Source{Kind: SourceMail, ID: "77"}); !errors.Is(err, ErrUnfenced) {
 		t.Fatalf("untyped payload accepted: %v", err)
 	}
+
+	// Valid typed Untrusted succeeds via AddExternalAny
+	if err := fresh.AddExternalAny(inbound, Source{Kind: SourceMail, ID: "77"}); err != nil {
+		t.Fatalf("typed Untrusted rejected: %v", err)
+	}
+	if len(fresh.Parts()) != 1 || !fresh.Parts()[0].External {
+		t.Fatalf("expected 1 external part, got %v", fresh.Parts())
+	}
+
+	// Invalid source returns error
+	if err := fresh.AddExternal(inbound, Source{Kind: "invalid-source"}); err == nil {
+		t.Fatal("expected error with invalid source")
+	}
+
+	// Fallback Wrap with empty or custom source
+	fallback := Wrap("", "fallback content")
+	if !strings.Contains(fallback, "fallback content") || !strings.Contains(fallback, `source="tool"`) {
+		t.Fatalf("unexpected fallback wrap: %s", fallback)
+	}
+	customFallback := Wrap("unknown_kind", "some text")
+	if !strings.Contains(customFallback, "some text") {
+		t.Fatalf("unexpected custom wrap: %s", customFallback)
+	}
 }
