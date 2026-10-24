@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/server/config"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 

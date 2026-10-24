@@ -99,13 +99,13 @@ func TestMailGet_BodyRetrievalAndFences(t *testing.T) {
 		t.Errorf("HTML TextBody must also be fenced: %q", outHTML.TextBody)
 	}
 
-	// 3. MCP tool invocation
-	mcpRes, _, mcpErr := p.mcpMailGet(ctx1, nil, ReadEmailInput{EmailIDCamel: e1.ID})
+	// 3. Declarative handler invocation with camelCase
+	mcpRes, mcpErr := p.handleReadEmailBody(ctx1, ReadEmailInput{EmailIDCamel: e1.ID})
 	if mcpErr != nil {
-		t.Fatalf("mcpMailGet failed: %v", mcpErr)
+		t.Fatalf("handleReadEmailBody failed: %v", mcpErr)
 	}
-	if len(mcpRes.Content) == 0 {
-		t.Fatal("expected non-empty MCP response content")
+	if mcpRes == nil || mcpRes.TextBody == "" {
+		t.Fatal("expected non-empty response content")
 	}
 
 	// 4. Cross-tenant isolation: Org 2 must NOT be able to read Org 1's email
@@ -170,14 +170,14 @@ func TestMailDraftCreate(t *testing.T) {
 		t.Errorf("expected InReplyToID 42, got %d", savedDraft.InReplyToID)
 	}
 
-	// 3. MCP tool invocation
-	_, _, err = p.mcpMailDraftCreate(ctx1, nil, CreateDraftInput{
+	// 3. Declarative handler invocation
+	_, err = p.handleCreateDraft(ctx1, CreateDraftInput{
 		To:      "mcp@test.com",
 		Subject: "MCP Draft",
 		Body:    "Created via MCP tool",
 	})
 	if err != nil {
-		t.Fatalf("mcpMailDraftCreate failed: %v", err)
+		t.Fatalf("handleCreateDraft failed: %v", err)
 	}
 
 	// 4. Unauthorized (no org)
