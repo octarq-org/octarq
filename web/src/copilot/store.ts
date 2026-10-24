@@ -1,7 +1,37 @@
 import { create } from "zustand";
 import type { ActionDiff, ApprovalStatus, ChatMessage } from "./types";
 
-interface CopilotUIState {
+export type ArtifactType =
+  | "resume_rank"
+  | "invoice_audit"
+  | "quotation"
+  | "weekly_report"
+  | "storyboard"
+  | "email_draft"
+  | "support_escalation"
+  | "financial_deck";
+
+export type CanvasLayout = "drawer" | "split" | "maximized";
+
+export interface Artifact<T = unknown> {
+  id: string;
+  type: ArtifactType;
+  title: string;
+  version: number;
+  status: "draft" | "reviewing" | "approved" | "rejected" | "executed";
+  content: T;
+  mutatingAction?: {
+    toolName: string;
+    approvalId?: string;
+    approvalToken?: string;
+    payload?: Record<string, unknown>;
+    riskLevel?: "read" | "write" | "destructive";
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CopilotUIState {
   isOpen: boolean;
   activeTab: "chat" | "approvals";
   messages: ChatMessage[];
@@ -11,6 +41,11 @@ interface CopilotUIState {
   approvalsError: string | null;
   transport: "agui" | "legacy";
   threadId?: string;
+
+  // Artifact & Canvas layout slice
+  artifacts: Record<string, Artifact>;
+  activeArtifactId: string | null;
+  canvasLayout: CanvasLayout;
 
   openCopilot: () => void;
   closeCopilot: () => void;
@@ -30,6 +65,11 @@ interface CopilotUIState {
   setApprovalsError: (error: string | null) => void;
   syncApprovalStatus: (actionId: string, status: ApprovalStatus, extra?: Partial<ActionDiff>) => void;
   resetCopilot: () => void;
+
+  openArtifact: (artifact: Artifact) => void;
+  updateArtifactContent: <T>(id: string, updater: (prev: T) => T) => void;
+  closeCanvas: () => void;
+  setCanvasLayout: (layout: CanvasLayout) => void;
 }
 
 function applyApprovalStatus(
@@ -67,6 +107,10 @@ export const useCopilotStore = create<CopilotUIState>((set) => ({
   approvalsError: null,
   transport: "agui",
   threadId: undefined,
+
+  artifacts: {},
+  activeArtifactId: null,
+  canvasLayout: "drawer",
 
   openCopilot: () => set({ isOpen: true }),
   closeCopilot: () => set({ isOpen: false }),
@@ -116,6 +160,37 @@ export const useCopilotStore = create<CopilotUIState>((set) => ({
   syncApprovalStatus: (actionId, status, extra) =>
     set((state) => applyApprovalStatus(state.pendingApprovals, state.messages, actionId, status, extra)),
 
+  openArtifact: (artifact) =>
+    set((state) => ({
+      artifacts: { ...state.artifacts, [artifact.id]: artifact },
+      activeArtifactId: artifact.id,
+      canvasLayout: state.canvasLayout === "drawer" ? "split" : state.canvasLayout,
+      isOpen: true,
+    })),
+
+  updateArtifactContent: (id, updater) =>
+    set((state) => {
+      const existing = state.artifacts[id];
+      if (!existing) return state;
+      const updatedContent =
+        typeof updater === "function" ? updater(existing.content as never) : existing.content;
+      return {
+        artifacts: {
+          ...state.artifacts,
+          [id]: {
+            ...existing,
+            content: updatedContent,
+            version: existing.version + 1,
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      };
+    }),
+
+  closeCanvas: () => set({ activeArtifactId: null, canvasLayout: "drawer" }),
+
+  setCanvasLayout: (canvasLayout) => set({ canvasLayout }),
+
   resetCopilot: () =>
     set({
       activeTab: "chat",
@@ -126,5 +201,8 @@ export const useCopilotStore = create<CopilotUIState>((set) => ({
       isStreaming: false,
       transport: "agui",
       threadId: undefined,
+      artifacts: {},
+      activeArtifactId: null,
+      canvasLayout: "drawer",
     }),
 }));

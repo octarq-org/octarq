@@ -16,11 +16,22 @@ import { OrderCard } from "./OrderCard";
 import { FinanceCard } from "./FinanceCard";
 import { StatusCard } from "./StatusCard";
 import { PortalCard } from "./PortalCard";
+import { ResumeRankCard } from "./ResumeRankCard";
+import { InvoiceAuditCard } from "./InvoiceAuditCard";
+import { QuotationCard } from "./QuotationCard";
+import { WeeklyReportCard } from "./WeeklyReportCard";
+import { ScriptStoryboardCard } from "./ScriptStoryboardCard";
+import { EmailManagementCard } from "./EmailManagementCard";
+import { SupportEscalationCard } from "./SupportEscalationCard";
+import { FinancialAnalysisCard } from "./FinancialAnalysisCard";
 
 export interface CardAction {
-  /** approve/reject feed approval endpoints; custom is domain-specific. */
-  type: "approve" | "reject" | "custom";
+  /** approve/reject feed approval endpoints; custom/open_canvas/edit_artifact is domain-specific. */
+  type: "approve" | "reject" | "custom" | "open_canvas" | "edit_artifact" | "refresh";
   approvalId?: string;
+  approvalToken?: string;
+  toolName?: string;
+  artifactId?: string;
   payload?: unknown;
 }
 
@@ -82,6 +93,20 @@ export function carriesApprovalID(args: unknown): boolean {
   return false;
 }
 
+export const WORKFLOW_TOOLS = new Set([
+  "recruiting_screen",
+  "invoice_audit",
+  "quotation_generate",
+  "sales_quotation",
+  "weekly_report",
+  "operations_weekly_report",
+  "script_storyboard",
+  "marketing_storyboard",
+  "email_manage",
+  "support_escalate",
+  "financial_analysis",
+]);
+
 /**
  * Render one tool call: resolve -> parse -> schema-check -> component.
  * Every failure branch renders FallbackCard with a machine-readable reason.
@@ -110,8 +135,8 @@ export function renderToolCall(
     }
   }
 
-  // Any call carrying an approval ID renders ApprovalCard
-  if (carriesApprovalID(parsedArgs)) {
+  // Any call carrying an approval ID renders ApprovalCard (unless handled by a dedicated workflow card)
+  if (carriesApprovalID(parsedArgs) && !WORKFLOW_TOOLS.has(toolName)) {
     return (
       <ApprovalCard
         args={parsedArgs}
@@ -291,6 +316,177 @@ const DEFAULT_SCHEMAS: Record<string, JsonSchema> = {
       licenseId: { type: "number" },
     },
   },
+  recruiting_screen: {
+    type: "object",
+    properties: {
+      requisition_id: { type: "string" },
+      min_score: { type: "number" },
+      job_title: { type: "string" },
+      total_candidates: { type: "integer" },
+      shortlist_count: { type: "integer" },
+      candidates: { type: "array" },
+      approval_id: { type: "string" },
+    },
+  },
+  invoice_audit: {
+    type: "object",
+    properties: {
+      batch_id: { type: "string" },
+      audit_quarter: { type: "string" },
+      audit_time_seconds: { type: "number" },
+      total_invoices: { type: "integer" },
+      scanned_count: { type: "integer" },
+      matched_count: { type: "integer" },
+      discrepancy_count: { type: "integer" },
+      mismatched_count: { type: "integer" },
+      overdue_count: { type: "integer" },
+      net_variance_cents: { type: "integer" },
+      total_variance_usd: { type: "number" },
+      discrepancies: { type: "array" },
+      items: { type: "array" },
+      approval_id: { type: "string" },
+    },
+  },
+  quotation_generate: {
+    type: "object",
+    properties: {
+      transcript_id: { type: "string" },
+      quote_id: { type: "string" },
+      client_name: { type: "string" },
+      customer_name: { type: "string" },
+      company: { type: "string" },
+      currency: { type: "string" },
+      discount_percent: { type: "number" },
+      discount_cents: { type: "integer" },
+      subtotal_cents: { type: "integer" },
+      total_cents: { type: "integer" },
+      grand_total: { type: "number" },
+      valid_until: { type: "string" },
+      line_items: { type: "array" },
+      items: { type: "array" },
+      crm_sync_payload: { type: "object" },
+      crm_payload: { type: "object" },
+      approval_id: { type: "string" },
+    },
+  },
+  sales_quotation: {
+    type: "object",
+    properties: {
+      transcript_id: { type: "string" },
+      quote_id: { type: "string" },
+      client_name: { type: "string" },
+      customer_name: { type: "string" },
+      company: { type: "string" },
+      currency: { type: "string" },
+      discount_percent: { type: "number" },
+      discount_cents: { type: "integer" },
+      subtotal_cents: { type: "integer" },
+      total_cents: { type: "integer" },
+      grand_total: { type: "number" },
+      valid_until: { type: "string" },
+      line_items: { type: "array" },
+      items: { type: "array" },
+      crm_sync_payload: { type: "object" },
+      crm_payload: { type: "object" },
+      approval_id: { type: "string" },
+    },
+  },
+  weekly_report: {
+    type: "object",
+    properties: {
+      report_title: { type: "string" },
+      date_range: { type: "string" },
+      week_ending: { type: "string" },
+      departments: { type: "array" },
+      summary_kpis: { type: "object" },
+      kpis: { type: "object" },
+      markdown_report: { type: "string" },
+      sections: { type: "array" },
+    },
+  },
+  operations_weekly_report: {
+    type: "object",
+    properties: {
+      report_title: { type: "string" },
+      date_range: { type: "string" },
+      week_ending: { type: "string" },
+      departments: { type: "array" },
+      summary_kpis: { type: "object" },
+      kpis: { type: "object" },
+      markdown_report: { type: "string" },
+      sections: { type: "array" },
+    },
+  },
+  script_storyboard: {
+    type: "object",
+    properties: {
+      brief_id: { type: "string" },
+      campaign_title: { type: "string" },
+      project_name: { type: "string" },
+      target_seconds: { type: "integer" },
+      target_duration_seconds: { type: "integer" },
+      aspect_ratio: { type: "string" },
+      scenes: { type: "array" },
+    },
+  },
+  marketing_storyboard: {
+    type: "object",
+    properties: {
+      brief_id: { type: "string" },
+      campaign_title: { type: "string" },
+      project_name: { type: "string" },
+      target_seconds: { type: "integer" },
+      target_duration_seconds: { type: "integer" },
+      aspect_ratio: { type: "string" },
+      scenes: { type: "array" },
+    },
+  },
+  email_manage: {
+    type: "object",
+    properties: {
+      total_unread: { type: "integer" },
+      total_scanned: { type: "integer" },
+      unread_only: { type: "boolean" },
+      limit: { type: "integer" },
+      emails: { type: "array" },
+      threads: { type: "array" },
+      approval_id: { type: "string" },
+    },
+  },
+  support_escalate: {
+    type: "object",
+    properties: {
+      ticket_id: { type: "string" },
+      customer_email: { type: "string" },
+      plan_tier: { type: "string" },
+      severity: { type: "string" },
+      sentiment: { type: "string" },
+      sentiment_score: { type: "number" },
+      high_risk: { type: "boolean" },
+      issue_summary: { type: "string" },
+      resolution_text: { type: "string" },
+      kb_citations: { type: "array" },
+      kb_matches: { type: "array" },
+      escalation: { type: "object" },
+      approval_id: { type: "string" },
+    },
+  },
+  financial_analysis: {
+    type: "object",
+    properties: {
+      fiscal_quarter: { type: "string" },
+      period: { type: "string" },
+      budget_cents: { type: "integer" },
+      planned_total: { type: "number" },
+      actual_cents: { type: "integer" },
+      actual_total: { type: "number" },
+      variance_cents: { type: "integer" },
+      variance_total: { type: "number" },
+      variance_pct: { type: "number" },
+      status: { type: "string" },
+      slides: { type: "array" },
+    },
+  },
 };
 
 /** Register the domain cards and standard schemas. Idempotent. */
@@ -315,6 +511,19 @@ export function registerDomainCards(): void {
     ["statuspage_probe", StatusCard],
     ["portal_licenses", PortalCard],
     ["portal_devices", PortalCard],
+
+    // 8 Enterprise Knowledge Work Cards
+    ["recruiting_screen", ResumeRankCard],
+    ["invoice_audit", InvoiceAuditCard],
+    ["quotation_generate", QuotationCard],
+    ["sales_quotation", QuotationCard],
+    ["weekly_report", WeeklyReportCard],
+    ["operations_weekly_report", WeeklyReportCard],
+    ["script_storyboard", ScriptStoryboardCard],
+    ["marketing_storyboard", ScriptStoryboardCard],
+    ["email_manage", EmailManagementCard],
+    ["support_escalate", SupportEscalationCard],
+    ["financial_analysis", FinancialAnalysisCard],
   ];
 
   for (const [name, component] of registrations) {
