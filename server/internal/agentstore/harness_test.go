@@ -7,7 +7,7 @@ import (
 
 	"github.com/octarq-org/octarq/server/agent/harness"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
