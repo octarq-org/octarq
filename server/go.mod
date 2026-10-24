@@ -1,6 +1,6 @@
 module github.com/octarq-org/octarq/server
 
-go 1.26.9
+go 1.27.3
 
 require (
 	connectrpc.com/connect v1.21.0
