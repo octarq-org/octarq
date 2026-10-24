@@ -4,10 +4,13 @@
 package db
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"log/slog"
+	"net/url"
 	"os"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -40,15 +43,132 @@ func dbLoggerConfig(provisioned bool) logger.Config {
 	}
 }
 
+// defaultSQLitePragmas defines mandatory WAL and concurrency pragmas for SQLite.
+// Setting these in the DSN ensures every connection opened by the pool has WAL,
+// normal sync, foreign keys, and a 5-second busy timeout configured.
+var defaultSQLitePragmas = []struct {
+	key   string
+	param string
+}{
+	{"busy_timeout", "busy_timeout(5000)"},
+	{"journal_mode", "journal_mode(WAL)"},
+	{"synchronous", "synchronous(NORMAL)"},
+	{"foreign_keys", "foreign_keys(1)"},
+}
+
+// EnsureSQLiteWALDSN enriches a SQLite DSN with WAL mode and concurrency
+// pragmas: busy_timeout(5000), journal_mode(WAL), synchronous(NORMAL), and
+// foreign_keys(1). Existing query parameters are preserved and missing
+// pragmas are appended.
+func EnsureSQLiteWALDSN(dsn string) string {
+	base, query, found := strings.Cut(dsn, "?")
+	if !found {
+		return base + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(1)"
+	}
+
+	trimmedQuery := strings.TrimSpace(query)
+	if trimmedQuery == "" {
+		return base + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(1)"
+	}
+
+	parsed, err := url.ParseQuery(trimmedQuery)
+	if err != nil {
+		cleanDSN := strings.TrimRight(dsn, "&")
+		return cleanDSN + "&_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(1)"
+	}
+
+	existingPragmas := parsed["_pragma"]
+	hasPragma := func(prefix string) bool {
+		prefixLower := strings.ToLower(prefix)
+		for _, p := range existingPragmas {
+			pLower := strings.ToLower(strings.TrimSpace(p))
+			if strings.HasPrefix(pLower, prefixLower) {
+				return true
+			}
+		}
+		return false
+	}
+
+	var missing []string
+	for _, item := range defaultSQLitePragmas {
+		if !hasPragma(item.key) {
+			missing = append(missing, "_pragma="+item.param)
+		}
+	}
+
+	if len(missing) == 0 {
+		return dsn
+	}
+
+	cleanDSN := strings.TrimRight(dsn, "&")
+	return cleanDSN + "&" + strings.Join(missing, "&")
+}
+
+func applySQLitePragmas(sqlDB *sql.DB) error {
+	if _, err := sqlDB.Exec("PRAGMA busy_timeout = 5000"); err != nil {
+		return fmt.Errorf("sqlite busy_timeout: %w", err)
+	}
+	if _, err := sqlDB.Exec("PRAGMA journal_mode = WAL"); err != nil {
+		return fmt.Errorf("sqlite journal_mode: %w", err)
+	}
+	if _, err := sqlDB.Exec("PRAGMA synchronous = NORMAL"); err != nil {
+		return fmt.Errorf("sqlite synchronous: %w", err)
+	}
+	if _, err := sqlDB.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		return fmt.Errorf("sqlite foreign_keys: %w", err)
+	}
+	return nil
+}
+
+func openSQLiteHandle(cfg *config.Config, meterScope string, maxConns int) (*gorm.DB, error) {
+	dsn := EnsureSQLiteWALDSN(cfg.DBDSN)
+	dial := sqlite.Open(dsn)
+
+	dbLogger := logger.New(
+		log.New(os.Stderr, "\r\n", log.LstdFlags),
+		dbLoggerConfig(cfg.Provisioned()),
+	)
+	gdb, err := gorm.Open(dial, &gorm.Config{
+		Logger: dbLogger,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("open sqlite db: %w", err)
+	}
+
+	sqlDB, err := gdb.DB()
+	if err != nil {
+		return nil, fmt.Errorf("sql db: %w", err)
+	}
+
+	if err := gdb.Use(tracing.NewPlugin(tracing.WithoutQueryVariables())); err != nil {
+		slog.Warn("db: failed to install gorm tracing plugin", "err", err)
+	}
+	if err := telemetry.RegisterDBStatsMetrics(otel.GetMeterProvider().Meter(meterScope), sqlDB); err != nil {
+		slog.Warn("db: failed to register db pool metrics", "err", err)
+	}
+	telemetry.RegisterDB(sqlDB)
+
+	if err := applySQLitePragmas(sqlDB); err != nil {
+		return nil, err
+	}
+
+	sqlDB.SetMaxOpenConns(maxConns)
+	sqlDB.SetMaxIdleConns(maxConns)
+
+	return gdb, nil
+}
+
 // Open connects to the database WITHOUT migrating. Migration is deferred to
 // Migrate so that plugin-contributed models (registered after Open) are
 // migrated together with the core schema in a single pass — see the plugin
 // package for why AutoMigrate must not run at open time.
 func Open(cfg *config.Config) (*gorm.DB, error) {
+	if cfg.DBDriver == "sqlite" {
+		return openSQLiteHandle(cfg, "github.com/octarq-org/octarq/server/db", 1)
+	}
+
 	var dial gorm.Dialector
 	switch cfg.DBDriver {
-	case "sqlite":
-		dial = sqlite.Open(cfg.DBDSN)
 	case "postgres":
 		dial = postgres.Open(cfg.DBDSN)
 	case "mysql":
@@ -84,21 +204,53 @@ func Open(cfg *config.Config) (*gorm.DB, error) {
 	}
 	telemetry.RegisterDB(sqlDB)
 
-	if cfg.DBDriver == "sqlite" {
-		// Apply on the live connection so a user DSN that already has
-		// `_pragma=...` still gets WAL. One connection: SQLite serializes
-		// writers even in WAL, and a large pool just surfaces SQLITE_BUSY.
-		if _, err := sqlDB.Exec("PRAGMA busy_timeout = 5000"); err != nil {
-			return nil, fmt.Errorf("sqlite busy_timeout: %w", err)
-		}
-		if _, err := sqlDB.Exec("PRAGMA journal_mode = WAL"); err != nil {
-			return nil, fmt.Errorf("sqlite journal_mode: %w", err)
-		}
-		sqlDB.SetMaxOpenConns(1)
-		sqlDB.SetMaxIdleConns(1)
-	}
-
 	return gdb, nil
+}
+
+// OpenDualPool opens dedicated write and read GORM database handles.
+// For SQLite, the writer pool is restricted to 1 connection (SetMaxOpenConns(1))
+// to serialize write transactions and prevent lock contention (database is locked),
+// while the reader pool is configured with max(4, runtime.NumCPU()) connections in
+// WAL mode with busy_timeout(5000), synchronous(NORMAL), and foreign_keys(1) pragmas.
+// For Postgres and MySQL, standard connection pools are opened.
+func OpenDualPool(cfg *config.Config) (writeDB *gorm.DB, readDB *gorm.DB, err error) {
+	switch cfg.DBDriver {
+	case "sqlite":
+		writeDB, err = openSQLiteHandle(cfg, "github.com/octarq-org/octarq/server/db", 1)
+		if err != nil {
+			return nil, nil, fmt.Errorf("open sqlite writer pool: %w", err)
+		}
+
+		readerConns := max(4, runtime.NumCPU())
+		readDB, err = openSQLiteHandle(cfg, "github.com/octarq-org/octarq/server/db/reader", readerConns)
+		if err != nil {
+			if wsql, errDB := writeDB.DB(); errDB == nil {
+				_ = wsql.Close()
+			}
+			return nil, nil, fmt.Errorf("open sqlite reader pool: %w", err)
+		}
+
+		return writeDB, readDB, nil
+
+	case "postgres", "mysql":
+		writeDB, err = Open(cfg)
+		if err != nil {
+			return nil, nil, fmt.Errorf("open writer db: %w", err)
+		}
+
+		readDB, err = Open(cfg)
+		if err != nil {
+			if wsql, errDB := writeDB.DB(); errDB == nil {
+				_ = wsql.Close()
+			}
+			return nil, nil, fmt.Errorf("open reader db: %w", err)
+		}
+
+		return writeDB, readDB, nil
+
+	default:
+		return nil, nil, fmt.Errorf("unsupported driver %q", cfg.DBDriver)
+	}
 }
 
 // Migrate auto-migrates the core schema plus any extra (plugin) models, then
