@@ -96,4 +96,3 @@ type MailDraft struct {
 }
 
 func (MailDraft) TableName() string { return "mail_drafts" }
-
