@@ -36,6 +36,48 @@ func UserIDFromContext(ctx context.Context) uint {
 	return tenantsql.UserIDFromContext(ctx)
 }
 
+const (
+	// DefaultWorkScope is the default sovereignty scope for un-elevated workspace/team requests.
+	DefaultWorkScope = tenantsql.DefaultWorkScope
+	// PersonalPrivateScope is the private personal life sovereignty scope for owner-authenticated sessions.
+	PersonalPrivateScope = tenantsql.PersonalPrivateScope
+	// ScopeWildcardWork matches any work scope ("work:*").
+	ScopeWildcardWork = tenantsql.ScopeWildcardWork
+	// ScopeWildcardPersonal matches any personal scope ("personal:*").
+	ScopeWildcardPersonal = tenantsql.ScopeWildcardPerson
+)
+
+// WithScopeKey binds an active sovereignty scope_key (e.g. "work:default" or "personal:private")
+// to the context.
+func WithScopeKey(ctx context.Context, scopeKey string) context.Context {
+	return tenantsql.WithScopeKey(ctx, scopeKey)
+}
+
+// ScopeKeyFromContext extracts the active sovereignty scope_key from context (defaults to "work:default").
+func ScopeKeyFromContext(ctx context.Context) string {
+	return tenantsql.ScopeKeyFromContext(ctx)
+}
+
+// WithAllowedScopes sets the explicit allowed scope patterns (e.g. "work:*", "personal:*") on ctx.
+func WithAllowedScopes(ctx context.Context, scopes ...string) context.Context {
+	return tenantsql.WithAllowedScopes(ctx, scopes...)
+}
+
+// AllowedScopesFromContext returns the allowed scope patterns from ctx (defaults to ["work:*"]).
+func AllowedScopesFromContext(ctx context.Context) []string {
+	return tenantsql.AllowedScopesFromContext(ctx)
+}
+
+// AllowsPersonalScope reports whether ctx authorizes access to "personal:*" records.
+func AllowsPersonalScope(ctx context.Context) bool {
+	return tenantsql.AllowsPersonalScope(ctx)
+}
+
+// ScopeAllowed reports whether targetScope is permitted by AllowedScopesFromContext(ctx).
+func ScopeAllowed(ctx context.Context, targetScope string) bool {
+	return tenantsql.ScopeAllowed(ctx, targetScope)
+}
+
 type agentContextKey string
 
 const (

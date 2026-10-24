@@ -6,16 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/octarq-org/octarq/server/agent/harness"
 	"github.com/octarq-org/octarq/server/internal/agentstore"
 	"github.com/octarq-org/octarq/server/llmprovider"
+	"github.com/octarq-org/octarq/server/plugin"
 )
 
 // readOnlyGuard wraps a base Guard (e.g. RiskGuard) and rejects any tool
-// whose endpoint HTTP method is not GET or HEAD.
+// whose endpoint RiskLevel is not plugin.RiskLevelRead.
 type readOnlyGuard struct {
 	base harness.Guard
 	src  harness.EndpointSource
@@ -39,9 +39,9 @@ func (g *readOnlyGuard) Allow(ctx context.Context, orgID uint, tool string) erro
 	if !ok {
 		return nil
 	}
-	method := strings.ToUpper(strings.TrimSpace(ep.EndpointMethod()))
-	if method != http.MethodGet && method != http.MethodHead {
-		return fmt.Errorf("tool %q is not read-only (method %s)", tool, method)
+	risk := ep.EndpointRisk()
+	if risk != plugin.RiskLevelRead {
+		return fmt.Errorf("tool %q is not read-only (risk %s)", tool, risk)
 	}
 	return nil
 }
@@ -50,7 +50,7 @@ func (g *readOnlyGuard) Allow(ctx context.Context, orgID uint, tool string) erro
 // the readOnlyGuard rule exactly, so the compiled prompt and the guard agree
 // on the tool surface.
 func readOnlyTool(d harness.ToolDescriptor) bool {
-	return d.Method == http.MethodGet || d.Method == http.MethodHead
+	return d.Risk == plugin.RiskLevelRead
 }
 
 // composeToolFilter combines the session policy with the spec's allowlist.

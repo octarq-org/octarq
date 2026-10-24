@@ -10,9 +10,9 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/server/internal/dnsprovider"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 

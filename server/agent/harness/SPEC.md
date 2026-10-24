@@ -137,6 +137,9 @@ Quantitative execution ceilings are hard-coded to avoid unbounded LLM recursion:
 | `ProfileReactor` | 3 steps (`MaxStepsReactor`) | 3 steps | Event-driven unattended automation cap |
 | `ProfileReactorReadOnly` | 5 steps (`MaxStepsReadOnly`) | 3 steps | Read-only reactor; drops to 3 on destructive hint |
 
+- `NewReactorRunner(c, exec, opts...)` constructs a `Runner` locked to `ProfileReactor` (`MaxStepsReactor = 3`), ensuring caller options cannot raise the unattended step ceiling.
+- `FenceUntrustedEvent(source, content)` wraps external event payloads and run transcripts inside `<untrusted source="..." safe_mode="true">...</untrusted>` fences while escaping any forged `</untrusted>` closing tags.
+
 ---
 
 ## 4. Tool Call Format & The Compiled System Prompt

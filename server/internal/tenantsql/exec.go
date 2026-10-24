@@ -150,13 +150,14 @@ func Execute(ctx context.Context, db *gorm.DB, reg *Registry, querySQL string, o
 	defer tx.Rollback()
 
 	// Materialize referenced views
+	allowPersonal := AllowsPersonalScope(ctx)
 	for _, view := range referencedViews {
 		quotedViewName, err := quoteIdent(view.Name)
 		if err != nil {
 			return nil, meta, fmt.Errorf("invalid view name %q: %w", view.Name, err)
 		}
 		viewDef := view.Definition(orgID)
-		wrappedSQL, err := wrapRedactedViewSQL(view, viewDef)
+		wrappedSQL, err := wrapScopedRedactedViewSQL(view, viewDef, allowPersonal)
 		if err != nil {
 			return nil, meta, fmt.Errorf("failed to wrap view %q: %w", view.Name, err)
 		}

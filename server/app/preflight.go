@@ -169,7 +169,7 @@ func isThirdPartyPkg(pkgPath string) bool {
 // package its concrete type was defined in.
 func pluginIsThirdParty(p plugin.Plugin) bool {
 	t := reflect.TypeOf(p)
-	for t != nil && t.Kind() == reflect.Ptr {
+	for t != nil && t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	if t == nil {

@@ -33,6 +33,21 @@ type Completer interface {
 	Complete(ctx context.Context, model string, system string, messages []Message) (string, error)
 }
 
+// CompletionResult carries the LLM text response along with token accounting
+// returned by the underlying provider.
+type CompletionResult struct {
+	Text            string
+	InputTokens     int
+	OutputTokens    int
+	ReasoningTokens int
+}
+
+// ResultCompleter is an optional extension of Completer that propagates token
+// usage from the provider response into the active Turn.
+type ResultCompleter interface {
+	CompleteResult(ctx context.Context, model string, system string, messages []Message) (CompletionResult, error)
+}
+
 // Runner is the agent loop orchestrator.
 //
 // P3 前 API 易变.
@@ -244,10 +259,24 @@ func (r *defaultRunner) loop(ctx context.Context, s *Session, t *Turn) error {
 		}
 
 		// Call LLM.
-		text, err := r.completer.Complete(ctx, r.model, r.system, s.History)
-		if err != nil {
-			t.Status = TurnStatusFailed
-			return fmt.Errorf("harness: completer error: %w", err)
+		var text string
+		if rc, ok := r.completer.(ResultCompleter); ok {
+			res, err := rc.CompleteResult(ctx, r.model, r.system, s.History)
+			if err != nil {
+				t.Status = TurnStatusFailed
+				return fmt.Errorf("harness: completer error: %w", err)
+			}
+			text = res.Text
+			t.InputTokens += res.InputTokens
+			t.OutputTokens += res.OutputTokens
+			t.ReasoningTokens += res.ReasoningTokens
+		} else {
+			var err error
+			text, err = r.completer.Complete(ctx, r.model, r.system, s.History)
+			if err != nil {
+				t.Status = TurnStatusFailed
+				return fmt.Errorf("harness: completer error: %w", err)
+			}
 		}
 
 		// Parse tool calls from LLM output.
@@ -443,12 +472,13 @@ func toProviderMessages(messages []Message) []llmprovider.Message {
 // CompleterAdapter adapts llmprovider.Provider to the narrow Completer
 // interface. It does NOT modify the llmprovider package.
 type CompleterAdapter struct {
-	Provider llmprovider.Provider
+	Provider   llmprovider.Provider
+	LastResult CompletionResult
 }
 
-// Complete calls the real llmprovider.Provider.Complete with a properly
-// constructed Request.
-func (a *CompleterAdapter) Complete(ctx context.Context, model string, system string, messages []Message) (string, error) {
+// CompleteResult calls the real llmprovider.Provider.Complete and propagates
+// InputTokens, OutputTokens, and ReasoningTokens into CompletionResult.
+func (a *CompleterAdapter) CompleteResult(ctx context.Context, model string, system string, messages []Message) (CompletionResult, error) {
 	msgs := toProviderMessages(messages)
 	resp, err := a.Provider.Complete(ctx, llmprovider.Request{
 		Model:    model,
@@ -456,9 +486,25 @@ func (a *CompleterAdapter) Complete(ctx context.Context, model string, system st
 		Messages: msgs,
 	})
 	if err != nil {
+		return CompletionResult{}, err
+	}
+	res := CompletionResult{
+		Text:            resp.Text,
+		InputTokens:     resp.InputTokens,
+		OutputTokens:    resp.OutputTokens,
+		ReasoningTokens: resp.ReasoningTokens,
+	}
+	a.LastResult = res
+	return res, nil
+}
+
+// Complete calls CompleteResult and returns the response text.
+func (a *CompleterAdapter) Complete(ctx context.Context, model string, system string, messages []Message) (string, error) {
+	res, err := a.CompleteResult(ctx, model, system, messages)
+	if err != nil {
 		return "", err
 	}
-	return resp.Text, nil
+	return res.Text, nil
 }
 
 // StreamComplete implements llmprovider.StreamProvider by delegating to the underlying

@@ -97,7 +97,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.11.4 # keep at or above the Go version in go.mod
+          version: v2.14.0 # keep at or above the Go version in go.mod
           verify: false
           working-directory: server
 

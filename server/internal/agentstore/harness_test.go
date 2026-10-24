@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/glebarez/sqlite"
 	"github.com/octarq-org/octarq/server/agent/harness"
 	"github.com/octarq-org/octarq/server/internal/models"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

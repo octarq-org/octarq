@@ -20,7 +20,7 @@ WORKDIR /app/web
 RUN pnpm build
 
 # ---- Stage 2: build the Go binary (embeds the dashboard) ----
-FROM golang:1.26-alpine AS build
+FROM golang:1.27.3-alpine AS build
 WORKDIR /src
 COPY server/go.mod server/go.sum ./server/
 WORKDIR /src/server

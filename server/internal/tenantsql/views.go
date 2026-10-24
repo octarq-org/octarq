@@ -152,11 +152,27 @@ func quoteIdent(ident string) (string, error) {
 	return `"` + ident + `"`, nil
 }
 
-// wrapRedactedViewSQL rewrites the view definition query to replace sensitive columns
-// with the redacted literal value, preventing sensitive data from ever reaching TEMP VIEW output columns.
-func wrapRedactedViewSQL(view TenantView, inner string) (string, error) {
+// HasScopeColumn reports whether the view schema declares a scope_key column.
+func HasScopeColumn(view TenantView) bool {
+	for _, col := range view.Columns {
+		if strings.EqualFold(strings.TrimSpace(col.Name), "scope_key") {
+			return true
+		}
+	}
+	return false
+}
+
+// wrapScopedRedactedViewSQL rewrites the view definition query to redact sensitive columns
+// and, when allowPersonal is false and the view contains a scope_key column, enforces
+// WHERE "scope_key" LIKE 'work:%' so personal:* records cannot leak.
+func wrapScopedRedactedViewSQL(view TenantView, inner string, allowPersonal bool) (string, error) {
+	scopeWhere := ""
+	if !allowPersonal && (HasScopeColumn(view) || strings.Contains(strings.ToLower(inner), "scope_key")) {
+		scopeWhere = ` WHERE "scope_key" LIKE 'work:%'`
+	}
+
 	if len(view.Columns) == 0 {
-		return fmt.Sprintf("SELECT * FROM (%s) AS _octarq_tv", inner), nil
+		return fmt.Sprintf("SELECT * FROM (%s) AS _octarq_tv%s", inner, scopeWhere), nil
 	}
 
 	sensitiveSet := make(map[string]bool)
@@ -183,5 +199,5 @@ func wrapRedactedViewSQL(view TenantView, inner string) (string, error) {
 		}
 	}
 
-	return fmt.Sprintf("SELECT %s FROM (%s) AS _octarq_tv", strings.Join(selectExprs, ", "), inner), nil
+	return fmt.Sprintf("SELECT %s FROM (%s) AS _octarq_tv%s", strings.Join(selectExprs, ", "), inner, scopeWhere), nil
 }
