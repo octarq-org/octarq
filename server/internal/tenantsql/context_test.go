@@ -6,10 +6,11 @@ import (
 )
 
 func TestContextOrgAndUser(t *testing.T) {
-	if OrgIDFromContext(nil) != 0 {
+	var nilCtx context.Context
+	if OrgIDFromContext(nilCtx) != 0 {
 		t.Fatal("expected 0 for nil context")
 	}
-	if UserIDFromContext(nil) != 0 {
+	if UserIDFromContext(nilCtx) != 0 {
 		t.Fatal("expected 0 for nil context")
 	}
 
@@ -33,19 +34,20 @@ func TestContextOrgAndUser(t *testing.T) {
 }
 
 func TestContextScopeKeyAndAllowedScopes(t *testing.T) {
+	var nilCtx context.Context
 	// Nil context handling
-	if got := ScopeKeyFromContext(nil); got != DefaultWorkScope {
+	if got := ScopeKeyFromContext(nilCtx); got != DefaultWorkScope {
 		t.Fatalf("expected DefaultWorkScope for nil ctx, got %q", got)
 	}
-	if got := AllowedScopesFromContext(nil); len(got) != 1 || got[0] != ScopeWildcardWork {
+	if got := AllowedScopesFromContext(nilCtx); len(got) != 1 || got[0] != ScopeWildcardWork {
 		t.Fatalf("expected [work:*] for nil ctx, got %v", got)
 	}
-	if AllowsPersonalScope(nil) {
+	if AllowsPersonalScope(nilCtx) {
 		t.Fatal("nil ctx should not allow personal scope")
 	}
 
 	// Empty string default
-	ctx := WithScopeKey(nil, "")
+	ctx := WithScopeKey(nilCtx, "")
 	if got := ScopeKeyFromContext(ctx); got != DefaultWorkScope {
 		t.Fatalf("expected DefaultWorkScope, got %q", got)
 	}
@@ -74,7 +76,7 @@ func TestContextScopeKeyAndAllowedScopes(t *testing.T) {
 	}
 
 	// Empty scopes fallback
-	ctxEmptyScopes := WithAllowedScopes(nil)
+	ctxEmptyScopes := WithAllowedScopes(nilCtx)
 	if got := AllowedScopesFromContext(ctxEmptyScopes); len(got) != 1 || got[0] != ScopeWildcardWork {
 		t.Fatalf("expected [work:*] fallback, got %v", got)
 	}
