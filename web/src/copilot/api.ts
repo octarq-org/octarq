@@ -363,3 +363,5 @@ export function useDecideApprovalMutation() {
 }
 
 export type { ActionDiff, AIStatus, ChatMessage };
+export { streamAGUIChat, errorFromAGUIStatus, AGUI_ERROR_MESSAGES } from "./agui";
+export type { StreamAGUIParams } from "./agui";
