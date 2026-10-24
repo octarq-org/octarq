@@ -65,7 +65,7 @@ export const useCopilotStore = create<CopilotUIState>((set) => ({
   isStreaming: false,
   pendingApprovals: [],
   approvalsError: null,
-  transport: "legacy",
+  transport: "agui",
   threadId: undefined,
 
   openCopilot: () => set({ isOpen: true }),
@@ -124,7 +124,7 @@ export const useCopilotStore = create<CopilotUIState>((set) => ({
       pendingApprovals: [],
       approvalsError: null,
       isStreaming: false,
-      transport: "legacy",
+      transport: "agui",
       threadId: undefined,
     }),
 }));

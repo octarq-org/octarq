@@ -16,6 +16,7 @@ export interface StreamAGUIParams {
 export const AGUI_ERROR_MESSAGES = {
   401: "Authentication required. Sign in with an operator account.",
   402: "An Octarq Pro Elite license is required to use this capability.",
+  404: "This capability requires an upgraded license tier.",
   503: "Configure an LLM provider in AI Settings first.",
 } as const;
 
@@ -42,12 +43,13 @@ export function errorFromAGUIStatus(status: number, detail?: string): AIStreamEr
           : AGUI_ERROR_MESSAGES[401],
       );
     case 402:
+    case 404:
       return new AIStreamError(
         status,
         "locked",
-        trimmed && !isGenericStatusText(trimmed, "Payment Required")
+        trimmed && !isGenericStatusText(trimmed, "Payment Required") && !isGenericStatusText(trimmed, "Not Found")
           ? trimmed
-          : AGUI_ERROR_MESSAGES[402],
+          : AGUI_ERROR_MESSAGES[status as 402 | 404] || AGUI_ERROR_MESSAGES[402],
       );
     case 503:
       return new AIStreamError(
