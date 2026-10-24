@@ -3,7 +3,7 @@
 ## 1. Scope & Responsibility
 
 `server/internal/tenantsql` provides the multi-tenant data isolation substrate and secure SQL execution engine for `octarq`. It guarantees:
-1. **Zero-Leakage Data Partitioning (`TenantDB`)**: A type-safe GORM wrapper that automatically binds all reads, writes, mutations, and transactions to a specific tenant `OrgID`.
+1. **Zero-Leakage Data Partitioning (`TenantDB`)**: A type-safe GORM wrapper that automatically binds all reads, writes, mutations, and transactions to a specific tenant `OrgID`. Developer backdoors and unscoped escape hatches (such as `UnscopedDangerous`) are permanently eradicated and prohibited.
 2. **Fail-Closed Tenant Scoping**: Prevents cross-tenant writes by validating struct fields and map payloads against the bound tenant context, rejecting mismatches with `ErrTenantMismatch`.
 3. **Hardened In-App SQL Runner (`Execute`)**: A 7-stage AST-validated execution engine allowing tenants to query safe, virtual views (`tenant_*`) without exposing underlying database tables or sensitive credentials.
 4. **Data Redaction & Sanitization**: Automatic masking of sensitive columns (`password`, `token`, `secret`, `private_key`, `otp`, `ciphertext`) with `"[redacted]"`.
@@ -71,6 +71,7 @@ sequenceDiagram
 | `TenantDBFromContext` | `ctx == nil` or `OrgIDFromContext(ctx) == 0` | Returns `ErrMissingTenantContext`. |
 | `Create` / `Save` / `Updates` | Struct or map contains `org_id` / `owner_id` $\neq$ bound `orgID` | Returns `ErrTenantMismatch` (write rejected, transaction aborted). |
 | `Delete` | Always injects `WHERE <col> = orgID` | Prevents deleting records belonging to other tenants. |
+| `UnscopedDangerous` / Unscoped Escape Hatches | Call or definition | Permanently eradicated. Zero developer backdoors or raw GORM handle leaks are permitted on `TenantDB` (enforced by AST architecture test `archtest.TestTenantDB_NoUnscopedEscapeHatches`). |
 
 ### 3.2 SQL AST Validation Rules (`Parser.Validate`)
 1. **Single Statement Only**: Multi-statement execution via semicolons or comment gluing is strictly rejected.
@@ -89,5 +90,6 @@ sequenceDiagram
 
 - **Characterization Lock**: `tenantsql_characterization_test.go` locks all fail-closed constructor behaviors, context extraction, write mismatch guards, and sensitive redaction.
 - **Exploit Suite**: `tenantsql_exploit_test.go` and `tenantsql_security_test.go` systematically test 22 known SQL injection and dialect bypass vectors (UNIONs, PRAGMAs, subqueries, hex encoding, oversized payloads).
+- **AST Architecture Guard**: `internal/archtest/tenant_test.go` (`TestTenantDB_NoUnscopedEscapeHatches`) inspects the AST of `internal/tenantsql/` to ensure no `UnscopedDangerous`, `Unscoped`, or naked `*gorm.DB` handle return methods exist on `TenantDB`.
 - **Concurrent Registry**: `views_test.go` validates concurrent read/write access to the view registry.
 - **Race Safety**: Verified via `go test -race ./internal/tenantsql/...`.

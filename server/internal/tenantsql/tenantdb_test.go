@@ -3,6 +3,7 @@ package tenantsql
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -342,13 +343,49 @@ func TestTenantDB_ExecuteSQL(t *testing.T) {
 	}
 }
 
-func TestTenantDB_UnscopedDangerous(t *testing.T) {
+func TestTenantDB_RefusesUnscopedQueries(t *testing.T) {
 	db := setupTestDB(t)
-	tdb, _ := NewTenantDB(db, 10)
 
-	raw := tdb.UnscopedDangerous()
-	if raw == nil {
-		t.Fatal("expected non-nil raw *gorm.DB")
+	// 1. Refusal to instantiate without tenant scope (fail-closed)
+	if _, err := NewTenantDB(db, 0); !errors.Is(err, ErrZeroOrgID) {
+		t.Fatalf("expected ErrZeroOrgID when creating TenantDB with orgID=0, got %v", err)
+	}
+	if _, err := TenantDBFromContext(context.Background(), db); !errors.Is(err, ErrMissingTenantContext) {
+		t.Fatalf("expected ErrMissingTenantContext when creating TenantDB from empty context, got %v", err)
+	}
+
+	// 2. Direct ExecuteSQL refuses unscoped execution if OrgID is zero
+	zeroTDB := &TenantDB{db: db, orgID: 0}
+	if _, _, err := zeroTDB.ExecuteSQL("SELECT 1"); err == nil || !strings.Contains(err.Error(), "missing workspace context") {
+		t.Fatalf("expected missing workspace context error when executing SQL with zero orgID, got %v", err)
+	}
+
+	// 3. Populate data across multiple tenants and unscoped records
+	db.Create(&mockLegacyModel{OwnerID: 10, Name: "tenant10_data"})
+	db.Create(&mockLegacyModel{OwnerID: 20, Name: "tenant20_data"})
+	db.Create(&mockLegacyModel{OwnerID: 0, Name: "unscoped_data"})
+
+	tdb10, err := NewTenantDB(db, 10)
+	if err != nil {
+		t.Fatalf("failed to create tdb10: %v", err)
+	}
+
+	// 4. Verify all query paths strictly inject tenant scope
+	var results []mockLegacyModel
+	if err := tdb10.Find(&results).Error; err != nil {
+		t.Fatalf("tdb10.Find failed: %v", err)
+	}
+	if len(results) != 1 || results[0].Name != "tenant10_data" {
+		t.Fatalf("tdb10 leaked unscoped or cross-tenant records: %+v", results)
+	}
+
+	// 5. Verify Table() queries cannot escape tenant scoping
+	var count int64
+	if err := tdb10.Table("mock_legacy_models").Where("1 = 1").Count(&count).Error; err != nil {
+		t.Fatalf("Table count failed: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected count 1 scoped to tenant 10, got %d (unscoped leakage)", count)
 	}
 }
 
