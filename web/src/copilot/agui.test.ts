@@ -282,6 +282,49 @@ describe("AG-UI Protocol Client (streamAGUIChat)", () => {
       expect(err.message).toBe("An Octarq Pro Elite license is required to use this capability.");
     });
 
+    it("invokes onError with typed AIStreamError on HTTP 404 Not Found as locked", async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        text: async () => JSON.stringify({ error: AGUI_ERROR_MESSAGES[404] }),
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const onError = vi.fn();
+      await streamAGUIChat({
+        messages: [{ role: "user", content: "hi" }],
+        onError,
+      });
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      const err = onError.mock.calls[0][0];
+      expect(err).toBeInstanceOf(AIStreamError);
+      expect(err.status).toBe(404);
+      expect(err.code).toBe("locked");
+      expect(err.message).toBe("This capability requires an upgraded license tier.");
+    });
+
+    it("falls back to canonical ASD-STE100 message when 404 body is empty", async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        text: async () => "",
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const onError = vi.fn();
+      await streamAGUIChat({
+        messages: [{ role: "user", content: "hi" }],
+        onError,
+      });
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      const err = onError.mock.calls[0][0];
+      expect(err.status).toBe(404);
+      expect(err.code).toBe("locked");
+      expect(err.message).toBe("This capability requires an upgraded license tier.");
+    });
+
     it("invokes onError with typed AIStreamError on HTTP 503 Service Unavailable", async () => {
       const fetchMock = vi.fn().mockResolvedValue({
         ok: false,
@@ -414,13 +457,13 @@ describe("AG-UI Protocol Client (streamAGUIChat)", () => {
   describe("Integration Seam & Store", () => {
     it("allows switching store transport to agui and legacy", () => {
       const store = useCopilotStore.getState();
-      expect(store.transport).toBe("legacy");
-
-      store.setTransport("agui");
-      expect(useCopilotStore.getState().transport).toBe("agui");
+      expect(store.transport).toBe("agui");
 
       store.setTransport("legacy");
       expect(useCopilotStore.getState().transport).toBe("legacy");
+
+      store.setTransport("agui");
+      expect(useCopilotStore.getState().transport).toBe("agui");
     });
   });
 });

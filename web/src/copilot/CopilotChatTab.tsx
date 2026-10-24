@@ -228,6 +228,28 @@ export function CopilotChatTab({
                         const res = await decideApproval(action.approvalId, "reject");
                         return { status: res.outcome === "rejected" ? 200 : 409 };
                       }
+                      if (action.type === "custom") {
+                        const payload = action.payload as
+                          | { action?: string; slug?: string; target?: string; host?: string; enabled?: boolean }
+                          | undefined;
+                        if (payload?.action === "links.create" || payload?.action === "links.update") {
+                          try {
+                            const res = await fetch("/api/links", {
+                              method: payload.action === "links.create" ? "POST" : "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                slug: payload.slug,
+                                target: payload.target,
+                                host: payload.host,
+                                enabled: payload.enabled,
+                              }),
+                            });
+                            return { status: res.status };
+                          } catch {
+                            return { status: 500 };
+                          }
+                        }
+                      }
                       return { status: 200 };
                     },
                   )}
