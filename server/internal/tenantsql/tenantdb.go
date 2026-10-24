@@ -383,10 +383,3 @@ func (t *TenantDB) ExecuteSQL(querySQL string, opts ...ExecOption) ([]map[string
 	ctx = WithOrgID(ctx, t.orgID)
 	return Execute(ctx, t.db, t.registry, querySQL, opts...)
 }
-
-// UnscopedDangerous returns the underlying unscoped *gorm.DB handle.
-// CAUTION: This bypasses all tenant isolation guarantees. Use only for system-level
-// migrations or maintenance operations where cross-tenant access is explicitly intended.
-func (t *TenantDB) UnscopedDangerous() *gorm.DB {
-	return t.db
-}
