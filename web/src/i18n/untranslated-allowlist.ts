@@ -61,4 +61,9 @@ export const UNTRANSLATED_ALLOWLIST = new Set<string>([
   "personal.mcpPlaceholderToken", // Universal token placeholder (<YOUR_API_TOKEN>)
   "copilot.shortcutKey", // Standard keyboard shortcut notation (⌘J)
   "copilot.cardIdPrefix", // Standard universal technical abbreviation (ID:)
+  "copilot.emailToneFormal", // Identical spelling in ES/PT (Formal)
+  "copilot.quotationColTotal", // Identical spelling in ES/PT (Total)
+  "copilot.quotationSubtotal", // Identical spelling in ES/PT (Subtotal)
+  "copilot.quotationColItem", // Identical spelling in PT (Item)
+  "copilot.financeSlidePrefix", // Presentation layout notation in PT (SLIDE #)
 ]);

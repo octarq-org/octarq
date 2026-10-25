@@ -107,6 +107,9 @@ export const ALLOWLIST_EXACT = new Set([
   "Ov23li…",
   "Octarq Status Page • Powered by Octarq",
   "Octarq Status Page &bull; Powered by Octarq",
+  "OCTARQ PRO ENTERPRISE BRIEFING",
+  "sec",
+  "x",
 
   // Accessibility aria-labels on generic icon buttons
   "Dismiss alert",
