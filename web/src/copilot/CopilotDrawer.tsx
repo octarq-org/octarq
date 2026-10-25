@@ -1,6 +1,6 @@
 import { cn } from "@octarq/plugin-sdk";
 import React, { useEffect, useRef, useState } from "react";
-import { Sparkles, X, Trash2, ShieldAlert, MessageSquare } from "lucide-react";
+import { Sparkles, X, Trash2, ShieldAlert, MessageSquare, Sunrise } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { useCopilotStore } from "./store";
 import { AIStreamError, fetchApprovals, useAIStatusQuery, streamAIChat, streamAGUIChat } from "./api";
@@ -8,6 +8,7 @@ import type { ActionDiff, ChatMessage, AIStatus } from "./types";
 import { QueryClientContext } from "@tanstack/react-query";
 import { CopilotChatTab } from "./CopilotChatTab";
 import { CopilotApprovalsTab } from "./CopilotApprovalsTab";
+import { CopilotBriefingTab } from "./CopilotBriefingTab";
 import { ArtifactCanvas } from "./canvas/ArtifactCanvas";
 import type { CardAction, CardOutcome } from "./cards";
 import { decideApproval } from "./api";
@@ -309,6 +310,20 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
           </button>
           <button
             type="button"
+            data-testid="copilot-tab-briefing"
+            onClick={() => setActiveTab("briefing")}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1 text-xs font-medium transition-colors",
+              activeTab === "briefing"
+                ? "bg-background text-foreground shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Sunrise className="h-3.5 w-3.5" />
+            <span>{t("copilot.tabBriefing", "晨间简报与异动")}</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab("approvals")}
             className={cn(
               "flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1 text-xs font-medium transition-colors",
@@ -339,6 +354,9 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
           onStopGenerating={handleStopGenerating}
         />
       )}
+
+      {/* Tab Content: Briefing */}
+      {activeTab === "briefing" && <CopilotBriefingTab />}
 
       {/* Tab Content: Approvals */}
       {activeTab === "approvals" && (

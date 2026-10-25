@@ -1,6 +1,8 @@
 export const personal = {
   en: {
     profileTitle: "My Profile",
+    notificationsTitle: "Personal Notification Preferences",
+    notificationsDesc: "Configure your personal delivery channels and alert rules.",
     profileDesc: "Update your personal details and password",
     emailLabel: "Email Address",
     newEmailLabel: "New Email Address",
@@ -105,6 +107,8 @@ export const personal = {
   },
   zh: {
     profileTitle: "我的资料",
+    notificationsTitle: "个人通知偏好",
+    notificationsDesc: "配置您的个人投递渠道与告警规则。",
     profileDesc: "更新个人信息与密码",
     emailLabel: "邮箱地址",
     newEmailLabel: "新邮箱地址",
@@ -209,6 +213,8 @@ export const personal = {
   },
   es: {
     profileTitle: "Mi Perfil",
+    notificationsTitle: "Preferencias personales de notificación",
+    notificationsDesc: "Configure sus canales de entrega personales y reglas de alerta.",
     profileDesc: "Actualiza tus datos personales y contraseña",
     emailLabel: "Dirección de Correo",
     newEmailLabel: "Nueva Dirección de Correo",
@@ -313,6 +319,8 @@ export const personal = {
   },
   pt: {
     profileTitle: "Meu Perfil",
+    notificationsTitle: "Preferências pessoais de notificação",
+    notificationsDesc: "Configure seus canais de entrega pessoais e regras de alerta.",
     profileDesc: "Atualize seus dados pessoais e senha",
     emailLabel: "Endereço de E-mail",
     newEmailLabel: "Novo Endereço de E-mail",
@@ -417,6 +425,8 @@ export const personal = {
   },
   ja: {
     profileTitle: "マイプロフィール",
+    notificationsTitle: "個人通知設定",
+    notificationsDesc: "個人の配信チャネルとアラートルールを設定します。",
     profileDesc: "個人情報とパスワードを更新",
     emailLabel: "メールアドレス",
     newEmailLabel: "新しいメールアドレス",

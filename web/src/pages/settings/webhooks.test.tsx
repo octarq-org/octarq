@@ -216,4 +216,40 @@ describe("WebhooksSettings suite", () => {
       expect(deleteSpy).toHaveBeenCalledWith(1);
     });
   });
+
+  it("switches to Inbound Relays tab and displays relays and dead-letter queue", async () => {
+    vi.spyOn(api, "webhooks").mockResolvedValue([]);
+    vi.spyOn(api, "webhookEvents").mockResolvedValue([]);
+
+    renderWebhooksSettings("admin", false);
+
+    const inboundTab = screen.getByTestId("tab-inbound-relays");
+    fireEvent.click(inboundTab);
+
+    expect(screen.getByTestId("inbound-relays-panel")).toBeTruthy();
+    expect(screen.getByText("Inbound Webhook Relays")).toBeTruthy();
+    expect(screen.getByText("Stripe Billing & Checkout Relay")).toBeTruthy();
+    expect(screen.getByText("GitHub Repository Relay")).toBeTruthy();
+    expect(screen.getByText("Dead-Letter Queue (DLQ) Audit")).toBeTruthy();
+    expect(screen.getByText(/del_01jf8b2c4e9a1k7m/)).toBeTruthy();
+  });
+
+  it("replays a dead-letter queue entry and displays success toast", async () => {
+    vi.spyOn(api, "webhooks").mockResolvedValue([]);
+    vi.spyOn(api, "webhookEvents").mockResolvedValue([]);
+    const toastSpy = vi.spyOn(ui.toast, "success");
+
+    renderWebhooksSettings("admin", false);
+
+    fireEvent.click(screen.getByTestId("tab-inbound-relays"));
+
+    const replayButtons = screen.getAllByRole("button", { name: /replay/i });
+    expect(replayButtons.length).toBeGreaterThan(0);
+
+    fireEvent.click(replayButtons[0]);
+
+    await waitFor(() => {
+      expect(toastSpy).toHaveBeenCalledWith(expect.stringMatching(/queued for replay/i));
+    });
+  });
 });

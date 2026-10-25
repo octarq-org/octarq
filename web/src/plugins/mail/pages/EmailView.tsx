@@ -2,7 +2,7 @@ import { Field, Input, GlassCard, Badge, Button, toast, confirmDialog } from "@o
 import { useEffect, useState } from "react";
 import { api } from "../../../api";
 import { mailApi, Attachment, Email } from "../api";
-import { Paperclip, Trash2, Reply, Download, X, Sparkles, ExternalLink, ShieldAlert, ArchiveRestore, Edit3 } from "lucide-react";
+import { Paperclip, Trash2, Reply, Download, X, Sparkles, ExternalLink, ShieldAlert, ArchiveRestore, Edit3, Copy, KeyRound } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { ReplyDraft } from "./types";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
@@ -17,6 +17,27 @@ function parseAttachments(json: string): Attachment[] {
   } catch {
     return [];
   }
+}
+
+const CATEGORY_META: Record<string, { tone: "amber" | "cyan" | "red" | "neutral"; label: string }> = {
+  bill: { tone: "amber", label: "Bill" },
+  otp: { tone: "cyan", label: "OTP" },
+  marketing: { tone: "neutral", label: "Marketing" },
+  important: { tone: "red", label: "Important" },
+};
+
+function renderImportanceDots(n?: number) {
+  if (!n || n <= 0) return null;
+  const clamped = Math.max(1, Math.min(5, n));
+  return (
+    <span
+      className="text-xs tracking-wider text-warning-fg"
+      title={`Importance: ${clamped}/5`}
+      data-testid="email-view-importance"
+    >
+      {"●".repeat(clamped)}{"○".repeat(5 - clamped)}
+    </span>
+  );
 }
 
 export function EmailViewForm({
@@ -79,8 +100,14 @@ export function EmailViewForm({
             <div><span className="text-foreground/45">{t("mail.fromLabel")}</span> <span className="font-semibold text-foreground/80">{email.from}</span></div>
             <div><span className="text-foreground/45">{t("mail.toLabel")}</span> <span className="text-foreground/70">{email.to}</span></div>
             <div className="text-[11px] text-foreground/50 pt-0.5">{new Date(email.receivedAt).toLocaleString()}</div>
-            <div className="mt-2.5 flex flex-wrap gap-1.5 pt-1">
+            <div className="mt-2.5 flex flex-wrap items-center gap-2 pt-1">
               <AuthBadges spf={email.authSpf} dkim={email.authDkim} dmarc={email.authDmarc} />
+              {email.category && CATEGORY_META[email.category] && (
+                <Badge tone={CATEGORY_META[email.category].tone} className="text-[10px] py-0 px-2 uppercase font-medium">
+                  {t(`mail.cat_${email.category}`, CATEGORY_META[email.category].label)}
+                </Badge>
+              )}
+              {renderImportanceDots(email.importance)}
             </div>
           </div>
         </div>
@@ -88,6 +115,34 @@ export function EmailViewForm({
           <X className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
+
+      {(email.otp || (email.category === "otp" && email.subject.match(/\b([A-Z0-9]{4,8})\b/i)?.[1])) && (
+        <div
+          data-testid="otp-copy-bar"
+          className="mx-5 mt-3 flex items-center justify-between gap-3 px-4 py-2.5 bg-primary/10 border border-primary/20 rounded-xl text-xs shrink-0"
+        >
+          <div className="flex items-center gap-2.5">
+            <KeyRound className="h-4 w-4 text-primary shrink-0" />
+            <span className="font-medium text-foreground">{t("mail.verificationCode", "Verification Code:")}</span>
+            <span className="font-mono text-sm font-bold text-primary tracking-widest px-2.5 py-0.5 rounded bg-background border border-primary/30">
+              {email.otp || email.subject.match(/\b([A-Z0-9]{4,8})\b/i)?.[1]}
+            </span>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            className="text-xs py-1 px-3 gap-1.5 shrink-0"
+            onClick={() => {
+              const code = email.otp || email.subject.match(/\b([A-Z0-9]{4,8})\b/i)?.[1] || "";
+              navigator.clipboard.writeText(code);
+              toast.success(t("mail.otpCopied", "Verification code copied."));
+            }}
+          >
+            <Copy className="h-3.5 w-3.5" />
+            <span>{t("mail.copyCode", "Copy Code")}</span>
+          </Button>
+        </div>
+      )}
 
       {email.unsubscribeUrl && (
         <div className="mx-5 mt-3 flex items-center justify-between gap-3 px-3.5 py-2 bg-warning-bg border border-warning-border rounded-xl text-xs shrink-0">
@@ -106,13 +161,13 @@ export function EmailViewForm({
         </div>
       )}
 
-      {summary && (
-        <div className="mx-5 mt-4 rounded-xl bg-info-bg border border-info-border p-3.5 shrink-0">
+      {(summary || email.summary) && (
+        <div className="mx-5 mt-4 rounded-xl bg-info-bg border border-info-border p-3.5 shrink-0" data-testid="email-summary-box">
           <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-accent-fg mb-1.5">
             <Sparkles className="h-3 w-3" />
             {t("mail.aiSummaryTitle")}
           </div>
-          <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{summary}</p>
+          <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-wrap">{summary || email.summary}</p>
         </div>
       )}
 

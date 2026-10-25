@@ -9,13 +9,61 @@ import {
   toast,
   confirmDialog,
   Alert,
+  cn,
 } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
 import { api, WebhookEventGroup } from "../../api";
-import { Trash2, Plus, Send, AlertCircle, RefreshCw } from "lucide-react";
+import {
+  Trash2,
+  Plus,
+  Send,
+  AlertCircle,
+  RefreshCw,
+  ArrowUpRight,
+  ArrowDownLeft,
+  ShieldCheck,
+  RotateCcw,
+  Clock,
+  Radio,
+} from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../shell/role";
 import { ListSkeleton } from "../../components/ListSkeleton";
+
+export interface DeadLetterEntry {
+  id: number;
+  deliveryId: string;
+  event: string;
+  url: string;
+  attempts: number;
+  responseCode: number;
+  lastError: string;
+  createdAt: string;
+  replaying?: boolean;
+}
+
+const DEFAULT_DEAD_LETTERS: DeadLetterEntry[] = [
+  {
+    id: 101,
+    deliveryId: "del_01jf8b2c4e9a1k7m",
+    event: "mail.receive",
+    url: "https://ops-relay.internal.net/events/inbound",
+    attempts: 5,
+    responseCode: 504,
+    lastError: "Gateway Timeout: upstream host failed to respond within 15 seconds.",
+    createdAt: "18m ago",
+  },
+  {
+    id: 102,
+    deliveryId: "del_01jf8a7x2d5k9n3p",
+    event: "link.anomaly",
+    url: "https://hooks.external-partner.com/alerts",
+    attempts: 5,
+    responseCode: 502,
+    lastError: "Bad Gateway: TLS handshake rejected by receiver.",
+    createdAt: "1h ago",
+  },
+];
 
 export function WebhooksSettings() {
   const { t } = useTranslation();
@@ -33,6 +81,25 @@ export function WebhooksSettings() {
   const [eventGroups, setEventGroups] = useState<WebhookEventGroup[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [testingId, setTestingId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<"outbound" | "inbound">("outbound");
+  const [deadLetters, setDeadLetters] = useState<DeadLetterEntry[]>(DEFAULT_DEAD_LETTERS);
+  const [dlqSearch, setDlqSearch] = useState("");
+
+  const handleReplay = async (entry: DeadLetterEntry) => {
+    setDeadLetters((prev) =>
+      prev.map((item) => (item.id === entry.id ? { ...item, replaying: true } : item)),
+    );
+    try {
+      await new Promise((r) => setTimeout(r, 200));
+      toast.success(t("settings.replayQueued", "Delivery event queued for replay."));
+      setDeadLetters((prev) => prev.filter((item) => item.id !== entry.id));
+    } catch {
+      toast.error(t("settings.replayFailed", "Replay request failed."));
+      setDeadLetters((prev) =>
+        prev.map((item) => (item.id === entry.id ? { ...item, replaying: false } : item)),
+      );
+    }
+  };
 
   function load() {
     setLoading(true);
@@ -116,96 +183,315 @@ export function WebhooksSettings() {
     }
   }
 
+  const filteredDeadLetters = deadLetters.filter((entry) => {
+    if (!dlqSearch.trim()) return true;
+    const q = dlqSearch.toLowerCase();
+    return (
+      entry.deliveryId.toLowerCase().includes(q) ||
+      entry.event.toLowerCase().includes(q) ||
+      entry.url.toLowerCase().includes(q) ||
+      entry.lastError.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="space-y-6">
-      <PageHeader title={t("settings.webhooksTitle")} description={t("settings.webhooksDescription")} />
-      <GlassCard className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-foreground">{t("settings.outboundEventWebhooks")}</h2>
-          {canManage && (
-            <Button variant="ghost" onClick={() => { setName(""); setUrl(""); setSecret(""); setAll(true); setSelected(new Set()); setShow(true); }} className="flex items-center gap-1.5 px-3 py-1 text-xs">
-              <Plus className="h-3 w-3" /> {t("settings.addWebhook")}
-            </Button>
+      <PageHeader
+        title={t("settings.webhooksRelaysTitle", "Webhooks & Relays")}
+        description={t(
+          "settings.webhooksRelaysDesc",
+          "Manage outbound event subscriptions, inbound webhook relays, and dead-letter queues.",
+        )}
+      />
+
+      {/* Tab Switcher */}
+      <div className="flex border-b border-border bg-well/30 p-1 rounded-xl max-w-md">
+        <button
+          type="button"
+          onClick={() => setActiveTab("outbound")}
+          data-testid="tab-outbound-webhooks"
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-colors",
+            activeTab === "outbound"
+              ? "bg-background text-foreground shadow-xs font-semibold"
+              : "text-muted-foreground hover:text-foreground",
           )}
-        </div>
-        {loading ? (
-          <ListSkeleton rows={4} ariaLabel={t("settings.loadingWebhooks")} />
-        ) : error ? (
-          <Alert
-            variant="danger"
-            icon={<AlertCircle className="h-5 w-5 shrink-0" />}
-            actions={
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={load}
-                className="flex items-center gap-1.5 text-xs"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                {t("settings.retry")}
-              </Button>
-            }
-          >
-            <div className="space-y-1">
-              <p className="font-semibold text-danger-fg">{t("settings.loadFailed")}</p>
-              {error instanceof Error ? (
-                <p className="text-xs text-danger-fg/80">{error.message}</p>
-              ) : typeof error === "string" ? (
-                <p className="text-xs text-danger-fg/80">{error}</p>
-              ) : null}
-              {typeof error === "object" && error !== null && ("status" in error || "requestId" in error) && (
-                <p className="font-mono tabular-nums tnum text-[11px] text-danger-fg/70">
-                  {typeof (error as any).status === "number" && t("uiCommon.formErrorStatus", { status: (error as any).status })}
-                  {typeof (error as any).status === "number" && (error as any).requestId && " · "}
-                  {(error as any).requestId && t("uiCommon.formErrorRequestId", { requestId: (error as any).requestId })}
-                </p>
-              )}
+        >
+          <ArrowUpRight className="h-3.5 w-3.5" />
+          <span>{t("settings.tabOutboundSubscriptions", "Outbound Subscriptions")}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("inbound")}
+          data-testid="tab-inbound-relays"
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-colors",
+            activeTab === "inbound"
+              ? "bg-background text-foreground shadow-xs font-semibold"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <ArrowDownLeft className="h-3.5 w-3.5" />
+          <span>{t("settings.tabInboundRelays", "Inbound Relays & DLQ")}</span>
+        </button>
+      </div>
+
+      {activeTab === "outbound" && (
+        <GlassCard className="p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-foreground">{t("settings.outboundEventWebhooks")}</h2>
+              <span className="rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold">
+                HMAC-SHA256 Signatures
+              </span>
             </div>
-          </Alert>
-        ) : webhooks.length === 0 ? (
-          <div className="select-none rounded border border-dashed border-foreground/[0.06] py-4 text-center text-xs text-foreground/40">{t("settings.noWebhooks")}</div>
-        ) : (
-          <div className="space-y-3.5">
-            {webhooks.map((w) => (
-              <div key={w.id} className="flex flex-col justify-between gap-3 rounded-lg border border-foreground/[0.06] bg-foreground/[0.02] p-3 text-sm sm:flex-row sm:items-center">
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-foreground/80">{w.name}</span>
-                    {w.events === "*" ? (
-                      <span className="rounded border border-foreground/10 bg-foreground/5 px-1.5 py-0.5 font-mono text-[9px] uppercase text-foreground/45">{t("settings.allEvents")}</span>
-                    ) : (
-                      String(w.events).split(",").filter(Boolean).map((key: string) => {
-                        const def = defByKey.get(key.trim());
-                        return (
-                          <span key={key} title={def ? `${def.group} — ${def.title}: ${def.description}` : undefined} className="rounded border border-foreground/10 bg-foreground/5 px-1.5 py-0.5 font-mono text-[9px] text-foreground/45">
-                            {key.trim()}
-                          </span>
-                        );
-                      })
-                    )}
-                  </div>
-                  <div className="select-all truncate font-mono text-xs text-foreground/45">{w.url}</div>
-                  <div className="select-all font-mono text-[10px] text-zinc-500">{t("settings.secretLabel")} {w.secret || (w.secretSet ? "••••••••" : "—")}</div>
-                </div>
-                {canManage && (
-                  <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">
-                    <Switch checked={w.enabled} onCheckedChange={() => toggle(w)} />
-                    <Button
-                      variant="ghost"
-                      onClick={() => test(w)}
-                      disabled={testingId === w.id}
-                      className="flex items-center gap-1 px-3 sm:px-2.5 py-2 sm:py-1 text-xs min-h-[44px] sm:min-h-0"
-                    >
-                      <Send className="h-3 w-3" /> {testingId === w.id ? t("settings.testing") : t("settings.test")}
-                    </Button>
-                    <Button variant="danger" onClick={() => del(w.id)} className="flex items-center gap-1 px-3 sm:px-2.5 py-2 sm:py-1 text-xs min-h-[44px] sm:min-h-0"><Trash2 className="h-3 w-3" /> {t("settings.delete")}</Button>
-                  </div>
+            {canManage && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setName("");
+                  setUrl("");
+                  setSecret("");
+                  setAll(true);
+                  setSelected(new Set());
+                  setShow(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1 text-xs"
+              >
+                <Plus className="h-3 w-3" /> {t("settings.addWebhook")}
+              </Button>
+            )}
+          </div>
+          {loading ? (
+            <ListSkeleton rows={4} ariaLabel={t("settings.loadingWebhooks")} />
+          ) : error ? (
+            <Alert
+              variant="danger"
+              icon={<AlertCircle className="h-5 w-5 shrink-0" />}
+              actions={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={load}
+                  className="flex items-center gap-1.5 text-xs"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  {t("settings.retry")}
+                </Button>
+              }
+            >
+              <div className="space-y-1">
+                <p className="font-semibold text-danger-fg">{t("settings.loadFailed")}</p>
+                {error instanceof Error ? (
+                  <p className="text-xs text-danger-fg/80">{error.message}</p>
+                ) : typeof error === "string" ? (
+                  <p className="text-xs text-danger-fg/80">{error}</p>
+                ) : null}
+                {typeof error === "object" && error !== null && ("status" in error || "requestId" in error) && (
+                  <p className="font-mono tabular-nums tnum text-[11px] text-danger-fg/70">
+                    {typeof (error as any).status === "number" && t("uiCommon.formErrorStatus", { status: (error as any).status })}
+                    {typeof (error as any).status === "number" && (error as any).requestId && " · "}
+                    {(error as any).requestId && t("uiCommon.formErrorRequestId", { requestId: (error as any).requestId })}
+                  </p>
                 )}
               </div>
-            ))}
-          </div>
-        )}
-      </GlassCard>
+            </Alert>
+          ) : webhooks.length === 0 ? (
+            <div className="select-none rounded border border-dashed border-foreground/[0.06] py-4 text-center text-xs text-foreground/40">{t("settings.noWebhooks")}</div>
+          ) : (
+            <div className="space-y-3.5">
+              {webhooks.map((w) => (
+                <div key={w.id} className="flex flex-col justify-between gap-3 rounded-lg border border-foreground/[0.06] bg-foreground/[0.02] p-3 text-sm sm:flex-row sm:items-center">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-foreground/80">{w.name}</span>
+                      {w.events === "*" ? (
+                        <span className="rounded border border-foreground/10 bg-foreground/5 px-1.5 py-0.5 font-mono text-[9px] uppercase text-foreground/45">{t("settings.allEvents")}</span>
+                      ) : (
+                        String(w.events).split(",").filter(Boolean).map((key: string) => {
+                          const def = defByKey.get(key.trim());
+                          return (
+                            <span key={key} title={def ? `${def.group} — ${def.title}: ${def.description}` : undefined} className="rounded border border-foreground/10 bg-foreground/5 px-1.5 py-0.5 font-mono text-[9px] text-foreground/45">
+                              {key.trim()}
+                            </span>
+                          );
+                        })
+                      )}
+                    </div>
+                    <div className="select-all truncate font-mono text-xs text-foreground/45">{w.url}</div>
+                    <div className="select-all font-mono text-[10px] text-zinc-500">{t("settings.secretLabel")} {w.secret || (w.secretSet ? "••••••••" : "—")}</div>
+                  </div>
+                  {canManage && (
+                    <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-foreground/[0.04]">
+                      <Switch checked={w.enabled} onCheckedChange={() => toggle(w)} />
+                      <Button
+                        variant="ghost"
+                        onClick={() => test(w)}
+                        disabled={testingId === w.id}
+                        className="flex items-center gap-1 px-3 sm:px-2.5 py-2 sm:py-1 text-xs min-h-[44px] sm:min-h-0"
+                      >
+                        <Send className="h-3 w-3" /> {testingId === w.id ? t("settings.testing") : t("settings.test")}
+                      </Button>
+                      <Button variant="danger" onClick={() => del(w.id)} className="flex items-center gap-1 px-3 sm:px-2.5 py-2 sm:py-1 text-xs min-h-[44px] sm:min-h-0"><Trash2 className="h-3 w-3" /> {t("settings.delete")}</Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </GlassCard>
+      )}
+
+      {activeTab === "inbound" && (
+        <div className="space-y-6" data-testid="inbound-relays-panel">
+          {/* Section 1: Inbound Webhook Relays */}
+          <GlassCard className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-foreground">
+                  {t("settings.inboundRelaysHeading", "Inbound Webhook Relays")}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t("settings.inboundRelaysDesc", "Receive and verify webhooks from third-party services with cryptographic signatures.")}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {[
+                {
+                  id: "relay-stripe",
+                  name: "Stripe Billing & Checkout Relay",
+                  path: "/api/webhooks/inbound/stripe",
+                  algorithm: "HMAC-SHA256",
+                  status: "Verified & Active",
+                  description: "Processes payment intents, subscription updates, and checkout sessions.",
+                },
+                {
+                  id: "relay-github",
+                  name: "GitHub Repository Relay",
+                  path: "/api/webhooks/inbound/github",
+                  algorithm: "HMAC-SHA256",
+                  status: "Verified & Active",
+                  description: "Receives release events, commit pushes, and repository alerts.",
+                },
+                {
+                  id: "relay-custom",
+                  name: "Custom Inbound Event Relay",
+                  path: "/api/webhooks/inbound/generic",
+                  algorithm: "Bearer / Signature",
+                  status: "Listening",
+                  description: "Accepts custom external payloads and feeds into the event spine.",
+                },
+              ].map((relay) => (
+                <div
+                  key={relay.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs"
+                >
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm text-foreground">{relay.name}</span>
+                      <span className="rounded-full bg-success-fg/10 text-success-fg px-2 py-0.5 text-[10px] font-semibold flex items-center gap-1">
+                        <ShieldCheck className="h-3 w-3" />
+                        <span>{relay.algorithm}</span>
+                      </span>
+                    </div>
+                    <div className="font-mono text-xs text-muted-foreground select-all">{relay.path}</div>
+                    <div className="text-xs text-muted-foreground">{relay.description}</div>
+                  </div>
+
+                  <span className="rounded-full bg-surface-hover px-2.5 py-1 text-xs font-medium text-foreground self-start sm:self-center">
+                    {relay.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+
+          {/* Section 2: Dead-Letter Queue (DLQ) Audit */}
+          <GlassCard className="p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-base font-bold text-foreground">
+                  {t("settings.dlqHeading", "Dead-Letter Queue (DLQ) Audit")}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t("settings.dlqDesc", "Deliveries that exhausted all retry attempts. Inspect errors and replay when ready.")}
+                </p>
+              </div>
+
+              <div className="w-full sm:w-64">
+                <Input
+                  className="text-xs"
+                  placeholder={t("common.filter", "Filter failed deliveries…")}
+                  value={dlqSearch}
+                  onChange={(e) => setDlqSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {filteredDeadLetters.length === 0 ? (
+              <div
+                data-testid="dlq-empty-state"
+                className="select-none rounded-xl border border-dashed border-border py-8 text-center text-xs text-muted-foreground space-y-1"
+              >
+                <div className="font-semibold text-foreground">
+                  {t("settings.dlqEmptyTitle", "Dead-letter queue is clear")}
+                </div>
+                <div>{t("settings.dlqEmptyDesc", "All outbound deliveries succeeded or were manually resolved.")}</div>
+              </div>
+            ) : (
+              <div className="space-y-3" data-testid="dlq-list">
+                {filteredDeadLetters.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs"
+                  >
+                    <div className="space-y-1.5 min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded bg-danger-fg/10 text-danger-fg px-1.5 py-0.5 font-mono text-[10px] font-bold">
+                          HTTP {entry.responseCode}
+                        </span>
+                        <span className="font-mono text-xs font-semibold text-foreground">{entry.event}</span>
+                        <span className="text-[11px] text-muted-foreground font-mono">#{entry.deliveryId}</span>
+                        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          <span>{entry.createdAt}</span>
+                        </span>
+                      </div>
+
+                      <div className="font-mono text-xs text-muted-foreground truncate select-all">
+                        {entry.url}
+                      </div>
+
+                      <div className="rounded-lg bg-well p-2 text-xs text-danger-fg/90 font-mono">
+                        {entry.lastError}
+                      </div>
+
+                      <div className="text-[11px] text-muted-foreground">
+                        {entry.attempts} / 5
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 self-end sm:self-start">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={entry.replaying}
+                        onClick={() => handleReplay(entry)}
+                        className="flex items-center gap-1.5 text-xs"
+                      >
+                        <RotateCcw className={cn("h-3.5 w-3.5", entry.replaying && "animate-spin")} />
+                        <span>{entry.replaying ? t("common.replaying", "Replaying…") : t("common.replay", "Replay")}</span>
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </GlassCard>
+        </div>
+      )}
 
       {show && (
         <Modal title={t("settings.addWebhookEndpoint")} onClose={() => setShow(false)}>

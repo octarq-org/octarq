@@ -391,6 +391,18 @@ export const settings = {
     notifyAddChannelOfType: "Add channel",
 
     // Shared status
+    replayQueued: "Delivery event queued for replay.",
+    replayFailed: "Replay request failed.",
+    webhooksRelaysTitle: "Webhooks & Relays",
+    webhooksRelaysDesc: "Manage real-time outbound event subscriptions, third-party inbound relay tunnels, and inspect dead letter queues.",
+    tabOutboundSubscriptions: "Outbound Subscriptions",
+    tabInboundRelays: "Inbound Relays",
+    inboundRelaysHeading: "Inbound Webhook Relays",
+    inboundRelaysDesc: "Ingest webhooks from Stripe, GitHub, Resend, and cloud providers with cryptographic signature verification and delivery retries.",
+    dlqHeading: "Dead-Letter Queue (DLQ) Audit",
+    dlqDesc: "Failed deliveries that exhausted retries. Inspect payloads, error traces, and replay directly to destination.",
+    dlqEmptyTitle: "Dead letter queue is empty",
+    dlqEmptyDesc: "All outbound webhooks and inbound relays delivered successfully.",
     systemSettings: "System Settings",
   },
   zh: {
@@ -783,6 +795,18 @@ export const settings = {
     notifyAddChannelOfType: "添加渠道",
 
     // Shared status
+    replayQueued: "重放已入队",
+    replayFailed: "重放入队失败",
+    webhooksRelaysTitle: "Webhook 与中继",
+    webhooksRelaysDesc: "管理实时出站事件订阅、第三方入站中继隧道，并审计死信队列。",
+    tabOutboundSubscriptions: "出站事件订阅",
+    tabInboundRelays: "入站中继隧道",
+    inboundRelaysHeading: "第三方入站中继",
+    inboundRelaysDesc: "接收来自 Stripe、GitHub、Resend 及云厂商的 Webhook，提供加密验签与重试保障。",
+    dlqHeading: "死信队列 (DLQ)",
+    dlqDesc: "已耗尽重试次数的投递失败记录。可检查载荷、错误调用栈，并直接重新投递。",
+    dlqEmptyTitle: "死信队列为空",
+    dlqEmptyDesc: "全部出站 Webhook 与入站中继投递正常，无死信事件。",
     systemSettings: "系统设置",
   },
   es: {
@@ -1175,6 +1199,18 @@ export const settings = {
     notifyAddChannelOfType: "Añadir canal",
 
     // Shared status
+    replayQueued: "Reproducción en cola",
+    replayFailed: "Error al encolar la reproducción",
+    webhooksRelaysTitle: "Webhooks y retransmisiones",
+    webhooksRelaysDesc: "Administre suscripciones a eventos salientes en tiempo real, túneles de retransmisión entrantes e inspeccione colas de cartas muertas.",
+    tabOutboundSubscriptions: "Suscripciones salientes",
+    tabInboundRelays: "Retransmisiones entrantes",
+    inboundRelaysHeading: "Retransmisiones entrantes de terceros",
+    inboundRelaysDesc: "Ingiera webhooks de Stripe, GitHub, Resend y proveedores de la nube con verificación de firma y reintentos.",
+    dlqHeading: "Cola de cartas muertas (DLQ)",
+    dlqDesc: "Entregas fallidas que agotaron los reintentos. Inspeccione cargas útiles y reproduzca directamente.",
+    dlqEmptyTitle: "La cola de cartas muertas está vacía",
+    dlqEmptyDesc: "Todos los webhooks y retransmisiones se entregaron con éxito.",
     systemSettings: "Configuración del sistema",
   },
   pt: {
@@ -1567,6 +1603,18 @@ export const settings = {
     notifyAddChannelOfType: "Adicionar canal",
 
     // Shared status
+    replayQueued: "Repetição enfileirada",
+    replayFailed: "Falha ao enfileirar repetição",
+    webhooksRelaysTitle: "Webhooks e retransmissões",
+    webhooksRelaysDesc: "Gerencie assinaturas de eventos de saída em tempo real, túneis de retransmissão de entrada e inspecione filas de mensagens mortas.",
+    tabOutboundSubscriptions: "Assinaturas de saída",
+    tabInboundRelays: "Retransmissões de entrada",
+    inboundRelaysHeading: "Retransmissões de entrada de terceiros",
+    inboundRelaysDesc: "Receba webhooks do Stripe, GitHub, Resend e provedores de nuvem com verificação de assinatura e novas tentativas.",
+    dlqHeading: "Fila de mensagens mortas (DLQ)",
+    dlqDesc: "Entregas com falha que esgotaram as tentativas. Inspecione cargas úteis e repita diretamente.",
+    dlqEmptyTitle: "A fila de mensagens mortas está vazia",
+    dlqEmptyDesc: "Todos os webhooks de saída e retransmissões de entrada foram entregues com sucesso.",
     systemSettings: "Configurações do sistema",
   },
   ja: {
@@ -1959,6 +2007,18 @@ export const settings = {
     notifyAddChannelOfType: "チャンネルを追加",
 
     // Shared status
+    replayQueued: "再試行をキューに追加しました",
+    replayFailed: "再試行のキューへの追加に失敗しました",
+    webhooksRelaysTitle: "Webhook とインバウンドリレー",
+    webhooksRelaysDesc: "リアルタイムのアウトバウンドイベントサブスクリプション、サードパーティのインバウンドリレートンネルを管理し、デッドレターキューを監査します。",
+    tabOutboundSubscriptions: "アウトバウンドサブスクリプション",
+    tabInboundRelays: "インバウンドリレー",
+    inboundRelaysHeading: "サードパーティインバウンドリレー",
+    inboundRelaysDesc: "Stripe、GitHub、Resend、クラウドプロバイダーからのWebhookを取り込み、暗号署名検証と配信再試行を実行します。",
+    dlqHeading: "デッドレターキュー (DLQ)",
+    dlqDesc: "再試行を使い果たした配信失敗。ペイロードとエラートレースを検査し、宛先に直接再送信します。",
+    dlqEmptyTitle: "デッドレターキューは空です",
+    dlqEmptyDesc: "すべてのアウトバウンドWebhookとインバウンドリレーが正常に配信されました。",
     systemSettings: "システム設定",
   },
 };

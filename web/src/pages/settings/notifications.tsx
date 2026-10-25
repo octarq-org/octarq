@@ -324,7 +324,7 @@ export function NotificationChannels() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate("/notifications/preferences")}
+            onClick={() => navigate("/settings/personal/notifications")}
             className="flex items-center gap-1.5 text-xs"
           >
             <Sliders className="h-3.5 w-3.5" />

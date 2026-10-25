@@ -229,9 +229,10 @@ function InboxDrawerContent() {
 
           <button
             type="button"
+            data-testid="inbox-preferences-link"
             onClick={() => {
               closeDrawer();
-              navigate("/notifications/preferences");
+              navigate("/settings/personal/notifications");
             }}
             className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
           >

@@ -184,10 +184,10 @@ export function PreferencesPage() {
     <ScreenWrap>
       <div className="space-y-6">
         <PageHeader
-          title={t("notifications.preferencesPageTitle", "通知路由偏好设置")}
+          title={t("personal.notificationsTitle", "Personal Notifications")}
           description={t(
-            "notifications.preferencesPageDescription",
-            "按通知事件类型自定义分发渠道（站内信、邮件及插件扩展渠道）。",
+            "personal.notificationsDesc",
+            "Manage event subscriptions, mute channels, and configure personal notification routing.",
           )}
           action={
             <div className="flex flex-wrap items-center gap-2.5">

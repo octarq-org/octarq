@@ -57,6 +57,17 @@ func (p *Plugin) listEmails(ctx context.Context, input *ListEmailsInput) (*ListE
 	q = q.Limit(limit).Offset(offset)
 	var emails []Email
 	q.Find(&emails)
+	for idx := range emails {
+		emails[idx].OTP = ExtractOTP(emails[idx].Subject, emails[idx].Text, "")
+		if emails[idx].Category == "" {
+			summary, rawCat := GenerateEmailSummary(emails[idx].Subject, emails[idx].Text, emails[idx].OTP)
+			emails[idx].Category = NormalizeCategory(rawCat)
+			emails[idx].Summary = summary
+			if emails[idx].Importance == 0 {
+				emails[idx].Importance = CalculateImportance(rawCat)
+			}
+		}
+	}
 	return &ListEmailsOutput{Body: emails}, nil
 }
 
@@ -94,6 +105,15 @@ func (p *Plugin) getEmail(ctx context.Context, input *GetEmailInput) (*GetEmailO
 	if !e.Read {
 		p.db.Model(&e).Update("read", true)
 		e.Read = true
+	}
+	e.OTP = ExtractOTP(e.Subject, e.Text, e.HTML)
+	if e.Category == "" {
+		summary, rawCat := GenerateEmailSummary(e.Subject, e.Text, e.OTP)
+		e.Category = NormalizeCategory(rawCat)
+		e.Summary = summary
+		if e.Importance == 0 {
+			e.Importance = CalculateImportance(rawCat)
+		}
 	}
 	return &GetEmailOutput{Body: e}, nil
 }

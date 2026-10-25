@@ -27,6 +27,7 @@ vi.mock("./settings/auth", () => ({ AuthenticationSettings: () => <div /> }));
 vi.mock("./settings/instance-plugins", () => ({ InstancePluginsSettings: () => <div /> }));
 vi.mock("./settings/instance", () => ({ InstanceSettings: () => <div /> }));
 vi.mock("./settings/security", () => ({ SecuritySettings: () => <div /> }));
+vi.mock("./notifications", () => ({ PreferencesPage: () => <div data-testid="preferences-panel" /> }));
 vi.mock("./PersonalSettings", () => ({ ProfileSettings: () => <div />, ApiTokens: () => <div /> }));
 
 function renderAt(path: string) {
@@ -57,5 +58,10 @@ describe("core settings paths that plugin packages link to", () => {
     renderAt("/settings/general");
     await waitFor(() => expect(screen.getByTestId("general-panel")).toBeTruthy());
     expect(screen.queryByTestId("members-panel")).toBeNull();
+  });
+
+  it("/settings/personal/notifications resolves to the personal notifications preferences panel", async () => {
+    renderAt("/settings/personal/notifications");
+    await waitFor(() => expect(screen.getByTestId("preferences-panel")).toBeTruthy());
   });
 });

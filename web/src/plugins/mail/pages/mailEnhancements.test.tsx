@@ -10,6 +10,7 @@ import mailPlugin from "../index";
 import { Compose } from "./Compose";
 import { EmailViewForm } from "./EmailView";
 import { FolderNav } from "./FolderNav";
+import { EmailListItem } from "./EmailListItem";
 import { Email } from "../api";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -163,5 +164,94 @@ describe("Mail Enhancements", () => {
 
     fireEvent.click(screen.getByText("Drafts"));
     expect(onSelect).toHaveBeenCalledWith("drafts");
+  });
+
+  it("renders 1-Click OTP copy bar in EmailViewForm and copies code", async () => {
+    const mockEmailWithOtp: Email = {
+      id: 99,
+      mailboxId: 1,
+      from: "security@auth.com",
+      to: "user@example.com",
+      subject: "Your login code is 849201",
+      text: "Use code 849201 to verify.",
+      html: "",
+      otp: "849201",
+      category: "otp",
+      summary: "One-time security verification passcode.",
+      importance: 5,
+      read: true,
+      note: "",
+      attachments: "[]",
+      authSpf: "pass",
+      authDkim: "pass",
+      authDmarc: "pass",
+      receivedAt: "2026-10-24T12:00:00Z",
+    };
+
+    let copiedText = "";
+    Object.defineProperty(navigator, "clipboard", {
+      value: {
+        writeText: vi.fn().mockImplementation(async (text: string) => {
+          copiedText = text;
+        }),
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    renderWithProviders(
+      <EmailViewForm
+        email={mockEmailWithOtp}
+        onClose={vi.fn()}
+        onReply={vi.fn()}
+        onChanged={vi.fn()}
+      />
+    );
+
+    const otpBar = screen.getByTestId("otp-copy-bar");
+    expect(otpBar).toBeDefined();
+    expect(screen.getByText("849201")).toBeDefined();
+
+    const copyBtn = screen.getByRole("button", { name: "Copy Code" });
+    fireEvent.click(copyBtn);
+
+    expect(copiedText).toBe("849201");
+    expect(screen.getByText("One-time security verification passcode.")).toBeDefined();
+  });
+
+  it("renders AI category badge, summary preview, and importance dots in EmailListItem", () => {
+    const mockEmailItem: Email = {
+      id: 55,
+      mailboxId: 1,
+      from: "billing@acme.com",
+      to: "user@example.com",
+      subject: "Monthly Subscription Invoice",
+      text: "Your invoice for $49 is ready.",
+      html: "",
+      category: "bill",
+      summary: "Monthly platform subscription invoice for $49.",
+      importance: 4,
+      read: false,
+      note: "",
+      attachments: "[]",
+      authSpf: "pass",
+      authDkim: "pass",
+      authDmarc: "pass",
+      receivedAt: "2026-10-24T10:00:00Z",
+    };
+
+    renderWithProviders(
+      <EmailListItem
+        email={mockEmailItem}
+        folder="inbox"
+        isSelected={false}
+        onSelect={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Bill")).toBeDefined();
+    expect(screen.getByText("Monthly platform subscription invoice for $49.")).toBeDefined();
+    expect(screen.getByTestId("importance-dots")).toBeDefined();
+    expect(screen.getByTestId("importance-dots").textContent).toBe("●●●●○");
   });
 });

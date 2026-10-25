@@ -107,6 +107,8 @@ func GenerateEmailSummary(subject, body, otp string) (string, string) {
 		category = "security_alert"
 	} else if strings.Contains(full, "invoice") || strings.Contains(full, "bill") || strings.Contains(full, "receipt") || strings.Contains(full, "payment") {
 		category = "billing"
+	} else if strings.Contains(full, "marketing") || strings.Contains(full, "discount") || strings.Contains(full, "newsletter") || strings.Contains(full, "promo") || strings.Contains(full, "special offer") {
+		category = "marketing"
 	} else if strings.Contains(full, "notification") || strings.Contains(full, "update") {
 		category = "notification"
 	}
@@ -128,4 +130,30 @@ func GenerateEmailSummary(subject, body, otp string) (string, string) {
 	}
 
 	return summaryText, category
+}
+
+// NormalizeCategory standardizes categories into bill, otp, marketing, important, general.
+func NormalizeCategory(cat string) string {
+	switch cat {
+	case "billing":
+		return "bill"
+	case "security_alert":
+		return "important"
+	default:
+		return cat
+	}
+}
+
+// CalculateImportance computes an importance score (1-5) based on normalized category.
+func CalculateImportance(cat string) int {
+	switch NormalizeCategory(cat) {
+	case "otp", "important":
+		return 5
+	case "bill":
+		return 4
+	case "marketing":
+		return 2
+	default:
+		return 3
+	}
 }

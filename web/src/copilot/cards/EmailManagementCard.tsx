@@ -54,11 +54,35 @@ export function EmailManagementCard({
   const errorDetail = data.errorDetail;
   const forbiddenReason = data.forbiddenReason;
 
-  const threads = Array.isArray(data.threads)
+  const rawThreads = Array.isArray(data.threads)
     ? data.threads
     : Array.isArray(data.emails)
       ? data.emails
       : [];
+  const threads = [...rawThreads];
+
+  if (
+    threads.length === 0 &&
+    Boolean((data as any).to || (data as any).recipient || (data as any).subject || (data as any).body)
+  ) {
+    const to = String((data as any).to || (data as any).recipient || "");
+    const subject = String((data as any).subject || "Email Draft");
+    const body = String((data as any).body || "");
+    threads.push({
+      id: String((data as any).id || "draft-1"),
+      sender: to,
+      subject,
+      summary: body.length > 120 ? `${body.slice(0, 120)}…` : body || "Email draft created by Copilot.",
+      draft_reply: {
+        to,
+        subject,
+        body,
+        cc: (data as any).cc,
+      },
+      approval_id: data.approval_id || data.approvalId,
+    });
+  }
+
   const totalCount = data.total_unread ?? data.total_scanned ?? threads.length;
   const approvalId = String(data.approval_id ?? data.approvalId ?? "").trim();
 

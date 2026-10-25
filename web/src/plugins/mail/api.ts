@@ -37,6 +37,10 @@ export interface Email {
   authDkim: string;  // pass|fail|none|""
   authDmarc: string; // pass|fail|none|""
   receivedAt: string;
+  category?: "bill" | "otp" | "marketing" | "important" | "general" | string;
+  summary?: string;
+  importance?: number;
+  otp?: string;
 }
 
 export interface MailContact {

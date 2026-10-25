@@ -118,8 +118,8 @@ export const SETTINGS_AREA: Area = {
         { id: "general",       label: "General",     Icon: Settings,    path: "/settings/general" },
         { id: "plugins",       label: "Features",    Icon: Puzzle,      path: "/settings/plugins" },
         { id: "members",       label: "Members",     Icon: Users,       path: "/settings/members" },
-        { id: "webhooks",      label: "Outbound Webhooks", Icon: Webhook, path: "/settings/webhooks" },
-        { id: "notifications", label: "Alerts",      Icon: Bell,        path: "/settings/notifications" },
+        { id: "webhooks",      label: "Webhooks & Relays", Icon: Webhook, path: "/settings/webhooks" },
+        { id: "notifications", label: "Notifications & Alerts", Icon: Bell, path: "/settings/notifications" },
         { id: "agent-harness", label: "Agent Harness", Icon: Bot,      path: "/settings/agent-harness" },
       ],
     },
@@ -127,6 +127,7 @@ export const SETTINGS_AREA: Area = {
       label: "Personal",
       items: [
         { id: "profile",  label: "My Profile", Icon: User,      path: "/settings/profile" },
+        { id: "personal-notifications", label: "Notifications", Icon: Bell, path: "/settings/personal/notifications" },
         { id: "security", label: "Security",   Icon: Shield,    path: "/settings/security" },
         { id: "tokens",   label: "API Tokens", Icon: KeyRound,  path: "/settings/tokens" },
         { id: "appearance", label: "Appearance", Icon: Palette, path: "/settings/appearance" },

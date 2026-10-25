@@ -38,6 +38,10 @@ type Email struct {
 	Folder         string    `gorm:"size:32;index;default:'inbox'" json:"folder"` // inbox, sent, drafts, trash, spam
 	UnsubscribeURL string    `gorm:"size:1024" json:"unsubscribeUrl"`
 	ReceivedAt     time.Time `gorm:"index" json:"receivedAt"`
+	Category       string    `gorm:"size:32;index" json:"category,omitempty"`
+	Summary        string    `gorm:"type:text" json:"summary,omitempty"`
+	Importance     int       `gorm:"default:0" json:"importance,omitempty"`
+	OTP            string    `gorm:"-" json:"otp,omitempty"`
 }
 
 type SMTPSender struct {

@@ -103,6 +103,10 @@ export const WORKFLOW_TOOLS = new Set([
   "script_storyboard",
   "marketing_storyboard",
   "email_manage",
+  "mail_draft_create",
+  "create_email_draft",
+  "mail_send_reply",
+  "send_email",
   "support_escalate",
   "financial_analysis",
 ]);
@@ -453,6 +457,54 @@ const DEFAULT_SCHEMAS: Record<string, JsonSchema> = {
       approval_id: { type: "string" },
     },
   },
+  mail_draft_create: {
+    type: "object",
+    properties: {
+      to: { type: "string" },
+      recipient: { type: "string" },
+      subject: { type: "string" },
+      body: { type: "string" },
+      cc: { type: "array" },
+      approval_id: { type: "string" },
+      approvalId: { type: "string" },
+    },
+  },
+  create_email_draft: {
+    type: "object",
+    properties: {
+      to: { type: "string" },
+      recipient: { type: "string" },
+      subject: { type: "string" },
+      body: { type: "string" },
+      cc: { type: "array" },
+      approval_id: { type: "string" },
+      approvalId: { type: "string" },
+    },
+  },
+  mail_send_reply: {
+    type: "object",
+    properties: {
+      to: { type: "string" },
+      recipient: { type: "string" },
+      subject: { type: "string" },
+      body: { type: "string" },
+      cc: { type: "array" },
+      approval_id: { type: "string" },
+      approvalId: { type: "string" },
+    },
+  },
+  send_email: {
+    type: "object",
+    properties: {
+      to: { type: "string" },
+      recipient: { type: "string" },
+      subject: { type: "string" },
+      body: { type: "string" },
+      cc: { type: "array" },
+      approval_id: { type: "string" },
+      approvalId: { type: "string" },
+    },
+  },
   support_escalate: {
     type: "object",
     properties: {
@@ -522,6 +574,10 @@ export function registerDomainCards(): void {
     ["script_storyboard", ScriptStoryboardCard],
     ["marketing_storyboard", ScriptStoryboardCard],
     ["email_manage", EmailManagementCard],
+    ["mail_draft_create", EmailManagementCard],
+    ["create_email_draft", EmailManagementCard],
+    ["mail_send_reply", EmailManagementCard],
+    ["send_email", EmailManagementCard],
     ["support_escalate", SupportEscalationCard],
     ["financial_analysis", FinancialAnalysisCard],
   ];
