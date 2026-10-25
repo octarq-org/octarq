@@ -73,7 +73,7 @@ describe("App Routing", () => {
     );
 
     await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/instance/link-settings");
+      expect(replace).toHaveBeenCalledWith("/instance/settings");
     }, { timeout: 2000 });
     // And it must not have quietly rendered the tenant catch-all instead.
     expect(screen.queryByText(/Not part of this build/i)).toBeNull();

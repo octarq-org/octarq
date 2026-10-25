@@ -61,6 +61,9 @@ describe("LinkEditorForm", () => {
       if (method === "GET" && path === "/api/links/metadata") {
         return jsonResponse({ title: "Fetched Page Title", description: "Desc", favicon: "" });
       }
+      if (method === "GET" && path === "/api/links/capabilities") {
+        return jsonResponse({ geoReady: false, mode: "unavailable" });
+      }
       if (method === "POST" && path === "/api/links") {
         const body = init?.body ? JSON.parse(init.body as string) : {};
         return jsonResponse({ id: 200, ...body, clicks: 0, hasPassword: !!body.password, createdAt: new Date().toISOString() });
@@ -461,5 +464,130 @@ describe("LinkEditorForm", () => {
     await waitFor(() => {
       expect(screen.getByText("Slug 'custom' is already in use by another link")).toBeDefined();
     });
+  });
+
+  it("displays domain guidance alert when no custom domain configured and supports cancel navigation", async () => {
+    const onCancel = vi.fn();
+    render(
+      <I18nProvider>
+        <LinkEditorForm link={null} hosts={[]} onCancel={onCancel} onSaved={vi.fn()} />
+      </I18nProvider>
+    );
+
+    expect(screen.getByText("No custom domain configured.")).toBeDefined();
+    expect(
+      screen.getByText("Short links require a configured domain on this instance.")
+    ).toBeDefined();
+
+    const configBtn = screen.getByRole("button", { name: /Configure Domains/i });
+    expect(configBtn).toBeDefined();
+    fireEvent.click(configBtn);
+    expect(onCancel).toHaveBeenCalled();
+  });
+
+  it("does not display domain guidance alert when hosts are configured", () => {
+    render(
+      <I18nProvider>
+        <LinkEditorForm link={null} hosts={["link.acme.com"]} onCancel={vi.fn()} onSaved={vi.fn()} />
+      </I18nProvider>
+    );
+
+    expect(screen.queryByText("No custom domain configured.")).toBeNull();
+  });
+
+  it("displays GeoIP Active badge when geo rule exists and geoReady is true", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
+      const urlObj = new URL(rawUrl, "http://localhost");
+      if (urlObj.pathname === "/api/links/capabilities") {
+        return jsonResponse({ geoReady: true, mode: "configured" });
+      }
+      if (urlObj.pathname === "/api/ai/assist/status") {
+        return jsonResponse({ configured: false });
+      }
+      return jsonResponse({});
+    });
+
+    const geoLink: Link = {
+      ...existingMockLink,
+      routingRules: [{ type: "geo", match: "US", target: "https://us.acme.com" }],
+    };
+
+    render(
+      <I18nProvider>
+        <LinkEditorForm link={geoLink} hosts={["link.acme.com"]} onCancel={vi.fn()} onSaved={vi.fn()} />
+      </I18nProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("GeoIP Active")).toBeDefined();
+    });
+  });
+
+  it("displays GeoIP Unavailable badge when geoReady is false", async () => {
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
+      const urlObj = new URL(rawUrl, "http://localhost");
+      if (urlObj.pathname === "/api/links/capabilities") {
+        return jsonResponse({ geoReady: false, mode: "unavailable" });
+      }
+      if (urlObj.pathname === "/api/ai/assist/status") {
+        return jsonResponse({ configured: false });
+      }
+      return jsonResponse({});
+    });
+
+    const geoLink: Link = {
+      ...existingMockLink,
+      routingRules: [{ type: "geo", match: "US", target: "https://us.acme.com" }],
+    };
+
+    render(
+      <I18nProvider>
+        <LinkEditorForm link={geoLink} hosts={["link.acme.com"]} onCancel={vi.fn()} onSaved={vi.fn()} />
+      </I18nProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("GeoIP Unavailable (bypassed)")).toBeDefined();
+    });
+  });
+
+  it("defensively handles undefined hosts without crashing and renders domain guidance", () => {
+    render(
+      <I18nProvider>
+        <LinkEditorForm link={null} hosts={undefined as any} onCancel={vi.fn()} onSaved={vi.fn()} />
+      </I18nProvider>
+    );
+
+    expect(screen.getByText("No custom domain configured.")).toBeDefined();
+  });
+
+  it("navigates to /admin/domains on fallback when rendered outside a router", () => {
+    const originalLocation = window.location;
+    const locationMock = { href: "" };
+    Object.defineProperty(window, "location", {
+      value: locationMock,
+      writable: true,
+      configurable: true,
+    });
+    try {
+      const onCancel = vi.fn();
+      render(
+        <I18nProvider>
+          <LinkEditorForm link={null} hosts={[]} onCancel={onCancel} onSaved={vi.fn()} />
+        </I18nProvider>
+      );
+      const configBtn = screen.getByRole("button", { name: /Configure Domains/i });
+      fireEvent.click(configBtn);
+      expect(onCancel).toHaveBeenCalled();
+      expect(locationMock.href).toBe("/admin/domains");
+    } finally {
+      Object.defineProperty(window, "location", {
+        value: originalLocation,
+        writable: true,
+        configurable: true,
+      });
+    }
   });
 });

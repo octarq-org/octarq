@@ -164,6 +164,7 @@ export const ja = {
     general: "一般",
     plugins: "機能",
     members: "メンバー",
+    integrations: "サードパーティ連携",
     webhooks: "Webhooks",
     notifications: "アラート",
     "agent-harness": "エージェント環境",

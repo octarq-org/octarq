@@ -37,12 +37,11 @@ func (p *Plugin) Host() plugin.Host { return p.host }
 func (p *Plugin) SetHost(h plugin.Host) { p.host = h }
 
 var (
-	_ plugin.Plugin               = (*Plugin)(nil)
-	_ plugin.Describer            = (*Plugin)(nil)
-	_ plugin.MenuProvider         = (*Plugin)(nil)
-	_ plugin.InstanceMenuProvider = (*Plugin)(nil)
-	_ plugin.HelpDocsFS           = (*Plugin)(nil)
-	_ plugin.Starter              = (*Plugin)(nil)
+	_ plugin.Plugin       = (*Plugin)(nil)
+	_ plugin.Describer    = (*Plugin)(nil)
+	_ plugin.MenuProvider = (*Plugin)(nil)
+	_ plugin.HelpDocsFS   = (*Plugin)(nil)
+	_ plugin.Starter      = (*Plugin)(nil)
 )
 
 // Compile-time service contract assertions: these methods are provided to the

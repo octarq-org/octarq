@@ -64,4 +64,11 @@ export const linksApi = {
       "GET",
       `/api/links/metadata?url=${encodeURIComponent(url)}`,
     ),
+  capabilities: () => req<LinksCapabilities>("GET", "/api/links/capabilities"),
 };
+
+export interface LinksCapabilities {
+  geoReady: boolean;
+  mode: "configured" | "unavailable";
+}
+

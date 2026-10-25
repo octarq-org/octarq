@@ -17,13 +17,12 @@ import (
 func TestLinks_Characterization_InterfaceContracts(t *testing.T) {
 	t.Parallel()
 	var (
-		_ plugin.Plugin               = (*Plugin)(nil)
-		_ plugin.Describer            = (*Plugin)(nil)
-		_ plugin.MenuProvider         = (*Plugin)(nil)
-		_ plugin.InstanceMenuProvider = (*Plugin)(nil)
-		_ plugin.HelpDocsFS           = (*Plugin)(nil)
-		_ plugin.Starter              = (*Plugin)(nil)
-		_ plugin.LinkCreator          = (*Plugin)(nil)
+		_ plugin.Plugin       = (*Plugin)(nil)
+		_ plugin.Describer    = (*Plugin)(nil)
+		_ plugin.MenuProvider = (*Plugin)(nil)
+		_ plugin.HelpDocsFS   = (*Plugin)(nil)
+		_ plugin.Starter      = (*Plugin)(nil)
+		_ plugin.LinkCreator  = (*Plugin)(nil)
 	)
 
 	p := New()

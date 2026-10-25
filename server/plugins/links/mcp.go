@@ -57,8 +57,23 @@ func (p *Plugin) RegisterMCP(srv *mcp.Server) {
 
 	plugin.AddMCPTool(srv, "links", &mcp.Tool{
 		Name:        "octarq_network__update_link",
-		Description: "Update properties of an existing short link (target, title, tags, note, enabled, archived) by ID.",
+		Description: "Update properties of an existing short link (target, slug, host, title, tags, note, password, clickLimit, expiresAt, expiredUrl, routingRules, enabled, archived) by ID.",
 	}, p.mcpUpdateLink)
+
+	plugin.AddMCPTool(srv, "links", &mcp.Tool{
+		Name:        "octarq_network__update_shortlink",
+		Description: "Update properties of an existing short link (target, slug, host, title, tags, note, password, clickLimit, expiresAt, expiredUrl, routingRules, enabled, archived) by ID.",
+	}, p.mcpUpdateLink)
+
+	plugin.AddMCPTool(srv, "links", &mcp.Tool{
+		Name:        "octarq_network__toggle_shortlink",
+		Description: "Toggle or set the enabled state of a short link by its ID.",
+	}, p.mcpToggleShortlink)
+
+	plugin.AddMCPTool(srv, "links", &mcp.Tool{
+		Name:        "octarq_network__get_link_analytics",
+		Description: "Get click analytics and performance metrics for a short link by its ID.",
+	}, p.mcpGetLinkAnalytics)
 
 	plugin.AddMCPTool(srv, "links", &mcp.Tool{
 		Name:        "octarq_network__delete_link",

@@ -164,6 +164,7 @@ export const es = {
     general: "General",
     plugins: "Características",
     members: "Miembros",
+    integrations: "Integraciones",
     webhooks: "Webhooks",
     notifications: "Alertas",
     "agent-harness": "Entorno del agente",

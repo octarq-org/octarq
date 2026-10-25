@@ -164,6 +164,7 @@ export const pt = {
     general: "Geral",
     plugins: "Recursos",
     members: "Membros",
+    integrations: "Integrações",
     webhooks: "Webhooks",
     notifications: "Alertas",
     "agent-harness": "Ambiente do agente",

@@ -31,6 +31,8 @@ export interface ApprovalWidget {
   title?: string;
   tool: string;
   args?: Record<string, unknown>;
+  approvalId?: string | number;
+  status?: "pending" | "approved" | "rejected";
 }
 
 export interface UnknownWidget {

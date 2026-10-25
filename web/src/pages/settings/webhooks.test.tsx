@@ -220,6 +220,36 @@ describe("WebhooksSettings suite", () => {
   it("switches to Inbound Relays tab and displays relays and dead-letter queue", async () => {
     vi.spyOn(api, "webhooks").mockResolvedValue([]);
     vi.spyOn(api, "webhookEvents").mockResolvedValue([]);
+    vi.spyOn(api, "webhookRelayEndpoints").mockResolvedValue([
+      {
+        id: "relay-stripe",
+        name: "Stripe Billing & Checkout Relay",
+        path: "/api/webhooks/inbound/stripe",
+        algorithm: "HMAC-SHA256",
+        status: "Verified & Active",
+        description: "Processes payment intents, subscription updates, and checkout sessions.",
+      },
+      {
+        id: "relay-github",
+        name: "GitHub Repository Relay",
+        path: "/api/webhooks/inbound/github",
+        algorithm: "HMAC-SHA256",
+        status: "Verified & Active",
+        description: "Receives release events, commit pushes, and repository alerts.",
+      },
+    ]);
+    vi.spyOn(api, "webhookRelayDeadLetters").mockResolvedValue([
+      {
+        id: 101,
+        deliveryId: "del_01jf8b2c4e9a1k7m",
+        event: "mail.receive",
+        url: "https://ops-relay.internal.net/events/inbound",
+        attempts: 5,
+        responseCode: 504,
+        lastError: "Gateway Timeout: upstream host failed to respond within 15 seconds.",
+        createdAt: "18m ago",
+      },
+    ]);
 
     renderWebhooksSettings("admin", false);
 
@@ -228,22 +258,36 @@ describe("WebhooksSettings suite", () => {
 
     expect(screen.getByTestId("inbound-relays-panel")).toBeTruthy();
     expect(screen.getByText("Inbound Webhook Relays")).toBeTruthy();
-    expect(screen.getByText("Stripe Billing & Checkout Relay")).toBeTruthy();
-    expect(screen.getByText("GitHub Repository Relay")).toBeTruthy();
+    expect(await screen.findByText("Stripe Billing & Checkout Relay")).toBeTruthy();
+    expect(await screen.findByText("GitHub Repository Relay")).toBeTruthy();
     expect(screen.getByText("Dead-Letter Queue (DLQ) Audit")).toBeTruthy();
-    expect(screen.getByText(/del_01jf8b2c4e9a1k7m/)).toBeTruthy();
+    expect(await screen.findByText(/del_01jf8b2c4e9a1k7m/)).toBeTruthy();
   });
 
   it("replays a dead-letter queue entry and displays success toast", async () => {
     vi.spyOn(api, "webhooks").mockResolvedValue([]);
     vi.spyOn(api, "webhookEvents").mockResolvedValue([]);
+    vi.spyOn(api, "webhookRelayEndpoints").mockResolvedValue([]);
+    vi.spyOn(api, "webhookRelayDeadLetters").mockResolvedValue([
+      {
+        id: 101,
+        deliveryId: "del_01jf8b2c4e9a1k7m",
+        event: "mail.receive",
+        url: "https://ops-relay.internal.net/events/inbound",
+        attempts: 5,
+        responseCode: 504,
+        lastError: "Gateway Timeout: upstream host failed to respond within 15 seconds.",
+        createdAt: "18m ago",
+      },
+    ]);
+    vi.spyOn(api, "replayWebhookDeadLetter").mockResolvedValue({ ok: true });
     const toastSpy = vi.spyOn(ui.toast, "success");
 
     renderWebhooksSettings("admin", false);
 
     fireEvent.click(screen.getByTestId("tab-inbound-relays"));
 
-    const replayButtons = screen.getAllByRole("button", { name: /replay/i });
+    const replayButtons = await screen.findAllByRole("button", { name: /replay/i });
     expect(replayButtons.length).toBeGreaterThan(0);
 
     fireEvent.click(replayButtons[0]);

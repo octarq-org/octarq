@@ -8,6 +8,7 @@ const notifyCore: UIPlugin = {
     { slot: "settings-notification-channel:telegram", Component: lazy(() => import("./TelegramForm")) },
     { slot: "settings-notification-channel:webhook", Component: lazy(() => import("./WebhookForm")) },
     { slot: "settings-notification-channel:email", Component: lazy(() => import("./EmailForm")) },
+    { slot: "settings-notification-channel:slack", Component: lazy(() => import("./SlackForm")) },
   ],
 };
 

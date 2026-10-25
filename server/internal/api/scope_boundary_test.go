@@ -114,24 +114,15 @@ func TestInstanceSettingsRefuseOrgOwner(t *testing.T) {
 	if rec := do(srv, "GET", "/api/instance-settings", owner, ""); rec.Code != http.StatusForbidden {
 		t.Errorf("org owner GET /api/instance-settings: got %d, want 403", rec.Code)
 	}
-	if rec := do(srv, "GET", "/api/instance/link-settings", owner, ""); rec.Code != http.StatusForbidden {
-		t.Errorf("org owner GET /api/instance/link-settings: got %d, want 403", rec.Code)
-	}
 
 	// PUT: an org owner must not mutate deployment-wide settings.
 	if rec := do(srv, "PUT", "/api/instance-settings", owner, `{"appName":"pwned"}`); rec.Code != http.StatusForbidden {
 		t.Errorf("org owner PUT /api/instance-settings: got %d, want 403", rec.Code)
-	}
-	if rec := do(srv, "PUT", "/api/instance/link-settings", owner, `{"reservedSlugs":"pwned"}`); rec.Code != http.StatusForbidden {
-		t.Errorf("org owner PUT /api/instance/link-settings: got %d, want 403", rec.Code)
 	}
 
 	// The configured instance admin still can: the gate is bound to the
 	// instance-admin flag, not to org membership or role.
 	if rec := do(srv, "GET", "/api/instance-settings", loginCookies(t, srv), ""); rec.Code != http.StatusOK {
 		t.Errorf("instance admin GET /api/instance-settings: got %d, want 200", rec.Code)
-	}
-	if rec := do(srv, "GET", "/api/instance/link-settings", loginCookies(t, srv), ""); rec.Code != http.StatusOK {
-		t.Errorf("instance admin GET /api/instance/link-settings: got %d, want 200", rec.Code)
 	}
 }

@@ -91,7 +91,7 @@ export default function App() {
   } else if (window.location.pathname.startsWith("/instance")) {
     content = <Suspense fallback={<RouteFallback />}><InstanceConsole /></Suspense>;
   } else if (window.location.pathname === "/link-settings") {
-    content = <InstanceExitRedirect to="/instance/link-settings" />;
+    content = <InstanceExitRedirect to="/instance/settings" />;
   } else if (window.location.pathname === "/admin/invite/accept") {
     content = <InviteAcceptPage />;
   } else if (window.location.pathname === "/admin/reset") {
