@@ -13,12 +13,7 @@ export function ApprovalCard({ widget }: { widget: ApprovalWidget }) {
 
   const handleDecision = async (decision: "approve" | "reject") => {
     if (!widget.approvalId) {
-      setStatus(decision === "approve" ? "approved" : "rejected");
-      toast.success(
-        decision === "approve"
-          ? t("copilot.cardApprovedDesc", "Action approved. The change executed successfully.")
-          : t("copilot.cardRejectedDesc", "Action rejected. The system made no changes."),
-      );
+      toast.error(t("copilot.missingApprovalId", "Approval request identifier is missing."));
       return;
     }
 
@@ -90,12 +85,12 @@ export function ApprovalCard({ widget }: { widget: ApprovalWidget }) {
         ) : status === "approved" ? (
           <div className="flex items-center gap-1.5 text-success-fg font-medium text-xs">
             <CheckCircle2 className="h-3.5 w-3.5" />
-            <span>{t("copilot.cardApprovedDesc", "Approved")}</span>
+            <span>{t("copilot.badgeApproved", "Approved")}</span>
           </div>
         ) : (
           <div className="flex items-center gap-1.5 text-destructive font-medium text-xs">
             <XCircle className="h-3.5 w-3.5" />
-            <span>{t("copilot.cardRejectedDesc", "Rejected")}</span>
+            <span>{t("copilot.badgeRejected", "Rejected")}</span>
           </div>
         )}
       </div>

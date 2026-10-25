@@ -73,6 +73,7 @@ func (c *SlackChannel) ConfigSchema() json.RawMessage {
 // Send resolves the webhook URL and dispatches the notification payload to Slack.
 func (c *SlackChannel) Send(ctx context.Context, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
 	webhookURL := ""
+	var reqIntegID uint
 
 	// 1. Resolve from recipient.Config ("webhook_url", "webhookUrl", or "integration_id")
 	if recipient.Config != nil {
@@ -80,17 +81,34 @@ func (c *SlackChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 			webhookURL = strings.TrimSpace(v)
 		} else if v, ok := recipient.Config["webhookUrl"].(string); ok && strings.TrimSpace(v) != "" {
 			webhookURL = strings.TrimSpace(v)
+		}
+		if v, ok := recipient.Config["integration_id"].(float64); ok && v > 0 {
+			reqIntegID = uint(v)
+		} else if v, ok := recipient.Config["integrationId"].(float64); ok && v > 0 {
+			reqIntegID = uint(v)
+		} else if v, ok := recipient.Config["integration_id"].(int); ok && v > 0 {
+			reqIntegID = uint(v)
+		} else if v, ok := recipient.Config["integrationId"].(int); ok && v > 0 {
+			reqIntegID = uint(v)
 		} else if raw, ok := recipient.Config["_raw_config"].(string); ok && strings.TrimSpace(raw) != "" {
 			var m struct {
-				WebhookURL    string `json:"webhookUrl"`
-				WebhookURLAlt string `json:"webhook_url"`
-				IntegrationID uint   `json:"integrationId"`
+				WebhookURL       string `json:"webhookUrl"`
+				WebhookURLAlt    string `json:"webhook_url"`
+				IntegrationID    uint   `json:"integrationId"`
+				IntegrationIDAlt uint   `json:"integration_id"`
 			}
 			if err := json.Unmarshal([]byte(raw), &m); err == nil {
-				if m.WebhookURL != "" {
-					webhookURL = strings.TrimSpace(m.WebhookURL)
-				} else if m.WebhookURLAlt != "" {
-					webhookURL = strings.TrimSpace(m.WebhookURLAlt)
+				if webhookURL == "" {
+					if m.WebhookURL != "" {
+						webhookURL = strings.TrimSpace(m.WebhookURL)
+					} else if m.WebhookURLAlt != "" {
+						webhookURL = strings.TrimSpace(m.WebhookURLAlt)
+					}
+				}
+				if m.IntegrationID > 0 {
+					reqIntegID = m.IntegrationID
+				} else if m.IntegrationIDAlt > 0 {
+					reqIntegID = m.IntegrationIDAlt
 				}
 			}
 		}
@@ -113,9 +131,14 @@ func (c *SlackChannel) Send(ctx context.Context, recipient plugin.NotificationRe
 				EncryptedConfig string `gorm:"column:encrypted_config"`
 			}
 			var row tenantInteg
-			err := c.db.WithContext(ctx).Table("tenant_integrations").
-				Where("org_id = ? AND provider_type = ? AND provider = ?", orgNum, "communication", "slack").
-				Order("is_default DESC, id DESC").Limit(1).Take(&row).Error
+			q := c.db.WithContext(ctx).Table("tenant_integrations").
+				Where("org_id = ? AND provider_type = ? AND provider = ?", orgNum, "communication", "slack")
+			if reqIntegID > 0 {
+				q = q.Where("id = ?", reqIntegID)
+			} else {
+				q = q.Order("is_default DESC, id DESC")
+			}
+			err := q.Limit(1).Take(&row).Error
 			if err == nil && row.EncryptedConfig != "" {
 				plain, decErr := ConfigPlaintext(row.EncryptedConfig)
 				if decErr == nil {
