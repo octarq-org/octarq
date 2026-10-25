@@ -582,8 +582,7 @@ func TestAdversarial_MCPClientSession_EndToEnd(t *testing.T) {
 	p, _ := setupFullLinksTestDB(t)
 
 	// Seed link in Org 1
-	var l Link
-	l = Link{
+	l := Link{
 		OrgID:   1,
 		Slug:    "mcp-e2e-link",
 		Target:  "https://e2e.example.com",
