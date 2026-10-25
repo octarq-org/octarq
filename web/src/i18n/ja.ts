@@ -137,6 +137,7 @@ export const ja = {
   },
   groups: {
     Workspace: "ワークスペース",
+    Integrations: "外部連携",
     Marketing: "マーケティング",
     Messaging: "メッセージング",
     Network: "ネットワーク",

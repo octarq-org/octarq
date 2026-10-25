@@ -138,6 +138,7 @@ export const zh: Resources = {
   },
   groups: {
     Workspace: "工作区",
+    Integrations: "外部集成",
     Marketing: "营销",
     Messaging: "消息",
     Network: "网络",

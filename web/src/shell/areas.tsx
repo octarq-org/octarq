@@ -120,10 +120,15 @@ export const SETTINGS_AREA: Area = {
         { id: "general",       label: "General",     Icon: Settings,    path: "/settings/general" },
         { id: "plugins",       label: "Features",    Icon: Puzzle,      path: "/settings/plugins" },
         { id: "members",       label: "Members",     Icon: Users,       path: "/settings/members" },
-        { id: "integrations",  label: "Integrations", Icon: Blocks,     path: "/settings/integrations" },
-        { id: "webhooks",      label: "Webhooks & Relays", Icon: Webhook, path: "/settings/webhooks" },
         { id: "notifications", label: "Notifications & Alerts", Icon: Bell, path: "/settings/notifications" },
         { id: "agent-harness", label: "Agent Harness", Icon: Bot,      path: "/settings/agent-harness" },
+      ],
+    },
+    {
+      label: "Integrations",
+      items: [
+        { id: "integrations",  label: "Integrations Hub", Icon: Blocks,     path: "/settings/integrations" },
+        { id: "webhooks",      label: "Webhooks & Relays", Icon: Webhook, path: "/settings/webhooks" },
       ],
     },
     {

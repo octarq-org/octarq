@@ -2,7 +2,7 @@ import { Empty, Field, Input, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard,
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../../api";
-import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle } from "lucide-react";
+import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle, Blocks } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { useSettingsData } from "../../../pages/settings/shared";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
@@ -49,6 +49,19 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
             {t("settings.addProvider")}
           </Button>
         )}
+      </div>
+
+      <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-primary/5 text-xs text-foreground/80">
+        <div className="flex items-center gap-2">
+          <Blocks className="h-4 w-4 text-primary shrink-0" />
+          <span>{t("settings.integrationsHubBanner")}</span>
+        </div>
+        <NavLink
+          to="/settings/integrations?category=dns"
+          className="text-primary hover:underline font-medium text-xs whitespace-nowrap ml-3"
+        >
+          {t("settings.openIntegrationsHub")} →
+        </NavLink>
       </div>
 
       {loading ? (

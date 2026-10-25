@@ -146,6 +146,7 @@ export const en = {
   },
   groups: {
     Workspace: "Workspace",
+    Integrations: "Integrations",
     Marketing: "Marketing",
     Messaging: "Messaging",
     Network: "Network",

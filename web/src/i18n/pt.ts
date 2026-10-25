@@ -137,6 +137,7 @@ export const pt = {
   },
   groups: {
     Workspace: "Espaço de trabalho",
+    Integrations: "Integrações",
     Marketing: "Marketing",
     Messaging: "Mensageria",
     Network: "Rede",
