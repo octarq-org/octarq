@@ -171,9 +171,6 @@ export const api = {
   }) => req<Settings>("PUT", "/api/settings", s),
 
   instanceSettings: () => req<InstanceSettings>("GET", "/api/instance-settings"),
-  instanceLinkSettings: () => req<{ reservedSlugs: string; builtinReserved: string[] }>("GET", "/api/instance/link-settings"),
-  updateInstanceLinkSettings: (s: { reservedSlugs?: string }) =>
-    req<{ reservedSlugs: string; builtinReserved: string[] }>("PUT", "/api/instance/link-settings", s),
   updateInstanceSettings: (s: Partial<InstanceSettings> & {
     googleClientSecret?: string;
     githubClientSecret?: string;
@@ -323,6 +320,9 @@ export const api = {
   updateWebhook: (id: number, d: Partial<Webhook>) => req<Webhook>("PUT", `/api/webhooks/${id}`, d),
   deleteWebhook: (id: number) => req<void>("DELETE", `/api/webhooks/${id}`),
   testWebhook: (id: number) => req<{ ok: boolean }>("POST", `/api/webhooks/${id}/test`),
+  webhookRelayEndpoints: () => req<any[]>("GET", "/api/webhookrelay/endpoints"),
+  webhookRelayDeadLetters: () => req<any[]>("GET", "/api/webhookrelay/dead-letters"),
+  replayWebhookDeadLetter: (id: number) => req<any>("POST", `/api/webhookrelay/dead-letters/${id}/replay`),
 
   // audit
   auditLogs: (q?: ListAuditLogsParams) => {

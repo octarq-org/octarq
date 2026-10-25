@@ -1,7 +1,9 @@
-import { ScreenWrap, RouteFallback } from "@octarq/plugin-sdk";
+import { ScreenWrap, RouteFallback, uiPlugins } from "@octarq/plugin-sdk";
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { InstanceExitRedirect } from "./instance/redirect";
+import { PluginGate } from "../plugins/PluginGate";
+import { PluginUnavailable } from "../plugins/PluginRoutes";
 // Each settings panel is its own chunk, loaded when its sub-route is opened.
 const PluginsSettings = lazy(() => import("./settings/plugins").then((m) => ({ default: m.PluginsSettings })));
 const GeneralSettings = lazy(() => import("./settings/general").then((m) => ({ default: m.GeneralSettings })));
@@ -18,6 +20,22 @@ const AppearanceSettings = lazy(() => import("./settings/appearance").then((m) =
 // admin tool, not a plugin page.
 const AgentHarnessPage = lazy(() => import("./agent-harness").then((m) => ({ default: m.default })));
 
+function IntegrationsSlot() {
+  const plugin = uiPlugins().find((p) => p.routes?.some((r) => r.path === "/settings/integrations"));
+  const route = plugin?.routes?.find((r) => r.path === "/settings/integrations");
+  if (!plugin || !route) {
+    return <PluginUnavailable />;
+  }
+  const Page = route.Component;
+  return (
+    <PluginGate plugin={plugin} route={route}>
+      <Suspense fallback={<RouteFallback />}>
+        <Page />
+      </Suspense>
+    </PluginGate>
+  );
+}
+
 export default function SettingsPage() {
   return (
     <ScreenWrap>
@@ -26,6 +44,7 @@ export default function SettingsPage() {
         <Route path="/" element={<Navigate to="/settings/general" replace />} />
         <Route path="/general" element={<GeneralSettings />} />
         <Route path="/plugins" element={<PluginsSettings />} />
+        <Route path="/integrations" element={<IntegrationsSlot />} />
         <Route path="/webhooks" element={<WebhooksSettings />} />
         <Route path="/notifications" element={<NotificationChannels />} />
         <Route path="/notifications/preferences" element={<PreferencesPage />} />
@@ -35,7 +54,6 @@ export default function SettingsPage() {
             basename (R4) — old paths redirect with a full page navigation. */}
         <Route path="/instance/*" element={<InstanceExitRedirect />} />
         <Route path="/auth" element={<InstanceExitRedirect to="/instance/auth" />} />
-        <Route path="/link-settings" element={<InstanceExitRedirect to="/instance/link-settings" />} />
         <Route path="/license" element={<InstanceExitRedirect to="/instance/license" />} />
         {/* Account panels (per-user) — same /settings space, no separate /personal tree. */}
         <Route path="/profile" element={<ProfileSettings />} />

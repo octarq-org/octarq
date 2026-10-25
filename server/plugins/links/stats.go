@@ -47,13 +47,18 @@ func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSta
 	if tdb.Where("id = ?", input.ID).First(&l).Error != nil {
 		return nil, huma.Error404NotFound("Link not found")
 	}
+	body := p.queryLinkAnalytics(input.ID, l.RoutingRules, input.Days, input.Metric)
+	return &LinkStatsOutput{Body: body}, nil
+}
+
+func (p *Plugin) queryLinkAnalytics(linkID uint, rules RoutingRules, daysReq int, metricReq string) map[string]any {
 	days := 30
-	if input.Days > 0 && input.Days <= 365 {
-		days = input.Days
+	if daysReq > 0 && daysReq <= 365 {
+		days = daysReq
 	}
 	since := time.Now().AddDate(0, 0, -days)
 
-	metric := strings.ToLower(strings.TrimSpace(input.Metric))
+	metric := strings.ToLower(strings.TrimSpace(metricReq))
 	if metric != "pv" {
 		metric = "uv"
 	}
@@ -62,7 +67,7 @@ func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSta
 	top := func(col string) []models.StatKV {
 		rows := make([]models.StatKV, 0)
 		q := p.db.Model(&LinkEvent{}).
-			Where("link_id = ? AND created_at >= ? AND "+col+" <> ''", input.ID, since)
+			Where("link_id = ? AND created_at >= ? AND "+col+" <> ''", linkID, since)
 		if isUV {
 			q = q.Where("fingerprint <> ''").
 				Select(col + " as key, count(distinct fingerprint) as count")
@@ -74,41 +79,39 @@ func (p *Plugin) linkStats(ctx context.Context, input *LinkStatsInput) (*LinkSta
 	}
 
 	var total int64
-	p.db.Model(&LinkEvent{}).Where("link_id = ?", input.ID).Count(&total)
+	p.db.Model(&LinkEvent{}).Where("link_id = ?", linkID).Count(&total)
 
 	series := make([]models.StatKV, 0)
 	p.db.Model(&LinkEvent{}).
 		Select(dialectDayBucket(p.db)+" as key, count(*) as count").
-		Where("link_id = ? AND created_at >= ?", input.ID, since).
+		Where("link_id = ? AND created_at >= ?", linkID, since).
 		Group("key").Order("key ASC").Scan(&series)
 
 	var variants []models.StatKV
-	for _, rule := range l.RoutingRules {
+	for _, rule := range rules {
 		if rule.Type == "split" {
 			variants = top("variant")
 			break
 		}
 	}
 
-	return &LinkStatsOutput{
-		Body: map[string]any{
-			"total":        total,
-			"windowed":     models.SumStatKV(series),
-			"days":         days,
-			"metric":       metric,
-			"series":       series,
-			"referers":     top("referer"),
-			"channels":     p.topChannels(input.ID, since, isUV),
-			"countries":    top("country"),
-			"regions":      top("region"),
-			"devices":      top("device"),
-			"browsers":     top("browser"),
-			"utmSources":   top("utm_source"),
-			"utmMediums":   top("utm_medium"),
-			"utmCampaigns": top("utm_campaign"),
-			"variants":     variants,
-		},
-	}, nil
+	return map[string]any{
+		"total":        total,
+		"windowed":     models.SumStatKV(series),
+		"days":         days,
+		"metric":       metric,
+		"series":       series,
+		"referers":     top("referer"),
+		"channels":     p.topChannels(linkID, since, isUV),
+		"countries":    top("country"),
+		"regions":      top("region"),
+		"devices":      top("device"),
+		"browsers":     top("browser"),
+		"utmSources":   top("utm_source"),
+		"utmMediums":   top("utm_medium"),
+		"utmCampaigns": top("utm_campaign"),
+		"variants":     variants,
+	}
 }
 
 func (p *Plugin) topChannels(linkID uint, since time.Time, isUV bool) []models.StatKV {

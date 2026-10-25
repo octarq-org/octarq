@@ -12,21 +12,14 @@ Explore official and reference plugins available for Octarq from the [octarq-plu
 
 ## Official & Reference Plugins
 
-### 1. Telegram (`octarq-plugin-telegram`)
-- **Category**: Integration / Notifications
-- **Description**: Connects your Octarq instance with Telegram bots to send notification alerts and handle commands.
-- **Repository**: [octarq-org/octarq-plugins/tree/main/telegram](https://github.com/octarq-org/octarq-plugins/tree/main/telegram)
+### 1. 2FA Vault (`octarq-plugin-twofa`)
+- **Category**: Security / Utilities
+- **Description**: Centralized TOTP authenticator vault for infrastructure and shared accounts with AES-256-GCM encryption.
+- **Repository**: [octarq-org/octarq-plugins/tree/main/twofa](https://github.com/octarq-org/octarq-plugins/tree/main/twofa)
 
 ---
 
-### 2. Webhook (`octarq-plugin-webhook`)
-- **Category**: Integration / Webhooks
-- **Description**: Outbound webhook delivery system with retries, signature verification (HMAC-SHA256), and event filtering.
-- **Repository**: [octarq-org/octarq-plugins/tree/main/webhook](https://github.com/octarq-org/octarq-plugins/tree/main/webhook)
-
----
-
-### 3. Mail Links (`octarq-plugin-maillink`)
+### 2. Mail Links (`octarq-plugin-maillink`)
 - **Category**: Agent-Native / Automation
 - **Description**: Reference plugin that intercepts incoming OTP and magic link emails via `OnEmail` hooks, creates short links, and exposes them as tools over MCP for Claude Code and Cursor.
 - **Repository**: [octarq-org/octarq-plugins/tree/main/maillink](https://github.com/octarq-org/octarq-plugins/tree/main/maillink)

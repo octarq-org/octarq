@@ -165,6 +165,7 @@ export const zh: Resources = {
     general: "通用",
     plugins: "功能",
     members: "成员",
+    integrations: "三方集成",
     webhooks: "Webhook",
     notifications: "告警",
     "agent-harness": "Agent 运行环境",

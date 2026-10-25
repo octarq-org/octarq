@@ -42,29 +42,6 @@ export interface DeadLetterEntry {
   replaying?: boolean;
 }
 
-const DEFAULT_DEAD_LETTERS: DeadLetterEntry[] = [
-  {
-    id: 101,
-    deliveryId: "del_01jf8b2c4e9a1k7m",
-    event: "mail.receive",
-    url: "https://ops-relay.internal.net/events/inbound",
-    attempts: 5,
-    responseCode: 504,
-    lastError: "Gateway Timeout: upstream host failed to respond within 15 seconds.",
-    createdAt: "18m ago",
-  },
-  {
-    id: 102,
-    deliveryId: "del_01jf8a7x2d5k9n3p",
-    event: "link.anomaly",
-    url: "https://hooks.external-partner.com/alerts",
-    attempts: 5,
-    responseCode: 502,
-    lastError: "Bad Gateway: TLS handshake rejected by receiver.",
-    createdAt: "1h ago",
-  },
-];
-
 export function WebhooksSettings() {
   const { t } = useTranslation();
   const { role, isInstanceAdmin } = useCurrentRole();
@@ -82,7 +59,8 @@ export function WebhooksSettings() {
   const [busy, setBusy] = useState(false);
   const [testingId, setTestingId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"outbound" | "inbound">("outbound");
-  const [deadLetters, setDeadLetters] = useState<DeadLetterEntry[]>(DEFAULT_DEAD_LETTERS);
+  const [deadLetters, setDeadLetters] = useState<DeadLetterEntry[]>([]);
+  const [inboundEndpoints, setInboundEndpoints] = useState<any[]>([]);
   const [dlqSearch, setDlqSearch] = useState("");
 
   const handleReplay = async (entry: DeadLetterEntry) => {
@@ -90,7 +68,9 @@ export function WebhooksSettings() {
       prev.map((item) => (item.id === entry.id ? { ...item, replaying: true } : item)),
     );
     try {
-      await new Promise((r) => setTimeout(r, 200));
+      if (api.replayWebhookDeadLetter) {
+        await api.replayWebhookDeadLetter(entry.id);
+      }
       toast.success(t("settings.replayQueued", "Delivery event queued for replay."));
       setDeadLetters((prev) => prev.filter((item) => item.id !== entry.id));
     } catch {
@@ -115,6 +95,25 @@ export function WebhooksSettings() {
       .finally(() => {
         setLoading(false);
       });
+    if (api.webhookRelayEndpoints) {
+      api.webhookRelayEndpoints().then(setInboundEndpoints).catch(() => {});
+    }
+    if (api.webhookRelayDeadLetters) {
+      api.webhookRelayDeadLetters().then((data) => {
+        if (Array.isArray(data)) {
+          setDeadLetters(data.map((d: any) => ({
+            id: d.id,
+            deliveryId: d.deliveryId || d.event_id || `del_${d.id}`,
+            event: d.event || d.event_type || "webhook.relay",
+            url: d.url || d.target_url || "/api/webhook/relay",
+            attempts: d.attempts || d.retry_count || 1,
+            responseCode: d.responseCode || d.status_code || 500,
+            lastError: d.lastError || d.error_message || "Delivery failed",
+            createdAt: d.createdAt || d.created_at || "recently",
+          })));
+        }
+      }).catch(() => {});
+    }
   }
   useEffect(load, []);
   useEffect(() => { api.webhookEvents().then(setEventGroups).catch(() => setEventGroups([])); }, []);
@@ -358,53 +357,39 @@ export function WebhooksSettings() {
             </div>
 
             <div className="space-y-3">
-              {[
-                {
-                  id: "relay-stripe",
-                  name: "Stripe Billing & Checkout Relay",
-                  path: "/api/webhooks/inbound/stripe",
-                  algorithm: "HMAC-SHA256",
-                  status: "Verified & Active",
-                  description: "Processes payment intents, subscription updates, and checkout sessions.",
-                },
-                {
-                  id: "relay-github",
-                  name: "GitHub Repository Relay",
-                  path: "/api/webhooks/inbound/github",
-                  algorithm: "HMAC-SHA256",
-                  status: "Verified & Active",
-                  description: "Receives release events, commit pushes, and repository alerts.",
-                },
-                {
-                  id: "relay-custom",
-                  name: "Custom Inbound Event Relay",
-                  path: "/api/webhooks/inbound/generic",
-                  algorithm: "Bearer / Signature",
-                  status: "Listening",
-                  description: "Accepts custom external payloads and feeds into the event spine.",
-                },
-              ].map((relay) => (
-                <div
-                  key={relay.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs"
-                >
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm text-foreground">{relay.name}</span>
-                      <span className="rounded-full bg-success-fg/10 text-success-fg px-2 py-0.5 text-[10px] font-semibold flex items-center gap-1">
-                        <ShieldCheck className="h-3 w-3" />
-                        <span>{relay.algorithm}</span>
-                      </span>
-                    </div>
-                    <div className="font-mono text-xs text-muted-foreground select-all">{relay.path}</div>
-                    <div className="text-xs text-muted-foreground">{relay.description}</div>
+              {inboundEndpoints.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border py-8 text-center text-xs text-muted-foreground space-y-1">
+                  <div className="font-semibold text-foreground">
+                    {t("settings.noInboundEndpoints", "No inbound webhook relays configured")}
                   </div>
-
-                  <span className="rounded-full bg-surface-hover px-2.5 py-1 text-xs font-medium text-foreground self-start sm:self-center">
-                    {relay.status}
-                  </span>
+                  <div>
+                    {t("settings.noInboundEndpointsDesc", "Inbound relays allow external services (like Stripe or GitHub) to securely trigger automation rules.")}
+                  </div>
                 </div>
-              ))}
+              ) : (
+                inboundEndpoints.map((relay) => (
+                  <div
+                    key={relay.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs"
+                  >
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm text-foreground">{relay.name}</span>
+                        <span className="rounded-full bg-success-fg/10 text-success-fg px-2 py-0.5 text-[10px] font-semibold flex items-center gap-1">
+                          <ShieldCheck className="h-3 w-3" />
+                          <span>{relay.algorithm || relay.provider || "HMAC-SHA256"}</span>
+                        </span>
+                      </div>
+                      <div className="font-mono text-xs text-muted-foreground select-all">{relay.path || `/api/webhook/relay/${relay.id}`}</div>
+                      {relay.description && <div className="text-xs text-muted-foreground">{relay.description}</div>}
+                    </div>
+
+                    <span className="rounded-full bg-surface-hover px-2.5 py-1 text-xs font-medium text-foreground self-start sm:self-center">
+                      {relay.status || (relay.enabled !== false ? "Active" : "Disabled")}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </GlassCard>
 

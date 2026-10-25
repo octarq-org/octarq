@@ -119,13 +119,6 @@ func TestCreateLinkService(t *testing.T) {
 
 // --- plugin.go ---
 
-func TestInstanceMenusAnnouncesSettingsPage(t *testing.T) {
-	menus := New().InstanceMenus()
-	if len(menus) != 1 || menus[0].ID != "links-instance-settings" {
-		t.Fatalf("unexpected instance menus: %+v", menus)
-	}
-}
-
 func TestStartClosesEngineOnContextDone(t *testing.T) {
 	eng := newTestEngine(t)
 	p := New()

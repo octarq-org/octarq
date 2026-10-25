@@ -22,7 +22,6 @@ export function AppRoutes({ pluginGateCtxValue }: AppRoutesProps) {
       <PluginGateContext.Provider value={pluginGateCtxValue}>
         <Routes>
           <Route path="/" element={<Navigate to="/overview" replace />} />
-          <Route path="/link-settings" element={<InstanceExitRedirect to="/instance/link-settings" />} />
           <Route path="/onboarding" element={<Navigate to="/overview" replace />} />
           <Route path="/overview" element={<OverviewPage />} />
           <Route path="/notifications/*" element={<NotificationsPage />} />

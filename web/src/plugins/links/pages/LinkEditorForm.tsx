@@ -1,21 +1,62 @@
-import { Field, Switch, Button, Select, FormError, Input, Textarea } from "@octarq/plugin-sdk";
+import { Field, Switch, Button, Select, FormError, Input, Textarea, Alert, Badge } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
+import { useNavigate, useInRouterContext } from "react-router-dom";
 import { api } from "../../../api";
-import { linksApi, Link } from "../api";
+import { linksApi, Link, LinksCapabilities } from "../api";
 import { Sparkles, Trash2, Plus } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 
+function DomainConfigNavButton({ onClick, label }: { onClick: () => void; label: string }) {
+  const inRouter = useInRouterContext();
+  if (inRouter) {
+    return <RouterDomainConfigNavButton onClick={onClick} label={label} />;
+  }
+  return (
+    <Button
+      variant="subtle"
+      size="sm"
+      type="button"
+      onClick={() => {
+        onClick();
+        if (typeof window !== "undefined") window.location.href = "/admin/domains";
+      }}
+      className="shrink-0 text-xs"
+    >
+      {label}
+    </Button>
+  );
+}
+
+function RouterDomainConfigNavButton({ onClick, label }: { onClick: () => void; label: string }) {
+  const navigate = useNavigate();
+  return (
+    <Button
+      variant="subtle"
+      size="sm"
+      type="button"
+      onClick={() => {
+        onClick();
+        navigate("/domains");
+      }}
+      className="shrink-0 text-xs"
+    >
+      {label}
+    </Button>
+  );
+}
+
 export function LinkEditorForm({
   link,
-  hosts,
+  hosts: rawHosts = [],
   onCancel,
   onSaved,
 }: {
   link: Link | null;
-  hosts: string[];
+  hosts?: string[];
   onCancel: () => void;
   onSaved: (l?: any) => void;
 }) {
+  const hosts = rawHosts ?? [];
   const { t } = useTranslation();
   const [slug, setSlug] = useState(link?.slug ?? "");
   // New links default to the first real link host when one exists; editing an
@@ -38,9 +79,11 @@ export function LinkEditorForm({
   const [aiEnabled, setAiEnabled] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiSlugs, setAiSlugs] = useState<string[]>([]);
+  const [geoCapabilities, setGeoCapabilities] = useState<LinksCapabilities | null>(null);
 
   useEffect(() => {
     api.aiAssistStatus().then((s) => setAiEnabled(s.configured)).catch(() => {});
+    linksApi.capabilities().then(setGeoCapabilities).catch(() => setGeoCapabilities({ geoReady: false, mode: "unavailable" }));
   }, []);
 
   async function suggestSlugs() {
@@ -122,6 +165,21 @@ export function LinkEditorForm({
       </Field>
       {showUtm && <UtmBuilder target={target} onApply={setTarget} />}
       
+      {hosts.length === 0 && (
+        <Alert variant="warning" className="mb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full">
+            <div className="text-xs">
+              <strong>{t("links.noDomainConfiguredTitle", "No custom domain configured.")}</strong>{" "}
+              {t("links.noDomainConfiguredDesc", "Short links require a configured domain on this instance.")}
+            </div>
+            <DomainConfigNavButton
+              onClick={onCancel}
+              label={t("links.goToDomains", "Configure Domains →")}
+            />
+          </div>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
         <Field label={t("links.shortSlug")} hint={t("links.shortSlugHint")}>
           <div className="flex gap-2 min-w-0">
@@ -211,7 +269,7 @@ export function LinkEditorForm({
       </div>
 
       <Field label={t("links.routingRules")}>
-        <RoutingRulesEditor rules={routingRules} onChange={setRoutingRules} />
+        <RoutingRulesEditor rules={routingRules} onChange={setRoutingRules} geoReady={geoCapabilities?.geoReady ?? false} />
       </Field>
 
       {err && <FormError err={err} />}
@@ -279,7 +337,7 @@ function UtmBuilder({ target, onApply }: { target: string; onApply: (url: string
   );
 }
 
-function RoutingRulesEditor({ rules, onChange }: { rules: any[]; onChange: (r: any[]) => void }) {
+function RoutingRulesEditor({ rules, onChange, geoReady }: { rules: any[]; onChange: (r: any[]) => void; geoReady: boolean }) {
   const { t } = useTranslation();
   const types = [
     { value: "geo", label: t("links.ruleTypeGeo") },
@@ -345,6 +403,24 @@ function RoutingRulesEditor({ rules, onChange }: { rules: any[]; onChange: (r: a
                 )}
               </div>
             </div>
+            {rule.type === "geo" && (
+              <div className="flex items-center gap-2 pt-0.5">
+                {geoReady ? (
+                  <Badge tone="green" shape="dot">
+                    {t("links.geoReady", "GeoIP Active")}
+                  </Badge>
+                ) : (
+                  <Badge tone="amber" shape="dash" title={t("links.geoUnavailableDesc", "Server lacks GeoIP database. Country routing is bypassed.")}>
+                    {t("links.geoUnavailable", "GeoIP Unavailable (bypassed)")}
+                  </Badge>
+                )}
+                {!geoReady && (
+                  <span className="text-[11px] text-warning-fg">
+                    {t("links.geoUnavailableDesc", "Server lacks GeoIP database. Country routing is bypassed.")}
+                  </span>
+                )}
+              </div>
+            )}
             <Input
               className="w-full text-sm font-mono min-w-0"
               placeholder={t("links.ruleTarget")}

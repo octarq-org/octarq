@@ -37,10 +37,9 @@ describe("links instance scope", () => {
     expect(page).not.toMatch(/setTab\s*\(\s*'settings'/);
   });
 
-  it("registers the instance console route at /link-settings", () => {
+  it("does not register duplicate instance link settings route", () => {
     const entry = sourceFor(PLUGIN_ENTRY);
 
-    expect(entry).toMatch(/instanceRoutes\s*:/);
-    expect(entry).toMatch(/path:\s*"\/link-settings"/);
+    expect(entry).not.toMatch(/path:\s*"\/link-settings"/);
   });
 });

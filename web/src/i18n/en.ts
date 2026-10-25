@@ -183,6 +183,7 @@ export const en = {
     general: "General",
     plugins: "Features",
     members: "Members",
+    integrations: "Integrations",
     webhooks: "Webhooks",
     notifications: "Alerts",
     "agent-harness": "Agent Harness",

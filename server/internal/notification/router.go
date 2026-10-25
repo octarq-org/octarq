@@ -69,6 +69,7 @@ func NewRouter(db *gorm.DB, opts ...RouterOption) *Router {
 		{NewEmailChannel(db, nil), Descriptor{Type: "email", Title: "Email", Description: "Deliver notifications via transactional email", Icon: "mail"}},
 		{NewTelegramChannel(db), Descriptor{Type: "telegram", Title: "Telegram", Description: "Deliver notifications via Telegram bot", Icon: "send"}},
 		{NewWebhookChannel(db), Descriptor{Type: "webhook", Title: "Webhook", Description: "Custom HTTP POST payload to any URL", Icon: "webhook"}},
+		{NewSlackChannel(db), Descriptor{Type: "slack", Title: "Slack", Description: "Deliver notifications to Slack via incoming webhook", Icon: "message-square"}},
 	} {
 		if err := r.RegisterChannelWithDescriptor(reg.ch, reg.desc); err != nil {
 			slog.Warn("notification: failed to register default channel", "channel", reg.desc.Type, "error", err)
