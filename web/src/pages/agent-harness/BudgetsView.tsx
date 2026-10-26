@@ -51,7 +51,7 @@ export function BudgetsView() {
           <div className="h-2 w-full rounded-full bg-foreground/10 overflow-hidden mt-1">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
-                pct > 80 ? "bg-amber-500" : "bg-primary"
+                pct > 80 ? "bg-warning-fg" : "bg-primary"
               }`}
               style={{ width: `${pct}%` }}
             />
@@ -61,10 +61,10 @@ export function BudgetsView() {
         <GlassCard className="p-5 space-y-2">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>{t("agentHarness.hardStopGov")}</span>
-            <ShieldCheck className="h-4 w-4 text-emerald-500" />
+            <ShieldCheck className="h-4 w-4 text-success-fg" />
           </div>
           <div className="flex items-center gap-2 pt-1">
-            <Badge variant={autoHalt ? "green" : "amber"} className="text-xs">
+            <Badge variant={autoHalt ? "success" : "warning"} className="text-xs">
               {autoHalt ? "Fail-Closed Protected" : "Advisory Only"}
             </Badge>
           </div>
@@ -76,7 +76,7 @@ export function BudgetsView() {
         <GlassCard className="p-5 space-y-2">
           <div className="text-xs text-muted-foreground flex items-center justify-between">
             <span>{t("agentHarness.billingCycle")}</span>
-            <TrendingUp className="h-4 w-4 text-blue-400" />
+            <TrendingUp className="h-4 w-4 text-primary" />
           </div>
           <div className="text-lg font-bold text-foreground">{t("agentHarness.nextReset")}</div>
           <div className="text-[11px] text-muted-foreground">
@@ -157,7 +157,7 @@ export function BudgetsView() {
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-foreground/10 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-emerald-500"
+                    className="h-full rounded-full bg-success-fg"
                     style={{ width: `${row.pct}%` }}
                   />
                 </div>

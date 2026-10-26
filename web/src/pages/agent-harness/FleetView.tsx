@@ -155,13 +155,13 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
   const getRoleIcon = (dept: string) => {
     switch (dept) {
       case "Executive & Routing":
-        return <Bot className="h-5 w-5 text-purple-400" />;
+        return <Bot className="h-5 w-5 text-primary" />;
       case "Operations":
-        return <Terminal className="h-5 w-5 text-cyan-400" />;
+        return <Terminal className="h-5 w-5 text-primary" />;
       case "Security":
-        return <ShieldAlert className="h-5 w-5 text-amber-400" />;
+        return <ShieldAlert className="h-5 w-5 text-warning-fg" />;
       case "Communications":
-        return <Mail className="h-5 w-5 text-blue-400" />;
+        return <Mail className="h-5 w-5 text-primary" />;
       default:
         return <Cpu className="h-5 w-5 text-primary" />;
     }
@@ -171,15 +171,15 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
     switch (status) {
       case "active":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-500">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-success-bg border border-success-border px-2.5 py-0.5 text-xs font-semibold text-success-fg">
+            <span className="h-1.5 w-1.5 rounded-full bg-success-fg animate-pulse" />
             {t("agentHarness.statusReady")}
           </span>
         );
       case "executing":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-semibold text-blue-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-ping" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-xs font-semibold text-primary">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary animate-ping" />
             {t("agentHarness.statusExecuting")}
           </span>
         );
@@ -192,8 +192,8 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
         );
       case "paused":
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-500">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-bg border border-warning-border px-2.5 py-0.5 text-xs font-semibold text-warning-fg">
+            <span className="h-1.5 w-1.5 rounded-full bg-warning-fg" />
             {t("agentHarness.statusPaused")}
           </span>
         );
@@ -282,7 +282,7 @@ export function FleetView({ onOpenEditor }: { onOpenEditor?: () => void }) {
                 <div className="h-1.5 w-full rounded-full bg-foreground/10 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-300 ${
-                      budgetPct > 80 ? "bg-amber-500" : "bg-primary"
+                      budgetPct > 80 ? "bg-warning-fg" : "bg-primary"
                     }`}
                     style={{ width: `${budgetPct}%` }}
                   />

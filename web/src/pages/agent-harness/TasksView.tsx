@@ -141,21 +141,21 @@ export function TasksView() {
     switch (s) {
       case "in_progress":
         return (
-          <span className="inline-flex items-center gap-1 text-xs text-blue-400 font-medium">
+          <span className="inline-flex items-center gap-1 text-xs text-primary font-medium">
             <PlayCircle className="h-3.5 w-3.5 animate-spin" />
             {t("agentHarness.statusInProgress")}
           </span>
         );
       case "awaiting_approval":
         return (
-          <span className="inline-flex items-center gap-1 text-xs text-amber-400 font-medium">
+          <span className="inline-flex items-center gap-1 text-xs text-warning-fg font-medium">
             <AlertCircle className="h-3.5 w-3.5" />
             {t("agentHarness.statusAwaitingSignOff")}
           </span>
         );
       case "done":
         return (
-          <span className="inline-flex items-center gap-1 text-xs text-emerald-500 font-medium">
+          <span className="inline-flex items-center gap-1 text-xs text-success-fg font-medium">
             <CheckCircle2 className="h-3.5 w-3.5" />
             {t("agentHarness.statusCompleted")}
           </span>
@@ -370,7 +370,7 @@ export function TasksView() {
                   <Terminal className="h-3.5 w-3.5" />
                   {t("agentHarness.toolExecLogLabel", "Tool Execution Log")}
                 </div>
-                <div className="rounded-lg bg-black/80 border border-border/60 p-3 font-mono text-[11px] text-emerald-400 space-y-1">
+                <div className="rounded-lg bg-black/80 border border-border/60 p-3 font-mono text-[11px] text-success-fg space-y-1">
                   {selectedTask.executionSteps.map((step, idx) => (
                     <div key={idx} className="flex items-center gap-2">
                       <span className="text-muted-foreground">{idx + 1}.</span>

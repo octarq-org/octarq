@@ -301,24 +301,24 @@ export default function AgentHarnessPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4">
         <GlassCard className="p-3.5 space-y-1">
           <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-            <Bot className="h-3.5 w-3.5 text-purple-400" />
+            <Bot className="h-3.5 w-3.5 text-primary" />
             {t("agentHarness.statActiveAgents", "Active AI Employees")}
           </div>
           <div className="text-xl font-bold font-mono text-foreground">4</div>
         </GlassCard>
         <GlassCard className="p-3.5 space-y-1">
           <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-            <Terminal className="h-3.5 w-3.5 text-cyan-400" />
+            <Terminal className="h-3.5 w-3.5 text-primary" />
             {t("agentHarness.statRunningTasks", "Running Tasks")}
           </div>
-          <div className="text-xl font-bold font-mono text-blue-400">1 <span className="text-xs text-muted-foreground font-normal">{t("agentHarness.tasksQueuedCount", "({{count}} queued)", { count: 3 })}</span></div>
+          <div className="text-xl font-bold font-mono text-primary">1 <span className="text-xs text-muted-foreground font-normal">{t("agentHarness.tasksQueuedCount", "({{count}} queued)", { count: 3 })}</span></div>
         </GlassCard>
         <GlassCard className="p-3.5 space-y-1">
           <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-            <ShieldAlert className="h-3.5 w-3.5 text-amber-400" />
+            <ShieldAlert className="h-3.5 w-3.5 text-warning-fg" />
             {t("agentHarness.statPendingApprovals", "Awaiting Board Review")}
           </div>
-          <div className="text-xl font-bold font-mono text-amber-500">1</div>
+          <div className="text-xl font-bold font-mono text-warning-fg">1</div>
         </GlassCard>
         <GlassCard className="p-3.5 space-y-1">
           <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">

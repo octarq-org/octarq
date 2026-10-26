@@ -75,9 +75,9 @@ export function BoardApprovalsView() {
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-xs">
+      <div className="flex items-center justify-between rounded-xl border border-warning-border bg-warning-bg p-4 text-xs">
         <div className="flex items-center gap-2.5">
-          <ShieldAlert className="h-5 w-5 text-amber-500 shrink-0" />
+          <ShieldAlert className="h-5 w-5 text-warning-fg shrink-0" />
           <div className="text-foreground/90">
             <strong>{t("agentHarness.boardGovernanceTitle")}</strong>: {t("agentHarness.boardGovernanceDesc")}
           </div>
@@ -94,7 +94,7 @@ export function BoardApprovalsView() {
       ) : approvals.length === 0 ? (
         <GlassCard className="p-12 text-center space-y-3">
           <div className="flex justify-center">
-            <Sparkles className="h-8 w-8 text-emerald-500" />
+            <Sparkles className="h-8 w-8 text-success-fg" />
           </div>
           <h4 className="text-sm font-bold text-foreground">{t("agentHarness.signOffClean")}</h4>
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
@@ -104,15 +104,15 @@ export function BoardApprovalsView() {
       ) : (
         <div className="space-y-4">
           {approvals.map((appr) => (
-            <GlassCard key={appr.id} className="p-5 space-y-4 border-amber-500/30">
+            <GlassCard key={appr.id} className="p-5 space-y-4 border-warning-border">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-semibold text-amber-500">
+                    <span className="font-mono text-xs font-semibold text-warning-fg">
                       {appr.id}
                     </span>
                     <h4 className="text-sm font-bold text-foreground">{appr.title || appr.action}</h4>
-                    <Badge variant="amber" className="text-[10px] uppercase font-mono">
+                    <Badge variant="warning" className="text-[10px] uppercase font-mono">
                       {appr.riskLevel}
                     </Badge>
                   </div>
@@ -158,7 +158,7 @@ export function BoardApprovalsView() {
               )}
 
               {appr.diff && appr.diff.length > 0 && (
-                <div className="rounded-lg bg-black/80 border border-border/60 p-3 font-mono text-[11px] text-amber-300 overflow-x-auto">
+                <div className="rounded-lg bg-black/80 border border-border/60 p-3 font-mono text-[11px] text-warning-fg overflow-x-auto">
                   <div className="text-muted-foreground text-[10px] uppercase mb-1">
                     {t("agentHarness.stagedParams")}
                   </div>
@@ -167,7 +167,7 @@ export function BoardApprovalsView() {
                       <span className="text-muted-foreground">{d.field}:</span>
                       <span className="text-danger-fg line-through">{String(d.before)}</span>
                       <span>→</span>
-                      <span className="text-emerald-400">{String(d.after)}</span>
+                      <span className="text-success-fg">{String(d.after)}</span>
                     </div>
                   ))}
                 </div>
