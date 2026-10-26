@@ -1,10 +1,11 @@
 import { PageHeader, GlassCard, Button, Field, Switch, Modal, toast, confirmDialog, ExtensionSlot, NotificationChannelFormContext, Input } from "@octarq/plugin-sdk";
 import { ReactNode, useEffect, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { api, NotificationChannelType, NotificationChannel } from "../../api";
 import { Bell, ChevronDown, Plus, Trash2, Send, Pencil, Sliders, Blocks } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../shell/role";
+import { PreferencesPage } from "../notifications/PreferencesPage";
 
 // ---------------------------------------------------------------------------
 // ProviderRow — accordion per channel type; channels for that type listed
@@ -70,22 +71,28 @@ function ProviderRow({
           <span className="block text-sm font-medium text-foreground">{title}</span>
           <span className="block truncate text-xs text-muted-foreground">{description}</span>
         </span>
-        {hasChannels && (
-          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-            {channels.length}
+        {hasChannels ? (
+          <>
+            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {channels.length}
+            </span>
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                enabled
+                  ? "bg-success-fg/10 text-success-fg"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {enabled
+                ? t("settings.providerEnabled", "Enabled")
+                : t("settings.providerDisabled", "Disabled")}
+            </span>
+          </>
+        ) : (
+          <span className="shrink-0 rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            {t("settings.channelNoneConfigured", "0 destinations")}
           </span>
         )}
-        <span
-          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-            enabled
-              ? "bg-success-fg/10 text-success-fg"
-              : "bg-muted text-muted-foreground"
-          }`}
-        >
-          {enabled
-            ? t("settings.providerEnabled", "Enabled")
-            : t("settings.providerDisabled", "Disabled")}
-        </span>
         <ChevronDown
           className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
         />
@@ -94,7 +101,7 @@ function ProviderRow({
       {open && (
         <div className="space-y-3 border-t border-border bg-well/50 px-4 py-4">
           {/* existing channels for this type */}
-          {channels.length > 0 && (
+          {channels.length > 0 ? (
             <div className="divide-y divide-foreground/[0.04] rounded-xl border border-foreground/[0.05] bg-well overflow-hidden">
               {channels.map((c) => (
                 <div key={c.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 group">
@@ -142,6 +149,10 @@ function ProviderRow({
                   )}
                 </div>
               ))}
+            </div>
+          ) : (
+            <div className="py-2 text-xs text-muted-foreground">
+              {t("settings.noDestinationsConfigured", "No alert destinations configured for this protocol. Add a channel to receive alerts.")}
             </div>
           )}
 
@@ -315,69 +326,97 @@ export function NotificationChannels() {
   // channels grouped by type
   const byType = (type: string) => channels.filter((c) => c.type === type);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "preferences" ? "preferences" : "channels";
+  const setTab = (t: string) => {
+    setSearchParams(t === "channels" ? {} : { tab: t });
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={t("settings.alertsTitle")}
         description={t("settings.alertsDescription")}
-        action={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/settings/personal/notifications")}
-            className="flex items-center gap-1.5 text-xs"
-          >
-            <Sliders className="h-3.5 w-3.5" />
-            <span>{t("notifications.preferencesTitle", "路由偏好设置")}</span>
-          </Button>
-        }
       />
 
-      <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-primary/5 text-xs text-foreground/80">
-        <div className="flex items-center gap-2">
-          <Blocks className="h-4 w-4 text-primary shrink-0" />
-          <span>{t("settings.commIntegrationsBanner")}</span>
-        </div>
-        <NavLink
-          to="/settings/integrations?category=communication"
-          className="text-primary hover:underline font-medium text-xs whitespace-nowrap ml-3"
+      <div className="flex border-b border-border">
+        <button
+          type="button"
+          onClick={() => setTab("channels")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+            activeTab === "channels"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
         >
-          {t("settings.openIntegrationsHub")} →
-        </NavLink>
+          <Bell className="h-3.5 w-3.5" />
+          <span>{t("settings.notifyChannelsTab", "Alert Channels")}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("preferences")}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+            activeTab === "preferences"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Sliders className="h-3.5 w-3.5" />
+          <span>{t("notifications.preferencesTitle", "Routing Preferences")}</span>
+        </button>
       </div>
 
-      <div>
-        <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t("settings.notifyProvidersHeading", "Notification providers")}
-        </h3>
-        <GlassCard className="overflow-hidden !p-0">
-          {loading ? (
-            <div className="py-10 text-center text-sm text-foreground/40">
-              {t("settings.loadingLower")}
+      {activeTab === "channels" ? (
+        <>
+          <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-primary/5 text-xs text-foreground/80">
+            <div className="flex items-center gap-2">
+              <Blocks className="h-4 w-4 text-primary shrink-0" />
+              <span>{t("settings.commIntegrationsBanner")}</span>
             </div>
-          ) : types.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-10">
-              <Bell className="h-8 w-8 text-foreground/30" />
-              <div className="text-xs text-foreground/50">{t("settings.noChannels")}</div>
-            </div>
-          ) : (
-            types.map((tp) => (
-              <ProviderRow
-                key={tp.type}
-                type={tp.type}
-                title={tp.title}
-                description={tp.description}
-                channels={byType(tp.type)}
-                onAdd={(type) => setEditing({ type, channel: null })}
-                onEdit={(c) => setEditing({ type: c.type, channel: c })}
-                onDelete={handleDelete}
-                onTest={handleTest}
-                onToggle={handleToggle}
-              />
-            ))
-          )}
-        </GlassCard>
-      </div>
+            <NavLink
+              to="/settings/integrations?category=communication"
+              className="text-primary hover:underline font-medium text-xs whitespace-nowrap ml-3"
+            >
+              {t("settings.openIntegrationsHub")} →
+            </NavLink>
+          </div>
+
+          <div>
+            <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t("settings.notifyProvidersHeading", "Notification providers")}
+            </h3>
+            <GlassCard className="overflow-hidden !p-0">
+              {loading ? (
+                <div className="py-10 text-center text-sm text-foreground/40">
+                  {t("settings.loadingLower")}
+                </div>
+              ) : types.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 py-10">
+                  <Bell className="h-8 w-8 text-foreground/30" />
+                  <div className="text-xs text-foreground/50">{t("settings.noChannels")}</div>
+                </div>
+              ) : (
+                types.map((tp) => (
+                  <ProviderRow
+                    key={tp.type}
+                    type={tp.type}
+                    title={tp.title}
+                    description={tp.description}
+                    channels={byType(tp.type)}
+                    onAdd={(type) => setEditing({ type, channel: null })}
+                    onEdit={(c) => setEditing({ type: c.type, channel: c })}
+                    onDelete={handleDelete}
+                    onTest={handleTest}
+                    onToggle={handleToggle}
+                  />
+                ))
+              )}
+            </GlassCard>
+          </div>
+        </>
+      ) : (
+        <PreferencesPage embedded />
+      )}
 
       {editing && (
         <EditChannelModal

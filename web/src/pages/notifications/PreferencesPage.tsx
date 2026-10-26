@@ -43,7 +43,7 @@ const DEFAULT_CATEGORIES: PreferenceRouteRow[] = [
   },
 ];
 
-export function PreferencesPage() {
+export function PreferencesPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useTranslation();
   const { data: savedPreferences, isLoading: loadingPrefs } = useNotificationPreferencesQuery();
   const { data: channels = [], isLoading: loadingChannels } = useRegisteredChannelsQuery();
@@ -180,43 +180,56 @@ export function PreferencesPage() {
 
   const isLoading = loadingPrefs || loadingChannels;
 
-  return (
-    <ScreenWrap>
-      <div className="space-y-6">
+  const actionButtons = (
+    <div className="flex flex-wrap items-center gap-2.5">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleReset}
+        disabled={resetMutation.isPending || isLoading}
+        className="flex items-center gap-1.5 text-xs"
+      >
+        <RotateCcw className="h-3.5 w-3.5" />
+        <span>{t("notifications.resetDefaults", "重置默认")}</span>
+      </Button>
+
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={handleSave}
+        disabled={updateMutation.isPending || isLoading}
+        className="flex items-center gap-1.5 text-xs"
+      >
+        <Save className="h-3.5 w-3.5" />
+        <span>{t("notifications.savePreferences", "保存配置")}</span>
+      </Button>
+    </div>
+  );
+
+  const mainContent = (
+    <div className="space-y-6">
+      {!embedded ? (
         <PageHeader
           title={t("personal.notificationsTitle", "Personal Notifications")}
           description={t(
             "personal.notificationsDesc",
             "Manage event subscriptions, mute channels, and configure personal notification routing.",
           )}
-          action={
-            <div className="flex flex-wrap items-center gap-2.5">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleReset}
-                disabled={resetMutation.isPending || isLoading}
-                className="flex items-center gap-1.5 text-xs"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                <span>{t("notifications.resetDefaults", "重置默认")}</span>
-              </Button>
-
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleSave}
-                disabled={updateMutation.isPending || isLoading}
-                className="flex items-center gap-1.5 text-xs"
-              >
-                <Save className="h-3.5 w-3.5" />
-                <span>{t("notifications.savePreferences", "保存配置")}</span>
-              </Button>
-            </div>
-          }
+          action={actionButtons}
         />
+      ) : (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">
+            {t(
+              "personal.notificationsDesc",
+              "Manage event subscriptions, mute channels, and configure personal notification routing.",
+            )}
+          </p>
+          {actionButtons}
+        </div>
+      )}
 
-        {/* Matrix Card */}
+      {/* Matrix Card */}
         <GlassCard className="overflow-hidden !p-0">
           <div className="border-b border-border bg-well/40 px-4 py-3 sm:px-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -384,6 +397,8 @@ export function PreferencesPage() {
           </div>
         )}
       </div>
-    </ScreenWrap>
   );
+
+  if (embedded) return mainContent;
+  return <ScreenWrap>{mainContent}</ScreenWrap>;
 }

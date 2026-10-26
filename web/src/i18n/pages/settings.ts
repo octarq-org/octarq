@@ -288,6 +288,7 @@ export const settings = {
     testAlertSent: "Test alert sent",
     testFailed: "Test failed: {{msg}}",
     alertsTitle: "Alerts",
+    notifyChannelsTab: "Alert Channels",
     alertsDescription: "Get notified in Telegram or your own webhook when important events happen.",
     noChannels: "No alert channels configured. Add a channel below.",
     badgeDisabled: "disabled",
@@ -345,7 +346,7 @@ export const settings = {
     dnsApiAccounts: "DNS API Accounts",
     dnsApiAccountsDesc: "DNS provider API keys (Cloudflare/DNSPod) to verify domains.",
     integrationsHubBanner: "Manage third-party credentials and cloud provider integrations centrally.",
-    commIntegrationsBanner: "Bot tokens and communication credentials are managed in the Integrations Hub.",
+    commIntegrationsBanner: "Integrations Hub stores provider credentials. Configure alert destination groups, channels, and endpoints below.",
     credentialSource: "Credential Source",
     telegramFromIntegration: "Workspace Integration",
     telegramDirectToken: "Direct Bot Token",
@@ -393,8 +394,10 @@ export const settings = {
     saveRelay: "Save",
 
     // NotificationChannels provider list
-    notifyProvidersHeading: "Alert providers",
+    notifyProvidersHeading: "Alert Dispatch Channels & Targets",
     notifyAddChannelOfType: "Add channel",
+    channelNoneConfigured: "0 destinations",
+    noDestinationsConfigured: "No alert destinations configured for this protocol. Add a channel to receive alerts.",
 
     // Shared status
     replayQueued: "Delivery event queued for replay.",
@@ -709,6 +712,7 @@ export const settings = {
     testAlertSent: "测试提醒已发送",
     testFailed: "测试失败：{{msg}}",
     alertsTitle: "提醒",
+    notifyChannelsTab: "告警渠道",
     alertsDescription: "发生重要事件时，通过 Telegram 或自定义 Webhook 接收通知。",
     noChannels: "未配置告警渠道。在下方添加渠道。",
     badgeDisabled: "已禁用",
@@ -766,7 +770,7 @@ export const settings = {
     dnsApiAccounts: "DNS API 账户",
     dnsApiAccountsDesc: "用于验证域名的 DNS 提供商 API 密钥（Cloudflare/DNSPod）。",
     integrationsHubBanner: "在集成中心统一管理第三方服务凭据与云服务商授权。",
-    commIntegrationsBanner: "机器人 Token 与通信凭据已在集成中心统一管理。",
+    commIntegrationsBanner: "集成中心管理 Bot Token 与通信凭据。此处配置接收告警的具体目标群组、频道与 Webhook 终端。",
     credentialSource: "凭据来源",
     telegramFromIntegration: "工作区集成配置",
     telegramDirectToken: "直接填写 Bot Token",
@@ -814,8 +818,10 @@ export const settings = {
     saveRelay: "保存",
 
     // NotificationChannels provider list
-    notifyProvidersHeading: "告警提供商",
+    notifyProvidersHeading: "告警推送通道与目标",
     notifyAddChannelOfType: "添加渠道",
+    channelNoneConfigured: "未配置目标",
+    noDestinationsConfigured: "尚未为此协议配置告警目标。添加通道以接收告警推送。",
 
     // Shared status
     replayQueued: "重放已入队",
@@ -1130,6 +1136,7 @@ export const settings = {
     testAlertSent: "Alerta de prueba enviada",
     testFailed: "Prueba fallida: {{msg}}",
     alertsTitle: "Alertas",
+    notifyChannelsTab: "Canales de alerta",
     alertsDescription: "Reciba notificaciones en Telegram o su propio webhook cuando ocurran eventos importantes.",
     noChannels: "No hay canales de alerta configurados. Agrega un canal a continuación.",
     badgeDisabled: "desactivado",
@@ -1187,7 +1194,7 @@ export const settings = {
     dnsApiAccounts: "Cuentas de API DNS",
     dnsApiAccountsDesc: "Claves API de proveedores DNS (Cloudflare/DNSPod) para verificar dominios.",
     integrationsHubBanner: "Administre las credenciales de terceros y proveedores en la nube de forma centralizada.",
-    commIntegrationsBanner: "Los tokens de bots y las credenciales se gestionan en el Centro de Integraciones.",
+    commIntegrationsBanner: "El Centro de Integraciones gestiona las credenciales. Configure aquí los grupos y canales de destino de alertas.",
     credentialSource: "Origen de credencial",
     telegramFromIntegration: "Integración del espacio de trabajo",
     telegramDirectToken: "Token de bot directo",
@@ -1235,8 +1242,10 @@ export const settings = {
     saveRelay: "Guardar",
 
     // NotificationChannels provider list
-    notifyProvidersHeading: "Proveedores de alertas",
+    notifyProvidersHeading: "Canales y destinos de despacho de alertas",
     notifyAddChannelOfType: "Añadir canal",
+    channelNoneConfigured: "Sin destinos",
+    noDestinationsConfigured: "No hay destinos de alerta configurados para este protocolo. Añada un canal para recibir alertas.",
 
     // Shared status
     replayQueued: "Reproducción en cola",
@@ -1551,6 +1560,7 @@ export const settings = {
     testAlertSent: "Alerta de teste enviado",
     testFailed: "O teste falhou: {{msg}}",
     alertsTitle: "Alertas",
+    notifyChannelsTab: "Canais de alerta",
     alertsDescription: "Seja notificado no Telegram ou no seu próprio webhook quando eventos importantes ocorrerem.",
     noChannels: "Nenhum canal de alerta configurado. Adicione um canal abaixo.",
     badgeDisabled: "desativado",
@@ -1608,7 +1618,7 @@ export const settings = {
     dnsApiAccounts: "Contas de API de DNS",
     dnsApiAccountsDesc: "Chaves de API do provedor de DNS (Cloudflare/DNSPod) para verificar domínios.",
     integrationsHubBanner: "Gerencie credenciais de terceiros e integrações de nuvem centralmente.",
-    commIntegrationsBanner: "Tokens de bots e credenciais de comunicação são gerenciados no Hub de Integrações.",
+    commIntegrationsBanner: "O Hub de Integrações gerencia as credenciais. Configure aqui os grupos e canais de destino de alertas.",
     credentialSource: "Origem da credencial",
     telegramFromIntegration: "Integração do workspace",
     telegramDirectToken: "Token de bot direto",
@@ -1656,8 +1666,10 @@ export const settings = {
     saveRelay: "Salvar",
 
     // NotificationChannels provider list
-    notifyProvidersHeading: "Provedores de alertas",
+    notifyProvidersHeading: "Canais e destinos de despacho de alertas",
     notifyAddChannelOfType: "Adicionar canal",
+    channelNoneConfigured: "Sem destinos",
+    noDestinationsConfigured: "Nenhum destino de alerta configurado para este protocolo. Adicione um canal para receber alertas.",
 
     // Shared status
     replayQueued: "Repetição enfileirada",
@@ -1972,6 +1984,7 @@ export const settings = {
     testAlertSent: "テストアラートを送信しました",
     testFailed: "テストに失敗しました: {{msg}}",
     alertsTitle: "アラート",
+    notifyChannelsTab: "アラートチャネル",
     alertsDescription: "重要なイベントが発生したときに、Telegramまたは独自のwebhookで通知を受け取ります。",
     noChannels: "アラートチャネルが設定されていません。下でチャネルを追加してください。",
     badgeDisabled: "無効",
@@ -2029,7 +2042,7 @@ export const settings = {
     dnsApiAccounts: "DNS API アカウント",
     dnsApiAccountsDesc: "ドメインを検証するためのDNSプロバイダーAPIキー (Cloudflare/DNSPod)。",
     integrationsHubBanner: "サードパーティの認証情報とクラウドプロバイダーの連携を一元管理します。",
-    commIntegrationsBanner: "ボットのトークンと通信認証情報は連携ハブで一元管理されます。",
+    commIntegrationsBanner: "連携ハブでボットのトークンと通信認証情報を管理します。ここではアラート通知先グループやチャネルを設定します。",
     credentialSource: "認証情報のソース",
     telegramFromIntegration: "ワークスペース連携",
     telegramDirectToken: "直接 Bot Token を入力",
@@ -2077,8 +2090,10 @@ export const settings = {
     saveRelay: "保存",
 
     // NotificationChannels provider list
-    notifyProvidersHeading: "アラートプロバイダー",
+    notifyProvidersHeading: "アラート送信チャネルと通知先",
     notifyAddChannelOfType: "チャンネルを追加",
+    channelNoneConfigured: "通知先なし",
+    noDestinationsConfigured: "このプロトコルのアラート通知先が設定されていません。通知を受け取るチャネルを追加してください。",
 
     // Shared status
     replayQueued: "再試行をキューに追加しました",

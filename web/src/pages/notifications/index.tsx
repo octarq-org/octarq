@@ -16,7 +16,7 @@ export default function NotificationsPage() {
   return (
     <Routes>
       <Route path="/" element={<InboxPage />} />
-      <Route path="/preferences" element={<Navigate to="/settings/personal/notifications" replace />} />
+      <Route path="/preferences" element={<Navigate to="/settings/notifications?tab=preferences" replace />} />
       <Route path="*" element={<Navigate to="/notifications" replace />} />
     </Routes>
   );

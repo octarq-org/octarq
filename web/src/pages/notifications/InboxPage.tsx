@@ -93,7 +93,7 @@ export function InboxPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate("/settings/personal/notifications")}
+                onClick={() => navigate("/settings/notifications?tab=preferences")}
                 className="flex items-center gap-1.5 text-xs"
               >
                 <Settings2 className="h-3.5 w-3.5" />
