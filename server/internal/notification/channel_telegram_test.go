@@ -157,3 +157,71 @@ func TestTelegramChannel_DBLookup(t *testing.T) {
 		t.Errorf("expected missing credentials error for org 2, got %v", err)
 	}
 }
+
+func TestTelegramChannel_TenantIntegrationsLookup(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	_ = db.AutoMigrate(&models.NotificationChannel{})
+
+	if err := db.Exec(`CREATE TABLE IF NOT EXISTS tenant_integrations (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		org_id INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		provider_type TEXT NOT NULL,
+		provider TEXT NOT NULL,
+		encrypted_config TEXT NOT NULL,
+		is_default BOOLEAN DEFAULT FALSE,
+		created_at DATETIME,
+		updated_at DATETIME
+	)`).Error; err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+
+	SetConfigDecryptor(func(stored string) (string, bool) {
+		return strings.TrimPrefix(stored, "enc_"), true
+	})
+	t.Cleanup(func() { SetConfigDecryptor(nil) })
+
+	integConfig := `{"botToken":"invalid-token-from-integration"}`
+	if err := db.Exec(`INSERT INTO tenant_integrations (id, org_id, name, provider_type, provider, encrypted_config, is_default) VALUES (55, 1, 'Org1 Telegram Bot', 'communication', 'telegram', ?, TRUE)`, "enc_"+integConfig).Error; err != nil {
+		t.Fatalf("insert integration: %v", err)
+	}
+
+	ch := NewTelegramChannel(db)
+
+	// 1. Send with explicit integrationId
+	err = ch.Send(context.Background(), plugin.NotificationRecipient{
+		OrgID: "1",
+		Config: map[string]any{
+			"integrationId": 55,
+			"chatId":        "12345",
+		},
+	}, plugin.NotificationPayload{Body: "hello"})
+	if err == nil || !strings.Contains(err.Error(), "failed to initialize telegram notifier") {
+		t.Errorf("expected initialization error using token from integration 55, got %v", err)
+	}
+
+	// 2. Send without integrationId (resolves default integration)
+	err = ch.Send(context.Background(), plugin.NotificationRecipient{
+		OrgID: "1",
+		Config: map[string]any{
+			"chatId": "12345",
+		},
+	}, plugin.NotificationPayload{Body: "hello"})
+	if err == nil || !strings.Contains(err.Error(), "failed to initialize telegram notifier") {
+		t.Errorf("expected initialization error using default integration, got %v", err)
+	}
+
+	// 3. Send from org 2 (no integrations) -> missing credentials
+	err = ch.Send(context.Background(), plugin.NotificationRecipient{
+		OrgID: "2",
+		Config: map[string]any{
+			"chatId": "12345",
+		},
+	}, plugin.NotificationPayload{Body: "hello"})
+	if err == nil || !strings.Contains(err.Error(), "missing telegram credentials") {
+		t.Errorf("expected missing credentials error for org 2, got %v", err)
+	}
+}
