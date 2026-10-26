@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams, useInRouterContext } from "react-router-dom";
 import {
   Alert,
   Badge,
@@ -42,10 +43,59 @@ import { BudgetsView } from "./BudgetsView";
 
 export type AgentHarnessTab = "fleet" | "tasks" | "approvals" | "budgets" | "specs" | "lessons";
 
+const VALID_TABS: readonly AgentHarnessTab[] = [
+  "fleet",
+  "tasks",
+  "approvals",
+  "budgets",
+  "specs",
+  "lessons",
+] as const;
+
 export default function AgentHarnessPage() {
+  const inRouter = useInRouterContext();
+  if (inRouter) {
+    return <AgentHarnessWithRouter />;
+  }
+  return <AgentHarnessContent />;
+}
+
+function AgentHarnessWithRouter() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab") as AgentHarnessTab;
+  const activeTab: AgentHarnessTab = VALID_TABS.includes(tabParam) ? tabParam : "fleet";
+
+  const setActiveTab = useCallback(
+    (tab: AgentHarnessTab) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("tab", tab);
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
+  return <AgentHarnessContent activeTab={activeTab} setActiveTab={setActiveTab} />;
+}
+
+interface AgentHarnessContentProps {
+  activeTab?: AgentHarnessTab;
+  setActiveTab?: (tab: AgentHarnessTab) => void;
+}
+
+function AgentHarnessContent({
+  activeTab: controlledTab,
+  setActiveTab: controlledSetActiveTab,
+}: AgentHarnessContentProps = {}) {
   const { t } = useTranslation();
 
-  const [activeTab, setActiveTab] = useState<AgentHarnessTab>("specs");
+  const [uncontrolledTab, setUncontrolledTab] = useState<AgentHarnessTab>("fleet");
+  const activeTab = controlledTab ?? uncontrolledTab;
+  const setActiveTab = controlledSetActiveTab ?? setUncontrolledTab;
 
   // Specs state
   const [specsLoading, setSpecsLoading] = useState(true);
@@ -342,6 +392,9 @@ export default function AgentHarnessPage() {
         >
           <Bot className="h-4 w-4" />
           <span>{t("agentHarness.tabFleet", "AI Employees")}</span>
+          <Badge variant="neutral" className="text-[10px] uppercase font-mono tracking-wider py-0 px-1.5 ml-1">
+            PREVIEW
+          </Badge>
         </button>
         <button
           type="button"
@@ -354,6 +407,9 @@ export default function AgentHarnessPage() {
         >
           <Terminal className="h-4 w-4" />
           <span>{t("agentHarness.tabTasks", "Tasks & Issues")}</span>
+          <Badge variant="neutral" className="text-[10px] uppercase font-mono tracking-wider py-0 px-1.5 ml-1">
+            PREVIEW
+          </Badge>
         </button>
         <button
           type="button"
@@ -378,6 +434,9 @@ export default function AgentHarnessPage() {
         >
           <Coins className="h-4 w-4" />
           <span>{t("agentHarness.tabBudgets", "Budgets & Governance")}</span>
+          <Badge variant="neutral" className="text-[10px] uppercase font-mono tracking-wider py-0 px-1.5 ml-1">
+            PREVIEW
+          </Badge>
         </button>
         <button
           type="button"
@@ -414,6 +473,18 @@ export default function AgentHarnessPage() {
           )}
         </button>
       </div>
+
+      {/* Prototype Status Callout */}
+      {(activeTab === "fleet" || activeTab === "tasks" || activeTab === "budgets") && (
+        <div data-testid="workforce-prototype-callout" className="flex items-center justify-between rounded-xl border border-border/70 bg-well/40 p-3 text-xs mb-4">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Badge variant="neutral" className="text-[10px] uppercase font-mono tracking-wider">
+              PROTOTYPE
+            </Badge>
+            <span>{t("agentHarness.fleetDesc")}</span>
+          </div>
+        </div>
+      )}
 
       {activeTab === "fleet" && (
         <FleetView

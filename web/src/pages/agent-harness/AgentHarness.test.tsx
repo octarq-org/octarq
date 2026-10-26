@@ -33,7 +33,15 @@ vi.mock("../../api", async (importOriginal) => {
   };
 });
 
-function renderPage() {
+vi.mock("../../copilot/api", () => ({
+  fetchApprovals: vi.fn(),
+  decideApproval: vi.fn(),
+}));
+
+import { fetchApprovals, decideApproval } from "../../copilot/api";
+import { MemoryRouter } from "react-router-dom";
+
+function renderPage(initialUrl = "/workforce?tab=specs") {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -46,7 +54,9 @@ function renderPage() {
   return render(
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
-        <AgentHarnessPage />
+        <MemoryRouter initialEntries={[initialUrl]}>
+          <AgentHarnessPage />
+        </MemoryRouter>
       </I18nProvider>
     </QueryClientProvider>
   );
@@ -704,5 +714,127 @@ describe("AgentHarnessPage", () => {
         })
       );
     });
+  });
+
+  // 16. Default activeTab is fleet when no query param is provided
+  it("defaults activeTab to fleet when visiting /workforce without tab query param", async () => {
+    vi.mocked(api.agentHarnessSpecs).mockResolvedValue(mockSpecsResponse);
+    vi.mocked(api.agentHarnessSpec).mockResolvedValue(mockDetail12);
+
+    renderPage("/workforce");
+
+    // Fleet view is rendered by default with employee cards
+    expect(screen.getByText("Lead Orchestrator")).toBeDefined();
+    expect(screen.getByTestId("workforce-prototype-callout")).toBeDefined();
+    // Specs view is not shown by default
+    expect(screen.queryByTestId("agent-harness-ready")).toBeNull();
+  });
+
+  // 17. Navigates to tabs based on query parameter
+  it("navigates to tabs based on ?tab= query parameter", async () => {
+    vi.mocked(api.agentHarnessSpecs).mockResolvedValue(mockSpecsResponse);
+    vi.mocked(api.agentHarnessSpec).mockResolvedValue(mockDetail12);
+    vi.mocked(fetchApprovals).mockResolvedValue([]);
+
+    // Tasks tab
+    const { unmount: unmount1 } = renderPage("/workforce?tab=tasks");
+    expect(screen.getByText(/All Tasks/i)).toBeDefined();
+    expect(screen.getByTestId("workforce-prototype-callout")).toBeDefined();
+    unmount1();
+
+    // Budgets tab
+    const { unmount: unmount2 } = renderPage("/workforce?tab=budgets");
+    expect(screen.getByText(/Workspace Monthly Spend/i)).toBeDefined();
+    expect(screen.getByTestId("workforce-prototype-callout")).toBeDefined();
+    unmount2();
+
+    // Approvals tab
+    const { unmount: unmount3 } = renderPage("/workforce?tab=approvals");
+    await waitFor(() => {
+      expect(screen.getByTestId("board-approvals-empty")).toBeDefined();
+    });
+    unmount3();
+  });
+
+  // 18. BoardApprovalsView renders fail-closed error state without mock fallbacks
+  it("renders fail-closed error callout when fetchApprovals fails, eliminating mock fallback", async () => {
+    vi.mocked(api.agentHarnessSpecs).mockResolvedValue(mockSpecsResponse);
+    vi.mocked(api.agentHarnessSpec).mockResolvedValue(mockDetail12);
+    vi.mocked(fetchApprovals).mockRejectedValue(new Error("Approvals service connection refused"));
+
+    renderPage("/workforce?tab=approvals");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("board-approvals-error")).toBeDefined();
+      expect(screen.getByText("Approvals service connection refused")).toBeDefined();
+    });
+
+    // Verify mock pending approval item (appr-01 / Revoke 2 stale API access tokens) is NOT rendered
+    expect(screen.queryByText(/appr-01/i)).toBeNull();
+    expect(screen.queryByText(/Revoke 2 stale API access tokens/i)).toBeNull();
+  });
+
+  // 19. BoardApprovalsView does not suppress decision error
+  it("displays error toast and retains item when decideApproval fails", async () => {
+    vi.mocked(api.agentHarnessSpecs).mockResolvedValue(mockSpecsResponse);
+    vi.mocked(api.agentHarnessSpec).mockResolvedValue(mockDetail12);
+    vi.mocked(fetchApprovals).mockResolvedValue([
+      {
+        id: "appr-real-01",
+        approvalId: "1",
+        agent: "Security Auditor",
+        action: "revoke_keys",
+        title: "Revoke production API key",
+        target: "Key #1",
+        riskLevel: "destructive",
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        reason: "Security audit failed",
+        diff: [],
+      },
+    ]);
+    vi.mocked(decideApproval).mockRejectedValue(new Error("Unauthorized approval decision"));
+
+    const toastErrorSpy = vi.spyOn(sdk.toast, "error").mockImplementation(() => "" as any);
+    const toastSuccessSpy = vi.spyOn(sdk.toast, "success").mockImplementation(() => "" as any);
+
+    renderPage("/workforce?tab=approvals");
+
+    await waitFor(() => {
+      expect(screen.getByText("Revoke production API key")).toBeDefined();
+    });
+
+    const approveBtn = screen.getByRole("button", { name: /approve|批准/i });
+    fireEvent.click(approveBtn);
+
+    await waitFor(() => {
+      expect(toastErrorSpy).toHaveBeenCalledWith("Unauthorized approval decision");
+      expect(toastSuccessSpy).not.toHaveBeenCalled();
+      // Item must NOT be removed from UI on failure
+      expect(screen.getByText("Revoke production API key")).toBeDefined();
+    });
+  });
+
+  // 20. Tab switching updates the active tab view and switches between views
+  it("switches view when clicking tab buttons", async () => {
+    vi.mocked(api.agentHarnessSpecs).mockResolvedValue(mockSpecsResponse);
+    vi.mocked(api.agentHarnessSpec).mockResolvedValue(mockDetail12);
+
+    renderPage("/workforce");
+
+    // Starts on Fleet tab
+    expect(screen.getByText("Lead Orchestrator")).toBeDefined();
+
+    // Click Tasks tab
+    const tasksTabBtn = screen.getByRole("button", { name: /tasks & issues|任务工单/i });
+    fireEvent.click(tasksTabBtn);
+
+    expect(screen.getByText(/All Tasks/i)).toBeDefined();
+
+    // Click Budgets tab
+    const budgetsTabBtn = screen.getByRole("button", { name: /budgets & governance|预算开销/i });
+    fireEvent.click(budgetsTabBtn);
+
+    expect(screen.getByText(/Workspace Monthly Spend/i)).toBeDefined();
   });
 });

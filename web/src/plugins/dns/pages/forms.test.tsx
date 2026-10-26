@@ -44,6 +44,23 @@ const mockProviderAccounts: ProviderAccount[] = [
   },
 ];
 
+const mockDnsIntegrations = [
+  {
+    id: 1,
+    name: "Cloudflare Production",
+    provider: "cloudflare",
+    providerType: "dns",
+    configured: true,
+  },
+  {
+    id: 2,
+    name: "DNSPod Secondary",
+    provider: "dnspod",
+    providerType: "dns",
+    configured: false,
+  },
+];
+
 const mockDomain: Domain = {
   id: 10,
   name: "example.com",
@@ -127,22 +144,11 @@ describe("DNS Forms", () => {
       const urlObj = new URL(rawUrl, "http://localhost");
       const path = urlObj.pathname;
 
+      if (method === "GET" && path === "/api/integrations") {
+        return jsonResponse(mockDnsIntegrations);
+      }
       if (method === "GET" && path === "/api/dns/providers") {
         return jsonResponse(["cloudflare", "dnspod", "route53", "aliyun"]);
-      }
-      if (method === "GET" && path === "/api/provider-accounts") {
-        return jsonResponse(mockProviderAccounts);
-      }
-      if (method === "POST" && path === "/api/provider-accounts") {
-        const body = init?.body ? JSON.parse(init.body as string) : {};
-        return jsonResponse({ id: 3, ...body, hasCredentials: !!body.config, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-      }
-      if (method === "PUT" && path.startsWith("/api/provider-accounts/")) {
-        const body = init?.body ? JSON.parse(init.body as string) : {};
-        return jsonResponse({ id: 1, ...body, updatedAt: new Date().toISOString() });
-      }
-      if (method === "DELETE" && path.startsWith("/api/provider-accounts/")) {
-        return jsonResponse({ ok: true });
       }
 
       if (method === "POST" && path === "/api/domains") {
@@ -474,7 +480,7 @@ describe("DNS Forms", () => {
   });
 
   describe("ProviderAccounts", () => {
-    it("renders provider accounts, creates a new provider account, and removes account", async () => {
+    it("renders provider accounts, guidance banner, and eliminates standalone CRUD", async () => {
       renderWithProviders(<ProviderAccounts />);
 
       await waitFor(() => {
@@ -482,52 +488,56 @@ describe("DNS Forms", () => {
         expect(screen.getByText("DNSPod Secondary")).toBeDefined();
         expect(screen.getByText("credentials set")).toBeDefined();
         expect(screen.getByText("no credentials")).toBeDefined();
+        expect(screen.getByText("Manage third-party credentials and cloud provider integrations centrally.")).toBeDefined();
       });
 
-      // Open Add Provider modal
-      const addBtn = screen.getByRole("button", { name: "Add Provider" });
-      fireEvent.click(addBtn);
+      // Verify deep link action button to Integrations Hub
+      expect(screen.getAllByText("Integrations Hub").length).toBeGreaterThan(0);
 
-      expect(screen.getByText("Add DNS Provider")).toBeDefined();
+      // Verify standalone CRUD buttons are eliminated
+      expect(screen.queryByRole("button", { name: "Add Provider" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
+    });
 
-      fireEvent.change(screen.getByPlaceholderText("e.g. Acme Production DNS"), {
-        target: { value: "Cloudflare Staging" },
+    it("renders empty state with deep link when no DNS providers configured", async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+        const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
+        const urlObj = new URL(rawUrl, "http://localhost");
+        const path = urlObj.pathname;
+        if (path === "/api/integrations") {
+          return jsonResponse([]);
+        }
+        throw new Error(`Unhandled fetch: ${rawUrl}`);
       });
 
-      const keyInput = screen.getByPlaceholderText("API token...");
-      fireEvent.change(keyInput, { target: { value: "cf_token_staging_12345" } });
-
-      const submitBtn = screen.getByRole("button", { name: "Save" });
-      fireEvent.click(submitBtn);
+      renderWithProviders(<ProviderAccounts />);
 
       await waitFor(() => {
-        expect(screen.queryByText("Add DNS Provider")).toBeNull();
+        expect(screen.getByText("No DNS providers configured yet.")).toBeDefined();
+        expect(screen.getAllByText("Integrations Hub").length).toBeGreaterThan(0);
+      });
+    });
+
+    it("fails closed to empty state without fallback when integrations API fails", async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+        const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
+        const urlObj = new URL(rawUrl, "http://localhost");
+        const path = urlObj.pathname;
+        if (path === "/api/integrations") {
+          return { ok: false, status: 500, json: async () => ({ error: "Internal Server Error" }) } as unknown as Response;
+        }
+        if (path === "/api/provider-accounts") {
+          throw new Error("FAIL: /api/provider-accounts must never be called under Pre-v1.0 Clean-Cut rules");
+        }
+        throw new Error(`Unhandled fetch: ${rawUrl}`);
       });
 
-      // Edit provider account
-      const editButtons = screen.getAllByRole("button", { name: "Edit" });
-      fireEvent.click(editButtons[0]);
-
-      expect(screen.getByText("Edit DNS Provider")).toBeDefined();
-      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      renderWithProviders(<ProviderAccounts />);
 
       await waitFor(() => {
-        expect(screen.queryByText("Edit DNS Provider")).toBeNull();
-      });
-
-      // Remove provider account
-      const removeButtons = screen.getAllByRole("button", { name: "Remove" });
-      fireEvent.click(removeButtons[1]);
-
-      await waitFor(() => {
-        expect(screen.getByText("Remove this provider account? Managed domains using these credentials fail synchronization.")).toBeDefined();
-      });
-
-      const confirmBtn = screen.getByRole("button", { name: "Confirm" });
-      fireEvent.click(confirmBtn);
-
-      await waitFor(() => {
-        expect(screen.queryByText("Remove this provider account? Managed domains using these credentials fail synchronization.")).toBeNull();
+        expect(screen.getByText("No DNS providers configured yet.")).toBeDefined();
+        expect(screen.getAllByText("Integrations Hub").length).toBeGreaterThan(0);
       });
     });
   });

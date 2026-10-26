@@ -8,6 +8,7 @@ import { RoleProvider } from "../../../shell/role";
 import { registerUIPlugin, resetRegistry, NotificationChannelFormContext } from "@octarq/plugin-sdk";
 import notifyPlugin from "./index";
 import TelegramForm from "./TelegramForm";
+import SlackForm from "./SlackForm";
 import WebhookForm from "./WebhookForm";
 import EmailForm from "./EmailForm";
 import { NotificationChannels } from "../../../pages/settings/notifications";
@@ -42,7 +43,7 @@ const mockChannels: NotificationChannel[] = [
     id: 1,
     name: "Dev Team Telegram",
     type: "telegram",
-    config: JSON.stringify({ botToken: "123456:ABC-DEF", chatId: "-100123456789" }),
+    config: JSON.stringify({ integrationId: 10, chatId: "-100123456789" }),
     enabled: true,
     createdAt: "2026-01-01T00:00:00Z",
   },
@@ -54,6 +55,11 @@ const mockChannels: NotificationChannel[] = [
     enabled: false,
     createdAt: "2026-02-01T00:00:00Z",
   },
+];
+
+const mockIntegrations = [
+  { id: 10, name: "Ops Telegram Bot", provider: "telegram", providerType: "communication" },
+  { id: 20, name: "Alerts Slack Webhook", provider: "slack", providerType: "communication" },
 ];
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -70,11 +76,13 @@ function renderWithProviders(ui: React.ReactElement) {
 
 describe("Notify & Alerts Forms", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
+  let integrationsResponse: any[];
 
   beforeEach(() => {
     cleanup();
     resetRegistry();
     registerUIPlugin(notifyPlugin);
+    integrationsResponse = [...mockIntegrations];
 
     fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const method = (init?.method ?? "GET").toUpperCase();
@@ -87,6 +95,9 @@ describe("Notify & Alerts Forms", () => {
       }
       if (method === "GET" && path === "/api/notification-channels") {
         return jsonResponse(mockChannels);
+      }
+      if (method === "GET" && path === "/api/integrations") {
+        return jsonResponse(integrationsResponse);
       }
       if (method === "POST" && path === "/api/notification-channels") {
         const body = init?.body ? JSON.parse(init.body as string) : {};
@@ -114,14 +125,14 @@ describe("Notify & Alerts Forms", () => {
   });
 
   describe("TelegramForm standalone", () => {
-    it("renders Telegram fields and updates config", () => {
+    it("renders Telegram integration selection and updates config", async () => {
       const updateConfig = vi.fn();
       const setConfig = vi.fn();
 
       renderWithProviders(
         <NotificationChannelFormContext.Provider
           value={{
-            config: { botToken: "initial_tok", chatId: "initial_chat" },
+            config: { integrationId: 10, chatId: "initial_chat" },
             setConfig,
             updateConfig,
           }}
@@ -130,14 +141,105 @@ describe("Notify & Alerts Forms", () => {
         </NotificationChannelFormContext.Provider>
       );
 
-      const botTokenInput = screen.getByDisplayValue("initial_tok");
+      await waitFor(() => {
+        expect(screen.getByText("Ops Telegram Bot (Telegram)")).toBeDefined();
+      });
+
       const chatIdInput = screen.getByDisplayValue("initial_chat");
-
-      fireEvent.change(botTokenInput, { target: { value: "new_bot_token" } });
-      expect(updateConfig).toHaveBeenCalledWith("botToken", "new_bot_token");
-
       fireEvent.change(chatIdInput, { target: { value: "-100999888" } });
       expect(updateConfig).toHaveBeenCalledWith("chatId", "-100999888");
+
+      expect(screen.queryByText("Direct Bot Token")).toBeNull();
+      expect(screen.queryByPlaceholderText(/bot token/i)).toBeNull();
+    });
+
+    it("displays fail-closed callout when no Telegram integrations exist", async () => {
+      integrationsResponse = [];
+      const updateConfig = vi.fn();
+      const setConfig = vi.fn();
+
+      renderWithProviders(
+        <NotificationChannelFormContext.Provider
+          value={{
+            config: {},
+            setConfig,
+            updateConfig,
+          }}
+        >
+          <TelegramForm />
+        </NotificationChannelFormContext.Provider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("No Telegram integration found")).toBeDefined();
+        expect(
+          screen.getByText(
+            "No Telegram integration found in workspace. Add credentials in Integrations Hub first."
+          )
+        ).toBeDefined();
+      });
+
+      const link = screen.getByRole("link", { name: /Integrations Hub/i });
+      expect(link.getAttribute("href")).toBe("/settings/integrations?category=communication");
+      expect(screen.queryByLabelText(/Telegram Chat ID/i)).toBeNull();
+    });
+  });
+
+  describe("SlackForm standalone", () => {
+    it("renders Slack integration and updates config", async () => {
+      const updateConfig = vi.fn();
+      const setConfig = vi.fn();
+
+      renderWithProviders(
+        <NotificationChannelFormContext.Provider
+          value={{
+            config: { integrationId: 20 },
+            setConfig,
+            updateConfig,
+          }}
+        >
+          <SlackForm />
+        </NotificationChannelFormContext.Provider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Alerts Slack Webhook (Slack)")).toBeDefined();
+      });
+
+      expect(screen.queryByText("Direct Webhook URL")).toBeNull();
+      expect(screen.queryByPlaceholderText(/hooks\.slack\.com/i)).toBeNull();
+    });
+
+    it("displays fail-closed callout when no Slack integrations exist", async () => {
+      integrationsResponse = [
+        { id: 10, name: "Ops Telegram Bot", provider: "telegram", providerType: "communication" },
+      ];
+      const updateConfig = vi.fn();
+      const setConfig = vi.fn();
+
+      renderWithProviders(
+        <NotificationChannelFormContext.Provider
+          value={{
+            config: {},
+            setConfig,
+            updateConfig,
+          }}
+        >
+          <SlackForm />
+        </NotificationChannelFormContext.Provider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("No Slack integration found")).toBeDefined();
+        expect(
+          screen.getByText(
+            "No Slack integration found in workspace. Add credentials in Integrations Hub first."
+          )
+        ).toBeDefined();
+      });
+
+      const link = screen.getByRole("link", { name: /Integrations Hub/i });
+      expect(link.getAttribute("href")).toBe("/settings/integrations?category=communication");
     });
   });
 
@@ -256,10 +358,14 @@ describe("Notify & Alerts Forms", () => {
         target: { value: "Production Ops Alerts" },
       });
 
-      // Fill TelegramForm inputs rendered via ExtensionSlot
+      // Wait for TelegramForm integrations to load and auto-select
+      await waitFor(() => {
+        expect(screen.getByText("Ops Telegram Bot (Telegram)")).toBeDefined();
+      });
+
+      // Fill TelegramForm chatId rendered via ExtensionSlot
       const emptyInputs = screen.getAllByDisplayValue("");
-      fireEvent.change(emptyInputs[0], { target: { value: "987654:XYZ-WVU" } });
-      fireEvent.change(emptyInputs[1], { target: { value: "-100555666" } });
+      fireEvent.change(emptyInputs[0], { target: { value: "-100555666" } });
 
       // Submit modal
       const saveBtn = screen.getByRole("button", { name: "Save Channel" });
@@ -275,7 +381,7 @@ describe("Notify & Alerts Forms", () => {
         expect(payload).toMatchObject({
           name: "Production Ops Alerts",
           type: "telegram",
-          config: JSON.stringify({ botToken: "987654:XYZ-WVU", chatId: "-100555666" }),
+          config: JSON.stringify({ integrationId: 10, chatId: "-100555666" }),
           enabled: true,
         });
       });
