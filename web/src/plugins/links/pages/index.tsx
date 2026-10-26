@@ -371,7 +371,7 @@ export default function LinksPage() {
                 <Activity className="h-4 w-4 text-success-fg" />
               </div>
               <div className="text-xl font-semibold text-foreground">0</div>
-              <div className="text-[11px] text-success-fg font-medium">Healthy · No spikes</div>
+              <div className="text-[11px] text-success-fg font-medium">{t("links.anomalyHealthySpikes", "Healthy · No spikes")}</div>
             </GlassCard>
 
             <GlassCard className="p-4 space-y-1.5">
@@ -379,8 +379,8 @@ export default function LinksPage() {
                 <span className="text-xs text-foreground/60">{t("links.anomalyBot", "Bot Filtering")}</span>
                 <ShieldCheck className="h-4 w-4 text-primary" />
               </div>
-              <div className="text-xl font-semibold text-foreground">Active</div>
-              <div className="text-[11px] text-foreground/60">Rate limiting active</div>
+              <div className="text-xl font-semibold text-foreground">{t("links.anomalyActive", "Active")}</div>
+              <div className="text-[11px] text-foreground/60">{t("links.anomalyRateLimitActive", "Rate limiting active")}</div>
             </GlassCard>
 
             <GlassCard className="p-4 space-y-1.5">
@@ -388,8 +388,8 @@ export default function LinksPage() {
                 <span className="text-xs text-foreground/60">{t("links.anomalyLatency", "Redirect Latency")}</span>
                 <Activity className="h-4 w-4 text-info-fg" />
               </div>
-              <div className="text-xl font-semibold text-foreground">&lt; 35ms</div>
-              <div className="text-[11px] text-success-fg font-medium">p99 edge redirect</div>
+              <div className="text-xl font-semibold text-foreground">{t("links.anomalyLatencyValue", "< 35ms")}</div>
+              <div className="text-[11px] text-success-fg font-medium">{t("links.anomalyP99Latency", "p99 edge redirect")}</div>
             </GlassCard>
 
             <GlassCard className="p-4 space-y-1.5">
@@ -398,7 +398,7 @@ export default function LinksPage() {
                 <AlertTriangle className="h-4 w-4 text-warning-fg" />
               </div>
               <div className="text-xl font-semibold text-foreground">0</div>
-              <div className="text-[11px] text-foreground/60">Loop detector clear</div>
+              <div className="text-[11px] text-foreground/60">{t("links.anomalyLoopClear", "Loop detector clear")}</div>
             </GlassCard>
           </div>
 
@@ -410,7 +410,7 @@ export default function LinksPage() {
                 <p className="text-xs text-foreground/60 mt-0.5">{t("links.anomalyDesc", "Real-time monitors track 404 floods, redirect loops, and abnormal traffic spikes.")}</p>
               </div>
               <Badge variant="success" className="text-xs">
-                Operational
+                {t("links.anomalyOperational", "Operational")}
               </Badge>
             </div>
 
