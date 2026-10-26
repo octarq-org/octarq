@@ -80,13 +80,23 @@ func TestTelegramChannel_ValidationAndErrors(t *testing.T) {
 	defer cancel()
 	err = ch.Send(ctx, plugin.NotificationRecipient{
 		Config: map[string]any{
-			"botToken": "123456789:ABCdefGHIjklMNOpqrsTUVwxyz",
+			"botToken": "123456789:ABCdefGHIjklMNOpqrsTUVwxyz_12345678",
 			"chatId":   "123456",
 		},
 	}, plugin.NotificationPayload{Title: "Only Title"})
 	if err == nil {
 		t.Error("expected error from API with fake token, got nil")
 	}
+
+	// 8. Test with body instead of title
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel2()
+	_ = ch.Send(ctx2, plugin.NotificationRecipient{
+		Config: map[string]any{
+			"botToken": "123456789:ABCdefGHIjklMNOpqrsTUVwxyz_12345678",
+			"chatId":   "123456",
+		},
+	}, plugin.NotificationPayload{Body: "Body message"})
 }
 
 func TestTelegramChannel_ConfigFormats(t *testing.T) {
@@ -223,5 +233,16 @@ func TestTelegramChannel_TenantIntegrationsLookup(t *testing.T) {
 	}, plugin.NotificationPayload{Body: "hello"})
 	if err == nil || !strings.Contains(err.Error(), "missing telegram credentials") {
 		t.Errorf("expected missing credentials error for org 2, got %v", err)
+	}
+
+	// 4. Send with _raw_config specifying integrationId
+	err = ch.Send(context.Background(), plugin.NotificationRecipient{
+		OrgID: "1",
+		Config: map[string]any{
+			"_raw_config": `{"chatId":"12345","integrationId":55}`,
+		},
+	}, plugin.NotificationPayload{Body: "hello"})
+	if err == nil || !strings.Contains(err.Error(), "failed to initialize telegram notifier") {
+		t.Errorf("expected initialization error using raw config with integration 55, got %v", err)
 	}
 }

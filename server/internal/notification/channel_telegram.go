@@ -97,10 +97,21 @@ func (c *TelegramChannel) Send(ctx context.Context, recipient plugin.Notificatio
 			}
 		}
 		if reqIntegID == 0 {
-			if v, ok := recipient.Config["integrationId"].(float64); ok && v > 0 {
-				reqIntegID = uint(v)
-			} else if v, ok := recipient.Config["integration_id"].(float64); ok && v > 0 {
-				reqIntegID = uint(v)
+			switch v := recipient.Config["integrationId"].(type) {
+			case float64:
+				if v > 0 {
+					reqIntegID = uint(v)
+				}
+			case int:
+				if v > 0 {
+					reqIntegID = uint(v)
+				}
+			case int64:
+				if v > 0 {
+					reqIntegID = uint(v)
+				}
+			case uint:
+				reqIntegID = v
 			}
 		}
 		if chatIDStr == "" {
