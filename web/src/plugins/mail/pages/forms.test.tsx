@@ -36,6 +36,18 @@ const mockSenders: SMTPSender[] = [
   },
 ];
 
+const mockIntegrations = [
+  {
+    id: 1,
+    name: "Corporate Mailgun",
+    provider: "smtp",
+    providerType: "communication",
+    configured: true,
+    summary: "noreply@acme.com via smtp.mailgun.org:587",
+    isDefault: true,
+  },
+];
+
 const mockMailbox: Mailbox = {
   id: 10,
   address: "support@acme.com",
@@ -99,6 +111,13 @@ describe("Mail Forms", () => {
       const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
       const urlObj = new URL(rawUrl, "http://localhost");
       const path = urlObj.pathname;
+
+      if (method === "GET" && path === "/api/integrations") {
+        return jsonResponse(mockIntegrations);
+      }
+      if (method === "POST" && path.startsWith("/api/integrations/") && path.endsWith("/test")) {
+        return jsonResponse({ ok: true, message: "Sent test email via Corporate Mailgun." });
+      }
 
       if (method === "GET" && path === "/api/smtp-senders") {
         return jsonResponse(mockSenders);
@@ -261,7 +280,7 @@ describe("Mail Forms", () => {
         const urlObj = new URL(rawUrl, "http://localhost");
         const path = urlObj.pathname;
 
-        if (method === "GET" && path === "/api/smtp-senders") return jsonResponse(mockSenders);
+        if (method === "GET" && (path === "/api/integrations" || path === "/api/smtp-senders")) return jsonResponse(mockIntegrations);
         if (method === "GET" && path === "/api/settings") return jsonResponse({});
         if (method === "POST" && path === "/api/emails/send") {
           return jsonResponse({ message: "SMTP relay authentication failed" }, 400);
@@ -277,11 +296,32 @@ describe("Mail Forms", () => {
       fireEvent.change(screen.getByPlaceholderText("Subject line"), { target: { value: "Test" } });
 
       const sendBtn = screen.getByRole("button", { name: "Send mail" });
-      expect((sendBtn as HTMLButtonElement).disabled).toBe(false);
+      await waitFor(() => {
+        expect((sendBtn as HTMLButtonElement).disabled).toBe(false);
+      });
       fireEvent.click(sendBtn);
 
       await waitFor(() => {
         expect(screen.getByText("SMTP relay authentication failed")).toBeDefined();
+      });
+    });
+
+    it("renders fail-closed callout and disables Send when no senders configured", async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
+        const urlObj = new URL(rawUrl, "http://localhost");
+        const path = urlObj.pathname;
+        if (method === "GET" && (path === "/api/integrations" || path === "/api/smtp-senders")) return jsonResponse([]);
+        if (method === "GET" && path === "/api/settings") return jsonResponse({});
+        throw new Error(`Unhandled fetch: ${method} ${rawUrl}`);
+      });
+
+      renderWithProviders(<Compose onClose={vi.fn()} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("No SMTP outgoing senders configured yet. Add a sender below.")).toBeDefined();
+        expect((screen.getByRole("button", { name: "Send mail" }) as HTMLButtonElement).disabled).toBe(true);
       });
     });
   });
@@ -374,13 +414,14 @@ describe("Mail Forms", () => {
   });
 
   describe("SMTPSenders", () => {
-    it("renders senders, tests connection, creates new SMTP relay, and removes relay", async () => {
+    it("renders senders, guidance banner, tests connection, and eliminates standalone CRUD", async () => {
       renderWithProviders(<SMTPSenders />);
 
       await waitFor(() => {
         expect(screen.getByText("Corporate Mailgun")).toBeDefined();
         expect(screen.getByText("noreply@acme.com via smtp.mailgun.org:587")).toBeDefined();
         expect(screen.getByText("password set")).toBeDefined();
+        expect(screen.getByText("Manage third-party credentials and cloud provider integrations centrally.")).toBeDefined();
       });
 
       // Test connection
@@ -391,66 +432,27 @@ describe("Mail Forms", () => {
         expect(screen.getByRole("button", { name: "Test" })).toBeDefined();
       });
 
-      // Click Add SMTP
-      const addBtn = screen.getByRole("button", { name: "Add SMTP" });
-      fireEvent.click(addBtn);
+      // Standalone CRUD modal and delete buttons are eliminated
+      expect(screen.queryByRole("button", { name: "Add SMTP" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Edit SMTP" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
+    });
+
+    it("renders empty state with deep link when no senders configured", async () => {
+      fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const method = (init?.method ?? "GET").toUpperCase();
+        const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
+        const urlObj = new URL(rawUrl, "http://localhost");
+        const path = urlObj.pathname;
+        if (method === "GET" && path === "/api/integrations") return jsonResponse([]);
+        throw new Error(`Unhandled fetch: ${method} ${rawUrl}`);
+      });
+
+      renderWithProviders(<SMTPSenders />);
 
       await waitFor(() => {
-        expect(screen.getByText("Add SMTP Sender")).toBeDefined();
-      });
-
-      fireEvent.change(screen.getByPlaceholderText("e.g. Corporate SMTP"), {
-        target: { value: "SendGrid Gateway" },
-      });
-      fireEvent.change(screen.getByPlaceholderText("smtp.mailgun.org"), {
-        target: { value: "smtp.sendgrid.net" },
-      });
-      fireEvent.change(screen.getByPlaceholderText("587"), {
-        target: { value: "465" },
-      });
-      fireEvent.change(screen.getByPlaceholderText("e.g. postmaster@domain.com"), {
-        target: { value: "apikey" },
-      });
-      fireEvent.change(screen.getByPlaceholderText("••••••••"), {
-        target: { value: "SG.secret_token_123" },
-      });
-      fireEvent.change(screen.getByPlaceholderText("noreply@domain.com"), {
-        target: { value: "alerts@acme.com" },
-      });
-
-      const saveBtn = screen.getByRole("button", { name: "Save" });
-      fireEvent.click(saveBtn);
-
-      await waitFor(() => {
-        expect(screen.queryByText("Add SMTP Sender")).toBeNull();
-      });
-
-      // Edit SMTP relay
-      const editBtn = screen.getByRole("button", { name: "Edit SMTP" });
-      fireEvent.click(editBtn);
-
-      await waitFor(() => {
-        expect(screen.getByText("Edit SMTP Sender")).toBeDefined();
-      });
-      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-      await waitFor(() => {
-        expect(screen.queryByText("Edit SMTP Sender")).toBeNull();
-      });
-
-      // Remove SMTP relay
-      const removeBtn = screen.getByRole("button", { name: "Remove" });
-      fireEvent.click(removeBtn);
-
-      await waitFor(() => {
-        expect(screen.getByText("Remove this SMTP sender config? Outbound mail relying on it fails to send.")).toBeDefined();
-      });
-
-      const confirmBtn = screen.getByRole("button", { name: "Confirm" });
-      fireEvent.click(confirmBtn);
-
-      await waitFor(() => {
-        expect(screen.queryByText("Remove this SMTP sender config? Outbound mail relying on it fails to send.")).toBeNull();
+        expect(screen.getByText("No SMTP outgoing senders configured yet. Add a sender below.")).toBeDefined();
+        expect(screen.getAllByText("Integrations Hub").length).toBeGreaterThan(0);
       });
     });
   });

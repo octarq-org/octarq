@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button, GlassCard, PageHeader, ScreenWrap, toast } from "@octarq/plugin-sdk";
 import { api, Domain, ProviderAccount } from "../../../api";
@@ -24,8 +24,31 @@ export default function DomainsPage() {
   const [activeSubTab, setActiveSubTab] = useState<DomainSubTab>("records");
   const [syncing, setSyncing] = useState(false);
   const [q, setQ] = useState("");
-  const [tab, setTab] = useState<"domains" | "ddns" | "settings">("domains");
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const tabParam = searchParams.get("tab");
+  const tab: "domains" | "ddns" | "settings" = useMemo(() => {
+    if (tabParam === "settings" || tabParam === "providers") return "settings";
+    if (tabParam === "ddns") return "ddns";
+    return "domains";
+  }, [tabParam]);
+
+  const handleTabChange = (newTab: "domains" | "ddns" | "settings") => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (newTab === "domains") {
+          next.delete("tab");
+        } else if (newTab === "settings") {
+          next.set("tab", "providers");
+        } else {
+          next.set("tab", newTab);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  };
 
   useEffect(() => {
     if (searchParams.get("create") === "1") {
@@ -82,7 +105,27 @@ export default function DomainsPage() {
   }, [q]);
 
   useEffect(() => {
-    api.providerAccounts().then(setAccounts).catch(() => setAccounts([]));
+    fetch("/api/integrations?provider_type=dns", { credentials: "same-origin" })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data: any[]) => {
+        const items = Array.isArray(data) ? data : [];
+        const mapped: ProviderAccount[] = items.map((i: any) => ({
+          id: i.id,
+          name: i.name,
+          type: i.provider || i.type || "cloudflare",
+          config: {},
+          hasCredentials: i.configured ?? true,
+          createdAt: i.createdAt || new Date().toISOString(),
+          updatedAt: i.updatedAt || new Date().toISOString(),
+        }));
+        setAccounts(mapped);
+      })
+      .catch(() => {
+        setAccounts([]);
+      });
   }, []);
 
   async function toggleService(domain: Domain, field: "forLink" | "forMail") {
@@ -126,7 +169,7 @@ export default function DomainsPage() {
 
       <div className="flex gap-0 border-b border-foreground/[0.06] mb-6 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <button
-          onClick={() => setTab("domains")}
+          onClick={() => handleTabChange("domains")}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap ${
             tab === "domains"
               ? "border-primary text-foreground"
@@ -136,7 +179,7 @@ export default function DomainsPage() {
           {t("domains.tabDns")}
         </button>
         <button
-          onClick={() => setTab("ddns")}
+          onClick={() => handleTabChange("ddns")}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
             tab === "ddns"
               ? "border-primary text-foreground"
@@ -146,7 +189,7 @@ export default function DomainsPage() {
           {t("domains.tabDdns")}
         </button>
         <button
-          onClick={() => setTab("settings")}
+          onClick={() => handleTabChange("settings")}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
             tab === "settings"
               ? "border-primary text-foreground"
@@ -215,7 +258,7 @@ export default function DomainsPage() {
               }}
               onAddNewDomain={() => setActive("new")}
               onSyncCloudflare={() => setSyncing(true)}
-              onConnectProvider={() => setTab("settings")}
+              onConnectProvider={() => handleTabChange("settings")}
               onToggleService={toggleService}
               getProviderName={getProviderName}
             />

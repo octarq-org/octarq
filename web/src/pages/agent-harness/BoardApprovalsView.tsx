@@ -24,31 +24,19 @@ export function BoardApprovalsView() {
   const [approvals, setApprovals] = useState<ActionDiff[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await fetchApprovals();
       setApprovals(data || []);
-    } catch {
-      // Mock pending fallback if local server backend AI is mock
-      setApprovals([
-        {
-          id: "appr-01",
-          agent: "Security & Compliance Auditor",
-          action: "revoke_api_tokens",
-          title: "Revoke 2 stale API access tokens with expired permissions",
-          target: "API Token #42, #45",
-          riskLevel: "destructive",
-          status: "pending",
-          createdAt: new Date().toISOString(),
-          reason: "Security Auditor detected credentials unused for >90 days. Revocation prevents token leak risk.",
-          diff: [
-            { field: "status", before: "active", after: "revoked" },
-            { field: "tokens", before: "[42, 45]", after: "[]" },
-          ],
-        },
-      ]);
+    } catch (err: unknown) {
+      // Pre-v1.0 Clean-Cut: Strictly eliminate mock fallbacks and fail-closed.
+      const message = err instanceof Error ? err.message : t("agentHarness.loadError");
+      setError(message);
+      setApprovals([]);
     } finally {
       setLoading(false);
     }
@@ -64,9 +52,9 @@ export function BoardApprovalsView() {
       await decideApproval(id, decision);
       toast.success(decision === "approve" ? "Approved and executed." : "Action rejected.");
       setApprovals((prev) => prev.filter((a) => a.id !== id));
-    } catch {
-      toast.success(decision === "approve" ? "Approved and executed." : "Action rejected.");
-      setApprovals((prev) => prev.filter((a) => a.id !== id));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Action failed.";
+      toast.error(message);
     } finally {
       setProcessingId(null);
     }
@@ -91,16 +79,37 @@ export function BoardApprovalsView() {
         <div className="text-center py-10 text-xs text-muted-foreground">
           {t("agentHarness.checkingQueue")}
         </div>
+      ) : error ? (
+        <div data-testid="board-approvals-error">
+          <GlassCard className="p-10 text-center space-y-4 max-w-lg mx-auto">
+            <div className="flex justify-center">
+              <AlertTriangle className="h-8 w-8 text-danger-fg" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-foreground">
+                {t("agentHarness.loadError")}
+              </h4>
+              <p className="text-xs text-muted-foreground">{error}</p>
+            </div>
+            <div>
+              <Button variant="outline" size="sm" onClick={load}>
+                {t("agentHarness.retry")}
+              </Button>
+            </div>
+          </GlassCard>
+        </div>
       ) : approvals.length === 0 ? (
-        <GlassCard className="p-12 text-center space-y-3">
-          <div className="flex justify-center">
-            <Sparkles className="h-8 w-8 text-success-fg" />
-          </div>
-          <h4 className="text-sm font-bold text-foreground">{t("agentHarness.signOffClean")}</h4>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            {t("agentHarness.signOffCleanDesc")}
-          </p>
-        </GlassCard>
+        <div data-testid="board-approvals-empty">
+          <GlassCard className="p-12 text-center space-y-3">
+            <div className="flex justify-center">
+              <Sparkles className="h-8 w-8 text-success-fg" />
+            </div>
+            <h4 className="text-sm font-bold text-foreground">{t("agentHarness.signOffClean")}</h4>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+              {t("agentHarness.signOffCleanDesc")}
+            </p>
+          </GlassCard>
+        </div>
       ) : (
         <div className="space-y-4">
           {approvals.map((appr) => (

@@ -1,8 +1,9 @@
 import { Field, Input, Textarea, Modal, Button, Select, FormError, toast } from "@octarq/plugin-sdk";
 import { useEffect, useState, useRef } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../../../api";
 import { mailApi, MailContact } from "../api";
-import { CheckCircle, Save } from "lucide-react";
+import { CheckCircle, Save, AlertTriangle } from "lucide-react";
 import { useTranslation } from "../../../i18n";
 import { ReplyDraft } from "./types";
 
@@ -22,6 +23,7 @@ export function Compose({
   const [text, setText] = useState(draft?.text ?? "");
   const [smtpSenderId, setSmtpSenderId] = useState<number>(0);
   const [senders, setSenders] = useState<any[]>([]);
+  const [loadingSenders, setLoadingSenders] = useState(true);
   const [err, setErr] = useState<string | { message?: string; status?: number; requestId?: string }>("");
   const [ok, setOk] = useState(false);
   const [autoWrapLinksEnabled, setAutoWrapLinksEnabled] = useState(false);
@@ -41,10 +43,31 @@ export function Compose({
   }, []);
 
   useEffect(() => {
-    api.smtpSenders().then((s) => {
-      setSenders(s);
-      if (s.length > 0) setSmtpSenderId(s[0].id);
-    });
+    setLoadingSenders(true);
+    fetch("/api/integrations?provider_type=communication", {
+      credentials: "same-origin",
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: any[]) => {
+        const commSenders = (Array.isArray(data) ? data : []).filter(
+          (item: any) => item.provider === "smtp" || item.provider === "resend"
+        );
+        setSenders(commSenders);
+        if (commSenders.length > 0) {
+          const defaultSender = commSenders.find((s: any) => s.isDefault) || commSenders[0];
+          setSmtpSenderId(defaultSender.id);
+        } else {
+          setSmtpSenderId(0);
+        }
+      })
+      .catch(() => {
+        setSenders([]);
+        setSmtpSenderId(0);
+      })
+      .finally(() => {
+        setLoadingSenders(false);
+      });
+
     api.settings().then((s) => {
       if (s.autoWrapLinks) {
         setAutoWrapLinksEnabled(true);
@@ -119,17 +142,43 @@ export function Compose({
         </div>
       ) : (
         <div className="space-y-4">
-          <Field label={t("mail.smtpConnection")} hint={t("mail.smtpConnectionHint")}>
-            <Select
-              className="text-sm"
-              value={String(smtpSenderId)}
-              onValueChange={(v) => setSmtpSenderId(Number(v))}
-              options={[
-                { value: "0", label: t("mail.systemDefaultSmtp") },
-                ...senders.map((s) => ({ value: String(s.id), label: `${s.name} (${s.fromEmail})` })),
-              ]}
-            />
-          </Field>
+          {!loadingSenders && senders.length === 0 ? (
+            <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 text-xs text-foreground/80 space-y-3">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-semibold text-foreground">
+                    {t("settings.noSmtpSenders")}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {t("settings.integrationsHubBanner")}
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/settings/integrations?category=communication"
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                {t("settings.openIntegrationsHub")} →
+              </Link>
+            </div>
+          ) : (
+            <Field label={t("mail.smtpConnection")} hint={t("mail.smtpConnectionHint")}>
+              <Select
+                className="text-sm"
+                value={String(smtpSenderId)}
+                onValueChange={(v) => setSmtpSenderId(Number(v))}
+                options={senders.map((s) => ({
+                  value: String(s.id),
+                  label: s.summary
+                    ? `${s.name} (${s.summary})`
+                    : s.fromEmail
+                      ? `${s.name} (${s.fromEmail})`
+                      : `${s.name} (${s.provider})`,
+                }))}
+              />
+            </Field>
+          )}
           <Field label={t("mail.fromOverride")} hint={t("mail.fromOverrideHint")}>
             <Input className="font-mono text-sm" value={from} onChange={(e) => setFrom(e.target.value)} placeholder={t("mail.fromPlaceholder")} />
           </Field>
@@ -201,7 +250,7 @@ export function Compose({
               <Button variant="ghost" onClick={onClose}>
                 {t("mail.cancel")}
               </Button>
-              <Button variant="primary" onClick={send} disabled={!to || !subject}>
+              <Button variant="primary" onClick={send} disabled={!to || !subject || senders.length === 0}>
                 {t("mail.sendMail")}
               </Button>
             </div>

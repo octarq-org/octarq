@@ -1,4 +1,4 @@
-import { PageHeader, GlassCard, Button, Field, Switch, Modal, toast, confirmDialog, ExtensionSlot, NotificationChannelFormContext, Input } from "@octarq/plugin-sdk";
+import { PageHeader, GlassCard, Button, Field, Switch, Modal, toast, confirmDialog, ExtensionSlot, NotificationChannelFormContext, Input, Tabs } from "@octarq/plugin-sdk";
 import { ReactNode, useEffect, useState } from "react";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { api, NotificationChannelType, NotificationChannel } from "../../api";
@@ -339,31 +339,33 @@ export function NotificationChannels() {
         description={t("settings.alertsDescription")}
       />
 
-      <div className="flex border-b border-border">
-        <button
-          type="button"
-          onClick={() => setTab("channels")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
-            activeTab === "channels"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Bell className="h-3.5 w-3.5" />
-          <span>{t("settings.notifyChannelsTab", "Alert Channels")}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("preferences")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
-            activeTab === "preferences"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Sliders className="h-3.5 w-3.5" />
-          <span>{t("notifications.preferencesTitle", "Routing Preferences")}</span>
-        </button>
+      <div className="max-w-md">
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => setTab(val)}
+          items={[
+            {
+              value: "channels",
+              label: (
+                <span className="flex items-center justify-center gap-2">
+                  <Bell className="h-3.5 w-3.5" />
+                  <span>{t("settings.notifyChannelsTab", "Alert Channels")}</span>
+                </span>
+              ),
+              content: null,
+            },
+            {
+              value: "preferences",
+              label: (
+                <span className="flex items-center justify-center gap-2">
+                  <Sliders className="h-3.5 w-3.5" />
+                  <span>{t("notifications.preferencesTitle", "Routing Preferences")}</span>
+                </span>
+              ),
+              content: null,
+            },
+          ]}
+        />
       </div>
 
       {activeTab === "channels" ? (

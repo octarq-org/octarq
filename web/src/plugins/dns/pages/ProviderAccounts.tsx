@@ -1,10 +1,8 @@
-import { Empty, Field, Input, Modal, timeAgo, ScreenWrap, PageHeader, GlassCard, Badge, Button, Select, toast, confirmDialog, FormError } from "@octarq/plugin-sdk";
+import { Empty, Badge, Button } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
-import { api, ApiError, Settings as SettingsData, OrgMember, Overview, PluginInfo } from "../../../api";
-import { Settings as SettingsIcon, Cloud, Mail, Bell, Users, Trash2, Pencil, ShieldAlert, KeyRound, BellRing, Webhook, Plus, Send, AlertTriangle, CreditCard, Sparkles, Shield, DollarSign, Puzzle, Blocks } from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { Cloud, KeyRound, Blocks } from "lucide-react";
 import { useTranslation } from "../../../i18n";
-import { useSettingsData } from "../../../pages/settings/shared";
 import { roleSatisfies, useCurrentRole } from "../../../shell/role";
 
 export function ProviderAccounts({ embed }: { embed?: boolean }) {
@@ -13,29 +11,26 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
   const canManageProviders = roleSatisfies("admin", role, isInstanceAdmin);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState<any | null>(null);
 
   async function load() {
     setLoading(true);
     try {
-      setAccounts(await api.providerAccounts());
+      const res = await fetch("/api/integrations?provider_type=dns", {
+        credentials: "same-origin",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAccounts(Array.isArray(data) ? data : []);
+      } else {
+        setAccounts([]);
+      }
+    } catch {
+      setAccounts([]);
     } finally {
       setLoading(false);
     }
   }
   useEffect(() => { load(); }, []);
-
-  async function remove(id: number) {
-    if (!(await confirmDialog(t("settings.confirmRemoveProvider")))) return;
-    try {
-      await api.deleteProviderAccount(id);
-      load();
-    } catch (e: any) {
-      toast.error(e.message || t("settings.failedRemove"));
-    }
-  }
-
 
   return (
     <div className="space-y-6">
@@ -45,9 +40,11 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
           <div className="text-[10px] text-foreground/50 font-normal mt-0.5">{t("settings.dnsApiAccountsDesc")}</div>
         </div>
         {canManageProviders && (
-          <Button variant="primary" className="text-xs py-1 px-2.5" onClick={() => setCreating(true)}>
-            {t("settings.addProvider")}
-          </Button>
+          <NavLink to="/settings/integrations?category=dns">
+            <Button variant="primary" className="text-xs py-1 px-2.5">
+              {t("settings.openIntegrationsHub")}
+            </Button>
+          </NavLink>
         )}
       </div>
 
@@ -71,120 +68,46 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
           <Cloud className="h-8 w-8 text-foreground/50 mb-1" />
           <div className="text-xs text-foreground/50">{t("settings.noDnsProviders")}</div>
           {canManageProviders && (
-            <Button variant="outline" size="sm" className="mt-3 text-xs" onClick={() => setCreating(true)}>
-              {t("settings.addProvider")}
-            </Button>
+            <NavLink to="/settings/integrations?category=dns">
+              <Button variant="outline" size="sm" className="mt-3 text-xs">
+                {t("settings.openIntegrationsHub")}
+              </Button>
+            </NavLink>
           )}
         </Empty>
       ) : (
         <div className="divide-y divide-foreground/[0.04] border border-foreground/[0.05] rounded-xl bg-well overflow-hidden">
-          {accounts.map(a => (
-            <div key={a.id} className="flex items-center justify-between p-4">
-              <div>
-                <div className="font-semibold text-sm text-foreground">{a.name}</div>
-                <div className="text-xs text-foreground/40 mt-1 flex items-center gap-1.5">
-                  <Badge tone={a.type === "cloudflare" ? "indigo" : "cyan"} className="uppercase tracking-wider text-[9px]">
-                    {a.type}
-                  </Badge>
-                  {a.hasCredentials
-                    ? <Badge tone="green" className="text-[9px]"><KeyRound className="h-2.5 w-2.5 mr-0.5 inline" />{t("settings.credentialsSet")}</Badge>
-                    : <Badge tone="amber" className="text-[9px]">{t("settings.noCredentials")}</Badge>}
+          {accounts.map(a => {
+            const providerType = a.provider || a.type || "cloudflare";
+            const isConfigured = a.configured ?? a.hasCredentials ?? true;
+            return (
+              <div key={a.id} className="flex items-center justify-between p-4">
+                <div>
+                  <div className="font-semibold text-sm text-foreground">{a.name}</div>
+                  <div className="text-xs text-foreground/40 mt-1 flex items-center gap-1.5">
+                    <Badge
+                      tone={providerType === "cloudflare" ? "indigo" : providerType === "dnspod" ? "cyan" : "amber"}
+                      className="uppercase tracking-wider text-[9px]"
+                    >
+                      {providerType}
+                    </Badge>
+                    {isConfigured
+                      ? <Badge tone="green" className="text-[9px]"><KeyRound className="h-2.5 w-2.5 mr-0.5 inline" />{t("settings.credentialsSet")}</Badge>
+                      : <Badge tone="amber" className="text-[9px]">{t("settings.noCredentials")}</Badge>}
+                  </div>
                 </div>
+                {canManageProviders && (
+                  <NavLink to="/settings/integrations?category=dns">
+                    <Button variant="subtle" className="text-xs py-1 px-2.5">
+                      {t("settings.openIntegrationsHub")}
+                    </Button>
+                  </NavLink>
+                )}
               </div>
-              {canManageProviders && (
-                <div className="flex items-center gap-2">
-                  <Button variant="subtle" onClick={() => setEditing(a)} className="text-xs py-1 px-2.5">
-                    {t("settings.edit")}
-                  </Button>
-                  <Button
-                    variant="danger"
-                    onClick={() => remove(a.id)}
-                    className="text-xs py-1 px-2.5 border-0"
-                  >
-                    {t("settings.remove")}
-                  </Button>
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
-      )}
-      {(creating || editing) && (
-        <ProviderAccountModal
-          account={editing}
-          onClose={() => { setCreating(false); setEditing(null); }}
-          onSaved={() => { setCreating(false); setEditing(null); load(); }}
-        />
       )}
     </div>
   );
 }
-
-function ProviderAccountModal({ account, onClose, onSaved }: { account: any; onClose: () => void; onSaved: () => void }) {
-  const { t } = useTranslation();
-  const [name, setName] = useState(account?.name || "");
-  const [type, setType] = useState(account?.type || "cloudflare");
-  const [config, setConfig] = useState<string>("");
-  const [types, setTypes] = useState<string[]>([]);
-  const [err, setErr] = useState<string | { message?: string; status?: number; requestId?: string }>("");
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    api.dnsProviders().then(setTypes).catch(() => setTypes(["cloudflare", "dnspod"]));
-  }, []);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true); setErr("");
-    try {
-      let cfgObj: any = {};
-      if (config.trim()) {
-        try { cfgObj = JSON.parse(config.trim()); }
-        catch { cfgObj = type === "cloudflare" ? { apiToken: config.trim() } : { token: config.trim() }; }
-      }
-      if (account) {
-        await api.updateProviderAccount(account.id, { name, type, config: cfgObj });
-      } else {
-        await api.createProviderAccount({ name, type, config: cfgObj });
-      }
-      toast.success(t("settings.saved"));
-      onSaved();
-    } catch (e: any) {
-      setErr(e);
-      toast.error(e?.message || t("settings.saveFailed", "Failed to save settings"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Modal title={account ? t("settings.editProviderAccount") : t("settings.registerProviderAccount")} onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4">
-        <Field label={t("settings.providerLabelName")}>
-          <Input  value={name} onChange={e => setName(e.target.value)} placeholder={t("settings.providerLabelPlaceholder")} required autoFocus />
-        </Field>
-        {!account && (
-          <Field label={t("settings.dnsProviderType")}>
-            <Select
-              value={type}
-              onValueChange={setType}
-              className="text-sm"
-              options={types.map((ty) => ({ value: ty, label: <span className="capitalize">{ty}</span> }))}
-            />
-          </Field>
-        )}
-        <Field label={t("settings.apiKeysCredentials")} hint={account ? t("settings.apiKeysHintExisting") : t("settings.apiKeysHintNew")}>
-          <Input className="font-mono text-xs" type="password" value={config} onChange={e => setConfig(e.target.value)} placeholder={account ? "••••••••" : t("settings.apiKeysPlaceholderNew")} required={!account} />
-        </Field>
-        {err && <FormError err={err} />}
-        <div className="flex justify-end gap-2.5 pt-4 border-t border-foreground/[0.06]">
-          <Button type="button" variant="ghost" onClick={onClose}>{t("settings.cancel")}</Button>
-          <Button type="submit" variant="primary" disabled={busy || !name.trim()}>
-            {busy ? t("settings.savingDots") : t("settings.saveConnection")}
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-

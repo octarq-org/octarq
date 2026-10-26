@@ -9,6 +9,8 @@ import {
   toast,
   confirmDialog,
   Alert,
+  Tabs,
+  type TabItem,
   cn,
 } from "@octarq/plugin-sdk";
 import { useEffect, useState } from "react";
@@ -204,35 +206,39 @@ export function WebhooksSettings() {
       />
 
       {/* Tab Switcher */}
-      <div className="flex border-b border-border bg-well/30 p-1 rounded-xl max-w-md">
-        <button
-          type="button"
-          onClick={() => setActiveTab("outbound")}
-          data-testid="tab-outbound-webhooks"
-          className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-colors",
-            activeTab === "outbound"
-              ? "bg-background text-foreground shadow-xs font-semibold"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <ArrowUpRight className="h-3.5 w-3.5" />
-          <span>{t("settings.tabOutboundSubscriptions", "Outbound Subscriptions")}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("inbound")}
-          data-testid="tab-inbound-relays"
-          className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-colors",
-            activeTab === "inbound"
-              ? "bg-background text-foreground shadow-xs font-semibold"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <ArrowDownLeft className="h-3.5 w-3.5" />
-          <span>{t("settings.tabInboundRelays", "Inbound Relays & DLQ")}</span>
-        </button>
+      <div className="max-w-md">
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) => setActiveTab(val as "outbound" | "inbound")}
+          items={[
+            {
+              value: "outbound",
+              label: (
+                <span
+                  data-testid="tab-outbound-webhooks"
+                  className="flex items-center justify-center gap-1.5"
+                >
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                  <span>{t("settings.tabOutboundSubscriptions", "Outbound Subscriptions")}</span>
+                </span>
+              ),
+              content: null,
+            },
+            {
+              value: "inbound",
+              label: (
+                <span
+                  data-testid="tab-inbound-relays"
+                  className="flex items-center justify-center gap-1.5"
+                >
+                  <ArrowDownLeft className="h-3.5 w-3.5" />
+                  <span>{t("settings.tabInboundRelays", "Inbound Relays & DLQ")}</span>
+                </span>
+              ),
+              content: null,
+            },
+          ]}
+        />
       </div>
 
       {activeTab === "outbound" && (
