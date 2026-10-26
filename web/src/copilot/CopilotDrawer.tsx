@@ -1,6 +1,6 @@
 import { cn } from "@octarq/plugin-sdk";
 import React, { useEffect, useRef, useState } from "react";
-import { Sparkles, X, Trash2, ShieldAlert, MessageSquare, Sunrise } from "lucide-react";
+import { Sparkles, X, Trash2, ShieldAlert, MessageSquare, Sunrise, Bot } from "lucide-react";
 import { useTranslation } from "../i18n";
 import { useCopilotStore } from "./store";
 import { AIStreamError, fetchApprovals, useAIStatusQuery, streamAIChat, streamAGUIChat } from "./api";
@@ -269,6 +269,15 @@ function CopilotDrawerContent({ aiStatus }: { aiStatus?: AIStatus }) {
         </div>
 
         <div className="flex items-center gap-1">
+          <a
+            href="/workforce"
+            onClick={() => closeCopilot()}
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-colors"
+            title={t("copilot.openWorkforce", "AI Workforce Control Plane")}
+            aria-label={t("copilot.openWorkforce", "AI Workforce Control Plane")}
+          >
+            <Bot className="h-4 w-4" />
+          </a>
           {messages.length > 0 && activeTab === "chat" && (
             <button
               type="button"

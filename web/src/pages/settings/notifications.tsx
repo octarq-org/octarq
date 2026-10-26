@@ -1,8 +1,8 @@
 import { PageHeader, GlassCard, Button, Field, Switch, Modal, toast, confirmDialog, ExtensionSlot, NotificationChannelFormContext, Input } from "@octarq/plugin-sdk";
 import { ReactNode, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { api, NotificationChannelType, NotificationChannel } from "../../api";
-import { Bell, ChevronDown, Plus, Trash2, Send, Pencil, Sliders } from "lucide-react";
+import { Bell, ChevronDown, Plus, Trash2, Send, Pencil, Sliders, Blocks } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { roleSatisfies, useCurrentRole } from "../../shell/role";
 
@@ -332,6 +332,19 @@ export function NotificationChannels() {
           </Button>
         }
       />
+
+      <div className="flex items-center justify-between p-3 rounded-lg border border-primary/20 bg-primary/5 text-xs text-foreground/80">
+        <div className="flex items-center gap-2">
+          <Blocks className="h-4 w-4 text-primary shrink-0" />
+          <span>{t("settings.commIntegrationsBanner")}</span>
+        </div>
+        <NavLink
+          to="/settings/integrations?category=communication"
+          className="text-primary hover:underline font-medium text-xs whitespace-nowrap ml-3"
+        >
+          {t("settings.openIntegrationsHub")} →
+        </NavLink>
+      </div>
 
       <div>
         <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

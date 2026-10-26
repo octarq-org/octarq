@@ -1,6 +1,7 @@
 export const copilot = {
   en: {
     drawerTitle: "AI Copilot",
+    openWorkforce: "AI Workforce Control Plane",
     placeholder: "Ask anything about your workspace…",
     quickPrompt1: "Analyze past 7 days link traffic trends & anomaly referrers",
     quickPrompt2: "Check current DNS records & domain health status",
@@ -330,6 +331,7 @@ export const copilot = {
   },
   zh: {
     drawerTitle: "AI 助手",
+    openWorkforce: "AI 员工控制中心",
     placeholder: "向助手提问，或管理当前工作区…",
     quickPrompt1: "分析过去 7 天短链点击趋势与异常来源",
     quickPrompt2: "检查当前 DNS 记录与域名健康状态",
@@ -659,6 +661,7 @@ export const copilot = {
   },
   ja: {
     drawerTitle: "AI コパイロット",
+    openWorkforce: "AI ワークフォース管理",
     placeholder: "ワークスペースについて何でも質問してください…",
     quickPrompt1: "過去7日間の短縮URLクリック傾向と異常リファラーを分析",
     quickPrompt2: "現在のDNSレコードとドメインヘルス状態を確認",
@@ -988,6 +991,7 @@ export const copilot = {
   },
   es: {
     drawerTitle: "Copiloto IA",
+    openWorkforce: "Plataforma de Personal de IA",
     placeholder: "Pregunta cualquier cosa sobre tu espacio de trabajo…",
     quickPrompt1: "Analizar tendencias de clics y fuentes anómalas de los últimos 7 días",
     quickPrompt2: "Comprobar registros DNS actuales y estado de salud del dominio",
@@ -1317,6 +1321,7 @@ export const copilot = {
   },
   pt: {
     drawerTitle: "Copiloto IA",
+    openWorkforce: "Plataforma de Força de Trabalho de IA",
     placeholder: "Pergunte qualquer coisa sobre seu espaço de trabalho…",
     quickPrompt1: "Analisar tendências de cliques e fontes anômalas dos últimos 7 dias",
     quickPrompt2: "Verificar registros DNS atuais e status de integridade do domínio",

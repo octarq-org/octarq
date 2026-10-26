@@ -170,6 +170,7 @@ export const zh: Resources = {
     webhooks: "Webhook",
     notifications: "告警",
     "agent-harness": "Agent 运行环境",
+    workforce: "AI 员工",
     "checkout-orders": "订单",
     "checkout-promos": "优惠码",
     profile: "我的资料",

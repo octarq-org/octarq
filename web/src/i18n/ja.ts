@@ -169,6 +169,7 @@ export const ja = {
     webhooks: "Webhooks",
     notifications: "アラート",
     "agent-harness": "エージェント環境",
+    workforce: "AI ワークフォース",
     "checkout-orders": "注文",
     "checkout-promos": "プロモコード",
     profile: "マイプロファイル",

@@ -169,6 +169,7 @@ export const es = {
     webhooks: "Webhooks",
     notifications: "Alertas",
     "agent-harness": "Entorno del agente",
+    workforce: "Fuerza Laboral de IA",
     "checkout-orders": "Pedidos",
     "checkout-promos": "Códigos promocionales",
     profile: "Mi perfil",

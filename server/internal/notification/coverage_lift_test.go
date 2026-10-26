@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/octarq-org/octarq/server/internal/models"
@@ -189,4 +190,71 @@ func TestCoverageLift_Notification_Channels_Edges(t *testing.T) {
 			"chatId":   int(987654),
 		},
 	}, plugin.NotificationPayload{Body: "test"})
+}
+
+func TestCoverageLift_SlackFormattingAndConfig(t *testing.T) {
+	// 1. formatSlackMessage branches
+	pCrit := plugin.NotificationPayload{
+		Priority:  "critical",
+		Title:     "Outage",
+		EventType: "system.down",
+		Body:      "Service is down",
+	}
+	msgCrit := formatSlackMessage(pCrit)
+	if !strings.Contains(msgCrit, "CRITICAL") {
+		t.Errorf("expected CRITICAL, got %s", msgCrit)
+	}
+
+	pLow := plugin.NotificationPayload{
+		Priority:  "low",
+		EventType: "info.update",
+	}
+	msgLow := formatSlackMessage(pLow)
+	if !strings.Contains(msgLow, "LOW") || !strings.Contains(msgLow, "info.update") {
+		t.Errorf("expected LOW with eventType, got %s", msgLow)
+	}
+
+	pCustom := plugin.NotificationPayload{
+		Priority: "urgent",
+		Body:     "Please check",
+	}
+	msgCustom := formatSlackMessage(pCustom)
+	if !strings.Contains(msgCustom, "URGENT") {
+		t.Errorf("expected URGENT, got %s", msgCustom)
+	}
+
+	pEmpty := plugin.NotificationPayload{}
+	msgEmpty := formatSlackMessage(pEmpty)
+	if msgEmpty != "Notification received" {
+		t.Errorf("expected 'Notification received', got %s", msgEmpty)
+	}
+
+	// 2. Config variations for SlackChannel.Send
+	sl := NewSlackChannel(nil)
+	cancCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// webhookUrl camelCase
+	_ = sl.Send(cancCtx, plugin.NotificationRecipient{
+		Config: map[string]any{"webhookUrl": "https://hooks.slack.com/services/T/B/X"},
+	}, pCrit)
+
+	// integrationId variations
+	_ = sl.Send(cancCtx, plugin.NotificationRecipient{
+		Config: map[string]any{"webhook_url": "https://hooks.slack.com/services/T/B/X", "integrationId": 12.0},
+	}, pCrit)
+	_ = sl.Send(cancCtx, plugin.NotificationRecipient{
+		Config: map[string]any{"webhook_url": "https://hooks.slack.com/services/T/B/X", "integration_id": 13},
+	}, pCrit)
+	_ = sl.Send(cancCtx, plugin.NotificationRecipient{
+		Config: map[string]any{"webhook_url": "https://hooks.slack.com/services/T/B/X", "integrationId": 14},
+	}, pCrit)
+
+	// _raw_config variations
+	_ = sl.Send(cancCtx, plugin.NotificationRecipient{
+		Config: map[string]any{"_raw_config": `{"webhookUrl":"https://hooks.slack.com/services/T/B/X","integrationId":15}`},
+	}, pCrit)
+	_ = sl.Send(cancCtx, plugin.NotificationRecipient{
+		Config: map[string]any{"_raw_config": `{"webhook_url":"https://hooks.slack.com/services/T/B/X","integration_id":16}`},
+	}, pCrit)
 }

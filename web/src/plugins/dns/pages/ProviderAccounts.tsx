@@ -70,6 +70,11 @@ export function ProviderAccounts({ embed }: { embed?: boolean }) {
         <Empty>
           <Cloud className="h-8 w-8 text-foreground/50 mb-1" />
           <div className="text-xs text-foreground/50">{t("settings.noDnsProviders")}</div>
+          {canManageProviders && (
+            <Button variant="outline" size="sm" className="mt-3 text-xs" onClick={() => setCreating(true)}>
+              {t("settings.addProvider")}
+            </Button>
+          )}
         </Empty>
       ) : (
         <div className="divide-y divide-foreground/[0.04] border border-foreground/[0.05] rounded-xl bg-well overflow-hidden">
