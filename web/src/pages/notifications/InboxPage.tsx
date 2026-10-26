@@ -1,5 +1,5 @@
 import { Alert, Button, GlassCard, PageHeader, ScreenWrap, cn, timeAgo } from "@octarq/plugin-sdk";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertCircle, CheckCheck, RefreshCw, Settings2, Trash2, MailOpen } from "lucide-react";
 import { useTranslation } from "../../i18n";
@@ -24,14 +24,38 @@ export function InboxPage() {
     refetch,
     isFetching,
   } = useNotificationsQuery({
-    unreadOnly: filter === "unread",
+    unreadOnly: false,
   });
 
   const markRead = useMarkReadMutation();
   const markAllRead = useMarkAllReadMutation();
   const deleteNotif = useDeleteNotificationMutation();
 
-  const unreadCount = notifications.filter((n) => !n.readAt).length;
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.readAt).length, [notifications]);
+
+  const displayedNotifications = useMemo(() => {
+    switch (filter) {
+      case "unread":
+        return notifications.filter((n) => !n.readAt);
+      case "mentions":
+        return notifications.filter(
+          (n) =>
+            (n.eventType && (n.eventType.toLowerCase().includes("mention") || n.eventType.startsWith("mention"))) ||
+            (n.title && n.title.toLowerCase().includes("mention")) ||
+            (n.body && n.body.toLowerCase().includes("mention")),
+        );
+      case "system":
+        return notifications.filter(
+          (n) =>
+            (n.eventType && (n.eventType.toLowerCase().startsWith("system") || n.eventType.toLowerCase().includes("alert") || n.eventType.toLowerCase().includes("security"))) ||
+            n.priority === "high" ||
+            n.priority === "urgent",
+        );
+      case "all":
+      default:
+        return notifications;
+    }
+  }, [notifications, filter]);
 
   return (
     <ScreenWrap>
@@ -79,26 +103,17 @@ export function InboxPage() {
           }
         />
 
-        {/* Filter Tabs */}
+        {/* 4 Horizontal Filter Tabs: [Unread | All | Mentions | System Alerts] */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 rounded-xl border border-border bg-well/60 p-1">
+          <div className="flex items-center gap-1 rounded-xl border border-border bg-well/60 p-1 overflow-x-auto" role="tablist">
             <button
               type="button"
-              onClick={() => setFilter("all")}
-              className={cn(
-                "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors",
-                filter === "all"
-                  ? "bg-background text-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t("notifications.filterAll", "全部")}
-            </button>
-            <button
-              type="button"
+              role="tab"
+              aria-selected={filter === "unread"}
               onClick={() => setFilter("unread")}
+              data-testid="tab-unread"
               className={cn(
-                "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors",
+                "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors cursor-pointer shrink-0",
                 filter === "unread"
                   ? "bg-background text-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground",
@@ -110,6 +125,51 @@ export function InboxPage() {
                   {unreadCount}
                 </span>
               )}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={filter === "all"}
+              onClick={() => setFilter("all")}
+              data-testid="tab-all"
+              className={cn(
+                "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors cursor-pointer shrink-0",
+                filter === "all"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t("notifications.filterAll", "全部")}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={filter === "mentions"}
+              onClick={() => setFilter("mentions")}
+              data-testid="tab-mentions"
+              className={cn(
+                "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors cursor-pointer shrink-0",
+                filter === "mentions"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t("notifications.filterMentions", "提及")}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={filter === "system"}
+              onClick={() => setFilter("system")}
+              data-testid="tab-system"
+              className={cn(
+                "rounded-lg px-3.5 py-1.5 text-xs font-medium transition-colors cursor-pointer shrink-0",
+                filter === "system"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t("notifications.filterSystem", "系统告警")}
             </button>
           </div>
         </div>
@@ -144,7 +204,7 @@ export function InboxPage() {
                 {t("notifications.loadFailed", "加载通知失败")}
               </Alert>
             </div>
-          ) : notifications.length === 0 ? (
+          ) : displayedNotifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-well text-muted-foreground">
                 <MailOpen className="h-7 w-7 text-muted-foreground/60" />
@@ -152,6 +212,10 @@ export function InboxPage() {
               <h4 className="text-sm font-semibold text-foreground">
                 {filter === "unread"
                   ? t("notifications.noUnread", "全部已读，暂无未读消息")
+                  : filter === "mentions"
+                  ? t("notifications.noMentions", "暂无提及通知。")
+                  : filter === "system"
+                  ? t("notifications.noSystem", "暂无系统告警通知。")
                   : t("notifications.empty", "收件箱为空")}
               </h4>
               <p className="mt-1 max-w-sm text-xs text-muted-foreground">
@@ -163,7 +227,7 @@ export function InboxPage() {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {notifications.map((notif) => {
+              {displayedNotifications.map((notif) => {
                 const isUnread = !notif.readAt;
                 return (
                   <div

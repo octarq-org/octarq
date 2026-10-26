@@ -21,6 +21,7 @@ describe("NavigationTree domain model", () => {
       expect(NavigationTree.resolveCategoryToArea("instance")).toBe("settings");
       expect(NavigationTree.resolveCategoryToArea("account")).toBe("settings");
       expect(NavigationTree.resolveCategoryToArea("personal")).toBe("settings");
+      expect(NavigationTree.resolveCategoryToArea("integrations")).toBe("settings");
     });
 
     it("matches plugin-declared areas by id or declared group label", () => {
@@ -282,6 +283,17 @@ describe("NavigationTree domain model", () => {
       // Workspace should precede Marketing and System according to BUILTIN_AREA_GROUPS.operations
       expect(groupLabels.indexOf("Workspace")).toBeLessThan(groupLabels.indexOf("Marketing"));
       expect(groupLabels.indexOf("Marketing")).toBeLessThan(groupLabels.indexOf("System"));
+
+      // Settings area group order
+      expect(BUILTIN_AREA_GROUPS.settings).toEqual([
+        "Instance",
+        "Workspace",
+        "Integrations",
+        "Personal",
+      ]);
+      const settingsGroupLabels = tree.settingsArea.groups.map((g) => g.label);
+      expect(settingsGroupLabels.indexOf("Workspace")).toBeLessThan(settingsGroupLabels.indexOf("Integrations"));
+      expect(settingsGroupLabels.indexOf("Integrations")).toBeLessThan(settingsGroupLabels.indexOf("Personal"));
     });
 
     it("respects role gating for menu items", () => {

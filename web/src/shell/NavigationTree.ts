@@ -7,7 +7,7 @@ import { roleSatisfies } from "./role";
 export const BUILTIN_AREA_GROUPS: Record<string, string[]> = {
   operations: ["Workspace", "Marketing", "Messaging", "Security", "System"],
   assets: ["Network", "Hosting", "Storage & Databases"],
-  settings: ["Instance", "Workspace", "Personal"],
+  settings: ["Instance", "Workspace", "Integrations", "Personal"],
 };
 
 export interface BuildNavigationTreeOptions {
@@ -68,7 +68,7 @@ export class NavigationTree {
 
     // Special placement keywords
     if (c === FOOTER_PLACEMENT || c === "resources") return FOOTER_PLACEMENT;
-    if (c === "settings" || c === "instance" || c === "account" || c === "personal") return "settings";
+    if (c === "settings" || c === "instance" || c === "account" || c === "personal" || c === "integrations") return "settings";
 
     // Match plugin-declared areas by ID or declared group labels (never title)
     const pluginHit = pluginAreas.find(
@@ -113,7 +113,7 @@ export class NavigationTree {
     const rawArea = (menu.area ?? "").trim().toLowerCase();
     if (rawArea) {
       if (rawArea === FOOTER_PLACEMENT || rawArea === "resources") return FOOTER_PLACEMENT;
-      if (rawArea === "settings" || rawArea === "instance" || rawArea === "account" || rawArea === "personal") return "settings";
+      if (rawArea === "settings" || rawArea === "instance" || rawArea === "account" || rawArea === "personal" || rawArea === "integrations") return "settings";
       if (rawArea === "assets" || rawArea === "infrastructure") return "assets";
       if (rawArea === "operations") return "operations";
 
