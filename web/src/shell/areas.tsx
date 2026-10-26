@@ -83,6 +83,7 @@ export const STATIC_AREAS: Area[] = [
         label: "Workspace",
         items: [
           { id: "overview", label: "Overview", Icon: LayoutDashboard, path: "/overview" },
+          { id: "workforce", label: "AI Workforce", Icon: Bot, path: "/workforce" },
         ],
       },
     ],
@@ -121,7 +122,7 @@ export const SETTINGS_AREA: Area = {
         { id: "plugins",       label: "Features",    Icon: Puzzle,      path: "/settings/plugins" },
         { id: "members",       label: "Members",     Icon: Users,       path: "/settings/members" },
         { id: "notifications", label: "Notifications & Alerts", Icon: Bell, path: "/settings/notifications" },
-        { id: "agent-harness", label: "Agent Harness", Icon: Bot,      path: "/settings/agent-harness" },
+        { id: "agent-harness", label: "AI Workforce", Icon: Bot,      path: "/workforce" },
       ],
     },
     {

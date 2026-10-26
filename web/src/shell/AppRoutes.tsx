@@ -6,6 +6,7 @@ import { pluginRouteElements, PluginUnavailable } from "../plugins/PluginRoutes"
 import { InstanceExitRedirect } from "../pages/instance/redirect";
 
 const OverviewPage = lazy(() => import("../pages/Overview"));
+const WorkforcePage = lazy(() => import("../pages/agent-harness").then((m) => ({ default: m.default })));
 const SettingsPage = lazy(() => import("../pages/Settings"));
 const NotificationsPage = lazy(() => import("../pages/notifications"));
 const InviteAcceptPage = lazy(() => import("../pages/InviteAccept"));
@@ -24,6 +25,8 @@ export function AppRoutes({ pluginGateCtxValue }: AppRoutesProps) {
           <Route path="/" element={<Navigate to="/overview" replace />} />
           <Route path="/onboarding" element={<Navigate to="/overview" replace />} />
           <Route path="/overview" element={<OverviewPage />} />
+          <Route path="/workforce/*" element={<WorkforcePage />} />
+          <Route path="/ai-workforce/*" element={<Navigate to="/workforce" replace />} />
           <Route path="/notifications/*" element={<NotificationsPage />} />
           <Route path="/settings/*" element={<SettingsPage />} />
           <Route path="/admin/invite/accept" element={<InviteAcceptPage />} />

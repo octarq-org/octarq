@@ -188,6 +188,7 @@ export const en = {
     webhooks: "Webhooks",
     notifications: "Alerts",
     "agent-harness": "Agent Harness",
+    workforce: "AI Workforce",
     "checkout-orders": "Orders",
     "checkout-promos": "Promo codes",
     profile: "My profile",

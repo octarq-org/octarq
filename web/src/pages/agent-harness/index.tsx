@@ -34,9 +34,13 @@ import { HarnessEditorModal } from "./editor";
 import { HarnessProposalModal } from "./proposal";
 import { HarnessLessonModal } from "./lesson-modal";
 import { EvidenceViewer } from "./evidence";
-import { Bot, BookOpen, Lock, Plus, UploadCloud } from "lucide-react";
+import { Bot, BookOpen, Lock, Plus, UploadCloud, Terminal, ShieldAlert, Coins, Sliders } from "lucide-react";
+import { FleetView } from "./FleetView";
+import { TasksView } from "./TasksView";
+import { BoardApprovalsView } from "./BoardApprovalsView";
+import { BudgetsView } from "./BudgetsView";
 
-export type AgentHarnessTab = "specs" | "lessons";
+export type AgentHarnessTab = "fleet" | "tasks" | "approvals" | "budgets" | "specs" | "lessons";
 
 export default function AgentHarnessPage() {
   const { t } = useTranslation();
@@ -293,8 +297,88 @@ export default function AgentHarnessPage() {
         }
       />
 
+      {/* Executive Summary Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4">
+        <GlassCard className="p-3.5 space-y-1">
+          <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+            <Bot className="h-3.5 w-3.5 text-purple-400" />
+            {t("agentHarness.statActiveAgents", "Active AI Employees")}
+          </div>
+          <div className="text-xl font-bold font-mono text-foreground">4</div>
+        </GlassCard>
+        <GlassCard className="p-3.5 space-y-1">
+          <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+            <Terminal className="h-3.5 w-3.5 text-cyan-400" />
+            {t("agentHarness.statRunningTasks", "Running Tasks")}
+          </div>
+          <div className="text-xl font-bold font-mono text-blue-400">1 <span className="text-xs text-muted-foreground font-normal">{t("agentHarness.tasksQueuedCount", "({{count}} queued)", { count: 3 })}</span></div>
+        </GlassCard>
+        <GlassCard className="p-3.5 space-y-1">
+          <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+            <ShieldAlert className="h-3.5 w-3.5 text-amber-400" />
+            {t("agentHarness.statPendingApprovals", "Awaiting Board Review")}
+          </div>
+          <div className="text-xl font-bold font-mono text-amber-500">1</div>
+        </GlassCard>
+        <GlassCard className="p-3.5 space-y-1">
+          <div className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
+            <Coins className="h-3.5 w-3.5 text-primary" />
+            {t("agentHarness.statBudgetUsage", "Monthly Budget Used")}
+          </div>
+          <div className="text-xl font-bold font-mono text-foreground">$14.20 <span className="text-xs text-muted-foreground font-normal">/ $50</span></div>
+        </GlassCard>
+      </div>
+
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-border/60 mt-4 mb-6">
+      <div className="flex gap-2 border-b border-border/60 mt-4 mb-6 overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setActiveTab("fleet")}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+            activeTab === "fleet"
+              ? "border-primary text-foreground font-semibold"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Bot className="h-4 w-4" />
+          <span>{t("agentHarness.tabFleet", "AI Employees")}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("tasks")}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+            activeTab === "tasks"
+              ? "border-primary text-foreground font-semibold"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Terminal className="h-4 w-4" />
+          <span>{t("agentHarness.tabTasks", "Tasks & Issues")}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("approvals")}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+            activeTab === "approvals"
+              ? "border-primary text-foreground font-semibold"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <ShieldAlert className="h-4 w-4" />
+          <span>{t("agentHarness.tabApprovals", "Board Approvals")}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("budgets")}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors shrink-0 whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+            activeTab === "budgets"
+              ? "border-primary text-foreground font-semibold"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Coins className="h-4 w-4" />
+          <span>{t("agentHarness.tabBudgets", "Budgets & Governance")}</span>
+        </button>
         <button
           type="button"
           onClick={() => setActiveTab("specs")}
@@ -304,7 +388,7 @@ export default function AgentHarnessPage() {
               : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Bot className="h-4 w-4" />
+          <Sliders className="h-4 w-4" />
           <span>{t("agentHarness.tabSpecs")}</span>
           {versions.length > 0 && (
             <Badge variant="neutral" className="text-[10px] py-0 px-1.5 ml-1">
@@ -330,6 +414,21 @@ export default function AgentHarnessPage() {
           )}
         </button>
       </div>
+
+      {activeTab === "fleet" && (
+        <FleetView
+          onOpenEditor={() => {
+            setActiveTab("specs");
+            handleOpenEditor();
+          }}
+        />
+      )}
+
+      {activeTab === "tasks" && <TasksView />}
+
+      {activeTab === "approvals" && <BoardApprovalsView />}
+
+      {activeTab === "budgets" && <BudgetsView />}
 
       {/* TAB 1: Specs and Versions */}
       {activeTab === "specs" && (

@@ -169,6 +169,7 @@ export const pt = {
     webhooks: "Webhooks",
     notifications: "Alertas",
     "agent-harness": "Ambiente do agente",
+    workforce: "Força de Trabalho de IA",
     "checkout-orders": "Pedidos",
     "checkout-promos": "Códigos promocionais",
     profile: "Meu perfil",

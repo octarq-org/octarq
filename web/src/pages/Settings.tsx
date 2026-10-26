@@ -61,6 +61,7 @@ export default function SettingsPage() {
         <Route path="/tokens" element={<ApiTokens />} />
         <Route path="/appearance" element={<AppearanceSettings />} />
         <Route path="/agent-harness" element={<AgentHarnessPage />} />
+        <Route path="/workforce" element={<Navigate to="/workforce" replace />} />
       </Routes>
       </Suspense>
     </ScreenWrap>

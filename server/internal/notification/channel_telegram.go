@@ -63,17 +63,20 @@ func (c *TelegramChannel) ConfigSchema() json.RawMessage {
 // Send delivers a notification via Telegram.
 func (c *TelegramChannel) Send(ctx context.Context, recipient plugin.NotificationRecipient, payload plugin.NotificationPayload) error {
 	var botToken, chatIDStr string
+	var reqIntegID uint
 
 	if recipient.Config != nil {
 		if raw, ok := recipient.Config["_raw_config"].(string); ok && strings.TrimSpace(raw) != "" {
 			var m struct {
-				BotToken string `json:"botToken"`
-				ChatID   any    `json:"chatId"`
+				BotToken      string `json:"botToken"`
+				ChatID        any    `json:"chatId"`
+				IntegrationID uint   `json:"integrationId"`
 			}
 			if err := json.Unmarshal([]byte(raw), &m); err != nil {
 				return err
 			}
 			botToken = m.BotToken
+			reqIntegID = m.IntegrationID
 			if m.ChatID != nil {
 				switch val := m.ChatID.(type) {
 				case string:
@@ -91,6 +94,13 @@ func (c *TelegramChannel) Send(ctx context.Context, recipient plugin.Notificatio
 		if botToken == "" {
 			if v, ok := recipient.Config["botToken"].(string); ok {
 				botToken = v
+			}
+		}
+		if reqIntegID == 0 {
+			if v, ok := recipient.Config["integrationId"].(float64); ok && v > 0 {
+				reqIntegID = uint(v)
+			} else if v, ok := recipient.Config["integration_id"].(float64); ok && v > 0 {
+				reqIntegID = uint(v)
 			}
 		}
 		if chatIDStr == "" {
@@ -117,7 +127,35 @@ func (c *TelegramChannel) Send(ctx context.Context, recipient plugin.Notificatio
 		targetOrg = strings.TrimSpace(payload.OrgID)
 	}
 
-	// Fallback to database lookup if org-scoped notification channel is configured
+	// 1. Resolve botToken from centralized tenant_integrations (provider_type = 'communication', provider = 'telegram')
+	if botToken == "" && c.db != nil && targetOrg != "" {
+		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
+			type tenantInteg struct {
+				EncryptedConfig string `gorm:"column:encrypted_config"`
+			}
+			var row tenantInteg
+			q := c.db.WithContext(ctx).Table("tenant_integrations").
+				Where("org_id = ? AND provider_type = ? AND provider = ?", orgNum, "communication", "telegram")
+			if reqIntegID > 0 {
+				q = q.Where("id = ?", reqIntegID)
+			} else {
+				q = q.Order("is_default DESC, id DESC")
+			}
+			if err := q.Limit(1).Take(&row).Error; err == nil && row.EncryptedConfig != "" {
+				plain, decErr := ConfigPlaintext(row.EncryptedConfig)
+				if decErr == nil {
+					var m struct {
+						BotToken string `json:"botToken"`
+					}
+					if json.Unmarshal([]byte(plain), &m) == nil && m.BotToken != "" {
+						botToken = strings.TrimSpace(m.BotToken)
+					}
+				}
+			}
+		}
+	}
+
+	// 2. Fallback to database lookup if org-scoped notification channel is configured
 	if (botToken == "" || chatIDStr == "") && c.db != nil && targetOrg != "" {
 		if orgNum, err := strconv.ParseUint(targetOrg, 10, 64); err == nil && orgNum > 0 {
 			var ch models.NotificationChannel
