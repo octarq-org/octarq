@@ -47,7 +47,7 @@ export default function SettingsPage() {
         <Route path="/integrations" element={<IntegrationsSlot />} />
         <Route path="/webhooks" element={<WebhooksSettings />} />
         <Route path="/notifications" element={<NotificationChannels />} />
-        <Route path="/notifications/preferences" element={<Navigate to="/settings/personal/notifications" replace />} />
+        <Route path="/notifications/preferences" element={<Navigate to="/settings/notifications?tab=preferences" replace />} />
         <Route path="/personal/notifications" element={<PreferencesPage />} />
         <Route path="/members" element={<OrgMembersManager />} />
         {/* The instance console moved out of /settings into its own /instance
@@ -60,7 +60,7 @@ export default function SettingsPage() {
         <Route path="/security" element={<SecuritySettings />} />
         <Route path="/tokens" element={<ApiTokens />} />
         <Route path="/appearance" element={<AppearanceSettings />} />
-        <Route path="/agent-harness" element={<AgentHarnessPage />} />
+        <Route path="/agent-harness" element={<Navigate to="/workforce" replace />} />
         <Route path="/workforce" element={<Navigate to="/workforce" replace />} />
       </Routes>
       </Suspense>

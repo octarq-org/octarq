@@ -122,7 +122,6 @@ export const SETTINGS_AREA: Area = {
         { id: "plugins",       label: "Features",    Icon: Puzzle,      path: "/settings/plugins" },
         { id: "members",       label: "Members",     Icon: Users,       path: "/settings/members" },
         { id: "notifications", label: "Notifications & Alerts", Icon: Bell, path: "/settings/notifications" },
-        { id: "agent-harness", label: "AI Workforce", Icon: Bot,      path: "/workforce" },
       ],
     },
     {
@@ -136,7 +135,6 @@ export const SETTINGS_AREA: Area = {
       label: "Personal",
       items: [
         { id: "profile",  label: "My Profile", Icon: User,      path: "/settings/profile" },
-        { id: "personal-notifications", label: "Notifications", Icon: Bell, path: "/settings/personal/notifications" },
         { id: "security", label: "Security",   Icon: Shield,    path: "/settings/security" },
         { id: "tokens",   label: "API Tokens", Icon: KeyRound,  path: "/settings/tokens" },
         { id: "appearance", label: "Appearance", Icon: Palette, path: "/settings/appearance" },
