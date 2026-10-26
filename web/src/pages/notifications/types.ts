@@ -4,7 +4,7 @@ export type {
   RegisteredChannel,
 } from "./schemas";
 
-export type NotificationFilter = "all" | "unread";
+export type NotificationFilter = "unread" | "all" | "mentions" | "system";
 
 export interface PreferenceRouteRow {
   key: string;

@@ -72,3 +72,85 @@ describe("InboxPage — failed load", () => {
     expect(screen.queryByText("Could not load notifications. Try again.")).toBeNull();
   });
 });
+
+describe("InboxPage — 4 horizontal filter tabs", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    cleanup();
+    document.body.innerHTML = "";
+  });
+
+  const mockNotifs = [
+    {
+      id: 1,
+      title: "Task completed",
+      body: "Deployment succeeded",
+      eventType: "task.completed",
+      priority: "normal",
+      readAt: null,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 2,
+      title: "Mentioned in comment",
+      body: "@operator check this out",
+      eventType: "mention.user",
+      priority: "normal",
+      readAt: "2026-10-25T10:00:00Z",
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 3,
+      title: "High error rate",
+      body: "Spike detected",
+      eventType: "system.alert",
+      priority: "high",
+      readAt: "2026-10-25T10:00:00Z",
+      createdAt: new Date().toISOString(),
+    },
+  ];
+
+  it("renders 4 horizontal filter tabs and filters items accurately", async () => {
+    useNotificationsQuery.mockReturnValue({
+      data: mockNotifs,
+      isLoading: false,
+      isError: false,
+      refetch,
+      isFetching: false,
+    });
+
+    renderPage();
+
+    // Verify all 4 tabs exist
+    expect(screen.getByTestId("tab-unread")).toBeDefined();
+    expect(screen.getByTestId("tab-all")).toBeDefined();
+    expect(screen.getByTestId("tab-mentions")).toBeDefined();
+    expect(screen.getByTestId("tab-system")).toBeDefined();
+
+    // Default "all": all 3 notifications are shown
+    expect(screen.getByText("Task completed")).toBeDefined();
+    expect(screen.getByText("Mentioned in comment")).toBeDefined();
+    expect(screen.getByText("High error rate")).toBeDefined();
+
+    // Click Unread tab
+    fireEvent.click(screen.getByTestId("tab-unread"));
+    expect(screen.getByText("Task completed")).toBeDefined();
+    expect(screen.queryByText("Mentioned in comment")).toBeNull();
+    expect(screen.queryByText("High error rate")).toBeNull();
+
+    // Click Mentions tab
+    fireEvent.click(screen.getByTestId("tab-mentions"));
+    expect(screen.queryByText("Task completed")).toBeNull();
+    expect(screen.getByText("Mentioned in comment")).toBeDefined();
+    expect(screen.queryByText("High error rate")).toBeNull();
+
+    // Click System Alerts tab
+    fireEvent.click(screen.getByTestId("tab-system"));
+    expect(screen.queryByText("Task completed")).toBeNull();
+    expect(screen.queryByText("Mentioned in comment")).toBeNull();
+    expect(screen.getByText("High error rate")).toBeDefined();
+  });
+});
+
