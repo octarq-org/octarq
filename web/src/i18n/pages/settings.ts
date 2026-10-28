@@ -353,6 +353,7 @@ export const settings = {
     openIntegrationsHub: "Integrations Hub",
     addProvider: "Add Provider",
     noDnsProviders: "No DNS providers configured yet.",
+    dnsProvidersUnavailable: "Could not load DNS providers. Reload the page to retry.",
     credentialsSet: "credentials set",
     noCredentials: "no credentials",
 
@@ -782,6 +783,7 @@ export const settings = {
     openIntegrationsHub: "前往集成中心",
     addProvider: "添加提供商",
     noDnsProviders: "尚未配置 DNS 提供商。",
+    dnsProvidersUnavailable: "无法加载 DNS 提供商。刷新页面重试。",
     credentialsSet: "已设置凭据",
     noCredentials: "无凭据",
 
@@ -1211,6 +1213,7 @@ export const settings = {
     openIntegrationsHub: "Centro de integraciones",
     addProvider: "Añadir Proveedor",
     noDnsProviders: "Aún no hay proveedores DNS configurados.",
+    dnsProvidersUnavailable: "No se pudieron cargar los proveedores DNS. Recargue la página para reintentar.",
     credentialsSet: "credenciales configuradas",
     noCredentials: "sin credenciales",
 
@@ -1640,6 +1643,7 @@ export const settings = {
     openIntegrationsHub: "Central de integrações",
     addProvider: "Adicionar Provedor",
     noDnsProviders: "Nenhum provedor de DNS configurado ainda.",
+    dnsProvidersUnavailable: "Não foi possível carregar os provedores de DNS. Recarregue a página para tentar novamente.",
     credentialsSet: "credenciais definidas",
     noCredentials: "sem credenciais",
 
@@ -2069,6 +2073,7 @@ export const settings = {
     openIntegrationsHub: "統合センター",
     addProvider: "プロバイダーを追加",
     noDnsProviders: "DNS プロバイダーはまだ設定されていません。",
+    dnsProvidersUnavailable: "DNS プロバイダーを読み込めませんでした。ページを再読み込みしてください。",
     credentialsSet: "認証情報設定済み",
     noCredentials: "認証情報なし",
 
