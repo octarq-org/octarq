@@ -261,6 +261,9 @@ func TestWorkforceStore_TaskLifecycleAndStepAppending(t *testing.T) {
 		t.Fatalf("todo -> in_progress: %v", err)
 	}
 	updatedTask, err := store.SetTaskStatus(ctx, orgID, created.ID, "done")
+	if err != nil {
+		t.Fatalf("in_progress -> done: %v", err)
+	}
 	if updatedTask.Status != "done" {
 		t.Errorf("expected status done, got %s", updatedTask.Status)
 	}
